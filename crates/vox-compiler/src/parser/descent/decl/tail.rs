@@ -7,48 +7,6 @@ use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
 
 impl Parser {
-    /// Parse `@table type Name { field: Type }` — brace-delimited field block.
-    pub(crate) fn parse_table(&mut self, is_pub: bool) -> Result<Decl, ()> {
-        let start = self.span();
-        self.advance(); // eat @table
-        self.expect(&Token::TypeKw)?; // eat 'type'
-        let name = self.parse_ident_name()?;
-        self.expect(&Token::LBrace)?;
-        self.skip_newlines();
-        let mut fields = Vec::new();
-        loop {
-            self.skip_newlines();
-            match self.peek().clone() {
-                Token::Ident(_) => {
-                    let fstart = self.span();
-                    let fname = self.parse_ident_name()?;
-                    self.expect(&Token::Colon)?;
-                    let ftype = self.parse_type_expr()?;
-                    fields.push(TableField {
-                        name: fname,
-                        type_ann: ftype,
-                        description: None,
-                        span: fstart.merge(self.span()),
-                    });
-                }
-                _ => break,
-            }
-        }
-        self.eat(&Token::RBrace);
-        Ok(Decl::Table(TableDecl {
-            name,
-            fields,
-            description: None,
-            json_layout: None,
-            auth_provider: None,
-            roles: vec![],
-            cors: None,
-            is_pub,
-            is_deprecated: false,
-            span: start.merge(self.span()),
-        }))
-    }
-
     /// Parse `@index Table.index_name on (col1, col2, ...)`
     pub(crate) fn parse_index(&mut self) -> Result<Decl, ()> {
         let start = self.span();
@@ -77,60 +35,66 @@ impl Parser {
         }))
     }
 
-    /// Parse `@v0 "prompt" fn Name() to Element` or `@v0 from "path" fn Name() to Element`
+    /// Parse `@v0 "chat-id" Name { … }` or `@v0 from "design.png" Name { … }` (v0 island stub body).
+    #[allow(dead_code)]
     pub(crate) fn parse_v0_component(&mut self) -> Result<Decl, ()> {
         let start = self.span();
         self.advance(); // eat @v0
-        // Determine if this is a prompt string or `from "image.png"`
-        let (prompt, image_path) = match self.peek().clone() {
-            Token::StringLit(s) => {
+
+        let (v0_id, image_path) = match self.peek().clone() {
+            Token::Ident(ref w) if w == "from" => {
                 self.advance();
-                (s, None)
-            }
-            Token::Ident(kw) if kw == "from" => {
-                self.advance(); // eat 'from'
-                match self.peek().clone() {
+                let path = match self.peek().clone() {
                     Token::StringLit(s) => {
                         self.advance();
-                        (String::new(), Some(s))
+                        s
                     }
                     _ => {
                         self.errors.push(ParseError::classified(
                             self.span(),
-                            "Expected image path string after 'from'",
-                            vec!["\"path\"".into()],
+                            "Expected image path string after `@v0 from`",
+                            vec!["\"design.png\"".into()],
                             Some(self.peek().to_string()),
                             ParseErrorClass::Declaration,
                         ));
                         return Err(());
                     }
-                }
+                };
+                (String::new(), Some(path))
+            }
+            Token::StringLit(s) => {
+                self.advance();
+                (s, None)
             }
             _ => {
                 self.errors.push(ParseError::classified(
                     self.span(),
-                    "Expected prompt string or 'from' after @v0",
-                    vec!["\"prompt\"".into(), "from".into()],
+                    "Expected v0 chat id string or `from \"path\"` after @v0",
+                    vec!["\"chat-id\"".into(), "from \"file.png\"".into()],
                     Some(self.peek().to_string()),
                     ParseErrorClass::Declaration,
                 ));
                 return Err(());
             }
         };
-        self.expect(&Token::Fn)?;
         let name = self.parse_ident_name()?;
-        self.expect(&Token::LParen)?;
-        self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::To) {
-            Some(self.parse_type_expr()?)
-        } else {
-            None
-        };
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+        let mut props = Vec::new();
+        loop {
+            self.skip_newlines();
+            if matches!(self.peek(), Token::RBrace | Token::Eof) {
+                break;
+            }
+            props.push(self.parse_island_prop_line()?);
+            self.skip_newlines();
+        }
+        self.eat(&Token::RBrace);
         Ok(Decl::V0Component(V0ComponentDecl {
-            prompt,
+            v0_id,
             image_path,
             name,
-            return_type,
+            props,
             span: start.merge(self.span()),
         }))
     }
@@ -140,7 +104,8 @@ impl Parser {
         let start = self.span();
         self.advance(); // component
         let name = self.parse_ident_name()?;
-        let inner = self.finish_reactive_component_after_name(start, name)?;
+        let mut inner = self.finish_reactive_component_after_name(start, name)?;
+        inner.styles = self.parse_style_blocks();
         Ok(Decl::ReactiveComponent(inner))
     }
 
@@ -199,6 +164,140 @@ impl Parser {
             self.parse_expr()
         }
     }
+    /// Optional `with loader: name` / `with pending: Name` / `with (loader: a, pending: b)` on a route line.
+    fn parse_optional_route_with_clause(&mut self) -> Result<(Option<String>, Option<String>), ()> {
+        if !self.eat(&Token::With) {
+            return Ok((None, None));
+        }
+        let mut loader_name = None;
+        let mut pending_component_name = None;
+        if self.eat(&Token::LParen) {
+            if !matches!(self.peek(), Token::RParen) {
+                loop {
+                    let key = self.parse_ident_name()?;
+                    self.expect(&Token::Colon)?;
+                    let _val = self.parse_ident_name()?;
+                    match key.as_str() {
+                        "loader" => loader_name = Some(_val),
+                        "pending" => pending_component_name = Some(_val),
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "In `routes { ... }`, `with (...)` only supports `loader:` and `pending:` keys",
+                                vec!["loader".into(), "pending".into()],
+                                Some(key),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                    if self.eat(&Token::Comma) {
+                        if matches!(self.peek(), Token::RParen) {
+                            break;
+                        }
+                        continue;
+                    }
+                    break;
+                }
+            }
+            self.expect(&Token::RParen)?;
+        } else {
+            let key = self.parse_ident_name()?;
+            self.expect(&Token::Colon)?;
+            let val = self.parse_ident_name()?;
+            match key.as_str() {
+                "loader" => loader_name = Some(val),
+                "pending" => pending_component_name = Some(val),
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "In `routes { ... }`, use `with loader: fnName` or `with pending: Spinner` (or `with (loader: a, pending: b)`)",
+                        vec!["loader".into(), "pending".into()],
+                        Some(key),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            }
+        }
+        Ok((loader_name, pending_component_name))
+    }
+
+    /// Parse child entries until `}` (consumes the closing brace).
+    fn parse_nested_route_entries(&mut self) -> Result<Vec<RouteEntry>, ()> {
+        let mut children = Vec::new();
+        loop {
+            self.skip_newlines();
+            if matches!(self.peek(), Token::RBrace) {
+                self.advance();
+                return Ok(children);
+            }
+            match self.peek().clone() {
+                Token::StringLit(_) => children.push(self.parse_route_entry_from_path_literal()?),
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "In nested route `{ ... }` blocks, each entry must start with a string path (\"...\")",
+                        vec!["\"/child\"".into()],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            }
+        }
+    }
+
+    /// `"path" to Component [with ...] [ { child routes } ]`
+    pub(crate) fn parse_route_entry_from_path_literal(&mut self) -> Result<RouteEntry, ()> {
+        let entry_start = self.span();
+        let path = match self.peek().clone() {
+            Token::StringLit(p) => {
+                self.advance();
+                p
+            }
+            _ => {
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "Expected string literal route path",
+                    vec!["\"/\"".into()],
+                    Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
+                ));
+                return Err(());
+            }
+        };
+        if self.peek() != &Token::To {
+            self.errors.push(ParseError::classified(
+                self.span(),
+                "In `routes { ... }`, each entry must place the keyword `to` between the path string and the component name (for example: `\"/\" to Home`)",
+                vec!["to".into()],
+                Some(self.peek().to_string()),
+                ParseErrorClass::Declaration,
+            ));
+            return Err(());
+        }
+        self.advance();
+        let component_name = self.parse_ident_name()?;
+        let (loader_name, pending_component_name) = self.parse_optional_route_with_clause()?;
+        let children = if matches!(self.peek(), Token::LBrace) {
+            self.advance();
+            self.parse_nested_route_entries()?
+        } else {
+            vec![]
+        };
+        Ok(RouteEntry {
+            path,
+            component_name,
+            children,
+            redirect: None,
+            is_wildcard: false,
+            loader_name,
+            pending_component_name,
+            span: entry_start.merge(self.span()),
+        })
+    }
+
     /// Parse `routes { "path" to ComponentName ... }` declaration.
     ///
     /// Grammar (descent): repeated entries, each `StringLit`, `to`, then component identifier; `K-metric` appendix branch `G04`.
@@ -210,33 +309,30 @@ impl Parser {
         self.expect(&Token::LBrace)?;
         self.skip_newlines();
         let mut entries = Vec::new();
+        let mut not_found_component: Option<String> = None;
+        let mut error_component: Option<String> = None;
         loop {
             self.maybe_parser_trace("routes.entry");
             self.skip_newlines();
             match self.peek().clone() {
-                Token::StringLit(path) => {
-                    let entry_start = self.span();
+                Token::StringLit(_) => {
+                    entries.push(self.parse_route_entry_from_path_literal()?);
+                }
+                Token::Ident(ref key) if key == "not_found" => {
+                    let bind = self.span();
                     self.advance();
-                    if self.peek() != &Token::To {
-                        self.errors.push(ParseError::classified(
-                            self.span(),
-                            "In `routes { ... }`, each entry must place the keyword `to` between the path string and the component name (for example: `\"/\" to Home`)",
-                            vec!["to".into()],
-                            Some(self.peek().to_string()),
-                            ParseErrorClass::Declaration,
-                        ));
-                        return Err(());
-                    }
+                    self.expect(&Token::Colon)?;
+                    let comp = self.parse_ident_name()?;
+                    not_found_component = Some(comp);
+                    let _ = bind.merge(self.span());
+                }
+                Token::Ident(ref key) if key == "error" => {
+                    let bind = self.span();
                     self.advance();
-                    let component_name = self.parse_ident_name()?;
-                    entries.push(RouteEntry {
-                        path,
-                        component_name,
-                        children: vec![],
-                        redirect: None,
-                        is_wildcard: false,
-                        span: entry_start.merge(self.span()),
-                    });
+                    self.expect(&Token::Colon)?;
+                    let comp = self.parse_ident_name()?;
+                    error_component = Some(comp);
+                    let _ = bind.merge(self.span());
                 }
                 _ => break,
             }
@@ -244,6 +340,8 @@ impl Parser {
         self.eat(&Token::RBrace);
         Ok(Decl::Routes(RoutesDecl {
             entries,
+            not_found_component,
+            error_component,
             span: start.merge(self.span()),
         }))
     }

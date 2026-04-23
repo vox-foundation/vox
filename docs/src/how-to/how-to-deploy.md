@@ -1,31 +1,41 @@
 ---
 title: "How-To: Deploy to Production"
-description: "Official documentation for How-To: Deploy to Production for the Vox language. Detailed technical reference, architecture guides, and impl"
+description: "Declarative deployment using the environment keyword and the vox deploy command for OCI-compatible containerization."
 category: "how-to"
-last_updated: 2026-03-24
+last_updated: "2026-04-06"
+status: "current"
 training_eligible: true
+ 
+schema_type: "HowTo"
+keywords: ["deploy Vox app", "Vox production deployment", "Docker Vox", "self-host Vox"]
 ---
 # How-To: Deploy to Production
 
-Learn how to package and deploy your Vox application using declarative environments and the `vox deploy` command.
+Learn how to package and deploy your Vox application using declarative environments, the `vox deploy` command, and Fly.io for zero-configuration deployments.
 
-## 0. Declarative Environment (Optional)
+## The Golden Path: Zero to Production
 
-You can define your deployment environment directly in your `.vox` files using `@environment` blocks. This allows you to specify a base image, system packages, environment variables, exposed ports, and more, similar to a NixOS-like declarative specification.
+Vox's marquee product experience is going from an empty directory to a deployed application in under 10 minutes. 
+
+```bash
+# 1. Generate the TanStack Start and Rust scaffolding
+vox new web my-app
+
+# 2. Change into the directory
+cd my-app
+
+# 3. Deploy instantly (requires flyctl installed and authenticated)
+vox deploy --target fly
+```
+
+This golden path guarantees the fastest iteration cycle for a solo developer building web applications.
+
+## Declarative Environments
+
+You can define your deployment environment directly in your `.vox` files using `environment` blocks. This allows you to specify a base image, system packages, environment variables, exposed ports, and more.
 
 ```vox
-@environment production:
-    base: "node:22-alpine"
-    packages: ["curl", "git", "imagemagick"]
-    env:
-        PORT: "8080"
-        NODE_ENV: "production"
-    expose: [8080, 443]
-    volumes: ["/data"]
-    copy:
-        "nginx.conf" to "/etc/nginx/nginx.conf"
-    run: ["echo 'Building...'"]
-    cmd: ["npx", "tsx", "server.ts"]
+{{#include ../../../examples/golden/ref_orchestrator.vox:orchestrator_config}}
 ```
 
 > [!NOTE]
@@ -36,12 +46,13 @@ You can define your deployment environment directly in your `.vox` files using `
 For applications that run directly on Linux servers without Docker, set `base` to `"bare-metal"` and Vox will generate a systemd `.service` file instead of a Dockerfile:
 
 ```vox
-@environment server:
-    base: "bare-metal"
-    workdir: "/opt/my-app"
-    env:
-        PORT: "8080"
-    cmd: ["./my-app", "--port", "8080"]
+// vox:skip
+environment server {
+    base "bare-metal"
+    workdir "/opt/my-app"
+    env PORT = "8080"
+    cmd ["./my-app", "--port", "8080"]
+}
 ```
 
 Running `vox build` will emit a `server.service` file ready for deployment with `systemctl enable` and `systemctl start`.
@@ -78,6 +89,29 @@ The simplest way to deploy your application is using the `vox deploy` command. T
 ```toml
 # Vox.toml
 [deploy]
+target = "fly"
+
+[deploy.fly]
+app_name = "my-app"
+org = "personal"
+region = "ams"
+```
+
+Then run:
+```bash
+vox deploy --target fly
+```
+
+`vox deploy --target fly` automatically:
+1. Detects your local `flyctl` installation and authentication.
+2. Packages the application using the local Vox compiler and toolchain.
+3. Automatically deploys to Fly.io using your configured application name.
+
+Alternatively, for traditional container-based deployments:
+```toml
+# Vox.toml
+[deploy]
+target = "container"
 image_name = "my-registry.io/my-vox-app"
 registry   = "my-registry.io"
 runtime    = "podman"  # optional: docker or podman (auto-detected if omitted)
@@ -85,12 +119,10 @@ runtime    = "podman"  # optional: docker or podman (auto-detected if omitted)
 
 Then run:
 ```bash
-vox deploy
-# or for a specific environment:
-vox deploy --env staging
+vox deploy --target container
 ```
 
-`vox deploy` automatically:
+`vox deploy --target container` automatically:
 1. Detects your container runtime (Podman preferred, Docker fallback)
 2. Builds the OCI image
 3. Authenticates with your registry using credentials from `vox login`
@@ -119,7 +151,7 @@ Since Vox uses SQLite for the data layer and durability journal, ensure you moun
 ---
 
 **Related Reference**:
-- [vox-fullstack-artifacts.md](../reference/vox-fullstack-artifacts.md) — Rust-first containers vs Express `server.ts`.
-- [Deployment compose SSOT](../reference/deployment-compose.md) — Docker / Compose / Coolify / CI profiles and env SSOT.
+- [Fullstack Artifacts](../reference/ref-syntax.md) — Rust-first containers vs Express `server.ts`.
 - [CLI Reference](../reference/cli.md) — All `vox package` and `vox deploy` options.
-- [Runtime Explanation](../explanation/expl-architecture.md) — Understanding the runtime environment.
+- [Runtime Explanation](../explanation/expl-actors-workflows.md) — Understanding the runtime environment.
+

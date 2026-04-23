@@ -9,13 +9,14 @@
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Write a Vox @test that uses helper fns and assert.
+// @training_prompt: Write a Vox @test that uses helper fns and assert.
+// ANCHOR: display
 fn setup_user() to list[str] {
-    ret ["alice", "bob"]
+    return ["alice", "bob"]
 }
 
 fn mock_db_read() to str {
-    ret "mock_data"
+    return "mock_data"
 }
 
 @test
@@ -25,3 +26,4 @@ fn test_user_count() to Unit {
     let db_val = mock_db_read()
     assert(db_val is "mock_data")
 }
+// ANCHOR_END: display

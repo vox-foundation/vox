@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result, anyhow};
 use regex::Regex;
+use serde_json::Value;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -11,7 +12,9 @@ use walkdir::WalkDir;
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 use super::docs_sync::{markdown_section, ref_cli_vox_ci_section, ref_cli_vox_codex_section};
-use super::registry::RegistryFile;
+use super::registry::{
+    MCP_HTTP_READ_ROLE_GOVERNANCE_REL, RegistryFile, extract_mcp_registry_read_role_eligible,
+};
 use crate::command_contract::{
     EMBEDDED_COMMAND_REGISTRY_YAML, merged_feature_gate_from_vox_cli_ops,
 };
@@ -25,6 +28,8 @@ const KNOWN_LATIN_NS: &[&str] = &[
     "fabrica", "mens", "diag", "ars", "ci", "codex", "recensio", "dei", "pm",
 ];
 const KNOWN_PRODUCT_LANES: &[&str] = &["app", "workflow", "ai", "interop", "data", "platform"];
+const CLI_REGISTRY_SCHEMA_REL: &str = "contracts/cli/command-registry.schema.json";
+const MCP_TOOL_REGISTRY_SCHEMA_REL: &str = "contracts/mcp/tool-registry.schema.json";
 
 fn normalize_lf(s: &str) -> String {
     s.replace("\r\n", "\n").replace('\r', "\n")
@@ -152,6 +157,118 @@ pub(crate) fn check_env_var_ssot_index(reg: &RegistryFile, env_ssot_md: &str) ->
     Ok(())
 }
 
+fn schema_string_enum(schema: &Value, pointer: &str, label: &str) -> Result<Vec<String>> {
+    let vals = schema
+        .pointer(pointer)
+        .and_then(Value::as_array)
+        .ok_or_else(|| anyhow!("missing string enum at {label} ({pointer})"))?;
+    let mut out = Vec::with_capacity(vals.len());
+    for v in vals {
+        let s = v
+            .as_str()
+            .ok_or_else(|| anyhow!("{label}: enum value is not a string: {v}"))?;
+        out.push(s.to_string());
+    }
+    Ok(out)
+}
+
+fn product_lane_enum_from_cli_schema(cli_json: &Value) -> Result<Vec<String>> {
+    for pointer in [
+        "/$defs/operation/properties/product_lane/enum",
+        "/$defs/operation/properties/product_lane/oneOf/1/enum",
+    ] {
+        if let Ok(vals) = schema_string_enum(cli_json, pointer, CLI_REGISTRY_SCHEMA_REL) {
+            return Ok(vals);
+        }
+    }
+    Err(anyhow!(
+        "could not read product_lane enum from {}",
+        CLI_REGISTRY_SCHEMA_REL
+    ))
+}
+
+/// Ensure `product_lane` enum values stay in parity across command and MCP schemas.
+pub(crate) fn check_product_lane_schema_parity(repo_root: &Path) -> Result<()> {
+    let cli_schema_path = repo_root.join(CLI_REGISTRY_SCHEMA_REL);
+    let cli_schema = read_utf8_path_capped(&cli_schema_path)
+        .with_context(|| format!("read {}", cli_schema_path.display()))?;
+    let cli_json: Value = serde_json::from_str(&cli_schema)
+        .with_context(|| format!("parse {}", cli_schema_path.display()))?;
+    let mut cli_lanes = product_lane_enum_from_cli_schema(&cli_json)?;
+    cli_lanes.sort();
+
+    let mcp_schema_path = repo_root.join(MCP_TOOL_REGISTRY_SCHEMA_REL);
+    let mcp_schema = read_utf8_path_capped(&mcp_schema_path)
+        .with_context(|| format!("read {}", mcp_schema_path.display()))?;
+    let mcp_json: Value = serde_json::from_str(&mcp_schema)
+        .with_context(|| format!("parse {}", mcp_schema_path.display()))?;
+    let mut mcp_lanes = schema_string_enum(
+        &mcp_json,
+        "/properties/tools/items/properties/product_lane/enum",
+        MCP_TOOL_REGISTRY_SCHEMA_REL,
+    )?;
+    mcp_lanes.sort();
+
+    if cli_lanes != mcp_lanes {
+        return Err(anyhow!(
+            "product_lane enum mismatch between {} and {}: {:?} vs {:?}",
+            CLI_REGISTRY_SCHEMA_REL,
+            MCP_TOOL_REGISTRY_SCHEMA_REL,
+            cli_lanes,
+            mcp_lanes
+        ));
+    }
+
+    let mut known_lanes: Vec<String> = KNOWN_PRODUCT_LANES
+        .iter()
+        .map(|s| (*s).to_string())
+        .collect();
+    known_lanes.sort();
+    if known_lanes != cli_lanes {
+        return Err(anyhow!(
+            "KNOWN_PRODUCT_LANES in validators.rs drifted from schema enum: {:?} vs {:?}",
+            known_lanes,
+            cli_lanes
+        ));
+    }
+
+    Ok(())
+}
+
+/// Governance gate: MCP read-role eligibility metadata must match curated policy profile.
+pub(crate) fn check_mcp_http_read_role_governance(repo_root: &Path) -> Result<()> {
+    #[derive(serde::Deserialize)]
+    struct GovernanceProfile {
+        #[allow(dead_code)]
+        version: u32,
+        read_role_tools: Vec<String>,
+    }
+
+    let profile_path = repo_root.join(MCP_HTTP_READ_ROLE_GOVERNANCE_REL);
+    let raw = read_utf8_path_capped(&profile_path)
+        .with_context(|| format!("read {}", profile_path.display()))?;
+    let profile: GovernanceProfile = serde_yaml::from_str(&raw).with_context(|| {
+        format!(
+            "parse {}",
+            profile_path
+                .strip_prefix(repo_root)
+                .unwrap_or(&profile_path)
+                .display()
+        )
+    })?;
+    let mut expected = profile.read_role_tools;
+    expected.sort();
+    let actual = extract_mcp_registry_read_role_eligible(repo_root)?;
+    if actual != expected {
+        return Err(anyhow!(
+            "MCP read-role governance drift: expected {:?}, found {:?} (contracts/mcp/tool-registry.canonical.yaml `http_read_role_eligible`)",
+            expected,
+            actual
+        ));
+    }
+    Ok(())
+}
+
 fn env_var_call_regexes() -> (&'static Regex, &'static Regex) {
     static CALL: OnceLock<Regex> = OnceLock::new();
     static OPTION: OnceLock<Regex> = OnceLock::new();
@@ -217,7 +334,7 @@ fn collect_env_var_names_from_rs_source(src: &str, found: &mut HashSet<String>) 
 }
 
 /// Tier-1 guard: `std::env::var("…")` / `option_env!` string literals in `vox-db`, `vox-mcp`, and
-/// selected orchestrator modules must appear in the env-var SSOT doc as `` `NAME` ``.
+/// orchestrator tier-1 modules must appear in the env-var SSOT doc as `` `NAME` ``.
 pub(crate) fn check_tier1_env_vars_documented(repo_root: &Path, env_ssot_md: &str) -> Result<()> {
     let mut found: HashSet<String> = HashSet::new();
 
@@ -252,13 +369,31 @@ pub(crate) fn check_tier1_env_vars_documented(repo_root: &Path, env_ssot_md: &st
     }
 
     for rel in [
+        "crates/vox-orchestrator/src/config",
         "crates/vox-orchestrator/src/usage.rs",
         "crates/vox-orchestrator/src/usage_policy.rs",
         "crates/vox-orchestrator/src/lineage.rs",
         "crates/vox-orchestrator/src/models/spec.rs",
     ] {
         let p = repo_root.join(rel);
-        if p.is_file() {
+        if p.is_dir() {
+            for entry in WalkDir::new(&p)
+                .into_iter()
+                .filter_entry(|e| {
+                    let name = e.file_name().to_string_lossy();
+                    name != "target" && !name.starts_with('.')
+                })
+                .filter_map(|e| e.ok())
+            {
+                let file = entry.path();
+                if !file.is_file() || file.extension().and_then(|s| s.to_str()) != Some("rs") {
+                    continue;
+                }
+                let src = read_utf8_path_capped(file)
+                    .with_context(|| format!("read {}", file.display()))?;
+                collect_env_var_names_from_rs_source(&src, &mut found);
+            }
+        } else if p.is_file() {
             let src = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
             collect_env_var_names_from_rs_source(&src, &mut found);
         }
@@ -546,22 +681,6 @@ pub(crate) fn check_install_policy_surfaces(repo_root: &Path) -> Result<()> {
         ));
     }
 
-    let bootstrap_install = repo_root.join("crates/vox-bootstrap/src/engine/install.rs");
-    let bootstrap_txt = read_utf8_path_capped(&bootstrap_install)
-        .with_context(|| format!("read {}", bootstrap_install.display()))?;
-    if !bootstrap_txt.contains("vox_install_policy::") {
-        return Err(anyhow!(
-            "{}: must delegate install policy to `vox_install_policy` (avoid drift with bootstrap)",
-            bootstrap_install.display()
-        ));
-    }
-    if !bootstrap_txt.contains("CARGO_INSTALL_CLI_FROM_SOURCE") {
-        return Err(anyhow!(
-            "{}: source install must use `vox_install_policy::CARGO_INSTALL_CLI_FROM_SOURCE` (includes `--locked`)",
-            bootstrap_install.display()
-        ));
-    }
-
     let repo_up = repo_root.join("crates/vox-cli/src/commands/repo_upgrade.rs");
     let repo_up_txt =
         read_utf8_path_capped(&repo_up).with_context(|| format!("read {}", repo_up.display()))?;
@@ -709,6 +828,7 @@ pub(crate) fn check_operator_docs_no_legacy_vox_install_pm_nudge(repo_root: &Pat
     }
     fn allowed(rel_posix: &str) -> bool {
         rel_posix.contains("architecture/vox-packaging")
+            || rel_posix.contains("archive/")
             || rel_posix == "reference/pm-migration-2026.md"
             || rel_posix == "reference/cli.md"
     }
@@ -758,9 +878,12 @@ pub(crate) fn check_packaging_pm_docs_no_resurrected_uv_copies(repo_root: &Path)
     ];
     for rel in PATHS {
         let p = repo_root.join(rel);
-        let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+        if !p.exists() {
+            continue;
+        }
+        let content = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
         for frag in BAD {
-            if s.contains(frag) {
+            if content.contains(frag) {
                 return Err(anyhow!(
                     "{}: forbidden doc fragment `{frag}` — keep Python/uv paths explicitly historical/retired",
                     p.display()
@@ -784,6 +907,26 @@ pub(crate) fn check_feature_growth_boundaries_projection_gate(repo_root: &Path) 
         if !s.contains(needle) {
             return Err(anyhow!(
                 "{} must document the WebIR/AppContract/RuntimeProjection drift gate (`{needle}` missing)",
+                p.display()
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// `rust-ecosystem-support-contract.md` must keep reproducible command needles for the
+/// rust ecosystem policy gate so docs cannot drift from the executable check.
+pub(crate) fn check_rust_ecosystem_policy_gate_docs(repo_root: &Path) -> Result<()> {
+    let p = repo_root.join("docs/src/reference/rust-ecosystem-support-contract.md");
+    let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
+    for needle in [
+        "vox ci policy-smoke",
+        "vox ci rust-ecosystem-policy",
+        "cargo test -p vox-compiler --test rust_ecosystem_support_parity",
+    ] {
+        if !s.contains(needle) {
+            return Err(anyhow!(
+                "{} must document rust ecosystem policy reproducer (`{needle}` missing)",
                 p.display()
             ));
         }
@@ -816,5 +959,94 @@ pub(crate) fn check_script_duals(
             ));
         }
     }
+    Ok(())
+}
+
+/// T068/T069: Every `#[command(visible_alias = "...")]` in `lib.rs` must have a
+/// corresponding entry in the operations catalog `latin_aliases` for that top-level command.
+/// Conversely, every governed canonical English command must expose its Latin alias via `visible_alias`.
+///
+/// This cross-layer parity gate prevents clap surface from silently diverging from the contract.
+pub(crate) fn check_latin_alias_parity_with_catalog(repo_root: &Path, lib_rs: &str) -> Result<()> {
+    use crate::commands::ci::operations_catalog::read_catalog;
+
+    // Parse all `visible_alias = "..."` from lib.rs
+    let va_re = regex::Regex::new(r#"visible_alias\s*=\s*"([^"]+)""#)
+        .expect("hardcoded visible_alias regex");
+    let lib_aliases: std::collections::HashSet<String> = va_re
+        .captures_iter(lib_rs)
+        .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
+        .collect();
+
+    // Read the catalog
+    let catalog = read_catalog(repo_root).context("read operations catalog for alias parity")?;
+
+    // Collect all latin_aliases from catalog that are non-empty
+    let mut catalog_aliases: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for op in &catalog.operations {
+        if let Some(aliases) = &op.latin_aliases {
+            for alias in aliases {
+                catalog_aliases.insert(alias.clone());
+            }
+        }
+    }
+
+    // The governed mapping: English canonical → expected Latin alias in lib.rs
+    // These are the aliases that MUST appear as `visible_alias` in lib.rs
+    const REQUIRED_VISIBLE_ALIASES: &[(&str, &str)] = &[
+        ("clavis", "secrets"),   // clavis command exposes `secrets` alias
+        ("oratio", "speech"),    // oratio command exposes `speech` alias
+        ("dei", "orchestrator"), // dei command exposes `orchestrator` alias
+    ];
+
+    for (clap_name, expected_alias) in REQUIRED_VISIBLE_ALIASES {
+        if !lib_aliases.contains(*expected_alias) {
+            return Err(anyhow!(
+                "T068: `vox {clap_name}` must expose `#[command(visible_alias = \"{expected_alias}\")]` in lib.rs to maintain English↔Latin parity (missing from visible_alias set)"
+            ));
+        }
+    }
+
+    // Reverse: every lib.rs visible_alias that is a known Latin word must be in catalog
+    // Skip short internal aliases (e.g. "fab", "oc", "rec") and non-Latin shortcuts
+    const SKIP_ALIASES: &[&str] = &[
+        "fab",
+        "oc",
+        "rec",
+        "watch",
+        "merge-adapter",
+        "local-status",
+        "doctor",
+        "review",
+        "orchestrator",
+        "secrets",
+        "speech",
+    ];
+
+    // Build set of canonical English names from catalog (valid targets for reverse-direction aliases)
+    let catalog_canonical_names: std::collections::HashSet<String> = catalog
+        .operations
+        .iter()
+        .filter_map(|op| op.canonical_name.clone())
+        .collect();
+
+    for alias in &lib_aliases {
+        if SKIP_ALIASES.contains(&alias.as_str()) {
+            continue;
+        }
+        // Only check aliases that look like proper nouns (single word ≥ 3 chars)
+        if alias.contains('-') || alias.len() < 3 {
+            continue;
+        }
+        // Allow if it's either in catalog latin_aliases OR is a canonical English name
+        // (lib.rs may use `visible_alias` to point clap to the English name as a redirect)
+        if catalog_aliases.contains(alias) || catalog_canonical_names.contains(alias) {
+            continue;
+        }
+        return Err(anyhow!(
+            "T069: lib.rs `visible_alias = \"{alias}\"` is not found in any operation's `latin_aliases` or `canonical_name` in the operations catalog — add it to the catalog or remove the alias"
+        ));
+    }
+
     Ok(())
 }

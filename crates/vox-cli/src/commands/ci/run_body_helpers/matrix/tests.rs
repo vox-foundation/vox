@@ -55,13 +55,21 @@ fn mens_gate_manifest_resolution_uses_legacy_fallback() {
 }
 
 #[test]
-fn nested_cargo_target_uses_nested_ci_suffix() {
+fn nested_cargo_target_uses_os_temp_nested_ci() {
     let td = tempfile::tempdir().expect("tempdir");
     let root = td.path();
     let nested = nested_cargo_target_dir(root);
     assert!(
-        nested.ends_with(PathBuf::from("target/nested-ci")),
+        nested.ends_with(PathBuf::from("nested-ci")),
         "unexpected nested target path: {}",
+        nested.display()
+    );
+    let hash_dir = nested.parent().expect("hash segment");
+    let vox_targets = hash_dir.parent().expect("vox-targets");
+    assert_eq!(
+        vox_targets.file_name().and_then(|s| s.to_str()),
+        Some("vox-targets"),
+        "expected …/vox-targets/<hash>/nested-ci, got {}",
         nested.display()
     );
 }

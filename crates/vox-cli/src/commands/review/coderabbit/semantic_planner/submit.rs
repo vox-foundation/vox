@@ -4,6 +4,8 @@ use std::path::Path;
 use std::process::Command;
 
 use anyhow::{Context, Result};
+use vox_db::VoxDb;
+use vox_db::store::types::ExternalReviewRunParams;
 use vox_forge::GitForgeProvider;
 use vox_forge::github::GitHubProvider;
 use vox_git::GitBridge;
@@ -12,6 +14,7 @@ use super::super::run_state as cr_run_state;
 use super::super::{config, github, path_policy};
 use super::collector::{collect_all_files, collect_changed_files};
 use super::manifest::write_semantic_manifest;
+use super::rules::{resolve_semantic_rule_set, unassigned_prefix_histogram};
 use super::types::{SemanticPlanner, SemanticSubmitConfig};
 
 /// Entry point: collect files, plan groups, optionally push baseline + isolated worktree PRs.
@@ -51,10 +54,12 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     );
 
     let vox_cfg = config::load_from_dir(repo);
-    if !vox_cfg.exclude_prefixes.is_empty() {
-        all_files.retain(|f| !path_policy::is_excluded_by_prefixes(f, &vox_cfg.exclude_prefixes));
+    let mut merged_exclude = vox_cfg.exclude_prefixes.clone();
+    merged_exclude.extend(cfg.extra_exclude_prefixes.iter().cloned());
+    if !merged_exclude.is_empty() {
+        all_files.retain(|f| !path_policy::is_excluded_by_prefixes(f, &merged_exclude));
         eprintln!(
-            "[semantic-submit] After Vox.toml exclude_prefixes: {} paths",
+            "[semantic-submit] After merged exclude_prefixes (Vox.toml + CLI): {} paths",
             all_files.len()
         );
     }
@@ -71,11 +76,58 @@ pub async fn run_semantic_submit(repo: &Path, cfg: &SemanticSubmitConfig) -> Res
     res
 }
 
+fn summarize_ignored_reasons(paths: &[String], planner: &SemanticPlanner) -> Vec<(String, usize)> {
+    let mut counts: std::collections::BTreeMap<&'static str, usize> =
+        std::collections::BTreeMap::new();
+    for path in paths {
+        if let Some(reason) = planner.path_ignored_reason(path) {
+            *counts.entry(reason).or_insert(0) += 1;
+        }
+    }
+
+    let mut sorted: Vec<(String, usize)> = counts
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), v))
+        .collect();
+    sorted.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    sorted
+}
+
+fn maybe_write_ignored_paths_json(
+    out: &Path,
+    candidates: &[String],
+    planner: &SemanticPlanner,
+) -> Result<()> {
+    #[derive(serde::Serialize)]
+    struct IgnoredPathRow {
+        path: String,
+        reason: String,
+    }
+    let mut rows: Vec<IgnoredPathRow> = Vec::new();
+    for p in candidates {
+        if let Some(r) = planner.path_ignored_reason(p) {
+            rows.push(IgnoredPathRow {
+                path: p.clone(),
+                reason: r.to_string(),
+            });
+        }
+    }
+    rows.sort_by(|a, b| a.path.cmp(&b.path));
+    let json = serde_json::to_string_pretty(&rows).context("serialize ignored paths")?;
+    std::fs::write(out, json).with_context(|| format!("write {}", out.display()))?;
+    eprintln!(
+        "[semantic-submit] Wrote {} ignored path(s) to {}",
+        rows.len(),
+        out.display()
+    );
+    Ok(())
+}
+
 async fn run_semantic_submit_core(
     repo: &Path,
     cfg: &SemanticSubmitConfig,
     all_files: Vec<String>,
-    _plan_snapshot: Vec<String>,
+    plan_snapshot: Vec<String>,
 ) -> Result<()> {
     // ── 2. Build semantic plan ──────────────────────────────────────────────
     let baseline_branch = if cfg.resume && !cfg.force_chunks {
@@ -116,8 +168,39 @@ async fn run_semantic_submit_core(
             cfg.tier, cfg.max_files_per_pr, max_per
         );
     }
-    let planner = SemanticPlanner::new(max_per);
+    let rule_set = resolve_semantic_rule_set(
+        repo,
+        cfg.groups_config.as_deref(),
+        cfg.semantic_workspace_crates,
+    )
+    .context("load semantic group rules")?;
+    let planner = SemanticPlanner::new(max_per, rule_set, cfg.legacy_chunk_split)
+        .with_allow_markdown_prefixes(cfg.allow_markdown_prefixes.clone());
     let mut sem_manifest = planner.plan(all_files, &baseline_branch);
+    let ignored_reasons = summarize_ignored_reasons(&plan_snapshot, &planner);
+
+    let u_name = planner.unassigned_name();
+    let part_prefix = format!("{u_name}_part");
+    let unassigned_count: usize = sem_manifest
+        .chunks
+        .iter()
+        .filter(|c| c.name == u_name || c.name.starts_with(&part_prefix))
+        .map(|c| c.files.len())
+        .sum();
+    if let Some(max_ratio) = cfg.max_unassigned_ratio {
+        let denom = sem_manifest.coverage.included_files.max(1);
+        let frac = unassigned_count as f64 / denom as f64;
+        if frac > max_ratio {
+            anyhow::bail!(
+                "unassigned ratio {:.2}% exceeds max_unassigned_ratio {:.2}% ({} / {} files). \
+                 Extend `contracts/review/coderabbit-semantic-groups.v1.yaml` or adjust `[review.coderabbit] max_unassigned_ratio`.",
+                frac * 100.0,
+                max_ratio * 100.0,
+                unassigned_count,
+                denom
+            );
+        }
+    }
 
     // Apply group filter if requested
     if let Some(ref filter) = cfg.group_filter {
@@ -145,8 +228,31 @@ async fn run_semantic_submit_core(
         cfg.max_files_per_pr, max_per
     );
     eprintln!("  Baseline     : {}", baseline_branch);
-    eprintln!("  Total files  : {}", sem_manifest.total_files);
+    eprintln!(
+        "  Coverage     : {} candidate, {} included, {} ignored",
+        sem_manifest.coverage.candidate_files,
+        sem_manifest.coverage.included_files,
+        sem_manifest.coverage.ignored_files
+    );
     eprintln!("  Chunks       : {}", sem_manifest.chunks.len());
+    if !ignored_reasons.is_empty() {
+        eprintln!("  Ignore rules :");
+        for (reason, count) in ignored_reasons {
+            eprintln!("    - {reason}: {count}");
+        }
+    }
+    if unassigned_count > 0 {
+        eprintln!(
+            "  Unassigned   : {} file(s) → group `{}` (top path prefixes):",
+            unassigned_count, u_name
+        );
+        for (pfx, n) in unassigned_prefix_histogram(&plan_snapshot, planner.rule_set())
+            .into_iter()
+            .take(10)
+        {
+            eprintln!("    - {pfx}: {n}");
+        }
+    }
     eprintln!("──────────────────────────────────────────────");
     for chunk in &sem_manifest.chunks {
         eprintln!("  {:.<30} {} files", chunk.name, chunk.files.len());
@@ -155,6 +261,12 @@ async fn run_semantic_submit_core(
 
     let manifest_path = write_semantic_manifest(repo, &sem_manifest)?;
     eprintln!("[manifest] Written to: {}", manifest_path.display());
+    if let Some(ref out) = cfg.write_ignored_paths {
+        maybe_write_ignored_paths_json(out, &plan_snapshot, &planner)?;
+    }
+    if let Err(err) = persist_semantic_lineage_run(repo, &baseline_branch, &sem_manifest).await {
+        eprintln!("[semantic-submit] warning: could not persist lineage run to VoxDB: {err}");
+    }
 
     if !cfg.execute {
         eprintln!(
@@ -168,7 +280,7 @@ async fn run_semantic_submit_core(
     let remote_url = bridge.remote_url().context("get remote URL")?;
     let (owner, repo_name) =
         github::parse_github_owner_repo(&remote_url).context("parse owner/repo from remote URL")?;
-    let token = github::github_token()?;
+    let token = github::forge_token()?;
     let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
     let repo_info = provider
         .repo_info(&owner, &repo_name)
@@ -354,5 +466,48 @@ async fn run_semantic_submit_core(
     eprintln!("  vox review coderabbit ingest <pr_number>");
     eprintln!("  vox review coderabbit tasks <pr_number> --format markdown");
 
+    Ok(())
+}
+
+async fn persist_semantic_lineage_run(
+    repo: &Path,
+    baseline_branch: &str,
+    sem_manifest: &super::types::SemanticManifest,
+) -> Result<()> {
+    let bridge = GitBridge::open(repo).context("open git repo for lineage")?;
+    let remote_url = bridge.remote_url().context("get remote URL for lineage")?;
+    let (owner, repo_name) =
+        github::parse_github_owner_repo(&remote_url).context("parse owner/repo for lineage")?;
+    let repository_id = format!("{owner}/{repo_name}");
+    let metadata = serde_json::json!({
+        "baseline_branch": baseline_branch,
+        "generated_at": sem_manifest.generated_at,
+        "total_files": sem_manifest.total_files,
+        "coverage": sem_manifest.coverage,
+        "chunk_count": sem_manifest.chunks.len(),
+        "chunks": sem_manifest.chunks.iter().map(|c| {
+            serde_json::json!({
+                "name": c.name,
+                "file_count": c.files.len(),
+            })
+        }).collect::<Vec<_>>(),
+    })
+    .to_string();
+
+    let db = VoxDb::connect_default().await?;
+    let _ = db
+        .insert_external_review_run(ExternalReviewRunParams {
+            provider: "coderabbit",
+            repository_id: &repository_id,
+            owner: &owner,
+            repo: &repo_name,
+            pr_number: 0,
+            commit_sha: None,
+            trigger_kind: "semantic_submit_plan",
+            idempotency_key: Some(baseline_branch),
+            item_count: sem_manifest.coverage.included_files as i64,
+            metadata_json: Some(&metadata),
+        })
+        .await?;
     Ok(())
 }

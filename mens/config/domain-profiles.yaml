@@ -1,0 +1,104 @@
+# SSOT for all domain-specialized training configurations.
+# Each profile overrides LoraTrainingConfig defaults for its domain.
+# Add new profiles here — no Rust code changes required.
+
+defaults:
+  min_rating: 3
+  ce_last_k: 64
+  validation_split_ratio: 0.05
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  curriculum: true
+  trajectory_weighting: false
+  curriculum_schedule:
+    epoch_1_max_difficulty: 4
+    epoch_2_max_difficulty: 7
+    epoch_3_max_difficulty: 10
+    curriculum_phases: ["warmup", "syntax", "general"]
+  chatml:
+    im_start: "<|im_start|>"
+    im_end: "<|im_end|>"
+    role_system: "system"
+    role_user: "user"
+    role_assistant: "assistant"
+
+profiles:
+  vox-lang:
+    description: "Vox language code generation — syntax, constructs, idioms"
+    # Filter by these category substrings (OR logic)
+    context_filter:
+      categories: [vox_gen, workflow, actor, organic_vox, cli, golden, architectural_qa, function, type, import, island, reactive_component, mutation]
+      difficulty_max: 8
+    mix_config: mens/config/mix-vox-lang.yaml
+    # system_prompt intentionally omitted — resolved from scripts/vox_system_prompt.txt
+    min_rating: 4
+    ce_last_k: 0
+    seq_len: 1024
+    curriculum_schedule:
+      epoch_1_max_difficulty: 3  # start easier for syntax learning
+      epoch_2_max_difficulty: 6
+      epoch_3_max_difficulty: 9
+      curriculum_phases: ["syntax", "reasoning", "agentic"]
+
+  rust-expert:
+    description: "Rust patterns in the Vox workspace + direct dependencies"
+    context_filter:
+      categories: [rust_source, rust_pairs, rust_doc]
+    mix_config: mens/config/mix-rust.yaml
+    system_prompt: scripts/rust_system_prompt.txt
+    min_rating: 3
+    ce_last_k: 64
+    reward_hook: "cargo_build"
+
+  agents:
+    description: "MCP tool-use, multi-turn orchestration, A2A, durable workflows"
+    context_filter:
+      categories: [tool_trace, multi_turn, agent, workflow, a2a, routing_decision]
+      difficulty_min: 5  # agents domain skips easy warmup
+    mix_config: mens/config/mix-agents.yaml
+    system_prompt: scripts/agent_system_prompt.txt
+    min_rating: 4
+    ce_last_k: 64
+    max_grad_norm: 0.5  # tighter clipping for long trajectory stability
+    trajectory_weighting: true
+    trajectory_tool_trace_boost: 1.5
+    curriculum_schedule:
+      epoch_1_max_difficulty: 6
+      epoch_2_max_difficulty: 8
+      epoch_3_max_difficulty: 10
+      curriculum_phases: ["tool_call", "multi_turn", "orchestration"]
+
+  rocks:
+    description: "Rocks database interaction and optimization patterns"
+    context_filter:
+      categories: [rocks_db, rocks_tuning, rocks_bindings]
+    mix_config: mens/config/mix-rocks.yaml
+    min_rating: 4
+    ce_last_k: 64
+
+  research:
+    description: "Epistemically grounded synthesis and knowledge acquisition"
+    context_filter:
+      categories: [socrates, research_synthesis, epistemic_grounding]
+    mix_config: mens/config/mix-research.yaml
+    min_rating: 4
+    ce_last_k: 64
+
+  populi-meta:
+    description: "Self-knowledge about Vox architecture from verified golden sources"
+    context_filter:
+      categories: [vox_architecture, populi_internals]
+    mix_config: mens/config/mix-populi-meta.yaml
+    min_rating: 4
+    ce_last_k: 64
+
+  research-expert:
+    description: "Lane G: Evidence synthesis, multi-hop reasoning, and contradiction resolution"
+    context_filter:
+      categories: [vox_research_expert, multi_hop, retrieve_and_synthesize]
+    mix_config: mens/config/mix-research-expert.yaml
+    min_rating: 4
+    ce_last_k: 128 # larger context window for evidence
+    reward_hook: "research_synthesis_eval" # GRPO+RLVR harness
+    trajectory_weighting: true
+

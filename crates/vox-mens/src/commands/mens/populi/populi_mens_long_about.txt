@@ -1,0 +1,11 @@
+VoxMens (the `vox mens` subsystem) handles native training, inference
+serving, and training data pipelines. See docs/src/reference/mens-training.md.
+
+Quick start:
+
+  vox mens corpus extract .    # extract corpus from vox files
+  vox mens corpus pairs ...    # generate training pairs
+  vox mens train --device cuda # QLoRA + HF tokenizer; SSOT base model when --model omitted
+  vox mens train --device cuda --model <hf/repo>  # explicit base model
+  vox mens pipeline            # Corpus → eval → optional native train
+  vox mens serve --model ...   # HTTP serve (Burn lane)

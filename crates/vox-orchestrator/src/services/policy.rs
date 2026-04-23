@@ -3,11 +3,35 @@
 //! Validates that an agent can acquire required locks and (optionally)
 //! that writes fall within the agent's scope. Call before enqueueing
 //! to fail fast and emit scope violations.
+//!
+//! **LLM premature-completion governance** is anchored at
+//! `contracts/operations/completion-policy.v1.yaml` and enforced in CI via
+//! `vox ci completion-audit` / `completion-gates`; runtime completion attestation
+//! and placeholder heuristics live in [`crate::orchestrator::task_dispatch::complete`].
 
 use crate::events::EventBus;
 use crate::locks::{FileLockManager, LockConflict, LockKind};
 use crate::scope::{ScopeCheckResult, ScopeGuard};
 use crate::types::{AccessKind, AgentId, AgentTask, CompletionAttestation, FileAffinity};
+
+/// Optional relaxation of strict scope using Codex `agent_reliability` (see [`PolicyEngine::check_before_queue`]).
+#[derive(Debug, Clone)]
+pub struct PolicyTrustRelax {
+    /// When set, a strict scope denial may be allowed if [`Self::agent_reliability`] is high enough.
+    pub relax_scope_strict_on_high_reliability: bool,
+    pub agent_reliability: Option<f64>,
+    pub min_reliability: f64,
+}
+
+impl Default for PolicyTrustRelax {
+    fn default() -> Self {
+        Self {
+            relax_scope_strict_on_high_reliability: false,
+            agent_reliability: None,
+            min_reliability: 0.85,
+        }
+    }
+}
 
 /// Result of a policy check before queueing a task.
 #[derive(Debug, Clone)]
@@ -54,9 +78,9 @@ impl PolicyEngine {
         let Some(task) = task else {
             return PolicyCheckResult::Allowed;
         };
-        if !task.write_files().is_empty() {
-            return PolicyCheckResult::Allowed;
-        }
+        let write_manifest: std::collections::HashSet<_> =
+            task.write_files().iter().cloned().collect();
+        let is_write_task = !write_manifest.is_empty();
 
         let Some(att) = attestation else {
             return PolicyCheckResult::ScopeDenied(
@@ -77,11 +101,33 @@ impl PolicyEngine {
             }
             return PolicyCheckResult::Allowed;
         }
-        if !att.declared_non_placeholder {
-            return PolicyCheckResult::ScopeDenied(
-                "Completion policy denied: declared_non_placeholder must be true for no-write tasks"
-                    .to_string(),
-            );
+
+        if is_write_task {
+            let actual_touched: std::collections::HashSet<_> = att
+                .artifact_paths
+                .iter()
+                .map(|p| std::path::PathBuf::from(p))
+                .collect();
+            let mut untouched = Vec::new();
+            for planned in &write_manifest {
+                if !actual_touched.contains(planned.as_path()) {
+                    untouched.push(planned.display().to_string());
+                }
+            }
+            if !untouched.is_empty() {
+                return PolicyCheckResult::ScopeDenied(format!(
+                    "Completion policy denied: {} planned files not in artifact_paths: {:?}. Use force_risky to bypass.",
+                    untouched.len(),
+                    untouched
+                ));
+            }
+        } else {
+            if !att.declared_non_placeholder {
+                return PolicyCheckResult::ScopeDenied(
+                    "Completion policy denied: declared_non_placeholder must be true for no-write tasks"
+                        .to_string(),
+                );
+            }
         }
         let summary_ok = match &att.completion_summary {
             Some(s) => s.trim().len() >= 24 && !Self::has_placeholder_marker(s),
@@ -94,9 +140,15 @@ impl PolicyEngine {
         }
         let has_evidence = !att.artifact_paths.is_empty() || !att.checks_passed.is_empty();
         if !has_evidence {
-            return PolicyCheckResult::ScopeDenied(
-                "Completion policy denied: no-write task requires artifact_paths or checks_passed evidence".to_string(),
-            );
+            let task_type = if is_write_task {
+                "write task"
+            } else {
+                "no-write task"
+            };
+            return PolicyCheckResult::ScopeDenied(format!(
+                "Completion policy denied: {} requires artifact_paths or checks_passed evidence",
+                task_type
+            ));
         }
         PolicyCheckResult::Allowed
     }
@@ -127,6 +179,7 @@ impl PolicyEngine {
         event_bus: &EventBus,
         manifest: &[FileAffinity],
         agent_id: AgentId,
+        trust: PolicyTrustRelax,
     ) -> PolicyCheckResult {
         if let PolicyCheckResult::LockConflict(e) =
             Self::check_locks(lock_manager, manifest, agent_id)
@@ -140,6 +193,21 @@ impl PolicyEngine {
                 }
                 let result = guard.check_write(agent_id, &fa.path, event_bus);
                 if !result.is_allowed() {
+                    if matches!(result, ScopeCheckResult::Denied(_))
+                        && trust.relax_scope_strict_on_high_reliability
+                        && trust
+                            .agent_reliability
+                            .is_some_and(|r| r >= trust.min_reliability)
+                    {
+                        tracing::warn!(
+                            target: "vox_orchestrator::policy",
+                            agent_id = agent_id.0,
+                            reliability = ?trust.agent_reliability,
+                            path = %fa.path.display(),
+                            "trust gate relax: allowing enqueue despite strict scope denial"
+                        );
+                        continue;
+                    }
                     let reason = match &result {
                         ScopeCheckResult::Warned(s) => s.clone(),
                         ScopeCheckResult::Denied(s) => s.clone(),
@@ -168,7 +236,14 @@ mod tests {
         let a1 = AgentId(1);
         let a2 = AgentId(2);
         let _ = lock_manager.try_acquire(&path, a1, LockKind::Exclusive);
-        let r = PolicyEngine::check_before_queue(&lock_manager, None, &event_bus, &manifest, a2);
+        let r = PolicyEngine::check_before_queue(
+            &lock_manager,
+            None,
+            &event_bus,
+            &manifest,
+            a2,
+            PolicyTrustRelax::default(),
+        );
         assert!(!r.is_allowed());
         assert!(matches!(r, PolicyCheckResult::LockConflict(_)));
     }
@@ -181,7 +256,14 @@ mod tests {
         let manifest = vec![FileAffinity::write(&path)];
         let a1 = AgentId(1);
         let _ = lock_manager.try_acquire(&path, a1, LockKind::Exclusive);
-        let r = PolicyEngine::check_before_queue(&lock_manager, None, &event_bus, &manifest, a1);
+        let r = PolicyEngine::check_before_queue(
+            &lock_manager,
+            None,
+            &event_bus,
+            &manifest,
+            a1,
+            PolicyTrustRelax::default(),
+        );
         assert!(r.is_allowed());
     }
 
@@ -200,12 +282,112 @@ mod tests {
                 "Validated documentation output and emitted artifacts.".into(),
             ),
             checks_passed: vec!["schema-verify".into()],
+            evidence_citations: vec![],
             artifact_paths: vec![],
             declared_non_placeholder: true,
             force_risky: false,
             force_risky_reason: None,
+            ..Default::default()
         };
         let r = PolicyEngine::check_completion_before_complete(Some(&task), Some(&att));
         assert!(r.is_allowed());
+    }
+
+    #[test]
+    fn write_completion_requires_all_planned_files_or_force_risky() {
+        use crate::types::FileAffinity;
+        let path = PathBuf::from("src/foo.rs");
+        let manifest = vec![FileAffinity::write(&path)];
+        let task = AgentTask::new(TaskId(3), "write task", TaskPriority::Normal, manifest);
+
+        let att_missing = CompletionAttestation {
+            completion_summary: Some("Wrote code without artifacts.".into()),
+            checks_passed: vec!["cargo check".into()],
+            evidence_citations: vec![],
+            artifact_paths: vec![], // Missing the planned file
+            declared_non_placeholder: true,
+            force_risky: false,
+            force_risky_reason: None,
+            ..Default::default()
+        };
+        let r1 = PolicyEngine::check_completion_before_complete(Some(&task), Some(&att_missing));
+        assert!(!r1.is_allowed());
+
+        let att_present = CompletionAttestation {
+            completion_summary: Some("Wrote code and got artifacts.".into()),
+            checks_passed: vec!["cargo check".into()],
+            evidence_citations: vec![],
+            artifact_paths: vec!["src/foo.rs".into()],
+            declared_non_placeholder: true,
+            force_risky: false,
+            force_risky_reason: None,
+            ..Default::default()
+        };
+        let r2 = PolicyEngine::check_completion_before_complete(Some(&task), Some(&att_present));
+        assert!(r2.is_allowed());
+    }
+
+    #[test]
+    fn check_before_queue_allows_scope_denial_when_reliability_is_high() {
+        use crate::scope::{ScopeEnforcement, ScopeGuard};
+        let lock_manager = FileLockManager::new();
+        let event_bus = EventBus::new(16);
+        let path = PathBuf::from("src/outside.rs");
+        let manifest = vec![FileAffinity::write(&path)];
+        let a1 = AgentId(1);
+
+        let mut guard = ScopeGuard::new(ScopeEnforcement::Strict);
+        // Agent 1 is only allowed in src/inside.rs
+        guard.assign_file(a1, PathBuf::from("src/inside.rs"));
+
+        let trust_high = PolicyTrustRelax {
+            relax_scope_strict_on_high_reliability: true,
+            agent_reliability: Some(0.95),
+            min_reliability: 0.90,
+        };
+
+        let r = PolicyEngine::check_before_queue(
+            &lock_manager,
+            Some(&guard),
+            &event_bus,
+            &manifest,
+            a1,
+            trust_high,
+        );
+
+        assert!(
+            r.is_allowed(),
+            "Should be allowed due to high reliability relaxation"
+        );
+    }
+
+    #[test]
+    fn check_before_queue_denies_scope_denial_when_reliability_is_low() {
+        use crate::scope::{ScopeEnforcement, ScopeGuard};
+        let lock_manager = FileLockManager::new();
+        let event_bus = EventBus::new(16);
+        let path = PathBuf::from("src/outside.rs");
+        let manifest = vec![FileAffinity::write(&path)];
+        let a1 = AgentId(1);
+
+        let mut guard = ScopeGuard::new(ScopeEnforcement::Strict);
+        guard.assign_file(a1, PathBuf::from("src/inside.rs"));
+
+        let trust_low = PolicyTrustRelax {
+            relax_scope_strict_on_high_reliability: true,
+            agent_reliability: Some(0.85), // Lower than 0.90
+            min_reliability: 0.90,
+        };
+
+        let r = PolicyEngine::check_before_queue(
+            &lock_manager,
+            Some(&guard),
+            &event_bus,
+            &manifest,
+            a1,
+            trust_low,
+        );
+
+        assert!(!r.is_allowed(), "Should be denied due to low reliability");
     }
 }

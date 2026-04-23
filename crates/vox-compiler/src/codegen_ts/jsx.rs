@@ -205,6 +205,7 @@ pub fn emit_expr(expr: &Expr) -> String {
         Expr::FloatLit { value, .. } => value.to_string(),
         Expr::StringLit { value, .. } => format!("\"{value}\""),
         Expr::BoolLit { value, .. } => value.to_string(),
+        Expr::DecimalLit { value, .. } => format!("\"{value}\""),
         Expr::Ident { name, .. } => name.clone(),
         Expr::ObjectLit { fields, .. } => {
             let pairs: Vec<String> = fields
@@ -239,6 +240,7 @@ pub fn emit_expr(expr: &Expr) -> String {
                 BinOp::Or => "||",
                 BinOp::Is => "===",
                 BinOp::Isnt => "!==",
+                BinOp::Mod => "%",
                 BinOp::Pipe => "|>", // handled separately in practice
             };
             if matches!(op, BinOp::Pipe) {
@@ -405,6 +407,12 @@ pub fn emit_expr(expr: &Expr) -> String {
             lines.join("")
         }
         Expr::With { operand, .. } => emit_expr(operand),
+        Expr::Try { target, .. } => {
+            let inner = emit_expr(target);
+            format!(
+                "(() => {{ const _v = {inner}; if (_v._tag === \"Ok\") return _v.value; throw _v; }})()"
+            )
+        }
     }
 }
 
@@ -438,6 +446,19 @@ pub fn emit_stmt(stmt: &Stmt, indent: usize) -> String {
         Stmt::Expr { expr, .. } => {
             format!("{pad}{};\n", emit_expr(expr))
         }
+        Stmt::While {
+            condition, body, ..
+        } => {
+            let cond = emit_expr(condition);
+            let body_str: Vec<String> = body.iter().map(|s| emit_stmt(s, indent + 1)).collect();
+            format!("{pad}while ({cond}) {{\n{}{pad}}}\n", body_str.join(""))
+        }
+        Stmt::Loop { body, .. } => {
+            let body_str: Vec<String> = body.iter().map(|s| emit_stmt(s, indent + 1)).collect();
+            format!("{pad}while (true) {{\n{}{pad}}}\n", body_str.join(""))
+        }
+        Stmt::Break { .. } => format!("{pad}break;\n"),
+        Stmt::Continue { .. } => format!("{pad}continue;\n"),
     }
 }
 

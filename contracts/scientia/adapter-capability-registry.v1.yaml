@@ -1,0 +1,51 @@
+x-vox-version: 1
+version: v1
+adapters:
+  crossref:
+    target: doi_registry
+    supports:
+      - metadata_validate
+      - payload_preview
+      - deposit_prepare
+    unsupported:
+      - automated_live_deposit
+  datacite:
+    target: doi_registry
+    supports:
+      - metadata_validate
+      - payload_preview
+      - deposit_prepare
+    unsupported:
+      - automated_live_deposit
+  zenodo:
+    target: repository_archive
+    supports:
+      - metadata_validate
+      - payload_preview
+      - metadata_export
+    unsupported:
+      - guaranteed_live_submission
+  arxiv_handoff:
+    target: preprint_archive
+    supports:
+      - handoff_export
+      - package_validate
+      - payload_preview
+    unsupported:
+      - direct_submit
+  openreview:
+    target: venue_platform
+    supports:
+      - payload_validate
+      - payload_preview
+      - submission_prepare
+    unsupported:
+      - universal_venue_permissions
+  social:
+    target: syndication
+    supports:
+      - payload_validate
+      - payload_preview
+      - retry_classification
+    unsupported:
+      - non_policy_compliant_autopost

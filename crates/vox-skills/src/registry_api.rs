@@ -37,7 +37,7 @@ impl SkillsRegistryClient {
     pub fn with_base(base_url: impl Into<String>) -> Self {
         Self {
             base_url: base_url.into(),
-            client: reqwest::Client::new(),
+            client: vox_reqwest_defaults::client(),
             api_key: None,
         }
     }

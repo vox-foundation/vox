@@ -31,29 +31,27 @@ fn reorder_db_select_cols(field_names: &[String], cols: &mut Vec<String>) {
 }
 
 fn normalize_select_at_expr(expr: &mut HirExpr, field_order: &HashMap<String, Vec<String>>) {
-    match expr {
-        HirExpr::DbTableOp {
-            table,
-            select_cols,
-            args,
-            limit,
-            plan,
-            ..
-        } => {
-            if let Some(cols) = select_cols
-                && let Some(order) = field_order.get(table)
-            {
-                reorder_db_select_cols(order, cols);
-            }
-            if let Some(p) = plan
-                && let Some(cols) = p.projection.as_mut()
-                && let Some(order) = field_order.get(table)
-            {
-                reorder_db_select_cols(order, cols);
-            }
-            let _ = args;
-            let _ = limit;
+    if let HirExpr::DbTableOp {
+        table,
+        select_cols,
+        args,
+        limit,
+        plan,
+        ..
+    } = expr
+    {
+        if let Some(cols) = select_cols
+            && let Some(order) = field_order.get(table)
+        {
+            reorder_db_select_cols(order, cols);
         }
-        _ => {}
+        if let Some(p) = plan
+            && let Some(cols) = p.projection.as_mut()
+            && let Some(order) = field_order.get(table)
+        {
+            reorder_db_select_cols(order, cols);
+        }
+        let _ = args;
+        let _ = limit;
     }
 }

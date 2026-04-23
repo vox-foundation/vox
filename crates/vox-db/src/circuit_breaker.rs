@@ -79,12 +79,7 @@ impl DbCircuitBreaker {
     /// Returns `true` when `VOX_DB_CIRCUIT_BREAKER=1` (or `true`).
     #[must_use]
     pub fn enabled_from_env() -> bool {
-        std::env::var("VOX_DB_CIRCUIT_BREAKER")
-            .map(|v| {
-                let v = v.trim().to_ascii_lowercase();
-                v == "1" || v == "true"
-            })
-            .unwrap_or(false)
+        vox_config::db_circuit_breaker_env_enabled()
     }
 
     /// Create with explicit settings.

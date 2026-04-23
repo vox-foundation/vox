@@ -1,48 +1,67 @@
 ---
 title: "Explanation: Security Model"
-description: "Official documentation for Explanation: Security Model for the Vox language. Detailed technical reference, architecture guides, and imple"
+description: "Understand the security constructs, permissions, and sandbox boundaries in the Vox ecosystem."
 category: "explanation"
-last_updated: 2026-03-24
+status: "current"
+last_updated: "2026-04-06"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
+
 # Explanation: Security Model
 
-Understand how Vox provides a secure-by-default environment for running AI-generated code and business-critical logic.
+Vox brings security out of middleware and directly into the language syntax. By enforcing permissions at compile-time and strictly managing secrets from the environment, the language reduces the attack surface for both human-written and AI-authored code.
 
-## 1. Actor Sandboxing
+## 1. Clavis for Secret Management
 
-Every actor in Vox runs in its own isolated memory space.
-- **No Shared State**: Actors cannot access the memory of other actors directly.
-- **Resource Limits**: The scheduler enforces CPU and memory limits per-actor to prevent Denial-of-Service (DoS) attacks from buggy or malicious code.
+Vox completely rejects decentralized environment variable reading throughout the codebase. You cannot use `std.env.get("STRIPE_KEY")` deep inside business logic.
 
-## 2. Permission-Based Decorators
+Instead, all secrets must be declared and managed through **Clavis**, Vox's centralized secret manager.
 
-Access to sensitive system resources is controlled by decorators.
-- **`@server`**: Explicitly markers functions as entry points from the web.
-- **`@query`/`@mutation`**: Granular control over database read/write access.
-- **`@mcp.tool`**: Controls which internal logic is exposed to external AI agents.
+To verify a project's secret posture, you run:
+```bash
+vox clavis doctor
+```
+This utility checks the system environment against the `SecretSpec` definition to ensure every required API key, database token, and provider credential is comprehensively mapped and secure, guaranteeing no missing configurations at deploy time.
 
-## 3. Data Safety & Type Unification
+## 2. The `@require` Precondition
 
-Vox's type system prevents many common security vulnerabilities:
-- **No Null Pointers**: The use of `Option[T]` and `Result[T, E]` eliminates null-pointer dereferences (the "billion-dollar mistake").
-- **Injection Prevention**: Database queries generated from `@table` are automatically parameterized, preventing SQL injection.
-- **XSS Protection**: The `@component` compiler automatically escapes dynamic content in JSX.
+Input validation is not an afterthought; it is a structural precondition. The `@require` decorator evaluates expressions before the function or type instantiation occurs.
 
-## 4. Secure Communication
+```vox
+// vox:skip
+@mcp.tool "Delete user data"
+@require(auth.is_admin(caller))
+@mutation fn delete_data(id: Id[User]) -> Result[Unit] {
+    db.User.delete(id)
+    return Ok(())
+}
+```
 
-- **Encrypted RPC**: All communication between the frontend and backend is encrypted (HTTPS/WSS) by default in production.
-- **Signed Journaling**: In high-security environments, the durable execution journal can be signed to prevent tampering.
+If an LLM or user invokes a function that violates a `@require` check, the runtime traps the execution at the capability boundary and immediately returns an error. The unauthorized logic never executes.
 
-## 5. Summary
+## 3. Capability-Gated Execution 
 
-The Vox security model focuses on:
-- **Defense in Depth**: Multiple layers of protection (Type System -> Actor Sandbox -> Decorator Permissions).
-- **Secure by Default**: Safe patterns are the easiest to write.
-- **AI-Safety**: Built-in gates to prevent AI agents from performing unauthorized destructive operations.
+Many operations in Vox execute within a **Capability-Gated System**. A function annotated with the aspirational `@task` or invoked by an LLM via the DEI orchestrator cannot just read arbitrary files or open random sockets. 
+
+Capabilities (network, filesystem, state mutation) are granted down the call graph. If a network call uses the default `std.http.post`, it runs against the global outbound HTTP policies.
+
+## 4. WASI/Sandbox Execution Boundaries
+
+Vox code is sandboxed by default in its compiled representation.
+- **Isolates over Threads**: Rather than exposing raw OS thread primitives, Vox utilizes an actor model compiled down to Tokio `mpsc` channels or isolated WASM/WASI modules (depending on the target). 
+- **No Shared State**: Execution memory is walled off. Malicious code attempting to manipulate memory pointers is thwarted by the target compiler (Rust) rejecting the unsafe actions.
+
+## 5. Type and Memory Safety
+
+The core type system intrinsically blocks entire classes of errors:
+- **No Nulls**: The compiler's absolute enforcement of `Option[T]` and explicit `Result[T, E]` exhaustiveness eliminates unhandled crashes.
+- **SQL Injection Prevention**: All `db.*` accessors use strictly verified parameterized queries generated directly by the compiler.
+- **XSS Protection**: React Islands hydrate with standard cross-site scripting encodings intact, avoiding raw HTML injection from LLM output.
 
 ---
 
-**Related Reference**:
-- [Runtime Explanation](expl-runtime.md) — How the scheduler handles actor isolation.
-- [How-To: Handle Errors](../how-to/how-to-error-handling.md) — Robust error management for security.
+**Related Topics**:
+- [Reference: Decorators](../reference/ref-decorators.md)
+- [Explanation: The Runtime](expl-runtime.md)

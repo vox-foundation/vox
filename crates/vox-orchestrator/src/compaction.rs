@@ -178,12 +178,9 @@ impl CompactionEngine {
         &self.config
     }
 
-    /// Naive token estimator: 1 token ≈ 4 characters (GPT-style average).
-    ///
-    /// Replace with tiktoken / sentencepiece for accuracy;
-    /// this is intentionally dependency-free for now.
+    /// tiktoken-compatible BPE token estimator.
     pub fn estimate_tokens(text: &str) -> usize {
-        (text.len() / 4).max(1)
+        crate::context::token_optimization::count_tokens(text)
     }
 
     /// Returns `true` if current token usage warrants compaction.

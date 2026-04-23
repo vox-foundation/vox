@@ -1,0 +1,63 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-04-19T13:45:00Z",
+  "keywords": [
+    {
+      "name": "fn",
+      "example": "fn add(a: int, b: int) -> int { a + b }"
+    },
+    {
+      "name": "let",
+      "example": "let x = 10"
+    },
+    {
+      "name": "match",
+      "example": "match x { 10 => print(\"ten\"), _ => print(\"other\") }"
+    },
+
+    {
+      "name": "return",
+      "example": "return x"
+    }
+  ],
+  "decorators": [
+    {
+      "name": "@server",
+      "example": "@server fn save_user(name: str) { ... }"
+    },
+    {
+      "name": "@island",
+      "example": "@island fn Navigation() { ... }"
+    },
+    {
+      "name": "@table",
+      "example": "@table struct User { id: int, name: str }"
+    },
+    {
+      "name": "@query",
+      "example": "@query fn get_users() -> Vec<User> { ... }"
+    },
+    {
+      "name": "@mutation",
+      "example": "@mutation fn update_user(id: int, name: str) { ... }"
+    },
+    {
+      "name": "@tool",
+      "example": "@tool(\"web_search\") fn search(q: str) -> str { ... }"
+    }
+  ],
+  "builtins": [
+    {
+      "name": "print",
+      "example": "print(\"Hello Vox\")"
+    },
+    {
+      "name": "len",
+      "example": "let l = len(my_list)"
+    },
+    {
+      "name": "now",
+      "example": "let t = now()"
+    }
+  ]
+}

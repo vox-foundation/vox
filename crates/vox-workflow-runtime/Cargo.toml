@@ -11,6 +11,7 @@ mens = ["dep:vox-populi", "vox-populi/transport"]
 
 [dependencies]
 anyhow = { workspace = true }
+base64 = "0.22"
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
@@ -18,9 +19,11 @@ tracing = { workspace = true }
 vox-compiler = { workspace = true }
 vox-db = { workspace = true }
 vox-populi = { workspace = true, optional = true }
+workspace-hack = { workspace = true }
 
 [dev-dependencies]
 vox-compiler = { workspace = true }
+jsonschema = { workspace = true, default-features = false, features = ["resolve-file"] }
 
 [lints]
 workspace = true

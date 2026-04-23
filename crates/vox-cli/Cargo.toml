@@ -2,9 +2,20 @@
 name = "vox-cli"
 version.workspace = true
 edition.workspace = true
+authors.workspace = true
 description = "Vox command-line interface: compile, run, bundle, and workspace diagnostics."
 # `cargo run -p vox-cli` without `--bin` (binaries: `vox`, `vox-compilerd`, `vox-mens` when `mens-base`).
 default-run = "vox"
+
+[package.metadata.wix]
+upgrade-guid = "81F3E1E5-8B6D-484F-B19F-8CA168016428"
+path-guid = "5B1C6196-857D-409A-8758-BD4CE99BE7BB"
+license = false
+
+[package.metadata.deb]
+maintainer = "Vox Foundation <contact@vox-foundation.org>"
+copyright = "2026, Vox Foundation"
+depends = "$auto"
 
 [[bin]]
 name = "vox"
@@ -14,39 +25,21 @@ path = "src/main.rs"
 name = "vox-compilerd"
 path = "src/bin/vox-compilerd.rs"
 
-# Thin entrypoint: `vox-mens …` ≡ `vox mens …` (inserts the `mens` subcommand).
-[[bin]]
-name = "vox-mens"
-path = "src/bin/vox-mens.rs"
-required-features = ["mens-base"]
+
 
 [features]
-default = ["mens-base"]
+default = []
 # Corpus paths, `train-uv`, plan (daemon), status, eval-gate, bench-completion, system-prompt-template.
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
-mens-base = []
+# Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
+# Native MCP server runtime previously in vox-mcp binary
+mcp-server = ["vox-orchestrator/mcp-native", "dep:axum"]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
-# Speech-to-text (`vox oratio`, `vox speech`); pulls heavy `vox-oratio` / Candle deps.
-oratio = ["mens-base", "dep:vox-oratio"]
-# Native Burn LoRA training + HF metadata (`vox mens train`, probe, merge-weights, eval-local).
-gpu = [
-    "mens-base",
-    "dep:vox-populi",
-    "vox-populi/mens",
-    "vox-populi/mens-train",
-    "vox-populi/mens-hf-hub",
-    "dep:vox-tensor",
-    "vox-tensor/train",
-]
-# Back-compat alias: `gpu` already enables Candle QLoRA (native `--backend qlora`).
-mens-qlora = ["gpu"]
-# Candle qlora on NVIDIA CUDA (requires CUDA toolkit when compiling `candle-core`).
-mens-candle-cuda = ["gpu", "vox-populi/mens-candle-qlora-cuda"]
-# Candle qlora on Apple Metal (macOS only).
 
-# Cloud GPU training/serving dispatch (Vast.ai, RunPod).
-cloud = ["gpu", "vox-populi/mens-cloud"]
+
+
+
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
 script-execution = [
     "dep:dirs",
@@ -55,36 +48,41 @@ script-execution = [
     "dep:wasmtime-wasi",
     "dep:landlock",
     "dep:win32job",
+    "vox-build-meta/script-execution",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
-execution-api = ["script-execution", "gpu", "dep:axum", "dep:tokio-stream"]
+execution-api = ["script-execution", "dep:axum", "dep:tokio-stream", "vox-build-meta/execution-api"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
     "dep:vox-toestub",
     "dep:dirs",
     "dep:vox-ludus",
+    "vox-build-meta/stub-check",
 ]
-# No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to excluded `vox-dei`.
+# Merge `vox-toestub` victory-claim / premature-done heuristics into `vox ci completion-audit` (CI enables this).
+completion-toestub = ["dep:vox-toestub"]
+# No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to `vox-dei` (still do not add `vox-dei` as a dependency; see `vox ci no-vox-dei-import`).
 # Dashboard UX is the VS Code extension (see `docs/src/reference/cli.md`).
-dashboard = []
-# Pulls `vox-ars` + `vox-skills` for OpenClaw / skill registry (`openclaw`, ARS extras).
-ars = ["dep:vox-ars", "dep:vox-skills"]
+dashboard = ["dep:vox-dashboard"]
+# OpenClaw / skill registry (`openclaw`); `vox-skills` carries the ARS shim.
+ars = ["dep:vox-skills"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-ludus` (uses `vox-db`).
 extras-ludus = ["dep:vox-ludus", "dep:vox-toestub"]
 # Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
-ludus-hud = ["extras-ludus", "dep:vox-orchestrator"]
+ludus-hud = ["extras-ludus"]
 # Terminal live event dashboard: `vox live` + `commands::live` (in-process `vox-orchestrator` demo bus).
-live = ["dep:vox-orchestrator"]
+live = []
 # Manage the DEI (Distributed Execution Intelligence) orchestrator.
-dei = ["dep:vox-orchestrator"]
+dei = []
+# DEI training and AI operations (mens).
+mens-dei = ["dei", "database"]
+# Interpreted workflow journal + activities.
+workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime"]
 # BYOK / config slices in `mens status`, extended `vox doctor`, scope checks (`vox_eval`).
 codex = [
     "dep:dirs",
-    "dep:vox-eval",
 ]
-# Extended DeI surfaces: generate, review, workflow, check, fix (`vox mens …`).
-# Pulls `vox-tensor` for the legacy in-process dogfood trainer (`crate::training::native`).
-mens-dei = ["dep:vox-tensor", "vox-tensor/train"]
+
 # GitHub CodeRabbit batch PRs (`vox review coderabbit …`).
 coderabbit = [
     "dep:vox-forge",
@@ -93,12 +91,20 @@ coderabbit = [
     "dep:vox-toestub",
 ]
 # v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
-island = ["dep:comfy-table", "dep:dirs"]
-# Local populi registry + `vox populi status|serve` (`vox-populi` / optional HTTP control plane).
-populi = ["dep:vox-populi", "vox-populi/transport"]
-# Interpreted `vox mens workflow run` (journal + mens activities); implies mens hooks.
-workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime", "vox-workflow-runtime/mens"]
+island = ["dep:dirs"]
+
 # Stub for non-functional inference server when refactoring or debugging.
+# Enables all social platform adapters for publication and diagnostics.
+scientia-social = [
+    "vox-publisher/scientia-reddit",
+    "vox-publisher/scientia-twitter",
+    "vox-publisher/scientia-linkedin",
+    "vox-publisher/scientia-mastodon",
+    "vox-publisher/scientia-bluesky",
+    "vox-publisher/scientia-discord",
+    "vox-publisher/scientia-opencollective",
+    "vox-publisher/live-api-canary"
+]
 broken_inference_stub = []
 
 [dependencies]
@@ -111,53 +117,76 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 reqwest = { workspace = true, features = ["multipart"] }
+vox-reqwest-defaults = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 sha2 = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["io-std"] }
+vox-cli-core = { workspace = true }
 base64 = { workspace = true }
+futures = { workspace = true }
 vox-pm = { workspace = true }
-vox-ars = { workspace = true, optional = true }
+vox-container = { workspace = true }
 vox-skills = { workspace = true, optional = true }
 vox-ludus = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-clavis = { workspace = true }
-vox-db = { path = "../vox-db" }
-vox-publisher = { path = "../vox-publisher", features = ["scientia-reddit", "scientia-youtube", "scholarly-external-jobs"] }
-vox-doc-inventory = { path = "../vox-doc-inventory" }
+vox-db = { workspace = true }
+vox-search = { workspace = true }
+vox-scientia-ingest = { workspace = true }
+# Scholarly / DB-backed jobs only; Reddit/YouTube adapter code stays out of default CLI compile.
+vox-publisher = { workspace = true, default-features = false, features = ["scholarly-external-jobs"] }
+vox-doc-inventory = { workspace = true }
 vox-toestub = { workspace = true, optional = true }
 toml = { workspace = true }
-vox-orchestrator = { workspace = true, optional = true }
-vox-populi = { workspace = true, optional = true }
+vox-build-meta = { workspace = true }
+vox-doc-pipeline = { path = "../vox-doc-pipeline" }
+vox-orchestrator = { workspace = true }
+vox-populi = { workspace = true, features = ["transport"] }
+vox-mesh-types = { workspace = true }
 vox-workflow-runtime = { workspace = true, optional = true }
+vox-dashboard = { workspace = true, optional = true }
+
 vox-repository = { workspace = true }
+vox-project-scaffold = { workspace = true }
 vox-checksum-manifest = { workspace = true }
 vox-install-policy = { workspace = true }
 turso = { workspace = true }
 owo-colors = { workspace = true }
-comfy-table = { workspace = true, optional = true }
+comfy-table = { workspace = true }
 chrono = { workspace = true }
 regex = { workspace = true }
 glob = { workspace = true }
-vox-corpus = { workspace = true }
-vox-tensor = { workspace = true, optional = true }
+# `external_review_replay::extract_external_review_rows` is behind `database`; CLI `corpus review-export` needs it.
+vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
+
 vox-runtime = { workspace = true }
 vox-primitives = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-bounded-fs = { workspace = true, features = ["async"] }
 vox-jsonschema-util = { workspace = true }
 vox-protocol = { workspace = true }
-vox-oratio = { workspace = true, optional = true }
-uuid = { version = "1", features = ["v4"] }
+vox-constrained-gen = { workspace = true }
+rand = { workspace = true }
+
+uuid = { version = "1.22.0", features = ["v4"] }
+vox-spool = { path = "../vox-spool" }
+vox-mcp-registry = { path = "../vox-mcp-registry" }
+vox-capability-registry = { path = "../vox-capability-registry" }
+rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
+axum = { version = "0.8", optional = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
+governor = { workspace = true }
+vox-grammar-export = { workspace = true }
+vox-browser = { workspace = true }
+axum-extra = { version = "0.12.5", features = ["typed-header"] }
 notify = "7"
-axum = { version = "0.8", optional = true }
 tokio-stream = { version = "0.1", optional = true }
 dirs = { version = "6", optional = true }
 walkdir = "2"
 sysinfo = { workspace = true }
-vox-eval = { workspace = true, optional = true }
-vox-forge = { workspace = true, optional = true, features = ["github"] }
+vox-eval = { workspace = true }
+vox-forge = { workspace = true, optional = true, features = ["github", "gitlab"] }
 vox-git = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
 xxhash-rust = { workspace = true, optional = true }
@@ -176,6 +205,11 @@ self_update = { version = "0.43.1", default-features = false, features = [
     "compression-zip-deflate",
 ] }
 semver = "1"
+keyring.workspace = true
+workspace-hack = { workspace = true }
+vox-identity.workspace = true
+vox-crypto.workspace = true
+hex = "0.4.3"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 landlock = { version = "0.4.4", optional = true }
@@ -193,8 +227,9 @@ windows-sys = { version = "0.59", features = ["Win32_System_Threading"] }
 safetensors = { workspace = true }
 serial_test = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true }
-vox-db = { path = "../vox-db" }
+tokio = { workspace = true, features = ["io-std", "macros", "rt-multi-thread"] }
+wiremock = { workspace = true }
+vox-db = { workspace = true }
 vox-orchestrator = { workspace = true }
 
 [[test]]
@@ -211,6 +246,11 @@ required-features = ["script-execution"]
 name = "workflow_populi_golden"
 path = "tests/workflow_populi_golden.rs"
 required-features = ["workflow-runtime"]
+
+[[test]]
+name = "workflow_cli_durability_ux"
+path = "tests/workflow_cli_durability_ux.rs"
+required-features = ["mens-dei"]
 
 [lints]
 workspace = true

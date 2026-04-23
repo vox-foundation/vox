@@ -47,9 +47,18 @@ async fn full_stack_minimal_build_writes_app_tsx_and_api() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out = tmp.path().join("out");
     let _validate = EnvGuard::set("VOX_WEBIR_VALIDATE", "1");
-    build::run(&vox_file, &out).await.expect("build");
+    build::run(
+        &vox_file,
+        &out,
+        None,
+        false,
+        false,
+        vox_cli::cli_args::BuildMode::App,
+    )
+    .await
+    .expect("build");
 
-    assert!(out.join("App.tsx").is_file());
+    assert!(out.join("routes.manifest.ts").is_file());
     assert!(out.join("Home.tsx").is_file());
     assert!(out.join("api.ts").is_file());
 }
@@ -156,7 +165,16 @@ async fn full_stack_build_fails_web_ir_validate_on_duplicate_client_routes() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out = tmp.path().join("out");
     let _validate = EnvGuard::set("VOX_WEBIR_VALIDATE", "1");
-    let err = match build::run(&vox_file, &out).await {
+    let err = match build::run(
+        &vox_file,
+        &out,
+        None,
+        false,
+        false,
+        vox_cli::cli_args::BuildMode::App,
+    )
+    .await
+    {
         Ok(()) => panic!("expected WebIR validate gate failure for duplicate route contracts"),
         Err(e) => e,
     };
@@ -193,9 +211,16 @@ routes {
     std::fs::write(&vox_path, SRC).expect("write parity.vox");
     let out = tmp.path().join("out");
     let _validate = EnvGuard::set("VOX_WEBIR_VALIDATE", "1");
-    build::run(&vox_path, &out)
-        .await
-        .expect("OP-S048 build must succeed");
+    build::run(
+        &vox_path,
+        &out,
+        None,
+        false,
+        false,
+        vox_cli::cli_args::BuildMode::App,
+    )
+    .await
+    .expect("OP-S048 build must succeed");
     let ts_path = out.join("ParityPage.tsx");
     assert!(ts_path.is_file(), "missing {}", ts_path.display());
     let ts = std::fs::read_to_string(&ts_path).expect("read ParityPage.tsx");
@@ -233,7 +258,16 @@ async fn op_s094_s095_s096_artifact_gate_minimal_build_outputs() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out = tmp.path().join("out");
     let _validate = EnvGuard::set("VOX_WEBIR_VALIDATE", "1");
-    build::run(&vox_file, &out).await.expect("build");
+    build::run(
+        &vox_file,
+        &out,
+        None,
+        false,
+        false,
+        vox_cli::cli_args::BuildMode::App,
+    )
+    .await
+    .expect("build");
     assert!(out.join("api.ts").is_file());
     assert!(templates::islands_island_mount_tsx().contains("propsFromElement"));
 }
@@ -261,7 +295,16 @@ async fn op_s202_s203_s204_runtime_build_gate_c() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let out = tmp.path().join("out");
     let _validate = EnvGuard::set("VOX_WEBIR_VALIDATE", "1");
-    build::run(&vox_file, &out).await.expect("build");
+    build::run(
+        &vox_file,
+        &out,
+        None,
+        false,
+        false,
+        vox_cli::cli_args::BuildMode::App,
+    )
+    .await
+    .expect("build");
     assert!(out.join("api.ts").is_file());
 }
 
@@ -291,9 +334,16 @@ routes {
     std::fs::write(&vox_path, SRC).expect("write parity.vox");
     let out = tmp.path().join("out");
     let _validate = EnvGuard::set("VOX_WEBIR_VALIDATE", "1");
-    build::run(&vox_path, &out)
-        .await
-        .expect("OP-S217 build must succeed");
+    build::run(
+        &vox_path,
+        &out,
+        None,
+        false,
+        false,
+        vox_cli::cli_args::BuildMode::App,
+    )
+    .await
+    .expect("OP-S217 build must succeed");
     let ts = std::fs::read_to_string(out.join("ParityPage.tsx")).expect("read");
     assert!(ts.contains("data-vox-island=\"ParityP\""));
 }

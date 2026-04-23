@@ -8,7 +8,7 @@ use std::path::PathBuf;
 pub enum CodexCmd {
     /// Print schema version and whether Codex reactivity (V8) tables exist
     Verify,
-    /// Export configured legacy tables as JSONL (see `vox_db::codex_legacy::LEGACY_EXPORT_TABLES`)
+    /// Export configured legacy tables as JSONL (see `vox_db::legacy::codex::LEGACY_EXPORT_TABLES`)
     ExportLegacy {
         /// Output file path
         #[arg(long, short = 'o')]
@@ -54,7 +54,8 @@ pub enum CodexCmd {
         #[arg(long, default_value_t = false)]
         force: bool,
     },
-    /// Aggregate MCP Socrates `research_metrics` rows and print JSON (`SocratesSurfaceAggregate`)
+    /// Operator diagnostic: aggregate MCP Socrates `research_metrics` rows and print JSON (`SocratesSurfaceAggregate`).
+    /// Output is **S1–S2** calibration telemetry (not end-user analytics); see `docs/src/architecture/telemetry-trust-ssot.md`.
     #[command(name = "socrates-metrics")]
     SocratesMetrics {
         /// Restrict to sessions `mcp:<repository_id>` (omit to include all repos)

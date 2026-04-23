@@ -5,6 +5,9 @@ pub enum OrchestratorError {
     /// Orchestrator is turned off via configuration.
     #[error("Orchestrator is disabled")]
     Disabled,
+    /// Orchestrator is in emergency stop state.
+    #[error("Orchestrator is stopped")]
+    Stopped,
     /// No additional agent slots remain.
     #[error("Maximum agents ({max}) reached")]
     MaxAgentsReached {
@@ -14,6 +17,9 @@ pub enum OrchestratorError {
     /// Lookup failed for the given agent id.
     #[error("Agent {0} not found")]
     AgentNotFound(AgentId),
+    /// Parent agent for delegation spawn was not found.
+    #[error("Delegation parent agent {0} not found")]
+    DelegationParentNotFound(AgentId),
     /// Lookup failed for the given task id.
     #[error("Task {0} not found")]
     TaskNotFound(TaskId),
@@ -23,9 +29,18 @@ pub enum OrchestratorError {
     /// Path violated scope / affinity rules.
     #[error("Scope denied: {0}")]
     ScopeDenied(String),
+    /// Task was classified as blocked by approval policy.
+    #[error("Approval blocked: {0}")]
+    ApprovalBlocked(String),
+    /// Completion attestation did not satisfy approval policy requirements.
+    #[error("Approval attestation required: {0}")]
+    ApprovalAttestationRequired(String),
     /// Undo/redo referenced a missing oplog entry.
     #[error("Operation not found")]
     OperationNotFound,
+    /// Task behavioral validation failed.
+    #[error("Task validation failed: {0}")]
+    TaskValidationFailed(String),
     /// Persistent layer failure surfaced to callers.
     #[error("Database error: {0}")]
     DatabaseError(String),
@@ -39,6 +54,17 @@ pub enum OrchestratorError {
         /// Maximum allowed age before rejection.
         timeout_ms: u64,
     },
+    /// Structured handoff invariant validation failed.
+    #[error("Handoff invariant failed: {0}")]
+    HandoffInvariant(String),
+    /// Mesh accepted a lease-gated remote envelope but the local queue could not enter remote-hold (race).
+    #[error(
+        "Populi remote delegation could not be recorded after mesh accept; remote execution may still be active"
+    )]
+    PopuliRemoteHoldRace,
+    /// Task was blocked due to extreme resource budget constraints.
+    #[error("Budget exceeded: {0}")]
+    BudgetExceeded(String),
 }
 
 /// One step in a task's lifecycle timeline (ingress → route → verification → outcome).
@@ -81,8 +107,12 @@ pub struct OrchestratorStatus {
     pub reserved_agents: usize,
     /// Ephemeral agents spawned for burst handling.
     pub dynamic_agents: usize,
+    /// Tasks currently in Doubted state.
+    pub total_doubted: usize,
     /// Shared context keys visible to dashboards.
     pub context_entries: std::collections::HashMap<String, crate::context::ContextEntry>,
+    /// Maximum handoff count observed in any active task across all agents.
+    pub max_handoff_count: u8,
     /// Per-agent rollups for UI tables.
     pub agents: Vec<AgentSummary>,
 }
@@ -96,6 +126,8 @@ pub struct AgentSummary {
     pub name: String,
     /// Tasks waiting in this agent's queue.
     pub queued: usize,
+    /// Tasks in Doubted state for this agent.
+    pub doubted_count: usize,
     /// Urgent-priority backlog depth.
     pub urgent_count: usize,
     /// Normal-priority backlog depth.
@@ -116,4 +148,6 @@ pub struct AgentSummary {
     pub weighted_load: f64,
     /// Linked Codex session id when known.
     pub agent_session_id: Option<String>,
+    /// Maximum handoff count observed in this agent's queue.
+    pub max_handoff_count: u8,
 }

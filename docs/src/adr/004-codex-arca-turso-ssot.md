@@ -2,11 +2,16 @@
 title: "ADR 004: Codex over Arca over Turso"
 description: "Official documentation for ADR 004: Codex over Arca over Turso for the Vox language. Detailed technical reference, architecture guides, a"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 004: Codex over Arca over Turso
+
+> [!NOTE]
+> Historical note: the `TURSO_*` env var names in this ADR are superseded by `VOX_DB_URL` / `VOX_DB_TOKEN`. ADR text is preserved for context.
 
 ## Status
 
@@ -41,3 +46,5 @@ Vox persisted data through `vox-db` (`VoxDb` / **Codex**), with related crates (
 - [Codex BaaS scaffolding](../architecture/codex-baas.md)
 - [Orphan surface inventory](../architecture/orphan-surface-inventory.md)
 - Crate: `crates/vox-db`, `crates/vox-pm`
+
+

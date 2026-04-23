@@ -1,5 +1,7 @@
 //! Quests, leaderboard, notifications, hints, achievements.
 
+use crate::commands::extras::ludus::LudusContext;
+
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use vox_ludus::{db, quest};
@@ -9,7 +11,9 @@ use super::progress::render_progress_bar;
 
 /// List daily quests.
 pub async fn quest_list() -> Result<()> {
-    let db = db_util::get_db().await?;
+    let ctx = LudusContext::load().await?;
+    let db = &ctx.db;
+    let user_id = &ctx.user_id;
 
     // Generate deterministic daily quests based on the day
     let now = std::time::SystemTime::now()
@@ -18,14 +22,14 @@ pub async fn quest_list() -> Result<()> {
         .as_secs();
     let day_seed = now / 86_400;
 
-    let user_id = vox_ludus::db::canonical_user_id();
-    let mut quests = db::list_quests(&db, &user_id).await?;
+    let user_id = user_id.clone();
+    let mut quests = db::list_quests(db, &user_id).await?;
 
     // Filter out expired quests or if none exist for today, generate new ones
     if quests.is_empty() || quests.iter().all(|q| q.is_expired()) {
         quests = quest::generate_daily_quests(&user_id, day_seed);
         for q in &quests {
-            db::upsert_quest(&db, q).await?;
+            db::upsert_quest(db, q).await?;
         }
     }
 
@@ -61,8 +65,9 @@ pub async fn quest_list() -> Result<()> {
 
 /// Generate quests: workspace scanner (TODOs/FIXMEs) + daily archetype templates.
 pub async fn quest_generate() -> Result<()> {
-    let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let ctx = LudusContext::load().await?;
+    let db = &ctx.db;
+    let user_id = &ctx.user_id;
 
     println!("{}", "╔══════════════════════════════════╗".bright_yellow());
     println!("{}", "║   📋 Generating Quests...       ║".bright_yellow());
@@ -71,7 +76,7 @@ pub async fn quest_generate() -> Result<()> {
 
     // 1. Workspace-scan dynamic quests (from TODOs/FIXMEs)
     let workspace_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
-    let existing_quests = db::list_quests(&db, &user_id).await.unwrap_or_default();
+    let existing_quests = db::list_quests(db, user_id).await.unwrap_or_default();
     let active_count = existing_quests
         .iter()
         .filter(|q| !q.completed && !q.is_expired())
@@ -85,7 +90,7 @@ pub async fn quest_generate() -> Result<()> {
     );
 
     for dq in &dynamic {
-        db::upsert_quest(&db, &dq.quest).await?;
+        db::upsert_quest(db, &dq.quest).await?;
         let src = dq
             .source_issue
             .as_ref()
@@ -109,9 +114,9 @@ pub async fn quest_generate() -> Result<()> {
             .unwrap_or_default()
             .as_secs();
         let day_seed = now / 86_400;
-        let quests = quest::generate_daily_quests(&user_id, day_seed);
+        let quests = quest::generate_daily_quests(user_id, day_seed);
         for q in &quests {
-            db::upsert_quest(&db, q).await?;
+            db::upsert_quest(db, q).await?;
         }
         println!("  (No workspace issues found — using daily archetype quests)");
     }
@@ -172,9 +177,10 @@ pub async fn leaderboard_show(metric: &str, limit: usize) -> Result<()> {
 
 /// List pending notifications. When `mark_read`, marks all listed rows read after printing.
 pub async fn notify_list(mark_read: bool) -> Result<()> {
-    let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
-    let notifications = db::list_unread_notifications(&db, &user_id, 10).await?;
+    let ctx = LudusContext::load().await?;
+    let db = &ctx.db;
+    let user_id = &ctx.user_id;
+    let notifications = db::list_unread_notifications(db, user_id, 10).await?;
 
     println!("{}", "╔══════════════════════════════════╗".bright_cyan());
     println!("{}", "║       🔔 Notifications          ║".bright_cyan());
@@ -211,7 +217,7 @@ pub async fn notify_list(mark_read: bool) -> Result<()> {
             );
         }
         if mark_read {
-            db::mark_all_notifications_read(&db, &user_id).await?;
+            db::mark_all_notifications_read(db, user_id).await?;
         }
     }
 
@@ -220,18 +226,20 @@ pub async fn notify_list(mark_read: bool) -> Result<()> {
 
 /// Clear all notifications.
 pub async fn notify_clear() -> Result<()> {
-    let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
-    db::mark_all_notifications_read(&db, &user_id).await?;
+    let ctx = LudusContext::load().await?;
+    let db = &ctx.db;
+    let user_id = &ctx.user_id;
+    db::mark_all_notifications_read(db, user_id).await?;
     println!("  ✅ Notifications cleared.");
     Ok(())
 }
 
 /// Show a contextual hint.
 pub async fn hint_show(context: Option<&str>) -> Result<()> {
-    let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
-    let mut profile = vox_ludus::db::get_teaching_profile(&db, &user_id).await?;
+    let ctx = LudusContext::load().await?;
+    let db = &ctx.db;
+    let user_id = &ctx.user_id;
+    let mut profile = vox_ludus::db::get_teaching_profile(db, user_id).await?;
     let freq = vox_ludus::config_gate::mode().hint_frequency();
     let kind = match context {
         Some("build") => vox_ludus::teaching::MistakeKind::ArchitecturalIssue,
@@ -247,12 +255,12 @@ pub async fn hint_show(context: Option<&str>) -> Result<()> {
         _ => vox_ludus::teaching::MistakeKind::TodoDebt,
     };
     let req = profile.record_mistake(kind, freq);
-    vox_ludus::db::upsert_teaching_profile(&db, &profile).await?;
+    vox_ludus::db::upsert_teaching_profile(db, &profile).await?;
 
     let hint = if let Some(ref r) = req {
         let _ = vox_ludus::db::log_hint_event(
-            &db,
-            &user_id,
+            db,
+            user_id,
             &format!("{:?}", r.kind),
             "pull_hint",
             context,
@@ -260,14 +268,9 @@ pub async fn hint_show(context: Option<&str>) -> Result<()> {
         .await;
         vox_ludus::teaching::Hint::deterministic(r).body
     } else {
-        let _ = vox_ludus::db::log_hint_event(
-            &db,
-            &user_id,
-            &format!("{kind:?}"),
-            "suppressed",
-            context,
-        )
-        .await;
+        let _ =
+            vox_ludus::db::log_hint_event(db, user_id, &format!("{kind:?}"), "suppressed", context)
+                .await;
         match context {
             Some("build") => {
                 "Try using `vox check` before `vox build` to catch errors faster.".to_string()
@@ -283,10 +286,11 @@ pub async fn hint_show(context: Option<&str>) -> Result<()> {
 
 /// List all glyphs and achievements.
 pub async fn glyph_list(unlocked_only: bool) -> Result<()> {
-    let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let ctx = LudusContext::load().await?;
+    let db = &ctx.db;
+    let user_id = &ctx.user_id;
     let tracker = vox_ludus::achievement::AchievementTracker::new();
-    let unlocked = db::list_unlocked_achievements(&db, &user_id).await?;
+    let unlocked = db::list_unlocked_achievements(db, user_id).await?;
 
     println!("{}", "╔══════════════════════════════════╗".bright_white());
     println!("{}", "║       ⭐ Glyphs & Achievements  ║".bright_white());

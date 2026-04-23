@@ -11,24 +11,26 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
 
     let has_tables = !module.tables.is_empty();
 
+    let routes = crate::codegen_shared::lower_module_routes(module);
+
     // Collect which routing methods are actually used
     let mut needs_get = false;
     let mut needs_post = false;
     let mut needs_put = false;
     let mut needs_delete = false;
-    for route in &module.routes {
+    for route in &routes {
         match route.method {
-            HirHttpMethod::Get => needs_get = true,
-            HirHttpMethod::Post => needs_post = true,
-            HirHttpMethod::Put => needs_put = true,
-            HirHttpMethod::Delete => needs_delete = true,
+            crate::codegen_shared::RouteMethod::Get => needs_get = true,
+            crate::codegen_shared::RouteMethod::Post => needs_post = true,
+            crate::codegen_shared::RouteMethod::Put => needs_put = true,
+            crate::codegen_shared::RouteMethod::Delete => needs_delete = true,
         }
     }
-    // Server functions, @query, and @mutation use POST + JSON body
-    if !module.server_fns.is_empty()
-        || !module.query_fns.is_empty()
-        || !module.mutation_fns.is_empty()
-    {
+    // `@query` handlers are GET + query-string args; `@server` / `@mutation` stay POST + JSON body.
+    if !module.query_fns.is_empty() {
+        needs_get = true;
+    }
+    if !module.server_fns.is_empty() || !module.mutation_fns.is_empty() {
         needs_post = true;
     }
 
@@ -53,6 +55,9 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
             "use axum::{{Router, routing::{{{}}}, Json}};\n",
             routing_methods.join(", ")
         ));
+    }
+    if !module.query_fns.is_empty() {
+        out.push_str("use axum::extract::Query;\n");
     }
     out.push_str("use axum::response::{Response, IntoResponse};\n");
     out.push_str("use axum::body::Body;\n");
@@ -109,7 +114,9 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str(
         "                    let target = format!(\"{}{}\", base.trim_end_matches('/'), uri);\n",
     );
-    out.push_str("                    if let Ok(client) = reqwest::Client::builder()\n");
+    out.push_str(
+        "                    if let Ok(client) = vox_reqwest_defaults::client_builder()\n",
+    );
     out.push_str("                        .timeout(std::time::Duration::from_secs(60))\n");
     out.push_str("                        .build()\n");
     out.push_str("                    {\n");
@@ -156,6 +163,35 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
         out.push_str(&emit_db_setup(module));
     }
 
+    out.push_str("    if let Ok(wf_name_raw) = std::env::var(\"VOX_RUN_WORKFLOW\") {\n");
+    out.push_str("        let wf_name = wf_name_raw.trim().to_string();\n");
+    out.push_str("        if !wf_name.is_empty() {\n");
+    out.push_str(
+        "            let args_raw = std::env::var(\"VOX_WORKFLOW_ARGS\").unwrap_or_else(|_| \"[]\".to_string());\n",
+    );
+    out.push_str(
+        "            let args: Vec<serde_json::Value> = match serde_json::from_str(&args_raw) {\n",
+    );
+    out.push_str("                Ok(v) => v,\n");
+    out.push_str("                Err(e) => {\n");
+    out.push_str("                    eprintln!(\"Invalid VOX_WORKFLOW_ARGS JSON: {}\", e);\n");
+    out.push_str("                    std::process::exit(2);\n");
+    out.push_str("                }\n");
+    out.push_str("            };\n");
+    out.push_str("            match __vox_run_workflow(&wf_name, &args).await {\n");
+    out.push_str("                Ok(()) => {\n");
+    out.push_str("                    vox_runtime::builtins::vox_flush_exit_commands();\n");
+    out.push_str("                    return;\n");
+    out.push_str("                }\n");
+    out.push_str("                Err(e) => {\n");
+    out.push_str("                    eprintln!(\"Workflow execution failed: {}\", e);\n");
+    out.push_str("                    vox_runtime::builtins::vox_flush_exit_commands();\n");
+    out.push_str("                    std::process::exit(2);\n");
+    out.push_str("                }\n");
+    out.push_str("            }\n");
+    out.push_str("        }\n");
+    out.push_str("    }\n");
+
     let has_routes = !module.routes.is_empty()
         || !module.server_fns.is_empty()
         || !module.query_fns.is_empty()
@@ -181,10 +217,10 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
                 sf.route_path, sf.name
             ));
         }
-        // `@query` — POST /api/query/<name>
+        // `@query` — GET /api/query/<name> + deterministic JSON-in-query encoding (see vox-client.ts).
         for qf in &app_contract.query_fns {
             out.push_str(&format!(
-                "        .route(\"{}\", post(handle_q_{}))\n",
+                "        .route(\"{}\", get(handle_q_{}))\n",
                 qf.route_path, qf.name
             ));
         }
@@ -222,6 +258,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
         out.push_str(
             "    axum::serve(listener, app).await.expect(\"Server exited with error\");\n",
         );
+        out.push_str("    vox_runtime::builtins::vox_flush_exit_commands();\n");
     } else {
         out.push_str("    println!(\"No routes defined. Exiting.\");\n");
     }
@@ -238,7 +275,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     }
 
     for qf in &module.query_fns {
-        out.push_str(&emit_server_fn_handler(qf, has_tables, "handle_q_", false));
+        out.push_str(&emit_query_fn_handler(qf, has_tables, "handle_q_"));
     }
 
     for (idx, mf) in module.mutation_fns.iter().enumerate() {
@@ -369,4 +406,61 @@ fn emit_server_fn_handler(
     }
     out.push_str("}\n\n");
     out
+}
+
+/// Axum GET handler for `@query`: args are JSON-encoded query values (`name=<json>`), keys sorted on the client.
+fn emit_query_fn_handler(sf: &HirServerFn, has_tables: bool, name_prefix: &str) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
+    if has_tables {
+        out.push_str("Extension(db): Extension<Arc<Codex>>, ");
+    }
+    out.push_str(
+        "Query(q): Query<std::collections::BTreeMap<String, String>>) -> Json<serde_json::Value> {\n",
+    );
+
+    for param in &sf.params {
+        out.push_str(&format!(
+            "    let {} = q.get(\"{}\").and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok()).unwrap_or(serde_json::Value::Null);\n",
+            param.name, param.name
+        ));
+    }
+
+    let mut has_return = false;
+    for stmt in &sf.body {
+        let emitted = emit_stmt(stmt, 1, true, false, false);
+        if emitted.contains("return Json(") {
+            has_return = true;
+        }
+        out.push_str(&emitted);
+    }
+    if !has_return {
+        out.push_str("    Json(serde_json::Value::Null)\n");
+    }
+    out.push_str("}\n\n");
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::emit_main;
+    use crate::hir::lower_module;
+    use crate::lexer::cursor::lex;
+    use crate::parser::parse;
+
+    #[test]
+    fn emit_main_includes_generated_workflow_dispatch_env_branch() {
+        let src = r#"
+workflow hello() {
+    ret
+}
+"#;
+        let tokens = lex(src);
+        let module = parse(tokens).expect("parse");
+        let hir = lower_module(&module);
+        let output = emit_main(&hir, "generated-demo");
+        assert!(output.contains("VOX_RUN_WORKFLOW"));
+        assert!(output.contains("VOX_WORKFLOW_ARGS"));
+        assert!(output.contains("__vox_run_workflow(&wf_name, &args).await"));
+    }
 }

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/orchestration/repo-reconstruction.schema.json",
+  "title": "Repo Reconstruction Spec",
+  "type": "object",
+  "required": [
+    "campaign_id",
+    "objective",
+    "constraints",
+    "acceptance_tests",
+    "architecture_assumptions",
+    "shard_boundaries"
+  ],
+  "properties": {
+    "campaign_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptance_tests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "architecture_assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "shard_boundaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "shard_id",
+          "summary",
+          "path_hints"
+        ],
+        "properties": {
+          "shard_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path_hints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "planner",
+              "builder",
+              "verifier",
+              "reproducer",
+              "researcher"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

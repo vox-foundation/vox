@@ -1,11 +1,11 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MissingBehavior {
     Fail,
     SkipWithReason,
     WarnOnly,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SecretPolicy {
     pub required: bool,
     pub behavior: MissingBehavior,

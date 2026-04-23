@@ -5,6 +5,7 @@
 
 use crate::publication::PublicationManifest;
 use crate::publication_preflight::parse_scientific_from_metadata_json;
+use crate::scientific_metadata::ScientificPublicationMetadata;
 use crate::zenodo_api_types::{
     ZenodoCreator, ZenodoDepositionCreateBody, ZenodoDepositionMetadata,
 };
@@ -12,9 +13,10 @@ use crate::zenodo_api_types::{
 /// Build the typed POST body for a new Zenodo deposit draft.
 #[must_use]
 pub fn zenodo_deposition_create_body(manifest: &PublicationManifest) -> ZenodoDepositionCreateBody {
-    let scientific = parse_scientific_from_metadata_json(manifest.metadata_json.as_deref())
-        .ok()
-        .flatten();
+    let scientific: Option<ScientificPublicationMetadata> =
+        parse_scientific_from_metadata_json(manifest.metadata_json.as_deref())
+            .ok()
+            .flatten();
 
     let creators: Vec<ZenodoCreator> = if let Some(ref sci) = scientific {
         if sci.authors.is_empty() {
@@ -30,10 +32,12 @@ pub fn zenodo_deposition_create_body(manifest: &PublicationManifest) -> ZenodoDe
                     let affiliation = a
                         .affiliation
                         .as_deref()
-                        .map(str::trim)
-                        .filter(|s| !s.is_empty())
+                        .and_then(|s| {
+                            let t = s.trim();
+                            (!t.is_empty()).then_some(t)
+                        })
                         .map(std::string::ToString::to_string);
-                    let orcid = a.orcid.as_deref().and_then(|oid| {
+                    let orcid = a.orcid.as_deref().and_then(|oid: &str| {
                         let t = oid.trim();
                         if t.is_empty() {
                             return None;
@@ -78,8 +82,10 @@ pub fn zenodo_deposition_create_body(manifest: &PublicationManifest) -> ZenodoDe
     let license = scientific
         .as_ref()
         .and_then(|s| s.license_spdx.as_deref())
-        .map(|s| s.trim().to_lowercase())
-        .filter(|s| !s.is_empty())
+        .and_then(|s| {
+            let t = s.trim().to_lowercase();
+            (!t.is_empty()).then_some(t)
+        })
         .unwrap_or_else(|| "notspecified".to_string());
 
     ZenodoDepositionCreateBody {
@@ -118,10 +124,11 @@ mod tests {
         let sci = ScientificPublicationMetadata {
             authors: vec![ScientificAuthor {
                 name: "A".to_string(),
-                orcid: Some("0000-0001-2345-6789".to_string()),
+                orcid: Some("0000-0002-1825-0097".to_string()),
                 affiliation: Some("U".to_string()),
+                ror: None,
             }],
-            license_spdx: Some("MIT".to_string()),
+            license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
         };
         let meta =
@@ -140,7 +147,7 @@ mod tests {
         };
         let v = zenodo_deposition_metadata(&m);
         assert_eq!(v["metadata"]["title"], "T");
-        assert_eq!(v["metadata"]["license"], "mit");
+        assert_eq!(v["metadata"]["license"], "apache-2.0");
         assert!(
             v["metadata"]["creators"][0]["orcid"]
                 .as_str()

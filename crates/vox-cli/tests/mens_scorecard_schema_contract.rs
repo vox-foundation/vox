@@ -44,7 +44,8 @@ fn scorecard_output_schemas_accept_sample_golden_artifacts() -> Result<()> {
     let event_sample =
         read_json(&root.join("crates/vox-cli/tests/fixtures/mens_scorecard_event_sample.json"))?;
     assert!(
-        compile_validator(&event_schema, "mens-scorecard-event.schema.json")?.is_valid(&event_sample)
+        compile_validator(&event_schema, "mens-scorecard-event.schema.json")?
+            .is_valid(&event_sample)
     );
     Ok(())
 }

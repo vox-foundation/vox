@@ -1,8 +1,8 @@
 //! `vox build` — full compile pipeline and artifact layout.
 //!
 //! Writes **TypeScript** into `out_dir` and **Rust** under `target/generated/` (Axum-style backend).
-//! Emits `api.ts` when server functions produce a client. `@v0` declarations trigger optional
-//! v0.dev generation when `V0_API_KEY` is set — see `crate::v0::generate_component`.
+//! Optional **`--scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) writes user-owned Vite/app files via
+//! [`vox_compiler::codegen_ts::scaffold`]. `@v0` uses `V0_API_KEY` when set — see `crate::v0::generate_component`.
 
 use anyhow::{Context, Result};
 use std::fs;
@@ -11,49 +11,41 @@ use std::path::{Path, PathBuf};
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 /// Run the build pipeline for `file`, writing TS to `out_dir` and Rust to `target/generated`.
-pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
-    let source = read_utf8_path_capped(file)
-        .with_context(|| format!("Failed to read source file: {}", file.display()))?;
-
-    // 1. Lex
-    let tokens = vox_compiler::lexer::lex(&source);
-    tracing::info!("Lexed {} tokens", tokens.len());
-
-    // 2. Parse
-    let module = vox_compiler::parser::parse(tokens).map_err(|errors| {
-        for e in &errors {
-            eprintln!("Parse error: {} at {:?}", e.message, e.span);
-        }
-        anyhow::anyhow!("Parsing failed with {} error(s)", errors.len())
-    })?;
-    tracing::info!("Parsed {} declarations", module.declarations.len());
-
-    // 3. Type check (HIR)
-    let diagnostics = vox_compiler::typeck::typecheck_ast_module(&source, &module);
-    let has_errors = diagnostics
-        .iter()
-        .any(|d| d.severity == vox_compiler::typeck::diagnostics::TypeckSeverity::Error);
-    for d in &diagnostics {
-        match d.severity {
-            vox_compiler::typeck::diagnostics::TypeckSeverity::Error => {
-                eprintln!("error: {} at {:?}", d.message, d.span)
-            }
-            vox_compiler::typeck::diagnostics::TypeckSeverity::Warning => {
-                eprintln!("warning: {} at {:?}", d.message, d.span)
-            }
-        }
+///
+/// `emit_scaffold`: write [`vox_compiler::codegen_ts::scaffold`] files when missing (or set `VOX_WEB_EMIT_SCAFFOLD=1`).
+pub async fn run(
+    file: &Path,
+    out_dir: &Path,
+    target: Option<String>,
+    emit_scaffold: bool,
+    emit_ir: bool,
+    mode: crate::cli_args::BuildMode,
+) -> Result<()> {
+    let frontend = crate::pipeline::run_frontend(file, false).await?;
+    crate::pipeline::print_diagnostics(&frontend, file, false);
+    if frontend.has_errors() {
+        anyhow::bail!(
+            "Build failed with {} error(s) and {} warning(s)",
+            frontend.error_count(),
+            frontend.warning_count()
+        );
     }
-    if has_errors {
-        anyhow::bail!("Type checking failed");
-    }
-    tracing::info!("Type checking passed");
-
-    // 4. Lower to HIR (reuse for codegen)
-    let hir = vox_compiler::hir::lower_module(&module);
+    tracing::info!(
+        "Frontend passed with {} warning(s)",
+        frontend.warning_count()
+    );
+    let crate::pipeline::FrontendResult { module, hir, .. } = frontend;
 
     // 5. Generate TypeScript (Frontend)
     let ts_opts = vox_compiler::codegen_ts::CodegenOptions {
         tanstack_start: vox_config::VoxConfig::load().web_tanstack_start,
+        target: target.clone(),
+        mode: match mode {
+            crate::cli_args::BuildMode::App => vox_compiler::codegen_ts::emitter::BuildMode::App,
+            crate::cli_args::BuildMode::Library => {
+                vox_compiler::codegen_ts::emitter::BuildMode::Library
+            }
+        },
     };
     let ts_output = vox_compiler::codegen_ts::generate_with_options(&hir, ts_opts)
         .map_err(|e| anyhow::anyhow!("TypeScript codegen error: {}", e))?;
@@ -74,32 +66,45 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
         println!("  wrote {}", path.display());
     }
 
-    let emitted_vox_router = ts_output
+    let emitted_manifest = ts_output
         .files
         .iter()
-        .any(|(n, _)| n == "VoxTanStackRouter.tsx");
-    let emitted_app_tsx = ts_output.files.iter().any(|(n, _)| n == "App.tsx");
-    if emitted_vox_router {
-        let stale = out_dir.join("App.tsx");
-        if stale.is_file() {
-            fs::remove_file(&stale)
-                .with_context(|| format!("Failed to remove stale {}", stale.display()))?;
-            println!("  removed stale {}", stale.display());
+        .any(|(n, _)| n == "routes.manifest.ts" || n == "routes.manifest.json");
+    if emitted_manifest {
+        let mut to_remove = vec!["App.tsx", "VoxTanStackRouter.tsx", "serverFns.ts"];
+        if mode == crate::cli_args::BuildMode::Library {
+            to_remove.push("routes.manifest.ts");
+        }
+        for stale_name in to_remove {
+            let stale = out_dir.join(stale_name);
+            if stale.is_file() {
+                fs::remove_file(&stale)
+                    .with_context(|| format!("Failed to remove stale {}", stale.display()))?;
+                println!("  removed stale {}", stale.display());
+            }
         }
     }
-    if emitted_app_tsx {
-        let stale = out_dir.join("VoxTanStackRouter.tsx");
-        if stale.is_file() {
-            fs::remove_file(&stale)
-                .with_context(|| format!("Failed to remove stale {}", stale.display()))?;
-            println!("  removed stale {}", stale.display());
-        }
+
+    let scaffold_env = std::env::var("VOX_WEB_EMIT_SCAFFOLD")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if emit_scaffold || scaffold_env {
+        let project_root = out_dir.parent().unwrap_or(out_dir);
+        vox_compiler::codegen_ts::scaffold::write_scaffold_if_missing(project_root, "vox-app")
+            .with_context(|| "Failed to write web scaffold files")?;
     }
 
     // 8. Handle @v0 components
     // We iterate over the parsed declarations to find V0Components
     for decl in &module.declarations {
         if let vox_compiler::ast::decl::Decl::V0Component(comp) = decl {
+            if comp.image_path.is_some() {
+                // Asset-hint form (`@v0 from "…"`) has no v0 chat id; placeholder TSX comes from codegen only.
+                continue;
+            }
+            if comp.v0_id.is_empty() {
+                continue;
+            }
             let component_name = &comp.name;
             let filename = format!("{}.tsx", component_name);
             let target_path = out_dir.join(&filename);
@@ -108,31 +113,33 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
             if !target_path.exists() {
                 println!("Generating v0 component '{}'...", component_name);
 
-                // Determine prompt and optional image path
-                let (prompt, image_path) = if !comp.prompt.is_empty() {
-                    (comp.prompt.clone(), None)
-                } else if let Some(img_str) = &comp.image_path {
-                    let parent = file.parent().unwrap_or(Path::new("."));
-                    let path = parent.join(img_str);
-                    (
-                        "Create a component based on the provided image.".to_string(),
-                        Some(path),
-                    )
-                } else {
-                    ("Create a React component".to_string(), None)
-                };
+                println!(
+                    "Downloading v0 component '{}' via npx v0 add...",
+                    component_name
+                );
+                let status = tokio::process::Command::new("npx")
+                    .arg("v0")
+                    .arg("add")
+                    .arg(&comp.v0_id)
+                    .arg("--name")
+                    .arg(component_name)
+                    .arg("--path")
+                    .arg(target_path.to_string_lossy().as_ref())
+                    .arg("--yes")
+                    .current_dir(file.parent().unwrap_or(Path::new(".")))
+                    .status()
+                    .await;
 
-                match crate::v0::generate_component(
-                    &prompt,
-                    component_name,
-                    out_dir,
-                    image_path.as_deref(),
-                )
-                .await
-                {
-                    Ok(path) => println!("  generated v0 component: {}", path.display()),
+                match status {
+                    Ok(s) if s.success() => {
+                        println!("  generated v0 component: {}", target_path.display())
+                    }
+                    Ok(s) => eprintln!(
+                        "  failed to download v0 component '{}': exited with {}",
+                        component_name, s
+                    ),
                     Err(e) => eprintln!(
-                        "  failed to generate v0 component '{}': {}",
+                        "  failed to execute npx v0 add for '{}': {}",
                         component_name, e
                     ),
                 }
@@ -157,7 +164,8 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
         }
     }
 
-    verify_app_tsx_route_imports(out_dir).context("App.tsx route import graph")?;
+    verify_app_tsx_route_imports(out_dir)
+        .context("generated TS import graph (routes.manifest / App)")?;
 
     // Write API client for server functions (if any)
     if !rust_output.api_client_ts.is_empty() {
@@ -183,6 +191,16 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
         println!("  wrote {}", path.display());
     }
 
+    if emit_ir {
+        let web_ir = vox_compiler::web_ir::lower::lower_hir_to_web_ir(&hir);
+        let ir_json =
+            serde_json::to_string_pretty(&web_ir).context("Failed to serialize WebIR to JSON")?;
+        let ir_path = out_dir.join("web-ir.v1.json");
+        fs::write(&ir_path, ir_json)
+            .with_context(|| format!("Failed to write IR file: {}", ir_path.display()))?;
+        println!("  wrote {}", ir_path.display());
+    }
+
     let public_dir = generated_dir.join("public").join("ssg-shells");
     fs::create_dir_all(&public_dir).context("Failed to create public/ssg-shells")?;
     for (rel_path, html) in vox_ssg::generate_static_site(&module) {
@@ -198,6 +216,49 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
             )
         })?;
         println!("  wrote {}", out.display());
+    }
+
+    if let Some(t) = target {
+        if t == "ios" || t == "android" {
+            println!("Synchronizing Capacitor project for {}...", t);
+            let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+            let status = tokio::process::Command::new("npx")
+                .arg("cap")
+                .arg("sync")
+                .arg(&t)
+                .current_dir(&cwd)
+                .status()
+                .await;
+            match status {
+                Ok(s) if s.success() => println!("  Capacitor sync complete."),
+                Ok(s) => eprintln!("  Capacitor sync exited with {s}"),
+                Err(e) => eprintln!("  Failed to execute npx cap sync: {e}"),
+            }
+
+            if t == "android" {
+                let res_dir = cwd.join("android/app/src/main/res/xml");
+                if std::fs::create_dir_all(&res_dir).is_ok() {
+                    let xml = r#"<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">localhost</domain>
+    </domain-config>
+</network-security-config>"#;
+                    let _ = std::fs::write(res_dir.join("network_security_config.xml"), xml);
+                }
+
+                // WAKE_LOCK injection
+                let manifest_path = cwd.join("android/app/src/main/AndroidManifest.xml");
+                if manifest_path.is_file() {
+                    let mut m = std::fs::read_to_string(&manifest_path).unwrap_or_default();
+                    if !m.contains("android.permission.WAKE_LOCK") {
+                        m = m.replace("<application", "<uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n    <application");
+                        let _ = std::fs::write(&manifest_path, m);
+                    }
+                }
+            }
+        }
     }
 
     println!(
@@ -255,7 +316,7 @@ fn verify_ts_relative_imports_from_file(ts_file: &Path) -> Result<()> {
         .with_context(|| format!("No parent for {}", ts_file.display()))?;
     let content = read_utf8_path_capped(ts_file)
         .with_context(|| format!("Failed to read {}", ts_file.display()))?;
-    let re = regex::Regex::new(r#"from\s+["']([^"']+)["']"#)
+    let re = regex::Regex::new(r#"(?sm)^\s*(?:import|export)\s+.*?\s+from\s+["']([^"']+)["']"#)
         .with_context(|| format!("compile TS import regex ({})", ts_file.display()))?;
     for cap in re.captures_iter(&content) {
         let raw = cap
@@ -277,37 +338,15 @@ fn verify_ts_relative_imports_from_file(ts_file: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Fail fast when `App.tsx` references `./Component.tsx` (or `.ts`) that is missing from `out_dir`.
+/// Fail fast when generated `routes.manifest.ts` or `App.tsx` references missing `./` modules.
 fn verify_app_tsx_route_imports(out_dir: &Path) -> Result<()> {
-    let app_path = out_dir.join("App.tsx");
-    if !app_path.is_file() {
-        return Ok(());
+    let manifest = out_dir.join("routes.manifest.ts");
+    if manifest.is_file() {
+        verify_ts_relative_imports_from_file(&manifest)?;
     }
-    let content = read_utf8_path_capped(&app_path)
-        .with_context(|| format!("Failed to read {}", app_path.display()))?;
-    let re = regex::Regex::new(r#"from\s+["']\./([^"']+)["']"#).with_context(|| {
-        format!(
-            "compile App.tsx relative-import regex ({})",
-            app_path.display()
-        )
-    })?;
-    for cap in re.captures_iter(&content) {
-        let rel = cap
-            .get(1)
-            .with_context(|| {
-                format!(
-                    "App.tsx relative-import regex missing capture ({})",
-                    app_path.display()
-                )
-            })?
-            .as_str();
-        let target = out_dir.join(rel);
-        if !target.is_file() {
-            anyhow::bail!(
-                "App.tsx imports `{rel}` but that file was not found under {} (fix routes: targets or emit the component).",
-                out_dir.display()
-            );
-        }
+    let app_path = out_dir.join("App.tsx");
+    if app_path.is_file() {
+        verify_ts_relative_imports_from_file(&app_path)?;
     }
     Ok(())
 }

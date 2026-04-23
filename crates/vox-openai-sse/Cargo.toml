@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 serde_json = { workspace = true }
+workspace-hack = { workspace = true }
 
 [lints]
 workspace = true

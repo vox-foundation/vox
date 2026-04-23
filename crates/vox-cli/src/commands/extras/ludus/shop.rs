@@ -1,15 +1,16 @@
-use crate::commands::extras::ludus::db_util;
+use crate::commands::extras::ludus::LudusContext;
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use vox_ludus::{LudusProfile, db as ludus_db, shop};
 
 /// List available items in the shop.
 pub async fn shop_list() -> Result<()> {
-    let codex = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let ctx = LudusContext::load().await?;
+    let codex = &ctx.db;
+    let user_id = &ctx.user_id;
     let profile = ludus_db::get_profile(&codex, &user_id)
         .await?
-        .unwrap_or_else(|| LudusProfile::new_default(&user_id));
+        .unwrap_or_else(|| LudusProfile::new_default(user_id));
 
     let items = shop::default_shop_items();
     let mode_mult = 1.0; // In a real app, this comes from config_gate/VoxConfig
@@ -50,8 +51,9 @@ pub async fn shop_list() -> Result<()> {
 
 /// Purchase an item from the shop.
 pub async fn shop_buy(item_id: &str) -> Result<()> {
-    let codex = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let ctx = LudusContext::load().await?;
+    let codex = &ctx.db;
+    let user_id = &ctx.user_id;
     let mut profile = ludus_db::get_profile(&codex, &user_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("Profile not found"))?;

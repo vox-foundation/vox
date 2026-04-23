@@ -14,12 +14,22 @@ pub enum Token {
     Fn,
     #[token("let")]
     Let,
+    #[token("async")]
+    Async,
     #[token("mut")]
     Mut,
     #[token("if")]
     If,
     #[token("else")]
     Else,
+    #[token("while")]
+    While,
+    #[token("loop")]
+    Loop,
+    #[token("break")]
+    Break,
+    #[token("continue")]
+    Continue,
     #[token("match")]
     Match,
     #[token("for")]
@@ -28,10 +38,12 @@ pub enum Token {
     In,
     #[token("to")]
     To,
-    #[token("ret")]
-    Ret,
+    #[token("return")]
+    Return,
     #[token("type")]
     TypeKw,
+    #[token("dec")]
+    Dec,
     #[token("import")]
     Import,
     #[token("actor")]
@@ -64,6 +76,12 @@ pub enum Token {
     View,
     #[token("component")]
     Component,
+    #[token("agent")]
+    Agent,
+    #[token("migrate")]
+    Migrate,
+    #[token("env")]
+    Env,
 
     // ── Phonetic Operators ────────────────────────────────────
     #[token("and")]
@@ -84,10 +102,14 @@ pub enum Token {
     // ── Decorators ────────────────────────────────────────────
     #[token("@component")]
     AtComponent,
+    #[token("@tool")]
+    AtTool,
     #[token("@mcp.tool")]
     AtMcpTool,
-    #[token("@external")]
-    AtExternal,
+    #[token("@resource")]
+    AtResource,
+    #[token("@mcp.resource")]
+    AtMcpResource,
     #[token("@test")]
     AtTest,
     #[token("@server")]
@@ -100,22 +122,32 @@ pub enum Token {
     AtTable,
     #[token("@index")]
     AtIndex,
-    #[token("@v0")]
-    AtV0,
+    #[token("@native")]
+    AtNative,
     #[token("@island")]
     AtIsland,
     #[token("@loading")]
     AtLoading,
-
-    // ── HTTP Methods (contextual, used after `http` keyword) ─
-    #[token("get")]
-    Get,
-    #[token("post")]
-    Post,
-    #[token("put")]
-    Put,
-    #[token("delete")]
-    Delete,
+    #[token("@require")]
+    AtRequire,
+    #[token("@ensure")]
+    AtEnsure,
+    #[token("@invariant")]
+    AtInvariant,
+    #[token("@forall")]
+    AtForall,
+    #[token("@fuzz")]
+    AtFuzz,
+    #[token("@pure")]
+    AtPure,
+    #[token("@scheduled")]
+    AtScheduled,
+    #[token("@deprecated")]
+    AtDeprecated,
+    #[token("@v0")]
+    AtV0,
+    #[token("@ai")]
+    AtAi,
 
     // ── Symbols ───────────────────────────────────────────────
     #[token("(")]
@@ -142,8 +174,22 @@ pub enum Token {
     Dot,
     #[token("=")]
     Eq,
+    #[token("==")]
+    EqEq,
+    #[token("!=")]
+    NotEq,
+    #[token("+=")]
+    PlusEq,
+    #[token("-=")]
+    MinusEq,
+    #[token("*=")]
+    StarEq,
+    #[token("/=")]
+    SlashEq,
     #[token("->")]
     Arrow,
+    #[token("=>")]
+    FatArrow,
     #[token("|>")]
     PipeOp,
     #[token("|")]
@@ -164,6 +210,8 @@ pub enum Token {
     Star,
     #[token("/")]
     Slash,
+    #[token("%")]
+    Percent,
     #[token("_")]
     Underscore,
 
@@ -174,23 +222,76 @@ pub enum Token {
     JsxSelfClose,
 
     // ── Literals ──────────────────────────────────────────────
-    #[regex(r"[0-9]+\.[0-9]+", |lex| lex.slice().parse::<f64>().ok())]
+    #[regex(r"[0-9]+\.[0-9]+(dec)?", |lex| {
+        let s = lex.slice();
+        if s.ends_with("dec") {
+            None // Handled by DecLit
+        } else {
+            s.parse::<f64>().ok()
+        }
+    })]
     FloatLit(f64),
+
+    #[regex(r"[0-9]+(\.[0-9]+)?dec", |lex| {
+        let s = lex.slice();
+        Some(s[..s.len()-3].to_string())
+    })]
+    DecLit(String),
 
     #[regex(r"[0-9]+", priority = 2, callback = |lex| lex.slice().parse::<i64>().ok())]
     IntLit(i64),
 
     #[regex(r#""([^"\\]|\\.)*""#, allow_greedy = true, callback = |lex| {
         let s = lex.slice();
-        Some(s[1..s.len()-1].to_string())
+        let inner = &s[1..s.len()-1];
+        let mut out = String::with_capacity(inner.len());
+        let mut chars = inner.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                match chars.next() {
+                    Some('n')  => out.push('\n'),
+                    Some('t')  => out.push('\t'),
+                    Some('r')  => out.push('\r'),
+                    Some('\\') => out.push('\\'),
+                    Some('"')  => out.push('"'),
+                    Some('\'') => out.push('\''),
+                    Some('0')  => out.push('\0'),
+                    Some(c)    => { out.push('\\'); out.push(c); }
+                    None       => out.push('\\'),
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        Some(out)
     })]
     StringLit(String),
 
     #[regex(r#"'([^'\\]|\\.)*'"#, allow_greedy = true, callback = |lex| {
         let s = lex.slice();
-        Some(s[1..s.len()-1].to_string())
+        let inner = &s[1..s.len()-1];
+        let mut out = String::with_capacity(inner.len());
+        let mut chars = inner.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '\\' {
+                match chars.next() {
+                    Some('n')  => out.push('\n'),
+                    Some('t')  => out.push('\t'),
+                    Some('r')  => out.push('\r'),
+                    Some('\\') => out.push('\\'),
+                    Some('"')  => out.push('"'),
+                    Some('\'') => out.push('\''),
+                    Some('0')  => out.push('\0'),
+                    Some(c)    => { out.push('\\'); out.push(c); }
+                    None       => out.push('\\'),
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        Some(out)
     })]
-    SingleQuoteStringLit(String),
+    SingleStringLit(String),
 
     // ── Identifiers ───────────────────────────────────────────
     /// Lower-case identifiers (variables, functions).
@@ -202,8 +303,8 @@ pub enum Token {
     TypeIdent(String),
 
     // ── Comments ──────────────────────────────────────────────
-    #[regex(r"#[^\r\n]*", allow_greedy = true)]
-    #[regex(r"//[^\r\n]*", allow_greedy = true, priority = 3)]
+    /// Line comments: `// …` (JS-style) and `# …` (shell / Vox fixture headers).
+    #[regex(r"//[^\r\n]*|#[^\r\n]*", allow_greedy = true, priority = 3)]
     Comment,
 
     // ── Newlines ─────────────────────────────────────────────
@@ -220,6 +321,7 @@ pub enum Token {
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Token::Async => write!(f, "async"),
             Token::Fn => write!(f, "fn"),
             Token::Let => write!(f, "let"),
             Token::Mut => write!(f, "mut"),
@@ -229,8 +331,9 @@ impl std::fmt::Display for Token {
             Token::For => write!(f, "for"),
             Token::In => write!(f, "in"),
             Token::To => write!(f, "to"),
-            Token::Ret => write!(f, "ret"),
+            Token::Return => write!(f, "return"),
             Token::TypeKw => write!(f, "type"),
+            Token::Dec => write!(f, "dec"),
             Token::Import => write!(f, "import"),
             Token::Actor => write!(f, "actor"),
             Token::Workflow => write!(f, "workflow"),
@@ -247,6 +350,9 @@ impl std::fmt::Display for Token {
             Token::Cleanup => write!(f, "cleanup"),
             Token::View => write!(f, "view"),
             Token::Component => write!(f, "component"),
+            Token::Agent => write!(f, "agent"),
+            Token::Migrate => write!(f, "migrate"),
+            Token::Env => write!(f, "env"),
             Token::And => write!(f, "and"),
             Token::Or => write!(f, "or"),
             Token::Not => write!(f, "not"),
@@ -255,21 +361,29 @@ impl std::fmt::Display for Token {
             Token::True => write!(f, "true"),
             Token::False => write!(f, "false"),
             Token::AtComponent => write!(f, "@component"),
+            Token::AtTool => write!(f, "@tool"),
             Token::AtMcpTool => write!(f, "@mcp.tool"),
-            Token::AtExternal => write!(f, "@external"),
+            Token::AtResource => write!(f, "@resource"),
+            Token::AtMcpResource => write!(f, "@mcp.resource"),
             Token::AtTest => write!(f, "@test"),
             Token::AtServer => write!(f, "@server"),
             Token::AtQuery => write!(f, "@query"),
             Token::AtMutation => write!(f, "@mutation"),
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
-            Token::AtV0 => write!(f, "@v0"),
+            Token::AtNative => write!(f, "@native"),
             Token::AtIsland => write!(f, "@island"),
             Token::AtLoading => write!(f, "@loading"),
-            Token::Get => write!(f, "get"),
-            Token::Post => write!(f, "post"),
-            Token::Put => write!(f, "put"),
-            Token::Delete => write!(f, "delete"),
+            Token::AtRequire => write!(f, "@require"),
+            Token::AtEnsure => write!(f, "@ensure"),
+            Token::AtInvariant => write!(f, "@invariant"),
+            Token::AtForall => write!(f, "@forall"),
+            Token::AtFuzz => write!(f, "@fuzz"),
+            Token::AtPure => write!(f, "@pure"),
+            Token::AtScheduled => write!(f, "@scheduled"),
+            Token::AtDeprecated => write!(f, "@deprecated"),
+            Token::AtV0 => write!(f, "@v0"),
+            Token::AtAi => write!(f, "@ai"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBracket => write!(f, "["),
@@ -281,7 +395,14 @@ impl std::fmt::Display for Token {
             Token::Comma => write!(f, ","),
             Token::Dot => write!(f, "."),
             Token::Eq => write!(f, "="),
+            Token::EqEq => write!(f, "=="),
+            Token::NotEq => write!(f, "!="),
+            Token::PlusEq => write!(f, "+="),
+            Token::MinusEq => write!(f, "-="),
+            Token::StarEq => write!(f, "*="),
+            Token::SlashEq => write!(f, "/="),
             Token::Arrow => write!(f, "->"),
+            Token::FatArrow => write!(f, "=>"),
             Token::PipeOp => write!(f, "|>"),
             Token::Bar => write!(f, "|"),
             Token::Lt => write!(f, "<"),
@@ -292,17 +413,23 @@ impl std::fmt::Display for Token {
             Token::Minus => write!(f, "-"),
             Token::Star => write!(f, "*"),
             Token::Slash => write!(f, "/"),
+            Token::Percent => write!(f, "%"),
             Token::Underscore => write!(f, "_"),
             Token::JsxCloseStart => write!(f, "</"),
             Token::JsxSelfClose => write!(f, "/>"),
             Token::IntLit(v) => write!(f, "{v}"),
             Token::FloatLit(v) => write!(f, "{v}"),
             Token::StringLit(s) => write!(f, "\"{s}\""),
-            Token::SingleQuoteStringLit(s) => write!(f, "'{s}'"),
+            Token::SingleStringLit(s) => write!(f, "'{s}'"),
+            Token::DecLit(s) => write!(f, "{s}dec"),
             Token::Ident(s) => write!(f, "{s}"),
             Token::TypeIdent(s) => write!(f, "{s}"),
             Token::Comment => write!(f, "<comment>"),
             Token::Newline => write!(f, "<newline>"),
+            Token::While => write!(f, "while"),
+            Token::Loop => write!(f, "loop"),
+            Token::Break => write!(f, "break"),
+            Token::Continue => write!(f, "continue"),
             Token::Eof => write!(f, "<eof>"),
         }
     }

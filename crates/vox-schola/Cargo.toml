@@ -11,30 +11,17 @@ default-run = "vox-schola"
 name = "vox-schola"
 path = "src/main.rs"
 
-[features]
-default = ["cuda"]
-# NVIDIA Candle kernels (requires CUDA toolkit + MSVC toolchain on Windows).
-cuda = ["vox-populi/mens-candle-qlora-cuda"]
+
 
 [dependencies]
-# Core ML (Mens) — Candle QLoRA + CUDA via default `cuda` feature (`mens-candle-qlora-cuda` on Populi).
-vox-populi = { workspace = true, features = ["mens", "mens-train", "mens-hf-hub"] }
-vox-corpus  = { workspace = true }
-vox-db      = { workspace = true }
-# CLI + async runtime
-clap        = { workspace = true, features = ["derive"] }
-anyhow      = { workspace = true }
-tokio       = { workspace = true }
-tracing     = { workspace = true }
+vox-cli-core = { workspace = true }
+which = "8"
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["full", "rt-multi-thread", "macros"] }
+serde = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-serde_json  = { workspace = true }
-serde       = { workspace = true }
-chrono      = { workspace = true }
-ctrlc       = { version = "3.4", features = ["termination"] }
-uuid        = { version = "1", features = ["v4"] }
-# HTTP inference server
-axum        = { version = "0.8" }
-tokio-stream = { version = "0.1" }
 
 [lints]
 workspace = true

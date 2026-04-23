@@ -1,0 +1,22 @@
+import process;
+
+component Main() {
+    print("Running SCIENTIA acceptance slice...");
+    
+    // Check for cargo on PATH
+    let cargo = process.which("cargo") ?? "cargo";
+    
+    print("Step 1: vox-db publication flow tests");
+    let res1 = process.run(cargo, ["test", "-p", "vox-db", "--test", "publication_flow_tests"]);
+    if res1 != 0 {
+        process.exit(res1);
+    }
+    
+    print("Step 2: vox-publisher remote status tests");
+    let res2 = process.run(cargo, ["test", "-p", "vox-publisher", "--features", "scholarly-external-jobs", "scholarly_remote_status", "--", "--nocapture"]);
+    if res2 != 0 {
+        process.exit(res2);
+    }
+    
+    print("✅ acceptance slice complete.");
+}

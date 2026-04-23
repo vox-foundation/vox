@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/repository/vox-project-scaffold-result.schema.json",
+  "title": "VoxProjectScaffoldResult",
+  "description": "Success payload for MCP `vox_project_init` and `vox_project_scaffold::ScaffoldSummary`.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["package_kind", "project_name", "created_relative_paths"],
+  "properties": {
+    "package_kind": { "type": "string" },
+    "project_name": { "type": "string" },
+    "created_relative_paths": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "template_applied": { "type": ["string", "null"] }
+  }
+}

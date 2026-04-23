@@ -24,15 +24,22 @@
 //!   Output: `PolicyCheckResult::Allowed | LockConflict(...) | ScopeDenied(...)`.
 //!   Call before enqueueing to fail fast and emit scope violation events.
 
+pub mod discovery_gate;
 pub mod gateway;
+#[cfg(feature = "news-publish")]
 pub mod news;
 pub mod policy;
 pub mod routing;
 pub mod scaling;
 
+pub mod campaign_scheduler;
 pub mod embeddings;
+pub mod flywheel;
+pub mod topology_ingest;
 
+pub use campaign_scheduler::{CampaignSchedulePlan, CampaignScheduler, CampaignSchedulingMode};
+pub use discovery_gate::DiscoveryGate;
 pub use gateway::MessageGateway;
-pub use policy::{PolicyCheckResult, PolicyEngine};
+pub use policy::{PolicyCheckResult, PolicyEngine, PolicyTrustRelax};
 pub use routing::{RouteResult, RoutingService};
 pub use scaling::{ScalingAction, ScalingService};

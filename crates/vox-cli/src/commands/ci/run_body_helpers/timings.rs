@@ -38,8 +38,10 @@ fn load_build_timing_budgets(root: &Path) -> Result<std::collections::HashMap<St
 /// Soft budgets from `budgets.json`. `VOX_BUILD_TIMINGS_BUDGET_WARN=1` stderr for missing lane keys
 /// and over-budget lanes. `VOX_BUILD_TIMINGS_BUDGET_FAIL=1` fails if any lane exceeded its cap (warn not required).
 fn apply_build_timing_budgets(records: &[TimingRecord], root: &Path) -> Result<()> {
-    let warn = std::env::var("VOX_BUILD_TIMINGS_BUDGET_WARN").unwrap_or_default() == "1";
-    let fail = std::env::var("VOX_BUILD_TIMINGS_BUDGET_FAIL").unwrap_or_default() == "1";
+    let warn_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBuildTimingsBudgetWarn);
+    let warn = warn_resolved.expose().unwrap_or_default() == "1";
+    let fail_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBuildTimingsBudgetFail);
+    let fail = fail_resolved.expose().unwrap_or_default() == "1";
     if !warn && !fail {
         return Ok(());
     }
@@ -113,13 +115,7 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
         ("check_vox_cli_default", &["check", "-p", "vox-cli"]),
         (
             "check_vox_cli_gpu_stub",
-            &[
-                "check",
-                "-p",
-                "vox-cli",
-                "--features",
-                "gpu,mens-qlora,stub-check",
-            ],
+            &["check", "-p", "vox-mens", "--features", "gpu,mens-qlora"],
         ),
     ];
 
@@ -143,6 +139,7 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
                 "check_vox_cli_populi_oratio",
                 &["check", "-p", "vox-cli", "--features", "oratio"],
             ),
+            ("check_vox_mcp", &["check", "-p", "vox-mcp"]),
         ];
         for (lane, args) in crate_lanes {
             records.push(run_cargo_lane(&cargo, root, lane, args));
@@ -150,7 +147,8 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
     }
 
     // Optional CUDA lane (same policy as `cuda-features`).
-    if std::env::var("SKIP_CUDA_FEATURE_CHECK").unwrap_or_default() != "1" {
+    let skip_cuda_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::SkipCudaFeatureCheck);
+    if skip_cuda_resolved.expose().unwrap_or_default() != "1" {
         let nvcc_ok = nvcc_available();
         if nvcc_ok {
             records.push(run_cargo_lane(
@@ -160,7 +158,7 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
                 &[
                     "check",
                     "-p",
-                    "vox-cli",
+                    "vox-mens",
                     "--features",
                     "gpu,mens-candle-cuda",
                 ],
@@ -194,7 +192,9 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
                 println!("    ({e})");
             }
         }
-        if std::env::var("SKIP_CUDA_FEATURE_CHECK").unwrap_or_default() == "1" {
+        let skip_cuda_resolved =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::SkipCudaFeatureCheck);
+        if skip_cuda_resolved.expose().unwrap_or_default() == "1" {
             println!("  (CUDA lane skipped: SKIP_CUDA_FEATURE_CHECK=1)");
         } else if !records
             .iter()
@@ -209,15 +209,25 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
     }
     apply_build_timing_budgets(&records, root)?;
     let total_ms: u128 = records.iter().filter(|r| r.ok).map(|r| r.duration_ms).sum();
-    crate::benchmark_telemetry::record_opt_blocking(
+    let total_seconds = (total_ms as f64) / 1000.0;
+    let details = serde_json::json!({
+        "crates": crates,
+        "total_ms": total_ms,
+        "lanes": records.iter().map(|r| {
+            serde_json::json!({"lane": r.lane, "ok": r.ok, "ms": r.duration_ms})
+        }).collect::<Vec<_>>(),
+    });
+    tracing::debug!(
+        target: "vox.ci.build_timings",
+        lane_count = records.len(),
+        total_ms = total_ms,
+        "recording ci_build_timings benchmark_event"
+    );
+    crate::benchmark_telemetry::record_opt_with_unit_blocking(
         "ci_build_timings",
-        Some(total_ms as f64),
-        Some(serde_json::json!({
-            "crates": crates,
-            "lanes": records.iter().map(|r| {
-                serde_json::json!({"lane": r.lane, "ok": r.ok, "ms": r.duration_ms})
-            }).collect::<Vec<_>>(),
-        })),
+        Some(total_seconds),
+        Some("seconds"),
+        Some(details),
     );
     Ok(())
 }
@@ -238,6 +248,7 @@ mod build_timing_budget_tests {
         "check_vox_oratio",
         "check_vox_mens_train",
         "check_vox_cli_populi_oratio",
+        "check_vox_mcp",
     ];
 
     #[test]

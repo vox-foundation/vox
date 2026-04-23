@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::ast_mapper::{AstTarget, map_to_ast_target};
+
 /// Action labels aligned with [`crate::routing`] tool-route ids.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -39,6 +41,9 @@ pub struct SpeechIntentEnvelope {
     /// Optional identifier / function name extracted from speech.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub symbol_name: Option<String>,
+    /// Optional AST-aware target extracted from speech to eliminate character-precise dictation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ast_target: Option<AstTarget>,
 }
 
 /// Map a [`RouteResponse::action`](crate::RouteResponse) string to a planner action.
@@ -56,9 +61,24 @@ pub fn speech_intent_action_from_route_action(action: &str) -> SpeechIntentActio
 
 /// Heuristic slot fill from transcript (path in backticks, “file …”, “function …”, etc.).
 #[must_use]
-pub fn fill_slots_heuristic(transcript: &str) -> (Option<String>, Option<String>) {
+pub fn fill_slots_heuristic(
+    transcript: &str,
+    context: Option<&crate::routing::IdeContext>,
+) -> (Option<String>, Option<String>) {
     let mut path = None;
     let mut symbol = None;
+
+    let lower = transcript.to_ascii_lowercase();
+
+    // Contextual resolution for "this file" / "this"
+    if let Some(ctx) = context {
+        if lower.contains("this file") || lower.contains("edit this") || lower.contains("fix this")
+        {
+            if let Some(active) = &ctx.active_file {
+                path = Some(active.clone());
+            }
+        }
+    }
 
     for part in transcript.split('`') {
         let p = part.trim();
@@ -109,9 +129,11 @@ pub fn build_intent_envelope(
     transcript: &str,
     intent_confidence: f32,
     transcript_confidence: f32,
+    context: Option<&crate::routing::IdeContext>,
 ) -> SpeechIntentEnvelope {
     let ia = speech_intent_action_from_route_action(action);
-    let (target_path, symbol_name) = fill_slots_heuristic(transcript);
+    let (target_path, symbol_name) = fill_slots_heuristic(transcript, context);
+    let ast_target = map_to_ast_target(transcript, context);
     SpeechIntentEnvelope {
         action: ia,
         intent_confidence,
@@ -119,6 +141,7 @@ pub fn build_intent_envelope(
         transcript: transcript.to_string(),
         target_path,
         symbol_name,
+        ast_target,
     }
 }
 
@@ -177,15 +200,23 @@ mod tests {
 
     #[test]
     fn fill_slots_path_in_backticks() {
-        let (p, s) = fill_slots_heuristic("open `src/foo.vox` and add code");
+        let (p, s) = fill_slots_heuristic("open `src/foo.vox` and add code", None);
         assert_eq!(p.as_deref(), Some("src/foo.vox"));
         assert!(s.is_none());
     }
 
     #[test]
     fn fill_slots_function_named() {
-        let (_p, s) = fill_slots_heuristic("edit function bar_baz in the workflow");
+        let (_p, s) = fill_slots_heuristic("edit function bar_baz in the workflow", None);
         assert_eq!(s.as_deref(), Some("bar_baz"));
+    }
+
+    #[test]
+    fn fill_slots_contextual_this_file() {
+        let mut ctx = crate::routing::IdeContext::default();
+        ctx.active_file = Some("src/lib.vox".to_string());
+        let (p, _s) = fill_slots_heuristic("fix this file", Some(&ctx));
+        assert_eq!(p.as_deref(), Some("src/lib.vox"));
     }
 
     #[test]
@@ -195,6 +226,7 @@ mod tests {
             "create a new handler",
             0.9,
             0.85,
+            None,
         );
         assert!(clarification_prompt_for_slots(&env).is_some());
     }

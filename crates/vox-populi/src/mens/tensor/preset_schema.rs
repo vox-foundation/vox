@@ -46,6 +46,10 @@ pub struct TrainPresetProfile {
 
 pub const DEFAULT_PRESET: &str = "4080";
 
+/// Preset names accepted by `--preset` / planner normalization.
+///
+/// **Contract SSOT:** mirror every entry in `contracts/mens/training-presets.v1.yaml` (enforced by
+/// `vox-populi` integration test `training_presets_yaml_contract`).
 pub const KNOWN_PRESETS: &[&str] = &[
     "tiny",
     "safe",
@@ -59,6 +63,8 @@ pub const KNOWN_PRESETS: &[&str] = &[
     "default",
     "distributed",
     "mobile_edge",
+    // Code-generation fine-tune preset (Vox .box target language).
+    "vox-gen",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -215,6 +221,18 @@ fn base_for_name(name: &str) -> TrainPresetProfile {
             warmup: 40,
             lr: 1.5e-4,
         },
+        // Vox .vox code-generation fine-tune — short sequences, aggressive LoRA rank
+        // to capture the compact grammar surface. Designed for RTX 4080-class (16GB).
+        "vox-gen" => TrainPresetProfile {
+            rank: 16,
+            alpha: 32.0,
+            seq_len: 256, // .vox programs are compact; 256 tokens covers most functions
+            batch_size: 2,
+            grad_accum: 8,
+            epochs: 5, // more epochs for code: grammar must be memorized
+            warmup: 60,
+            lr: 1.5e-4,
+        },
         _ => TrainPresetProfile {
             rank: 16,
             alpha: 32.0,
@@ -259,9 +277,11 @@ pub fn resolve_effective_profile(
     sample_count: Option<usize>,
     overrides: CliOverrides,
 ) -> TrainPresetProfile {
-    let model_hint = std::env::var("VOX_BASE_MODEL").ok();
-    let env_p = std::env::var("VOX_TRAIN_PROFILE").ok();
-    let name = normalize_preset_name(preset.or(env_p.as_deref()).unwrap_or(DEFAULT_PRESET));
+    let model_hint_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBaseModel);
+    let model_hint = model_hint_resolved.expose();
+    let env_p_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxTrainProfile);
+    let env_p = env_p_resolved.expose();
+    let name = normalize_preset_name(preset.or(env_p).unwrap_or(DEFAULT_PRESET));
 
     let mut p = if name == "auto" {
         if let Some(specs) = load_gpu_specs() {

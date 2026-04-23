@@ -23,14 +23,8 @@ impl RateLimiter {
     /// - `VOX_RATE_LIMIT_MAX_REQUESTS` (default: 120)
     /// - `VOX_RATE_LIMIT_WINDOW_SECONDS` (default: 60)
     pub fn from_env() -> Self {
-        let max_requests = std::env::var("VOX_RATE_LIMIT_MAX_REQUESTS")
-            .ok()
-            .and_then(|v| v.parse::<usize>().ok())
-            .unwrap_or(120);
-        let window_seconds = std::env::var("VOX_RATE_LIMIT_WINDOW_SECONDS")
-            .ok()
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or(60);
+        let max_requests = vox_config::env_parse::resolve_config_u64("VOX_RATE_LIMIT_MAX_REQUESTS", 120) as usize;
+        let window_seconds = vox_config::env_parse::resolve_config_u64("VOX_RATE_LIMIT_WINDOW_SECONDS", 60);
         Self::new(max_requests, Duration::from_secs(window_seconds))
     }
 

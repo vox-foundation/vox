@@ -38,4 +38,7 @@ pub enum StoreError {
     /// [`crate::DbCircuitBreaker`] is open (too many consecutive write failures).
     #[error(transparent)]
     CircuitBreaker(#[from] CircuitBreakerError),
+    /// Internal actor or system failure.
+    #[error("Internal error: {0}")]
+    Internal(String),
 }

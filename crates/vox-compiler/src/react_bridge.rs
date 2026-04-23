@@ -33,6 +33,8 @@ pub mod react_exports {
     pub const USE_STATE: &str = "useState";
     pub const USE_EFFECT: &str = "useEffect";
     pub const USE_MEMO: &str = "useMemo";
+    pub const USE_REF: &str = "useRef";
+    pub const USE_CALLBACK: &str = "useCallback";
 }
 
 #[must_use]
@@ -66,6 +68,20 @@ pub fn for_each_vox_hook_call_in_stmt(stmt: &Stmt, f: &mut impl FnMut(&str, Span
             }
         }
         Stmt::Expr { expr, .. } => for_each_vox_hook_call_in_expr(expr, f),
+        Stmt::While {
+            condition, body, ..
+        } => {
+            for_each_vox_hook_call_in_expr(condition, f);
+            for s in body {
+                for_each_vox_hook_call_in_stmt(s, f);
+            }
+        }
+        Stmt::Loop { body, .. } => {
+            for s in body {
+                for_each_vox_hook_call_in_stmt(s, f);
+            }
+        }
+        Stmt::Break { .. } | Stmt::Continue { .. } => {}
     }
 }
 
@@ -110,6 +126,7 @@ pub fn for_each_vox_hook_call_in_expr(expr: &Expr, f: &mut impl FnMut(&str, Span
             for_each_vox_hook_call_in_expr(left, f);
             for_each_vox_hook_call_in_expr(right, f);
         }
+        Expr::Try { target, .. } => for_each_vox_hook_call_in_expr(target, f),
         Expr::Spawn { target, .. } => for_each_vox_hook_call_in_expr(target, f),
         Expr::With {
             operand, options, ..
@@ -185,6 +202,7 @@ pub fn for_each_vox_hook_call_in_expr(expr: &Expr, f: &mut impl FnMut(&str, Span
         | Expr::FloatLit { .. }
         | Expr::BoolLit { .. }
         | Expr::StringLit { .. }
-        | Expr::Ident { .. } => {}
+        | Expr::Ident { .. }
+        | Expr::DecimalLit { .. } => {}
     }
 }

@@ -11,7 +11,8 @@ use crate::{DbConfig, VoxDb};
 /// True when **`VOX_MESH_CODEX_TELEMETRY`** is `1` or `true`.
 #[must_use]
 pub fn mesh_codex_telemetry_enabled() -> bool {
-    std::env::var("VOX_MESH_CODEX_TELEMETRY")
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshCodexTelemetry)
+        .expose()
         .map(|v| {
             let v = v.trim();
             v == "1" || v.eq_ignore_ascii_case("true")
@@ -44,8 +45,8 @@ pub async fn record_local_registry_publish_opt(
         );
         return;
     };
-    let scope_id = std::env::var("VOX_MESH_SCOPE_ID")
-        .ok()
+    let scope_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+        .expose()
         .filter(|s| !s.trim().is_empty())
         .map(|s| s.trim().to_string());
     let details = json!({
@@ -92,8 +93,8 @@ pub async fn record_populi_http_join_opt(
         );
         return;
     };
-    let scope_id = std::env::var("VOX_MESH_SCOPE_ID")
-        .ok()
+    let scope_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+        .expose()
         .filter(|s| !s.trim().is_empty())
         .map(|s| s.trim().to_string());
     let details = json!({
@@ -116,6 +117,46 @@ pub async fn record_populi_http_join_opt(
             target: "vox.populi_registry_telemetry",
             error = %e,
             "record_populi_control_event (http join) failed"
+        );
+    }
+}
+
+/// Periodic hardware telemetry (utilization, temp, etc.) recorded when telemetry is on.
+///
+/// `telemetry` should be from `HardwareRegistry::monitor()`.
+pub async fn record_hardware_telemetry_opt(
+    repository_id: &str,
+    node_id: Option<&str>,
+    telemetry: &serde_json::Value,
+) {
+    if !mesh_codex_telemetry_enabled() {
+        return;
+    }
+    let Ok(cfg) = DbConfig::resolve_canonical() else {
+        return;
+    };
+    let Ok(db) = VoxDb::connect(cfg).await else {
+        return;
+    };
+    let scope_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+        .expose()
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_string());
+
+    let details = json!({
+        "node_id": node_id,
+        "scope_id": scope_id,
+        "telemetry": telemetry,
+    });
+
+    if let Err(e) = db
+        .record_populi_control_event(repository_id, "hardware_telemetry", Some(details))
+        .await
+    {
+        tracing::debug!(
+            target: "vox.populi_registry_telemetry",
+            error = %e,
+            "record_hardware_telemetry failed"
         );
     }
 }

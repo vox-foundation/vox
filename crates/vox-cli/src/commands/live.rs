@@ -17,7 +17,7 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use tokio::time::{Duration, sleep};
 use vox_orchestrator::events::AgentEventKind;
-use vox_orchestrator::{AgentEvent, Orchestrator, OrchestratorConfig};
+use vox_orchestrator::{AgentEvent, OrchestratorConfig, build_repo_scoped_orchestrator};
 
 const BOLD: &str = "\x1b[1m";
 const RESET: &str = "\x1b[0m";
@@ -269,7 +269,9 @@ async fn run_event_log_tail(path: PathBuf) -> Result<()> {
 }
 
 pub async fn run() -> Result<()> {
-    if let Ok(raw) = std::env::var("VOX_ORCHESTRATOR_EVENT_LOG") {
+    let event_log_resolved =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorEventLog);
+    if let Some(raw) = event_log_resolved.expose() {
         let path = PathBuf::from(raw.trim());
         validate_event_log_path(&path)?;
         tracing::info!(
@@ -280,7 +282,7 @@ pub async fn run() -> Result<()> {
     }
 
     let config = OrchestratorConfig::default();
-    let orch = Orchestrator::new(config);
+    let orch = build_repo_scoped_orchestrator(config, None).orchestrator;
     let mut rx = orch.event_bus().subscribe();
 
     let mut stats = LiveStats::default();

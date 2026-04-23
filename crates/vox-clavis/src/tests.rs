@@ -3,12 +3,13 @@
 use std::sync::Mutex;
 
 use crate::backend::{NoopBackend, UnavailableBackend};
-use crate::resolver::{ResolveOptions, SecretResolver};
+use crate::resolver::{ResolveOptions, ResolveProfile, SecretResolver};
 use crate::spec::{
-    Profile, RequirementMode, RequirementSet, SecretBundle, SecretId, Workflow,
+    Profile, RequirementMode, RequirementSet, SecretBundle, SecretClass, SecretId, Workflow,
     required_for_profile, requirements_for_bundle, requirements_for_profile_mode,
 };
 use crate::{ResolutionStatus, resolve_env_only};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
@@ -30,15 +31,23 @@ fn canonical_env_wins_over_alias() {
 }
 
 #[test]
+#[allow(unsafe_code)]
 fn backend_unavailable_status_is_explicit() {
+    let _g = ENV_LOCK.lock().expect("env lock");
+    unsafe {
+        std::env::remove_var("OPENROUTER_API_KEY");
+    }
     let resolver = SecretResolver::new(UnavailableBackend {
         reason: "feature disabled".to_string(),
     });
     let resolved = resolver.resolve(
         SecretId::OpenRouterApiKey,
         &ResolveOptions {
+            include_env: true,
             include_auth_json: false,
             include_populi_env: false,
+            profile: ResolveProfile::DevLenient,
+            caller_context: "test".to_string(),
         },
     );
     assert!(matches!(
@@ -63,8 +72,11 @@ fn env_only_ignores_backend() {
     let resolved = SecretResolver::new(NoopBackend).resolve(
         SecretId::OpenRouterApiKey,
         &ResolveOptions {
+            include_env: true,
             include_auth_json: false,
             include_populi_env: false,
+            profile: ResolveProfile::DevLenient,
+            caller_context: "test".to_string(),
         },
     );
     assert!(matches!(resolved.status, ResolutionStatus::MissingRequired));
@@ -75,7 +87,7 @@ fn profile_requirements_are_dynamic() {
     let dev = required_for_profile(Workflow::Chat, Profile::Dev);
     let ci = required_for_profile(Workflow::Chat, Profile::Ci);
     assert!(!dev.contains(&SecretId::OpenRouterApiKey));
-    assert!(ci.contains(&SecretId::GitHubToken));
+    assert!(ci.contains(&SecretId::ForgeToken));
 }
 
 #[test]
@@ -112,4 +124,383 @@ fn deprecated_alias_marks_status() {
     unsafe {
         std::env::remove_var("GOOGLE_AI_STUDIO_KEY");
     }
+}
+
+#[test]
+#[allow(unsafe_code)]
+fn strict_profile_rejects_deprecated_alias() {
+    let _g = ENV_LOCK.lock().expect("env lock");
+    unsafe {
+        std::env::set_var("GOOGLE_AI_STUDIO_KEY", "legacy");
+        std::env::remove_var("GEMINI_API_KEY");
+    }
+    let resolver = SecretResolver::new(NoopBackend);
+    let resolved = resolver.resolve(
+        SecretId::GeminiApiKey,
+        &ResolveOptions {
+            include_env: true,
+            include_auth_json: false,
+            include_populi_env: false,
+            profile: ResolveProfile::HardCutStrict,
+            caller_context: "test".to_string(),
+        },
+    );
+    assert!(matches!(
+        resolved.status,
+        ResolutionStatus::RejectedLegacyAlias
+    ));
+    unsafe {
+        std::env::remove_var("GOOGLE_AI_STUDIO_KEY");
+    }
+}
+
+#[test]
+#[allow(unsafe_code)]
+fn strict_profile_rejects_transport_env_source() {
+    let _g = ENV_LOCK.lock().expect("env lock");
+    unsafe {
+        std::env::set_var("VOX_WEBHOOK_SIGNING_SECRET", "super-secret");
+    }
+    let resolver = SecretResolver::new(NoopBackend);
+    let resolved = resolver.resolve(
+        SecretId::WebhookSigningSecret,
+        &ResolveOptions {
+            include_env: true,
+            include_auth_json: false,
+            include_populi_env: false,
+            profile: ResolveProfile::ProdStrict,
+            caller_context: "test".to_string(),
+        },
+    );
+    assert!(matches!(
+        resolved.status,
+        ResolutionStatus::RejectedSourcePolicy
+    ));
+    unsafe {
+        std::env::remove_var("VOX_WEBHOOK_SIGNING_SECRET");
+    }
+}
+
+#[test]
+fn secret_metadata_is_defined_for_all_specs() {
+    for spec in crate::all_specs() {
+        let metadata = spec.id.metadata();
+        // Account secrets should be persistable unless explicitly local-only.
+        if matches!(metadata.class, SecretClass::Account) {
+            assert!(metadata.persistable_account_secret || metadata.device_local_only);
+        }
+    }
+}
+
+#[test]
+#[allow(unsafe_code)]
+fn strict_cloudless_can_disable_env_plaintext_fallback() {
+    let _g = ENV_LOCK.lock().expect("env lock");
+    unsafe {
+        std::env::set_var("OPENROUTER_API_KEY", "plaintext-env-secret");
+    }
+    let resolver = SecretResolver::new(NoopBackend);
+    let resolved = resolver.resolve(
+        SecretId::OpenRouterApiKey,
+        &ResolveOptions {
+            include_env: false,
+            include_auth_json: false,
+            include_populi_env: false,
+            profile: ResolveProfile::HardCutStrict,
+            caller_context: "test".to_string(),
+        },
+    );
+    assert!(matches!(resolved.status, ResolutionStatus::MissingRequired));
+    assert!(resolved.expose().is_none());
+    unsafe {
+        std::env::remove_var("OPENROUTER_API_KEY");
+    }
+}
+
+#[test]
+#[allow(unsafe_code)]
+fn resolved_secret_redaction_never_leaks_raw_value() {
+    let _g = ENV_LOCK.lock().expect("env lock");
+    unsafe {
+        std::env::set_var("OPENAI_API_KEY", "super-secret-value-123456");
+    }
+    let resolved = resolve_env_only(SecretId::OpenaiApiKey);
+    let redacted = resolved.redacted();
+    assert!(!redacted.contains("super-secret-value-123456"));
+    assert!(redacted.contains("(redacted)") || redacted == "***");
+    unsafe {
+        std::env::remove_var("OPENAI_API_KEY");
+    }
+}
+
+struct ChaosBackend {
+    counter: AtomicUsize,
+}
+
+impl crate::backend::SecretBackend for ChaosBackend {
+    fn resolve(
+        &self,
+        _id: SecretId,
+        _spec: crate::spec::SecretSpec,
+        _profile: Option<&str>,
+        _caller: &str,
+    ) -> Result<Option<secrecy::SecretString>, crate::errors::SecretError> {
+        let n = self.counter.fetch_add(1, Ordering::Relaxed);
+        if n.is_multiple_of(2) {
+            Ok(None)
+        } else {
+            Err(crate::errors::SecretError::BackendUnavailable(
+                "chaos backend injected outage".to_string(),
+            ))
+        }
+    }
+
+    fn write_audit_log(
+        &self,
+        _secret_id: &str,
+        _status: &str,
+        _resolved_source: Option<&str>,
+        _profile: &str,
+        _caller_context: &str,
+        _detail: Option<&str>,
+    ) -> Result<(), crate::errors::SecretError> {
+        Ok(())
+    }
+}
+
+#[test]
+fn resolver_chaos_backend_alternates_missing_and_backend_unavailable() {
+    let resolver = SecretResolver::new(ChaosBackend {
+        counter: AtomicUsize::new(0),
+    });
+    let mut saw_missing = false;
+    let mut saw_unavailable = false;
+    for _ in 0..8 {
+        let resolved = resolver.resolve(
+            SecretId::OpenRouterApiKey,
+            &ResolveOptions {
+                include_env: false,
+                include_auth_json: false,
+                include_populi_env: false,
+                profile: ResolveProfile::HardCutStrict,
+                caller_context: "test".to_string(),
+            },
+        );
+        saw_missing |= matches!(resolved.status, ResolutionStatus::MissingRequired);
+        saw_unavailable |= matches!(resolved.status, ResolutionStatus::BackendUnavailable);
+    }
+    assert!(saw_missing);
+    assert!(saw_unavailable);
+}
+
+#[test]
+#[allow(unsafe_code)]
+fn resolver_fuzz_like_env_payloads_never_panic() {
+    let _g = ENV_LOCK.lock().expect("env lock");
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
+    for spec in crate::all_specs().iter().take(24) {
+        let fuzz_val = (0..32)
+            .map(|_| {
+                let b = rng.gen_range(33_u8..=126_u8);
+                b as char
+            })
+            .collect::<String>();
+        unsafe {
+            std::env::set_var(spec.canonical_env, &fuzz_val);
+        }
+        let resolved = resolve_env_only(spec.id);
+        assert!(
+            matches!(
+                resolved.status,
+                ResolutionStatus::Present | ResolutionStatus::DeprecatedAliasUsed
+            ),
+            "unexpected status {:?} for {}",
+            resolved.status,
+            spec.canonical_env
+        );
+        unsafe {
+            std::env::remove_var(spec.canonical_env);
+        }
+    }
+}
+
+#[test]
+fn cutover_phase_choreography_transitions_as_expected() {
+    assert!(crate::CutoverPhase::Shadow.legacy_sources_allowed(ResolveProfile::DevLenient));
+    assert!(crate::CutoverPhase::Canary.legacy_sources_allowed(ResolveProfile::DevLenient));
+    assert!(!crate::CutoverPhase::Canary.legacy_sources_allowed(ResolveProfile::HardCutStrict));
+    assert!(!crate::CutoverPhase::Enforce.legacy_sources_allowed(ResolveProfile::DevLenient));
+    assert!(!crate::CutoverPhase::Decommission.legacy_sources_allowed(ResolveProfile::DevLenient));
+    assert!(!crate::CutoverPhase::Shadow.force_vox_cloud_backend());
+    assert!(crate::CutoverPhase::Decommission.force_vox_cloud_backend());
+}
+
+#[test]
+#[allow(unsafe_code)]
+fn decommission_phase_disables_env_only_fallback_and_forces_vox_cloud() {
+    let _g = ENV_LOCK.lock().expect("env lock");
+    let prev_cutover = std::env::var("VOX_CLAVIS_CUTOVER_PHASE").ok();
+    let prev_backend = std::env::var("VOX_CLAVIS_BACKEND").ok();
+    unsafe {
+        std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", "decommission");
+        std::env::set_var("VOX_CLAVIS_BACKEND", "env_only");
+        std::env::set_var("OPENROUTER_API_KEY", "would-be-legacy-fallback");
+    }
+    let resolved = crate::resolve_secret(SecretId::OpenRouterApiKey);
+    assert!(!matches!(resolved.status, ResolutionStatus::Present));
+    unsafe {
+        match prev_cutover {
+            Some(v) => std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", v),
+            None => std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE"),
+        }
+        match prev_backend {
+            Some(v) => std::env::set_var("VOX_CLAVIS_BACKEND", v),
+            None => std::env::remove_var("VOX_CLAVIS_BACKEND"),
+        }
+        std::env::remove_var("OPENROUTER_API_KEY");
+    }
+}
+
+#[test]
+#[allow(unsafe_code)]
+fn cutover_phase_compat_alias_is_honored() {
+    let _g = ENV_LOCK.lock().expect("env lock");
+    let prev_cutover = std::env::var("VOX_CLAVIS_CUTOVER_PHASE").ok();
+    let prev_migration = std::env::var("VOX_CLAVIS_MIGRATION_PHASE").ok();
+    unsafe {
+        std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE");
+        std::env::set_var("VOX_CLAVIS_MIGRATION_PHASE", "enforce");
+    }
+    assert_eq!(
+        crate::CutoverPhase::from_env(),
+        crate::CutoverPhase::Enforce
+    );
+    unsafe {
+        match prev_cutover {
+            Some(v) => std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", v),
+            None => std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE"),
+        }
+        match prev_migration {
+            Some(v) => std::env::set_var("VOX_CLAVIS_MIGRATION_PHASE", v),
+            None => std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE"),
+        }
+    }
+}
+
+#[test]
+fn all_secret_ids_have_spec_entries() {
+    for &id in &[
+        SecretId::GeminiApiKey,
+        SecretId::OpenRouterApiKey,
+        SecretId::OpenaiApiKey,
+        SecretId::AnthropicApiKey,
+        SecretId::HuggingFaceToken,
+        SecretId::ForgeToken,
+        SecretId::GroqApiKey,
+        SecretId::CerebrasApiKey,
+        SecretId::MistralApiKey,
+        SecretId::DeepSeekApiKey,
+        SecretId::SambaNovaApiKey,
+        SecretId::CustomOpenaiApiKey,
+        SecretId::V0ApiKey,
+        SecretId::OpenClawToken,
+        SecretId::TogetherApiKey,
+        SecretId::VoxRunpodApiKey,
+        SecretId::VoxVastApiKey,
+        SecretId::VoxApiKey,
+        SecretId::VoxBearerToken,
+        SecretId::VoxDbUrl,
+        SecretId::VoxDbToken,
+        SecretId::VoxMeshToken,
+        SecretId::VoxMeshWorkerToken,
+        SecretId::VoxMeshSubmitterToken,
+        SecretId::VoxMeshAdminToken,
+        SecretId::VoxMeshJwtHmacSecret,
+        SecretId::VoxMeshWorkerResultVerifyKey,
+        SecretId::VoxNewsTwitterBearer,
+        SecretId::VoxNewsOpenCollectiveToken,
+        SecretId::VoxSocialRedditClientId,
+        SecretId::VoxSocialRedditClientSecret,
+        SecretId::VoxSocialRedditRefreshToken,
+        SecretId::VoxSocialRedditUserAgent,
+        SecretId::VoxSocialYoutubeClientId,
+        SecretId::VoxSocialYoutubeClientSecret,
+        SecretId::VoxSocialYoutubeRefreshToken,
+        SecretId::VoxZenodoAccessToken,
+        SecretId::VoxOpenReviewEmail,
+        SecretId::VoxOpenReviewAccessToken,
+        SecretId::VoxOpenReviewPassword,
+        SecretId::VoxCrossrefPlusApiKey,
+        SecretId::VoxArxivAssistHandoffSecret,
+        SecretId::VoxSearchQdrantApiKey,
+        SecretId::PopuliApiKey,
+        SecretId::VoxTelemetryUploadUrl,
+        SecretId::VoxTelemetryUploadToken,
+        SecretId::WebhookIngressToken,
+        SecretId::VoxMcpHttpBearerToken,
+        SecretId::VoxMcpHttpReadBearerToken,
+        SecretId::WebhookSigningSecret,
+        SecretId::VoxOrcidClientId,
+        SecretId::VoxOrcidClientSecret,
+        SecretId::VoxDataCiteRepository,
+        SecretId::VoxDataCitePassword,
+        SecretId::TavilyApiKey,
+        SecretId::TavilyProject,
+    ] {
+        println!("Checking {:?}", id);
+        let _ = id.spec();
+    }
+}
+
+#[test]
+fn test_contains_secret_material() {
+    let text = "this is a test with a super-secret-value inside";
+    assert!(crate::redact::contains_secret_material(
+        text,
+        &["super-secret-value", "another-secret"]
+    ));
+    assert!(!crate::redact::contains_secret_material(
+        text,
+        &["not-in-text", "also-not"]
+    ));
+
+    // Short patterns are ignored
+    assert!(!crate::redact::contains_secret_material(
+        "short",
+        &["short"]
+    ));
+}
+
+#[test]
+fn test_redact_secrets_from_value() {
+    use serde_json::json;
+    let val = json!({
+        "data": "my super-secret-value here",
+        "nested": ["other-secret-123456", "safe-value"]
+    });
+    let patterns = vec!["super-secret-value", "other-secret-123456"];
+    let scrubbed = crate::redact::redact_secrets_from_value(&val, &patterns);
+
+    let expected = json!({
+        "data": "my [REDACTED] here",
+        "nested": ["[REDACTED]", "safe-value"]
+    });
+    assert_eq!(scrubbed, expected);
+}
+
+#[test]
+fn test_redact_empty_patterns() {
+    use serde_json::json;
+    let val = json!({"data": "safe"});
+    let scrubbed = crate::redact::redact_secrets_from_value(&val, &[]);
+    assert_eq!(scrubbed, val);
+}
+
+#[test]
+fn test_redact_skips_short_patterns() {
+    use serde_json::json;
+    let val = json!({"data": "short text"});
+    let scrubbed = crate::redact::redact_secrets_from_value(&val, &["short"]);
+    assert_eq!(scrubbed, val);
 }

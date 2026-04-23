@@ -5,6 +5,9 @@ use std::path::Path;
 
 use super::types::Page;
 
+const FEED_BASE_URL: &str = "https://vox-lang.org";
+const CHANGELOG_URL: &str = "https://vox-lang.org/changelog.html";
+
 /// Parse an ISO `YYYY-MM-DD` date string to RFC 822 (`Tue, 24 Mar 2026 00:00:00 GMT`).
 fn iso_to_rfc822(iso: &str) -> Option<String> {
     let parts: Vec<&str> = iso.trim().split('-').collect();
@@ -146,10 +149,20 @@ fn xml_escape(s: &str) -> String {
 
 /// Generate `docs/src/feed.xml` from pages that have `last_updated`.
 pub(crate) fn generate_feed(docs_src: &Path, pages: &[Page]) {
-    const BASE_URL: &str = "https://vox-lang.org";
-    const MAX_ITEMS: usize = 20;
+    const MAX_ITEMS: usize = 25;
 
-    let mut dated: Vec<&Page> = pages.iter().filter(|p| p.last_updated.is_some()).collect();
+    let mut dated: Vec<&Page> = pages
+        .iter()
+        .filter(|p| {
+            p.last_updated.is_some()
+                && !matches!(p.status.as_deref(), Some("deprecated") | Some("legacy"))
+                && !p.path.contains("-ARCHIVED")
+                && !p.path.starts_with("architecture/research-")
+                && !p.path.starts_with("architecture/planning-meta/")
+                && !p.path.starts_with("ci/")
+                && !p.path.starts_with("operations/")
+        })
+        .collect();
     dated.sort_by(|a, b| {
         b.last_updated
             .as_deref()
@@ -166,18 +179,18 @@ pub(crate) fn generate_feed(docs_src: &Path, pages: &[Page]) {
          <channel>\n",
     );
     xml.push_str("  <title>Vox Language Updates</title>\n");
-    xml.push_str(&format!("  <link>{BASE_URL}/</link>\n"));
+    xml.push_str(&format!("  <link>{FEED_BASE_URL}/</link>\n"));
     xml.push_str("  <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>\n");
     xml.push_str("  <language>en-us</language>\n");
     xml.push_str(&format!("  <lastBuildDate>{build_date}</lastBuildDate>\n"));
     xml.push_str(&format!(
-        "  <atom:link href=\"{BASE_URL}/feed.xml\" rel=\"self\" type=\"application/rss+xml\" />\n"
+        "  <atom:link href=\"{FEED_BASE_URL}/feed.xml\" rel=\"self\" type=\"application/rss+xml\" />\n"
     ));
     xml.push('\n');
 
     for page in &dated {
         let slug = page.path.trim_end_matches(".md").replace('\\', "/");
-        let url = format!("{BASE_URL}/{slug}.html");
+        let url = format!("{FEED_BASE_URL}/{slug}.html");
         let title = xml_escape(&page.title);
         let description = xml_escape(page.description.as_deref().unwrap_or(&page.title));
         let pub_date = page
@@ -186,41 +199,65 @@ pub(crate) fn generate_feed(docs_src: &Path, pages: &[Page]) {
             .and_then(iso_to_rfc822)
             .unwrap_or_else(|| build_date.clone());
 
+        let feed_category =
+            if page.path.starts_with("tutorials/") || page.path.starts_with("journeys/") {
+                "Tutorial"
+            } else if page.path.starts_with("how-to/") {
+                "How-To"
+            } else if page.path.starts_with("explanation/") {
+                "Explanation"
+            } else if page.path.starts_with("reference/") || page.path.starts_with("api/") {
+                "Reference"
+            } else {
+                "Documentation"
+            };
+
         xml.push_str("  <item>\n");
         xml.push_str(&format!("    <title>{title}</title>\n"));
         xml.push_str(&format!("    <link>{url}</link>\n"));
         xml.push_str(&format!("    <guid isPermaLink=\"true\">{url}</guid>\n"));
         xml.push_str(&format!("    <description>{description}</description>\n"));
         xml.push_str(&format!("    <pubDate>{pub_date}</pubDate>\n"));
+        xml.push_str(&format!("    <category>{feed_category}</category>\n"));
+        if let Some(st) = page.schema_type.as_deref() {
+            let st = st.trim();
+            if !st.is_empty() {
+                xml.push_str(&format!(
+                    "    <category domain=\"https://schema.org\">{}</category>\n",
+                    xml_escape(st)
+                ));
+            }
+        }
         xml.push_str("  </item>\n\n");
     }
 
-    xml.push_str(
+    xml.push_str(&format!(
         r#"  <item>
     <title>v0.8.0 — @require, @pure, @deprecated Decorators; 10 LSP Features</title>
-    <link>https://vox-foundation.github.io/vox/changelog.html</link>
-    <guid>https://vox-foundation.github.io/vox/changelog.html#v0.8.0</guid>
+    <link>{changelog_url}</link>
+    <guid>{changelog_url}#v0.8.0</guid>
     <description>Added @require, @pure, and @deprecated decorators. Implemented 10 Language Server Protocol features including hover, go-to-definition, and inline diagnostics.</description>
     <pubDate>Thu, 26 Feb 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
     <title>v0.7.0 — QLoRA Training Pipeline; Socrates Anti-Hallucination Protocol</title>
-    <link>https://vox-foundation.github.io/vox/changelog.html</link>
-    <guid>https://vox-foundation.github.io/vox/changelog.html#v0.7.0</guid>
+    <link>{changelog_url}</link>
+    <guid>{changelog_url}#v0.7.0</guid>
     <description>Native QLoRA fine-tuning via Candle and qlora-rs. Socrates confidence protocol integrated into the orchestrator for anti-hallucination validation of agent outputs.</description>
     <pubDate>Mon, 03 Feb 2026 00:00:00 GMT</pubDate>
   </item>
 
   <item>
     <title>v0.6.0 — Mens Transport; Durable Workflow Runtime MVP</title>
-    <link>https://vox-foundation.github.io/vox/changelog.html</link>
-    <guid>https://vox-foundation.github.io/vox/changelog.html#v0.6.0</guid>
+    <link>{changelog_url}</link>
+    <guid>{changelog_url}#v0.6.0</guid>
     <description>CPU-first mens registry with optional HTTP control plane. Interpreted workflow runtime MVP supporting local and mens activity hooks.</description>
     <pubDate>Thu, 15 Jan 2026 00:00:00 GMT</pubDate>
   </item>
 "#,
-    );
+        changelog_url = CHANGELOG_URL
+    ));
 
     xml.push_str("</channel>\n</rss>\n");
 

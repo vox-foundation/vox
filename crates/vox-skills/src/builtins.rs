@@ -20,6 +20,7 @@ const BUILTIN_SKILLS: &[(&str, &str)] = &[
     ),
     ("vox.populi", include_str!("../skills/populi.skill.md")),
     ("vox.v0", include_str!("../skills/v0.skill.md")),
+    ("vox.rag", include_str!("../skills/rag.skill.md")),
 ];
 
 /// Install all built-in skills into the registry if they are not already present.
@@ -54,7 +55,7 @@ mod tests {
     #[test]
     fn all_builtins_parse() {
         let bundles = builtin_bundles().expect("parse all built-ins");
-        assert_eq!(bundles.len(), 7);
+        assert_eq!(bundles.len(), 8);
         let ids: Vec<_> = bundles.iter().map(|b| b.manifest.id.as_str()).collect();
         assert!(ids.contains(&"vox.compiler"));
         assert!(ids.contains(&"vox.testing"));
@@ -63,13 +64,14 @@ mod tests {
         assert!(ids.contains(&"vox.orchestrator"));
         assert!(ids.contains(&"vox.populi"));
         assert!(ids.contains(&"vox.v0"));
+        assert!(ids.contains(&"vox.rag"));
     }
 
     #[tokio::test]
     async fn install_builtins_into_empty_registry() {
         let reg = SkillRegistry::new();
         let count = install_builtins(&reg).await.expect("install");
-        assert_eq!(count, 7);
+        assert_eq!(count, 8);
         assert!(reg.get("vox.compiler").is_some());
         assert!(reg.get("vox.memory").is_some());
         assert!(reg.get("vox.populi").is_some());

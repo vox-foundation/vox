@@ -1,0 +1,611 @@
+//! HTTP inference loop: budget gate, provider dispatch, Ollama fallback, usage recording.
+//!
+//! ## LLM cost bus events (`VOX_MCP_LLM_COST_EVENTS`)
+//! After a successful completion, [`should_emit_llm_cost_events`] gates [`crate::AgentEventKind::CostIncurred`] on the
+//! orchestrator bus. **Unset env + Codex attached** ⇒ **no bus emit** (usage is already persisted via
+//! [`crate::usage::UsageTracker`] / budget paths). **Unset + no DB** ⇒ **emit** so operators still see cost signals.
+//! Truthy `1`/`true` forces emits even with DB; `0`/`false` disables. Full semantics: `docs/src/reference/env-vars.md`.
+
+use crate::models::{ModelSpec, ProviderType};
+use crate::usage::UsageTracker;
+use crate::{AgentEventKind, BudgetGate, GateResult};
+use vox_config::inference_profile_allows_local_ollama_http;
+
+use crate::mcp_tools::server_state::ServerState;
+
+use super::MCP_GLOBAL_LLM_AGENT;
+use super::limits::HTTP_MAX_OUTPUT_TOKENS_CAP;
+use super::model_route_policy::{McpChatModelResolution, resolve_mcp_chat_model};
+use super::provider_adapter::{ProviderInferResult, infer_via_provider_adapter};
+use base64::Engine;
+
+/// Routing context for [`mcp_infer_completion`] (sticky override, free-tier policy, Ollama fallback).
+#[derive(Clone)]
+pub struct McpInferRouting<'a> {
+    /// User text used when re-resolving under `enforce_free_tier_only`.
+    pub user_prompt: &'a str,
+    /// Sticky MCP model id override (same as registry resolve).
+    pub sticky_model_pref: Option<&'a str>,
+    /// Template merged with `enforce_free_tier_only` on mismatch; `context_fill_ratio` should match resolve.
+    pub resolution_template: McpChatModelResolution,
+    /// Resolver marked this path as free-tier (`ModelSpec.is_free` should match; enforced at infer).
+    pub free_only: bool,
+    /// When cloud gate denies (daily cap, in-memory budget) or HTTP fails, try local Ollama.
+    /// Effective only if **`VOX_INFERENCE_PROFILE`** allows local Ollama HTTP (`desktop_ollama` or `lan_gateway`).
+    pub allow_cloud_ollama_fallback: bool,
+    /// Optional tenant/session usage partition key for centralized accounting.
+    pub user_id: Option<&'a str>,
+}
+
+/// Whether to emit [`crate::AgentEventKind::CostIncurred`] after LLM success (see module docs for `VOX_MCP_LLM_COST_EVENTS` precedence).
+fn should_emit_llm_cost_events(state: &ServerState) -> bool {
+    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpLlmCostEvents).expose() {
+        Some(v) => {
+            let v = v.trim();
+            if v == "0" || v.eq_ignore_ascii_case("false") {
+                return false;
+            }
+            if v == "1" || v.eq_ignore_ascii_case("true") {
+                return true;
+            }
+            state.db.is_none()
+        }
+        None => state.db.is_none(),
+    }
+}
+
+fn estimated_cost_usd(model: &ModelSpec, prompt_tokens: u32, completion_tokens: u32) -> f64 {
+    let in_cost = model.cost_per_1k_input;
+    let out_cost = model.cost_per_1k_output;
+    if in_cost > 0.0 || out_cost > 0.0 {
+        ((prompt_tokens as f64 / 1000.0) * in_cost)
+            + ((completion_tokens as f64 / 1000.0) * out_cost)
+    } else {
+        (((prompt_tokens + completion_tokens) as f64) / 1000.0) * model.cost_per_1k
+    }
+}
+
+/// Prefer larger context, then stable id (registry list order is arbitrary).
+async fn best_ollama_model(state: &ServerState) -> Option<ModelSpec> {
+    if !inference_profile_allows_local_ollama_http() {
+        return None;
+    }
+    let orch = &state.orchestrator;
+    let mut v: Vec<ModelSpec> = crate::sync_lock::rw_read(&*orch.models_handle())
+        .list_models()
+        .into_iter()
+        .filter(|m| matches!(m.provider_type, ProviderType::Ollama))
+        .collect();
+    v.sort_by(|a, b| {
+        b.max_tokens
+            .cmp(&a.max_tokens)
+            .then_with(|| a.id.cmp(&b.id))
+    });
+    v.into_iter().next()
+}
+
+async fn best_non_ollama_model_except(
+    state: &ServerState,
+    exclude_model_id: &str,
+) -> Option<ModelSpec> {
+    let orch = &state.orchestrator;
+    let mut v: Vec<ModelSpec> = crate::sync_lock::rw_read(&*orch.models_handle())
+        .list_models()
+        .into_iter()
+        .filter(|m| {
+            !matches!(m.provider_type, ProviderType::Ollama)
+                && m.id != exclude_model_id
+                && !matches!(m.provider_type, ProviderType::Custom(_))
+                && model_has_available_credentials(m)
+        })
+        .collect();
+    v.sort_by(|a, b| {
+        a.cost_per_1k
+            .total_cmp(&b.cost_per_1k)
+            .then_with(|| b.max_tokens.cmp(&a.max_tokens))
+    });
+    v.into_iter().next()
+}
+
+fn model_has_available_credentials(model: &ModelSpec) -> bool {
+    match model.provider_type {
+        ProviderType::GoogleDirect => {
+            vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+                .expose()
+                .is_some_and(|s| !s.trim().is_empty())
+        }
+        ProviderType::Ollama => true,
+        _ => super::provider_auth::bearer_for(model).is_ok(),
+    }
+}
+
+fn is_openrouter_gemini_model(model: &ModelSpec) -> bool {
+    matches!(model.provider_type, ProviderType::OpenRouter)
+        && model.id.to_ascii_lowercase().contains("gemini")
+}
+
+fn google_direct_fallback_for_gemini(
+    state: &ServerState,
+    current: &ModelSpec,
+) -> Option<ModelSpec> {
+    if !is_openrouter_gemini_model(current) {
+        return None;
+    }
+    if vox_config::GeminiRoutePolicy::from_env() != vox_config::GeminiRoutePolicy::OpenRouterFirst {
+        return None;
+    }
+    vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+        .expose()
+        .filter(|s| !s.trim().is_empty())?;
+    let targets = vox_config::gemini_route_targets_from_env();
+    crate::sync_lock::rw_read::<crate::models::ModelRegistry>(&*state.orchestrator.models_handle())
+        .get(&targets.google_direct_model)
+}
+
+/// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.).
+pub async fn mcp_infer_completion(
+    state: &ServerState,
+    model: ModelSpec,
+    tool: &str,
+    system_prompt: &str,
+    routing: &McpInferRouting<'_>,
+    max_tokens: u64,
+    base_temperature: f32,
+    temperature_override: Option<f32>,
+    top_p_override: Option<f32>,
+    json_mode: bool,
+    attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
+) -> Result<(String, String, u64), String> {
+    mcp_infer_tool_completion(
+        state,
+        model,
+        tool,
+        system_prompt,
+        routing,
+        max_tokens,
+        base_temperature,
+        temperature_override,
+        top_p_override,
+        json_mode,
+        None,
+        None,
+        attachment_manifest,
+    )
+    .await
+}
+
+/// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.) with explicit tools/tool_choice.
+pub async fn mcp_infer_tool_completion(
+    state: &ServerState,
+    mut model: ModelSpec,
+    tool: &str,
+    system_prompt: &str,
+    routing: &McpInferRouting<'_>,
+    max_tokens: u64,
+    base_temperature: f32,
+    temperature_override: Option<f32>,
+    top_p_override: Option<f32>,
+    json_mode: bool,
+    tools: Option<serde_json::Value>,
+    tool_choice: Option<serde_json::Value>,
+    attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
+) -> Result<(String, String, u64), String> {
+    if tool == "vox_plan" && super::infer_test_stub::infer_stub_env_active() {
+        if let Some(body) = super::infer_test_stub::stub_completion_body() {
+            let id = super::infer_test_stub::stub_plan_model_spec().id;
+            return Ok((body, id, 0));
+        }
+    }
+
+    let max_t = super::clamp_http_max_output_tokens(max_tokens);
+    let client = &state.http_client;
+    let allow_ollama_fallback =
+        routing.allow_cloud_ollama_fallback && inference_profile_allows_local_ollama_http();
+    let mut tried_local_fallback = false;
+    let mut tried_google_direct_fallback = false;
+    let mut tried_secondary_cloud = false;
+
+    let mut first_pass = true;
+
+    loop {
+        if first_pass {
+            first_pass = false;
+            if routing.free_only && !model.is_free {
+                let mut res = routing.resolution_template.clone();
+                res.enforce_free_tier_only = true;
+                match resolve_mcp_chat_model(
+                    state,
+                    routing.user_prompt,
+                    routing.sticky_model_pref,
+                    res,
+                    routing.user_id,
+                )
+                .await
+                {
+                    Ok((m, _)) => model = m,
+                    Err(e) => return Err(e),
+                }
+            } else if routing.free_only != model.is_free {
+                tracing::debug!(
+                    target: "vox.mcp.llm",
+                    free_only = routing.free_only,
+                    model_is_free = model.is_free,
+                    model_id = %model.id,
+                    "mcp_infer_completion: free_only flag disagrees with ModelSpec.is_free"
+                );
+            }
+        }
+
+        let usage = model.llm_usage_key();
+
+        let mut estimated_vision_tokens = 0;
+        if let Some(ref manifest) = attachment_manifest {
+            for a in &manifest.attachments {
+                if a.mime_type.starts_with("image/") {
+                    // Safe heuristic: 85 base + ~6 tiles (1020) ~ 1000 tokens per image.
+                    estimated_vision_tokens += 1000;
+                }
+            }
+        }
+
+        if let Some(db) = state.db.as_ref() {
+            let orch_arc = state.orchestrator.budget_manager_handle();
+            let orch_attention = {
+                let g = crate::sync_lock::rw_read(&*orch_arc);
+                g.attention_snapshot()
+            };
+            let tracker = if let Some(user_id) = routing.user_id {
+                UsageTracker::with_user(db.as_ref(), user_id)
+            } else {
+                UsageTracker::new_ref(db.as_ref())
+            };
+            let gate = BudgetGate::new(
+                state.budget_manager.as_ref(),
+                &tracker,
+                &state.orchestrator_config,
+            );
+            match gate
+                .allow_with_pilot_attention(
+                    MCP_GLOBAL_LLM_AGENT,
+                    &usage,
+                    Some(orch_attention),
+                    estimated_vision_tokens,
+                )
+                .await
+            {
+                GateResult::Allowed => {}
+                GateResult::BudgetExceeded { message } => {
+                    if allow_ollama_fallback && !matches!(model.provider_type, ProviderType::Ollama)
+                    {
+                        if let Some(fb) = best_ollama_model(state).await {
+                            model = fb;
+                            tried_local_fallback = true;
+                            continue;
+                        }
+                    }
+                    if matches!(model.provider_type, ProviderType::Ollama) && !tried_secondary_cloud
+                    {
+                        if let Some(fb) = best_non_ollama_model_except(state, &model.id).await {
+                            model = fb;
+                            tried_secondary_cloud = true;
+                            continue;
+                        }
+                    }
+                    return Err(message);
+                }
+                GateResult::RateLimited { .. } => {
+                    if allow_ollama_fallback && !matches!(model.provider_type, ProviderType::Ollama)
+                    {
+                        if let Some(fb) = best_ollama_model(state).await {
+                            model = fb;
+                            tried_local_fallback = true;
+                            continue;
+                        }
+                    }
+                    if matches!(model.provider_type, ProviderType::Ollama) && !tried_secondary_cloud
+                    {
+                        if let Some(fb) = best_non_ollama_model_except(state, &model.id).await {
+                            model = fb;
+                            tried_secondary_cloud = true;
+                            continue;
+                        }
+                    }
+                    return Err(
+                        if allow_ollama_fallback {
+                            "LLM daily quota or rate limit active for this provider; try a local Ollama model or wait."
+                        } else {
+                            "LLM daily quota or rate limit active for this provider; configure cloud keys, set VOX_INFERENCE_PROFILE=desktop_ollama or lan_gateway to allow Ollama fallback, or wait."
+                        }
+                        .into(),
+                    );
+                }
+                GateResult::AttentionExhausted { message, .. } => {
+                    return Err(message);
+                }
+                GateResult::BehavioralTestFailed { message } => {
+                    return Err(message);
+                }
+            }
+        }
+
+        let chatml_collapsed: Option<String> = if state.orchestrator_config.chatml_strict {
+            Some(format!(
+                "<|im_start|>system\n{}<|im_end|>\n<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n",
+                vox_config::sanitize_chatml(system_prompt),
+                vox_config::sanitize_chatml(routing.user_prompt)
+            ))
+        } else {
+            None
+        };
+        let (final_system, final_user): (&str, &str) = if let Some(ref collapsed) = chatml_collapsed
+        {
+            ("", collapsed.as_str())
+        } else {
+            (system_prompt, routing.user_prompt)
+        };
+
+        let mut user_parts = vec![vox_openai_wire::ChatMessagePart::Text { text: final_user }];
+        if let Some(ref manifest) = attachment_manifest {
+            if let Some(db) = state.db.as_ref() {
+                for attachment in &manifest.attachments {
+                    if attachment.mime_type.starts_with("image/") {
+                        match db.get(&attachment.sha256).await {
+                            Ok(bytes) => {
+                                let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                                let url = format!("data:{};base64,{}", attachment.mime_type, b64);
+                                user_parts.push(vox_openai_wire::ChatMessagePart::ImageUrl {
+                                    image_url: vox_openai_wire::ImageUrl {
+                                        url: Box::leak(url.into_boxed_str()),
+                                    },
+                                });
+                            }
+                            Err(e) => {
+                                tracing::warn!(sha = %attachment.sha256, error = %e, "Failed to fetch attachment from CAS");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let user_content = if user_parts.len() > 1 {
+            vox_openai_wire::ChatMessageContent::Parts(user_parts)
+        } else {
+            vox_openai_wire::ChatMessageContent::Text(final_user)
+        };
+
+        let temperature = temperature_override
+            .or(match model.provider_type {
+                ProviderType::GoogleDirect => vox_config::gemini_tuning_temperature(),
+                ProviderType::Ollama => vox_config::ollama_tuning_temperature(),
+                ProviderType::OpenRouter | ProviderType::Custom(_) => {
+                    vox_config::openai_tuning_temperature()
+                }
+                ProviderType::Anthropic => vox_config::anthropic_tuning_temperature(),
+                _ => None,
+            })
+            .unwrap_or(base_temperature);
+
+        let top_p = top_p_override.or(match model.provider_type {
+            ProviderType::GoogleDirect => vox_config::gemini_tuning_top_p(),
+            ProviderType::Ollama => vox_config::ollama_tuning_top_p(),
+            ProviderType::OpenRouter | ProviderType::Custom(_) => vox_config::openai_tuning_top_p(),
+            ProviderType::Anthropic => vox_config::anthropic_tuning_top_p(),
+            _ => None,
+        });
+
+        tracing::info!(
+            target: "vox.mcp.llm.tuning",
+            model_id = %model.id,
+            tool = %tool,
+            temperature = %temperature,
+            top_p = ?top_p,
+            "inference tuning active"
+        );
+
+        let infer_result = infer_via_provider_adapter(
+            client,
+            &model,
+            final_system,
+            user_content,
+            max_t,
+            Some(temperature),
+            top_p,
+            json_mode,
+            tools.clone(),
+            tool_choice.clone(),
+        )
+        .await;
+
+        match infer_result {
+            Ok(ProviderInferResult {
+                text,
+                prompt_tokens: pt,
+                completion_tokens: ct,
+                provider_request_id,
+                provider_reported_cost_usd,
+            }) => {
+                let total_tok = (pt + ct) as u64;
+                let estimated_usd = estimated_cost_usd(&model, pt, ct);
+                let (reconciled_usd, cost_source) = match provider_reported_cost_usd {
+                    Some(provider_usd) => (provider_usd, "provider_reported"),
+                    None => (estimated_usd, "estimated"),
+                };
+                if let Some(db) = state.db.as_ref() {
+                    let tracker = if let Some(user_id) = routing.user_id {
+                        UsageTracker::with_user(db.as_ref(), user_id)
+                    } else {
+                        UsageTracker::new_ref(db.as_ref())
+                    };
+                    let gate = BudgetGate::new(
+                        state.budget_manager.as_ref(),
+                        &tracker,
+                        &state.orchestrator_config,
+                    );
+                    gate.record_usage_detailed(
+                        MCP_GLOBAL_LLM_AGENT,
+                        &usage,
+                        pt as u64,
+                        ct as u64,
+                        reconciled_usd,
+                        provider_request_id.as_deref(),
+                        provider_reported_cost_usd,
+                        Some(estimated_usd),
+                        Some(reconciled_usd),
+                        Some(cost_source),
+                        None,
+                    )
+                    .await;
+                }
+
+                if should_emit_llm_cost_events(state) {
+                    let orch = &state.orchestrator;
+                    orch.event_bus().emit(AgentEventKind::CostIncurred {
+                        agent_id: MCP_GLOBAL_LLM_AGENT,
+                        provider: usage.provider.clone(),
+                        model: model.id.clone(),
+                        input_tokens: pt,
+                        output_tokens: ct,
+                        cost_usd: reconciled_usd,
+                        temporal_context: Some(serde_json::json!({
+                            "tool": tool,
+                            "provider_request_id": provider_request_id,
+                            "user_id": routing.user_id,
+                            "cost_source": cost_source,
+                        })),
+                    });
+                }
+
+                if matches!(model.provider_type, ProviderType::PopuliMesh) {
+                    if let Some(db) = state.db.as_ref() {
+                        let parts: Vec<&str> = model.id.split('/').collect();
+                        if parts.len() >= 2 {
+                            let node_id = parts[1];
+                            let _ = db.record_peer_reputation(node_id, "success").await;
+                        }
+                    }
+                }
+
+                return Ok((text, model.id, total_tok));
+            }
+            Err(e) => {
+                if matches!(model.provider_type, ProviderType::PopuliMesh) {
+                    if let Some(db) = state.db.as_ref() {
+                        let parts: Vec<&str> = model.id.split('/').collect();
+                        if parts.len() >= 2 {
+                            let node_id = parts[1];
+                            let event_type = if e.status == 408
+                                || e.status == 504
+                                || e.message.to_ascii_lowercase().contains("timeout")
+                            {
+                                "timeout"
+                            } else {
+                                "fail"
+                            };
+                            let _ = db.record_peer_reputation(node_id, event_type).await;
+                        }
+                    }
+                }
+
+                if e.status == 429 {
+                    if let Some(db) = state.db.as_ref() {
+                        let tracker = if let Some(user_id) = routing.user_id {
+                            UsageTracker::with_user(db.as_ref(), user_id)
+                        } else {
+                            UsageTracker::new_ref(db.as_ref())
+                        };
+                        let _ = tracker
+                            .mark_rate_limited(&usage.provider, &usage.model)
+                            .await;
+                    }
+                }
+                if !tried_google_direct_fallback {
+                    if let Some(fb) = google_direct_fallback_for_gemini(state, &model) {
+                        model = fb;
+                        tried_google_direct_fallback = true;
+                        continue;
+                    }
+                }
+                if allow_ollama_fallback
+                    && !tried_local_fallback
+                    && !matches!(model.provider_type, ProviderType::Ollama)
+                {
+                    if let Some(fb) = best_ollama_model(state).await {
+                        model = fb;
+                        tried_local_fallback = true;
+                        continue;
+                    }
+                }
+                if matches!(model.provider_type, ProviderType::Ollama) && !tried_secondary_cloud {
+                    if let Some(fb) = best_non_ollama_model_except(state, &model.id).await {
+                        model = fb;
+                        tried_secondary_cloud = true;
+                        continue;
+                    }
+                }
+                return Err(e.to_string());
+            }
+        }
+    }
+}
+
+/// High-level chat used by `vox_chat_message`.
+pub async fn call_llm(
+    state: &ServerState,
+    system_prompt: &str,
+    user_prompt: &str,
+    user_id: Option<&str>,
+    temperature_override: Option<f32>,
+    top_p_override: Option<f32>,
+    attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
+) -> Result<(String, String, u64), String> {
+    let pref = match crate::mcp_tools::sync_poison::poison_rw_read(
+        state.mcp_chat_model_override.read(),
+        "mcp_chat_model_override",
+    ) {
+        Ok(g) => g.clone(),
+        Err(e) => return Err(e.to_string()),
+    };
+    let (model, free_only, resolution_template) = {
+        let orch = &state.orchestrator;
+        let context_fill_ratio = super::model_route_policy::mcp_global_llm_context_fill_ratio(orch);
+        let resolution_template = McpChatModelResolution {
+            allow_cheapest_fallback: true,
+            context_fill_ratio,
+            ..Default::default()
+        };
+        let (model, free_only) = resolve_mcp_chat_model(
+            state,
+            user_prompt,
+            pref.as_deref(),
+            resolution_template.clone(),
+            user_id,
+        )
+        .await?;
+        (model, free_only, resolution_template)
+    };
+
+    let max_tokens = model.max_tokens.min(HTTP_MAX_OUTPUT_TOKENS_CAP).max(1);
+    let routing = McpInferRouting {
+        user_prompt,
+        sticky_model_pref: pref.as_deref(),
+        resolution_template,
+        free_only,
+        allow_cloud_ollama_fallback: true,
+        user_id,
+    };
+    mcp_infer_completion(
+        state,
+        model,
+        "mcp_chat",
+        system_prompt,
+        &routing,
+        max_tokens,
+        0.7,
+        temperature_override,
+        top_p_override,
+        false,
+        attachment_manifest,
+    )
+    .await
+}

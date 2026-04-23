@@ -1,18 +1,28 @@
 use crate::hir::{
-    HirActivity, HirActor, HirFn, HirModule, HirTable, HirType, HirTypeDef, HirWorkflow,
+    HirActivity, HirActor, HirAgent, HirFn, HirModule, HirTable, HirType, HirTypeDef, HirWorkflow,
+};
+use crate::rust_interop_support::{
+    RustInteropSemanticsState, RustInteropSupportClass, classify_rust_crate,
+    is_template_managed_app_dependency, semantics_state_for_rust_crate,
 };
 use crate::typeck::diagnostics::Diagnostic;
 use crate::typeck::env::{
-    ActorHandlerSig, AdtDef, Binding, BindingKind, TypeEnv, VariantDef, WorkflowSig,
+    ActorHandlerSig, AdtDef, AgentHandlerSig, Binding, BindingKind, TypeEnv, VariantDef,
+    WorkflowSig,
 };
 use crate::typeck::ty::Ty;
+use crate::typeck::unify::InferenceContext;
 use std::collections::HashMap;
 
 /// Register all top-level declarations from an HIR module into the type environment.
 ///
 /// This is the "Pass 1" of type checking: it makes every name visible so that
 /// forward references work when bodies are checked in Pass 2.
-pub fn register_hir_module(env: &mut TypeEnv, module: &HirModule) -> Vec<Diagnostic> {
+pub fn register_hir_module(
+    env: &mut TypeEnv,
+    module: &HirModule,
+    mut uf: Option<&mut InferenceContext>,
+) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
     for td in &module.types {
         register_hir_typedef(env, td);
@@ -71,6 +81,76 @@ pub fn register_hir_module(env: &mut TypeEnv, module: &HirModule) -> Vec<Diagnos
             continue;
         }
 
+        let support_class = classify_rust_crate(&r.crate_name);
+        if matches!(support_class, RustInteropSupportClass::InternalRuntimeOnly) {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' is classified as '{}' and is primarily a runtime implementation crate; prefer Vox contracts/wrappers instead of direct crate access.",
+                    r.crate_name,
+                    support_class.as_label()
+                ),
+                r.span,
+                "",
+            ));
+        } else if matches!(support_class, RustInteropSupportClass::Deferred) {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' is classified as '{}' (high-debt/deferred for first-class support); expect escape-hatch semantics.",
+                    r.crate_name,
+                    support_class.as_label()
+                ),
+                r.span,
+                "",
+            ));
+        } else if matches!(support_class, RustInteropSupportClass::EscapeHatchOnly) {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' is classified as '{}' and remains an explicit escape-hatch lane.",
+                    r.crate_name,
+                    support_class.as_label()
+                ),
+                r.span,
+                "",
+            ));
+        }
+
+        let semantics_state = semantics_state_for_rust_crate(&r.crate_name);
+        if matches!(semantics_state, RustInteropSemanticsState::Planned) {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' currently has '{}' semantics in the support registry; prefer stable wrappers/contracts where available.",
+                    r.crate_name,
+                    semantics_state.as_label()
+                ),
+                r.span,
+                "",
+            ));
+        }
+
+        if r.version.is_none() && r.path.is_none() && r.git.is_none() {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' has no version/path/git pin and falls back to Cargo '*'; pin dependency metadata for reproducible builds.",
+                    r.crate_name
+                ),
+                r.span,
+                "",
+            ));
+        }
+
+        if is_template_managed_app_dependency(&r.crate_name)
+            && (r.version.is_some() || r.path.is_some() || r.git.is_some() || r.rev.is_some())
+        {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Rust import '{}' includes explicit dependency metadata, but full app codegen templates may own this crate version/path and ignore import-level pins.",
+                    r.crate_name
+                ),
+                r.span,
+                "",
+            ));
+        }
+
         let spec = (
             r.version.clone(),
             r.path.clone(),
@@ -103,34 +183,58 @@ pub fn register_hir_module(env: &mut TypeEnv, module: &HirModule) -> Vec<Diagnos
         );
     }
     for f in &module.functions {
-        register_hir_function(env, f);
+        register_hir_function(env, f, uf.as_deref_mut());
     }
     for sf in &module.server_fns {
-        register_fn_like(env, &sf.params, sf.return_type.as_ref(), &sf.name);
+        register_fn_like(
+            env,
+            &sf.params,
+            sf.return_type.as_ref(),
+            &sf.name,
+            uf.as_deref_mut(),
+        );
     }
     for sf in &module.query_fns {
-        register_fn_like(env, &sf.params, sf.return_type.as_ref(), &sf.name);
+        register_fn_like(
+            env,
+            &sf.params,
+            sf.return_type.as_ref(),
+            &sf.name,
+            uf.as_deref_mut(),
+        );
     }
     for sf in &module.mutation_fns {
-        register_fn_like(env, &sf.params, sf.return_type.as_ref(), &sf.name);
+        register_fn_like(
+            env,
+            &sf.params,
+            sf.return_type.as_ref(),
+            &sf.name,
+            uf.as_deref_mut(),
+        );
     }
     for t in &module.tests {
-        register_hir_function(env, t);
+        register_hir_function(env, t, uf.as_deref_mut());
     }
     for t in &module.mcp_tools {
-        register_hir_function(env, &t.func);
+        register_hir_function(env, &t.func, uf.as_deref_mut());
+    }
+    for r in &module.mcp_resources {
+        register_hir_function(env, &r.func, uf.as_deref_mut());
     }
     for a in &module.actors {
-        register_hir_actor(env, a);
+        register_hir_actor(env, a, uf.as_deref_mut());
     }
     for w in &module.workflows {
-        register_hir_workflow(env, w);
+        register_hir_workflow(env, w, uf.as_deref_mut());
     }
     for act in &module.activities {
-        register_hir_activity(env, act);
+        register_hir_activity(env, act, uf.as_deref_mut());
     }
     for t in &module.tables {
         register_hir_table(env, t);
+    }
+    for a in &module.agents {
+        register_hir_agent(env, a, uf.as_deref_mut());
     }
     diags
 }
@@ -150,6 +254,7 @@ pub fn resolve_hir_type(te: &HirType, env: &TypeEnv) -> Ty {
                 "char" => Ty::Char,
                 "never" => Ty::Never,
                 "Unit" => Ty::Unit,
+                "dec" => Ty::Decimal,
                 "Element" => Ty::Element,
                 other => Ty::Named(other.to_string()),
             }
@@ -190,6 +295,7 @@ pub fn resolve_hir_type(te: &HirType, env: &TypeEnv) -> Ty {
             Ty::Tuple(elements.iter().map(|e| resolve_hir_type(e, env)).collect())
         }
         HirType::Unit => Ty::Unit,
+        HirType::Decimal => Ty::Decimal,
     }
 }
 
@@ -237,7 +343,7 @@ pub fn register_hir_typedef(env: &mut TypeEnv, td: &HirTypeDef) {
     });
 }
 
-pub fn register_hir_function(env: &mut TypeEnv, f: &HirFn) {
+pub fn register_hir_function(env: &mut TypeEnv, f: &HirFn, mut uf: Option<&mut InferenceContext>) {
     env.push_scope();
     for (i, g) in f.generics.iter().enumerate() {
         env.define_type(g.clone(), Ty::GenericParam(i as u32));
@@ -246,15 +352,26 @@ pub fn register_hir_function(env: &mut TypeEnv, f: &HirFn) {
         .params
         .iter()
         .map(|p| {
-            p.type_ann
-                .as_ref()
-                .map_or(Ty::TypeVar(0), |t| resolve_hir_type(t, env))
+            if let Some(t) = &p.type_ann {
+                resolve_hir_type(t, env)
+            } else if let Some(ctx) = uf.as_deref_mut() {
+                ctx.fresh_var()
+            } else {
+                Ty::Infer
+            }
         })
         .collect();
     let ret_ty = f
         .return_type
         .as_ref()
-        .map_or(Ty::Unit, |t| resolve_hir_type(t, env));
+        .map(|t| resolve_hir_type(t, env))
+        .unwrap_or_else(|| {
+            if let Some(ctx) = uf {
+                ctx.fresh_var()
+            } else {
+                Ty::Infer
+            }
+        });
     env.pop_scope();
     env.define(
         f.name.clone(),
@@ -262,7 +379,7 @@ pub fn register_hir_function(env: &mut TypeEnv, f: &HirFn) {
             ty: Ty::Fn(param_tys, Box::new(ret_ty)),
             mutable: false,
             kind: BindingKind::Function,
-            is_deprecated: f.is_deprecated,
+            is_deprecated: false,
         },
     );
 }
@@ -272,16 +389,27 @@ fn register_fn_like(
     params: &[crate::hir::HirParam],
     ret: Option<&HirType>,
     name: &str,
+    mut uf: Option<&mut InferenceContext>,
 ) {
     let param_tys: Vec<Ty> = params
         .iter()
         .map(|p| {
-            p.type_ann
-                .as_ref()
-                .map_or(Ty::TypeVar(0), |t| resolve_hir_type(t, env))
+            if let Some(t) = &p.type_ann {
+                resolve_hir_type(t, env)
+            } else if let Some(ctx) = uf.as_deref_mut() {
+                ctx.fresh_var()
+            } else {
+                Ty::Infer
+            }
         })
         .collect();
-    let ret_ty = ret.map_or(Ty::Unit, |t| resolve_hir_type(t, env));
+    let ret_ty = ret.map(|t| resolve_hir_type(t, env)).unwrap_or_else(|| {
+        if let Some(ctx) = uf.as_deref_mut() {
+            ctx.fresh_var()
+        } else {
+            Ty::Infer
+        }
+    });
     env.define(
         name.to_string(),
         Binding::new(
@@ -292,7 +420,7 @@ fn register_fn_like(
     );
 }
 
-pub fn register_hir_actor(env: &mut TypeEnv, a: &HirActor) {
+pub fn register_hir_actor(env: &mut TypeEnv, a: &HirActor, mut uf: Option<&mut InferenceContext>) {
     let handlers: Vec<ActorHandlerSig> = a
         .handlers
         .iter()
@@ -306,20 +434,31 @@ pub fn register_hir_actor(env: &mut TypeEnv, a: &HirActor) {
                         p.name.clone(),
                         p.type_ann
                             .as_ref()
-                            .map_or(Ty::TypeVar(0), |t| resolve_hir_type(t, env)),
+                            .map_or(Ty::Infer, |t| resolve_hir_type(t, env)),
                     )
                 })
                 .collect(),
             return_type: h
                 .return_type
                 .as_ref()
-                .map_or(Ty::Unit, |t| resolve_hir_type(t, env)),
+                .map(|t| resolve_hir_type(t, env))
+                .unwrap_or_else(|| {
+                    if let Some(ctx) = uf.as_deref_mut() {
+                        ctx.fresh_var()
+                    } else {
+                        Ty::Infer
+                    }
+                }),
         })
         .collect();
     env.register_actor(a.name.clone(), handlers);
 }
 
-pub fn register_hir_workflow(env: &mut TypeEnv, w: &HirWorkflow) {
+pub fn register_hir_workflow(
+    env: &mut TypeEnv,
+    w: &HirWorkflow,
+    mut uf: Option<&mut InferenceContext>,
+) {
     env.register_workflow(WorkflowSig {
         name: w.name.clone(),
         params: w
@@ -328,33 +467,60 @@ pub fn register_hir_workflow(env: &mut TypeEnv, w: &HirWorkflow) {
             .map(|p| {
                 (
                     p.name.clone(),
-                    p.type_ann
-                        .as_ref()
-                        .map_or(Ty::TypeVar(0), |t| resolve_hir_type(t, env)),
+                    if let Some(t) = &p.type_ann {
+                        resolve_hir_type(t, env)
+                    } else if let Some(ctx) = uf.as_deref_mut() {
+                        ctx.fresh_var()
+                    } else {
+                        Ty::Infer
+                    },
                 )
             })
             .collect(),
         return_type: w
             .return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, env)),
+            .map(|t| resolve_hir_type(t, env))
+            .unwrap_or_else(|| {
+                if let Some(ctx) = uf.as_deref_mut() {
+                    ctx.fresh_var()
+                } else {
+                    Ty::Infer
+                }
+            }),
     });
 }
 
-pub fn register_hir_activity(env: &mut TypeEnv, a: &HirActivity) {
+pub fn register_hir_activity(
+    env: &mut TypeEnv,
+    a: &HirActivity,
+    mut uf: Option<&mut InferenceContext>,
+) {
     let param_tys: Vec<Ty> = a
         .params
         .iter()
         .map(|p| {
-            p.type_ann
-                .as_ref()
-                .map_or(Ty::TypeVar(0), |t| resolve_hir_type(t, env))
+            if let Some(t) = &p.type_ann {
+                resolve_hir_type(t, env)
+            } else if let Some(ctx) = uf.as_deref_mut() {
+                ctx.fresh_var()
+            } else {
+                Ty::Infer
+            }
         })
         .collect();
     let ret_ty = a
         .return_type
         .as_ref()
-        .map_or(Ty::Unit, |t| resolve_hir_type(t, env));
+        .map(|t| resolve_hir_type(t, env))
+        .unwrap_or_else(|| {
+            // Activities usually return Result[T]
+            if let Some(ctx) = uf.as_deref_mut() {
+                Ty::Result(Box::new(ctx.fresh_var()))
+            } else {
+                Ty::Infer
+            }
+        });
     env.define(
         a.name.clone(),
         Binding::new(
@@ -364,7 +530,6 @@ pub fn register_hir_activity(env: &mut TypeEnv, a: &HirActivity) {
         ),
     );
 }
-
 pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) {
     let fields: Vec<(String, Ty)> = t
         .fields
@@ -380,4 +545,42 @@ pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) {
             is_deprecated: t.is_deprecated,
         },
     );
+}
+
+pub fn register_hir_agent(env: &mut TypeEnv, a: &HirAgent, mut uf: Option<&mut InferenceContext>) {
+    let handlers: Vec<AgentHandlerSig> = a
+        .handlers
+        .iter()
+        .map(|h| AgentHandlerSig {
+            event_name: h.event_name.clone(),
+            params: h
+                .params
+                .iter()
+                .map(|p| {
+                    (
+                        p.name.clone(),
+                        if let Some(t) = &p.type_ann {
+                            resolve_hir_type(t, env)
+                        } else if let Some(ctx) = uf.as_deref_mut() {
+                            ctx.fresh_var()
+                        } else {
+                            Ty::Infer
+                        },
+                    )
+                })
+                .collect(),
+            return_type: h
+                .return_type
+                .as_ref()
+                .map(|t| resolve_hir_type(t, env))
+                .unwrap_or_else(|| {
+                    if let Some(ctx) = uf.as_deref_mut() {
+                        ctx.fresh_var()
+                    } else {
+                        Ty::Infer
+                    }
+                }),
+        })
+        .collect();
+    env.register_agent(a.name.clone(), handlers);
 }

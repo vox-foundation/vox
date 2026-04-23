@@ -4,8 +4,7 @@ pub fn extract_from_vox_file(
     config: &ExtractVoxConfig,
 ) -> anyhow::Result<Vec<VoxTrainingPair>> {
     let source =
-        crate::bounded_fs::read_utf8_path_capped(path)
-            .with_context(|| format!("read {}", path.display()))?;
+        vox_bounded_fs::read_utf8_path_capped(path).with_context(|| format!("read {}", path.display()))?;
 
     if !is_eligible_for_training(&source) {
         return Ok(Vec::new());
@@ -52,46 +51,14 @@ pub fn extract_from_vox_file(
         if block.lines().count() < 2 {
             continue;
         }
-        let prompt = construct_prompt(construct_type, name, i);
+        let prompt = construct_prompt(construct_type.as_str(), name, i);
         pairs.push(VoxTrainingPair {
             source_path: path.to_path_buf(),
             category: format!("vox_{construct_type}"),
-            prompt: prompt.clone(),
+            prompt,
             response: block.clone(),
             rating: config.default_rating,
         });
-
-        // "explain-from-code" pair
-        if i % 2 == 0 {
-            let explain_prompt = format!(
-                "Explain the purpose and function of the following Vox {} snippet:\n```vox\n{}\n```",
-                construct_type, block
-            );
-            let explain_response = format!(
-                "This is a Vox {} named `{}`. It demonstrates standard Vox syntax, explicit typing, and safe state management.",
-                construct_type, name
-            );
-            pairs.push(VoxTrainingPair {
-                source_path: path.to_path_buf(),
-                category: format!("vox_{construct_type}_explain"),
-                prompt: explain_prompt,
-                response: explain_response,
-                rating: config.default_rating,
-            });
-        }
-
-        // Compact form pair
-        if i % 3 == 0 {
-            let compact_prompt = format!("{} (compact, no whitespace)", prompt);
-            let compact_response = crate::corpus::preflight::to_compact(block);
-            pairs.push(VoxTrainingPair {
-                source_path: path.to_path_buf(),
-                category: format!("vox_{construct_type}_compact"),
-                prompt: compact_prompt,
-                response: compact_response,
-                rating: config.default_rating,
-            });
-        }
     }
 
     if config.limit > 0 {
@@ -104,6 +71,11 @@ pub fn extract_from_vox_file(
 /// Walk a directory tree and extract pairs from all `.vox` files.
 pub fn walk_and_extract_vox(config: &ExtractVoxConfig) -> anyhow::Result<Vec<VoxTrainingPair>> {
     let mut all = Vec::new();
+    
+    if let Ok(mut golden) = extract_golden_examples(&config.root) {
+        all.append(&mut golden);
+    }
+    
     walk_vox_dir(&config.root, config, &mut all)?;
     Ok(all)
 }
@@ -143,6 +115,52 @@ fn walk_vox_dir(
                 Err(e) => {
                     eprintln!("  [vox extract] skip {}: {e}", path.display());
                 }
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn extract_golden_examples(dir: &Path) -> anyhow::Result<Vec<VoxTrainingPair>> {
+    let mut pairs = Vec::new();
+    let golden_dir = dir.join("examples/golden");
+    if !golden_dir.exists() {
+        return Ok(pairs);
+    }
+    walk_golden_dir(&golden_dir, &mut pairs)?;
+    Ok(pairs)
+}
+
+fn walk_golden_dir(dir: &Path, out: &mut Vec<VoxTrainingPair>) -> anyhow::Result<()> {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return Ok(()),
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            walk_golden_dir(&path, out)?;
+        } else if path.extension().is_some_and(|e| e == "vox") {
+            if let Ok(source) = std::fs::read_to_string(&path) {
+                let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("example");
+                let summary = extract_golden_prompt_summary(&source).unwrap_or_else(|| {
+                    source
+                        .lines()
+                        .find(|l| l.trim().starts_with("//"))
+                        .map(|l| l.trim().trim_start_matches("//").trim().to_string())
+                        .unwrap_or_else(|| "the given specification".into())
+                });
+                let prompt = format!(
+                    "Write a complete Vox program for {stem} that implements {summary}"
+                );
+
+                out.push(VoxTrainingPair {
+                    source_path: path.to_path_buf(),
+                    category: "golden".into(),
+                    prompt,
+                    response: source.clone(),
+                    rating: 5,
+                });
             }
         }
     }

@@ -56,6 +56,33 @@ impl Default for TierGateConfig {
     }
 }
 
+/// Runtime calibration knobs for dynamic interruption decisions.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InterruptionCalibrationConfig {
+    /// Utility offsets (bits) by channel prior to policy evaluation.
+    pub plan_review_gain_offset_bits: f64,
+    pub task_submit_gain_offset_bits: f64,
+    pub a2a_escalation_gain_offset_bits: f64,
+    pub inline_assist_gain_offset_bits: f64,
+    /// Additional expected-user-cost pressure per unresolved clarification backlog item.
+    pub backlog_cost_penalty_per_item: f64,
+    /// Multiplier for trust-adjusted thresholding pressure.
+    pub trust_adjustment_scale: f64,
+}
+
+impl Default for InterruptionCalibrationConfig {
+    fn default() -> Self {
+        Self {
+            plan_review_gain_offset_bits: 0.00,
+            task_submit_gain_offset_bits: 0.00,
+            a2a_escalation_gain_offset_bits: 0.00,
+            inline_assist_gain_offset_bits: 0.00,
+            backlog_cost_penalty_per_item: 0.05,
+            trust_adjustment_scale: 1.0,
+        }
+    }
+}
+
 /// Baseline interrupt recovery cost from Gloria Mark (UC Irvine, 2023): 23 min 15 sec.
 pub const DEFAULT_INTERRUPT_COST_MS: u64 = 23_250;
 
@@ -107,6 +134,12 @@ pub enum AttentionEventType {
     ErrorReport,
     /// Plan review request.
     PlanReview,
+    /// Dynamic policy chose to defer an interrupt (batch / backoff).
+    PolicyDeferred,
+    /// Dynamic policy continued without user-visible interrupt.
+    PolicyProceedAuto,
+    /// User responded to a clarification (realized outcome for learning).
+    ClarificationAnswered,
 }
 
 /// What the pilot decided.
@@ -162,6 +195,12 @@ pub struct AttentionEvent {
     /// Shannon entropy in bits for this (agent, pattern) pair.
     pub decision_entropy_bits: f64,
     pub timestamp_ms: u64,
+    /// Surface channel / tool name for audit (e.g. `mcp_chat`, `plan`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub channel: Option<String>,
+    /// Short human-readable policy rationale.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub policy_reason: Option<String>,
 }
 
 /// Per-session attention budget tracked in-memory, periodically flushed to Arca.
@@ -181,6 +220,8 @@ pub struct AttentionBudget {
     pub interrupt_freq_per_hour: f64,
     /// Timestamp of last non-auto interrupt (for gap calculation).
     pub last_interrupt_ms: u64,
+    /// Number of A2A messages suppressed due to Deep focus depth.
+    pub inbox_suppressed_count: u32,
 }
 
 impl Default for AttentionBudget {
@@ -193,6 +234,7 @@ impl Default for AttentionBudget {
             rejected: 0,
             interrupt_freq_per_hour: 0.0,
             last_interrupt_ms: 0,
+            inbox_suppressed_count: 0,
         }
     }
 }

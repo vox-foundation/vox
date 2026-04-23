@@ -61,7 +61,7 @@ pub fn post_task_validate(
             if let Some(parent) = path.parent() {
                 artifact_roots.push(parent.to_path_buf());
             }
-            if let Ok(text) = crate::bounded_fs::read_utf8_path_capped(path)
+            if let Ok(text) = vox_bounded_fs::read_utf8_path_capped(path)
                 && has_placeholder_marker(&text)
             {
                 artifact_errors += 1;
@@ -127,7 +127,7 @@ pub fn post_task_validate(
     // LSP Integration
     for file_path in &write_files {
         if file_path.extension().and_then(|e| e.to_str()) == Some("vox") {
-            if let Ok(text) = crate::bounded_fs::read_utf8_path_capped(file_path) {
+            if let Ok(text) = vox_bounded_fs::read_utf8_path_capped(file_path) {
                 let diagnostics = vox_lsp::validate_document(&text);
                 let errors: Vec<_> = diagnostics
                     .into_iter()

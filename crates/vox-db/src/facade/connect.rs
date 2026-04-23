@@ -1,4 +1,3 @@
-use crate::paths;
 use crate::{DbCircuitBreaker, DbConfig, StoreError};
 
 const DEFAULT_MAX_RETRIES: u64 = 3;
@@ -10,6 +9,7 @@ impl crate::VoxDb {
         Self {
             conn,
             sync_db,
+            writer: None,
             breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
             sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         }
@@ -33,68 +33,6 @@ impl crate::VoxDb {
     pub async fn connect_canonical() -> Result<Self, StoreError> {
         let config = DbConfig::resolve_canonical().map_err(StoreError::NotFound)?;
         Self::connect(config).await
-    }
-
-    /// Like [`Self::connect_default`], but if the primary DB reports [`StoreError::LegacySchemaChain`],
-    /// opens (or creates) [`paths::training_telemetry_db_path`] so training tools can persist runs
-    /// without migrating the main Codex database first.
-    ///
-    /// If the sidecar file already exists but is also on a legacy `schema_version` chain (for example
-    /// copied from an older app version), this method **drops sidecar user tables and reapplies the
-    /// current baseline** — only training telemetry rows in that file are lost; the primary DB path
-    /// is never modified here.
-    #[cfg(feature = "local")]
-    pub async fn connect_default_with_training_fallback() -> Result<Self, StoreError> {
-        match Self::connect_default().await {
-            Ok(db) => Ok(db),
-            Err(StoreError::LegacySchemaChain { max_version }) => {
-                let Some(sidecar) = paths::training_telemetry_db_path() else {
-                    return Err(StoreError::LegacySchemaChain { max_version });
-                };
-                let sidecar_path = sidecar.to_string_lossy().into_owned();
-                tracing::warn!(
-                    sidecar = %sidecar.display(),
-                    primary_schema_max = max_version,
-                    "Primary VoxDB uses a legacy schema; training telemetry will use `vox_training_telemetry.db` (or reset that sidecar if it is also stale). \
-                     Plan to migrate the main database: `vox codex export-legacy`, fresh init, then `vox codex import-legacy`."
-                );
-                match Self::connect(DbConfig::Local {
-                    path: sidecar_path.clone(),
-                })
-                .await
-                {
-                    Ok(db) => {
-                        tracing::info!(
-                            target: "vox_db::training_telemetry",
-                            training_db_target = "sidecar_sqlite",
-                            sidecar = %sidecar.display(),
-                            "Training telemetry attached to sidecar DB (canonical vox.db is legacy until codex cutover)."
-                        );
-                        Ok(db)
-                    }
-                    Err(StoreError::LegacySchemaChain {
-                        max_version: sidecar_max,
-                    }) => {
-                        tracing::warn!(
-                            sidecar = %sidecar.display(),
-                            sidecar_schema_max = sidecar_max,
-                            "Training telemetry sidecar has an incompatible schema_version chain; \
-                             resetting it to the current baseline (only prior telemetry in this file is removed)."
-                        );
-                        let db = Self::open_local_reset_to_baseline(&sidecar_path).await?;
-                        tracing::info!(
-                            target: "vox_db::training_telemetry",
-                            training_db_target = "sidecar_sqlite_reset",
-                            sidecar = %sidecar.display(),
-                            "Training telemetry sidecar reset to current baseline."
-                        );
-                        Ok(db)
-                    }
-                    Err(e) => Err(e),
-                }
-            }
-            Err(e) => Err(e),
-        }
     }
 
     /// Blocking [`Self::connect_default`] for `std::thread` workers without a Tokio handle.
@@ -176,6 +114,7 @@ impl crate::VoxDb {
                     return Ok(Self {
                         conn,
                         sync_db,
+                        writer: None,
                         breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
                         sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
                     });
@@ -238,6 +177,7 @@ impl crate::VoxDb {
         Ok(Self {
             conn,
             sync_db: None,
+            writer: None,
             breaker: std::sync::Arc::new(DbCircuitBreaker::from_env()),
             sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })

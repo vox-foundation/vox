@@ -26,6 +26,7 @@
 //! | `vox live` | `commands::live` (needs `--features live`) |
 //! | `vox db …` | `commands::db_cli` |
 //! | `vox scientia …` | `commands::scientia` (research / capability-map facade over `db_cli`) |
+//! | `vox telemetry …` | `commands::telemetry` (optional upload queue; ADR 023) |
 //! | `vox codex verify \| export-legacy \| import-legacy \| cutover \| import-orchestrator-memory \| import-skill-bundle \| socrates-metrics \| socrates-eval-snapshot` | `commands::codex` |
 //! | `vox openclaw …` | `commands::openclaw` (needs `--features ars`) |
 //! | `vox snippet …` / `vox share …` | `commands::extras` |
@@ -43,9 +44,61 @@
 //! End-user docs: repository file `docs/src/reference/cli.md`. `@v0` integration during `build`: module `v0`.
 
 use clap::Parser;
+use std::process::Command;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    // Intercept ML commands and delegate to vox-mens
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() > 1 {
+        let cmd = args[1].as_str();
+        let is_ml = matches!(
+            cmd,
+            "mens" | "schola" | "oratio" | "speech" | "populi" | "train" | "scientia"
+        );
+        let is_ext_ml = cmd == "ext"
+            && args.len() > 2
+            && matches!(
+                args[2].as_str(),
+                "mens" | "schola" | "oratio" | "speech" | "populi" | "train" | "scientia"
+            );
+
+        if is_ml || is_ext_ml {
+            let primary_cmd = if is_ext_ml { args[2].as_str() } else { cmd };
+            let binary = if primary_cmd == "schola" || primary_cmd == "scientia" {
+                "vox-schola"
+            } else {
+                "vox-mens"
+            };
+
+            let mut command = Command::new(binary);
+            if primary_cmd == "train" {
+                // `vox train` -> `vox-mens mens train`
+                command.arg("mens");
+            }
+
+            let forward_args = if is_ext_ml { &args[2..] } else { &args[1..] };
+            command.args(forward_args);
+
+            // Wait for completion and exit with same status
+            match command.status() {
+                Ok(status) => {
+                    std::process::exit(status.code().unwrap_or(1));
+                }
+                Err(e) => {
+                    eprintln!("Error: {} is not installed or not in PATH.", binary);
+                    eprintln!(
+                        "The '{}' subsystem has been extracted to a separate crate.",
+                        primary_cmd
+                    );
+                    eprintln!("Please run: cargo install --path crates/{}", binary);
+                    eprintln!("Underlying error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
+
     let root = vox_cli::VoxCliRoot::parse();
     vox_cli::run_vox_cli_from_parsed(root).await
 }

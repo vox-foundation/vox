@@ -12,7 +12,7 @@ use vox_compiler::typeck::Diagnostic as TypeckDiagnostic;
 use vox_compiler::typeck::diagnostics::TypeckSeverity;
 use vox_compiler::typeck::typecheck_ast_module;
 
-pub mod bounded_fs;
+pub mod code_lens;
 pub mod completions;
 pub mod grammar;
 pub mod symbols;
@@ -33,6 +33,21 @@ fn typeck_diagnostic_to_lsp(text: &str, err: TypeckDiagnostic) -> Diagnostic {
         line: el,
         character: ec,
     };
+    let data = serde_json::json!({
+        "suggestions": err.suggestions,
+        "fixes": err.fixes.into_iter().map(|f| {
+            let (sl, sc) = byte_index_to_line_col(text, f.span.start);
+            let (el, ec) = byte_index_to_line_col(text, f.span.end);
+            serde_json::json!({
+                "label": f.label,
+                "replacement": f.replacement,
+                "range": Range {
+                    start: Position { line: sl, character: sc },
+                    end: Position { line: el, character: ec },
+                }
+            })
+        }).collect::<Vec<_>>()
+    });
     Diagnostic {
         range: Range { start, end },
         severity: Some(match err.severity {
@@ -45,7 +60,7 @@ fn typeck_diagnostic_to_lsp(text: &str, err: TypeckDiagnostic) -> Diagnostic {
         message: err.message,
         related_information: None,
         tags: None,
-        data: None,
+        data: Some(data),
     }
 }
 
@@ -59,7 +74,12 @@ fn validate_document_impl(text: &str, include_hir: bool) -> Vec<Diagnostic> {
             if include_hir {
                 let hir = vox_compiler::hir::lower_module(&module);
                 for e in vox_compiler::hir::validate_module(&hir) {
-                    type_errors.push(TypeckDiagnostic::hir_invariant(e.message, e.span, text));
+                    type_errors.push(TypeckDiagnostic::hir_invariant(
+                        e.message,
+                        e.span,
+                        text,
+                        e.correction_hint,
+                    ));
                 }
             }
             diagnostics.extend(
@@ -113,8 +133,9 @@ pub fn validate_document_with_hir(text: &str) -> Vec<Diagnostic> {
 }
 
 fn vox_populi_enabled_from_env() -> bool {
-    std::env::var("VOX_MESH_ENABLED")
-        .map(|v| {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshEnabled)
+        .expose()
+        .map(|v: &str| {
             let v = v.trim();
             v == "1" || v.eq_ignore_ascii_case("true")
         })
@@ -176,6 +197,16 @@ fn collect_mesh_activity_spans_from_stmts(stmts: &[Stmt], out: &mut Vec<vox_comp
                 value: Some(value), ..
             } => collect_mesh_activity_spans_from_expr(value, out),
             Stmt::Return { value: None, .. } => {}
+            Stmt::While {
+                condition, body, ..
+            } => {
+                collect_mesh_activity_spans_from_expr(condition, out);
+                collect_mesh_activity_spans_from_stmts(body, out);
+            }
+            Stmt::Loop { body, .. } => {
+                collect_mesh_activity_spans_from_stmts(body, out);
+            }
+            Stmt::Break { .. } | Stmt::Continue { .. } => {}
         }
     }
 }
@@ -365,6 +396,7 @@ pub fn builtin_hover_markdown(word: &str) -> Option<String> {
         ),
         "print" => Some("**print** — `print(value: str) → Unit`.".to_string()),
         "len" => Some("**len** — length of a collection.".to_string()),
+        "ret" => Some("**DEPRECATED**: use `return` instead. `ret` will be removed in a future version.".to_string()),
         _ => None,
     }
 }

@@ -20,8 +20,6 @@
 //! - **Pure Rust TLS**: reqwest with `rustls-tls` feature.
 //! - **Forge-agnostic**: git operations here; platform API calls go to `vox-forge`.
 
-mod bounded_fs;
-
 /// High-level repository operations using gitoxide.
 pub mod bridge;
 /// Git object id / OID helpers.

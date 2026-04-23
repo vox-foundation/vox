@@ -41,8 +41,10 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         | HirExpr::Spawn(_, s)
         | HirExpr::With(_, _, s)
         | HirExpr::Block(_, s) => *s,
-        HirExpr::Jsx(el) => el.span,
         HirExpr::JsxSelfClosing(el) => el.span,
+        HirExpr::Jsx(el) => el.span,
+        HirExpr::Try(t) => t.span,
+        HirExpr::DecimalLit(_, s) => *s,
     }
 }
 
@@ -68,10 +70,11 @@ impl<'a> Checker<'a> {
         }
     }
 
-    pub fn check_module(&mut self, module: &HirModule) {
-        self.diags.extend(register_hir_module(self.env, module));
+    pub fn check_module(&mut self, module: &mut HirModule) {
+        self.diags
+            .extend(register_hir_module(self.env, module, Some(self.uf)));
 
-        for f in &module.functions {
+        for f in &mut module.functions {
             self.check_function(f);
         }
         for a in &module.actors {
@@ -83,27 +86,36 @@ impl<'a> Checker<'a> {
         for act in &module.activities {
             self.check_activity(act);
         }
-        for sf in &module.server_fns {
+        for sf in &mut module.server_fns {
             self.check_server_fn(sf);
         }
-        for sf in &module.query_fns {
+        for sf in &mut module.query_fns {
             self.check_server_fn(sf);
             self.enforce_query_read_only(sf);
         }
-        for sf in &module.mutation_fns {
+        for sf in &mut module.mutation_fns {
             self.check_server_fn(sf);
         }
-        for t in &module.tests {
+        for t in &mut module.tests {
             self.check_function(t);
         }
-        for t in &module.mcp_tools {
-            self.check_function(&t.func);
+        for t in &mut module.mcp_tools {
+            self.check_function(&mut t.func);
+        }
+        for r in &mut module.mcp_resources {
+            self.check_function(&mut r.func);
         }
         for r in &module.routes {
             self.check_route(r);
         }
         for rc in &module.reactive_components {
             self.check_reactive_component(rc);
+        }
+        for a in &module.agents {
+            self.check_agent(a);
+        }
+        for e in &module.environments {
+            self.check_environment(e);
         }
     }
 
@@ -128,7 +140,7 @@ impl<'a> Checker<'a> {
         for m in &rc.members {
             match m {
                 HirReactiveMember::State(s) => {
-                    let init_ty = self.check_expr(&s.init);
+                    let init_ty = self.check_expr(&s.init, None);
                     let state_ty = if let Some(ann) = &s.ty {
                         let t = resolve_hir_type(ann, self.env);
                         if let Err(msg) = self.uf.unify(&init_ty, &t) {
@@ -146,7 +158,10 @@ impl<'a> Checker<'a> {
                                 category: DiagnosticCategory::Typecheck,
                                 code: Some("typecheck.reactive.state".into()),
                                 fixes: vec![],
-                            });
+                            line_col: None,
+                            missing_cases: vec![],
+                            ast_node_kind: None,
+});
                         }
                         t
                     } else {
@@ -160,7 +175,7 @@ impl<'a> Checker<'a> {
                     );
                 }
                 HirReactiveMember::Derived(d) => {
-                    let expr_ty = self.check_expr(&d.expr);
+                    let expr_ty = self.check_expr(&d.expr, None);
                     let derived_ty = if let Some(ann) = &d.ty {
                         let t = resolve_hir_type(ann, self.env);
                         if let Err(msg) = self.uf.unify(&expr_ty, &t) {
@@ -178,7 +193,10 @@ impl<'a> Checker<'a> {
                                 category: DiagnosticCategory::Typecheck,
                                 code: Some("typecheck.reactive.derived".into()),
                                 fixes: vec![],
-                            });
+                            line_col: None,
+                            missing_cases: vec![],
+                            ast_node_kind: None,
+});
                         }
                         t
                     } else {
@@ -191,29 +209,36 @@ impl<'a> Checker<'a> {
                     );
                 }
                 HirReactiveMember::Effect(e) => {
-                    let _ = self.check_expr(&e.body);
+                    let _ = self.check_expr(&e.body, None);
                 }
                 HirReactiveMember::OnMount(m) => {
-                    let _ = self.check_expr(&m.body);
+                    let _ = self.check_expr(&m.body, None);
                 }
                 HirReactiveMember::OnCleanup(c) => {
-                    let _ = self.check_expr(&c.body);
+                    let _ = self.check_expr(&c.body, None);
+                }
+                HirReactiveMember::Stmt(s) => {
+                    let _ = self.check_stmt(s);
                 }
             }
         }
 
         if let Some(view) = &rc.view {
-            let _ = self.check_expr(view);
+            let _ = self.check_expr(view, None);
         }
 
         self.env.pop_scope();
     }
 
-    fn check_function(&mut self, f: &HirFn) {
-        let ret_ty = f
+    fn check_function(&mut self, f: &mut HirFn) {
+        let was_inferred = f.return_type.is_none();
+        let mut ret_ty = f
             .return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
         self.env.push_scope();
         self.env.push_return_type(ret_ty.clone());
 
@@ -239,6 +264,13 @@ impl<'a> Checker<'a> {
         }
         let _ = self.uf.unify(&last_ty, &ret_ty);
 
+        if was_inferred {
+            let resolved = self.uf.resolve(&ret_ty);
+            if !matches!(resolved, Ty::TypeVar(_)) {
+                f.return_type = Some(resolved.to_hir_type());
+            }
+        }
+
         self.env.pop_return_type();
         self.env.pop_scope();
     }
@@ -250,40 +282,17 @@ impl<'a> Checker<'a> {
     }
 
     fn check_actor_handler(&mut self, h: &HirActorHandler) {
-        let ret_ty = h
-            .return_type
-            .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
-        self.env.push_scope();
-        self.env.push_return_type(ret_ty.clone());
-
-        self.env.define(
-            "db".into(),
-            Binding::new(Ty::Database, false, BindingKind::Variable),
-        );
-
-        for p in &h.params {
-            let p_ty = p
-                .type_ann
-                .as_ref()
-                .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
-            self.env.define(
-                p.name.clone(),
-                Binding::new(p_ty, false, BindingKind::Parameter),
-            );
-        }
-        for stmt in &h.body {
-            let _ = self.check_stmt(stmt);
-        }
-        self.env.pop_return_type();
-        self.env.pop_scope();
+        self.check_db_scoped_handler(&h.return_type, &h.params, &h.body);
     }
 
     fn check_workflow(&mut self, w: &HirWorkflow) {
-        let ret_ty = w
+        let mut ret_ty = w
             .return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
         self.env.push_scope();
         self.env.push_return_type(ret_ty.clone());
 
@@ -317,10 +326,13 @@ impl<'a> Checker<'a> {
                 self.source,
             ));
         }
-        let ret_ty = a
+        let mut ret_ty = a
             .return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
         if let Some(rt) = &a.return_type {
             let declared = resolve_hir_type(rt, self.env);
             if !matches!(declared, Ty::Result(_)) {
@@ -356,11 +368,15 @@ impl<'a> Checker<'a> {
         self.env.pop_scope();
     }
 
-    fn check_server_fn(&mut self, sf: &HirServerFn) {
-        let ret_ty = sf
+    fn check_server_fn(&mut self, sf: &mut HirServerFn) {
+        let was_inferred = sf.return_type.is_none();
+        let mut ret_ty = sf
             .return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
         self.env.push_scope();
         self.env.push_return_type(ret_ty.clone());
 
@@ -379,11 +395,95 @@ impl<'a> Checker<'a> {
                 Binding::new(p_ty, false, BindingKind::Parameter),
             );
         }
+
+        let mut last_ty = Ty::Unit;
         for stmt in &sf.body {
+            last_ty = self.check_stmt(stmt);
+        }
+        let _ = self.uf.unify(&last_ty, &ret_ty);
+
+        if was_inferred {
+            let resolved = self.uf.resolve(&ret_ty);
+            if !matches!(resolved, Ty::TypeVar(_)) {
+                sf.return_type = Some(resolved.to_hir_type());
+            }
+        }
+
+        self.env.pop_return_type();
+        self.env.pop_scope();
+    }
+
+    fn check_agent(&mut self, a: &HirAgent) {
+        for h in &a.handlers {
+            self.check_agent_handler(h);
+        }
+        for m in &a.migrations {
+            self.check_migration_rule(m);
+        }
+    }
+
+    fn check_agent_handler(&mut self, h: &HirAgentHandler) {
+        self.check_db_scoped_handler(&h.return_type, &h.params, &h.body);
+    }
+
+    /// Shared body for actor/agent handlers: `db` binding plus param scope and statement typecheck.
+    fn check_db_scoped_handler(
+        &mut self,
+        return_type: &Option<HirType>,
+        params: &[HirParam],
+        body: &[HirStmt],
+    ) {
+        let mut ret_ty = return_type
+            .as_ref()
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
+        self.env.push_scope();
+        self.env.push_return_type(ret_ty.clone());
+
+        self.env.define(
+            "db".into(),
+            Binding::new(Ty::Database, false, BindingKind::Variable),
+        );
+
+        for p in params {
+            let p_ty = p
+                .type_ann
+                .as_ref()
+                .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
+            self.env.define(
+                p.name.clone(),
+                Binding::new(p_ty, false, BindingKind::Parameter),
+            );
+        }
+        for stmt in body {
             let _ = self.check_stmt(stmt);
         }
         self.env.pop_return_type();
         self.env.pop_scope();
+    }
+
+    fn check_migration_rule(&mut self, m: &HirMigrationRule) {
+        self.env.push_scope();
+        self.env.define(
+            "db".into(),
+            Binding::new(Ty::Database, false, BindingKind::Variable),
+        );
+        for stmt in &m.body {
+            let _ = self.check_stmt(stmt);
+        }
+        self.env.pop_scope();
+    }
+
+    fn check_environment(&mut self, e: &HirEnvironment) {
+        if e.name.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "Environment name cannot be empty".into(),
+                e.span,
+                self.source,
+            ));
+        }
     }
 
     fn enforce_query_read_only(&mut self, sf: &HirServerFn) {
@@ -405,7 +505,10 @@ impl<'a> Checker<'a> {
                 category: DiagnosticCategory::Lint,
                 code: Some("lint.query_not_readonly".into()),
                 fixes: vec![],
-            });
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+});
         }
     }
 
@@ -423,6 +526,14 @@ impl<'a> Checker<'a> {
             HirStmt::Return { value, .. } => value
                 .as_ref()
                 .is_some_and(Self::contains_db_write_or_unsafe_in_expr),
+            HirStmt::While {
+                condition, body, ..
+            } => {
+                Self::contains_db_write_or_unsafe_in_expr(condition)
+                    || Self::contains_db_write_or_unsafe_in_stmts(body)
+            }
+            HirStmt::Loop { body, .. } => Self::contains_db_write_or_unsafe_in_stmts(body),
+            HirStmt::Break { .. } | HirStmt::Continue { .. } => false,
             HirStmt::Expr { expr, .. } => Self::contains_db_write_or_unsafe_in_expr(expr),
         }
     }
@@ -498,19 +609,24 @@ impl<'a> Checker<'a> {
                 .attributes
                 .iter()
                 .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value)),
+            HirExpr::Try(t) => Self::contains_db_write_or_unsafe_in_expr(t.target.as_ref()),
             HirExpr::IntLit(_, _)
             | HirExpr::FloatLit(_, _)
-            | HirExpr::StringLit(_, _)
             | HirExpr::BoolLit(_, _)
-            | HirExpr::Ident(_, _) => false,
+            | HirExpr::StringLit(_, _)
+            | HirExpr::Ident(_, _)
+            | HirExpr::DecimalLit(_, _) => false,
         }
     }
 
     fn check_route(&mut self, r: &HirRoute) {
-        let ret_ty = r
+        let mut ret_ty = r
             .return_type
             .as_ref()
-            .map_or(Ty::Unit, |t| resolve_hir_type(t, self.env));
+            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
+        if matches!(ret_ty, Ty::Infer) {
+            ret_ty = self.uf.fresh_var();
+        }
         self.env.push_scope();
         self.env.push_return_type(ret_ty.clone());
         // Align with AST `check::typecheck_module` HTTP scope: `request` + `db`.
@@ -538,7 +654,7 @@ impl<'a> Checker<'a> {
                 mutable,
                 ..
             } => {
-                let val_ty = self.check_expr(value);
+                let val_ty = self.check_expr(value, None);
                 let target_ty = if let Some(ann) = type_ann {
                     let ann_ty = resolve_hir_type(ann, self.env);
                     if let Err(msg) = self.uf.unify(&val_ty, &ann_ty) {
@@ -567,13 +683,15 @@ impl<'a> Checker<'a> {
                         }
                     }
                 }
-                let target_ty = self.check_expr(target);
-                let value_ty = self.check_expr(value);
+                let target_ty = self.check_expr(target, None);
+                let value_ty = self.check_expr(value, None);
                 let _ = self.uf.unify(&target_ty, &value_ty);
                 Ty::Unit
             }
             HirStmt::Return { value, span } => {
-                let val_ty = value.as_ref().map_or(Ty::Unit, |v| self.check_expr(v));
+                let val_ty = value
+                    .as_ref()
+                    .map_or(Ty::Unit, |v| self.check_expr(v, None));
                 if let Some(expected) = self.env.current_return_type() {
                     if let Err(msg) = self.uf.unify(&val_ty, expected) {
                         self.diags.push(Diagnostic::error(
@@ -585,13 +703,143 @@ impl<'a> Checker<'a> {
                 }
                 Ty::Never
             }
-            HirStmt::Expr { expr, .. } => self.check_expr(expr),
+            HirStmt::While {
+                condition, body, ..
+            } => {
+                let cond_ty = self.check_expr(condition, None);
+                let _ = self.uf.unify(&cond_ty, &Ty::Bool);
+                for stmt in body {
+                    self.check_stmt(stmt);
+                }
+                Ty::Unit
+            }
+            HirStmt::Loop { body, .. } => {
+                for stmt in body {
+                    self.check_stmt(stmt);
+                }
+                Ty::Never
+            }
+            HirStmt::Break { .. } | HirStmt::Continue { .. } => Ty::Never,
+            HirStmt::Expr { expr, .. } => self.check_expr(expr, None),
+        }
+    }
+
+    pub(crate) fn solve_constraints(&mut self) {
+        let mut queue = std::mem::take(&mut self.uf.pending_constraints);
+        let mut progress = true;
+        while progress && !queue.is_empty() {
+            progress = false;
+            let mut next_queue = Vec::new();
+
+            for constraint in queue {
+                match constraint {
+                    crate::typeck::unify::PendingConstraint::HasField {
+                        target,
+                        field,
+                        result,
+                        span,
+                    } => {
+                        let obj_ty = self.uf.resolve(&target);
+                        match &obj_ty {
+                            Ty::TypeVar(_) => {
+                                next_queue.push(
+                                    crate::typeck::unify::PendingConstraint::HasField {
+                                        target: obj_ty,
+                                        field,
+                                        result,
+                                        span,
+                                    },
+                                );
+                            }
+                            Ty::Record(fields)
+                            | Ty::Table(_, fields)
+                            | Ty::Collection(_, fields) => {
+                                if let Some((_, f_ty)) = fields.iter().find(|(n, _)| n == &field) {
+                                    let _ = self.uf.unify(&result, f_ty);
+                                    progress = true;
+                                } else {
+                                    self.diags.push(Diagnostic::error(
+                                        format!("Field '{field}' not found on {obj_ty:?}"),
+                                        span,
+                                        self.source,
+                                    ));
+                                }
+                            }
+                            Ty::Error | Ty::Never => {
+                                progress = true;
+                            } // suppress cascades
+                            other => {
+                                self.diags.push(Diagnostic::error(
+                                    format!("Cannot access field '{field}' on {other:?}"),
+                                    span,
+                                    self.source,
+                                ));
+                            }
+                        }
+                    }
+                    crate::typeck::unify::PendingConstraint::HasMethod {
+                        target,
+                        method,
+                        result,
+                        span,
+                        ..
+                    } => {
+                        let obj_ty = self.uf.resolve(&target);
+                        match &obj_ty {
+                            Ty::TypeVar(_) => {
+                                next_queue.push(
+                                    crate::typeck::unify::PendingConstraint::HasMethod {
+                                        target: obj_ty,
+                                        method,
+                                        result,
+                                        args: vec![],
+                                        span,
+                                    },
+                                );
+                            }
+                            Ty::Error | Ty::Never => {
+                                progress = true;
+                            }
+                            other => {
+                                if let Some(method_ty) =
+                                    self.builtins.lookup_method(&other, &method)
+                                {
+                                    let method_instantiated = self.uf.instantiate(&method_ty);
+                                    if let Ty::Fn(_params, ret) = &method_instantiated {
+                                        let _ = self.uf.unify(&result, ret.as_ref());
+                                    }
+                                    progress = true;
+                                } else {
+                                    self.diags.push(Diagnostic::error(
+                                        format!("Method '{method}' not found on {other:?}"),
+                                        span,
+                                        self.source,
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            queue = next_queue;
+        }
+
+        for constraint in queue {
+            let span = match constraint {
+                crate::typeck::unify::PendingConstraint::HasField { span, .. } => span,
+                crate::typeck::unify::PendingConstraint::HasMethod { span, .. } => span,
+            };
+            self.diags.push(Diagnostic::error(
+                format!("Type inference requires more type annotations. Unsolved constraint: {constraint:?}"),
+                span,
+                self.source
+            ));
         }
     }
 }
 
 pub fn typecheck_hir(
-    module: &HirModule,
+    module: &mut HirModule,
     env: &mut TypeEnv,
     builtins: &BuiltinTypes,
     source: &str,
@@ -600,5 +848,9 @@ pub fn typecheck_hir(
     let mut diags = Vec::new();
     let mut checker = Checker::new(env, builtins, &mut uf, &mut diags, source);
     checker.check_module(module);
+
+    // Category 3: evaluate deferred logic after top-down + bottom-up propagation concludes
+    checker.solve_constraints();
+
     diags
 }

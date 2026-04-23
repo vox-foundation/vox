@@ -1,6 +1,6 @@
 {
   "project": "Vox",
-  "version": "1.0.0",
+  "version": "0.4.0",
   "description": "Architectual Single Source of Truth for File Paths and Governance",
   "thresholds": {
     "god_object": {
@@ -20,21 +20,245 @@
     }
   },
   "crates": {
-    "vox-ast": {
-      "role": "Source of Truth for syntax tree node definitions",
-      "path_pattern": "crates/vox-ast/src/**/*.rs"
+    "vox-audio-ingress": {
+      "role": "Minimal HTTP ingress for Oratio STT/status endpoints",
+      "path_pattern": "crates/vox-audio-ingress/**/*.rs"
     },
-    "vox-hir": {
-      "role": "Intermediate representation and desugaring logic",
-      "path_pattern": "crates/vox-hir/src/**/*.rs"
+    "vox-bootstrap": {
+      "role": "Host toolchain bootstrap and install plan (rustup, clang for Turso)",
+      "path_pattern": "crates/vox-bootstrap/**/*.rs"
     },
-    "vox-toestub": {
-      "role": "Architectural enforcer and anti-pattern detector",
-      "path_pattern": "crates/vox-toestub/src/**/*.rs"
+    "vox-bounded-fs": {
+      "role": "UTF-8 file reads capped by vox-scaling-policy max_file_bytes_hint",
+      "path_pattern": "crates/vox-bounded-fs/**/*.rs"
+    },
+    "vox-browser": {
+      "role": "Chromium CDP automation backend (chromiumoxide session API)",
+      "path_pattern": "crates/vox-browser/**/*.rs"
+    },
+    "vox-build-meta": {
+      "role": "Build-time metadata for feature capability manifest",
+      "path_pattern": "crates/vox-build-meta/**/*.rs"
+    },
+    "vox-capability-registry": {
+      "role": "Transport-independent capability registry YAML + Mens chat tool descriptors",
+      "path_pattern": "crates/vox-capability-registry/**/*.rs"
+    },
+    "vox-checksum-manifest": {
+      "role": "SHA-256 release asset verification against checksums.txt manifests",
+      "path_pattern": "crates/vox-checksum-manifest/**/*.rs"
+    },
+    "vox-clavis": {
+      "role": "Central secret resolution and compatibility adapters for Vox",
+      "path_pattern": "crates/vox-clavis/**/*.rs"
+    },
+    "vox-cli": {
+      "role": "Primary `vox` CLI, CI guards, and workspace tooling",
+      "path_pattern": "crates/vox-cli/**/*.rs"
+    },
+    "vox-compiler": {
+      "role": "Lexer, parser, HIR lowering, typechecking, and codegen pipeline",
+      "path_pattern": "crates/vox-compiler/**/*.rs"
+    },
+    "vox-config": {
+      "role": "Centralized configuration and env/default resolution for tooling",
+      "path_pattern": "crates/vox-config/**/*.rs"
+    },
+    "vox-constrained-gen": {
+      "role": "Grammar-constrained inference (Earley/PDA) and stream-of-revision",
+      "path_pattern": "crates/vox-constrained-gen/**/*.rs"
+    },
+    "vox-container": {
+      "role": "OCI container runtime abstraction (Docker and Podman)",
+      "path_pattern": "crates/vox-container/**/*.rs"
+    },
+    "vox-corpus": {
+      "role": "Training data contracts, corpus SSOT, and Mens dataset metadata",
+      "path_pattern": "crates/vox-corpus/**/*.rs"
+    },
+    "vox-db": {
+      "role": "Codex / VoxDB relational store, schema, migrations, and typed SQL ops",
+      "path_pattern": "crates/vox-db/**/*.rs"
+    },
+    "vox-dei": {
+      "role": "Orchestrator-facing DEI integration surface (minimal workspace crate)",
+      "path_pattern": "crates/vox-dei/**/*.rs"
+    },
+    "vox-doc-inventory": {
+      "role": "Generate and verify docs/agents/doc-inventory.json (schema v3)",
+      "path_pattern": "crates/vox-doc-inventory/**/*.rs"
+    },
+    "vox-doc-pipeline": {
+      "role": "Documentation lint and summary pipeline over repo markdown",
+      "path_pattern": "crates/vox-doc-pipeline/**/*.rs"
+    },
+    "vox-eval": {
+      "role": "Eval matrix helpers and scoring utilities for Mens/CI",
+      "path_pattern": "crates/vox-eval/**/*.rs"
+    },
+    "vox-forge": {
+      "role": "Platform-agnostic Git forge API (GitHub, GitLab, Gitea, Forgejo)",
+      "path_pattern": "crates/vox-forge/**/*.rs"
+    },
+    "vox-git": {
+      "role": "Pure-Rust Git bridge using gix (no libgit2)",
+      "path_pattern": "crates/vox-git/**/*.rs"
+    },
+    "vox-grammar-export": {
+      "role": "Grammar export: EBNF, GBNF, JSON Schema, and related artifacts",
+      "path_pattern": "crates/vox-grammar-export/**/*.rs"
+    },
+    "vox-install-policy": {
+      "role": "SSOT constants for install/update surfaces and release coordinates",
+      "path_pattern": "crates/vox-install-policy/**/*.rs"
+    },
+    "vox-integration-tests": {
+      "role": "Cross-crate integration tests and contract validation",
+      "path_pattern": "crates/vox-integration-tests/**/*.rs"
+    },
+    "vox-jsonschema-util": {
+      "role": "Shared JSON Schema compile + validate helpers",
+      "path_pattern": "crates/vox-jsonschema-util/**/*.rs"
+    },
+    "vox-lsp": {
+      "role": "Language Server Protocol frontend: diagnostics, hover, completion, code lens",
+      "path_pattern": "crates/vox-lsp/**/*.rs"
+    },
+    "vox-ludus": {
+      "role": "Gamification layer: companions, quests, battles, and AI integration",
+      "path_pattern": "crates/vox-ludus/**/*.rs"
+    },
+    "vox-mcp": {
+      "role": "MCP server exposing the Vox orchestrator to coding agents",
+      "path_pattern": "crates/vox-mcp/**/*.rs"
+    },
+    "vox-mcp-meta": {
+      "role": "MCP registries, taxonomy structs, and enums for Corpus/MCP",
+      "path_pattern": "crates/vox-mcp-meta/**/*.rs"
+    },
+    "vox-mcp-registry": {
+      "role": "Compile-time MCP tool registry from contracts YAML (SSOT)",
+      "path_pattern": "crates/vox-mcp-registry/**/*.rs"
+    },
+    "vox-openai-sse": {
+      "role": "OpenAI-compat SSE reassembly and chat completion delta extraction",
+      "path_pattern": "crates/vox-openai-sse/**/*.rs"
+    },
+    "vox-openai-wire": {
+      "role": "OpenAI-compatible chat completions JSON types (non-streaming wire)",
+      "path_pattern": "crates/vox-openai-wire/**/*.rs"
+    },
+    "vox-oratio": {
+      "role": "Speech-to-text (Candle Whisper STT) and transcript refinement",
+      "path_pattern": "crates/vox-oratio/**/*.rs"
+    },
+    "vox-orchestrator": {
+      "role": "Multi-agent task queue, routing, and orchestration core",
+      "path_pattern": "crates/vox-orchestrator/**/*.rs"
     },
     "vox-pm": {
       "role": "Package manager and dependency resolver",
-      "path_pattern": "crates/vox-pm/src/**/*.rs"
+      "path_pattern": "crates/vox-pm/**/*.rs"
+    },
+    "vox-populi": {
+      "role": "Populi mesh, HTTP control plane, Mens Burn/Candle native ML",
+      "path_pattern": "crates/vox-populi/**/*.rs"
+    },
+    "vox-primitives": {
+      "role": "Dependency-neutral id and backoff helpers shared across crates",
+      "path_pattern": "crates/vox-primitives/**/*.rs"
+    },
+    "vox-project-scaffold": {
+      "role": "Vox.toml + main.vox + skill scaffolding for init and MCP",
+      "path_pattern": "crates/vox-project-scaffold/**/*.rs"
+    },
+    "vox-protocol": {
+      "role": "JSON-line RPC envelopes and shared serde protocol types",
+      "path_pattern": "crates/vox-protocol/**/*.rs"
+    },
+    "vox-publisher": {
+      "role": "News syndication and publication adapters",
+      "path_pattern": "crates/vox-publisher/**/*.rs"
+    },
+    "vox-repository": {
+      "role": "Repository discovery, stable identity, layout probes, agent scope",
+      "path_pattern": "crates/vox-repository/**/*.rs"
+    },
+    "vox-reqwest-defaults": {
+      "role": "Shared reqwest ClientBuilder presets (timeouts, user-agent)",
+      "path_pattern": "crates/vox-reqwest-defaults/**/*.rs"
+    },
+    "vox-runtime": {
+      "role": "Vox language runtime: actors, stdlib, optional Codex connection",
+      "path_pattern": "crates/vox-runtime/**/*.rs"
+    },
+    "vox-scaling-policy": {
+      "role": "Compile-time and runtime accessors for scaling SSOT (policy.yaml)",
+      "path_pattern": "crates/vox-scaling-policy/**/*.rs"
+    },
+    "vox-schola": {
+      "role": "Standalone ML training/serving binary (Mens QLoRA / Candle)",
+      "path_pattern": "crates/vox-schola/**/*.rs"
+    },
+    "vox-scientia-api": {
+      "role": "Scientia API surface helpers for CLI and MCP",
+      "path_pattern": "crates/vox-scientia-api/**/*.rs"
+    },
+    "vox-scientia-core": {
+      "role": "Scientia publication models, preflight, and worthiness APIs",
+      "path_pattern": "crates/vox-scientia-core/**/*.rs"
+    },
+    "vox-scientia-runtime": {
+      "role": "Scientia runtime orchestration helpers",
+      "path_pattern": "crates/vox-scientia-runtime/**/*.rs"
+    },
+    "vox-scientia-social": {
+      "role": "Scientia social and graph-adjacent shared types",
+      "path_pattern": "crates/vox-scientia-social/**/*.rs"
+    },
+    "vox-search": {
+      "role": "Local-first retrieval: memory hybrid, repo inventory, Codex chunks, policy",
+      "path_pattern": "crates/vox-search/**/*.rs"
+    },
+    "vox-skills": {
+      "role": "Skill marketplace and plugin architecture for agents",
+      "path_pattern": "crates/vox-skills/**/*.rs"
+    },
+    "vox-socrates-policy": {
+      "role": "Socrates anti-hallucination thresholds and risk classification",
+      "path_pattern": "crates/vox-socrates-policy/**/*.rs"
+    },
+    "vox-ssg": {
+      "role": "Static site generation pipeline using vox-compiler",
+      "path_pattern": "crates/vox-ssg/**/*.rs"
+    },
+    "vox-tensor": {
+      "role": "Burn-backed tensor utilities and optional training kernels",
+      "path_pattern": "crates/vox-tensor/**/*.rs"
+    },
+    "vox-test-harness": {
+      "role": "Compiler and integration test harness utilities",
+      "path_pattern": "crates/vox-test-harness/**/*.rs"
+    },
+    "vox-toestub": {
+      "role": "Architectural enforcer and anti-pattern detector",
+      "path_pattern": "crates/vox-toestub/**/*.rs"
+    },
+    "vox-tools": {
+      "role": "In-process execution of a subset of Vox MCP tools",
+      "path_pattern": "crates/vox-tools/**/*.rs"
+    },
+    "vox-webhook": {
+      "role": "HTTP webhook gateway for the Vox agent system",
+      "path_pattern": "crates/vox-webhook/**/*.rs"
+    },
+    "vox-workflow-runtime": {
+      "role": "Interpreted workflow execution (local + Mens activity hooks)",
+      "path_pattern": "crates/vox-workflow-runtime/**/*.rs"
+    },
+    "workspace-hack": {
+      "role": "Hakari workspace-hack unified dependency feature unification",
+      "path_pattern": "crates/workspace-hack/**/*.rs"
     }
   },
   "staging_policy": {
@@ -43,3 +267,4 @@
     "promotion_requirement": "Subagent @reviewer approval + Lint Clean"
   }
 }
+

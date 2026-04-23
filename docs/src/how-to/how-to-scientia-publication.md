@@ -2,8 +2,10 @@
 title: "How-To: Publish Scientia findings"
 description: "Prepare, approve, and submit scientific findings from Vox Scientia using the publication manifest SSOT."
 category: "how-to"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 # How-To: Publish Scientia findings
@@ -23,6 +25,16 @@ When you already have a prepared SCIENTIA manifest, the shortest safe default pa
 5. Re-run without `--dry-run` when the output looks correct.
 
 Use `vox scientia publication-status --publication-id <id> --with-worthiness` as the ongoing checklist surface when you also want the worthiness rubric inline; without the flag it still includes the same readiness report and `next_actions`, plus approvals, attempts, submissions, and status events.
+
+### Discovery → draft assistance (deterministic)
+
+- `vox scientia publication-discovery-scan` — ranks stored `scientia` manifests by structured `scientia_evidence` signals (strong / supporting / informational). Use `vox db publication-discovery-scan` with `--content-type` / `--state` when you need filters beyond the scientia facade default.
+- `vox scientia publication-discovery-explain --publication-id <id>` — machine explanation, manifest completion report, evidence completeness, and a **non-authoritative** transform preview (labels `machine_suggested` + `requires_human_review`).
+- `vox scientia publication-transform-preview --publication-id <id>` — preview-only JSON for scholarly/social stubs.
+- `vox scientia publication-discovery-refresh-evidence --publication-id <id>` — merges live Socrates telemetry + JSON sidecars, rebuilds `scientia_evidence` (headings, signals), upserts digest; emits `discovery_evidence_refreshed`. MCP: `vox_scientia_publication_discovery_refresh_evidence`.
+- Preflight JSON now includes `destination_readiness` (credential **presence** checks; no secret values).
+
+**Anti-slop:** LLM assists (`vox_scientia_assist_suggestions` in MCP) must output JSON checklists grounded on provided evidence; they do **not** establish novelty or scientific truth. See `contracts/scientia/machine-suggestion-block.schema.json` and [scientia-a2a-evidence-tasks](../architecture/scientia-a2a-evidence-tasks.md).
 
 ## 1) Prepare a manifest
 
@@ -46,7 +58,7 @@ To use `publication-prepare` as an early discovery-to-draft bridge instead of a 
 
 When those inputs are present, SCIENTIA seeds `metadata_json.scientia_evidence` with discovery signals, draft-preparation hints, and a short candidate note, then records a `discovery_candidate_prepared` status event.
 
-Use `--preflight` (or `publication-prepare-validated`) to run `vox_publisher::publication_preflight` before persisting. Use `publication-preflight` to inspect readiness JSON for an existing id (including `manual_required`, `confidence`, and live-publish gate hints when VoxDb is attached); add `--with-worthiness` to score against `contracts/scientia/publication-worthiness.default.yaml`. CLI-prepared manifests now include `repository_id` automatically, so `--with-worthiness` can merge live `socrates_surface` telemetry and repo-local `scientia_evidence` sidecars into the same decision path. You may also embed `scientia_evidence` manually (eval-gate result, baseline/candidate run ids, `human_meaningful_advance`, `human_ai_disclosure_complete`) so worthiness blends orchestrator telemetry with explicit human attestations. Use `publication-zenodo-metadata` to emit a Zenodo `metadata` object (stdout) for manual or scripted upload.
+Use `--preflight` (or `publication-prepare-validated`) -> run `vox_publisher::publication_preflight` before persisting; use `--preflight-profile arxiv-assist` when the handoff target is arXiv (requires `abstract_text`). Optional `--discovery-intake-gate strong-signals-only` or `allow-review-suggested` blocks scientia `publication-prepare` when deterministic discovery rank does not meet the tier (empty evidence ranks as low-signal unless you pass sidecars). MCP `vox_scientia_publication_prepare` accepts `scientia_evidence` JSON and the same gate when you prepare from agents without repo-relative report files. Use `publication-preflight` to inspect readiness JSON for an existing id (including `manual_required`, `confidence`, and live-publish gate hints when VoxDb is attached); add `--with-worthiness` to score against `contracts/scientia/publication-worthiness.default.yaml`. CLI-prepared manifests now include `repository_id` automatically, so `--with-worthiness` can merge live `socrates_surface` telemetry and repo-local `scientia_evidence` sidecars into the same decision path. You may also embed `scientia_evidence` manually (eval-gate result, baseline/candidate run ids, `human_meaningful_advance`, `human_ai_disclosure_complete`) so worthiness blends orchestrator telemetry with explicit human attestations. Use `publication-zenodo-metadata` to emit a Zenodo `metadata` object (stdout) for manual or scripted upload.
 
 ## 2) Record approvals (two distinct approvers)
 
@@ -176,3 +188,5 @@ vox db publication-retry-failed --publication-id ai-research-2026-03 --dry-run t
 Add `--json` for machine-readable stdout (one structured object per invocation). MCP equivalents `vox_scientia_publication_publish` and `vox_scientia_publication_retry_failed` accept **`json: true`** for a single-line compact JSON tool envelope.
 
 **Retry-failed idempotency:** `publication-retry-failed` / MCP `vox_scientia_publication_retry_failed` pick candidates from the latest **digest-bound** attempt. Channels that already have a `Success` outcome for that digest are **not** republished (they appear as `skipped_success_channels`). Explicit `--channel` / `channel` follows the same planner so operators cannot accidentally duplicate a succeeded post when retrying a subset.
+
+

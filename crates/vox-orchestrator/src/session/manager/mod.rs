@@ -14,9 +14,11 @@ mod tests;
 
 /// Manages agent sessions: creation, persistence, lifecycle, cleanup.
 ///
-/// When a `VoxDb` is attached via [`SessionManager::with_db`], session rows and
-/// `agent_session_events` are the **durable SSOT**. JSONL under [`SessionConfig::sessions_dir`]
-/// is an optional, non-authoritative export for debugging or tooling when `persist` is enabled.
+/// # Persistence Architecture
+///
+/// `agent_session_events` are the **durable SSOT**.
+///
+/// # Thread Safety
 pub struct SessionManager {
     pub(super) config: SessionConfig,
     pub(super) sessions: HashMap<String, super::state::Session>,

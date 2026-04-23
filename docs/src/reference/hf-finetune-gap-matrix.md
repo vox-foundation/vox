@@ -2,8 +2,10 @@
 title: "HF fine-tune gap matrix (SSOT ↔ code)"
 description: "Official documentation for HF fine-tune gap matrix (SSOT ↔ code) for the Vox language. Detailed technical reference, architecture guides,"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # HF fine-tune gap matrix (SSOT ↔ code)
 
@@ -33,3 +35,5 @@ Maps **remaining** risks and **resolved** items to **modules** and **severity**.
 - [Mens training SSOT](mens-training.md) — merge table and regression commands.
 - [Mens LLM PR checklist](../architecture/mens-llm-pr-checklist.md) — duplication, flags, layouts, merge, parity tiers.
 - `crates/vox-populi/src/mens/tensor/finetune_contract.rs` — contract gates.
+
+

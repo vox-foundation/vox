@@ -1,3 +1,10 @@
+---
+title: "Handoff Protocol"
+description: "Agent support documentation for handoff protocol"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Plan Handoff Protocol
 
 When an agent completes a phase of work and needs to hand off context to another agent

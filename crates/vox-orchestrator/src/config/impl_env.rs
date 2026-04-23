@@ -3,113 +3,144 @@ use super::orchestrator_fields::OrchestratorConfig;
 
 impl OrchestratorConfig {
     pub fn merge_env_overrides(&mut self) {
+        fn clavis_opt(id: vox_clavis::SecretId) -> Option<String> {
+            vox_clavis::resolve_secret(id)
+                .expose()
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+        }
+
         fn parse_or_warn<T: std::str::FromStr>(key: &str, val: &str, default: T) -> T {
             val.parse().unwrap_or_else(|_| {
                 tracing::warn!("{}: invalid value '{}', using default", key, val);
                 default
             })
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_ENABLED") {
+
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorEnabled) {
             self.enabled = parse_or_warn("VOX_ORCHESTRATOR_ENABLED", &val, self.enabled);
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MAX_AGENTS") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorMaxAgents) {
             self.max_agents = parse_or_warn("VOX_ORCHESTRATOR_MAX_AGENTS", &val, self.max_agents);
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_LOCK_TIMEOUT_MS") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorLockTimeoutMs) {
             self.lock_timeout_ms = parse_or_warn(
                 "VOX_ORCHESTRATOR_LOCK_TIMEOUT_MS",
                 &val,
                 self.lock_timeout_ms,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_TOESTUB_GATE") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorToestubGate) {
             self.toestub_gate =
                 parse_or_warn("VOX_ORCHESTRATOR_TOESTUB_GATE", &val, self.toestub_gate);
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MAX_DEBUG_ITERATIONS") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorMaxDebugIterations) {
             self.max_debug_iterations = parse_or_warn(
                 "VOX_ORCHESTRATOR_MAX_DEBUG_ITERATIONS",
                 &val,
                 self.max_debug_iterations,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MAX_TOESTUB_DEBUG_ITERATIONS") {
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMaxToestubDebugIterations)
+        {
             self.max_toestub_debug_iterations = parse_or_warn(
                 "VOX_ORCHESTRATOR_MAX_TOESTUB_DEBUG_ITERATIONS",
                 &val,
                 self.max_toestub_debug_iterations,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MAX_SOCRATES_DEBUG_ITERATIONS") {
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMaxSocratesDebugIterations)
+        {
             self.max_socrates_debug_iterations = parse_or_warn(
                 "VOX_ORCHESTRATOR_MAX_SOCRATES_DEBUG_ITERATIONS",
                 &val,
                 self.max_socrates_debug_iterations,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_SOCRATES_GATE_SHADOW") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorSocratesGateShadow) {
             self.socrates_gate_shadow = parse_or_warn(
                 "VOX_ORCHESTRATOR_SOCRATES_GATE_SHADOW",
                 &val,
                 self.socrates_gate_shadow,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_SOCRATES_GATE_ENFORCE") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorSocratesGateEnforce) {
             self.socrates_gate_enforce = parse_or_warn(
                 "VOX_ORCHESTRATOR_SOCRATES_GATE_ENFORCE",
                 &val,
                 self.socrates_gate_enforce,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_SOCRATES_REPUTATION_ROUTING") {
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorSocratesReputationRouting)
+        {
             self.socrates_reputation_routing = parse_or_warn(
                 "VOX_ORCHESTRATOR_SOCRATES_REPUTATION_ROUTING",
                 &val,
                 self.socrates_reputation_routing,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorSocratesReputationWeight)
+        {
             self.socrates_reputation_weight = parse_or_warn(
                 "VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT",
                 &val,
                 self.socrates_reputation_weight,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_LOG_LEVEL") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorTrustGateRelaxEnabled) {
+            self.trust_gate_relax_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_TRUST_GATE_RELAX_ENABLED",
+                &val,
+                self.trust_gate_relax_enabled,
+            );
+        }
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorTrustGateRelaxMinReliability)
+        {
+            self.trust_gate_relax_min_reliability = parse_or_warn(
+                "VOX_ORCHESTRATOR_TRUST_GATE_RELAX_MIN_RELIABILITY",
+                &val,
+                self.trust_gate_relax_min_reliability,
+            );
+        }
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorLogLevel) {
             self.log_level = val;
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_FALLBACK_SINGLE") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorFallbackSingle) {
             self.fallback_to_single_agent = parse_or_warn(
                 "VOX_ORCHESTRATOR_FALLBACK_SINGLE",
                 &val,
                 self.fallback_to_single_agent,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MIN_AGENTS") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorMinAgents) {
             self.min_agents = parse_or_warn("VOX_ORCHESTRATOR_MIN_AGENTS", &val, self.min_agents);
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_SCALING_THRESHOLD") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorScalingThreshold) {
             self.scaling_threshold = parse_or_warn(
                 "VOX_ORCHESTRATOR_SCALING_THRESHOLD",
                 &val,
                 self.scaling_threshold,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_IDLE_RETIREMENT_MS") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorIdleRetirementMs) {
             self.idle_retirement_ms = parse_or_warn(
                 "VOX_ORCHESTRATOR_IDLE_RETIREMENT_MS",
                 &val,
                 self.idle_retirement_ms,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_SCALING_ENABLED") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorScalingEnabled) {
             self.scaling_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_SCALING_ENABLED",
                 &val,
                 self.scaling_enabled,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_COST_PREFERENCE") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorCostPreference) {
             match val.to_lowercase().as_str() {
                 "performance" => self.cost_preference = CostPreference::Performance,
                 "economy" => self.cost_preference = CostPreference::Economy,
@@ -119,42 +150,42 @@ impl OrchestratorConfig {
                 ),
             }
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_SCALING_LOOKBACK") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorScalingLookback) {
             self.scaling_lookback_ticks = parse_or_warn(
                 "VOX_ORCHESTRATOR_SCALING_LOOKBACK",
                 &val,
                 self.scaling_lookback_ticks,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_RESOURCE_WEIGHT") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorResourceWeight) {
             self.resource_weight = parse_or_warn(
                 "VOX_ORCHESTRATOR_RESOURCE_WEIGHT",
                 &val,
                 self.resource_weight,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_RESOURCE_CPU_MULT") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorResourceCpuMult) {
             self.resource_cpu_multiplier = parse_or_warn(
                 "VOX_ORCHESTRATOR_RESOURCE_CPU_MULT",
                 &val,
                 self.resource_cpu_multiplier,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_RESOURCE_MEM_MULT") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorResourceMemMult) {
             self.resource_mem_multiplier = parse_or_warn(
                 "VOX_ORCHESTRATOR_RESOURCE_MEM_MULT",
                 &val,
                 self.resource_mem_multiplier,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_RESOURCE_EXPONENT") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorResourceExponent) {
             self.resource_exponent = parse_or_warn(
                 "VOX_ORCHESTRATOR_RESOURCE_EXPONENT",
                 &val,
                 self.resource_exponent,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_SCALING_PROFILE") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorScalingProfile) {
             match val.to_lowercase().as_str() {
                 "conservative" => self.scaling_profile = ScalingProfile::Conservative,
                 "balanced" => self.scaling_profile = ScalingProfile::Balanced,
@@ -165,49 +196,44 @@ impl OrchestratorConfig {
                 ),
             }
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MAX_SPAWN_PER_TICK") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorMaxSpawnPerTick) {
             self.max_spawn_per_tick = parse_or_warn(
                 "VOX_ORCHESTRATOR_MAX_SPAWN_PER_TICK",
                 &val,
                 self.max_spawn_per_tick,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_SCALING_COOLDOWN_MS") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorScalingCooldownMs) {
             self.scaling_cooldown_ms = parse_or_warn(
                 "VOX_ORCHESTRATOR_SCALING_COOLDOWN_MS",
                 &val,
                 self.scaling_cooldown_ms,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_URGENT_REBALANCE_THRESHOLD") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorUrgentRebalanceThreshold)
+        {
             self.urgent_rebalance_threshold = parse_or_warn(
                 "VOX_ORCHESTRATOR_URGENT_REBALANCE_THRESHOLD",
                 &val,
                 self.urgent_rebalance_threshold,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MIGRATION_V2_ENABLED") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorMigrationV2Enabled) {
             self.orchestration_migration.orchestration_v2_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_MIGRATION_V2_ENABLED",
                 &val,
                 self.orchestration_migration.orchestration_v2_enabled,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MIGRATION_LEGACY_FALLBACK") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorMigrationLegacyFallback)
+        {
             self.orchestration_migration.legacy_orchestration_fallback = parse_or_warn(
                 "VOX_ORCHESTRATOR_MIGRATION_LEGACY_FALLBACK",
                 &val,
                 self.orchestration_migration.legacy_orchestration_fallback,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_CONTROL_URL") {
-            let v = val.trim();
-            if v.is_empty() {
-                self.populi_control_url = None;
-            } else {
-                self.populi_control_url = Some(v.to_string());
-            }
-        } else if let Ok(val) = std::env::var("VOX_MESH_CONTROL_ADDR") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshControlUrl) {
             let v = val.trim();
             if v.is_empty() {
                 self.populi_control_url = None;
@@ -215,7 +241,15 @@ impl OrchestratorConfig {
                 self.populi_control_url = Some(v.to_string());
             }
         }
-        if let Ok(val) = std::env::var("VOX_MESH_SCOPE_ID") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorPopuliInferenceBaseUrl) {
+            let v = val.trim();
+            if v.is_empty() {
+                self.populi_inference_base_url = None;
+            } else {
+                self.populi_inference_base_url = Some(v.to_string());
+            }
+        }
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxMeshScopeId) {
             let v = val.trim();
             if v.is_empty() {
                 self.populi_scope_id = None;
@@ -223,49 +257,76 @@ impl OrchestratorConfig {
                 self.populi_scope_id = Some(v.to_string());
             }
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshPollIntervalSecs) {
             self.populi_poll_interval_secs = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_POLL_INTERVAL_SECS",
                 &val,
                 self.populi_poll_interval_secs,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshHttpTimeoutMs) {
             self.populi_http_timeout_ms = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS",
                 &val,
                 self.populi_http_timeout_ms,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshRoutingExperimental)
+        {
             self.populi_routing_experimental = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL",
                 &val,
                 self.populi_routing_experimental,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL") {
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshRebalanceOnRemoteSchedulableDrop)
+        {
+            self.populi_rebalance_on_remote_schedulable_drop = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REBALANCE_ON_REMOTE_SCHEDULABLE_DROP",
+                &val,
+                self.populi_rebalance_on_remote_schedulable_drop,
+            );
+        }
+        if let Some(val) = clavis_opt(
+            vox_clavis::SecretId::VoxOrchestratorMeshReplayQueuedRoutesOnRemoteSchedulableDrop,
+        ) {
+            self.populi_replay_queued_routes_on_remote_schedulable_drop = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REPLAY_QUEUED_ROUTES_ON_REMOTE_SCHEDULABLE_DROP",
+                &val,
+                self.populi_replay_queued_routes_on_remote_schedulable_drop,
+            );
+        }
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshTrainingRoutingExperimental)
+        {
             self.populi_training_routing_experimental = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_TRAINING_ROUTING_EXPERIMENTAL",
                 &val,
                 self.populi_training_routing_experimental,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE") {
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshTrainingBudgetPressure)
+        {
             self.populi_training_budget_pressure = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_TRAINING_BUDGET_PRESSURE",
                 &val,
                 self.populi_training_budget_pressure,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL") {
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshRemoteExecuteExperimental)
+        {
             self.populi_remote_execute_experimental = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_EXPERIMENTAL",
                 &val,
                 self.populi_remote_execute_experimental,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_RECEIVER_AGENT") {
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshRemoteExecuteReceiverAgent)
+        {
             let t = val.trim();
             if t.is_empty() {
                 self.populi_remote_execute_receiver_agent = None;
@@ -273,7 +334,9 @@ impl OrchestratorConfig {
                 self.populi_remote_execute_receiver_agent = Some(t.to_string());
             }
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_EXECUTE_SENDER_AGENT") {
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshRemoteExecuteSenderAgent)
+        {
             let t = val.trim();
             if t.is_empty() {
                 self.populi_remote_execute_sender_agent = None;
@@ -281,152 +344,346 @@ impl OrchestratorConfig {
                 self.populi_remote_execute_sender_agent = Some(t.to_string());
             }
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS") {
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshRemoteResultPollIntervalSecs)
+        {
             self.populi_remote_result_poll_interval_secs = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_POLL_INTERVAL_SECS",
                 &val,
                 self.populi_remote_result_poll_interval_secs,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_CHATML_STRICT") {
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshRemoteResultMaxMessagesPerPoll)
+        {
+            self.populi_remote_result_max_messages_per_poll = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REMOTE_RESULT_MAX_MESSAGES_PER_POLL",
+                &val,
+                self.populi_remote_result_max_messages_per_poll,
+            );
+        }
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshRemoteWorkerPollIntervalSecs)
+        {
+            self.populi_remote_worker_poll_interval_secs = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REMOTE_WORKER_POLL_INTERVAL_SECS",
+                &val,
+                self.populi_remote_worker_poll_interval_secs,
+            );
+        }
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshRemoteLeaseGatingEnabled)
+        {
+            self.populi_remote_lease_gating_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATING_ENABLED",
+                &val,
+                self.populi_remote_lease_gating_enabled,
+            );
+        }
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorMeshRemoteLeaseGatedRoles)
+        {
+            let mut roles = Vec::new();
+            for part in val.split(',') {
+                let p = part.trim();
+                if p.is_empty() {
+                    continue;
+                }
+                let r = match p.to_ascii_lowercase().as_str() {
+                    "planner" => Some(crate::reconstruction::AgentExecutionRole::Planner),
+                    "builder" => Some(crate::reconstruction::AgentExecutionRole::Builder),
+                    "verifier" => Some(crate::reconstruction::AgentExecutionRole::Verifier),
+                    "reproducer" => Some(crate::reconstruction::AgentExecutionRole::Reproducer),
+                    "researcher" => Some(crate::reconstruction::AgentExecutionRole::Researcher),
+                    _ => None,
+                };
+                if let Some(role) = r {
+                    if !roles.contains(&role) {
+                        roles.push(role);
+                    }
+                } else {
+                    tracing::warn!(
+                        "VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATED_ROLES: unknown role token {:?} (ignored)",
+                        p
+                    );
+                }
+            }
+            self.populi_remote_lease_gated_roles = roles;
+        }
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorChatmlStrict) {
             self.chatml_strict =
                 parse_or_warn("VOX_ORCHESTRATOR_CHATML_STRICT", &val, self.chatml_strict);
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_ENABLED") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorPlanningEnabled) {
             self.planning_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_PLANNING_ENABLED",
                 &val,
                 self.planning_enabled,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_ROUTER_ENABLED") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorPlanningRouterEnabled) {
             self.planning_router_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_PLANNING_ROUTER_ENABLED",
                 &val,
                 self.planning_router_enabled,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_REPLAN_ENABLED") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorPlanningReplanEnabled) {
             self.planning_replan_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_PLANNING_REPLAN_ENABLED",
                 &val,
                 self.planning_replan_enabled,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_WORKFLOW_HANDOFF_ENABLED") {
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorPlanningWorkflowHandoffEnabled)
+        {
             self.planning_workflow_handoff_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_PLANNING_WORKFLOW_HANDOFF_ENABLED",
                 &val,
                 self.planning_workflow_handoff_enabled,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_SHADOW_MODE") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorPlanningShadowMode) {
             self.planning_shadow_mode = parse_or_warn(
                 "VOX_ORCHESTRATOR_PLANNING_SHADOW_MODE",
                 &val,
                 self.planning_shadow_mode,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_AUTO_MODE_ENABLED") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorResearchModelEnabled) {
+            self.research_model_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_RESEARCH_MODEL_ENABLED",
+                &val,
+                self.research_model_enabled,
+            );
+        }
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorPlanningAutoModeEnabled)
+        {
             self.planning_auto_mode_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_PLANNING_AUTO_MODE_ENABLED",
                 &val,
                 self.planning_auto_mode_enabled,
             );
         }
-        if let Ok(val) = std::env::var("VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT") {
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorPlanningRolloutPercent) {
             self.planning_rollout_percent = parse_or_warn(
                 "VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT",
                 &val,
                 self.planning_rollout_percent,
             );
         }
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorPlanAdequacyShadow) {
+            self.plan_adequacy_shadow = parse_or_warn(
+                "VOX_ORCHESTRATOR_PLAN_ADEQUACY_SHADOW",
+                &val,
+                self.plan_adequacy_shadow,
+            );
+        }
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorPlanAdequacyEnforce) {
+            self.plan_adequacy_enforce = parse_or_warn(
+                "VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE",
+                &val,
+                self.plan_adequacy_enforce,
+            );
+        }
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorContextLifecycleShadow) {
+            self.context_lifecycle_shadow = parse_or_warn(
+                "VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_SHADOW",
+                &val,
+                self.context_lifecycle_shadow,
+            );
+        }
+        if let Some(val) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorContextLifecycleEnforce)
+        {
+            self.context_lifecycle_enforce = parse_or_warn(
+                "VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_ENFORCE",
+                &val,
+                self.context_lifecycle_enforce,
+            );
+        }
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorCompletionGroundingShadow)
+        {
+            self.completion_grounding_shadow = parse_or_warn(
+                "VOX_ORCHESTRATOR_COMPLETION_GROUNDING_SHADOW",
+                &val,
+                self.completion_grounding_shadow,
+            );
+        }
+        if let Some(val) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorCompletionGroundingEnforce)
+        {
+            self.completion_grounding_enforce = parse_or_warn(
+                "VOX_ORCHESTRATOR_COMPLETION_GROUNDING_ENFORCE",
+                &val,
+                self.completion_grounding_enforce,
+            );
+        }
         // Phase 15: Attention Budget env overrides
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_ENABLED") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorAttentionEnabled) {
             self.attention_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_ATTENTION_ENABLED",
                 &v,
                 self.attention_enabled,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_BUDGET_MS") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorAttentionBudgetMs) {
             self.attention_budget_ms = parse_or_warn(
                 "VOX_ORCHESTRATOR_ATTENTION_BUDGET_MS",
                 &v,
                 self.attention_budget_ms,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorAttentionAlertThreshold) {
             self.attention_alert_threshold = parse_or_warn(
                 "VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD",
                 &v,
                 self.attention_alert_threshold,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorAttentionInterruptCostMs) {
             self.attention_interrupt_cost_ms = parse_or_warn(
                 "VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS",
                 &v,
                 self.attention_interrupt_cost_ms,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorTrustEwmaAlpha) {
             self.trust_ewma_alpha = parse_or_warn(
                 "VOX_ORCHESTRATOR_TRUST_EWMA_ALPHA",
                 &v,
                 self.trust_ewma_alpha,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorTrustProvisionalThreshold)
+        {
             self.trust_provisional_threshold = parse_or_warn(
                 "VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD",
                 &v,
                 self.trust_provisional_threshold,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorTrustTrustedThreshold) {
             self.trust_trusted_threshold = parse_or_warn(
                 "VOX_ORCHESTRATOR_TRUST_TRUSTED_THRESHOLD",
                 &v,
                 self.trust_trusted_threshold,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorTrustAutoApproveMin) {
             self.trust_auto_approve_min = parse_or_warn(
                 "VOX_ORCHESTRATOR_TRUST_AUTO_APPROVE_MIN",
                 &v,
                 self.trust_auto_approve_min,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorTlxMental) {
+            self.attention_tlx_weights.mental = parse_or_warn(
+                "VOX_ORCHESTRATOR_TLX_MENTAL",
+                &v,
+                self.attention_tlx_weights.mental,
+            );
+        }
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorTlxTemporal) {
+            self.attention_tlx_weights.temporal = parse_or_warn(
+                "VOX_ORCHESTRATOR_TLX_TEMPORAL",
+                &v,
+                self.attention_tlx_weights.temporal,
+            );
+        }
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorTlxFrustration) {
+            self.attention_tlx_weights.frustration = parse_or_warn(
+                "VOX_ORCHESTRATOR_TLX_FRUSTRATION",
+                &v,
+                self.attention_tlx_weights.frustration,
+            );
+        }
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorTlxTrustDiscount) {
+            self.attention_tlx_weights.trust_discount = parse_or_warn(
+                "VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT",
+                &v,
+                self.attention_tlx_weights.trust_discount,
+            );
+        }
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorTierGateEntropyThreshold) {
+            self.tier_gate.entropy_auto_approve_threshold = parse_or_warn(
+                "VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD",
+                &v,
+                self.tier_gate.entropy_auto_approve_threshold,
+            );
+        }
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorTierGateMinObservations) {
+            self.tier_gate.auto_approve_min_observations = parse_or_warn(
+                "VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS",
+                &v,
+                self.tier_gate.auto_approve_min_observations,
+            );
+        }
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorInterruptionCalPlanGain) {
+            self.interruption_calibration.plan_review_gain_offset_bits = parse_or_warn(
+                "VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN",
+                &v,
+                self.interruption_calibration.plan_review_gain_offset_bits,
+            );
+        }
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorInterruptionCalA2AGain) {
+            self.interruption_calibration
+                .a2a_escalation_gain_offset_bits = parse_or_warn(
+                "VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2A_GAIN",
+                &v,
+                self.interruption_calibration
+                    .a2a_escalation_gain_offset_bits,
+            );
+        }
+        if let Some(v) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorInterruptionCalBacklogPenalty)
+        {
+            self.interruption_calibration.backlog_cost_penalty_per_item = parse_or_warn(
+                "VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY",
+                &v,
+                self.interruption_calibration.backlog_cost_penalty_per_item,
+            );
+        }
+        if let Some(v) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorAttentionTrustRoutingWeight)
+        {
             self.attention_trust_routing_weight = parse_or_warn(
                 "VOX_ORCHESTRATOR_ATTENTION_TRUST_ROUTING_WEIGHT",
                 &v,
                 self.attention_trust_routing_weight,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_REPO_SHARD_SPECIALIZATION_WEIGHT") {
+        if let Some(v) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorRepoShardSpecializationWeight)
+        {
             self.repo_shard_specialization_weight = parse_or_warn(
                 "VOX_ORCHESTRATOR_REPO_SHARD_SPECIALIZATION_WEIGHT",
                 &v,
                 self.repo_shard_specialization_weight,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_REPO_SHARD_VALIDATION_FAILURE_PENALTY") {
+        if let Some(v) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorRepoShardValidationFailurePenalty)
+        {
             self.repo_shard_validation_failure_penalty = parse_or_warn(
                 "VOX_ORCHESTRATOR_REPO_SHARD_VALIDATION_FAILURE_PENALTY",
                 &v,
                 self.repo_shard_validation_failure_penalty,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY") {
+        if let Some(v) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorRepoReduceConflictCooldownPenalty)
+        {
             self.repo_reduce_conflict_cooldown_penalty = parse_or_warn(
                 "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY",
                 &v,
                 self.repo_reduce_conflict_cooldown_penalty,
             );
         }
-        if let Ok(v) = std::env::var("VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS") {
+        if let Some(v) =
+            clavis_opt(vox_clavis::SecretId::VoxOrchestratorRepoReduceConflictCooldownMs)
+        {
             self.repo_reduce_conflict_cooldown_ms = parse_or_warn(
                 "VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS",
                 &v,
@@ -434,11 +691,11 @@ impl OrchestratorConfig {
             );
         }
         // News syndication (see docs/architecture/news_syndication_security.md)
-        if let Ok(v) = std::env::var("VOX_NEWS_PUBLISH_ARMED") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxNewsPublishArmed) {
             self.news.publish_armed =
                 parse_or_warn("VOX_NEWS_PUBLISH_ARMED", &v, self.news.publish_armed);
         }
-        if let Ok(v) = std::env::var("VOX_NEWS_SITE_BASE_URL") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxNewsSiteBaseUrl) {
             let t = v.trim();
             if t.is_empty() {
                 self.news.site_base_url = None;
@@ -446,7 +703,7 @@ impl OrchestratorConfig {
                 self.news.site_base_url = Some(t.to_string());
             }
         }
-        if let Ok(v) = std::env::var("VOX_NEWS_RSS_FEED_PATH") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxNewsRssFeedPath) {
             let t = v.trim();
             if t.is_empty() {
                 self.news.rss_feed_path = None;
@@ -454,18 +711,18 @@ impl OrchestratorConfig {
                 self.news.rss_feed_path = Some(t.to_string());
             }
         }
-        if let Ok(v) = std::env::var("VOX_NEWS_SCAN_RECURSIVE") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxNewsScanRecursive) {
             self.news.scan_recursive =
                 parse_or_warn("VOX_NEWS_SCAN_RECURSIVE", &v, self.news.scan_recursive);
         }
-        if let Ok(v) = std::env::var("VOX_NEWS_TWITTER_TEXT_CHUNK_MAX") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxNewsTwitterTextChunkMax) {
             self.news.twitter_text_chunk_max = Some(parse_or_warn(
                 "VOX_NEWS_TWITTER_TEXT_CHUNK_MAX",
                 &v,
                 self.news.twitter_text_chunk_max.unwrap_or(280),
             ));
         }
-        if let Ok(v) = std::env::var("VOX_NEWS_TWITTER_TRUNCATION_SUFFIX") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxNewsTwitterTruncationSuffix) {
             let t = v.trim();
             if t.is_empty() {
                 self.news.twitter_truncation_suffix = None;
@@ -473,63 +730,49 @@ impl OrchestratorConfig {
                 self.news.twitter_truncation_suffix = Some(t.to_string());
             }
         }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_CLIENT_ID") {
-            let t = v.trim();
-            self.news.reddit_client_id = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_CLIENT_SECRET") {
-            let t = v.trim();
-            self.news.reddit_client_secret = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_REFRESH_TOKEN") {
-            let t = v.trim();
-            self.news.reddit_refresh_token = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_REDDIT_USER_AGENT") {
-            let t = v.trim();
-            self.news.reddit_user_agent = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_YOUTUBE_CLIENT_ID") {
-            let t = v.trim();
-            self.news.youtube_client_id = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_YOUTUBE_CLIENT_SECRET") {
-            let t = v.trim();
-            self.news.youtube_client_secret = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN") {
-            let t = v.trim();
-            self.news.youtube_refresh_token = if t.is_empty() {
-                None
-            } else {
-                Some(t.to_string())
-            };
-        }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_HN_MODE") {
+        self.news.reddit_client_id =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditClientId)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.reddit_client_secret =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditClientSecret)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.reddit_refresh_token =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditRefreshToken)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.reddit_user_agent =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditUserAgent)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.youtube_client_id =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialYoutubeClientId)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.youtube_client_secret =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialYoutubeClientSecret)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        self.news.youtube_refresh_token =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialYoutubeRefreshToken)
+                .expose()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(str::to_string);
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxSocialHnMode) {
             let t = v.trim();
             self.news.hacker_news_mode = if t.is_empty() {
                 None
@@ -537,21 +780,21 @@ impl OrchestratorConfig {
                 Some(t.to_string())
             };
         }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_WORTHINESS_ENFORCE") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxSocialWorthinessEnforce) {
             self.news.worthiness_enforce = parse_or_warn(
                 "VOX_SOCIAL_WORTHINESS_ENFORCE",
                 &v,
                 self.news.worthiness_enforce,
             );
         }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_WORTHINESS_SCORE_MIN") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxSocialWorthinessScoreMin) {
             self.news.worthiness_score_min = Some(parse_or_warn(
                 "VOX_SOCIAL_WORTHINESS_SCORE_MIN",
                 &v,
                 self.news.worthiness_score_min.unwrap_or(0.85),
             ));
         }
-        if let Ok(v) = std::env::var("VOX_SOCIAL_CHANNEL_WORTHINESS_FLOORS") {
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxSocialChannelWorthinessFloors) {
             for pair in v.split(',') {
                 let trimmed = pair.trim();
                 if trimmed.is_empty() {
@@ -566,6 +809,49 @@ impl OrchestratorConfig {
                 let floor = parse_or_warn("VOX_SOCIAL_CHANNEL_WORTHINESS_FLOORS", val, 0.85_f64);
                 self.news.channel_worthiness_floors.insert(key, floor);
             }
+        }
+        self.news.bluesky_handle = clavis_opt(vox_clavis::SecretId::VoxSocialBlueskyHandle);
+        self.news.bluesky_password = clavis_opt(vox_clavis::SecretId::VoxSocialBlueskyPassword);
+        self.news.mastodon_token = clavis_opt(vox_clavis::SecretId::VoxSocialMastodonToken);
+        self.news.mastodon_domain = clavis_opt(vox_clavis::SecretId::VoxSocialMastodonDomain);
+        self.news.linkedin_token = clavis_opt(vox_clavis::SecretId::VoxSocialLinkedinAccessToken);
+        self.news.discord_webhook = clavis_opt(vox_clavis::SecretId::VoxSocialDiscordWebhook);
+
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorExecTimeBudgetEnabled) {
+            self.exec_time_budget_enabled = parse_or_warn(
+                "VOX_ORCHESTRATOR_EXEC_TIME_BUDGET_ENABLED",
+                &v,
+                self.exec_time_budget_enabled,
+            );
+        }
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorExecTimeSafetyMultiplier) {
+            self.exec_time_safety_multiplier = parse_or_warn(
+                "VOX_ORCHESTRATOR_EXEC_TIME_SAFETY_MULTIPLIER",
+                &v,
+                self.exec_time_safety_multiplier,
+            );
+        }
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorExecTimeTimeoutRateAlert) {
+            self.exec_time_timeout_rate_alert = parse_or_warn(
+                "VOX_ORCHESTRATOR_EXEC_TIME_TIMEOUT_RATE_ALERT",
+                &v,
+                self.exec_time_timeout_rate_alert,
+            );
+        }
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorExecTimeDefaultBudgetMs) {
+            self.exec_time_default_budget_ms = parse_or_warn(
+                "VOX_ORCHESTRATOR_EXEC_TIME_DEFAULT_BUDGET_MS",
+                &v,
+                self.exec_time_default_budget_ms,
+            );
+        }
+        if let Some(v) = clavis_opt(vox_clavis::SecretId::VoxOrchestratorExecTimeHistoryWindowDays)
+        {
+            self.exec_time_history_window_days = parse_or_warn(
+                "VOX_ORCHESTRATOR_EXEC_TIME_HISTORY_WINDOW_DAYS",
+                &v,
+                self.exec_time_history_window_days,
+            );
         }
     }
 

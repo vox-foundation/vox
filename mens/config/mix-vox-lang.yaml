@@ -1,0 +1,22 @@
+# Mix configuration for vox-lang domain
+output: mens/data/train_mixed_vox_lang.jsonl
+sources:
+  - path: target/dogfood/vox_corpus_extract.jsonl
+    weight: 6.0
+    optional: true
+  - path: target/dogfood/organic_vox.jsonl
+    weight: 3.0
+    optional: true
+  - path: mens/data/mix_sources/docs.jsonl
+    weight: 2.0
+    optional: true
+  - path: target/dogfood/synthetic.jsonl
+    weight: 1.0
+    optional: true
+  - path: target/dogfood/distillation_traces.jsonl
+    weight: 2.0
+    optional: true
+  - path: target/dogfood/preference_pairs.jsonl
+    weight: 3.0
+    optional: true
+    record_format: dpo

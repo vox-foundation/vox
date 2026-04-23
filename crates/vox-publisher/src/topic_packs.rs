@@ -54,10 +54,11 @@ pub fn merge_topic_pack_into_syndication(
             syn.rss = false;
         }
         if !allow.contains("twitter") {
-            syn.twitter = None;
+            syn.social
+                .retain(|c| c != &crate::types::SocialChannel::Twitter);
         }
         if !allow.contains("github") {
-            syn.github = None;
+            syn.forge = None;
         }
         if !allow.contains("open_collective") {
             syn.open_collective = None;
@@ -66,13 +67,28 @@ pub fn merge_topic_pack_into_syndication(
             syn.reddit = None;
         }
         if !allow.contains("hacker_news") {
-            syn.hacker_news = None;
+            syn.hacker_news = false;
         }
         if !allow.contains("youtube") {
             syn.youtube = None;
         }
         if !allow.contains("crates_io") {
             syn.crates_io = None;
+        }
+        if !allow.contains("discord") {
+            syn.social
+                .retain(|c| c != &crate::types::SocialChannel::Discord);
+        }
+        if !allow.contains("bluesky") {
+            syn.social
+                .retain(|c| c != &crate::types::SocialChannel::Bluesky);
+        }
+        if !allow.contains("linkedin") {
+            syn.linkedin = false;
+        }
+        if !allow.contains("mastodon") {
+            syn.social
+                .retain(|c| c != &crate::types::SocialChannel::Mastodon);
         }
     }
     for (ch, score) in &pack.min_worthiness_score {
@@ -186,15 +202,12 @@ mod tests {
         let doc = load_topic_packs_embedded().expect("embedded yaml");
         let pack = doc.packs.get("research_breakthrough").expect("pack");
         let mut syn = SyndicationConfig {
-            twitter: Some(crate::types::TwitterConfig {
-                short_text: None,
-                thread: false,
-            }),
+            social: vec![crate::types::SocialChannel::Twitter],
             rss: true,
             ..Default::default()
         };
         merge_topic_pack_into_syndication(&mut syn, pack);
-        assert!(syn.twitter.is_none());
+        assert!(!syn.social.contains(&crate::types::SocialChannel::Twitter));
         assert!(syn.rss);
     }
 

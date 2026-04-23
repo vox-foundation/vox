@@ -27,10 +27,10 @@ pub async fn llm_stream(
         .base_url
         .clone()
         .unwrap_or_else(|| match config.provider.as_str() {
-            "openrouter" => "https://openrouter.ai/api/v1/chat/completions".to_string(),
-            "openai" => "https://api.openai.com/v1/chat/completions".to_string(),
+            "openrouter" => vox_config::OPENROUTER_CHAT_COMPLETIONS_URL.to_string(),
+            "openai" => vox_config::OPENAI_CHAT_COMPLETIONS_URL.to_string(),
             "hf_router" | "huggingface" => HF_ROUTER_CHAT_COMPLETIONS_URL.to_string(),
-            _ => "https://openrouter.ai/api/v1/chat/completions".to_string(),
+            _ => vox_config::OPENROUTER_CHAT_COMPLETIONS_URL.to_string(),
         });
     if matches!(config.provider.as_str(), "hf_endpoint")
         && (base_url.trim().is_empty() || !base_url.contains("chat/completions"))

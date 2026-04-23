@@ -2,8 +2,10 @@
 title: "Golden Examples: Working Vox Code"
 description: "Complete, validated Vox code examples demonstrating server functions, actors, workflows, MCP tools, and UI components in the Vox programming language."
 category: "example"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Golden Examples
@@ -17,9 +19,7 @@ Working code examples demonstrating Vox language features. Each `.vox` file is a
 The smallest valid Vox program: a typed function that returns a string. Demonstrates the `fn` keyword, explicit return type, string concatenation, and `ret`.
 
 ```vox
-fn hello(name: str) to str {
-    ret "Hello " + name + "!"
-}
+{{#include ../../../examples/golden/hello.vox:display}}
 ```
 
 ---
@@ -29,26 +29,7 @@ fn hello(name: str) to str {
 A complete data layer in one file. `@table` generates the database schema, `@query` wires a read-only resolver, `@mutation` wires a write operation, and `@get` exposes an HTTP handler — all with the Rust Axum backend generated automatically.
 
 ```vox
-@table type User {
-    id: int
-    name: str
-    active: bool
-}
-
-@query
-fn get_user(id: int) to str {
-    ret db.User.find(id).name
-}
-
-@mutation
-fn create_user(name: str) to Unit {
-    db.User.insert(name)
-}
-
-@get("/api/users")
-fn user_handler(req: str) to str {
-    ret get_user(1)
-}
+{{#include ../../../examples/golden/crud_api.vox:display}}
 ```
 
 ---
@@ -58,14 +39,7 @@ fn user_handler(req: str) to str {
 Actors are isolated units of concurrency. This actor holds an integer counter in its state and exposes an `Increment` message handler that returns the new count. Spawning the actor allocates a mailbox and an address.
 
 ```vox
-actor CounterActor {
-    state count: int = 0
-
-    on Increment() to int {
-        count = count + 1
-        ret count
-    }
-}
+{{#include ../../../examples/golden/counter_actor.vox:display}}
 ```
 
 ---
@@ -75,20 +49,7 @@ actor CounterActor {
 Workflows survive server restarts by journaling each activity result. The `charge_card` activity is idempotent and retryable. Pattern matching on `Result` makes both happy-path and error-path explicit.
 
 ```vox
-activity charge_card(amount: int) to Result[str] {
-    if amount > 1000 {
-        ret Error("Amount too large")
-    }
-    ret Ok("tx_123")
-}
-
-workflow checkout(amount: int) to str {
-    let result = charge_card(amount)
-    match result {
-        Ok(tx) -> "Success: " + tx,
-        Error(msg) -> "Failed: " + msg
-    }
-}
+{{#include ../../../examples/golden/checkout_workflow.vox:display}}
 ```
 
 ---
@@ -98,15 +59,7 @@ workflow checkout(amount: int) to str {
 The `@mcp.tool` decorator generates a Model Context Protocol tool schema from the function signature. AI agents (including Vox's built-in DEI orchestrator) can discover and call these functions without any glue code.
 
 ```vox
-@mcp.tool "read_file: Reads a file from disk"
-fn read_file(path: str) to str {
-    ret "file contents"
-}
-
-@mcp.resource "file://{path}"
-fn file_resource(path: str) to str {
-    ret path
-}
+{{#include ../../../examples/golden/mcp_tools.vox:display}}
 ```
 
 ---
@@ -116,19 +69,7 @@ fn file_resource(path: str) to str {
 Demonstrates an actor-based multi-agent system. `TaskMessage` is a structured message type. `WorkerAgent` receives `HandleTask` messages and tracks the number of processed tasks in its actor state.
 
 ```vox
-message TaskMessage {
-    id: int
-    payload: str
-}
-
-agent WorkerAgent {
-    state processed: int = 0
-
-    on HandleTask(msg: TaskMessage) to str {
-        processed = processed + 1
-        ret "Task " + msg.id + " done"
-    }
-}
+{{#include ../../../examples/golden/agent_pipeline.vox:display}}
 ```
 
 ---
@@ -138,30 +79,7 @@ agent WorkerAgent {
 Full-stack UI composition. `@island` marks interactive components that get client-side hydration. `layout` wraps every route with shared chrome. `routes` maps URL paths to components.
 
 ```vox
-type DashboardStatus = Loading | Ready(data: str)
-
-@island
-fn DataChart(data: list[int]) to Element {
-    ret <div className="chart">Interactive Chart</div>
-}
-
-component fn DashboardView() to Element {
-    ret <div className="dashboard">
-        <h1>Dashboard</h1>
-        <DataChart data=[1, 2, 3] />
-    </div>
-}
-
-layout fn MainLayout(children: Element) to Element {
-    ret <main>
-        <nav>Menu</nav>
-        {children}
-    </main>
-}
-
-routes {
-    "/" -> DashboardView
-}
+{{#include ../../../examples/golden/dashboard_ui.vox:display}}
 ```
 
 ---
@@ -171,20 +89,7 @@ routes {
 Demonstrates algebraic data types with a type parameter, trait definition, and `impl` block. `AppResult[T]` is a generic union type (Vox's alternative to exceptions). The `Serializable` trait requires a `serialize` method.
 
 ```vox
-type AppResult[T] = Success(value: T) | Failure(err: str)
-
-trait Serializable {
-    fn serialize(self) to str
-}
-
-impl Serializable for AppResult[int] {
-    fn serialize(self) to str {
-        match self {
-            Success(val) -> "num:" + val,
-            Failure(err) -> "err:" + err
-        }
-    }
-}
+{{#include ../../../examples/golden/type_system.vox:display}}
 ```
 
 ---
@@ -194,23 +99,7 @@ impl Serializable for AppResult[int] {
 `@fixture` sets up shared test data. `@mock` replaces external dependencies. `@test` declares a test function. The `|>` pipe operator and `len` built-in demonstrate Vox's functional style.
 
 ```vox
-@fixture
-fn setup_user() to list[str] {
-    ret ["alice", "bob"]
-}
-
-@mock
-fn mock_db_read() to str {
-    ret "mock_data"
-}
-
-@test
-fn test_user_count() to Unit {
-    let users = setup_user()
-    assert(users |> len > 0)
-    let db_val = mock_db_read()
-    assert(db_val == "mock_data")
-}
+{{#include ../../../examples/golden/test_suite.vox:display}}
 ```
 
 ---
@@ -220,14 +109,52 @@ fn test_user_count() to Unit {
 Typed configuration blocks and named environment definitions. `config` generates validated config structs. `environment` names deployment targets with typed key-value pairs.
 
 ```vox
-config DatabaseConfig {
-    url: str
-    pool_size: int
-}
-
-environment prod_env {
-    region: "us-west-2"
-    replicas: 3
-    debug: false
-}
+{{#include ../../../examples/golden/config_deploy.vox:display}}
 ```
+
+---
+
+## Reactive component — state, derived, effect, lifecycle
+
+Counter demo using the current `component` surface: `state`, `derived`, `effect`, `on mount`, `on cleanup`, and a `view` with click handlers.
+
+```vox
+{{#include ../../../examples/golden/reactive_counter.vox}}
+```
+
+---
+
+## std.http — `get_text` / `post_json`
+
+Narrow host HTTP helpers on `std.http` (dotted path; see parser tests). Suitable for scripting and smoke tests against real endpoints.
+
+```vox
+{{#include ../../../examples/golden/std_http_wrappers.vox}}
+```
+
+---
+
+## Mobile handlers (`std.mobile` surface)
+
+Small UI handlers using the mobile namespace pattern (`onclick={fn() { … }}`).
+
+```vox
+{{#include ../../../examples/golden/mobile_test.vox}}
+```
+
+---
+
+## Mesh worker script (minimal `main`)
+
+Bundled as `/opt/vox/mesh-noop.vox` in the Docker image for compose-based workers (`vox run --mode script`).
+
+```vox
+{{#include ../../../examples/golden/mesh/noop.vox}}
+```
+
+---
+
+## Rosetta inventory (multi-language walkthrough)
+
+Two golden files back the [Rosetta inventory explanation](../explanation/expl-rosetta-inventory.md): core merge + `@table` in `inventory_rosetta_core.vox`, and actor / workflow / MCP / UI / capability layers in `inventory_rosetta_platform.vox`. Use that page for C++ / Rust / Python contrast snippets; Vox sections pull anchored regions from these files.
+

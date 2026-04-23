@@ -4,9 +4,7 @@ use candle_core::Device;
 use tokenizers::Tokenizer;
 use vox_tensor::data::TrainingPair;
 
-use crate::mens::tensor::{
-    train_log, training_config::LoraTrainingConfig, training_text::plain_system_prompt_response,
-};
+use crate::mens::tensor::{train_log, training_config::LoraTrainingConfig};
 
 /// Returns `(val_loss_sum, val_steps)` where loss is **negative** log-prob summed for averaging.
 pub(super) fn run_validation_pass(
@@ -27,13 +25,39 @@ pub(super) fn run_validation_pass(
         eval_pairs.len()
     ));
     for pair in eval_pairs {
-        let text = plain_system_prompt_response(system_prompt, &pair.prompt, &pair.response);
-        let prefix_text = plain_system_prompt_response(system_prompt, &pair.prompt, "");
-        if let Ok(enc) = tokenizer.encode(text, true) {
-            let prefix_len = tokenizer
-                .encode(prefix_text, true)
-                .map(|e| e.get_ids().len())
-                .unwrap_or(0);
+        let text = if let Some(ref turns) = pair.messages {
+            crate::mens::tensor::training_text::chatml_turns_text(turns, &config.chatml)
+        } else if let (Some(p), Some(r)) = (pair.effective_prompt(), pair.effective_response()) {
+            crate::mens::tensor::training_text::chatml_supervised_text(
+                system_prompt,
+                p,
+                r,
+                &config.chatml,
+            )
+        } else {
+            continue;
+        };
+        let prefix_text = if let Some(ref turns) = pair.messages {
+            crate::mens::tensor::training_text::chatml_turns_prefix_open_assistant(
+                turns,
+                &config.chatml,
+            )
+        } else if let Some(p) = pair.effective_prompt() {
+            crate::mens::tensor::training_text::chatml_prefix_open_assistant(
+                system_prompt,
+                p,
+                &config.chatml,
+            )
+        } else {
+            continue;
+        };
+        let prefix_len = super::ce_mask_align::aligned_prefix_token_len(
+            tokenizer,
+            prefix_text.as_str(),
+            text.as_str(),
+        )
+        .unwrap_or(0);
+        if let Ok(enc) = tokenizer.encode(text.as_str(), true) {
             let mut ids = enc.get_ids().to_vec();
             let mut trunc_offset = 0usize;
             if ids.len() > config.seq_len {

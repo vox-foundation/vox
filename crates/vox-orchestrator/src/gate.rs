@@ -3,10 +3,20 @@
 //! Inspired by Greater Fool's "Gates" system, this module provides
 //! middleware to intercept AI requests and enforce budgets/limits.
 
+use crate::attention::AttentionBudget;
 use crate::budget::BudgetManager;
 use crate::types::AgentId;
 use crate::usage::{DEFAULT_RATE_LIMIT_RETRY_SECS, LlmUsageKey, UsageTracker};
 use async_trait::async_trait;
+#[cfg(not(test))]
+use tracing::info;
+
+/// A localized inter-agent lock strictly for managing OS disk contention
+/// when spinning up heavy Node.js or Cargo tests which rely on singular
+/// target/ or node_modules/ caches. Populi node execution will queue here.
+#[cfg(not(test))]
+static BEHAVIORAL_TEST_LOCK: tokio::sync::OnceCell<tokio::sync::Mutex<()>> =
+    tokio::sync::OnceCell::const_new();
 
 /// A gate that can allow or deny an AI request.
 #[async_trait]
@@ -54,20 +64,109 @@ pub enum GateResult {
         /// Configured maximum for this session.
         max_ms: u64,
     },
+    /// Request denied because behavioral tests failed (OAPV phase).
+    BehavioralTestFailed { message: String },
+}
+
+/// A gate enforcing behavioral tests (e.g. `cargo test`).
+pub struct BehavioralGate {
+    require_tests: bool,
+}
+
+impl BehavioralGate {
+    pub fn new(require_tests: bool) -> Self {
+        Self { require_tests }
+    }
+
+    /// Evaluates `cargo test` for passing.
+    #[cfg_attr(test, allow(unused_variables))]
+    pub async fn check_behavior(&self, module_path: Option<&str>) -> GateResult {
+        if !self.require_tests {
+            return GateResult::Allowed;
+        }
+        // `orch_smoke` and similar unit tests complete tasks through the real completion path,
+        // which would otherwise spawn a nested workspace `cargo test` here. That re-enters the
+        // same crate, fights for the target directory lock, and often loses MSVC/nvcc env — so
+        // skip only while this crate is built for its own `cargo test` (`cfg(test)` on the lib).
+        #[cfg(test)]
+        {
+            return GateResult::Allowed;
+        }
+
+        #[cfg(not(test))]
+        {
+            let mut is_js = false;
+            if let Ok(cwd) = std::env::current_dir() {
+                if cwd.join("package.json").exists() {
+                    is_js = true;
+                }
+            }
+
+            let mut cmd = if is_js {
+                let mut c =
+                    tokio::process::Command::new(if cfg!(windows) { "npm.cmd" } else { "npm" });
+                c.arg("test");
+                c
+            } else {
+                let mut c = tokio::process::Command::new("cargo");
+                c.arg("test");
+                if let Some(p) = module_path {
+                    c.arg(p);
+                }
+                c.arg("--color=never").arg("--message-format=json");
+                c
+            };
+
+            // Acquire the static inter-agent lock to ensure Cargo/npm OS caches don't collide
+            info!(
+                "BehavioralGate: Agent {} requesting OS test lock...",
+                "agent"
+            );
+            let mtx = BEHAVIORAL_TEST_LOCK
+                .get_or_init(|| async { tokio::sync::Mutex::new(()) })
+                .await;
+            let _lock = mtx.lock().await;
+            info!("BehavioralGate: Lock acquired. Executing tests...");
+
+            if let Ok(output) = cmd.output().await {
+                if output.status.success() {
+                    GateResult::Allowed
+                } else {
+                    let msg = String::from_utf8_lossy(&output.stderr);
+                    GateResult::BehavioralTestFailed {
+                        message: format!(
+                            "Behavioral Gate Failed: Process tests failed to pass.\n{}",
+                            msg
+                        ),
+                    }
+                }
+            } else {
+                GateResult::BehavioralTestFailed {
+                    message: "Behavioral Gate Failed: Failed to execute test runner.".to_string(),
+                }
+            }
+        }
+    }
 }
 
 /// A gate that enforces budgets via the `BudgetManager`.
 pub struct BudgetGate<'a> {
     budget_manager: &'a BudgetManager,
     usage_tracker: &'a UsageTracker<'a>,
+    orchestrator_config: &'a crate::config::OrchestratorConfig,
 }
 
 impl<'a> BudgetGate<'a> {
     /// Wires budget caps together with persisted usage counters from Codex.
-    pub fn new(budget_manager: &'a BudgetManager, usage_tracker: &'a UsageTracker<'a>) -> Self {
+    pub fn new(
+        budget_manager: &'a BudgetManager,
+        usage_tracker: &'a UsageTracker<'a>,
+        orchestrator_config: &'a crate::config::OrchestratorConfig,
+    ) -> Self {
         Self {
             budget_manager,
             usage_tracker,
+            orchestrator_config,
         }
     }
 
@@ -104,16 +203,15 @@ impl<'a> BudgetGate<'a> {
         GateResult::Allowed
     }
 
-    /// Check whether the pilot's attention budget allows a new interrupt.
-    /// Returns `GateResult::Allowed` when `attention_enabled = false` (shadow mode).
-    pub fn check_attention(
-        manager: &BudgetManager,
+    /// Check pilot attention from a cloned [`AttentionBudget`] snapshot (safe before `.await`).
+    #[must_use]
+    pub fn check_attention_snapshot(
+        snap: &AttentionBudget,
         config: &crate::config::OrchestratorConfig,
     ) -> GateResult {
         if !config.attention_enabled {
             return GateResult::Allowed;
         }
-        let snap = manager.attention_snapshot();
         if snap.exhausted() {
             GateResult::AttentionExhausted {
                 message: format!(
@@ -127,6 +225,30 @@ impl<'a> BudgetGate<'a> {
         } else {
             GateResult::Allowed
         }
+    }
+
+    pub fn check_attention(
+        manager: &BudgetManager,
+        config: &crate::config::OrchestratorConfig,
+    ) -> GateResult {
+        let snap = manager.attention_snapshot();
+        Self::check_attention_snapshot(&snap, config)
+    }
+
+    /// Check whether the pilot's attention budget can sustain an interruption right now
+    /// based on the `InterruptionSignals`.
+    #[must_use]
+    pub fn can_interrupt(
+        manager: &BudgetManager,
+        config: &crate::config::OrchestratorConfig,
+        signals: &crate::attention::InterruptionSignals,
+    ) -> crate::attention::InterruptionDecision {
+        crate::attention::evaluate_interruption(
+            signals,
+            &manager.attention_snapshot(),
+            config.attention_enabled,
+            config.attention_alert_threshold,
+        )
     }
 
     /// Record usage with provider reconciliation metadata.
@@ -143,6 +265,7 @@ impl<'a> BudgetGate<'a> {
         estimated_cost_usd: Option<f64>,
         reconciled_cost_usd: Option<f64>,
         cost_source: Option<&str>,
+        task_category: Option<&str>,
     ) {
         self.budget_manager
             .record_usage(agent_id, (tokens_in + tokens_out) as usize);
@@ -160,33 +283,36 @@ impl<'a> BudgetGate<'a> {
                 estimated_cost_usd,
                 reconciled_cost_usd,
                 cost_source,
+                task_category,
+                Some(&agent_id.to_string()),
             )
             .await;
     }
-}
 
-#[async_trait]
-impl<'a> Gate for BudgetGate<'a> {
-    async fn allow(
+    /// Like [`Gate::allow`], but pilot attention is read from `pilot_attention` when provided
+    /// (e.g. embedded orchestrator ledger in MCP). When `None`, falls back to [`BudgetManager::attention_snapshot`]
+    /// on this gate's token/cost manager.
+    pub async fn allow_with_pilot_attention(
         &self,
         agent_id: AgentId,
         usage: &LlmUsageKey,
+        pilot_attention: Option<AttentionBudget>,
         _estimated_tokens: u64,
     ) -> GateResult {
-        // 1. In-memory token/cost budget check
-        let result = BudgetGate::check(
-            self.budget_manager,
-            agent_id,
-            &crate::config::OrchestratorConfig::default(),
-        );
+        let result = BudgetGate::check(self.budget_manager, agent_id, self.orchestrator_config);
         if result != GateResult::Allowed {
             return result;
         }
 
-        // 2. Persisted usage tracker for rate limits
+        let snap = pilot_attention.unwrap_or_else(|| self.budget_manager.attention_snapshot());
+        let att = BudgetGate::check_attention_snapshot(&snap, self.orchestrator_config);
+        if att != GateResult::Allowed {
+            return att;
+        }
+
         let budgets = match self.usage_tracker.remaining_all().await {
             Ok(b) => b,
-            Err(_) => return GateResult::Allowed, // Fail open if DB is down
+            Err(_) => return GateResult::Allowed,
         };
 
         if let Some(b) = budgets.iter().find(|b| {
@@ -208,6 +334,19 @@ impl<'a> Gate for BudgetGate<'a> {
         }
 
         GateResult::Allowed
+    }
+}
+
+#[async_trait]
+impl<'a> Gate for BudgetGate<'a> {
+    async fn allow(
+        &self,
+        agent_id: AgentId,
+        usage: &LlmUsageKey,
+        _estimated_tokens: u64,
+    ) -> GateResult {
+        self.allow_with_pilot_attention(agent_id, usage, None, _estimated_tokens)
+            .await
     }
 
     async fn record_usage(
@@ -237,7 +376,44 @@ impl<'a> Gate for BudgetGate<'a> {
                 Some(cost_usd),
                 Some(cost_usd),
                 Some("estimated"),
+                None,
+                Some(&agent_id.to_string()),
             )
             .await;
+    }
+}
+
+#[cfg(test)]
+mod budget_gate_tests {
+    use super::*;
+    use crate::budget::BudgetManager;
+    use crate::config::OrchestratorConfig;
+
+    #[test]
+    fn check_attention_snapshot_blocks_when_enabled_and_exhausted() {
+        let mut cfg = OrchestratorConfig::default();
+        cfg.attention_enabled = true;
+        let mgr = BudgetManager::new(None);
+        mgr.init_attention(500);
+        mgr.add_questioning_attention_debit_ms(500);
+        let snap = mgr.attention_snapshot();
+        assert!(matches!(
+            BudgetGate::check_attention_snapshot(&snap, &cfg),
+            GateResult::AttentionExhausted { .. }
+        ));
+    }
+
+    #[test]
+    fn check_attention_snapshot_allows_when_disabled_even_if_spent_high() {
+        let mut cfg = OrchestratorConfig::default();
+        cfg.attention_enabled = false;
+        let mgr = BudgetManager::new(None);
+        mgr.init_attention(100);
+        mgr.add_questioning_attention_debit_ms(500);
+        let snap = mgr.attention_snapshot();
+        assert_eq!(
+            BudgetGate::check_attention_snapshot(&snap, &cfg),
+            GateResult::Allowed
+        );
     }
 }

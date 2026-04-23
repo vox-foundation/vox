@@ -17,6 +17,7 @@ pub async fn run(
     scope: bool,
     json: bool,
     probe: bool,
+    fix_cuda_path: bool,
 ) -> Result<()> {
     #[cfg(not(feature = "codex"))]
     if build_perf || scope || json {
@@ -24,6 +25,11 @@ pub async fn run(
             "`vox doctor` with --build-perf, --scope, or --json requires the extended build: \
              `cargo build -p vox-cli --features codex` (wires `commands::diagnostics::doctor`)."
         );
+    }
+
+    if fix_cuda_path {
+        run_fix_cuda_path()?;
+        return Ok(());
     }
 
     if probe {
@@ -76,6 +82,46 @@ pub async fn run(
     Ok(())
 }
 
+fn run_fix_cuda_path() -> Result<()> {
+    #[cfg(target_os = "windows")]
+    {
+        let script = r#"
+            $ErrorActionPreference = 'Stop'
+            $CudaRoot = Join-Path $env:ProgramW6432 'NVIDIA GPU Computing Toolkit\CUDA\v13.1'
+            $bin = Join-Path $CudaRoot 'bin'
+            $binX64 = Join-Path $CudaRoot 'bin\x64'
+            if (-not (Test-Path (Join-Path $bin 'nvcc.exe'))) {
+                Write-Error "nvcc.exe not found under $bin — adjust -CudaRoot or install CUDA Toolkit."
+            }
+            $toAdd = @($bin, $binX64) | Where-Object { Test-Path $_ }
+            $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+            if (-not $userPath) { $userPath = '' }
+            $parts = $userPath -split ';' | Where-Object { $_ -ne '' }
+            $missing = $toAdd | Where-Object { $parts -notcontains $_ }
+            if ($missing.Count -eq 0) {
+                Write-Host "User PATH already contains CUDA bin entries for $CudaRoot"
+            } else {
+                $newPath = ($toAdd + $parts) -join ';'
+                [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+                Write-Host "Updated User PATH (prepended): $($missing -join '; ')"
+            }
+            [Environment]::SetEnvironmentVariable('CUDA_PATH', $CudaRoot, 'User')
+            Write-Host "Set User CUDA_PATH=$CudaRoot"
+            Write-Host "Open a **new** terminal (or restart) so processes pick up the change."
+        "#;
+        std::process::Command::new("pwsh")
+            .arg("-NoProfile")
+            .arg("-Command")
+            .arg(script)
+            .status()?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        anyhow::bail!("--fix-cuda-path is only supported on Windows.");
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,7 +129,7 @@ mod tests {
     #[tokio::test]
     #[cfg(not(feature = "codex"))]
     async fn extended_doctor_flags_require_codex_build() {
-        let err = run(false, false, true, false, false, false)
+        let err = run(false, false, true, false, false, false, false)
             .await
             .expect_err("build_perf without codex doctor should error");
         let s = err.to_string();
@@ -96,7 +142,7 @@ mod tests {
     #[tokio::test]
     #[cfg(feature = "codex")]
     async fn build_perf_runs_when_codex_enabled() {
-        let r = run(false, false, true, false, false, false).await;
+        let r = run(false, false, true, false, false, false, false).await;
         assert!(r.is_ok(), "expected build_perf path to complete: {r:?}");
     }
 }

@@ -69,6 +69,7 @@ impl<B: Backend> Tensor<B> {
                     .collect();
                 Tensor::D2Int(burn::tensor::Tensor::cat(inner, dim))
             }
+            Tensor::Tuple2(_, _) => panic!("cat: unsupported for Tuple2"),
         }
     }
 
@@ -114,6 +115,7 @@ impl<B: Backend> Tensor<B> {
                 2 => Tensor::D2Int(t.clone().reshape([shape[0], shape[1]])),
                 _ => panic!("reshape: unsupported rank for Int"),
             },
+            Tensor::Tuple2(_, _) => panic!("reshape: unsupported for Tuple2"),
         }
     }
 
@@ -179,6 +181,7 @@ impl<B: Backend> Tensor<B> {
                 _ => panic!("unsqueeze: invalid dim for D1Int"),
             },
             Tensor::D2Int(_) => panic!("unsqueeze: unsupported rank or already at max rank"),
+            Tensor::Tuple2(_, _) => panic!("unsqueeze: unsupported for Tuple2"),
         }
     }
 

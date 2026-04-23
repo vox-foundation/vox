@@ -1,0 +1,94 @@
+fn main() {
+    print("Generating AI IDE Feature Matrix Markdown...");
+    
+    let json_path = "docs/agents/ai-ide-feature-matrix-2026.json";
+    let output_path = "docs/src/reference/ai-ide-feature-matrix.md";
+    
+    let source = fs.read_file(json_path);
+    if source is null {
+        print("Error: Could not read " + json_path);
+        return;
+    }
+    
+    let data = json.parse(source.unwrap());
+    let products = data.get("products");
+    let features = data.get("feature_matrix");
+    let product_order = data.get("product_order");
+    
+    let mut md = "# AI IDE Feature Matrix (2026)\n\n";
+    md = md + "This matrix compares modern AI-native IDEs and agents against the Vox baseline. ";
+    md = md + "Data is derived from the machine-readable [feature-matrix.json](../../../docs/agents/ai-ide-feature-matrix-2026.json).\n\n";
+    
+    // Header row
+    md = md + "| Feature | Importance |";
+    let mut h = 0;
+    while h < product_order.len() {
+        let pid = product_order.get(h);
+        let p = find_product(products, pid);
+        if p isnt null {
+            md = md + " " + p.get("name") + " |";
+        }
+        h = h + 1;
+    }
+    md = md + " Vox Status |\n";
+    
+    // Alignment row
+    md = md + "|:---|:---:|";
+    let mut a = 0;
+    while a < product_order.len() {
+        md = md + ":---:|";
+        a = a + 1;
+    }
+    md = md + ":---:|\n";
+    
+    // Feature rows
+    let mut i = 0;
+    while i < features.len() {
+        let f = features.get(i);
+        md = md + "| **" + f.get("name") + "** | " + str(f.get("importance_1_to_5")) + "/5 |";
+        
+        let support = f.get("product_support");
+        let mut j = 0;
+        while j < product_order.len() {
+            let pid = product_order.get(j);
+            let s = support.get(pid);
+            if s is null {
+                md = md + " - |";
+            } else {
+                md = md + " " + format_support(s.unwrap()) + " |";
+            }
+            j = j + 1;
+        }
+        
+        let v = f.get("vox");
+        md = md + " " + v.get("status") + " |\n";
+        i = i + 1;
+    }
+    
+    md = md + "\n\n---\n*Last updated: " + data.get("metadata").get("last_updated") + "*\n";
+    
+    let success = fs.write_file(output_path, md);
+    if success {
+        print("Successfully generated matrix to " + output_path);
+    }
+}
+
+fn find_product(products, id) {
+    let mut i = 0;
+    while i < products.len() {
+        let p = products.get(i);
+        if p.get("id") is id {
+            return p;
+        }
+        i = i + 1;
+    }
+    return null;
+}
+
+fn format_support(s) {
+    if s is "strong" { return "✅"; }
+    if s is "partial" { return "🟡"; }
+    if s is "limited" { return "⚠️"; }
+    if s is "none" { return "❌"; }
+    return "?";
+}

@@ -8,8 +8,10 @@ use crate::commands::ci::cmd_enums::GrammarDriftEmit;
 use super::hash::sha256_hex_lower;
 
 pub(crate) fn run_grammar_drift(root: &Path, emit: Option<GrammarDriftEmit>) -> Result<()> {
-    let prompt = crate::training::generate_system_prompt();
-    let fingerprint = sha256_hex_lower(prompt.as_bytes());
+    // Fingerprint the EBNF grammar text (Task 41: replace legacy `generate_system_prompt` hash).
+    let ebnf = vox_grammar_export::ebnf::emit_ebnf();
+    let fingerprint = sha256_hex_lower(ebnf.as_bytes());
+
     let path_mens = root.join("mens/data/grammar_fingerprint.txt");
     let path_populi = root.join("populi/data/grammar_fingerprint.txt");
     let read_one = |p: &Path| -> String {
@@ -54,5 +56,64 @@ pub(crate) fn run_grammar_drift(root: &Path, emit: Option<GrammarDriftEmit>) -> 
         }
         None => {}
     }
+    Ok(())
+}
+
+/// CI gate: emit all grammar formats and assert rule counts are non-zero + version alignment.
+///
+/// This implements `vox ci grammar-export-check` (Wave 1 Task 45).
+pub(crate) fn run_grammar_export_check(_root: &Path) -> Result<()> {
+    use vox_grammar_export::{GrammarExportConfig, GrammarFormat, export};
+
+    let formats = [
+        GrammarFormat::Ebnf,
+        GrammarFormat::Gbnf,
+        GrammarFormat::Lark,
+        GrammarFormat::JsonSchema,
+    ];
+
+    let mut failures = Vec::new();
+
+    for format in &formats {
+        let config = GrammarExportConfig {
+            format: format.clone(),
+            ..GrammarExportConfig::default()
+        };
+        let result = export(&config)?;
+        if result.grammar_text.is_empty() {
+            failures.push(format!(
+                "Format '{}': grammar_text is empty",
+                format.as_str()
+            ));
+        }
+        if result.rule_count == 0 {
+            failures.push(format!("Format '{}': rule_count is 0", format.as_str()));
+        }
+        eprintln!(
+            "  [grammar-export-check] {} -> {} rules, {} bytes",
+            format.as_str(),
+            result.rule_count,
+            result.grammar_text.len()
+        );
+    }
+
+    // Version alignment check
+    let ver = semver::Version::parse(env!("CARGO_PKG_VERSION"))
+        .unwrap_or_else(|_| semver::Version::new(0, 1, 0));
+    if let Err(e) = vox_grammar_export::versioning::verify_grammar_alignment() {
+        // Non-fatal warning: version mismatch occurs during dev builds.
+        eprintln!(
+            "  [grammar-export-check] version alignment warning ({}): {e}",
+            ver
+        );
+    } else {
+        eprintln!("  [grammar-export-check] version alignment OK ({})", ver);
+    }
+
+    if !failures.is_empty() {
+        anyhow::bail!("grammar-export-check failed:\n{}", failures.join("\n"));
+    }
+
+    println!("grammar-export-check OK");
     Ok(())
 }

@@ -14,7 +14,7 @@ fn journal_codex_disabled() -> bool {
 }
 
 fn discovery_start() -> PathBuf {
-    if let Ok(p) = std::env::var("VOX_REPOSITORY_ROOT") {
+    if let Some(p) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot).expose() {
         let p = p.trim();
         if !p.is_empty() {
             return PathBuf::from(p);
@@ -28,7 +28,7 @@ async fn persist_workflow_journal_rows(workflow_name: &str, journal: &[Value]) {
         return;
     }
     let Ok(cfg) = DbConfig::resolve_canonical() else {
-        tracing::debug!(
+        tracing::warn!(
             target: "vox.workflow_journal",
             "skip Codex persist: db config unresolved"
         );
@@ -37,7 +37,7 @@ async fn persist_workflow_journal_rows(workflow_name: &str, journal: &[Value]) {
     let start = discovery_start();
     let rid = vox_repository::discover_repository_or_fallback(&start).repository_id;
     let Ok(db) = VoxDb::connect(cfg).await else {
-        tracing::debug!(target: "vox.workflow_journal", "skip: VoxDb::connect failed");
+        tracing::warn!(target: "vox.workflow_journal", "skip: VoxDb::connect failed");
         return;
     };
     for entry in journal {
@@ -45,7 +45,7 @@ async fn persist_workflow_journal_rows(workflow_name: &str, journal: &[Value]) {
             .record_workflow_journal_entry(&rid, workflow_name, entry)
             .await
         {
-            tracing::debug!(
+            tracing::warn!(
                 target: "vox.workflow_journal",
                 error = %e,
                 "record_workflow_journal_entry failed (best-effort)"

@@ -1,237 +1,3088 @@
-# Machine-readable Vox command surface (paired with command-registry.schema.json).
-# SSOT for `vox ci command-compliance` parity checks vs code and docs.
+# Machine-readable Vox command surface (generated).
+# GENERATED FROM contracts/operations/catalog.v1.yaml via `vox ci operations-sync --target cli --write`.
+# Do not hand-edit vox-cli rows here; edit the operations catalog instead.
+# Non-CLI surfaces (compilerd, dei-d daemon, …) + script_duals/env_var_ssot_index are carried from the last committed registry.
 schema_version: 1
-
 operations:
-  # --- vox-cli: default / always compiled ---
-  - { surface: vox-cli, path: [build], status: active, latin_ns: fabrica, product_lane: app, handler_rust: commands::build }
-  - { surface: vox-cli, path: [check], status: active, latin_ns: fabrica, product_lane: app, handler_rust: commands::check }
-  - { surface: vox-cli, path: [test], status: active, latin_ns: fabrica, product_lane: app, handler_rust: commands::test }
-  - { surface: vox-cli, path: [run], status: active, latin_ns: fabrica, product_lane: app, handler_rust: commands::run }
-  - { surface: vox-cli, path: [dev], status: active, latin_ns: fabrica, product_lane: app, handler_rust: commands::dev }
-  - { surface: vox-cli, path: [bundle], status: active, latin_ns: fabrica, product_lane: app, handler_rust: commands::bundle }
-  - { surface: vox-cli, path: [fmt], status: active, latin_ns: fabrica, product_lane: app, handler_rust: commands::fmt }
-  - { surface: vox-cli, path: [add], status: active, latin_ns: pm, product_lane: platform, handler_rust: commands::add, ref_cli_required: true }
-  - { surface: vox-cli, path: [remove], status: active, latin_ns: pm, product_lane: platform, handler_rust: commands::remove, ref_cli_required: true }
-  - { surface: vox-cli, path: [update], status: active, latin_ns: pm, product_lane: platform, handler_rust: commands::update, ref_cli_required: true }
-  - { surface: vox-cli, path: [lock], status: active, latin_ns: pm, product_lane: platform, handler_rust: commands::lock, ref_cli_required: true }
-  - { surface: vox-cli, path: [sync], status: active, latin_ns: pm, product_lane: platform, handler_rust: commands::sync, ref_cli_required: true }
-  - { surface: vox-cli, path: [upgrade], status: active, latin_ns: pm, product_lane: platform, handler_rust: commands::upgrade, ref_cli_required: true }
-  - { surface: vox-cli, path: [pm], status: active, latin_ns: pm, product_lane: platform, handler_rust: commands::pm, ref_cli_required: false, reachability_required: false }
-  - { surface: vox-cli, path: [pm, search], status: active, product_lane: platform, latin_ns: pm, ref_cli_required: true }
-  - { surface: vox-cli, path: [pm, info], status: active, product_lane: platform, latin_ns: pm, ref_cli_required: true }
-  - { surface: vox-cli, path: [pm, publish], status: active, product_lane: platform, latin_ns: pm, ref_cli_required: true }
-  - { surface: vox-cli, path: [pm, yank], status: active, product_lane: platform, latin_ns: pm, ref_cli_required: true }
-  - { surface: vox-cli, path: [pm, vendor], status: active, product_lane: platform, latin_ns: pm, ref_cli_required: true }
-  - { surface: vox-cli, path: [pm, verify], status: active, product_lane: platform, latin_ns: pm, ref_cli_required: true }
-  - { surface: vox-cli, path: [pm, mirror], status: active, product_lane: platform, latin_ns: pm, ref_cli_required: true }
-  - { surface: vox-cli, path: [pm, cache], status: active, product_lane: platform, latin_ns: pm, ref_cli_required: false, reachability_required: false }
-  - { surface: vox-cli, path: [pm, cache, status], status: active, product_lane: platform, latin_ns: pm, ref_cli_required: true }
-  - { surface: vox-cli, path: [pm, cache, clear], status: active, product_lane: platform, latin_ns: pm, ref_cli_required: true }
-  - { surface: vox-cli, path: [login], status: deprecated, latin_ns: ars, product_lane: platform, handler_rust: commands::login }
-  - { surface: vox-cli, path: [logout], status: deprecated, latin_ns: ars, product_lane: platform, handler_rust: commands::logout }
-  - { surface: vox-cli, path: [lsp], status: active, latin_ns: fabrica, product_lane: app, handler_rust: commands::lsp }
-  - { surface: vox-cli, path: [doctor], status: active, latin_ns: diag, product_lane: platform, handler_rust: commands::diagnostics::doctor }
-  - { surface: vox-cli, path: [diag], status: active, latin_ns: diag, product_lane: platform, ref_cli_required: false, reachability_required: false }
-  - { surface: vox-cli, path: [clavis], status: active, latin_ns: ars, product_lane: platform, handler_rust: commands::clavis }
-  - { surface: vox-cli, path: [clavis, status], status: active, product_lane: platform, latin_ns: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [clavis, set], status: active, product_lane: platform, latin_ns: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [clavis, get], status: active, product_lane: platform, latin_ns: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [clavis, backend-status], status: active, product_lane: platform, latin_ns: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [clavis, migrate-auth-store], status: active, product_lane: platform, latin_ns: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [snippet], status: active, latin_ns: ars, product_lane: interop, handler_rust: commands::extras::snippet_cli }
-  - { surface: vox-cli, path: [share], status: active, latin_ns: ars, product_lane: interop, handler_rust: commands::extras::share_cli }
-  - { surface: vox-cli, path: [codex], status: active, latin_ns: codex, product_lane: data, handler_rust: commands::codex }
-  - { surface: vox-cli, path: [codex, verify], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [codex, export-legacy], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [codex, import-legacy], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [codex, cutover], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [codex, import-orchestrator-memory], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [codex, import-skill-bundle], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [codex, socrates-metrics], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [codex, socrates-eval-snapshot], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [db], status: active, latin_ns: codex, product_lane: data, handler_rust: commands::db_cli }
-  - { surface: vox-cli, path: [db, audit], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [db, prune-plan], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [db, prune-apply], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia], status: active, latin_ns: codex, product_lane: data, handler_rust: commands::scientia }
-  - { surface: vox-cli, path: [scientia, publication-prepare], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-prepare-validated], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-preflight], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-zenodo-metadata], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-openreview-profile], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-worthiness-evaluate], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-approve], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-submit-local], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-status], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-scholarly-remote-status], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-scholarly-remote-status-sync-all], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-scholarly-remote-status-sync-batch], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-arxiv-handoff-record], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-scholarly-staging-export], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-scholarly-pipeline-run], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-external-jobs-due], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-external-jobs-dead-letter], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-external-jobs-replay], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-external-jobs-tick], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [scientia, publication-external-pipeline-metrics], status: active, product_lane: data, latin_ns: codex, ref_cli_required: true }
-  - { surface: vox-cli, path: [ci], status: active, latin_ns: ci, product_lane: platform, handler_rust: commands::ci }
-  - { surface: vox-cli, path: [commands], status: active, product_lane: platform, handler_rust: command_catalog }
-  - { surface: vox-cli, path: [ci, manifest], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, check-docs-ssot], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, check-codex-ssot], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, feature-matrix], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, no-dei-import], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, doc-inventory], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, eval-matrix], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, eval-matrix, verify], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, eval-matrix, run], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, mens-scorecard], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, mens-scorecard, verify], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, mens-scorecard, run], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, mens-scorecard, decide], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, mens-scorecard, burn-rnd], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, mens-scorecard, ingest-trust], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, workflow-scripts], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, line-endings], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, mesh-gate], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, toestub-self-apply], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, toestub-scoped], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, scaling-audit], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, scaling-audit, verify], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, scaling-audit, emit-reports], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, cuda-features], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, cuda-release-build], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, build-timings], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, grammar-drift], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, repo-guards], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, secret-env-guard], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, sql-surface-guard], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, clavis-parity], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, command-compliance], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, coverage-gates], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, command-sync], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, pm-provenance], status: active, product_lane: platform, reachability_required: false, ref_cli_required: true }
-  - { surface: vox-cli, path: [ci, contracts-index], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, openclaw-contract], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, scientia-worthiness-contract], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, ssot-drift], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, data-ssot-guards], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [ci, release-build], status: active, product_lane: platform, reachability_required: false }
-  - { surface: vox-cli, path: [completions], status: active, latin_ns: fabrica, product_lane: app, ref_cli_required: false, reachability_required: false }
-  - { surface: vox-cli, path: [fabrica], status: active, latin_ns: fabrica, product_lane: app, ref_cli_required: false, reachability_required: false }
-  - { surface: vox-cli, path: [mens], status: active, latin_ns: mens, product_lane: ai, ref_cli_required: false, reachability_required: false }
-  - { surface: vox-cli, path: [ars], status: active, latin_ns: ars, product_lane: interop, ref_cli_required: false, reachability_required: false }
-  - { surface: vox-cli, path: [recensio], status: active, latin_ns: recensio, product_lane: ai, feature_gate: coderabbit, ref_cli_required: false, reachability_required: false }
-
-  # --- vox-cli: feature gated ---
-  - { surface: vox-cli, path: [script], status: active, latin_ns: fabrica, product_lane: workflow, feature_gate: script-execution, handler_rust: commands::runtime::run::script }
-  - { surface: vox-cli, path: [live], status: active, product_lane: ai, feature_gate: live, handler_rust: commands::live }
-  - { surface: vox-cli, path: [architect], status: active, latin_ns: diag, product_lane: platform, feature_gate: "codex|stub-check", handler_rust: commands::diagnostics::tools::architect }
-  - { surface: vox-cli, path: [openclaw], status: active, latin_ns: ars, product_lane: interop, feature_gate: ars, handler_rust: commands::openclaw }
-  - { surface: vox-cli, path: [openclaw, gateway-call], status: active, product_lane: interop, latin_ns: ars, feature_gate: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [openclaw, search-remote], status: active, product_lane: interop, latin_ns: ars, feature_gate: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [openclaw, doctor], status: active, product_lane: interop, latin_ns: ars, feature_gate: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [openclaw, sidecar], status: active, product_lane: interop, latin_ns: ars, feature_gate: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [openclaw, sidecar, status], status: active, product_lane: interop, latin_ns: ars, feature_gate: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [openclaw, sidecar, start], status: active, product_lane: interop, latin_ns: ars, feature_gate: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [openclaw, sidecar, stop], status: active, product_lane: interop, latin_ns: ars, feature_gate: ars, ref_cli_required: true }
-  - { surface: vox-cli, path: [skill], status: active, latin_ns: ars, product_lane: interop, feature_gate: ars, handler_rust: commands::extras::skill_cmd }
-  - { surface: vox-cli, path: [dei], status: active, latin_ns: dei, product_lane: ai, feature_gate: dei, handler_rust: commands::dei, ref_cli_required: true }
-  - { surface: vox-cli, path: [ludus], status: active, latin_ns: ars, product_lane: ai, feature_gate: extras-ludus, handler_rust: commands::extras::ludus_cli }
-  - { surface: vox-cli, path: [ludus, hud], status: active, latin_ns: ars, product_lane: ai, feature_gate: ludus-hud, handler_rust: commands::extras::ludus_cli, ref_cli_required: true }
-  - { surface: vox-cli, path: [stub-check], status: active, latin_ns: diag, product_lane: platform, feature_gate: stub-check, handler_rust: commands::stub_check }
-  - { surface: vox-cli, path: [mens], status: active, latin_ns: mens, product_lane: ai, feature_gate: "mens-base|gpu", handler_rust: commands::mens }
-  - { surface: vox-cli, path: [mens, train], status: active, product_lane: ai, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, train-uv], status: retired, product_lane: ai, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, corpus], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, pipeline], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, status], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, watch-telemetry], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, plan], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, eval-gate], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, bench-completion], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, system-prompt-template], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-base, ref_cli_required: true }
-  - { surface: vox-cli, path: [oratio], status: active, latin_ns: fabrica, product_lane: ai, catalog_group: oratio, feature_gate: oratio, handler_rust: commands::oratio_cmd, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, serve], status: active, product_lane: ai, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, probe], status: active, product_lane: ai, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, merge-weights], status: active, product_lane: ai, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, merge-qlora], status: active, product_lane: ai, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, eval-local], status: active, product_lane: ai, latin_ns: mens, feature_gate: gpu, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, generate], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-dei, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, review], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-dei, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, check], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-dei, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, fix], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-dei, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, workflow, list], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-dei, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, workflow, inspect], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-dei, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, workflow, check], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-dei, ref_cli_required: true }
-  - { surface: vox-cli, path: [mens, workflow, run], status: active, product_lane: ai, latin_ns: mens, feature_gate: mens-dei, ref_cli_required: true }
-  - { surface: vox-cli, path: [review], status: active, latin_ns: recensio, product_lane: ai, feature_gate: coderabbit, handler_rust: commands::review }
-  - { surface: vox-cli, path: [island], status: active, product_lane: app, feature_gate: island, handler_rust: commands::island }
-  - { surface: vox-cli, path: [train], status: deprecated, latin_ns: mens, product_lane: ai, feature_gate: "gpu+mens-dei", handler_rust: commands::ai::train, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi], status: active, product_lane: workflow, feature_gate: populi, handler_rust: commands::populi_cli, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, status], status: active, product_lane: workflow, feature_gate: populi, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, registry-snapshot], status: active, product_lane: workflow, feature_gate: populi, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, serve], status: active, product_lane: workflow, feature_gate: populi, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, up], status: active, product_lane: workflow, feature_gate: populi, ref_cli_required: true }
-  - { surface: vox-cli, path: [populi, down], status: active, product_lane: workflow, feature_gate: populi, ref_cli_required: true }
-
-  # --- vox-compilerd RPC methods ---
-  - { surface: compilerd, path: [build], status: active, handler_rust: compilerd::handle_build }
-  - { surface: compilerd, path: [check], status: active, handler_rust: compilerd::handle_check }
-  - { surface: compilerd, path: [bundle], status: active, handler_rust: compilerd::handle_bundle }
-  - { surface: compilerd, path: [fmt], status: active, handler_rust: compilerd::handle_fmt }
-  - { surface: compilerd, path: [fmt.check], status: active, handler_rust: compilerd::handle_fmt }
-  - { surface: compilerd, path: [doc], status: active, handler_rust: compilerd::handle_doc }
-  - { surface: compilerd, path: [test], status: active, handler_rust: compilerd::handle_test }
-  - { surface: compilerd, path: [run], status: active, handler_rust: compilerd::handle_run }
-  - { surface: compilerd, path: [profile], status: active, handler_rust: compilerd::handle_profile }
-  - { surface: compilerd, path: [dev], status: active, handler_rust: compilerd::handle_dev }
-
-  # --- vox-dei-d RPC (method ids) ---
-  - { surface: dei-daemon, path: [ai.check], status: active, ref_cli_required: false, reachability_required: false }
-  - { surface: dei-daemon, path: [ai.fix], status: active, ref_cli_required: false, reachability_required: false }
-  - { surface: dei-daemon, path: [ai.review], status: active, ref_cli_required: false, reachability_required: false }
-  - { surface: dei-daemon, path: [ai.generate], status: active, ref_cli_required: false, reachability_required: false }
-  - { surface: dei-daemon, path: [config.get], status: active, ref_cli_required: false, reachability_required: false }
-  - { surface: dei-daemon, path: [ai.plan.new], status: active, ref_cli_required: false, reachability_required: false }
-  - { surface: dei-daemon, path: [ai.plan.replan], status: active, ref_cli_required: false, reachability_required: false }
-  - { surface: dei-daemon, path: [ai.plan.status], status: active, ref_cli_required: false, reachability_required: false }
-  - { surface: dei-daemon, path: [ai.plan.execute], status: active, ref_cli_required: false, reachability_required: false }
-
-  # --- MCP: validated via TOOL_REGISTRY vs handle_tool_call (no per-tool rows here) ---
-  - { surface: mcp, path: [tool-registry], status: active, handler_rust: vox_mcp::tools::TOOL_REGISTRY, ref_cli_required: false, reachability_required: false }
-
-  # --- Other binaries ---
-  - { surface: internal-binary, path: [vox-compilerd], status: active, ref_cli_required: false, reachability_required: false }
-  - { surface: internal-binary, path: [vox-mens], status: active, ref_cli_required: false, reachability_required: false }
-
+- surface: vox-cli
+  path:
+  - add
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::add
+- surface: vox-cli
+  path:
+  - architect
+  status: active
+  latin_ns: diag
+  product_lane: platform
+  feature_gate: codex|stub-check
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::diagnostics::tools::architect
+- surface: vox-cli
+  path:
+  - ars
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - build
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::build
+- surface: vox-cli
+  path:
+  - bundle
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::bundle
+- surface: vox-cli
+  path:
+  - check
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::check
+- surface: vox-cli
+  path:
+  - ci
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::ci
+- surface: vox-cli
+  path:
+  - ci
+  - artifact-audit
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - artifact-prune
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - build-docs
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - build-timings
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - capability-sync
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - check-codex-ssot
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - check-docs-ssot
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - check-links
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - check-summary-drift
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - clavis-parity
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - command-compliance
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - command-sync
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - completion-audit
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - completion-gates
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - completion-ingest
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - contracts-index
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - doctest-md
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - coverage-gates
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - cuda-features
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - cuda-release-build
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - data-ssot-guards
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - doc-inventory
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - eval-matrix
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - eval-matrix
+  - run
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - eval-matrix
+  - verify
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - exec-policy-contract
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - feature-matrix
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - grammar-drift
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - gui-smoke
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - line-endings
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - manifest
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - mens-scorecard
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - mens-scorecard
+  - burn-rnd
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - mens-scorecard
+  - decide
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - mens-scorecard
+  - ingest-trust
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - mens-scorecard
+  - run
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - mens-scorecard
+  - verify
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - mesh-gate
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - no-dei-import
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - nomenclature-guard
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: nomenclature_guard::run
+- surface: vox-cli
+  path:
+  - ci
+  - openclaw-contract
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - operations-sync
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - operations-verify
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - pm-provenance
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - policy-smoke
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - query-all-guard
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - release-build
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - repo-guards
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - rust-ecosystem-policy
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - scaling-audit
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - scaling-audit
+  - emit-reports
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - scaling-audit
+  - verify
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - scientia-novelty-ledger-contracts
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - scientia-worthiness-contract
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - secret-env-guard
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - sql-surface-guard
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - ssot-drift
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - toestub-scoped
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - toestub-self-apply
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - turso-import-guard
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - workflow-scripts
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - clavis
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::clavis
+- surface: vox-cli
+  path:
+  - clavis
+  - backend-status
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - clavis
+  - get
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - clavis
+  - migrate-auth-store
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - clavis
+  - set
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - clavis
+  - status
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - codex
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::codex
+- surface: vox-cli
+  path:
+  - codex
+  - cutover
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - codex
+  - export-legacy
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - codex
+  - import-legacy
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - codex
+  - import-orchestrator-memory
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - codex
+  - import-skill-bundle
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - codex
+  - socrates-eval-snapshot
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - codex
+  - socrates-metrics
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - codex
+  - verify
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - commands
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: command_catalog
+- surface: vox-cli
+  path:
+  - completions
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - db
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::db_cli
+- surface: vox-cli
+  path:
+  - db
+  - audit
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - db
+  - mirror-search-corpus
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - db
+  - prune-apply
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - db
+  - prune-plan
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - db
+  - publication-decision-explain
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - db
+  - publication-discovery-explain
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - db
+  - publication-discovery-refresh-evidence
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - db
+  - publication-discovery-scan
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - db
+  - publication-novelty-fetch
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - db
+  - publication-novelty-happy-path
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - db
+  - publication-transform-preview
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - dei
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::dei
+- surface: vox-cli
+  path:
+  - dei
+  - oplog
+  - list
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - dei
+  - snapshot
+  - diff
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - dei
+  - snapshot
+  - list
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - dei
+  - snapshot
+  - restore
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - dei
+  - takeover-status
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - dei
+  - workspace
+  - create
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - dei
+  - workspace
+  - merge
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - dei
+  - workspace
+  - status
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - deploy
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::deploy
+- surface: vox-cli
+  path:
+  - dev
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::dev
+- surface: vox-cli
+  path:
+  - diag
+  status: active
+  latin_ns: diag
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - doctor
+  status: active
+  latin_ns: diag
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::diagnostics::doctor
+- surface: vox-cli
+  path:
+  - fabrica
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - fmt
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::fmt
+- surface: vox-cli
+  path:
+  - init
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::init
+- surface: vox-cli
+  path:
+  - island
+  status: active
+  latin_ns: null
+  product_lane: app
+  feature_gate: island
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::island
+- surface: vox-cli
+  path:
+  - live
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: live
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::live
+- surface: vox-cli
+  path:
+  - lock
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::lock
+- surface: vox-cli
+  path:
+  - login
+  status: deprecated
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - logout
+  status: deprecated
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - lsp
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::lsp
+- surface: vox-cli
+  path:
+  - ludus
+  status: active
+  latin_ns: ars
+  product_lane: ai
+  feature_gate: extras-ludus
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::extras::ludus_cli
+- surface: vox-cli
+  path:
+  - ludus
+  - hud
+  status: active
+  latin_ns: ars
+  product_lane: ai
+  feature_gate: ludus-hud
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::extras::ludus_cli
+- surface: vox-cli
+  path:
+  - mens
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-base|gpu
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - bench-completion
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-base
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - check
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - corpus
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-base
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - eval-gate
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-base
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - eval-local
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: gpu
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - fix
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - generate
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - merge-qlora
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: gpu
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - merge-weights
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: gpu
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - pipeline
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-base
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - plan
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-base
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - probe
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: gpu
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - review
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - serve
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: gpu
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - status
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-base
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - system-prompt-template
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-base
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - train
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: gpu
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - train-uv
+  status: retired
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-base
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - watch-telemetry
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-base
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - workflow
+  - check
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - workflow
+  - inspect
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - workflow
+  - list
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - mens
+  - workflow
+  - run
+  status: active
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: mens-dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - migrate
+  - web
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::migrate
+- surface: vox-cli
+  path:
+  - openclaw
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: ars
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::openclaw
+- surface: vox-cli
+  path:
+  - openclaw
+  - doctor
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: ars
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - openclaw
+  - gateway-call
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: ars
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - openclaw
+  - search-remote
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: ars
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - openclaw
+  - sidecar
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: ars
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - openclaw
+  - sidecar
+  - start
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: ars
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - openclaw
+  - sidecar
+  - status
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: ars
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - openclaw
+  - sidecar
+  - stop
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: ars
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - oratio
+  status: active
+  latin_ns: fabrica
+  product_lane: ai
+  feature_gate: oratio
+  catalog_group: oratio
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - pm
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: commands::pm
+- surface: vox-cli
+  path:
+  - pm
+  - cache
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - pm
+  - cache
+  - clear
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - pm
+  - cache
+  - status
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - pm
+  - info
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - pm
+  - mirror
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - pm
+  - publish
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - pm
+  - search
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - pm
+  - vendor
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - pm
+  - verify
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - pm
+  - yank
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - populi
+  status: active
+  latin_ns: null
+  product_lane: workflow
+  feature_gate: populi
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - populi
+  - down
+  status: active
+  latin_ns: null
+  product_lane: workflow
+  feature_gate: populi
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - populi
+  - registry-snapshot
+  status: active
+  latin_ns: null
+  product_lane: workflow
+  feature_gate: populi
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - populi
+  - serve
+  status: active
+  latin_ns: null
+  product_lane: workflow
+  feature_gate: populi
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - populi
+  - status
+  status: active
+  latin_ns: null
+  product_lane: workflow
+  feature_gate: populi
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - populi
+  - up
+  status: active
+  latin_ns: null
+  product_lane: workflow
+  feature_gate: populi
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - recensio
+  status: active
+  latin_ns: recensio
+  product_lane: ai
+  feature_gate: coderabbit
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - remove
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::remove
+- surface: vox-cli
+  path:
+  - repo
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::repo
+- surface: vox-cli
+  path:
+  - repo
+  - catalog
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - repo
+  - catalog
+  - list
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - repo
+  - catalog
+  - refresh
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - repo
+  - query
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - repo
+  - query
+  - file
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - repo
+  - query
+  - history
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - repo
+  - query
+  - text
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - repo
+  - status
+  status: active
+  latin_ns: codex
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - review
+  status: active
+  latin_ns: recensio
+  product_lane: ai
+  feature_gate: coderabbit
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::review
+- surface: vox-cli
+  path:
+  - run
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::run
+- surface: vox-cli
+  path:
+  - scientia
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::scientia
+- surface: vox-cli
+  path:
+  - scientia
+  - collection-transform-preview
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - finding-candidate-validate
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - mirror-search-corpus
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - novelty-evidence-bundle-validate
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-approve
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-arxiv-handoff-record
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-decision-explain
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-discovery-explain
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-discovery-scan
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-external-jobs-dead-letter
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-external-jobs-due
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-external-jobs-replay
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-external-jobs-tick
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-external-pipeline-metrics
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-novelty-fetch
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-novelty-happy-path
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-openreview-profile
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-preflight
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-prepare
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-prepare-validated
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-scholarly-pipeline-run
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-scholarly-remote-status
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-scholarly-remote-status-sync-all
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-scholarly-remote-status-sync-batch
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-scholarly-staging-export
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-status
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-submit-local
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-transform-preview
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-worthiness-evaluate
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-zenodo-metadata
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - script
+  status: active
+  latin_ns: fabrica
+  product_lane: workflow
+  feature_gate: script-execution
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::runtime::run::script
+- surface: vox-cli
+  path:
+  - share
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::extras::share_cli
+- surface: vox-cli
+  path:
+  - shell
+  - check
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - shell
+  - repl
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - skill
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: ars
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::extras::skill_cmd
+- surface: vox-cli
+  path:
+  - snippet
+  status: active
+  latin_ns: ars
+  product_lane: interop
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::extras::snippet_cli
+- surface: vox-cli
+  path:
+  - stub-check
+  status: active
+  latin_ns: diag
+  product_lane: platform
+  feature_gate: stub-check
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::stub_check
+- surface: vox-cli
+  path:
+  - sync
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::sync
+- surface: vox-cli
+  path:
+  - telemetry
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::telemetry
+- surface: vox-cli
+  path:
+  - telemetry
+  - enqueue
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - telemetry
+  - export
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - telemetry
+  - status
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - telemetry
+  - upload
+  status: active
+  latin_ns: ci
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - test
+  status: active
+  latin_ns: fabrica
+  product_lane: app
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::test
+- surface: vox-cli
+  path:
+  - train
+  status: deprecated
+  latin_ns: mens
+  product_lane: ai
+  feature_gate: gpu+mens-dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - update
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::update
+- surface: vox-cli
+  path:
+  - upgrade
+  status: active
+  latin_ns: pm
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::upgrade
+- surface: vox-cli
+  path:
+  - visus
+  - audit
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::visus::dispatch
+- surface: vox-cli
+  path:
+  - visus
+  - baseline
+  status: active
+  latin_ns: dei
+  product_lane: ai
+  feature_gate: dei
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::visus::dispatch
+- surface: compilerd
+  path:
+  - build
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: compilerd::handle_build
+- surface: compilerd
+  path:
+  - check
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: compilerd::handle_check
+- surface: compilerd
+  path:
+  - bundle
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: compilerd::handle_bundle
+- surface: compilerd
+  path:
+  - fmt
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: compilerd::handle_fmt
+- surface: compilerd
+  path:
+  - fmt.check
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: compilerd::handle_fmt
+- surface: compilerd
+  path:
+  - doc
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: compilerd::handle_doc
+- surface: compilerd
+  path:
+  - test
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: compilerd::handle_test
+- surface: compilerd
+  path:
+  - run
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: compilerd::handle_run
+- surface: compilerd
+  path:
+  - profile
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: compilerd::handle_profile
+- surface: compilerd
+  path:
+  - dev
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: compilerd::handle_dev
+- surface: dei-daemon
+  path:
+  - ai.check
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: dei-daemon
+  path:
+  - ai.fix
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: dei-daemon
+  path:
+  - ai.review
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: dei-daemon
+  path:
+  - ai.generate
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: dei-daemon
+  path:
+  - config.get
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: dei-daemon
+  path:
+  - ai.plan.new
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: dei-daemon
+  path:
+  - ai.plan.replan
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: dei-daemon
+  path:
+  - ai.plan.status
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: dei-daemon
+  path:
+  - ai.plan.execute
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: mcp
+  path:
+  - tool-registry
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: vox_mcp::tools::TOOL_REGISTRY
+- surface: internal-binary
+  path:
+  - vox-compilerd
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
+- surface: internal-binary
+  path:
+  - vox-mens
+  status: active
+  latin_ns: null
+  product_lane: null
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: false
+  handler_rust: null
 script_duals:
-  - { script_glob: scripts/check_docs_ssot.*, canonical_cli: "vox ci check-docs-ssot" }
-  - { script_glob: scripts/check_codex_ssot.*, canonical_cli: "vox ci check-codex-ssot" }
-  - { script_glob: scripts/verify_workspace_manifest.sh, canonical_cli: "vox ci manifest" }
-  - { script_glob: scripts/check_vox_cli_feature_matrix.sh, canonical_cli: "vox ci feature-matrix" }
-  - { script_glob: scripts/check_vox_cli_no_vox_dei.sh, canonical_cli: "vox ci no-dei-import" }
-  - { script_glob: scripts/check_cuda_feature_builds.sh, canonical_cli: "vox ci cuda-features" }
-  - { script_glob: scripts/quality/toestub_scoped.sh, canonical_cli: "vox ci toestub-scoped" }
-  - { script_glob: scripts/populi_release_gate.*, canonical_cli: "vox ci mesh-gate --profile m1m4" }
-  - { script_glob: scripts/populi/release_training_gate.*, canonical_cli: "vox ci mesh-gate --profile training" }
-  - { script_glob: scripts/populi/release_ci_full_gate.ps1, canonical_cli: "vox ci mesh-gate --profile ci_full" }
-  - { script_glob: scripts/populi/mens_gate_safe.ps1, canonical_cli: "vox ci mesh-gate --profile <training|ci_full|m1m4>" }
-
-# Names must appear in docs/src/reference/env-vars-ssot.md (Web / codegen / dev topology).
+- script_glob: scripts/check_docs_ssot.*
+  canonical_cli: vox ci check-docs-ssot
+- script_glob: scripts/check_codex_ssot.*
+  canonical_cli: vox ci check-codex-ssot
+- script_glob: scripts/verify_workspace_manifest.sh
+  canonical_cli: vox ci manifest
+- script_glob: scripts/check_vox_cli_feature_matrix.sh
+  canonical_cli: vox ci feature-matrix
+- script_glob: scripts/check_vox_cli_no_vox_dei.sh
+  canonical_cli: vox ci no-dei-import
+- script_glob: scripts/check_cuda_feature_builds.sh
+  canonical_cli: vox ci cuda-features
+- script_glob: scripts/quality/toestub_scoped.sh
+  canonical_cli: vox ci toestub-scoped
+- script_glob: scripts/populi_release_gate.*
+  canonical_cli: vox ci mesh-gate --profile m1m4
+- script_glob: scripts/populi/release_training_gate.*
+  canonical_cli: vox ci mesh-gate --profile training
 env_var_ssot_index:
-  - VOX_WEB_TANSTACK_START
-  - VOX_EMIT_EXPRESS_SERVER
-  - VOX_ORCHESTRATE_VITE
-  - VOX_SSR_DEV_URL
-  - VOX_WEB_VITE_SMOKE
-  - VOX_EXAMPLES_STRICT_PARSE
-  - VOX_SOCIAL_REDDIT_CLIENT_ID
-  - VOX_SOCIAL_REDDIT_CLIENT_SECRET
-  - VOX_SOCIAL_REDDIT_REFRESH_TOKEN
-  - VOX_SOCIAL_REDDIT_USER_AGENT
-  - VOX_SOCIAL_YOUTUBE_CLIENT_ID
-  - VOX_SOCIAL_YOUTUBE_CLIENT_SECRET
-  - VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN
-  - VOX_SOCIAL_HN_MODE
+- VOX_WEB_TANSTACK_START
+- VOX_WEB_EMIT_SCAFFOLD
+- VOX_ALLOW_LEGACY_COMPONENT_FN
+- VOX_EMIT_EXPRESS_SERVER
+- VOX_ORCHESTRATE_VITE
+- VOX_SSR_DEV_URL
+- VOX_WEB_VITE_SMOKE
+- VOX_EXAMPLES_STRICT_PARSE
+- VOX_SOCIAL_REDDIT_CLIENT_ID
+- VOX_SOCIAL_REDDIT_CLIENT_SECRET
+- VOX_SOCIAL_REDDIT_REFRESH_TOKEN
+- VOX_SOCIAL_REDDIT_USER_AGENT
+- VOX_SOCIAL_YOUTUBE_CLIENT_ID
+- VOX_SOCIAL_YOUTUBE_CLIENT_SECRET
+- VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN
+- VOX_SOCIAL_HN_MODE
+- VOX_ORCHESTRATOR_MESH_EXEC_LEASE_AUTO_REVOKE
+- VOX_ORCHESTRATOR_MESH_EXEC_LEASE_RECONCILE
+- VOX_ORCHESTRATOR_MESH_REBALANCE_ON_REMOTE_SCHEDULABLE_DROP

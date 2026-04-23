@@ -2,8 +2,10 @@
 title: "Master planning index"
 description: "Authoritative index for the planning-meta corpus, including hierarchy, read order, and ownership model."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Master planning index
@@ -20,7 +22,7 @@ Use this index to determine:
 ## Planning corpus location
 
 - Directory: `docs/src/architecture/planning-meta/`
-- Core tiered set (10 documents):
+- Core tiered set (11 documents):
   - `01-master-planning-index.md`
   - `02-fast-llm-instruction-plan.md`
   - `03-weighted-deep-planning-manual.md`
@@ -31,6 +33,7 @@ Use this index to determine:
   - `08-milestone-gate-definition-spec.md`
   - `09-exception-deferral-policy.md`
   - `10-document-maintenance-protocol.md`
+  - `12-question-gate-standard.md`
 - Supporting appendices (non-tiered, reference-only):
   - `00-research-baseline-source-map.md`
   - `11-document-boundary-matrix.md`
@@ -47,6 +50,7 @@ Tier 1 documents define rules other planning documents must follow.
 2. `05-anti-foot-gun-planning-standard.md`
 3. `08-milestone-gate-definition-spec.md`
 4. `10-document-maintenance-protocol.md`
+5. `12-question-gate-standard.md`
 
 ### Tier 2 (operational)
 
@@ -97,6 +101,7 @@ When planning-meta documents reference broader architecture artifacts:
 | `08-milestone-gate-definition-spec.md` | gate/milestone evidence protocol | 1 | architecture + QA lead |
 | `09-exception-deferral-policy.md` | waiver and deferral lifecycle | 2 | governance reviewer |
 | `10-document-maintenance-protocol.md` | versioning and corpus lifecycle | 1 | doc governance lead |
+| `12-question-gate-standard.md` | pre-planning clarification gate; EVPI threshold; RequiresClarification policy | 1 | planning architect |
 | `00-research-baseline-source-map.md` | input-source classification and confidence baseline | appendix | planning architect |
 | `11-document-boundary-matrix.md` | ownership and non-overlap guardrails for corpus sections | appendix | documentation lead |
 | `maintenance-log.md` | required lifecycle audit trail for planning-meta changes | appendix | doc governance lead |
@@ -151,4 +156,6 @@ The planning-meta corpus is accepted when:
 - no same-tier contradictions are unresolved,
 - each document has owner role and intended use,
 - maintenance protocol is active and current.
+
+
 

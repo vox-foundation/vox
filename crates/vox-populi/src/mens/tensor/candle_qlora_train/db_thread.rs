@@ -1,4 +1,7 @@
-//! Background thread that persists training telemetry to VoxDB.
+//! Background thread that persists **Mens training / run telemetry** to VoxDB (`training_run_*`, training events).
+//!
+//! This is **local operator + research diagnostics** (checkpoint progress, run lifecycle), not end-user product
+//! usage analytics or remote opt-out “usage telemetry.” SSOT: `docs/src/architecture/telemetry-trust-ssot.md`.
 
 use super::TrainingDbEvent;
 
@@ -27,7 +30,7 @@ pub(super) fn spawn_training_db_writer(
                 }
             };
             rt.block_on(async move {
-                let db = match vox_db::VoxDb::connect_default_with_training_fallback().await {
+                let db = match vox_db::VoxDb::connect_default().await {
                     Ok(d) => {
                         tracing::info!(
                             target: "vox_db::training_telemetry",
@@ -41,8 +44,8 @@ pub(super) fn spawn_training_db_writer(
                             run_id = %db_run_id,
                             error = %err,
                             error_debug = ?err,
-                            "VoxDB unavailable — training telemetry will not be persisted (open failed after primary + sidecar fallback); disk checkpoints are unaffected. \
-                             For a legacy main database run `vox codex export-legacy` then import into a fresh DB, or remove a corrupted `vox_training_telemetry.db` under your Vox data dir."
+                            "VoxDB unavailable — training telemetry will not be persisted; disk checkpoints are unaffected. \
+                             If the error is LegacySchemaChain, migrate the main database: `vox codex export-legacy`, fresh init, `vox codex import-legacy` (see docs/src/operations/voxdb-cutover-runbook.md)."
                         );
                         return;
                     }
@@ -162,6 +165,23 @@ pub(super) fn spawn_training_db_writer(
                                     serde_json::json!({"global_step": global_step}),
                                 )
                                 .await;
+                        }
+                        TrainingDbEvent::GrpoStep {
+                            run_id,
+                            step,
+                            mean_reward,
+                            policy_loss,
+                            clip_fraction,
+                            parse_rate,
+                        } => {
+                            let _ = db.insert_grpo_step(
+                                &run_id,
+                                step,
+                                mean_reward,
+                                policy_loss,
+                                clip_fraction,
+                                parse_rate,
+                            ).await;
                         }
                     }
                 }

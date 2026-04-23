@@ -26,6 +26,60 @@ pub(crate) fn visit_rs_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>
     Ok(())
 }
 
+pub(crate) fn visit_vox_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>) -> Result<()> {
+    for entry in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {
+        let entry = entry?;
+        let p = entry.path();
+        let t = entry.file_type()?;
+        if t.is_dir() {
+            visit_vox_files(&p, f)?;
+        } else if t.is_file() && p.extension().and_then(|x| x.to_str()) == Some("vox") {
+            f(&p)?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn run_script_hygiene(root: &Path, _retired_check: bool) -> Result<()> {
+    let scripts_dir = root.join("scripts");
+    if !scripts_dir.is_dir() {
+        return Ok(());
+    }
+
+    let mut violations = Vec::new();
+    let mut total_scripts = 0;
+
+    let vox_exe = std::env::current_exe().context("get current exe")?;
+
+    visit_vox_files(&scripts_dir, &mut |p: &Path| {
+        total_scripts += 1;
+        let rel_p = p.strip_prefix(root).unwrap_or(p);
+
+        let st = Command::new(&vox_exe)
+            .arg("check")
+            .arg(p)
+            .status()
+            .with_context(|| format!("failed to run vox check on {}", p.display()))?;
+
+        if !st.success() {
+            violations.push(rel_p.display().to_string());
+        }
+
+        Ok(())
+    })?;
+
+    if !violations.is_empty() {
+        return Err(anyhow!(
+            "VoxScript hygiene failed for {} scripts:\n{}",
+            violations.len(),
+            violations.join("\n")
+        ));
+    }
+
+    println!("VoxScript hygiene OK ({} scripts checked)", total_scripts);
+    Ok(())
+}
+
 pub(crate) fn check_no_vox_dei(root: &Path) -> Result<()> {
     let src = root.join("crates/vox-cli/src");
     let re = regex::Regex::new(r"\bvox_dei::")?;
@@ -33,7 +87,7 @@ pub(crate) fn check_no_vox_dei(root: &Path) -> Result<()> {
         let text = read_utf8_path_capped(p)?;
         if re.is_match(&text) {
             return Err(anyhow!(
-                "vox-cli must not reference vox_dei:: (crate is workspace-excluded). Offender: {}",
+                "vox-cli must not reference the staging vox-dei crate via Rust `use`/paths (forbidden `vox_dei` + `::`). Offender: {}",
                 p.display()
             ));
         }
@@ -95,11 +149,10 @@ fn resolve_mens_gate_manifest_path(root: &Path) -> PathBuf {
 }
 
 fn nested_cargo_target_dir(root: &Path) -> PathBuf {
-    let base = env::var_os("CARGO_TARGET_DIR")
-        .map(PathBuf::from)
-        .map(|p| if p.is_absolute() { p } else { root.join(p) })
-        .unwrap_or_else(|| root.join("target"));
-    base.join("nested-ci")
+    // Always isolate nested CI/toestub/feature-matrix Cargo trees under OS temp — avoids
+    // `target/nested-ci` bloat and honors workspace `.cargo/config.toml` `CARGO_TARGET_DIR`
+    // without nesting under the canonical `target/` dir.
+    crate::artifact_policy::ci_nested_target(root)
 }
 
 /// Options for `vox ci mens-gate` isolated runner (temp `vox` copy).
@@ -157,7 +210,7 @@ fn run_mens_gate_windows_isolated(root: &Path, profile: &str, opts: &MensGateOpt
     let target_dir = opts
         .gate_build_target_dir
         .clone()
-        .unwrap_or_else(|| root.join("target").join("mens-gate-safe"));
+        .unwrap_or_else(|| crate::artifact_policy::gate_isolated_target(root));
 
     eprintln!(
         ">> isolated mens-gate: cargo build -p vox-cli --target-dir {}",
@@ -263,7 +316,7 @@ fn run_mens_gate_unix_isolated(root: &Path, profile: &str, opts: &MensGateOpts) 
     let target_dir = opts
         .gate_build_target_dir
         .clone()
-        .unwrap_or_else(|| root.join("target").join("mens-gate-safe"));
+        .unwrap_or_else(|| crate::artifact_policy::gate_isolated_target(root));
 
     eprintln!(
         ">> isolated mens-gate: cargo build -p vox-cli --target-dir {}",
@@ -453,6 +506,12 @@ pub(crate) fn run_toestub_scoped(repo: &Path, scan_root: &Path, mode: ToestubCiM
         .args(["run", "-p", "vox-toestub", "--bin", "toestub", "--"]);
     if mode != ToestubCiMode::Legacy {
         c.arg("--mode").arg(mode.as_cli_str());
+    }
+    if repo
+        .join("contracts/toestub/suppressions.v1.json")
+        .is_file()
+    {
+        c.args(["--suppressions", "contracts/toestub/suppressions.v1.json"]);
     }
     c.arg(root.to_string_lossy().as_ref());
     let st = c.status()?;

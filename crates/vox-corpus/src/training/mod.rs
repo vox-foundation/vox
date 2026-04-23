@@ -21,7 +21,7 @@ pub fn timestamp_string() -> String {
 pub fn generate_system_prompt() -> String {
     if let Some(root) = contract::find_workspace_root() {
         let p = root.join("scripts/vox_system_prompt.txt");
-        if let Ok(s) = crate::bounded_fs::read_utf8_path_capped(&p) {
+        if let Ok(s) = vox_bounded_fs::read_utf8_path_capped(&p) {
             let t = s.trim();
             if !t.is_empty() {
                 return t.to_string();
@@ -63,6 +63,8 @@ fn builtin_system_prompt() -> String {
 - `state`, `derived`, `effect`, `mount`, `cleanup` — reactive primitives
 - `@table type Name:`, `@query`, `@mutation`, `@action` — data plane
 - `@mcp.tool(...) fn ...` / `@mcp.resource(...) fn ...` — MCP surfaces
+- `@server fn Name(...` — server-side / RPC-style handlers (see `@server` in compiler)
+- `http get "/path" | ...` / `http post` / `http put` / `http delete` — HTTP route declarations
 - `type Name = | Variant(field: T)` — tagged unions
 - `import x.y` — imports
 
@@ -93,4 +95,18 @@ pub fn construct_difficulty(category: &str, record_type: &str) -> u8 {
             _ => 5,
         },
     }
+}
+
+#[cfg(test)]
+#[test]
+fn builtin_system_prompt_ssot_uses_arrow_not_to_for_returns() {
+    let b = builtin_system_prompt();
+    assert!(
+        b.contains("->"),
+        "builtin SSOT prompt should show arrow return syntax"
+    );
+    assert!(
+        b.contains("Never use `to`"),
+        "builtin SSOT prompt should forbid `to` as return syntax"
+    );
 }

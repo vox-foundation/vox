@@ -1,4 +1,9 @@
 use crate::types::{YouTubeConfig, YouTubePrivacyStatus};
+
+pub const TITLE_MAX: usize = 100;
+pub const DESCRIPTION_MAX: usize = 5000;
+pub const DEFAULT_CATEGORY_ID: &str = "28";
+
 use anyhow::{Context, Result, anyhow};
 use reqwest::Client;
 use serde::Deserialize;
@@ -145,7 +150,7 @@ pub async fn upload_video(
             "categoryId": cfg
                 .category_id
                 .clone()
-                .unwrap_or_else(|| crate::contract::YOUTUBE_DEFAULT_CATEGORY_ID.to_string())
+                .unwrap_or_else(|| DEFAULT_CATEGORY_ID.to_string())
         },
         "status": {
             "privacyStatus": privacy_status(cfg)

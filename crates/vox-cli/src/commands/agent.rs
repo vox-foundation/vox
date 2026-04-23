@@ -1,12 +1,10 @@
 //! `vox agent` — register, list, and inspect AI agent definitions.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use vox_pm::{AgentDefEntry, VoxDb};
 
 async fn connect() -> Result<VoxDb> {
-    vox_db::open_project_db()
-        .await
-        .context("Failed to open Arca VoxDb (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
+    crate::workspace_db::connect_cli_workspace_voxdb().await
 }
 
 fn print_agent(a: &AgentDefEntry) {

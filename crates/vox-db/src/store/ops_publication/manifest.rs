@@ -16,6 +16,9 @@ impl VoxDb {
         let body_markdown = params.body_markdown.to_string();
         let citations_json = params.citations_json.map(std::string::ToString::to_string);
         let metadata_json = params.metadata_json.map(std::string::ToString::to_string);
+        let revision_history_json = params
+            .revision_history_json
+            .map(std::string::ToString::to_string);
         let content_sha3_256 = params.content_sha3_256.to_string();
         let state = params.state.to_string();
         let breaker = self.breaker.clone();
@@ -25,9 +28,9 @@ impl VoxDb {
                 conn.execute(
                     "INSERT INTO publication_manifests (
                     publication_id, content_type, source_ref, title, author, abstract_text,
-                    body_markdown, citations_json, metadata_json, content_sha3_256, state,
+                    body_markdown, citations_json, metadata_json, revision_history_json, content_sha3_256, state,
                     created_at_ms, updated_at_ms
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?12)
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)
                 ON CONFLICT(publication_id) DO UPDATE SET
                     content_type=excluded.content_type,
                     source_ref=excluded.source_ref,
@@ -37,6 +40,7 @@ impl VoxDb {
                     body_markdown=excluded.body_markdown,
                     citations_json=excluded.citations_json,
                     metadata_json=excluded.metadata_json,
+                    revision_history_json=excluded.revision_history_json,
                     content_sha3_256=excluded.content_sha3_256,
                     state=excluded.state,
                     version=CASE
@@ -55,6 +59,7 @@ impl VoxDb {
                         body_markdown,
                         citations_json,
                         metadata_json,
+                        revision_history_json,
                         content_sha3_256,
                         state,
                         ts,
@@ -73,7 +78,7 @@ impl VoxDb {
     ) -> Result<Option<PublicationManifestRow>, StoreError> {
         let rows = self
             .query_all(
-                "SELECT publication_id, content_type, source_ref, title, author, abstract_text, body_markdown, citations_json, metadata_json, content_sha3_256, version, state, created_at_ms, updated_at_ms FROM publication_manifests WHERE publication_id = ?1",
+                "SELECT publication_id, content_type, source_ref, title, author, abstract_text, body_markdown, citations_json, metadata_json, revision_history_json, content_sha3_256, version, state, created_at_ms, updated_at_ms FROM publication_manifests WHERE publication_id = ?1",
                 (publication_id.to_string(),),
             )
             .await?;
@@ -90,12 +95,52 @@ impl VoxDb {
             body_markdown: r.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
             citations_json: r.get(7).map_err(|e| StoreError::Db(e.to_string()))?,
             metadata_json: r.get(8).map_err(|e| StoreError::Db(e.to_string()))?,
-            content_sha3_256: r.get(9).map_err(|e| StoreError::Db(e.to_string()))?,
-            version: r.get(10).map_err(|e| StoreError::Db(e.to_string()))?,
-            state: r.get(11).map_err(|e| StoreError::Db(e.to_string()))?,
-            created_at_ms: r.get(12).map_err(|e| StoreError::Db(e.to_string()))?,
-            updated_at_ms: r.get(13).map_err(|e| StoreError::Db(e.to_string()))?,
+            revision_history_json: r.get(9).map_err(|e| StoreError::Db(e.to_string()))?,
+            content_sha3_256: r.get(10).map_err(|e| StoreError::Db(e.to_string()))?,
+            version: r.get(11).map_err(|e| StoreError::Db(e.to_string()))?,
+            state: r.get(12).map_err(|e| StoreError::Db(e.to_string()))?,
+            created_at_ms: r.get(13).map_err(|e| StoreError::Db(e.to_string()))?,
+            updated_at_ms: r.get(14).map_err(|e| StoreError::Db(e.to_string()))?,
         }))
+    }
+
+    /// List manifests for discovery scans (`content_type` / `state` filter when `Some`).
+    pub async fn list_publication_manifests(
+        &self,
+        content_type: Option<&str>,
+        state: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<PublicationManifestRow>, StoreError> {
+        let limit = limit.clamp(1, 500);
+        let ct = content_type.map(str::trim).filter(|s| !s.is_empty());
+        let st = state.map(str::trim).filter(|s| !s.is_empty());
+        let rows = self
+            .query_all(
+                "SELECT publication_id, content_type, source_ref, title, author, abstract_text, body_markdown, citations_json, metadata_json, revision_history_json, content_sha3_256, version, state, created_at_ms, updated_at_ms FROM publication_manifests WHERE (?1 IS NULL OR content_type = ?1) AND (?2 IS NULL OR state = ?2) ORDER BY updated_at_ms DESC LIMIT ?3",
+                (ct, st, limit),
+            )
+            .await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for r in rows {
+            out.push(PublicationManifestRow {
+                publication_id: r.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
+                content_type: r.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                source_ref: r.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
+                title: r.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
+                author: r.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
+                abstract_text: r.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
+                body_markdown: r.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
+                citations_json: r.get(7).map_err(|e| StoreError::Db(e.to_string()))?,
+                metadata_json: r.get(8).map_err(|e| StoreError::Db(e.to_string()))?,
+                revision_history_json: r.get(9).map_err(|e| StoreError::Db(e.to_string()))?,
+                content_sha3_256: r.get(10).map_err(|e| StoreError::Db(e.to_string()))?,
+                version: r.get(11).map_err(|e| StoreError::Db(e.to_string()))?,
+                state: r.get(12).map_err(|e| StoreError::Db(e.to_string()))?,
+                created_at_ms: r.get(13).map_err(|e| StoreError::Db(e.to_string()))?,
+                updated_at_ms: r.get(14).map_err(|e| StoreError::Db(e.to_string()))?,
+            });
+        }
+        Ok(out)
     }
 
     /// Digest-bound approval for any publication type.

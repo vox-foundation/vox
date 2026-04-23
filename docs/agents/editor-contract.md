@@ -1,3 +1,10 @@
+---
+title: "Editor Contract"
+description: "Agent support documentation for editor contract"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Vox VS Code Extension — Editor Contract
 
 The VS Code extension is the **presentation layer** of the Vox ecosystem. It owns the editor

@@ -21,7 +21,29 @@ impl crate::VoxDb {
         // this pragma (parse → unsupported). SQLite default is 1000 pages, which matches intent.
         let _ = conn.pragma_update("synchronous", "NORMAL").await?;
         let _ = conn.pragma_update("foreign_keys", "ON").await?;
-        let _ = conn.pragma_update("cache_size", -8000).await?;
+        let _ = conn.pragma_update("cache_size", -65536).await?;
+        // `temp_store` / `mmap_size` are valid in stock SQLite but not in Turso/libSQL's supported
+        // `PragmaName` set (`turso_parser`); `pragma_update` then fails with "Not a valid pragma name".
+
+        if std::env::var("VOX_DB_MVCC")
+            .map(|s| s == "1")
+            .unwrap_or(false)
+        {
+            tracing::warn!("BETA: MVCC concurrent writes enabled for Turso.");
+            let _ = conn.pragma_update("journal_mode", "mvcc").await?;
+        }
+
+        let mut rows = conn.query("PRAGMA journal_mode", ()).await?;
+        if let Some(row) = rows.next().await? {
+            let mode: String = row.get(0).unwrap_or_default();
+            if mode.to_lowercase() != "wal"
+                && mode.to_lowercase() != "mvcc"
+                && mode.to_lowercase() != "memory"
+            {
+                tracing::warn!(mode = %mode, "Database connection did not apply WAL/MVCC journal_mode (likely remote Turso)");
+            }
+        }
+
         Ok(())
     }
 
@@ -64,6 +86,7 @@ impl crate::VoxDb {
         Ok(Self {
             conn,
             sync_db: None,
+            writer: None,
             breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
             sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })
@@ -93,7 +116,13 @@ impl crate::VoxDb {
 
         // Single maintained baseline: only `BASELINE_VERSION` (or 0 pre-bootstrap) is valid.
         // `MAX(schema_version)` from ad-hoc `apply_migrations` rows also trips this guard.
-        if current_version > 0 && current_version != BASELINE_VERSION {
+        if current_version > BASELINE_VERSION {
+            tracing::warn!(
+                target: "vox_db::legacy_schema",
+                schema_max = current_version,
+                baseline = BASELINE_VERSION,
+                "database schema is newer than this binary; upgrade vox for compatibility."
+            );
             return Err(StoreError::LegacySchemaChain {
                 max_version: current_version,
             });
@@ -104,6 +133,26 @@ impl crate::VoxDb {
             if !sql.is_empty() {
                 conn.execute_batch(sql).await?;
             }
+
+            // v51 Migration: Flatten legacy reliability tables into the consolidated SSOT
+            if current_version > 0 && current_version < 51 {
+                let _ = conn.execute_batch(r#"
+                    INSERT OR REPLACE INTO reliability_scores (entity_type, entity_id, reliability, success_count, failure_count, updated_at_ms)
+                    SELECT 'agent', agent_id, reliability, success_count, failure_count, updated_at_ms FROM agent_reliability;
+                    
+                    INSERT OR REPLACE INTO reliability_scores (entity_type, entity_id, reliability, success_count, failure_count, updated_at_ms)
+                    SELECT 'skill', skill_id, reliability, success_count, failure_count, updated_at_ms FROM skill_reliability;
+                    
+                    INSERT OR REPLACE INTO reliability_scores (entity_type, entity_id, reliability, success_count, failure_count, updated_at_ms)
+                    SELECT 'workflow', workflow_id, reliability, success_count, failure_count, updated_at_ms FROM workflow_reliability;
+                    
+                    INSERT OR REPLACE INTO reliability_scores (entity_type, entity_id, reliability, success_count, failure_count, updated_at_ms)
+                    SELECT 'repository', repository_id, reliability, success_count, failure_count, updated_at_ms FROM repository_reliability;
+                "#).await;
+            }
+
+            crate::schema_extensions::apply_schema_extensions(conn).await?;
+
             conn.execute(
                 "INSERT INTO schema_version (version) VALUES (?1)
                  ON CONFLICT(version) DO UPDATE SET applied_at = datetime('now')",
@@ -111,8 +160,6 @@ impl crate::VoxDb {
             )
             .await?;
         }
-
-        crate::schema_cutover::apply_schema_cutover(conn).await?;
 
         Ok(())
     }
@@ -126,6 +173,7 @@ impl crate::VoxDb {
         Ok(Self {
             conn,
             sync_db: None,
+            writer: None,
             breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
             sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })
@@ -141,6 +189,7 @@ impl crate::VoxDb {
         Ok(Self {
             conn,
             sync_db: None,
+            writer: None,
             breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
             sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })
@@ -175,6 +224,7 @@ impl crate::VoxDb {
         Ok(Self {
             conn,
             sync_db: Some(db),
+            writer: None,
             breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
             sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })
@@ -198,6 +248,7 @@ impl crate::VoxDb {
         Ok(Self {
             conn,
             sync_db: Some(db),
+            writer: None,
             breaker: std::sync::Arc::new(crate::DbCircuitBreaker::from_env()),
             sqlite_probe_cache: std::sync::Arc::new(tokio::sync::RwLock::new(None)),
         })

@@ -8,6 +8,7 @@ repository.workspace = true
 
 [dependencies]
 sha2 = { workspace = true }
+workspace-hack = { workspace = true }
 
 [lints]
 workspace = true

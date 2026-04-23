@@ -1,0 +1,87 @@
+// ---
+// title: "Inventory Rosetta Platform"
+// description: "Inventory merge platform layers: actor concurrency, durable workflow, MCP exposure, UI island, and capability-gated import."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [actor, workflow, activity, @mcp.tool, @island, component, routes, Result]
+// last_validated: 2026-04-06
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Demonstrate platform-facing inventory layers for actor/workflow/mcp/ui/capabilities in one compact Vox file.
+
+// ANCHOR: actor_layer
+// The actor model protects shared state via a mailbox, eliminating mutex
+// negotiation. The syntax and primitive are directly inspired by Erlang/Akka.
+actor InventoryActor {
+    on MergeRequest(current: int, incoming: int, max_stack: int) to int {
+        let total = current + incoming
+        if total > max_stack {
+            return max_stack
+        }
+        return total
+    }
+}
+// ANCHOR_END: actor_layer
+
+// ANCHOR: workflow_layer
+// ANCHOR: workflow_durability_note
+// Workflows provide "at-least-once" execution by journaling activities.
+// Double-charging is prevented via idempotency and step-skipping on restart
+// (implemented in the interpreted runtime via ADR-019).
+// ANCHOR_END: workflow_durability_note
+activity reserve_slots(amount: int) to Result[str] {
+    if amount <= 0 {
+        return Error("invalid amount")
+    }
+    return Ok("reserve_ok")
+}
+
+workflow settle_trade(amount: int) to str {
+    let step = reserve_slots(amount)
+    match step {
+        Ok(code) => "trade-settled:" + code
+        Error(msg) => "trade-failed:" + msg
+    }
+}
+// ANCHOR_END: workflow_layer
+
+// ANCHOR: mcp_layer
+@mcp.tool "propose_merge: Propose a stack merge and return primary+overflow"
+fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) to str {
+    let total = current + incoming
+    if total <= max_stack {
+        return kind + ":" + str(total) + "+0"
+    }
+    return kind + ":" + str(max_stack) + "+" + str(total - max_stack)
+}
+// ANCHOR_END: mcp_layer
+
+// ANCHOR: ui_layer
+@island StashMeter {
+    values: list[int]
+}
+
+component InventoryView() {
+    view: <div class="inventory-view">
+        <h1>{"inventory"}</h1>
+        <StashMeter values=[7, 9, 2] />
+    </div>
+}
+
+routes {
+    "/inventory" to InventoryView
+}
+// ANCHOR_END: ui_layer
+
+// ANCHOR: capability_layer
+// Import requires a named platform capability, not just ambient OS access.
+// See docs/src/architecture/capability-grants-ssot.md for the runtime model.
+fn import_loot_csv(import_cap: cap, path: str) to Result[str] {
+    if !has_capability(import_cap) {
+        return Error("missing capability token")
+    }
+    return Ok("imported:" + path)
+}
+// ANCHOR_END: capability_layer

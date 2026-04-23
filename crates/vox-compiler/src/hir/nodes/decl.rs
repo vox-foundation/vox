@@ -1,5 +1,6 @@
 //! HIR declarations: module shape, items, routes, tables (OP-0208).
 
+use crate::ast::decl::fundecl::StyleBlock;
 use crate::ast::span::Span;
 
 use super::expr::HirExpr;
@@ -19,7 +20,7 @@ pub enum HirFieldOwnership {
 
 /// Tracks which HIR lowering paths ran so migrations and WebIR handoff can account for
 /// dual component stacks (`@component` vs Path C reactive) and declarative hook surfaces (OP-0036, OP-0042).
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct HirLoweringMigrationFlags {
     /// Legacy `@component fn` / `Decl::Component` lowered into [`HirModule::components`].
     pub used_classic_component_path: bool,
@@ -33,7 +34,7 @@ pub struct HirLoweringMigrationFlags {
 ///
 /// Empty vectors mean the construct was absent in source; there is no implicit ordering across
 /// categories—only within each `Vec` matches source order for that kind.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct HirModule {
     /// Resolved `import` entries.
     pub imports: Vec<HirImport>,
@@ -53,9 +54,11 @@ pub struct HirModule {
     pub activities: Vec<HirActivity>,
     /// `@test` functions.
     pub tests: Vec<HirFn>,
+    /// `@forall` properties.
+    pub foralls: Vec<HirForall>,
     /// `@server` RPC functions.
     pub server_fns: Vec<HirServerFn>,
-    /// `@query` read-only DB / API functions (POST JSON body, `/api/query/...`).
+    /// `@query` read-only DB / API functions (GET + JSON query args, `/api/query/...`).
     pub query_fns: Vec<HirServerFn>,
     /// `@mutation` write functions (POST JSON body, `/api/mutation/...`).
     pub mutation_fns: Vec<HirServerFn>,
@@ -71,13 +74,19 @@ pub struct HirModule {
     pub search_indexes: Vec<HirSearchIndex>,
     /// MCP tool handlers.
     pub mcp_tools: Vec<HirMcpTool>,
+    /// MCP read-only resource handlers (`@mcp.resource`).
+    pub mcp_resources: Vec<HirMcpResource>,
+    /// Native agent definitions.
+    pub agents: Vec<HirAgent>,
+    /// Container environment specifications.
+    pub environments: Vec<HirEnvironment>,
 
-    // UI & TanStack specific structures (AST-retained for TS codegen migration)
-    /// UI Components.
+    // UI surfaces (AST-retained where needed for emit + WebIR projection)
+    /// Classic `@component fn` components (Path B); prefer Path C `component`.
     pub components: Vec<HirComponent>,
     /// Extracted v0 components.
     pub v0_components: Vec<HirV0Component>,
-    /// Client-side Routes declaration.
+    /// Client-side `routes { }` declarations.
     pub client_routes: Vec<HirRoutes>,
     /// Standalone islands.
     pub islands: Vec<HirIsland>,
@@ -118,9 +127,6 @@ pub struct SemanticHirModule {
     pub functions: Vec<HirFn>,
     pub types: Vec<HirTypeDef>,
     pub routes: Vec<HirRoute>,
-    pub actors: Vec<HirActor>,
-    pub workflows: Vec<HirWorkflow>,
-    pub activities: Vec<HirActivity>,
     pub tests: Vec<HirFn>,
     pub server_fns: Vec<HirServerFn>,
     pub query_fns: Vec<HirServerFn>,
@@ -131,6 +137,9 @@ pub struct SemanticHirModule {
     pub vector_indexes: Vec<HirVectorIndex>,
     pub search_indexes: Vec<HirSearchIndex>,
     pub mcp_tools: Vec<HirMcpTool>,
+    pub mcp_resources: Vec<HirMcpResource>,
+    pub agents: Vec<HirAgent>,
+    pub environments: Vec<HirEnvironment>,
     pub reactive_components: Vec<HirReactiveComponent>,
 }
 
@@ -144,9 +153,9 @@ impl HirModule {
             ("functions", HirFieldOwnership::SemanticCore),
             ("types", HirFieldOwnership::SemanticCore),
             ("routes", HirFieldOwnership::AppContract),
-            ("actors", HirFieldOwnership::SemanticCore),
-            ("workflows", HirFieldOwnership::SemanticCore),
-            ("activities", HirFieldOwnership::SemanticCore),
+            ("actors", HirFieldOwnership::MigrationOnly),
+            ("workflows", HirFieldOwnership::MigrationOnly),
+            ("activities", HirFieldOwnership::MigrationOnly),
             ("tests", HirFieldOwnership::SemanticCore),
             ("server_fns", HirFieldOwnership::AppContract),
             ("query_fns", HirFieldOwnership::AppContract),
@@ -157,17 +166,20 @@ impl HirModule {
             ("vector_indexes", HirFieldOwnership::SemanticCore),
             ("search_indexes", HirFieldOwnership::SemanticCore),
             ("mcp_tools", HirFieldOwnership::SemanticCore),
+            ("mcp_resources", HirFieldOwnership::SemanticCore),
+            ("agents", HirFieldOwnership::SemanticCore),
+            ("environments", HirFieldOwnership::SemanticCore),
             ("components", HirFieldOwnership::MigrationOnly),
             ("v0_components", HirFieldOwnership::MigrationOnly),
             ("client_routes", HirFieldOwnership::AppContract),
             ("islands", HirFieldOwnership::AppContract),
-            ("layouts", HirFieldOwnership::MigrationOnly),
+            ("layouts", HirFieldOwnership::AppContract),
             ("pages", HirFieldOwnership::MigrationOnly),
             ("contexts", HirFieldOwnership::MigrationOnly),
             ("hooks", HirFieldOwnership::MigrationOnly),
-            ("error_boundaries", HirFieldOwnership::MigrationOnly),
-            ("loadings", HirFieldOwnership::MigrationOnly),
-            ("not_founds", HirFieldOwnership::MigrationOnly),
+            ("error_boundaries", HirFieldOwnership::AppContract),
+            ("loadings", HirFieldOwnership::AppContract),
+            ("not_founds", HirFieldOwnership::AppContract),
             ("reactive_components", HirFieldOwnership::SemanticCore),
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
             ("lowering_migration", HirFieldOwnership::MigrationOnly),
@@ -183,9 +195,6 @@ impl HirModule {
             functions: self.functions.clone(),
             types: self.types.clone(),
             routes: self.routes.clone(),
-            actors: self.actors.clone(),
-            workflows: self.workflows.clone(),
-            activities: self.activities.clone(),
             tests: self.tests.clone(),
             server_fns: self.server_fns.clone(),
             query_fns: self.query_fns.clone(),
@@ -196,57 +205,66 @@ impl HirModule {
             vector_indexes: self.vector_indexes.clone(),
             search_indexes: self.search_indexes.clone(),
             mcp_tools: self.mcp_tools.clone(),
+            mcp_resources: self.mcp_resources.clone(),
+            agents: self.agents.clone(),
+            environments: self.environments.clone(),
             reactive_components: self.reactive_components.clone(),
         }
     }
 }
 
 /// A component lowered to HIR (currently retaining AST for TS codegen until full HirExpr migration).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirComponent(pub crate::ast::decl::ComponentDecl);
 
 /// A v0 component lowered to HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirV0Component(pub crate::ast::decl::V0ComponentDecl);
 
 /// Routes layout lowered to HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirRoutes(pub crate::ast::decl::RoutesDecl);
 
 /// Island component lowered to HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirIsland(pub crate::ast::decl::IslandDecl);
 
 /// Route layout component lowered to HIR.
-#[derive(Debug, Clone)]
-pub struct HirLayout(pub crate::ast::decl::LayoutDecl);
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirLayout {
+    pub func: HirFn,
+}
 
 /// Route page component lowered to HIR.
-#[derive(Debug, Clone)]
-pub struct HirPage(pub crate::ast::decl::PageDecl);
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirPage {
+    pub path: String,
+    pub func: HirFn,
+    pub span: Span,
+}
 
 /// Context component lowered to HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirContext(pub crate::ast::decl::ContextDecl);
 
 /// Hook component lowered to HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirHook(pub crate::ast::decl::HookDecl);
 
 /// Errorboundary lowered to HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirErrorBoundary(pub crate::ast::decl::ErrorBoundaryDecl);
 
 /// Loading route lowered to HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirLoading(pub crate::ast::decl::LoadingDecl);
 
 /// Not Found view lowered to HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirNotFound(pub crate::ast::decl::NotFoundDecl);
 
 /// A resolved import.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirImport {
     /// Module path segments (`["react"]`, `["std", "http"]`).
     pub module_path: Vec<String>,
@@ -257,7 +275,7 @@ pub struct HirImport {
 }
 
 /// A Rust crate import declaration lowered from source.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirRustImport {
     /// Dependency key / crate name.
     pub crate_name: String,
@@ -276,7 +294,7 @@ pub struct HirRustImport {
 }
 
 /// A function or component in HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirFn {
     /// Stable definition id.
     pub id: DefId,
@@ -296,14 +314,41 @@ pub struct HirFn {
     pub is_async: bool,
     /// Exported from module.
     pub is_pub: bool,
-    /// `@deprecated` on the source declaration.
+    /// Whether this is a `@mobile.native` bridge.
+    pub is_mobile_native: bool,
+    /// `@pure` — metadata for pipeline tooling (effect guarantees are not proven in HIR).
+    #[serde(default)]
+    pub is_pure: bool,
+    /// Whether the function body is implemented via an LLM.
+    #[serde(default)]
+    pub is_llm: bool,
+    /// Optional specific LLM model to use for implementation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub llm_model: Option<String>,
+    /// `@deprecated` on the source `fn`.
+    #[serde(default)]
     pub is_deprecated: bool,
+    /// `@scheduled("…")` interval/cron string when this item was lowered from [`crate::ast::decl::Decl::Scheduled`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schedule_interval: Option<String>,
+    /// Postconditions to check at runtime (used for @ai repair/fallback).
+    #[serde(default)]
+    pub postconditions: Vec<HirPostCondition>,
     /// Span covering the declaration.
     pub span: Span,
 }
 
+/// A lowered postcondition with optional fallback.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirPostCondition {
+    /// Condition expression.
+    pub condition: HirExpr,
+    /// Optional fallback function name.
+    pub fallback: Option<String>,
+}
+
 /// ADT / type definition in HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirTypeDef {
     /// Type definition id.
     pub id: DefId,
@@ -318,7 +363,7 @@ pub struct HirTypeDef {
 }
 
 /// One variant of an ADT.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirVariant {
     /// Constructor name.
     pub name: String,
@@ -329,7 +374,7 @@ pub struct HirVariant {
 }
 
 /// HTTP route in HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirRoute {
     /// HTTP method.
     pub method: HirHttpMethod,
@@ -346,7 +391,7 @@ pub struct HirRoute {
 }
 
 /// HTTP methods for [`HirRoute`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HirHttpMethod {
     /// GET
     Get,
@@ -371,7 +416,7 @@ impl HirHttpMethod {
 }
 
 /// Actor definition in HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirActor {
     /// Actor type id.
     pub id: DefId,
@@ -384,7 +429,7 @@ pub struct HirActor {
 }
 
 /// Single actor handler.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirActorHandler {
     /// Event name.
     pub event_name: String,
@@ -399,7 +444,7 @@ pub struct HirActorHandler {
 }
 
 /// Workflow definition in HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirWorkflow {
     /// Workflow id.
     pub id: DefId,
@@ -416,7 +461,7 @@ pub struct HirWorkflow {
 }
 
 /// Activity definition in HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirActivity {
     /// Activity id.
     pub id: DefId,
@@ -433,7 +478,7 @@ pub struct HirActivity {
 }
 
 /// A server function — callable from the frontend, auto-generates API route + fetch wrapper.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirServerFn {
     /// Function id.
     pub id: DefId,
@@ -452,7 +497,7 @@ pub struct HirServerFn {
 }
 
 /// Table definition — a persistent record type.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirTable {
     /// Table id.
     pub id: DefId,
@@ -469,7 +514,7 @@ pub struct HirTable {
 }
 
 /// A field within a table definition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirTableField {
     /// Column name.
     pub name: String,
@@ -480,7 +525,7 @@ pub struct HirTableField {
 }
 
 /// Index definition for a table.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirIndex {
     /// Table being indexed.
     pub table_name: String,
@@ -493,7 +538,7 @@ pub struct HirIndex {
 }
 
 /// Document collection — fields mirror [`crate::ast::decl::CollectionDecl`].
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirCollection {
     pub id: DefId,
     pub name: String,
@@ -504,7 +549,7 @@ pub struct HirCollection {
 }
 
 /// Vector index metadata lowered from AST.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirVectorIndex {
     pub table_name: String,
     pub index_name: String,
@@ -515,7 +560,7 @@ pub struct HirVectorIndex {
 }
 
 /// Full-text search index lowered from AST.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirSearchIndex {
     pub table_name: String,
     pub index_name: String,
@@ -525,7 +570,7 @@ pub struct HirSearchIndex {
 }
 
 /// MCP tool declaration — a function exposed via the Model Context Protocol.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirMcpTool {
     /// Tool description for MCP clients.
     pub description: String,
@@ -533,27 +578,111 @@ pub struct HirMcpTool {
     pub func: HirFn,
 }
 
+/// MCP resource — read-only URI-backed content for MCP `resources/read`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirMcpResource {
+    /// Stable resource URI (e.g. `notes://recent`).
+    pub uri: String,
+    pub description: String,
+    pub func: HirFn,
+}
+
+/// A property-based `@forall` test.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirForall {
+    pub label: String,
+    pub iterations: u32,
+    pub func: HirFn,
+}
+
 /// Reactive component lowered to HIR (Path C).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirReactiveComponent {
     pub id: DefId,
     pub name: String,
     pub params: Vec<HirParam>,
     pub members: Vec<HirReactiveMember>,
     pub view: Option<HirExpr>,
+    /// Scoped CSS blocks attached after the reactive body (Path C).
+    pub styles: Vec<StyleBlock>,
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+/// Native agent definition in HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirAgent {
+    /// Agent id.
+    pub id: DefId,
+    /// Agent name.
+    pub name: String,
+    /// Optional version tag.
+    pub version: Option<String>,
+    /// Internal state fields.
+    pub state_fields: Vec<HirTableField>,
+    /// Event handlers.
+    pub handlers: Vec<HirAgentHandler>,
+    /// Version migration rules.
+    pub migrations: Vec<HirMigrationRule>,
+    /// `@deprecated` agent.
+    pub is_deprecated: bool,
+    /// Span covering the agent.
+    pub span: Span,
+}
+
+/// Single agent handler.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirAgentHandler {
+    /// Event name.
+    pub event_name: String,
+    /// Parameters.
+    pub params: Vec<HirParam>,
+    /// Return type.
+    pub return_type: Option<HirType>,
+    /// Handler body.
+    pub body: Vec<HirStmt>,
+    /// Tracing enabled.
+    pub is_traced: bool,
+    /// Span covering the handler.
+    pub span: Span,
+}
+
+/// Agent migration rule.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirMigrationRule {
+    pub from_version: String,
+    pub body: Vec<HirStmt>,
+    pub span: Span,
+}
+
+/// Container environment specification in HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirEnvironment {
+    pub name: String,
+    pub base_image: Option<String>,
+    pub packages: Vec<String>,
+    pub env_vars: Vec<(String, String)>,
+    pub exposed_ports: Vec<u16>,
+    pub volumes: Vec<String>,
+    pub workdir: Option<String>,
+    pub cmd: Vec<String>,
+    pub copy_instructions: Vec<(String, String)>,
+    pub run_commands: Vec<String>,
+    pub is_deprecated: bool,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum HirReactiveMember {
     State(HirState),
     Derived(HirDerived),
     Effect(HirEffect),
     OnMount(HirOnMount),
     OnCleanup(HirOnCleanup),
+    /// `let` / hook calls / assignments before `view:` (Path C prelude).
+    Stmt(HirStmt),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirState {
     pub id: DefId,
     pub name: String,
@@ -562,7 +691,7 @@ pub struct HirState {
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirDerived {
     pub id: DefId,
     pub name: String,
@@ -571,19 +700,19 @@ pub struct HirDerived {
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirEffect {
     pub body: HirExpr,
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirOnMount {
     pub body: HirExpr,
     pub span: Span,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirOnCleanup {
     pub body: HirExpr,
     pub span: Span,

@@ -6,9 +6,20 @@ license.workspace = true
 authors.workspace = true
 rust-version.workspace = true
 
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "vox-doc-pipeline"
+path = "src/main.rs"
+
 [dependencies]
+vox-build-meta = { workspace = true }
 anyhow = { workspace = true }
 vox-bounded-fs = { workspace = true }
+workspace-hack = { workspace = true }
+vox-compiler = { workspace = true }
+serde_json.workspace = true
 
 [lints]
 workspace = true

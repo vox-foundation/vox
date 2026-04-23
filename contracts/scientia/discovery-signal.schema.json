@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/scientia/discovery-signal.schema.json",
+  "title": "SCIENTIA discovery signal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "summary", "strength", "family", "provenance"],
+  "properties": {
+    "code": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string" },
+    "strength": {
+      "type": "string",
+      "enum": ["supporting", "strong", "informational"]
+    },
+    "source_ref": { "type": "string" },
+    "family": {
+      "type": "string",
+      "enum": [
+        "unspecified",
+        "eval_gate",
+        "benchmark_pair",
+        "documentation",
+        "telemetry_aggregate",
+        "operator_attestation",
+        "mens_scorecard",
+        "trust_rollup",
+        "reproducibility_artifact",
+        "linked_corpus",
+        "finding_candidate_signal"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "origin": { "type": "string" },
+        "repo_path": { "type": "string" },
+        "metric_type": { "type": "string" },
+        "run_id": { "type": "string" },
+        "recorded_at_ms": { "type": "integer" },
+        "digest": { "type": "string" }
+      }
+    }
+  }
+}

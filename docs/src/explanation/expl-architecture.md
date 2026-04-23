@@ -2,8 +2,10 @@
 title: "Compiler Architecture"
 description: "Official documentation for Compiler Architecture for the Vox language. Detailed technical reference, architecture guides, and implementat"
 category: "explanation"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Compiler Architecture
@@ -20,44 +22,44 @@ Current implementation note: the practical pipeline is currently consolidated un
 Source Code (.vox)
     │
     ▼
-┌──────────────┐
-│  vox-lexer   │  Tokenization (logos)
-└──────┬───────┘
+┌────────────────┐
+│     Lexer      │  Tokenization (logos)
+└──────┬─────────┘
        │ Vec<Token>
        ▼
-┌──────────────┐
-│  vox-parser  │  Recursive descent parser → AST Module
-└──────┬───────┘
+┌────────────────┐
+│     Parser     │  Recursive descent parser → AST Module
+└──────┬─────────┘
        │ Module (AST root)
        ▼
-┌──────────────┐
-│   vox-ast    │  Strongly-typed AST wrappers
-└──────┬───────┘
+┌────────────────┐
+│      AST       │  Strongly-typed AST wrappers
+└──────┬─────────┘
        │ Module (Decl, Expr, Stmt, Pattern)
        ▼
-┌──────────────┐
-│   vox-hir    │  Desugaring + name resolution + dead code detection
-└──────┬───────┘
+┌────────────────┐
+│      HIR       │  Desugaring + name resolution + dead code detection
+└──────┬─────────┘
        │ HirModule
        ▼
-┌──────────────┐
-│  vox-typeck  │  Bidirectional type checking + HM inference
-└──────┬───────┘
+┌────────────────┐
+│    Typeck      │  Bidirectional type checking + HM inference
+└──────┬─────────┘
        │ Typed HIR + Vec<Diagnostic>
        ▼
-┌──────────────┐
-│   web_ir     │  HIR→WebIR lower + validate
-└──────┬───────┘
+┌────────────────┐
+│     Web IR     │  HIR→WebIR lower + validate
+└──────┬─────────┘
        │ WebIrModule
        ▼
-┌──────────────┐
-│ app_contract │  HIR→AppContract (HTTP/RPC/islands/server config)
-└──────┬───────┘
+┌────────────────┐
+│  App Contract  │  HIR→AppContract (HTTP/RPC/islands/server config)
+└──────┬─────────┘
        │ AppContractModule
        ▼
-┌──────────────┐
-│ runtime_proj │  HIR→RuntimeProjection (DB/task capability hints)
-└──────┬───────┘
+┌────────────────┐
+│ Runtime Proj   │  HIR→RuntimeProjection (DB/task capability hints)
+└──────┬─────────┘
        │ RuntimeProjectionModule
        ▼
 ┌──────────────────┬─────────────────────┐
@@ -69,10 +71,10 @@ Source Code (.vox)
 Current path note:
 
 - `codegen_ts` is still the production TS emitter path.
-- `VOX_WEBIR_VALIDATE=1` runs WebIR lower/validate as a build gate.
+- `VOX_WEBIR_VALIDATE` defaults **on** (WebIR lower/validate gate); set `=0` / `false` / `no` / `off` to skip.
 - `app_contract::project_app_contract` is the SSOT for route/RPC/island/server-config codegen inputs.
 - `runtime_projection::project_runtime_from_hir` is the SSOT for orchestration-facing DB capability projection.
-- `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` enables reactive `view:` TSX bridge output only when parity checks pass.
+- `VOX_WEBIR_EMIT_REACTIVE_VIEWS` defaults **on** so reactive `view:` can use the Web IR TSX bridge when parity checks pass; set `=0` / `false` / `no` / `off` for legacy `emit_hir_expr` views only.
 
 ---
 
@@ -151,7 +153,7 @@ Emits Rust source using the [`quote!`](https://docs.rs/quote) macro. Each decora
 | `@test fn` | `#[test]` function |
 | `@deprecated` | `#[deprecated]` attribute |
 | `actor` | Tokio task + mpsc mailbox |
-| `workflow` | State machine with durable step recording |
+| `workflow` | Plain async function today; interpreted runtime provides partial durable step recording |
 
 #### TypeScript Codegen (`vox-compiler::codegen_ts`)
 
@@ -189,7 +191,7 @@ Reproducible per-token-class computation:
 | `vox-runtime` | Tokio/Axum runtime: actors, scheduler, subscriptions, storage |
 | `vox-pm` | Package manager: CAS store, dependency resolution, caching |
 | `vox-db` | Database abstraction layer |
-| `vox-gamify` | Gamification system |
+| `vox-ludus` | Gamification system |
 | `vox-orchestrator` | Multi-agent orchestration |
 | `vox-toestub` | AI anti-pattern detector |
 | `vox-tensor` | Native ML tensors via Burn 0.19 (Wgpu/NdArray backends) |
@@ -218,8 +220,10 @@ The full checklist for adding a new language construct:
 
 ## Next Steps
 
-- [Language Guide](../reference/ref-language.md) — Full syntax and feature reference
-- [Actors & Workflows](expl-actors-workflows.md) — Durable execution system
+- [Language Reference](../reference/ref-syntax.md) — Full syntax and feature reference
+- [Actors & Workflows](expl-actors-workflows.md) — Workflow durability and actor persistence
 - [Ecosystem & Tooling](../how-to/how-to-cli-ecosystem.md) — CLI commands, package manager, LSP
 - [Web IR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) — numbered compiler/emitter tasks **OP-0001–OP-0320** + supplemental **OP-S049–OP-S220** batch map
 - [Web IR acceptance gates G1–G6](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) — parser, K-metric, parity, and rollout thresholds
+
+

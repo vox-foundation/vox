@@ -2,8 +2,10 @@
 title: "Mens laziness and accuracy audit"
 description: "Severity-ranked audit of the current VoxMens research implementation, focusing on LLM-style mistakes, drift, brittle heuristics, and durability risks."
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 # Mens laziness and accuracy audit
 
@@ -23,10 +25,10 @@ Primary implementation surfaces reviewed:
 
 - [`crates/vox-cli/src/commands/ci/mens_scorecard.rs`](../../../crates/vox-cli/src/commands/ci/mens_scorecard.rs)
 - [`crates/vox-cli/src/commands/ai/generate.rs`](../../../crates/vox-cli/src/commands/ai/generate.rs)
-- [`crates/vox-mcp/src/tools/compiler_tools.rs`](../../../crates/vox-mcp/src/tools/compiler_tools.rs)
-- [`crates/vox-mcp/src/speech_constraints.rs`](../../../crates/vox-mcp/src/speech_constraints.rs)
-- [`crates/vox-mcp/src/tools/text_normalization.rs`](../../../crates/vox-mcp/src/tools/text_normalization.rs)
-- [`crates/vox-populi/src/mens/tensor/candle_qlora_train/training_loop.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora_train/training_loop.rs)
+- [`crates/vox-orchestrator/src/mcp_tools/tools/compiler_tools.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tools/compiler_tools.rs)
+- [`crates/vox-orchestrator/src/mcp_tools/speech_constraints.rs`](../../../crates/vox-orchestrator/src/mcp_tools/speech_constraints.rs)
+- [`crates/vox-orchestrator/src/mcp_tools/tools/text_normalization.rs`](../../../crates/vox-orchestrator/src/mcp_tools/tools/text_normalization.rs)
+- [`crates/vox-populi/src/mens/tensor/candle_qlora/train_loop.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora/train_loop.rs)
 - [`crates/vox-populi/src/mens/tensor/candle_qlora_train/epoch_boundary.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora_train/epoch_boundary.rs)
 - [`crates/vox-populi/src/mens/tensor/candle_qlora_train/finalize.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora_train/finalize.rs)
 - [`crates/vox-populi/src/mens/tensor/candle_qlora_train/db_thread.rs`](../../../crates/vox-populi/src/mens/tensor/candle_qlora_train/db_thread.rs)
@@ -279,3 +281,4 @@ The second-pass implementation plan should answer these explicitly:
 3. Which thresholds belong in schema/policy rather than code?
 4. Which scorecard metrics are strategic KPIs vs temporary heuristics?
 5. Which helper paths should be merged before adding any more generation features?
+

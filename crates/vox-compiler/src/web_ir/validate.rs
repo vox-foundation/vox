@@ -19,9 +19,31 @@
 use std::collections::HashSet;
 
 use super::{
-    BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, RouteNode, StyleNode,
-    WebIrDiagnostic, WebIrModule, WebIrValidateMetrics,
+    BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, RouteContract, RouteNode,
+    StyleNode, StyleSelector, WebIrDiagnostic, WebIrModule, WebIrValidateMetrics,
 };
+
+fn walk_route_contract_ids(
+    nodes: &[RouteContract],
+    seen: &mut HashSet<String>,
+    out: &mut Vec<WebIrDiagnostic>,
+    metrics: &mut WebIrValidateMetrics,
+) {
+    for r in nodes {
+        metrics.route_contract_ids_checked += 1;
+        if !seen.insert(r.id.clone()) {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.route.duplicate_contract_id".to_string(),
+                message: format!("duplicate RouteContract.id {:?}", r.id),
+                span: None,
+                category: Some("route".to_string()),
+            });
+        }
+        if !r.children.is_empty() {
+            walk_route_contract_ids(&r.children, seen, out, metrics);
+        }
+    }
+}
 
 fn check_dom_id(out: &mut Vec<WebIrDiagnostic>, len: usize, id: DomNodeId, ctx: &str) -> bool {
     if (id.0 as usize) >= len {
@@ -126,17 +148,7 @@ fn validate_route_families(
     for node in &module.route_nodes {
         match node {
             RouteNode::RouteTree { routes, .. } => {
-                for r in routes {
-                    metrics.route_contract_ids_checked += 1;
-                    if !seen_route_contract_ids.insert(r.id.clone()) {
-                        out.push(WebIrDiagnostic {
-                            code: "web_ir_validate.route.duplicate_contract_id".to_string(),
-                            message: format!("duplicate RouteContract.id {:?}", r.id),
-                            span: None,
-                            category: Some("route".to_string()),
-                        });
-                    }
-                }
+                walk_route_contract_ids(routes, &mut seen_route_contract_ids, out, metrics);
             }
             RouteNode::LoaderContract {
                 route_id, contract, ..
@@ -249,9 +261,26 @@ fn validate_styles(
     out: &mut Vec<WebIrDiagnostic>,
     metrics: &mut WebIrValidateMetrics,
 ) {
+    let mut seen_selectors: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+
     for node in &module.style_nodes {
         metrics.style_nodes_checked += 1;
-        if let StyleNode::Rule { declarations, .. } = node {
+        if let StyleNode::Rule {
+            selector,
+            declarations,
+            ..
+        } = node
+        {
+            let sel_key = match selector {
+                StyleSelector::Class(c) => format!(".{}", c),
+                StyleSelector::Id(i) => format!("#{}", i),
+                StyleSelector::Element(e) => e.clone(),
+                StyleSelector::Unparsed(u) => u.clone(),
+                StyleSelector::Compound(_) => "compound".to_string(), // Simplified for now
+                StyleSelector::Pseudo { pseudo, .. } => format!("pseudo:{}", pseudo),
+            };
+
             if declarations.is_empty() {
                 out.push(WebIrDiagnostic {
                     code: "web_ir_validate.style.empty_declarations".to_string(),
@@ -260,6 +289,8 @@ fn validate_styles(
                     category: Some("style".to_string()),
                 });
             }
+
+            let mut props_in_rule = std::collections::HashSet::new();
             for (prop, _) in declarations {
                 if prop.is_empty() {
                     out.push(WebIrDiagnostic {
@@ -268,8 +299,98 @@ fn validate_styles(
                         span: None,
                         category: Some("style".to_string()),
                     });
+                } else {
+                    let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
+                        if c.is_uppercase() {
+                            acc.push('-');
+                            acc.push(c.to_ascii_lowercase());
+                        } else {
+                            acc.push(c);
+                        }
+                        acc
+                    });
+
+                    if !props_in_rule.insert(css_prop.clone()) {
+                        out.push(WebIrDiagnostic {
+                            code: "web_ir_validate.style.duplicate_property_in_rule".to_string(),
+                            message: format!("Duplicate property '{}' in the same rule", prop),
+                            span: None,
+                            category: Some("style".to_string()),
+                        });
+                    }
+
+                    if !crate::codegen_shared::css_property_allowlist::is_allowed_css_property(
+                        &css_prop,
+                    ) {
+                        out.push(WebIrDiagnostic {
+                            code: "web_ir_validate.style.unknown_property".to_string(),
+                            message: format!(
+                                "Unknown CSS property '{}' (normalized to '{}')",
+                                prop, css_prop
+                            ),
+                            span: None,
+                            category: Some("style".to_string()),
+                        });
+                    }
+
+                    if let Some(existing_props) = seen_selectors.get(&sel_key) {
+                        if existing_props.contains(&css_prop) {
+                            out.push(WebIrDiagnostic {
+                                code: "web_ir_validate.style.specificity_conflict".to_string(),
+                                message: format!("Property '{}' redefined for selector '{}' at same specificity level", prop, sel_key),
+                                span: None,
+                                category: Some("style".to_string()),
+                            });
+                        }
+                    }
                 }
             }
+
+            let normalized_props: Vec<String> = declarations
+                .iter()
+                .map(|(p, _)| {
+                    p.chars().fold(String::new(), |mut acc, c| {
+                        if c.is_uppercase() {
+                            acc.push('-');
+                            acc.push(c.to_ascii_lowercase());
+                        } else {
+                            acc.push(c);
+                        }
+                        acc
+                    })
+                })
+                .collect();
+
+            seen_selectors
+                .entry(sel_key)
+                .or_default()
+                .extend(normalized_props);
+        }
+    }
+}
+
+fn validate_scheduled_jobs(
+    module: &WebIrModule,
+    out: &mut Vec<WebIrDiagnostic>,
+    metrics: &mut WebIrValidateMetrics,
+) {
+    for job in &module.scheduled_jobs {
+        metrics.scheduled_jobs_checked += 1;
+        if job.name.trim().is_empty() {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.scheduled.empty_name".to_string(),
+                message: "ScheduledJobSpec.name must not be empty".to_string(),
+                span: None,
+                category: Some("scheduled".to_string()),
+            });
+        }
+        if job.interval.trim().is_empty() {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.scheduled.empty_interval".to_string(),
+                message: "ScheduledJobSpec.interval must not be empty".to_string(),
+                span: None,
+                category: Some("scheduled".to_string()),
+            });
         }
     }
 }
@@ -360,6 +481,7 @@ pub fn validate_web_ir_with_metrics(
     validate_route_families(module, &mut out, &mut metrics);
     validate_behaviors(module, &mut out, &mut metrics);
     validate_styles(module, &mut out, &mut metrics);
+    validate_scheduled_jobs(module, &mut out, &mut metrics);
     validate_interop(module, &mut out);
 
     (out, metrics)

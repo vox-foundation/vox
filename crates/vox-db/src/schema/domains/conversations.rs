@@ -5,6 +5,10 @@ CREATE TABLE IF NOT EXISTS conversations (
     user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     title TEXT NOT NULL DEFAULT '',
     code_version TEXT,
+    repository_id TEXT,
+    external_session_id TEXT,
+    thread_id TEXT,
+    origin_surface TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -15,6 +19,10 @@ CREATE TABLE IF NOT EXISTS conversation_messages (
     role TEXT NOT NULL,
     content_text TEXT NOT NULL DEFAULT '',
     payload_json TEXT,
+    external_turn_id TEXT,
+    model_used TEXT,
+    token_count INTEGER,
+    context_files_json TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -84,8 +92,12 @@ CREATE TABLE IF NOT EXISTS topic_evolution_events (
 
 CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at);
+CREATE INDEX IF NOT EXISTS idx_conversations_repository ON conversations(repository_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_repo_ext_session ON conversations(repository_id, external_session_id)
+    WHERE repository_id IS NOT NULL AND external_session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_conversation_messages_conv ON conversation_messages(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_conversation_messages_created ON conversation_messages(conversation_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_conversation_messages_external_turn ON conversation_messages(external_turn_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_conversation_tool_calls_msg_ord ON conversation_tool_calls(conversation_message_id, ordinal);
 CREATE INDEX IF NOT EXISTS idx_conversation_tool_calls_tool ON conversation_tool_calls(tool_name);
 CREATE INDEX IF NOT EXISTS idx_conversation_tool_calls_status ON conversation_tool_calls(status);

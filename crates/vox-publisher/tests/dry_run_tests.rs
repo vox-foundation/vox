@@ -1,7 +1,5 @@
 use chrono::Utc;
-use vox_publisher::types::{
-    GitHubConfig, GitHubPostType, OpenCollectiveConfig, TwitterConfig, UnifiedNewsItem,
-};
+use vox_publisher::types::{ForgeConfig, ForgePostType, OpenCollectiveConfig, UnifiedNewsItem};
 use vox_publisher::{Publisher, PublisherConfig};
 
 #[tokio::test]
@@ -14,20 +12,18 @@ async fn test_dry_run_zero_web_leakage() {
         tags: vec![],
         content_markdown: "Offline content".to_string(),
         syndication: vox_publisher::types::SyndicationConfig {
-            twitter: Some(TwitterConfig {
-                short_text: Some("Test tweet".to_string()),
-                thread: false,
-            }),
-            github: Some(GitHubConfig {
+            social: vec![vox_publisher::types::SocialChannel::Twitter],
+            forge: Some(ForgeConfig {
                 repo: "vox/fake".to_string(),
-                post_type: GitHubPostType::Release,
+                post_type: ForgePostType::Release,
                 release_tag: Some("test-offline-123".to_string()),
                 draft: true,
                 discussion_category: None,
             }),
             open_collective: Some(OpenCollectiveConfig {
                 is_private: false,
-                collective_slug: "vox".to_string(),
+
+                scheduled_publish_at: None,
             }),
             crates_io: None,
             rss: true,
@@ -39,7 +35,7 @@ async fn test_dry_run_zero_web_leakage() {
 
     let publisher = Publisher::new(PublisherConfig {
         twitter_bearer_token: Some("secret1".to_string()),
-        github_token: Some("secret2".to_string()),
+        forge_token: Some("secret2".to_string()),
         open_collective_token: Some("secret3".to_string()),
         dry_run: false,
         ..Default::default()

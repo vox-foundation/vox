@@ -25,33 +25,65 @@ export class AgentController {
     }
 
     start(): void {
-        this._pollTimer = setInterval(() => this._poll(), 3000);
+        this._connectWebSocket();
+    }
+
+    private _ws?: WebSocket;
+    private _reconnectWsTimer?: NodeJS.Timeout;
+
+    private _connectWebSocket(): void {
+        const port = vscode.workspace.getConfiguration('vox').get<number>('mcp.httpPort') || 3921;
+        const wsUrl = `ws://127.0.0.1:${port}/v1/ws`;
+        
+        try {
+            this._ws = new globalThis.WebSocket(wsUrl);
+            
+            this._ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.msg_type === 'agent_event' && data.data) {
+                        const ev = data.data as AgentEvent;
+                        const id = ev.id ?? `${ev.agent_id}-${ev.timestamp}-${ev.event_type ?? ev.type}`;
+                        if (!this._seenEventIds.has(id)) {
+                            this._seenEventIds.add(id);
+                            if (this._seenEventIds.size > 500) {
+                                const [first] = this._seenEventIds;
+                                this._seenEventIds.delete(first);
+                            }
+                            this._applyEvent(ev);
+                            this._onUpdate(this.getAgents());
+                        }
+                    }
+                } catch {
+                    // Ignore parse errors
+                }
+            };
+
+            this._ws.onclose = () => {
+                this._scheduleWsReconnect();
+            };
+
+            this._ws.onerror = () => {
+                this._ws?.close();
+            };
+        } catch (_e) {
+            this._scheduleWsReconnect();
+        }
+    }
+
+    private _scheduleWsReconnect(): void {
+        clearTimeout(this._reconnectWsTimer);
+        this._reconnectWsTimer = setTimeout(() => {
+            if (this._ws && this._ws.readyState !== globalThis.WebSocket.CLOSED) return;
+            this._connectWebSocket();
+        }, 5000);
     }
 
     stop(): void {
-        clearInterval(this._pollTimer);
-    }
-
-    private async _poll(): Promise<void> {
-        if (!this._mcp.connected) return;
-        const events = await this._mcp.pollEvents(30);
-        let changed = false;
-
-        for (const ev of events.reverse()) {
-            const id = ev.id ?? `${ev.agent_id}-${ev.timestamp}-${ev.event_type ?? ev.type}`;
-            if (this._seenEventIds.has(id)) continue;
-            this._seenEventIds.add(id);
-            if (this._seenEventIds.size > 500) {
-                const [first] = this._seenEventIds;
-                this._seenEventIds.delete(first);
-            }
-
-            this._applyEvent(ev);
-            changed = true;
-        }
-
-        if (changed) {
-            this._onUpdate(this.getAgents());
+        clearTimeout(this._reconnectWsTimer);
+        if (this._ws) {
+            this._ws.close();
+            this._ws = undefined;
         }
     }
 
@@ -81,6 +113,21 @@ export class AgentController {
             ).then(sel => {
                 if (sel === 'View Details') {
                     vscode.commands.executeCommand('vox.focusSidebar');
+                }
+            });
+        }
+
+        // Show auto-heal notification
+        if (ev.event_type === 'AutoHealApplied') {
+            vscode.window.showInformationMessage(
+                `🛠 Vox Agent [${agentId}] applied an automated compilation repair.`,
+                'View Details',
+                'Undo Repair'
+            ).then(sel => {
+                if (sel === 'View Details') {
+                    vscode.commands.executeCommand('vox.focusSidebar');
+                } else if (sel === 'Undo Repair') {
+                    vscode.commands.executeCommand('vox.undo');
                 }
             });
         }

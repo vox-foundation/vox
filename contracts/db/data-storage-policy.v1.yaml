@@ -1,0 +1,153 @@
+# Data Storage Policy (v1) — machine-checked.
+#
+# Sibling to contracts/terminal/exec-policy.v1.yaml in shape and intent.
+# Validated against contracts/db/data-storage-policy.v1.schema.json (to be
+# created by M-04 alongside this file).
+#
+# Consumed by `vox ci data-storage-guard`. Agents should treat this file as
+# the authoritative rule surface; if prose in the SSOT and this file disagree,
+# this file wins and the SSOT is updated to match.
+#
+# See docs/src/architecture/data-storage-ssot-2026.md and
+# docs/src/architecture/data-storage-lint-and-ci-spec-2026.md §5 for rationale.
+
+version: 1
+x-vox-version: 1
+
+tiers:
+  a_relational:
+    store: libsql
+    owners:
+      - vox-db
+      - vox-clavis
+    allow_direct_access:
+      - vox-db
+      - vox-clavis
+      - vox-test-harness
+    # vox-pm listed until M-26 completes; remove thereafter.
+    temporary_exceptions:
+      - vox-pm
+    # Additional libSQL files that M-26/M-67 fold away. Listed so the guard
+    # ignores them until the migration lands; each line must be deleted in the
+    # same PR that removes the corresponding file from disk.
+    temporary_file_exceptions:
+      - path: .vox_modules/local_store.db
+        owner: vox-pm
+        retired_by: M-67
+        expiry: "2026-Q3"
+      - path: vox_hardened.db
+        owner: vox-clavis
+        retired_by: M-26
+        expiry: "2026-Q3"
+
+  b_spool:
+    format: jsonl
+    writer_crate: vox-spool
+    rotation:
+      - hourly
+      - daily
+      - size-bytes
+    root_env: VOX_SPOOL_DIR
+
+  c_cas:
+    owner: vox-checksum-manifest
+    min_bytes: 4096
+    root_env: VOX_DATA_DIR
+    subdir: artifacts
+
+  d_cache:
+    root_env: VOX_CACHE_DIR
+    max_ttl_days: 30  # cache contents older than this may be gc'd without warning
+
+env_vars:
+  canonical:
+    - VOX_DB_URL
+    - VOX_DB_TOKEN
+    - VOX_DATA_DIR
+    - VOX_CACHE_DIR
+    - VOX_STATE_DIR
+    - VOX_CONFIG_DIR
+    - VOX_SPOOL_DIR
+    - VOX_USER_ID
+  deprecated:
+    TURSO_URL:            { replaced_by: VOX_DB_URL, sunset_release: "0.6" }
+    VOX_TURSO_URL:        { replaced_by: VOX_DB_URL, sunset_release: "0.6" }
+    VOX_TURSO_TOKEN:      { replaced_by: VOX_DB_TOKEN, sunset_release: "0.6" }
+    TURSO_AUTH_TOKEN:     { replaced_by: VOX_DB_TOKEN, sunset_release: "0.6" }
+    VOX_TELEMETRY_SPOOL_DIR: { replaced_by: VOX_SPOOL_DIR, sunset_release: "0.6" }
+
+rust_policy:
+  serde_rename_all:
+    default: snake_case
+    allowed:
+      - snake_case
+      - camelCase
+    disallowed:
+      - kebab-case
+      - PascalCase
+  block_in_place_allowlist:
+    - crates/vox-db/src/store/ops.rs
+    - crates/vox-db/src/research.rs
+    - crates/vox-orchestrator/src/session/manager/db_io.rs
+  direct_fs_write_allowlist:
+    - crates/vox-config/**
+    - crates/vox-spool/**
+    - crates/vox-checksum-manifest/**
+    - crates/vox-cli/src/commands/init.rs
+    - tests/**
+
+repo_hygiene:
+  forbidden_root_files:
+    - build_errors.txt
+    - test_lexer.rs
+    - error.vox
+  forbidden_root_globs:
+    - codex-cutover-*.sidecar.json
+  require_empty_dirs:
+    - scratch
+  forbid_existence:
+    - schemas
+
+contract_policy:
+  require_version_header: true       # every .vN.* file must have x-vox-version: N
+  require_sibling_markdown: false    # aspirational; flip to true once M-15 completes
+  one_format_per_domain: true
+  allowed_formats_by_domain:
+    populi: [openapi.yaml]
+    mcp: [yaml, schema.json, openapi.yaml]
+    # all others default to one of {schema.json, v1.schema.json, v1.yaml}
+
+# Paths the guard must ignore entirely (neither inventory nor flag).
+# Covers VCS state and third-party patch inputs that are not Vox data surfaces.
+ignored_paths:
+  - .git
+  - .jj                  # Jujutsu VCS — F65
+  - patches              # vendored crate patches — F69
+  - node_modules
+
+# Frozen Core crates whose Tier A DDL cannot change without a governance token.
+# Keep this list in lockstep with crates/_frozen.md (F62, M-68).
+frozen_core_crates:
+  - vox-db
+  - vox-clavis
+  - vox-runtime
+  - vox-primitives
+  - vox-observability
+  - vox-schema
+  - vox-config
+  - vox-spool
+  - vox-checksum-manifest
+  - vox-cli-core
+
+# Target directories left over from ad-hoc tooling. Guard forbids new ones.
+forbidden_root_glob_prefixes:
+  - "target-"            # F64, M-70
+
+# Generated files that must match a regeneration of their source contracts.
+# M-69 wires the ts emitter and flips enforced: true.
+generated_files:
+  - path: dist/schemas.ts
+    generator: vox-schema::emit_ts
+    source: contracts/
+    enforced: false      # flipped to true by M-69
+    retired_by: M-69

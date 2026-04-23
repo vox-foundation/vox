@@ -313,6 +313,7 @@ pub struct PublicationManifestRow {
     pub body_markdown: String,
     pub citations_json: Option<String>,
     pub metadata_json: Option<String>,
+    pub revision_history_json: Option<String>,
     pub content_sha3_256: String,
     pub version: i64,
     pub state: String,
@@ -466,7 +467,7 @@ pub struct WarningRow {
 }
 
 /// One row from `plan_sessions`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlanSessionRow {
     pub plan_session_id: String,
     pub origin_session_id: Option<String>,
@@ -477,17 +478,19 @@ pub struct PlanSessionRow {
 }
 
 /// One row from `plan_versions`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlanVersionRow {
     pub plan_session_id: String,
     pub version: i64,
     pub parent_version: Option<i64>,
     pub trigger_event: Option<String>,
     pub trigger_payload_json: Option<String>,
+    pub quality_score: f64,
+    pub reviewer_verdict: String,
 }
 
 /// One row from `plan_nodes`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlanNodeRow {
     pub plan_session_id: String,
     pub version: i64,
@@ -497,6 +500,20 @@ pub struct PlanNodeRow {
     pub execution_policy_json: String,
     pub status: String,
     pub workflow_invocation: Option<String>,
+}
+
+/// One row from `plan_node_attempts`.
+#[derive(Debug, Clone)]
+pub struct PlanNodeAttemptRow {
+    pub plan_session_id: String,
+    pub version: i64,
+    pub node_id: String,
+    pub attempt_no: i64,
+    pub task_id: Option<String>,
+    pub outcome: String,
+    pub error_text: Option<String>,
+    pub latency_ms: Option<i64>,
+    pub created_at: String,
 }
 
 /// One row from `gamify_policy_snapshots` for Ludus KPI / audit lists.
@@ -520,6 +537,8 @@ pub struct GamifyPolicySnapshotListRow {
     pub grind_capped: i64,
     /// Lumens component if present.
     pub lumens: i64,
+    /// Optional metadata / recognition context.
+    pub metadata: Option<String>,
     /// `created_at` column as stored (string timestamp).
     pub created_at: String,
 }
@@ -547,4 +566,130 @@ pub struct GamifyLudusKpiRollup {
     pub hints_shown: i64,
     /// Hint rows with `action = 'dismissed'`.
     pub hints_dismissed: i64,
+}
+
+/// One row from `clavis_account_secrets` for Cloudless encrypted secret material.
+#[derive(Debug, Clone)]
+pub struct AccountSecretCiphertextRow {
+    pub account_id: String,
+    pub secret_id: String,
+    pub ciphertext: Vec<u8>,
+    pub nonce: Vec<u8>,
+    pub cipher_version: i64,
+    pub dek_wrapped: Vec<u8>,
+    pub dek_wrap_alg: String,
+    pub kek_ref: String,
+    pub kek_version: i64,
+    pub aad_hash: Option<String>,
+    pub updated_at_ms: i64,
+    pub rotation_epoch: i64,
+    pub rotated_at_ms: Option<i64>,
+    pub consistency_origin: String,
+    pub consistency_version: i64,
+    pub last_synced_at_ms: Option<i64>,
+    pub checksum_blake3: String,
+}
+
+/// One row from `external_review_run`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExternalReviewRunRow {
+    pub id: i64,
+    pub provider: String,
+    pub repository_id: String,
+    pub owner: String,
+    pub repo: String,
+    pub pr_number: i64,
+    pub commit_sha: Option<String>,
+    pub trigger_kind: String,
+    pub idempotency_key: Option<String>,
+    pub item_count: i64,
+    pub started_at: String,
+    pub finished_at: String,
+    pub metadata_json: Option<String>,
+}
+
+/// One row from `external_review_finding`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExternalReviewFindingRow {
+    pub id: i64,
+    pub run_id: i64,
+    pub provider: String,
+    pub repository_id: String,
+    pub pr_number: i64,
+    pub finding_identity: String,
+    pub thread_identity: Option<String>,
+    pub source_comment_id: Option<i64>,
+    pub placement_kind: String,
+    pub line_anchor_state: String,
+    pub file_path: Option<String>,
+    pub line_start: Option<i64>,
+    pub line_end: Option<i64>,
+    pub category: String,
+    pub anti_pattern_id: Option<String>,
+    pub severity: String,
+    pub title: String,
+    pub details: String,
+    pub suggested_fix: Option<String>,
+    pub extraction_confidence: Option<f64>,
+    pub source_payload_hash: String,
+    pub fingerprint: String,
+    pub status: String,
+}
+
+/// One row from `external_review_deadletter`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExternalReviewDeadletterRow {
+    pub id: i64,
+    pub provider: String,
+    pub repository_id: String,
+    pub pr_number: i64,
+    pub source_kind: String,
+    pub source_comment_id: Option<i64>,
+    pub source_payload_hash: String,
+    pub error_class: String,
+    pub error_message: Option<String>,
+    pub raw_payload_json: String,
+    pub retry_state: String,
+    pub created_at: String,
+    pub retried_at: Option<String>,
+}
+
+/// One row from `external_review_kpi_snapshot`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ExternalReviewKpiSnapshotRow {
+    pub id: i64,
+    pub repository_id: String,
+    pub period_start: String,
+    pub period_end: String,
+    pub coverage_ratio: Option<f64>,
+    pub ingest_to_fix_latency_ms: Option<f64>,
+    pub repeated_finding_rate: Option<f64>,
+    pub post_training_regression_rate: Option<f64>,
+    pub auto_fix_acceptance_rate: Option<f64>,
+    pub created_at: String,
+}
+
+/// One row from `visus_baselines`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct VisusBaselineRow {
+    pub id: String,
+    pub target_url: String,
+    pub viewport: String,
+    pub theme: String,
+    pub screenshot_cas: String,
+    pub ax_tree_cas: String,
+    pub metadata_json: Option<String>,
+    pub created_at: String,
+}
+
+/// One row from `visus_audit_log`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct VisusAuditLogRow {
+    pub id: String,
+    pub baseline_id: Option<String>,
+    pub target_url: String,
+    pub outcome: String,
+    pub findings_json: String,
+    pub screenshot_cas: Option<String>,
+    pub created_at: String,
 }

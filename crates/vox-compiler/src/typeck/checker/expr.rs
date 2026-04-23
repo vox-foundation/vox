@@ -88,7 +88,7 @@ impl<'a> Checker<'a> {
                     ));
                     return false;
                 }
-                let v_ty = self.check_expr(&args[*arg_ix].value);
+                let v_ty = self.check_expr(&args[*arg_ix].value, None);
                 *arg_ix += 1;
                 let _ = self.uf.unify(&f_ty, &v_ty);
                 true
@@ -130,7 +130,7 @@ impl<'a> Checker<'a> {
                         ));
                         return false;
                     }
-                    let v_ty = self.check_expr(&args[*arg_ix].value);
+                    let v_ty = self.check_expr(&args[*arg_ix].value, None);
                     *arg_ix += 1;
                     let _ = self.uf.unify(&f_ty, &v_ty);
                 }
@@ -144,14 +144,15 @@ impl<'a> Checker<'a> {
             }
         }
     }
-    pub fn check_expr(&mut self, expr: &HirExpr) -> Ty {
+    pub fn check_expr(&mut self, expr: &HirExpr, expected: Option<&Ty>) -> Ty {
         match expr {
             HirExpr::IntLit(_, _) => Ty::Int,
             HirExpr::FloatLit(_, _) => Ty::Float,
             HirExpr::StringLit(_, _) => Ty::Str,
             HirExpr::BoolLit(_, _) => Ty::Bool,
+            HirExpr::DecimalLit(_, _) => Ty::Decimal,
             HirExpr::TupleLit(exprs, _) => {
-                let tys = exprs.iter().map(|e| self.check_expr(e)).collect();
+                let tys = exprs.iter().map(|e| self.check_expr(e, None)).collect();
                 Ty::Tuple(tys)
             }
 
@@ -169,6 +170,9 @@ impl<'a> Checker<'a> {
                             category: DiagnosticCategory::Typecheck,
                             code: Some("typecheck.deprecated_ident".into()),
                             fixes: vec![],
+                            line_col: None,
+                            missing_cases: vec![],
+                            ast_node_kind: None,
                         });
                     }
                     binding.ty.clone()
@@ -185,38 +189,68 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::ObjectLit(fields, _span) => {
+                let mut expected_fields = std::collections::HashMap::new();
+                if let Some(exp) = expected {
+                    match self.uf.resolve(exp) {
+                        Ty::Record(ref fds)
+                        | Ty::Table(_, ref fds)
+                        | Ty::Collection(_, ref fds) => {
+                            for (n, t) in fds {
+                                expected_fields.insert(n.clone(), t.clone());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
                 let typed_fields: Vec<(String, Ty)> = fields
                     .iter()
-                    .map(|(name, expr)| (name.clone(), self.check_expr(expr)))
+                    .map(|(name, expr)| {
+                        let field_expected = expected_fields.get(name);
+                        (name.clone(), self.check_expr(expr, field_expected))
+                    })
                     .collect();
                 Ty::Record(typed_fields)
             }
             HirExpr::ListLit(elements, _span) => {
-                let elem_ty = if elements.is_empty() {
-                    self.uf.fresh_var()
-                } else {
-                    let first = self.check_expr(&elements[0]);
-                    for e in &elements[1..] {
-                        let t = self.check_expr(e);
-                        let _ = self.uf.unify(&first, &t);
+                let mut expected_elem_ty = None;
+                if let Some(exp) = expected {
+                    match self.uf.resolve(exp) {
+                        Ty::List(inner) => expected_elem_ty = Some(inner.as_ref().clone()),
+                        _ => {}
                     }
-                    first
+                }
+
+                let elem_ty = if elements.is_empty() {
+                    expected_elem_ty.unwrap_or_else(|| self.uf.fresh_var())
+                } else {
+                    let mut unified_ty =
+                        expected_elem_ty.unwrap_or_else(|| self.check_expr(&elements[0], None));
+                    for e in elements.iter() {
+                        let t = self.check_expr(e, Some(&unified_ty));
+                        if let Ok(lub) = self.uf.least_upper_bound(unified_ty.clone(), t.clone()) {
+                            unified_ty = lub;
+                        } else {
+                            let _ = self.uf.unify(&unified_ty, &t);
+                        }
+                    }
+                    unified_ty
                 };
                 Ty::List(Box::new(elem_ty))
             }
 
             HirExpr::Binary(op, left, right, span) => {
-                let l_ty = self.check_expr(left);
-                let r_ty = self.check_expr(right);
+                let l_ty = self.check_expr(left, None);
+                let r_ty = self.check_expr(right, None);
                 self.check_binary_op(*op, l_ty, r_ty, *span)
             }
             HirExpr::Unary(op, operand, _span) => {
-                let ty = self.check_expr(operand);
+                let ty = self.check_expr(operand, None);
                 self.check_unary_op(*op, ty)
             }
 
             HirExpr::Call(callee, args, _tail, span) => {
-                let raw_callee = self.check_expr(callee);
+                let raw_callee = self.check_expr(callee, None);
                 let callee_ty = self.uf.resolve(&raw_callee);
                 let callee_ty = self.uf.instantiate(&callee_ty);
                 match callee_ty {
@@ -248,10 +282,22 @@ impl<'a> Checker<'a> {
                     ));
                     return Ty::Error;
                 }
-                let obj_ty = self.check_expr(object);
+                let obj_ty = self.check_expr(object, None);
                 let obj_ty = self.uf.resolve(&obj_ty);
                 if let Some(method_ty) = self.builtins.lookup_method(&obj_ty, method) {
-                    let method_ty = self.uf.instantiate(&method_ty);
+                    let bindings = match &obj_ty {
+                        Ty::List(inner)
+                        | Ty::Option(inner)
+                        | Ty::Result(inner)
+                        | Ty::Stream(inner)
+                        | Ty::Set(inner) => {
+                            vec![inner.as_ref().clone()]
+                        }
+                        Ty::Map(k, v) => vec![k.as_ref().clone(), v.as_ref().clone()],
+                        _ => vec![],
+                    };
+                    let method_ty = self.uf.instantiate_with(&method_ty, &bindings);
+
                     if let Ty::Fn(params, ret) = method_ty {
                         self.check_arguments(&params, args, *span);
                         ret.as_ref().clone()
@@ -282,6 +328,46 @@ impl<'a> Checker<'a> {
                     } else {
                         self.diags.push(Diagnostic::error(
                             format!("Unknown actor '{actor_name}' for method call"),
+                            *span,
+                            self.source,
+                        ));
+                        Ty::Error
+                    }
+                } else if let Ty::Named(n) = &obj_ty {
+                    let ns = match n.as_str() {
+                        "StdHttpNs" => Some("http"),
+                        "StdLogNs" => Some("log"),
+                        "StdJsonNs" => Some("json"),
+                        "StdFsNs" => Some("fs"),
+                        "StdEnvNs" => Some("env"),
+                        "StdProcessNs" => Some("process"),
+                        "StdCryptoNs" => Some("crypto"),
+                        "StdTimeNs" => Some("time"),
+                        "StdMobileNs" => Some("mobile"),
+                        _ => None,
+                    };
+                    if let Some(ns) = ns {
+                        if let Some(method_ty) =
+                            crate::builtin_registry::std_namespace_method_ty(ns, method)
+                        {
+                            let method_ty = self.uf.instantiate(&method_ty);
+                            if let Ty::Fn(params, ret) = method_ty {
+                                self.check_arguments(&params, args, *span);
+                                ret.as_ref().clone()
+                            } else {
+                                Ty::Error
+                            }
+                        } else {
+                            self.diags.push(Diagnostic::error(
+                                format!("Method '{method}' not found on {obj_ty:?}"),
+                                *span,
+                                self.source,
+                            ));
+                            Ty::Error
+                        }
+                    } else {
+                        self.diags.push(Diagnostic::error(
+                            format!("Method '{method}' not found on {obj_ty:?}"),
                             *span,
                             self.source,
                         ));
@@ -327,6 +413,9 @@ impl<'a> Checker<'a> {
                         category: DiagnosticCategory::Lint,
                         code: Some("lint.db_unsafe_query".into()),
                         fixes: vec![],
+                        line_col: None,
+                        missing_cases: vec![],
+                        ast_node_kind: None,
                     });
                 }
                 let Some(binding) = self.env.lookup(table) else {
@@ -339,7 +428,7 @@ impl<'a> Checker<'a> {
                 };
                 let obj_ty = binding.ty.clone();
                 if let Some(limit_expr) = limit {
-                    let lim_ty = self.check_expr(limit_expr.as_ref());
+                    let lim_ty = self.check_expr(limit_expr.as_ref(), None);
                     let _ = self.uf.unify(&lim_ty, &Ty::Int);
                 }
                 if let Some(cols) = select_cols.as_ref() {
@@ -427,7 +516,7 @@ impl<'a> Checker<'a> {
                                     ));
                                     return Ty::Error;
                                 };
-                                let v_ty = self.check_expr(&arg.value);
+                                let v_ty = self.check_expr(&arg.value, None);
                                 let _ = self.uf.unify(f_ty, &v_ty);
                             }
                         }
@@ -500,7 +589,7 @@ impl<'a> Checker<'a> {
                                         ));
                                         return Ty::Error;
                                     };
-                                    let v_ty = self.check_expr(&arg.value);
+                                    let v_ty = self.check_expr(&arg.value, None);
                                     let _ = self.uf.unify(f_ty, &v_ty);
                                 }
                             }
@@ -577,7 +666,7 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::Match(subject, arms, span) => {
-                let sub_ty = self.check_expr(subject);
+                let sub_ty = self.check_expr(subject, None);
                 let sub_resolved = self.uf.resolve(&sub_ty);
                 check_hir_match_exhaustiveness(
                     self.env,
@@ -587,15 +676,15 @@ impl<'a> Checker<'a> {
                     *span,
                     self.source,
                 );
-                let ret_ty = self.uf.fresh_var();
+                let ret_ty = expected.cloned().unwrap_or_else(|| self.uf.fresh_var());
                 for arm in arms {
                     self.env.push_scope();
                     self.bind_pattern(&arm.pattern, &sub_ty, false);
                     if let Some(guard) = &arm.guard {
-                        let guard_ty = self.check_expr(guard);
+                        let guard_ty = self.check_expr(guard, None);
                         let _ = self.uf.unify(&guard_ty, &Ty::Bool);
                     }
-                    let arm_ty = self.check_expr(arm.body.as_ref());
+                    let arm_ty = self.check_expr(arm.body.as_ref(), Some(&ret_ty));
                     let _ = self.uf.unify(&ret_ty, &arm_ty);
                     self.env.pop_scope();
                 }
@@ -603,7 +692,7 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::If(cond, then_body, else_body, _span) => {
-                let cond_ty = self.check_expr(cond);
+                let cond_ty = self.check_expr(cond, None);
                 let _ = self.uf.unify(&cond_ty, &Ty::Bool);
                 self.env.push_scope();
                 let mut then_ty = Ty::Unit;
@@ -634,7 +723,7 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::For(binding, iterable, body, _span) => {
-                let iter_ty = self.check_expr(iterable);
+                let iter_ty = self.check_expr(iterable, None);
                 let element_ty = self.extract_iterable_element(&iter_ty);
                 self.env.push_scope();
                 self.bind_pattern(
@@ -642,20 +731,42 @@ impl<'a> Checker<'a> {
                     &element_ty,
                     false,
                 );
-                let _ = self.check_expr(body);
+                let _ = self.check_expr(body, None);
                 self.env.pop_scope();
                 Ty::Unit
             }
 
             HirExpr::Lambda(params, ret_ann, body, _span) => {
                 self.env.push_scope();
+
+                // If expected is a specific function type, distribute param types to arguments.
+                let mut expected_params = None;
+                let mut expected_ret_ty = None;
+                if let Some(exp) = expected {
+                    let res_exp = self.uf.resolve(exp);
+                    if let Ty::Fn(exp_p, exp_r) = res_exp {
+                        if exp_p.len() == params.len() {
+                            expected_params = Some(exp_p);
+                            expected_ret_ty = Some(exp_r.as_ref().clone());
+                        }
+                    }
+                }
+
                 let param_tys: Vec<Ty> = params
                     .iter()
-                    .map(|p| {
+                    .enumerate()
+                    .map(|(i, p)| {
                         let p_ty = p
                             .type_ann
                             .as_ref()
-                            .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
+                            .map(|t| resolve_hir_type(t, self.env))
+                            .unwrap_or_else(|| {
+                                expected_params
+                                    .as_ref()
+                                    .and_then(|ep| ep.get(i))
+                                    .cloned()
+                                    .unwrap_or_else(|| self.uf.fresh_var())
+                            });
                         self.env.define(
                             p.name.clone(),
                             Binding::new(p_ty.clone(), false, BindingKind::Parameter),
@@ -663,11 +774,15 @@ impl<'a> Checker<'a> {
                         p_ty
                     })
                     .collect();
+
                 let ret_ty = ret_ann
                     .as_ref()
-                    .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
+                    .map(|t| resolve_hir_type(t, self.env))
+                    .or(expected_ret_ty.clone())
+                    .unwrap_or_else(|| self.uf.fresh_var());
+
                 self.env.push_return_type(ret_ty.clone());
-                let body_ty = self.check_expr(body.as_ref());
+                let body_ty = self.check_expr(body.as_ref(), Some(&ret_ty));
                 let _ = self.uf.unify(&body_ty, &ret_ty);
                 self.env.pop_return_type();
                 self.env.pop_scope();
@@ -675,8 +790,8 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::Pipe(left, right, _span) => {
-                let l_ty = self.check_expr(left);
-                let raw_right = self.check_expr(right);
+                let l_ty = self.check_expr(left, None);
+                let raw_right = self.check_expr(right, None);
                 let r_ty = self.uf.resolve(&raw_right);
                 match r_ty {
                     Ty::Fn(params, ret) => {
@@ -690,7 +805,7 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::Spawn(inner, span) => {
-                let inner_ty = self.check_expr(inner);
+                let inner_ty = self.check_expr(inner, None);
                 let actor_name = match inner.as_ref() {
                     HirExpr::Ident(name, _) => name.clone(),
                     _ => {
@@ -731,7 +846,7 @@ impl<'a> Checker<'a> {
             }
 
             HirExpr::With(resource, options, span) => {
-                let res_ty = self.check_expr(resource);
+                let res_ty = self.check_expr(resource, None);
                 self.check_with_options(options.as_ref(), *span);
                 let expected = Ty::Result(Box::new(self.uf.fresh_var()));
                 if let Err(msg) = self.uf.unify(&res_ty, &expected) {
@@ -751,18 +866,71 @@ impl<'a> Checker<'a> {
 
             HirExpr::Jsx(el) => {
                 for attr in &el.attributes {
-                    let _ = self.check_expr(&attr.value);
+                    let _ = self.check_expr(&attr.value, None);
                 }
                 for child in &el.children {
-                    let _ = self.check_expr(child);
+                    let _ = self.check_expr(child, None);
                 }
                 Ty::Element
             }
             HirExpr::JsxSelfClosing(el) => {
                 for attr in &el.attributes {
-                    let _ = self.check_expr(&attr.value);
+                    let _ = self.check_expr(&attr.value, None);
                 }
                 Ty::Element
+            }
+
+            HirExpr::Try(hir_try) => {
+                let inner_ty = self.check_expr(hir_try.target.as_ref(), None);
+                let resolved = self.uf.resolve(&inner_ty);
+                let resolved = self.uf.instantiate(&resolved);
+                match resolved {
+                    Ty::Result(ok_ty) => {
+                        if let Some(expected_ret) = self.env.current_return_type() {
+                            let expected_ret_inst = self.uf.instantiate(expected_ret);
+                            match self.uf.resolve(&expected_ret_inst) {
+                                Ty::Result(_) => {}
+                                Ty::Error => {}
+                                _ => {
+                                    self.diags.push(Diagnostic::error(
+                                        "Cannot use `?` operator on Result in a function that does not return a Result".into(),
+                                        hir_try.span,
+                                        self.source,
+                                    ).with_suggestion("Change the function's return type to Result[T] or handle the error using pattern matching / `unwrap()`."));
+                                }
+                            }
+                        }
+                        (*ok_ty).clone()
+                    }
+                    Ty::Option(some_ty) => {
+                        if let Some(expected_ret) = self.env.current_return_type() {
+                            let expected_ret_inst = self.uf.instantiate(expected_ret);
+                            match self.uf.resolve(&expected_ret_inst) {
+                                Ty::Option(_) => {}
+                                Ty::Error => {}
+                                _ => {
+                                    self.diags.push(Diagnostic::error(
+                                        "Cannot use `?` operator on Option in a function that does not return an Option".into(),
+                                        hir_try.span,
+                                        self.source,
+                                    ).with_suggestion("Change the function's return type to Option[T] or handle the None case using pattern matching / `unwrap()`."));
+                                }
+                            }
+                        }
+                        (*some_ty).clone()
+                    }
+                    Ty::Error => Ty::Error,
+                    other => {
+                        self.diags.push(Diagnostic::error(
+                            format!(
+                                "`?` can only be used on Result or Option types; found incompatible type ({other:?})"
+                            ),
+                            hir_try.span,
+                            self.source,
+                        ));
+                        Ty::Error
+                    }
+                }
             }
         }
     }

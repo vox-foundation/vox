@@ -1,2 +1,3 @@
 mod complete;
-mod submit;
+mod research_dispatch;
+pub(crate) mod submit;

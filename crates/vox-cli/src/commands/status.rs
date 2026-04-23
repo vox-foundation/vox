@@ -1,6 +1,7 @@
 //! `vox status` — AI provider usage, remaining budget, and cost summary.
 
 use anyhow::Result;
+use colored::Colorize;
 use serde_json::json;
 
 const PROVIDER_LIMITS: &[(&str, &str, u32)] = &[
@@ -12,6 +13,11 @@ const PROVIDER_LIMITS: &[(&str, &str, u32)] = &[
 ];
 
 pub async fn run(json_output: bool) -> Result<()> {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let repo = vox_repository::discover_repository_or_fallback(&cwd);
+    let workspace_journey =
+        vox_db::workspace_journey_diagnostics_json(&repo.root, &repo.repository_id);
+
     // Detect configured providers
     let google_key = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
         .expose()
@@ -127,10 +133,36 @@ pub async fn run(json_output: bool) -> Result<()> {
     if let Some(ref db) = db {
         let tracker = vox_orchestrator::usage::UsageTracker::new_ref(db);
         grand_cost = tracker.cost_summary_today().await.map(|c| c.total_cost_usd).unwrap_or(0.0);
+
+        println!();
+        println!("  {} (Last 7 Days)  ", "Cost by Category".bold());
+        if let Ok(categories) = tracker.cost_by_category(7).await {
+            for cat in categories {
+                println!("    {:<18} ${:>8.4}", cat.task_category, cat.total_usd);
+            }
+        }
+
+        println!();
+        println!("  {} (Last 7 Days)     ", "Cost by Model".bold());
+        if let Ok(models) = tracker.cost_by_model(7).await {
+            for md in models.into_iter().take(8) {
+                println!("    {:<25} ${:>8.4}", md.model_slug, md.total_usd);
+            }
+        }
     }
 
     println!();
     println!("  Total today: {} calls · ${:.4} spent", grand_total, grand_cost);
+    println!();
+    println!("  Workspace journey (CLI/MCP/daemon policy)");
+    println!(
+        "    repo root: {}",
+        repo.root.display()
+    );
+    println!(
+        "    {}",
+        serde_json::to_string(&workspace_journey).unwrap_or_default()
+    );
     println!();
 
     Ok(())

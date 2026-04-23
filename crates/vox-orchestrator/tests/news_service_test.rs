@@ -1,3 +1,5 @@
+#![cfg(feature = "news-publish")]
+
 use std::fs;
 use std::sync::Arc;
 

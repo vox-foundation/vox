@@ -97,6 +97,8 @@ CREATE TABLE IF NOT EXISTS news_publish_attempts (
     result_json TEXT NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS idx_news_publish_attempts_news ON news_publish_attempts(news_id);
+
 CREATE TABLE IF NOT EXISTS publication_manifests (
     publication_id TEXT PRIMARY KEY,
     content_type TEXT NOT NULL,
@@ -107,6 +109,7 @@ CREATE TABLE IF NOT EXISTS publication_manifests (
     body_markdown TEXT NOT NULL,
     citations_json TEXT,
     metadata_json TEXT,
+    revision_history_json TEXT,
     content_sha3_256 TEXT NOT NULL,
     version INTEGER NOT NULL DEFAULT 1,
     state TEXT NOT NULL DEFAULT 'draft',
@@ -181,6 +184,9 @@ CREATE TABLE IF NOT EXISTS publication_status_events (
     detail_json TEXT,
     recorded_at_ms INTEGER NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_publication_status_events_pub_id
+    ON publication_status_events(publication_id, id);
 
 -- external_submission_jobs.status (operational queue; migration-safe vocabulary):
 --   queued | running | retryable_failed | failed | succeeded
@@ -269,4 +275,69 @@ CREATE TABLE IF NOT EXISTS publication_external_revisions (
 
 CREATE INDEX IF NOT EXISTS idx_publication_external_revisions_pub_digest
     ON publication_external_revisions(publication_id, content_sha3_256);
+
+CREATE TABLE IF NOT EXISTS scientia_external_intelligence (
+    id TEXT PRIMARY KEY,
+    source_url TEXT NOT NULL,
+    source_kind TEXT NOT NULL,  
+    title TEXT NOT NULL,
+    abstract_text TEXT,
+    embedding_id TEXT,
+    provenance_json TEXT DEFAULT '[]',
+    ingest_status TEXT NOT NULL DEFAULT 'pending',
+    preflight_score REAL,
+    ingested_at_ms INTEGER NOT NULL,
+    reviewed_at_ms INTEGER,
+    -- Wave 1: Socrates + Worthiness enrichment
+    socrates_risk_band TEXT,
+    socrates_confidence REAL,
+    worthiness_score REAL,
+    claim_evidence_coverage REAL
+);
+
+CREATE TABLE IF NOT EXISTS scientia_feed_sources (
+    id TEXT PRIMARY KEY,
+    url TEXT NOT NULL,
+    source_kind TEXT NOT NULL,
+    crawl_interval_ms INTEGER NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    last_crawled_at_ms INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS syndication_events (
+    id               TEXT    PRIMARY KEY,
+    publication_id   TEXT    NOT NULL,
+    channel          TEXT    NOT NULL,
+    outcome          TEXT    NOT NULL,
+    external_id      TEXT,
+    attempt_number   INTEGER NOT NULL DEFAULT 1,
+    retryable        INTEGER NOT NULL DEFAULT 0,
+    attempted_at     TEXT    NOT NULL,
+    created_at       TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_syndication_events_pub
+    ON syndication_events (publication_id);
+CREATE INDEX IF NOT EXISTS idx_syndication_events_channel
+    ON syndication_events (channel, attempted_at DESC);
+
+CREATE TABLE IF NOT EXISTS scholarly_publication_records (
+    id                    TEXT PRIMARY KEY,
+    publication_id        TEXT NOT NULL UNIQUE,
+    doi                   TEXT,
+    zenodo_deposit_id     TEXT,
+    zenodo_doi            TEXT,
+    orcid_put_code        INTEGER,        -- returned integer from ORCID POST
+    figshare_article_id   TEXT,
+    arxiv_submission_id   TEXT,
+    openreview_forum_id   TEXT,
+    crossref_deposit_id   TEXT,
+    researchgate_confirmed INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'draft',
+    -- status: 'draft' | 'deposited' | 'published' | 'retracted'
+    published_at          TEXT,
+    created_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    updated_at            TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_scholarly_pub_doi
+    ON scholarly_publication_records (doi) WHERE doi IS NOT NULL;
 "#;

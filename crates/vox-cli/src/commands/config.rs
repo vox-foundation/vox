@@ -1,66 +1,122 @@
-//! `vox config` — user preference and global configuration management.
-//!
-//! Handles `~/.vox/preferences.json` and registry-specific settings.
+use anyhow::Result;
+use clap::Subcommand;
 
-use anyhow::{Context, Result};
+#[derive(Subcommand, Debug)]
+pub enum ConfigCmd {
+    /// Get a value from the layered config.
+    Get {
+        /// The config key to get.
+        key: String,
+    },
+    /// Set a value in the local `~/.vox/config.toml` file.
+    Set {
+        /// The config key to set.
+        key: String,
+        /// The value to set.
+        value: String,
+    },
+    /// Unset a value in the local `~/.vox/config.toml` file.
+    Unset {
+        /// The config key to unset.
+        key: String,
+    },
+    /// List all the configuration entries explicitly set in `config.toml`.
+    List,
+    /// Synchronize settings with the cross-device account_config table.
+    Sync {
+        /// Push local `config.toml` settings to the sovereign account database.
+        #[arg(long, conflicts_with = "pull")]
+        push: bool,
+        /// Pull account settings from the database down to `config.toml`.
+        #[arg(long, conflicts_with = "push")]
+        pull: bool,
+    },
+}
 
-/// `vox config` — manage global user preferences and configuration.
-pub async fn run(
-    registry: Option<&str>,
-    name: std::option::Option<String>,
-    set_value: Option<String>,
-    reset: bool,
-    json: bool,
-) -> Result<()> {
-    let registry = registry.unwrap_or("google");
-
-    if reset {
-        vox_db::preferences::reset_registry_preferences(registry)
-            .await
-            .context("Failed to reset preferences")?;
-        println!("✓ Reset all preferences for: {}", registry);
-        return Ok(());
-    }
-
-    if let Some(n) = name {
-        if let Some(v) = set_value {
-            // Set
-            vox_db::preferences::set_registry_preference(registry, &n, &v)
-                .await
-                .context("Failed to set preference")?;
-            println!("✓ Set \x1b[1;36m{}\x1b[0m = \x1b[32m'{}'\x1b[0m for: \x1b[1m{}\x1b[0m", n, v, registry);
-        } else {
-            // Get
-            let val = vox_db::preferences::get_registry_preference(registry, &n)
-                .await
-                .context("Failed to get preference")?
-                .unwrap_or_else(|| "none".to_string());
-
-            if json {
-                println!("{}", serde_json::json!({ "name": n, "value": val, "registry": registry }));
+pub async fn run(cmd: ConfigCmd) -> Result<()> {
+    match cmd {
+        ConfigCmd::Get { key } => {
+            // Check env and TOML
+            let val = vox_config::env_parse::resolve_config_str(&key, "<not set>");
+            println!("{}", val);
+        }
+        ConfigCmd::Set { key, value } => {
+            vox_config::toml_config::set_user_config_value(&key, &value)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            crate::diagnostics::print_success(&format!("Set {} = {}", key, value));
+        }
+        ConfigCmd::Unset { key } => {
+            let removed = vox_config::toml_config::unset_user_config_value(&key)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            if removed {
+                crate::diagnostics::print_success(&format!("Unset {}", key));
             } else {
-                println!("  \x1b[1;36m{} \x1b[0m = \x1b[32m'{}'\x1b[0m (\x1b[2m{}\x1b[0m)", n, val, registry);
+                println!("Key {} was not set locally.", key);
             }
         }
-    } else {
-        // List
-        let prefs = vox_db::preferences::get_all_registry_preferences(registry)
-            .await
-            .context("Failed to list preferences")?;
-
-        if json {
-            println!("{}", serde_json::to_string_pretty(&prefs)?);
-        } else {
-            println!("\n  \x1b[1mPreferences for: \x1b[1;36m{}\x1b[0m", registry);
-            if prefs.is_empty() {
-                println!("    No preferences stored.");
-            } else {
-                for (k, v) in prefs {
-                    println!("    \x1b[1m{:24}\x1b[0m \x1b[2m→\x1b[0m \x1b[32m'{}'\x1b[0m", k, v);
+        ConfigCmd::List => {
+            let conf = vox_config::toml_config::load_user_config();
+            if conf.values.is_empty() {
+                println!("No explicit configuration set in ~/.vox/config.toml");
+                return Ok(());
+            }
+            let mut keys: Vec<_> = conf.values.keys().collect();
+            keys.sort();
+            for k in keys {
+                if let Some(v) = conf.values.get(k) {
+                    if let Some(s) = v.as_str() {
+                        println!("{} = {}", k, s);
+                    } else {
+                        println!("{} = {}", k, v);
+                    }
                 }
             }
-            println!();
         }
+        ConfigCmd::Sync { push, pull } => {
+            run_sync(push, pull).await?;
+        }
+    }
+    Ok(())
+}
+
+async fn run_sync(push: bool, pull: bool) -> Result<()> {
+    use anyhow::Context;
+    use vox_db::VoxDb;
+
+    // Use current computer's local user context or specific account
+    // Usually tied to Clavis Vault user identifier...
+    let account_id = "local_account_sync";
+    let db = VoxDb::connect_default().await?;
+
+    if push {
+        println!("Pushing local ~/.vox/config.toml settings to the account database...");
+        let conf = vox_config::toml_config::load_user_config();
+        for (k, v) in conf.values.iter() {
+            if let Some(v_str) = v.as_str() {
+                db.set_account_config(account_id, k, v_str)
+                    .await
+                    .context(format!("Failed to sync key {} to remote", k))?;
+            } else {
+                db.set_account_config(account_id, k, &v.to_string())
+                    .await
+                    .context(format!("Failed to sync key {} to remote", k))?;
+            }
+        }
+        crate::diagnostics::print_success("Sync push completed successfully.");
+    } else if pull {
+        println!("Pulling settings from the remote account database...");
+        let rows = db.list_account_configs(account_id, None).await?;
+        let mut count = 0;
+        for (k, v) in rows {
+            vox_config::toml_config::set_user_config_value(&k, &v)
+                .map_err(|e| anyhow::anyhow!(e))?;
+            count += 1;
+        }
+        crate::diagnostics::print_success(&format!("Sync pull completed. {} keys updated.", count));
+    } else {
+        println!(
+            "Please specify either --push or --pull for sync operations.\nExample: vox config sync --pull"
+        );
     }
 
     Ok(())

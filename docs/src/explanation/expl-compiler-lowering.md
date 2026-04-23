@@ -2,8 +2,10 @@
 title: "Explanation: Compiler Lowering Phases"
 description: "Official documentation for Explanation: Compiler Lowering Phases for the Vox language. Detailed technical reference, architecture guides,"
 category: "explanation"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Explanation: Compiler Lowering Phases
 
@@ -13,7 +15,7 @@ Implementation note: current production code keeps these stages under `crates/vo
 
 ## 1. Syntax to AST (Abstract Syntax Tree)
 
-The `vox-parser` converts the raw `.vox` file into a tree of declarations. This phase ensures the code is syntactically valid but does not yet understand types or decorators.
+The **parser** converts the raw `.vox` file into a tree of declarations. This phase ensures the code is syntactically valid but does not yet understand types or decorators.
 
 ## 2. AST to HIR (High-level Intermediate Representation)
 
@@ -24,7 +26,7 @@ The **Lowering** phase begins by transforming the AST into the HIR.
 
 ## 3. HIR to WebIR and LIR (Low-level intermediate layers)
 
-[ADR 012](../adr/012-internal-web-ir-strategy.md) introduces **WebIR** (`crates/vox-compiler/src/web_ir/`) as the normative structured layer before React/TanStack printers. **`lower_hir_to_web_ir`** lowers reactive `view:` JSX (plus `routes:` contracts and behavior summaries) into **`WebIrModule`**; **`validate_web_ir`** checks DOM id references; **`emit_component_view_tsx`** is a JSX string preview used for parity tests.
+[ADR 012](../adr/012-internal-web-ir-strategy.md) introduces **WebIR** (`crates/vox-compiler/src/web_ir/`) as the normative structured layer before React/TanStack printers. **`lower_hir_to_web_ir`** lowers reactive `view:` JSX (plus `routes {` contracts and behavior summaries) into **`WebIrModule`**; **`validate_web_ir`** checks DOM id references; **`emit_component_view_tsx`** is a JSX string preview used for parity tests.
 
 Current production behavior (important for migration planning):
 
@@ -67,4 +69,5 @@ By having multiple intermediate representations, Vox can perform complex archite
 
 **Related Reference**:
 - [Architecture Index](expl-architecture.md) — High-level map of the current compiler module layout.
-- [API Reference: vox-hir](../api/vox-hir.md) — Details on the HIR data structures.
+- [API Reference: vox-hir (Archived)](../reference/cli.md) — Details on the HIR data structures.
+

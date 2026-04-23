@@ -2,8 +2,10 @@
 title: "Binary release artifact contract"
 description: "SSOT for GitHub Release binary names, archive layout, checksum manifest, and supported host triples for `vox-bootstrap` and `vox ci release-build`."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Binary release artifact contract
@@ -13,7 +15,7 @@ This document is the **authoritative contract** for **release binaries** (names,
 - **`crates/vox-install-policy`** (Rust SSOT for supported triples, default GitHub org/repo, and `cargo install --locked --path …` argv shared by bootstrap / `vox upgrade` / compliance guards),
 - [`vox ci release-build`](../reference/cli.md) (packaging in CI / locally),
 - [`.github/workflows/release-binaries.yml`](../../../.github/workflows/release-binaries.yml) (tag-triggered publish),
-- [`vox-bootstrap`](../api/vox-bootstrap.md) (binary-first install),
+- [`vox-bootstrap`](../reference/cli.md) (binary-first install),
 - **`vox upgrade --source release`** (operator self-update; same manifest verification).
 
 The **`vox upgrade --source repo`** lane rebuilds from a local checkout and does **not** consume this checksum manifest (trust model = your git ref + Cargo lock in-tree).
@@ -74,7 +76,7 @@ The **basename** for `latest` must match the **actual** filename on the latest r
 
 ## Smoke checks
 
-Before artifacts are uploaded from a matrix build, each platform job extracts the produced archives and runs:
+Before artifacts are uploaded from a matrix build, each platform job extracts the produced archives and runs {
 
 - `vox --version` / `vox.exe --version`
 - `vox-bootstrap --help` / `vox-bootstrap.exe --help`
@@ -105,3 +107,4 @@ Before shipping a real tag:
 1. Locally: `cargo run -p vox-cli -- ci release-build --target <host-triple>` (optional `--version`), extract the archive, run `./vox --version`.
 2. `cargo test -p vox-cli release_build`, `cargo test -p vox-bootstrap`, `cargo run -p vox-cli -- ci command-compliance`.
 3. CI: push a disposable test tag `v0.0.0-test.<timestamp>`, confirm all matrix jobs + publish; then delete the test tag/release if it was only for verification.
+

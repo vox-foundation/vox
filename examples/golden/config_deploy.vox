@@ -9,18 +9,20 @@
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Represent database settings as a Vox ADT and expose deployment-shaped helpers.
+// @training_prompt: Represent database settings as a Vox ADT and expose deployment-shaped helpers.
+// ANCHOR: display
 type DatabaseConfig =
     | DatabaseConfig(url: str, pool_size: int)
 
 fn sample_database_url() to str {
-    ret "libsql://example.turso.io"
+    return "libsql://example.turso.io"
 }
 
 fn prod_replica_count() to int {
-    ret 3
+    return 3
 }
 
 fn prod_debug_enabled() to bool {
-    ret false
+    return false
 }
+// ANCHOR_END: display

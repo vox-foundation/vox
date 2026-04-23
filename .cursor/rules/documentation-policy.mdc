@@ -1,0 +1,11 @@
+---
+description: Documentation writing policy — where to store research, frontmatter, and code-block rules
+globs: ["docs/**/*.md", "*.md"]
+---
+# Documentation policy
+
+- ALL research, architecture, and knowledge artifacts for this repo → `docs/src/architecture/` (NOT IDE knowledge bases)
+- `.vox` and `.tsx` code blocks in `docs/src/` must use `{{#include}}` from `examples/golden/` OR be annotated `// vox:skip`
+- Do NOT edit derived ignore files (`.cursorignore`, `.aiignore`, `.aiexclude`) — edit `.voxignore` and run `vox ci sync-ignore-files`
+- Do NOT read or modify `docs/src/archive/` for new feature work
+- New doc pages must include `category`, `status`, `last_updated`, and `training_eligible` frontmatter

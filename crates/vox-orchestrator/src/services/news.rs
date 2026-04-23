@@ -33,7 +33,7 @@ impl NewsService {
 
         let publisher_config_base = PublisherConfig {
             twitter_bearer_token: config.news.twitter_token.clone(),
-            github_token: config.news.github_token.clone(),
+            forge_token: config.news.github_token.clone(),
             open_collective_token: config.news.opencollective_token.clone(),
             reddit_client_id: config.news.reddit_client_id.clone(),
             reddit_client_secret: config.news.reddit_client_secret.clone(),
@@ -42,20 +42,21 @@ impl NewsService {
             youtube_client_id: config.news.youtube_client_id.clone(),
             youtube_client_secret: config.news.youtube_client_secret.clone(),
             youtube_refresh_token: config.news.youtube_refresh_token.clone(),
-            dry_run: config.news.dry_run,
-            site,
             twitter_api_base: config.news.twitter_api_base.clone(),
-            github_rest_base: config.news.github_rest_base.clone(),
-            github_graphql_url: config.news.github_graphql_url.clone(),
+            forge_rest_base: config.news.github_rest_base.clone(),
+            forge_graphql_url: config.news.github_graphql_url.clone(),
             opencollective_graphql_url: config.news.opencollective_graphql_url.clone(),
-            twitter_text_chunk_max: config.news.twitter_text_chunk_max,
-            twitter_truncation_suffix: config.news.twitter_truncation_suffix.clone(),
             twitter_summary_margin_chars: None,
             reddit_selfpost_summary_max: None,
+            dry_run: config.news.dry_run,
+            site,
+            twitter_text_chunk_max: config.news.twitter_text_chunk_max,
+            twitter_truncation_suffix: config.news.twitter_truncation_suffix.clone(),
             youtube_repo_root: Some(vox_repository::resolve_repo_root_for_ci()),
             hacker_news_mode: config.news.hacker_news_mode.clone(),
             youtube_default_category_id: None,
             worthiness_score: None,
+            ..Default::default()
         };
 
         let paths = collect_news_markdown_paths(news_dir, config.news.scan_recursive);
@@ -68,7 +69,7 @@ impl NewsService {
                 continue;
             }
 
-            let content = match crate::bounded_fs::read_utf8_path_capped(&path) {
+            let content = match vox_bounded_fs::read_utf8_path_capped(&path) {
                 Ok(c) => c,
                 Err(e) => {
                     tracing::error!("Failed to read news file {}: {}", path.display(), e);
@@ -163,6 +164,7 @@ impl NewsService {
                         body_markdown: &item.content_markdown,
                         citations_json: None,
                         metadata_json: Some(metadata_json.as_str()),
+                        revision_history_json: None,
                         content_sha3_256: &content_digest,
                         state: "approved",
                     })

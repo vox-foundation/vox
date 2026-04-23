@@ -4,17 +4,17 @@ const WEB_CONSTRUCTS: &[(&str, &str, &str)] = &[
     (
         "component",
         "Navbar",
-        "component Navbar {\n  ret <nav><ul><li>Home</li></ul></nav>\n}",
+        "component Navbar() {\n  view: <nav><ul><li>Home</li></ul></nav>\n}",
     ),
     (
         "island",
         "Counter",
-        "island Counter {\n  state count: int = 0\n  ret <button onClick={|| self.count += 1}>{self.count}</button>\n}",
+        "component Counter() {\n  state count: int = 0\n  view: <button on:click={|| count = count + 1}>{count}</button>\n}",
     ),
     (
         "page",
         "Dashboard",
-        "@route(\"/dash\")\npage Dashboard {\n  ret <main><h1>Dashboard</h1><Counter /></main>\n}",
+        "@route(\"/dash\")\ncomponent Dashboard() {\n  view: <main><h1>Dashboard</h1><Counter /></main>\n}",
     ),
     (
         "@query",
@@ -73,6 +73,10 @@ pub(crate) fn generate_web_construct_pairs(
         let line = json!({
             "prompt": prompt,
             "response": snippet,
+            "messages": [
+                {"role": "user", "content": prompt},
+                {"role": "assistant", "content": snippet}
+            ],
             "category": format!("vox.web.{}", construct),
             "format": "vox_organic",
             "schema_version": "vox_dogfood_v1",

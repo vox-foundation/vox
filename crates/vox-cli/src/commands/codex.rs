@@ -2,19 +2,54 @@
 
 use anyhow::Context;
 use std::path::PathBuf;
-use vox_db::codex_legacy::{
+use vox_db::legacy::codex::{
     LegacyVerification, export_legacy_jsonl, import_legacy_jsonl, verify_legacy_store,
 };
-use vox_db::legacy_import_extras::{import_orchestrator_memory_dir, import_skill_bundle_json_file};
+use vox_db::legacy::import_extras::{
+    import_orchestrator_memory_dir, import_skill_bundle_json_file,
+};
 use vox_db::{Codex, DbConfig, StoreError};
 
 fn resolve_config() -> anyhow::Result<DbConfig> {
     DbConfig::resolve_canonical().map_err(anyhow::Error::msg)
 }
 
+fn redacted_canonical_config_summary(config: &DbConfig) -> String {
+    match config {
+        DbConfig::Remote { url, .. } => {
+            let host = url
+                .split("//")
+                .nth(1)
+                .map(|h| h.split('/').next().unwrap_or("?").to_string())
+                .unwrap_or_else(|| "?".to_string());
+            format!("remote(libsql_host={host})")
+        }
+        DbConfig::Local { path } => format!("local(path={path})"),
+        DbConfig::Memory => "memory".to_string(),
+        #[allow(unreachable_patterns)]
+        _ => "embedded_replica".to_string(),
+    }
+}
+
 /// Inspect schema version and Codex reactivity tables.
 pub async fn verify() -> anyhow::Result<()> {
     let config = resolve_config()?;
+    println!(
+        "workspace_journey_store: {:?} (repo MCP / interactive default; see VOX_WORKSPACE_JOURNEY_STORE)",
+        vox_db::workspace_journey_store_mode_from_env()
+    );
+    println!(
+        "this_command_uses: canonical user-global Codex ({})",
+        redacted_canonical_config_summary(&config)
+    );
+    println!(
+        "repository_baseline: version={} digest_hex={}",
+        vox_db::schema::BASELINE_VERSION,
+        vox_db::schema::schema_baseline_digest_hex()
+    );
+    println!(
+        "training_telemetry_sidecar: not_probed_here — see docs/src/operations/voxdb-cutover-runbook.md when primary DB is legacy"
+    );
     let db = match Codex::connect(config).await {
         Ok(db) => db,
         Err(StoreError::LegacySchemaChain { max_version }) => {
@@ -37,7 +72,7 @@ pub async fn verify() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Write [`vox_db::codex_legacy::LEGACY_EXPORT_TABLES`] rows as JSONL.
+/// Write [`vox_db::legacy::codex::LEGACY_EXPORT_TABLES`] rows as JSONL.
 ///
 /// Uses a connection that **skips** baseline migration so pre-baseline databases can still be dumped.
 pub async fn export_legacy(out: &PathBuf) -> anyhow::Result<()> {

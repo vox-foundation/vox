@@ -2,15 +2,8 @@
 name = "vox-scientia-social"
 version.workspace = true
 edition.workspace = true
-description = "Scientia social distribution adapters and syndication outcomes."
-
-[features]
-default = []
-scientia-reddit = []
-scientia-youtube = []
+license.workspace = true
 
 [dependencies]
-vox-publisher = { workspace = true }
-
-[lints]
-workspace = true
+vox-publisher = { path = "../vox-publisher", default-features = false }
+workspace-hack = { workspace = true }

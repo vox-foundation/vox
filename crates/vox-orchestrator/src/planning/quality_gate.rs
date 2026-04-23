@@ -1,55 +1,41 @@
 use crate::orchestrator::OrchestratorError;
 use crate::planning::PlanNode;
+use crate::planning::plan_adequacy::orchestrator_node_text_findings;
+use crate::types::FileAffinity;
 
-fn danger_keywords() -> &'static [&'static str] {
-    &[
-        "rm -rf",
-        "delete all",
-        "drop database",
-        "truncate table",
-        "force push",
-        "chmod 777",
-        "format c:",
-        "mkfs",
-        "dd if=",
-    ]
+fn push_unique(out: &mut Vec<&'static str>, code: &'static str) {
+    if !out.contains(&code) {
+        out.push(code);
+    }
 }
 
-fn vague_phrases() -> &'static [&'static str] {
-    &[
-        "fix stuff",
-        "clean up",
-        "misc",
-        "various",
-        "todo",
-        "something",
-        "somehow",
-        "refactor everything",
-        "placeholder",
-        "tbd",
-        "stub",
-    ]
-}
-
-fn node_findings(node: &PlanNode) -> Vec<&'static str> {
+/// Placeholder paths in `file_manifest` (aligned with MCP task `files` / plan adequacy cues).
+fn file_manifest_placeholder_findings(manifest: &[FileAffinity]) -> Vec<&'static str> {
     let mut out = Vec::new();
-    let dl = node.description.to_ascii_lowercase();
-    if node.description.trim().len() < 12 {
-        out.push("vague_short");
-    }
-    for phrase in vague_phrases() {
-        if dl.contains(phrase) {
-            out.push("vague_phrase");
-            break;
+    for fa in manifest {
+        let lossy = fa.path.to_string_lossy();
+        if lossy.trim().is_empty() {
+            push_unique(&mut out, "manifest_empty_path");
+            continue;
         }
-    }
-    for kw in danger_keywords() {
-        if dl.contains(kw) {
-            out.push("risk_destructive");
-            break;
+        let stem_is_tbd = lossy.trim().eq_ignore_ascii_case("tbd");
+        let name_tbd = fa
+            .path
+            .file_name()
+            .is_some_and(|n| n.eq_ignore_ascii_case("tbd"));
+        if stem_is_tbd || name_tbd {
+            push_unique(&mut out, "tbd_placeholder");
         }
     }
     out
+}
+
+fn node_findings(node: &PlanNode) -> Vec<&'static str> {
+    let mut v = orchestrator_node_text_findings(&node.description);
+    for code in file_manifest_placeholder_findings(&node.execution_policy.file_manifest) {
+        push_unique(&mut v, code);
+    }
+    v
 }
 
 pub fn validate_plan_nodes(nodes: &[PlanNode]) -> Result<(), OrchestratorError> {
@@ -85,4 +71,55 @@ pub fn validate_plan_nodes(nodes: &[PlanNode]) -> Result<(), OrchestratorError> 
         )));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::planning::{ExecutionPolicy, PlanStatus};
+    use crate::types::FileAffinity;
+
+    fn sample_node(desc: &str, manifest: Vec<FileAffinity>) -> PlanNode {
+        PlanNode {
+            node_id: "n1".into(),
+            description: desc.into(),
+            depends_on: vec![],
+            status: PlanStatus::Pending,
+            execution_policy: ExecutionPolicy {
+                file_manifest: manifest,
+                ..Default::default()
+            },
+            workflow_invocation: None,
+        }
+    }
+
+    #[test]
+    fn manifest_tbd_path_blocked() {
+        let n = sample_node(
+            "Implement the requested feature with tests and verification steps included.",
+            vec![FileAffinity::write("crates/demo/tbd")],
+        );
+        assert!(validate_plan_nodes(std::slice::from_ref(&n)).is_err());
+    }
+
+    #[test]
+    fn manifest_empty_path_blocked() {
+        let n = sample_node(
+            "Implement the requested feature with tests and verification steps included.",
+            vec![FileAffinity::read("")],
+        );
+        assert!(validate_plan_nodes(std::slice::from_ref(&n)).is_err());
+    }
+
+    #[test]
+    fn manifest_tbd_allowed_with_force_risky_reason() {
+        let mut n = sample_node(
+            "Implement the requested feature with tests and verification steps included.",
+            vec![FileAffinity::write("tbd")],
+        );
+        n.execution_policy.force_risky = true;
+        n.execution_policy.force_risky_reason =
+            Some("Reviewer approved TBD path for spike.".into());
+        assert!(validate_plan_nodes(std::slice::from_ref(&n)).is_ok());
+    }
 }

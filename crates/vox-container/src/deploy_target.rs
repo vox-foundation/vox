@@ -33,6 +33,10 @@ pub enum DeployTarget {
     Compose(ComposeTarget),
     /// Apply Kubernetes manifests and roll out the deployment.
     Kubernetes(KubernetesTarget),
+    /// Deploy to Fly.io using `flyctl`.
+    Fly(FlyTarget),
+    /// Deploy to Coolify using its API.
+    Coolify(CoolifyTarget),
 }
 
 /// Configuration for an OCI container deployment.
@@ -95,6 +99,28 @@ pub struct KubernetesTarget {
     pub replicas: Option<u32>,
 }
 
+/// Configuration for a Fly.io deployment.
+#[derive(Debug, Clone)]
+pub struct FlyTarget {
+    /// App name.
+    pub app_name: String,
+    /// Organization to deploy to.
+    pub org: Option<String>,
+    /// Region to deploy to.
+    pub region: Option<String>,
+    /// Project root to run `flyctl deploy` in.
+    pub project_root: PathBuf,
+}
+
+/// Configuration for a Coolify deployment.
+#[derive(Debug, Clone)]
+pub struct CoolifyTarget {
+    pub base_url: String,
+    pub token: String,
+    pub app_uuid: String,
+    pub force_rebuild: bool,
+}
+
 impl DeployTarget {
     /// Return a human-readable name for this target type.
     pub fn kind_name(&self) -> &'static str {
@@ -103,6 +129,8 @@ impl DeployTarget {
             Self::BareMetal(_) => "bare-metal",
             Self::Compose(_) => "compose",
             Self::Kubernetes(_) => "kubernetes",
+            Self::Fly(_) => "fly",
+            Self::Coolify(_) => "coolify",
         }
     }
 
@@ -116,6 +144,8 @@ impl DeployTarget {
             Self::BareMetal(cfg) => execute_bare_metal(cfg, dry_run),
             Self::Compose(cfg) => execute_compose(cfg, dry_run),
             Self::Kubernetes(cfg) => execute_kubernetes(cfg, dry_run),
+            Self::Fly(cfg) => execute_fly(cfg, dry_run),
+            Self::Coolify(cfg) => execute_coolify(cfg, dry_run),
         }
     }
 }
@@ -337,6 +367,8 @@ pub fn resolve_target_kind(
         "bare-metal" | "baremetal" | "systemd" => "bare-metal",
         "compose" | "docker-compose" | "podman-compose" => "compose",
         "k8s" | "kubernetes" | "kube" => "kubernetes",
+        "fly" | "flyio" => "fly",
+        "coolify" => "coolify",
         _ => "container", // auto defaults to container
     }
 }
@@ -407,4 +439,94 @@ mod tests {
         assert_eq!(t.context_dir, Path::new("/tmp"));
         assert_eq!(t.build_args, vec![("FOO".into(), "bar".into())]);
     }
+}
+// ─── Fly.io ──────────────────────────────────────────────────────────────────
+
+fn execute_fly(cfg: &FlyTarget, dry_run: bool) -> Result<()> {
+    println!("  Deploying to Fly.io: {}", cfg.app_name);
+    if dry_run {
+        println!("  [dry-run] would run: flyctl deploy");
+        return Ok(());
+    }
+
+    let fly_check = Command::new("flyctl").arg("version").output();
+    if fly_check.is_err() {
+        anyhow::bail!(
+            "flyctl is not installed. Please install it from https://fly.io/docs/flyctl/install/"
+        );
+    }
+
+    let fly_toml_path = cfg.project_root.join("fly.toml");
+    if !fly_toml_path.exists() {
+        println!("  [setup] No fly.toml found. Running flyctl launch...");
+        let mut launch_cmd = Command::new("flyctl");
+        launch_cmd
+            .arg("launch")
+            .arg("--no-deploy")
+            .arg("--name")
+            .arg(&cfg.app_name);
+
+        if let Some(ref org) = cfg.org {
+            launch_cmd.arg("--org").arg(org);
+        }
+        if let Some(ref region) = cfg.region {
+            launch_cmd.arg("--region").arg(region);
+        }
+
+        launch_cmd.current_dir(&cfg.project_root);
+
+        let launch_status = launch_cmd.status().context("Failed to run flyctl launch")?;
+        if !launch_status.success() {
+            anyhow::bail!("flyctl launch failed.");
+        }
+    }
+
+    println!("  [deploy] Running flyctl deploy...");
+    let mut deploy_cmd = Command::new("flyctl");
+    deploy_cmd.arg("deploy").current_dir(&cfg.project_root);
+
+    let deploy_status = deploy_cmd.status().context("Failed to run flyctl deploy")?;
+    if !deploy_status.success() {
+        anyhow::bail!("flyctl deploy failed.");
+    }
+
+    println!("  ✓ Successfully deployed to Fly.io!");
+    Ok(())
+}
+
+// ─── Coolify ─────────────────────────────────────────────────────────────────
+
+fn execute_coolify(cfg: &CoolifyTarget, dry_run: bool) -> Result<()> {
+    println!("  Deploying to Coolify: {}/{}", cfg.base_url, cfg.app_uuid);
+    if dry_run {
+        println!("  [dry-run] would trigger Coolify deployment via API");
+        return Ok(());
+    }
+
+    // This is a minimal implementation that triggers a deployment.
+    // In a real implementation, we might also push env vars, etc.
+    let url = format!(
+        "{}/api/v1/deploy?uuid={}{}",
+        cfg.base_url.trim_end_matches('/'),
+        cfg.app_uuid,
+        if cfg.force_rebuild { "&force=true" } else { "" }
+    );
+
+    let mut cmd = Command::new("curl");
+    cmd.args([
+        "-X",
+        "GET",
+        "-H",
+        &format!("Authorization: Bearer {}", cfg.token),
+        &url,
+    ]);
+
+    let output = cmd.output().context("Failed to run curl for Coolify API")?;
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        anyhow::bail!("Coolify API call failed: {}", err);
+    }
+
+    println!("  ✓ Deployment triggered successfully on Coolify.");
+    Ok(())
 }

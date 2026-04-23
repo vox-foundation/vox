@@ -1,0 +1,13 @@
+// setup.vox
+// Primary repository setup script.
+// Run via: `vox run scripts/setup.vox` or `cargo run -p vox-cli -- run scripts/setup.vox`
+
+println("Initializing Vox workspace setup...");
+println("1. Checking for existing configuration files...");
+
+// Additional setup like copying .env.example, creating directories,
+// or downloading test fixtures goes here natively in Vox script.
+
+println("Setup complete! You can now build Vox using standard Rust tooling:");
+println("  cargo build");
+println("  cargo run -p vox-cli -- <args>");

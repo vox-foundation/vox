@@ -35,7 +35,7 @@ impl GitHubProvider {
 
     /// Create with a custom API base (for GitHub Enterprise).
     pub fn with_base(token: impl Into<String>, api_base: &str) -> Result<Self, ForgeError> {
-        let client = reqwest::Client::builder()
+        let client = vox_reqwest_defaults::client_builder()
             .user_agent("vox-forge/0.1 (https://github.com/vox-lang/vox)")
             .build()
             .map_err(|e| ForgeError::Network(e.to_string()))?;
@@ -479,6 +479,156 @@ impl GitForgeProvider for GitHubProvider {
             },
         };
         Ok(event)
+    }
+
+    async fn create_release(
+        &self,
+        owner: &str,
+        repo: &str,
+        release: crate::types::NewRelease<'_>,
+    ) -> Result<String, ForgeError> {
+        let tag_name = release.tag_name;
+        // Optionally handle finding existing tags like octocrab did, but we just try to create for simplicity,
+        // or check first.
+        let check_url = format!(
+            "{}/repos/{owner}/{repo}/releases/tags/{tag_name}",
+            self.api_base
+        );
+        if let Ok(existing) = self.get_json(&check_url).await {
+            if let Some(url) = existing["html_url"].as_str() {
+                return Ok(url.to_string());
+            }
+        }
+
+        let url = format!("{}/repos/{owner}/{repo}/releases", self.api_base);
+        let payload = serde_json::json!({
+            "tag_name": release.tag_name,
+            "name": release.name,
+            "body": release.body,
+            "draft": release.draft
+        });
+        let v = self.post_json(&url, &payload).await?;
+        Ok(v["html_url"].as_str().unwrap_or("").to_string())
+    }
+
+    async fn create_discussion_or_issue(
+        &self,
+        owner: &str,
+        repo: &str,
+        req: crate::types::NewDiscussionOrIssue<'_>,
+    ) -> Result<String, ForgeError> {
+        let gql_url = if self.api_base == "https://api.github.com" {
+            "https://api.github.com/graphql".to_string()
+        } else {
+            format!("{}/graphql", self.api_base)
+        };
+
+        let category_name = req.category.ok_or_else(|| ForgeError::Unsupported {
+            forge: "GitHub".into(),
+            operation: "create_discussion without category".into(),
+        })?;
+
+        let q_repo = serde_json::json!({
+            "query": r#"query($o:String!,$n:String!){
+                repository(owner:$o,name:$n){
+                    id
+                    discussionCategories(first:25){
+                        nodes{ id name }
+                    }
+                }
+            }"#,
+            "variables": { "o": owner, "n": repo }
+        });
+
+        let resp = self
+            .client
+            .post(&gql_url)
+            .bearer_auth(&self.token)
+            .json(&q_repo)
+            .send()
+            .await
+            .map_err(|e| ForgeError::Network(e.to_string()))?;
+        if !resp.status().is_success() {
+            return Err(ForgeError::Http {
+                status: resp.status().as_u16(),
+                message: resp.text().await.unwrap_or_default(),
+            });
+        }
+        let body: Value = resp
+            .json()
+            .await
+            .map_err(|e| ForgeError::Network(e.to_string()))?;
+        if body.get("errors").is_some() {
+            return Err(ForgeError::Http {
+                status: 400,
+                message: body["errors"].to_string(),
+            });
+        }
+
+        let repo_id = body["data"]["repository"]["id"].as_str().unwrap_or("");
+        let nodes = body["data"]["repository"]["discussionCategories"]["nodes"]
+            .as_array()
+            .unwrap();
+
+        let cat_lower = category_name.to_lowercase();
+        let category_id = nodes
+            .iter()
+            .find(|n| {
+                n["name"]
+                    .as_str()
+                    .map(|s| s.to_lowercase() == cat_lower)
+                    .unwrap_or(false)
+            })
+            .and_then(|n| n["id"].as_str())
+            .ok_or_else(|| ForgeError::NotFound {
+                resource: format!("Category {category_name}"),
+            })?;
+
+        let mutation = serde_json::json!({
+            "query": r#"mutation($input:CreateDiscussionInput!){
+                createDiscussion(input:$input){
+                    discussion{ id url }
+                }
+            }"#,
+            "variables": {
+                "input": {
+                    "repositoryId": repo_id,
+                    "categoryId": category_id,
+                    "title": req.title,
+                    "body": req.body
+                }
+            }
+        });
+
+        let resp2 = self
+            .client
+            .post(&gql_url)
+            .bearer_auth(&self.token)
+            .json(&mutation)
+            .send()
+            .await
+            .map_err(|e| ForgeError::Network(e.to_string()))?;
+        if !resp2.status().is_success() {
+            return Err(ForgeError::Http {
+                status: resp2.status().as_u16(),
+                message: resp2.text().await.unwrap_or_default(),
+            });
+        }
+        let body2: Value = resp2
+            .json()
+            .await
+            .map_err(|e| ForgeError::Network(e.to_string()))?;
+        if body2.get("errors").is_some() {
+            return Err(ForgeError::Http {
+                status: 400,
+                message: body2["errors"].to_string(),
+            });
+        }
+        let url = body2["data"]["createDiscussion"]["discussion"]["url"]
+            .as_str()
+            .unwrap_or("")
+            .to_string();
+        Ok(url)
     }
 
     async fn health_check(&self) -> Result<Option<u32>, ForgeError> {

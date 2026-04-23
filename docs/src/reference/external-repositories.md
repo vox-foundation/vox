@@ -2,8 +2,10 @@
 title: "External repositories & workspace SSOT"
 description: "Official documentation for External repositories & workspace SSOT for the Vox language. Detailed technical reference, architecture guides"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # External repositories & workspace SSOT
@@ -27,6 +29,8 @@ Single source of truth for **repository identity**, **layout-derived affinity**,
 7. **Sessions** — JSONL sessions default to `.sessions/<repository_id>/` when using MCP `ServerState::new`; `SessionConfig.repository_id` is set so dual-written Codex `agent_sessions.task_snapshot` JSON includes the same tenant id.
 8. **Codex / Turso rows** — Repo-scoped *filesystem* paths use `repository_id`; optional future migrations may add a `repository_id` column (or composite keys) on Codex tables per ADR 004 — not required for MCP memory/session sharding above.
 9. **Agent scopes** — `.vox/agents/{name}.md` `scope:` lists are parsed by `vox_repository::load_agent_scopes`; task paths are checked with `normalize_task_path`.
+10. **Cross-repo working set** — Explicit polyrepo manifests live at `repo_root/.vox/repositories.yaml`; Vox does not ambient-scan the whole machine for unrelated clones.
+11. **Cross-repo refresh cache** — Re-resolved catalog snapshots and related metadata live under `repo_root/.vox/cache/repos/<repository_id>/`.
 
 ## MCP tools
 
@@ -39,6 +43,7 @@ Single source of truth for **repository identity**, **layout-derived affinity**,
 ## Config
 
 - **`VoxConfig::load_from_repo_root`** (`vox-config`) — Applies `repo_root/Vox.toml` before CWD `Vox.toml`, then env. Use when loading settings from a discovered repository root.
+- **Cross-repo catalog manifest** — `.vox/repositories.yaml` is the local-first workspace manifest for cataloged repositories. It may include local roots plus remote adapter descriptors (`remote_mcp`, `remote_git_host`, `remote_search_service`) without weakening single-repo path safety.
 
 ## Crates
 
@@ -50,9 +55,24 @@ Single source of truth for **repository identity**, **layout-derived affinity**,
 | `vox-orchestrator` | `load_from_config` / `AffinityGroupRegistry::detect_from_repository_layout`, sessions, memory config consumed by MCP. |
 | `vox-mcp` | `ServerState::repository`, git/compiler/task/repo_index wiring. Included in the root workspace (`cargo check --workspace` / CI). |
 
+## Cross-repo catalog
+
+Use the repo catalog when you want one operator workflow to query several repositories without rebinding the MCP server root.
+
+Current policy:
+
+- catalog membership is explicit
+- each local entry resolves into its own `RepositoryContext`
+- remote entries are adapter metadata first, query backends later
+- cross-repo paths stay per-repository; there is no shared global path namespace
+
+See also: [Cross-repo querying and observability](../architecture/cross-repo-query-observability.md).
+
 ## Related
 
 - [`orchestration-unified.md`](orchestration-unified.md) — MCP/DeI plan alignment, migration flags, benchmark telemetry env.
 - [`mens.md`](populi.md) — `VOX_MESH_*` contract, local registry, HTTP control plane.
 - ADR 004 (`docs/src/adr/004-codex-arca-turso.md`) — Codex env and Turso.
 - `AGENTS.md` §2.2.2 — short agent-oriented summary.
+
+

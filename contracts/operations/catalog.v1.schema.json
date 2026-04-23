@@ -1,0 +1,134 @@
+{
+  "x-vox-version": 1,
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vox-lang.org/contracts/operations/catalog.v1.schema.json",
+  "title": "operations catalog v1",
+  "type": "object",
+  "required": ["schema_version", "operations"],
+  "properties": {
+    "x-vox-version": { "type": "integer" },
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "operations": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/operationRow" }
+    },
+    "capability": { "$ref": "#/definitions/capabilityBlock" },
+    "exemptions": { "$ref": "#/definitions/exemptions" }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "capabilityBlock": {
+      "type": "object",
+      "properties": {
+        "auto_mcp_capabilities": { "type": "boolean", "default": true },
+        "auto_cli_capabilities": { "type": "boolean", "default": true },
+        "runtime_builtin_maps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["namespace", "method", "capability_id"],
+            "properties": {
+              "namespace": { "type": "string" },
+              "method": { "type": "string" },
+              "capability_id": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "exemptions": { "$ref": "#/definitions/exemptions" }
+      },
+      "additionalProperties": false
+    },
+    "exemptions": {
+      "type": "object",
+      "properties": {
+        "mcp_tools": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "cli_paths": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "mcpProjection": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "http_read_role_eligible": { "type": "boolean", "default": false },
+        "tier": {
+          "type": "string",
+          "enum": ["core", "dev", "advanced"],
+          "default": "core"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cliProjection": {
+      "type": "object",
+      "required": ["path", "status"],
+      "properties": {
+        "path": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "deprecated", "retired", "internal"]
+        },
+        "latin_ns": { "type": ["string", "null"] },
+        "handler_rust": { "type": ["string", "null"] },
+        "feature_gate": { "type": ["string", "null"] },
+        "catalog_group": { "type": ["string", "null"] },
+        "ref_cli_required": { "type": ["boolean", "null"] },
+        "reachability_required": { "type": ["boolean", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "operationRow": {
+      "type": "object",
+      "required": ["id", "title", "description", "product_lane"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "description_human": { "type": ["string", "null"] },
+        "product_lane": {
+          "type": "string",
+          "enum": ["app", "workflow", "ai", "interop", "data", "platform"]
+        },
+        "intent_tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "side_effect_class": { "type": ["string", "null"] },
+        "scope_kind": { "type": ["string", "null"] },
+        "reversible": { "type": ["boolean", "null"] },
+        "requires_repo": { "type": ["boolean", "null"] },
+        "preferred_for_models": { "type": ["boolean", "null"] },
+        "human_takeover_friendly": { "type": ["boolean", "null"] },
+        "mens_planner_visible": { "type": ["boolean", "null"] },
+        "canonical_name": { "type": ["string", "null"] },
+        "latin_aliases": {
+          "type": ["array", "null"],
+          "items": { "type": "string", "pattern": "^[a-z]+(-[a-z]+)*$" },
+          "description": "Strictly lowercase, 1-3 syllables preferred alias."
+        },
+        "mcp": { "anyOf": [ { "$ref": "#/definitions/mcpProjection" }, { "type": "null" }] },
+        "cli": { "anyOf": [ { "$ref": "#/definitions/cliProjection" }, { "type": "null" }] }
+      },
+      "additionalProperties": false
+    }
+  }
+}

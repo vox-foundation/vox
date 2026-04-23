@@ -8,17 +8,19 @@ description = "Training data contracts, preflight, corpus SSOT, and Mens dataset
 
 [features]
 database = ["dep:vox-db", "dep:turso"]
-parser-verify = ["dep:vox-compiler"]
+parser-verify = ["ast-extract"]
+# Walk parsed `Module` declarations for Mens `.vox` pair extraction (avoids lexer drift vs heuristics).
+ast-extract = []
 
 [dependencies]
-vox-db = { path = "../vox-db", optional = true }
+vox-db = { workspace = true, optional = true }
 turso = { workspace = true, optional = true }
-vox-compiler = { workspace = true, optional = true }
+vox-compiler.workspace = true
 anyhow = { workspace = true }
-vox-repository = { path = "../vox-repository" }
+vox-repository.workspace = true
 vox-bounded-fs = { workspace = true }
-vox-mcp-meta = { path = "../vox-mcp-meta" }
-vox-mcp-registry = { path = "../vox-mcp-registry" }
+vox-mcp-meta.workspace = true
+vox-mcp-registry.workspace = true
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -26,7 +28,10 @@ serde_yaml = { workspace = true }
 regex = { workspace = true }
 rand = { workspace = true }
 tracing = { workspace = true }
+rayon = { workspace = true }
 xxhash-rust = { workspace = true }
+syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }
+quote = "1.0"
 
 [build-dependencies]
 syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }

@@ -1,8 +1,8 @@
 //! Review-related helpers: DeI daemon review is invoked from **`vox mens review`** (`mens-dei`); GitHub CodeRabbit flows are **`vox review coderabbit`** (`coderabbit`).
 
-#[cfg(feature = "mens-dei")]
+#[cfg(feature = "dei")]
 mod dei;
-#[cfg(feature = "mens-dei")]
+#[cfg(feature = "dei")]
 pub use dei::run;
 
 #[cfg(feature = "coderabbit")]

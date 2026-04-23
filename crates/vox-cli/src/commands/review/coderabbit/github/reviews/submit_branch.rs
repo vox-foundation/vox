@@ -6,7 +6,7 @@ use anyhow::{Context, Result};
 use vox_forge::github::GitHubProvider;
 use vox_forge::{GitForgeProvider, NewChangeRequest};
 
-use super::super::api::{github_token, owner_repo_from_path};
+use super::super::api::{forge_token, owner_repo_from_path};
 use super::super::comments::trigger_coderabbit;
 
 pub async fn submit(
@@ -71,7 +71,7 @@ pub async fn submit(
         anyhow::bail!("git push failed for {}", branch_name);
     }
 
-    let token = github_token()?;
+    let token = forge_token()?;
     let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let repo_info = provider

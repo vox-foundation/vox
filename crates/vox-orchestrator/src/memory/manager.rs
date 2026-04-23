@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt::Write as FmtWrite;
 use std::fs;
+use std::io::Write;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -9,11 +10,10 @@ use serde::{Deserialize, Serialize};
 use crate::types::AgentId;
 
 use super::config::MemoryConfig;
-use super::daily_log::DailyLog;
 use super::error::MemoryError;
 use super::long_term::LongTermMemory;
 use super::search_hit::SearchHit;
-use super::time::{today_str, yesterday_str};
+use super::time::today_str;
 
 /// A quick in-memory cache of a recently stored fact.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,12 +37,10 @@ pub struct MemoryFact {
 /// key-value pairs to persist them durably.
 ///
 /// When a `VoxDb` is attached via [`MemoryManager::with_db`], every `persist_fact` also
-/// writes to the `agent_memory` table, and `recall` falls back to the DB
-/// when the file-based lookup misses. Files are the hot cache; VoxDB is
-/// the durable single source of truth.
+/// writes to Codex `memories`. Recall order: **in-memory cache** (recent `persist_fact`),
+/// **MEMORY.md**, then **Codex** (via [`Self::lookup_fact_by_key`] — sync [`Self::recall`] stops after file).
 pub struct MemoryManager {
     pub(super) config: MemoryConfig,
-    pub(super) today_log: DailyLog,
     pub(super) long_term: LongTermMemory,
     /// In-memory cache of recently stored facts (bounded).
     pub(super) cache: Vec<MemoryFact>,
@@ -51,18 +49,15 @@ pub struct MemoryManager {
     /// Optional VoxDB backing store for SSOT persistence.
     pub(super) db: Option<Arc<vox_db::VoxDb>>,
     /// Optional service for generating embeddings.
-    pub(super) embedding_service: Option<Arc<crate::services::embeddings::EmbeddingService>>,
+    pub(super) embedding_service: Option<Arc<vox_search::EmbeddingService>>,
 }
 
 impl MemoryManager {
     /// Create a `MemoryManager` using the given config (file-only mode).
     pub fn new(config: MemoryConfig) -> Result<Self, MemoryError> {
-        let today = today_str();
-        let today_log = DailyLog::open(&config.log_dir, &today)?;
         let long_term = LongTermMemory::open(&config.memory_md_path)?;
         Ok(Self {
             config,
-            today_log,
             long_term,
             cache: Vec::new(),
             cache_limit: 256,
@@ -71,9 +66,24 @@ impl MemoryManager {
         })
     }
 
-    /// Create with defaults (uses `./memory/` directory).
+    /// Create with defaults (uses `./memory/` directory, account `"global"`).
     pub fn with_defaults() -> Result<Self, MemoryError> {
         Self::new(MemoryConfig::default())
+    }
+
+    /// Convenience factory for a specific account under `base_dir`.
+    ///
+    /// Equivalent to `MemoryManager::new(MemoryConfig::for_account(account_id, base_dir))`.
+    pub fn for_account(
+        account_id: impl Into<String>,
+        base_dir: impl Into<std::path::PathBuf>,
+    ) -> Result<Self, MemoryError> {
+        Self::new(MemoryConfig::for_account(account_id, base_dir))
+    }
+
+    /// Return the `account_id` this manager is scoped to.
+    pub fn account_id(&self) -> &str {
+        &self.config.account_id
     }
 
     /// Attach a VoxDb for dual-write persistence (SSOT mode).
@@ -83,10 +93,7 @@ impl MemoryManager {
     }
 
     /// Attach an EmbeddingService for vector persistence.
-    pub fn with_embeddings(
-        mut self,
-        service: Arc<crate::services::embeddings::EmbeddingService>,
-    ) -> Self {
+    pub fn with_embeddings(mut self, service: Arc<vox_search::EmbeddingService>) -> Self {
         self.embedding_service = Some(service);
         self
     }
@@ -97,16 +104,43 @@ impl MemoryManager {
     }
 
     /// Set the embedding service after construction.
-    pub fn set_embedding_service(
-        &mut self,
-        service: Arc<crate::services::embeddings::EmbeddingService>,
-    ) {
+    pub fn set_embedding_service(&mut self, service: Arc<vox_search::EmbeddingService>) {
         self.embedding_service = Some(service);
     }
 
     /// Append a note to today's daily log.
     pub fn log(&self, entry: &str) -> Result<(), MemoryError> {
-        self.today_log.append(entry)
+        let path = self.config.log_dir.join(format!("{}.md", today_str()));
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(MemoryError::Io)?;
+        }
+        let mut f = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)
+            .map_err(MemoryError::Io)?;
+        writeln!(f, "{entry}").map_err(MemoryError::Io)?;
+        f.sync_all().map_err(MemoryError::Io)?;
+
+        if let Some(db) = &self.db {
+            let db = db.clone();
+            let entry = entry.to_string();
+            let acc = self.config.account_id.clone();
+            tokio::spawn(async move {
+                let _ = db
+                    .save_memory(vox_db::SaveMemoryParams {
+                        agent_id: "global",
+                        session_id: "global",
+                        memory_type: "daily_log",
+                        content: &entry,
+                        metadata: Some(&format!("{{\"account_id\":\"{acc}\"}}")),
+                        importance: 1.0,
+                        vcs_snapshot_id: None,
+                    })
+                    .await;
+            });
+        }
+        Ok(())
     }
 
     /// Persist a key-value fact to MEMORY.md, in-memory cache, and VoxDB.
@@ -133,11 +167,15 @@ impl MemoryManager {
             let embed_svc = self.embedding_service.clone();
             let m_url = media_url.map(|s| s.to_string());
             let m_type = media_type.map(|s| s.to_string());
+            let account_id_str = self.config.account_id.clone();
 
             tokio::spawn(async move {
-                // 1. Save standard agent_memory fact
+                // 1. Save standard agent_memory fact (tagged with account_id for tenant filtering)
                 let fact_line = format!("{k}: {v}");
-                let fact_meta = format!("{{\"key\":\"{k}\"}}");
+                let fact_meta = format!(
+                    "{{\"key\":\"{k}\",\"account_id\":\"{acc}\"}}",
+                    acc = account_id_str
+                );
                 let _ = db
                     .save_memory(vox_db::SaveMemoryParams {
                         agent_id: &agent_str,
@@ -195,20 +233,64 @@ impl MemoryManager {
         Ok(())
     }
 
-    /// Retrieve a fact from MEMORY.md by key, falling back to VoxDB.
-    pub fn recall(&self, key: &str) -> Result<Option<String>, MemoryError> {
-        // File-first (hot cache)
-        let file_result = self.long_term.get(key)?;
-        if file_result.is_some() {
-            return Ok(file_result);
-        }
-        // DB fallback — check in-memory cache for DB-sourced facts
+    /// Exact key lookup: **cache** → **MEMORY.md** → Codex `memories` (`global` / type `fact`).
+    ///
+    /// Used by MCP and other tooling that needs a durable key-value hit. Broader context retrieval
+    /// should use the RAG / retrieval bundle path where appropriate.
+    pub async fn lookup_fact_by_key(&self, key: &str) -> Result<Option<String>, MemoryError> {
         for fact in self.cache.iter().rev() {
             if fact.key == key {
                 return Ok(Some(fact.value.clone()));
             }
         }
+        if let Ok(Some(v)) = self.long_term.get(key) {
+            return Ok(Some(v));
+        }
+        let Some(db) = &self.db else {
+            return Ok(None);
+        };
+        let entries = db
+            .recall_memory("global", Some("fact"), 500, None)
+            .await
+            .unwrap_or_default();
+        for entry in entries {
+            if let Some((k, v)) = entry.content.split_once(": ") {
+                if k == key {
+                    tracing::debug!(
+                        target: "vox_orchestrator::memory",
+                        key,
+                        "lookup_fact_by_key: hit Codex memories"
+                    );
+                    return Ok(Some(v.to_string()));
+                }
+            }
+        }
         Ok(None)
+    }
+
+    /// Retrieve a fact: **cache** → **MEMORY.md**. Does not query Codex; use [`Self::lookup_fact_by_key`] for DB fallback.
+    #[deprecated(
+        since = "0.3.0",
+        note = "Direct explicit memory recall queries should transition to RAG. See Path C documentation."
+    )]
+    pub fn recall(&self, key: &str) -> Result<Option<String>, MemoryError> {
+        tracing::warn!("Deprecated recall() called for key: {}", key);
+        for fact in self.cache.iter().rev() {
+            if fact.key == key {
+                return Ok(Some(fact.value.clone()));
+            }
+        }
+        self.long_term.get(key)
+    }
+
+    /// Cache → **MEMORY.md** → Codex `memories` (agent `global`, type `fact`).
+    #[deprecated(
+        since = "0.3.0",
+        note = "Use `lookup_fact_by_key` instead; this alias remains for external callers."
+    )]
+    pub async fn recall_async(&self, key: &str) -> Result<Option<String>, MemoryError> {
+        tracing::warn!("Deprecated recall_async() called for key: {}", key);
+        self.lookup_fact_by_key(key).await
     }
 
     /// Sync all MEMORY.md sections to VoxDB.
@@ -378,34 +460,6 @@ impl MemoryManager {
     pub fn search(&self, query: &str) -> Result<Vec<SearchHit>, MemoryError> {
         let q = query.to_lowercase();
         let mut hits = Vec::new();
-
-        // Search today's log
-        let today = self.today_log.read()?;
-        for (i, line) in today.lines().enumerate() {
-            if line.to_lowercase().contains(&q) {
-                hits.push(SearchHit {
-                    source: format!("daily:{}", today_str()),
-                    line: i + 1,
-                    content: line.to_string(),
-                });
-            }
-        }
-
-        // Search yesterday's log
-        let yesterday = DailyLog::open(&self.config.log_dir, &yesterday_str())?;
-        if yesterday.exists() {
-            let content = yesterday.read()?;
-            for (i, line) in content.lines().enumerate() {
-                if line.to_lowercase().contains(&q) {
-                    hits.push(SearchHit {
-                        source: format!("daily:{}", yesterday_str()),
-                        line: i + 1,
-                        content: line.to_string(),
-                    });
-                }
-            }
-        }
-
         // Search MEMORY.md
         let memory_content = self.long_term.read_all()?;
         for (i, line) in memory_content.lines().enumerate() {
@@ -415,6 +469,20 @@ impl MemoryManager {
                     line: i + 1,
                     content: line.to_string(),
                 });
+            }
+        }
+
+        let log_name = format!("{}.md", today_str());
+        let log_path = self.config.log_dir.join(&log_name);
+        if let Ok(log_content) = vox_bounded_fs::read_utf8_path_capped(&log_path) {
+            for (i, line) in log_content.lines().enumerate() {
+                if line.to_lowercase().contains(&q) {
+                    hits.push(SearchHit {
+                        source: log_name.clone(),
+                        line: i + 1,
+                        content: line.to_string(),
+                    });
+                }
             }
         }
 
@@ -452,29 +520,6 @@ impl MemoryManager {
             }
         }
 
-        // Yesterday's log
-        let yesterday = yesterday_str();
-        if let Ok(ylog) = DailyLog::open(&self.config.log_dir, &yesterday) {
-            if ylog.exists() {
-                if let Ok(content) = ylog.read() {
-                    if !content.trim().is_empty() {
-                        out.push_str(&format!("## Yesterday ({yesterday})\n\n"));
-                        out.push_str(&content);
-                        out.push_str("\n\n");
-                    }
-                }
-            }
-        }
-
-        // Today's log
-        if let Ok(content) = self.today_log.read() {
-            if !content.trim().is_empty() {
-                out.push_str(&format!("## Today ({})\n\n", today_str()));
-                out.push_str(&content);
-                out.push('\n');
-            }
-        }
-
         out
     }
 
@@ -494,10 +539,11 @@ impl MemoryManager {
             let _ = write!(summary, "{key}, ");
         }
         if count > 0 {
-            let _ = self.today_log.append(&format!(
+            let summary_str = format!(
                 "[pre-compaction flush] Persisted {count} facts: {}",
                 summary.trim_end_matches(", ")
-            ));
+            );
+            let _ = self.log(&summary_str);
         }
         Ok(count)
     }

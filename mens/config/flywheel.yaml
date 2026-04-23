@@ -1,0 +1,27 @@
+# Flywheel configuration for automated training (Wave 4)
+# Default values from 2026 implementation plan.
+
+# Minimum new dogfood records before triggering a corpus refresh.
+sample_floor: 500
+
+# Must exceed this semantic diversity score (0.0-1.0) before triggering a training run.
+# Measures the fraction of unique AST structures in the new data.
+min_ast_diversity: 0.40
+
+# Maximum hours between forced check-ins even if sample floor isn't hit.
+max_interval_hours: 168
+
+# Enable automatic training trigger (Careful: requires GPU resource availability).
+auto_train: false
+
+# Retention policy for dataset snapshots (number of snapshots to keep).
+snapshot_retention: 10
+
+# Domain-specific overrides (Dynamic Flywheel Orchestration)
+domains:
+  rust-expert:
+    sample_floor: 1000
+    min_ast_diversity: 0.35
+  agents:
+    sample_floor: 300
+    min_ast_diversity: 0.50

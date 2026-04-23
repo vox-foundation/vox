@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use crate::contract::validate_github_repo;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UnifiedNewsItem {
     pub id: String,
     pub title: String,
@@ -23,19 +23,120 @@ pub struct UnifiedNewsItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SyndicationConfig {
-    pub twitter: Option<TwitterConfig>,
-    pub github: Option<GitHubConfig>,
-    pub open_collective: Option<OpenCollectiveConfig>,
-    pub reddit: Option<RedditConfig>,
-    pub hacker_news: Option<HackerNewsConfig>,
-    pub youtube: Option<YouTubeConfig>,
-    pub crates_io: Option<CratesIoConfig>,
-    #[serde(default)]
-    pub distribution_policy: DistributionPolicyConfig,
+    // ── Enable/Disable ──────────────────────────────────────────────
     #[serde(default = "default_rss")]
     pub rss: bool,
     #[serde(default)]
+    pub hacker_news: bool,
+    #[serde(default)]
+    pub researchgate: bool,
+    #[serde(default)]
+    pub linkedin: bool,
+
+    // ── Social status/payload (Converged SSOT) ──────────────────────
+    #[serde(default)]
+    pub twitter: serde_json::Value,
+    #[serde(default)]
+    pub bluesky: serde_json::Value,
+    #[serde(default)]
+    pub mastodon: serde_json::Value,
+    #[serde(default)]
+    pub discord: serde_json::Value,
+
+    // ── Social broadcast (Legacy list) ──────────────────────────────
+    #[serde(default)]
+    pub social: Vec<SocialChannel>,
+
+    #[serde(default)]
+    pub short_summary: Option<String>,
+
+    // ── Platform targets ────────────────────────────────────────────
+    #[serde(default)]
+    pub reddit: Option<RedditConfig>,
+    #[serde(default)]
+    pub youtube: Option<YouTubeConfig>,
+    #[serde(default)]
+    pub open_collective: Option<OpenCollectiveConfig>,
+    #[serde(default)]
+    pub forge: Option<ForgeConfig>,
+    #[serde(default)]
+    pub crates_io: Option<CratesIoConfig>,
+
+    // ── Scholarly ────────────────────────────────────────────────────
+    #[serde(default)]
+    pub scholarly: Vec<String>,
+
+    // ── Pre-existing Policy / Legacy Compat ──────────────────────────
+    #[serde(default)]
+    pub distribution_policy: DistributionPolicyConfig,
+    #[serde(default)]
     pub dry_run: bool,
+}
+
+impl SyndicationConfig {
+    pub fn is_active(&self, channel: SocialChannel) -> bool {
+        let val = match channel {
+            SocialChannel::Twitter => &self.twitter,
+            SocialChannel::Bluesky => &self.bluesky,
+            SocialChannel::Mastodon => &self.mastodon,
+            SocialChannel::Discord => &self.discord,
+        };
+
+        if val.is_boolean() {
+            return val.as_bool().unwrap_or(false);
+        }
+        if val.is_object() {
+            return true;
+        }
+
+        // Fallback to the social vec if the root key is null/missing
+        self.social.contains(&channel)
+    }
+
+    pub fn twitter_override(&self) -> Option<TwitterOverride> {
+        serde_json::from_value(self.twitter.clone()).ok()
+    }
+
+    pub fn bluesky_override(&self) -> Option<BlueskyOverride> {
+        serde_json::from_value(self.bluesky.clone()).ok()
+    }
+
+    pub fn mastodon_override(&self) -> Option<MastodonOverride> {
+        serde_json::from_value(self.mastodon.clone()).ok()
+    }
+
+    pub fn discord_override(&self) -> Option<DiscordOverride> {
+        serde_json::from_value(self.discord.clone()).ok()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SocialChannel {
+    Twitter,
+    Bluesky,
+    Mastodon,
+    Discord,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct BlueskyOverride {
+    // Reserved for future use (facets, custom lexicon fields, etc.)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct DiscordOverride {
+    pub message: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MastodonOverride {
+    pub visibility: Option<String>,
+    pub language: Option<String>,
+    pub spoiler_text: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TwitterOverride {
+    pub thread: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -71,6 +172,9 @@ pub struct ChannelPolicyConfig {
     /// Optional template profile key consumed by template derivation.
     #[serde(default)]
     pub template_profile: Option<String>,
+    /// Optional override for the auto-derived text for this specific platform.
+    #[serde(default)]
+    pub text_override: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -91,24 +195,18 @@ fn default_true() -> bool {
     true
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TwitterConfig {
-    pub short_text: Option<String>,
-    #[serde(default)]
-    pub thread: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "PascalCase")]
-pub enum GitHubPostType {
+pub enum ForgePostType {
+    #[default]
     Release,
     Discussion,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GitHubConfig {
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ForgeConfig {
     pub repo: String,
-    pub post_type: GitHubPostType,
+    pub post_type: ForgePostType,
     #[serde(default)]
     pub release_tag: Option<String>,
     #[serde(default)]
@@ -117,23 +215,69 @@ pub struct GitHubConfig {
     pub discussion_category: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OpenCollectiveConfig {
     #[serde(default)]
     pub is_private: bool,
-    pub collective_slug: String,
+    #[serde(default)]
+    pub scheduled_publish_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum RedditPostKind {
+    #[default]
     Link,
     SelfPost,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct RedditConfig {
-    pub subreddit: String,
+    #[serde(default)]
+    pub subreddit: Option<String>,
+    #[serde(default)]
+    pub subreddits: Vec<RedditTarget>,
+    #[serde(default = "default_reddit_kind")]
+    pub kind: RedditPostKind,
+    #[serde(default)]
+    pub title_override: Option<String>,
+    #[serde(default)]
+    pub text_override: Option<String>,
+    #[serde(default)]
+    pub url_override: Option<String>,
+    #[serde(default)]
+    pub nsfw: bool,
+    #[serde(default)]
+    pub spoiler: bool,
+    #[serde(default = "default_true")]
+    pub send_replies: bool,
+}
+
+impl RedditConfig {
+    pub fn get_targets(&self) -> Vec<RedditTarget> {
+        let mut t = self.subreddits.clone();
+        if let Some(ref s) = self.subreddit {
+            let legacy = RedditTarget {
+                name: s.clone(),
+                kind: self.kind,
+                title_override: self.title_override.clone(),
+                text_override: self.text_override.clone(),
+                url_override: self.url_override.clone(),
+                nsfw: self.nsfw,
+                spoiler: self.spoiler,
+                send_replies: self.send_replies,
+            };
+            if !t.iter().any(|x| x.name == legacy.name) {
+                t.push(legacy);
+            }
+        }
+        t
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RedditTarget {
+    pub name: String,
     #[serde(default = "default_reddit_kind")]
     pub kind: RedditPostKind,
     #[serde(default)]
@@ -154,13 +298,14 @@ fn default_reddit_kind() -> RedditPostKind {
     RedditPostKind::Link
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum HackerNewsMode {
+    #[default]
     ManualAssist,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HackerNewsConfig {
     #[serde(default = "default_hn_mode")]
     pub mode: HackerNewsMode,
@@ -168,21 +313,25 @@ pub struct HackerNewsConfig {
     pub title_override: Option<String>,
     #[serde(default)]
     pub url_override: Option<String>,
+    /// First-comment text to display in the manual-assist output.
+    #[serde(default)]
+    pub comment_draft: Option<String>,
 }
 
 fn default_hn_mode() -> HackerNewsMode {
     HackerNewsMode::ManualAssist
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum YouTubePrivacyStatus {
+    #[default]
     Private,
     Unlisted,
     Public,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct YouTubeConfig {
     /// Repo-relative or absolute path to a local video payload for upload.
     pub video_asset_ref: String,
@@ -204,9 +353,13 @@ fn default_youtube_privacy() -> YouTubePrivacyStatus {
     YouTubePrivacyStatus::Private
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CratesIoConfig {
-    pub crates_to_update: Vec<String>,
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ResearchGateConfig {
+    /// Optional DOI of the publication to signal matching.
+    pub doi: Option<String>,
+    /// Whether user confirmed manual matching at researchgate.net.
+    #[serde(default)]
+    pub manual_confirmation: bool,
 }
 
 fn normalize_channel_key(raw: &str) -> String {
@@ -296,7 +449,7 @@ impl UnifiedNewsItem {
             Utc::now()
         };
 
-        if let Some(ref gh) = front.syndication.github {
+        if let Some(ref gh) = front.syndication.forge {
             validate_github_repo(&gh.repo)?;
         }
 
@@ -339,10 +492,10 @@ impl UnifiedNewsItem {
 
     pub fn validate(&self) -> anyhow::Result<()> {
         crate::contract::validate_news_id(&self.id)?;
-        if let Some(ref gh) = self.syndication.github {
+        if let Some(ref gh) = self.syndication.forge {
             validate_github_repo(&gh.repo)?;
             match gh.post_type {
-                GitHubPostType::Release => {
+                ForgePostType::Release => {
                     let tag = gh
                         .release_tag
                         .as_deref()
@@ -353,7 +506,7 @@ impl UnifiedNewsItem {
                         anyhow::bail!("release_tag must not contain slashes: {:?}", tag);
                     }
                 }
-                GitHubPostType::Discussion => {
+                ForgePostType::Discussion => {
                     let cat = gh
                         .discussion_category
                         .as_deref()
@@ -367,29 +520,7 @@ impl UnifiedNewsItem {
                 }
             }
         }
-        if let Some(ref oc) = self.syndication.open_collective
-            && oc.collective_slug.trim().is_empty()
-        {
-            anyhow::bail!("open_collective.collective_slug must not be empty");
-        }
-        if let Some(ref reddit) = self.syndication.reddit {
-            if reddit.subreddit.trim().is_empty() {
-                anyhow::bail!("reddit.subreddit must not be empty");
-            }
-            if let Some(url) = reddit.url_override.as_deref()
-                && !url.trim().is_empty()
-                && !(url.starts_with("http://") || url.starts_with("https://"))
-            {
-                anyhow::bail!("reddit.url_override must start with http:// or https://");
-            }
-        }
-        if let Some(ref hn) = self.syndication.hacker_news
-            && let Some(url) = hn.url_override.as_deref()
-            && !url.trim().is_empty()
-            && !(url.starts_with("http://") || url.starts_with("https://"))
-        {
-            anyhow::bail!("hacker_news.url_override must start with http:// or https://");
-        }
+
         if let Some(ref yt) = self.syndication.youtube
             && yt.video_asset_ref.trim().is_empty()
         {
@@ -493,7 +624,7 @@ syndication:
 body"#;
         let item = UnifiedNewsItem::parse(md, "nid").expect("parse");
         assert_eq!(item.topic_pack.as_deref(), Some("research_breakthrough"));
-        assert!(item.syndication.twitter.is_none());
+        assert!(!item.syndication.social.contains(&SocialChannel::Twitter));
         assert!(item.syndication.rss);
     }
 
@@ -524,4 +655,9 @@ body"#;
                 .contains_key("Twitter")
         );
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CratesIoConfig {
+    pub crates_to_update: Vec<String>,
 }

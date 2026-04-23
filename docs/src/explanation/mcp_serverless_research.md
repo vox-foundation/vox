@@ -2,13 +2,15 @@
 title: "Research Notes: Achieving Serverless-like Performance with MCP"
 description: "Official documentation for Research Notes: Achieving Serverless-like Performance with MCP for the Vox language."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Research Notes: Achieving Serverless-like Performance with MCP
 
 ## Context
-The goal is to analyze what can be learned from connectionless or "serverless" paradigms like UCP (Universal Commerce Protocol or conceptually connectionless protocols like UDP) to enhance the Model Context Protocol (MCP) in Vox. We want to decrease overhead and improve performance while maintaining the power and compatibility of the existing MCP standard.
+The goal is to analyze what can be learned from connectionless or "serverless" paradigms like UCP (Universal Commerce Protocol or conceptually connectionless protocols like UDP) -> enhance the Model Context Protocol (MCP) in Vox. We want to decrease overhead and improve performance while maintaining the power and compatibility of the existing MCP standard.
 
 ## Findings & Enhancements for MCP
 
@@ -52,3 +54,5 @@ The following tasks are broken down with roughly equal difficulty to advance our
 
 - [ ] **Task 5: Refine `check_search_index` in `vox-typeck`**
   - Implement the missing type-checking blocks for `SearchIndexDecl` to ensure database stability.
+
+

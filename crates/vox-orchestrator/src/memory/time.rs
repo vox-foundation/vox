@@ -11,6 +11,7 @@ pub(super) fn today_str() -> String {
 }
 
 /// Returns the previous date as `YYYY-MM-DD`.
+#[allow(dead_code)]
 pub(super) fn yesterday_str() -> String {
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -22,6 +23,7 @@ pub(super) fn yesterday_str() -> String {
 }
 
 /// Current HH:MM:SS timestamp.
+#[allow(dead_code)]
 pub(super) fn timestamp_hms() -> String {
     let secs = SystemTime::now()
         .duration_since(UNIX_EPOCH)

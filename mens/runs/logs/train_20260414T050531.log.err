@@ -1,0 +1,7 @@
+Error: This vox binary was not built with the 'gpu' feature.
+
+To enable it, rebuild with:
+
+  cargo build -p vox-cli --features gpu
+
+See: docs/src/reference/feature-builds.md

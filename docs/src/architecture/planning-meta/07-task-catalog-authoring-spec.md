@@ -2,8 +2,10 @@
 title: "Task catalog authoring spec"
 description: "Specification for writing atomic planning tasks with dependencies, weighting, acceptance evidence, and anti-foot-gun checks."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Task catalog authoring spec
@@ -157,4 +159,6 @@ This spec is accepted when:
 - new planning task lists use this schema,
 - review can deterministically accept/reject task completion,
 - ambiguous mega-tasks are reduced to atomic entries.
+
+
 

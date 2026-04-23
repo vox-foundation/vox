@@ -1,8 +1,8 @@
 // Pipeline integration — Web IR block 19 completion (OP-0291..OP-0303).
 
 const PIPELINE_CLASSIC_BOX_STYLE_SRC: &str = r#"
-@component fn Box() to Element {
-    ret <div class="x">"a"</div>
+component Box() {
+    view: <div class="x">"a"</div>
 }
 style {
     .x { color: "red" }
@@ -54,7 +54,7 @@ fn pipeline_integration_classic_style_emits_css_module_import() {
     });
 }
 
-/// OP-0297: same intent as OP-0291 — full `chatbot.vox` classic `@component fn` + top-level `style { }` emits CSS module import.
+/// OP-0297: same intent as OP-0291 — full `chatbot.vox` Path C `component` + top-level `style { }` emits CSS module import.
 #[test]
 fn pipeline_integration_chatbot_fixture_classic_css_module_import() {
     let path = Path::new("fixtures/chatbot.vox");
@@ -96,9 +96,7 @@ fn pipeline_reactive_view_whitespace_parity_legacy_vs_web_ir_env() {
     use std::collections::HashSet;
 
     use vox_compiler::codegen_ts::hir_emit::emit_hir_expr;
-    use vox_compiler::codegen_ts::reactive::{
-        reactive_view_bridge_stats, reset_reactive_view_bridge_stats_for_tests,
-    };
+
     use vox_compiler::hir::HirReactiveMember;
     use vox_compiler::web_ir::emit_tsx::emit_component_view_tsx;
     use vox_compiler::web_ir::lower::lower_hir_to_web_ir;
@@ -134,13 +132,11 @@ component T() {
     );
 
     with_reactive_emit_views_enabled(|| {
-        reset_reactive_view_bridge_stats_for_tests();
-        let before = reactive_view_bridge_stats();
-        generate(&hir).expect("codegen with VOX_WEBIR_EMIT_REACTIVE_VIEWS=1");
-        let after = reactive_view_bridge_stats();
+        let out = generate(&hir).expect("codegen with VOX_WEBIR_EMIT_REACTIVE_VIEWS=1");
+        let after = out.reactive_stats;
         assert!(
-            after.web_ir_view_emitted > before.web_ir_view_emitted,
-            "expected WebIrViewEmitted after parity match; before={before:?} after={after:?}"
+            after.web_ir_view_emitted >= 1,
+            "expected WebIrViewEmitted after parity match; after={after:?}"
         );
     });
 }

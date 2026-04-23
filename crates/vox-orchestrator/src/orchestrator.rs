@@ -12,9 +12,13 @@
 //! | [`scaling`] | `rebalance`, `tick` |
 //! | [`vcs_ops`] | `capture_snapshot`, `take_db_snapshot`, `undo/redo_operation` |
 
-mod agent_lifecycle;
+mod agent;
 mod campaigns;
-mod core;
+pub mod core;
+mod lease_watchdog;
+pub mod observer_loop;
+pub mod persistence;
+mod route_replay;
 mod scaling;
 mod vcs_ops;
 
@@ -27,6 +31,7 @@ use crate::groups::AffinityGroupRegistry;
 use crate::locks::FileLockManager;
 use crate::queue::AgentQueue;
 use crate::scope::ScopeGuard;
+use crate::topology::AgentDelegationBinding;
 use crate::types::{AgentId, AgentIdGenerator, TaskId, TaskIdGenerator};
 
 pub mod accessors;
@@ -35,6 +40,7 @@ pub mod task_dispatch;
 /// Error type for orchestrator operations.
 pub mod types;
 pub mod workflow_bridge;
+pub mod safety;
 
 #[cfg(test)]
 mod tests;
@@ -66,9 +72,17 @@ pub struct Orchestrator {
     pub message_bus: crate::a2a::MessageBus,
     /// IDs of agents that were dynamically spawned (transient).
     pub dynamic_agents: std::sync::Arc<std::sync::RwLock<std::collections::HashSet<AgentId>>>,
+    /// Child -> parent delegation bindings for topology snapshots and future delegation policies.
+    pub agent_delegations:
+        std::sync::Arc<std::sync::RwLock<HashMap<AgentId, AgentDelegationBinding>>>,
+    /// Dynamic spawn metadata (source task + reason) even when no parent edge exists.
+    pub dynamic_spawn_context:
+        std::sync::Arc<std::sync::RwLock<HashMap<AgentId, crate::topology::DynamicSpawnContext>>>,
     /// Handles to the running agent processes.
-    pub agent_handles:
-        std::sync::Arc<std::sync::RwLock<HashMap<AgentId, vox_runtime::ProcessHandle>>>,
+    #[cfg(feature = "runtime")]
+    pub agent_handles: std::sync::Arc<
+        std::sync::RwLock<std::collections::HashMap<AgentId, vox_runtime::ProcessHandle>>,
+    >,
     pub heartbeat_monitor: std::sync::Arc<std::sync::RwLock<crate::heartbeat::HeartbeatMonitor>>,
     /// System resource monitor.
     #[cfg(feature = "system-metrics")]
@@ -98,4 +112,16 @@ pub struct Orchestrator {
     /// Last remote populi snapshot hints (from MCP federation poller); read-only placement signals.
     pub remote_populi_routing_hints:
         std::sync::Arc<std::sync::RwLock<Vec<crate::populi_federation::RemotePopuliRoutingHint>>>,
+    /// Global stop flag to halt dispatch and execution.
+    pub stop_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    /// Cumulative Tavily search credits used in the current session.
+    pub tavily_credits_used: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    /// Cryptographic tool receipt ledger.
+    pub tool_ledger: std::sync::Arc<std::sync::RwLock<crate::tool_receipt::ToolReceiptLedger>>,
+    /// Generic resource lock manager.
+    pub resource_locks: crate::locks::ResourceLockManager,
+    /// PII-aware privacy router.
+    pub privacy_router: std::sync::Arc<std::sync::RwLock<crate::privacy_router::PrivacyRouter>>,
+    /// Cross-model consensus judge.
+    pub judge_model: std::sync::Arc<std::sync::RwLock<crate::judge_model::JudgeModel>>,
 }

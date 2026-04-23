@@ -1,0 +1,6 @@
+# SSOT for in-repo `LoraVoxTransformer` / dogfood scratch dims (`vox_tensor::VOCAB_SIZE` path).
+# QLoRA on Hugging Face base models does **not** use these numbers — see `docs/src/reference/mens-training.md`.
+max_seq_len: 512
+d_model: 512
+n_heads: 8
+n_layers: 6

@@ -22,6 +22,12 @@
 /// Pure-Rust tokenizer and JSONL DataLoader — always compiled, no GPU required.
 pub mod data;
 
+/// GRPO reward, advantage computation, and training configuration — always compiled, no GPU required.
+pub mod grpo;
+
+/// Experience replay buffer for catastrophic forgetting mitigation — always compiled, no GPU required.
+pub mod replay;
+
 /// LoRA adapter configuration — always compiled, no GPU required.
 /// The SSOT for [`LoraConfig`] and [`lora_memory_estimate`] across the workspace.
 pub mod lora_config;

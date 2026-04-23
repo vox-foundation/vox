@@ -1,0 +1,187 @@
+schema_version: 1
+generated_from: docs/src/architecture/rust-ecosystem-support-ssot.md
+
+template_managed_dependencies:
+  app:
+    - tokio
+    - serde
+    - serde_json
+    - axum
+    - tower
+    - reqwest
+    - tracing
+    - tracing-subscriber
+    - turso
+    - vox-db
+    - vox-runtime
+    - vox-oratio
+  script_native:
+    - tokio
+    - serde
+    - serde_json
+    - vox-runtime
+  script_wasi:
+    - serde
+    - serde_json
+
+wasi_unsupported_rust_imports:
+  - tokio
+  - reqwest
+  - time
+  - axum
+  - tower
+  - turso
+  - vox-db
+  - vox-oratio
+  - jsonschema
+  - sqlx
+  - diesel
+  - sea-orm
+  - vox-runtime
+  - chromiumoxide
+  - chromiumoxide_cdp
+  - vox-browser
+
+support_entries:
+  - crate_family: serde+serde_json
+    product_lane: app
+    support_tier: tier0
+    boundary_owner: builtin_registry
+    semantics_state: implemented
+    capability_value: 95
+    debt_cost: 20
+    supported_targets: [native, wasi, container]
+    decision: first_class
+    notes: "Baseline JSON and contract transport through std.json and compiler/runtime projection surfaces."
+
+  - crate_family: tokio
+    product_lane: app
+    support_tier: tier0
+    boundary_owner: RuntimeProjection
+    semantics_state: implemented
+    capability_value: 90
+    debt_cost: 35
+    supported_targets: [native, container]
+    decision: internal_runtime_only
+    notes: "Async runtime backbone for generated app/workflow runtimes and host services."
+
+  - crate_family: reqwest
+    product_lane: workflow
+    support_tier: tier1
+    boundary_owner: approved_binding
+    semantics_state: implemented
+    capability_value: 85
+    debt_cost: 30
+    supported_targets: [native, container]
+    decision: first_class
+    notes: "Outbound HTTP via narrow std.http wrapper surface and host defaults."
+
+  - crate_family: tracing+tracing-subscriber
+    product_lane: platform
+    support_tier: tier1
+    boundary_owner: approved_binding
+    semantics_state: implemented
+    capability_value: 80
+    debt_cost: 20
+    supported_targets: [native, wasi, container]
+    decision: first_class
+    notes: "Structured logs and diagnostics; std.log remains narrow while runtime owns sink policy."
+
+  - crate_family: uuid
+    product_lane: app
+    support_tier: tier0
+    boundary_owner: builtin_registry
+    semantics_state: implemented
+    capability_value: 70
+    debt_cost: 10
+    supported_targets: [native, wasi, container]
+    decision: first_class
+    notes: "Stable ID generation via std.uuid and std.crypto.uuid."
+
+  - crate_family: time
+    product_lane: workflow
+    support_tier: tier1
+    boundary_owner: approved_binding
+    semantics_state: planned
+    capability_value: 68
+    debt_cost: 15
+    supported_targets: [native, container]
+    decision: first_class
+    notes: "Time/date parsing and formatting wrappers beyond now_ms remain planned."
+
+  - crate_family: axum+tower
+    product_lane: app
+    support_tier: tier0
+    boundary_owner: AppContract
+    semantics_state: implemented
+    capability_value: 88
+    debt_cost: 45
+    supported_targets: [native, container]
+    decision: internal_runtime_only
+    notes: "Generated app transport internals; not a raw Vox-facing API surface."
+
+  - crate_family: vox-runtime
+    product_lane: platform
+    support_tier: tier0
+    boundary_owner: RuntimeProjection
+    semantics_state: implemented
+    capability_value: 88
+    debt_cost: 40
+    supported_targets: [native, container]
+    decision: internal_runtime_only
+    notes: "Host/runtime crate supplied by compiler templates; consumed through Vox surfaces rather than direct crate APIs."
+
+  - crate_family: vox-oratio
+    product_lane: app
+    support_tier: tier0
+    boundary_owner: builtin_registry
+    semantics_state: implemented
+    capability_value: 75
+    debt_cost: 25
+    supported_targets: [native, container]
+    decision: first_class
+    notes: "Speech/oratio integration crate supplied by templates for approved voice and transcription surfaces."
+
+  - crate_family: turso+vox-db
+    product_lane: data
+    support_tier: tier1
+    boundary_owner: approved_binding
+    semantics_state: planned
+    capability_value: 78
+    debt_cost: 28
+    supported_targets: [native, container]
+    decision: first_class
+    notes: "Primary data lane target; wrappers and abstractions should graduate before broader SQL ecosystems."
+
+  - crate_family: jsonschema
+    product_lane: interop
+    support_tier: tier2
+    boundary_owner: approved_binding
+    semantics_state: implemented
+    capability_value: 58
+    debt_cost: 18
+    supported_targets: [native, container]
+    decision: first_class
+    notes: "Contract validation helper support for tool schemas and policy checks."
+
+  - crate_family: sqlx+diesel+sea-orm
+    product_lane: data
+    support_tier: tier3
+    boundary_owner: escape_hatch
+    semantics_state: docs_only
+    capability_value: 52
+    debt_cost: 65
+    supported_targets: [native, container]
+    decision: deferred
+    notes: "Keep as escape-hatch/deferred until data-lane abstractions and demand justify first-class wrappers."
+
+  - crate_family: chromiumoxide+chromiumoxide_cdp+vox-browser
+    product_lane: workflow
+    support_tier: tier1
+    boundary_owner: approved_binding
+    semantics_state: implemented
+    capability_value: 72
+    debt_cost: 45
+    supported_targets: [native, container]
+    decision: internal_runtime_only
+    notes: "Chromium CDP via chromiumoxide; vox-browser process-wide singleton for MCP and Browser.* runtime builtins. Not available in WASI scripts."

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/orchestration/vox-generate-code-file-outcomes.schema.json",
+  "title": "VoxGenerateCodeFileOutcomes",
+  "description": "Optional `meta.file_outcomes` on successful `vox_generate_code` ToolResult when `output_path` is set.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "written_paths", "bytes_written", "artifact_kind"],
+  "properties": {
+    "schema": { "type": "string", "const": "vox_generate_code_file_outcomes_v1" },
+    "schema_version": { "type": "integer", "const": 1 },
+    "written_paths": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "bytes_written": { "type": "integer", "minimum": 0 },
+    "artifact_kind": { "type": "string", "const": "vox_generated" },
+    "post_write_snapshot_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Present when `vox_generate_code` was called with `vcs_agent_id` and `output_path`; orchestrator snapshot id after the write."
+    }
+  }
+}

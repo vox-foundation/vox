@@ -1,4 +1,7 @@
 //! MCP tool argument storage modes for Ludus routing (privacy / payload size).
+//!
+//! Generalized field-level redaction for MCP transcripts (beyond args) is tracked in telemetry SSOT
+//! (`docs/src/architecture/telemetry-trust-ssot.md`); this module implements the **storage-shape** policy for tool `args` only.
 
 use serde_json::Value;
 

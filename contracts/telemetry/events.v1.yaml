@@ -1,0 +1,30 @@
+x-vox-version: 1
+version: 1
+events:
+  - id: completion-detector-snapshot
+    schema_path: contracts/telemetry/completion-detector-snapshot.v1.schema.json
+    owner_crate: vox-orchestrator
+    tier: "B"
+    retention_days: 30
+    description: "Snapshot of the context provided to the completion detector."
+
+  - id: completion-finding
+    schema_path: contracts/telemetry/completion-finding.v1.schema.json
+    owner_crate: vox-orchestrator
+    tier: "B"
+    retention_days: 90
+    description: "Discrete findings emitted by the completion detector."
+
+  - id: completion-run
+    schema_path: contracts/telemetry/completion-run.v1.schema.json
+    owner_crate: vox-orchestrator
+    tier: "B"
+    retention_days: 90
+    description: "Aggregate summary of a full completion detection run."
+
+  - id: scientia-novelty-decision-calibration
+    schema_path: contracts/telemetry/scientia-novelty-decision-calibration.v1.schema.json
+    owner_crate: vox-scientia-ingest
+    tier: "B"
+    retention_days: 365
+    description: "Telemetry regarding paper/asset novelty classification."

@@ -50,7 +50,7 @@ impl UnwiredModuleDetector {
                 continue;
             };
             let inc_path = parent.join(rel);
-            if let Ok(body) = crate::bounded_fs::read_utf8_path_capped(&inc_path) {
+            if let Ok(body) = vox_bounded_fs::read_utf8_path_capped(&inc_path) {
                 out.push('\n');
                 out.push_str(&body);
             }
@@ -124,11 +124,10 @@ impl UnwiredModuleDetector {
             if let Some(caps) = self.rust_mod_decl.captures(line)
                 && let Some(name) = caps.get(1)
             {
-                // `pub mod` / `pub(crate) mod` are crate API wiring — parent modules import from outside
-                // this file; same-file `foo::` is not required (avoids 100s of false positives in mod.rs roots).
+                // Removed early return for 'pub mod' to enforce reachability checks on public exports.
+                // We rely on workspace_crate_refs_mod to ensure they are used elsewhere.
                 if line.trim_start().starts_with("pub") {
-                    pending_path = None;
-                    continue;
+                    // pending_path = None; // Still consume path attr if needed? Yes, below logic handles it.
                 }
                 // `#[cfg(test)] mod tests;` (possibly after `#[path = "..."]`) — not referenced in-lib.
                 if name.as_str() == "tests" && Self::preceding_has_cfg_test(&file.lines, i) {
@@ -279,15 +278,16 @@ mod tests {
     }
 
     #[test]
-    fn skips_pub_file_backed_modules() {
+    fn pub_mods_produce_findings_if_unwired() {
         let d = UnwiredModuleDetector::new();
         let f = source(
             "rs",
             "pub mod alpha;\npub mod beta;\npub(crate) mod gamma;\n",
         );
-        assert!(
-            d.detect(&f, None).is_empty(),
-            "public module declarations are wired from other crates/files"
+        assert_eq!(
+            d.detect(&f, None).len(),
+            3,
+            "public module declarations are now checked for wiring"
         );
     }
 

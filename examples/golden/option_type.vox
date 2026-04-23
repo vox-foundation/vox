@@ -1,0 +1,48 @@
+// ---
+// title: "Option Type Patterns"
+// description: "Option[T] type: Some/None variants, unwrap-or, chained option handling."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [type, Option, match, fn, let]
+// last_validated: 2026-04-13
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Show how to use Option[T] in Vox: Some, None, and match-based unwrapping.
+// ANCHOR: display
+@table type UserProfile {
+    name: str
+    bio: Option[str]
+    age: Option[int]
+}
+
+fn display_bio(profile: UserProfile) to str {
+    match profile.bio {
+        Some(text) => "Bio: " + text
+        None => "No bio provided"
+    }
+}
+
+fn display_age(profile: UserProfile) to str {
+    match profile.age {
+        Some(n) => "Age: " + str(n)
+        None => "Age not set"
+    }
+}
+
+@query
+fn find_user(name: str) to Option[str] {
+    let users = db.UserProfile.filter({ name: name })
+    // If len > 0, we can return Some(name), simplified for AST
+    return Some(name)
+}
+
+fn greet_user(name: str) to str {
+    let result = find_user(name)
+    match result {
+        Some(profile) => "Welcome back"
+        None => "User not found"
+    }
+}
+// ANCHOR_END: display

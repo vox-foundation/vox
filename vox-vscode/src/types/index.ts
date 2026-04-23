@@ -1,4 +1,4 @@
-// Shared types for the vox-vscode extension
+export * from './attention';
 
 export interface ProviderStatus {
     provider: string;
@@ -141,6 +141,108 @@ export interface ChatMessage {
     model_used?: string;
 }
 
+export interface ChatSocratesMeta {
+    risk_decision?: string;
+    confidence_estimate?: number;
+    contradiction_ratio?: number;
+    retrieval_tier?: string;
+    contradiction_count?: number;
+    evidence_count?: number;
+    [key: string]: unknown;
+}
+
+export interface ChatRetrievalMeta {
+    retrieval_tier?: string;
+    contradiction_count?: number;
+    evidence_count?: number;
+    query_id?: string;
+    supporting_claim_ids?: string[];
+    contradiction_hints?: string[];
+    [key: string]: unknown;
+}
+
+export interface ChatSessionMeta {
+    model_used?: string;
+    tokens?: number;
+    session_id?: string;
+    socrates?: ChatSocratesMeta | null;
+    retrieval?: ChatRetrievalMeta | null;
+}
+
+export interface ComposerDraft {
+    path: string;
+    language: string;
+    original: string;
+    proposed: string;
+    explanation?: string;
+    tokens?: number;
+    model_used?: string;
+}
+
+export interface ComposerState {
+    availableFiles: string[];
+    drafts: ComposerDraft[];
+    isGenerating: boolean;
+    lastPrompt?: string;
+    lastAppliedPaths?: string[];
+    snapshotRequested?: boolean;
+    lastError?: string | null;
+}
+
+export interface WorkspaceInspectorState {
+    activeEditor: ActiveEditorContextView;
+    openFiles: string[];
+    repoIndexStatus?: unknown;
+    repoCatalog?: unknown;
+    repoQueryResult?: unknown;
+    capabilityManifest?: unknown;
+    contextKeys: string[];
+    contextValue?: unknown;
+    lastPlan?: PlanGoalResult | null;
+    lastChatMeta?: ChatSessionMeta | null;
+    browserState?: BrowserInspectorState | null;
+    lastUpdatedAt?: number;
+}
+
+export interface ActiveEditorContextView {
+    filePath: string;
+    line: number;
+    selectedText: string;
+    languageId: string;
+    diagnostics: Array<{ severity: 'error' | 'warning'; line: number; message: string; source?: string }>;
+}
+
+export interface BrowserInspectorState {
+    pageId?: string | number | null;
+    url?: string | null;
+    lastText?: string | null;
+    lastExtract?: unknown;
+    lastScreenshotPath?: string | null;
+    lastAction?: string | null;
+    lastError?: string | null;
+}
+
+export interface PlanGoalResult {
+    goal: string;
+    tasks: unknown[];
+    summary: string;
+    plan_md: string;
+    written_to_disk: boolean;
+    plan_total_tasks?: number;
+    plan_page_offset?: number;
+    loop_mode_effective?: string;
+    refinement_rounds?: number;
+    loop_stop_reason?: string;
+    last_aggregate_gap_risk?: number;
+    gap_report?: unknown;
+    plan_adequacy_score?: number;
+    plan_too_thin?: boolean;
+    adequacy_reason_codes?: string[];
+    plan_depth_effective?: string;
+    clarifying_questions?: string[];
+    socrates?: ChatSocratesMeta | null;
+}
+
 export interface SkillInfo {
     id: string;
     name: string;
@@ -178,6 +280,25 @@ export interface AstNode {
 
 export interface WebviewMessage {
     type: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    value?: any;
+    value?: unknown;
+}
+
+/** Matches `vox_mcp::SubmitShadowAdequacy` (shadow plan-adequacy on direct submit). */
+export interface SubmitShadowAdequacy {
+    score: number;
+    is_too_thin: boolean;
+    reason_codes: string[];
+    critical_count: number;
+    aggregate_unresolved_risk: number;
+}
+
+/** Matches `vox_mcp::SubmitTaskResponse` from `vox_submit_task`. */
+export interface SubmitTaskResponse {
+    task_id: number;
+    agent_id: number;
+    prompt_canonicalized?: boolean;
+    conflict_warnings?: string[];
+    original_prompt_hash?: string;
+    orchestration_contract?: string;
+    shadow_plan_adequacy?: SubmitShadowAdequacy;
 }

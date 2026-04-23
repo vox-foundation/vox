@@ -18,29 +18,30 @@ pub use vox_mcp_meta::{ORCHESTRATOR_TOOLS, SKILL_TOOLS};
 
 include!(concat!(env!("OUT_DIR"), "/dynamic_registry.rs"));
 
-/// Example agent ID pairs for A2A training pair diversification.
-const EXAMPLE_AGENT_PAIRS: &[(&str, &str)] = &[
-    ("agent_1", "agent_2"),
-    ("compiler_agent", "review_agent"),
-    ("orchestrator", "worker_1"),
-    ("planner", "executor"),
-    ("frontend_agent", "backend_agent"),
-];
+pub(crate) fn example_agent_pairs() -> Vec<(String, String)> {
+    vec![
+        ("agent_1".into(), "agent_2".into()),
+        ("compiler_agent".into(), "review_agent".into()),
+        ("orchestrator".into(), "worker_1".into()),
+        ("planner".into(), "executor".into()),
+        ("frontend_agent".into(), "backend_agent".into()),
+    ]
+}
 
-/// Example task descriptions for orchestrator SFT pairs.
-const EXAMPLE_TASKS: &[&str] = &[
-    "implement the login page component",
-    "add a database index for the users table",
-    "write unit tests for the authentication module",
-    "refactor the workflow actor to use the new message type",
-    "update the MCP tool schema for vox_validate_file",
-    "generate the TypeScript bindings for the Vox runtime",
-    "rank model reliability using hallucination EWMA scores",
-    "check for unreliable endpoints in the OpenRouter registry",
-    "audit the agent fleet for recurring task failures",
-    "fix the parser error recovery for malformed actor declarations",
-    "implement the durable checkout workflow with retry semantics",
-];
+/// Dynamically generated example tasks from the live orchestrator registry.
+pub(crate) fn example_tasks() -> Vec<String> {
+    vox_mcp_meta::TOOL_REGISTRY
+        .iter()
+        .filter(|t| vox_mcp_meta::ORCHESTRATOR_TOOLS.contains(&t.name))
+        .map(|t| {
+            format!(
+                "use the {} tool to {}",
+                t.name,
+                t.description.to_lowercase()
+            )
+        })
+        .collect()
+}
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ pub struct SyntheticGenConfig {
     pub emit_orchestrator_rows: bool,
     /// Whether to emit skill management rows.
     pub emit_skill_rows: bool,
-    /// Whether to emit agent definition / agent usage rows.
+    /// Whether to emit agent documentation / agent usage rows.
     pub emit_agent_rows: bool,
     /// Whether to emit CLI command usage rows.
     pub emit_cli_rows: bool,
@@ -71,6 +72,8 @@ pub struct SyntheticGenConfig {
     pub emit_script_rows: bool,
     /// Whether to emit organic Vox code generation pairs.
     pub emit_organic_vox: bool,
+    /// Whether to emit Chain-of-Thought (CoT) organic Vox code generation pairs (Reasoning-First).
+    pub emit_cot_organic_vox: bool,
     /// Whether to run the augmentation engine (typos, synonyms, case) after generation.
     /// This 3× multiplies effective corpus size with robust variants.
     pub augment_after_generate: bool,
@@ -84,6 +87,8 @@ pub struct SyntheticGenConfig {
     pub emit_multi_agent_convos: bool,
     /// Whether to emit telemetry interpretation pairs (Gap 10).
     pub emit_telemetry_pairs: bool,
+    /// Whether to emit KCH Anti-conflation negative DPO pairs (Wave 4).
+    pub emit_kch_anticonflation: bool,
 }
 
 impl Default for SyntheticGenConfig {
@@ -101,12 +106,14 @@ impl Default for SyntheticGenConfig {
             emit_cli_rows: true,
             emit_script_rows: true,
             emit_organic_vox: true,
+            emit_cot_organic_vox: true,
             augment_after_generate: true,
             emit_routing_decisions: true,
             emit_negative_expanded: true,
             emit_error_recovery: true,
             emit_multi_agent_convos: true,
             emit_telemetry_pairs: true,
+            emit_kch_anticonflation: true,
         }
     }
 }
@@ -127,9 +134,14 @@ pub(crate) fn emit_line(
     record_type: &str,
 ) -> anyhow::Result<()> {
     let difficulty = crate::training::construct_difficulty(category, record_type);
+    let resp_str = response.to_string();
     let row = json!({
         "prompt": prompt,
-        "response": response.to_string(),
+        "response": resp_str,
+        "messages": [
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": resp_str}
+        ],
         "category": category,
         "record_type": record_type,
         "schema_version": "vox_dogfood_v1",
@@ -162,6 +174,7 @@ mod a2a_pairs;
 mod agent_pairs;
 mod cli_pairs;
 mod error_recovery_pairs;
+pub mod kch_anticonflation;
 mod multi_agent_pairs;
 mod negative_pairs;
 mod orchestrator_pairs;
@@ -170,6 +183,7 @@ mod script_pairs;
 mod telemetry_pairs;
 mod templates;
 mod tool_pairs;
+pub mod transplant_pairs;
 mod web_pairs;
 mod workflow_pairs;
 

@@ -1,8 +1,15 @@
 use crate::process::ProcessHandle;
 use crate::registry::RegistryError;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, mpsc};
 use tracing;
+
+/// Events emitted by the supervisor for graceful degradation or orchestrator reaction.
+#[derive(Debug, Clone)]
+pub enum SupervisorEvent {
+    /// A child has exceeded its maximum restart count and will no longer be restarted.
+    MaxRestartsExceeded { child_name: String },
+}
 
 /// Restart strategy for supervised processes.
 #[derive(Debug, Clone, Copy)]
@@ -28,6 +35,8 @@ pub struct Supervisor {
     strategy: RestartStrategy,
     children: Arc<RwLock<Vec<ChildEntry>>>,
     max_restarts: u32,
+    event_tx: mpsc::UnboundedSender<SupervisorEvent>,
+    event_rx: Arc<RwLock<mpsc::UnboundedReceiver<SupervisorEvent>>>,
 }
 
 struct ChildEntry {
@@ -40,11 +49,23 @@ struct ChildEntry {
 impl Supervisor {
     /// Creates a supervisor with the given restart strategy and default restart cap.
     pub fn new(strategy: RestartStrategy) -> Self {
+        let (tx, rx) = mpsc::unbounded_channel();
         Self {
             strategy,
             children: Arc::new(RwLock::new(Vec::new())),
             max_restarts: 5,
+            event_tx: tx,
+            event_rx: Arc::new(RwLock::new(rx)),
         }
+    }
+
+    /// Take the event receiver (can only be done once) to monitor supervisor events.
+    pub async fn take_events(&self) -> Option<mpsc::UnboundedReceiver<SupervisorEvent>> {
+        let mut rx_guard = self.event_rx.write().await;
+        // Swap with a dummy channel so we can return the real one
+        let (_, dummy_rx) = mpsc::unbounded_channel();
+        let current = std::mem::replace(&mut *rx_guard, dummy_rx);
+        Some(current)
     }
 
     /// Sets how many consecutive restarts are allowed per child before giving up.
@@ -99,6 +120,9 @@ impl Supervisor {
                         child.name,
                         self.max_restarts
                     );
+                    let _ = self.event_tx.send(SupervisorEvent::MaxRestartsExceeded {
+                        child_name: child.name.clone(),
+                    });
                     continue;
                 }
 

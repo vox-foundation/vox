@@ -1,401 +1,1255 @@
-# Canonical MCP tool names + descriptions (SSOT).
-# Edited here; Rust builds via crates/vox-mcp-registry/build.rs.
-# Re-bootstrap from legacy mod.rs: python scripts/extract_mcp_tool_registry.py write
+# Canonical MCP tool names + descriptions (generated).
+# GENERATED FROM contracts/operations/catalog.v1.yaml via `vox ci operations-sync --target mcp --write`.
+# Do not hand-edit this file.
 version: 1
 tools:
-  - name: "vox_submit_task"
-    description: "Submit a new task to the orchestrator. Routes to the best agent by file affinity."
-  - name: "vox_task_status"
-    description: "Get the current status of a specific task by ID."
-  - name: "vox_orchestrator_status"
-    description: "Get a full snapshot of the orchestrator state: agents, queues, and completed tasks."
-  - name: "vox_orchestrator_start"
-    description: "Probe embedded orchestrator + worker readiness. AgentFleet runs in-process when VOX_MCP_AGENT_FLEET is enabled (default); this tool does not spawn a separate process."
-  - name: "vox_spawn_agent"
-    description: "Spawn a new orchestrator agent queue (optional dynamic/transient agent for auto-retire)."
-  - name: "vox_retire_agent"
-    description: "Retire an agent: release locks and affinity, unregister heartbeat, return remaining tasks."
-  - name: "vox_pause_agent"
-    description: "Pause an agent queue (new work is held)."
-  - name: "vox_resume_agent"
-    description: "Resume a previously paused agent queue."
-  - name: "vox_complete_task"
-    description: "Mark a task as completed, releasing its file locks."
-  - name: "vox_fail_task"
-    description: "Mark a task as failed with a reason string."
-  - name: "vox_check_file_owner"
-    description: "Check which agent currently owns a given file path."
-  - name: "vox_validate_file"
-    description: "Validate a .vox file using the full compiler pipeline (lexer \u2192 parser \u2192 typeck \u2192 HIR)."
-  - name: "vox_run_tests"
-    description: "Run cargo test for a specific crate, optionally filtered by test name."
-  - name: "vox_check_workspace"
-    description: "Run cargo check for the entire workspace and return diagnostics."
-  - name: "vox_test_all"
-    description: "Run cargo test for the entire workspace."
-  - name: "vox_publish_message"
-    description: "Publish a message to the bulletin board for all agents to receive."
-  - name: "vox_openclaw_list_remote"
-    description: "List remote OpenClaw skills through the native OpenClaw runtime adapter."
-  - name: "vox_openclaw_search_remote"
-    description: "Search remote OpenClaw skills by keyword query."
-  - name: "vox_openclaw_import_skill"
-    description: "Import an OpenClaw skill by slug and optionally install it into the local Vox skills registry."
-  - name: "vox_openclaw_discover"
-    description: "Resolve OpenClaw gateway/catalog endpoints from well-known discovery plus local overrides."
-  - name: "vox_openclaw_health"
-    description: "Probe OpenClaw HTTP and WS readiness using the shared discovery configuration."
-  - name: "vox_openclaw_gateway_call"
-    description: "Invoke an arbitrary OpenClaw Gateway WS method with JSON params."
-  - name: "vox_openclaw_subscriptions"
-    description: "List active OpenClaw gateway subscriptions for the current session."
-  - name: "vox_openclaw_subscribe"
-    description: "Subscribe the OpenClaw gateway session to a domain."
-  - name: "vox_openclaw_unsubscribe"
-    description: "Unsubscribe the OpenClaw gateway session from a domain."
-  - name: "vox_openclaw_notify"
-    description: "Send a domain-scoped notification over the OpenClaw gateway."
-  - name: "vox_set_context"
-    description: "Set a key-value pair in the shared orchestrator context store. Supports TTL."
-  - name: "vox_get_context"
-    description: "Retrieve a value from the shared context."
-  - name: "vox_list_context"
-    description: "List available context keys by prefix."
-  - name: "vox_context_budget"
-    description: "Get the token budget status and summarize recommendation for an agent."
-  - name: "vox_handoff_context"
-    description: "Handoff summarized context from one agent to another."
-  - name: "vox_check_mood"
-    description: "Returns the current gamification mood and status of the agent companion."
-  - name: "vox_agent_status"
-    description: "Returns current agent state, activity, mood, queue depth."
-  - name: "vox_agent_continue"
-    description: "Triggers auto-continuation for idle agents."
-  - name: "vox_agent_assess"
-    description: "Evaluates remaining work, returns completion estimate."
-  - name: "vox_agent_handoff"
-    description: "Passes plan/context from one agent to another."
-  - name: "vox_queue_status"
-    description: "Returns the specific queue and tasks for an agent."
-  - name: "vox_lock_status"
-    description: "Returns a list of all current file locks."
-  - name: "vox_ludus_notifications_list"
-    description: "List unread Ludus (gamification) notifications for the current canonical user from Codex."
-  - name: "vox_ludus_progress_snapshot"
-    description: "Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window."
-  - name: "vox_ludus_notification_ack"
-    description: "Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id."
-  - name: "vox_ludus_notifications_ack_all"
-    description: "Mark all unread Ludus notifications as read for the canonical user."
-  - name: "vox_ludus_quest_list"
-    description: "List Ludus quests for the canonical user (read-only)."
-  - name: "vox_ludus_shop_catalog"
-    description: "Crystal shop catalog with effective prices for the current gamify mode."
-  - name: "vox_ludus_shop_buy"
-    description: "Buy a shop item by 1-based index; optional idempotency_key dedupes duplicate purchases."
-  - name: "vox_ludus_collegium_join"
-    description: "Join a collegium and emit a Ludus collegium_joined policy event."
-  - name: "vox_ludus_battle_start"
-    description: "Start a bug battle from a synthetic finding (companion name + rule + message)."
-  - name: "vox_ludus_battle_submit"
-    description: "Submit code for the active bug battle for a companion (success flag)."
-  - name: "vox_budget_status"
-    description: "Returns token usage and approximate costs across all agents."
-  - name: "vox_cancel_task"
-    description: "Cancels an active or queued task."
-  - name: "vox_rebalance"
-    description: "Rebalances tasks dynamically across agents."
-  - name: "vox_agent_events"
-    description: "Streams event history for agents."
-  - name: "vox_my_files"
-    description: "Returns all files currently owned by the specified agent."
-  - name: "vox_claim_file"
-    description: "Request ownership of a specific file."
-  - name: "vox_transfer_file"
-    description: "Transfer ownership of a file to another agent."
-  - name: "vox_ask_agent"
-    description: "Ask another agent a question."
-  - name: "vox_answer_question"
-    description: "Answer a pending question from another agent."
-  - name: "vox_pending_questions"
-    description: "List all questions waiting for my answer."
-  - name: "vox_broadcast"
-    description: "Broadcast a message to all agents on the board."
-  - name: "vox_memory_store"
-    description: "Persist a key-value fact to long-term memory (MEMORY.md)."
-  - name: "vox_memory_recall"
-    description: "Retrieve a fact from long-term memory by key."
-  - name: "vox_memory_search"
-    description: "Search daily logs and MEMORY.md for a keyword query."
-  - name: "vox_memory_log"
-    description: "Append an entry to today's daily memory log."
-  - name: "vox_memory_list_keys"
-    description: "List all section keys from MEMORY.md."
-  - name: "vox_knowledge_query"
-    description: "Query the knowledge graph (VoxDB) for related concepts by keyword."
-  - name: "vox_skill_install"
-    description: "Install a skill from a VoxSkillBundle JSON payload."
-  - name: "vox_skill_uninstall"
-    description: "Uninstall an installed skill by ID."
-  - name: "vox_skill_list"
-    description: "List all installed skills."
-  - name: "vox_skill_search"
-    description: "Search installed skills by keyword."
-  - name: "vox_skill_info"
-    description: "Get detailed info on a specific skill by ID."
-  - name: "vox_skill_parse"
-    description: "Parse a SKILL.md and preview its manifest before installing."
-  - name: "vox_compaction_status"
-    description: "Get current context token usage and whether compaction is recommended."
-  - name: "vox_session_create"
-    description: "Create a new persistent session for an agent."
-  - name: "vox_session_list"
-    description: "List all active sessions with state and token usage."
-  - name: "vox_session_reset"
-    description: "Reset a session's conversation history (keeps metadata)."
-  - name: "vox_session_compact"
-    description: "Replace a session's history with a summary string."
-  - name: "vox_session_info"
-    description: "Get detailed info about a specific session."
-  - name: "vox_session_cleanup"
-    description: "Tick lifecycle and remove archived sessions."
-  - name: "vox_preference_get"
-    description: "Get a user preference value by key from VoxDb."
-  - name: "vox_preference_set"
-    description: "Set a user preference key to a value in VoxDb."
-  - name: "vox_preference_list"
-    description: "List all user preferences, optionally filtered by a key prefix."
-  - name: "vox_learn_pattern"
-    description: "Record a learned behavioral pattern with confidence score."
-  - name: "vox_behavior_record"
-    description: "Record a user behavior event and receive pattern suggestions."
-  - name: "vox_behavior_summary"
-    description: "Analyze recent behavior and summarize detected patterns."
-  - name: "vox_memory_save_db"
-    description: "Persist a typed memory fact to VoxDb agent_memory table."
-  - name: "vox_memory_recall_db"
-    description: "Recall typed memory facts for an agent from VoxDb."
-  - name: "vox_build_crate"
-    description: "Run cargo build for a crate or the whole workspace."
-  - name: "vox_lint_crate"
-    description: "Run cargo clippy for a crate or whole workspace."
-  - name: "vox_coverage_report"
-    description: "Get code coverage report for a crate using cargo-llvm-cov."
-  - name: "vox_reorder_task"
-    description: "Change the priority of a queued task."
-  - name: "vox_drain_agent"
-    description: "Remove all queued tasks from an agent without retiring it."
-  - name: "vox_cost_history"
-    description: "Get a time-series cost breakdown of operations."
-  - name: "vox_file_graph"
-    description: "Get a JSON graph of all files and their owning agents (affinity map)."
-  - name: "vox_config_get"
-    description: "Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config)."
-  - name: "vox_config_set"
-    description: "Update the orchestrator configuration dynamically (wire alias: vox_set_config)."
-  - name: "vox_map_agent_session"
-    description: "Map a Vox agent session ID to an existing orchestrator agent (wire aliases: vox_map_opencode_session, vox_map_vscode_session)."
-  - name: "vox_poll_events"
-    description: "Poll recent orchestrator events for all agents."
-  - name: "vox_heartbeat"
-    description: "Send an active heartbeat from a Vox agent session."
-  - name: "vox_record_cost"
-    description: "Record a cost event from a Vox agent session token usage."
-  - name: "vox_git_log"
-    description: "Show recent git commits (default: last 10)."
-  - name: "vox_git_diff"
-    description: "Show uncommitted git diff for a file or the whole tree."
-  - name: "vox_git_status"
-    description: "Get current git working tree status."
-  - name: "vox_git_blame"
-    description: "Show line-by-line git blame for a file."
-  - name: "vox_repo_index_status"
-    description: "Return repo index cache status (bounded walk under repo root, `.vox/cache/repos/...`)."
-  - name: "vox_repo_index_refresh"
-    description: "Refresh the on-disk repo index cache for the current workspace."
-  - name: "vox_language_surface"
-    description: "Return all primary keywords, decorators, types, and builtins in the Vox language."
-  - name: "vox_compiler::ast_inspect"
-    description: "Parse a .vox file and return its AST as a JSON tree. Argument: path (relative to repo root)."
-  - name: "vox_pipeline_status"
-    description: "Get current compiler pipeline health and status (lexer, parser, typeck, codegen)."
-  - name: "vox_decorator_registry"
-    description: "Return detailed metadata for all @decorators in the Vox language."
-  - name: "vox_builtin_registry"
-    description: "Return detailed signatures and docs for all builtin functions."
-  - name: "vox_workspace_modules"
-    description: "Returns a list of all .vox files in the workspace repository."
-  - name: "vox_a2a_tasks"
-    description: "Returns the full DAG of current orchestrator tasks."
-  - name: "vox_snapshot_list"
-    description: "List recent file snapshots for an agent."
-  - name: "vox_snapshot_diff"
-    description: "Show the file-level diff between two snapshots."
-  - name: "vox_snapshot_restore"
-    description: "Restore files to a previous snapshot state."
-  - name: "vox_oplog"
-    description: "Show recent operations with undo support."
-  - name: "vox_undo"
-    description: "Undo the last operation or a specific operation by ID."
-  - name: "vox_redo"
-    description: "Redo a previously undone operation."
-  - name: "vox_conflicts"
-    description: "List active file conflicts between agents."
-  - name: "vox_resolve_conflict"
-    description: "Resolve a file conflict."
-  - name: "vox_conflict_diff"
-    description: "Show the N-way diff of a conflict."
-  - name: "vox_workspace_create"
-    description: "Create an isolated workspace for an agent."
-  - name: "vox_workspace_merge"
-    description: "Merge an agent's workspace changes back to main."
-  - name: "vox_workspace_status"
-    description: "Show files modified in an agent's workspace."
-  - name: "vox_change_create"
-    description: "Start tracking a new logical change."
-  - name: "vox_change_log"
-    description: "Show the history of a change."
-  - name: "vox_vcs_status"
-    description: "Get unified VCS status."
-  - name: "vox_a2a_send"
-    description: "Send a targeted A2A message from one agent to another."
-  - name: "vox_a2a_inbox"
-    description: "Read unacknowledged messages in an agent's inbox."
-  - name: "vox_a2a_ack"
-    description: "Acknowledge a message in an agent's inbox."
-  - name: "vox_a2a_broadcast"
-    description: "Broadcast an A2A message to all agents."
-  - name: "vox_a2a_history"
-    description: "Query the A2A message audit trail."
-  - name: "vox_db_schema"
-    description: "Return the complete database schema digest as JSON."
-  - name: "vox_db_relationships"
-    description: "Return the entity-relationship graph for the database."
-  - name: "vox_db_data_flow"
-    description: "Return the data flow map."
-  - name: "vox_db_sample_data"
-    description: "Fetch sample data from a given database table."
-  - name: "vox_db_explain_query"
-    description: "Explain a query or mutation in plain English."
-  - name: "vox_db_suggest_query"
-    description: "Suggest the correct Vox query expression for an intent."
-  - name: "vox_db_research_session_upsert"
-    description: "Upsert research_sessions by session_key (V17). Empty repository_id defaults to workspace repository_id."
-  - name: "vox_db_conversation_version_append"
-    description: "Append conversation_versions for a conversation_id (V17)."
-  - name: "vox_db_conversation_edge_insert"
-    description: "Insert conversation_edges between two conversations (V17)."
-  - name: "vox_db_topic_evolution_append"
-    description: "Append topic_evolution_events for a topic_id (V17)."
-  - name: "vox_db_research_metric_linked"
-    description: "Upsert research_sessions then append research_metrics with matching session_id text (links structured + legacy telemetry)."
-  - name: "vox_db_trust_rollups"
-    description: "List trust_rollups rows with optional entity_type/dimension/domain filters for multidimensional trust inspection."
-  - name: "vox_db_trust_summary"
-    description: "Aggregate trust_rollups by dimension, domain, entity_type, or combined keys (mean/min/max score, counts, sample mass)."
-  - name: "vox_db_trust_drift"
-    description: "Compare mean trust observation scores in a recent time window vs the prior equal-length window (optional entity_type/dimension filters)."
-  - name: "vox_db_trust_propagate"
-    description: "Domain-clique affinity propagation over model trust rollups for a base dimension; optional persist writes *_propagated observations."
-  - name: "vox_benchmark_record"
-    description: "Record a new benchmark observation (e.g. wall-clock time for a build phase)."
-  - name: "vox_toestub_findings_upsert"
-    description: "Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit)."
-  - name: "vox_generate_code"
-    description: "Generate validated Vox code from a prompt."
-  - name: "vox_list_models"
-    description: "List all models in the orchestrator registry (ids, providers, free/paid)."
-  - name: "vox_suggest_model"
-    description: "Suggest the best model for a task category string (codegen, review, etc.)."
-  - name: "vox_set_model"
-    description: "Set per-agent model override in the orchestrator registry."
-  - name: "vox_set_active_model"
-    description: "Set sticky MCP chat model id for chat / inline / ghost (empty string clears)."
-  - name: "vox_get_active_model"
-    description: "Show sticky MCP chat override and resolved ModelSpec (no LLM call)."
-  - name: "vox_oratio_transcribe"
-    description: "Thin STT: transcribe one file to text (deterministic refine only). Args: path, optional language_hint, profile, debug_parser_payload."
-  - name: "vox_oratio_status"
-    description: "Oratio / Candle Whisper backend status and default model env (JSON)."
-  - name: "vox_oratio_listen"
-    description: "Sessionized Oratio transcription with timeout/profile controls. Arg: path plus optional session fields."
-  - name: "vox_chat_message"
-    description: "Send a chat message to the Vox AI. Resolves @mentions, injects editor context, queries LLM, persists history."
-  - name: "vox_chat_history"
-    description: "Retrieve the full chat history for the current session."
-  - name: "vox_inline_edit"
-    description: "AI inline edit on a file range. Editor sends current text; Rust queries LLM and returns replacement."
-  - name: "vox_plan"
-    description: "Generate a Cursor-style structured task plan for a goal. Optionally writes PLAN.md to workspace root."
-  - name: "vox_replan"
-    description: "Replan via vox-dei-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode."
-  - name: "vox_plan_status"
-    description: "Plan session status via vox-dei-d (ai.plan.status) for a session_id."
-  - name: "vox_questioning_submit_answer"
-    description: "Store the user's answer to a pending Socrates clarification for an MCP session (requires VoxDb; pairs with socrates.questioning in chat/plan responses)."
-  - name: "vox_questioning_pending"
-    description: "Return open clarification session + unanswered question rows with MC options and belief_state_json for UI (requires VoxDb; same session_id as chat/plan)."
-  - name: "vox_questioning_sync_ssot"
-    description: "Dual-write the information-theoretic questioning markdown SSOT into publication_manifests and search (requires VoxDb + workspace file)."
-  - name: "vox_benchmark_list"
-    description: "List recent benchmark_event rows from Codex for this repository (requires VoxDb). Also covers build times and eval scores."
-  - name: "vox_schola_submit"
-    description: "Enqueue a background orchestrator task for Mens training intent; canonical execution remains `vox mens train`."
-  - name: "vox_populi_local_status"
-    description: "Return mens environment variables and the local mens registry file contents (CPU-first node records)."
-  - name: "vox_news_test_syndicate"
-    description: "Validates a markdown string against the UnifiedNewsItem parser and executes a pure dry_run without posting anything live."
-  - name: "vox_news_draft_research"
-    description: "Writes docs/news/drafts/{id}.md from the embedded research template (dry_run in frontmatter)."
-  - name: "vox_news_approve"
-    description: "Record a maker-checker approval for a news_id in VoxDb (two distinct approvers required before live syndication)."
-  - name: "vox_news_approval_status"
-    description: "Return distinct approver count and whether dual approval is satisfied for a news_id."
-  - name: "vox_news_simulate_publish_gate"
-    description: "Parse news markdown and report what would block live publish (dry_run, approvals, armed) without posting."
-  - name: "vox_scientia_publication_prepare"
-    description: "Create/update a canonical scientia publication manifest and return its content digest. Optional scholarly_metadata (ScientificPublicationMetadata) is merged under metadata_json.scientific_publication."
-  - name: "vox_scientia_publication_preflight"
-    description: "Run publication_preflight checks on a stored scientia manifest; returns readiness_score and findings JSON (no writes). Optional with_worthiness adds heuristic worthiness rubric output from the repo default YAML."
-  - name: "vox_scientia_worthiness_evaluate"
-    description: "Evaluate publication-worthiness.contract YAML (repo-relative or default) against WorthinessInputs metrics JSON; returns Publish / AskForEvidence / Abstain decision (no writes)."
-  - name: "vox_scientia_publication_approve"
-    description: "Record one digest-bound approval for a scientia publication manifest."
-  - name: "vox_scientia_publication_submit_local"
-    description: "Submit an approved scientia publication through the scholarly adapter (optional adapter arg or VOX_SCHOLARLY_ADAPTER; default local_ledger), with external_submission_jobs ledger updates."
-  - name: "vox_scientia_publication_status"
-    description: "Return manifest state, digest-bound approval count, and scholarly submission rows."
-  - name: "vox_scientia_publication_scholarly_remote_status"
-    description: "Poll remote scholarly repository status for the latest stored submission (or a specific external_submission_id) using the adapter recorded in VoxDb."
-  - name: "vox_scientia_publication_scholarly_remote_status_sync_all"
-    description: "Poll remote scholarly status for every scholarly_submissions row on a publication (multi-deposit / multi-adapter); persists snapshots and best-effort continues per row."
-  - name: "vox_scientia_publication_scholarly_remote_status_sync_batch"
-    description: "Batch remote status poll: run sync-all logic for up to N publications ranked by recent scholarly_submissions activity (cron-friendly). Optional iterations, interval_secs, max_runtime_secs, and jitter_secs run repeated batches for a supervised worker."
-  - name: "vox_scientia_publication_arxiv_handoff_record"
-    description: "Append-only operator milestone for arXiv-assist workflow (publication_status_events with status arxiv_handoff:*; does not change manifest state). Stage published requires arxiv_id."
-  - name: "vox_scientia_publication_scholarly_staging_export"
-    description: "Load a stored scientia publication manifest from VoxDb and write venue-scoped scholarly staging files (body.md, CITATION.cff, crossref_work.json, optional citations.json; zenodo.json for Zenodo; arxiv_handoff.json plus arxiv_bundle.tar.gz for arxiv-assist) under output_dir, then validate the tree."
-  - name: "vox_scientia_publication_external_jobs_due"
-    description: "List external_submission_jobs rows due for retry (queued, or retryable_failed with elapsed next_retry_at_ms) up to an optional limit."
-  - name: "vox_scientia_publication_external_jobs_dead_letter"
-    description: "List external_submission_jobs in terminal failed status (not scheduled for retry), newest first."
-  - name: "vox_scientia_publication_external_jobs_replay"
-    description: "Requeue one dead-letter scholarly job (status failed → queued) by external_submission_jobs.id for the next publication_external_jobs_tick."
-  - name: "vox_scientia_publication_external_jobs_tick"
-    description: "Process one or more batches of due scholarly submit jobs (preflight dual-approval + digest match, lease row, submit using stored adapter). Optional lock_ttl_ms, lock_owner, iterations, interval_secs, max_runtime_secs, and jitter_secs between ticks."
-  - name: "vox_scientia_publication_scholarly_pipeline_run"
-    description: "Run scholarly pipeline on a stored manifest: preflight, dual-approval gate, optional venue staging export (output_dir + venue), then scholarly submit (unless dry_run). Optional json_compact returns a single-line JSON payload inside the tool result envelope (matches CLI --json)."
-  - name: "vox_scientia_publication_external_pipeline_metrics"
-    description: "Read-only JSON rollup of scholarly external_submission_jobs (queue snapshot, in-window status view, percentiles, per-adapter terminal/retry ratios), attempts, snapshots, scholarly_submissions (incl. in-window view), and publication_attempts by channel. metrics_schema_version 2. Optional since_hours (default 168)."
-  - name: "vox_scientia_publication_media_upsert"
-    description: "Insert/update one publication media asset row for a scientia publication id."
-  - name: "vox_scientia_publication_media_list"
-    description: "List publication media assets for a scientia publication id."
-  - name: "vox_scientia_publication_media_delete"
-    description: "Delete one publication media asset by publication_id + asset_ref."
-  - name: "vox_scientia_publication_route_simulate"
-    description: "Simulate per-channel routing outcomes for a prepared publication id (policy + topic filters + template derivation)."
-  - name: "vox_scientia_publication_publish"
-    description: "Publish a prepared publication id to selected channels (dry-run by default) and record publication_attempts. Live publish requires digest dual-approval, armed (orchestrator [news].publish_armed and/or VOX_NEWS_PUBLISH_ARMED), and respects orchestrator [news].dry_run merged with tool dry_run. Optional json=true returns a single-line compact JSON tool envelope."
-  - name: "vox_scientia_publication_retry_failed"
-    description: "Retry failed channels from the most recent publication attempt, optionally scoped to one channel. Optional json=true returns a single-line compact JSON tool envelope."
+- name: vox_a2a_ack
+  description: Acknowledge a message in an agent's inbox.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_a2a_broadcast
+  description: Broadcast an A2A message to all agents.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_a2a_history
+  description: Query the A2A message audit trail.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_a2a_inbox
+  description: Read unacknowledged messages in an agent's inbox.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_a2a_send
+  description: Send a targeted A2A message from one agent to another.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_a2a_tasks
+  description: Returns the full DAG of current orchestrator tasks.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agent_assess
+  description: Evaluates remaining work, returns completion estimate.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agent_continue
+  description: Triggers auto-continuation for idle agents.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agent_events
+  description: Streams event history for agents.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agent_handoff
+  description: Passes plan/context from one agent to another.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_agent_status
+  description: Returns current agent state, activity, mood, queue depth.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_answer_question
+  description: Answer a pending question from another agent.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_apply_structured_edit
+  description: Apply a structured file edit with validation (.vox AST/HIR, .rs shadow cargo check) and bounded LLM repair on failure.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ask_agent
+  description: Ask another agent a question.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_attention_history
+  description: Returns the history of attention shifts.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_attention_reset
+  description: Resets the attention budget for the agent pool.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_attention_summary
+  description: Returns a summary of agent attention allocation and focus shifts over a time window.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_behavior_record
+  description: Record a user behavior event and receive pattern suggestions.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_behavior_summary
+  description: Analyze recent behavior and summarize detected patterns.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_benchmark_list
+  description: List recent benchmark_event rows from Codex for this repository (requires VoxDb). Also covers build times and eval scores. Trust/sensitivity SSOT — docs/src/architecture/telemetry-trust-ssot.md.
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_benchmark_record
+  description: Record a new benchmark observation (e.g. wall-clock time for a build phase). Trust/sensitivity SSOT — docs/src/architecture/telemetry-trust-ssot.md.
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_broadcast
+  description: Broadcast a message to all agents on the board.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_act
+  description: LLM proposes a single JSON action (click/fill/goto/wait/noop); host executes it on the page.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_click
+  description: Click an element by CSS selector or xpath:/… target.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_close
+  description: Close a browser tab by page_id and shut down the host when no tabs remain.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_extract
+  description: Use configured chat model + visible page text to answer an extraction instruction.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_extract_json
+  description: Like vox_browser_extract but forces a JSON object matching a JSON Schema description string.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_fill
+  description: Focus an input and type text (CSS selector or xpath:/…).
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_goto
+  description: Navigate an existing tab to a URL.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_html
+  description: Read HTML for the full document (empty target) or a fragment selector.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_open
+  description: Open a Chromium tab at URL via CD (chromiumoxide). Returns page_id for follow-up tools.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_screenshot
+  description: Save a full-page PNG to a path (creates parent dirs).
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_text
+  description: Read inner text for a CSS or xpath target.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_browser_wait_for
+  description: Wait until a selector appears or timeout (seconds).
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_budget_status
+  description: Returns token usage and approximate costs across all agents.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_build_crate
+  description: Run cargo build for a crate or the whole workspace.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_builtin_registry
+  description: Return detailed signatures and docs for all builtin functions.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_cancel_task
+  description: Cancels an active or queued task.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_capability_model_manifest
+  description: Return the live Vox capability model manifest JSON (MCP tools, CLI paths, runtime builtin maps) merged from contracts/capability and registries at the workspace root.
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_change_create
+  description: Start tracking a new logical change.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_change_log
+  description: Show the history of a change.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_chat_history
+  description: Retrieve the full chat history for the current session.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_chat_message
+  description: Send a chat message to the Vox AI. Resolves @mentions, injects editor context, queries LLM, persists history.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_check
+  description: CLI operation `vox check`
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_check_file_owner
+  description: Check which agent currently owns a given file path.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_check_mood
+  description: Returns the current gamification mood and status of the agent companion.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_check_workspace
+  description: Run cargo check for the entire workspace and return diagnostics.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_claim_file
+  description: Request ownership of a specific file.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_clavis_doctor
+  description: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_compaction_status
+  description: Get current context token usage and whether compaction is recommended.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_compiler::ast_inspect
+  description: 'Parse a .vox file and return its AST as a JSON tree. Argument: path (relative to repo root).'
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_complete_task
+  description: Mark a task as completed, releasing its file locks.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_config_get
+  description: 'Get the current runtime orchestrator and toolchain configuration (wire aliases: vox_get_config).'
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_config_set
+  description: 'Update the orchestrator configuration dynamically (wire alias: vox_set_config).'
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_conflict_diff
+  description: Show the N-way diff of a conflict.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_conflicts
+  description: List active file conflicts between agents.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_context_budget
+  description: Get the token budget status and summarize recommendation for an agent.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_cost_history
+  description: Get a time-series cost breakdown of operations.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_coverage_report
+  description: Get code coverage report for a crate using cargo-llvm-cov.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_conversation_edge_insert
+  description: Insert conversation_edges between two conversations (V17).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_conversation_version_append
+  description: Append conversation_versions for a conversation_id (V17).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_data_flow
+  description: Return the data flow map.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_explain_query
+  description: Explain a query or mutation in plain English.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_relationships
+  description: Return the entity-relationship graph for the database.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_research_metric_linked
+  description: Upsert research_sessions then append research_metrics with matching session_id text (links structured + legacy telemetry).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_research_session_upsert
+  description: Upsert research_sessions by session_key (V17). Empty repository_id defaults to workspace repository_id.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_sample_data
+  description: Fetch sample data from a given database table.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_schema
+  description: Return the complete database schema digest as JSON.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_suggest_query
+  description: Suggest the correct Vox query expression for an intent.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_topic_evolution_append
+  description: Append topic_evolution_events for a topic_id (V17).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_trust_drift
+  description: Compare mean trust observation scores in a recent time window vs the prior equal-length window (optional entity_type/dimension filters).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_trust_propagate
+  description: Domain-clique affinity propagation over model trust rollups for a base dimension; optional persist writes *_propagated observations.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_trust_rollups
+  description: List trust_rollups rows with optional entity_type/dimension/domain filters for multidimensional trust inspection.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_db_trust_summary
+  description: Aggregate trust_rollups by dimension, domain, entity_type, or combined keys (mean/min/max score, counts, sample mass).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_decorator_registry
+  description: Return detailed metadata for all @decorators in the Vox language.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_doubt_task
+  description: Mark a task as suspicious, triggering a rigorous ResolutionAgent audit and potentially unlocking doubt-related achievements.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_drain_agent
+  description: Remove all queued tasks from an agent without retiring it.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_emergency_stop
+  description: Trigger a global emergency stop across the orchestrator, cancelling all active tasks.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_exec_time_query
+  description: Query historical execution time for a tool.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_exec_time_record
+  description: Record an execution duration and outcome.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_export_grammar_ebnf
+  description: Export the Vox EBNF grammar.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_fail_task
+  description: Mark a task as failed with a reason string.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_file_graph
+  description: Get a JSON graph of all files and their owning agents (affinity map).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_generate_code
+  description: Generate validated Vox code from a prompt; optional `output_path` (repo-relative) writes UTF-8 and returns `meta.file_outcomes`; optional `vcs_agent_id` captures a post-write snapshot id in `meta.file_outcomes.post_write_snapshot_id`.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_get_active_model
+  description: Show sticky MCP chat override and resolved ModelSpec (no LLM call).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_get_context
+  description: Retrieve a value from the shared context.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ghost_text
+  description: LLM fill-in-the-middle completion for single-line editor fragments.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_git_blame
+  description: Show line-by-line git blame for a file.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_git_diff
+  description: Show uncommitted git diff for a file or the whole tree.
+  product_lane: app
+  http_read_role_eligible: true
+  tier: core
+- name: vox_git_log
+  description: 'Show recent git commits (default: last 10).'
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_git_status
+  description: Get current git working tree status.
+  product_lane: app
+  http_read_role_eligible: true
+  tier: core
+- name: vox_handoff_context
+  description: Handoff summarized context from one agent to another.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_handoff_lineage
+  description: Returns the historical lineage of agent-to-agent task delegations and context handoffs.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_heartbeat
+  description: Send an active heartbeat from a Vox agent session.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_inline_edit
+  description: AI inline edit on a file range. Editor sends current text; Rust queries LLM and returns replacement.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_journey_canonical_steps
+  description: List ordered canonical developer-journey steps from Codex (SSOT `developer_journey_steps`).
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_knowledge_query
+  description: Query the knowledge graph (VoxDB) for related concepts by keyword.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_language_surface
+  description: Return all primary keywords, decorators, types, and builtins in the Vox language.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_learn_pattern
+  description: Record a learned behavioral pattern with confidence score.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_lint_crate
+  description: Run cargo clippy for a crate or whole workspace.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_list_context
+  description: List available context keys by prefix.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_list_models
+  description: List all models in the orchestrator registry (ids, providers, free/paid).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_lock_status
+  description: Returns a list of all current file locks.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ludus_battle_start
+  description: Start a bug battle from a synthetic finding (companion name + rule + message).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ludus_battle_submit
+  description: Submit code for the active bug battle for a companion (success flag).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ludus_collegium_join
+  description: Join a collegium and emit a Ludus collegium_joined policy event.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ludus_notification_ack
+  description: Mark one Ludus notification as read for the canonical user (Codex gamify_notifications), by notification id.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ludus_notifications_ack_all
+  description: Mark all unread Ludus notifications as read for the canonical user.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ludus_notifications_list
+  description: List unread Ludus (gamification) notifications for the current canonical user from Codex.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ludus_progress_snapshot
+  description: 'Ludus digest: KPI summary, unread notifications, and recent reward-policy snapshots over a rolling day window.'
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ludus_quest_list
+  description: List Ludus quests for the canonical user (read-only).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ludus_shop_buy
+  description: Buy a shop item by 1-based index; optional idempotency_key dedupes duplicate purchases.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_ludus_shop_catalog
+  description: Crystal shop catalog with effective prices for the current gamify mode.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_map_agent_session
+  description: 'Map a Vox agent session ID to an existing orchestrator agent (wire aliases: vox_map_opencode_session, vox_map_vscode_session).'
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_memory_list_keys
+  description: List all section keys from MEMORY.md.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_memory_log
+  description: Append an entry to today's daily memory log.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_memory_recall
+  description: Retrieve a fact from long-term memory by key.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_memory_recall_db
+  description: Recall typed memory facts for an agent from VoxDb.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_memory_save_db
+  description: Persist a typed memory fact to VoxDb agent_memory table.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_memory_search
+  description: Search daily logs and MEMORY.md for a keyword query.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_memory_store
+  description: Persist a key-value fact to long-term memory (MEMORY.md).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_my_files
+  description: Returns all files currently owned by the specified agent.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_news_approval_status
+  description: Return distinct approver count and whether dual approval is satisfied for a news_id.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_news_approve
+  description: Record a maker-checker approval for a news_id in VoxDb (two distinct approvers required before live syndication).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_news_draft_research
+  description: Writes docs/news/drafts/{id}.md from the embedded research template (dry_run in frontmatter).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_news_simulate_publish_gate
+  description: Parse news markdown and report what would block live publish (dry_run, approvals, armed) without posting.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_news_test_syndicate
+  description: Validates a markdown string against the UnifiedNewsItem parser and executes a pure dry_run without posting anything live.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_openclaw_discover
+  description: Resolve OpenClaw gateway/catalog endpoints from well-known discovery plus local overrides.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_openclaw_gateway_call
+  description: Invoke an arbitrary OpenClaw Gateway WS method with JSON params.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_openclaw_health
+  description: Probe OpenClaw HTTP and WS readiness using the shared discovery configuration.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_openclaw_import_skill
+  description: Import an OpenClaw skill by slug and optionally install it into the local Vox skills registry.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_openclaw_list_remote
+  description: List remote OpenClaw skills through the native OpenClaw runtime adapter.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_openclaw_notify
+  description: Send a domain-scoped notification over the OpenClaw gateway.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_openclaw_search_remote
+  description: Search remote OpenClaw skills by keyword query.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_openclaw_subscribe
+  description: Subscribe the OpenClaw gateway session to a domain.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_openclaw_subscriptions
+  description: List active OpenClaw gateway subscriptions for the current session.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_openclaw_unsubscribe
+  description: Unsubscribe the OpenClaw gateway session from a domain.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_oplog
+  description: Show recent operations with undo support.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_oratio_listen
+  description: 'Sessionized Oratio transcription with timeout/profile controls. Arg: path plus optional session fields.'
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_oratio_status
+  description: Oratio / Candle Whisper backend status, decode runtime, and streaming endpoint metadata (JSON; includes stream_ws_url).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_oratio_transcribe
+  description: 'Thin STT: transcribe one file to text (deterministic refine only). Args: path, optional language_hint, profile, debug_parser_payload.'
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_orchestrator_persistence_outbox_lifecycle
+  description: Return the latest persistence outbox lifecycle health snapshot (queue size, replay successes/failures, and per-op replay failure counts).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_orchestrator_persistence_outbox_queue
+  description: Inspect queued persistence outbox entries with optional lane filter, limit, and replay payload inclusion.
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_orchestrator_start
+  description: Probe embedded orchestrator + worker readiness. AgentFleet runs in-process when VOX_MCP_AGENT_FLEET is enabled (default); this tool does not spawn a separate process.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_orchestrator_status
+  description: 'Get a full snapshot of the orchestrator state: agents, queues, and completed tasks.'
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_pause_agent
+  description: Pause an agent queue (new work is held).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_pending_questions
+  description: List all questions waiting for my answer.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_pipeline_status
+  description: Get current compiler pipeline health and status (lexer, parser, typeck, codegen).
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_plan
+  description: Generate a Cursor-style structured task plan for a goal. Optionally writes PLAN.md to workspace root.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_plan_list_sessions
+  description: List active and recent plan sessions.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_plan_resume
+  description: Resume a suspended or pending plan session.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_plan_status
+  description: Plan session status via vox-dei-d (ai.plan.status) for a session_id.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_poll_events
+  description: Poll recent orchestrator events for all agents.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_populi_local_status
+  description: Return mens environment variables and the local mens registry file contents (CPU-first node records).
+  product_lane: workflow
+  http_read_role_eligible: false
+  tier: core
+- name: vox_preference_get
+  description: Get a user preference value by key from VoxDb.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_preference_list
+  description: List all user preferences, optionally filtered by a key prefix.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_preference_set
+  description: Set a user preference key to a value in VoxDb.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_project_init
+  description: Scaffold `Vox.toml`, `src/main.vox`, `.vox_modules/`, or a skill markdown file — parity with `vox init` under the bound repo root (optional `target_subdir`).
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_publish_message
+  description: Publish a message to the bulletin board for all agents to receive.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_questioning_pending
+  description: Return open clarification session + unanswered question rows with MC options and belief_state_json for UI (requires VoxDb; same session_id as chat/plan).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_questioning_submit_answer
+  description: Store the user's answer to a pending Socrates clarification for an MCP session (requires VoxDb; pairs with socrates.questioning in chat/plan responses).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_questioning_sync_ssot
+  description: Dual-write the information-theoretic questioning markdown SSOT into publication_manifests and search (requires VoxDb + workspace file).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_queue_status
+  description: Returns the specific queue and tasks for an agent.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_rebalance
+  description: Rebalances tasks dynamically across agents.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_record_cost
+  description: Record a cost event from a Vox agent session token usage.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_redo
+  description: Redo a previously undone operation.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_reorder_task
+  description: Change the priority of a queued task.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_replan
+  description: 'Replan via vox-dei-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.'
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_repo_catalog_list
+  description: Resolve the explicit `.vox/repositories.yaml` catalog and return local plus remote repository descriptors.
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_repo_catalog_refresh
+  description: Re-resolve the explicit repo catalog and write a snapshot cache for the current workspace repository.
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_repo_index_refresh
+  description: Refresh the on-disk repo index cache for the current workspace.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_repo_index_status
+  description: Return repo index cache status (bounded walk under repo root, `.vox/cache/repos/...`).
+  product_lane: app
+  http_read_role_eligible: true
+  tier: core
+- name: vox_repo_query_file
+  description: Read a path across cataloged local repositories with per-repository path sandboxing.
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_repo_query_history
+  description: Read recent Git history per cataloged local repository, optionally filtered by path or substring.
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_repo_query_text
+  description: Search cataloged local repositories for text or regex matches and group results by repository_id.
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_repo_status
+  description: Discovered repository root, stable repository_id, stack markers, and sorted Cargo workspace member dirs (parity with `vox repo status` JSON).
+  product_lane: platform
+  http_read_role_eligible: true
+  tier: core
+- name: vox_resolve_conflict
+  description: Resolve a file conflict.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_resume_agent
+  description: Resume a previously paused agent queue.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_retire_agent
+  description: 'Retire an agent: release locks and affinity, unregister heartbeat, return remaining tasks.'
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_run_tests
+  description: Run cargo test for a specific crate, optionally filtered by test name.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_schola_submit
+  description: Enqueue a background orchestrator task for Mens training intent; canonical execution remains `vox mens train`.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_assist_suggestions
+  description: Bounded Research-routed LLM assist — returns heuristic block plus optional JSON-only checklist/gap suggestions grounded on manifest scientia_evidence; never authoritative for novelty.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_approve
+  description: Record one digest-bound approval for a scientia publication manifest.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_arxiv_handoff_record
+  description: Append-only operator milestone for arXiv-assist workflow (publication_status_events with status arxiv_handoff:*; does not change manifest state). Stage published requires arxiv_id.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_decision_explain
+  description: CLI `vox scientia publication-decision-explain`; MCP `vox_scientia_publication_decision_explain`.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_discovery_explain
+  description: Machine explanation JSON for one publication_id — discovery rank, completion report, evidence completeness, transform preview labels (machine_suggested / requires_human_review).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_discovery_refresh_evidence
+  description: Merge live Socrates telemetry + JSON sidecars into a stored scientia manifest, refresh scientia_evidence (headings, discovery signals), upsert digest, append discovery_evidence_refreshed status (scientia only).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_discovery_scan
+  description: Deterministic SCIENTIA discovery scan — rank publication_manifests rows by structured scientia_evidence signals (no LLM).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_external_jobs_dead_letter
+  description: List external_submission_jobs in terminal failed status (not scheduled for retry), newest first.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_external_jobs_due
+  description: List external_submission_jobs rows due for retry (queued, or retryable_failed with elapsed next_retry_at_ms) up to an optional limit.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_external_jobs_replay
+  description: Requeue one dead-letter scholarly job (status failed → queued) by external_submission_jobs.id for the next publication_external_jobs_tick.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_external_jobs_tick
+  description: Process one or more batches of due scholarly submit jobs (preflight dual-approval + digest match, lease row, submit using stored adapter). Optional lock_ttl_ms, lock_owner, iterations, interval_secs, max_runtime_secs, and jitter_secs between ticks.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_external_pipeline_metrics
+  description: Read-only JSON rollup of scholarly external_submission_jobs (queue snapshot, in-window status view, percentiles, per-adapter terminal/retry ratios), attempts, snapshots, scholarly_submissions (incl. in-window view), and publication_attempts by channel. metrics_schema_version 2. Optional since_hours (default 168).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_media_delete
+  description: Delete one publication media asset by publication_id + asset_ref.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_media_list
+  description: List publication media assets for a scientia publication id.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_media_upsert
+  description: Insert/update one publication media asset row for a scientia publication id.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_novelty_fetch
+  description: CLI `vox scientia publication-novelty-fetch`; MCP `vox_scientia_publication_novelty_fetch`.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_novelty_happy_path
+  description: CLI `vox scientia publication-novelty-happy-path`; MCP `vox_scientia_publication_novelty_happy_path`.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_preflight
+  description: Run publication_preflight checks on a stored scientia manifest; returns readiness_score and findings JSON (no writes). Optional with_worthiness adds heuristic worthiness rubric output from the repo default YAML.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_prepare
+  description: Create/update a canonical scientia publication manifest and return its content digest. Optional scholarly_metadata (ScientificPublicationMetadata) is merged under metadata_json.scientific_publication.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_publish
+  description: Publish a prepared publication id to selected channels (dry-run by default) and record publication_attempts. Live publish requires digest dual-approval, armed (orchestrator [news].publish_armed and/or VOX_NEWS_PUBLISH_ARMED), and respects orchestrator [news].dry_run merged with tool dry_run. Optional json=true returns a single-line compact JSON tool envelope.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_retry_failed
+  description: Retry failed channels from the most recent publication attempt, optionally scoped to one channel. Optional json=true returns a single-line compact JSON tool envelope.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_route_simulate
+  description: Simulate per-channel routing outcomes for a prepared publication id (policy + topic filters + template derivation).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_scholarly_pipeline_run
+  description: 'Run scholarly pipeline on a stored manifest: preflight, dual-approval gate, optional venue staging export (output_dir + venue), then scholarly submit (unless dry_run). Optional json_compact returns a single-line JSON payload inside the tool result envelope (matches CLI --json).'
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_scholarly_remote_status
+  description: Poll remote scholarly repository status for the latest stored submission (or a specific external_submission_id) using the adapter recorded in VoxDb.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_scholarly_remote_status_sync_all
+  description: Poll remote scholarly status for every scholarly_submissions row on a publication (multi-deposit / multi-adapter); persists snapshots and best-effort continues per row.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_scholarly_remote_status_sync_batch
+  description: 'Batch remote status poll: run sync-all logic for up to N publications ranked by recent scholarly_submissions activity (cron-friendly). Optional iterations, interval_secs, max_runtime_secs, and jitter_secs run repeated batches for a supervised worker.'
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_scholarly_staging_export
+  description: Load a stored scientia publication manifest from VoxDb and write venue-scoped scholarly staging files (body.md, CITATION.cff, crossref_work.json, optional citations.json; zenodo.json for Zenodo; arxiv_handoff.json plus arxiv_bundle.tar.gz for arxiv-assist) under output_dir, then validate the tree.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_status
+  description: Return manifest state, digest-bound approval count, discovery rank, manifest completion, transform preview stub, destination_readiness inside preflight, and scholarly submission rows.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_publication_submit_local
+  description: Submit an approved scientia publication through the scholarly adapter (optional adapter arg or VOX_SCHOLARLY_ADAPTER; default local_ledger), with external_submission_jobs ledger updates.
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_scientia_worthiness_evaluate
+  description: Evaluate publication-worthiness.contract YAML (repo-relative or default) against WorthinessInputs metrics JSON; returns Publish / AskForEvidence / Abstain decision (no writes).
+  product_lane: data
+  http_read_role_eligible: false
+  tier: core
+- name: vox_session_cleanup
+  description: Tick lifecycle and remove archived sessions.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_session_compact
+  description: Replace a session's history with a summary string.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_session_create
+  description: Create a new persistent session for an agent.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_session_info
+  description: Get detailed info about a specific session.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_session_list
+  description: List all active sessions with state and token usage.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_session_reset
+  description: Reset a session's conversation history (keeps metadata).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_set_active_model
+  description: Set sticky MCP chat model id for chat / inline / ghost (empty string clears).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_set_agent_budget
+  description: Set custom VoxDB-powered budget limits for an agent.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_set_context
+  description: Set a key-value pair in the shared orchestrator context store. Supports TTL.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_set_model
+  description: Set per-agent model override in the orchestrator registry.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_skill_info
+  description: Get detailed info on a specific skill by ID.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_skill_install
+  description: Install a skill from a VoxSkillBundle JSON payload.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_skill_list
+  description: List all installed skills.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_skill_parse
+  description: Parse a SKILL.md and preview its manifest before installing.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_skill_search
+  description: Search installed skills by keyword.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_skill_uninstall
+  description: Uninstall an installed skill by ID.
+  product_lane: interop
+  http_read_role_eligible: false
+  tier: core
+- name: vox_snapshot_diff
+  description: Show the file-level diff between two snapshots.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_snapshot_list
+  description: List recent file snapshots for an agent.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_snapshot_restore
+  description: Restore files to a previous snapshot state.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_spawn_agent
+  description: Spawn a new orchestrator agent queue (optional dynamic/transient agent for auto-retire).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_speech_to_code
+  description: 'Orchestrated speech-to-code: transcribe workspace audio (Oratio) or accept prompt text, then vox_generate_code with shared session_id; optional route_mode, emit_trace_path JSONL for MENS.'
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_submit_task
+  description: Submit a new task to the orchestrator. Routes to the best agent by file affinity.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_suggest_model
+  description: Suggest the best model for a task category string (codegen, review, etc.).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_task_status
+  description: Get the current status of a specific task by ID.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_test_all
+  description: Run cargo test for the entire workspace.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_test_decision
+  description: Get the Testing Decision Engine's requirement classification (Required/Recommended/Deferred/Skip) for a task by ID.
+  product_lane: ai
+  http_read_role_eligible: true
+  tier: core
+- name: vox_toestub_findings_upsert
+  description: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
+  product_lane: platform
+  http_read_role_eligible: false
+  tier: core
+- name: vox_transfer_file
+  description: Transfer ownership of a file to another agent.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_trust_override
+  description: Overrides the trust tier for the agent context.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_undo
+  description: Undo the last operation or a specific operation by ID.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_validate_file
+  description: Validate a .vox file using the full compiler pipeline (lexer → parser → typeck → HIR).
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
+- name: vox_vcs_status
+  description: Get unified VCS status.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_visual_rag_query
+  description: Dispatches a multi-modal visual RAG query to the configured intelligence backend.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_visus_audit
+  description: Performs an automated GUI visual audit (screenshot, AXTree, overlaps).
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_visus_baseline
+  description: Manages golden visual baselines for regression testing.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_workspace_create
+  description: Create an isolated workspace for an agent.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_workspace_merge
+  description: Merge an agent's workspace changes back to main.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core
+- name: vox_workspace_modules
+  description: Returns a list of all .vox files in the workspace repository.
+  product_lane: app
+  http_read_role_eligible: true
+  tier: core
+- name: vox_workspace_status
+  description: Show files modified in an agent's workspace.
+  product_lane: ai
+  http_read_role_eligible: false
+  tier: core

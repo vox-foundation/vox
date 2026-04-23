@@ -1,70 +1,243 @@
-//! `vox repo` — repository status, layout detection, and agent scope info.
-//!
-//! Uses `vox-repository` to identify the logical repo root and stack markers.
+//! `vox repo` — repository discovery status, explicit catalog (`.vox/repositories.yaml`), and cross-repo queries.
 
-use anyhow::{Context, Result};
-use std::path::PathBuf;
+use anyhow::Result;
+use clap::Subcommand;
+use serde::Serialize;
 
-/// High-level repository info struct for JSON output.
-#[derive(serde::Serialize)]
-struct RepoDocs {
-    root: PathBuf,
-    repo_id: String,
-    has_git: bool,
-    stack_markers: Vec<String>,
-    workspace_members: Vec<PathBuf>,
+use vox_repository::RepoWorkspaceStatus;
+
+#[derive(Subcommand, Debug)]
+pub enum RepoCmd {
+    /// Show discovered repository root, stable id, and stack markers (from current directory).
+    Status {
+        /// Emit compact JSON (also when `VOX_CLI_GLOBAL_JSON=1`).
+        #[arg(long)]
+        json: bool,
+    },
+    /// Scaffold a new Vox-compatible repository structure (.voxignore, AGENTS.md, etc.)
+    Init {
+        /// Project name to initialize repository metadata with
+        #[arg(long)]
+        name: Option<String>,
+    },
+    /// Explicit repository catalog operations (`.vox/repositories.yaml`).
+    Catalog {
+        #[command(subcommand)]
+        cmd: RepoCatalogCmd,
+    },
+    /// Read-only cross-repo queries over the explicit repo catalog.
+    Query {
+        #[command(subcommand)]
+        cmd: RepoQueryCmd,
+    },
 }
 
-/// Run the `vox repo` command.
-pub async fn run(json: bool) -> Result<()> {
+#[derive(Subcommand, Debug)]
+pub enum RepoCatalogCmd {
+    /// Resolve and print the current repo catalog.
+    List,
+    /// Re-resolve the current repo catalog and write a snapshot cache.
+    Refresh,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum RepoQueryCmd {
+    /// Text search across cataloged local repositories.
+    Text {
+        /// Search query string.
+        query: String,
+        /// Limit to one or more resolved repository ids.
+        #[arg(long = "repo-id")]
+        repository_ids: Vec<String>,
+        /// Treat the query as a regex.
+        #[arg(long)]
+        regex: bool,
+        /// Make matching case-sensitive.
+        #[arg(long)]
+        case_sensitive: bool,
+        /// Maximum matches returned per repository.
+        #[arg(long, default_value_t = 50)]
+        max_matches_per_repo: usize,
+        /// Maximum files scanned per repository.
+        #[arg(long, default_value_t = 50_000)]
+        max_files_per_repo: usize,
+        /// Skip files larger than this many bytes.
+        #[arg(long, default_value_t = 262_144)]
+        max_file_bytes: usize,
+    },
+    /// Read one path across cataloged repositories.
+    File {
+        /// Workspace-relative or repository-relative file path.
+        path: String,
+        /// Limit to one or more resolved repository ids.
+        #[arg(long = "repo-id")]
+        repository_ids: Vec<String>,
+        /// Maximum bytes returned per file.
+        #[arg(long, default_value_t = 131_072)]
+        max_bytes: usize,
+    },
+    /// Read recent Git history per cataloged repository.
+    History {
+        /// Limit to one or more resolved repository ids.
+        #[arg(long = "repo-id")]
+        repository_ids: Vec<String>,
+        /// Optional path filter passed to `git log -- <path>`.
+        #[arg(long)]
+        path: Option<String>,
+        /// Optional substring filter over rendered `git log --oneline` lines.
+        #[arg(long)]
+        contains: Option<String>,
+        /// Maximum commits requested per repository.
+        #[arg(long, default_value_t = 20)]
+        max_commits: usize,
+    },
+}
+
+fn json_output_enabled() -> bool {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCliGlobalJson)
+        .expose()
+        .as_deref()
+        == Some("1")
+}
+
+fn print_value<T: Serialize>(value: &T) -> Result<()> {
+    if json_output_enabled() {
+        println!("{}", serde_json::to_string(value)?);
+    } else {
+        println!("{}", serde_json::to_string_pretty(value)?);
+    }
+    Ok(())
+}
+
+fn current_repo_root() -> Result<std::path::PathBuf> {
     let cwd = std::env::current_dir()?;
-    let repo = vox_repository::Repository::discover(Some(&cwd))
-        .with_context(|| "Failed to discover repository root from current directory")?;
+    Ok(vox_repository::discover_repository_or_fallback(&cwd).root)
+}
 
-    if json {
-        let docs = RepoDocs {
-            root: repo.root().to_path_buf(),
-            repo_id: repo.repository_id().to_string(),
-            has_git: repo.has_git(),
-            stack_markers: repo.stack_markers().iter().map(|s| s.to_string()).collect(),
-            workspace_members: repo.cargo_workspace_member_dirs().into_iter().cloned().collect(),
-        };
-        println!("{}", serde_json::to_string_pretty(&docs)?);
-        return Ok(());
-    }
-
-    println!();
-    println!("  \x1b[1;36m╔══════════════════════════════════════════╗\x1b[0m");
-    println!("  \x1b[1;36m║           Vox Repository Status          ║\x1b[0m");
-    println!("  \x1b[1;36m╚══════════════════════════════════════════╝\x1b[0m");
-    println!();
-
-    println!("    \x1b[1mRoot:\x1b[0m       {}", repo.root().display());
-    println!("    \x1b[1mID:\x1b[0m         {}", repo.repository_id());
-    println!("    \x1b[1mGit:\x1b[0m        {}", if repo.has_git() { "\x1b[32m✓\x1b[0m detected" } else { "\x1b[31m✗\x1b[0m not found" });
-
-    let markers = repo.stack_markers();
-    if !markers.is_empty() {
-        print!("    \x1b[1mMarkers:\x1b[0m    ");
-        for (i, m) in markers.iter().enumerate() {
-            if i > 0 { print!(", "); }
-            print!("\x1b[36m{}\x1b[0m", m);
+pub async fn run(cmd: RepoCmd) -> Result<()> {
+    let repo_root = current_repo_root()?;
+    match cmd {
+        RepoCmd::Init { name } => {
+            crate::commands::repo_init::run(name.as_deref()).await?;
         }
-        println!();
-    }
-
-    let members = repo.cargo_workspace_member_dirs();
-    if !members.is_empty() {
-        println!("\n    \x1b[1mWorkspace Members ({}):\x1b[0m", members.len());
-        for m in members.iter().take(10) {
-            let rel = m.strip_prefix(repo.root()).unwrap_or(m);
-            println!("      • \x1b[2m{}\x1b[0m", rel.display());
+        RepoCmd::Status { json } => {
+            let cwd = std::env::current_dir()?;
+            let payload: RepoWorkspaceStatus = vox_repository::repo_workspace_status_for_cwd(&cwd);
+            if json || json_output_enabled() {
+                println!("{}", serde_json::to_string(&payload)?);
+            } else {
+                println!("root:            {}", payload.root.display());
+                println!("repository_id:   {}", payload.repository_id);
+                if let Some(ref o) = payload.origin_url {
+                    println!("origin_url:      {o}");
+                }
+                if let Some(ref g) = payload.git_root {
+                    println!("git_root:        {}", g.display());
+                }
+                println!("has_vox_agents:  {}", payload.has_vox_agents_dir);
+                if let Some(ref v) = payload.vox_toml {
+                    println!("Vox.toml:        {}", v.display());
+                }
+                let c = &payload.capabilities;
+                println!(
+                    "markers:         vox_project={} cargo_workspace={} cargo_package={} node={} python={} go={} git={}",
+                    c.vox_project,
+                    c.cargo_workspace,
+                    c.cargo_package,
+                    c.node_workspace,
+                    c.python_project,
+                    c.go_module,
+                    c.git
+                );
+                if !payload.cargo_workspace_members.is_empty() {
+                    println!("workspace_members:");
+                    for m in payload.cargo_workspace_members.iter().take(20) {
+                        let rel = m.strip_prefix(&payload.root).unwrap_or(m);
+                        println!("  - {}", rel.display());
+                    }
+                    let n = payload.cargo_workspace_members.len();
+                    if n > 20 {
+                        println!("  ... and {} more", n - 20);
+                    }
+                }
+            }
         }
-        if members.len() > 10 {
-            println!("      ... and {} more", members.len() - 10);
-        }
+        RepoCmd::Catalog { cmd } => match cmd {
+            RepoCatalogCmd::List => {
+                let catalog = vox_repository::resolve_repo_catalog(&repo_root)?;
+                print_value(&catalog)?;
+            }
+            RepoCatalogCmd::Refresh => {
+                let refreshed = vox_repository::refresh_repo_catalog(&repo_root)?;
+                print_value(&refreshed)?;
+            }
+        },
+        RepoCmd::Query { cmd } => match cmd {
+            RepoQueryCmd::Text {
+                query,
+                repository_ids,
+                regex,
+                case_sensitive,
+                max_matches_per_repo,
+                max_files_per_repo,
+                max_file_bytes,
+            } => {
+                let response = vox_repository::repo_query_text_with_plane(
+                    &repo_root,
+                    &vox_repository::QueryTextParams {
+                        query,
+                        repository_ids: (!repository_ids.is_empty()).then_some(repository_ids),
+                        case_insensitive: !case_sensitive,
+                        regex,
+                        max_matches_per_repo,
+                        max_files_per_repo,
+                        max_file_bytes,
+                        conversation_id: None,
+                    },
+                    "cli",
+                    None,
+                )?;
+                print_value(&response)?;
+            }
+            RepoQueryCmd::File {
+                path,
+                repository_ids,
+                max_bytes,
+            } => {
+                let response = vox_repository::repo_query_file_with_plane(
+                    &repo_root,
+                    &vox_repository::QueryFileParams {
+                        path,
+                        repository_ids: (!repository_ids.is_empty()).then_some(repository_ids),
+                        max_bytes,
+                        conversation_id: None,
+                    },
+                    "cli",
+                    None,
+                )?;
+                print_value(&response)?;
+            }
+            RepoQueryCmd::History {
+                repository_ids,
+                path,
+                contains,
+                max_commits,
+            } => {
+                let response = vox_repository::repo_query_history_with_plane(
+                    &repo_root,
+                    &vox_repository::QueryHistoryParams {
+                        repository_ids: (!repository_ids.is_empty()).then_some(repository_ids),
+                        path,
+                        contains,
+                        max_commits,
+                        conversation_id: None,
+                    },
+                    "cli",
+                    None,
+                )?;
+                print_value(&response)?;
+            }
+        },
     }
-
-    println!();
     Ok(())
 }

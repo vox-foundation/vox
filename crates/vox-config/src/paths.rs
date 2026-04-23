@@ -144,10 +144,10 @@ pub fn repo_memory_cache_dir(repo_root: &Path, repository_id: &str) -> PathBuf {
     repo_tooling_cache_dir(repo_root, repository_id).join("memory")
 }
 
-/// Basename for MCP session dirs (`.sessions/<repository_id>`).
-pub const MCP_SESSIONS_DIR_BASENAME: &str = ".sessions";
+/// Basename for MCP session dirs (`.vox/sessions/<repository_id>` under repo root).
+pub const MCP_SESSIONS_DIR_BASENAME: &str = ".vox/sessions";
 
-/// MCP session persistence: `.sessions/<repository_id>` (relative to process CWD unless joined with a root).
+/// MCP session persistence: `.vox/sessions/<repository_id>` (relative to repository root).
 pub fn mcp_sessions_dir(repository_id: &str) -> PathBuf {
     PathBuf::from(MCP_SESSIONS_DIR_BASENAME).join(repository_id)
 }

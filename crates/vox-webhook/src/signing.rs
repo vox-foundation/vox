@@ -1,29 +1,29 @@
 //! Webhook signature generation and verification using HMAC-SHA3-256.
 
 use data_encoding::HEXLOWER;
-use sha3::{Digest, Sha3_256};
+use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use sha2::{Digest as Sha2Digest, Sha256};
+use sha3::{Digest as Sha3Digest, Sha3_256};
 
 use crate::WebhookError;
 
-/// A webhook signature — an HMAC-SHA3-256 hex digest.
+/// A webhook signature — an HMAC-SHA3-256 or HMAC-SHA256 hex digest.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WebhookSignature(pub String);
 
 impl std::fmt::Display for WebhookSignature {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "sha3={}", self.0)
+        write!(f, "{}", self.0)
     }
 }
 
 /// Sign a payload with a secret key using HMAC-SHA3-256.
 pub fn sign_payload(secret: &str, payload: &[u8]) -> WebhookSignature {
-    // Simple HMAC construction: H(key XOR opad || H(key XOR ipad || message))
     let key = secret.as_bytes();
     let block_size = 136usize; // SHA3-256 block = 1088 bits = 136 bytes
 
     let mut padded_key = [0u8; 136];
     let key_to_use = if key.len() > block_size {
-        // Hash long keys
         let mut h = Sha3_256::new();
         h.update(key);
         let hashed = h.finalize();
@@ -41,14 +41,49 @@ pub fn sign_payload(secret: &str, payload: &[u8]) -> WebhookSignature {
         opad_key[i] = key_to_use[i] ^ 0x5c;
     }
 
-    // Inner hash
     let mut inner = Sha3_256::new();
     inner.update(ipad_key);
     inner.update(payload);
     let inner_hash = inner.finalize();
 
-    // Outer hash
     let mut outer = Sha3_256::new();
+    outer.update(opad_key);
+    outer.update(inner_hash);
+    let result = outer.finalize();
+
+    WebhookSignature(format!("sha3={}", HEXLOWER.encode(&result)))
+}
+
+/// Sign a payload with a secret key using standard HMAC-SHA256 (for Slack/GitHub).
+pub fn sign_hmac_sha256(secret: &str, payload: &[u8]) -> WebhookSignature {
+    let key = secret.as_bytes();
+    let block_size = 64usize; // SHA-256 block = 512 bits = 64 bytes
+
+    let mut padded_key = [0u8; 64];
+    let key_to_use = if key.len() > block_size {
+        let mut h = Sha256::new();
+        h.update(key);
+        let hashed = h.finalize();
+        padded_key[..32].copy_from_slice(&hashed);
+        &padded_key[..block_size]
+    } else {
+        padded_key[..key.len()].copy_from_slice(key);
+        &padded_key[..block_size]
+    };
+
+    let mut ipad_key = [0u8; 64];
+    let mut opad_key = [0u8; 64];
+    for i in 0..block_size {
+        ipad_key[i] = key_to_use[i] ^ 0x36;
+        opad_key[i] = key_to_use[i] ^ 0x5c;
+    }
+
+    let mut inner = Sha256::new();
+    inner.update(ipad_key);
+    inner.update(payload);
+    let inner_hash = inner.finalize();
+
+    let mut outer = Sha256::new();
     outer.update(opad_key);
     outer.update(inner_hash);
     let result = outer.finalize();
@@ -56,15 +91,84 @@ pub fn sign_payload(secret: &str, payload: &[u8]) -> WebhookSignature {
     WebhookSignature(HEXLOWER.encode(&result))
 }
 
-/// Verify a payload against a signature string (e.g. "sha3=abc123...").
-pub fn verify_payload(secret: &str, payload: &[u8], signature: &str) -> Result<(), WebhookError> {
-    let expected = sign_payload(secret, payload);
-    let provided = signature.trim_start_matches("sha3=");
-    // Constant-time compare
-    if constant_time_eq(expected.0.as_bytes(), provided.as_bytes()) {
-        Ok(())
-    } else {
-        Err(WebhookError::InvalidSignature)
+/// Verify a payload against a generic or source-specific signature scheme.
+pub fn verify_payload(
+    secret: &str,
+    payload: &[u8],
+    signature: &str,
+    timestamp: &Option<String>,
+    source: &str,
+) -> Result<(), WebhookError> {
+    match source {
+        "discord" => {
+            // Discord signature is a hex-encoded Ed25519 signature
+            // payload for Ed25519 verification is (timestamp + body).
+            let ts = timestamp.as_deref().unwrap_or("");
+            let mut message = ts.as_bytes().to_vec();
+            message.extend_from_slice(payload);
+
+            let public_key_bytes = HEXLOWER
+                .decode(secret.as_bytes())
+                .map_err(|_| WebhookError::InvalidSignature)?;
+            let mut pk_arr = [0u8; 32];
+            if public_key_bytes.len() != 32 {
+                return Err(WebhookError::InvalidSignature);
+            }
+            pk_arr.copy_from_slice(&public_key_bytes);
+
+            let sig_bytes = HEXLOWER
+                .decode(signature.as_bytes())
+                .map_err(|_| WebhookError::InvalidSignature)?;
+            let mut sig_arr = [0u8; 64];
+            if sig_bytes.len() != 64 {
+                return Err(WebhookError::InvalidSignature);
+            }
+            sig_arr.copy_from_slice(&sig_bytes);
+
+            let public_key =
+                VerifyingKey::from_bytes(&pk_arr).map_err(|_| WebhookError::InvalidSignature)?;
+            let ed_sig = Signature::from_bytes(&sig_arr);
+
+            public_key
+                .verify(&message, &ed_sig)
+                .map_err(|_| WebhookError::InvalidSignature)?;
+            Ok(())
+        }
+        "slack" => {
+            // Slack HMACS (v0:timestamp:payload)
+            let ts = timestamp.as_deref().unwrap_or("");
+            let ts_prefix = format!("v0:{}:", ts);
+            let mut message = ts_prefix.as_bytes().to_vec();
+            message.extend_from_slice(payload);
+
+            let expected = sign_hmac_sha256(secret, &message);
+            let expected_full = format!("v0={}", expected.0);
+
+            if constant_time_eq(expected_full.as_bytes(), signature.as_bytes()) {
+                Ok(())
+            } else {
+                Err(WebhookError::InvalidSignature)
+            }
+        }
+        "github" => {
+            // GitHub HMAC-SHA256 (sha256=...)
+            let expected = sign_hmac_sha256(secret, payload);
+            let provided = signature.trim_start_matches("sha256=");
+            if constant_time_eq(expected.0.as_bytes(), provided.as_bytes()) {
+                Ok(())
+            } else {
+                Err(WebhookError::InvalidSignature)
+            }
+        }
+        _ => {
+            // Default generic fallback (SHA3-256)
+            let expected = sign_payload(secret, payload);
+            if constant_time_eq(expected.0.as_bytes(), signature.as_bytes()) {
+                Ok(())
+            } else {
+                Err(WebhookError::InvalidSignature)
+            }
+        }
     }
 }
 
@@ -88,20 +192,20 @@ mod tests {
         let signing_key = "my-webhook-secret";
         let payload = b"hello world";
         let sig = sign_payload(signing_key, payload);
-        assert!(verify_payload(signing_key, payload, &sig.to_string()).is_ok());
+        assert!(verify_payload(signing_key, payload, &sig.to_string(), &None, "custom").is_ok());
     }
 
     #[test]
     fn wrong_secret_fails_verification() {
         let sig = sign_payload("correct-secret", b"data");
-        let result = verify_payload("wrong-secret", b"data", &sig.to_string());
+        let result = verify_payload("wrong-secret", b"data", &sig.to_string(), &None, "custom");
         assert!(result.is_err());
     }
 
     #[test]
     fn tampered_payload_fails_verification() {
         let sig = sign_payload("secret", b"original");
-        let result = verify_payload("secret", b"tampered", &sig.to_string());
+        let result = verify_payload("secret", b"tampered", &sig.to_string(), &None, "custom");
         assert!(result.is_err());
     }
 

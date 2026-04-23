@@ -8,7 +8,9 @@ impl crate::VoxDb {
 
     /// Append a `research_metrics` row. Returns its `rowid`.
     ///
-    /// Called from `vox-db` Codex / telemetry modules (see [`crate::research_metrics_contract`]).
+    /// **Canonical write path** for all Codex `research_metrics` inserts: telemetry modules
+    /// (`benchmark_telemetry`, `syntax_k_telemetry`, `socrates_telemetry`, …) should call this (or thin wrappers)
+    /// so [`crate::research_metrics_contract::validate_research_metric_row`] always runs.
     pub async fn append_research_metric(
         &self,
         session_id: &str,
@@ -299,12 +301,12 @@ impl crate::VoxDb {
         let _ = self
             .record_trust_observation(crate::TrustObservationInput {
                 entity_type: "endpoint",
-                    entity_id: endpoint_url_for_obs.as_str(),
+                entity_id: endpoint_url_for_obs.as_str(),
                 dimension: "factuality",
                 domain: None,
                 task_class: None,
                 provider: None,
-                    model_id: Some(model_id_for_obs.as_str()),
+                model_id: Some(model_id_for_obs.as_str()),
                 repository_id: None,
                 source_kind: Some("endpoint_observation"),
                 observation_value: (1.0 - hallucination_signal).clamp(0.0, 1.0),
@@ -318,12 +320,12 @@ impl crate::VoxDb {
         let _ = self
             .record_trust_observation(crate::TrustObservationInput {
                 entity_type: "endpoint",
-                    entity_id: endpoint_url_for_obs.as_str(),
+                entity_id: endpoint_url_for_obs.as_str(),
                 dimension: "contradiction_rate",
                 domain: None,
                 task_class: None,
                 provider: None,
-                    model_id: Some(model_id_for_obs.as_str()),
+                model_id: Some(model_id_for_obs.as_str()),
                 repository_id: None,
                 source_kind: Some("endpoint_observation"),
                 observation_value: (1.0 - contradiction_signal).clamp(0.0, 1.0),
@@ -337,12 +339,12 @@ impl crate::VoxDb {
         let _ = self
             .record_trust_observation(crate::TrustObservationInput {
                 entity_type: "endpoint",
-                    entity_id: endpoint_url_for_obs.as_str(),
+                entity_id: endpoint_url_for_obs.as_str(),
                 dimension: "latency_reliability",
                 domain: None,
                 task_class: None,
                 provider: None,
-                    model_id: Some(model_id_for_obs.as_str()),
+                model_id: Some(model_id_for_obs.as_str()),
                 repository_id: None,
                 source_kind: Some("endpoint_observation"),
                 observation_value: (1.0 - infra_failure).clamp(0.0, 1.0),
@@ -629,6 +631,25 @@ impl crate::VoxDb {
             )
             .await?;
         Ok(rows.next().await?.is_some())
+    }
+
+    /// Fetch the newest `corpus_snapshots` row. Returns `(fingerprint, total_pairs, pair_breakdown_json)`.
+    pub async fn get_latest_corpus_snapshot(
+        &self,
+    ) -> Result<Option<(String, i64, Option<String>)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT fingerprint, total_pairs, pair_breakdown_json FROM corpus_snapshots ORDER BY id DESC LIMIT 1",
+                params![],
+            )
+            .await?;
+        if let Some(row) = rows.next().await? {
+            crate::row_cols!(row; 0 => fp: String, 1 => tp: i64, 2 => pb: Option<String>);
+            Ok(Some((fp, tp, pb)))
+        } else {
+            Ok(None)
+        }
     }
 
     // ── Packages (packages) ───────────────────────────────────────────────────

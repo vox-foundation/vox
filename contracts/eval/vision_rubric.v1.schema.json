@@ -1,0 +1,28 @@
+{
+  "x-vox-version": 1,
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Vision Rubric",
+  "description": "JSON schema for Remote VLM screenshot evaluation responses.",
+  "type": "object",
+  "properties": 
+    "widget_list": 
+      "type": "array",
+      "description": "List of widgets identified in the layout.",
+      "items":  "type": "string" }
+    },
+    "visible_errors": 
+      "type": "array",
+      "description": "Any visible errors (e.g. 404 text overlap, unrendered placeholders).",
+      "items":  "type": "string" }
+    },
+    "primary_cta_location": 
+      "type": "string",
+      "description": "Description of where the primary Call To Action is located."
+    },
+    "route_hint": 
+      "type": "string",
+      "description": "Hint for navigation or routing expected."
+    }
+  },
+  "required": ["widget_list", "visible_errors", "primary_cta_location", "route_hint"]
+}

@@ -2,8 +2,10 @@
 title: "SCIENTIA publication worthiness rules"
 description: "Rules and metrics for classifying findings as publishable, evidence-incomplete, or non-publishable."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## SCIENTIA publication worthiness rules
@@ -34,7 +36,7 @@ Use with:
 
 ## What should not be generated
 
-Never auto-generate without explicit human authorship/verification:
+Never auto-generate without explicit human authorship/verification {
 
 - novelty/significance assertions in the final narrative,
 - claims of causal mechanism unsupported by evidence,
@@ -202,5 +204,7 @@ When `metadata_json.scientia_distribution` is present:
 - COPE AI authorship and tooling position: [https://publicationethics.org/cope-position-statements/ai-author](https://publicationethics.org/cope-position-statements/ai-author)
 - ICMJE recommendations (AI tools and authorship context): [https://www.icmje.org/recommendations/](https://www.icmje.org/recommendations/)
 - Nature Portfolio policy on AI: [https://www.nature.com/nature-portfolio/editorial-policies/ai](https://www.nature.com/nature-portfolio/editorial-policies/ai)
-- Elsevier policy for AI-assisted writing: [https://www.elsevier.com/about/policies-and-standards/the-use-of-ai-and-ai-assisted-writing-technologies-in-scientific-writing](https://www.elsevier.com/about/policies-and-standards/the-use-of-ai-and-ai-assisted-writing-technologies-in-scientific-writing)
+- Elsevier policy for AI-assisted writing: [https://www.nature.com/nature-portfolio/editorial-policies/ai](https://www.nature.com/nature-portfolio/editorial-policies/ai)
 - TMLR venue policy context: [https://openreview.net/group?id=TMLR](https://openreview.net/group?id=TMLR)
+
+

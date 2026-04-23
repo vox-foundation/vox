@@ -1,0 +1,105 @@
+#![allow(unsafe_code)]
+
+use std::ffi::OsString;
+use std::sync::Mutex;
+use vox_compiler::codegen_ts::{CodegenOptions, generate_with_options};
+use vox_compiler::hir::lower_module;
+use vox_compiler::lexer::lex;
+use vox_compiler::parser::parse;
+
+/// Serializes `VOX_WEBIR_VALIDATE` emitter tests — env is process-global.
+static WEBIR_VALIDATE_EMITTER_LOCK: Mutex<()> = Mutex::new(());
+
+/// OP-S026 / OP-S025: `generate_with_options` runs WebIR validate by default (`VOX_WEBIR_VALIDATE` unset).
+#[test]
+fn codegen_emitter_honors_vox_webir_validate_success_path() {
+    let _lock = WEBIR_VALIDATE_EMITTER_LOCK
+        .lock()
+        .expect("WEBIR_VALIDATE_EMITTER_LOCK poisoned");
+    const KEY: &str = "VOX_WEBIR_VALIDATE";
+    struct Guard {
+        prev: Option<OsString>,
+    }
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            match &self.prev {
+                Some(v) => unsafe { std::env::set_var(KEY, v) },
+                None => unsafe { std::env::remove_var(KEY) },
+            }
+        }
+    }
+    let prev = std::env::var_os(KEY);
+    unsafe {
+        std::env::remove_var(KEY);
+    }
+    let _guard = Guard { prev };
+
+    let source = r#"
+component Home() {
+    state n: int = 0
+    view: <span />
+}
+routes {
+    "/" to Home
+}
+"#;
+    let module = parse(lex(source)).expect("parse");
+    let hir = lower_module(&module);
+    let out = generate_with_options(&hir, CodegenOptions::default()).expect("codegen");
+    assert!(
+        out.files.iter().any(|(n, _)| n == "Home.tsx"),
+        "{:?}",
+        out.files.iter().map(|x| &x.0).collect::<Vec<_>>()
+    );
+}
+
+/// OP-S028: validate-on path rejects duplicate client route contract ids (two `routes { }` blocks).
+#[test]
+fn codegen_emitter_vox_webir_validate_fails_on_duplicate_route_trees() {
+    let _lock = WEBIR_VALIDATE_EMITTER_LOCK
+        .lock()
+        .expect("WEBIR_VALIDATE_EMITTER_LOCK poisoned");
+    const KEY: &str = "VOX_WEBIR_VALIDATE";
+    struct Guard {
+        prev: Option<OsString>,
+    }
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            match &self.prev {
+                Some(v) => unsafe { std::env::set_var(KEY, v) },
+                None => unsafe { std::env::remove_var(KEY) },
+            }
+        }
+    }
+    let prev = std::env::var_os(KEY);
+    unsafe { std::env::set_var(KEY, "1") };
+    let _guard = Guard { prev };
+
+    let source = r#"
+import react.use_state
+component A() {
+    state n: int = 0
+    view: <span>{n}</span>
+}
+component B() {
+    state n: int = 0
+    view: <span>{n}</span>
+}
+routes {
+    "/" to A
+}
+routes {
+    "/b" to B
+}
+"#;
+    let module = parse(lex(source)).expect("parse");
+    let hir = lower_module(&module);
+    let err = match generate_with_options(&hir, CodegenOptions::default()) {
+        Ok(_) => panic!("expected WebIR validate failure"),
+        Err(e) => e,
+    };
+    assert!(
+        err.contains("VOX_WEBIR_VALIDATE") && err.contains("web_ir_validate."),
+        "{err}"
+    );
+}

@@ -5,31 +5,47 @@ use std::process::Command;
 
 use super::build_timings;
 use super::check_links;
-use super::cmd_enums::{CiCmd, DocInventoryCmd, EvalMatrixCmd, MensScorecardCmd};
+use super::cmd_enums::{
+    CiCmd, DocInventoryCmd, EvalMatrixCmd, MensScorecardCmd, OperationsSyncTarget,
+};
 use super::command_compliance;
 use super::command_sync;
+use super::completion_quality;
 use super::contracts_index;
 use super::coverage_gates;
+use super::dep_sprawl;
+use super::determinism_audit;
+use super::doctest_md;
 use super::eval_matrix;
+use super::exec_policy_contract;
+use super::grammar_ssot_parity;
 use super::line_endings;
 use super::mens_scorecard;
 use super::openclaw_contract;
 use super::release_build;
 use super::scaling_audit;
+use super::scientia_heuristics_parity;
+use super::scientia_novelty_ledger_contract;
 use super::scientia_worthiness_contract;
 use super::{cargo_bin, repo_root};
 
 /// Helpers live in `ci/run_body_helpers/`; `#[path]` keeps them out of `ci/run_body/` (submodule rule).
 #[path = "run_body_helpers/mod.rs"]
-mod run_body_helpers;
+pub(crate) mod run_body_helpers;
 
 use run_body_helpers::{
     MensGateOpts, check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts,
-    run_build_timings, run_clavis_parity, run_cuda_features, run_cuda_release_build,
-    run_data_ssot_guards, run_feature_matrix, run_grammar_drift, run_manifest, run_mens_gate,
-    run_repo_guards, run_secret_env_guard, run_sql_surface_guard, run_ssot_drift,
-    run_toestub_scoped, run_toestub_self_apply,
+    run_build_timings, run_clavis_contracts, run_clavis_cutover_audit, run_clavis_cutover_gates,
+    run_clavis_parity, run_collateral_damage_gate, run_constrained_gen_smoke,
+    run_corpus_decl_coverage, run_cuda_features, run_cuda_release_build, run_data_ssot_guards,
+    run_feature_matrix, run_grammar_drift, run_grammar_export_check, run_grpo_reward_baseline,
+    run_k_complexity_budget, run_manifest, run_mens_corpus_health, run_mens_gate,
+    run_operator_env_guard, run_query_all_guard, run_repo_guards, run_script_hygiene,
+    run_secret_env_guard, run_sql_surface_guard, run_ssot_audit, run_ssot_drift,
+    run_toestub_scoped, run_toestub_self_apply, run_turso_import_guard,
 };
+
+use super::retired_symbol_check;
 
 /// Run `vox ci` subcommand.
 pub async fn run(cmd: CiCmd) -> Result<()> {
@@ -37,14 +53,41 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
     match cmd {
         CiCmd::Manifest => run_manifest(&root),
         CiCmd::CheckDocsSsot => check_docs_ssot(&root),
+        CiCmd::CheckFrozen => super::frozen_crates::check_frozen_crates(&root),
         CiCmd::CheckCodexSsot => check_codex_ssot(&root),
         CiCmd::ContractsIndex => contracts_index::run(&root),
+        CiCmd::ExecPolicyContract => exec_policy_contract::run(&root),
         CiCmd::OpenClawContract => openclaw_contract::run(&root),
+        CiCmd::OperationsVerify => super::operations_catalog::verify(&root),
+        CiCmd::OperationsSync { target, write } => {
+            let target = match target {
+                OperationsSyncTarget::Catalog => "catalog",
+                OperationsSyncTarget::Mcp => "mcp",
+                OperationsSyncTarget::Cli => "cli",
+                OperationsSyncTarget::Capability => "capability",
+                OperationsSyncTarget::All => "all",
+            };
+            super::operations_catalog::sync(&root, target, write)
+        }
         CiCmd::ScientiaWorthinessContract => scientia_worthiness_contract::run(&root),
+        CiCmd::ScientiaHeuristicsParity => scientia_heuristics_parity::run(&root),
+        CiCmd::ScientiaNoveltyLedgerContracts => scientia_novelty_ledger_contract::run(&root),
         CiCmd::SsotDrift => run_ssot_drift(&root),
+        CiCmd::SsotAudit => run_ssot_audit(&root).await,
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
+        CiCmd::DataStorageGuard(opts) => {
+            let report = crate::commands::ci::data_storage_guard::run(&opts)?;
+            if opts.json {
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            }
+            if !report.violations.is_empty() {
+                anyhow::bail!("DataStorageGuard failed with {} violations", report.violations.len());
+            }
+            Ok(())
+        }
         CiCmd::FeatureMatrix => run_feature_matrix(&root),
         CiCmd::NoDeiImport => check_no_vox_dei(&root),
+        CiCmd::AttentionEventLedgerParity => super::attention_ledger_parity::run(&root),
         CiCmd::CheckSummaryDrift => {
             let cargo = cargo_bin();
             let st = Command::new(&cargo)
@@ -137,7 +180,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         },
         CiCmd::WorkflowScripts { allowlist } => check_workflow_scripts(&root, &allowlist),
-        CiCmd::LineEndings { all, base } => line_endings::run(&root, all, base),
+        CiCmd::LineEndings { all, base, autofix } => line_endings::run(&root, all, base, autofix),
         CiCmd::MeshGate {
             profile,
             isolated_runner,
@@ -178,11 +221,100 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             }
         }
         CiCmd::GrammarDrift { emit } => run_grammar_drift(&root, emit),
+        CiCmd::GrammarSsotParity => grammar_ssot_parity::run().await,
+        CiCmd::KComplexityBudget {
+            tolerance_percent,
+            update,
+        } => run_k_complexity_budget(&root, tolerance_percent, update),
+        CiCmd::GrammarExportCheck => run_grammar_export_check(&root),
+        CiCmd::CorpusDeclCoverage => run_corpus_decl_coverage(&root),
         CiCmd::RepoGuards => run_repo_guards(&root),
         CiCmd::SecretEnvGuard { all } => run_secret_env_guard(&root, all),
+        CiCmd::OperatorEnvGuard { all } => run_operator_env_guard(&root, all),
+        CiCmd::MensCorpusHealth {
+            min_pairs,
+            min_human_ratio,
+        } => run_mens_corpus_health(&root, min_pairs, min_human_ratio).await,
+        CiCmd::GrpoRewardBaseline => run_grpo_reward_baseline(&root).await,
+        CiCmd::CollateralDamageGate { max_damage_rate } => {
+            run_collateral_damage_gate(&root, max_damage_rate).await
+        }
+        CiCmd::ConstrainedGenSmoke { n_samples } => {
+            run_constrained_gen_smoke(&root, n_samples).await
+        }
         CiCmd::SqlSurfaceGuard { all } => run_sql_surface_guard(&root, all),
+        CiCmd::QueryAllGuard { all } => run_query_all_guard(&root, all),
+        CiCmd::TursoImportGuard { all } => run_turso_import_guard(&root, all),
+        CiCmd::ClavisContracts => run_clavis_contracts(&root),
         CiCmd::ClavisParity => run_clavis_parity(&root),
+        CiCmd::ClavisCutoverGates => run_clavis_cutover_gates(&root),
+        CiCmd::ClavisCutoverAudit { all } => run_clavis_cutover_audit(&root, all),
+        CiCmd::CapabilitySync { write } => super::capability_sync::run(&root, write),
+        CiCmd::CapabilitySnapshot => super::capability_snapshot::run(&root),
+        CiCmd::AttentionConfigParity => super::attention_parity::run(&root),
         CiCmd::CommandCompliance => command_compliance::run(&root),
+        CiCmd::CompletionAudit { scan_extra } => completion_quality::run_audit(&root, &scan_extra),
+        CiCmd::CompletionGates { mode } => completion_quality::run_gates(&root, mode),
+        CiCmd::CompletionIngest {
+            report,
+            workflow,
+            run_kind,
+        } => completion_quality::run_ingest(&root, report, &workflow, &run_kind).await,
+        CiCmd::RustEcosystemPolicy => {
+            let cargo = cargo_bin();
+            let st = Command::new(&cargo)
+                .current_dir(&root)
+                .args([
+                    "test",
+                    "-p",
+                    "vox-compiler",
+                    "--test",
+                    "rust_ecosystem_support_parity",
+                ])
+                .status()?;
+            if !st.success() {
+                return Err(anyhow!(
+                    "rust ecosystem policy parity failed; run `cargo test -p vox-compiler --test rust_ecosystem_support_parity`"
+                ));
+            }
+            println!("rust-ecosystem-policy OK");
+            Ok(())
+        }
+        CiCmd::PolicySmoke => {
+            let cargo = cargo_bin();
+
+            let st = Command::new(&cargo)
+                .current_dir(&root)
+                .args(["check", "-p", "vox-orchestrator"])
+                .status()?;
+            if !st.success() {
+                return Err(anyhow!(
+                    "policy-smoke failed: `cargo check -p vox-orchestrator` returned non-zero"
+                ));
+            }
+
+            command_compliance::run(&root)?;
+
+            let st = Command::new(&cargo)
+                .current_dir(&root)
+                .args([
+                    "test",
+                    "-p",
+                    "vox-compiler",
+                    "--test",
+                    "rust_ecosystem_support_parity",
+                ])
+                .status()?;
+            if !st.success() {
+                return Err(anyhow!(
+                    "policy-smoke failed: `cargo test -p vox-compiler --test rust_ecosystem_support_parity` returned non-zero"
+                ));
+            }
+
+            println!("policy-smoke OK");
+            Ok(())
+        }
+        CiCmd::GuiSmoke => super::gui_smoke::run(&root),
         CiCmd::CoverageGates {
             summary_json,
             mode,
@@ -193,12 +325,27 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             strict,
             root: provenance_root,
         } => super::pm_provenance::run(&root, &provenance_root, strict),
-        CiCmd::CheckLinks => check_links::run(&root),
+        CiCmd::CheckLinks { target } => check_links::run(&root, target.as_deref()),
         CiCmd::ReleaseBuild {
             target,
             version,
             out_dir,
             package,
         } => release_build::run(&root, &target, version.as_deref(), &out_dir, package),
+        CiCmd::ArtifactAudit { json } => super::workspace_artifacts::run_audit(&root, json),
+        CiCmd::ArtifactPrune {
+            dry_run,
+            apply,
+            policy,
+        } => super::workspace_artifacts::run_prune(&root, dry_run, apply, policy.as_deref()),
+        CiCmd::NomenclatureGuard { json } => super::nomenclature_guard::run(&root, json),
+        CiCmd::RetiredSymbolCheck => retired_symbol_check::run(&root),
+        CiCmd::SyncIgnoreFiles { verify } => super::sync_ignore_files::run(&root, verify),
+        CiCmd::KillStuckTests { what_if } => super::kill_stuck_tests::run(&root, what_if),
+        CiCmd::InstallHooks => super::install_hooks::run(&root),
+        CiCmd::ScriptHygiene { retired_check } => run_script_hygiene(&root, retired_check),
+        CiCmd::DeterminismAudit => determinism_audit::run(&root),
+        CiCmd::DepSprawl { cap } => dep_sprawl::run(&root, cap),
+        CiCmd::DoctestMd { paths, strict } => doctest_md::run(paths, strict).await,
     }
 }

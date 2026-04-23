@@ -2,8 +2,10 @@
 title: "SCIENTIA SSOT handbook (glossary, vocabulary, checklists)"
 description: "Single reference for SCIENTIA lifecycle terms, status vocabulary, SSOT routing, anti-drift checklists, operator flows, SLOs, and LLM task conventions."
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-28"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # SCIENTIA SSOT handbook
@@ -23,8 +25,10 @@ Companion: [publication readiness audit](../architecture/scientia-publication-re
 | **Status event** | Append-only row in `publication_status_events` (e.g. arXiv handoff stages); does **not** auto-update `publication_manifests.state`. |
 | **Snapshot** | Row in `external_status_snapshots`: polled remote JSON at a point in time. |
 | **Adapter** | Scholarly backend (`local_ledger`, `echo_ledger`, `zenodo`, `openreview`, …) resolved via `VOX_SCHOLARLY_ADAPTER` or CLI override. |
+| **Discovery signal** | Typed entry under `scientia_evidence.discovery_signals` (`contracts/scientia/discovery-signal.schema.json`): strength, family, provenance — used for **deterministic** candidate ranking only. |
+| **Machine suggestion** | LLM/heuristic output labeled `machine_suggested` + `requires_human_review` (`contracts/scientia/machine-suggestion-block.schema.json`); never grounds novelty or final claims. |
 
-**Lifecycle (happy path):** `draft` manifest → `publication-prepare` → `publication-preflight` / approvals → `publication-scholarly-pipeline-run` (default path; dry-run first) or lower-level submit/tick flows → `scholarly_submissions` + job terminal state → remote status sync.
+**Lifecycle (happy path):** `draft` manifest → `publication-prepare` (optional `--discovery-intake-gate` for scientia-only gating; optional `preflight_profile=arxiv-assist` when arXiv handoff is the target) → optional `publication-discovery-refresh-evidence` (or MCP `vox_scientia_publication_discovery_refresh_evidence`) -> merge live Socrates/sidecars and refresh `scientia_evidence` → optional `publication-discovery-scan` / `publication-discovery-explain` → `publication-preflight` / approvals → `publication-scholarly-pipeline-run` (default path; dry-run first) or lower-level submit/tick flows → `scholarly_submissions` + job terminal state → remote status sync.
 
 ## 2. Canonical status vocabulary (T002)
 
@@ -60,9 +64,9 @@ Job-layer preflight uses `last_error_class = "preflight"`. Adapter errors use `S
 |-------|----------------|
 | Schema | `crates/vox-db/src/schema/domains/publish_cloud.rs` |
 | Store ops | `crates/vox-db/src/store/ops_publication.rs` |
-| Worker / adapters | `crates/vox-publisher/src/scholarly_external_jobs.rs`, `crates/vox-publisher/src/scholarly/` |
+| Worker / adapters | `crates/vox-publisher/src/scholarly/external_jobs.rs`, `crates/vox-publisher/src/scholarly/` |
 | CLI implementation | `crates/vox-cli/src/commands/db.rs` (handlers), `db_cli/subcommands.rs` (Clap), `scientia.rs` (facade); publication helpers in `commands/db/publication.rs` (`publication-preflight` / `publication-status` include gate-aware `manual_required` plus ordered `next_actions`) |
-| MCP | `crates/vox-mcp/src/tools/scientia_tools.rs`, `dispatch.rs`, `input_schemas.rs` |
+| MCP | `crates/vox-orchestrator/src/mcp_tools/tools/scientia_tools.rs`, `dispatch.rs`, `input_schemas.rs` |
 | CLI contract | `contracts/cli/command-registry.yaml` |
 | MCP contract | `contracts/mcp/tool-registry.canonical.yaml` |
 | Human reference | `docs/src/reference/cli.md`, this handbook |
@@ -80,7 +84,7 @@ Job-layer preflight uses `last_error_class = "preflight"`. Adapter errors use `S
 - **Dispatch** (`vox-mcp/src/tools/dispatch.rs`): routes tool name → async handler.
 - **Input schemas** (`input_schemas.rs`): JSON Schema for each tool; must cover every canonical tool (*tests enforce coverage*).
 
-After registry changes: `pnpm run generate:mcp-registry` (VS Code) and `pnpm run check:mcp-parity`.
+After registry changes: in **`vox-vscode`**, `pnpm run compile` regenerates the tool list and runs **`check:mcp-parity`** (and **`check:activation-parity`**). For a quicker loop you can run **`pnpm run generate:mcp-registry`** and **`pnpm run check:mcp-parity`** only.
 
 **Zenodo metadata MCP:** there is intentionally no separate MCP tool for `publication-zenodo-metadata` (stdout-only JSON helper); agents should call `vox_scientia_publication_preflight` / staging export or run the CLI directly when they need deposition JSON.
 
@@ -101,7 +105,7 @@ After registry changes: `pnpm run generate:mcp-registry` (VS Code) and `pnpm run
 2. Arm in `dispatch.rs`.
 3. Schema in `input_schemas.rs` + registry coverage test.
 4. `tool-registry.canonical.yaml`.
-5. `pnpm run generate:mcp-registry` + `pnpm run check:mcp-parity`.
+5. In **`vox-vscode`**: `pnpm run compile`, or at minimum `pnpm run generate:mcp-registry` + `pnpm run check:mcp-parity`.
 
 ### `publish_cloud` schema change (T008)
 
@@ -137,7 +141,7 @@ After registry changes: `pnpm run generate:mcp-registry` (VS Code) and `pnpm run
 
 ### Happy path publication (T013)
 
-1. `vox scientia publication-prepare --publication-id <id> …` (+ optional `--preflight`; omit `--title` to infer from markdown, add eval/benchmark flags to seed discovery-candidate evidence).
+1. `vox scientia publication-prepare --publication-id <id> …` (+ optional `--preflight`, `--discovery-intake-gate`, `--preflight-profile arxiv-assist`; omit `--title` to infer from markdown; add eval/benchmark flags to seed discovery-candidate evidence). To rehydrate evidence after DB/artifact changes: `vox scientia publication-discovery-refresh-evidence --publication-id <id>`.
 2. `vox scientia publication-preflight --publication-id <id> --with-worthiness`; use `next_actions` as the checklist.
 3. Two approvers: `vox scientia publication-approve …`.
 4. Default path: `publication-scholarly-pipeline-run --dry-run`, then rerun live when ready.
@@ -182,7 +186,7 @@ After registry changes: `pnpm run generate:mcp-registry` (VS Code) and `pnpm run
 
 ## 10. SLOs and KPIs (T019)
 
-**SLO (targets for ops, not enforced in code):**
+**SLO (targets for ops, not enforced in code) {**
 
 - **P95** manifest-ready → first successful external job `succeeded` under profile-specific minutes (staging vs prod).
 - **Error budget**: retryable ratio < threshold per adapter/week.
@@ -208,16 +212,17 @@ The rollup includes `"metrics_schema_version": <integer>` at the top level. Incr
 
 1. Export Zenodo staging: `vox scientia publication-scholarly-staging-export --publication-id <id> --output-dir <dir> --venue zenodo`.
 2. Point **`VOX_ZENODO_STAGING_DIR`** at that directory before `publication-submit-local` / pipeline / external job (adapter `zenodo`).
-3. Optional **`VOX_ZENODO_UPLOAD_ALLOWLIST`**: comma-separated relative paths; default uploads every file from the Zenodo [`staging_artifacts`](../../../crates/vox-publisher/src/submission_package.rs) plan that exists on disk.
-4. Turn on **`VOX_ZENODO_VERIFY_STAGING_CHECKSUMS`** when you need `staging_checksums.json` (SHA3-256) to match bytes before each bucket `PUT`.
-5. **`VOX_ZENODO_REQUIRE_METADATA_PARITY`**: fail fast if `zenodo.json` title disagrees with the manifest (after normalization).
+3. Optional **`VOX_ZENODO_UPLOAD_ALLOWLIST`**: comma-separated relative paths; default uploads every file from the Zenodo [`staging_artifacts`](../../../crates/vox-publisher/src/submission/mod.rs) plan that exists on disk.
+4. Turn on **`VOX_ZENODO_VERIFY_STAGING_CHECKSUMS`** when you need `staging_checksums.json` (SHA3-256) -> match bytes before each bucket `PUT`.
+5. **`VOX_ZENODO_REQUIRE_METADATA_PARITY`** { fail fast if `zenodo.json` title disagrees with the manifest (after normalization).
 6. **`VOX_ZENODO_DRAFT_ONLY`** / **`VOX_ZENODO_PUBLISH_NOW`** compose with attach + staging per [`scholarly/flags`](../../../crates/vox-publisher/src/scholarly/flags.rs).
 
 ## 14. OpenReview submit profile export (T094)
 
-Use **`vox scientia publication-openreview-profile --publication-id <id>`** (or `vox db publication-openreview-profile`) to print merged **invitation**, **signature**, **readers**, and resolved **api_base** — same merge as live submit (`VOX_OPENREVIEW_*` / `OPENREVIEW_*` plus `metadata_json.openreview.*`). No HTTP; safe in CI to verify manifest overlays before enabling **`VOX_SCHOLARLY_DISABLE_LIVE=0`**.
+Use **`vox scientia publication-openreview-profile --publication-id <id>`** (or `vox db publication-openreview-profile`) -> print merged **invitation**, **signature**, **readers**, and resolved **api_base** — same merge as live submit (`VOX_OPENREVIEW_*` / `OPENREVIEW_*` plus `metadata_json.openreview.*`). No HTTP; safe in CI to verify manifest overlays before enabling **`VOX_SCHOLARLY_DISABLE_LIVE=0`**.
 
 ## 15. Scholarly pipeline machine output (T095)
 
 - CLI: **`vox scientia publication-scholarly-pipeline-run … --json`** emits **single-line** JSON for dry-run and success payloads (default remains pretty-printed for humans).
 - MCP: **`vox_scientia_publication_scholarly_pipeline_run`** accepts **`json_compact: true`** for the same shape in compact form inside the tool result envelope.
+

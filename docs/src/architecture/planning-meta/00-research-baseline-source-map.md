@@ -2,8 +2,10 @@
 title: "Research baseline and source-of-truth map"
 description: "Research appendix for planning-meta creation, including source classification and confidence tags."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Research baseline and source-of-truth map
@@ -60,4 +62,6 @@ Validation caveats:
 ## Why this appendix exists
 
 This file provides traceability for the planning corpus. It reduces “why did we choose this structure?” churn during future rewrites.
+
+
 

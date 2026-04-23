@@ -1,13 +1,17 @@
 [package]
 name = "vox-capability-registry"
-description = "Machine-readable capability descriptors for Mens chat tool allowlists (OpenAI/MCP parity)"
+description = "Transport-independent capability registry (YAML SSOT) + Mens chat tool descriptors"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
+serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+workspace-hack = { workspace = true }
 
 [lints]
 workspace = true

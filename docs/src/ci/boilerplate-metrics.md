@@ -2,8 +2,10 @@
 title: "Boilerplate metrics and KPI framework"
 description: "KPI framework for tracking accidental-complexity and boilerplate reduction across Vox roadmap waves."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Boilerplate metrics and KPI framework
@@ -34,3 +36,5 @@ training_eligible: true
 - Per PR for touched streams.
 - Weekly rollup during active roadmap execution.
 - End-of-wave signed checkpoint with comparison against baseline.
+
+

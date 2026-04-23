@@ -12,7 +12,7 @@ fn assert_mcp_mod_reexports_registry(mcp_mod: &str) -> Result<()> {
     const NEEDLE: &str = "pub use vox_mcp_registry::TOOL_REGISTRY";
     if !mcp_mod.contains(NEEDLE) {
         return Err(anyhow!(
-            "vox-mcp tools/mod.rs: must `{NEEDLE}` (registry source: {MCP_TOOL_REGISTRY_REL})"
+            "vox-orchestrator mcp_tools/mod.rs: must `{NEEDLE}` (registry source: {MCP_TOOL_REGISTRY_REL})"
         ));
     }
     Ok(())
@@ -39,17 +39,17 @@ pub(crate) fn extract_mcp_handler_tools(src: &str) -> Result<HashSet<String>> {
 
     let fn_pos = src
         .find("pub async fn handle_tool_call")
-        .ok_or_else(|| anyhow!("vox-mcp: missing handle_tool_call"))?;
+        .ok_or_else(|| anyhow!("vox-orchestrator: missing handle_tool_call"))?;
     let after_fn = &src[fn_pos..];
     let match_needle = "match name {";
     let m_start = after_fn
         .find(match_needle)
-        .ok_or_else(|| anyhow!("vox-mcp: handle_tool_call missing `match name {{`"))?;
+        .ok_or_else(|| anyhow!("vox-orchestrator: handle_tool_call missing `match name {{`"))?;
     let from_brace = &after_fn[m_start + match_needle.len()..];
     let end = default_arm
         .find(from_brace)
         .map(|m| m.start())
-        .ok_or_else(|| anyhow!("vox-mcp: handle_tool_call missing `_ =>` default arm"))?;
+        .ok_or_else(|| anyhow!("vox-orchestrator: handle_tool_call missing `_ =>` default arm"))?;
     let block = &from_brace[..end];
     let mut out = HashSet::new();
     for line in block.lines() {
@@ -82,7 +82,7 @@ fn extract_mcp_tool_aliases(alias_rs: &str) -> Result<Vec<(String, String)>> {
     }
     if out.is_empty() {
         return Err(anyhow!(
-            "vox-mcp tools/tool_aliases.rs: expected TOOL_WIRE_ALIASES vox_* pairs"
+            "vox-orchestrator mcp_tools/tool_aliases.rs: expected TOOL_WIRE_ALIASES vox_* pairs"
         ));
     }
     Ok(out)
@@ -101,29 +101,47 @@ pub(crate) fn check_mcp_tool_wiring(
     for (alias, canonical) in &alias_pairs {
         if reg_set.contains(alias) {
             return Err(anyhow!(
-                "vox-mcp: tool_aliases alias `{alias}` must not duplicate a TOOL_REGISTRY name"
+                "vox-orchestrator: tool_aliases alias `{alias}` must not duplicate a TOOL_REGISTRY name"
             ));
         }
         if !reg_set.contains(canonical) {
             return Err(anyhow!(
-                "vox-mcp: tool_aliases `{alias}` → `{canonical}` but canonical not in TOOL_REGISTRY"
+                "vox-orchestrator: tool_aliases `{alias}` → `{canonical}` but canonical not in TOOL_REGISTRY"
             ));
         }
+    }
+    let mut handler_allowed: HashSet<String> = reg_set.clone();
+    for (alias, _) in &alias_pairs {
+        handler_allowed.insert(alias.clone());
     }
     let han_tools = extract_mcp_handler_tools(mcp_dispatch)?;
     for t in &reg_tools {
         if !han_tools.contains(t) {
             return Err(anyhow!(
-                "vox-mcp: tool `{t}` listed in TOOL_REGISTRY but missing from `handle_tool_call` match arms"
+                "vox-orchestrator: tool `{t}` listed in TOOL_REGISTRY but missing from `handle_tool_call` match arms"
             ));
         }
     }
     for t in &han_tools {
-        if !reg_tools.contains(t) {
+        if !handler_allowed.contains(t) {
             return Err(anyhow!(
-                "vox-mcp: `handle_tool_call` matches `{t}` but it is not listed in TOOL_REGISTRY"
+                "vox-orchestrator: `handle_tool_call` matches `{t}` but it is not listed in TOOL_REGISTRY (or `tool_aliases` wire alias)"
             ));
         }
     }
+
+    let vscode_dir = repo_root.join("vox-vscode");
+    if vscode_dir.is_dir() {
+        let status = std::process::Command::new("node")
+            .arg("scripts/check-mcp-tool-parity.mjs")
+            .current_dir(&vscode_dir)
+            .status();
+        if let Ok(st) = status {
+            if !st.success() {
+                return Err(anyhow!("vox-vscode parity check failed. See output above."));
+            }
+        }
+    }
+
     Ok(())
 }

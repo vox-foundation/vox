@@ -4,6 +4,9 @@ use crate::bulletin::BulletinBoard;
 use crate::config::OrchestratorConfig;
 use crate::locks::FileLockManager;
 use crate::queue::AgentQueue;
+use crate::topology::{
+    AgentRole, AgentTopologyNode, AgentTopologySnapshot, DelegationEdge, default_topology_gaps,
+};
 use crate::types::{AgentId, TaskId};
 use std::collections::HashMap;
 
@@ -23,6 +26,7 @@ impl Orchestrator {
                     normal_count: queue.depth_by_priority(crate::types::TaskPriority::Normal),
                     background_count: queue
                         .depth_by_priority(crate::types::TaskPriority::Background),
+                    doubted_count: queue.doubted_count(),
                     in_progress: queue.has_in_progress(),
                     completed: queue.completed_count(),
                     paused: queue.is_paused(),
@@ -30,6 +34,7 @@ impl Orchestrator {
                     dynamic: dynamic_agents.contains(id),
                     weighted_load: queue.weighted_load(),
                     agent_session_id: queue.agent_session_id.clone(),
+                    max_handoff_count: queue.max_handoff_count(),
                 }
             })
             .collect();
@@ -79,6 +84,7 @@ impl Orchestrator {
             total_queued: agents.iter().map(|a| a.queued).sum(),
             total_in_progress: agents.iter().filter(|a| a.in_progress).count(),
             total_completed: agents.iter().map(|a| a.completed).sum(),
+            total_doubted: agents.iter().map(|a| a.doubted_count).sum(),
             locked_files: self.lock_manager.active_lock_count(),
             total_contention: self.lock_manager.contention_count(),
             total_weighted_load,
@@ -86,6 +92,11 @@ impl Orchestrator {
             reserved_agents: reserved_count,
             dynamic_agents: dynamic_count,
             context_entries: crate::sync_lock::rw_read(&self.context_store).entries(),
+            max_handoff_count: agents
+                .iter()
+                .map(|a| a.max_handoff_count)
+                .max()
+                .unwrap_or(0),
             agents,
         }
     }
@@ -185,11 +196,124 @@ impl Orchestrator {
             .copied()
     }
 
+    /// Coarse lifecycle label for MCP / daemon RPC (matches `vox-mcp` `vox_task_status` semantics).
+    #[must_use]
+    pub fn task_lifecycle_status_label(&self, task_id: TaskId) -> Option<String> {
+        let status = self.status();
+        for agent_summary in &status.agents {
+            let Some(queue_lock) = self.agent_queue(agent_summary.id) else {
+                continue;
+            };
+            let Ok(queue) = queue_lock.read() else {
+                tracing::warn!("task_lifecycle_status_label: agent queue poisoned");
+                continue;
+            };
+            if queue.completed_ids().contains(&task_id) {
+                return Some("Completed".to_string());
+            }
+            if let Some(t) = queue.current_task() {
+                if t.id == task_id {
+                    return Some("InProgress".to_string());
+                }
+            }
+            if queue.is_blocked(task_id) {
+                return Some("Blocked".to_string());
+            }
+            let json = queue.to_json();
+            let tid = task_id.0;
+            if json.contains(&format!("\"id\": {tid}")) || json.contains(&format!("\"id\":{tid}")) {
+                return Some("Queued".to_string());
+            }
+        }
+        None
+    }
+
+    /// Resolve an agent id from a mapped external session id.
+    pub fn agent_for_session_id(&self, session_id: &str) -> Option<AgentId> {
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        agents.iter().find_map(|(agent_id, queue_lock)| {
+            let queue = crate::sync_lock::rw_read(&**queue_lock);
+            queue
+                .agent_session_id
+                .as_deref()
+                .filter(|sid| *sid == session_id)
+                .map(|_| *agent_id)
+        })
+    }
+
     /// Get the lifecycle timeline for a task (ingress → route → outcome), if recorded.
     pub fn task_trace(&self, task_id: TaskId) -> Option<Vec<TaskTraceStep>> {
         crate::sync_lock::rw_read(&self.task_traces)
             .get(&task_id)
             .cloned()
+    }
+
+    /// Snapshot the current agent topology (nodes + delegation edges + explicit known gaps).
+    #[must_use]
+    pub fn topology_snapshot(&self) -> AgentTopologySnapshot {
+        let agents = crate::sync_lock::rw_read(&self.agents);
+        let dynamic_agents = crate::sync_lock::rw_read(&self.dynamic_agents);
+        let delegations = crate::sync_lock::rw_read(&self.agent_delegations);
+        let spawn_ctx = crate::sync_lock::rw_read(&self.dynamic_spawn_context);
+
+        let mut child_counts: HashMap<AgentId, usize> = HashMap::new();
+        for binding in delegations.values() {
+            *child_counts.entry(binding.parent_agent_id).or_insert(0) += 1;
+        }
+
+        let mut nodes: Vec<AgentTopologyNode> = agents
+            .iter()
+            .map(|(id, queue_lock)| {
+                let queue = crate::sync_lock::rw_read(&**queue_lock);
+                let parent = delegations.get(id).map(|d| d.parent_agent_id);
+                let role = if queue.name.contains("verify") || queue.name.contains("review") {
+                    AgentRole::Verifier
+                } else if queue.name.contains("plan") {
+                    AgentRole::Planner
+                } else if queue.name.contains("research") {
+                    AgentRole::Researcher
+                } else if queue.name.contains("synth") {
+                    AgentRole::Synthesizer
+                } else if queue.name.contains("exec") || queue.name.contains("worker") {
+                    AgentRole::Executor
+                } else {
+                    AgentRole::Generalist
+                };
+                AgentTopologyNode {
+                    agent_id: *id,
+                    name: queue.name.clone(),
+                    role,
+                    dynamic: dynamic_agents.contains(id),
+                    parent_agent_id: parent,
+                    source_task_id: spawn_ctx.get(id).and_then(|m| m.source_task_id),
+                    spawn_reason: spawn_ctx.get(id).map(|m| m.reason.clone()),
+                    child_count: *child_counts.get(id).unwrap_or(&0),
+                    queued: queue.len(),
+                    in_progress: queue.has_in_progress(),
+                    paused: queue.is_paused(),
+                    agent_session_id: queue.agent_session_id.clone(),
+                }
+            })
+            .collect();
+        nodes.sort_by_key(|n| n.agent_id.0);
+
+        let mut delegation_edges: Vec<DelegationEdge> = delegations
+            .iter()
+            .map(|(child, binding)| DelegationEdge {
+                parent_agent_id: binding.parent_agent_id,
+                child_agent_id: *child,
+                source_task_id: binding.source_task_id,
+                reason: binding.reason.clone(),
+            })
+            .collect();
+        delegation_edges.sort_by_key(|e| (e.parent_agent_id.0, e.child_agent_id.0));
+
+        AgentTopologySnapshot {
+            generated_at_ms: crate::types::now_unix_ms(),
+            nodes,
+            delegation_edges,
+            known_gaps: default_topology_gaps(),
+        }
     }
 
     /// Get a handle to the shared context store.
@@ -283,5 +407,31 @@ impl Orchestrator {
         &self,
     ) -> std::sync::Arc<std::sync::RwLock<crate::workspace::WorkspaceManager>> {
         self.workspace_manager_handle()
+    }
+
+    /// Access the cryptographic tool receipt ledger handle.
+    pub fn tool_ledger_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::tool_receipt::ToolReceiptLedger>> {
+        std::sync::Arc::clone(&self.tool_ledger)
+    }
+
+    /// Access the generic resource lock manager.
+    pub fn resource_locks(&self) -> &crate::locks::ResourceLockManager {
+        &self.resource_locks
+    }
+
+    /// Access the privacy router handle.
+    pub fn privacy_router_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::privacy_router::PrivacyRouter>> {
+        std::sync::Arc::clone(&self.privacy_router)
+    }
+
+    /// Access the consensus judge model handle.
+    pub fn judge_model_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::judge_model::JudgeModel>> {
+        std::sync::Arc::clone(&self.judge_model)
     }
 }

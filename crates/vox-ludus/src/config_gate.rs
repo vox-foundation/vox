@@ -10,6 +10,8 @@
 //! - **`VOX_LUDUS_EMERGENCY_OFF=1`**: hard-off all Ludus side effects (rollout kill-switch).
 //! - **`VOX_LUDUS_SESSION_ENABLED`**: `true` / `false` — session-only enable toggle.
 //! - **`VOX_LUDUS_SESSION_MODE`**: `balanced` | `serious` | `learning` | `off` (off disables for session).
+//! - **`VOX_LUDUS_MCP_TOOL_ARGS`**: `full` (default) \| `hash` \| `omit` — canonical table in **`docs/src/reference/env-vars.md`**
+//!   (behavior: [`mcp_tool_args_storage`], consumer: [`crate::mcp_privacy::prepare_mcp_tool_args_for_storage`]).
 
 use vox_config::{GamifyMode, VoxConfig};
 
@@ -28,7 +30,7 @@ pub enum LudusChannel {
 
 /// Effective Ludus UX channel (`VOX_LUDUS_CHANNEL` overrides, else derived from mode).
 pub fn ludus_channel() -> LudusChannel {
-    if let Ok(raw) = std::env::var("VOX_LUDUS_CHANNEL") {
+    if let Some(raw) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusChannel).expose() {
         match raw.to_lowercase().as_str() {
             "off" => return LudusChannel::Off,
             "serious" => return LudusChannel::Serious,
@@ -62,7 +64,8 @@ pub enum McpToolArgsStorage {
 /// `VOX_LUDUS_MCP_TOOL_ARGS`: `full` (default) | `hash` | `omit`.
 #[must_use]
 pub fn mcp_tool_args_storage() -> McpToolArgsStorage {
-    match std::env::var("VOX_LUDUS_MCP_TOOL_ARGS")
+    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusMcpToolArgs)
+        .expose()
         .unwrap_or_default()
         .to_lowercase()
         .as_str()
@@ -75,7 +78,8 @@ pub fn mcp_tool_args_storage() -> McpToolArgsStorage {
 
 /// When `VOX_LUDUS_EXPERIMENT` is set, scales teaching hint frequency for measurable A/B arms (see policy snapshots).
 pub fn experiment_hint_frequency_multiplier() -> f64 {
-    let Ok(exp) = std::env::var("VOX_LUDUS_EXPERIMENT") else {
+    let exp_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusExperiment);
+    let Some(exp) = exp_resolved.expose() else {
         return 1.0;
     };
     if exp.trim().is_empty() {
@@ -101,8 +105,10 @@ pub fn load() -> VoxConfig {
 /// Effective config: disk + session env overrides + emergency kill-switch.
 pub fn load_effective() -> VoxConfig {
     let mut c = VoxConfig::load();
+    let emergency_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusEmergencyOff);
     if matches!(
-        std::env::var("VOX_LUDUS_EMERGENCY_OFF")
+        emergency_resolved
+            .expose()
             .unwrap_or_default()
             .to_lowercase()
             .as_str(),
@@ -111,11 +117,15 @@ pub fn load_effective() -> VoxConfig {
         c.gamify_enabled = false;
         return c;
     }
-    if let Ok(v) = std::env::var("VOX_LUDUS_SESSION_ENABLED") {
+    let session_enabled_resolved =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusSessionEnabled);
+    if let Some(v) = session_enabled_resolved.expose() {
         let low = v.to_lowercase();
         c.gamify_enabled = matches!(low.as_str(), "1" | "true" | "yes");
     }
-    if let Ok(v) = std::env::var("VOX_LUDUS_SESSION_MODE") {
+    let session_mode_resolved =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusSessionMode);
+    if let Some(v) = session_mode_resolved.expose() {
         match v.to_lowercase().as_str() {
             "serious" => c.gamify_mode = GamifyMode::Serious,
             "learning" => c.gamify_mode = GamifyMode::Learning,
@@ -140,7 +150,7 @@ pub fn mode() -> GamifyMode {
 /// Label persisted on policy snapshots; appends non-empty `VOX_LUDUS_EXPERIMENT` for A/B tagging.
 pub fn policy_snapshot_mode_label() -> String {
     let base = format!("{:?}", mode());
-    match std::env::var("VOX_LUDUS_EXPERIMENT").ok() {
+    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusExperiment).expose() {
         Some(exp) => {
             let t = exp.trim();
             if t.is_empty() {
@@ -161,8 +171,8 @@ pub fn reward_multiplier() -> f64 {
 /// Second experiment knob: multiply policy XP/crystals when `VOX_LUDUS_EXPERIMENT_REWARD_MULT` is a finite positive number (default `1.0`).
 #[must_use]
 pub fn experiment_reward_multiplier() -> f64 {
-    match std::env::var("VOX_LUDUS_EXPERIMENT_REWARD_MULT") {
-        Ok(s) => {
+    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusExperimentRewardMult).expose() {
+        Some(s) => {
             let t = s.trim();
             if t.is_empty() {
                 return 1.0;
@@ -170,7 +180,7 @@ pub fn experiment_reward_multiplier() -> f64 {
             let v: f64 = t.parse().unwrap_or(1.0);
             if v.is_finite() && v > 0.0 { v } else { 1.0 }
         }
-        Err(_) => 1.0,
+        None => 1.0,
     }
 }
 

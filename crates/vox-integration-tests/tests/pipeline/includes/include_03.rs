@@ -88,27 +88,33 @@ type Todo =
     | Active(text: str)
     | Completed(text: str)
 
-@component fn Dashboard() to Element {
+component Dashboard() {
     let (visits, set_visits) = use_state(0)
-    <div class="dashboard">
-        <h1>"Dashboard"</h1>
-        <button on_click={fn(_e) set_visits(visits + 1)}>"Track"</button>
-    </div>
+    view: (
+        <div class="dashboard">
+            <h1>"Dashboard"</h1>
+            <button on_click={fn(_e) set_visits(visits + 1)}>"Track"</button>
+        </div>
+    )
 }
 
-@component fn TodoList() to Element {
+component TodoList() {
     let (items, set_items) = use_state([])
     let (draft, set_draft) = use_state("")
-    <div class="todo_list">
-        <input bind={draft} placeholder="New task..." />
-        <button on_click={fn(_e) set_items(items.append({text: draft}))}>"Add"</button>
-    </div>
+    view: (
+        <div class="todo_list">
+            <input bind={draft} placeholder="New task..." />
+            <button on_click={fn(_e) set_items(items.append({text: draft}))}>"Add"</button>
+        </div>
+    )
 }
 
-@component fn About() to Element {
-    <div class="about">
-        <h1>"About"</h1>
-    </div>
+component About() {
+    view: (
+        <div class="about">
+            <h1>"About"</h1>
+        </div>
+    )
 }
 
 routes {
@@ -155,8 +161,8 @@ fn pipeline_multi_route_codegen() {
     );
     assert!(filenames.contains(&"About.tsx"), "Should produce About.tsx");
     assert!(
-        filenames.contains(&"App.tsx"),
-        "Should produce App.tsx for routes:"
+        filenames.contains(&"routes.manifest.ts"),
+        "Should produce routes.manifest.ts for routes:"
     );
     assert!(
         filenames.contains(&"types.ts"),
@@ -183,7 +189,7 @@ fn pipeline_multi_route_rust_codegen() {
     );
 }
 
-/// HTTP `routes` surface plus classic `@component` JSX tails → Web IR summary (OP-0181).
+/// HTTP `routes` surface plus Path C components → Web IR summary (OP-0181).
 #[test]
 fn pipeline_web_ir_lower_summary_counts_http_and_classic() {
     use vox_compiler::web_ir::lower::lower_hir_to_web_ir_with_summary;
@@ -197,16 +203,16 @@ fn pipeline_web_ir_lower_summary_counts_http_and_classic() {
         "expected HTTP loader contracts, got {summary:?}"
     );
     assert!(
-        summary.classic_component_views_lowered >= 1,
-        "expected classic @component views lowered to view_roots, got {summary:?}"
+        summary.reactive_components >= 1,
+        "expected Path C components in HIR/WebIR summary, got {summary:?}"
     );
     assert_eq!(
         summary.classic_components_deferred, 0,
-        "fixture classic components should fully lower, got {summary:?}"
+        "fixture should have no deferred classic views, got {summary:?}"
     );
 }
 
-/// Chatbot classic `@component fn Chat` produces a `view_roots` entry and passes `validate_web_ir`.
+/// Chatbot Path C `component Chat` produces a `view_roots` entry and passes `validate_web_ir`.
 #[test]
 fn pipeline_chat_classic_web_ir_validate_clean() {
     use vox_compiler::web_ir::lower::lower_hir_to_web_ir_with_summary;
@@ -217,8 +223,8 @@ fn pipeline_chat_classic_web_ir_validate_clean() {
     let hir = vox_compiler::hir::lower_module(&module);
     let (web, summary) = lower_hir_to_web_ir_with_summary(&hir);
     assert!(
-        summary.classic_component_views_lowered >= 1,
-        "Chat should lower into Web IR view_roots, got {summary:?}"
+        summary.reactive_components >= 1,
+        "Chat Path C should appear in reactive summary, got {summary:?}"
     );
     assert!(
         web.view_roots.iter().any(|(n, _)| n == "Chat"),
@@ -266,7 +272,7 @@ fn pipeline_express_contract_mapper_fixture_validates_multi_route_hir() {
     );
 }
 
-/// OP-S036: route + component gate — Express validation, Web IR validate clean, `App.tsx` present.
+/// OP-S036: route + component gate — Express validation, Web IR validate clean, `routes.manifest.ts` present.
 #[test]
 fn pipeline_route_component_express_and_web_ir_gate() {
     use vox_compiler::web_ir::validate::validate_web_ir;
@@ -285,8 +291,8 @@ fn pipeline_route_component_express_and_web_ir_gate() {
     assert!(diags.is_empty(), "{diags:?}");
     let out = generate_without_express!(&module);
     assert!(
-        out.files.iter().any(|(n, _)| n == "App.tsx"),
-        "expected App.tsx in {:?}",
+        out.files.iter().any(|(n, _)| n == "routes.manifest.ts"),
+        "expected routes.manifest.ts in {:?}",
         out.files.iter().map(|(n, _)| n).collect::<Vec<_>>()
     );
 }

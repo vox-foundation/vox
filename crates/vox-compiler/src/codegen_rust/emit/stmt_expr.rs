@@ -1,4 +1,4 @@
-use crate::builtin_registry::lookup_builtin;
+use crate::builtin_registry::{BuiltinArgKind, lookup_builtin, std_namespace_runtime_call};
 use crate::hir::{HirBinOp, HirExpr, HirPattern, HirStmt};
 
 pub(super) fn emit_stmt(
@@ -17,17 +17,27 @@ pub(super) fn emit_stmt(
             ..
         } => {
             let mut_kw = if *mutable { "mut " } else { "" };
-            format!(
-                "{pad}let {}{} = {};\n",
-                mut_kw,
-                emit_pattern(pattern, is_route, is_actor, mutation_tx),
-                emit_expr_with(value, is_route, is_actor, mutation_tx)
-            )
+            if is_actor {
+                format!(
+                    "{pad}let {}{} = ctx.heap.allocate({});\n",
+                    mut_kw,
+                    emit_pattern(pattern, is_route, is_actor, mutation_tx),
+                    emit_expr_with(value, is_route, is_actor, mutation_tx)
+                )
+            } else {
+                format!(
+                    "{pad}let {}{} = {};\n",
+                    mut_kw,
+                    emit_pattern(pattern, is_route, is_actor, mutation_tx),
+                    emit_expr_with(value, is_route, is_actor, mutation_tx)
+                )
+            }
         }
         HirStmt::Assign { target, value, .. } => {
+            // The target must be an l-value; do not emit `.clone()` on ident targets.
+            let lhs = emit_assign_target(target);
             format!(
-                "{pad}{} = {};\n",
-                emit_expr_with(target, is_route, is_actor, mutation_tx),
+                "{pad}{lhs} = {};\n",
                 emit_expr_with(value, is_route, is_actor, mutation_tx)
             )
         }
@@ -70,12 +80,87 @@ pub(super) fn emit_stmt(
                 emit_expr_with(expr, is_route, is_actor, mutation_tx)
             )
         }
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            let mut s = format!(
+                "{pad}while {} {{\n",
+                emit_expr_with(condition, is_route, is_actor, mutation_tx)
+            );
+            if is_actor {
+                s.push_str(&format!("{pad}    ctx.reduction_count += 1;\n"));
+                s.push_str(&format!(
+                    "{pad}    if ctx.reduction_count >= ctx.max_reductions {{\n"
+                ));
+                s.push_str(&format!("{pad}        ctx.reduction_count = 0;\n"));
+                s.push_str(&format!(
+                    "{pad}        if ctx.heap.should_collect() {{ ctx.heap.collect(); }}\n"
+                ));
+                s.push_str(&format!("{pad}        tokio::task::yield_now().await;\n"));
+                s.push_str(&format!("{pad}    }}\n"));
+            }
+            for stmt in body {
+                s.push_str(&emit_stmt(
+                    stmt,
+                    indent + 1,
+                    is_route,
+                    is_actor,
+                    mutation_tx,
+                ));
+            }
+            s.push_str(&format!("{pad}}}\n"));
+            s
+        }
+        HirStmt::Loop { body, .. } => {
+            let mut s = format!("{pad}loop {{\n");
+            if is_actor {
+                s.push_str(&format!("{pad}    ctx.reduction_count += 1;\n"));
+                s.push_str(&format!(
+                    "{pad}    if ctx.reduction_count >= ctx.max_reductions {{\n"
+                ));
+                s.push_str(&format!("{pad}        ctx.reduction_count = 0;\n"));
+                s.push_str(&format!(
+                    "{pad}        if ctx.heap.should_collect() {{ ctx.heap.collect(); }}\n"
+                ));
+                s.push_str(&format!("{pad}        tokio::task::yield_now().await;\n"));
+                s.push_str(&format!("{pad}    }}\n"));
+            }
+            for stmt in body {
+                s.push_str(&emit_stmt(
+                    stmt,
+                    indent + 1,
+                    is_route,
+                    is_actor,
+                    mutation_tx,
+                ));
+            }
+            s.push_str(&format!("{pad}}}\n"));
+            s
+        }
+        HirStmt::Break { .. } => format!("{pad}break;\n"),
+        HirStmt::Continue { .. } => format!("{pad}continue;\n"),
     }
 }
 
 /// Emit one statement for script-mode `main` (no route/actor return wrapping).
 pub fn emit_main_stmt(stmt: &HirStmt, indent: usize) -> String {
     emit_stmt(stmt, indent, false, false, false)
+}
+
+/// Emit an assignment l-value target without adding `.clone()`.
+///
+/// The standard `emit_expr_with` appends `.clone()` to every identifier,
+/// which produces invalid Rust like `j.clone() = rhs`. This function emits
+/// a bare identifier or a simple field-access path instead.
+fn emit_assign_target(expr: &HirExpr) -> String {
+    match expr {
+        HirExpr::Ident(n, _) => n.clone(),
+        HirExpr::FieldAccess(obj, field, _) => {
+            format!("{}.{}", emit_assign_target(obj), field)
+        }
+        // Fallback: use the generic emitter for complex lvalues (index ops etc.)
+        other => emit_expr_with(other, false, false, false),
+    }
 }
 
 pub(super) fn emit_pattern(
@@ -155,8 +240,14 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
         HirExpr::FloatLit(v, _) => v.to_string(),
-        HirExpr::StringLit(v, _) => format!("\"{}\".to_string()", v),
+        HirExpr::StringLit(v, _) => {
+            let escaped = v.replace("\"", "\\\"").replace("\n", "\\n");
+            format!("\"{}\".to_string()", escaped)
+        }
         HirExpr::BoolLit(v, _) => v.to_string(),
+        HirExpr::DecimalLit(v, _) => {
+            format!("rust_decimal::Decimal::from_str_exact(\"{v}\").unwrap()")
+        }
         HirExpr::ListLit(elements, _) => format!(
             "vec![{}]",
             elements.iter().map(emit).collect::<Vec<_>>().join(", ")
@@ -167,8 +258,8 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
         ),
 
         HirExpr::Ident(n, _) => {
-            if n == "request" {
-                "request".into()
+            if n == "request" || n == "std" || n == "fs" {
+                n.clone()
             } else if n.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
                 n.clone()
             } else {
@@ -189,6 +280,7 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
                 HirBinOp::Or => "||",
                 HirBinOp::Is => "==",
                 HirBinOp::Isnt => "!=",
+                HirBinOp::Mod => "%",
                 HirBinOp::Pipe => return format!("{}({})", emit(r), emit(l)),
             };
             if matches!(
@@ -235,12 +327,18 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
             }
             // std.* call forms: std.fs.read(path) → FieldAccess(FieldAccess(Ident("std"), "fs"), "read")
             if let HirExpr::FieldAccess(namespace_expr, fn_name, _) = &**callee {
-                if let HirExpr::Ident(module_name, _) = &**namespace_expr
-                    && module_name == "OpenClaw"
-                {
+                if let HirExpr::Ident(module_name, _) = &**namespace_expr {
                     let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
-                    if let Some(call) = emit_registry_runtime_call("OpenClaw", fn_name, &a) {
-                        return format!("(match {call} {{ Ok(v) => Ok(v), Err(m) => Error(m) }})");
+                    if module_name == "OpenClaw" || module_name == "Browser" {
+                        if let Some(expr) =
+                            emit_openclaw_or_browser_registry_call(module_name, fn_name, &a)
+                        {
+                            return expr;
+                        }
+                    } else if module_name == "fs" {
+                        if let Some(call) = std_namespace_runtime_call("fs", fn_name, &a) {
+                            return call;
+                        }
                     }
                 }
                 if let HirExpr::Ident(std_kw, _) = &**namespace_expr {
@@ -259,137 +357,12 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
                     if let HirExpr::Ident(std_kw, _) = &**std_expr {
                         if std_kw == "std" {
                             let a: Vec<_> = args.iter().map(|arg| emit(&arg.value)).collect();
-                            let builtin: Option<String> = match (ns_name.as_str(), fn_name.as_str())
-                            {
-                                ("crypto", "hash_fast") if !a.is_empty() => {
-                                    Some(format!("vox_runtime::builtins::vox_hash_fast(&{})", a[0]))
-                                }
-                                ("crypto", "hash_secure") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_hash_secure(&{})",
-                                    a[0]
-                                )),
-                                ("crypto", "uuid") => {
-                                    Some("vox_runtime::builtins::vox_uuid()".to_string())
-                                }
-                                ("time", "now_ms") => {
-                                    Some("vox_runtime::builtins::vox_now_ms()".to_string())
-                                }
-                                ("log", "debug") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_log_debug(({}).as_str())",
-                                    a[0]
-                                )),
-                                ("log", "info") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_log_info(({}).as_str())",
-                                    a[0]
-                                )),
-                                ("log", "warn") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_log_warn(({}).as_str())",
-                                    a[0]
-                                )),
-                                ("log", "error") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_log_error(({}).as_str())",
-                                    a[0]
-                                )),
-                                ("fs", "read") if !a.is_empty() => Some(format!(
-                                    "std::fs::read_to_string({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
-                                    a[0]
-                                )),
-                                ("fs", "write") if a.len() >= 2 => Some(format!(
-                                    "std::fs::write({}, {}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
-                                    a[0], a[1]
-                                )),
-                                ("fs", "exists") if !a.is_empty() => {
-                                    Some(format!("std::path::Path::new(&{}).exists()", a[0]))
-                                }
-                                ("fs", "remove") if !a.is_empty() => Some(format!(
-                                    "std::fs::remove_file({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
-                                    a[0]
-                                )),
-                                ("fs", "read_bytes") if !a.is_empty() => Some(format!(
-                                    "std::fs::read({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
-                                    a[0]
-                                )),
-                                ("fs", "mkdir") if !a.is_empty() => Some(format!(
-                                    "std::fs::create_dir_all({}).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?",
-                                    a[0]
-                                )),
-                                ("path", "join") if a.len() >= 2 => Some(format!(
-                                    "std::path::Path::new(&{}).join(&{}).to_string_lossy().to_string()",
-                                    a[0], a[1]
-                                )),
-                                ("path", "basename") if !a.is_empty() => Some(format!(
-                                    "std::path::Path::new(&{}).file_name().unwrap_or_default().to_string_lossy().to_string()",
-                                    a[0]
-                                )),
-                                ("path", "dirname") if !a.is_empty() => Some(format!(
-                                    "std::path::Path::new(&{}).parent().unwrap_or(std::path::Path::new(\".\")).to_string_lossy().to_string()",
-                                    a[0]
-                                )),
-                                ("path", "extension") if !a.is_empty() => Some(format!(
-                                    "std::path::Path::new(&{}).extension().unwrap_or_default().to_string_lossy().to_string()",
-                                    a[0]
-                                )),
-                                ("env", "get") if !a.is_empty() => Some(format!(
-                                    "(vox_runtime::builtins::vox_env_get(({}).as_str()))",
-                                    a[0]
-                                )),
-                                ("process", "run") if a.len() >= 2 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_process_run(({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Error(m) }})",
-                                    a[0], a[1]
-                                )),
-                                ("process", "run_ex") if a.len() >= 4 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_process_run_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Error(m) }})",
-                                    a[0], a[1], a[2], a[3]
-                                )),
-                                ("process", "run_capture") if a.len() >= 2 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_process_run_capture(({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
-                                    a[0], a[1]
-                                )),
-                                ("process", "run_capture_ex") if a.len() >= 4 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_process_run_capture_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
-                                    a[0], a[1], a[2], a[3]
-                                )),
-                                ("process", "exit") if !a.is_empty() => {
-                                    Some(format!("{{ std::process::exit({} as i32) }}", a[0]))
-                                }
-                                ("fs", "list_dir") if !a.is_empty() => Some(format!(
-                                    "(match vox_runtime::builtins::vox_list_dir(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
-                                    a[0]
-                                )),
-                                ("fs", "glob") if !a.is_empty() => Some(format!(
-                                    "(match vox_runtime::builtins::vox_fs_glob(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
-                                    a[0]
-                                )),
-                                ("fs", "remove_dir_all") if !a.is_empty() => Some(format!(
-                                    "(match vox_runtime::builtins::vox_fs_remove_dir_all(({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
-                                    a[0]
-                                )),
-                                ("fs", "copy") if a.len() >= 2 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_fs_copy(({}).as_str(), ({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
-                                    a[0], a[1]
-                                )),
-                                ("path", "join_many") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_path_join_many({}.as_slice())",
-                                    a[0]
-                                )),
-                                ("json", "read_str") if a.len() >= 2 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_json_read_str(({}).as_str(), ({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
-                                    a[0], a[1]
-                                )),
-                                ("json", "read_f64") if a.len() >= 2 => Some(format!(
-                                    "(match vox_runtime::builtins::vox_json_read_f64(({}).as_str(), ({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
-                                    a[0], a[1]
-                                )),
-                                ("json", "quote") if !a.is_empty() => Some(format!(
-                                    "vox_runtime::builtins::vox_json_quote(({}).as_str())",
-                                    a[0]
-                                )),
-                                _ => None,
-                            };
+                            let builtin =
+                                std_namespace_runtime_call(ns_name.as_str(), fn_name.as_str(), &a);
                             if let Some(b) = builtin {
                                 return if *is_await { format!("{}.await", b) } else { b };
                             }
-                            let call = format!("std::{}::{}({})", ns_name, fn_name, a.join(", "));
+                            let call = format!("::std::{}::{}({})", ns_name, fn_name, a.join(", "));
                             return if *is_await {
                                 format!("{}.await", call)
                             } else {
@@ -413,14 +386,47 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
     }
 }
 
+/// Raw `vox_runtime::builtins::…` invoke (`std.*` root calls).
 fn emit_registry_runtime_call(namespace: &str, fn_name: &str, args: &[String]) -> Option<String> {
     let entry = lookup_builtin(namespace, fn_name, args.len())?;
     let symbol = entry.runtime_symbol?;
-    let call = match args.len() {
-        0 => format!("{symbol}()"),
-        1 => format!("{symbol}(({}).as_str())", args[0]),
-        2 => format!("{symbol}(({}).as_str(), ({}).as_str())", args[0], args[1]),
-        _ => return None,
+    let kinds: Vec<BuiltinArgKind> = if entry.arg_kinds.is_empty() {
+        vec![BuiltinArgKind::Str; args.len()]
+    } else {
+        entry.arg_kinds.to_vec()
     };
-    Some(call)
+    if kinds.len() != args.len() {
+        return None;
+    }
+    let mut parts = Vec::with_capacity(args.len());
+    for (k, a) in kinds.iter().zip(args.iter()) {
+        parts.push(match k {
+            BuiltinArgKind::Str => format!("({a}).as_str()"),
+            BuiltinArgKind::Bool => a.clone(),
+            BuiltinArgKind::Int => format!("({a}) as u64"),
+        });
+    }
+    Some(format!("{}({})", symbol, parts.join(", ")))
+}
+
+/// `OpenClaw.*` / `Browser.*` → Vox `Result` ADT (`Browser` is `wasm32`-guarded).
+fn emit_openclaw_or_browser_registry_call(
+    module_name: &str,
+    fn_name: &str,
+    args: &[String],
+) -> Option<String> {
+    let inv = emit_registry_runtime_call(module_name, fn_name, args)?;
+    let entry = lookup_builtin(module_name, fn_name, args.len())?;
+    let inner = if entry.returns_unit {
+        format!("match {inv} {{ Ok(()) => Ok(()), Err(m) => Error(m) }}")
+    } else {
+        format!("match {inv} {{ Ok(v) => Ok(v), Err(m) => Error(m) }}")
+    };
+    if module_name == "Browser" {
+        Some(format!(
+            "({{ #[cfg(target_arch = \"wasm32\")] {{ Error(\"Browser.* is not available in WASI scripts\".to_string()) }} #[cfg(not(target_arch = \"wasm32\"))] {{ {inner} }} }})"
+        ))
+    } else {
+        Some(format!("({inner})"))
+    }
 }

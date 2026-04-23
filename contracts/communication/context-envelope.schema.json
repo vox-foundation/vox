@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/communication/context-envelope.schema.json",
+  "title": "ContextEnvelope",
+  "description": "Canonical context payload envelope for MCP, orchestrator, search, and Populi handoff surfaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "envelope_type",
+    "envelope_id",
+    "created_at_unix_ms",
+    "provenance",
+    "trust",
+    "subject",
+    "content",
+    "conflict_policy",
+    "budget"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "envelope_type": {
+      "type": "string",
+      "enum": [
+        "chat_turn",
+        "session_summary",
+        "retrieval_evidence",
+        "task_context",
+        "handoff_context",
+        "agent_note",
+        "policy_hint",
+        "execution_context"
+      ]
+    },
+    "envelope_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at_unix_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "expires_at_unix_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "ttl_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_plane",
+        "source_system",
+        "capture_mode"
+      ],
+      "properties": {
+        "source_plane": {
+          "type": "string",
+          "enum": [
+            "mcp",
+            "orchestrator",
+            "search",
+            "populi",
+            "codex",
+            "manual",
+            "external"
+          ]
+        },
+        "source_system": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_tool": {
+          "type": "string"
+        },
+        "source_path": {
+          "type": "string"
+        },
+        "producer_agent_id": {
+          "type": "string"
+        },
+        "producer_node_id": {
+          "type": "string"
+        },
+        "producer_session_id": {
+          "type": "string"
+        },
+        "producer_thread_id": {
+          "type": "string"
+        },
+        "capture_mode": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "derived",
+            "retrieved",
+            "compacted",
+            "handed_off",
+            "imported"
+          ]
+        },
+        "policy_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observed_via": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "trace_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "correlation_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trust_tier",
+        "authority_rank",
+        "freshness_tier"
+      ],
+      "properties": {
+        "trust_tier": {
+          "type": "string",
+          "enum": [
+            "untrusted",
+            "advisory",
+            "trusted",
+            "system_verified"
+          ]
+        },
+        "authority_rank": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "freshness_tier": {
+          "type": "string",
+          "enum": [
+            "volatile",
+            "recent",
+            "stable",
+            "archival"
+          ]
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "contradiction_ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "requires_citation": {
+          "type": "boolean"
+        },
+        "may_override_lower_authority": {
+          "type": "boolean"
+        }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "root_envelope_id": {
+          "type": "string"
+        },
+        "parent_envelope_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "root_conversation_id": {
+          "type": "string"
+        },
+        "root_task_id": {
+          "type": "string"
+        },
+        "hop_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "compaction_generation": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "derived_from": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "ref"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "message",
+                  "task",
+                  "artifact",
+                  "retrieval",
+                  "summary",
+                  "handoff"
+                ]
+              },
+              "ref": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_id"
+      ],
+      "properties": {
+        "repository_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "thread_id": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "goal_id": {
+          "type": "string"
+        },
+        "agent_id": {
+          "type": "string"
+        },
+        "receiver_agent_id": {
+          "type": "string"
+        },
+        "node_id": {
+          "type": "string"
+        },
+        "populi_scope_id": {
+          "type": "string"
+        },
+        "surface": {
+          "type": "string",
+          "enum": [
+            "chat",
+            "plan",
+            "task_submit",
+            "handoff",
+            "retrieval",
+            "remote_execute",
+            "memory"
+          ]
+        }
+      }
+    },
+    "content": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary_text"
+      ],
+      "properties": {
+        "summary_text": {
+          "type": "string"
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "fact_id",
+              "text"
+            ],
+            "properties": {
+              "fact_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "evidence_refs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "supersedes_fact_ids": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "repo_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "artifact_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "structured_payload": {
+          "type": "object"
+        }
+      }
+    },
+    "conflict_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "merge_strategy"
+      ],
+      "properties": {
+        "merge_strategy": {
+          "type": "string",
+          "enum": [
+            "append_only",
+            "last_write_wins",
+            "confidence_weighted",
+            "authority_precedence",
+            "crdt_merge",
+            "manual_review"
+          ]
+        },
+        "stale_after_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dedupe_key": {
+          "type": "string"
+        },
+        "overwrite_requires_evidence": {
+          "type": "boolean"
+        },
+        "conflict_class": {
+          "type": "string",
+          "enum": [
+            "temporal",
+            "semantic",
+            "authority",
+            "source_trust",
+            "policy"
+          ]
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "priority",
+        "injection_mode"
+      ],
+      "properties": {
+        "priority": {
+          "type": "string",
+          "enum": [
+            "low",
+            "normal",
+            "high",
+            "critical"
+          ]
+        },
+        "injection_mode": {
+          "type": "string",
+          "enum": [
+            "inline",
+            "summary_only",
+            "reference_only",
+            "tool_required"
+          ]
+        },
+        "token_estimate": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_tokens_for_injection": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "retrieval_cost_class": {
+          "type": "string",
+          "enum": [
+            "cheap",
+            "moderate",
+            "expensive"
+          ]
+        },
+        "must_refresh_before_use": {
+          "type": "boolean"
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "risk_budget": {
+          "type": "string"
+        },
+        "factual_mode": {
+          "type": "boolean"
+        },
+        "required_citations": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

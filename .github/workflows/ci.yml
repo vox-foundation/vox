@@ -5,13 +5,18 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   check-and-test:
     name: Check, Build, and Test (Rust)
-    runs-on: [self-hosted, linux, x64]
+    runs-on: [self-hosted, linux, x64, docker]
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -49,8 +54,35 @@ jobs:
       - name: Docs migration SSOT guard
         run: cargo run -p vox-cli --quiet -- ci check-docs-ssot
 
+      - name: Retired symbol documentation guard
+        run: cargo run -p vox-cli --quiet -- ci retired-symbol-check
+
+
       - name: CLI command registry / docs / MCP parity
         run: cargo run -p vox-cli --quiet -- ci command-compliance
+
+      - name: SSOT drift bundle (operations-verify, sql-surface + query-all --all, capability-sync, nested guards)
+        run: cargo run -p vox-cli --quiet -- ci ssot-drift
+
+      - name: Data / telemetry SSOT guards
+        run: cargo run -p vox-cli --quiet -- ci data-ssot-guards
+
+      - name: Determinism Audit
+        run: cargo run -p vox-cli --quiet -- ci determinism-audit
+
+      - name: Dependency Sprawl Check
+        run: cargo run -p vox-cli --quiet -- ci dep-sprawl --cap 25
+
+      - name: Dynamic Workspace Health Audit
+        run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-workspace-health.vox
+
+      - name: Telemetry-Driven Architectural Audit
+        run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-telemetry.vox
+
+      - name: Completion quality audit + gates (LLM premature-completion SSOT)
+        run: |
+          cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-audit
+          cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-gates --mode enforce
 
       - name: Clavis SSOT parity + secret direct-read guard
         shell: bash
@@ -70,12 +102,17 @@ jobs:
             fi
           fi
           cargo run -p vox-cli --quiet -- ci secret-env-guard
+          export VOX_CLAVIS_REQUIRE_COMPAT_SUNSET=1
+          export VOX_CLAVIS_CUTOVER_PHASE=enforce
+          cargo run -p vox-cli --quiet -- ci clavis-cutover-gates
 
       - name: Contracts index + scaling policy SSOT
         run: |
           cargo run -p vox-cli --quiet -- ci contracts-index
+          cargo run -p vox-cli --quiet -- ci exec-policy-contract
           cargo run -p vox-cli --quiet -- ci openclaw-contract
           cargo run -p vox-cli --quiet -- ci scientia-worthiness-contract
+          cargo run -p vox-cli --quiet -- ci scientia-novelty-ledger-contracts
           cargo run -p vox-cli --quiet -- ci scaling-audit verify
 
       - name: TOESTUB full crates/ — syn parse failure budget (JSON envelope)
@@ -88,6 +125,62 @@ jobs:
 
       - name: Doc inventory matches generator (Rust)
         run: cargo run -p vox-cli --quiet -- ci doc-inventory verify
+
+      - name: Docs — no stale `tanstack_start.rs` compiler path
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "crates/vox-compiler/src/codegen_ts/tanstack_start\\.rs" docs/src; then
+            echo "docs must not reference removed tanstack_start.rs; use route_manifest / vox_client / scaffold"
+            exit 1
+          fi
+
+      - name: Docs — no ghost references to retired HTMX / Pico / TanStack-virtual-routes (G.73)
+        # Audit item G.73: retired surfaces must not appear in normative docs.
+        # Allowlist: the audit-findings doc and archive/ may reference them for historical context.
+        shell: bash
+        run: |
+          set -euo pipefail
+          RETIRED_HITS=$(rg -in \
+            "\bhtmx\b|picocss|pico\.css|tanstack.*virtual.route" \
+            docs/src \
+            --glob "*.md" \
+            --ignore-file .voxignore \
+            -l \
+            | grep -v 'docs/src/archive/' \
+            | grep -v 'comprehensive-audit-findings' \
+            || true)
+          if [ -n "$RETIRED_HITS" ]; then
+            echo "Retired surface references found in normative docs:"
+            echo "$RETIRED_HITS"
+            echo "Move HTMX/Pico/TanStack-virtual-routes content to docs/src/archive/ or remove."
+            exit 1
+          fi
+          echo "No ghost retired-surface references in normative docs."
+
+      - name: Web TS codegen — forbidden legacy RPC shims in sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "createServerFn\\(" crates/vox-compiler/src/codegen_ts; then
+            echo "createServerFn must not appear in vox-codegen-ts sources"
+            exit 1
+          fi
+
+      - name: Normative docs — @query is GET (no POST /api/query claims)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if rg -n "POST /api/query" docs/src/reference docs/src/api docs/src/architecture docs/src/how-to; then
+            echo "docs must not describe @query as POST /api/query"
+            exit 1
+          fi
+
+      - name: routes.manifest + vox-client legacy-bundle smoke
+        run: cargo test -p vox-compiler --test web_ir_lower_emit codegen_output_never_includes_vox_tanstack_router_or_server_fns -q
+
+      - name: SPA scaffold manifest idempotency
+        run: cargo test -p vox-cli --test scaffold_spa_manifest_idempotent -q
 
       - name: Eval benchmark matrix contract + vox-cli GPU compile smoke
         run: |
@@ -108,23 +201,53 @@ jobs:
       - name: TOESTUB (scoped)
         run: cargo run -p vox-cli --quiet -- ci toestub-scoped --mode legacy
 
+      - name: Architecture / Code Drift Guard (TOESTUB)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          git fetch origin ${{ github.base_ref }} --depth=1 || true
+          if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^docs/src/architecture/"; then
+            echo "Architecture docs changed. Running full crates TOESTUB..."
+            cargo run -p vox-cli --quiet -- ci toestub-scoped crates --mode legacy
+          else
+            echo "No architecture docs changed. Skipping full strict TOESTUB."
+          fi
+
       - name: Repository SSOT + MCP smoke
         run: cargo test -p vox-repository --lib && cargo test -p vox-orchestrator --lib detect_layout_node_workspaces && cargo test -p vox-mcp --lib && cargo check -p vox-git
 
       - name: Mesh transport + workflow-runtime + CLI feature matrix slice
         run: |
-          cargo test -p vox-mesh --features transport
+          cargo test -p vox-populi --features transport
           cargo test -p vox-workflow-runtime
           cargo check -p vox-cli --features mesh,workflow-runtime
 
       - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
+        env:
+          VOX_BENCHMARK_TELEMETRY: "1"
+          # H.79: enforce soft build budget caps — fails if any lane exceeds budgets.json
+          VOX_BUILD_TIMINGS_BUDGET_FAIL: "1"
         run: cargo run -p vox-cli --quiet -- ci build-timings --crates
 
-      - name: vox-cli feature matrix + no vox_dei imports
-        run: cargo run -p vox-cli --quiet -- ci feature-matrix && cargo run -p vox-cli --quiet -- ci no-vox-dei-import
+      - name: vox-cli feature matrix + no vox_orchestrator imports
+        run: cargo run -p vox-cli --quiet -- ci feature-matrix && cargo run -p vox-cli --quiet -- ci no-vox-orchestrator-import
+
+      - name: Workspace-wide all-features check (A.4)
+        run: cargo check --workspace --all-features
+
+      - name: Grammar export check (EBNF/GBNF/Lark/JSON-Schema non-empty)
+        run: cargo run -p vox-cli --quiet -- ci grammar-export-check
 
       - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
         run: cargo run -p vox-cli --quiet -- ci cuda-features
+
+      - name: Install cargo-hakari
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-hakari
+
+      - name: Verify Hakari (Workspace Dependency Determinism)
+        run: cargo hakari generate --diff
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
@@ -137,6 +260,7 @@ jobs:
           tool: cargo-llvm-cov
 
       - name: Run Tests (llvm-cov + nextest, bounded timeouts)
+        # Includes vox-compiler integration tests such as rust_ecosystem_support_parity.
         run: cargo llvm-cov nextest --workspace --profile ci
 
       - name: vox-db replication feature (compile + embedded sync smoke skips without creds)
@@ -172,6 +296,27 @@ jobs:
       - name: Doc tests (not run by nextest)
         run: cargo test --workspace --doc
 
+      - name: Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)
+        # A.13: VOX_EXAMPLES_STRICT_PARSE=1 must be the default in CI.
+        # Uses the vox-compiler test suite which already has a strict-parse integration test.
+        env:
+          VOX_EXAMPLES_STRICT_PARSE: "1"
+        run: cargo test -p vox-compiler --test golden_examples_strict_parse -- --nocapture 2>&1
+        # Gate enforcement: The build fails if any golden example contains syntax errors or unhandled tokens.
+
+      - name: Golden examples fmt idempotency gate (A.12)
+        shell: bash
+        run: |
+          set -euo pipefail
+          find examples/golden -name "*.vox" -type f -print0 | while IFS= read -r -d '' f; do
+            cargo run -p vox-cli --quiet -- fmt "$f"
+          done
+          if ! git diff --exit-code examples/golden/; then
+            echo "vox fmt is not idempotent or examples have unformatted changes."
+            exit 1
+          fi
+
+
       - name: Mens corpus mix (strict required sources)
         run: |
           bash scripts/ci/prep_mens_mix_inputs.sh
@@ -180,10 +325,30 @@ jobs:
       - name: Populi CI gate matrix (single manifest)
         run: cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
 
+  # GitHub-hosted exception: stock Node + pnpm (see .cursor/rules/ci-runner-convention.mdc).
+  visualizer-ingest-smoke:
+    name: Visualizer ingest unit (pnpm + tsx)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install + run ingest tests
+        run: |
+          cd tools/visualizer
+          pnpm install
+          pnpm run test:ingest
+
   # GitHub-hosted exception: needs stock Node + pnpm (see .cursor/rules/ci-runner-convention.mdc).
   web-vite-build-smoke:
     name: Web Vite build smoke (pnpm)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -210,27 +375,28 @@ jobs:
       - name: Vite production build (full_stack_minimal)
         env:
           VOX_WEB_VITE_SMOKE: "1"
-        run: cargo test -p vox-integration-tests --test web_vite_smoke -- --ignored --nocapture
+        run: cargo test -p vox-integration-tests --test web_vite_smoke_test -- --ignored --nocapture
 
   vox-vscode-extension:
-    name: VS Code extension (MCP parity + compile)
+    name: VS Code extension (compile + lint)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: npm ci + parity + compile
+      - name: npm ci + compile (includes MCP + activation parity) + lint
         run: |
           cd vox-vscode
           npm ci
-          npm run check:mcp-parity
           npm run compile
           npm run lint
 
   mesh-compose-config:
     name: Validate examples/mesh-compose.yml
     runs-on: [self-hosted, linux, x64, docker]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - name: docker compose config (mesh example)
@@ -239,6 +405,7 @@ jobs:
   docker-vox-image-smoke:
     name: Docker build smoke (default + mesh)
     runs-on: [self-hosted, linux, x64, docker]
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: docker build default image
@@ -246,3 +413,114 @@ jobs:
       # Blessed doc name: vox:ci-mesh-worker (same image as historical vox:ci-mesh); see vox-cross-platform-runbook.md
       - name: docker build mesh worker image (mesh + script-execution)
         run: docker build --build-arg VOX_CLI_FEATURES=populi,script-execution -t vox:ci-mesh -t vox:ci-mesh-worker .
+
+  # Chromium/CDP (chromiumoxide): requires Chrome or Chromium on the runner (browser pool).
+  vox-browser-cdp-smoke:
+    name: vox-browser CDP smoke (Chromium)
+    runs-on: [self-hosted, linux, x64, browser]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-browser-smoke-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-browser-smoke-
+            ${{ runner.os }}-cargo-
+
+      - name: CDP smoke (ignored tests)
+        env:
+          VOX_BROWSER_NO_SANDBOX: "1"
+        run: cargo test -p vox-browser -- --ignored --nocapture
+
+  gui-playwright-smoke:
+    name: GUI Playwright golden route (full_stack_minimal)
+    runs-on: [self-hosted, linux, x64, browser]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-gui-playwright-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-gui-playwright-
+            ${{ runner.os }}-cargo-
+
+      - name: Install Playwright deps + Chromium
+        run: |
+          cd crates/vox-integration-tests
+          pnpm install --prefer-offline
+          pnpm exec playwright install chromium
+
+      - name: Golden route (ignored integration test)
+        env:
+          VOX_GUI_PLAYWRIGHT: "1"
+        run: cargo test -p vox-integration-tests --test playwright_golden_route -- --ignored --nocapture
+
+  all-features-matrix:
+    name: All-Features Check (${{ matrix.crate }})
+    runs-on: [self-hosted, linux, x64, docker]
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        crate:
+          - vox-compiler
+          - vox-cli
+          - vox-runtime
+          - vox-db
+          - vox-clavis
+          - vox-orchestrator
+          - vox-populi
+          - vox-mens
+          - vox-ludus
+          - vox-oratio
+          - vox-schola
+          - vox-skills
+          - vox-scientia-ingest
+          - vox-doc-pipeline
+          - vox-mcp-registry
+          - vox-pm
+          - vox-primitives
+          - vox-config
+          - vox-crypto
+          - vox-toestub
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-matrix-${{ matrix.crate }}-${{ hashFiles('**/Cargo.lock') }}
+      - name: Check with all features
+        run: cargo check -p ${{ matrix.crate }} --all-features

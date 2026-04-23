@@ -2,8 +2,10 @@
 title: "Hashing & Identity Builtins"
 description: "Official documentation for Hashing & Identity Builtins for the Vox language. Detailed technical reference, architecture guides, and imple"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Hashing & Identity Builtins
 
@@ -28,25 +30,27 @@ direct Rust calls — there is no FFI overhead.
 ## Vox Syntax
 
 ```vox
-# Fast non-cryptographic hash (XXH3-128)
+// vox:skip
+// Fast non-cryptographic hash (XXH3-128)
 let cache_key = std.hash_fast(content)
 
-# Cryptographic content-addressable hash (BLAKE3-256)
+// Cryptographic content-addressable hash (BLAKE3-256)
 let input_hash = std.crypto.hash_secure(message)
 
-# Unique monotonic ID (timestamp + counter, never repeats)
+// Unique monotonic ID (timestamp + counter, never repeats)
 let request_id = std.uuid()
 
-# Current UNIX timestamp in milliseconds
+// Current UNIX timestamp in milliseconds
 let ts = std.now_ms()
 ```
 
 Also available via namespaced syntax:
 
 ```vox
-let h1 = std.crypto.hash_fast(text)   # same as std.hash_fast
-let h2 = std.crypto.uuid()            # same as std.uuid
-let t  = std.time.now_ms()            # same as std.now_ms
+// vox:skip
+let h1 = std.crypto.hash_fast(text)   // same as std.hash_fast
+let h2 = std.crypto.uuid()            // same as std.uuid
+let t  = std.time.now_ms()            // same as std.now_ms
 ```
 
 ---
@@ -145,6 +149,8 @@ let ts: u64 = vox_now_ms();          // milliseconds since UNIX epoch
 
 ### Crate Dependencies
 
+The **Vox language and workspace crates** are **Apache-2.0**. The SPDX identifiers below describe **bundled third-party Rust crates** used by `vox-runtime`, not the license of Vox itself.
+
 | Crate | Version | License |
 |---|---|---|
 | `xxhash-rust` | `0.8` (`xxh3` feature) | MIT |
@@ -191,5 +197,6 @@ that the compiler inlines into generated code.
 ## Related
 
 - [Security Model](../explanation/expl-security.md) — how Vox handles secrets and threat modeling
-- [vox-runtime API](../api/vox-runtime.md) — full runtime module reference
-- [FTT Pipeline](../api/example_greaterfool_reference.md) — live usage of `hash_secure` and `uuid` in production
+- [vox-runtime API](../reference/cli.md) — full runtime module reference
+- [FTT Pipeline](../how-to/examples.md) — live usage of `hash_secure` and `uuid` in production
+

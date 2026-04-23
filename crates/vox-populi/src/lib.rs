@@ -15,7 +15,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// Whether populi hooks are enabled (`VOX_MESH_ENABLED=1` or `true`).
 #[must_use]
 pub fn populi_enabled_from_env() -> bool {
-    std::env::var("VOX_MESH_ENABLED")
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshEnabled)
+        .expose()
         .map(|v| {
             let v = v.trim();
             v == "1" || v.eq_ignore_ascii_case("true")
@@ -40,6 +41,12 @@ pub struct PopuliEnv {
     /// `VOX_MESH_SCOPE_ID` — populi cluster / tenancy id (join/heartbeat must match server when server enforces scope).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope_id: Option<String>,
+    /// `VOX_MESH_VISIBILITY` — `private`, `public`, or `hybrid`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub visibility: Option<String>,
+    /// `VOX_MESH_DONATION_POLICY_JSON` — serialized WorkerDonationPolicy.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub donation_policy: Option<vox_mesh_types::WorkerDonationPolicy>,
 }
 
 /// Merge `Vox.toml` `[populi]` into env-derived values when the corresponding env is unset.
@@ -80,7 +87,11 @@ pub fn populi_env_resolved(vox_toml_path: Option<&std::path::Path>) -> PopuliEnv
             env.labels.push(lab);
         }
     }
-    if toml.advertise_gpu == Some(true) && std::env::var("VOX_MESH_ADVERTISE_GPU").is_err() {
+    if toml.advertise_gpu == Some(true)
+        && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshAdvertiseGpu)
+            .expose()
+            .is_none()
+    {
         // Caller applies gpu via probe merge in node_record; flag via env struct is absent — handled in node_record.
     }
     env
@@ -89,7 +100,8 @@ pub fn populi_env_resolved(vox_toml_path: Option<&std::path::Path>) -> PopuliEnv
 /// Whether `VOX_MESH_ADVERTISE_GPU` is set, or `[populi].advertise_gpu = true` when env is unset.
 #[must_use]
 pub fn populi_advertise_gpu_effective(vox_toml_path: Option<&std::path::Path>) -> bool {
-    if std::env::var("VOX_MESH_ADVERTISE_GPU")
+    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshAdvertiseGpu)
+        .expose()
         .map(|v| {
             let v = v.trim();
             v == "1" || v.eq_ignore_ascii_case("true")
@@ -152,11 +164,12 @@ fn http_control_host_is_bind_all(url: &str) -> bool {
 #[must_use]
 pub fn populi_env() -> PopuliEnv {
     let enabled = populi_enabled_from_env();
-    let node_id = std::env::var("VOX_MESH_NODE_ID")
-        .ok()
+    let node_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
+        .expose()
+        .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    let labels = std::env::var("VOX_MESH_LABELS")
-        .ok()
+    let labels = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshLabels)
+        .expose()
         .map(|s| {
             s.split(',')
                 .map(|t| t.trim().to_string())
@@ -164,13 +177,23 @@ pub fn populi_env() -> PopuliEnv {
                 .collect()
         })
         .unwrap_or_default();
-    let control_addr = std::env::var("VOX_MESH_CONTROL_ADDR")
-        .ok()
+    let control_addr = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshControlAddr)
+        .expose()
+        .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    let registry_path = std::env::var("VOX_MESH_REGISTRY_PATH")
-        .ok()
+    let registry_path = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshRegistryPath)
+        .expose()
+        .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
     let scope_id = populi_scope_id_from_env();
+    let visibility = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshVisibility)
+        .expose()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
+    let donation_policy =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshDonationPolicyJson)
+            .expose()
+            .and_then(|s| serde_json::from_str(&s).ok());
     PopuliEnv {
         enabled,
         node_id,
@@ -178,14 +201,16 @@ pub fn populi_env() -> PopuliEnv {
         control_addr,
         registry_path,
         scope_id,
+        visibility,
+        donation_policy,
     }
 }
 
 /// `VOX_MESH_SCOPE_ID` when set and non-empty after trim.
 #[must_use]
 pub fn populi_scope_id_from_env() -> Option<String> {
-    std::env::var("VOX_MESH_SCOPE_ID")
-        .ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+        .expose()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
 }
@@ -206,8 +231,9 @@ pub(crate) fn now_ms() -> u64 {
 mod node_registry;
 
 pub use node_registry::{
-    LocalRegistry, NodeRecord, PopuliRegistryError, PopuliRegistryFile,
-    filter_registry_by_max_stale_ms,
+    LocalRegistry, MAX_MAINTENANCE_FOR_MS, NodeRecord, PopuliRegistryError, PopuliRegistryFile,
+    filter_registry_by_max_stale_ms, node_maintenance_blocks_new_work,
+    sweep_expired_maintenance_on_nodes,
 };
 
 /// Resolve `Vox.toml` path next to the current working directory (nearest manifest root).
@@ -235,22 +261,59 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
             caps.labels.push(lab);
         }
     }
-    NodeRecord {
+    let mut rec = NodeRecord {
         id: node_id,
         capabilities: caps,
         listen_addr,
         version: env!("CARGO_PKG_VERSION").to_string(),
         last_seen_unix_ms: now_ms(),
         scope_id: env.scope_id.clone(),
-        visibility: None,
         pool_id: None,
         trust_tier: None,
         workload_classes: None,
         privacy_class: None,
+        loaded_llm_models: None,
+        owner_vox_user_id: None,
+        advertised_models: None,
+        donation_policy: env.donation_policy.clone(),
+        visibility: env.visibility.clone(),
+        ed25519_pub_key_b64: None,
         maintenance: None,
+        maintenance_until_unix_ms: None,
         provider: None,
+        gpu_total_count: None,
+        gpu_healthy_count: None,
+        gpu_allocatable_count: None,
+        gpu_inventory_source: None,
+        gpu_truth_layer: None,
+        nvidia_driver_version: None,
+        cuda_driver_version: None,
+        gpu_readiness_ok: None,
+        gpu_readiness_reason: None,
+        gpu_readiness_checked_unix_ms: None,
         quarantined: None,
+        host_triple: Some(current_target_triple().to_string()),
+        cpu_usage_pct: None,
+        memory_free_bytes: None,
+    };
+    // Layer A: Hardware Registry (DXGI/DRM Native + NVML fallback/precision)
+    #[cfg(feature = "mens")]
+    {
+        let summary = futures::executor::block_on(crate::mens::hardware::HardwareRegistry::probe());
+        if summary.vendor != crate::mens::hardware::types::GpuVendor::Cpu {
+            rec.gpu_total_count = Some(summary.gpu_count);
+            rec.gpu_healthy_count = Some(summary.gpu_count);
+            rec.gpu_allocatable_count = Some(summary.gpu_count);
+            rec.gpu_inventory_source = Some("native_registry".to_string());
+            rec.gpu_truth_layer = Some("layer_a_verified".to_string());
+            if rec.capabilities.min_vram_mb.is_none() {
+                rec.capabilities.min_vram_mb = Some(summary.vram_mb as u32);
+            }
+            rec.nvidia_driver_version = summary.driver_version.clone();
+            // TODO: cuda_driver_version from precision layer if needed.
+        }
     }
+    rec
 }
 
 /// Register this process into the default local registry file (no-op if `VOX_MESH_ENABLED` is off).
@@ -285,8 +348,6 @@ pub fn local_registry_path() -> PathBuf {
 #[cfg(feature = "mens")]
 pub mod mens;
 
-#[cfg(feature = "transport")]
-mod bounded_fs;
 #[cfg(feature = "transport")]
 pub mod http_client;
 #[cfg(feature = "transport")]
@@ -323,4 +384,25 @@ mod normalize_http_control_base_tests {
             Some("http://127.0.0.1:9847")
         );
     }
+}
+
+/// Returns the current target triple (Wave 4 best-effort).
+pub fn current_target_triple() -> &'static str {
+    // Note: rustc-env is not portable across cross-compilation environments but as a worker
+    // id it's sufficient for self-identification on the host it's running on.
+    #[cfg(all(target_arch = "x86_64", target_os = "windows"))]
+    return "x86_64-pc-windows-msvc";
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    return "x86_64-unknown-linux-gnu";
+    #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
+    return "aarch64-unknown-linux-gnu";
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    return "aarch64-apple-darwin";
+    #[cfg(not(any(
+        all(target_arch = "x86_64", target_os = "windows"),
+        all(target_arch = "x86_64", target_os = "linux"),
+        all(target_arch = "aarch64", target_os = "linux"),
+        all(target_arch = "aarch64", target_os = "macos")
+    )))]
+    return "unknown-unknown-unknown";
 }

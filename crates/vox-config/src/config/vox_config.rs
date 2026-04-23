@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use super::gamify_web::{GamifyMode, WebRunMode};
+use crate::policy::hitl_policy::HitlPolicy;
 
 /// Full Vox toolchain configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +28,7 @@ pub struct VoxConfig {
     pub gamify_mode: GamifyMode,
     pub web_run_mode: WebRunMode,
     pub web_tanstack_start: bool,
+    pub hitl: HitlPolicy,
 }
 
 impl Default for VoxConfig {
@@ -51,6 +53,7 @@ impl Default for VoxConfig {
             gamify_mode: GamifyMode::default(),
             web_run_mode: WebRunMode::default(),
             web_tanstack_start: false,
+            hitl: HitlPolicy::default(),
         }
     }
 }

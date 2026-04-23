@@ -222,80 +222,61 @@ impl VoxConfig {
     }
 
     fn apply_env(&mut self) {
-        if let Ok(v) = std::env::var("VOX_MODEL")
-            && !v.is_empty()
-        {
-            self.model = v;
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxModel).expose() {
+            self.model = v.to_string();
         }
-        if let Ok(v) = std::env::var("VOX_BUDGET_USD")
-            && let Ok(f) = v.parse()
-        {
-            self.daily_budget_usd = f;
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBudgetUsd).expose() {
+            if let Ok(f) = v.parse() {
+                self.daily_budget_usd = f;
+            }
         }
-        if let Ok(v) = std::env::var("VOX_DATA_DIR")
-            && !v.is_empty()
-        {
-            self.data_dir = PathBuf::from(v);
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDataDir).expose() {
+            self.data_dir = PathBuf::from(v.to_string());
         }
-        if let Ok(v) = std::env::var("VOX_DB_URL")
-            && !v.is_empty()
-        {
-            self.db_url = Some(v);
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDbUrl).expose() {
+            self.db_url = Some(v.to_string());
         }
-        if let Ok(v) = std::env::var("VOX_MCP_BINARY")
-            && !v.is_empty()
-        {
-            self.mcp_binary = Some(PathBuf::from(v));
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpBinary).expose() {
+            self.mcp_binary = Some(PathBuf::from(v.to_string()));
         }
-        if let Ok(v) = std::env::var("VOX_GAMIFY_ENABLED")
-            && !v.is_empty()
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGamifyEnabled).expose()
         {
             let low = v.to_lowercase();
             self.gamify_enabled = matches!(low.as_str(), "1" | "true" | "yes");
         }
-        if let Ok(v) = std::env::var("VOX_GAMIFY_MODE")
-            && !v.is_empty()
-        {
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGamifyMode).expose() {
             self.gamify_mode = match v.to_lowercase().as_str() {
                 "serious" => GamifyMode::Serious,
                 "learning" => GamifyMode::Learning,
                 _ => GamifyMode::Balanced,
             };
         }
-        if let Ok(v) = std::env::var("VOX_WEB_RUN_MODE")
-            && !v.is_empty()
-        {
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxWebRunMode).expose() {
             self.web_run_mode = match v.to_lowercase().as_str() {
                 "app" => WebRunMode::App,
                 "script" => WebRunMode::Script,
                 _ => WebRunMode::Auto,
             };
         }
-        if let Ok(v) = std::env::var("VOX_WEB_TANSTACK_START")
-            && !v.is_empty()
+        if let Some(v) =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxWebTanstackStart).expose()
         {
             let low = v.to_lowercase();
             self.web_tanstack_start = matches!(low.as_str(), "1" | "true" | "yes");
         }
-        if let Ok(v) = std::env::var("OPENROUTER_API_KEY")
-            && !v.is_empty()
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey).expose()
         {
-            self.openrouter_key = Some(v);
+            self.openrouter_key = Some(v.to_string());
         }
-        if let Ok(v) = std::env::var("OPENAI_API_KEY")
-            && !v.is_empty()
-        {
-            self.openai_key = Some(v);
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiApiKey).expose() {
+            self.openai_key = Some(v.to_string());
         }
-        if let Ok(v) = std::env::var("GEMINI_API_KEY")
-            && !v.is_empty()
-        {
-            self.gemini_key = Some(v);
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey).expose() {
+            self.gemini_key = Some(v.to_string());
         }
-        if let Ok(v) = std::env::var("ANTHROPIC_API_KEY")
-            && !v.is_empty()
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey).expose()
         {
-            self.anthropic_key = Some(v);
+            self.anthropic_key = Some(v.to_string());
         }
     }
 }

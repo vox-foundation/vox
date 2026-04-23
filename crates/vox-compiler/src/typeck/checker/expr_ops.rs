@@ -29,8 +29,8 @@ impl<'a> Checker<'a> {
             HirUnOp::Neg => {
                 if ty == Ty::Int {
                     Ty::Int
-                } else if ty == Ty::Float {
-                    Ty::Float
+                } else if ty == Ty::Float || ty == Ty::Decimal {
+                    ty
                 } else {
                     Ty::Error
                 }
@@ -47,6 +47,8 @@ impl<'a> Checker<'a> {
                     Ty::Str
                 } else if l == Ty::Int && r == Ty::Int {
                     Ty::Int
+                } else if l == Ty::Decimal && r == Ty::Decimal {
+                    Ty::Decimal
                 } else if (l == Ty::Float || l == Ty::Int) && (r == Ty::Float || r == Ty::Int) {
                     Ty::Float
                 } else {
@@ -58,9 +60,11 @@ impl<'a> Checker<'a> {
                     Ty::Error
                 }
             }
-            HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div => {
+            HirBinOp::Sub | HirBinOp::Mul | HirBinOp::Div | HirBinOp::Mod => {
                 if l == Ty::Int && r == Ty::Int {
                     Ty::Int
+                } else if l == Ty::Decimal && r == Ty::Decimal {
+                    Ty::Decimal
                 } else if (l == Ty::Float || l == Ty::Int) && (r == Ty::Float || r == Ty::Int) {
                     Ty::Float
                 } else {
@@ -75,7 +79,17 @@ impl<'a> Checker<'a> {
                 Ty::Bool
             }
             HirBinOp::Pipe => match r {
-                Ty::Fn(_, ret) => ret.as_ref().clone(),
+                Ty::Fn(params, ret) => {
+                    let instantiated = self.uf.instantiate(&Ty::Fn(params, ret));
+                    if let Ty::Fn(p, rt) = instantiated {
+                        if !p.is_empty() {
+                            let _ = self.uf.unify(&l, &p[0]);
+                        }
+                        rt.as_ref().clone()
+                    } else {
+                        Ty::Error
+                    }
+                }
                 _ => l,
             },
         }
@@ -86,7 +100,7 @@ impl<'a> Checker<'a> {
         match options {
             HirExpr::ObjectLit(fields, _) => {
                 for (name, expr) in fields {
-                    let v_ty = self.check_expr(expr);
+                    let v_ty = self.check_expr(expr, None);
                     let v_res = self.uf.resolve(&v_ty);
                     match name.as_str() {
                         "retries" => {
@@ -122,7 +136,7 @@ impl<'a> Checker<'a> {
                 }
             }
             _ => {
-                let _ = self.check_expr(options);
+                let _ = self.check_expr(options, None);
                 self.diags.push(Diagnostic::error(
                     "'with' options must be a record literal".into(),
                     hir_expr_span(options),
@@ -140,12 +154,12 @@ impl<'a> Checker<'a> {
                 self.source,
             ));
             for arg in actual {
-                let _ = self.check_expr(&arg.value);
+                let _ = self.check_expr(&arg.value, None);
             }
             return;
         }
         for (e, a) in expected.iter().zip(actual.iter()) {
-            let a_ty = self.check_expr(&a.value);
+            let a_ty = self.check_expr(&a.value, Some(e));
             if let Err(msg) = self.uf.unify(e, &a_ty) {
                 let arg_span = hir_expr_span(&a.value);
                 self.diags.push(Diagnostic {
@@ -159,6 +173,9 @@ impl<'a> Checker<'a> {
                     category: crate::typeck::diagnostics::DiagnosticCategory::Typecheck,
                     code: Some("typecheck.arg_mismatch".into()),
                     fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
                 });
             }
         }
@@ -210,7 +227,11 @@ impl<'a> Checker<'a> {
                 }
                 Ty::Option(_) if name == "None" && fields.is_empty() => {}
                 _ => {
-                    if let Some(field_defs) = self.env.lookup_adt_variant(name) {
+                    let expected_adt_name = match &ty {
+                        Ty::Named(n) => Some(n.as_str()),
+                        _ => None,
+                    };
+                    if let Some(field_defs) = self.env.lookup_adt_variant(name, expected_adt_name) {
                         for (i, p) in fields.iter().enumerate() {
                             let ft = field_defs
                                 .get(i)

@@ -1,49 +1,49 @@
 ---
-title: "Examples corpus & strict parse"
-description: "Official documentation for Examples corpus & strict parse for the Vox language. Detailed technical reference, architecture guides, and im"
-category: "reference"
-last_updated: 2026-03-24
+title: "Golden Examples Corpus"
+description: "How to use, maintain, and contribute to the machine-verified Golden Examples documentation corpus."
+category: "how-to"
+last_updated: "2026-04-06"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
-# Examples corpus & strict parse
+# Golden Examples Corpus
 
-## Golden set (15 files, 0 failures)
+The Vox documentation utilizes a "Golden Example" architecture to prevent documentation drift and ensure that all documented code actually compiles against the latest compiler version.
 
-`crates/vox-parser/tests/parity_test.rs` defines **`MUST_PARSE`**: those paths under `examples/` **must** parse in CI. The list is mirrored in [`examples/README.md`](../adr/README.md) and [`examples/PARSE_STATUS.md`](../../../examples/PARSE_STATUS.md).
+How goldens and docs feed **Mens** training (lexer vs HF tokenizer, corpus roots): [Vox source → Mens pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md). Pair layout and hygiene: [Mens training data contract](../reference/mens-training-data-contract.md).
 
-As of March 2026, the golden set covers 15 files:
-- Core app patterns: `chatbot.vox`, `full_stack_minimal.vox`, `hello-vox/src/main.vox`, `multi_route_app.vox`
-- Data layer: `data_layer.vox`, `durable_counter.vox`, `server_fn.vox`
-- Durable execution: `workflow.vox`
-- ADTs & testing: `generics_option.vox`, `pattern_matching.vox`, `testing.vox`
-- React hooks: `hooks_demo.vox`
-- Islands & v0: `island_demo.vox`, `v0_component.vox`
-- MCP/AI-native: `mcp_tool_demo.vox`
+## How Golden Examples Work
 
-## Canonical style
+Instead of writing raw code blocks directly inside Markdown files, documentation should pull snippets from the `examples/golden/` directory.
 
-[`examples/STYLE.md`](../../../examples/STYLE.md) is the target shape for new golden files (JSX, `routes:`, imports).
+CI enforces goldens in two layers: (1) **`vox-compiler`** integration test `all_golden_vox_examples_parse_and_lower` — every `examples/golden/**/*.vox` must parse, lower to HIR, pass WebIR validation, and emit Syntax-K metrics; (2) **mdBook / doc pipeline** — pages that use `{{#include}}` must resolve to real golden `.vox` files (`examples_ssot` test). A full `vox build` per golden may run in additional doc or integration jobs; do not assume “build-only” is the only gate.
 
-> **Brace-syntax note (v0.3 plan, not yet implemented):** The KI `vox_v0_2_syntax_standard.md` documents a planned migration to `fn f() { }` brace-delimited blocks for lower Kolmogorov complexity. This migration is **not yet live in the parser**. All golden files must use the current colon-indent syntax until the lexer/parser migration lands.
+## Adding a Golden Example
 
-## Known parser gaps (for training data curation)
+To document a feature with machine verification:
 
-- `true`/`false` are **not** valid `match` arm patterns — use `if`/`else` or constructor patterns
-- Multi-line JSX attributes (attribute on its own line) are **not** reliably supported
-- Generic function syntax (`fn foo<T>(...)`) parses tokens but is not supported in the type system
+1. **Create the file**: Create a valid `.vox` file in `examples/golden/`.
+2. **Write the code**: Add the required logic to the file. Ensure the file works when compiled.
+3. **Define regions**: If your file is large but you only want to document a specific function, wrap the target logic in `[REGION:name]` anchors.
+4. **Include it**: In your Markdown document, use the standard `mdbook` include syntax:
 
-## Strict parse (opt-in)
+```markdown
+&#123;&#123;#include ../../../examples/golden/my_example.vox:my_region&#125;&#125;
+```
 
-- **Env:** `VOX_EXAMPLES_STRICT_PARSE=1`
-- **Command:** `cargo test -p vox-parser --test parity_test`
-- **Meaning:** every `examples/**/*.vox` must parse — **not** the default CI gate while 13 archive files still fail.
+## The `// vox:skip` Directive
 
-Thin delegates: [`scripts/examples_strict_parse.sh`](../../../scripts/verify_workspace_manifest.sh), [`scripts/examples_strict_parse.ps1`](../../../scripts/check_docs_ssot.ps1).
+Sometimes it is necessary to show brief, inline examples that cannot be fully compiled (e.g., demonstrating a syntax error, or showing an incomplete code snippet for brevity).
 
-Runner contract: [CI runner contract](../ci/runner-contract.md) (section **Optional: strict parse for all examples**).
+In these cases, you must add a `// vox:skip` comment *inside* the code fence. The `vox-doc-pipeline` linter will scan for this directive; if it finds raw code fences without `// vox:skip` and without an `#include` directive, the build will fail.
 
-## Training / Mens
+```vox
+// vox:skip
+fn incomplete_function() {
+    // This inline code will not be strictly verified by the compiler.
+}
+```
 
-Prefer golden root examples for corpus ingest; treat `examples/archive/**` as **non-canonical** unless a pipeline explicitly opts in (see [`examples/archive/README.md`](../adr/README.md)).
-
+By ensuring every code fence is either an immutable golden reference or explicitly marked as skipped, Vox guarantees absolute trust in its documentation.

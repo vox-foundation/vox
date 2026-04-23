@@ -17,6 +17,8 @@ pub struct ProcessContext {
     pub reduction_count: u64,
     /// Threshold at which the actor yields to Tokio before receiving again.
     pub max_reductions: u64,
+    /// Isolated memory arena localized strictly to this actor loop.
+    pub heap: crate::gc::ActorHeap,
 }
 
 impl ProcessContext {
@@ -28,6 +30,7 @@ impl ProcessContext {
             mailbox_rx,
             reduction_count: 0,
             max_reductions: 2000, // Cooperative scheduling limit
+            heap: crate::gc::ActorHeap::new(),
         }
     }
 
@@ -36,6 +39,9 @@ impl ProcessContext {
         self.reduction_count += 1;
         if self.reduction_count >= self.max_reductions {
             self.reduction_count = 0;
+            if self.heap.should_collect() {
+                self.heap.collect();
+            }
             tokio::task::yield_now().await;
         }
         self.mailbox_rx.recv().await

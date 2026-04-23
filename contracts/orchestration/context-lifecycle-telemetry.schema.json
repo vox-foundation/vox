@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/orchestration/context-lifecycle-telemetry.schema.json",
+  "title": "Context lifecycle tracing (orchestrator)",
+  "description": "Stable field names for structured logs emitted when VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_SHADOW is on. Target is tracing target vox_orchestrator::context_lifecycle. Serializers may add fields; pipelines should tolerate unknown keys.",
+  "oneOf": [
+    { "$ref": "#/$defs/context_capture" },
+    { "$ref": "#/$defs/context_select" }
+  ],
+  "$defs": {
+    "ingest_source_debug": {
+      "description": "Rust Debug formatting of ContextIngestSource (PascalCase).",
+      "type": "string",
+      "enum": [
+        "McpSubmitTask",
+        "McpHandoffTool",
+        "SessionStoreWrite",
+        "SessionAttach",
+        "InternalHandoffAccept"
+      ]
+    },
+    "merge_strategy_debug": {
+      "description": "Rust Debug formatting of ContextMergeStrategy (PascalCase).",
+      "type": "string",
+      "enum": [
+        "AppendOnly",
+        "LastWriteWins",
+        "ConfidenceWeighted",
+        "AuthorityPrecedence",
+        "CrdtMerge",
+        "ManualReview"
+      ]
+    },
+    "envelope_type_debug": {
+      "description": "Rust Debug formatting of ContextEnvelopeType (PascalCase).",
+      "type": "string",
+      "enum": [
+        "ChatTurn",
+        "SessionSummary",
+        "RetrievalEvidence",
+        "TaskContext",
+        "HandoffContext",
+        "AgentNote",
+        "PolicyHint",
+        "ExecutionContext"
+      ]
+    },
+    "select_outcome": {
+      "type": "string",
+      "enum": [
+        "initial_store",
+        "kept_previous_append_only",
+        "took_incoming_last_write",
+        "took_incoming_authority",
+        "kept_previous_authority",
+        "took_incoming_confidence",
+        "kept_previous_confidence",
+        "crdt_merged"
+      ]
+    },
+    "context_capture": {
+      "type": "object",
+      "required": ["event"],
+      "properties": {
+        "target": {
+          "type": "string",
+          "const": "vox_orchestrator::context_lifecycle"
+        },
+        "event": {
+          "type": "string",
+          "const": "context.capture"
+        },
+        "source": { "$ref": "#/$defs/ingest_source_debug" },
+        "repository_id": { "type": "string" },
+        "session_id": { "type": "string" },
+        "envelope_id": { "type": "string" },
+        "envelope_type": { "$ref": "#/$defs/envelope_type_debug" },
+        "merge_strategy": { "$ref": "#/$defs/merge_strategy_debug" },
+        "trace_id": { "type": "string" },
+        "correlation_id": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "context_select": {
+      "type": "object",
+      "required": ["event", "outcome", "incoming_envelope_id"],
+      "properties": {
+        "target": {
+          "type": "string",
+          "const": "vox_orchestrator::context_lifecycle"
+        },
+        "event": {
+          "type": "string",
+          "const": "context.select"
+        },
+        "merge_strategy": { "$ref": "#/$defs/merge_strategy_debug" },
+        "outcome": { "$ref": "#/$defs/select_outcome" },
+        "incoming_envelope_id": { "type": "string" },
+        "prior_envelope_id": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

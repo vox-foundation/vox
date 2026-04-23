@@ -1,12 +1,14 @@
 //! `vox ludus` subcommands — profile, companions, quests, battles.
 
 mod arena;
+mod auth;
 mod battle;
 mod challenge;
 mod collegium;
 mod companion;
 mod ctx;
 mod db_util;
+mod disputes;
 #[cfg(feature = "ludus-hud")]
 mod hud;
 mod pack;
@@ -14,18 +16,22 @@ mod profile;
 mod progress;
 mod quests_notifications;
 mod shop;
+mod simulation;
+mod sync;
 
 pub use ctx::LudusContext;
 
 use owo_colors::OwoColorize;
 
 pub use arena::{arena_join, arena_leaderboard, arena_show};
+pub use auth::auth_command;
 pub use battle::{battle_start, battle_submit};
 pub use challenge::{challenge_list, challenge_start, challenge_submit};
 pub use collegium::{collegium_join, collegium_list, collegium_new, collegium_status};
 pub use companion::{
     companion_create, companion_interact, companion_interact_str, companion_list, companion_show,
 };
+pub use disputes::{dispute_appeal, dispute_file, dispute_status, dispute_vote};
 #[cfg(feature = "ludus-hud")]
 pub use hud::run as ludus_hud_run;
 pub use pack::{pack_init, pack_list};
@@ -39,6 +45,8 @@ pub use quests_notifications::{
     glyph_list, hint_show, leaderboard_show, notify_clear, notify_list, quest_generate, quest_list,
 };
 pub use shop::{shop_buy, shop_list};
+pub use simulation::run_monte_carlo_sweep;
+pub use sync::sync_command;
 
 /// Print a formatted terminal toast for gamification rewards and level-ups.
 pub fn print_route_result(res: &vox_ludus::reward_policy::RouteResult) {

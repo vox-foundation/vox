@@ -6,6 +6,7 @@
 
 use crate::publication::PublicationManifest;
 use crate::publication_preflight::parse_scientific_from_metadata_json;
+use crate::scientific_metadata::ScientificPublicationMetadata;
 
 /// Map common SPDX identifiers to a public license URL when known.
 #[must_use]
@@ -31,9 +32,10 @@ pub fn spdx_license_url(spdx: &str) -> Option<&'static str> {
 /// Crossref-oriented work metadata as JSON (`schema` is a Vox extension label).
 #[must_use]
 pub fn crossref_work_export_json(manifest: &PublicationManifest) -> serde_json::Value {
-    let scientific = parse_scientific_from_metadata_json(manifest.metadata_json.as_deref())
-        .ok()
-        .flatten();
+    let scientific: Option<ScientificPublicationMetadata> =
+        parse_scientific_from_metadata_json(manifest.metadata_json.as_deref())
+            .ok()
+            .flatten();
 
     let contributors: Vec<serde_json::Value> = if let Some(ref sci) = scientific {
         if sci.authors.is_empty() {
@@ -50,13 +52,13 @@ pub fn crossref_work_export_json(manifest: &PublicationManifest) -> serde_json::
                         "name": a.name,
                     });
                     if let Some(ref aff) = a.affiliation {
-                        let t = aff.trim();
+                        let t: &str = aff.as_str().trim();
                         if !t.is_empty() {
                             o["affiliation"] = serde_json::Value::String(t.to_string());
                         }
                     }
                     if let Some(ref oid) = a.orcid {
-                        let t = oid.trim();
+                        let t: &str = oid.as_str().trim();
                         if !t.is_empty() {
                             let uri = if t.starts_with("http") {
                                 t.to_string()
@@ -80,8 +82,10 @@ pub fn crossref_work_export_json(manifest: &PublicationManifest) -> serde_json::
     let license_spdx = scientific
         .as_ref()
         .and_then(|s| s.license_spdx.as_deref())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
+        .and_then(|s| {
+            let t = s.trim();
+            (!t.is_empty()).then_some(t)
+        })
         .map(std::string::ToString::to_string);
 
     let license_url = license_spdx.as_deref().and_then(spdx_license_url);
@@ -89,15 +93,19 @@ pub fn crossref_work_export_json(manifest: &PublicationManifest) -> serde_json::
     let funding = scientific
         .as_ref()
         .and_then(|s| s.funding_statement.as_deref())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
+        .and_then(|s| {
+            let t = s.trim();
+            (!t.is_empty()).then_some(t)
+        })
         .map(std::string::ToString::to_string);
 
     let competing_interests = scientific
         .as_ref()
         .and_then(|s| s.competing_interests_statement.as_deref())
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
+        .and_then(|s| {
+            let t = s.trim();
+            (!t.is_empty()).then_some(t)
+        })
         .map(std::string::ToString::to_string);
 
     serde_json::json!({
@@ -122,14 +130,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn crossref_export_includes_title_and_mit_license_url() {
+    fn crossref_export_includes_title_and_apache_license_url() {
         let sci = crate::scientific_metadata::ScientificPublicationMetadata {
             authors: vec![crate::scientific_metadata::ScientificAuthor {
                 name: "A. Person".to_string(),
                 orcid: None,
                 affiliation: None,
+                ror: None,
             }],
-            license_spdx: Some("MIT".to_string()),
+            license_spdx: Some("Apache-2.0".to_string()),
             ..Default::default()
         };
         let meta =
@@ -149,7 +158,18 @@ mod tests {
         let v = crossref_work_export_json(&m);
         assert_eq!(v["schema"], "vox.crossref_work_metadata.v1");
         assert_eq!(v["title"], "Paper");
-        assert_eq!(v["license"]["url"], "https://opensource.org/licenses/MIT");
+        assert_eq!(
+            v["license"]["url"],
+            "https://www.apache.org/licenses/LICENSE-2.0"
+        );
         assert_eq!(v["contributors"][0]["name"], "A. Person");
+    }
+
+    #[test]
+    fn spdx_license_url_still_maps_mit_for_external_metadata() {
+        assert_eq!(
+            spdx_license_url("MIT"),
+            Some("https://opensource.org/licenses/MIT")
+        );
     }
 }

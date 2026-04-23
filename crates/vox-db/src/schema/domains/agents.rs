@@ -1,4 +1,11 @@
 //! Arca SQL: Agent orchestration, reliability, and behavioral learning.
+//!
+//! ## Plane vs `research_metrics`
+//!
+//! - **`memories`**, **`behavior_events`**, **`llm_interactions`**, **`conversation_messages`** (see related domains):
+//!   mix **S2–S3** (content, prompts, behavioral context). They are **not** interchangeable with coarse usage counters.
+//! - **Usage-style counters** for product analytics belong under explicit `research_metrics` producers with their own
+//!   sensitivity class — see `docs/src/architecture/telemetry-retention-sensitivity-ssot.md`.
 pub const SCHEMA_AGENTS: &str = "
 CREATE TABLE IF NOT EXISTS memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,8 +46,16 @@ CREATE TABLE IF NOT EXISTS llm_interactions (
     prompt TEXT NOT NULL,
     response TEXT NOT NULL,
     model_version TEXT NOT NULL,
+    task_category TEXT NOT NULL DEFAULT 'general',
+    strength_tag TEXT NOT NULL DEFAULT 'generalist',
+    trace_id TEXT,
+    context_utilization_pct REAL,
+    cache_read_tokens INTEGER,
+    success INTEGER NOT NULL DEFAULT 1,
     latency_ms INTEGER,
-    token_count INTEGER,
+    input_tokens INTEGER,
+    output_tokens INTEGER,
+    cost_usd REAL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -52,6 +67,18 @@ CREATE TABLE IF NOT EXISTS llm_feedback (
     feedback_type TEXT NOT NULL,
     correction_text TEXT,
     preferred_response TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS llm_attempts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    trace_id TEXT NOT NULL,
+    attempt_number INTEGER NOT NULL,
+    model_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    outcome TEXT NOT NULL,
+    latency_ms INTEGER,
+    error_class TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -403,8 +430,10 @@ CREATE TABLE IF NOT EXISTS trusted_evidence_bundles (
 CREATE INDEX IF NOT EXISTS idx_memories_agent ON memories(agent_id);
 CREATE INDEX IF NOT EXISTS idx_memories_type ON memories(memory_type);
 CREATE INDEX IF NOT EXISTS idx_memories_created ON memories(created_at);
+CREATE INDEX IF NOT EXISTS idx_memories_agent_created ON memories(agent_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_behavior_user ON behavior_events(user_id);
 CREATE INDEX IF NOT EXISTS idx_behavior_type ON behavior_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_behavior_user_created ON behavior_events(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_learned_patterns_user ON learned_patterns(user_id);
 CREATE INDEX IF NOT EXISTS idx_learned_patterns_category ON learned_patterns(user_id, category);
 CREATE INDEX IF NOT EXISTS idx_llm_interactions_session ON llm_interactions(session_id);
@@ -448,4 +477,19 @@ CREATE INDEX IF NOT EXISTS idx_repository_reliability_score ON repository_reliab
 CREATE INDEX IF NOT EXISTS idx_trust_observations_entity_dim ON trust_observations(entity_type, entity_id, dimension, created_at_ms);
 CREATE INDEX IF NOT EXISTS idx_trust_observations_scope ON trust_observations(domain, task_class, provider, model_id, repository_id);
 CREATE INDEX IF NOT EXISTS idx_trust_rollups_entity_dim ON trust_rollups(entity_type, entity_id, dimension, score);
+
+-- Bounded routing decision log (journeys, surface, model selection).
+-- No prompt/body content — coarse metadata only.
+CREATE TABLE IF NOT EXISTS routing_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    journey_id TEXT,
+    repository_id TEXT,
+    session_id TEXT,
+    surface TEXT NOT NULL DEFAULT '',
+    model_id TEXT,
+    reason_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_routing_decisions_created ON routing_decisions(created_at);
+CREATE INDEX IF NOT EXISTS idx_routing_decisions_journey ON routing_decisions(journey_id);
 ";

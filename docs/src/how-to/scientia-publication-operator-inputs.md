@@ -2,8 +2,10 @@
 title: "Scientia publication: what you type vs what the system derives"
 description: "Per-surface and per-platform manual inputs versus derived fields for VoxGiantia publication."
 category: "how-to"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 # Scientia publication: operator inputs vs system-derived fields
@@ -58,3 +60,5 @@ Scholarly submit: `VOX_SCHOLARLY_ADAPTER` — `local_ledger` (default, Codex-fri
 ## Metadata keys (DB / frontmatter)
 
 Persist syndication policy under `metadata_json` as **`syndication`**, not a top-level `scientia_distribution` key. Optional **`topic_pack`** string merges topic-pack YAML. See `contracts/scientia/distribution.schema.json`.
+
+

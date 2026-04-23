@@ -118,7 +118,117 @@ fn split_goal_clauses(goal: &str) -> Vec<String> {
     pieces
 }
 
+/// When clause splitting yields one very long paragraph, break it into sequential steps so native
+/// synthesis does not collapse complex goals into a single node.
+fn burst_long_monolithic_clause(text: &str) -> Vec<String> {
+    let t = text.trim();
+    if t.is_empty() {
+        return vec![];
+    }
+    let words = t.split_whitespace().count();
+    if words <= 36 {
+        return vec![t.to_string()];
+    }
+
+    let semi_split: Vec<String> = t
+        .split(';')
+        .map(|s| s.trim().trim_end_matches('.').trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if semi_split.len() >= 2 {
+        return semi_split;
+    }
+
+    let core = semi_split
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| t.to_string());
+
+    let mut sentences: Vec<String> = Vec::new();
+    for raw in core.split(". ") {
+        let u = raw.trim();
+        if u.split_whitespace().count() < 5 {
+            continue;
+        }
+        let mut piece = u.to_string();
+        if !piece.ends_with('.') {
+            piece.push('.');
+        }
+        sentences.push(piece);
+    }
+    if sentences.len() >= 2 {
+        return sentences;
+    }
+
+    let basis = sentences.into_iter().next().unwrap_or(core);
+    let w: Vec<&str> = basis.split_whitespace().collect();
+    const STRIDE: usize = 16;
+    if w.len() <= STRIDE {
+        return vec![basis];
+    }
+    w.chunks(STRIDE)
+        .map(|c| c.join(" "))
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+pub fn parse_llm_plan_response(raw: &str) -> Result<Vec<PlanNode>, String> {
+    if let Some(start) = raw.find("<execute>") {
+        if let Some(end) = raw[start + 9..].find("</execute>") {
+            let json_str = raw[start + 9..start + 9 + end].trim();
+            if let Ok(nodes) = serde_json::from_str::<Vec<PlanNode>>(json_str) {
+                if !nodes.is_empty() {
+                    return Ok(nodes);
+                }
+            }
+        }
+    }
+    let stripped = raw
+        .trim()
+        .trim_start_matches("```json")
+        .trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim();
+    if let Ok(nodes) = serde_json::from_str::<Vec<PlanNode>>(stripped) {
+        if !nodes.is_empty() {
+            return Ok(nodes);
+        }
+    }
+    Err("Failed to parse LLM plan response".to_string())
+}
+
+pub fn build_goal_user_prompt(goal: &str, depth: &str) -> String {
+    format!(
+        "GOAL: {}\nPLANNING DEPTH: {}\n\n{}",
+        goal,
+        depth,
+        include_str!("prompts/synthesize_nodes_v2.txt")
+    )
+}
+
+pub async fn synthesize_plan_nodes_with_llm<F, Fut>(
+    goal: &str,
+    depth: &str,
+    llm_fn: F,
+) -> Vec<PlanNode>
+where
+    F: Fn(&str, &str) -> Fut,
+    Fut: std::future::Future<Output = Result<String, String>>,
+{
+    // Note: PLANNER_SYSTEM_PROMPT is in crate::planning::prompts
+    use crate::planning::prompts::PLANNER_SYSTEM_PROMPT;
+    let user_prompt = build_goal_user_prompt(goal, depth);
+    match llm_fn(PLANNER_SYSTEM_PROMPT, &user_prompt).await {
+        Ok(raw) => parse_llm_plan_response(&raw).unwrap_or_else(|_| synthesize_plan_nodes(goal)),
+        Err(_) => synthesize_plan_nodes(goal),
+    }
+}
+
 pub fn synthesize_plan_nodes(goal: &str) -> Vec<PlanNode> {
+    if let Ok(nodes) = parse_llm_plan_response(goal) {
+        return nodes;
+    }
+
     let mut parts = split_goal_clauses(goal);
     if parts.is_empty() {
         let trimmed = goal.trim();
@@ -126,6 +236,9 @@ pub fn synthesize_plan_nodes(goal: &str) -> Vec<PlanNode> {
             return vec![];
         }
         parts.push(trimmed.to_string());
+    }
+    if parts.len() == 1 {
+        parts = burst_long_monolithic_clause(&parts[0]);
     }
 
     let mut nodes = Vec::with_capacity(parts.len());
@@ -235,6 +348,21 @@ mod tests {
                 .filter(|node| node.workflow_invocation.as_deref() == Some("verification_stack"))
                 .count()
                 == 0
+        );
+    }
+
+    #[test]
+    fn long_monolithic_line_splits_into_chain() {
+        let mut words: Vec<&str> = Vec::new();
+        for i in 0..50 {
+            words.push(if i % 10 == 0 { "then" } else { "step" });
+        }
+        let g = words.join(" ");
+        let n = synthesize_plan_nodes(&g);
+        assert!(
+            n.len() >= 3,
+            "expected burst into multiple nodes, got {}",
+            n.len()
         );
     }
 }

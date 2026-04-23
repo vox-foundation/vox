@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/scientia/manifest-completion.schema.json",
+  "title": "SCIENTIA manifest completion report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["completeness_0_100", "required_missing", "inferred_ok", "human_only_pending", "field_provenance"],
+  "properties": {
+    "completeness_0_100": { "type": "integer", "minimum": 0, "maximum": 100 },
+    "required_missing": { "type": "array", "items": { "type": "string" } },
+    "inferred_ok": { "type": "array", "items": { "type": "string" } },
+    "human_only_pending": { "type": "array", "items": { "type": "string" } },
+    "field_provenance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "origin"],
+        "properties": {
+          "field": { "type": "string" },
+          "origin": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

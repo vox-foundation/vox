@@ -2,8 +2,10 @@
 title: "Vox database language surface (canonical)"
 description: "Canonical @table, @query, @mutation, and db.* operations for Turso/Codex — low-K syntax for LLM-authored code."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Vox database language surface (canonical)
@@ -14,9 +16,9 @@ This page is the **single** SSOT for how persistence appears in `.vox` source. O
 
 - **`@table type Name { field: Type ... }`** — Turso table + generated Rust row type. A surrogate **`_id`** column (integer primary key) is always added; do **not** add a separate column named `id` (the compiler warns; use another name for application ids).
 - **`@index Table.idx on (col1, col2)`** — B-tree index DDL.
-- **`@query fn name(...) to T { ... }`** — Read-oriented function; HTTP route **`POST /api/query/<name>`** with JSON body (same transport as `@server` fns). Compiler rejects `insert`/`delete`/raw `.query(...)` inside `@query`.
-- **`@mutation fn name(...) to T { ... }`** — Write-oriented function; **`POST /api/mutation/<name>`**.
-- **`@server fn name(...) to T { ... }`** — General RPC; **`POST /api/<name>`**.
+- **`@query fn name(...) -> T { ... }`** — Read-oriented function; HTTP route **`GET /api/query/<name>`** with JSON-encoded query parameters (sorted keys). Compiler rejects `insert`/`delete`/raw `.query(...)` inside `@query`.
+- **`@mutation fn name(...) -> T { ... }`** — Write-oriented function; **`POST /api/mutation/<name>`**.
+- **`@server fn name(...) -> T { ... }`** — General RPC; **`POST /api/<name>`**.
 - **HTTP routes** — Use `http get|post|put|delete "/path" to T { ... }` (optional named handler forms are not in the canonical grammar; see parser tests).
 
 ## `db` operations (HIR: `DbTableOp` + `FilterRecord` / `Count`)
@@ -53,7 +55,17 @@ Use **`Option[T]`** in the `@table` field type for **NULL** SQL columns; other f
 - `db.User.find` **without** `get` — use **`find` == `get`** as above.
 - `db.query(Task)` / Convex-only TS styles — not the Rust/Turso path; see TS codegen separately.
 
+## Data-lane crate policy
+
+The first-class data lane is `turso+vox-db` behind Vox language/database surfaces.
+
+- Treat `sqlx`, `diesel`, and `sea-orm` as deferred or escape-hatch crate families unless a concrete lane requirement is proven.
+- Prefer bounded wrappers and query capability metadata over exposing broad ORM APIs directly in Vox.
+- Re-score deferred ecosystems against capability value vs debt cost before any tier promotion.
+
 ## Related
 
 - [Environment variables](./env-vars.md) — `VOX_DB_*`, `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT`.
 - [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md)
+
+

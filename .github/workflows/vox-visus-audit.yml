@@ -1,0 +1,44 @@
+name: Vox Visus Audit
+
+on:
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'crates/vox-browser/**'
+      - 'crates/vox-compiler/**'
+      - 'crates/vox-cli/**'
+      - 'docs/src/**'
+
+jobs:
+  visus-audit:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2
+      
+    - name: Build Vox CLI
+      run: cargo build -p vox-cli --release
+      
+    - name: Run Visus Audit
+      shell: pwsh
+      run: |
+        # In a real environment, we'd have a staging URL or use a local file
+        # For this demo, we audit the project documentation site if it's served
+        ./target/release/vox.exe visus audit "https://google.com" --viewport "1280x800" --screenshot "visus_report.png"
+      env:
+        VOX_WORKSPACE_JOURNEY_STORE: "visus_audit_db.sqlite"
+        VOX_BROWSER_NO_SANDBOX: "1"
+
+    - name: Upload Visus Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: visus-audit-results
+        path: |
+          visus_report.png
+          visus_audit_db.sqlite

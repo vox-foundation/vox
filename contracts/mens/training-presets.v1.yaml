@@ -1,0 +1,21 @@
+x-vox-version: 1
+# SSOT: Mens training preset ids recognized by the planner (`vox_populi::mens::KNOWN_PRESETS`).
+# When adding a preset in Rust (`preset_schema.rs`), add a row here; `vox-populi` tests enforce parity.
+schema_version: 1
+description: >-
+  Canonical preset identifiers for `vox mens train --preset` / schola `--preset`.
+  Aliases are optional alternate CLI spellings resolving to the same profile.
+default_base_model: Qwen/Qwen3.5-4B
+presets:
+  - id: tiny
+  - id: safe
+  - id: "4080"
+  - id: 4080_safe
+  - id: qwen_4080_16g
+  - id: qwen_small_8g
+  - id: qwen_rtx3090_24g
+  - id: qwen_a100_80g
+  - id: a100
+  - id: default
+  - id: distributed
+  - id: mobile_edge

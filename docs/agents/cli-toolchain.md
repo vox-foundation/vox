@@ -1,3 +1,10 @@
+---
+title: "Cli Toolchain"
+description: "Agent support documentation for cli toolchain"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Vox CLI & Toolchain — Execution Layer
 
 The `vox` binary is the **canonical tool surface** for all compilation, analysis, and
@@ -8,14 +15,7 @@ humans, CI systems, and the Orchestrator alike.
 
 ```
 crates/
-  vox-lexer/         ← Tokeniser (logos-based)
-  vox-ast/           ← AST node types
-  vox-parser/        ← Recursive-descent parser
-  vox-hir/           ← High-level IR (desugared AST)
-  vox-typeck/        ← Type checker
-  vox-codegen-ts/    ← TypeScript code generator
-  vox-codegen-rust/  ← Rust code generator
-  vox-fmt/           ← Formatter
+  vox-compiler/       ← Monolith: Lexer, Parser, AST, HIR, Typeck, Codegen, SSG, Fmt
   vox-lsp/           ← Language Server (stdio)
   vox-pm/            ← Package manager (vox add/remove/publish)
   vox-runtime/       ← Runtime builtins (hash, stdlib)

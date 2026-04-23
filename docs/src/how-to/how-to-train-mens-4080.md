@@ -2,8 +2,10 @@
 title: "How To: Train Mens on RTX 4080 Super"
 description: "Official documentation for How To: Train Mens on RTX 4080 Super for the Vox language. Detailed technical reference, architecture guides"
 category: "how-to"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 # How To: Train Mens on RTX 4080 Super
@@ -184,3 +186,5 @@ Use this before claiming a full dogfood run is complete (CI cannot substitute fo
 - [Native ML Training Pipeline](../explanation/expl-ml-pipeline.md)
 - [How To: Publish Mens to Hugging Face](../reference/mens-cloud-gpu.md)
 - [scripts/README.md](../../../scripts/README.md) — thin delegates + optional RTX 4080 QLoRA helper script
+
+

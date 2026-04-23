@@ -51,14 +51,27 @@ pub fn inference_profile_allows_local_ollama_http() -> bool {
 
 /// OpenRouter chat completions endpoint (OpenAI-compatible).
 pub const OPENROUTER_CHAT_COMPLETIONS_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
+/// OpenRouter models list endpoint used for catalog discovery.
+pub const OPENROUTER_MODELS_LIST_URL: &str = "https://openrouter.ai/api/v1/models";
+/// OpenRouter embeddings endpoint (OpenAI-compatible).
+pub const OPENROUTER_EMBEDDINGS_URL: &str = "https://openrouter.ai/api/v1/embeddings";
+/// OpenAI chat completions endpoint.
+pub const OPENAI_CHAT_COMPLETIONS_URL: &str = "https://api.openai.com/v1/chat/completions";
+/// OpenAI embeddings endpoint.
+pub const OPENAI_EMBEDDINGS_URL: &str = "https://api.openai.com/v1/embeddings";
+/// Local Ollama/Populi base URL fallback.
+pub const LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT: &str = "http://localhost:11434";
 
 /// Local Ollama-compatible API base URL.
 ///
-/// Precedence: **`POPULI_URL`** → **`OLLAMA_URL`** → `http://localhost:11434`.
+/// Precedence: **`VOX_POPULI_LOCAL_OLLAMA_URL`** → **`POPULI_URL`** → **`OLLAMA_URL`** → `http://localhost:11434`.
 pub fn local_ollama_populi_base_url() -> String {
-    std::env::var("POPULI_URL")
-        .or_else(|_| std::env::var("OLLAMA_URL"))
-        .unwrap_or_else(|_| "http://localhost:11434".to_string())
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPopuliLocalOllamaUrl)
+        .expose()
+        .map(std::string::ToString::to_string)
+        .or_else(|| std::env::var("POPULI_URL").ok())
+        .or_else(|| std::env::var("OLLAMA_URL").ok())
+        .unwrap_or_else(|| LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT.to_string())
 }
 
 /// Hugging Face Hub / Inference token for router and Hub APIs.
@@ -119,6 +132,83 @@ pub fn sanitize_chatml(input: &str) -> String {
         .replace("<|im_end|>", "[im_end]")
 }
 
+/// Temperature for Together AI inference.
+pub fn together_tuning_temperature() -> Option<f32> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::TogetherTuningTemperature)
+        .expose()
+        .and_then(|s| s.parse::<f32>().ok())
+}
+
+/// Top-P for Together AI inference.
+pub fn together_tuning_top_p() -> Option<f32> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::TogetherTuningTopP)
+        .expose()
+        .and_then(|s| s.parse::<f32>().ok())
+}
+
+/// Temperature for Gemini inference.
+pub fn gemini_tuning_temperature() -> Option<f32> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiTuningTemperature)
+        .expose()
+        .and_then(|s| s.parse::<f32>().ok())
+}
+
+/// Top-P for Gemini inference.
+pub fn gemini_tuning_top_p() -> Option<f32> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiTuningTopP)
+        .expose()
+        .and_then(|s| s.parse::<f32>().ok())
+}
+
+/// Temperature for Ollama inference.
+pub fn ollama_tuning_temperature() -> Option<f32> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::OllamaTuningTemperature)
+        .expose()
+        .and_then(|s| s.parse::<f32>().ok())
+}
+
+/// Top-P for Ollama inference.
+pub fn ollama_tuning_top_p() -> Option<f32> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::OllamaTuningTopP)
+        .expose()
+        .and_then(|s| s.parse::<f32>().ok())
+}
+
+/// Temperature for OpenAI inference.
+pub fn openai_tuning_temperature() -> Option<f32> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiTuningTemperature)
+        .expose()
+        .and_then(|s| s.parse::<f32>().ok())
+}
+
+/// Top-P for OpenAI inference.
+pub fn openai_tuning_top_p() -> Option<f32> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiTuningTopP)
+        .expose()
+        .and_then(|s| s.parse::<f32>().ok())
+}
+
+/// Temperature for Anthropic inference.
+pub fn anthropic_tuning_temperature() -> Option<f32> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicTuningTemperature)
+        .expose()
+        .and_then(|s| s.parse::<f32>().ok())
+}
+
+/// Top-P for Anthropic inference.
+pub fn anthropic_tuning_top_p() -> Option<f32> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicTuningTopP)
+        .expose()
+        .and_then(|s| s.parse::<f32>().ok())
+}
+
+/// Context size for Ollama inference.
+pub fn ollama_tuning_num_ctx() -> Option<i32> {
+    vox_clavis::resolve_secret(vox_clavis::SecretId::OllamaTuningNumCtx)
+        .expose()
+        .and_then(|s| s.parse::<i32>().ok())
+}
+
 #[cfg(test)]
 #[allow(unsafe_code)] // serialized with TEST_ENV_LOCK
 mod tests {
@@ -134,7 +224,10 @@ mod tests {
             std::env::remove_var("POPULI_URL");
             std::env::remove_var("OLLAMA_URL");
         }
-        assert_eq!(local_ollama_populi_base_url(), "http://localhost:11434");
+        assert_eq!(
+            local_ollama_populi_base_url(),
+            LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT
+        );
 
         unsafe {
             std::env::set_var("OLLAMA_URL", "http://localhost:9999");
@@ -142,9 +235,12 @@ mod tests {
         assert_eq!(local_ollama_populi_base_url(), "http://localhost:9999");
 
         unsafe {
-            std::env::set_var("POPULI_URL", "http://localhost:11434");
+            std::env::set_var("POPULI_URL", LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT);
         }
-        assert_eq!(local_ollama_populi_base_url(), "http://localhost:11434");
+        assert_eq!(
+            local_ollama_populi_base_url(),
+            LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT
+        );
 
         unsafe {
             std::env::remove_var("POPULI_URL");

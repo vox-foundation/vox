@@ -11,6 +11,7 @@ use owo_colors::OwoColorize;
 use std::path::Path;
 use vox_compiler::ast::decl::Module;
 use vox_compiler::hir::HirModule;
+use vox_compiler::pipeline::PipelineOptions;
 use vox_compiler::typeck::Diagnostic;
 use vox_compiler::typeck::diagnostics::TypeckSeverity;
 
@@ -72,75 +73,67 @@ impl FrontendResult {
 /// Type/HIR diagnostics are stored in [`FrontendResult::diagnostics`]; it is
 /// the caller's responsibility to decide whether to treat them as fatal.
 pub async fn run_frontend(file: &Path, json: bool) -> Result<FrontendResult> {
+    run_frontend_with_options(file, json, &PipelineOptions::default()).await
+}
+
+pub async fn run_frontend_with_options(
+    file: &Path,
+    json: bool,
+    options: &PipelineOptions,
+) -> Result<FrontendResult> {
     let source = read_utf8_path_capped(file)
         .with_context(|| format!("Failed to read source file: {}", file.display()))?;
 
-    run_frontend_str(&source, file, json)
+    run_frontend_str_with_options(&source, file, json, options)
 }
 
 /// Same as [`run_frontend`] but takes an already-loaded source string.
 pub fn run_frontend_str(source: &str, file: &Path, json: bool) -> Result<FrontendResult> {
-    // 1. Lex
-    let tokens = vox_compiler::lexer::lex(source);
+    run_frontend_str_with_options(source, file, json, &PipelineOptions::default())
+}
 
-    // 2. Parse
-    let module = match vox_compiler::parser::parse(tokens) {
-        Ok(m) => m,
-        Err(errors) => {
+pub fn run_frontend_str_with_options(
+    source: &str,
+    file: &Path,
+    json: bool,
+    options: &PipelineOptions,
+) -> Result<FrontendResult> {
+    let file_path = file.to_string_lossy();
+    match vox_compiler::pipeline::run_frontend_str_with_options(source, &file_path, options) {
+        Ok(res) => Ok(FrontendResult {
+            module: res.module,
+            hir: res.hir,
+            diagnostics: res.diagnostics,
+            source: res.source,
+        }),
+        Err(e) => {
             if json {
-                let parse_errors: Vec<String> = errors.iter().map(ToString::to_string).collect();
-                let json_out = serde_json::json!({
-                    "file": file.to_string_lossy(),
-                    "parse_errors": parse_errors,
-                });
-                if let Ok(s) = serde_json::to_string_pretty(&json_out) {
+                let diagnostics = vox_compiler::pipeline::check_file(source, &file_path);
+                if let Ok(s) = serde_json::to_string_pretty(&diagnostics) {
                     println!("{}", s);
                 }
             } else {
-                print_parse_errors(&errors, source, file);
+                // We need the parse errors to print them pretty.
+                // For now, we'll re-lex/parse if we need pretty printing,
+                // but usually, run_frontend_str failure means parse failure.
+                let tokens = vox_compiler::lexer::lex(source);
+                if let Err(errors) = vox_compiler::parser::parse(tokens) {
+                    print_parse_errors(&errors, source, file);
+                }
             }
-            anyhow::bail!("Parsing failed with {} error(s)", errors.len());
+            Err(e)
         }
-    };
-
-    // 3. Type-check (HIR)
-    let mut diagnostics = vox_compiler::typeck::typecheck_ast_module(source, &module);
-
-    // 4. Lower to HIR + structural validation (invariants for codegen consumers).
-    let hir = vox_compiler::hir::lower_module(&module);
-    for e in vox_compiler::hir::validate_module(&hir) {
-        diagnostics.push(vox_compiler::typeck::Diagnostic::hir_invariant(
-            e.message, e.span, source,
-        ));
     }
-
-    Ok(FrontendResult {
-        module,
-        hir,
-        diagnostics,
-        source: source.to_owned(),
-    })
 }
 
-/// Typecheck / HIR validation diagnostics as pretty-printed JSON (same shape as `vox --json check` stdout).
 #[must_use]
 pub fn format_diagnostics_json_pretty(result: &FrontendResult, file: &Path) -> String {
-    let output: Vec<serde_json::Value> = result
+    use vox_compiler::typeck::diagnostics::VoxCompilerDiagnosticPayload;
+    let file_path = file.to_string_lossy();
+    let output: Vec<VoxCompilerDiagnosticPayload> = result
         .diagnostics
         .iter()
-        .enumerate()
-        .map(|(i, d)| {
-            let (line, col) = line_col_for_byte_offset(&result.source, d.span.start);
-            serde_json::json!({
-                "code": format!("E{:04}", i + 1),
-                "severity": format!("{:?}", d.severity),
-                "category": format!("{:?}", d.category),
-                "message": d.message,
-                "file": file.display().to_string(),
-                "line": line,
-                "col": col,
-            })
-        })
+        .map(|d| VoxCompilerDiagnosticPayload::from_diagnostic(d, &file_path, &result.source))
         .collect();
     serde_json::to_string_pretty(&output).unwrap_or_default()
 }

@@ -1,3 +1,10 @@
+---
+title: "Doc Quality Verification"
+description: "Agent support documentation for doc quality verification"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Documentation quality: verification and progress tracking
 
 ## After each documentation batch
@@ -54,5 +61,5 @@ Use **`symbol_hints`** + **`quality_tag`** in [doc-inventory.json](doc-inventory
 ## Related
 
 - [documentation-rubric.md](documentation-rubric.md)
-- [llm-documentation-playbook.md](llm-documentation-playbook.md)
+- [doc-inventory.json](doc-inventory.json)
 - [.agents/cargo-safety.md](../../.agents/cargo-safety.md) (Windows / cargo lock hygiene)

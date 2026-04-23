@@ -1,7 +1,11 @@
-# Training contract: points preflight to the mix output.
+# Training contract: points preflight to the validated mix output.
 # Priority: contract train_path > data_dir/train.jsonl > data_dir/validated.jsonl
-train_path: target/dogfood/train_mixed.jsonl
-# Only include samples tagged as 'vox_source' to prevent generated TSX/TS from
-# polluting Mens with React/TypeScript syntax. The corpus builder must tag
-# .vox files as 'vox_source' and generated output as 'codegen_output'.
+#
+# validated_mixed.jsonl is the primary training file — it is the richest
+# validated dataset (~20K lines, all domains, quality-filtered).
+# train_mixed.jsonl is the raw mix pipeline output (may include unfiltered rows).
+train_path: target/dogfood/validated_mixed.jsonl
+# Advisory note only: current Rust preflight consumes `train_path` from this
+# file, but does not automatically apply `context_filter`. Use CLI/config
+# wiring that explicitly passes a context filter when you need one.
 context_filter: vox_source

@@ -2,8 +2,10 @@
 title: "Ecosystem & Tooling"
 description: "Official documentation for Ecosystem & Tooling for the Vox language. Detailed technical reference, architecture guides, and implementatio"
 category: "how-to"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 # Ecosystem & Tooling
 
@@ -163,7 +165,7 @@ search_code_snippets(query, limit)  # Vector-similarity search
 The store also manages agent memory for AI-powered features:
 
 ```
-recall_memory(agent, type, limit, min_importance)  # Query with relevance filtering
+recall_async(agent, type, limit, min_importance)  # Query with relevance filtering
 ```
 
 ---
@@ -221,7 +223,8 @@ cargo clippy --workspace      # Lint check
 
 ## Next Steps
 
-- [Language Guide](../reference/ref-language.md) — Full syntax and feature reference
+- [Language Guide](../reference/ref-syntax.md) — Full syntax and feature reference
 - [Compiler Architecture](../explanation/expl-architecture.md) — Pipeline internals
 - [Actors & Workflows](../explanation/expl-actors-workflows.md) — Concurrency and durable execution
 - [Examples](examples-corpus.md) — Annotated example programs
+

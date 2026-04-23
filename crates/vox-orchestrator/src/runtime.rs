@@ -3,7 +3,7 @@
 //! [`AgentFleet`](crate::runtime::AgentFleet) keeps [`ProcessHandle`](vox_runtime::ProcessHandle) values aligned with [`Orchestrator`](crate::orchestrator::Orchestrator) registrations
 //! and applies [`ScalingAction`](crate::services::ScalingAction) decisions from the scaling service.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use vox_runtime::{
     ProcessHandle, RegistryError, mailbox::MessagePayload, process::ProcessContext,
@@ -12,13 +12,13 @@ use vox_runtime::{
 };
 
 use crate::events::AgentEventKind;
-use crate::models::ProviderType;
+use crate::models::{ModelRouteBackend, route_backend_for_model};
 use crate::orchestrator::Orchestrator;
 use crate::services::{ScalingAction, ScalingService};
 use crate::types::AgentId;
 use crate::types::TaskId;
 use futures_util::StreamExt;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 /// Message type sent to the ActorAgent to trigger task processing.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -44,7 +44,7 @@ pub trait TaskProcessor: Send + Sync {
     ) -> anyhow::Result<crate::types::TaskId>;
 }
 
-/// A default stub processor that simulates a short work slice (~50ms) then completes the task.
+/// No-op processor for tests and dry runs: completes immediately without calling external AI.
 pub struct StubTaskProcessor;
 
 #[async_trait::async_trait]
@@ -54,8 +54,6 @@ impl TaskProcessor for StubTaskProcessor {
         _agent_id: crate::types::AgentId,
         task: crate::types::AgentTask,
     ) -> anyhow::Result<crate::types::TaskId> {
-        // Small delay so scaling/retirement tests and metrics have a non-racy window.
-        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         Ok(task.id)
     }
 }
@@ -71,28 +69,7 @@ pub struct AiTaskProcessor {
     model: String,
 }
 
-#[derive(Debug, Clone, Copy)]
-enum ExecutorPhase {
-    Inspect,
-    Localize,
-    Hypothesize,
-    Act,
-    Verify,
-    Decide,
-}
-
-impl ExecutorPhase {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Inspect => "inspect",
-            Self::Localize => "localize",
-            Self::Hypothesize => "hypothesize",
-            Self::Act => "act",
-            Self::Verify => "verify",
-            Self::Decide => "decide",
-        }
-    }
-}
+// TaskPhase moved to types/tasks.rs
 
 impl AiTaskProcessor {
     /// Create a new AI processor that auto-discovers providers.
@@ -111,23 +88,37 @@ impl AiTaskProcessor {
 
     async fn run_phase_stream(
         &self,
+        client: &vox_ludus::ai::FreeAiClient,
         agent_id: crate::types::AgentId,
         task: &crate::types::AgentTask,
-        phase: ExecutorPhase,
+        phase: crate::types::TaskPhase,
         usage_model: &str,
         prior_notes: &str,
         route: vox_ludus::StreamRoute<'_>,
     ) -> String {
+        let mut history_block = String::new();
+        if !task.transcript.is_empty() {
+            history_block.push_str("### Prior Agent Turns (Context)\n");
+            // Inject a max of 3 relevant history turns (Surgical Injection phase 1).
+            for turn in task.transcript.iter().rev().take(3).rev() {
+                history_block.push_str(&format!(
+                    "[{}] (Agent: {}):\n{}\n\n",
+                    turn.agent_id, turn.agent_name, turn.message
+                ));
+            }
+        }
+
         let prompt = format!(
-            "Task: {}\n\nPhase: {}\nCategory: {:?}\nRouting model hint: {}\n\nKnown notes:\n{}\n\nAction contract:\n- Think step-by-step for this phase only.\n- If proposing tool usage, emit one line starting with `@tool` and a concrete tool name.\n- Keep output concise and executable.",
+            "Task: {}\n\n{}\nPhase: {}\nCategory: {:?}\nRouting model hint: {}\n\nKnown notes:\n{}\n\nAction contract:\n- Think step-by-step for this phase only.\n- If proposing tool usage, emit one line starting with `@tool` and a concrete tool name.\n- Keep output concise and executable.",
             task.description,
+            history_block,
             phase.as_str(),
             task.task_category,
             usage_model,
             prior_notes
         );
 
-        let mut stream = self.client.generate_stream_routed(&prompt, route).await;
+        let mut stream = client.generate_stream_routed(&prompt, route).await;
         let mut phase_text = String::new();
         while let Some(chunk_result) = stream.next().await {
             match chunk_result {
@@ -151,9 +142,42 @@ impl TaskProcessor for AiTaskProcessor {
         task: crate::types::AgentTask,
     ) -> anyhow::Result<crate::types::TaskId> {
         let cost_pref = crate::sync_lock::rw_read(&*self.orchestrator.config).cost_preference;
+        let mut allowed_providers = std::collections::HashSet::new();
+        if let Some(db) = self.orchestrator.db() {
+            let tracker = crate::usage::UsageTracker::new_ref(&*db);
+            if let Ok(budgets) = tracker.remaining_all().await {
+                for b in budgets {
+                    if b.remaining > 0 && !b.rate_limited {
+                        allowed_providers.insert(b.provider.clone());
+                    }
+                }
+            }
+        }
+
+        let models_handle = self.orchestrator.models_handle();
         let routed = {
-            let registry = crate::sync_lock::rw_read(&*self.orchestrator.models);
-            registry.best_for(task.task_category, task.estimated_complexity, cost_pref)
+            let registry = crate::sync_lock::rw_read(&*models_handle);
+            if allowed_providers.is_empty() {
+                registry.best_for_task(&task, cost_pref)
+            } else {
+                registry.best_for_task_with_filter(&task, cost_pref, |m| {
+                    let provider_str = match m.provider_type {
+                        crate::models::ProviderType::OpenRouter => "openrouter",
+                        crate::models::ProviderType::Ollama => "ollama",
+                        crate::models::ProviderType::GoogleDirect => "google",
+                        crate::models::ProviderType::Groq => "groq",
+                        crate::models::ProviderType::Cerebras => "cerebras",
+                        crate::models::ProviderType::Mistral => "mistral",
+                        crate::models::ProviderType::DeepSeek => "deepseek",
+                        crate::models::ProviderType::SambaNova => "sambanova",
+                        crate::models::ProviderType::Anthropic => "anthropic",
+                        crate::models::ProviderType::PopuliMesh => "populimesh",
+                        crate::models::ProviderType::HuggingFaceRouter => "huggingface",
+                        crate::models::ProviderType::Custom(_) => "custom",
+                    };
+                    allowed_providers.contains(provider_str)
+                })
+            }
         };
         let (usage_provider, usage_model) = if let Some(ref mo) = task.model_override {
             ("task_override".to_string(), mo.clone())
@@ -170,59 +194,140 @@ impl TaskProcessor for AiTaskProcessor {
         {
             vox_ludus::StreamRoute::UserModelOverride(mo)
         } else if let Some(m) = routed.as_ref() {
-            match m.provider_type {
-                ProviderType::Ollama => vox_ludus::StreamRoute::Registry {
+            match route_backend_for_model(m) {
+                ModelRouteBackend::Ollama => vox_ludus::StreamRoute::Registry {
                     backend: vox_ludus::LudusStreamBackend::Ollama,
                     model: m.id.as_str(),
                 },
-                ProviderType::GoogleDirect => vox_ludus::StreamRoute::Registry {
+                ModelRouteBackend::GeminiDirect => vox_ludus::StreamRoute::Registry {
                     backend: vox_ludus::LudusStreamBackend::Gemini,
                     model: m.id.as_str(),
                 },
-                ProviderType::OpenRouter => vox_ludus::StreamRoute::Registry {
+                ModelRouteBackend::OpenRouter => vox_ludus::StreamRoute::Registry {
                     backend: vox_ludus::LudusStreamBackend::OpenRouter,
                     model: m.id.as_str(),
                 },
-                ProviderType::Groq
-                | ProviderType::Mistral
-                | ProviderType::DeepSeek
-                | ProviderType::Cerebras
-                | ProviderType::SambaNova
-                | ProviderType::Custom(_) => {
-                    if m.id.contains('/') {
-                        vox_ludus::StreamRoute::Registry {
-                            backend: vox_ludus::LudusStreamBackend::OpenRouter,
-                            model: m.id.as_str(),
-                        }
-                    } else {
-                        vox_ludus::StreamRoute::Cascade
-                    }
-                }
+                ModelRouteBackend::CascadeFallback => vox_ludus::StreamRoute::Cascade,
+                ModelRouteBackend::PopuliMesh => vox_ludus::StreamRoute::Cascade,
             }
         } else {
             vox_ludus::StreamRoute::Cascade
         };
+
+        if let Some(db) = self.orchestrator.db() {
+            let repo = crate::lineage::repository_id();
+            let has_model_override = task
+                .model_override
+                .as_deref()
+                .map(str::trim)
+                .is_some_and(|s| !s.is_empty());
+            let ludus_fallback = !has_model_override && routed.is_none();
+            let reason = vox_runtime::routing_telemetry::OrchestratorTaskRoutingReasonV1::new(
+                format!("{:?}", task.task_category),
+                task.estimated_complexity,
+                usage_provider.clone(),
+                usage_model.clone(),
+                routed.is_some(),
+                format!("{:?}", cost_pref),
+                ludus_fallback,
+                vox_runtime::routing_telemetry::unified_routing_rollout_enabled(),
+                task.id.0,
+            );
+            let reason_s = reason
+                .to_json_bounded(vox_runtime::routing_telemetry::ROUTING_REASON_JSON_MAX_BYTES);
+            if let Err(e) = db
+                .record_routing_decision(
+                    None::<&str>,
+                    repo.as_str(),
+                    task.session_id.as_deref(),
+                    "orchestrator_ai_task",
+                    Some(usage_model.as_str()),
+                    Some(reason_s.as_str()),
+                )
+                .await
+            {
+                tracing::debug!(error = %e, "record_routing_decision (orchestrator_ai_task) skipped");
+            }
+        }
+
+        let reconciled_cost = Arc::new(Mutex::new(0.0));
+        let client = {
+            let reconciled_cost = reconciled_cost.clone();
+            self.client
+                .clone()
+                .with_cost_reporter(Arc::new(move |cost| {
+                    if let Ok(mut lock) = reconciled_cost.lock() {
+                        *lock += cost;
+                    }
+                }))
+        };
+
         let mut notes = String::new();
         let phases = [
-            ExecutorPhase::Inspect,
-            ExecutorPhase::Localize,
-            ExecutorPhase::Hypothesize,
-            ExecutorPhase::Act,
-            ExecutorPhase::Verify,
-            ExecutorPhase::Decide,
+            crate::types::TaskPhase::Inspect,
+            crate::types::TaskPhase::Localize,
+            crate::types::TaskPhase::Hypothesize,
+            crate::types::TaskPhase::Act,
+            crate::types::TaskPhase::Verify,
+            crate::types::TaskPhase::Decide,
         ];
         // Keep execution bounded: no infinite self-reflection or uncontrolled loops.
         for phase in phases {
+            // Update the task's current phase in the orchestrator state for observability.
+            if let Some(queue_lock) = self.orchestrator.agent_queue(agent_id) {
+                let mut queue = crate::sync_lock::rw_write(&*queue_lock);
+                if let Some(t) = queue.find_task_mut(task.id) {
+                    t.current_phase = Some(phase);
+                } else if let Some(t) = queue.current_task_mut() {
+                    if t.id == task.id {
+                        t.current_phase = Some(phase);
+                    }
+                }
+            }
+            self.event_bus.emit(AgentEventKind::TaskPhaseChanged {
+                task_id: task.id,
+                agent_id,
+                phase,
+            });
+
             let phase_out = self
                 .run_phase_stream(
+                    &client,
                     agent_id,
                     &task,
                     phase,
                     usage_model.as_str(),
                     notes.as_str(),
-                    route.clone(),
+                    route,
                 )
                 .await;
+
+            // Drift detection (Doom-loop protection)
+            let drift_decision = self.orchestrator.record_agent_iteration(
+                agent_id,
+                &phase_out,
+                phase_out.contains("@tool"),
+            );
+            match drift_decision {
+                crate::budget::DriftDecision::HaltAgent { reason } => {
+                    tracing::error!(agent_id = agent_id.0, %reason, "halted agent due to semantic drift");
+                    self.event_bus.emit(AgentEventKind::DoubtReported {
+                        agent_id,
+                        task_id: task.id,
+                        reason: reason.clone(),
+                    });
+                    return Err(anyhow::anyhow!("Safety Halt: {}", reason));
+                }
+                crate::budget::DriftDecision::WarnUser { iterations, cost_usd } => {
+                    tracing::warn!(
+                        agent_id = agent_id.0,
+                        iterations,
+                        cost_usd,
+                        "agent showing early signs of semantic drift"
+                    );
+                }
+                crate::budget::DriftDecision::Continue => {}
+            }
             if !notes.is_empty() {
                 notes.push_str("\n\n");
             }
@@ -244,21 +349,69 @@ impl TaskProcessor for AiTaskProcessor {
         }
         let full_text = notes;
 
-        // Estimate token counts (4 chars ≈ 1 token as a rough heuristic)
-        let input_tokens = (task.description.len() / 4).max(1) as u32;
-        let output_tokens = (full_text.len() / 4).max(1) as u32;
-        // Approximate cost: $0.000001 per token (conservative free-tier estimate)
-        let cost_usd = (input_tokens + output_tokens) as f64 * 0.000_001;
+        let input_tokens =
+            crate::compaction::CompactionEngine::estimate_tokens(&task.description) as u32;
+        let output_tokens = crate::compaction::CompactionEngine::estimate_tokens(&full_text) as u32;
+
+        let cost_usd = if let Some(m) = routed.as_ref() {
+            let input_cost = (input_tokens as f64 / 1000.0) * m.cost_per_1k_input;
+            let output_cost = (output_tokens as f64 / 1000.0) * m.cost_per_1k_output;
+            input_cost + output_cost
+        } else {
+            (input_tokens + output_tokens) as f64 * 0.000_001
+        };
 
         // Record usage through the unified pipeline (event bus + budget + oplog)
-        self.orchestrator.record_ai_usage(
-            agent_id,
-            usage_provider.as_str(),
-            usage_model.as_str(),
-            input_tokens,
-            output_tokens,
-            cost_usd,
-        );
+        self.orchestrator
+            .record_ai_usage(
+                agent_id,
+                usage_provider.as_str(),
+                usage_model.as_str(),
+                input_tokens,
+                output_tokens,
+                cost_usd,
+                reconciled_cost
+                    .lock()
+                    .ok()
+                    .and_then(|lock| if *lock > 0.0 { Some(*lock) } else { None }),
+            )
+            .await;
+
+        // Record the final condensed summary back into the task's transcript for future handoffs.
+        let agent_name = {
+            if let Some(queue_lock) = self.orchestrator.agent_queue(agent_id) {
+                crate::sync_lock::rw_read(&*queue_lock).name.clone()
+            } else {
+                "unknown".to_string()
+            }
+        };
+
+        // We update the task transcript in the orchestrator's state so it persists
+        // across handoffs if the task is re-queued or migrated.
+        let turn_opt = {
+            if let Some(queue_lock) = self.orchestrator.agent_queue(agent_id) {
+                let mut queue = crate::sync_lock::rw_write(&*queue_lock);
+                if let Some(t) = queue.find_task_mut(task.id) {
+                    t.append_turn(agent_id, agent_name.clone(), full_text.clone());
+                    t.transcript.last().cloned()
+                } else if let Some(t) = queue.current_task_mut() {
+                    if t.id == task.id {
+                        t.append_turn(agent_id, agent_name, full_text.clone());
+                        t.transcript.last().cloned()
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        if let Some(turn) = turn_opt {
+            self.orchestrator.record_workflow_turn(task.id, &turn).await;
+        }
 
         Ok(task.id)
     }
@@ -403,10 +556,8 @@ pub struct AgentFleet {
     orchestrator: Arc<Orchestrator>,
     processor: Arc<dyn TaskProcessor>,
     /// Last time we performed a scale-up (for cooldown).
-    #[allow(dead_code)]
     last_scale_up: std::sync::RwLock<Option<Instant>>,
-    /// Number of agents spawned in the current tick (reset each check_scaling).
-    #[allow(dead_code)]
+    /// Number of agents spawned in the current tick (reset at start of check_scaling).
     spawns_this_tick: std::sync::atomic::AtomicUsize,
 }
 
@@ -505,6 +656,11 @@ impl AgentFleet {
 
     /// Check if agents need to be spawned or retired using ScalingService and profile limits.
     pub async fn check_scaling(&self) {
+        // Reset spawn counter at the start of each scaling cycle so each tick
+        // gets a clean budget — avoids stale carry-over from concurrent paths.
+        self.spawns_this_tick
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+
         let (status, idle_dynamic, config, budget_manager, remote_gpu_capacity) = {
             let orch = &*self.orchestrator;
             let config_arc = orch.config_handle();
@@ -542,7 +698,10 @@ impl AgentFleet {
             )
         };
 
-        let load_history: Vec<f64> = Vec::new();
+        let load_history: Vec<f64> = crate::sync_lock::rw_read(&*self.orchestrator.load_history)
+            .iter()
+            .copied()
+            .collect();
         let action = ScalingService::decide_scaling(
             &status,
             &config,
@@ -554,7 +713,7 @@ impl AgentFleet {
 
         match action {
             ScalingAction::NoOp => {}
-            ScalingAction::ScaleUp { name } => {
+            ScalingAction::ScaleUp { name_prefix, count } => {
                 let max_per_tick = config.max_spawn_per_tick;
                 let cooldown_ms = config.scaling_cooldown_ms;
                 let spawns = self
@@ -562,16 +721,32 @@ impl AgentFleet {
                     .load(std::sync::atomic::Ordering::Relaxed);
                 let cooldown_ok = crate::sync_lock::rw_read(&self.last_scale_up)
                     .as_ref()
-                    .map(|t| t.elapsed() >= Duration::from_millis(cooldown_ms))
+                    .map(|t| t.elapsed() >= std::time::Duration::from_millis(cooldown_ms))
                     .unwrap_or(true);
+
                 if spawns < max_per_tick && cooldown_ok {
-                    let _ = self.orchestrator.spawn_dynamic_agent(&name);
-                    self.spawns_this_tick
-                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                    *crate::sync_lock::rw_write(&self.last_scale_up) = Some(Instant::now());
+                    let limit = std::cmp::min(count, max_per_tick - spawns);
+                    for _ in 0..limit {
+                        let name = format!(
+                            "{}-{}",
+                            name_prefix,
+                            uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
+                        );
+                        let _ = self.orchestrator.spawn_dynamic_agent_with_parent(
+                            &name,
+                            None,
+                            Some("scaling_load"),
+                            None,
+                            None,
+                        );
+                        self.spawns_this_tick
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    }
+                    *crate::sync_lock::rw_write(&self.last_scale_up) =
+                        Some(std::time::Instant::now());
                     tracing::info!(
-                        "Scaling up: spawning '{}' (load: {:.2}, profile: {:?})",
-                        name,
+                        "Scaling up: spawned {} dynamic agents (load: {:.2}, profile: {:?})",
+                        limit,
                         status.total_weighted_load,
                         config.scaling_profile
                     );
@@ -585,13 +760,14 @@ impl AgentFleet {
                     );
                 }
                 for id in agent_ids {
-                    let _ = self.orchestrator.retire_agent(id);
+                    if let Ok(remaining) = self.orchestrator.retire_agent(id).await {
+                        for task in remaining {
+                            let _ = self.orchestrator.submit_existing_task(task).await;
+                        }
+                    }
                 }
             }
         }
-
-        self.spawns_this_tick
-            .store(0, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Start the main orchestrator loop: rebalancing, maintenance, and fleet syncing.
@@ -615,16 +791,44 @@ impl AgentFleet {
     }
 }
 
-#[cfg(test)]
-mod stub_processor_tests {
-    use super::{StubTaskProcessor, TaskProcessor};
-    use crate::types::{AgentId, AgentTask, TaskId, TaskPriority};
-
-    #[tokio::test]
-    async fn stub_task_processor_returns_same_task_id() {
-        let p = StubTaskProcessor;
-        let task = AgentTask::new(TaskId(42), "test", TaskPriority::Normal, vec![]);
-        let out = p.process(AgentId(1), task.clone()).await.expect("ok");
-        assert_eq!(out, task.id);
+/// When truthy (default if unset), MCP / `vox-orchestrator-d` spawn [`AgentFleet`] with [`AiTaskProcessor`].
+///
+/// Disable with **`VOX_MCP_AGENT_FLEET`**=`0`, `false`, `no`, or `off`.
+#[must_use]
+pub fn agent_fleet_env_enabled() -> bool {
+    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpAgentFleet).expose() {
+        Some(v) => {
+            let v = v.trim();
+            if v.is_empty() {
+                return true;
+            }
+            !(v == "0"
+                || v.eq_ignore_ascii_case("false")
+                || v.eq_ignore_ascii_case("no")
+                || v.eq_ignore_ascii_case("off"))
+        }
+        None => true,
     }
+}
+
+pub fn spawn_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
+    if !agent_fleet_env_enabled() {
+        tracing::info!(
+            target: "vox_orchestrator::runtime",
+            "VOX_MCP_AGENT_FLEET disabled: task queues will not auto-drain via AgentFleet"
+        );
+        return;
+    }
+    let scheduler = Arc::new(Scheduler::new());
+    tokio::spawn(async move {
+        let processor = Arc::new(
+            AiTaskProcessor::new(orchestrator.event_bus.clone(), orchestrator.clone()).await,
+        );
+        let fleet = AgentFleet::new(scheduler, orchestrator, processor);
+        tracing::info!(
+            target: "vox_orchestrator::runtime",
+            "AgentFleet loop running (AiTaskProcessor; MCP / orchestrator-d)"
+        );
+        fleet.run().await;
+    });
 }

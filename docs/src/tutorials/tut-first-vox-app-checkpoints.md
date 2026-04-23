@@ -2,12 +2,14 @@
 title: "Tutorial: first .vox app (checkpoints)"
 description: "Checkpoints for a minimal compile/run path"
 category: "tutorials"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
+
+schema_type: "HowTo"
 ---
 
 # First `.vox` app — checkpoints
 
-Use this alongside [First full-stack app](../how-to/first-full-stack-app.md) and [golden examples](../../examples/golden/hello.vox).
+Use this alongside [First full-stack app](../how-to/first-full-stack-app.md) and [golden examples](../../../examples/golden/hello.vox).
 
 ## Checkpoint A — parse
 
@@ -29,3 +31,5 @@ Use this alongside [First full-stack app](../how-to/first-full-stack-app.md) and
 - [ ] With **`populi`** feature: `vox populi serve` local smoke; see [Populi SSOT](../reference/populi.md).
 
 When stuck, capture **full** diagnostic output and cross-check [parser inventory](../reference/parser-ambiguity-inventory.md) and the [CLI reference](../reference/cli.md).
+
+

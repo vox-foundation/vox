@@ -1,9 +1,15 @@
 
 /// Generate an error→fix training pair as JSONL.
 pub fn error_fix_to_jsonl(broken: &str, explanation: &str, fixed: &str, category: &str) -> String {
+    let prompt = format!("Why doesn't this Vox code compile?\n\n```vox\n{broken}\n```");
+    let response = format!("{explanation}\n\nFixed version:\n```vox\n{fixed}\n```");
     serde_json::json!({
-        "prompt": format!("Why doesn't this Vox code compile?\n\n```vox\n{broken}\n```"),
-        "response": format!("{explanation}\n\nFixed version:\n```vox\n{fixed}\n```"),
+        "prompt": prompt,
+        "response": response,
+        "messages": [
+            {"role": "user", "content": prompt},
+            {"role": "assistant", "content": response}
+        ],
         "category": format!("{category}_error_fix"),
         "format": "error_fix",
         "schema_version": "vox_dogfood_v1",
@@ -11,116 +17,61 @@ pub fn error_fix_to_jsonl(broken: &str, explanation: &str, fixed: &str, category
     .to_string()
 }
 
-// ── Architectural Q&A generator ───────────────────────────────────────────────
-
-/// Static architectural Q&A pairs covering the Vox type system and construct choices.
-/// These are high-signal pairs that teach the model WHEN to use each construct,
-/// not just HOW to write it.
-pub const ARCHITECTURAL_PAIRS: &[(&str, &str)] = &[
-    (
-        "When should I use an `actor` vs a `workflow` in Vox?",
-        "Use `actor` for stateful, long-lived entities that respond to messages \
-         (e.g., a session, connection pool, or real-time feed). \
-         Use `workflow` for durable, retryable multi-step processes \
-         (e.g., order fulfillment, document processing, scheduled jobs). \
-         Key difference: workflows checkpoint state, actors hold it in memory.",
-    ),
-    (
-        "What is the difference between `@query` and `@mutation` in Vox?",
-        "`@query` marks read-only database operations — they are safe to cache and retry. \
-         `@mutation` marks write operations — they invalidate caches and are idempotent-safe. \
-         Use `@query` for SELECT-equivalent operations, `@mutation` for INSERT/UPDATE/DELETE.",
-    ),
-    (
-        "When should I use an `island` vs a regular `component` in Vox?",
-        "`component` renders server-side by default — zero client JavaScript. \
-         `island` renders client-side with interactivity (hooks, event handlers). \
-         Use `component` for static content; use `island` only when you need \
-         client-side state or DOM events.",
-    ),
-    (
-        "What is the difference between `@mcp.tool` and `@skill` in Vox?",
-        "`@mcp.tool` exposes a function as an MCP tool callable by any agent or LLM via the protocol. \
-         `@skill` marks a function as a learnable capability for the Mens model to acquire. \
-         Tools are protocol-level; skills are training-level.",
-    ),
-    (
-        "Should I use `Option[T]` or `Result[T]` for fallible operations in Vox?",
-        "Use `Option[T]` when absence is expected and normal (e.g., looking up a user by ID). \
-         Use `Result[T]` when failure is exceptional and needs an error message \
-         (e.g., network calls, parsing). \
-         Both lower to `undefined` on the TypeScript side, but `Result` carries an error variant.",
-    ),
-    (
-        "When should I use `message` vs a direct function call between agents?",
-        "Use `message` for durable, async, at-least-once delivery between agents — \
-         when the receiver may be offline or when you need audit trails. \
-         Use direct function calls for synchronous, co-located operations \
-         where latency matters and durability isn't needed.",
-    ),
-    (
-        "What is the right Vox construct for a recurring background job?",
-        "Use `@scheduled(\"interval\")` on a function — e.g., `@scheduled(\"1h\")`. \
-         The scheduler is built into the Vox runtime and requires no external cron. \
-         For complex multi-step scheduled work, wrap in a `workflow` for durability.",
-    ),
-    (
-        "What is the difference between `@server` and `@action` in Vox?",
-        "`@server` marks a function that always runs on the server side, invisible to client bundles. \
-         `@action` is a server function triggered by client-side events — it's the Vox equivalent \
-         of Next.js Server Actions. Use `@server` for data access; `@action` for form/button handlers.",
-    ),
-    (
-        "How do I model a state machine in Vox?",
-        "Define a union type for your states: \
-         `type OrderState = Pending | Processing(item: str) | Shipped(tracking: str) | Cancelled`. \
-         Then use an `actor` with state of that type, and match on it in handlers. \
-         This gives you a compile-safe, exhaustive state machine.",
-    ),
-    (
-        "What is the compact (serialized) form of Vox code and when is it used?",
-        "Vox code is fully serializable — all whitespace and newlines are optional. \
-         Compact form: `fn add(a:int,b:int)->int{ret a+b}`. \
-         Use compact form for: network transport, embedding in JSON payloads, \
-         LLM token efficiency. The parser handles both forms identically.",
-    ),
-    (
-        "How do I deploy a Vox application to production?",
-        "Run `vox build --release` to compile to optimized native code. \
-         The output binary embeds the runtime — no separate Node/Python install needed. \
-         For containerized environments, the binary is statically linked; \
-         use `vox bundle --docker` to emit a minimal `Dockerfile` scaffolded for the app.",
-    ),
-    (
-        "How do I monitor a running Vox actor in production?",
-        "Actors expose built-in telemetry via `@traced` — add it to any `actor` or `fn`. \
-         Connect your observability stack (Prometheus, OTEL) via `vox.config` \
-         `[telemetry]` section. Use `vox populi status` to see live actor health, \
-         mailbox depth, and error rates across the distributed mens.",
-    ),
-    (
-        "How does Vox handle TypeScript interop for frontend code?",
-        "Vox generates typed TypeScript automatically from your `.vox` files. \
-         Run `vox codegen ts --out ./src/vox.d.ts` to emit a `.d.ts` type file. \
-         For React integration, use `vox-client` (the generated SDK) — \
-         it provides `useVox<T>()` hooks and action wrappers that match your Vox API surface exactly.",
-    ),
-];
-
-/// Write architectural Q&A pairs to a writer as JSONL.
-pub fn write_architectural_pairs(out: &mut impl std::io::Write) -> Result<usize> {
+pub fn write_architectural_pairs(out: &mut impl std::io::Write) -> anyhow::Result<usize> {
+    use crate::codegen_vox::{generate_organic_corpus, TAXONOMY_FROM_AST};
+    
     let mut count = 0;
-    for (prompt, response) in ARCHITECTURAL_PAIRS {
-        let line = serde_json::json!({
-            "prompt": prompt,
-            "response": response,
+    let organic = generate_organic_corpus(42);
+    
+    for tag in TAXONOMY_FROM_AST {
+        let question1 = format!("What is a `{tag}` in Vox?");
+        let answer1 = match *tag {
+            "component" => "A component is a server-side rendered UI construct in Vox. It has no client-side JavaScript by default.",
+            "island" => "An island is a client-side rendered UI construct in Vox, allowing interactivity and state.",
+            "workflow" => "A workflow is a durable, retryable multi-step process in Vox. It checkpoints state automatically.",
+            "actor" => "An actor is a stateful entity that can receive and process messages asynchronously in memory.",
+            "table" => "A table defines a database schema entity with compile-time safety.",
+            "mcp_tool" => "An mcp_tool exposes a Vox function according to the Model Context Protocol.",
+            "query" => "A query marks read-only database operations that are safe to cache and retry.",
+            "mutation" => "A mutation marks write operations to the database.",
+            "scheduled" => "A scheduled function runs at a specified interval (e.g. cron or timespan) in the background.",
+            "server_fn" | "server" => "A server function always runs on the server side and is invisible to client bundles.",
+            "action" => "An action is a server function triggered by client-side events, similar to Next.js Server Actions.",
+            _ => "This represents a distinct grammatical or runtime construct in the Vox language."
+        };
+        
+        let line1 = serde_json::json!({
+            "prompt": question1,
+            "response": answer1,
+            "messages": [
+                {"role": "user", "content": question1},
+                {"role": "assistant", "content": answer1}
+            ],
             "category": "vox_architectural_qa",
             "format": "qa_pair",
             "schema_version": "vox_dogfood_v1",
         });
-        writeln!(out, "{}", line)?;
+        writeln!(out, "{}", line1)?;
         count += 1;
+        
+        if let Some(example) = organic.iter().find(|p| p.category == format!("vox_{tag}")) {
+            let question2 = format!("Show me an example of a `{tag}` in Vox.");
+            let line2 = serde_json::json!({
+                "prompt": question2,
+                "response": example.response,
+                "messages": [
+                    {"role": "user", "content": question2},
+                    {"role": "assistant", "content": example.response}
+                ],
+                "category": "vox_architectural_qa",
+                "format": "qa_pair",
+                "schema_version": "vox_dogfood_v1",
+            });
+            writeln!(out, "{}", line2)?;
+            count += 1;
+        }
     }
+    
     Ok(count)
 }
 
@@ -144,15 +95,21 @@ pub fn gen_explain_pairs(
         .enumerate()
         .filter(|(i, _)| i % stride == 0)
         .map(|(_, (_, code, category))| {
+            let prompt = format!("Explain this Vox code in plain English:\n\n```vox\n{code}\n```");
+            let response = format!(
+                "This Vox code defines a `{category}` construct. \
+                 It uses Vox's strong static type system and explicit return types. \
+                 All values are non-null by design — `Option[T]` is used for optional presence \
+                 and `Result[T]` for fallible operations. \
+                 The syntax is designed to be readable and serializable without whitespace."
+            );
             serde_json::json!({
-                "prompt": format!("Explain this Vox code in plain English:\n\n```vox\n{code}\n```"),
-                "response": format!(
-                    "This Vox code defines a `{category}` construct. \
-                     It uses Vox's strong static type system and explicit return types. \
-                     All values are non-null by design — `Option[T]` is used for optional presence \
-                     and `Result[T]` for fallible operations. \
-                     The syntax is designed to be readable and serializable without whitespace."
-                ),
+                "prompt": prompt,
+                "response": response,
+                "messages": [
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": response}
+                ],
                 "category": format!("{category}_explain"),
                 "format": "explain_pair",
                 "schema_version": "vox_dogfood_v1",
@@ -199,16 +156,22 @@ pub fn gen_debug_pairs(organic_samples: &[(String, String, String)], stride: usi
         .filter(|(i, _)| i % stride == 0)
         .zip(runtime_errors.iter().cycle())
         .map(|((_, (_, code, category)), (error, diagnosis))| {
+            let prompt = format!(
+                "I have this Vox code and it's producing an error at runtime:\n\n\
+                 ```vox\n{code}\n```\n\nError: `{error}`\n\nWhat's wrong and how do I fix it?"
+            );
+            let response = format!(
+                "{diagnosis}\n\nIn this specific `{category}` code, check \
+                 that all data flows match their declared types and that Optional \
+                 values are always matched exhaustively before use."
+            );
             serde_json::json!({
-                "prompt": format!(
-                    "I have this Vox code and it's producing an error at runtime:\n\n\
-                     ```vox\n{code}\n```\n\nError: `{error}`\n\nWhat's wrong and how do I fix it?"
-                ),
-                "response": format!(
-                    "{diagnosis}\n\nIn this specific `{category}` code, check \
-                     that all data flows match their declared types and that Optional \
-                     values are always matched exhaustively before use."
-                ),
+                "prompt": prompt,
+                "response": response,
+                "messages": [
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": response}
+                ],
                 "category": format!("{category}_debug"),
                 "format": "debug_pair",
                 "schema_version": "vox_dogfood_v1",
@@ -258,13 +221,19 @@ pub fn gen_refactor_pairs(
         .filter(|(i, _)| i % stride == 0)
         .zip(refactor_goals.iter().cycle())
         .map(|((_, (_, code, category)), (goal, guidance))| {
+            let prompt = format!(
+                "Refactor this Vox code to be {goal}:\n\n```vox\n{code}\n```"
+            );
+            let response = format!(
+                "{guidance}\n\nRefactored:\n```vox\n{code}\n// [refactored: {goal}]\n```"
+            );
             serde_json::json!({
-                "prompt": format!(
-                    "Refactor this Vox code to be {goal}:\n\n```vox\n{code}\n```"
-                ),
-                "response": format!(
-                    "{guidance}\n\nRefactored:\n```vox\n{code}\n// [refactored: {goal}]\n```"
-                ),
+                "prompt": prompt,
+                "response": response,
+                "messages": [
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": response}
+                ],
                 "category": format!("{category}_refactor"),
                 "format": "refactor_pair",
                 "schema_version": "vox_dogfood_v1",
@@ -321,6 +290,10 @@ pub fn write_ts_interop_pairs(out: &mut impl std::io::Write) -> Result<usize> {
         let line = serde_json::json!({
             "prompt": prompt,
             "response": response,
+            "messages": [
+                {"role": "user", "content": prompt},
+                {"role": "assistant", "content": response}
+            ],
             "category": "vox_ts_interop",
             "format": "qa_pair",
             "schema_version": "vox_dogfood_v1",

@@ -2,15 +2,17 @@
 title: "Model Routing & Provider Cascade"
 description: "Official documentation for Model Routing & Provider Cascade for the Vox language. Detailed technical reference, architecture guides, and "
 category: "how-to"
-last_updated: 2026-03-24
+last_updated: "2026-03-28"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 <!-- markdownlint-disable MD025 -->
 
 # Model Routing & Provider Cascade
 
-Vox uses a **dynamic OpenRouter catalog** as the primary cloud model source, with **provider policy** enforced in shipped surfaces via in-tree helpers (for example `vox doctor` under `--features codex`) and **MCP / external `vox-dei-d`** for full DeI routing. The workspace directory `crates/vox-dei` is **excluded** from the Cargo workspace (see root `Cargo.toml`); do not treat it as an in-tree implementation SSOT until it is re-added as a normal crate.
+Vox uses a **dynamic OpenRouter catalog** as the primary cloud model source, with **provider policy** enforced in shipped surfaces via in-tree helpers (for example `vox doctor` under `--features codex`) and **MCP / external `vox-dei-d`** for full DeI routing. The **`vox-orchestrator`** crate is a **workspace member** but ships only a **minimal** `lib.rs` (Socrates floors); legacy sources on disk are **not** wired into that library—routing SSOT remains **`vox-dei-d`**, MCP, and **`vox-orchestrator`**.
 
 Usage statistics and BYOK-style limits are persisted to **Codex** (Turso via `vox-pm` / `vox-db`) where wired; legacy docs may say `vox-arca` for the same storage plane.
 
@@ -22,9 +24,9 @@ For full runtime architecture and operational rollout details, also read:
 
 ## Dynamic Catalog
 
-The historical **in-tree** `model_catalog` narrative referred to the excluded `vox-dei` crate. **Today**, catalog refresh and normalization for CLI/MCP paths are owned by the **daemon + MCP stack** and `vox-runtime` / `vox_config` inference helpers. Conceptually the pipeline remains:
+The historical **in-tree** `model_catalog` narrative referred to the archival **`vox-orchestrator`** sources. **Today**, catalog refresh and normalization for CLI/MCP paths are owned by the **daemon + MCP stack** and `vox-runtime` / `vox_config` inference helpers. Conceptually the pipeline remains:
 
-1. **Fetches** models from `https://openrouter.ai/api/v1/models` (when `OPENROUTER_API_KEY` is set)
+1. **Fetches** models from `https://openrouter.ai/api/v1/models` (public fetch; API key optional but recommended for consistent provider policy behavior)
 2. **Normalizes** each entry to capability metadata (vision, cost, strengths) in the consumer
 3. **Caches** under `~/.vox/cache/` where applicable
 4. **Falls back** to cache, then static allowlists where implemented
@@ -87,7 +89,28 @@ Manual model pins and task overrides still win over automatic routing (see prece
 
 ### Runtime SSOT resolver (OpenAI-compatible chat)
 
-`vox_runtime::model_resolution::resolve_chat_provider_route` applies fixed precedence: **manual** → **Mens (GPU-prefer)** → **HF dedicated** (token + dedicated env) → **HF router** (token + `HF_CHAT_MODEL`) → **OpenRouter** (key) → **any Mens** → **OpenRouter bootstrap** (`OPENROUTER_AUTO`). Map the result with `chat_route_to_llm_config` before `vox_runtime::llm::llm_chat`. Cross-surface parity helpers include `route_telemetry_labels` and structured logs from the active router (targets may vary by crate; filter `RUST_LOG` by the MCP / runtime module you are debugging).
+`vox_runtime::model_resolution::resolve_chat_provider_route` applies fixed precedence: **manual** → **Mens (GPU-prefer)** → **HF dedicated** (token + dedicated env) → **HF router** (token + `HF_CHAT_MODEL`) → **OpenRouter** (key) → **any Mens** → **OpenRouter bootstrap** (`OPENROUTER_AUTO`). Map the result with `chat_route_to_llm_config` before `vox_runtime::llm::llm_chat`.
+
+### Unified four-lane backend semantics (orchestrator / MCP / runtime chat)
+
+Registry-backed work (`vox-orchestrator` `ModelSpec` + `route_backend_for_model`) and HTTP chat routing share **four** normalized backend lanes for telemetry and dashboards:
+
+| Lane | Orchestrator (`ModelRouteBackend`) | Runtime chat (`ChatRouteBackend`) | Telemetry `(family, choice)` |
+| --- | --- | --- | --- |
+| Google direct | `GeminiDirect` | `GeminiDirect` when manual `base_url` contains `generativelanguage.googleapis.com`; registry `ProviderType::GoogleDirect` maps here in MCP | `("google", "direct")` |
+| OpenRouter | `OpenRouter` | `OpenRouter` for `ChatProviderRouteKind::OpenRouter` and manual model id without base (OpenRouter id) | `("openrouter", "openrouter")` |
+| Local Ollama / Mens | `Ollama` | `Ollama` for `PopuliLocal` | `("mens", "populi_local")` |
+| Cascade / other | `CascadeFallback` (and Groq/Mistral/… per `route_backend_for_model` rules) | `CascadeFallback` for HF router/dedicated, BYOK OpenAI-compatible manual URLs (non-Google), and other non-native HTTP lanes | `("custom", "cascade")` |
+
+**SSOT for telemetry strings:** `vox_runtime::model_resolution::backend_telemetry_labels`. MCP `mcp_provider_telemetry_labels` delegates to it so labels cannot drift.
+
+**Residual divergence (by design):**
+
+- **Precedence vs lane:** Runtime chat resolution still prefers HF dedicated/router when an HF token is present (see precedence above); those routes are labeled **cascade** for backend-family purposes, not as separate HF enum variants.
+- **Gemini without Generative Language URL:** A pinned Gemini model delivered only through OpenRouter (OpenRouter-shaped URL/model id) is labeled **openrouter**, not **google/direct**, until the chat stack uses a Google direct endpoint URL.
+- **Orchestrator `route_backend_for_model` nuance:** Non-OpenRouter third-party `ProviderType`s map to `OpenRouter` vs `CascadeFallback` based on model id heuristics (e.g. `org/model` → OpenRouter lane); runtime chat has no equivalent until a concrete `ChatProviderRouteKind` is built for that call.
+
+Helpers: `route_backend_for_chat_route`, `route_telemetry_labels` (derived from the backend). Structured logs from routers may still use different `tracing` targets; filter `RUST_LOG` by the binary you run.
 
 ### Mens capability probe (GPU / health)
 
@@ -95,11 +118,11 @@ Manual model pins and task overrides still win over automatic routing (see prece
 
 ### Multi-agent / DeI (external daemon)
 
-Full **multi-agent model registry** behavior (task categories, complexity bands, economy vs performance, research stage picks) lives in the **`vox-dei-d`** / MCP plane, not in the workspace-excluded `crates/vox-dei` sources. The in-tree **`vox-orchestrator`** crate handles affinity, routing metadata, and session layout for MCP and the `vox live` demo bus.
+Full **multi-agent model registry** behavior (task categories, complexity bands, economy vs performance, research stage picks) lives in the **`vox-dei-d`** / MCP plane, not in the minimal compiled **`vox-orchestrator`** crate or its unwired legacy files. The in-tree **`vox-orchestrator`** crate handles affinity, routing metadata, and session layout for MCP and the `vox live` demo bus.
 
 ### Dei task inference (precedence)
 
-For orchestrator-attached tasks, treat precedence as **task override → per-agent config → mode profile / env / `Vox.toml` → MCP model override**, matching the semantics documented for MCP `vox_submit_task` / `vox_set_model_override`. Exact function names in archived `vox-dei` sources are not authoritative for the slim CLI build.
+For orchestrator-attached tasks, treat precedence as **task override → per-agent config → mode profile / env / `Vox.toml` → MCP model override**, matching the semantics documented for MCP `vox_submit_task` / `vox_set_model_override`. Exact function names in archived `vox-orchestrator` sources are not authoritative for the slim CLI build.
 
 ### MCP chat / inline / ghost override
 
@@ -107,10 +130,10 @@ Tools `vox_set_active_model` and `vox_get_active_model` pin the model used by `v
 
 ### Route telemetry
 
-Structured logs for route telemetry are emitted from the **daemon / MCP** implementation; use `RUST_LOG` filters documented for the binary you run (`vox-mcp`, `vox-dei-d`, etc.) rather than assuming a `vox_dei::...` target in minimal workspace crates.
+Structured logs for route telemetry are emitted from the **daemon / MCP** implementation; use `RUST_LOG` filters documented for the binary you run (`vox-mcp`, `vox-dei-d`, etc.) rather than assuming a `vox_orchestrator::...` target in minimal workspace crates.
 
 ```text
-# Pseudocode shape (actual types live in DeI daemon / MCP, not in workspace-excluded vox-dei)
+# Pseudocode shape (actual types live in DeI daemon / MCP, not in the minimal vox-orchestrator library)
 registry.resolve_for_task(task_category, complexity, cost_preference, inference_config)
 ```
 
@@ -132,7 +155,12 @@ Force-refresh the OpenRouter catalog (e.g. after new models are added):
 vox status --refresh-catalog   # Refresh before showing provider status
 ```
 
-The catalog is also refreshed automatically when you run `vox chat` (if `OPENROUTER_API_KEY` is set).
+The orchestrator-side registry also performs periodic refresh merges using:
+
+- `VOX_OPENROUTER_CATALOG_MIN_REFRESH_INTERVAL_SECS`
+- `VOX_OPENROUTER_CATALOG_REFRESH_JITTER_MS`
+
+with a refresh marker in the Vox config directory to avoid excessive fetch churn.
 
 ## Key Management
 
@@ -173,16 +201,16 @@ context_window_chars_per_token = 4
 a2a_context_packet_enabled = true
 ```
 
-Equivalent environment variables (prefer `VOX_DEI_*`; `VOX_DEUS_*` and `VOX_ORCHESTRATOR_*` are legacy):
+Equivalent environment variables (prefer `vox_orchestrator_*`; `VOX_DEUS_*` and `VOX_ORCHESTRATOR_*` are legacy):
 
-- `VOX_DEI_CONTEXT_WINDOW_SOFT_RATIO`
-- `VOX_DEI_CONTEXT_WINDOW_HARD_RATIO`
-- `VOX_DEI_REPO_INDEX_MAX_FILES`
-- `VOX_DEI_REPO_INDEX_MAX_FILE_BYTES`
-- `VOX_DEI_PROVIDER_TOOL_CALLS_ENABLED`
-- `VOX_DEI_PROVIDER_TOOL_CALLS_MAX_PER_TURN`
-- `VOX_DEI_PROVIDER_TOOL_CALLS_READ_ONLY_MODE`
-- `VOX_DEI_A2A_CONTEXT_PACKET_ENABLED`
+- `vox_orchestrator_CONTEXT_WINDOW_SOFT_RATIO`
+- `vox_orchestrator_CONTEXT_WINDOW_HARD_RATIO`
+- `vox_orchestrator_REPO_INDEX_MAX_FILES`
+- `vox_orchestrator_REPO_INDEX_MAX_FILE_BYTES`
+- `vox_orchestrator_PROVIDER_TOOL_CALLS_ENABLED`
+- `vox_orchestrator_PROVIDER_TOOL_CALLS_MAX_PER_TURN`
+- `vox_orchestrator_PROVIDER_TOOL_CALLS_READ_ONLY_MODE`
+- `vox_orchestrator_A2A_CONTEXT_PACKET_ENABLED`
 
 Operational MCP tools for rollout verification:
 
@@ -195,8 +223,10 @@ Operational MCP tools for rollout verification:
 | Concern | Guidance |
 | --- | --- |
 | **Agent `model:`** | Optional in `.vox/agents/*.md`. Use a catalog id (`openrouter/...`, `google/gemini-...`). MCP task submit refreshes inference from the file each time so you do not need to respawn agents after edits. |
-| **Efficient / free-only** | `VOX_DEI_MODE_PROFILE=efficient` or MCP `mode_profile: efficient` keeps `free_only` routing; OpenRouter defaults stay on free/auto when the usage tracker runs with `free_only`. See [efficient-mode.md](#). |
+| **Efficient / free-only** | `vox_orchestrator_MODE_PROFILE=efficient` or MCP `mode_profile: efficient` keeps `free_only` routing; OpenRouter defaults stay on free/auto when the usage tracker runs with `free_only`. |
 | **Local Ollama URL** | `vox_config::inference::local_ollama_populi_base_url()` — `OLLAMA_URL` → `POPULI_URL` → `http://localhost:11434`. |
 | **OpenRouter key** | `vox_config::inference::openrouter_api_key()` (env `OPENROUTER_API_KEY`). |
 | **Hugging Face token** | `vox_config::inference::huggingface_hub_token()` (`HF_TOKEN` / `HUGGING_FACE_HUB_TOKEN`). |
 | **Research stage models** | Defaults come from `ModelRegistry::best_for_config` per stage (`research::model_select::resolve_research_models`). Last-resort string fallbacks exist only if the registry returns no candidate. |
+
+

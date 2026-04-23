@@ -14,6 +14,50 @@ pub(crate) fn check_hir_match_exhaustiveness(
     source: &str,
 ) {
     let type_name = match subject_ty {
+        Ty::Bool => {
+            let mut has_true = false;
+            let mut has_false = false;
+            let mut has_wildcard = false;
+
+            for arm in arms {
+                match &arm.pattern {
+                    HirPattern::Literal(lit, _) => {
+                        if let crate::hir::HirExpr::BoolLit(b, _) = lit.as_ref() {
+                            if *b {
+                                has_true = true;
+                            } else {
+                                has_false = true;
+                            }
+                        }
+                    }
+                    HirPattern::Wildcard(_) | HirPattern::Ident(_, _) => has_wildcard = true,
+                    _ => {}
+                }
+            }
+
+            if !has_wildcard && (!has_true || !has_false) {
+                let mut missing = Vec::new();
+                if !has_true {
+                    missing.push("true".to_string());
+                }
+                if !has_false {
+                    missing.push("false".to_string());
+                }
+
+                let mut d = Diagnostic::error(
+                    format!(
+                        "Non-exhaustive match on bool. Missing: {}",
+                        missing.join(", ")
+                    ),
+                    span,
+                    source,
+                );
+                d.missing_cases = missing;
+                d.code = Some("E0301".into());
+                diags.push(d);
+            }
+            return;
+        }
         Ty::Named(name) => name.as_str(),
         _ => return,
     };
@@ -24,18 +68,20 @@ pub(crate) fn check_hir_match_exhaustiveness(
     };
 
     let mut covered_variants: Vec<String> = Vec::new();
-    let mut has_wildcard = false;
+    let mut wildcard_span = None;
 
     for arm in arms {
         match &arm.pattern {
-            HirPattern::Wildcard(_) => {
-                has_wildcard = true;
+            HirPattern::Wildcard(s) => {
+                if wildcard_span.is_none() {
+                    wildcard_span = Some(*s);
+                }
             }
-            HirPattern::Ident(name, _) => {
+            HirPattern::Ident(name, s) => {
                 if adt.variants.iter().any(|v| v.name == *name) {
                     covered_variants.push(name.clone());
-                } else {
-                    has_wildcard = true;
+                } else if wildcard_span.is_none() {
+                    wildcard_span = Some(*s);
                 }
             }
             HirPattern::Constructor(name, _, _) => {
@@ -45,10 +91,6 @@ pub(crate) fn check_hir_match_exhaustiveness(
         }
     }
 
-    if has_wildcard {
-        return;
-    }
-
     let missing: Vec<&str> = adt
         .variants
         .iter()
@@ -56,8 +98,22 @@ pub(crate) fn check_hir_match_exhaustiveness(
         .map(|v| v.name.as_str())
         .collect();
 
+    if let Some(w_span) = wildcard_span {
+        if missing.is_empty() {
+            diags.push(Diagnostic::warning(
+                format!(
+                    "Divergent wildcard: all variants of '{}' are already covered",
+                    type_name
+                ),
+                w_span,
+                source,
+            ));
+        }
+        return;
+    }
+
     if !missing.is_empty() {
-        diags.push(Diagnostic::error(
+        let mut d = Diagnostic::error(
             format!(
                 "Non-exhaustive match on type '{}'. Missing variant(s): {}",
                 type_name,
@@ -65,6 +121,10 @@ pub(crate) fn check_hir_match_exhaustiveness(
             ),
             span,
             source,
-        ));
+        );
+        d.missing_cases = missing.iter().map(|s| s.to_string()).collect();
+        d.ast_node_kind = Some("MatchExpr".to_string());
+        d.code = Some("E0301".into());
+        diags.push(d);
     }
 }

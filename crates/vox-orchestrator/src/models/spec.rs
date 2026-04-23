@@ -7,26 +7,34 @@ use crate::usage::LlmUsageKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Model tier for routing prioritization
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[serde(rename_all = "snake_case")]
-pub enum ModelTier {
-    #[default]
-    Unknown,
-    Light,
-    Pro,
-    Elite,
+fn default_true() -> bool {
+    true
 }
 
-/// Rich capabilities for a model, imported from DeI
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+use super::generated::{ModelTier, StrengthTag};
+
+/// Rich capabilities for a model, imported from DeI and the OpenRouter /models catalog.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct ModelCapabilities {
     pub supports_json: bool,
     pub supports_vision: bool,
+    #[serde(default = "default_true")]
+    pub supports_native_tools: bool,
     pub max_context: u64,
     pub tier: ModelTier,
+    /// Provider-reported RPM limit (e.g. from OpenRouter `per_request_limits`).
     pub rate_limit_rpm: Option<u32>,
+    /// Provider-reported RPD limit (e.g. from OpenRouter `per_request_limits`).
     pub rate_limit_rpd: Option<u32>,
+    /// Median response latency in milliseconds from catalog metadata (p50).
+    #[serde(default)]
+    pub latency_p50_ms: Option<u32>,
+    /// Whether the provider applies content moderation to outputs.
+    #[serde(default)]
+    pub is_moderated: bool,
+    /// Provider-reported uptime score 0.0–1.0 (1.0 = fully available).
+    #[serde(default)]
+    pub uptime_score: Option<f32>,
 }
 
 /// Specification for an LLM model in the registry.
@@ -49,38 +57,44 @@ pub struct ModelSpec {
     pub cost_per_1k_input: f64,
     #[serde(default)]
     pub cost_per_1k_output: f64,
+    /// Optional ground-truth cost observed from provider telemetry (blended).
+    #[serde(default)]
+    pub observed_cost_per_1k: Option<f64>,
     /// Whether this model is free (no per-token cost).
     pub is_free: bool,
     /// Tags describing fit (speed, reasoning, codegen) for heuristic routing.
-    pub strengths: Vec<String>,
+    pub strengths: Vec<StrengthTag>,
     #[serde(default)]
     pub capabilities: ModelCapabilities,
     #[serde(default)]
     pub supported_parameters: Vec<String>,
 }
 
-/// Provider routing type — determines which API endpoint to call.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ProviderType {
-    /// Google AI Studio direct (generativelanguage.googleapis.com)
-    GoogleDirect,
-    /// OpenRouter API (openrouter.ai/api/v1)
-    OpenRouter,
-    /// Local Ollama instance (localhost:11434)
-    Ollama,
-    /// Groq LPU endpoint
-    Groq,
-    /// Cerebras endpoint
-    Cerebras,
-    /// Mistral direct
-    Mistral,
-    /// DeepSeek direct
-    DeepSeek,
-    /// SambaNova
-    SambaNova,
-    /// Custom third-party endpoint
-    Custom(String),
+pub use vox_orchestrator_types::ProviderType;
+
+pub use vox_orchestrator_types::ChatRouteBackend as ModelRouteBackend;
+
+/// Resolve the transport/backend lane for a concrete model spec.
+#[must_use]
+pub fn route_backend_for_model(spec: &ModelSpec) -> ModelRouteBackend {
+    match spec.provider_type {
+        ProviderType::Ollama => ModelRouteBackend::Ollama,
+        ProviderType::PopuliMesh => ModelRouteBackend::PopuliMesh,
+        ProviderType::GoogleDirect => ModelRouteBackend::GeminiDirect,
+        ProviderType::OpenRouter => ModelRouteBackend::OpenRouter,
+        ProviderType::Groq
+        | ProviderType::Mistral
+        | ProviderType::DeepSeek
+        | ProviderType::Cerebras
+        | ProviderType::SambaNova
+        | ProviderType::Anthropic
+        | ProviderType::HuggingFaceRouter
+        | ProviderType::Custom(_) => {
+            // P0 Fix: Map arbitrarily typed third-party providers (even those lacking '/') to
+            // OpenRouter or a non-cascading endpoint. CascadeFallback on unknown IDs loops infinitely.
+            ModelRouteBackend::OpenRouter
+        }
+    }
 }
 
 impl ModelSpec {
@@ -107,6 +121,10 @@ impl ModelSpec {
                 provider: "ollama".to_string(),
                 model: "*".to_string(),
             },
+            ProviderType::PopuliMesh => LlmUsageKey {
+                provider: "mens".to_string(),
+                model: "*".to_string(),
+            },
             ProviderType::Groq => LlmUsageKey {
                 provider: "groq".to_string(),
                 model: self.id.clone(),
@@ -127,6 +145,14 @@ impl ModelSpec {
                 provider: "sambanova".to_string(),
                 model: self.id.clone(),
             },
+            ProviderType::Anthropic => LlmUsageKey {
+                provider: "anthropic".to_string(),
+                model: self.id.clone(),
+            },
+            ProviderType::HuggingFaceRouter => LlmUsageKey {
+                provider: "huggingface".to_string(),
+                model: self.id.clone(),
+            },
             ProviderType::Custom(_url) => LlmUsageKey {
                 provider: "custom".to_string(),
                 model: self.id.clone(),
@@ -137,11 +163,28 @@ impl ModelSpec {
 
 /// Default [`ModelConfig::premium_alias`] entries (portable defaults; override in `models.toml`).
 pub(super) fn built_in_premium_alias() -> HashMap<String, String> {
-    HashMap::new()
+    let mut map = HashMap::new();
+    let mythos_id = "claude-mythos-preview-20260407".to_string();
+    let sonnet_id = "anthropic/claude-sonnet-4.6".to_string();
+    let pro_planning_id = "google/gemini-2.5-pro-preview".to_string();
+    let r1_id = "deepseek/deepseek-r1".to_string();
+
+    map.insert("codegen".to_string(), mythos_id.clone());
+    map.insert("debugging".to_string(), mythos_id.clone());
+    map.insert("security".to_string(), mythos_id.clone());
+    map.insert("research".to_string(), pro_planning_id.clone());
+    map.insert("planning".to_string(), pro_planning_id.clone());
+    map.insert("review".to_string(), sonnet_id.clone());
+    map.insert("logic".to_string(), r1_id.clone());
+    map.insert("visus".to_string(), "qwen/qwen-3.5-vl".to_string());
+    // Fallback aliases will be handled by the updated registry logic soon
+    map
 }
 
 fn premium_alias_toml_default() -> HashMap<String, String> {
-    HashMap::new()
+    let m = HashMap::new();
+    let _ = std::hint::black_box(m.capacity());
+    m
 }
 
 /// Configuration wrapper for models.
@@ -156,55 +199,39 @@ pub struct ModelConfig {
 
 impl Default for ModelConfig {
     fn default() -> Self {
-        let local_model = std::env::var("POPULI_MODEL")
-            .ok()
-            .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| "default-model".to_string());
+        let local_model = vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliModel)
+            .expose()
+            .filter(|s: &&str| !s.trim().is_empty())
+            .unwrap_or("default-model")
+            .to_string();
+
+        let bootstrap_json =
+            include_str!("../../../../contracts/orchestration/model-catalog.bootstrap.v1.json");
+        let mut models: Vec<ModelSpec> =
+            serde_json::from_str(bootstrap_json).expect("Invalid bootstrap catalog");
+
+        for m in &mut models {
+            if m.id == "llama3:latest" && m.provider == "ollama" {
+                m.id = local_model.clone();
+                m.canonical_slug = format!("local/{}", local_model);
+            }
+        }
+
         Self {
-            models: vec![
-                // ── Local Ollama / Mens (offline fallback; see `OLLAMA_URL` / `POPULI_URL`) ──
-                ModelSpec {
-                    id: local_model.clone(),
-                    canonical_slug: format!("local/{local_model}"),
-                    provider: "ollama".to_string(),
-                    provider_type: ProviderType::Ollama,
-                    max_tokens: 128_000,
-                    cost_per_1k: 0.0,
-                    cost_per_1k_input: 0.0,
-                    cost_per_1k_output: 0.0,
-                    is_free: true,
-                    strengths: vec!["codegen".to_string(), "parsing".to_string()],
-                    capabilities: ModelCapabilities::default(),
-                    supported_parameters: vec![],
-                },
-            ],
+            models,
             premium_alias: built_in_premium_alias(),
         }
     }
 }
 
+use super::routing_table::route_for_category;
+
 /// Maps [`TaskCategory`] to a `premium_alias` / routing strength key.
 #[must_use]
 pub fn task_category_premium_key(task_type: TaskCategory) -> &'static str {
-    match task_type {
-        TaskCategory::CodeGen => "codegen",
-        TaskCategory::Testing => "testing",
-        TaskCategory::Debugging => "debugging",
-        TaskCategory::TypeChecking => "logic",
-        TaskCategory::Research => "research",
-        TaskCategory::Parsing => "parsing",
-        TaskCategory::Review => "review",
-    }
+    route_for_category(task_type).premium_alias_key
 }
 
-pub(super) fn task_category_strength(task_type: TaskCategory) -> &'static str {
-    match task_type {
-        TaskCategory::CodeGen => "codegen",
-        TaskCategory::Testing => "codegen",
-        TaskCategory::Debugging => "debugging",
-        TaskCategory::TypeChecking => "logic",
-        TaskCategory::Research => "research",
-        TaskCategory::Parsing => "parsing",
-        TaskCategory::Review => "review",
-    }
+pub fn task_category_strength(task_type: TaskCategory) -> StrengthTag {
+    route_for_category(task_type).strength_tag
 }

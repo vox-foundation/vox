@@ -45,15 +45,32 @@ impl FreeAiClient {
             }
 
             let mut stream = resp.bytes_stream();
+            let mut buf: Vec<u8> = Vec::new();
 
             while let Some(item) = stream.next().await {
                 let chunk: Bytes = item.map_err(AiError::Http)?;
-                let json: serde_json::Value = serde_json::from_slice(&chunk).map_err(AiError::Json)?;
+                buf.extend_from_slice(&chunk);
+                while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
+                    let raw: Vec<u8> = buf.drain(..=pos).collect();
+                    let line: &[u8] = raw.strip_suffix(b"\n").unwrap_or(raw.as_slice());
+                    if line.is_empty() {
+                        continue;
+                    }
+                    let json: serde_json::Value =
+                        serde_json::from_slice(line).map_err(AiError::Json)?;
+                    if let Some(token) = json["response"].as_str() {
+                        yield token.to_string();
+                    }
+                    if json["done"].as_bool().unwrap_or(false) {
+                        return;
+                    }
+                }
+            }
+            if !buf.is_empty() {
+                let json: serde_json::Value =
+                    serde_json::from_slice(&buf).map_err(AiError::Json)?;
                 if let Some(token) = json["response"].as_str() {
                     yield token.to_string();
-                }
-                if json["done"].as_bool().unwrap_or(false) {
-                    break;
                 }
             }
         })
@@ -112,6 +129,7 @@ impl FreeAiClient {
         api_key: &str,
         model: &str,
         prompt: &str,
+        cost_reporter: Option<super::CostReportFn>,
     ) -> Pin<Box<dyn Stream<Item = Result<String, AiError>> + Send>> {
         let http = http.clone();
         let model = model.to_string();
@@ -119,7 +137,7 @@ impl FreeAiClient {
         let api_key = api_key.to_string();
         Box::pin(async_stream::try_stream! {
             let resolved_key = if api_key.is_empty() {
-                std::env::var("OPENROUTER_API_KEY").unwrap_or_default()
+                vox_config::openrouter_api_key().unwrap_or_default()
             } else {
                 api_key
             };
@@ -155,6 +173,14 @@ impl FreeAiClient {
                     provider: format!("openrouter:{}", model),
                     retry_after_secs: retry_after,
                 })?;
+            }
+            if let Some(ref reporter) = cost_reporter {
+                if let Some(cost_val) = resp.headers()
+                    .get("x-response-cost")
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|s| s.parse::<f64>().ok()) {
+                    reporter(cost_val);
+                }
             }
             let mut bytes_stream = if status.is_success() {
                 resp.bytes_stream()
@@ -415,5 +441,44 @@ impl FreeAiClient {
     /// Return the list of configured providers (for status display).
     pub fn providers(&self) -> &[FreeAiProvider] {
         &self.providers
+    }
+}
+
+#[cfg(test)]
+mod ollama_ndjson_line_tests {
+    /// Mirrors the newline buffering in [`FreeAiClient::stream_ollama`].
+    fn collect_responses_from_chunks(chunks: &[&[u8]]) -> Vec<String> {
+        let mut buf: Vec<u8> = Vec::new();
+        let mut out: Vec<String> = Vec::new();
+        for chunk in chunks {
+            buf.extend_from_slice(chunk);
+            while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
+                let raw: Vec<u8> = buf.drain(..=pos).collect();
+                let line: &[u8] = raw.strip_suffix(b"\n").unwrap_or(raw.as_slice());
+                if line.is_empty() {
+                    continue;
+                }
+                let json: serde_json::Value = serde_json::from_slice(line).unwrap();
+                if let Some(s) = json["response"].as_str() {
+                    out.push(s.to_string());
+                }
+            }
+        }
+        if !buf.is_empty() {
+            let json: serde_json::Value = serde_json::from_slice(&buf).unwrap();
+            if let Some(s) = json["response"].as_str() {
+                out.push(s.to_string());
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn ndjson_split_across_tcp_like_chunks() {
+        let out = collect_responses_from_chunks(&[
+            b"{\"response\":\"hel",
+            b"lo\",\"done\":false}\n{\"response\":\"\",\"done\":true}\n",
+        ]);
+        assert_eq!(out, vec!["hello", ""]);
     }
 }

@@ -1,0 +1,51 @@
+{
+  "version": "v1",
+  "identity": {
+    "title": "SCIENTIA Wave Baseline Study",
+    "abstract": "A reproducible benchmark baseline for publication-path hardening.",
+    "keywords": ["scientia", "reproducibility", "publication"],
+    "target_profile": "journal"
+  },
+  "contributors": {
+    "authors": [
+      {
+        "name": "Ada Lovelace",
+        "orcid": "0000-0001-2345-6789",
+        "affiliation": {
+          "name": "Analytical Engine Lab",
+          "ror": "https://ror.org/03yrm5c26"
+        },
+        "roles": ["conceptualization", "writing"]
+      }
+    ]
+  },
+  "provenance": {
+    "publication_id": "scientia-wave-baseline-001",
+    "manifest_digest": "d3adb33fd3adb33fd3adb33fd3adb33f",
+    "evidence_pack_digest": "c0ffee00c0ffee00c0ffee00c0ffee00",
+    "repository_id": "vox-repo-local",
+    "commit_sha": "abc123def456"
+  },
+  "policy": {
+    "ai_disclosure": {
+      "declared": true,
+      "tools": [
+        { "name": "Vox", "version": "0.8.0", "scope": "drafting" }
+      ]
+    },
+    "ethics_statement": "No human subjects data.",
+    "broader_impact_statement": "Focuses on tooling reliability.",
+    "double_blind_ready": true
+  },
+  "rights_and_funding": {
+    "license": "Apache-2.0",
+    "funding": [{ "name": "Vox Foundation", "award_number": "VF-2026-01" }],
+    "conflict_of_interest": "None."
+  },
+  "distribution": {
+    "routes": ["crossref", "zenodo", "openreview"]
+  },
+  "evidence": {
+    "claim_evidence_coverage": 0.98
+  }
+}

@@ -1,0 +1,59 @@
+// vox:caps fs subprocess env
+// Native replacement for mens_train_watch.ps1.
+
+fn main() {
+    print("--- Vox Training Watcher ---")
+    
+    // Default args
+    let mut train_args = ["mens", "train", "--device", "cuda", "--backend", "qlora", "--tokenizer", "hf"]
+    let telemetry_path = "target/dogfood/telemetry.jsonl"
+    let err_log_path = "target/dogfood/train.err.log"
+    let interval_ms = "3000"
+
+    print("Launching training in background...")
+    // Since vox lacks spawn, we use the child's --background flag if available,
+    // or we just run it and assume the caller might want it backgrounded.
+    // Actually, vox mens train --background is the canonical way.
+    train_args.push("--background")
+    
+    let mut proc = process.run("vox", train_args)
+    if proc is null {
+        print("  'vox' not found on PATH, falling back to 'cargo run'...")
+        let mut cargo_args = ["run", "-p", "vox-cli", "--"]
+        for a in train_args {
+            cargo_args.push(a)
+        }
+        proc = process.run("cargo", cargo_args)
+    }
+
+    match proc {
+        Some(res) -> {
+            if res.code == 0 {
+                print("✓ Training spawned. Starting telemetry watch...")
+                
+                let watch_args = [
+                    "mens", "watch-telemetry",
+                    "--telemetry", telemetry_path,
+                    "--err-log", err_log_path,
+                    "--interval-ms", interval_ms
+                ]
+                
+                let mut watch_proc = process.run("vox", watch_args)
+                if watch_proc is null {
+                     let mut watch_cargo_args = ["run", "-p", "vox-cli", "--"]
+                     for a in watch_args {
+                         watch_cargo_args.push(a)
+                     }
+                     watch_proc = process.run("cargo", watch_cargo_args)
+                }
+                
+                // This will block until the watch is stopped by the user.
+            } else {
+                print("✗ Training failed to spawn with code: " + str(res.code))
+            }
+        }
+        None -> {
+            print("✗ Failed to execute training process.")
+        }
+    }
+}

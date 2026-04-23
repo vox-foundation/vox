@@ -24,6 +24,7 @@ impl MessageGateway {
         task_id: TaskId,
         agent_id: AgentId,
         session_id: Option<String>,
+        audit_report: Option<String>,
     ) {
         bulletin.publish(AgentMessage::TaskCompleted { task_id, agent_id });
         let _ = message_bus.broadcast(
@@ -35,6 +36,7 @@ impl MessageGateway {
             task_id,
             agent_id,
             session_id,
+            audit_report,
         });
     }
 
@@ -46,6 +48,7 @@ impl MessageGateway {
         agent_id: AgentId,
         error: String,
         session_id: Option<String>,
+        audit_report: Option<String>,
     ) {
         bulletin.publish(AgentMessage::TaskFailed {
             agent_id,
@@ -57,6 +60,7 @@ impl MessageGateway {
             agent_id,
             error,
             session_id,
+            audit_report,
         });
     }
 

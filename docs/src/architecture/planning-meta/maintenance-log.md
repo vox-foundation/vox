@@ -2,8 +2,10 @@
 title: "Planning meta maintenance log"
 description: "Change log for Tier 1/2/3 planning-meta document updates."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Planning meta maintenance log
@@ -38,4 +40,18 @@ This log is required by `10-document-maintenance-protocol.md`.
 - follow_ups:
   - run next consistency pass after subsequent Tier 1 changes
 - approver_role: planning architect
+
+### PM-0002
+
+- date: 2026-04-05
+- changed_docs:
+  - `docs/src/architecture/internal-web-ir-implementation-blueprint.md`
+- change_category: minor
+- rationale: Validating and hardening the WebIR and WASM pipeline, achieving stable script execution paths and reactive UI view emission.
+- impacted_docs:
+  - WebIR implementation blueprints
+- follow_ups:
+  - Roll out WebIR default paths to production environment
+- approver_role: system architect
+
 

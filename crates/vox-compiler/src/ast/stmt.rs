@@ -48,6 +48,32 @@ pub enum Stmt {
         /// Span covering the statement.
         span: Span,
     },
+    /// While loop: `while condition { body }`
+    While {
+        /// Loop condition.
+        condition: Expr,
+        /// Loop body.
+        body: Vec<Stmt>,
+        /// Span covering `while` … `}`.
+        span: Span,
+    },
+    /// Infinite loop: `loop { body }`
+    Loop {
+        /// Loop body.
+        body: Vec<Stmt>,
+        /// Span covering `loop` … `}`.
+        span: Span,
+    },
+    /// Break from nearest loop.
+    Break {
+        /// Span covering `break`.
+        span: Span,
+    },
+    /// Continue to next iteration of nearest loop.
+    Continue {
+        /// Span covering `continue`.
+        span: Span,
+    },
 }
 
 impl Stmt {
@@ -57,7 +83,11 @@ impl Stmt {
             Stmt::Let { span, .. }
             | Stmt::Assign { span, .. }
             | Stmt::Return { span, .. }
-            | Stmt::Expr { span, .. } => *span,
+            | Stmt::Expr { span, .. }
+            | Stmt::While { span, .. }
+            | Stmt::Loop { span, .. }
+            | Stmt::Break { span }
+            | Stmt::Continue { span } => *span,
         }
     }
 }

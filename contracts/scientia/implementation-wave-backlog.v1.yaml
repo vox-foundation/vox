@@ -1,0 +1,246 @@
+x-vox-version: 1
+version: v1
+program:
+  name: scientia_implementation_waves
+  total_tasks: 232
+  rollout_stages:
+    - stage_a
+    - stage_b
+    - stage_c
+
+waves:
+  - id: wave0
+    name: Program controls and baselines
+    task_count: 20
+    packages:
+      - id: W0-P01
+        tasks: 4
+      - id: W0-P02
+        tasks: 4
+      - id: W0-P03
+        tasks: 4
+      - id: W0-P04
+        tasks: 4
+      - id: W0-P05
+        tasks: 4
+  - id: wave1
+    name: Canonical metadata SSOT graph and schema contracts
+    task_count: 34
+    packages:
+      - id: W1-P01
+        tasks: 5
+      - id: W1-P02
+        tasks: 5
+      - id: W1-P03
+        tasks: 4
+      - id: W1-P04
+        tasks: 4
+      - id: W1-P05
+        tasks: 4
+      - id: W1-P06
+        tasks: 4
+      - id: W1-P07
+        tasks: 4
+      - id: W1-P08
+        tasks: 4
+  - id: wave2
+    name: Worthiness detection v2
+    task_count: 44
+    packages:
+      - id: W2-P01
+        tasks: 5
+      - id: W2-P02
+        tasks: 5
+      - id: W2-P03
+        tasks: 5
+      - id: W2-P04
+        tasks: 5
+      - id: W2-P05
+        tasks: 5
+      - id: W2-P06
+        tasks: 5
+      - id: W2-P07
+        tasks: 4
+      - id: W2-P08
+        tasks: 5
+      - id: W2-P09
+        tasks: 5
+  - id: wave3
+    name: Evidence pack and reproducibility enforcement
+    task_count: 28
+    packages:
+      - id: W3-P01
+        tasks: 4
+      - id: W3-P02
+        tasks: 4
+      - id: W3-P03
+        tasks: 4
+      - id: W3-P04
+        tasks: 4
+      - id: W3-P05
+        tasks: 4
+      - id: W3-P06
+        tasks: 4
+      - id: W3-P07
+        tasks: 4
+  - id: wave4
+    name: Codex persistence and audit event model
+    task_count: 24
+    packages:
+      - id: W4-P01
+        tasks: 4
+      - id: W4-P02
+        tasks: 4
+      - id: W4-P03
+        tasks: 4
+      - id: W4-P04
+        tasks: 4
+      - id: W4-P05
+        tasks: 4
+      - id: W4-P06
+        tasks: 4
+  - id: wave5
+    name: Adapter interop
+    task_count: 36
+    packages:
+      - id: W5-P01
+        tasks: 4
+      - id: W5-P02
+        tasks: 4
+      - id: W5-P03
+        tasks: 4
+      - id: W5-P04
+        tasks: 4
+      - id: W5-P05
+        tasks: 4
+      - id: W5-P06
+        tasks: 4
+      - id: W5-P07
+        tasks: 4
+      - id: W5-P08
+        tasks: 4
+      - id: W5-P09
+        tasks: 4
+  - id: wave6
+    name: CLI MCP operator surfaces
+    task_count: 18
+    packages:
+      - id: W6-P01
+        tasks: 3
+      - id: W6-P02
+        tasks: 3
+      - id: W6-P03
+        tasks: 3
+      - id: W6-P04
+        tasks: 3
+      - id: W6-P05
+        tasks: 3
+      - id: W6-P06
+        tasks: 3
+  - id: wave7
+    name: Document skill integration
+    task_count: 14
+    packages:
+      - id: W7-P01
+        tasks: 4
+      - id: W7-P02
+        tasks: 4
+      - id: W7-P03
+        tasks: 3
+      - id: W7-P04
+        tasks: 3
+  - id: wave8
+    name: Quality and calibration harnesses
+    task_count: 14
+    packages:
+      - id: W8-P01
+        tasks: 4
+      - id: W8-P02
+        tasks: 4
+      - id: W8-P03
+        tasks: 3
+      - id: W8-P04
+        tasks: 3
+
+cross_wave:
+  id_prefix: X
+  task_count: 34
+  ids:
+    - X01
+    - X02
+    - X03
+    - X04
+    - X05
+    - X06
+    - X07
+    - X08
+    - X09
+    - X10
+    - X11
+    - X12
+    - X13
+    - X14
+    - X15
+    - X16
+    - X17
+    - X18
+    - X19
+    - X20
+    - X21
+    - X22
+    - X23
+    - X24
+    - X25
+    - X26
+    - X27
+    - X28
+    - X29
+    - X30
+    - X31
+    - X32
+    - X33
+    - X34
+
+first_30_execution_order:
+  - W0-P01
+  - W0-P02
+  - W0-P03
+  - W1-P01
+  - W1-P02
+  - W1-P03
+  - W1-P04
+  - W2-P01
+  - W2-P02
+  - W2-P03
+  - W2-P09
+  - W3-P01
+  - W3-P02
+  - W4-P01
+  - W4-P02
+  - W5-P01
+  - W5-P03
+  - W5-P09
+  - W6-P01
+  - W6-P02
+  - W8-P01
+  - W8-P02
+  - X01
+  - X03
+  - X06
+  - X11
+  - X14
+  - X18
+  - X31
+  - X34
+
+canonical_contract_paths:
+  - contracts/scientia/implementation-wave-backlog.v1.yaml
+  - contracts/scientia/canonical-publication-metadata.v1.schema.json
+  - contracts/scientia/route-profile-requirements.v1.yaml
+  - contracts/scientia/worthiness-signals.v2.schema.json
+  - contracts/scientia/evidence-pack.v1.schema.json
+  - contracts/scientia/research-snapshot.v1.schema.json
+  - contracts/scientia/adapter-capability-registry.v1.yaml
+  - contracts/scientia/document-skill-profiles.v1.yaml
+  - contracts/scientia/operator-status-surface.v1.schema.json
+  - contracts/scientia/worthiness-eval-harness.v1.yaml

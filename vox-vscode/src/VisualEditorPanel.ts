@@ -126,8 +126,12 @@ export class VisualEditorPanel {
             }
         }
 
-        // 2. Default fallback: iframe to a typical dev server port (e.g. 3000, 5173, 8080)
-        // This handles cases where vox is running via Vite/Next or our own python backend
+        // 2. Default fallback: probe candidate dev server ports dynamically.
+        // Reads vox.devServerPort setting first; falls back to 3000 → 5173 → 8080.
+        const configuredPort = vscode.workspace.getConfiguration('vox').get<number>('devServerPort');
+        const candidatePorts = configuredPort
+            ? [configuredPort]
+            : [3000, 5173, 8080];
         return `<!DOCTYPE html>
         <html lang="en">
         <head>
@@ -135,7 +139,7 @@ export class VisualEditorPanel {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Vox Live Render</title>
             <style>
-                body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #fff; }
+                body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #1e1e2e; }
                 iframe { width: 100%; height: 100%; border: none; }
                 .overlay {
                     position: absolute;
@@ -146,16 +150,64 @@ export class VisualEditorPanel {
                     z-index: 1000;
                     pointer-events: none;
                 }
+                .error-banner {
+                    display: none;
+                    position: absolute; top: 0; left: 0; right: 0;
+                    background: #c0392b; color: white;
+                    padding: 8px 12px;
+                    font-family: sans-serif; font-size: 13px;
+                    z-index: 999;
+                }
             </style>
         </head>
         <body>
-            <div class="overlay">Live View (Waiting for build...)</div>
-            <iframe id="preview" src="http://localhost:3000" onerror="this.src='http://localhost:5173'"></iframe>
+            <div class="overlay" id="overlay">Live View — probing dev server…</div>
+            <div class="error-banner" id="errBanner">No dev server found on ports ${candidatePorts.join(', ')}. Start your server and reopen this panel.</div>
+            <iframe id="preview"></iframe>
             <script>
-                // Add message listener for soft reloads
+                const candidates = ${JSON.stringify(candidatePorts)};
+                let found = false;
+
+                async function probe(port) {
+                    try {
+                        const ctrl = new AbortController();
+                        const id = setTimeout(() => ctrl.abort(), 1500);
+                        await fetch('http://localhost:' + port, { signal: ctrl.signal, mode: 'no-cors' });
+                        clearTimeout(id);
+                        return true;
+                    } catch {
+                        return false;
+                    }
+                }
+
+                async function findServer() {
+                    for (const port of candidates) {
+                        const ok = await probe(port);
+                        if (ok) {
+                            found = true;
+                            const url = 'http://localhost:' + port;
+                            document.getElementById('preview').src = url;
+                            document.getElementById('overlay').textContent = 'Live View (:' + port + ')';
+                            return;
+                        }
+                    }
+                    document.getElementById('errBanner').style.display = 'block';
+                    document.getElementById('overlay').textContent = 'No dev server found';
+                    // retry every 5s
+                    setTimeout(findServer, 5000);
+                }
+
+                findServer();
+
                 window.addEventListener('message', event => {
                     if (event.data.type === 'refresh') {
-                        document.getElementById('preview').src = document.getElementById('preview').src;
+                        const iframe = document.getElementById('preview');
+                        if (iframe.src) iframe.src = iframe.src;
+                    }
+                    if (event.data.type === 'setPort') {
+                        const iframe = document.getElementById('preview');
+                        iframe.src = 'http://localhost:' + event.data.port;
+                        document.getElementById('overlay').textContent = 'Live View (:' + event.data.port + ')';
                     }
                 });
             </script>

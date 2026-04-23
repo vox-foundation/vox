@@ -97,7 +97,7 @@ fn op_s062_server_contract_fixture_multi_route_has_get_stats() {
     vox_compiler::codegen_ts::routes::validate_express_route_emit_input(&hir).expect("express ok");
 }
 
-/// OP-S076: mixed surface lowers behaviors + classic view roots.
+/// OP-S076: mixed surface lowers behaviors + reactive view roots (Path C); classic views optional.
 #[test]
 fn op_s076_behavior_view_map_gate_mixed_surface_summary() {
     use vox_compiler::web_ir::lower::lower_hir_to_web_ir_with_summary;
@@ -105,21 +105,25 @@ fn op_s076_behavior_view_map_gate_mixed_surface_summary() {
     let module = parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
     let (_web, s) = lower_hir_to_web_ir_with_summary(&hir);
-    assert!(s.reactive_components >= 1, "{s:?}");
-    assert!(s.classic_component_views_lowered >= 1, "{s:?}");
+    assert!(s.reactive_components >= 2, "{s:?}");
+    assert_eq!(s.classic_component_views_lowered, 0, "{s:?}");
 }
 
-/// OP-S080: mixed surface codegen still emits Router shell.
+/// OP-S080: mixed surface codegen emits route manifest (adapter-owned router).
 #[test]
 fn op_s080_wrapper_inventory_gate_mixed_surface_has_app_router() {
     let tokens = lex(MIXED_SURFACE_SRC);
     let module = parse(tokens).expect("parse");
     let out = generate_without_express!(&module);
-    let app = out.files.iter().find(|(n, _)| n == "App.tsx").expect("App.tsx");
+    let m = out
+        .files
+        .iter()
+        .find(|(n, _)| n == "routes.manifest.ts")
+        .expect("routes.manifest.ts");
     assert!(
-        app.1.contains("RouterProvider") || app.1.contains("createRouter"),
-        "expected router wiring:\n{}",
-        &app.1[..app.1.len().min(400)]
+        m.1.contains("voxRoutes") || m.1.contains("export const voxRoutes"),
+        "expected voxRoutes in manifest:\n{}",
+        &m.1[..m.1.len().min(400)]
     );
 }
 
@@ -144,14 +148,14 @@ fn op_s090_s092_route_printer_integration_gate_multi_route_paths() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let out = generate_without_express!(&module);
-    let app = out.files.iter().find(|(n, _)| n == "App.tsx").unwrap();
+    let m = out.files.iter().find(|(n, _)| n == "routes.manifest.ts").unwrap();
     assert!(
-        app.1.contains("/todos")
-            || app.1.contains("'/todos'")
-            || app.1.contains("\"/todos\"")
-            || app.1.contains("TodoList"),
-        "expected /todos or TodoList route wiring, got:\n{}",
-        &app.1[..app.1.len().min(1200)]
+        m.1.contains("/todos")
+            || m.1.contains("'/todos'")
+            || m.1.contains("\"/todos\"")
+            || m.1.contains("TodoList"),
+        "expected /todos or TodoList in manifest, got:\n{}",
+        &m.1[..m.1.len().min(1200)]
     );
 }
 
@@ -311,7 +315,7 @@ fn op_s200_emitter_gate_c() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let out = generate_without_express!(&module);
-    assert!(out.files.iter().any(|(n, _)| n == "App.tsx"));
+    assert!(out.files.iter().any(|(n, _)| n == "routes.manifest.ts"));
 }
 
 /// OP-S208 fixture pack G gate.

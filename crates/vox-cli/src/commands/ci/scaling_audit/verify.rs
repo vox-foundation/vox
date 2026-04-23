@@ -30,8 +30,7 @@ pub(super) fn verify_policy_schema(repo_root: &Path) -> Result<()> {
     .with_context(|| format!("parse {}", schema_path.display()))?;
     let instance: JsonValue =
         serde_yaml::from_str(&raw).context("parse scaling policy as JSON value")?;
-    let validator =
-        vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())?;
+    let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())?;
     vox_jsonschema_util::validate(
         &instance,
         &validator,

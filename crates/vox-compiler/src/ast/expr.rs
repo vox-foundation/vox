@@ -48,6 +48,8 @@ pub enum BinOp {
     Is,
     /// Reference inequality (`isnt`).
     Isnt,
+    /// Modulo (`%`).
+    Mod,
     /// Pipeline application (`|>`).
     Pipe,
 }
@@ -160,6 +162,13 @@ pub enum Expr {
         /// Span covering the keyword literal.
         span: Span,
     },
+    /// Fixed-point decimal literal: `1.23dec`
+    DecimalLit {
+        /// Raw decimal string.
+        value: String,
+        /// Span covering the literal.
+        span: Span,
+    },
     /// Identifier reference: `x`, `foo`
     Ident {
         /// Resolved textual name as written in source.
@@ -257,6 +266,13 @@ pub enum Expr {
         /// Span covering the whole `if`.
         span: Span,
     },
+    /// Try expression: `x?`
+    Try {
+        /// The expression being tried.
+        target: Box<Expr>,
+        /// Span covering `?`.
+        span: Span,
+    },
     /// For expression (used in JSX): `for x in list: <elem>`
     For {
         /// Loop binding name.
@@ -335,6 +351,7 @@ impl Expr {
             | Expr::FloatLit { span, .. }
             | Expr::StringLit { span, .. }
             | Expr::BoolLit { span, .. }
+            | Expr::DecimalLit { span, .. }
             | Expr::Ident { span, .. }
             | Expr::ObjectLit { span, .. }
             | Expr::ListLit { span, .. }
@@ -351,6 +368,7 @@ impl Expr {
             | Expr::Pipe { span, .. }
             | Expr::Spawn { span, .. }
             | Expr::With { span, .. }
+            | Expr::Try { span, .. }
             | Expr::StringInterp { span, .. }
             | Expr::Block { span, .. } => *span,
             Expr::Jsx(el) => el.span,

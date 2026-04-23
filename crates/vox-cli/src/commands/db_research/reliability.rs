@@ -1,3 +1,7 @@
+//! Reliability and research-metric listing (`vox db reliability-*`, `research-metrics`).
+//!
+//! `research_metrics` metadata can be **S1–S2** (MCP sessions, paths in JSON). Treat stdout as operator-local.
+
 use super::helpers::summarize_text;
 
 /// Show telemetry metrics for `research_metrics` rows matching a session id prefix.
@@ -16,6 +20,9 @@ pub async fn research_metrics(session_id: &str, metric_type: Option<&str>) -> an
     if metrics.is_empty() {
         println!("(no research_metrics rows for session prefix {sid:?})");
     } else {
+        eprintln!(
+            "Note: metadata_json may include workspace-adjacent fields (S2). Do not paste into public channels without review — see docs/src/architecture/telemetry-trust-ssot.md"
+        );
         println!("research_metrics (session_id LIKE {sid:?}…)");
         for (sess, mtype, value, meta) in metrics {
             print!(

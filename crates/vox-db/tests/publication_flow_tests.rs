@@ -17,6 +17,7 @@ async fn publication_manifest_upsert_and_dual_approval_are_digest_bound() {
         body_markdown: "# body",
         citations_json: None,
         metadata_json: None,
+        revision_history_json: None,
         content_sha3_256: "digest-a",
         state: "draft",
     })
@@ -50,6 +51,7 @@ async fn publication_manifest_upsert_and_dual_approval_are_digest_bound() {
         body_markdown: "# body v2",
         citations_json: None,
         metadata_json: None,
+        revision_history_json: None,
         content_sha3_256: "digest-b",
         state: "draft",
     })
@@ -75,6 +77,7 @@ async fn scholarly_submission_upsert_tracks_status() {
         body_markdown: "# body",
         citations_json: None,
         metadata_json: None,
+        revision_history_json: None,
         content_sha3_256: "digest-x",
         state: "approved",
     })
@@ -128,6 +131,7 @@ async fn external_submission_job_attempt_snapshot_and_links_roundtrip() {
         body_markdown: "b",
         citations_json: None,
         metadata_json: None,
+        revision_history_json: None,
         content_sha3_256: "digest-z",
         state: "draft",
     })
@@ -292,6 +296,7 @@ async fn patch_scholarly_submission_status_updates_row_only() {
         body_markdown: "b",
         citations_json: None,
         metadata_json: None,
+        revision_history_json: None,
         content_sha3_256: "dig-patch",
         state: "approved",
     })
@@ -346,6 +351,7 @@ async fn list_external_submission_jobs_due_finds_queued_and_retryable() {
         body_markdown: "b",
         citations_json: None,
         metadata_json: None,
+        revision_history_json: None,
         content_sha3_256: "digest-due",
         state: "draft",
     })
@@ -410,6 +416,7 @@ async fn list_external_submission_jobs_failed_lists_terminal_failed() {
         body_markdown: "b",
         citations_json: None,
         metadata_json: None,
+        revision_history_json: None,
         content_sha3_256: "digest-dl",
         state: "draft",
     })
@@ -492,6 +499,7 @@ async fn list_publication_ids_with_scholarly_submissions_orders_by_recency() {
             body_markdown: "b",
             citations_json: None,
             metadata_json: None,
+            revision_history_json: None,
             content_sha3_256: digest,
             state: "draft",
         })
@@ -544,6 +552,7 @@ async fn append_publication_status_event_does_not_touch_manifest_state() {
         body_markdown: "b",
         citations_json: None,
         metadata_json: None,
+        revision_history_json: None,
         content_sha3_256: "digest-h1",
         state: "draft",
     })
@@ -583,6 +592,7 @@ async fn summarize_scholarly_external_pipeline_metrics_rollup() {
         body_markdown: "b",
         citations_json: None,
         metadata_json: None,
+        revision_history_json: None,
         content_sha3_256: "dig-m",
         state: "draft",
     })
@@ -680,6 +690,7 @@ async fn external_submission_job_upsert_rejects_identity_mismatch() {
         body_markdown: "b",
         citations_json: None,
         metadata_json: None,
+        revision_history_json: None,
         content_sha3_256: "dig-a",
         state: "draft",
     })
@@ -739,6 +750,7 @@ async fn scholarly_submission_upsert_rejects_identity_mismatch() {
         body_markdown: "b",
         citations_json: None,
         metadata_json: None,
+        revision_history_json: None,
         content_sha3_256: "dig-a",
         state: "draft",
     })

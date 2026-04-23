@@ -16,21 +16,86 @@ pub fn plain_system_prompt_response(system: &str, prompt: &str, response: &str) 
 
 /// ChatML prefix through the user turn (open assistant slot) — same structure as `VoxTokenizer`.
 #[must_use]
-pub fn chatml_prefix_open_assistant(system: &str, user: &str) -> String {
+pub fn chatml_prefix_open_assistant(
+    system: &str,
+    user: &str,
+    cfg: &crate::mens::tensor::training_config::ChatmlConfig,
+) -> String {
     format!(
-        "<|im_start|>system\n{system}<|im_end|>\n\
-         <|im_start|>user\n{user}<|im_end|>\n\
-         <|im_start|>assistant\n"
+        "{start}{sys}\n{system}{end}\n\
+         {start}{usr}\n{user}{end}\n\
+         {start}{asst}\n",
+        start = cfg.im_start,
+        end = cfg.im_end,
+        sys = cfg.role_system,
+        usr = cfg.role_user,
+        asst = cfg.role_assistant
     )
+}
+
+/// Format multi-turn turns as full ChatML text.
+#[must_use]
+pub fn chatml_turns_text(
+    turns: &[vox_tensor::data::ChatmlTurn],
+    cfg: &crate::mens::tensor::training_config::ChatmlConfig,
+) -> String {
+    let mut out = String::new();
+    for turn in turns {
+        out.push_str(&format!(
+            "{start}{role}\n{content}{end}\n",
+            start = cfg.im_start,
+            end = cfg.im_end,
+            role = turn.role,
+            content = turn.content
+        ));
+    }
+    out.trim_end().to_string()
+}
+
+/// Open assistant slot after all turns (or after the prefix of the last assistant turn).
+#[must_use]
+pub fn chatml_turns_prefix_open_assistant(
+    turns: &[vox_tensor::data::ChatmlTurn],
+    cfg: &crate::mens::tensor::training_config::ChatmlConfig,
+) -> String {
+    let mut out = String::new();
+    for (i, turn) in turns.iter().enumerate() {
+        if i == turns.len() - 1 && turn.role == "assistant" {
+            out.push_str(&format!(
+                "{start}{role}\n",
+                start = cfg.im_start,
+                role = cfg.role_assistant
+            ));
+            break;
+        }
+        out.push_str(&format!(
+            "{start}{role}\n{content}{end}\n",
+            start = cfg.im_start,
+            end = cfg.im_end,
+            role = turn.role,
+            content = turn.content
+        ));
+    }
+    out
 }
 
 /// Full ChatML string for SFT (system, user, assistant content).
 #[must_use]
-pub fn chatml_supervised_text(system: &str, user: &str, assistant: &str) -> String {
+pub fn chatml_supervised_text(
+    system: &str,
+    user: &str,
+    assistant: &str,
+    cfg: &crate::mens::tensor::training_config::ChatmlConfig,
+) -> String {
     format!(
-        "<|im_start|>system\n{system}<|im_end|>\n\
-         <|im_start|>user\n{user}<|im_end|>\n\
-         <|im_start|>assistant\n{assistant}<|im_end|>"
+        "{start}{sys}\n{system}{end}\n\
+         {start}{usr}\n{user}{end}\n\
+         {start}{asst}\n{assistant}{end}",
+        start = cfg.im_start,
+        end = cfg.im_end,
+        sys = cfg.role_system,
+        usr = cfg.role_user,
+        asst = cfg.role_assistant
     )
 }
 
@@ -47,9 +112,10 @@ pub fn hf_tokenize_chatml_supervised(
     user: &str,
     assistant: &str,
     max_len: usize,
+    cfg: &crate::mens::tensor::training_config::ChatmlConfig,
 ) -> anyhow::Result<(Vec<i64>, Vec<i64>)> {
-    let full_text = chatml_supervised_text(system, user, assistant);
-    let prompt_text = chatml_prefix_open_assistant(system, user);
+    let full_text = chatml_supervised_text(system, user, assistant, cfg);
+    let prompt_text = chatml_prefix_open_assistant(system, user, cfg);
 
     let full_enc = tokenizer
         .encode(full_text.as_str(), true)
@@ -67,7 +133,8 @@ pub fn hf_tokenize_chatml_supervised(
     }
 
     let eos_id = tokenizer
-        .token_to_id("<|im_end|>")
+        .token_to_id(&cfg.im_end)
+        .or_else(|| tokenizer.token_to_id("<|im_end|>"))
         .or_else(|| tokenizer.token_to_id("</s>"))
         .or_else(|| tokenizer.token_to_id("<|endoftext|>"))
         .unwrap_or(2) as i64;
@@ -108,8 +175,9 @@ mod tests {
 
     #[test]
     fn chatml_contains_markers() {
-        let t = chatml_supervised_text("sys", "usr", "asst");
-        assert!(t.contains("<|im_start|>"));
+        let cfg = crate::mens::tensor::training_config::ChatmlConfig::default();
+        let t = chatml_supervised_text("sys", "usr", "asst", &cfg);
+        assert!(t.contains(&cfg.im_start));
         assert!(t.contains("user"));
         assert!(t.contains("asst"));
     }
@@ -117,12 +185,13 @@ mod tests {
     /// Burn (ChatML HF) and Candle (plain triple) both consume the same ChatML SFT layout via this module.
     #[test]
     fn chatml_supervised_starts_with_open_assistant_prefix() {
-        let full = chatml_supervised_text("S", "U", "A");
-        let prefix = chatml_prefix_open_assistant("S", "U");
+        let cfg = crate::mens::tensor::training_config::ChatmlConfig::default();
+        let full = chatml_supervised_text("S", "U", "A", &cfg);
+        let prefix = chatml_prefix_open_assistant("S", "U", &cfg);
         assert!(
             full.starts_with(prefix.as_str()),
             "supervised text must begin with the open-assistant prefix"
         );
-        assert!(full.ends_with("A<|im_end|>"));
+        assert!(full.ends_with(&format!("A{}", cfg.im_end)));
     }
 }

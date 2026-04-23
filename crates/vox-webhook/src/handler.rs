@@ -1,7 +1,6 @@
 //! Inbound webhook handler — parses, verifies and routes incoming webhook events.
 
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 use crate::WebhookError;
 
@@ -9,26 +8,26 @@ use crate::WebhookError;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InboundPayload {
     /// Source identifier (e.g. "github", "gitlab", "custom")
-    pub source: Arc<str>,
+    pub source: String,
     /// Event type string (e.g. "push", "pull_request")
-    pub event_type: Arc<str>,
+    pub event_type: String,
     /// Raw JSON body of the event
     pub body: serde_json::Value,
     /// HMAC signature header value, if provided
     pub signature: Option<String>,
-    /// Delivery timestamp (unix seconds)
-    pub timestamp: u64,
+    /// Delivery timestamp or timestamp header component, if provided
+    pub timestamp: Option<String>,
 }
 
 /// A parsed webhook event ready for dispatch.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebhookEvent {
     /// Unique delivery id (for idempotency / tracing).
-    pub id: Arc<str>,
+    pub id: String,
     /// Source system identifier.
-    pub source: Arc<str>,
+    pub source: String,
     /// Normalized event type string.
-    pub event_type: Arc<str>,
+    pub event_type: String,
     /// Parsed JSON body.
     pub payload: serde_json::Value,
     /// Unix seconds when the gateway accepted the event.
@@ -40,7 +39,7 @@ impl WebhookEvent {
     pub fn new(payload: &InboundPayload) -> Self {
         use std::time::{SystemTime, UNIX_EPOCH};
         Self {
-            id: Arc::from(generate_id().as_str()),
+            id: generate_id(),
             source: payload.source.clone(),
             event_type: payload.event_type.clone(),
             payload: payload.body.clone(),
@@ -68,7 +67,7 @@ pub struct WebhookHandler {
     /// Optional HMAC secret — when set, signatures are required.
     pub secret: Option<String>,
     /// If non-empty, only these `source` values are accepted.
-    pub allowed_sources: Vec<Arc<str>>,
+    pub allowed_sources: Vec<String>,
 }
 
 impl WebhookHandler {
@@ -89,7 +88,7 @@ impl WebhookHandler {
     /// Allowlist an inbound `source` label (e.g. `"github"`).
     pub fn allow_source(mut self, source: impl Into<String>) -> Self {
         let s: String = source.into();
-        self.allowed_sources.push(Arc::from(s.as_str()));
+        self.allowed_sources.push(s);
         self
     }
 
@@ -107,7 +106,13 @@ impl WebhookHandler {
         if let Some(ref secret) = self.secret {
             let raw_body = serde_json::to_string(&payload.body)?;
             match &payload.signature {
-                Some(sig) => crate::signing::verify_payload(secret, raw_body.as_bytes(), sig)?,
+                Some(sig) => crate::signing::verify_payload(
+                    secret,
+                    raw_body.as_bytes(),
+                    sig,
+                    &payload.timestamp,
+                    &payload.source,
+                )?,
                 None => return Err(WebhookError::InvalidSignature),
             }
         }
@@ -129,11 +134,11 @@ mod tests {
 
     fn make_payload(source: &str, event_type: &str) -> InboundPayload {
         InboundPayload {
-            source: Arc::from(source),
-            event_type: Arc::from(event_type),
+            source: source.to_string(),
+            event_type: event_type.to_string(),
             body: serde_json::json!({"ref": "refs/heads/main"}),
             signature: None,
-            timestamp: 0,
+            timestamp: None,
         }
     }
 
@@ -168,15 +173,15 @@ mod tests {
         let signing_key = "test-secret";
         let body = serde_json::json!({"ref": "refs/heads/main"});
         let body_str = serde_json::to_string(&body).unwrap();
-        let sig = crate::signing::sign_payload(signing_key, body_str.as_bytes());
+        let sig = crate::signing::sign_hmac_sha256(signing_key, body_str.as_bytes());
 
         let h = WebhookHandler::new().with_secret(signing_key);
         let p = InboundPayload {
-            source: Arc::from("github"),
-            event_type: Arc::from("push"),
+            source: "github".to_string(),
+            event_type: "push".to_string(),
             body,
-            signature: Some(sig.to_string()),
-            timestamp: 0,
+            signature: Some(format!("sha256={sig}")),
+            timestamp: None,
         };
         assert!(h.handle(&p).is_ok());
     }

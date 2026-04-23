@@ -23,9 +23,11 @@ impl TrainingBackend for CandleQloraBackend {
     ) -> anyhow::Result<crate::mens::tensor::backend::TrainingSummary> {
         tracing::debug!(backend = "candle_qlora", "Candle qlora backend run");
         if config.optimizer_experiment_mode != OptimizerExperimentMode::Off {
-            let enabled = std::env::var("VOX_MENS_EXPERIMENTAL_OPTIMIZER")
-                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                .unwrap_or(false);
+            let optimizer_resolved =
+                vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMensExperimentalOptimizer);
+            let enabled = optimizer_resolved
+                .expose()
+                .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
             if !enabled {
                 anyhow::bail!(
                     "optimizer experiment mode `{}` requires VOX_MENS_EXPERIMENTAL_OPTIMIZER=1",

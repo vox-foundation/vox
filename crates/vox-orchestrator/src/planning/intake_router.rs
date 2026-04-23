@@ -8,7 +8,23 @@ pub fn evaluate_goal(
 ) -> RouterEvaluation {
     let mode = mode.unwrap_or(PlanningMode::Auto);
     let gl = goal.to_ascii_lowercase();
-    let complexity = complexity_heuristic(goal);
+    let search_plan = vox_db::heuristic_search_plan(goal, false, None);
+    let words = goal.split_whitespace().count();
+    let mut complexity = if words <= 6 {
+        2
+    } else if words <= 16 {
+        5
+    } else if words <= 30 {
+        7
+    } else {
+        9
+    };
+    if matches!(
+        search_plan.intent,
+        vox_db::SearchIntent::BroadResearch | vox_db::SearchIntent::RepoStructure
+    ) {
+        complexity = complexity.max(6);
+    }
 
     let forced = match mode {
         PlanningMode::Direct => Some(PlanningStrategy::ImmediateAct),
@@ -46,7 +62,10 @@ pub fn evaluate_goal(
             complexity: complexity.max(6),
             confidence: 0.75,
             workflow_match: Some("workflow".to_string()),
-            rationale: "goal mentions workflow-like execution".to_string(),
+            rationale: format!(
+                "goal mentions workflow-like execution; search intent {:?}",
+                search_plan.intent
+            ),
         };
     }
 
@@ -65,20 +84,10 @@ pub fn evaluate_goal(
         complexity,
         confidence: 0.7,
         workflow_match: None,
-        rationale: "multi-step goal benefits from decomposition".to_string(),
-    }
-}
-
-fn complexity_heuristic(goal: &str) -> u8 {
-    let words = goal.split_whitespace().count() as u8;
-    if words <= 6 {
-        2
-    } else if words <= 16 {
-        5
-    } else if words <= 30 {
-        7
-    } else {
-        9
+        rationale: format!(
+            "multi-step goal benefits from decomposition; search intent {:?}",
+            search_plan.intent
+        ),
     }
 }
 

@@ -9,18 +9,20 @@
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Write a durable Vox workflow and activity for a checkout process
+// @training_prompt: Write a durable Vox workflow and activity for a checkout process
+// ANCHOR: display
 activity charge_card(amount: int) to Result[str] {
     if amount > 1000 {
-        ret Error("Amount too large")
+        return Error("Amount too large")
     }
-    ret Ok("tx_123")
+    return Ok("tx_123")
 }
 
 workflow checkout(amount: int) to str {
     let result = charge_card(amount)
     match result {
-        Ok(tx) -> "Success: " + tx
-        Error(msg) -> "Failed: " + msg
+        Ok(tx) => "Success: " + tx
+        Error(msg) => "Failed: " + msg
     }
 }
+// ANCHOR_END: display

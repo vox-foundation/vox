@@ -53,7 +53,7 @@ fn parse_layout_from_fixture_llama_maps_to_stacked_family() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let p = root.join("tests/fixtures/hf/llama_tiny_config.json");
     let layout = parse_transformer_layout(&p).expect("layout");
-    assert_eq!(layout.architecture, HfArchitecture::Qwen2);
+    assert_eq!(layout.architecture, HfArchitecture::Qwen35);
     assert_eq!(layout.dims.n_embd, 64);
     assert_eq!(layout.dims.n_layer, 3);
     assert!(layout.primary_architecture.contains("Llama"));
@@ -68,7 +68,7 @@ fn detect_qwen2_from_model_type() {
         r#"{"model_type":"qwen2","hidden_size":64,"num_attention_heads":8,"num_hidden_layers":3,"vocab_size":500}"#,
     );
     let arch = detect_hf_architecture(&p).expect("detect");
-    assert_eq!(arch, HfArchitecture::Qwen2);
+    assert_eq!(arch, HfArchitecture::Qwen35);
     let d = config_dims_for_architecture(&p, arch).expect("dims");
     assert_eq!(
         d,
@@ -90,7 +90,7 @@ fn detect_qwen2_5_from_model_type_maps_like_qwen2() {
         r#"{"model_type":"qwen2.5","hidden_size":64,"num_attention_heads":8,"num_hidden_layers":2,"vocab_size":400}"#,
     );
     let arch = detect_hf_architecture(&p).expect("detect");
-    assert_eq!(arch, HfArchitecture::Qwen2);
+    assert_eq!(arch, HfArchitecture::Qwen35);
 }
 
 #[test]
@@ -109,5 +109,5 @@ fn hf_transformer_layout_mistral_json_fixture() {
     let l = HfTransformerLayout::from_config_path(&p).expect("layout");
     assert_eq!(l.model_type, "mistral");
     let arch = detect_hf_architecture(&p).expect("arch");
-    assert_eq!(arch, HfArchitecture::Qwen2);
+    assert_eq!(arch, HfArchitecture::Qwen35);
 }

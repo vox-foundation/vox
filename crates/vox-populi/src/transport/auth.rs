@@ -18,45 +18,50 @@ pub enum PopuliBearerRole {
 }
 
 /// Request auth context attached after the bearer middleware runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PopuliAuthContext {
     /// Control plane has no bearer requirement (tests / explicit open).
     FullAccess,
     /// Authenticated with a classified role.
     Role(PopuliBearerRole),
+    /// Authenticated via Ed25519 node signature (Decentralized Identity).
+    NodeSignature { node_id: String, pubkey_hex: String },
 }
 
 /// Join / heartbeat / leave / list / inbox / ack (not deliver-only submitter tokens).
 #[must_use]
-pub fn auth_allows_worker_plane(ctx: PopuliAuthContext) -> bool {
+pub fn auth_allows_worker_plane(ctx: &PopuliAuthContext) -> bool {
     match ctx {
         PopuliAuthContext::FullAccess => true,
         PopuliAuthContext::Role(PopuliBearerRole::Mesh)
         | PopuliAuthContext::Role(PopuliBearerRole::Worker)
-        | PopuliAuthContext::Role(PopuliBearerRole::Admin) => true,
+        | PopuliAuthContext::Role(PopuliBearerRole::Admin)
+        | PopuliAuthContext::NodeSignature { .. } => true,
         PopuliAuthContext::Role(PopuliBearerRole::Submitter) => false,
     }
 }
 
 /// A2A deliver (submitter + legacy mesh/admin).
 #[must_use]
-pub fn auth_allows_deliver(ctx: PopuliAuthContext) -> bool {
+pub fn auth_allows_deliver(ctx: &PopuliAuthContext) -> bool {
     match ctx {
         PopuliAuthContext::FullAccess => true,
         PopuliAuthContext::Role(PopuliBearerRole::Mesh)
         | PopuliAuthContext::Role(PopuliBearerRole::Submitter)
-        | PopuliAuthContext::Role(PopuliBearerRole::Admin) => true,
+        | PopuliAuthContext::Role(PopuliBearerRole::Admin)
+        | PopuliAuthContext::NodeSignature { .. } => true,
         PopuliAuthContext::Role(PopuliBearerRole::Worker) => false,
     }
 }
 
 /// Admin-only routes (mesh legacy token or `VOX_MESH_ADMIN_TOKEN`).
 #[must_use]
-pub fn auth_allows_admin_route(ctx: PopuliAuthContext) -> bool {
+pub fn auth_allows_admin_route(ctx: &PopuliAuthContext) -> bool {
     match ctx {
         PopuliAuthContext::FullAccess => true,
         PopuliAuthContext::Role(PopuliBearerRole::Mesh)
-        | PopuliAuthContext::Role(PopuliBearerRole::Admin) => true,
+        | PopuliAuthContext::Role(PopuliBearerRole::Admin)
+        | PopuliAuthContext::NodeSignature { .. } => true,
         PopuliAuthContext::Role(PopuliBearerRole::Worker)
         | PopuliAuthContext::Role(PopuliBearerRole::Submitter) => false,
     }

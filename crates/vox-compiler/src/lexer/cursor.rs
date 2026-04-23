@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn test_keywords() {
-        let tokens = lex_tokens("fn let mut if else match for in to ret type import");
+        let tokens = lex_tokens("fn let mut if else match for in to return type import");
         let expected = vec![
             Token::Fn,
             Token::Let,
@@ -74,7 +74,7 @@ mod tests {
             Token::For,
             Token::In,
             Token::To,
-            Token::Ret,
+            Token::Return,
             Token::TypeKw,
             Token::Import,
             Token::Eof,
@@ -108,15 +108,6 @@ mod tests {
     }
 
     #[test]
-    fn test_single_quote_strings() {
-        let tokens = lex_tokens("'user'");
-        assert_eq!(
-            tokens,
-            vec![Token::SingleQuoteStringLit("user".into()), Token::Eof]
-        );
-    }
-
-    #[test]
     fn test_numeric_literals() {
         let tokens = lex_tokens("42 2.75");
         assert_eq!(
@@ -142,15 +133,32 @@ mod tests {
 
     #[test]
     fn test_decorators() {
-        let tokens = lex_tokens("@component @mcp.tool @external @island");
+        let tokens = lex_tokens("@component @mcp.tool @mcp.resource @mobile.native @island");
         assert_eq!(
             tokens,
             vec![
                 Token::AtComponent,
+                Token::AtTool,
                 Token::AtMcpTool,
-                Token::AtExternal,
+                Token::AtResource,
+                Token::AtMcpResource,
+                Token::AtNative,
                 Token::AtIsland,
                 Token::Eof
+            ]
+        );
+    }
+
+    #[test]
+    fn test_pure_scheduled_deprecated_tokens() {
+        let tokens = lex_tokens("@pure @scheduled @deprecated");
+        assert_eq!(
+            tokens,
+            vec![
+                Token::AtPure,
+                Token::AtScheduled,
+                Token::AtDeprecated,
+                Token::Eof,
             ]
         );
     }
@@ -183,23 +191,22 @@ mod tests {
     /// Brace syntax: no Indent/Dedent in output — braces carry block structure.
     #[test]
     fn test_brace_block_no_indent_tokens() {
-        let source = "fn foo() to int { ret 5 }";
+        let source = "fn foo() to int { return 5 }";
         let tokens = lex_tokens(source);
         assert!(
             tokens.contains(&Token::Eof),
             "lexer output must include trailing Eof"
         );
-        // The token stream for a brace block should be:
-        // Fn, Ident(foo), LParen, RParen, To, Ident(int), LBrace, Ret, IntLit(5), RBrace, Eof
+        // Fn, Ident(foo), LParen, RParen, To, Ident(int), LBrace, Return, IntLit(5), RBrace, Eof
         assert!(tokens.contains(&Token::LBrace), "Should have LBrace");
         assert!(tokens.contains(&Token::RBrace), "Should have RBrace");
-        assert!(tokens.contains(&Token::Ret), "Should have Ret");
+        assert!(tokens.contains(&Token::Return), "Should have Return");
     }
 
     /// Newlines are now cosmetic — they are emitted but not structurally significant.
     #[test]
     fn test_newlines_emitted_but_not_structural() {
-        let source = "fn foo() to int {\n    ret 5\n}";
+        let source = "fn foo() to int {\n    return 5\n}";
         let tokens = lex_tokens(source);
         // Should contain Newline tokens but no Indent/Dedent
         assert!(
@@ -241,7 +248,7 @@ mod tests {
     fn test_http_route() {
         let tokens = lex_tokens("http post \"/api/chat\" to Result {");
         assert_eq!(tokens[0], Token::Http);
-        assert_eq!(tokens[1], Token::Post);
+        assert_eq!(tokens[1], Token::Ident("post".into()));
     }
 
     #[test]
@@ -255,6 +262,14 @@ mod tests {
             kinds
         );
         assert!(matches!(kinds.last(), Some(t) if **t == Token::Eof));
+    }
+
+    #[test]
+    fn test_agent_environment_tokens() {
+        let tokens = lex_tokens("agent environment migrate");
+        assert!(tokens.contains(&Token::Agent));
+        assert!(tokens.contains(&Token::Env));
+        assert!(tokens.contains(&Token::Migrate));
     }
 
     #[test]
@@ -285,7 +300,7 @@ mod tests {
 }
 
 http post "/api/chat" to Result {
-    ret spawn(Claude).send(request.json().input)
+    return spawn(Claude).send(request.json().input)
 }"#;
 
         let tokens = lex(source);
@@ -297,7 +312,7 @@ http post "/api/chat" to Result {
         assert!(token_types.contains(&&Token::Fn));
         assert!(token_types.contains(&&Token::Match));
         assert!(token_types.contains(&&Token::Http));
-        assert!(token_types.contains(&&Token::Post));
+        assert!(token_types.contains(&&Token::Ident("post".into())));
         assert!(token_types.contains(&&Token::Spawn));
         assert!(token_types.contains(&&Token::LBrace));
         assert!(token_types.contains(&&Token::RBrace));

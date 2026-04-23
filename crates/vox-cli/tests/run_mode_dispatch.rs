@@ -39,7 +39,7 @@ fn workspace_root() -> PathBuf {
 fn run_mode_script_executes_minimal_main() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let vox_file = tmp.path().join("smoke_run_mode.vox");
-    fs::write(&vox_file, "fn main():\n    print(str(\"run_mode_ok\"))\n").expect("write vox");
+    fs::write(&vox_file, "fn main() {\n    print(str(\"run_mode_ok\"))\n").expect("write vox");
 
     let repo = workspace_root();
     let st = Command::new(vox_bin())
@@ -62,7 +62,7 @@ fn run_mode_script_executes_minimal_main() {
 fn run_mode_auto_matches_script_for_script_shaped_file() {
     let tmp = tempfile::tempdir().expect("tempdir");
     let vox_file = tmp.path().join("smoke_auto.vox");
-    fs::write(&vox_file, "fn main():\n    print(str(\"auto_lane\"))\n").expect("write vox");
+    fs::write(&vox_file, "fn main() {\n    print(str(\"auto_lane\"))\n").expect("write vox");
 
     let repo = workspace_root();
     let st = Command::new(vox_bin())
@@ -87,7 +87,7 @@ fn run_mode_script_passes_trailing_args_to_std_args() {
     let vox_file = tmp.path().join("smoke_argv.vox");
     fs::write(
         &vox_file,
-        "fn main():\n    for a in std.args:\n        print(a)\n",
+        "fn main() {\n    for a in std.args:\n        print(a)\n",
     )
     .expect("write vox");
 

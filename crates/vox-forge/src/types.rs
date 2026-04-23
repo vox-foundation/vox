@@ -106,6 +106,38 @@ pub struct NewChangeRequest<'a> {
 }
 
 // ---------------------------------------------------------------------------
+// Release
+// ---------------------------------------------------------------------------
+
+/// Arguments for `GitForgeProvider::create_release`.
+#[derive(Debug, Clone, Copy)]
+pub struct NewRelease<'a> {
+    /// Tag name for the release.
+    pub tag_name: &'a str,
+    /// Release name/title.
+    pub name: &'a str,
+    /// Markdown body.
+    pub body: &'a str,
+    /// Whether to create as a draft.
+    pub draft: bool,
+}
+
+// ---------------------------------------------------------------------------
+// Discussion/Issue
+// ---------------------------------------------------------------------------
+
+/// Arguments for `GitForgeProvider::create_discussion_or_issue`.
+#[derive(Debug, Clone, Copy)]
+pub struct NewDiscussionOrIssue<'a> {
+    /// Title of the discussion/issue.
+    pub title: &'a str,
+    /// Markdown body.
+    pub body: &'a str,
+    /// Category (used by GitHub Discussions; ignored by Issues/GitLab).
+    pub category: Option<&'a str>,
+}
+
+// ---------------------------------------------------------------------------
 // Label
 // ---------------------------------------------------------------------------
 

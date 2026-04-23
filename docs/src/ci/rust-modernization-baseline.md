@@ -2,8 +2,10 @@
 title: "Rust pattern modernization — Wave 0 baseline"
 description: "Official documentation for Rust pattern modernization — Wave 0 baseline for the Vox language. Detailed technical reference, architecture "
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Rust pattern modernization — Wave 0 baseline
@@ -29,7 +31,7 @@ Stricter policy described in governance docs is **not** yet fully mirrored here 
 
 Priority set from the master plan (error handling / async / tracing / process):
 
-- `crates/vox-mcp/src/tools/codex_tools.rs`
+- `crates/vox-orchestrator/src/mcp_tools/tools/codex_tools.rs`
 - `crates/vox-cli/src/dispatch_protocol.rs`
 - `crates/vox-runtime/src/llm_result.rs`
 - `crates/vox-orchestrator/src/models.rs`
@@ -56,3 +58,4 @@ Use [crate hardening matrix](crate-hardening-matrix.md) for per-crate feature fl
 - [Forward migration charter](../architecture/forward-migration-charter.md)
 - [Workflow enumeration](workflow-enumeration.md)
 - [Crate hardening matrix](crate-hardening-matrix.md)
+

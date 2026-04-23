@@ -6,9 +6,13 @@ pub mod bootstrap_inference;
 pub mod config;
 pub mod env_parse;
 pub mod inference;
+pub mod operator_registry;
 pub mod paths;
+pub mod policy;
 pub mod rollout;
 pub mod routing_policy;
+pub mod scholarly;
+pub mod toml_config;
 
 pub use bootstrap_inference::{
     NLI_FALLBACK, OPENROUTER_AUTO, OPENROUTER_FREE, RESEARCH_FLASH_FALLBACK,
@@ -16,17 +20,23 @@ pub use bootstrap_inference::{
 };
 pub use config::{GamifyMode, VoxConfig, WebRunMode};
 pub use inference::{
-    InferenceProfile, OPENROUTER_CHAT_COMPLETIONS_URL, hf_chat_model_preference,
+    InferenceProfile, LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT, OPENAI_CHAT_COMPLETIONS_URL,
+    OPENAI_EMBEDDINGS_URL, OPENROUTER_CHAT_COMPLETIONS_URL, OPENROUTER_EMBEDDINGS_URL,
+    OPENROUTER_MODELS_LIST_URL, anthropic_tuning_temperature, anthropic_tuning_top_p,
+    gemini_tuning_temperature, gemini_tuning_top_p, hf_chat_model_preference,
     hf_dedicated_chat_completions_url, hf_dedicated_chat_model, huggingface_hub_token,
     inference_profile_allows_local_ollama_http, inference_profile_from_env,
-    local_ollama_populi_base_url, openrouter_api_key, openrouter_chat_model_preference,
-    sanitize_chatml,
+    local_ollama_populi_base_url, ollama_tuning_temperature, ollama_tuning_top_p,
+    openai_tuning_temperature, openai_tuning_top_p, openrouter_api_key,
+    openrouter_chat_model_preference, sanitize_chatml, together_tuning_temperature,
+    together_tuning_top_p,
 };
 pub use paths::{
     APP_DIR_NAME, DEFAULT_DB_FILENAME, MCP_SESSIONS_DIR_BASENAME, config_dir, data_dir,
     default_db_path, dot_vox_user_dir, local_user_id, mcp_sessions_dir, repo_memory_cache_dir,
     repo_tooling_cache_dir, script_cache_dir, state_dir, user_home_dir,
 };
+pub use policy::hitl_policy::HitlPolicy;
 pub use rollout::{
     RolloutFlagSnapshot, db_circuit_breaker_env_enabled,
     db_embedded_replica_integration_gate_armed, db_sync_remote_integration_gate_armed, env_truthy,
@@ -35,6 +45,7 @@ pub use rollout::{
 };
 pub use routing_policy::{
     AutoModelStrategy, AutoRoutingPriority, GeminiRoutePolicy, GeminiRouteTargets,
+    OpenRouterRouteHint, RouteCostPreference, derive_openrouter_route_hint,
     gemini_route_targets_from_env, resolve_openrouter_model,
 };
 
@@ -78,5 +89,4 @@ mod tests {
         assert!(!InferenceProfile::MobileLitert.allows_local_ollama_http());
         assert!(!InferenceProfile::MobileCoreml.allows_local_ollama_http());
     }
-
 }

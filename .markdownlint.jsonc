@@ -1,0 +1,14 @@
+{
+  // mdBook landing pages and redirect stubs intentionally use inline HTML.
+  "MD033": false,
+  // Long lines are common in path-heavy contracts and command references.
+  "MD013": false,
+  // Frontmatter `title` is canonical metadata in this repo and should not count as an H1.
+  "MD025": {
+    "front_matter_title": ""
+  },
+  // mdBook summary structure intentionally uses repeated top-level headings.
+  "ignores": [
+    "docs/src/SUMMARY.md"
+  ]
+}

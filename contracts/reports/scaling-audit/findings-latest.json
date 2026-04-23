@@ -7908,7 +7908,7 @@
     "column": 0,
     "confidence": "low",
     "context": " 231 |             continue;\n 232 |         }\n 233 |         let bytes = fs::read(&p)?;\n 234 |         let digest = Sha3_256::digest(&bytes);\n 235 |         let hex = format!(\"{digest:x}\");",
-    "file": "crates\\vox-publisher\\src\\submission_package.rs",
+    "file": "crates\\vox-publisher\\src\\submission/mod.rs",
     "line": 233,
     "message": "Filesystem read under a recent `for` loop — consider batching, caching, or mmap",
     "rule_id": "scaling/cache-miss-hot-read",
@@ -7926,7 +7926,7 @@
       ],
       "why": "syn ExprCall to fs::read / read_to_string"
     },
-    "file": "crates\\vox-publisher\\src\\submission_package.rs",
+    "file": "crates\\vox-publisher\\src\\submission/mod.rs",
     "line": 233,
     "message": "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts",
     "rule_id": "scaling/unbounded-read",
@@ -7944,7 +7944,7 @@
       ],
       "why": "syn ExprCall to fs::read / read_to_string"
     },
-    "file": "crates\\vox-publisher\\src\\submission_package.rs",
+    "file": "crates\\vox-publisher\\src\\submission/mod.rs",
     "line": 464,
     "message": "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts",
     "rule_id": "scaling/unbounded-read",
@@ -7962,7 +7962,7 @@
       ],
       "why": "syn ExprCall to fs::read / read_to_string"
     },
-    "file": "crates\\vox-publisher\\src\\submission_package.rs",
+    "file": "crates\\vox-publisher\\src\\submission/mod.rs",
     "line": 690,
     "message": "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts",
     "rule_id": "scaling/unbounded-read",
@@ -7980,7 +7980,7 @@
       ],
       "why": "syn ExprCall to fs::read / read_to_string"
     },
-    "file": "crates\\vox-publisher\\src\\submission_package.rs",
+    "file": "crates\\vox-publisher\\src\\submission/mod.rs",
     "line": 695,
     "message": "Unbounded `std::fs` read — consider size cap / streaming / `tokio::fs` in async contexts",
     "rule_id": "scaling/unbounded-read",

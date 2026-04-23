@@ -1,5 +1,9 @@
 //! Codex **user chat**, **tool calls**, **usage counters**, and **topics** (manifest slices `v11`–`v14`).
 //!
+//! **S3 content plane:** conversation text, tool arguments, and transcript rows are user/workspace content —
+//! not “usage telemetry”. Do not fold into `research_metrics` without explicit consent and classification
+//! (`docs/src/architecture/telemetry-retention-sensitivity-ssot.md`).
+//!
 //! Callers must use a store opened through [`crate::VoxDb::connect`] so the baseline DDL has been applied.
 
 use turso::params;
@@ -7,7 +11,195 @@ use turso::params;
 use crate::VoxDb;
 use crate::store::StoreError;
 
+/// One row from structured `conversation_messages` for workspace transcript hydration.
+#[derive(Debug, Clone)]
+pub struct WorkspaceTranscriptTurnRow {
+    pub role: String,
+    pub content_text: String,
+    pub external_turn_id: String,
+    pub model_used: Option<String>,
+    pub token_count: Option<i64>,
+    pub context_files_json: String,
+    pub created_unix: u64,
+}
+
 impl VoxDb {
+    /// Locate a workspace-scoped MCP transcript conversation (`repository_id` + `external_session_id`).
+    pub async fn chat_find_workspace_conversation_id(
+        &self,
+        repository_id: &str,
+        external_session_id: &str,
+    ) -> Result<Option<i64>, StoreError> {
+        let rid = repository_id.to_string();
+        let sid = external_session_id.to_string();
+        let mut rows = self
+            .connection()
+            .query(
+                "SELECT id FROM conversations
+                 WHERE repository_id = ?1 AND external_session_id = ?2
+                 LIMIT 1",
+                params![rid.as_str(), sid.as_str()],
+            )
+            .await?;
+        let row = rows.next().await?;
+        Ok(match row {
+            Some(r) => Some(r.get(0).map_err(|e| StoreError::Db(e.to_string()))?),
+            None => None,
+        })
+    }
+
+    /// Ensure a [`conversations`] row exists for the MCP / workspace session (structured transcript SSOT).
+    pub async fn chat_ensure_workspace_conversation(
+        &self,
+        repository_id: &str,
+        external_session_id: &str,
+        thread_id: Option<&str>,
+        origin_surface: &str,
+    ) -> Result<i64, StoreError> {
+        if let Some(id) = self
+            .chat_find_workspace_conversation_id(repository_id, external_session_id)
+            .await?
+        {
+            return Ok(id);
+        }
+        let title = format!(
+            "workspace {}…",
+            external_session_id.chars().take(12).collect::<String>()
+        );
+        let rid = repository_id.to_string();
+        let sid = external_session_id.to_string();
+        let tid = thread_id.map(str::to_string);
+        let origin = origin_surface.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO conversations
+                    (user_id, title, repository_id, external_session_id, thread_id, origin_surface)
+                 VALUES (NULL, ?1, ?2, ?3, ?4, ?5)",
+                    params![
+                        title.as_str(),
+                        rid.as_str(),
+                        sid.as_str(),
+                        tid.as_deref(),
+                        origin.as_str(),
+                    ],
+                )
+                .await?;
+                Ok::<i64, StoreError>(conn.last_insert_rowid())
+            })
+            .await
+    }
+
+    /// Append a transcript turn with workspace metadata (dual-write / structured SSOT path).
+    #[allow(clippy::too_many_arguments)]
+    pub async fn chat_append_workspace_message(
+        &self,
+        conversation_id: i64,
+        external_turn_id: &str,
+        role: &str,
+        content_text: &str,
+        model_used: Option<&str>,
+        token_count: Option<i64>,
+        context_files_json: Option<&str>,
+        journey_payload_json: Option<&str>,
+    ) -> Result<i64, StoreError> {
+        let external_turn_id = external_turn_id.to_string();
+        let role = role.to_string();
+        let content_text = content_text.to_string();
+        let model_used = model_used.map(str::to_string);
+        let context_files_json = context_files_json.map(str::to_string);
+        let journey_payload_json = journey_payload_json.map(str::to_string);
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO conversation_messages
+                    (conversation_id, role, content_text, payload_json, external_turn_id,
+                     model_used, token_count, context_files_json)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    params![
+                        conversation_id,
+                        role.as_str(),
+                        content_text.as_str(),
+                        journey_payload_json.as_deref(),
+                        external_turn_id.as_str(),
+                        model_used.as_deref(),
+                        token_count,
+                        context_files_json.as_deref(),
+                    ],
+                )
+                .await?;
+                let id = conn.last_insert_rowid();
+                conn.execute(
+                    "UPDATE conversations SET updated_at = datetime('now') WHERE id = ?1",
+                    params![conversation_id],
+                )
+                .await?;
+                Ok::<i64, StoreError>(id)
+            })
+            .await
+    }
+
+    /// Load recent structured transcript turns for hydration (oldest → newest).
+    pub async fn chat_load_workspace_transcript_turns(
+        &self,
+        repository_id: &str,
+        external_session_id: &str,
+        limit: i64,
+    ) -> Result<Vec<WorkspaceTranscriptTurnRow>, StoreError> {
+        let Some(conversation_id) = self
+            .chat_find_workspace_conversation_id(repository_id, external_session_id)
+            .await?
+        else {
+            return Ok(Vec::new());
+        };
+        let lim = limit.clamp(1, 500);
+        let mut rows = self
+            .connection()
+            .query(
+                "SELECT role, content_text, COALESCE(external_turn_id, ''),
+                        model_used, token_count, COALESCE(context_files_json, ''),
+                        COALESCE(unixepoch(created_at), 0)
+                 FROM conversation_messages
+                 WHERE conversation_id = ?1
+                 ORDER BY id DESC
+                 LIMIT ?2",
+                params![conversation_id, lim],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let role: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let content: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            let turn_id: String = row.get(2).map_err(|e| StoreError::Db(e.to_string()))?;
+            let model_used: Option<String> = row
+                .get::<Option<String>>(3)
+                .map_err(|e| StoreError::Db(e.to_string()))?;
+            let token_count: Option<i64> = row
+                .get::<Option<i64>>(4)
+                .map_err(|e| StoreError::Db(e.to_string()))?;
+            let ctx_files: String = row.get(5).map_err(|e| StoreError::Db(e.to_string()))?;
+            let ts: u64 = row
+                .get::<i64>(6)
+                .map(|u| u.max(0) as u64)
+                .map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push(WorkspaceTranscriptTurnRow {
+                role,
+                content_text: content,
+                external_turn_id: turn_id,
+                model_used,
+                token_count,
+                context_files_json: ctx_files,
+                created_unix: ts,
+            });
+        }
+        out.reverse();
+        Ok(out)
+    }
+
     /// Insert a `conversations` row (V11+). Returns SQLite `rowid` / `id`.
     pub async fn chat_create_conversation(
         &self,
@@ -428,5 +620,40 @@ mod tests {
             .await
             .expect("ct");
         db.chat_link_message_topic(msg, tid).await.expect("mt");
+    }
+
+    #[tokio::test]
+    async fn workspace_conversation_dual_write_round_trip() {
+        let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+        let conv = db
+            .chat_ensure_workspace_conversation("repo1", "sess-a", Some("thr-1"), "mcp")
+            .await
+            .expect("ensure");
+        assert_eq!(
+            db.chat_find_workspace_conversation_id("repo1", "sess-a")
+                .await
+                .expect("find"),
+            Some(conv)
+        );
+        let _ = db
+            .chat_append_workspace_message(
+                conv,
+                "t1",
+                "user",
+                "hello",
+                None,
+                None,
+                Some("[]"),
+                Some(r#"{"envelope_version":1,"journey_id":"j1"}"#),
+            )
+            .await
+            .expect("append");
+        let rows = db
+            .chat_load_workspace_transcript_turns("repo1", "sess-a", 50)
+            .await
+            .expect("load");
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].role, "user");
+        assert_eq!(rows[0].content_text, "hello");
     }
 }

@@ -1,0 +1,87 @@
+// 2026-phase1-contract-headers.vox — Migration M-12.
+//
+// Ensures that all versioned contracts in `contracts/` have the standard
+// `x-vox-version: N` header matching their filename version.
+//
+// Run:   vox run --mode interp scripts/migrations/2026-phase1-contract-headers.vox
+
+fn main() {
+    print("Starting M-12 contract version-header migration...");
+    
+    let files_res = std.fs.glob("contracts/**/*.v*.*");
+    if files_res.is_err() {
+        print("❌ glob failed.");
+        return;
+    }
+    let files = files_res.unwrap();
+    let n = len(files);
+    print("Scanning " + str(n) + " candidate contract files...");
+
+    let mut i = 0;
+    while i < n {
+        let file_path = files.get(i).unwrap();
+        
+        if not file_path.contains(".v") {
+            i = i + 1;
+            continue;
+        }
+
+        let after_dot_v = file_path.split(".v");
+        if len(after_dot_v) < 2 {
+            i = i + 1;
+            continue;
+        }
+
+        let version_segment = after_dot_v.get(1).unwrap();
+        let version_parts = version_segment.split(".");
+        let version = version_parts.get(0).unwrap();
+        
+        if len(version) == 0 {
+            i = i + 1;
+            continue;
+        }
+
+        let content_res = std.fs.read(file_path);
+        if content_res.is_err() {
+            i = i + 1;
+            continue;
+        }
+        let content = content_res.unwrap();
+
+        if content.contains("x-vox-version:") or content.contains("\"x-vox-version\":") {
+            i = i + 1;
+            continue;
+        }
+
+        print("  ⚠ Missing header: " + file_path + " (v" + version + ")");
+
+        let mut new_content = "";
+        if file_path.contains(".json") {
+            let parts = content.split("{");
+            if len(parts) > 1 {
+                new_content = parts.get(0).unwrap() + "{\n  \"x-vox-version\": " + version + ",";
+                let np = len(parts);
+                let mut j = 1;
+                while j < np {
+                    new_content = new_content + parts.get(j).unwrap();
+                    j = j + 1;
+                }
+            }
+        } else {
+            new_content = "x-vox-version: " + version + "\n" + content;
+        }
+
+        if len(new_content) > 0 {
+            let write_res = std.fs.write(file_path, new_content);
+            if write_res.is_ok() {
+                print("  ✅ Updated " + file_path);
+            } else {
+                print("  ❌ Write failed: " + file_path);
+            }
+        }
+        
+        i = i + 1;
+    }
+
+    print("M-12 migration complete.");
+}

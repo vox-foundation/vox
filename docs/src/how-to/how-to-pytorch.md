@@ -2,25 +2,30 @@
 title: "@py.import – Python Library Integration (`torch`, `numpy`, etc.)"
 description: "Official documentation for @py.import – Python Library Integration (`torch`, `numpy`, etc.) for the Vox language."
 category: "how-to"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 # @py.import – Python Library Integration (`torch`, `numpy`, etc.)
 
 > **2026 stance:** **`vox container init` is retired** (hard error — use Rust/PM flows). **`@py.import` / uv-backed setup is not a supported product path.** Native ML stacks live under **`vox mens`** / Candle; treat the material below as historical reference only.
+> For integration with external libraries via FFI going forward, see [Rust FFI & Migration Guide](../architecture/rust-ecosystem-support-ssot.md).
 
 Vox historically documented importing Python libraries from `.vox` via `@py.import` with **[uv](https://docs.astral.sh/uv/)** for wheels. That workflow is **not** maintained as a supported package-management lane.
 
 ## Quick Start
 
 ```vox
+// vox:skip
 @py.import torch
 @py.import torch.nn as nn
 
-fn run_inference(input: list[float]) to list[float]:
+fn run_inference(input: list[float]) -> list[float] {
     let t = torch.tensor(input)
     let model = nn.Linear(4, 1)
-    ret model.forward(t).tolist()
+    return model.forward(t).tolist()
+}
 ```
 
 Legacy documentation previously recommended:
@@ -80,33 +85,37 @@ Return values come back as their string representation. Use helper utilities lik
 ## PyTorch Example
 
 ```vox
+// vox:skip
 @py.import torch
 @py.import torch.nn as nn
 @py.import torch.nn.functional as F
 
-# Build and run a 2-layer MLP
-fn mlp_forward(x: list[float]) to list[float]:
+fn mlp_forward(x: list[float]) -> list[float] {
     let t       = torch.tensor(x)
     let linear1 = nn.Linear(4, 8)
     let linear2 = nn.Linear(8, 2)
     let h       = F.relu(linear1.forward(t))
     let out     = linear2.forward(h)
-    ret out.tolist()
+    return out.tolist()
+}
 
-fn main():
+fn main() {
     let result = mlp_forward([1.0, 2.0, 3.0, 4.0])
-    print(result)
+    println(result)
+}
 ```
 
 ## NumPy Example
 
 ```vox
+// vox:skip
 @py.import numpy as np
 
-fn moving_average(data: list[float], window: int) to list[float]:
+fn moving_average(data: list[float], window: int) -> list[float] {
     let arr = np.array(data)
     let weights = np.ones(window) / window
-    ret np.convolve(arr, weights, "valid").tolist()
+    return np.convolve(arr, weights, "valid").tolist()
+}
 ```
 
 ## Runtime Environment *(historical)*
@@ -187,7 +196,7 @@ Vox auto-selects the right PyTorch wheel source based on your detected GPU:
 
 ## See Also
 
-- [`@py.import` decorator reference](../reference/ref-decorators.md#pyimport)
+- [`@py.import` decorator reference](../reference/ref-decorators.md)
 - [Candle inference serving](../../../crates/vox-populi/src/mens/tensor/candle_inference_serve.rs)
 - [NumPy integration patterns](how-to-ai-agents.md)
 
@@ -249,17 +258,20 @@ nn::Sequential::new(vec![
 ### Example: MLP inference without Python
 
 ```vox
+// vox:skip
 import tensor as t
 import nn
 
-let model = nn.Sequential([
-    nn.Module::linear(4, 8, true),
-    nn.Module::linear(8, 2, true),
-])
+fn infer_mlp() -> list[float] {
+    let model = nn.Sequential([
+        nn.Module::linear(4, 8, true),
+        nn.Module::linear(8, 2, true),
+    ])
 
-let input = t.Tensor::from_vec_2d([1.0, 2.0, 3.0, 4.0], 1, 4)
-let out = model.forward(input)
-ret out.to_vec()
+    let input = t.Tensor::from_vec_2d([1.0, 2.0, 3.0, 4.0], 1, 4)
+    let out = model.forward(input)
+    return out.to_vec()
+}
 ```
 
 This ensures **Low K-Complexity** (no shell dependencies), native type-checked operations, and deployment via the built-in HTTP server — all in a single, self-contained binary.
@@ -267,3 +279,5 @@ This ensures **Low K-Complexity** (no shell dependencies), native type-checked o
 > [!NOTE]
 > `vox-tensor` uses **NdArray** (CPU) as the default backend with **Autodiff** for gradient tracking.
 > GPU acceleration (WGPU) is available via the `wgpu` feature flag in `vox-tensor/Cargo.toml`.
+
+

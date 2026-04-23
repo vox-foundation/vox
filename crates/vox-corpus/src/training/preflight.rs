@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 
-use crate::bounded_fs::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// Primary training filename inside a data directory.
 pub const PRIMARY_TRAIN_FILE: &str = "train.jsonl";
@@ -36,8 +36,18 @@ pub struct ResolvedTrainInput {
 }
 
 fn count_nonempty_lines(path: &Path) -> anyhow::Result<usize> {
-    let data = read_utf8_path_capped(path)?;
-    Ok(data.lines().filter(|l| !l.trim().is_empty()).count())
+    use std::io::BufRead;
+    let file = std::fs::File::open(path)?;
+    let reader = std::io::BufReader::with_capacity(128 * 1024, file);
+    let mut count = 0;
+    for line in reader.lines() {
+        if let Ok(l) = line {
+            if !l.trim().is_empty() {
+                count += 1;
+            }
+        }
+    }
+    Ok(count)
 }
 
 /// Load optional training contract: `train_path` relative to workspace or absolute.

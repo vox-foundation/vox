@@ -1,24 +1,47 @@
 //! `vox ci` — repository guard checks (SSOT, manifests, feature matrix) without shell/Python.
 
+mod attention_ledger_parity;
+mod attention_parity;
 pub(crate) mod bounded_read;
 pub mod build_timings;
+mod canonical_docs;
+mod capability_snapshot;
+mod capability_sync;
 mod check_links;
 mod command_compliance;
 mod command_sync;
+pub mod completion_quality;
 mod contracts_index;
+pub mod data_storage_guard;
+mod dep_sprawl;
+mod determinism_audit;
+mod doctest_md;
 mod eval_matrix;
+mod exec_policy_contract;
+mod frozen_crates;
+mod grammar_ssot_parity;
+mod gui_smoke;
+mod install_hooks;
+mod kill_stuck_tests;
 mod line_endings;
 mod mens_scorecard;
+pub(crate) mod nomenclature_guard;
 mod openclaw_contract;
+mod operations_catalog;
 mod pm_provenance;
 mod release_build;
+pub(crate) mod retired_symbol_check;
 mod scaling_audit;
+mod scientia_heuristics_parity;
+mod scientia_novelty_ledger_contract;
 mod scientia_worthiness_contract;
+pub(crate) mod sync_ignore_files;
+pub mod workspace_artifacts;
 
 mod cmd_enums;
 mod constants;
 mod coverage_gates;
-mod run_body;
+pub(crate) mod run_body;
 
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -27,7 +50,7 @@ use anyhow::Result;
 
 pub use cmd_enums::{
     CiCmd, CoverageGateMode, DocInventoryCmd, EvalMatrixCmd, GrammarDriftEmit, MensScorecardCmd,
-    ScalingAuditCmd,
+    OperationsSyncTarget, ScalingAuditCmd,
 };
 
 /// Resolve repository root: `VOX_REPO_ROOT`, else walk up from CWD for `AGENTS.md` + `Cargo.toml`.

@@ -72,6 +72,17 @@ pub async fn enqueue_recovery_first_node(
                 campaign_id: meta.campaign_id.clone(),
                 benchmark_tier: meta.benchmark_tier,
                 execution_role: meta.execution_role,
+                thread_id: None,
+                harness_spec_json: None,
+                tool_hints: vec![],
+                research_hints: vec![],
+                is_detached: Some(false),
+                requires_approval: None,
+                required_labels: None,
+                socrates_context: None,
+                attachment_manifest: None,
+                budget: None,
+                trace_id: None,
             });
         }
         let next_version = meta.plan_version.saturating_add(1);

@@ -216,23 +216,45 @@ async fn record_cli_event_inner(
 
 /// Display gamification status (profile overview).
 pub async fn status() -> Result<()> {
-    let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
-    let mut profile = match db::get_profile(&db, &user_id).await? {
-        Some(p) => p,
-        None => {
-            let p = LudusProfile::new_default(&user_id);
-            db::upsert_profile(&db, &p).await?;
-            p
-        }
-    };
-
-    profile.regen_energy();
-    db::upsert_profile(&db, &profile).await?;
+    let ctx = crate::commands::extras::ludus::LudusContext::load().await?;
+    let db = &ctx.db;
+    let user_id = &ctx.user_id;
+    let profile = &ctx.profile;
 
     println!("{}", "╔══════════════════════════════════╗".bright_purple());
     println!("{}", "║        ⚡ Vox Ludus ⚡          ║".bright_purple());
     println!("{}", "╚══════════════════════════════════╝".bright_purple());
+    println!();
+
+    if profile.reward_suppressed {
+        println!(
+            "{}",
+            "███████████████████████████████████████████████████████████".red()
+        );
+        println!(
+            "{}",
+            "█ ⚠️  WARNING: LUDUS REWARDS SUPPRESSED DUE TO PENALTY ⚠️  █"
+                .red()
+                .bold()
+        );
+        println!(
+            "{}",
+            "███████████████████████████████████████████████████████████".red()
+        );
+        println!();
+    }
+
+    // Identity link display
+    if let Ok(identities) = db.get_vox_identities(user_id).await {
+        if let Some((_, _, Some(login))) = identities.iter().find(|(p, _, _)| p == "github") {
+            println!("  🔗 Linked GitHub: {}", login.bright_blue());
+        }
+    }
+    println!(
+        "  {} Trust Tier: {}",
+        profile.trust_tier.icon(),
+        profile.trust_tier.label().bright_white().bold()
+    );
     println!();
 
     let title = vox_ludus::full_title(profile.level, profile.prestige_level);
@@ -555,9 +577,10 @@ pub async fn profile_merge_from_default() -> Result<()> {
 
 /// Recent reward-policy snapshots (how Ludus interpreted recent events).
 pub async fn audit_show(limit: usize) -> Result<()> {
-    let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
-    let rows = db::list_recent_policy_snapshots(&db, &user_id, limit).await?;
+    let ctx = crate::commands::extras::ludus::LudusContext::load().await?;
+    let db = &ctx.db;
+    let user_id = &ctx.user_id;
+    let rows = db::list_recent_policy_snapshots(db, user_id, limit).await?;
     println!(
         "{}",
         "Ludus policy audit (recent awards)".bright_cyan().bold()
@@ -569,14 +592,15 @@ pub async fn audit_show(limit: usize) -> Result<()> {
     for r in rows {
         let cap = if r.grind_capped != 0 { " capped" } else { "" };
         println!(
-            "  {:<22} {:>4} XP / {:>3} 💎  ×{:.2} [{}]{}  {}",
+            "  {:<22} {:>4} XP / {:>3} 💎  ×{:.2} [{}]{}  {}  {}",
             r.event_type.bright_white(),
             r.awarded_xp,
             r.awarded_crystals,
             r.effective_multiplier,
             r.mode_label.dimmed(),
             cap.dimmed(),
-            r.created_at.dimmed()
+            r.created_at.dimmed(),
+            r.metadata.as_deref().unwrap_or("").dimmed()
         );
     }
     Ok(())

@@ -29,7 +29,7 @@ pub async fn get_registry_preference(
 /// Reset all preferences for a given registry (DESTRUCTIVE).
 pub async fn reset_registry_preferences(registry: &str) -> Result<(), StoreError> {
     let db = crate::VoxDb::connect_default().await?;
-    let prefix = format!("{}%", format!("{}.", registry));
+    let prefix = format!("{registry}.%");
     let breaker = db.breaker.clone();
     let conn = db.conn.clone();
     breaker

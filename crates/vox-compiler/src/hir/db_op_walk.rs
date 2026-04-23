@@ -62,6 +62,9 @@ pub(crate) fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut
     for tool in &module.mcp_tools {
         walk_stmts(&tool.func.body, f);
     }
+    for res in &module.mcp_resources {
+        walk_stmts(&res.func.body, f);
+    }
     for rc in &module.reactive_components {
         for m in &rc.members {
             match m {
@@ -70,6 +73,7 @@ pub(crate) fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut
                 HirReactiveMember::Effect(e) => walk_expr(&e.body, f),
                 HirReactiveMember::OnMount(e) => walk_expr(&e.body, f),
                 HirReactiveMember::OnCleanup(e) => walk_expr(&e.body, f),
+                HirReactiveMember::Stmt(s) => walk_stmt(s, f),
             }
         }
         if let Some(view) = &rc.view {
@@ -114,6 +118,9 @@ pub(crate) fn for_each_hir_expr_in_module_mut(
     for tool in &mut module.mcp_tools {
         walk_stmts_mut(&mut tool.func.body, f);
     }
+    for res in &mut module.mcp_resources {
+        walk_stmts_mut(&mut res.func.body, f);
+    }
     for rc in &mut module.reactive_components {
         for m in &mut rc.members {
             match m {
@@ -122,6 +129,7 @@ pub(crate) fn for_each_hir_expr_in_module_mut(
                 HirReactiveMember::Effect(e) => walk_expr_mut(&mut e.body, f),
                 HirReactiveMember::OnMount(e) => walk_expr_mut(&mut e.body, f),
                 HirReactiveMember::OnCleanup(e) => walk_expr_mut(&mut e.body, f),
+                HirReactiveMember::Stmt(s) => walk_stmt_mut(s, f),
             }
         }
         if let Some(view) = &mut rc.view {
@@ -146,6 +154,14 @@ fn walk_stmt(stmt: &HirStmt, f: &mut impl FnMut(&HirExpr)) {
         HirStmt::Return { value: Some(v), .. } => walk_expr(v, f),
         HirStmt::Return { value: None, .. } => {}
         HirStmt::Expr { expr, .. } => walk_expr(expr, f),
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            walk_expr(condition, f);
+            walk_stmts(body, f);
+        }
+        HirStmt::Loop { body, .. } => walk_stmts(body, f),
+        HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
     }
 }
 
@@ -232,11 +248,13 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
             }
         }
         HirExpr::Block(stmts, _) => walk_stmts(stmts, f),
-        HirExpr::IntLit(_, _)
-        | HirExpr::FloatLit(_, _)
-        | HirExpr::StringLit(_, _)
-        | HirExpr::BoolLit(_, _)
-        | HirExpr::Ident(_, _) => {}
+        HirExpr::Try(t) => walk_expr(t.target.as_ref(), f),
+        HirExpr::IntLit(..)
+        | HirExpr::FloatLit(..)
+        | HirExpr::StringLit(..)
+        | HirExpr::BoolLit(..)
+        | HirExpr::Ident(..)
+        | HirExpr::DecimalLit(..) => {}
     }
 }
 
@@ -260,6 +278,14 @@ fn walk_stmt_mut(stmt: &mut HirStmt, f: &mut impl FnMut(&mut HirExpr)) {
         HirStmt::Return { value: Some(v), .. } => walk_expr_mut(v, f),
         HirStmt::Return { value: None, .. } => {}
         HirStmt::Expr { expr, .. } => walk_expr_mut(expr, f),
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            walk_expr_mut(condition, f);
+            walk_stmts_mut(body, f);
+        }
+        HirStmt::Loop { body, .. } => walk_stmts_mut(body, f),
+        HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
     }
 }
 
@@ -346,11 +372,13 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
             }
         }
         HirExpr::Block(stmts, _) => walk_stmts_mut(stmts, f),
-        HirExpr::IntLit(_, _)
-        | HirExpr::FloatLit(_, _)
-        | HirExpr::StringLit(_, _)
-        | HirExpr::BoolLit(_, _)
-        | HirExpr::Ident(_, _) => {}
+        HirExpr::Try(t) => walk_expr_mut(t.target.as_mut(), f),
+        HirExpr::IntLit(..)
+        | HirExpr::FloatLit(..)
+        | HirExpr::StringLit(..)
+        | HirExpr::BoolLit(..)
+        | HirExpr::Ident(..)
+        | HirExpr::DecimalLit(..) => {}
     }
 }
 

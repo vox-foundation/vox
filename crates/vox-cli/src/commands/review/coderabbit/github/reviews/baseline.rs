@@ -75,3 +75,115 @@ pub fn push_baseline_from_origin(
     eprintln!("[baseline] {baseline_name} -> {push_sha} (from {remote_ref}, empty={empty})");
     Ok(push_sha)
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::process::Command;
+
+    /// Regression: full-repo mode relies on `commit-tree` with the canonical empty tree so chunk
+    /// PRs show whole-file additions against the baseline.
+    #[test]
+    fn empty_baseline_commit_has_empty_tree_and_parent_head() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let repo = dir.path();
+        assert!(
+            Command::new("git")
+                .args(["init"])
+                .current_dir(repo)
+                .status()
+                .expect("git init")
+                .success()
+        );
+        assert!(
+            Command::new("git")
+                .args(["config", "user.email", "t@e.st"])
+                .current_dir(repo)
+                .status()
+                .unwrap()
+                .success()
+        );
+        assert!(
+            Command::new("git")
+                .args(["config", "user.name", "t"])
+                .current_dir(repo)
+                .status()
+                .unwrap()
+                .success()
+        );
+        fs::write(repo.join("f.txt"), "x").unwrap();
+        assert!(
+            Command::new("git")
+                .args(["add", "f.txt"])
+                .current_dir(repo)
+                .status()
+                .unwrap()
+                .success()
+        );
+        assert!(
+            Command::new("git")
+                .args(["commit", "-m", "init"])
+                .current_dir(repo)
+                .status()
+                .unwrap()
+                .success()
+        );
+
+        let parent = String::from_utf8_lossy(
+            &Command::new("git")
+                .args(["rev-parse", "HEAD"])
+                .current_dir(repo)
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .trim()
+        .to_string();
+
+        let empty_tree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+        let commit_out = Command::new("git")
+            .args([
+                "commit-tree",
+                empty_tree,
+                "-p",
+                &parent,
+                "-m",
+                "Empty baseline for full-repo review",
+            ])
+            .current_dir(repo)
+            .output()
+            .unwrap();
+        assert!(
+            commit_out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&commit_out.stderr)
+        );
+        let commit = String::from_utf8_lossy(&commit_out.stdout)
+            .trim()
+            .to_string();
+
+        let tree = String::from_utf8_lossy(
+            &Command::new("git")
+                .args(["rev-parse", &format!("{commit}^{{tree}}")])
+                .current_dir(repo)
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .trim()
+        .to_string();
+        assert_eq!(tree, empty_tree);
+
+        let first_parent = String::from_utf8_lossy(
+            &Command::new("git")
+                .args(["rev-parse", &format!("{commit}^")])
+                .current_dir(repo)
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .trim()
+        .to_string();
+        assert_eq!(first_parent, parent);
+    }
+}

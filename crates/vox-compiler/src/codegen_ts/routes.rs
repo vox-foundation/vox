@@ -68,43 +68,28 @@ fn http_method_ord(m: HirHttpMethod) -> u8 {
 
 /// Fail-fast checks for duplicate Express registrations and empty paths (OP-0170).
 pub fn validate_express_route_emit_input(hir: &HirModule) -> Result<(), String> {
+    use crate::codegen_shared::{RouteMethod, lower_module_routes};
     use std::collections::HashSet;
 
-    let mut http_keys = HashSet::<(u8, String)>::new();
-    for r in &hir.routes {
+    let routes = lower_module_routes(hir);
+    let mut http_keys = HashSet::<(RouteMethod, String)>::new();
+
+    for r in &routes {
         let path = r.path.trim();
         if path.is_empty() {
             return Err(format!(
                 "HTTP {} route has empty path (contract {})",
-                r.method.as_str(),
-                r.route_contract
+                r.method.as_uppercase_str(),
+                r.contract_key
             ));
         }
-        let key = (http_method_ord(r.method), path.to_string());
+
+        let key = (r.method, path.to_string());
         if !http_keys.insert(key) {
             return Err(format!(
                 "duplicate Express handler for {} {}",
-                r.method.as_str(),
+                r.method.as_uppercase_str(),
                 r.path
-            ));
-        }
-    }
-
-    let mut paths = HashSet::<String>::new();
-    for sf in hir
-        .server_fns
-        .iter()
-        .chain(hir.query_fns.iter())
-        .chain(hir.mutation_fns.iter())
-    {
-        let p = sf.route_path.trim();
-        if p.is_empty() {
-            return Err(format!("server fn `{}` has empty route_path", sf.name));
-        }
-        if !paths.insert(p.to_string()) {
-            return Err(format!(
-                "duplicate server-fn route_path `{}` (Express post only)",
-                sf.route_path
             ));
         }
     }
@@ -156,6 +141,10 @@ fn sorted_server_fns(hir: &HirModule) -> Vec<&HirServerFn> {
             .then_with(|| a.name.cmp(&b.name))
     });
     v
+}
+
+fn is_hir_query_fn(hir: &HirModule, sf: &HirServerFn) -> bool {
+    hir.query_fns.iter().any(|q| q.id == sf.id)
 }
 
 fn emit_hir_route_expr(expr: &HirExpr) -> String {
@@ -227,6 +216,27 @@ fn emit_hir_route_stmt(stmt: &HirStmt) -> String {
         HirStmt::Expr { expr, .. } => {
             format!("{};\n", emit_hir_route_expr(expr))
         }
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            let cond = emit_hir_route_expr(condition);
+            let mut out = format!("while ({cond}) {{\n");
+            for s in body {
+                out.push_str(&format!("  {}", emit_hir_route_stmt(s)));
+            }
+            out.push_str("    }\n");
+            out
+        }
+        HirStmt::Loop { body, .. } => {
+            let mut out = "while (true) {\n".to_string();
+            for s in body {
+                out.push_str(&format!("  {}", emit_hir_route_stmt(s)));
+            }
+            out.push_str("    }\n");
+            out
+        }
+        HirStmt::Break { .. } => "break;\n".to_string(),
+        HirStmt::Continue { .. } => "continue;\n".to_string(),
     }
 }
 
@@ -287,15 +297,27 @@ pub fn generate_routes_from_ctx(ctx: &ExpressRouteEmitCtx<'_>) -> String {
 
     for sf in &server_fns {
         let route_path = &sf.route_path;
+        let is_query = is_hir_query_fn(hir, sf);
+        let method = if is_query { "get" } else { "post" };
         out.push_str(&format!(
-            "app.post(\"{route_path}\", async (req: Request, res: Response) => {{\n"
+            "app.{method}(\"{route_path}\", async (req: Request, res: Response) => {{\n"
         ));
         out.push_str("  try {\n");
-        for param in &sf.params {
-            out.push_str(&format!(
-                "    const {} = req.body.{};\n",
-                param.name, param.name
-            ));
+        if is_query {
+            out.push_str("    const q = req.query;\n");
+            for param in &sf.params {
+                out.push_str(&format!(
+                    "    const {p} = q.{p} !== undefined ? JSON.parse(String(q.{p})) : null;\n",
+                    p = param.name
+                ));
+            }
+        } else {
+            for param in &sf.params {
+                out.push_str(&format!(
+                    "    const {} = req.body.{};\n",
+                    param.name, param.name
+                ));
+            }
         }
         for stmt in &sf.body {
             out.push_str(&format!("    {}", emit_hir_route_stmt(stmt)));

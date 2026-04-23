@@ -43,6 +43,7 @@ pub struct Channel {
     pub id: String,
     pub kind: ChannelKind,
     pub endpoint: String,
+    #[serde(skip_serializing)]
     pub token: Option<String>,
     pub enabled: bool,
 }
@@ -74,10 +75,10 @@ impl ChannelManager {
     pub fn new() -> Self {
         Self {
             channels: Mutex::new(HashMap::new()),
-            client: reqwest::Client::builder()
+            client: vox_reqwest_defaults::client_builder()
                 .timeout(std::time::Duration::from_secs(10))
                 .build()
-                .unwrap_or_default(),
+                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
         }
     }
 

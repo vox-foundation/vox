@@ -5,11 +5,16 @@
 use std::path::Path;
 
 use anyhow::{Context as _, anyhow};
+pub mod codegen;
+
 pub use jsonschema::Validator;
 use serde_json::Value;
 
 /// Build a [`jsonschema::Validator`] from a parsed schema document.
-pub fn compile_validator(schema: &Value, context: impl std::fmt::Display) -> anyhow::Result<jsonschema::Validator> {
+pub fn compile_validator(
+    schema: &Value,
+    context: impl std::fmt::Display,
+) -> anyhow::Result<jsonschema::Validator> {
     jsonschema::validator_for(schema).with_context(|| format!("compile JSON Schema ({context})"))
 }
 
@@ -29,9 +34,13 @@ pub fn validate(
     validator: &jsonschema::Validator,
     context: impl std::fmt::Display,
 ) -> anyhow::Result<()> {
-    validator.validate(instance).map_err(|e| {
-        anyhow!("JSON Schema validation ({context}): {e:#}")
-    })
+    if let Err(e) = validator.validate(instance) {
+        return Err(anyhow!(
+            "JSON Schema validation ({context}): path {}: {e:#}",
+            e.instance_path
+        ));
+    }
+    Ok(())
 }
 
 #[cfg(test)]

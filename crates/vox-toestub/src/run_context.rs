@@ -42,6 +42,8 @@ pub struct RunContext {
     pub(crate) unresolved_callee_counts: HashMap<String, usize>,
     /// For each workspace member under `crates/<name>/`, module names referenced as `crate::<name>` anywhere in that crate's scanned Rust sources (cross-file wiring for [`unwired/module`]).
     pub workspace_crate_mod_refs: HashMap<String, HashSet<String>>,
+    /// Fast pool of all words in the current crate (for skeleton reachability heuristics).
+    pub workspace_crate_words: HashMap<String, HashSet<String>>,
 }
 
 static RUN_STATE: OnceLock<Mutex<RunContext>> = OnceLock::new();
@@ -138,6 +140,17 @@ pub fn workspace_crate_refs_mod(declaring_file: &Path, mod_name: &str) -> bool {
     g.workspace_crate_mod_refs
         .get(&key)
         .is_some_and(|s| s.contains(mod_name))
+}
+
+/// True if any scanned Rust file in the same workspace crate contains the given word.
+pub fn workspace_crate_contains_word(declaring_file: &Path, word: &str) -> bool {
+    let Some(key) = workspace_crate_key(declaring_file) else {
+        return false;
+    };
+    let g = state().lock().expect("run_context lock");
+    g.workspace_crate_words
+        .get(&key)
+        .is_some_and(|s| s.contains(word))
 }
 
 /// Record an unresolved callee for hotlist telemetry (best-effort).

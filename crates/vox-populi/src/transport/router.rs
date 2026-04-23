@@ -15,8 +15,11 @@ use tracing::{info, warn};
 use super::PopuliTransportState;
 use super::auth::{PopuliAuthContext, PopuliMeshAuthRuntime};
 use super::handlers::{
-    a2a_ack, a2a_inbox, a2a_lease_renew, admin_quarantine, bootstrap_exchange, deliver_a2a, health,
-    heartbeat, join_node, leave_node, list_nodes,
+    a2a_ack, a2a_inbox, a2a_lease_renew, admin_exec_lease_revoke, admin_maintenance,
+    admin_quarantine, bootstrap_exchange, deliver_a2a, dispatch_results_poll, dispatch_script,
+    exec_lease_grant, exec_lease_list, exec_lease_release, exec_lease_renew, execute_on_worker,
+    federation_announce, federation_directory, health, heartbeat, join_node, leave_node,
+    list_nodes, queue_stats,
 };
 
 /// Default max JSON body size for control-plane POST routes (join, heartbeat, A2A, …).
@@ -25,9 +28,9 @@ const POPULI_DEFAULT_MAX_BODY_BYTES: usize = 512 * 1024;
 fn populi_max_body_limit_bytes() -> usize {
     const MIN: usize = 2 * 1024;
     const MAX: usize = 8 * 1024 * 1024;
-    std::env::var("VOX_MESH_HTTP_MAX_BODY_BYTES")
-        .ok()
-        .and_then(|s| s.parse().ok())
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshHttpMaxBodyBytes)
+        .expose()
+        .and_then(|s: &str| s.parse().ok())
         .filter(|&n| (MIN..=MAX).contains(&n))
         .unwrap_or(POPULI_DEFAULT_MAX_BODY_BYTES)
 }
@@ -56,7 +59,7 @@ fn mesh_auth_runtime_for(auth: &PopuliHttpAuth) -> PopuliMeshAuthRuntime {
 
 fn stamp_populi_feature_header<B>(res: &mut Response<B>) {
     let v = HeaderValue::from_static(
-        "mesh-auth-v1,a2a-observe-v1,quarantine-v1,lease-renew-v1,jwt-bearer-v1,result-attest-v1",
+        "mesh-auth-v1,a2a-observe-v1,quarantine-v1,maintenance-v1,maintenance-deadline-v1,lease-renew-v1,exec-lease-v1,exec-lease-admin-revoke-v1,exec-lease-persist-v1,a2a-inbox-limit-v1,jwt-bearer-v1,result-attest-v1,detached-results-v1",
     );
     res.headers_mut()
         .insert(HeaderName::from_static("x-populi-feature"), v);
@@ -71,11 +74,29 @@ pub fn router(state: PopuliTransportState) -> Router {
         .route("/v1/populi/heartbeat", post(heartbeat))
         .route("/v1/populi/leave", post(leave_node))
         .route("/v1/populi/bootstrap/exchange", post(bootstrap_exchange))
+        .route("/v1/populi/exec/lease/grant", post(exec_lease_grant))
+        .route("/v1/populi/exec/leases", get(exec_lease_list))
+        .route("/v1/populi/exec/lease/renew", post(exec_lease_renew))
+        .route("/v1/populi/exec/lease/release", post(exec_lease_release))
         .route("/v1/populi/a2a/deliver", post(deliver_a2a))
         .route("/v1/populi/a2a/inbox", post(a2a_inbox))
         .route("/v1/populi/a2a/ack", post(a2a_ack))
         .route("/v1/populi/a2a/lease-renew", post(a2a_lease_renew))
         .route("/v1/populi/admin/quarantine", post(admin_quarantine))
+        .route("/v1/populi/admin/maintenance", post(admin_maintenance))
+        .route("/v1/populi/dispatch", post(dispatch_script))
+        .route(
+            "/v1/populi/dispatch/result/{dispatch_id}",
+            get(dispatch_results_poll),
+        )
+        .route("/v1/populi/queue/stats", get(queue_stats))
+        .route("/v1/populi/worker/execute", post(execute_on_worker))
+        .route(
+            "/v1/populi/admin/exec-lease/revoke",
+            post(admin_exec_lease_revoke),
+        )
+        .route("/v1/populi/federation/directory", get(federation_directory))
+        .route("/v1/populi/federation/announce", post(federation_announce))
         .with_state(state)
 }
 
@@ -84,16 +105,19 @@ pub fn router(state: PopuliTransportState) -> Router {
 /// The expected bearer value is **captured at build time** (not re-read on every request).
 pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAuth) -> Router {
     let mesh_replay = Arc::clone(&state.mesh_replay);
+    let trust_verifier = state.node_trust_verifier.clone();
     let r = router(state);
     let runtime = Arc::new(mesh_auth_runtime_for(&auth));
     let runtime_cl = Arc::clone(&runtime);
     let mesh_replay_cl = Arc::clone(&mesh_replay);
+    let trust_verifier_cl = trust_verifier;
     let r = r.layer(middleware::from_fn(
         move |mut req: Request<Body>, next: Next| {
             // Clone Arcs here so the inner `async move` does not capture `runtime_cl` /
             // `mesh_replay_cl` (which would make this middleware closure `FnOnce`).
             let runtime = Arc::clone(&runtime_cl);
             let mesh_replay = Arc::clone(&mesh_replay_cl);
+            let trust_verifier = trust_verifier_cl.clone();
             async move {
                 let path = req.uri().path();
                 if path == "/health" || path == "/v1/populi/bootstrap/exchange" {
@@ -116,7 +140,45 @@ pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAu
                     .map(str::trim)
                     .filter(|t| !t.is_empty());
                 let Some(presented) = token else {
-                    warn!(path = %path, "populi bearer auth missing");
+                    // Try Decentralized Identity Headers
+                    let pubkey = req.headers().get("X-Vox-Node-Pubkey").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+                    let sig = req.headers().get("X-Vox-Node-Signature").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+                    let nonce = req.headers().get("X-Vox-Node-Nonce").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+                    let timestamp = req.headers().get("X-Vox-Node-Timestamp").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
+                    
+                    if let (Some(pk), Some(sg), Some(nc), Some(ts)) = (pubkey, sig, nonce, timestamp) {
+                        // Note: To be fully secure, the signature should cover path+body, but for now we verify the nonce+timestamp
+                        // Verify timestamp is within 5 minutes
+                        if let Ok(ts_u64) = ts.parse::<u64>() {
+                            let now = crate::now_ms() / 1000;
+                            if now.abs_diff(ts_u64) < 300 {
+                                let payload = format!("{}.{}.{}", path, ts, nc);
+                                if vox_crypto::facades::verify_signature_hex(&pk, payload.as_bytes(), &sg).unwrap_or(false) {
+                                    let node_id = hex::encode(&vox_crypto::secure_hash(&hex::decode(&pk).unwrap_or_default())[0..16]);
+                                    
+                                    // Optional strict DB trust enforcement
+                                    if let Some(verifier) = &trust_verifier {
+                                        if !verifier(node_id.clone()).await {
+                                            warn!(path = %path, node_id = %node_id, "node signature valid but node is untrusted");
+                                            let mut res = (StatusCode::FORBIDDEN, "untrusted node").into_response();
+                                            stamp_populi_feature_header(&mut res);
+                                            return res;
+                                        }
+                                    }
+
+                                    req.extensions_mut().insert(PopuliAuthContext::NodeSignature {
+                                        node_id,
+                                        pubkey_hex: pk.to_string(),
+                                    });
+                                    let mut res = next.run(req).await;
+                                    stamp_populi_feature_header(&mut res);
+                                    return res;
+                                }
+                            }
+                        }
+                    }
+
+                    warn!(path = %path, "populi bearer/signature auth missing");
                     let mut res = (StatusCode::UNAUTHORIZED, "unauthorized").into_response();
                     stamp_populi_feature_header(&mut res);
                     return res;
@@ -165,6 +227,10 @@ pub fn populi_http_app(state: PopuliTransportState) -> Router {
 pub async fn serve(addr: SocketAddr, state: PopuliTransportState) -> Result<(), std::io::Error> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
     info!(%addr, "vox-populi HTTP control plane listening");
+
+    // Start federation gossip if any bootstrap peers are configured
+    state.start_federation_gossip();
+
     let app = populi_http_app(state);
     axum::serve(listener, app).await
 }

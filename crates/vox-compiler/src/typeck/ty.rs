@@ -9,6 +9,7 @@ pub enum Ty {
     Bool,
     Char,
     Unit,
+    Decimal,
     /// Bottom type for early return / break.
     Never,
     List(Box<Ty>),
@@ -33,6 +34,8 @@ pub enum Ty {
     Collection(String, Vec<(String, Ty)>),
     /// Handle returned by `spawn(ActorName)`; supports `.handler(...)` per registered actor.
     ActorRef(String),
+    /// Placeholder for a type that must be inferred (e.g. missing function return type).
+    Infer,
 }
 
 impl Ty {
@@ -46,6 +49,7 @@ impl Ty {
             Ty::Bool => "bool".to_string(),
             Ty::Char => "char".to_string(),
             Ty::Unit => "Unit".to_string(),
+            Ty::Decimal => "dec".to_string(),
             Ty::Never => "never".to_string(),
             Ty::List(inner) => format!("List[{}]", inner.signature()),
             Ty::Option(inner) => format!("Option[{}]", inner.signature()),
@@ -87,6 +91,29 @@ impl Ty {
             Ty::Table(name, _) => format!("Table<{name}>"),
             Ty::Collection(name, _) => format!("Collection<{name}>"),
             Ty::ActorRef(name) => format!("ActorRef<{name}>"),
+            Ty::Infer => "_".to_string(),
+        }
+    }
+
+    pub fn to_hir_type(&self) -> crate::hir::HirType {
+        use crate::hir::HirType;
+        match self {
+            Ty::Int => HirType::Named("int".into()),
+            Ty::Float => HirType::Named("float".into()),
+            Ty::Str => HirType::Named("str".into()),
+            Ty::Bool => HirType::Named("bool".into()),
+            Ty::Char => HirType::Named("char".into()),
+            Ty::Unit => HirType::Unit,
+            Ty::Decimal => HirType::Decimal,
+            Ty::List(inner) => HirType::Generic("list".into(), vec![inner.to_hir_type()]),
+            Ty::Option(inner) => HirType::Generic("option".into(), vec![inner.to_hir_type()]),
+            Ty::Fn(params, ret) => HirType::Function(
+                params.iter().map(|t| t.to_hir_type()).collect(),
+                Box::new(ret.to_hir_type()),
+            ),
+            Ty::Tuple(elems) => HirType::Tuple(elems.iter().map(|t| t.to_hir_type()).collect()),
+            Ty::Named(n) => HirType::Named(n.clone()),
+            _ => HirType::Named(self.signature()), // Fallback to signature as name
         }
     }
 }

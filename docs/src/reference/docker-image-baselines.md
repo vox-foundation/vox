@@ -2,7 +2,9 @@
 title: "Docker image baselines (D05)"
 description: "How to record cold-start and health-check timing for Vox OCI images"
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
+
+schema_type: "TechArticle"
 ---
 
 # Docker image baselines
@@ -13,7 +15,7 @@ last_updated: 2026-03-25
 
 1. **Build** (from repo root):  
    `docker build -t vox:probe .`  
-   `docker build -t vox:populi -f docker/Dockerfile.populi .`
+   `docker build -t vox:populi -f infra/containers/Dockerfile.populi .`
 2. **Cold start:**  
    `docker run --rm vox:probe vox doctor --probe` — exit code **0** when the toolchain inside the image passes default doctor checks.
 3. **Healthcheck simulation:**  
@@ -25,3 +27,5 @@ Record wall times and image sizes (`docker image ls`) when changing `Dockerfile`
 
 - [Deployment compose SSOT](deployment-compose.md)
 - [Cross-platform runbook](../architecture/vox-cross-platform-runbook.md)
+
+

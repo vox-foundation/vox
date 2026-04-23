@@ -1,7 +1,6 @@
 //! Native QLoRA training: **NF4-quantized** frozen base linears + trainable LoRA via [`qlora_rs`].
 //!
-//! **Device:** maps Mens `--device` to Candle (CUDA / Metal when enabled, else CPU). Override
-//! with `VOX_CANDLE_DEVICE=cpu`. See [`ENV_CANDLE_DEVICE`].
+//! **Device:** maps Mens `--device` to Candle (CUDA / Metal when enabled, else CPU).
 //!
 //! ## Training loop properties
 //!
@@ -41,41 +40,19 @@ use super::training_config::LoraTrainingConfig;
 /// EMA alpha for ETA calculation (0.2 = stable but react within ~5 intervals).
 pub(super) const QLORA_ETA_EMA_ALPHA: f64 = 0.2;
 /// Environment variable: force Candle to CPU regardless of device flag.
-pub const ENV_CANDLE_DEVICE: &str = "VOX_CANDLE_DEVICE";
 
 /// Global flag for graceful interruption (Ctrl+C).
 pub(super) static PAUSE_FLAG: AtomicBool = AtomicBool::new(false);
 
 pub(super) enum TrainGraphModel {
-    Qwen2(crate::mens::tensor::candle_model_qwen::Qwen2Model),
     Qwen35(crate::mens::tensor::candle_model_qwen::Qwen35Model),
 }
 
 impl TrainGraphModel {
     pub fn forward(&self, input_ids: &Tensor) -> anyhow::Result<Tensor> {
         match self {
-            Self::Qwen2(m) => Ok(m.forward(input_ids)?),
             Self::Qwen35(m) => Ok(m.forward(input_ids)?),
         }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Qwen35CutoverMode {
-    Shadow,
-    Default,
-    Enforced,
-}
-
-fn qwen35_cutover_mode() -> Qwen35CutoverMode {
-    match std::env::var("VOX_QWEN35_NATIVE_CUTOVER")
-        .unwrap_or_else(|_| "default".to_string())
-        .to_ascii_lowercase()
-        .as_str()
-    {
-        "shadow" => Qwen35CutoverMode::Shadow,
-        "enforced" => Qwen35CutoverMode::Enforced,
-        _ => Qwen35CutoverMode::Default,
     }
 }
 
@@ -114,6 +91,14 @@ pub(super) enum TrainingDbEvent {
     Failed {
         run_id: String,
         global_step: u32,
+    },
+    GrpoStep {
+        run_id: String,
+        step: u32,
+        mean_reward: f32,
+        policy_loss: f32,
+        clip_fraction: f32,
+        parse_rate: f32,
     },
 }
 
@@ -219,35 +204,6 @@ pub fn run_candle_qlora_train(
     let bundle = preflight_native_qlora(config).map_err(|e| {
         anyhow::anyhow!("Model preflight failed: {e}. Ensure you have run 'vox mens download --model <name>' and that tokenizer.json + safetensors are present.")
     })?;
-    let cutover = qwen35_cutover_mode();
-    if bundle.layout.architecture == HfArchitecture::Qwen2 {
-        match cutover {
-            Qwen35CutoverMode::Shadow => train_log::warn(
-                "qwen2 detected while VOX_QWEN35_NATIVE_CUTOVER=shadow; allowing legacy path with warning.",
-            ),
-            Qwen35CutoverMode::Default => {
-                let allow_legacy = std::env::var("VOX_ALLOW_QWEN2_NATIVE")
-                    .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-                    .unwrap_or(false);
-                if !allow_legacy {
-                    anyhow::bail!(
-                        "qwen2 native path is disabled by default during qwen3_5 cutover. \
-                         Set VOX_ALLOW_QWEN2_NATIVE=1 for temporary override, or run with a qwen3_5 base. \
-                         To hard-enforce, set VOX_QWEN35_NATIVE_CUTOVER=enforced."
-                    );
-                }
-                train_log::warn(
-                    "qwen2 native override enabled via VOX_ALLOW_QWEN2_NATIVE=1 while cutover mode is default.",
-                );
-            }
-            Qwen35CutoverMode::Enforced => {
-                anyhow::bail!(
-                    "qwen2 native path is disabled (VOX_QWEN35_NATIVE_CUTOVER=enforced). \
-                     Use qwen3_5 checkpoints or downgrade cutover mode for rollback."
-                );
-            }
-        }
-    }
 
     let n_layer = bundle.layout.num_hidden_layers;
     if config.qlora_lm_head_only {
@@ -281,30 +237,123 @@ pub fn run_candle_qlora_train(
         .clone()
         .unwrap_or_else(|| data_dir.join("train.jsonl"));
     let _ = preflight_train_jsonl(&train_path, 1_000_000)?;
-    let jsonl_policy = if std::env::var("VOX_MENS_TRAIN_JSONL_STRICT").unwrap_or_default() == "1" {
+    let jsonl_strict_resolved =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMensTrainJsonlStrict);
+    let jsonl_policy = if jsonl_strict_resolved.expose().is_some_and(|s| s == "1") {
         vox_tensor::data::MalformedJsonlPolicy::FailFast
     } else {
         vox_tensor::data::MalformedJsonlPolicy::Skip
     };
+    train_log::info(&format!(
+        "Loading training data from {} (min_rating={})...",
+        train_path.display(),
+        config.min_rating
+    ));
     let mut pairs =
         vox_tensor::data::load_all_with_policy(&train_path, config.min_rating, jsonl_policy)
             .with_context(|| format!("load training data from {}", train_path.display()))?;
-    if let Some(filter) = config.context_filter.as_deref() {
-        let needle = filter.trim().to_ascii_lowercase();
-        if !needle.is_empty() {
-            let before = pairs.len();
-            pairs.retain(|p| {
-                p.category
-                    .as_deref()
-                    .map(|c| c.to_ascii_lowercase().contains(&needle))
-                    .unwrap_or(false)
-            });
-            train_log::info(&format!(
-                "Applied --context-filter={filter:?}: {} -> {} rows",
-                before,
-                pairs.len()
-            ));
+    train_log::info(&format!("Loaded {} pairs.", pairs.len()));
+    let mut computed_contamination = None;
+    if let Some(filter) = config.context_filter.as_ref() {
+        let before = pairs.len();
+        let is_vox_pure = filter.categories.as_ref().map_or(false, |cats| {
+            cats.iter().any(|c| c.eq_ignore_ascii_case("vox_pure"))
+        });
+        let mut total_react_tokens = 0usize;
+        let mut total_code_tokens = 0usize;
+
+        pairs.retain(|p| {
+            if let Some(r_min) = filter.rating_min {
+                if p.rating.unwrap_or(0) < r_min {
+                    return false;
+                }
+            }
+            if let Some(d) = p.difficulty {
+                if let Some(d_min) = filter.difficulty_min {
+                    if d < d_min {
+                        return false;
+                    }
+                }
+                if let Some(d_max) = filter.difficulty_max {
+                    if d > d_max {
+                        return false;
+                    }
+                }
+            }
+            if let Some(cats) = &filter.categories {
+                if cats.is_empty() {
+                    return true;
+                }
+                let mut matches = is_vox_pure;
+                if !matches {
+                    if let Some(c) = &p.category {
+                        let text = c.to_ascii_lowercase();
+                        if cats
+                            .iter()
+                            .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                        {
+                            matches = true;
+                        }
+                    }
+                }
+                if !matches {
+                    if let Some(l) = &p.lane {
+                        let text = l.to_ascii_lowercase();
+                        if cats
+                            .iter()
+                            .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                        {
+                            matches = true;
+                        }
+                    }
+                }
+                if !matches {
+                    if let Some(tf) = &p.task_family {
+                        let text = tf.to_ascii_lowercase();
+                        if cats
+                            .iter()
+                            .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                        {
+                            matches = true;
+                        }
+                    }
+                }
+                if !matches {
+                    return false;
+                }
+            }
+
+            if is_vox_pure {
+                if let Some(resp) = p.effective_response() {
+                    let hits = resp.matches("className=").count()
+                        + resp.matches("import React").count()
+                        + resp.matches("useEffect(").count()
+                        + resp.matches("useState(").count()
+                        + resp.matches("<div").count()
+                        + resp.matches("onClick=").count();
+
+                    total_react_tokens += hits;
+                    total_code_tokens += resp.len().max(1) / 4;
+
+                    if hits > 3 {
+                        return false;
+                    }
+                }
+            }
+
+            true
+        });
+
+        if is_vox_pure && total_code_tokens > 0 {
+            computed_contamination = Some(total_react_tokens as f32 / total_code_tokens as f32);
         }
+
+        crate::mens::tensor::train_log::info(&format!(
+            "Applied context_filter: {} -> {} rows (contamination={:?})",
+            before,
+            pairs.len(),
+            computed_contamination
+        ));
     }
     if pairs.is_empty() {
         anyhow::bail!("No training pairs found in {}", train_path.display());
@@ -338,15 +387,24 @@ pub fn run_candle_qlora_train(
     let kv_dim = n_kv_heads * head_dim;
 
     // ── mmap base weights ─────────────────────────────────────────────────────
+    train_log::info(&format!(
+        "Mmapping base weights from {} files...",
+        bundle.weight_paths.len()
+    ));
     #[allow(unsafe_code)]
     let vb_mmap =
         unsafe { VarBuilder::from_mmaped_safetensors(&bundle.weight_paths, DType::F32, &device)? };
+    train_log::info(&format!(
+        "Loading embeddings ('{}') to device...",
+        bundle.embed_key
+    ));
     let wte = vb_mmap.get((bundle.vocab, bundle.d_model), &bundle.embed_key)?;
+    train_log::info("Embeddings loaded.");
 
     // ── qlora-rs config ───────────────────────────────────────────────────────
     let rank = config.rank.max(1);
     let alpha_u = config.alpha.round() as usize;
-    let qlora_cfg = QLoraConfig::preset_qv_bf16(rank, alpha_u);
+    let qlora_cfg = QLoraConfig::preset_all_bf16(rank, alpha_u);
 
     let total_steps_planned = (pairs.len() * config.epochs) as u32;
     let grad_accum = config.grad_accum.max(1) as u32;
@@ -370,7 +428,6 @@ pub fn run_candle_qlora_train(
     let mut trainer = QLoraTrainer::new(train_cfg, device.clone());
 
     // ── Build transformer graph ───────────────────────────────────────────────
-    let mut model_layers_qwen2 = Vec::with_capacity(bundle.layout.num_hidden_layers);
     let mut model_layers_qwen35 = Vec::with_capacity(bundle.layout.num_hidden_layers);
     let mut adapter_layer_order: Vec<String> = Vec::new();
     let mut base_key_map: HashMap<String, String> = HashMap::new();
@@ -390,6 +447,12 @@ pub fn run_candle_qlora_train(
         ));
 
         for i in 0..bundle.layout.num_hidden_layers {
+            if i % 8 == 0 {
+                train_log::info(&format!(
+                    "  [graph] building layer {i}/{}...",
+                    bundle.layout.num_hidden_layers
+                ));
+            }
             let layer_prefix = format!("{}.{}", bundle.layout.namespace_prefix, i);
             let layer_type = bundle
                 .layout
@@ -416,12 +479,7 @@ pub fn run_candle_qlora_train(
             let ln2 = candle_nn::RmsNorm::new(w_ln2, 1e-6);
 
             // ── Attention projections (full or hybrid-linear) ────────────────
-            let mut qwen2_attn: Option<crate::mens::tensor::candle_model_qwen::Qwen2Attention> =
-                None;
-            let mut qwen35_attn: Option<
-                crate::mens::tensor::candle_model_qwen::Qwen35AttentionBlock,
-            > = None;
-            if is_qwen35 && layer_type == "linear_attention" {
+            let qwen35_attn = if is_qwen35 && layer_type == "linear_attention" {
                 let qkv_key = format!("{layer_prefix}.linear_attn.in_proj_qkv.weight");
                 let z_key = format!("{layer_prefix}.linear_attn.in_proj_z.weight");
                 let b_key = format!("{layer_prefix}.linear_attn.in_proj_b.weight");
@@ -533,7 +591,7 @@ pub fn run_candle_qlora_train(
                 adapter_layer_order.push(o_label.clone());
                 base_key_map.insert(o_label, o_key);
 
-                qwen35_attn = Some(
+                Some(
                     crate::mens::tensor::candle_model_qwen::Qwen35AttentionBlock::Linear(
                         crate::mens::tensor::candle_model_qwen::Qwen35LinearAttention {
                             qkv_proj,
@@ -551,7 +609,7 @@ pub fn run_candle_qlora_train(
                             head_v_dim: linear_value_dim,
                         },
                     ),
-                );
+                )
             } else if is_qwen35 {
                 let q_key = format!("{layer_prefix}.self_attn.q_proj.weight");
                 let k_key = format!("{layer_prefix}.self_attn.k_proj.weight");
@@ -625,76 +683,13 @@ pub fn run_candle_qlora_train(
                     n_kv_heads,
                     head_dim,
                 };
-                qwen35_attn =
-                    Some(crate::mens::tensor::candle_model_qwen::Qwen35AttentionBlock::Full(attn));
+                Some(crate::mens::tensor::candle_model_qwen::Qwen35AttentionBlock::Full(attn))
             } else {
-                let q_key = format!("{layer_prefix}.self_attn.q_proj.weight");
-                let k_key = format!("{layer_prefix}.self_attn.k_proj.weight");
-                let v_key = format!("{layer_prefix}.self_attn.v_proj.weight");
-                let o_key = format!("{layer_prefix}.self_attn.o_proj.weight");
-
-                let w_q = vb_mmap
-                    .get((bundle.d_model, bundle.d_model), &q_key)?
-                    .to_dtype(DType::F32)?;
-                let w_k = vb_mmap
-                    .get((kv_dim, bundle.d_model), &k_key)?
-                    .to_dtype(DType::F32)?;
-                let w_v = vb_mmap
-                    .get((kv_dim, bundle.d_model), &v_key)?
-                    .to_dtype(DType::F32)?;
-                let w_o = vb_mmap
-                    .get((bundle.d_model, bundle.d_model), &o_key)?
-                    .to_dtype(DType::F32)?;
-
-                let q_label = format!("l{i}.q");
-                let k_label = format!("l{i}.k");
-                let v_label = format!("l{i}.v");
-                let o_label = format!("l{i}.o");
-
-                let q_proj = QuantizedLinear::from_weight_with_varbuilder(
-                    &w_q,
-                    None,
-                    &qlora_cfg,
-                    vb.pp(&q_label),
-                )?;
-                let k_proj = QuantizedLinear::from_weight_with_varbuilder(
-                    &w_k,
-                    None,
-                    &qlora_cfg,
-                    vb.pp(&k_label),
-                )?;
-                let v_proj = QuantizedLinear::from_weight_with_varbuilder(
-                    &w_v,
-                    None,
-                    &qlora_cfg,
-                    vb.pp(&v_label),
-                )?;
-                let o_proj = QuantizedLinear::from_weight_with_varbuilder(
-                    &w_o,
-                    None,
-                    &qlora_cfg,
-                    vb.pp(&o_label),
-                )?;
-
-                for (lbl, bk) in [
-                    (&q_label, &q_key),
-                    (&k_label, &k_key),
-                    (&v_label, &v_key),
-                    (&o_label, &o_key),
-                ] {
-                    adapter_layer_order.push(lbl.clone());
-                    base_key_map.insert(lbl.clone(), bk.clone());
-                }
-                qwen2_attn = Some(crate::mens::tensor::candle_model_qwen::Qwen2Attention {
-                    q_proj,
-                    k_proj,
-                    v_proj,
-                    o_proj,
-                    n_heads,
-                    n_kv_heads,
-                    head_dim,
-                });
-            }
+                anyhow::bail!(
+                    "Unsupported architecture for training: {:?}",
+                    bundle.layout.architecture
+                );
+            };
 
             // ── MLP projections ───────────────────────────────────────────────
             let inter_sz = bundle
@@ -786,15 +781,7 @@ pub fn run_candle_qlora_train(
                 up_proj,
                 down_proj,
             };
-            if let Some(attn) = qwen2_attn {
-                model_layers_qwen2.push(crate::mens::tensor::candle_model_qwen::Qwen2Layer {
-                    input_layernorm: ln1,
-                    self_attn: attn,
-                    post_attention_layernorm: ln2,
-                    mlp,
-                    inv_freq,
-                });
-            } else if let Some(attn) = qwen35_attn {
+            if let Some(attn) = qwen35_attn {
                 model_layers_qwen35.push(crate::mens::tensor::candle_model_qwen::Qwen35Layer {
                     input_layernorm: ln1,
                     attention: attn,
@@ -802,6 +789,8 @@ pub fn run_candle_qlora_train(
                     mlp,
                     inv_freq,
                 });
+            } else {
+                anyhow::bail!("Internal error: failed to build attention for layer {i}");
             }
         }
 
@@ -836,22 +825,12 @@ pub fn run_candle_qlora_train(
         .init_optimizer(&[])
         .context("init qlora optimizer")?;
 
-    let model = match bundle.layout.architecture {
-        HfArchitecture::Qwen35 => {
-            TrainGraphModel::Qwen35(crate::mens::tensor::candle_model_qwen::Qwen35Model {
-                embed_tokens: wte,
-                layers: model_layers_qwen35,
-                norm: final_norm,
-                lm_head,
-            })
-        }
-        _ => TrainGraphModel::Qwen2(crate::mens::tensor::candle_model_qwen::Qwen2Model {
-            embed_tokens: wte,
-            layers: model_layers_qwen2,
-            norm: final_norm,
-            lm_head,
-        }),
-    };
+    let model = TrainGraphModel::Qwen35(crate::mens::tensor::candle_model_qwen::Qwen35Model {
+        embed_tokens: wte,
+        layers: model_layers_qwen35,
+        norm: final_norm,
+        lm_head,
+    });
 
     // ── Async VoxDB writer ────────────────────────────────────────────────────
     let run_id = config.run_id.clone().unwrap_or_else(|| {
@@ -912,6 +891,7 @@ pub fn run_candle_qlora_train(
         total_steps_planned,
         total_optimizer_steps_planned,
         warmup_steps,
+        computed_contamination,
     );
 
     if result.is_err() {
@@ -924,6 +904,7 @@ pub fn run_candle_qlora_train(
     result
 }
 
+mod ce_mask_align;
 mod checkpoint_mid;
 mod db_thread;
 mod device_select;

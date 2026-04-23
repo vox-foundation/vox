@@ -1,4 +1,21 @@
+---
+title: "Telemetry and research_metrics contract"
+description: "research_metrics row shape, write validation, session_id prefix conventions, key metric_type semantics, Mens telemetry.jsonl envelope and KPI tiers, deprecation notes, and related CI guards."
+category: "reference"
+
+schema_type: "TechArticle"
+---
+
 # Telemetry & `research_metrics` contract
+
+## Related SSOT
+
+- [Telemetry trust boundary and SSOT map](../architecture/telemetry-trust-ssot.md)
+- [Telemetry taxonomy and contracts SSOT](../architecture/telemetry-taxonomy-contracts-ssot.md) (roadmap)
+- [Telemetry retention and sensitivity SSOT](../architecture/telemetry-retention-sensitivity-ssot.md) (roadmap)
+- [Telemetry client disclosure SSOT](../architecture/telemetry-client-disclosure-ssot.md)
+- [Telemetry implementation blueprint 2026](../architecture/telemetry-implementation-blueprint-2026.md) and [backlog](../architecture/telemetry-implementation-backlog-2026.md)
+- Optional **explicit** remote upload (local JSON spool, not `research_metrics`): [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [Telemetry remote sink specification](../architecture/telemetry-remote-sink-spec.md), CLI **`vox telemetry`**
 
 Code enforcement for row validation: [`validate_research_metric_row`](../../../crates/vox-db/src/research_metrics_contract.rs) (called from `append_research_metric`). Repository-scoped producers should use [`TelemetryWriteOptions`](../../../crates/vox-db/src/research_metrics_contract.rs) plus the `METRIC_TYPE_*` / `SESSION_PREFIX_*` / `SESSION_ID_*` constants in [`vox_db::research_metrics_contract`](../../../crates/vox-db/src/research_metrics_contract.rs).
 
@@ -27,7 +44,7 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 | `syntaxk:` | `syntaxk:<repository_id>` | Syntax-K eval fixtures |
 | `mcp:` | `mcp:<repository_id>` | MCP Socrates / surface telemetry |
 | `mens:` | `mens:<repository_id>` | Populi control-plane audit (`populi_control_event`) |
-| `workflow:` | `workflow:<repository_id>` | Interpreted workflow journal (`workflow_journal_entry`) |
+| `workflow:` | `workflow:<repository_id>` | Interpreted workflow journal (`workflow_journal_entry`, versioned event payloads from the workflow durability contract) |
 
 **Fixed session (no repository in id):** hybrid memory fusion uses session `socrates:retrieval` and metric type `memory_hybrid_fusion` (see `SESSION_ID_MEMORY_HYBRID_FUSION` in the Rust module).
 
@@ -57,6 +74,31 @@ Rollups written to `eval_runs` include JSON with both raw counts and **explicit 
 - `name`: logical benchmark id (`cargo_build_metrics`, …).
 - `metric_value_unit`: when `metric_value` is set, unit SSOT (`seconds`, `milliseconds`, `ratio`, …).
 - `details`: free-form JSON (per-crate timings, pass/fail flags).
+
+### Build timing producers (current)
+
+- `vox ci build-timings` (shallow lanes) writes `benchmark_event` name `ci_build_timings` with:
+  - `metric_value`: total wall time in `seconds`,
+  - `metric_value_unit`: `seconds`,
+  - `details`: lane rows (`lane`, `ok`, `ms`) plus `total_ms`.
+- `vox ci build-timings --deep` writes structured rows to `build_run` / `build_crate_sample` /
+  `build_warning`; on structured-write fallback it writes `benchmark_event` name
+  `cargo_build_metrics` with `metric_value_unit = seconds`.
+- `VOX_BENCHMARK_TELEMETRY=1` controls `benchmark_event` writes; structured `build_*` writes follow
+  command persistence settings and VoxDB availability.
+
+For cross-repo querying via MCP, `benchmark_event` may use `name = "cross_repo_query"` with `metric_value_unit = "milliseconds"` and `details` such as:
+
+- `query_kind`
+- `trace_id`
+- `correlation_id`
+- `conversation_id`
+- `workspace_repository_id`
+- `target_repository_ids`
+- `source_plane`
+- `query_backend`
+- `result_count`
+- `skipped_count`
 
 ## Training JSONL (`telemetry.jsonl`)
 

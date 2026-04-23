@@ -19,8 +19,8 @@ const DEFAULT_API_BASE: &str = "https://api2.openreview.net";
 
 #[must_use]
 fn openreview_http_max_attempts() -> u32 {
-    std::env::var("VOX_OPENREVIEW_HTTP_MAX_ATTEMPTS")
-        .ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewHttpMaxAttempts)
+        .expose()
         .and_then(|s| s.trim().parse().ok())
         .filter(|&n| (1..=10).contains(&n))
         .unwrap_or(3)
@@ -47,22 +47,17 @@ struct OpenReviewConfig {
     readers: Vec<String>,
 }
 
-fn env_trim(key: &str) -> Option<String> {
-    std::env::var(key)
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-}
-
 fn merge_openreview_config(
     manifest: &PublicationManifest,
 ) -> Result<OpenReviewConfig, ScholarlyError> {
-    let mut invitation = env_trim("VOX_OPENREVIEW_INVITATION")
-        .or_else(|| env_trim("OPENREVIEW_INVITATION"))
-        .unwrap_or_default();
-    let mut signature = env_trim("VOX_OPENREVIEW_SIGNATURE")
-        .or_else(|| env_trim("OPENREVIEW_SIGNATURE"))
-        .unwrap_or_default();
+    let mut invitation = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewInvitation)
+        .expose()
+        .unwrap_or_default()
+        .to_string();
+    let mut signature = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewSignature)
+        .expose()
+        .unwrap_or_default()
+        .to_string();
     let mut readers: Option<Vec<String>> = None;
 
     if let Some(meta) = manifest.metadata_json.as_deref()
@@ -145,9 +140,10 @@ pub fn export_openreview_submit_profile(
 }
 
 fn api_base() -> String {
-    env_trim("VOX_OPENREVIEW_API_BASE")
-        .or_else(|| env_trim("OPENREVIEW_API_BASE"))
-        .unwrap_or_else(|| DEFAULT_API_BASE.to_string())
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewApiBase)
+        .expose()
+        .unwrap_or(DEFAULT_API_BASE)
+        .to_string()
 }
 
 async fn login_bearer(
@@ -194,21 +190,14 @@ async fn resolve_bearer_async(
     http: &reqwest::Client,
     base: &str,
 ) -> Result<String, ScholarlyError> {
-    if let Some(t) =
-        env_trim("OPENREVIEW_ACCESS_TOKEN").or_else(|| env_trim("VOX_OPENREVIEW_ACCESS_TOKEN"))
-    {
-        return Ok(t);
+    let token_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewAccessToken);
+    if let Some(t) = token_res.expose() {
+        return Ok(t.to_string());
     }
-    let email = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewEmail)
-        .expose()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .or_else(|| env_trim("OPENREVIEW_EMAIL"));
-    let password = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewPassword)
-        .expose()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .or_else(|| env_trim("OPENREVIEW_PASSWORD"));
+    let email_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewEmail);
+    let email = email_res.expose();
+    let password_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewPassword);
+    let password = password_res.expose();
     let (Some(email), Some(password)) = (email, password) else {
         return Err(ScholarlyError::Config {
             message: "OpenReview auth: set OPENREVIEW_ACCESS_TOKEN or OPENREVIEW_EMAIL + OPENREVIEW_PASSWORD (or Clavis equivalents)"
@@ -227,7 +216,7 @@ pub(super) struct OpenReviewHttpClient {
 
 impl OpenReviewHttpClient {
     pub(super) async fn new_authenticated(base: String) -> Result<Self, ScholarlyError> {
-        let http = reqwest::Client::builder()
+        let http = vox_reqwest_defaults::client_builder()
             .user_agent("vox-publisher/scholarly-openreview")
             .build()
             .map_err(|e| ScholarlyError::Config {

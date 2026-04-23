@@ -26,7 +26,13 @@ pub fn resolve_openrouter_model(preferred: Option<String>) -> String {
         AutoModelStrategy::ProviderAuto => crate::OPENROUTER_AUTO.to_string(),
         AutoModelStrategy::PreferredModel => preferred
             .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| crate::OPENROUTER_AUTO.to_string()),
+            .unwrap_or_else(|| {
+                tracing::warn!(
+                    "PreferredModel strategy active but no model specified. Falling back to {}.",
+                    crate::OPENROUTER_AUTO
+                );
+                crate::OPENROUTER_AUTO.to_string()
+            }),
     }
 }
 
@@ -115,14 +121,66 @@ pub struct GeminiRouteTargets {
 #[must_use]
 pub fn gemini_route_targets_from_env() -> GeminiRouteTargets {
     GeminiRouteTargets {
-        openrouter_model: std::env::var("OPENROUTER_GEMINI_MODEL")
-            .ok()
-            .filter(|s| !s.trim().is_empty())
+        openrouter_model: vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterGeminiModel)
+            .expose()
+            .map(std::string::ToString::to_string)
             .unwrap_or_else(|| "google/gemini-2.5-flash".to_string()),
-        google_direct_model: std::env::var("GEMINI_DIRECT_MODEL")
-            .ok()
-            .filter(|s| !s.trim().is_empty())
+        google_direct_model: vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiDirectModel)
+            .expose()
+            .map(std::string::ToString::to_string)
             .unwrap_or_else(|| "gemini-2.5-flash".to_string()),
+    }
+}
+
+/// Cost preference hint for callers in crates that cannot depend on `vox-orchestrator` directly.
+///
+/// Mirror of `vox_orchestrator::config::CostPreference` — keep the variants aligned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RouteCostPreference {
+    /// Minimize spend; pick cheapest viable model.
+    Economy,
+    /// Maximize quality; pick highest-capability model.
+    Performance,
+}
+
+/// OpenRouter provider-level routing strategy hint.
+///
+/// When the requested model is `openrouter/auto`, this hint is injected into the request body as
+/// the `route` field and into `X-OpenRouter-Provider-Preferences` to guide OpenRouter's internal
+/// broker without requiring us to manage provider allow-lists statically.
+///
+/// See: <https://openrouter.ai/docs/provider-routing>
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OpenRouterRouteHint {
+    /// Pick the cheapest provider that can service this request.
+    Price,
+    /// Pick the highest-quality provider (longest context, best capabilities).
+    Quality,
+    /// Prefer throughput; fall back to other providers if the primary is unavailable.
+    Fallback,
+}
+
+impl OpenRouterRouteHint {
+    /// Route hint label sent in the `route` JSON field.
+    #[must_use]
+    pub fn as_route_str(self) -> &'static str {
+        match self {
+            Self::Price => "price",
+            Self::Quality => "quality",
+            Self::Fallback => "fallback",
+        }
+    }
+}
+
+/// Derives the appropriate [`OpenRouterRouteHint`] for a given cost preference.
+///
+/// - `Performance` tasks want the best model → `Quality`.
+/// - `Economy` tasks want cheapest → `Price`.
+#[must_use]
+pub fn derive_openrouter_route_hint(preference: RouteCostPreference) -> OpenRouterRouteHint {
+    match preference {
+        RouteCostPreference::Performance => OpenRouterRouteHint::Quality,
+        RouteCostPreference::Economy => OpenRouterRouteHint::Price,
     }
 }
 

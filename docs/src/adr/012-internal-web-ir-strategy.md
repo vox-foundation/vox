@@ -2,8 +2,10 @@
 title: "ADR 012 — Internal Web IR strategy for Vox"
 description: "Official documentation for ADR 012 — Internal Web IR strategy for Vox for the Vox language. Detailed technical reference, architecture gu"
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 012 — Internal Web IR strategy for Vox
@@ -27,7 +29,7 @@ Emitted TS/React identifiers should follow **English-first** naming where practi
 Vox frontend generation is currently split across mixed representations:
 
 - Path C reactive components emit from HIR (`reactive.rs`, `hir_emit/mod.rs`).
-- `@component` legacy path still retains AST-shaped data (`HirComponent(pub ComponentDecl)`) in `hir/nodes/decl.rs`.
+- `@island` legacy path still retains AST-shaped data (`HirComponent(pub ComponentDecl)`) in `hir/nodes/decl.rs`.
 - JSX/island rewriting lives in multiple emitters (`codegen_ts/jsx.rs` and `codegen_ts/hir_emit/mod.rs`).
 - Islands hydration contract is tied to generated mount attributes and client template behavior (`data-vox-island`, `data-prop-*`, `island-mount.tsx`).
 
@@ -94,7 +96,7 @@ then validate_web_ir(...) before target emit
 
 This ADR is constrained by syntax currently accepted by the parser and verified in tests:
 
-- Component forms: `component Name(...) { ... }`, `@component Name(...) { ... }`, and `@component fn Name(...) to Element { ... }` (`crates/vox-compiler/src/parser/descent/decl/head.rs`, `crates/vox-compiler/src/parser/descent/decl/tail.rs`).
+- Component forms: `component Name(...) { ... }`, `@island Name(...) { ... }`, and `@island fn Name(...) -> Element { ... }` (`crates/vox-compiler/src/parser/descent/decl/head.rs`, `crates/vox-compiler/src/parser/descent/decl/tail.rs`).
 - Routes form: `routes { "path" to Component }` (`crates/vox-compiler/src/parser/descent/decl/tail.rs`).
 - Island form: `@island Name { prop: Type prop2?: Type }` (`crates/vox-compiler/src/parser/descent/decl/head.rs`).
 - Style form: `style { .class { prop: "value" } }` via `parse_style_blocks()` (`crates/vox-compiler/src/parser/descent/expr/style.rs`).
@@ -104,7 +106,7 @@ Non-parser forms and speculative grammar are out of scope for this ADR revision.
 
 ## Interop policy (OP-S103, OP-S104, OP-S150, OP-S183, OP-S213)
 
-Raw escape hatches in [`InteropNode::EscapeHatchExpr`](../../crates/vox-compiler/src/web_ir/mod.rs) require **non-empty** `expr` and **policy `reason` strings** so `validate_web_ir` can fail closed under `VOX_WEBIR_VALIDATE`. Prefer [`InteropNode::ReactComponentRef`](../../crates/vox-compiler/src/web_ir/mod.rs) with explicit imports over opaque fragments. Gate matrix and numbered operations live in the [implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
+Raw escape hatches in [`InteropNode::EscapeHatchExpr`](../../../crates/vox-compiler/src/web_ir/mod.rs) require **non-empty** `expr` and **policy `reason` strings** so `validate_web_ir` can fail closed under `VOX_WEBIR_VALIDATE`. Prefer [`InteropNode::ReactComponentRef`](../../../crates/vox-compiler/src/web_ir/mod.rs) with explicit imports over opaque fragments. Gate matrix and numbered operations live in the [implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
 
 ### Gate naming alignment (OP-S051)
 
@@ -343,4 +345,5 @@ flowchart LR
 - [Compiler Architecture](../explanation/expl-architecture.md)
 - [Compiler Lowering Phases](../explanation/expl-compiler-lowering.md)
 - [Vox web stack SSOT](../reference/vox-web-stack.md)
-- [vox-codegen-ts API](../api/vox-codegen-ts.md)
+- [vox-codegen-ts API](../reference/cli.md)
+

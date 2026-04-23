@@ -1,8 +1,10 @@
 //! `.vox` source code corpus extractor for Mens training data.
 //!
-//! Walks `crates/vox-parser/tests/golden/**/*.vox`, `crates/vox-integration-tests/**/*.vox`,
-//! and any other `.vox` files under the repo root, extracting complete file contents as
-//! `prompt`/`response` training pairs.
+//! Walks `examples/golden/**/*.vox`, `crates/**/tests/**/*.vox`, integration fixtures, and other
+//! `.vox` files under the repo root, emitting `prompt`/`response` training pairs.
+//!
+//! With **`ast-extract`**, per-declaration slices come from the **`vox-compiler`** parse tree
+//! (no line-heuristic drift). Without it, a legacy line scanner is used.
 //!
 //! ## Extraction strategy
 //! - **Per-file extraction**: each `.vox` file becomes one training pair.
@@ -16,6 +18,9 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 use serde_json::json;
+
+#[cfg(feature = "ast-extract")]
+pub(crate) mod part_ast;
 
 /// Configuration for Vox source extraction.
 #[derive(Debug, Clone)]
@@ -150,6 +155,111 @@ const CONSTRUCT_PROMPTS: &[(&str, &[&str])] = &[
         &[
             "Write a Vox test called `{name}`",
             "Create a unit test named `{name}` in Vox",
+        ],
+    ),
+    (
+        "import",
+        &[
+            "Write a Vox import line for `{name}`",
+            "Add the correct Vox `import` for `{name}`",
+        ],
+    ),
+    (
+        "island",
+        &[
+            "Define a Vox `@island` named `{name}` for React interop",
+            "Write an `@island` component `{name}` in Vox",
+        ],
+    ),
+    (
+        "http_route",
+        &[
+            "Write a Vox HTTP route for `{name}`",
+            "Declare an HTTP handler in Vox matching `{name}`",
+        ],
+    ),
+    (
+        "mcp_resource",
+        &[
+            "Define an MCP resource in Vox related to `{name}`",
+            "Write a `@mcp.resource` handler for `{name}`",
+        ],
+    ),
+    (
+        "server_fn",
+        &[
+            "Write a `@server` function `{name}` in Vox",
+            "Implement server-side handler `{name}` in Vox",
+        ],
+    ),
+    (
+        "const",
+        &[
+            "Declare a Vox constant `{name}`",
+            "Define `const {name}` with an explicit type in Vox",
+        ],
+    ),
+    (
+        "skill",
+        &[
+            "Define a Vox skill `{name}`",
+            "Write a skill block named `{name}` for agent tooling",
+        ],
+    ),
+    (
+        "agent_def",
+        &[
+            "Define a Vox agent `{name}`",
+            "Write an agent specification named `{name}` in Vox",
+        ],
+    ),
+    (
+        "reactive_component",
+        &[
+            "Create a reactive Vox component `{name}`",
+            "Write a stateful UI component `{name}` with `state` / `view`",
+        ],
+    ),
+    (
+        "routes",
+        &[
+            "Wire up Vox routes in the `{name}` group",
+            "Define route wiring for `{name}` in Vox",
+        ],
+    ),
+    (
+        "collection",
+        &[
+            "Define a Vox collection schema `{name}`",
+            "Declare collection `{name}` for persistence in Vox",
+        ],
+    ),
+    (
+        "index",
+        &[
+            "Add a Vox index `{name}` for queries",
+            "Define database index `{name}` in Vox",
+        ],
+    ),
+    (
+        "v0_component",
+        &[
+            "Write a V0 component `{name}` in Vox",
+            "Scaffold `{name}` using `@v0` patterns in Vox",
+        ],
+    ),
+    (
+        "agent",
+        &[
+            "Declare a Vox agent instance `{name}`",
+            "Configure agent `{name}` in Vox",
+        ],
+    ),
+    (
+        "py_import",
+        &[
+            "Map Python interop import `{name}` in Vox",
+            "Add a `py_import` alias `{name}`",
         ],
     ),
 ];

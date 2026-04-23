@@ -80,4 +80,119 @@ impl Orchestrator {
             });
         Ok(task_id)
     }
+
+    /// Record a task turn into the durable workflow journal (research_metrics).
+    pub async fn record_workflow_turn(&self, task_id: TaskId, turn: &crate::types::TaskTurn) {
+        if let Some(db) = self.db() {
+            let repo_id = crate::lineage::repository_id();
+            let entry = serde_json::json!({
+                "type": "task_turn",
+                "task_id": task_id.0,
+                "agent_id": turn.agent_id.0,
+                "agent_name": turn.agent_name,
+                "message": turn.message,
+                "timestamp_ms": turn.timestamp_ms,
+            });
+            // Use "main" as the default workflow name for repo-scoped journals.
+            let _ = db
+                .record_workflow_journal_entry(&repo_id, "main", &entry)
+                .await;
+        }
+    }
+
+    /// Hydrate a task's transcript from the durable workflow journal (replaying history).
+    pub async fn hydrate_task_from_journal(
+        &self,
+        task_id: TaskId,
+    ) -> Result<(), OrchestratorError> {
+        let db_arc = self.db().ok_or(OrchestratorError::DatabaseError(
+            "No database connected".to_string(),
+        ))?;
+        let repo_id = crate::lineage::repository_id();
+        let entries = db_arc
+            .load_workflow_journal(&repo_id, "main")
+            .await
+            .map_err(|e| OrchestratorError::DatabaseError(e.to_string()))?;
+
+        let turns: Vec<crate::types::TaskTurn> = entries
+            .into_iter()
+            .filter(|e| e["type"] == "task_turn" && e["task_id"] == task_id.0)
+            .filter_map(|e| {
+                Some(crate::types::TaskTurn {
+                    agent_id: crate::types::AgentId(e["agent_id"].as_u64()?),
+                    agent_name: e["agent_name"].as_str()?.to_string(),
+                    message: e["message"].as_str()?.to_string(),
+                    timestamp_ms: e["timestamp_ms"].as_u64()?,
+                })
+            })
+            .collect();
+
+        if !turns.is_empty() {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            for queue_lock in agents.values() {
+                let mut queue = crate::sync_lock::rw_write(&**queue_lock);
+                if let Some(t) = queue.find_task_mut(task_id) {
+                    t.transcript = turns.clone();
+                } else if let Some(t) = queue.current_task_mut() {
+                    if t.id == task_id {
+                        t.transcript = turns.clone();
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Hydrate ALL tasks in the orchestrator from the durable workflow journal.
+    pub async fn hydrate_all_tasks_from_journal(&self) -> Result<(), OrchestratorError> {
+        let db_arc = self.db().ok_or(OrchestratorError::DatabaseError(
+            "No database connected".to_string(),
+        ))?;
+        let repo_id = crate::lineage::repository_id();
+        let entries = db_arc
+            .load_workflow_journal(&repo_id, "main")
+            .await
+            .map_err(|e| OrchestratorError::DatabaseError(e.to_string()))?;
+
+        // Group turns by task_id
+        let mut task_turns: std::collections::HashMap<u64, Vec<crate::types::TaskTurn>> =
+            std::collections::HashMap::new();
+        for e in entries {
+            if e["type"] == "task_turn" {
+                if let (Some(tid), Some(aid), Some(name), Some(msg), Some(ts)) = (
+                    e["task_id"].as_u64(),
+                    e["agent_id"].as_u64(),
+                    e["agent_name"].as_str(),
+                    e["message"].as_str(),
+                    e["timestamp_ms"].as_u64(),
+                ) {
+                    task_turns
+                        .entry(tid)
+                        .or_default()
+                        .push(crate::types::TaskTurn {
+                            agent_id: crate::types::AgentId(aid),
+                            agent_name: name.to_string(),
+                            message: msg.to_string(),
+                            timestamp_ms: ts,
+                        });
+                }
+            }
+        }
+
+        if !task_turns.is_empty() {
+            let agents = crate::sync_lock::rw_read(&*self.agents);
+            for queue_lock in agents.values() {
+                let mut queue = crate::sync_lock::rw_write(&**queue_lock);
+                for task in queue.all_tasks_mut() {
+                    if let Some(turns) = task_turns.get(&task.id.0) {
+                        // Only hydrate if empty or shorter, to avoid downgrading memory state
+                        if task.transcript.len() < turns.len() {
+                            task.transcript = turns.clone();
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
 }

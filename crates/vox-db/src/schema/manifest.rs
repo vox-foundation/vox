@@ -4,11 +4,11 @@
 //! Baseline version is [`BASELINE_VERSION`] (see monolithic DDL in `baseline_sql()`).
 
 use super::domains;
+use super::spec;
 use sha3::{Digest, Keccak256};
 use std::sync::OnceLock;
 
-/// Latest unified schema baseline version for new and existing databases.
-pub const BASELINE_VERSION: i64 = 42;
+pub const BASELINE_VERSION: i64 = 59;
 
 /// One ordered SQL slice (domain-scoped DDL); empty bodies are skipped in [`baseline_sql`].
 #[derive(Debug, Clone, Copy)]
@@ -47,6 +47,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
         sql: domains::foundation::SCHEMA_FOUNDATION,
     },
     SchemaFragment {
+        name: "clavis_cloudless",
+        sql: domains::clavis_cloudless::SCHEMA_CLAVIS_CLOUDLESS,
+    },
+    SchemaFragment {
         name: "cas_codex",
         sql: domains::cas_codex::SCHEMA_CAS_CODEX,
     },
@@ -61,6 +65,10 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
     SchemaFragment {
         name: "execution",
         sql: domains::execution::SCHEMA_EXECUTION,
+    },
+    SchemaFragment {
+        name: "external_review",
+        sql: domains::external_review::SCHEMA_EXTERNAL_REVIEW,
     },
     SchemaFragment {
         name: "agents",
@@ -79,8 +87,36 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
         sql: domains::toestub_build::SCHEMA_TOESTUB_BUILD,
     },
     SchemaFragment {
+        name: "ci_completion",
+        sql: domains::ci_completion::SCHEMA_CI_COMPLETION,
+    },
+    SchemaFragment {
         name: "publish_cloud",
         sql: domains::publish_cloud::SCHEMA_PUBLISH_CLOUD,
+    },
+    SchemaFragment {
+        name: "mens_intelligence",
+        sql: domains::mens_intelligence::SCHEMA_MENS_INTELLIGENCE,
+    },
+    SchemaFragment {
+        name: "exec_time",
+        sql: domains::exec_time::SCHEMA_EXEC_TIME,
+    },
+    SchemaFragment {
+        name: "scientia",
+        sql: domains::scientia::SCHEMA_SCIENTIA,
+    },
+    SchemaFragment {
+        name: "developer_journeys",
+        sql: domains::developer_journeys::SCHEMA_DEVELOPER_JOURNEYS,
+    },
+    SchemaFragment {
+        name: "visus",
+        sql: domains::visus::SCHEMA_VISUS,
+    },
+    SchemaFragment {
+        name: "vox_mesh",
+        sql: domains::vox_mesh::SCHEMA_VOX_MESH,
     },
 ];
 
@@ -103,6 +139,30 @@ pub fn baseline_sql() -> &'static str {
                 full.push_str("\n\n");
             }
         }
+        let extra = [
+            spec::POPULI_TRAINING_RUN_DDL.trim(),
+            spec::CODEX_CAPABILITY_MAP_DDL.trim(),
+            spec::CORPUS_SNAPSHOTS_DDL.trim(),
+        ];
+        for sql in extra {
+            if !sql.is_empty() {
+                full.push_str(sql);
+                full.push_str("\n\n");
+            }
+        }
         full
     })
+}
+
+#[cfg(test)]
+mod baseline_digest_manual {
+    use super::schema_baseline_digest_hex;
+
+    /// Run: `cargo test -p vox-db baseline_digest_manual -- --ignored --nocapture`
+    /// then update `contracts/db/baseline-version-policy.yaml` when `SCHEMA_FRAGMENTS` change.
+    #[test]
+    #[ignore = "manual: prints Keccak256 baseline digest for policy YAML"]
+    fn print_digest_for_baseline_policy() {
+        eprintln!("{}", schema_baseline_digest_hex());
+    }
 }

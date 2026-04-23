@@ -41,7 +41,29 @@ pub fn generate_component_from_web_ir(
     let name = &func.name;
     let filename = format!("{name}.tsx");
     let mut out = String::new();
-    out.push_str("import React from \"react\";\n");
+
+    let mut vox_hooks_used: BTreeSet<String> = BTreeSet::new();
+    for stmt in &func.body {
+        for_each_vox_hook_call_in_stmt(stmt, &mut |hook_name, _span| {
+            vox_hooks_used.insert(hook_name.to_string());
+        });
+    }
+    let mut react_hooks: BTreeSet<&str> = BTreeSet::new();
+    for vox_name in &vox_hooks_used {
+        if let Some(react_name) = react_hook_export_for_vox_ident(vox_name.as_str()) {
+            react_hooks.insert(react_name);
+        }
+    }
+
+    if react_hooks.is_empty() {
+        out.push_str("import React from \"react\";\n");
+    } else {
+        let hook_list: Vec<&&str> = react_hooks.iter().collect();
+        out.push_str(&format!(
+            "import React, {{ {} }} from \"react\";\n",
+            hook_list.iter().map(|s| **s).collect::<Vec<_>>().join(", ")
+        ));
+    }
     if has_styles {
         out.push_str(&format!("import \"./{name}.css\";\n"));
     }
@@ -75,6 +97,28 @@ pub fn generate_component_from_web_ir(
             "export function {name}({{ {params} }}: {name}Props): React.ReactElement {{\n"
         ));
     }
+
+    for stmt in &func.body {
+        match stmt {
+            Stmt::Let { .. } | Stmt::Assign { .. } => {
+                out.push_str(&emit_component_stmt(stmt));
+            }
+            Stmt::Expr { expr, .. } => match expr {
+                Expr::Jsx(_) | Expr::JsxSelfClosing(_) => {}
+                Expr::Call { .. } | Expr::MethodCall { .. } => {
+                    out.push_str(&emit_component_stmt(stmt));
+                }
+                _ => {
+                    out.push_str(&emit_component_stmt(stmt));
+                }
+            },
+            Stmt::Return { .. } => {}
+            Stmt::While { .. } | Stmt::Loop { .. } | Stmt::Break { .. } | Stmt::Continue { .. } => {
+                out.push_str(&emit_component_stmt(stmt));
+            }
+        }
+    }
+
     out.push_str("  return (\n");
     for line in view.lines() {
         out.push_str("    ");
@@ -126,6 +170,19 @@ pub fn generate_component(
     }
     if has_styles {
         out.push_str(&format!("import \"./{name}.css\";\n\n"));
+    }
+
+    // Mobile bridge import
+    let mut uses_mobile = false;
+    for stmt in &func.body {
+        if uses_mobile_ident_in_stmt(stmt) {
+            uses_mobile = true;
+            break;
+        }
+    }
+    if uses_mobile {
+        // Assume default std.mobile for standard component imports
+        out.push_str("import { mobile } from \"./mobile-utils\";\n\n");
     }
 
     // Props interface
@@ -195,6 +252,9 @@ pub fn generate_component(
                 value: Some(expr), ..
             } => {
                 jsx_return = Some(format!("    {}", emit_expr(expr)));
+            }
+            Stmt::While { .. } | Stmt::Loop { .. } | Stmt::Break { .. } | Stmt::Continue { .. } => {
+                out.push_str(&emit_component_stmt(stmt));
             }
             _ => {}
         }
@@ -351,5 +411,61 @@ pub fn map_vox_type_to_ts(ty: &crate::ast::types::TypeExpr) -> String {
             format!("[{}]", elems.join(", "))
         }
         crate::ast::types::TypeExpr::Unit { .. } => "void".to_string(),
+        crate::ast::types::TypeExpr::Infer { .. } => "any".to_string(),
+        crate::ast::types::TypeExpr::Decimal { .. } => "string".to_string(),
+    }
+}
+
+fn uses_mobile_ident_in_stmt(stmt: &Stmt) -> bool {
+    match stmt {
+        Stmt::Let { value, .. } => uses_mobile_ident_in_expr(value),
+        Stmt::Assign { target, value, .. } => {
+            uses_mobile_ident_in_expr(target) || uses_mobile_ident_in_expr(value)
+        }
+        Stmt::Return { value, .. } => value.as_ref().map_or(false, uses_mobile_ident_in_expr),
+        Stmt::Expr { expr, .. } => uses_mobile_ident_in_expr(expr),
+        Stmt::While {
+            condition, body, ..
+        } => uses_mobile_ident_in_expr(condition) || body.iter().any(uses_mobile_ident_in_stmt),
+        Stmt::Loop { body, .. } => body.iter().any(uses_mobile_ident_in_stmt),
+        _ => false,
+    }
+}
+
+fn uses_mobile_ident_in_expr(expr: &Expr) -> bool {
+    match expr {
+        Expr::Ident { name, .. } => name == "mobile",
+        Expr::Call { callee, args, .. } => {
+            uses_mobile_ident_in_expr(callee)
+                || args.iter().any(|a| uses_mobile_ident_in_expr(&a.value))
+        }
+        Expr::MethodCall { object, args, .. } => {
+            uses_mobile_ident_in_expr(object)
+                || args.iter().any(|a| uses_mobile_ident_in_expr(&a.value))
+        }
+        Expr::FieldAccess { object, .. } => uses_mobile_ident_in_expr(object),
+        Expr::Binary { left, right, .. } => {
+            uses_mobile_ident_in_expr(left) || uses_mobile_ident_in_expr(right)
+        }
+        Expr::Unary { operand, .. } => uses_mobile_ident_in_expr(operand),
+        Expr::Block { stmts, .. } => stmts.iter().any(uses_mobile_ident_in_stmt),
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
+            uses_mobile_ident_in_expr(condition)
+                || then_body.iter().any(uses_mobile_ident_in_stmt)
+                || else_body
+                    .as_ref()
+                    .map_or(false, |b| b.iter().any(uses_mobile_ident_in_stmt))
+        }
+        Expr::ObjectLit { fields, .. } => fields.iter().any(|(_, v)| uses_mobile_ident_in_expr(v)),
+        Expr::ListLit { elements, .. } | Expr::TupleLit { elements, .. } => {
+            elements.iter().any(uses_mobile_ident_in_expr)
+        }
+        Expr::Try { target, .. } | Expr::Spawn { target, .. } => uses_mobile_ident_in_expr(target),
+        _ => false,
     }
 }

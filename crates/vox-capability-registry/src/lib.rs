@@ -1,13 +1,25 @@
-//! Capability registry for **Mens chat** tool surfaces.
+//! Capability registry: transport-independent SSOT in [`contracts/capability/capability-registry.yaml`](../../contracts/capability/capability-registry.yaml).
 //!
-//! Entries with [`PopuliExposure::Auto`] are candidates for advertisement to LLM tool-calling
-//! clients; callers must still intersect with in-process executors (e.g. `vox_tools::DirectToolExecutor`).
-//! The `vox_tools::mens_chat` module builds OpenAI-style tool definitions from this registry ∩ executor.
+//! - Mens chat uses [`default_registry`](crate::default_registry) (curated MCP rows).
+//! - `vox ci command-compliance` validates cross-registry consistency.
+//! - [`build_model_manifest`](crate::manifest::build_model_manifest) emits planner / external-model JSON.
 
+mod command_registry;
+mod document;
+mod ids;
+mod loader;
+mod manifest;
 mod openai;
 mod registry;
 mod types;
+mod validate;
 
+pub use command_registry::{COMMAND_REGISTRY_REL, active_vox_cli_paths_from_command_registry_yaml};
+pub use document::{CapabilityRegistryDoc, CuratedCapability, Exemptions, RuntimeBuiltinMap};
+pub use ids::{implicit_cli_capability_id, implicit_mcp_capability_id};
+pub use loader::{CAPABILITY_REGISTRY_REL, load_document};
+pub use manifest::{ModelCapabilityManifest, build_model_manifest};
 pub use openai::{capability_to_openai_function, mens_chat_parameters};
-pub use registry::default_registry;
+pub use registry::{bundled_document, default_registry, registry_from_document};
 pub use types::{CapabilityDescriptor, CapabilityRegistry, InvocationForms, PopuliExposure};
+pub use validate::validate_cross_registry;

@@ -9,10 +9,12 @@
 //!   `mesh_snapshot` shorthands.
 //! - Other activities are recorded as local no-ops (journal only).
 //!
-//! **Codex journal:** when **`VOX_WORKFLOW_JOURNAL_CODEX=1`** (and DB config resolves), `vox-cli`
+//! **Codex journal:** unless **`VOX_WORKFLOW_JOURNAL_CODEX_OFF=1`** disables it (and provided DB
+//! config resolves), `vox-cli`
 //! persists the interpreted journal after a successful run via `VoxDb::record_workflow_journal_entry`
 //! (see `docs/src/architecture/orchestration-unified-ssot.md`). Journal rows include
-//! **`ActivityStarted` / `ActivityCompleted`** with **`activity_id`** for idempotency hints.
+//! **`ActivityStarted` / `ActivityCompleted`** with **`activity_id`** for idempotency hints and
+//! carry **`journal_version = 1`** in emitted event objects.
 //!
 //! This crate is the MVP engine behind `vox mens workflow run` when `vox-cli` is built with
 //! **`workflow-runtime`**.
@@ -26,6 +28,6 @@ pub use db_tracker::VoxDbTracker;
 #[cfg(feature = "mens")]
 pub use workflow::execute_populi_step;
 pub use workflow::{
-    DefaultTracker, PlannedActivity, PopuliActivity, PopuliHttpOp, WorkflowTracker,
-    interpret_workflow, interpret_workflow_durable, plan_workflow_activities,
+    DefaultTracker, PlannedActivity, PopuliActivity, PopuliHttpOp, WORKFLOW_JOURNAL_VERSION,
+    WorkflowTracker, interpret_workflow, interpret_workflow_durable, plan_workflow_activities,
 };

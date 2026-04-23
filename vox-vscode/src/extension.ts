@@ -9,8 +9,13 @@ import { registerVcsCommands, UndoRedoManager } from './vcs/SnapshotProvider';
 import { GamifyManager } from './gamify/GamifyManager';
 import { AgentController } from './agents/AgentController';
 import { registerCommandCatalogCommand } from './commands/commandCatalog';
+import { registerCanonicalJourneyChecklist } from './commands/canonicalJourneyChecklist';
 import { registerModelCommands } from './commands/model';
-import { SidebarProvider } from './SidebarProvider';
+
+import { registerOratioSpeechCommands } from './speech/registerOratioSpeechCommands';
+import { VisualEditorPanel } from './VisualEditorPanel';
+import { registerLinkDiagnostics } from './features/linkDiagnostics';
+import { registerWebArtifactImportDiagnostics } from './features/webArtifactDiagnostics';
 
 export function activate(context: vscode.ExtensionContext) {
     const outputChannel = vscode.window.createOutputChannel('Vox');
@@ -32,16 +37,15 @@ export function activate(context: vscode.ExtensionContext) {
     const statusBar = new StatusBarManager(mcp, context);
     context.subscriptions.push({ dispose: () => statusBar.stop() });
 
-    // ── Sidebar (Chat UI) ────────────────────────────────────────────────
-    const sidebarProvider = new SidebarProvider(context.extensionUri, mcp);
-    context.subscriptions.push(
-        vscode.window.registerWebviewViewProvider('vox-sidebar.chat', sidebarProvider)
-    );
-
+    // ── Dashboard (Chat UI) ────────────────────────────────────────────────
     context.subscriptions.push(
         vscode.commands.registerCommand('vox.focusSidebar', () => {
-            vscode.commands.executeCommand('vox-sidebar.chat.focus');
-        })
+            // Open the standalone dashboard instead of the legacy webview
+            vscode.env.openExternal(vscode.Uri.parse('http://127.0.0.1:3921/dashboard'));
+        }),
+        vscode.commands.registerCommand('vox.openVisualEditor', () => {
+            VisualEditorPanel.createOrShow(context.extensionUri);
+        }),
     );
 
     // ── Inline AI ────────────────────────────────────────────────────────
@@ -50,20 +54,24 @@ export function activate(context: vscode.ExtensionContext) {
 
     // ── Project Commands ─────────────────────────────────────────────────
     registerProjectCommands(context);
+    
+    // ── Diagnostics ──────────────────────────────────────────────────────
+    registerLinkDiagnostics(context);
+    registerWebArtifactImportDiagnostics(context);
 
     // ── Model Commands ───────────────────────────────────────────────────
     registerModelCommands(context, mcp);
+    registerCanonicalJourneyChecklist(context, mcp);
     registerCommandCatalogCommand(context);
+    registerOratioSpeechCommands(context, mcp);
 
-    // ── VCS / Snapshot Tree ──────────────────────────────────────────────
-    if (ConfigManager.vcsShowSnapshotBar) {
-        registerVcsCommands(context, mcp);
-        const _undoRedo = new UndoRedoManager(mcp, context);
-    }
+    // ── VCS / Snapshot Tree (commands always registered; view visibility ↔ vox.vcs.showSnapshotBar)
+    registerVcsCommands(context, mcp);
+    const _undoRedo = new UndoRedoManager(mcp, context);
 
     // ── Agent Controller (live agent polling) ────────────────────────────
     const agentController = new AgentController(mcp, agents => {
-        sidebarProvider.postMessage({ type: 'agentsUpdate', value: agents });
+        // Legacy sidebarProvider callback removed; the dashboard fetches this directly.
     });
     agentController.start();
     context.subscriptions.push({ dispose: () => agentController.stop() });
@@ -111,7 +119,7 @@ export function activate(context: vscode.ExtensionContext) {
     const gamifyManager = new GamifyManager(
         mcp,
         state => {
-            sidebarProvider.postMessage({ type: 'gamifyUpdate', value: state });
+            // Legacy sidebar callback removed; dashboard fetches this over WS.
         },
         ludusStatusBar,
     );
@@ -175,8 +183,7 @@ export function activate(context: vscode.ExtensionContext) {
         planWatcher,
         planWatcher.onDidChange(uri => {
             vscode.workspace.fs.readFile(uri).then(bytes => {
-                const content = Buffer.from(bytes).toString('utf8');
-                sidebarProvider.postMessage({ type: 'planUpdate', value: content });
+                // Legacy sidebar callback removed; dashboard watches via backend.
             });
         })
     );

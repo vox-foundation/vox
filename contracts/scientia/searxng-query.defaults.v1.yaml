@@ -1,0 +1,8 @@
+x-vox-version: 1
+# SSOT defaults for SearXNG JSON API query parameters used by `vox-search`.
+# Path is embedded at compile time in `crates/vox-search/src/searxng_defaults.rs`.
+schema_version: 1
+# Comma-separated engine names for the `engines=` query parameter (SearXNG instance must support them).
+engines: "google,bing,ddg"
+# ISO-like language tag for the `language=` parameter.
+language: "en"

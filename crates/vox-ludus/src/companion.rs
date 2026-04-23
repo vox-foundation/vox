@@ -100,6 +100,8 @@ pub enum Interaction {
     TaskFailed,
     /// Task completed: +health, mood → happy
     TaskCompleted,
+    /// Task doubted by user: -energy, mood → neutral
+    TaskDoubted,
     /// Writing code: -energy, mood → excited
     Writing,
     /// Idle: +energy, mood → tired
@@ -277,6 +279,10 @@ impl Companion {
             Interaction::TaskCompleted => {
                 self.health = (self.health + 10).min(self.max_health);
                 self.mood = Mood::Happy;
+            }
+            Interaction::TaskDoubted => {
+                self.energy = (self.energy - 10).max(0);
+                self.mood = Mood::Neutral;
             }
             Interaction::Writing => {
                 self.energy = (self.energy - 2).max(0);

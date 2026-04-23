@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use crate::types::{AgentId, AgentTask, TaskId, TaskPriority, TaskStatus};
 
 use super::AgentQueue;
@@ -12,7 +14,7 @@ impl AgentQueue {
             in_progress: None,
             completed: Vec::new(),
             paused: false,
-            last_active: std::time::SystemTime::now(),
+            last_active: std::time::Instant::now(),
             agent_session_id: None,
             capabilities: crate::contract::TaskCapabilityHints::default(),
             active_skills: std::collections::HashMap::new(),
@@ -31,7 +33,20 @@ impl AgentQueue {
     /// Enqueue a task, inserting it in priority order.
     /// Higher priority tasks go before lower priority tasks.
     /// Within the same priority, new tasks go to the end (FIFO).
-    pub fn enqueue(&mut self, task: AgentTask) {
+    pub fn enqueue(&mut self, mut task: AgentTask) {
+        // Supervisor Arbitration: block infinite A2A handoff loops
+        if task.handoff_count > crate::types::MAX_A2A_BOUNCE {
+            tracing::error!(
+                task_id = %task.id,
+                count = task.handoff_count,
+                "Infinite A2A handoff loop detected; failing task"
+            );
+            task.status = TaskStatus::Failed(format!(
+                "Infinite A2A handoff loop detected (max bounce exceeded: {})",
+                crate::types::MAX_A2A_BOUNCE
+            ));
+        }
+
         // Find the insertion point: higher priority tasks first.
         // Within the same priority, order chronologically by created_at_ms.
         let pos = self
@@ -48,7 +63,7 @@ impl AgentQueue {
             })
             .unwrap_or(self.tasks.len());
         self.tasks.insert(pos, task);
-        self.last_active = std::time::SystemTime::now();
+        self.last_active = std::time::Instant::now();
     }
 
     /// Change the priority of a queued task and reorder.
@@ -237,5 +252,56 @@ impl AgentQueue {
         }
         self.enqueue(task);
         true
+    }
+
+    /// Take all pending tasks for route replay; does not touch [`Self::in_progress`].
+    pub(crate) fn take_pending_tasks(&mut self) -> VecDeque<AgentTask> {
+        std::mem::take(&mut self.tasks)
+    }
+
+    /// Restore pending tasks after route replay (replaces the pending deque).
+    pub(crate) fn restore_pending_tasks(&mut self, tasks: VecDeque<AgentTask>) {
+        self.tasks = tasks;
+    }
+
+    /// Returns a mutable iterator over all pending and in-progress tasks.
+    pub fn all_tasks_mut(&mut self) -> impl Iterator<Item = &mut AgentTask> {
+        self.in_progress
+            .as_mut()
+            .into_iter()
+            .chain(self.tasks.iter_mut())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{AgentId, AgentTask, TaskId, TaskStatus};
+
+    #[test]
+    fn test_loop_blocking_enforcement() {
+        let mut queue = AgentQueue::new(AgentId(1), "TestAgent");
+
+        // Task within limits — uses TaskPriority::Normal and empty manifest
+        let mut t1 = AgentTask::new(TaskId(101), "Normal Task", TaskPriority::Normal, vec![]);
+        t1.handoff_count = crate::types::MAX_A2A_BOUNCE;
+        queue.enqueue(t1);
+        assert!(matches!(
+            queue.tasks().front().unwrap().status,
+            TaskStatus::Queued
+        ));
+
+        // Task exceeding limits
+        let mut t2 = AgentTask::new(TaskId(102), "Looping Task", TaskPriority::Normal, vec![]);
+        t2.handoff_count = crate::types::MAX_A2A_BOUNCE + 1;
+        queue.enqueue(t2);
+
+        let queued_t2 = queue.tasks().iter().find(|t| t.id == TaskId(102)).unwrap();
+        match &queued_t2.status {
+            TaskStatus::Failed(msg) => {
+                assert!(msg.contains("Infinite A2A handoff loop detected"));
+            }
+            _ => panic!("Task should have failed"),
+        }
     }
 }

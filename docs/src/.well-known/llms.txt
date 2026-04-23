@@ -1,0 +1,25 @@
+# Vox Programming Language — LLM / Agent Documentation Index
+> Vox is an AI-native full-stack programming language that compiles to Rust and TypeScript.
+> It is designed first as a target for large language models, then for human developers.
+
+## Agent Policy Entry Points
+- [AGENTS.md](https://vox-lang.org/AGENTS.md): Cross-tool policy for all coding agents (required reading)
+- [GEMINI.md](https://vox-lang.org/GEMINI.md): Antigravity-specific overlay
+- [CLAUDE.md](https://vox-lang.org/CLAUDE.md): Claude Code overlay
+
+## Core Documentation
+- [Getting Started](https://vox-lang.org/tutorials/tut-getting-started/): Install the toolchain and build your first app
+- [Language Syntax Reference](https://vox-lang.org/reference/ref-syntax/): Full syntax specification
+- [CLI Reference](https://vox-lang.org/reference/cli/): All vox subcommands
+- [Environment Variables SSOT](https://vox-lang.org/reference/env-vars/): Configuration surface
+- [Clavis (Secret Management)](https://vox-lang.org/reference/clavis-ssot/): API keys and credentials
+
+## Architecture Authority
+- [Architecture Index](https://vox-lang.org/architecture/architecture-index/): Master architecture map
+- [Research Index](https://vox-lang.org/architecture/research-index/): All research documents
+- [Classification SSOT](https://vox-lang.org/architecture/classification-ssot-2026/): Canonical surface classifications
+
+## Contributor Hub
+- [Contributor Hub](https://vox-lang.org/contributors/contributor-hub/): Entry point for contributors
+- [Documentation Governance](https://vox-lang.org/contributors/documentation-governance/): Doc authority map
+- [Agent Instruction Architecture](https://vox-lang.org/contributors/agent-instruction-architecture/): How AI agents should navigate this repo

@@ -2,8 +2,10 @@
 title: "Planning critique and gap analysis"
 description: "Severity-ranked critique of prior Vox planning artifacts with root-cause analysis and explicit fix mapping into the planning corpus."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Planning critique and gap analysis
@@ -116,7 +118,7 @@ This document uses `Critical` and `High` for issues that can cause real migratio
 
 ### F-05: Planning granularity mismatch (too broad for execution, too dense for navigation)
 
-- **Severity**: High
+- **Severity** { High
 - **Root cause**: previous plans alternate between very high-level sections and very large checklists, with little middle-layer authoring standard.
 - **Why it is risky**:
   - execution agents miss dependencies,
@@ -233,4 +235,6 @@ This critique is complete when:
 
 - **State**: complete for this planning cycle
 - **Next linked step**: apply this critique through document authoring standards and authority hierarchy in the rest of the planning-meta corpus.
+
+
 

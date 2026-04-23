@@ -2,8 +2,10 @@
 title: "HIR legacy AST wrappers (inventory)"
 description: "AST-retained HIR nodes and migration targets (Path C)"
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # HIR legacy inventory
@@ -38,3 +40,5 @@ Unit test **`hir_lowering_maps_collection_vector_search_out_of_legacy`** ensures
 
 - [Compiler lowering explanation](../explanation/expl-compiler-lowering.md)
 - [Parser ambiguity inventory](parser-ambiguity-inventory.md)
+
+

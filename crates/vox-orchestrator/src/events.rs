@@ -100,10 +100,20 @@ pub enum AgentEventKind {
     AgentRetired {
         agent_id: AgentId,
     },
+    /// Agent heartbeat received.
+    AgentHeartbeat {
+        agent_id: AgentId,
+        activity: AgentActivity,
+    },
     /// An agent's activity changed.
     ActivityChanged {
         agent_id: AgentId,
         activity: AgentActivity,
+    },
+    /// An agent's operating mode changed (Strategic, Execution, Verification).
+    OperatingModeChanged {
+        agent_id: AgentId,
+        mode: crate::context_envelope::OperatingMode,
     },
 
     /// A task was submitted to the queue.
@@ -121,12 +131,20 @@ pub enum AgentEventKind {
         /// Optional session link (for chat/workflow grouping in Mens).
         session_id: Option<String>,
     },
+    /// A task transitioned to a new execution phase (Inspect, Act, Verify, etc.).
+    TaskPhaseChanged {
+        task_id: TaskId,
+        agent_id: AgentId,
+        phase: crate::types::TaskPhase,
+    },
     /// A task completed successfully.
     TaskCompleted {
         task_id: TaskId,
         agent_id: AgentId,
         /// Optional session link (for chat/workflow grouping in Mens).
         session_id: Option<String>,
+        /// Optional audit report (from Doubt resolution).
+        audit_report: Option<String>,
     },
     /// A task failed.
     TaskFailed {
@@ -135,6 +153,36 @@ pub enum AgentEventKind {
         error: String,
         /// Optional session link (for chat/workflow grouping in Mens).
         session_id: Option<String>,
+        /// Optional audit report (from Doubt resolution).
+        audit_report: Option<String>,
+    },
+
+    /// A task was delegated (handed off) from one agent to another.
+    TaskDelegated {
+        parent_agent_id: AgentId,
+        child_agent_id: AgentId,
+        task_id: TaskId,
+        reason: String,
+    },
+    /// A task was flagged as suspect by a human user.
+    TaskDoubted {
+        task_id: TaskId,
+        agent_id: AgentId,
+        reason: Option<String>,
+    },
+    /// A suspect task was resolved by the Resolution Agent.
+    TaskResolved {
+        task_id: TaskId,
+        agent_id: AgentId,
+        validated: bool,
+        report: String,
+    },
+
+    /// A tool execution timed out autonomously.
+    ToolTimedOut {
+        agent_id: AgentId,
+        tool_key: String,
+        attempted_budget_ms: u64,
     },
 
     /// A file lock was acquired.
@@ -181,6 +229,11 @@ pub enum AgentEventKind {
         temporal_context: Option<serde_json::Value>,
     },
 
+    /// Global emergency stop triggered.
+    EmergencyStop {
+        reason: Option<String>,
+    },
+
     /// Auto-continuation was triggered for an idle agent.
     ContinuationTriggered {
         agent_id: AgentId,
@@ -192,6 +245,18 @@ pub enum AgentEventKind {
         from: AgentId,
         to: AgentId,
         plan_summary: String,
+        #[serde(default)]
+        has_context_envelope: bool,
+        #[serde(default)]
+        has_harness_spec: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        thread_id: Option<String>,
+        /// NNT Wave 1: Consumers must sort available agent pools by the shortest affinity distance
+        /// from this role when `to` is AgentId(0) (any available agent).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        from_role: Option<crate::topology::AgentRole>,
     },
 
     /// A scope violation was detected.
@@ -263,6 +328,14 @@ pub enum AgentEventKind {
         agent_id: AgentId,
         from: AgentId,
         plan_summary: String,
+        #[serde(default)]
+        has_context_envelope: bool,
+        #[serde(default)]
+        has_harness_spec: bool,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        session_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        thread_id: Option<String>,
     },
     /// Load balancer moved tasks due to urgent queue depth.
     UrgentRebalanceTriggered {
@@ -378,6 +451,120 @@ pub enum AgentEventKind {
         agent_id: AgentId,
         /// Age in milliseconds.
         age_ms: u64,
+    },
+
+    /// OAPV Observer anomaly detected (mens_observer_observations) for MCP dashboards.
+    MensObserverObservation {
+        agent_id: AgentId,
+        observation_type: String,
+        queue_depth: usize,
+    },
+
+    /// AST Healing was applied automatically on a file.
+    AutoHealApplied {
+        agent_id: AgentId,
+        /// Path of the healed file
+        path: PathBuf,
+        /// Description of the healing action
+        description: String,
+        /// The new source after healing
+        new_source: String,
+    },
+    /// A fix was suggested automatically for a diagnostic error.
+    AutoHealSuggested {
+        agent_id: AgentId,
+        path: PathBuf,
+        diagnostic: String,
+        fix_suggestion: String,
+    },
+
+    /// Attention budget threshold alert
+    AttentionBudgetAlert {
+        agent_id: AgentId,
+        threshold: f64,
+        spent_ms: u64,
+        max_ms: u64,
+    },
+    /// A general budget alert for tokens/cost self-correction
+    BudgetAlert {
+        agent_id: AgentId,
+        signal: crate::budget::BudgetSignal,
+    },
+    /// Attention budget was explicitly reset
+    AttentionBudgetReset {
+        agent_id: AgentId,
+        new_max_ms: u64,
+        reason: String,
+    },
+    /// Agent trust level was manually overridden
+    TrustOverride {
+        agent_id: AgentId,
+        tier: String,
+        reason: String,
+    },
+    /// Attention policy configuration was hot-reloaded
+    AttentionConfigReloaded,
+
+    /// Warning emitted when context bytes are dropped due to limits
+    ContextTruncated {
+        session_id: String,
+        section: String,
+        chars_dropped: usize,
+    },
+
+    /// LLM request completed inside planning or context phases
+    LlmCallCompleted {
+        session_id: String,
+        duration_ms: u64,
+        prompt_tokens: u32,
+        completion_tokens: u32,
+    },
+    /// Observer recorded a structural health report for a file (Task 56).
+    ObservationRecorded {
+        agent_id: AgentId,
+        task_id: TaskId,
+        file_path: std::path::PathBuf,
+        lsp_error_count: usize,
+        parse_rate: f32,
+        construct_coverage: f32,
+        recommended_action: String,
+    },
+    /// The Orient phase completed its risk analysis.
+    OrientCompleted {
+        agent_id: AgentId,
+        task_id: TaskId,
+        risk_band: String,
+        evidence_gap: f64,
+    },
+    /// Autonomous research was performed (Tavily).
+    ResearchExecuted {
+        agent_id: Option<AgentId>,
+        task_id: Option<TaskId>,
+        queries: Vec<String>,
+        results_count: usize,
+    },
+    /// Lane G synthesized research evidence.
+    ResearchSynthesisExecuted {
+        agent_id: Option<AgentId>,
+        task_id: Option<TaskId>,
+        model_id: String,
+        provider: String,
+        input_tokens: u32,
+        output_tokens: u32,
+        cost_usd: f64,
+        content_preview: String,
+    },
+    /// A task was flagged for potential drift or doubt (Doom-loop protection).
+    DoubtReported {
+        agent_id: AgentId,
+        task_id: TaskId,
+        reason: String,
+    },
+    /// Semantic drift was confirmed; agent may be halted.
+    SemanticDriftDetected {
+        agent_id: AgentId,
+        iterations: usize,
+        cost_usd: f64,
     },
 }
 

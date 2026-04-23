@@ -1,0 +1,7 @@
+import std.fs
+import json
+
+fn read_config() -> Result[Value] {
+    let content = fs.read_text("config.json")?
+    return json.parse(content)
+}

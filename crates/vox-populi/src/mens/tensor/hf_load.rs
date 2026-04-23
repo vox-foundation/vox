@@ -4,14 +4,13 @@ use std::path::Path;
 
 use anyhow::Context;
 
-use vox_bounded_fs::read_utf8_path_capped;
 use serde::Deserialize;
 use serde_json::Value;
+use vox_bounded_fs::read_utf8_path_capped;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HfArchitecture {
     Gpt2,
-    Qwen2,
     Qwen35,
 }
 
@@ -79,6 +78,15 @@ impl HfTransformerLayout {
             .and_then(|x| x.as_str())
             .unwrap_or("")
             .to_string();
+        let model_l = model_type.to_lowercase();
+
+        if (model_l.contains("qwen2") || model_l.contains("qwen2.5")) && !model_l.contains("qwen3")
+        {
+            tracing::warn!(
+                "Qwen 2.5 / Qwen2 detected: This architecture is DEPRECATED in Vox. \
+                 Qwen 3.5 is the new production default. Please migrate your base weights."
+            );
+        }
         let architectures: Vec<String> = v
             .get("architectures")
             .and_then(|a| a.as_array())
@@ -109,7 +117,7 @@ impl HfTransformerLayout {
             if layer_types.is_empty() {
                 layer_types = vec!["full_attention".to_string(); nl];
             }
-            let namespace_prefix = if architecture == HfArchitecture::Qwen35 {
+            let namespace_prefix = if model_l.contains("qwen3") {
                 "model.language_model.layers".to_string()
             } else {
                 "model.layers".to_string()
@@ -245,13 +253,13 @@ fn classify_hf_architecture(v: &Value) -> HfArchitecture {
         return HfArchitecture::Qwen35;
     }
     if arch_l.contains("qwen") || model_l.contains("qwen") || model_l == "qwen2" {
-        return HfArchitecture::Qwen2;
+        return HfArchitecture::Qwen35;
     }
     if arch_l.contains("llama") || model_l.contains("llama") || model_l == "llama" {
-        return HfArchitecture::Qwen2;
+        return HfArchitecture::Qwen35;
     }
     if arch_l.contains("mistral") || model_l.contains("mistral") {
-        return HfArchitecture::Qwen2;
+        return HfArchitecture::Qwen35;
     }
     HfArchitecture::Gpt2
 }
@@ -340,9 +348,7 @@ pub fn config_dims_for_architecture(
 ) -> anyhow::Result<ConfigDims> {
     match arch {
         HfArchitecture::Gpt2 => Ok(gpt2_config_from_path(config_path)?.into()),
-        HfArchitecture::Qwen2 | HfArchitecture::Qwen35 => {
-            Ok(stacked_causal_config_from_path(config_path)?.into())
-        }
+        HfArchitecture::Qwen35 => Ok(stacked_causal_config_from_path(config_path)?.into()),
     }
 }
 

@@ -17,7 +17,8 @@ export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "color-scheme", content: "dark light" },
       { title: "Vox App" },
     ],
   }),
@@ -43,6 +44,8 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
       <body>
         {children}
         <Scripts />
+        {/* Vox: load island hydration script (V1) if present */}
+        <script type="module" src="/islands/island-mount.js" suppressHydrationWarning />
       </body>
     </html>
   );
@@ -50,10 +53,10 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
 "#
 }
 
-/// Index file route when **`App.tsx`** exists but there is **no** [`VoxTanStackRouter.tsx`].
+/// Index file route when generated output included **`App.tsx`** (legacy smoke fixtures only).
 ///
-/// Do not use this when `App.tsx` is the SPA [`RouterProvider`] bundle from `routes:` codegen — that
-/// layout uses [`tanstack_start_route_tree_gen_reexport`] + programmatic `voxRouteTree` instead.
+/// Default codegen emits **`routes.manifest.ts`** and component TSX; the Start scaffold still seeds
+/// a `/` file route that mounts `generated/App` when that file is present.
 pub fn tanstack_start_index_for_app() -> &'static str {
     r#"import { createFileRoute } from "@tanstack/react-router";
 import App from "../generated/App";
@@ -166,25 +169,6 @@ declare module "@tanstack/react-start" {
 "#
 }
 
-/// `src/routeTree.gen.ts` when `routes:` codegen produced [`VoxTanStackRouter.tsx`] (programmatic tree).
-pub fn tanstack_start_route_tree_gen_reexport() -> &'static str {
-    r#"/* eslint-disable */
-// @ts-nocheck
-// Re-exports the programmatic route tree from Vox compiler output for TanStack Start (`getRouter` in router.tsx).
-
-export { voxRouteTree as routeTree } from "./generated/VoxTanStackRouter";
-
-import type { getRouter } from "./router";
-
-declare module "@tanstack/react-start" {
-  interface Register {
-    ssr: true;
-    router: ReturnType<typeof getRouter>;
-  }
-}
-"#
-}
-
 /// Strict `tsconfig.json` suitable for Vite + React.
 pub fn tsconfig_json() -> &'static str {
     r#"{
@@ -203,9 +187,33 @@ pub fn tsconfig_json() -> &'static str {
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src"]
 }
 "#
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tsconfig_json_includes_at_alias_to_src() {
+        let t = tsconfig_json();
+        assert!(t.contains("\"baseUrl\": \".\""), "{t}");
+        assert!(t.contains("\"@/*\": [\"./src/*\"]"), "{t}");
+    }
+
+    #[test]
+    fn tanstack_start_root_includes_mobile_viewport_contract() {
+        let root = tanstack_start_root_tsx();
+        assert!(root.contains("{ name: \"viewport\""));
+        assert!(root.contains("width=device-width, initial-scale=1, viewport-fit=cover"));
+        assert!(root.contains("{ name: \"color-scheme\", content: \"dark light\" }"));
+    }
 }

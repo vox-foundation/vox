@@ -2,8 +2,10 @@
 title: "Milestone and gate definition spec"
 description: "Normative specification for defining milestones and gates with explicit pass/fail evidence, escalation rules, and stop conditions."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Milestone and gate definition spec
@@ -151,4 +153,6 @@ This spec is active when:
 - all planning docs that define milestones/gates use this schema,
 - gate acceptance decisions are reproducible across reviewers,
 - unresolved gate ambiguity is treated as failure, not as soft warning.
+
+
 

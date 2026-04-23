@@ -10,6 +10,7 @@ impl LowerCtx {
             Expr::FloatLit { value, span } => HirExpr::FloatLit(*value, *span),
             Expr::StringLit { value, span } => HirExpr::StringLit(value.clone(), *span),
             Expr::BoolLit { value, span } => HirExpr::BoolLit(*value, *span),
+            Expr::DecimalLit { value, span } => HirExpr::DecimalLit(value.clone(), *span),
             Expr::Ident { name, span } => HirExpr::Ident(name.clone(), *span),
             Expr::ObjectLit { fields, span } => HirExpr::ObjectLit(
                 fields
@@ -43,6 +44,7 @@ impl LowerCtx {
                     BinOp::Or => HirBinOp::Or,
                     BinOp::Is => HirBinOp::Is,
                     BinOp::Isnt => HirBinOp::Isnt,
+                    BinOp::Mod => HirBinOp::Mod,
                     BinOp::Pipe => HirBinOp::Pipe,
                 };
                 HirExpr::Binary(
@@ -219,6 +221,10 @@ impl LowerCtx {
                     .map(|stmts| stmts.iter().map(|s| self.lower_stmt(s)).collect()),
                 *span,
             ),
+            Expr::Try { target, span } => HirExpr::Try(HirTry {
+                target: Box::new(self.lower_expr(target)),
+                span: *span,
+            }),
             Expr::For {
                 binding,
                 iterable,

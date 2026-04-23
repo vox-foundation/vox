@@ -30,18 +30,66 @@ use std::collections::HashSet;
 use serde_json::json;
 
 use crate::codegen_ts::hir_emit::{
-    emit_hir_expr, emit_hir_expr_attr_value, map_hir_type_to_ts, map_jsx_attr_name,
+    emit_hir_expr, emit_hir_expr_attr_value, expand_bind_hir_attribute, map_hir_type_to_ts,
+    map_jsx_attr_name,
 };
 use crate::codegen_ts::island_emit::island_data_prop_attr;
 use crate::hir::{
     HirComponent, HirExpr, HirJsxAttr, HirJsxElement, HirJsxSelfClosing, HirModule, HirParam,
-    HirReactiveMember, HirRoutes, HirServerFn,
+    HirPattern, HirReactiveMember, HirRoutes, HirServerFn, HirStmt,
 };
 use crate::web_ir::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, MutationContract, RouteContract, RouteNode,
-    ServerFnContract, StyleDeclarationValue, StyleNode, StyleSelector, WebIrDiagnostic,
-    WebIrLowerSummary, WebIrModule, WebIrVersion,
+    ScheduledJobSpec, ServerFnContract, StyleDeclarationValue, StyleNode, StyleSelector,
+    WebIrDiagnostic, WebIrLowerSummary, WebIrModule, WebIrVersion,
 };
+
+fn hir_pattern_binding_names(pat: &HirPattern, out: &mut HashSet<String>) {
+    match pat {
+        HirPattern::Ident(n, _) => {
+            out.insert(n.clone());
+        }
+        HirPattern::Tuple(items, _) => {
+            for p in items {
+                hir_pattern_binding_names(p, out);
+            }
+        }
+        HirPattern::Constructor(_, items, _) => {
+            for p in items {
+                hir_pattern_binding_names(p, out);
+            }
+        }
+        HirPattern::Wildcard(_) | HirPattern::Literal(_, _) => {}
+    }
+}
+
+fn collect_hir_stmt_binding_names(s: &HirStmt, out: &mut HashSet<String>) {
+    match s {
+        HirStmt::Let { pattern, .. } => hir_pattern_binding_names(pattern, out),
+        HirStmt::While { body, .. } | HirStmt::Loop { body, .. } => {
+            for x in body {
+                collect_hir_stmt_binding_names(x, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn reactive_component_name_set_for_web_ir(
+    rc: &crate::hir::HirReactiveComponent,
+) -> HashSet<String> {
+    let mut names = HashSet::new();
+    for mem in &rc.members {
+        match mem {
+            HirReactiveMember::State(s) => {
+                names.insert(s.name.clone());
+            }
+            HirReactiveMember::Stmt(st) => collect_hir_stmt_binding_names(st, &mut names),
+            _ => {}
+        }
+    }
+    names
+}
 
 struct DomArena {
     nodes: Vec<DomNode>,
@@ -117,7 +165,7 @@ impl DomArena {
         }
         let mut attrs = Vec::new();
         for attr in &el.attributes {
-            attrs.push(lower_jsx_attr_pair(attr, state_names, island_names));
+            attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
         }
         let child_ids: Vec<DomNodeId> = el
             .children
@@ -144,7 +192,7 @@ impl DomArena {
         }
         let mut attrs = Vec::new();
         for attr in &el.attributes {
-            attrs.push(lower_jsx_attr_pair(attr, state_names, island_names));
+            attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
         }
         self.push(DomNode::Element {
             id: DomNodeId(0),
@@ -189,14 +237,55 @@ impl DomArena {
 /// Event spellings (`on_click`, `on:click`) become React-style `onClick` names on [`DomNode::Element`];
 /// handler bodies stay as stringified TS expressions. Dedicated [`BehaviorNode::EventHandler`] rows are
 /// reserved for future binding tables — Phase 1 keeps behavior on the DOM edge for parity with `hir_emit`.
+///
+/// `bind={…}` expands to `value` + `onChange` like [`crate::codegen_ts::jsx::expand_bind_attribute`].
 fn lower_jsx_attr_pair(
     attr: &HirJsxAttr,
     state_names: &HashSet<String>,
     island_names: &HashSet<String>,
-) -> (String, String) {
+) -> Vec<(String, String)> {
+    if attr.name == "bind" {
+        let (value_str, onchange_str) =
+            expand_bind_hir_attribute(&attr.value, state_names, island_names);
+        return vec![
+            ("value".to_string(), value_str),
+            ("onChange".to_string(), onchange_str),
+        ];
+    }
     let name = map_jsx_attr_name(&attr.name).to_string();
     let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, &name);
-    (name, val)
+    vec![(name, val)]
+}
+
+fn lower_route_contract_entry(
+    e: &crate::ast::decl::RouteEntry,
+    parent_id: &str,
+    idx: usize,
+) -> RouteContract {
+    let id = if parent_id.is_empty() {
+        format!("route_{idx}")
+    } else {
+        format!("{parent_id}_c{idx}")
+    };
+    let mut meta = json!({ "component": e.component_name });
+    if let Some(l) = &e.loader_name {
+        meta["loader"] = json!(l.clone());
+    }
+    if let Some(p) = &e.pending_component_name {
+        meta["pending"] = json!(p.clone());
+    }
+    let children: Vec<RouteContract> = e
+        .children
+        .iter()
+        .enumerate()
+        .map(|(i, c)| lower_route_contract_entry(c, &id, i))
+        .collect();
+    RouteContract {
+        id,
+        pattern: e.path.clone(),
+        meta,
+        children,
+    }
 }
 
 fn lower_routes(routes: &HirRoutes) -> RouteNode {
@@ -205,11 +294,7 @@ fn lower_routes(routes: &HirRoutes) -> RouteNode {
         .entries
         .iter()
         .enumerate()
-        .map(|(i, e)| RouteContract {
-            id: format!("route_{i}"),
-            pattern: e.path.clone(),
-            meta: json!({ "component": e.component_name }),
-        })
+        .map(|(i, e)| lower_route_contract_entry(e, "", i))
         .collect();
     RouteNode::RouteTree {
         routes: contracts,
@@ -258,25 +343,150 @@ fn slug_path_segment(p: &str) -> String {
     }
 }
 
+fn parse_style_selector(s: &str) -> StyleSelector {
+    let s = s.trim();
+    if s.is_empty() {
+        return StyleSelector::Unparsed(s.to_string());
+    }
+
+    if s.contains(' ') || s.contains('>') || s.contains('+') || s.contains('~') {
+        return StyleSelector::Unparsed(s.to_string());
+    }
+
+    if s.contains(':') {
+        let parts: Vec<&str> = s.splitn(2, ':').collect();
+        if parts.len() == 2 {
+            let base = parse_style_selector(parts[0]);
+            return StyleSelector::Pseudo {
+                base: Box::new(base),
+                pseudo: parts[1].to_string(),
+            };
+        }
+    }
+
+    if let Some(rest) = s.strip_prefix('.') {
+        StyleSelector::Class(rest.to_string())
+    } else if let Some(rest) = s.strip_prefix('#') {
+        StyleSelector::Id(rest.to_string())
+    } else {
+        if s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+            StyleSelector::Element(s.to_string())
+        } else {
+            StyleSelector::Unparsed(s.to_string())
+        }
+    }
+}
+
+fn compute_specificity(sel: &StyleSelector) -> (u8, u8, u8) {
+    match sel {
+        StyleSelector::Id(_) => (1, 0, 0),
+        StyleSelector::Class(_) => (0, 1, 0),
+        StyleSelector::Element(_) => (0, 0, 1),
+        StyleSelector::Pseudo { base, pseudo } => {
+            let (a, b, c) = compute_specificity(base);
+            if pseudo.starts_with(':') {
+                (a, b, c + 1)
+            } else {
+                (a, b + 1, c)
+            }
+        }
+        StyleSelector::Compound(parts) => parts.iter().fold((0, 0, 0), |(a1, b1, c1), p| {
+            let (a2, b2, c2) = compute_specificity(p);
+            (a1 + a2, b1 + b2, c1 + c2)
+        }),
+        StyleSelector::Unparsed(_) => (0, 0, 0),
+    }
+}
+
+fn parse_css_value(prop: &str, val: &str) -> StyleDeclarationValue {
+    use crate::web_ir::{CssColor, LengthUnit};
+    let val = val.trim();
+
+    if val.starts_with("tokens.") {
+        let token_name = val.strip_prefix("tokens.").unwrap().replace('.', "-");
+        return StyleDeclarationValue::TokenRef(format!("vox-{}", token_name));
+    }
+
+    if prop.ends_with("color") || prop == "background" || prop == "fill" || prop == "stroke" {
+        if val.starts_with('#') {
+            return StyleDeclarationValue::Color(CssColor::Hex(val.to_string()));
+        } else if val.starts_with("rgb(") || val.starts_with("rgba(") {
+            return StyleDeclarationValue::Color(CssColor::Rgba(0, 0, 0, 1.0));
+        } else if val.starts_with("hsl(") || val.starts_with("hsla(") {
+            return StyleDeclarationValue::Color(CssColor::Hsl(0.0, 0.0, 0.0));
+        } else if val.starts_with("var(") {
+            return StyleDeclarationValue::Color(CssColor::Var(val.to_string()));
+        } else if val.chars().all(|c| c.is_ascii_alphabetic()) {
+            return StyleDeclarationValue::Color(CssColor::Named(val.to_string()));
+        }
+    }
+
+    if val.ends_with("px")
+        || val.ends_with("rem")
+        || val.ends_with("em")
+        || val.ends_with("%")
+        || val.ends_with("vw")
+        || val.ends_with("vh")
+    {
+        let (num_str, unit) = if let Some(stripped) = val.strip_suffix("px") {
+            (stripped, LengthUnit::Px)
+        } else if let Some(stripped) = val.strip_suffix("rem") {
+            (stripped, LengthUnit::Rem)
+        } else if let Some(stripped) = val.strip_suffix("em") {
+            (stripped, LengthUnit::Em)
+        } else if let Some(stripped) = val.strip_suffix("%") {
+            (stripped, LengthUnit::Percent)
+        } else if let Some(stripped) = val.strip_suffix("vw") {
+            (stripped, LengthUnit::Vw)
+        } else if let Some(stripped) = val.strip_suffix("vh") {
+            (stripped, LengthUnit::Vh)
+        } else {
+            (val, LengthUnit::Px)
+        };
+
+        if let Ok(num) = num_str.parse::<f64>() {
+            return StyleDeclarationValue::Length(num, unit);
+        }
+    }
+
+    if let Ok(num) = val.parse::<f64>() {
+        return StyleDeclarationValue::Number(num);
+    }
+
+    StyleDeclarationValue::Raw(val.to_string())
+}
+
 fn lower_styles_from_classic_components(
     hir: &HirModule,
     m: &mut WebIrModule,
     summary: &mut WebIrLowerSummary,
 ) {
-    for HirComponent(decl) in &hir.components {
-        for block in &decl.styles {
+    let push_blocks = |blocks: &[crate::ast::decl::fundecl::StyleBlock],
+                       m: &mut WebIrModule,
+                       summary: &mut WebIrLowerSummary| {
+        for block in blocks {
             let declarations: Vec<(String, StyleDeclarationValue)> = block
                 .properties
                 .iter()
-                .map(|(prop, val)| (prop.clone(), StyleDeclarationValue::Raw(val.clone())))
+                .map(|(prop, val)| (prop.clone(), parse_css_value(prop, val)))
                 .collect();
+            let selector = parse_style_selector(&block.selector);
+            let specificity = compute_specificity(&selector);
             m.style_nodes.push(StyleNode::Rule {
-                selector: StyleSelector::Unparsed(block.selector.clone()),
+                selector,
                 declarations,
+                specificity,
                 span: None,
             });
             summary.style_rules_lowered += 1;
         }
+    };
+
+    for HirComponent(decl) in &hir.components {
+        push_blocks(&decl.styles, m, summary);
+    }
+    for rc in &hir.reactive_components {
+        push_blocks(&rc.styles, m, summary);
     }
 }
 
@@ -348,6 +558,19 @@ fn lower_mutation_contracts(hir: &HirModule, m: &mut WebIrModule, summary: &mut 
     }
 }
 
+fn lower_scheduled_jobs(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
+    for f in &hir.functions {
+        if let Some(interval) = f.schedule_interval.clone() {
+            m.scheduled_jobs.push(ScheduledJobSpec {
+                name: f.name.clone(),
+                interval,
+                span: None,
+            });
+            summary.scheduled_jobs_lowered += 1;
+        }
+    }
+}
+
 fn note_lowering_gaps(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
     summary.classic_components_deferred = hir
         .components
@@ -391,6 +614,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
     lower_server_fn_contracts(hir, &mut m, &mut summary);
     lower_query_fn_contracts(hir, &mut m, &mut summary);
     lower_mutation_contracts(hir, &mut m, &mut summary);
+    lower_scheduled_jobs(hir, &mut m, &mut summary);
 
     // Stage S — classic `@component` scoped CSS (AST-retained)
     lower_styles_from_classic_components(hir, &mut m, &mut summary);
@@ -400,14 +624,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
     // Stage B + D — Path C reactive components
     summary.reactive_components = hir.reactive_components.len();
     for rc in &hir.reactive_components {
-        let state_names: HashSet<String> = rc
-            .members
-            .iter()
-            .filter_map(|mem| match mem {
-                HirReactiveMember::State(s) => Some(s.name.clone()),
-                _ => None,
-            })
-            .collect();
+        let state_names = reactive_component_name_set_for_web_ir(rc);
 
         for mem in &rc.members {
             match mem {
@@ -452,6 +669,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
                         span: None,
                     });
                 }
+                HirReactiveMember::Stmt(_) => {}
             }
         }
 
@@ -474,7 +692,42 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
 
     note_lowering_gaps(hir, &mut m, &mut summary);
 
+    accumulate_route_manifest_summary(hir, &mut summary);
+
     (m, summary)
+}
+
+fn accumulate_route_manifest_summary(hir: &HirModule, summary: &mut WebIrLowerSummary) {
+    use crate::ast::decl::RouteEntry;
+
+    fn walk_entry(e: &RouteEntry, loaders: &mut usize, pending: &mut usize) {
+        if e.loader_name.is_some() {
+            *loaders += 1;
+        }
+        if e.pending_component_name.is_some() {
+            *pending += 1;
+        }
+        for c in &e.children {
+            walk_entry(c, loaders, pending);
+        }
+    }
+
+    for block in &hir.client_routes {
+        let d = &block.0;
+        if d.not_found_component.is_some() {
+            summary.route_blocks_with_not_found += 1;
+        }
+        if d.error_component.is_some() {
+            summary.route_blocks_with_error += 1;
+        }
+        for e in &d.entries {
+            walk_entry(
+                e,
+                &mut summary.route_entries_with_loader,
+                &mut summary.route_entries_with_pending,
+            );
+        }
+    }
 }
 
 /// Build a [`WebIrModule`] from lowered HIR (reactive views + `routes:` contracts + behaviors).

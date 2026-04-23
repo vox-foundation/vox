@@ -60,7 +60,7 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
         let tmpl = &construct_templates[count % construct_templates.len()];
         let query = tmpl.0.replace("{construct}", construct);
         let search_query = tmpl.1.replace("{construct}", construct);
-        let fake_file = format!("crates/vox-parser/src/grammar/{}.rs", construct);
+        let fake_file = format!("crates/vox-compiler/src/parser/{}.md", construct);
         emit_search_trace(out, &query, &search_query, &fake_file, construct)?;
         count += 1;
     }
@@ -80,13 +80,16 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
         let search_query = tmpl.1.replace("{cmd}", cmd);
         let fake_file = "crates/vox-cli/src/commands/mod.rs".to_string();
         let conversation = json!({
-            "prompt": "",
-            "response": "",
+            "prompt": query,
+            "response": format!(
+                "The `vox {}` command is used to {}. It is implemented in `{}`. Usage:\n\n```\nvox {}\n```",
+                cmd, desc, fake_file, cmd
+            ),
             "category": "codebase_search",
             "record_type": "conversation",
             "schema_version": "vox_dogfood_v1",
             "format": "conversation",
-            "turns": [
+            "messages": [
                 { "role": "user", "content": query },
                 {
                     "role": "assistant",
@@ -118,7 +121,7 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
             "How does data flow from a .vox file to running Rust code?",
             "compiler pipeline source to runtime",
             "crates/vox-parser/src/lib.rs",
-            "The Vox compiler pipeline follows: Source → Lexer (vox-lexer, logos) → Parser (vox-parser, Rowan CST) → AST (vox-ast, typed wrappers) → HIR (vox-hir, desugaring) → TypeCheck (vox-typeck, bidirectional inference) → CodeGen (vox-codegen-rust, quote!) → Rust source → cargo build → binary.",
+            "The Vox compiler is the `vox-compiler` workspace crate: Source → Lexer (`logos` in `lexer/token.rs`) → Parser (`parser`) → AST (`ast`) → HIR (`hir`) → TypeCheck (`typeck`) → Rust/TS codegen (`codegen_rust`, `codegen_ts`, `web_ir`). See `docs/src/architecture/nomenclature-migration-map.md` for retired split-crate names.",
         ),
         (
             "How does the actor system work in Vox?",
@@ -129,8 +132,8 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
         (
             "How does Vox handle database schemas?",
             "@table schema codegen SQL",
-            "crates/vox-codegen-rust/src/db.rs",
-            "`@table type Name { }` declarations are lowered to Codex SQL schemas with automatic migration support. Fields become columns with Vox-to-SQL type mapping. Indices, vector indices, and search indices are separate declarations.",
+            "crates/vox-compiler/src/codegen_rust/",
+            "`@table` and related DB declarations are lowered through `vox-compiler` HIR and Rust codegen (Codex/SQL surfaces). Field and index declarations stay type-checked in-tree before emit.",
         ),
         (
             "How does the MCP server expose tools?",
@@ -159,8 +162,8 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
         (
             "How does Vox handle component rendering?",
             "component JSX React island SSR",
-            "crates/vox-codegen-ts/src/component.rs",
-            "Vox components compile to React functional components. Server-side rendering happens in Rust, while islands hydrate on the client. The TanStack web stack provides routing and state management.",
+            "crates/vox-compiler/src/web_ir/",
+            "UI constructs lower to `web_ir` and emit TS/TSX via `vox-compiler` (`emit_tsx`, React interop). Routing and client data patterns follow the current web stack docs (`docs/src/reference/vox-web-stack.md`).",
         ),
     ];
 
@@ -179,14 +182,18 @@ fn emit_search_trace(
     fake_file: &str,
     context_name: &str,
 ) -> anyhow::Result<()> {
+    let final_answer = format!(
+        "Based on the search results, `{}` is implemented in `{}`. The implementation handles the core logic for this feature in the Vox ecosystem.",
+        context_name, fake_file
+    );
     let conversation = json!({
-        "prompt": "",
-        "response": "",
+        "prompt": query,
+        "response": final_answer,
         "category": "codebase_search",
         "record_type": "conversation",
         "schema_version": "vox_dogfood_v1",
         "format": "conversation",
-        "turns": [
+        "messages": [
             { "role": "user", "content": query },
             {
                 "role": "assistant",
@@ -201,10 +208,7 @@ fn emit_search_trace(
             },
             {
                 "role": "assistant",
-                "content": format!(
-                    "Based on the search results, `{}` is implemented in `{}`. The implementation handles the core logic for this feature in the Vox ecosystem.",
-                    context_name, fake_file
-                )
+                "content": final_answer
             }
         ]
     });
@@ -220,13 +224,13 @@ fn emit_search_trace_with_answer(
     answer: &str,
 ) -> anyhow::Result<()> {
     let conversation = json!({
-        "prompt": "",
-        "response": "",
+        "prompt": query,
+        "response": answer,
         "category": "codebase_search",
         "record_type": "conversation",
         "schema_version": "vox_dogfood_v1",
         "format": "conversation",
-        "turns": [
+        "messages": [
             { "role": "user", "content": query },
             {
                 "role": "assistant",

@@ -1,5 +1,5 @@
 use crate::ast::scalar_mapping::VoxScalar;
-use crate::hir::{HirModule, HirType};
+use crate::hir::{HirModule, HirServerFn, HirType};
 
 pub fn emit_api_client(module: &HirModule) -> String {
     if module.server_fns.is_empty() && module.query_fns.is_empty() && module.mutation_fns.is_empty()
@@ -9,59 +9,87 @@ pub fn emit_api_client(module: &HirModule) -> String {
 
     let mut out = String::new();
     out.push_str("// Auto-generated API client for Vox server functions\n");
+    out.push_str("// @query → GET + JSON query values; @server / @mutation → POST + JSON body.\n");
     out.push_str("// Do not edit manually — regenerated on each build.\n\n");
 
     out.push_str("const API_BASE = '';\n\n");
 
-    for sf in module
-        .server_fns
+    for sf in &module.server_fns {
+        out.push_str(&emit_api_ts_fn(sf, false));
+    }
+    for qf in &module.query_fns {
+        out.push_str(&emit_api_ts_fn(qf, true));
+    }
+    for mf in &module.mutation_fns {
+        out.push_str(&emit_api_ts_fn(mf, false));
+    }
+
+    out
+}
+
+fn emit_api_ts_fn(sf: &HirServerFn, is_query: bool) -> String {
+    let params: Vec<String> = sf
+        .params
         .iter()
-        .chain(module.query_fns.iter())
-        .chain(module.mutation_fns.iter())
-    {
-        // Generate TypeScript function signature
-        let params: Vec<String> = sf
-            .params
-            .iter()
-            .map(|p| {
-                let ts_type = p
-                    .type_ann
-                    .as_ref()
-                    .map_or("any".to_string(), hir_type_to_ts);
-                format!("{}: {}", p.name, ts_type)
-            })
-            .collect();
+        .map(|p| {
+            let ts_type = p
+                .type_ann
+                .as_ref()
+                .map_or("any".to_string(), hir_type_to_ts);
+            format!("{}: {}", p.name, ts_type)
+        })
+        .collect();
 
-        let return_ts = sf
-            .return_type
-            .as_ref()
-            .map_or("any".to_string(), hir_type_to_ts);
+    let return_ts = sf
+        .return_type
+        .as_ref()
+        .map_or("any".to_string(), hir_type_to_ts);
 
+    let mut out = String::new();
+    out.push_str(&format!(
+        "export async function {}({}): Promise<{}> {{\n",
+        sf.name,
+        params.join(", "),
+        return_ts,
+    ));
+    let path = &sf.route_path;
+    if is_query {
+        if sf.params.is_empty() {
+            out.push_str(&format!(
+                "  const response = await fetch(`${{API_BASE}}{path}`, {{ method: 'GET' }});\n"
+            ));
+        } else {
+            let obj_fields: Vec<String> = sf
+                .params
+                .iter()
+                .map(|p| format!("{}: {}", p.name, p.name))
+                .collect();
+            out.push_str(&format!(
+                "  const q: Record<string, unknown> = {{ {} }};\n",
+                obj_fields.join(", ")
+            ));
+            out.push_str("  const sorted = Object.keys(q).sort();\n");
+            out.push_str("  const qs = sorted.length ? ('?' + sorted.map(k => `${encodeURIComponent(k)}=${encodeURIComponent(JSON.stringify((q as Record<string, unknown>)[k]))}`).join('&')) : '';\n");
+            out.push_str(&format!(
+                "  const response = await fetch(`${{API_BASE}}{path}${{qs}}`, {{ method: 'GET' }});\n"
+            ));
+        }
+    } else {
         out.push_str(&format!(
-            "export async function {}({}): Promise<{}> {{\n",
-            sf.name,
-            params.join(", "),
-            return_ts,
-        ));
-        out.push_str(&format!(
-            "  const response = await fetch(`${{API_BASE}}{}`, {{\n",
-            sf.route_path,
+            "  const response = await fetch(`${{API_BASE}}{path}`, {{\n",
         ));
         out.push_str("    method: 'POST',\n");
         out.push_str("    headers: { 'Content-Type': 'application/json' },\n");
-
-        // Build body from params
         let body_fields: Vec<String> = sf.params.iter().map(|p| p.name.clone()).collect();
         out.push_str(&format!(
             "    body: JSON.stringify({{ {} }}),\n",
             body_fields.join(", ")
         ));
         out.push_str("  });\n");
-        out.push_str("  if (!response.ok) throw new Error(`Server error: ${response.status}`);\n");
-        out.push_str("  return response.json();\n");
-        out.push_str("}\n\n");
     }
-
+    out.push_str("  if (!response.ok) throw new Error(`Server error: ${response.status}`);\n");
+    out.push_str("  return response.json();\n");
+    out.push_str("}\n\n");
     out
 }
 
@@ -97,11 +125,64 @@ fn hir_type_to_ts(ty: &HirType) -> String {
             format!("[{}]", elems_str.join(", "))
         }
         HirType::Unit => "void".to_string(),
+        HirType::Decimal => "string".to_string(),
+    }
+}
+
+/// Escape content for a Rust string literal (`"…"`).
+fn rust_escape_double_quoted(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+/// JSON Schema object for one `inputSchema.properties` entry (emitted as JSON text inside generated `json!`).
+fn hir_type_json_schema_property(type_ann: Option<&HirType>) -> String {
+    match type_ann {
+        Some(HirType::Named(t)) if t == "String" || t == "str" => {
+            r#"{ "type": "string" }"#.to_string()
+        }
+        Some(HirType::Named(t)) if t == "i64" || t == "int" => {
+            r#"{ "type": "integer" }"#.to_string()
+        }
+        Some(HirType::Named(t)) if t == "f64" || t == "float" => {
+            r#"{ "type": "number" }"#.to_string()
+        }
+        Some(HirType::Named(t)) if t == "bool" => r#"{ "type": "boolean" }"#.to_string(),
+        Some(HirType::Generic(name, args)) if name == "list" || name == "List" => {
+            let item = args
+                .first()
+                .map(|a| hir_type_json_schema_property(Some(a)))
+                .unwrap_or_else(|| r#"{ "type": "string" }"#.to_string());
+            format!(r#"{{ "type": "array", "items": {item} }}"#)
+        }
+        Some(HirType::Tuple(elems)) => {
+            if elems.is_empty() {
+                return r#"{ "type": "array", "maxItems": 0 }"#.to_string();
+            }
+            let items: Vec<_> = elems
+                .iter()
+                .map(|e| hir_type_json_schema_property(Some(e)))
+                .collect();
+            let joined = items.join(", ");
+            let n = elems.len();
+            format!(
+                r#"{{ "type": "array", "prefixItems": [{joined}], "minItems": {n}, "maxItems": {n} }}"#
+            )
+        }
+        Some(HirType::Unit) => r#"{ "type": "null" }"#.to_string(),
+        Some(HirType::Decimal) => r#"{ "type": "string" }"#.to_string(),
+        Some(HirType::Function(_, _)) => r#"{ "type": "string" }"#.to_string(),
+        Some(HirType::Named(_)) => r#"{ "type": "string" }"#.to_string(),
+        Some(HirType::Generic(_, _)) => r#"{ "type": "string" }"#.to_string(),
+        None => r#"{ "type": "string" }"#.to_string(),
     }
 }
 
 /// Generate the MCP (Model Context Protocol) JSON-RPC server binary.
 /// Communicates over stdio: reads JSON-RPC requests from stdin, writes responses to stdout.
+///
+/// **Scope:** per-generated-crate tools from `@mcp.tool` and resources from `@mcp.resource` only.
+/// The shipped `vox-mcp` binary uses [`contracts/mcp/tool-registry.canonical.yaml`](../../../../contracts/mcp/tool-registry.canonical.yaml).
+/// Architecture SSOT: `docs/src/architecture/mcp-vox-language-exposure.md`.
 pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
     let crate_name = package_name.replace('-', "_");
     let mut out = String::new();
@@ -146,6 +227,12 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
                     Some(HirType::Named(t)) if t == "bool" => {
                         format!("{name}.as_bool().unwrap_or(false)")
                     }
+                    Some(HirType::Named(t)) if t == "dec" => {
+                        format!("rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()")
+                    }
+                    Some(HirType::Decimal) => {
+                        format!("rust_decimal::Decimal::from_str_exact({name}.as_str().unwrap_or(\"0\")).unwrap_or_default()")
+                    }
                     _ => name.to_string(),
                 }
             })
@@ -186,23 +273,16 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
         out.push_str("                    \"type\": \"object\",\n");
         out.push_str("                    \"properties\": {\n");
         for (j, param) in tool.func.params.iter().enumerate() {
-            let json_type = match param.type_ann.as_ref() {
-                Some(HirType::Named(t)) if t == "String" || t == "str" => "string",
-                Some(HirType::Named(t)) if t == "i64" || t == "int" => "integer",
-                Some(HirType::Named(t)) if t == "f64" || t == "float" => "number",
-                Some(HirType::Named(t)) if t == "bool" => "boolean",
-                _ => "string",
-            };
+            let schema = hir_type_json_schema_property(param.type_ann.as_ref());
             let param_trailing = if j + 1 < tool.func.params.len() {
                 ","
             } else {
                 ""
             };
             out.push_str(&format!(
-                "                        \"{}\": {{ \"type\": \"{}\" }}{}",
-                param.name, json_type, param_trailing
+                "                        \"{}\": {}{}\n",
+                param.name, schema, param_trailing
             ));
-            out.push('\n');
         }
         out.push_str("                    },\n");
         // All params required
@@ -222,6 +302,45 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
     out.push_str("        ]\n");
     out.push_str("    })\n");
     out.push_str("}\n\n");
+
+    if !module.mcp_resources.is_empty() {
+        out.push_str("// Resource dispatch (nullary fns only; URI match)\n");
+        out.push_str("fn dispatch_resource(uri: &str) -> Result<Value, String> {\n");
+        out.push_str("    match uri {\n");
+        for res in &module.mcp_resources {
+            let lit = rust_escape_double_quoted(&res.uri);
+            let fn_name = &res.func.name;
+            out.push_str(&format!(
+                "        \"{lit}\" => {{\n            let result = {fn_name}();\n            Ok(serde_json::to_value(result).unwrap_or(Value::Null))\n        }}\n"
+            ));
+        }
+        out.push_str("        _ => Err(format!(\"Unknown resource URI: {}\", uri)),\n");
+        out.push_str("    }\n");
+        out.push_str("}\n\n");
+
+        out.push_str("fn resource_list() -> Value {\n");
+        out.push_str("    json!({\n");
+        out.push_str("        \"resources\": [\n");
+        for (i, res) in module.mcp_resources.iter().enumerate() {
+            let trailing = if i + 1 < module.mcp_resources.len() {
+                ","
+            } else {
+                ""
+            };
+            let ue = rust_escape_double_quoted(&res.uri);
+            let ne = rust_escape_double_quoted(&res.func.name);
+            let de = rust_escape_double_quoted(&res.description);
+            out.push_str("            {\n");
+            out.push_str(&format!("                \"uri\": \"{ue}\",\n"));
+            out.push_str(&format!("                \"name\": \"{ne}\",\n"));
+            out.push_str(&format!("                \"description\": \"{de}\",\n"));
+            out.push_str("                \"mimeType\": \"text/plain\"\n");
+            out.push_str(&format!("            }}{trailing}\n"));
+        }
+        out.push_str("        ]\n");
+        out.push_str("    })\n");
+        out.push_str("}\n\n");
+    }
 
     // Main loop — JSON-RPC over stdio
     out.push_str("fn main() {\n");
@@ -259,7 +378,11 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
     out.push_str("                \"id\": id,\n");
     out.push_str("                \"result\": {\n");
     out.push_str("                    \"protocolVersion\": \"2024-11-05\",\n");
-    out.push_str("                    \"capabilities\": { \"tools\": {} },\n");
+    if module.mcp_resources.is_empty() {
+        out.push_str("                    \"capabilities\": { \"tools\": {} },\n");
+    } else {
+        out.push_str("                    \"capabilities\": { \"tools\": {}, \"resources\": { \"subscribe\": false } },\n");
+    }
     out.push_str(&format!(
         "                    \"serverInfo\": {{ \"name\": \"{}\", \"version\": \"0.1.0\" }}\n",
         package_name
@@ -274,7 +397,7 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
     out.push_str("                    \"id\": id,\n");
     out.push_str("                    \"result\": tools\n");
     out.push_str("                })\n");
-    out.push_str("            }\n");
+    out.push_str("            },\n");
     // tools/call
     out.push_str("            \"tools/call\" => {\n");
     out.push_str("                let tool_name = params.get(\"name\").and_then(|n| n.as_str()).unwrap_or(\"\");\n");
@@ -298,7 +421,44 @@ pub fn emit_mcp_server(module: &HirModule, package_name: &str) -> String {
     out.push_str("                        }\n");
     out.push_str("                    }),\n");
     out.push_str("                }\n");
-    out.push_str("            }\n");
+    out.push_str("            },\n");
+    // resources/list
+    if !module.mcp_resources.is_empty() {
+        out.push_str("            \"resources/list\" => {\n");
+        out.push_str("                let r = resource_list();\n");
+        out.push_str("                json!({\n");
+        out.push_str("                    \"jsonrpc\": \"2.0\",\n");
+        out.push_str("                    \"id\": id,\n");
+        out.push_str("                    \"result\": r\n");
+        out.push_str("                })\n");
+        out.push_str("            },\n");
+        out.push_str("            \"resources/read\" => {\n");
+        out.push_str(
+            "                let uri = params.get(\"uri\").and_then(|u| u.as_str()).unwrap_or(\"\");\n",
+        );
+        out.push_str("                match dispatch_resource(uri) {\n");
+        out.push_str("                    Ok(val) => {\n");
+        out.push_str(
+            "                        let text = serde_json::to_string(&val).unwrap_or_default();\n",
+        );
+        out.push_str("                        json!({\n");
+        out.push_str("                            \"jsonrpc\": \"2.0\",\n");
+        out.push_str("                            \"id\": id,\n");
+        out.push_str("                            \"result\": {\n");
+        out.push_str(
+            "                                \"contents\": [{ \"uri\": uri, \"mimeType\": \"text/plain\", \"text\": text }]\n",
+        );
+        out.push_str("                            }\n");
+        out.push_str("                        })\n");
+        out.push_str("                    }\n");
+        out.push_str("                    Err(e) => json!({\n");
+        out.push_str("                        \"jsonrpc\": \"2.0\",\n");
+        out.push_str("                        \"id\": id,\n");
+        out.push_str("                        \"error\": { \"code\": -32602, \"message\": e }\n");
+        out.push_str("                    }),\n");
+        out.push_str("                }\n");
+        out.push_str("            },\n");
+    }
     // notifications (no-ops)
     out.push_str(
         "            \"notifications/initialized\" | \"notifications/cancelled\" => continue,\n",

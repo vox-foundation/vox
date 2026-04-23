@@ -2,8 +2,10 @@
 title: "ADR 013 — OpenClaw WS-first native interop"
 description: "Official documentation for ADR 013 — OpenClaw WS-first native interop for the Vox language."
 category: "reference"
-last_updated: 2026-03-27
+last_updated: "2026-03-27"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 013 — OpenClaw WS-first native interop
@@ -25,7 +27,7 @@ Adopt a WS-first integration strategy with a stable Rust adapter boundary:
 
 - **Primary transport**: OpenClaw Gateway WS handshake and method frames.
 - **Secondary fallback**: HTTP compatibility and skills endpoints remain supported.
-- **Adapter boundary**: `OpenClawRuntimeAdapter` in `vox-ars` isolates protocol transport from callsites.
+- **Adapter boundary**: `OpenClawRuntimeAdapter` in `vox-skills` isolates protocol transport from callsites.
 - **Script bridge**: `.vox` uses a minimal `OpenClaw` builtin module (`list_skills`, `call`, `subscribe`, `unsubscribe`, `notify`) lowered through existing type/HIR/codegen paths.
 
 ## Security posture
@@ -50,3 +52,5 @@ The protocol contract baseline is fixture-driven:
 - `vox openclaw` command surface now supports direct WS gateway calls.
 - Subscription-related commands use WS transport instead of simulation.
 - `.vox` scripts gain low-k native OpenClaw calls without introducing parser islands.
+
+

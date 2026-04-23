@@ -1,0 +1,392 @@
+# Prose SSOT: docs/src/reference/communication-protocols.md
+# Advisory (lanes, gaps, external research): docs/src/architecture/protocol-convergence-research-2026.md
+schema_version: 1
+
+delivery_planes:
+  - id: local_ephemeral
+    name: Local ephemeral
+    scope: same_process
+    pattern: push
+    ordering: Best-effort FIFO per receiver on the current process only.
+    durability: none
+    retry_model: Caller retries explicitly; restarts drop in-flight state.
+    ack_semantics: Receiver-local ack or mailbox consumption only.
+    idempotency: caller_defined
+    auth_boundary: host_session
+    use_for: Low-latency same-node coordination and mailbox-style agent messaging.
+
+  - id: local_durable
+    name: Local durable
+    scope: same_host
+    pattern: push
+    ordering: Store-defined retrieval order; durability is preferred over latency.
+    durability: durable
+    retry_model: Poll/retry until ack or terminal pruning policy removes the row.
+    ack_semantics: Explicit durable ack against stored inbox or outbox records.
+    idempotency: caller_defined
+    auth_boundary: host_session
+    use_for: Cross-process local delivery, persistence degradation, and replayable inbox workflows.
+
+  - id: remote_mesh
+    name: Remote mesh
+    scope: remote_network
+    pattern: request_response
+    ordering: Per-message HTTP request ordering only; inbox lease order is transport-defined.
+    durability: durable
+    retry_model: Client retries with idempotency keys and control-plane backoff.
+    ack_semantics: >-
+      Explicit inbox ack and lease renewal on the Populi control plane, plus optional remote
+      execution lease grant/renew/release (`/v1/populi/exec/lease/*`) for correlation ids.
+    idempotency: optional
+    auth_boundary: bearer_or_jwt
+    use_for: Cross-node coordination, remote task envelopes, and mesh-delivered A2A.
+
+  - id: broadcast
+    name: Broadcast / fanout
+    scope: mixed
+    pattern: fanout
+    ordering: Receiver-local only; no global ordering across subscribers.
+    durability: mixed
+    retry_model: Usually none for in-memory fanout; durable fanout must layer its own replay store.
+    ack_semantics: Usually none; explicit ack is protocol-specific when present.
+    idempotency: not_applicable
+    auth_boundary: mixed
+    use_for: Subscription notifications, bulletin/event buses, and webhook-style fanout.
+
+  - id: stream
+    name: Stream
+    scope: mixed
+    pattern: stream
+    ordering: Ordered within each stream connection or byte stream.
+    durability: mixed
+    retry_model: Reconnect or resume is transport-specific.
+    ack_semantics: Transport-specific; SSE is usually fire-and-forget, WebSocket depends on protocol.
+    idempotency: mixed
+    auth_boundary: mixed
+    use_for: Token streaming, live updates, incremental parser output, and reactive UI feeds.
+
+protocol_families:
+  - id: mcp-stdio
+    display_name: MCP stdio
+    category: stdio_rpc
+    status: current
+    owner: mcp
+    delivery_planes: [local_ephemeral]
+    wire_formats: [json-rpc-2.0, mcp]
+    machine_contract_paths: [contracts/mcp/tool-registry.canonical.yaml]
+    prose_reference_paths:
+      - docs/src/api/vox-mcp.md
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-mcp/src/main.rs
+      - crates/vox-mcp/src/server/handlers.rs
+    telemetry_evidence_paths:
+      - crates/vox-orchestrator/src/events.rs
+    auth_model: Host-owned stdio session with MCP initialize handshake.
+    retirement_decision: keep
+    coexistence_notes: Primary editor/host control surface; bounded MCP HTTP gateway is secondary, not a replacement.
+
+  - id: mcp-http-gateway
+    display_name: MCP HTTP gateway
+    category: http_api
+    status: current
+    owner: mcp
+    delivery_planes: [remote_mesh, stream]
+    wire_formats: [http-json, websocket-json]
+    machine_contract_paths: [contracts/mcp/http-gateway.openapi.yaml]
+    prose_reference_paths:
+      - docs/src/reference/mcp-http-gateway-contract.md
+      - docs/src/api/vox-mcp.md
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-mcp/src/http_gateway.rs
+    telemetry_evidence_paths:
+      - crates/vox-mcp/src/http_gateway.rs
+    auth_model: Bearer-scoped remote control with allowlists and rate limiting.
+    retirement_decision: keep
+    coexistence_notes: Keep bounded and opt-in; it complements MCP stdio for remote/mobile access instead of replacing it.
+
+  - id: populi-control-plane
+    display_name: Populi HTTP control plane
+    category: http_api
+    status: current
+    owner: populi
+    delivery_planes: [remote_mesh]
+    wire_formats: [http-json, openapi-3]
+    machine_contract_paths:
+      - contracts/populi/control-plane.openapi.yaml
+      - contracts/communication/a2a-clarification-payload.schema.json
+    prose_reference_paths:
+      - docs/src/reference/populi.md
+      - docs/src/reference/communication-protocols.md
+      - docs/src/adr/008-populi-transport.md
+      - docs/src/adr/017-populi-lease-remote-execution.md
+      - docs/src/adr/018-populi-gpu-truth-layering.md
+      - docs/src/adr/020-populi-mesh-scaling-transport-default.md
+      - docs/src/architecture/populi-gpu-truth-probe-spec.md
+      - docs/src/architecture/populi-node-lifecycle-hotplug.md
+    primary_implementation_paths:
+      - crates/vox-populi/src/transport/mod.rs
+      - crates/vox-populi/src/transport/router.rs
+      - crates/vox-populi/src/http_client.rs
+    telemetry_evidence_paths:
+      - crates/vox-db/src/populi_control_telemetry.rs
+      - crates/vox-db/src/store/ops_questioning.rs
+      - crates/vox-db/src/populi_registry_telemetry.rs
+    auth_model: Bearer or HS256 JWT with mesh role separation.
+    x-orchestrator-placement-reasons:
+      - local_queue_default
+      - populi_remote_lease_hold
+      - local_queue_fallback_after_remote_relay_error
+    retirement_decision: keep
+    coexistence_notes: ADR 008 keeps HTTP-first in-tree and rejects adding parallel gRPC/QUIC defaults without a replacement ADR. Optional build feature `mesh-nvml-probe` on `vox-cli` enables NVML-backed Layer A `gpu_*` fields on join/heartbeat `NodeRecord`s. Orchestrator remote result drain uses cursor-paged mesh inbox reads so deep inboxes do not hide `remote_task_result` rows.
+
+  - id: populi-a2a-relay
+    display_name: Populi A2A relay
+    category: durable_queue
+    status: current
+    owner: populi
+    delivery_planes: [remote_mesh]
+    wire_formats: [http-json]
+    machine_contract_paths: [contracts/populi/control-plane.openapi.yaml]
+    prose_reference_paths:
+      - docs/src/reference/populi.md
+      - docs/src/api/vox-mcp.md
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-populi/src/transport/mod.rs
+      - crates/vox-orchestrator/src/a2a/dispatch.rs
+      - crates/vox-mcp/src/a2a.rs
+    telemetry_evidence_paths:
+      - crates/vox-db/src/populi_control_telemetry.rs
+    auth_model: Mesh submitter/worker/admin bearer roles with explicit inbox ack.
+    retirement_decision: evaluate
+    coexistence_notes: Keep separate from the DB inbox until durability, tenancy, and operational evidence show one can cover both local and remote use cases.
+
+  - id: orchestrator-local-a2a
+    display_name: Orchestrator local A2A bus
+    category: in_process
+    status: current
+    owner: orchestrator
+    delivery_planes: [local_ephemeral, broadcast]
+    wire_formats: [rust-types]
+    machine_contract_paths:
+      - contracts/communication/interruption-decision.schema.json
+    prose_reference_paths:
+      - docs/src/reference/orchestration-unified.md
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-orchestrator/src/a2a/bus/message_bus.rs
+      - crates/vox-mcp/src/a2a.rs
+    telemetry_evidence_paths:
+      - crates/vox-orchestrator/src/events.rs
+      - crates/vox-mcp/src/a2a.rs
+      - crates/vox-mcp/src/tools/chat_socrates_meta.rs
+    auth_model: In-process orchestrator ownership; MCP overlays session binding when exposed remotely.
+    retirement_decision: keep
+    coexistence_notes: This is the low-latency same-process plane and should not be collapsed into remote durable relay semantics.
+
+  - id: orchestrator-db-inbox
+    display_name: Orchestrator DB inbox
+    category: durable_queue
+    status: current
+    owner: orchestrator
+    delivery_planes: [local_durable]
+    wire_formats: [sql-row, serde-json]
+    machine_contract_paths: []
+    prose_reference_paths:
+      - docs/src/reference/orchestration-unified.md
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-orchestrator/src/a2a/dispatch.rs
+      - crates/vox-db/src/schema/domains/sql/coordination.sql
+    telemetry_evidence_paths:
+      - crates/vox-db/src/schema/domains/agents.rs
+    auth_model: Local DB ownership with orchestrator-side access control.
+    retirement_decision: evaluate
+    coexistence_notes: Candidate for long-term consolidation review with Populi relay, but only after remote-mesh and local-durable requirements can be compared with production evidence.
+
+  - id: orchestrator-persistence-outbox
+    display_name: Orchestrator persistence outbox
+    category: durable_queue
+    status: current
+    owner: orchestrator
+    delivery_planes: [local_durable]
+    wire_formats: [json-array]
+    machine_contract_paths:
+      - contracts/communication/orchestrator-persistence-outbox.schema.json
+    prose_reference_paths:
+      - docs/src/reference/orchestration-unified.md
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-orchestrator/src/orchestrator/persistence_outbox.rs
+    telemetry_evidence_paths:
+      - crates/vox-orchestrator/src/orchestrator/scaling.rs
+    auth_model: Internal process ownership only.
+    retirement_decision: keep
+    coexistence_notes: Separate from A2A because it is a resilience/replay lane for persistence degradation, not a general message bus.
+
+  - id: repo-reconstruction-campaign
+    display_name: Repo reconstruction campaign spec
+    category: durable_queue
+    status: current
+    owner: orchestrator
+    delivery_planes: [local_durable]
+    wire_formats: [json-schema]
+    machine_contract_paths:
+      - contracts/orchestration/repo-reconstruction.schema.json
+    prose_reference_paths:
+      - docs/src/reference/orchestration-unified.md
+      - docs/src/reference/repo-reconstruction-benchmark-ladder.md
+    primary_implementation_paths:
+      - crates/vox-orchestrator/src/reconstruction.rs
+      - crates/vox-db/src/schema/domains/execution.rs
+      - crates/vox-db/src/facade/workflow.rs
+    telemetry_evidence_paths:
+      - crates/vox-orchestrator/src/orchestrator/campaigns.rs
+    auth_model: Local DB and orchestrator ownership; JSON is advisory for mesh relays.
+    retirement_decision: keep
+    coexistence_notes: >-
+      Durable campaign snapshot and artifact rows align with this schema; A2A remote envelopes may
+      carry optional campaign_id and exec_lease_id for correlation.
+
+  - id: runtime-sse
+    display_name: Runtime SSE
+    category: http_stream
+    status: current
+    owner: runtime
+    delivery_planes: [stream, broadcast]
+    wire_formats: [sse, http-stream]
+    machine_contract_paths: []
+    prose_reference_paths:
+      - docs/src/api/vox-runtime.md
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-runtime/src/transport.rs
+      - crates/vox-runtime/src/subscription.rs
+    telemetry_evidence_paths:
+      - crates/vox-runtime/src/subscription.rs
+    auth_model: Generated-service auth and endpoint policy.
+    retirement_decision: keep
+    coexistence_notes: Default app streaming surface; WebSocket remains reserved for genuinely bidirectional cases.
+
+  - id: dei-json-line-rpc
+    display_name: DeI JSON-line RPC
+    category: json_line_rpc
+    status: current
+    owner: dei
+    delivery_planes: [local_ephemeral, stream]
+    wire_formats: [json-lines]
+    machine_contract_paths: [contracts/dei/rpc-methods.schema.json]
+    prose_reference_paths:
+      - docs/src/reference/orchestration-unified.md
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-protocol/src/lib.rs
+      - crates/vox-cli/src/dei_daemon.rs
+      - crates/vox-cli/src/dispatch_protocol.rs
+    telemetry_evidence_paths: []
+    auth_model: Host-local thin-client daemon contract.
+    retirement_decision: evaluate
+    coexistence_notes: Preserve while CLI/DeI compatibility depends on it; only consider convergence where envelopes already match other host-local RPC flows.
+
+  - id: orchestrator-json-line-rpc
+    display_name: Orchestrator JSON-line RPC
+    category: json_line_rpc
+    status: current
+    owner: orchestrator
+    delivery_planes: [local_ephemeral, stream]
+    wire_formats: [json-lines]
+    machine_contract_paths: [contracts/orchestration/orch-daemon-rpc-methods.schema.json]
+    prose_reference_paths:
+      - docs/src/reference/orchestration-unified.md
+      - docs/src/reference/communication-protocols.md
+      - docs/src/adr/022-orchestrator-bootstrap-and-daemon-boundaries.md
+    primary_implementation_paths:
+      - crates/vox-protocol/src/lib.rs
+      - crates/vox-orchestrator/src/orch_daemon/mod.rs
+      - crates/vox-orchestrator/src/orch_daemon/client.rs
+      - crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs
+    telemetry_evidence_paths:
+      - crates/vox-mcp/src/server/lifecycle.rs
+    auth_model: Host-local daemon TCP or stdio; MCP reads require repo-id alignment checks.
+    retirement_decision: evaluate
+    coexistence_notes: Keep separate from DeI `ai.*` method contracts while MCP read/write pilots transition toward IPC-first task and agent routing.
+
+  - id: lsp-json-rpc
+    display_name: LSP JSON-RPC
+    category: json_rpc
+    status: current
+    owner: lsp
+    delivery_planes: [local_ephemeral, stream]
+    wire_formats: [json-rpc-2.0, lsp]
+    machine_contract_paths: []
+    prose_reference_paths:
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-lsp/src/main.rs
+      - crates/vox-lsp/src/lib.rs
+    telemetry_evidence_paths: []
+    auth_model: Editor-owned LSP session.
+    retirement_decision: keep
+    coexistence_notes: External ecosystem protocol; not a candidate for convergence with Vox-specific transport families.
+
+  - id: openclaw-ws
+    display_name: OpenClaw Gateway WebSocket
+    category: websocket
+    status: current
+    owner: ars
+    delivery_planes: [stream]
+    wire_formats: [websocket-json]
+    machine_contract_paths:
+      - contracts/openclaw/protocol/connect.challenge.json
+      - contracts/openclaw/protocol/connect.hello-ok.json
+      - contracts/openclaw/protocol/subscriptions.list.response.json
+    prose_reference_paths:
+      - docs/src/adr/013-openclaw-ws-native-strategy.md
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-ars/src/openclaw_gateway_ws.rs
+      - crates/vox-ars/src/openclaw_protocol.rs
+    telemetry_evidence_paths: []
+    auth_model: Upstream OpenClaw gateway auth and session handshake.
+    retirement_decision: keep
+    coexistence_notes: WS-first because that is the native upstream protocol; HTTP compatibility remains secondary.
+
+  - id: codex-http-api
+    display_name: Codex HTTP API
+    category: http_api
+    status: current
+    owner: codex-api
+    delivery_planes: [remote_mesh]
+    wire_formats: [http-json, openapi-3]
+    machine_contract_paths: [contracts/codex-api.openapi.yaml]
+    prose_reference_paths:
+      - docs/src/reference/codex-http-api.md
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-db/src/schema/manifest.rs
+      - crates/vox-audio-ingress/src/main.rs
+    telemetry_evidence_paths: []
+    auth_model: Service auth and dashboard/operator deployment policy.
+    retirement_decision: keep
+    coexistence_notes: Public network API family with its own OpenAPI contract; not interchangeable with host or mesh control protocols.
+
+  - id: webhook-delivery
+    display_name: Webhook delivery channels
+    category: webhook
+    status: experimental
+    owner: webhook
+    delivery_planes: [broadcast, remote_mesh]
+    wire_formats: [http-json]
+    machine_contract_paths: []
+    prose_reference_paths:
+      - docs/src/reference/communication-protocols.md
+    primary_implementation_paths:
+      - crates/vox-webhook/src/channel.rs
+      - crates/vox-webhook/src/delivery.rs
+      - crates/vox-webhook/src/router.rs
+    telemetry_evidence_paths: []
+    auth_model: Channel-specific auth and signature policy.
+    retirement_decision: evaluate
+    coexistence_notes: Keep channel abstractions narrow and avoid inventing new generic transport layers until real consumers stabilize.

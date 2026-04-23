@@ -1,0 +1,5 @@
+{
+  "schema_version": "vox.mens.preflight.v0",
+  "contract_digest": "346cbe1d5549813a",
+  "execution_kernel": "qlora"
+}

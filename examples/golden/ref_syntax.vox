@@ -1,0 +1,41 @@
+// ANCHOR: comments
+// Single line comment
+// Multi-line
+// comment
+// ANCHOR_END: comments
+
+// ANCHOR: variables
+fn demo_vars() {
+    let x = 10
+    let mut y = 20
+    y = 30
+}
+// ANCHOR_END: variables
+
+// ANCHOR: control_flow
+fn demo_flow(val: int) {
+    if val > 10 {
+        print("large");
+    } else {
+        print("small");
+    }
+
+    for i in [1, 2, 3] {
+        print(i);
+    }
+
+    while false {
+        break;
+    }
+}
+// ANCHOR_END: control_flow
+
+// ANCHOR: functions
+fn add(a: int, b: int) to int {
+    return a + b;
+}
+
+component Button(label: str) {
+    view: <button>{label}</button>
+}
+// ANCHOR_END: functions

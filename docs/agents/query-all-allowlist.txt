@@ -1,0 +1,10 @@
+# Transitional allowlist for `vox ci query-all-guard`
+#
+# Policy: arbitrary SQL belongs in `crates/vox-db/src/store/ops_*.rs` (see database-nomenclature.md).
+# Built-in allowlist always includes: `crates/vox-db/`.
+#
+# Add a `crates/<crate>/` or file-prefix line only while migrating that path off `query_all(`.
+crates/vox-corpus/
+crates/vox-cli/src/commands/review/coderabbit/
+crates/vox-mcp/src/dei_tools/
+crates/vox-workflow-runtime/tests/

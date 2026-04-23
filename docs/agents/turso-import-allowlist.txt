@@ -1,0 +1,10 @@
+# Transitional allowlist for `vox ci turso-import-guard`
+#
+# Built-in prefixes: `crates/vox-db/`, `crates/vox-pm/`, `crates/vox-compiler/`.
+# Prefer typed `VoxDb` APIs from application crates; see codex-turso-allowlist.md.
+crates/vox-corpus/
+crates/vox-cli/src/commands/db/
+crates/vox-cli/src/commands/review/coderabbit/
+crates/vox-clavis/
+crates/vox-workflow-runtime/tests/
+crates/vox-ludus/

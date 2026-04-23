@@ -6,7 +6,7 @@ const STAGES = [
   { id: 'parser', name: 'Parser', icon: <Database size={18} />, desc: 'Rowan GreenTree CST generation' },
   { id: 'hir', name: 'HIR', icon: <Brackets size={18} />, desc: 'High-level IR with name resolution' },
   { id: 'typeck', name: 'TypeCheck', icon: <CheckCircle size={18} />, desc: 'Bidirectional unification logic' },
-  { id: 'codegen', name: 'CodeGen', icon: <Code size={18} />, desc: 'Rust and TypeScript emission' }
+  { id: 'codegen', name: 'CodeGen', icon: <Code size={18} />, desc: 'Rust backend + TS (`routes.manifest.ts`, `vox-client.ts`, components)' }
 ];
 
 export const PipelineView = ({ status = {} }: any) => {

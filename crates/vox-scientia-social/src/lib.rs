@@ -1,13 +1,14 @@
-//! Scientia social distribution adapters and syndication outcomes.
-//!
-//! Reddit and YouTube integration builds on [`vox_publisher`]; enable `scientia-reddit` /
-//! `scientia-youtube` when layering crate-specific wiring.
+//! Scientia social façade — delegates distribution planning to `vox-publisher` (single SSOT).
 
-#![forbid(unsafe_code)]
+/// Compile syndication caps and derivation digest for a news item (no duplicate policy).
+#[must_use]
+pub fn compile_distribution_preview(
+    item: &vox_publisher::types::UnifiedNewsItem,
+) -> vox_publisher::DistributionCompileReport {
+    vox_publisher::compile_for_publish(item)
+}
 
-pub use vox_publisher;
-pub use vox_publisher::types::{
-    ChannelPolicyConfig, DistributionPolicyConfig, SyndicationConfig, TopicFiltersConfig,
-    UnifiedNewsItem,
-};
-pub use vox_publisher::{ChannelOutcome, Publisher, PublisherConfig, SyndicationResult};
+/// Ensure embedded topic packs only reference known projection profiles (CI-style guard).
+pub fn validate_topic_pack_projection_profiles() -> Result<(), String> {
+    vox_publisher::distribution_compile::validate_topic_pack_projection_profiles()
+}

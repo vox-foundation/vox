@@ -25,7 +25,9 @@
 //! ## Canonical store (SSOT)
 //!
 //! User-global relational data uses [`DbConfig::resolve_canonical`] / [`canonical_store::resolve_canonical_config`].
-//! Repo-local `.vox/store.db` is for optional artifacts only ([`open_project_db`]). See [`canonical_store`].
+//! Repo-backed interactive surfaces default to the workspace journey store (`.vox/store.db`) via
+//! [`workspace_journey_store::connect_workspace_journey_optional`]; set `VOX_WORKSPACE_JOURNEY_STORE=canonical`
+//! for legacy user-global / Turso. See [`canonical_store`] and [`workspace_journey_store`].
 //!
 //! ## Turso batch SQL caveat
 //!
@@ -66,22 +68,24 @@ pub mod capabilities;
 /// Circuit breaker for write operations.
 pub mod circuit_breaker;
 /// User chat, tool calls, usage limits, topics (manifest chat/search slices).
-mod codex_chat;
+pub mod codex_chat;
 /// Research sessions, conversation versions/edges, topic evolution (manifest `v17`).
 mod codex_conversation_graph;
 /// Canonical connect policy helpers (strict vs optional degraded surfaces).
 pub mod connect_policy;
-/// Ludus / extended `gamify_*` tables and column alignment (runs after baseline).
-mod ludus_schema_cutover;
+/// Explicit namespace for migration-era and cutover-only pathways.
+pub mod legacy;
+/// Ludus / extended `gamify_*` contracts and metrics keys (DDL in baseline `schema/domains`).
 pub mod research_metrics_contract;
 pub mod schema;
-/// Idempotent fixes after baseline `CREATE IF NOT EXISTS` (column adds, renames).
-mod schema_cutover;
+/// Idempotent schema extensions (FTS).
+pub mod schema_extensions;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod store;
 
 /// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).
 pub mod canonical_store;
+#[doc(hidden)]
 pub mod codex_legacy;
 /// Manifest-derived readiness (baseline digest, required tables).
 pub mod codex_schema;
@@ -92,15 +96,22 @@ pub mod ddl;
 pub mod error_enrichment;
 /// Parameters for [`VoxDb::record_eval_run`].
 mod eval_params;
+pub mod exec_time_telemetry;
+pub use exec_time_telemetry::{ExecOutcome, ExecTimeRecord, TimedExecution, ToolLatencyProfile};
 pub mod hash;
 pub mod learning;
 pub mod legacy_import_extras;
 /// Parameters for [`VoxDb::store_memory`].
 pub mod memory;
+mod mens_scorecard_trust;
 /// Declarative SQL migrations using the `schema_version` table (see `crate::schema`).
 pub mod migration;
 /// Data directory and per-user id helpers (delegates to `vox_config`).
+pub mod writer_actor;
+pub use writer_actor::{DbWriteCmd, VoxWriteHandle};
 pub mod paths;
+pub mod pool;
+pub use pool::VoxDbPool;
 /// Mens control-plane audit (`populi_control_event` in `research_metrics`).
 pub mod populi_control_telemetry;
 /// Opt-in mens local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
@@ -120,18 +131,23 @@ mod socrates_telemetry;
 mod sync_invocables;
 pub mod syntax_k_telemetry;
 pub mod toestub_store;
-mod mens_scorecard_trust;
+/// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
+pub mod training_run;
 mod trust_drift;
 mod trust_propagation;
 mod trust_telemetry;
-/// Mens QLoRA training run persistence (CRUD for `populi_training_run` table).
-pub mod training_run;
+pub mod types;
 /// Interpreted workflow journal (`workflow_journal_entry` in `research_metrics`).
 pub mod workflow_journal;
+/// Workspace journey store resolution (`.vox/store.db` vs canonical) for repo-backed MCP/daemon flows.
+pub mod workspace_journey_store;
+
+pub mod oratio_eval;
 
 pub use auto_migrate::AutoMigrator;
 pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
 pub use circuit_breaker::{CircuitBreakerError, CircuitState, DbCircuitBreaker};
+pub use codex_chat::WorkspaceTranscriptTurnRow;
 pub use codex_schema::{
     CodexApiReadiness, evaluate_codex_api_readiness, missing_codex_reactivity_tables,
 };
@@ -147,30 +163,31 @@ pub use error_enrichment::{EnrichedDbError, enrich_error};
 pub use eval_params::EvalRunParams;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
-pub use project_store::open_project_db;
+pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalSampleRecord};
+pub use project_store::{open_project_db, open_project_db_at_root};
 pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
 pub use research::{
-    CapabilityMapRecord, ExternalResearchPacket, ResearchIngestRequest, ResearchIngestResult,
-    RetrievalDiagnostics, retrieval_diagnostics,
+    CapabilityMapRecord, ExternalResearchPacket, ResearchEvalRunRecord, ResearchEvalSampleRecord,
+    ResearchIngestRequest, ResearchIngestResult, RetrievalDiagnostics, retrieval_diagnostics,
 };
 pub use retrieval::{
-    RetrievalEvidenceSource, RetrievalMode, RetrievalQuery, RetrievalResult, fuse_hybrid_results,
+    RetrievalEvidenceSource, RetrievalMode, RetrievalQuery, RetrievalResult, SearchBackend,
+    SearchCorpus, SearchDiagnostics, SearchIntent, SearchPlan, SearchRefinementAction,
+    fuse_hybrid_results, heuristic_search_plan,
 };
 pub use schema_digest::{SchemaDigest, digest_to_json, format_llm_context, generate_schema_digest};
 pub use socrates_telemetry::{
     SocratesSurfaceAggregate, SocratesSurfaceTelemetry, hallucination_risk_proxy,
 };
-pub use trust_drift::{TrustObservationDriftReport, TrustObservationWindowStats};
-pub use trust_propagation::{TrustPropagatedScore, propagate_trust_rollups_domain_cliques};
-pub use trust_telemetry::{TrustObservationInput, TrustRollupGroupSummary};
 pub use store::{
-    A2AMessageRow, A2aClarificationMessageParams, AgentDefEntry, AgentEventRow, ArtifactEntry,
-    BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary, BuildRunRow, BuilderSessionEntry,
-    CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry, CommandFrequencyEntry, ComponentEntry,
-    CrateSample, CrateSampleRow, EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry,
-    ExternalStatusSnapshotParams, ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams,
-    ExternalSubmissionAttemptRow, ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams,
-    GamifyLudusKpiRollup, GamifyPolicySnapshotListRow, KnowledgeNodeSummary, LearnedPatternEntry,
+    A2AMessageRow, A2aClarificationMessageParams, AccountSecretCiphertextRow, AgentDefEntry,
+    AgentEventRow, ArtifactEntry, BehaviorEventEntry, BenchmarkEventRow, BuildHealthSummary,
+    BuildRunRow, BuilderSessionEntry, CloudCostSummary, CloudDispatchRow, CodexChangeLogEntry,
+    CommandFrequencyEntry, ComponentEntry, CorpusQualitySummary, CrateSample, CrateSampleRow,
+    EmbeddingEntry, EndpointReliabilityEntry, ExecutionEntry, ExternalStatusSnapshotParams,
+    ExternalStatusSnapshotRow, ExternalSubmissionAttemptParams, ExternalSubmissionAttemptRow,
+    ExternalSubmissionJobRow, ExternalSubmissionJobUpsertParams, GamifyLudusKpiRollup,
+    GamifyPolicySnapshotListRow, GrpoStepRow, KnowledgeNodeSummary, LearnedPatternEntry,
     LocalTrainRow, LogExecutionParams, LogInteractionParams, MemoryEntry, PackageSearchResult,
     PlanNodeRow, PlanSessionRow, PlanVersionRow, PublicationAttemptRow, PublicationExternalLinkRow,
     PublicationExternalLinkUpsertParams, PublicationExternalRevisionRow,
@@ -183,13 +200,23 @@ pub use store::{
     ScheduledEntry, ScholarlySubmissionRow, SessionEventRow, SessionRow, SessionTurnEntry,
     SkillExecutionParams, SkillExecutionRow, SkillManifestEntry, SkillReliabilityReport,
     SnippetEntry, StoreError, ThroughputProfileRow, TrainingPair, TrustRollupEntry,
-    TypedStreamEventEntry, UserEntry, WarningRow, WorkflowExecutionRow,
+    TypedStreamEventEntry, UpsertAccountSecretCiphertextParams, UserEntry, WarningRow,
+    WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
 pub use syntax_k_telemetry::SyntaxKEventMeta;
 pub use toestub_store::{
     add_suppression, get_file_cache_blocking, list_suppressions_blocking, load_baseline,
     load_latest_task_queue, save_baseline, save_task_queue, set_file_cache_blocking,
+};
+pub use trust_drift::{TrustObservationDriftReport, TrustObservationWindowStats};
+pub use trust_propagation::{TrustPropagatedScore, propagate_trust_rollups_domain_cliques};
+pub use trust_telemetry::{TrustObservationEntry, TrustObservationInput, TrustRollupGroupSummary};
+pub use types::now_unix_ms;
+pub use workspace_journey_store::{
+    WorkspaceJourneyStoreMode, connect_workspace_journey_optional,
+    connect_workspace_journey_optional_at, workspace_journey_diagnostics_json,
+    workspace_journey_store_mode_from_env,
 };
 
 /// Public product name for the unified database facade (**Codex** over Arca/Turso).
@@ -217,13 +244,14 @@ pub enum ReadConsistency {
 pub struct VoxDb {
     pub(crate) conn: turso::Connection,
     pub(crate) sync_db: Option<turso::sync::Database>,
+    pub(crate) writer: Option<crate::VoxWriteHandle>,
     pub(crate) breaker: std::sync::Arc<DbCircuitBreaker>,
     /// Lazily filled by [`VoxDb::sqlite_capabilities_snapshot`](crate::VoxDb::sqlite_capabilities_snapshot).
     pub(crate) sqlite_probe_cache:
         std::sync::Arc<tokio::sync::RwLock<Option<capabilities::SqliteProbeSnapshot>>>,
 }
 
-mod facade;
+pub mod facade;
 
 #[cfg(test)]
 mod codex_contract {

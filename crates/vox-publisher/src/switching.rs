@@ -1,6 +1,6 @@
 //! Shared switching helpers used by CLI/MCP/orchestrator publication surfaces.
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use serde_json::{Value, json};
 
 use crate::types::{SyndicationConfig, UnifiedNewsItem};
@@ -77,6 +77,12 @@ pub fn unified_news_item_from_manifest_parts_notes(
         .filter(|s| !s.is_empty())
         .map(std::string::ToString::to_string);
 
+    let published_at = root
+        .get("published_at")
+        .and_then(|v| v.as_str())
+        .and_then(|s| s.trim().parse::<DateTime<Utc>>().ok())
+        .unwrap_or_else(Utc::now);
+
     let legacy = root.get(LEGACY_METADATA_SYNDICATION_KEY).cloned();
     let canonical = root.get("syndication").cloned();
     if legacy.is_some() {
@@ -105,7 +111,7 @@ pub fn unified_news_item_from_manifest_parts_notes(
         id: publication_id.to_string(),
         title: title.to_string(),
         author: author.to_string(),
-        published_at: Utc::now(),
+        published_at,
         tags,
         content_markdown: body_markdown.to_string(),
         syndication,
@@ -192,6 +198,10 @@ fn normalize_distribution_json_value_with_warnings(
         "hacker_news",
         "youtube",
         "crates_io",
+        "bluesky",
+        "mastodon",
+        "linkedin",
+        "discord",
     ] {
         if let Some(payload) = payloads.get(key) {
             out.insert(key.to_string(), payload.clone());
@@ -226,7 +236,10 @@ fn normalize_distribution_json_value_with_warnings(
 }
 
 fn channel_allows_empty_payload(key: &str) -> bool {
-    matches!(key, "twitter" | "hacker_news")
+    matches!(
+        key,
+        "twitter" | "hacker_news" | "bluesky" | "mastodon" | "linkedin" | "discord"
+    )
 }
 
 fn deep_merge_json(base: Value, overlay: Value) -> Value {
@@ -282,10 +295,12 @@ pub fn apply_channel_allowlist(item: &mut UnifiedNewsItem, allowed: &[String]) {
         item.syndication.rss = false;
     }
     if !has("twitter") {
-        item.syndication.twitter = None;
+        item.syndication
+            .social
+            .retain(|c| c != &crate::types::SocialChannel::Twitter);
     }
     if !has("github") {
-        item.syndication.github = None;
+        item.syndication.forge = None;
     }
     if !has("open_collective") {
         item.syndication.open_collective = None;
@@ -294,13 +309,31 @@ pub fn apply_channel_allowlist(item: &mut UnifiedNewsItem, allowed: &[String]) {
         item.syndication.reddit = None;
     }
     if !has("hacker_news") {
-        item.syndication.hacker_news = None;
+        item.syndication.hacker_news = false;
     }
     if !has("youtube") {
         item.syndication.youtube = None;
     }
     if !has("crates_io") {
         item.syndication.crates_io = None;
+    }
+    if !has("bluesky") {
+        item.syndication
+            .social
+            .retain(|c| c != &crate::types::SocialChannel::Bluesky);
+    }
+    if !has("mastodon") {
+        item.syndication
+            .social
+            .retain(|c| c != &crate::types::SocialChannel::Mastodon);
+    }
+    if !has("linkedin") {
+        item.syndication.linkedin = false;
+    }
+    if !has("discord") {
+        item.syndication
+            .social
+            .retain(|c| c != &crate::types::SocialChannel::Discord);
     }
 }
 
@@ -321,6 +354,10 @@ pub fn failed_channels(result: &SyndicationResult) -> Vec<String> {
     maybe("hacker_news", &result.hacker_news);
     maybe("youtube", &result.youtube);
     maybe("crates_io", &result.crates_io);
+    maybe("bluesky", &result.bluesky);
+    maybe("mastodon", &result.mastodon);
+    maybe("linkedin", &result.linkedin);
+    maybe("discord", &result.discord);
     out
 }
 
@@ -341,6 +378,10 @@ pub fn successful_channels(result: &SyndicationResult) -> Vec<String> {
     maybe("hacker_news", &result.hacker_news);
     maybe("youtube", &result.youtube);
     maybe("crates_io", &result.crates_io);
+    maybe("bluesky", &result.bluesky);
+    maybe("mastodon", &result.mastodon);
+    maybe("linkedin", &result.linkedin);
+    maybe("discord", &result.discord);
     out
 }
 
@@ -379,6 +420,10 @@ fn outcome_for_channel<'a>(result: &'a SyndicationResult, ch: &str) -> Option<&'
         "hacker_news" => &result.hacker_news,
         "youtube" => &result.youtube,
         "crates_io" => &result.crates_io,
+        "bluesky" => &result.bluesky,
+        "mastodon" => &result.mastodon,
+        "linkedin" => &result.linkedin,
+        "discord" => &result.discord,
         _ => return None,
     })
 }
@@ -469,6 +514,7 @@ pub fn failed_channels_from_latest_digest_attempt(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::TimeZone;
 
     #[test]
     fn parse_channels_csv_normalizes() {
@@ -498,6 +544,20 @@ mod tests {
     }
 
     #[test]
+    fn metadata_published_at_parses_rfc3339() {
+        let meta = r#"{
+            "published_at": "2024-01-01T00:00:00Z",
+            "syndication": { "rss": true, "dry_run": true }
+        }"#;
+        let item =
+            unified_news_item_from_manifest_parts("p", "t", "a", "b", Some(meta)).expect("item");
+        assert_eq!(
+            item.published_at,
+            Utc.with_ymd_and_hms(2024, 1, 1, 0, 0, 0).unwrap()
+        );
+    }
+
+    #[test]
     fn legacy_key_merges_under_canonical_syndication() {
         let meta = r#"{
             "scientia_distribution": { "rss": true, "twitter": { "thread": false } },
@@ -508,8 +568,11 @@ mod tests {
                 .expect("item");
         assert!(notes.used_legacy_distribution_key);
         assert!(item.syndication.rss);
-        let tw = item.syndication.twitter.expect("twitter");
-        assert_eq!(tw.short_text.as_deref(), Some("hello"));
+
+        let tw = item
+            .syndication
+            .twitter_override()
+            .expect("twitter payload");
         assert!(!tw.thread);
     }
 
@@ -525,7 +588,11 @@ mod tests {
         let item =
             unified_news_item_from_manifest_parts("p", "t", "a", "b", Some(meta)).expect("item");
         assert!(item.syndication.rss);
-        let tw = item.syndication.twitter.expect("twitter");
+
+        let tw = item
+            .syndication
+            .twitter_override()
+            .expect("twitter payload");
         assert!(tw.thread);
         assert_eq!(
             item.syndication
@@ -607,6 +674,7 @@ mod tests {
             code: "x".into(),
             message: "m".into(),
             retryable: true,
+            failure_class: None,
         };
         let json = serde_json::to_string(&r).expect("json");
         let attempts = [AttemptOutcome {
@@ -635,6 +703,7 @@ mod tests {
             code: "x".into(),
             message: "m".into(),
             retryable: true,
+            failure_class: None,
         };
         let json = serde_json::to_string(&r).expect("json");
         let attempts = [AttemptOutcome {

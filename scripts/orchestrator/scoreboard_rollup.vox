@@ -1,0 +1,24 @@
+// vox:caps process
+import process;
+
+fn main() {
+    print("Running Nightly Scoreboard Rollup...");
+    
+    let res = process.run("vox", ["model", "rollup", "--windows", "7,30,90"]);
+    if res != null {
+        if res.code == 0 {
+            print("✅ Scoreboard rollup completed successfully.");
+        } else {
+            print("❌ Scoreboard rollup failed with code: " + res.code);
+        }
+    }
+
+    let price_res = process.run("vox", ["model", "pricing", "rollup"]);
+    if price_res != null {
+        if price_res.code == 0 {
+            print("✅ Pricing catalog rollup completed successfully.");
+        } else {
+            print("❌ Pricing catalog rollup failed with code: " + price_res.code);
+        }
+    }
+}

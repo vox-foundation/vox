@@ -1,0 +1,8 @@
+{
+  "name": "vox-integration-tests-e2e",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  }
+}

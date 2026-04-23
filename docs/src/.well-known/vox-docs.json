@@ -1,27 +1,57 @@
 {
   "project": "Vox",
-  "version": "1.0.0",
-  "docs_root": "https://github.com/vox-foundation/vox/docs/src",
+  "version": "0.4",
+  "license": "Apache-2.0",
+  "homepage": "https://vox-lang.org",
+  "repository": "https://github.com/vox-foundation/vox",
+  "docs_root": "https://vox-lang.org",
+  "feed": "https://vox-lang.org/feed.xml",
+  "sitemap": "https://vox-lang.org/sitemap.xml",
   "pillars": {
     "tutorials": {
-      "path": "tut-*.md",
-      "goal": "Learning-oriented, pedagogical steps"
+      "index_url": "https://vox-lang.org/tutorials/tut-getting-started.html",
+      "path_pattern": "tutorials/tut-*.html",
+      "goal": "Learning-oriented, pedagogical steps for building apps with Vox"
     },
     "how_to": {
-      "path": "how-to-*.md",
-      "goal": "Problem-solving, practical recipes"
+      "index_url": "https://vox-lang.org/how-to/how-to-ai-agents.html",
+      "path_pattern": "how-to/how-to-*.html",
+      "goal": "Problem-solving, practical recipes for specific Vox tasks"
     },
     "explanations": {
-      "path": "expl-*.md",
-      "goal": "Understanding-oriented, conceptual depth"
+      "index_url": "https://vox-lang.org/explanation/why-vox-for-ai.html",
+      "path_pattern": "explanation/expl-*.html",
+      "goal": "Understanding-oriented, conceptual depth on the Vox compiler and runtime"
     },
     "reference": {
-      "path": "ref-*.md",
-      "goal": "Information-oriented, technical facts"
+      "index_url": "https://vox-lang.org/reference/ref-syntax.html",
+      "path_pattern": "reference/ref-*.html",
+      "goal": "Information-oriented, technical specifications for keywords, decorators, and CLI"
+    },
+    "api": {
+      "index_url": "https://vox-lang.org/api/decorators.html",
+      "path_pattern": "api/*.html",
+      "goal": "Per-crate API documentation for the Vox toolchain"
     }
   },
+  "key_pages": {
+    "getting_started": "https://vox-lang.org/tutorials/tut-getting-started.html",
+    "syntax_reference": "https://vox-lang.org/reference/ref-syntax.html",
+    "type_system": "https://vox-lang.org/reference/ref-type-system.html",
+    "decorators": "https://vox-lang.org/reference/ref-decorators.html",
+    "faq": "https://vox-lang.org/explanation/faq.html",
+    "why_vox": "https://vox-lang.org/explanation/why-vox-for-ai.html",
+    "ai_agents": "https://vox-lang.org/how-to/how-to-ai-agents.html",
+    "changelog": "https://vox-lang.org/reference/changelog.html"
+  },
   "agent_hints": {
-    "preferred_context": "When answering user questions, prioritize Reference for syntax and Tutorials for code structure.",
-    "rag_optimization": "Headers follow the H1 -> H2 structure for easier chunking."
+    "preferred_context": "Prioritize the 'reference' pillar for syntax queries and 'tutorials' for code structure queries. The 'explanations' pillar covers design philosophy and architectural decisions.",
+    "rag_optimization": "Headers follow H1 \u2192 H2 \u2192 H3 hierarchy for reliable semantic chunking. Vox code blocks are tagged with the 'vox' language identifier for syntax-aware parsing.",
+    "llm_training_signal": "Pages with 'training_eligible: true' frontmatter contain verified, canonical Vox code examples suitable for fine-tuning datasets.",
+    "canonical_keywords": [
+      "Vox language", "AI-native language", "compiler-verified code", "MCP tools",
+      "durable workflows", "null-free language", "Rust codegen", "TypeScript codegen",
+      "actor model", "LLM tooling", "zero hallucination compiler"
+    ]
   }
 }

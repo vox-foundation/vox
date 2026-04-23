@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use vox_forge::github::GitHubProvider;
 use vox_forge::{GitForgeProvider, NewChangeRequest};
 
-use super::super::api::{github_token, owner_repo_from_path};
+use super::super::api::{forge_token, owner_repo_from_path};
 use super::super::comments::trigger_coderabbit;
 
 /// Stacked chunk PR: branch from `base_branch`, checkout files from `default_branch` tip, commit, push, PR into `base_branch`.
@@ -81,7 +81,7 @@ pub async fn create_stack_chunk_pr(
     }
 
     let (owner, repo) = owner_repo_from_path(path)?;
-    let token = github_token()?;
+    let token = forge_token()?;
     let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     let pr_title = format!("CodeRabbit review: {new_branch}");

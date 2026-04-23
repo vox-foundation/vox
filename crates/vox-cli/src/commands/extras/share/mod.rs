@@ -1,13 +1,11 @@
 //! `vox share` — share artifacts (workflows, skills, code) via the Vox marketplace.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use vox_db::VoxDb;
 
-/// Get a VoxDb connection (`VOX_DB_*` / Turso aliases / project `.vox/store.db`).
+/// Get a VoxDb connection (workspace journey: `.vox/store.db` vs canonical per env).
 async fn connect() -> Result<VoxDb> {
-    vox_db::open_project_db().await.context(
-        "Failed to open Arca VoxDb (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)",
-    )
+    crate::workspace_db::connect_cli_workspace_voxdb().await
 }
 
 /// Run the `vox share publish` subcommand.

@@ -1,0 +1,853 @@
+//! RPC parameter and response types for all Vox MCP tools.
+//!
+//! All `#[derive(Deserialize)]` structs accepted by tool handlers live here.
+//! All `#[derive(Serialize)]` response types live here.
+//! The generic [`ToolResult<T>`] envelope lives here.
+//!
+//! Tool [`input_schema`](crate::mcp_tools::input_schemas::tool_input_schema) is generated with
+//! [`schemars::JsonSchema`] for most shapes; hand-tuned JSON remains for `Value`-parsed or
+//! `anyOf`-heavy tools (see comments in `input_schemas.rs`).
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+// ---------------------------------------------------------------------------
+// Generic tool result envelope
+// ---------------------------------------------------------------------------
+
+/// A standard envelope for all tool responses.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ToolResult<T> {
+    /// Whether the tool invocation succeeded.
+    pub success: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Success payload when `success` is true.
+    pub data: Option<T>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Error message when `success` is false.
+    pub error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Optional operator hint (docs, env keys, next CLI) when `success` is false.
+    pub remediation: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// Machine-readable extensions (`diagnostics_snapshot`, repair metadata, …).
+    pub meta: Option<serde_json::Value>,
+}
+
+impl<T: Serialize> ToolResult<T> {
+    /// Wraps a successful value in a [`ToolResult`].
+    pub fn ok(data: T) -> Self {
+        Self {
+            success: true,
+            data: Some(data),
+            error: None,
+            remediation: None,
+            meta: None,
+        }
+    }
+
+    /// Successful [`ToolResult`] with additional machine-readable metadata.
+    pub fn ok_with_meta(data: T, meta: serde_json::Value) -> Self {
+        Self {
+            success: true,
+            data: Some(data),
+            error: None,
+            remediation: None,
+            meta: Some(meta),
+        }
+    }
+
+    /// Builds a failed [`ToolResult`] with the given message.
+    pub fn err(msg: impl Into<String>) -> Self {
+        Self {
+            success: false,
+            data: None,
+            error: Some(msg.into()),
+            remediation: None,
+            meta: None,
+        }
+    }
+
+    /// Failed [`ToolResult`] with a short remediation for clients (docs links, env keys, etc.).
+    pub fn err_with_remediation(msg: impl Into<String>, remediation: impl Into<String>) -> Self {
+        Self {
+            success: false,
+            data: None,
+            error: Some(msg.into()),
+            remediation: Some(remediation.into()),
+            meta: None,
+        }
+    }
+
+    /// Failed [`ToolResult`] with remediation and structured `meta` (e.g. `diagnostics_snapshot`).
+    pub fn err_with_remediation_meta(
+        msg: impl Into<String>,
+        remediation: impl Into<String>,
+        meta: serde_json::Value,
+    ) -> Self {
+        Self {
+            success: false,
+            data: None,
+            error: Some(msg.into()),
+            remediation: Some(remediation.into()),
+            meta: Some(meta),
+        }
+    }
+
+    /// Serializes this result to pretty-printed JSON for MCP text content.
+    pub fn to_json(&self) -> String {
+        serde_json::to_string_pretty(self).unwrap_or_else(|e| {
+            format!("{{\"success\":false,\"error\":\"serialization failed: {e}\"}}")
+        })
+    }
+
+    /// Compact JSON (single line) for machine parsing.
+    pub fn to_json_compact(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|e| {
+            format!("{{\"success\":false,\"error\":\"serialization failed: {e}\"}}")
+        })
+    }
+
+    /// Pretty or compact JSON for MCP text content.
+    pub fn to_json_styled(&self, compact: bool) -> String {
+        if compact {
+            self.to_json_compact()
+        } else {
+            self.to_json()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tool_result_tests {
+    use super::ToolResult;
+
+    #[test]
+    fn remediation_round_trips_json() {
+        let tr = ToolResult::<String>::err_with_remediation("bad", "try `vox doctor`");
+        let s = tr.to_json_compact();
+        let de: ToolResult<String> = serde_json::from_str(&s).expect("parse");
+        assert!(!de.success);
+        assert_eq!(de.error.as_deref(), Some("bad"));
+        assert_eq!(de.remediation.as_deref(), Some("try `vox doctor`"));
+        assert!(de.meta.is_none());
+    }
+
+    #[test]
+    fn meta_round_trips_json() {
+        let tr = ToolResult::<String>::err_with_remediation_meta(
+            "e",
+            "r",
+            serde_json::json!({ "diagnostics_snapshot": [] }),
+        );
+        let de: ToolResult<String> = serde_json::from_str(&tr.to_json_compact()).expect("parse");
+        assert!(de.meta.is_some());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// File / task request types
+// ---------------------------------------------------------------------------
+
+/// Read vs write access for a [`FileSpec`] (MCP + task affinity).
+#[derive(Debug, Clone, Copy, Deserialize, JsonSchema)]
+#[serde(rename_all = "lowercase")]
+pub enum FileAccess {
+    /// Read-only affinity hint.
+    Read,
+    /// Read/write affinity hint.
+    Write,
+}
+
+/// File path and access mode for task affinity.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct FileSpec {
+    /// Workspace-relative or absolute file path.
+    #[schemars(length(min = 1, max = 4096))]
+    pub path: String,
+    /// Access mode (`read` or `write`).
+    pub access: FileAccess,
+}
+
+/// Financial and temporal budget constraints for a task (MCP layer).
+#[derive(Debug, Deserialize, JsonSchema, Clone)]
+#[schemars(deny_unknown_fields)]
+pub struct BudgetParams {
+    /// Maximum allowed cost for the task in USD.
+    pub max_cost_usd: Option<f64>,
+    /// Maximum allowed wall-clock latency for the task in milliseconds.
+    pub max_latency_ms: Option<u64>,
+}
+
+/// Arguments for submitting a new orchestrator task.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct SubmitTaskParams {
+    /// Natural-language task description.
+    #[schemars(length(min = 1, max = 131072))]
+    pub description: String,
+    /// Files this task may touch (drives locking and routing).
+    pub files: Vec<FileSpec>,
+    /// Optional queue priority hint (`"urgent"`, `"normal"`, `"background"`).
+    pub priority: Option<String>,
+    /// Optional named agent; enforces scope when configured.
+    pub agent_name: Option<String>,
+    /// Optional GPU / hardware routing hints.
+    #[serde(default)]
+    pub capabilities: Option<crate::TaskCapabilityHints>,
+    /// Optional session identifier for Mens telemetry grouping.
+    pub session_id: Option<String>,
+    /// Optional logical thread id for branch continuity within a session.
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub thread_id: Option<String>,
+    /// Optional planning mode (`auto`, `direct`, `force_plan`, `workflow_only`).
+    pub planning_mode: Option<String>,
+    /// Optional semantic goal type hint for planning.
+    pub goal_type: Option<String>,
+    /// Optional scope hint for planning.
+    pub goal_scope: Option<String>,
+    /// Optional cap on planner depth.
+    pub max_plan_depth: Option<u32>,
+    /// Optional retrieval envelope to seed Socrates task context.
+    #[serde(default)]
+    pub retrieval: Option<crate::mcp_tools::memory::RetrievalEvidenceEnvelope>,
+    /// Optional canonical context envelope JSON to seed Socrates context and session state.
+    #[serde(default)]
+    #[schemars(length(min = 1))]
+    pub context_envelope_json: Option<String>,
+    /// Optional portable harness contract JSON aligned with `contracts/orchestration/agent-harness.schema.json`.
+    #[serde(default)]
+    #[schemars(length(min = 1))]
+    pub harness_spec_json: Option<String>,
+    /// Optional task category for model routing (`parsing`, `type_checking`, `debugging`, `research`, `testing`, `codegen`, `review`).
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub task_category: Option<String>,
+    /// Optional complexity 1–10 (clamped when applied to the task).
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 10))]
+    pub complexity: Option<u8>,
+    /// Optional model preference string (non-binding hint on the task).
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub model_preference: Option<String>,
+    /// Optional model override id for labeling and routing hints.
+    #[serde(default)]
+    #[schemars(length(max = 512))]
+    pub model_override: Option<String>,
+    /// Optional explicit reconstruction campaign id (preferred over description tags).
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub campaign_id: Option<String>,
+    /// Optional reconstruction benchmark tier (`issue_repair`, `subsystem_regen`, `crate_regen`, `repo_regen`).
+    #[serde(default)]
+    #[schemars(length(max = 64))]
+    pub benchmark_tier: Option<String>,
+    /// Optional end-to-end trace id; copied into merged context envelope provenance for cross-plane correlation.
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub trace_id: Option<String>,
+    /// Optional budget constraints for the task (USD cost and/or latency).
+    #[serde(default)]
+    pub budget: Option<BudgetParams>,
+    /// Optional correlation id (e.g. client thread); stored alongside `trace_id` on envelope provenance.
+    #[serde(default)]
+    #[schemars(length(max = 256))]
+    pub correlation_id: Option<String>,
+    /// Optional tool declaration hints (e.g. [[tool:vox_run_tests]]).
+    #[serde(default)]
+    pub tool_hints: Vec<String>,
+    /// Optional research intent hints (e.g. [[research:vector]]).
+    #[serde(default)]
+    pub research_hints: Vec<String>,
+    /// Optional mesh routing labels for agent-driven capability dispatch.
+    #[serde(default)]
+    pub required_labels: Option<Vec<String>>,
+    /// Optional flag for async detached mesh task execution.
+    #[serde(default)]
+    pub is_detached: Option<bool>,
+}
+
+/// Heuristic plan-adequacy snapshot for direct [`SubmitTaskParams`] submits when shadow mode is on.
+#[derive(Debug, Clone, Serialize)]
+pub struct SubmitShadowAdequacy {
+    /// Structural adequacy score (0 = thin … 1 = adequate).
+    pub score: f32,
+    pub is_too_thin: bool,
+    pub reason_codes: Vec<String>,
+    pub critical_count: usize,
+    pub aggregate_unresolved_risk: f32,
+}
+
+/// Identifier payload returned after a successful [`SubmitTaskParams`] submission.
+#[derive(Debug, Serialize)]
+pub struct SubmitTaskResponse {
+    /// Newly assigned task id.
+    pub task_id: u64,
+    /// Agent id the task was routed to.
+    pub agent_id: u64,
+    /// Whether the task description was canonicalized (order-invariant, normalized).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_canonicalized: Option<bool>,
+    /// Conflict warnings from the prompt canonicalization pipeline (for transparency).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub conflict_warnings: Option<Vec<String>>,
+    /// Hash of the original prompt for debug/traceability.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_prompt_hash: Option<String>,
+    /// Present when [`OrchestratorConfig::orchestration_migration`] has v2 enabled (MCP hint).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub orchestration_contract: Option<String>,
+    /// Set when `plan_adequacy_shadow` is enabled and this was a direct submit (not `submit_goal`): single pseudo-task heuristic.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shadow_plan_adequacy: Option<SubmitShadowAdequacy>,
+}
+
+/// Query the status of a single task by id.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct TaskStatusParams {
+    /// Task id to look up.
+    pub task_id: u64,
+}
+
+/// Mark a task completed.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct CompleteTaskParams {
+    /// Task id to complete.
+    pub task_id: u64,
+    /// Optional summary of what was completed.
+    #[serde(default)]
+    #[schemars(length(max = 131072))]
+    pub completion_summary: Option<String>,
+    /// Optional list of checks that were run before completion.
+    #[serde(default)]
+    pub checks_passed: Vec<String>,
+    /// Evidence substrings that should appear in the session context envelope (same as `[[voxcite:...]]` markers).
+    #[serde(default)]
+    pub evidence_citations: Vec<String>,
+    /// Optional task artifacts to validate (workspace-relative preferred).
+    #[serde(default)]
+    pub artifact_paths: Vec<String>,
+    /// Explicit declaration that the completion avoids placeholder/stub output.
+    #[serde(default)]
+    pub declared_non_placeholder: bool,
+    /// Allow risky completion with explicit reason (audited).
+    #[serde(default)]
+    pub force_risky: bool,
+    /// Required when `force_risky` is true.
+    #[serde(default)]
+    #[schemars(length(max = 4096))]
+    pub force_risky_reason: Option<String>,
+}
+
+/// Mark a task failed with a reason string.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct FailTaskParams {
+    /// Task id to fail.
+    pub task_id: u64,
+    /// Human-readable failure reason.
+    pub reason: String,
+}
+
+/// Mark a task as "Doubted" by the human, triggering a high-audit resolution loop.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct DoubtTaskParams {
+    /// Task id to doubt.
+    pub task_id: u64,
+    /// Optional context or specific suspicion reason.
+    #[serde(default)]
+    #[schemars(length(max = 4096))]
+    pub reason: Option<String>,
+}
+
+/// Cancel a queued or in-progress task.
+#[derive(Debug, Deserialize)]
+pub struct CancelTaskParams {
+    /// Task id to cancel.
+    pub task_id: u64,
+}
+
+/// Change priority of a queued task.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ReorderTaskParams {
+    /// Task id to reorder.
+    pub task_id: u64,
+    /// New priority (`"urgent"`, `"normal"`, or `"background"`).
+    pub priority: String,
+}
+
+/// Remove all queued work from an agent without retiring it.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct DrainAgentParams {
+    /// Target agent id.
+    pub agent_id: u64,
+}
+
+/// Bind an external session id to an orchestrator agent.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct MapAgentSessionParams {
+    /// Agent id to update.
+    pub agent_id: u64,
+    /// Opaque session identifier from the client.
+    #[schemars(length(min = 1, max = 2048))]
+    pub session_id: String,
+}
+
+/// Validate a `.vox` source file through the compiler pipeline.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ValidateFileParams {
+    /// Path to the `.vox` file.
+    #[schemars(length(min = 1))]
+    pub path: String,
+}
+
+/// Run `cargo test` for one crate with an optional name filter.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct RunTestsParams {
+    /// Cargo package name (`-p` target).
+    pub crate_name: String,
+    /// Optional substring filter passed after `--`.
+    pub test_filter: Option<String>,
+}
+
+/// Optional Cargo `-p` target for workspace-level build / lint / coverage tools.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct OptionalCrateNameParams {
+    /// Cargo package name or omit for entire workspace.
+    pub crate_name: Option<String>,
+}
+
+/// Generic OpenClaw gateway call payload.
+#[derive(Debug, Deserialize)]
+pub struct OpenClawGatewayCallParams {
+    /// Gateway method name, e.g. `subscriptions.list`.
+    pub method: String,
+    /// JSON params object passed through to the gateway.
+    #[serde(default)]
+    pub params: serde_json::Value,
+}
+
+/// Single-domain OpenClaw operation payload.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct OpenClawDomainParams {
+    /// OpenClaw domain identifier.
+    #[schemars(length(min = 1))]
+    pub domain: String,
+}
+
+/// OpenClaw notify payload.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct OpenClawNotifyParams {
+    /// OpenClaw domain identifier.
+    #[schemars(length(min = 1))]
+    pub domain: String,
+    /// Free-form domain message.
+    #[schemars(length(min = 1))]
+    pub message: String,
+}
+
+/// Search remote OpenClaw skills by query.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct OpenClawSearchParams {
+    /// Case-insensitive keyword query.
+    #[schemars(length(min = 1))]
+    pub query: String,
+}
+
+/// Import an OpenClaw skill by slug.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct OpenClawImportParams {
+    /// Skill slug to import.
+    pub slug: String,
+    /// Whether to install into local skill registry (default true).
+    #[serde(default = "default_true")]
+    pub install: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+/// Open a Chromium tab (CDP via `chromiumoxide`; no Playwright/Node required).
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserOpenParams {
+    /// Initial URL to navigate to.
+    #[schemars(length(min = 1, max = 8192))]
+    pub url: String,
+    /// When false, run a visible browser window (default true = headless).
+    #[serde(default = "default_headless_true")]
+    pub headless: bool,
+}
+
+fn default_headless_true() -> bool {
+    true
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserPageParams {
+    /// Session id returned by `vox_browser_open`.
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserGotoParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[schemars(length(min = 1, max = 8192))]
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserTargetParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// CSS selector, or `xpath:/absolute/xpath` for XPath.
+    #[schemars(length(min = 1, max = 4096))]
+    pub target: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserFillParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[schemars(length(min = 1, max = 4096))]
+    pub target: String,
+    #[schemars(length(min = 1, max = 131072))]
+    pub value: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserWaitParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    #[schemars(length(min = 1, max = 4096))]
+    pub target: String,
+    #[serde(default = "default_wait_timeout")]
+    #[schemars(range(min = 1, max = 600))]
+    pub timeout_secs: u64,
+}
+
+fn default_wait_timeout() -> u64 {
+    30
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserScreenshotParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// Workspace-relative or absolute PNG path.
+    #[schemars(length(min = 1, max = 4096))]
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserHtmlParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// Empty string = full document HTML; otherwise CSS or `xpath:…` for a fragment.
+    #[serde(default)]
+    #[schemars(length(max = 4096))]
+    pub target: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserExtractParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// Natural-language extraction instruction (requires configured MCP chat model).
+    #[schemars(length(min = 1, max = 131072))]
+    pub instruction: String,
+    /// Optional temperature override.
+    pub temperature: Option<f32>,
+    /// Optional top_p override.
+    pub top_p: Option<f32>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserExtractJsonParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// JSON Schema string (draft-07 subset) describing the desired object root.
+    #[schemars(length(min = 1, max = 131072))]
+    pub schema_json: String,
+    #[schemars(length(min = 1, max = 131072))]
+    pub instruction: String,
+    /// Optional temperature override.
+    pub temperature: Option<f32>,
+    /// Optional top_p override.
+    pub top_p: Option<f32>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct BrowserActParams {
+    #[schemars(length(min = 1, max = 256))]
+    pub page_id: String,
+    /// Goal in natural language; model returns a small action JSON (requires MCP chat model).
+    #[schemars(length(min = 1, max = 131072))]
+    pub instruction: String,
+}
+
+/// Publish a bulletin-board style message (orchestrator-internal).
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct PublishMessageParams {
+    /// Message body to publish.
+    pub message: String,
+}
+
+// ---------------------------------------------------------------------------
+// RAG and Search types
+// ---------------------------------------------------------------------------
+
+/// Parameters for querying a multi-modal visual RAG handler.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct VoxVisualRagQueryParams {
+    /// Natural-language question or extraction instruction.
+    #[schemars(length(min = 1, max = 131072))]
+    pub query: String,
+    /// Optional list of workspace-relative paths to image files.
+    #[serde(default)]
+    pub image_paths: Vec<String>,
+    /// Optional list of base64-encoded image payloads.
+    #[serde(default)]
+    pub image_base64: Option<Vec<String>>,
+}
+
+/// Response returned from a successful visual RAG invocation.
+#[derive(Debug, Serialize)]
+pub struct VoxVisualRagQueryResponse {
+    /// Textual analysis/answer from the intelligence backend.
+    pub answer: String,
+    /// List of data sources, file paths, or DBs consulted.
+    pub sources_consulted: Vec<String>,
+    /// An estimated confidence score bounded between 0.0 and 1.0.
+    pub confidence_score: f32,
+}
+
+// ---------------------------------------------------------------------------
+// Response types
+// ---------------------------------------------------------------------------
+
+/// Per-agent summary in a [`StatusResponse`].
+#[derive(Debug, Serialize)]
+pub struct AgentInfo {
+    /// Agent id.
+    pub id: u64,
+    /// Display name.
+    pub name: String,
+    /// Tasks waiting in queue.
+    pub queued: usize,
+    /// Tasks finished historically.
+    pub completed: usize,
+    /// Whether the agent is paused.
+    pub paused: bool,
+    /// Highest handoff count for any active task in this queue.
+    pub max_handoff_count: u8,
+}
+
+/// Structured `vox_orchestrator_start` payload (honest about in-process orchestrator limits).
+#[derive(Debug, Serialize)]
+pub struct OrchestratorRuntimeProbe {
+    /// Human-readable summary for operators.
+    pub honest_message: String,
+    /// Number of registered agent queues.
+    pub agent_count: usize,
+    /// [`Orchestrator::agent_handles`] entries (vox-runtime worker processes), if any.
+    pub registered_worker_processes: usize,
+    /// `queue_only` or `workers_attached`.
+    pub execution_mode: String,
+    /// True when `VOX_MCP_AGENT_FLEET` enables the embedded AgentFleet supervisor loop (default).
+    pub agent_fleet_loop_running: bool,
+    /// Static note for clients that assumed a separate fleet process.
+    pub note: &'static str,
+    /// When the daemon probe aligned repo ids, **`orch.status`** `agent_count` (may differ from embedded `agent_count` until IPC-first).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_reported_agent_count: Option<u64>,
+    /// Populated when daemon **`orch.status`** could not be fetched.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_status_rpc_error: Option<String>,
+    /// **`orch.agent_ids`** from the daemon when the same pilots are enabled (order may differ; compare sorted).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_reported_agent_ids: Option<Vec<u64>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_agent_ids_rpc_error: Option<String>,
+}
+
+/// Spawn a new orchestrator agent queue.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct SpawnAgentParams {
+    /// Display name for the agent / queue.
+    #[schemars(length(min = 1, max = 256))]
+    pub name: String,
+    /// When true, use [`Orchestrator::spawn_dynamic_agent`] (auto-retire when idle).
+    pub dynamic: Option<bool>,
+    /// Optional parent agent id for delegation-aware dynamic spawns.
+    pub parent_agent_id: Option<u64>,
+    /// Optional delegation reason annotation.
+    #[schemars(length(min = 1, max = 256))]
+    pub delegation_reason: Option<String>,
+    /// Optional source task id for topology lineage.
+    pub source_task_id: Option<u64>,
+}
+
+/// Single `agent_id` argument for lifecycle helpers.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct AgentIdToolParams {
+    /// Target agent id.
+    pub agent_id: u64,
+}
+
+/// High-level orchestrator snapshot for MCP status tools.
+#[derive(Debug, Serialize)]
+pub struct StatusResponse {
+    /// Number of registered agents.
+    pub agent_count: usize,
+    /// Tasks currently executing.
+    pub in_progress: usize,
+    /// Tasks finished across all agents.
+    pub completed: usize,
+    /// Per-agent rows.
+    pub agents: Vec<AgentInfo>,
+    /// Global peak handoff count across all active agents.
+    pub max_handoff_count: u8,
+    /// Current scaling profile (conservative / balanced / aggressive) for transparency.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scaling_profile: Option<String>,
+    /// Effective scale-up threshold (scaling_threshold * profile multiplier) for explainability.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub effective_scale_up_threshold: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Gamify companion state when Codex is attached.
+    pub companion: Option<vox_ludus::companion::Companion>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Pre-rendered Markdown summary for clients.
+    pub markdown_summary: Option<String>,
+    // -- VCS health stats --
+    /// Total snapshots stored in the snapshot ring-buffer.
+    pub snapshot_count: usize,
+    /// Total operations in the operation log.
+    pub oplog_count: usize,
+    /// Number of active (unresolved) file conflicts.
+    pub active_conflicts: usize,
+    /// Number of active agent workspaces.
+    pub active_workspaces: usize,
+    /// Number of tracked logical changes.
+    pub active_changes: usize,
+    /// Read-only mens HTTP snapshot when [`crate::OrchestratorConfig::populi_control_url`] is set.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mesh_snapshot: Option<serde_json::Value>,
+    /// Background-polled mens federation cache (same URL); does not replace `mesh_snapshot` live fetch.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub populi_federation_cache: Option<serde_json::Value>,
+    /// Optional planning summary from persisted plan sessions.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub planning: Option<serde_json::Value>,
+    /// Delegation/topology snapshot for parent/child agent relationships.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub topology: Option<crate::AgentTopologySnapshot>,
+    /// Persistence outbox lifecycle telemetry snapshot from orchestrator context.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub persistence_outbox_lifecycle: Option<serde_json::Value>,
+    /// `queue_only` unless at least one vox-runtime worker handle is registered.
+    pub execution_mode: String,
+    /// True when `registered_worker_processes > 0`.
+    pub worker_runtime_attached: bool,
+    /// Count of registered vox-runtime process handles.
+    pub registered_worker_processes: usize,
+    /// Whether Codex / Turso (`VoxDb`) is attached to this MCP server.
+    pub db_configured: bool,
+    /// `codex_and_transient` when DB is set; otherwise `transient_only` for poll_events.
+    pub event_feed_mode: String,
+    /// When repo ids align, JSON from daemon **`orch.status`** (compare with embedded fields until IPC-first).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_orch_status: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub daemon_orch_status_rpc_error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attention_budget: Option<serde_json::Value>,
+}
+
+/// Single LSP-style diagnostic for validate-file responses.
+#[derive(Debug, Serialize)]
+pub struct DiagnosticInfo {
+    /// `"error"` or `"warning"`.
+    pub severity: String,
+    /// Human-readable diagnostic text.
+    pub message: String,
+    /// Tool or compiler source label.
+    pub source: String,
+    /// Start line (0-based).
+    pub start_line: u32,
+    /// Start column (0-based).
+    pub start_col: u32,
+    /// End line (0-based).
+    pub end_line: u32,
+    /// End column (0-based).
+    pub end_col: u32,
+}
+
+/// Result of validating a Vox source file.
+#[derive(Debug, Serialize)]
+pub struct ValidateResponse {
+    /// Number of diagnostics reported.
+    pub count: usize,
+    /// Diagnostic list.
+    pub diagnostics: Vec<DiagnosticInfo>,
+    /// When true, diagnostics include HIR invariant validation (CLI `run_frontend_str` parity).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub hir_validation_included: bool,
+    /// Optional correlation ID for speech-to-code / MCP tracing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub correlation_id: Option<String>,
+}
+
+/// Arguments for `vox_check` (machine-readable diagnostics).
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct VoxCheckParams {
+    /// Workspace-relative path to the `.vox` file.
+    #[schemars(length(min = 1))]
+    pub path: String,
+}
+
+/// Result of checking a `.vox` file (exact parity with CLI --output-format json).
+#[derive(Debug, Serialize)]
+pub struct VoxCheckResponse {
+    /// List of structured diagnostics.
+    pub diagnostics: Vec<vox_compiler::typeck::diagnostics::VoxCompilerDiagnosticPayload>,
+    /// Whether any error-severity diagnostic was found.
+    pub has_errors: bool,
+    /// Total diagnostic count.
+    pub count: usize,
+}

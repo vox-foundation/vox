@@ -1,0 +1,139 @@
+x-vox-version: 1
+schema_version: 1
+
+tiers:
+  - Unknown
+  - Local
+  - Light
+  - Pro
+  - Elite
+
+strengths:
+  - codegen
+  - debugging
+  - logic
+  - research
+  - parsing
+  - review
+  - planning
+  - inter_agent
+  - visus
+  - security
+  - vision
+  - ui-codegen
+  - frontend
+  - generalist
+  - long-context
+
+task_categories:
+  - CodeGen
+  - Testing
+  - Debugging
+  - TypeChecking
+  - Research
+  - Parsing
+  - Review
+  - General
+  - Ars
+  - Planning
+  - InterAgent
+  - ToolOrchestration
+  - Visus
+
+scoring:
+  weights:
+    efficiency: 1
+    precision: 1
+    latency: 1
+    availability: 1
+    balance: 1
+    mobile: 1
+  latency_bands:
+    excellent_ms: 500
+    poor_ms: 8000
+
+premium_alias:
+  codegen: "claude-mythos-preview-20260407"
+  debugging: "claude-mythos-preview-20260407"
+  security: "claude-mythos-preview-20260407"
+  research: "google/gemini-2.5-pro-preview"
+  planning: "google/gemini-2.5-pro-preview"
+  review: "anthropic/claude-sonnet-4.6"
+  logic: "deepseek/deepseek-r1"
+  visus: "qwen/qwen-3.5-vl"
+
+economy_cost_ceiling_usd_per_1k: 0.1
+
+strength_inference:
+  - type: parameter_graph
+    rules:
+      - parameters: ["tools", "tool_use", "response_format", "structured_outputs"]
+        strengths: ["codegen", "logic"]
+      - parameters: ["reasoning", "thinking"]
+        strengths: ["logic", "debugging"]
+      - parameters: ["web_search", "search"]
+        strengths: ["research"]
+
+  - type: provider_family
+    rules:
+      - match: "anthropic"
+        strengths: ["codegen", "logic", "review", "research", "ui-codegen", "frontend"]
+      - match: "openai"
+        strengths: ["codegen", "logic", "research"]
+      - match: "google"
+        strengths: ["research", "codegen", "logic"]
+      - match: "deepseek"
+        strengths: ["codegen", "logic", "debugging"]
+      - match: "qwen"
+        strengths: ["codegen", "logic"]
+      - match: "qwen2"
+        strengths: ["codegen", "logic"]
+      - match: "qwen2.5"
+        strengths: ["codegen", "logic"]
+      - match: "qwen3"
+        strengths: ["codegen", "logic"]
+      - match: "qwen3.5"
+        strengths: ["codegen", "logic"]
+      - match: "qwen3_5"
+        strengths: ["codegen", "logic"]
+      - match: "mistral"
+        strengths: ["codegen", "logic"]
+      - match: "mistralai"
+        strengths: ["codegen", "logic"]
+      - match: "meta-llama"
+        strengths: ["codegen", "logic", "research"]
+      - match: "meta"
+        strengths: ["codegen", "logic", "research"]
+      - match: "cohere"
+        strengths: ["research", "review"]
+      - match: "perplexity"
+        strengths: ["research"]
+      - match: "x-ai"
+        strengths: ["research", "logic"]
+      - match: "nvidia"
+        strengths: ["codegen", "logic"]
+      - match: "01-ai"
+        strengths: ["logic", "codegen"]
+      - match: "amazon"
+        strengths: ["codegen", "research"]
+      - match: "microsoft"
+        strengths: ["codegen", "logic"]
+
+  - type: name_regex
+    rules:
+      - pattern: "(code|coder|program|software)"
+        strengths: ["codegen"]
+      - pattern: "(reason|logic|math|proof)"
+        strengths: ["logic"]
+      - pattern: "(debug|fix)"
+        strengths: ["debugging"]
+      - pattern: "(research|analysis|science|academic)"
+        strengths: ["research"]
+      - pattern: "(review|critic)"
+        strengths: ["review"]
+      - pattern: "(parse|extract)"
+        strengths: ["parsing"]
+
+  - type: default
+    rules:
+      - strengths: ["generalist"]

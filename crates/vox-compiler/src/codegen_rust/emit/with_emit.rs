@@ -48,7 +48,7 @@ where
                         emit_expr(value)
                     ));
                 }
-                "activity_id" => {
+                "activity_id" | "id" => {
                     if let HirExpr::StringLit(s, _) = value {
                         opts_builder.push_str(&format!(".with_activity_id(\"{}\".to_string())", s));
                     }
@@ -59,11 +59,25 @@ where
     }
 
     let operand_str = emit_expr(operand);
+    let activity_name = resolve_activity_name(operand);
     format!(
-        "vox_runtime::execute_activity_result(\"activity\", &{opts}, || async {{ {call} }}).await",
+        "vox_runtime::execute_activity_result(\"{name}\", &{opts}, || async {{ {call} }}).await",
+        name = activity_name,
         opts = opts_builder,
         call = operand_str,
     )
+}
+
+fn resolve_activity_name(operand: &HirExpr) -> String {
+    match operand {
+        HirExpr::Call(callee, _, _, _) => match callee.as_ref() {
+            HirExpr::Ident(name, _) => name.clone(),
+            _ => "activity".to_string(),
+        },
+        HirExpr::MethodCall(_, method, _, _) => method.clone(),
+        HirExpr::Ident(name, _) => name.clone(),
+        _ => "activity".to_string(),
+    }
 }
 
 #[cfg(test)]
@@ -85,6 +99,28 @@ mod tests {
         assert!(
             !emitted.contains("panic!("),
             "with emission should not panic-map failures: {emitted}"
+        );
+        assert!(
+            emitted.contains("execute_activity_result(\"work\""),
+            "with emission should carry stable activity identity: {emitted}"
+        );
+    }
+
+    #[test]
+    fn supports_id_alias_for_activity_id_option() {
+        let span = Span::new(0, 0);
+        let operand = HirExpr::Ident("work".to_string(), span);
+        let options = HirExpr::ObjectLit(
+            vec![(
+                "id".to_string(),
+                HirExpr::StringLit("alias-id".to_string(), span),
+            )],
+            span,
+        );
+        let emitted = emit_with(&|_| "work()".to_string(), &operand, &options);
+        assert!(
+            emitted.contains(".with_activity_id(\"alias-id\".to_string())"),
+            "`id` alias should map to ActivityOptions::with_activity_id: {emitted}"
         );
     }
 }

@@ -2,8 +2,10 @@
 title: "TanStack SSR with Axum (development topology)"
 description: "Official documentation for TanStack SSR with Axum (development topology) for the Vox language. Detailed technical reference, architecture"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # TanStack SSR with Axum (development topology)
@@ -18,7 +20,7 @@ The shipped **`vox run`** path builds a **client** Vite bundle into `target/gene
 
 1. **Terminal A** — generated Axum app (existing): `vox run` / `cargo run` in `target/generated` (port from `VOX_PORT`, default **3000**).
 2. **Terminal B** — TanStack Start / Vite SSR dev server (after Start scaffold lands): `pnpm dev` in the web workspace package that owns Start (port **e.g. 3001**).
-3. **Proxy** — point the browser at **3000** and configure Axum to **reverse-proxy** `GET /*` (except `/api`, static prefixes) to **3001**, or browse **3001** directly during UI-only work.
+3. **Proxy** — point the browser at **3000** and configure Axum to **reverse-proxy** `GET /*` (except `/api`, static prefixes) -> **3001**, or browse **3001** directly during UI-only work.
 
 ## Environment variables (convention)
 
@@ -35,7 +37,7 @@ TanStack **Start**-specific `vite.config` and route files are still tracked in [
 | Mode | How to enable | What you get |
 | ---- | ------------- | ------------ |
 | **SPA (default)** | _(nothing)_ | `index.html` + `src/main.tsx` + Vite + TanStack Router imports from `src/generated/*`. |
-| **TanStack Start** | `Vox.toml` **`[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** (must match **`vox build`** so TS output aligns) | `vite dev` / `vite build`, `@tanstack/react-start` Vite plugin, `src/routes/__root.tsx`, `router.tsx`, `routeTree.gen.ts`. **With `routes:`:** codegen emits **`VoxTanStackRouter.tsx`** exporting **`voxRouteTree`** (no nested SPA `RouterProvider`); `routeTree.gen.ts` re-exports it. **Without `routes:`:** `src/routes/index.tsx` plus a seed **`routeTree.gen.ts`**; **`pnpm run routes:gen`** (via **`dev`/`build`** scripts and **`vox` frontend install+build**) regenerates it from **`@tanstack/router-cli`**. |
+| **TanStack Start** | `Vox.toml` **`[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** (must match **`vox build`** so TS output aligns) | `vite dev` / `vite build`, `@tanstack/react-start` Vite plugin, `src/routes/__root.tsx`, `router.tsx`, `routeTree.gen.ts`. **`vox build`** emits **`routes.manifest.ts`** + components (no **`VoxTanStackRouter.tsx`**); the user-owned adapter wires TanStack file routes + manifest. **Without `routes {`:** `src/routes/index.tsx` plus a seed **`routeTree.gen.ts`**; **`pnpm run routes:gen`** refreshes it from **`@tanstack/router-cli`**. |
 
 SSR in production still follows **ADR 010** (Axum + optional Node SSR upstream); this table is only the **local scaffold** written by `vox run` / bundle.
 
@@ -53,3 +55,5 @@ For **full-document SSR** in production, ADR 010’s **Node SSR upstream** may r
 
 - [TanStack web roadmap](../architecture/tanstack-web-roadmap.md)
 - [vox-web-stack.md](../reference/vox-web-stack.md)
+
+

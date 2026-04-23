@@ -1,25 +1,18 @@
 # Minimal full-stack surface — v0.3 brace syntax
-# `@component`, `routes`, `http`, and `@server`.
+# Path C `component`, `routes`, `http`, and `@server`.
 # Used as a golden input for `vox build` integration tests.
-
-import react.use_state
 
 type PingMsg =
     | Pong(text: str)
 
-@component fn Home() to Element {
-    let (n, set_n) = use_state(0)
-    <div class="wrap">
-        <p>"n = " {n}</p>
-        <button on_click={fn (_e) set_n(n + 1)}>"+"</button>
-    </div>
-}
-
-style {
-    .wrap {
-        padding: "1rem"
-        fontFamily: "sans-serif"
-    }
+component Home() {
+    state n: int = 0
+    view: (
+        <div class="wrap">
+            <p>"n = " {n}</p>
+            <button on:click={n = n + 1}>"+"</button>
+        </div>
+    )
 }
 
 routes {

@@ -106,6 +106,8 @@ pub enum Decl {
     Test(TestDecl),
     /// Server-only RPC / RSC-style function.
     ServerFn(ServerFnDecl),
+    /// Property-based test declaration.
+    Forall(ForallDecl),
     /// Codex table schema.
     Table(TableDecl),
     /// Document collection schema.
@@ -128,8 +130,7 @@ pub enum Decl {
     Query(QueryDecl),
     /// Transactional write function.
     Mutation(MutationDecl),
-    /// Orchestrated server action.
-    Action(ActionDecl),
+
     /// Packaged LLM / tool skill.
     Skill(SkillDecl),
     /// Agent definition (capabilities + handlers).
@@ -188,6 +189,7 @@ impl Decl {
             Decl::HttpRoute(h) => h.span,
             Decl::McpTool(m) => m.func.span,
             Decl::Test(t) => t.func.span,
+            Decl::Forall(f) => f.func.span,
             Decl::ServerFn(s) => s.func.span,
             Decl::Table(t) => t.span,
             Decl::Collection(c) => c.span,
@@ -200,7 +202,7 @@ impl Decl {
             Decl::Impl(i) => i.span,
             Decl::Query(q) => q.func.span,
             Decl::Mutation(m) => m.func.span,
-            Decl::Action(a) => a.func.span,
+
             Decl::Skill(s) => s.func.span,
             Decl::AgentDef(ad) => ad.func.span,
             Decl::Agent(a) => a.span,

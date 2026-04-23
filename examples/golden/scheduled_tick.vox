@@ -1,0 +1,17 @@
+// ---
+// title: "Reference: @scheduled"
+// description: "Minimal golden for @scheduled top-level job (lowers as a normal function in HIR)."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [@scheduled, fn]
+// last_validated: 2026-04-12
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// ANCHOR: scheduled_region
+@scheduled("1h")
+fn scheduled_tick() to Unit {
+    return Unit
+}
+// ANCHOR_END: scheduled_region

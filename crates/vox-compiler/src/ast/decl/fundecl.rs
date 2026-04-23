@@ -3,6 +3,26 @@ use crate::ast::span::Span;
 use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
 
+/// Verification mode for contracts and assertions.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum VerifyMode {
+    /// No runtime checks; contracts are stripped.
+    Off,
+    /// Preconditions are checked; postconditions are ignored (development safe).
+    RequireOnly,
+    /// Both preconditions and postconditions are checked.
+    Full,
+}
+
+/// A postcondition requirement with an optional fallback for repair.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct PostCondition {
+    /// The condition expression to check.
+    pub condition: Expr,
+    /// Optional fallback function name to call if the condition fails.
+    pub fallback: Option<String>,
+}
+
 /// Function declaration.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FnDecl {
@@ -29,15 +49,11 @@ pub struct FnDecl {
     /// Optional specific LLM model to use for implementation.
     pub llm_model: Option<String>,
     /// Whether the function serves as a page layout.
-    pub is_layout: bool,
     /// Whether the function is public.
     pub is_pub: bool,
     /// Whether the function records custom metrics.
-    pub is_metric: bool,
     /// The name of the recorded metric.
-    pub metric_name: Option<String>,
     /// Whether the function is a health check endpoint.
-    pub is_health: bool,
     /// Optional authentication provider name.
     pub auth_provider: Option<String>,
     /// List of roles required to access the function.
@@ -46,6 +62,16 @@ pub struct FnDecl {
     pub cors: Option<String>,
     /// Precondition expressions from `@require(expr)` decorators.
     pub preconditions: Vec<Expr>,
+    /// Postcondition expressions from `@ensure(expr)` decorators.
+    pub postconditions: Vec<PostCondition>,
+    /// Class invariants (if this is a method).
+    pub invariants: Vec<Expr>,
+    /// How strictly to enforce contracts at runtime.
+    pub verify_mode: VerifyMode,
+    /// Optional strategy override for property testing.
+    pub test_strategy: Option<String>,
+    /// Whether this function is a mobile native implementation bridge.
+    pub is_mobile_native: bool,
     /// Source location.
     pub span: Span,
 }
@@ -73,7 +99,20 @@ pub struct StyleBlock {
 /// Test declaration (wraps a function with @test semantics).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TestDecl {
+    /// Human-readable label/description for the test.
+    pub label: String,
     /// The underlying function implementing the test.
+    pub func: FnDecl,
+}
+
+/// Property-based test declaration.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ForallDecl {
+    /// Human-readable description.
+    pub label: String,
+    /// How many generated iterations to run.
+    pub iterations: u32,
+    /// The underlying function implementing the property to check.
     pub func: FnDecl,
 }
 
@@ -95,13 +134,6 @@ pub struct QueryDecl {
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct MutationDecl {
     /// The underlying function implementing the mutation.
-    pub func: FnDecl,
-}
-
-/// Action declaration: server-side logic that can call queries and mutations.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ActionDecl {
-    /// The underlying function implementing the action.
     pub func: FnDecl,
 }
 

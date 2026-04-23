@@ -10,7 +10,8 @@ impl LowerCtx {
         let id = self.def_map.define(f.name.clone());
         self.def_map.push_scope();
         let params = f.params.iter().map(|p| self.lower_param(p)).collect();
-        let body = f.body.iter().map(|s| self.lower_stmt(s)).collect();
+        let mut body = f.body.iter().map(|s| self.lower_stmt(s)).collect();
+        body = self.inject_contracts(f, body);
         self.def_map.pop_scope();
 
         HirFn {
@@ -23,7 +24,20 @@ impl LowerCtx {
             is_component,
             is_async: false,
             is_pub: f.is_pub,
+            is_mobile_native: f.is_mobile_native,
+            is_pure: f.is_pure,
+            is_llm: f.is_llm,
+            llm_model: f.llm_model.clone(),
             is_deprecated: f.is_deprecated,
+            schedule_interval: None,
+            postconditions: f
+                .postconditions
+                .iter()
+                .map(|p| HirPostCondition {
+                    condition: self.lower_expr(&p.condition),
+                    fallback: p.fallback.clone(),
+                })
+                .collect(),
             span: f.span,
         }
     }
@@ -64,6 +78,8 @@ impl LowerCtx {
                 HirType::Tuple(elements.iter().map(|e| self.lower_type(e)).collect())
             }
             TypeExpr::Unit { .. } => HirType::Unit,
+            TypeExpr::Infer { .. } => HirType::Named("_".to_string()),
+            TypeExpr::Decimal { .. } => HirType::Decimal,
         }
     }
     pub(crate) fn lower_typedef(&mut self, t: &TypeDefDecl) -> HirTypeDef {
@@ -248,6 +264,7 @@ impl LowerCtx {
                     body: self.lower_expr(&c.body),
                     span: c.span,
                 }),
+                ReactiveMemberDecl::Stmt(s) => HirReactiveMember::Stmt(self.lower_stmt(s)),
             })
             .collect();
         let view = r.view.as_ref().map(|v| self.lower_expr(v));
@@ -259,7 +276,77 @@ impl LowerCtx {
             params,
             members,
             view,
+            styles: r.styles.clone(),
             span: r.span,
+        }
+    }
+
+    pub(crate) fn lower_agent(&mut self, a: &AgentDecl) -> HirAgent {
+        let id = self.def_map.define(a.name.clone());
+        HirAgent {
+            id,
+            name: a.name.clone(),
+            version: a.version.clone(),
+            state_fields: a
+                .state_fields
+                .iter()
+                .map(|f| HirTableField {
+                    name: f.name.clone(),
+                    type_ann: self.lower_type(&f.type_ann),
+                    span: f.span,
+                })
+                .collect(),
+            handlers: a
+                .handlers
+                .iter()
+                .map(|h| {
+                    self.def_map.push_scope();
+                    let params = h.params.iter().map(|p| self.lower_param(p)).collect();
+                    let body = h.body.iter().map(|s| self.lower_stmt(s)).collect();
+                    self.def_map.pop_scope();
+                    HirAgentHandler {
+                        event_name: h.event_name.clone(),
+                        params,
+                        return_type: h.return_type.as_ref().map(|t| self.lower_type(t)),
+                        body,
+                        is_traced: h.is_traced,
+                        span: h.span,
+                    }
+                })
+                .collect(),
+            migrations: a
+                .migrations
+                .iter()
+                .map(|m| {
+                    self.def_map.push_scope();
+                    let body = m.body.iter().map(|s| self.lower_stmt(s)).collect();
+                    self.def_map.pop_scope();
+                    HirMigrationRule {
+                        from_version: m.from_version.clone(),
+                        body,
+                        span: m.span,
+                    }
+                })
+                .collect(),
+            is_deprecated: a.is_deprecated,
+            span: a.span,
+        }
+    }
+
+    pub(crate) fn lower_environment(&mut self, e: &EnvironmentDecl) -> HirEnvironment {
+        HirEnvironment {
+            name: e.name.clone(),
+            base_image: e.base_image.clone(),
+            packages: e.packages.clone(),
+            env_vars: e.env_vars.clone(),
+            exposed_ports: e.exposed_ports.clone(),
+            volumes: e.volumes.clone(),
+            workdir: e.workdir.clone(),
+            cmd: e.cmd.clone(),
+            copy_instructions: e.copy_instructions.clone(),
+            run_commands: e.run_commands.clone(),
+            is_deprecated: e.is_deprecated,
+            span: e.span,
         }
     }
 }

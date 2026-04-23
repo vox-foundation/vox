@@ -1,0 +1,33 @@
+---
+description: Data storage policy — Tier A/B/C/D, contracts as SSoT, no direct turso, no ad-hoc file writes.
+alwaysApply: true
+---
+# Data storage policy
+
+Before editing data-persistence code, consult [data-storage-ssot-2026.md](mdc:docs/src/architecture/data-storage-ssot-2026.md).
+
+## Non-negotiables
+
+- Do NOT open a `turso::Connection` outside `vox-db`, `vox-clavis`, or `vox-test-harness`.
+- Do NOT use `std::fs::write` or `tokio::fs::write` for event/log data. Use `vox-spool` (Tier B) or `vox-checksum-manifest` (Tier C).
+- Do NOT `env::var("TURSO_…")`. Use `vox_clavis::resolve_secret(...)` and the canonical `VOX_DB_URL` / `VOX_DB_TOKEN` vars.
+- Do NOT hard-code `.vox/` subpaths. Resolve through `vox_config::paths`.
+- Do NOT add `#[derive(Serialize, Deserialize)]` to a struct under any `row/` module; put wire-facing siblings in a `dto/` module.
+- Do NOT introduce a new `VOX_*` env var without updating `contracts/config/env-vars.v1.yaml`.
+- Do NOT write a struct in Rust for a shape that already exists as a contract; regenerate from `vox-schema` instead.
+
+## When you change a contract
+
+- Bump `x-vox-version` and rename the file if the change is breaking.
+- Regenerate with `vox schema generate`.
+- Run `vox ci data-storage-guard`.
+
+## When you add a persistent surface
+
+- Decide the tier (A / B / C / D per SSOT §4) before writing code.
+- Tier A → add a domain fragment in `contracts/db/`.
+- Tier B → write through `vox-spool`.
+- Tier C → write through `vox-checksum-manifest`; reference from a Tier A row.
+- Tier D → under `VOX_CACHE_DIR`; must be deleteable without loss.
+
+Reference: [data-storage-lint-and-ci-spec-2026.md](mdc:docs/src/architecture/data-storage-lint-and-ci-spec-2026.md)

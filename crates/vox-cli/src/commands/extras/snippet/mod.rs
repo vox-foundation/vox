@@ -7,9 +7,7 @@ use vox_db::VoxDb;
 use vox_db::store::SaveSnippetParams;
 
 async fn connect() -> Result<VoxDb> {
-    vox_db::open_project_db().await.context(
-        "Failed to open Arca VoxDb (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)",
-    )
+    crate::workspace_db::connect_cli_workspace_voxdb().await
 }
 
 fn language_from_path(path: &std::path::Path) -> &'static str {

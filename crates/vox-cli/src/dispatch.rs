@@ -58,7 +58,7 @@ pub async fn call_daemon(
     let json = serde_json::to_string(&req)? + "\n";
     stdin.write_all(json.as_bytes()).await?;
     stdin.flush().await?;
-    // Drop stdin so the daemon sees EOF and knows we are done sending requests
+    // Drop stdin so the daemon sees EOF and knows the request stream has ended
     drop(stdin);
 
     let mut reader = BufReader::new(stdout).lines();

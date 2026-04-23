@@ -1,6 +1,6 @@
 ---
 title: "Database Nomenclature Guide"
-last_updated: "2026-03-25"
+last_updated: "2026-03-28"
 ---
 
 # Vox Database Nomenclature — Agent SSOT Guide
@@ -17,6 +17,7 @@ last_updated: "2026-03-25"
 | `VoxDb` | Rust struct | `vox-db/src/lib.rs` | Facade over Turso/libSQL persistence |
 | `Codex` | Type alias | `vox-db/src/lib.rs` | `pub type Codex = VoxDb;` — product-facing name |
 | **Arca** | concept | `vox-db/src/schema/` | Schema domains + baseline DDL + digest (internal name) |
+| **Arca spec** | Rust module | `vox-db/src/schema/spec/mod.rs` | Shared DDL strings + `orchestrator_schema_digest()`; appended in `baseline_sql()` |
 | `vox-pm` | crate | `crates/vox-pm` | Package registry / artifacts — **not** the SQL schema SSOT |
 
 **Rule:** In Rust code, use `VoxDb` in type signatures. Use **Codex** in user-facing docs. Do not introduce new aliases for the same type.
@@ -29,33 +30,49 @@ last_updated: "2026-03-25"
 | Run domain SQL | Inside `vox-db/src/store/ops_*.rs` (methods on `VoxDb`) | Raw SQL scattered in consumers for tables owned by Arca |
 | Read-only diagnostics | Documented exceptions (allowlist) | `connection().execute` for business writes outside `vox-db` |
 | CI: `.connection().query\|execute` | `vox ci sql-surface-guard` (diff-scoped; `--all` for full audit) | Extra path prefixes in [`sql-connection-api-allowlist.txt`](./sql-connection-api-allowlist.txt) while migrating |
+| CI: `.query_all(` escape hatch on [`VoxDb`](../../crates/vox-db/src/facade/memory.rs) | `vox ci query-all-guard` (diff-scoped; `--all` for full audit) | Transitional paths in [`query-all-allowlist.txt`](./query-all-allowlist.txt); prefer typed `store/ops_*.rs` methods |
 
 > [!CAUTION]
 > Prefer adding a method on `VoxDb` in `store/ops_*.rs` instead of embedding SQL in `vox-ludus`, `vox-mcp`, or `vox-orchestrator`.
 
 ## Schema Versioning
 
-- **DDL SSOT:** `crates/vox-db/src/schema/domains/*.rs` — one fragment per domain.
+- **DDL SSOT:** `crates/vox-db/src/schema/domains/*.rs` — one fragment per domain, plus optional append-only DDL from [`schema/spec`](../../crates/vox-db/src/schema/spec/mod.rs) merged in `baseline_sql()`.
 - **Ordering / baseline:** `crates/vox-db/src/schema/manifest.rs` — `SCHEMA_FRAGMENTS`, `BASELINE_VERSION`, `baseline_sql()`.
 - **Greenfield migrate:** `VoxDb::migrate` (`store/open.rs`) applies baseline when `schema_version < BASELINE_VERSION`.
-- **Existing DB fixes:** `crates/vox-db/src/schema_cutover.rs` runs idempotent column/table alignment after migrate (e.g. `agent_events.payload_json`, `published_news.news_id`).
+- **Existing DB fixes:** Column/table alignment was previously handled in `schema_cutover.rs` (now deleted); core alignment is now part of the idempotent baseline fragments.
+- **Explicit legacy boundary:** `crates/vox-db/src/legacy/mod.rs` is the namespace for migration-era pathways (`legacy::codex`, `legacy::import_extras`, cutover wrappers). New call sites should use `legacy::*` for transitional operations rather than treating these paths as baseline peers.
+
+### Where DDL/WAL actually runs (audit map)
+
+| Class | Location | Notes |
+|-------|-----------|-------|
+| Baseline relational | `schema/domains/*.rs`, `schema/domains/sql/*.sql`, `schema/spec` strings appended in `manifest::baseline_sql` | Core SSOT for new DBs via `migrate`. |
+| Orchestrator / document collections | `orchestrator_schema_digest` → `sync_schema_from_digest`; `Collection::ensure_table` | `_id`/`_data` layout; not duplicated as flat SQL tables for `provider_usage`. |
+| Domain cutover | (removed) | Extended Ludus DDL is in baseline fragments; no separate Ludus cutover entrypoint. |
+| Meta bootstrap | `store/open.rs`, `facade/migrations.rs` | `schema_version` and local object store tables where applicable. |
+| Legacy hooks | (removed) | `populi_training_run` / `codex_capability_map` are created by baseline `migrate` only. |
 
 To add a new table:
 
 1. Add `CREATE TABLE IF NOT EXISTS` (and indexes) to the appropriate **domain** module under `schema/domains/`.
-2. If needed, extend `schema_cutover.rs` for migrations baseline `IF NOT EXISTS` cannot perform.
+2. Use domain-specific idempotent SQL (or a legacy namespace helper) for migrations baseline `IF NOT EXISTS` cannot perform (e.g. renames).
 3. Add `VoxDb` methods in `store/ops_<domain>.rs`.
 4. Add tests under `crates/vox-db/tests/`.
 
-### Baseline vs cutover consolidation (backlog)
-
-When `schema_cutover.rs` grows “`CREATE … IF NOT EXISTS` + `INSERT` seed” blocks that are **stable** for new databases, prefer promoting them into the matching domain fragment under `schema/domains/` so **greenfield `migrate`** and **digest** stay authoritative. Use cutover only for **ordering-sensitive** fixes on databases that already passed an older baseline (column type widens, backfills, index renames). Steps before moving DDL:
+When cutover logic grows “`CREATE … IF NOT EXISTS` + `INSERT` seed” blocks that are **stable** for new databases, prefer promoting them into the matching domain fragment under `schema/domains/` so **greenfield `migrate`** and **digest** stay authoritative. Use cutover logic only for **ordering-sensitive** fixes on databases that already passed an older baseline (column type widens, backfills, index renames). Steps before moving DDL:
 
 1. Prove idempotence on an empty DB (`VoxDb::migrate` only) and on a snapshot from the prior `BASELINE_VERSION`.
 2. Extend `crates/vox-db/tests/migration_tests.rs` (or a domain smoke test) so both paths stay covered.
 3. Bump `BASELINE_VERSION` only when the baseline digest must change; keep cutover steps until no shipped DB is expected to need them (then delete redundant cutover branches in a later release).
 
-**Why some cutover DDL mirrors baseline:** [`VoxDb::migrate`](../../crates/vox-db/src/store/open.rs) runs the full [`baseline_sql`](../../crates/vox-db/src/schema/manifest.rs) only when `schema_version < BASELINE_VERSION`. Once a file is pinned at the baseline integer, **opening it again skips the baseline batch** and runs [`apply_schema_cutover`](../../crates/vox-db/src/schema_cutover.rs) only. Tables first introduced in a domain fragment during an era when many DBs were already at baseline therefore need an idempotent `CREATE TABLE IF NOT EXISTS` (or additive `ALTER`) in cutover until every replica can be assumed to have the table — not merely because greenfield installs already see the DDL in `schema/domains/`.
+Legacy deletion criteria:
+
+1. Release policy no longer supports opening pre-baseline `schema_version` chain databases.
+2. `codex_legacy` JSONL import/export has no active operator dependency.
+3. Ludus/gamify cutover DDL is fully represented in baseline fragments and validated on upgrade snapshots.
+
+**Why some cutover DDL mirrors baseline:** [`VoxDb::migrate`](../../crates/vox-db/src/store/open.rs) runs the full [`baseline_sql`](../../crates/vox-db/src/schema/manifest.rs) only when `schema_version < BASELINE_VERSION`. Once a file is pinned at the baseline integer, **opening it again skips the baseline batch** and runs cutover logic only. Tables first introduced in a domain fragment during an era when many DBs were already at baseline therefore need an idempotent `CREATE TABLE IF NOT EXISTS` (or additive `ALTER`) in cutover until every replica can be assumed to have the table — not merely because greenfield installs already see the DDL in `schema/domains/`.
 
 ## Naming Conventions
 
@@ -73,9 +90,9 @@ When `schema_cutover.rs` grows “`CREATE … IF NOT EXISTS` + `INSERT` seed” 
 | A2A in-process inbox (`MessageBus`) | **RAM** | Ephemeral; microsecond latency |
 | A2A cross-node messages (`a2a_messages`) | **DB** | Cross-node delivery; audit trail |
 | OpLog history (`OpLog.entries`, bounded VecDeque) | **RAM** | VecDeque capped at 1000; cleared on restart |
-| OpLog audit/replay (`agent_oplog`) | **DB** | Long-term audit, model provenance |
-| Orchestrator MCP sessions (when DB attached) | **DB** (`agent_sessions`, `agent_session_events`) | Durable replay SSOT |
-| MCP session JSONL (`SessionConfig::persist`) | **Files** | Optional non-authoritative export |
+| OpLog audit/replay (`agent_oplog`) | **DB** | Long-term audit, model provenance (main `record_operation` path + undo/redo flag sync) |
+| Orchestrator MCP sessions (when DB attached) | **DB** (`agent_sessions`, `agent_session_events`) | Durable replay SSOT; [`SessionManager::load`](../../crates/vox-orchestrator/src/session/manager/persist_load.rs) reads Codex only |
+| Legacy session `.jsonl` paths under `SessionConfig::sessions_dir` | **Files** | Cleanup of stale paths only; not authoritative replay (no JSONL load in `SessionManager::load`) |
 | Training / eval JSONL corpora | **Files** | Large immutable artifacts; not operational SSOT |
 | Actor KV state (`actor_state`) | **DB** | Survives restarts |
 | Cost audit trail (`cost_records`) | **DB** | Budget tracking across sessions |
@@ -84,7 +101,7 @@ When `schema_cutover.rs` grows “`CREATE … IF NOT EXISTS` + `INSERT` seed” 
 ## JSONL vs Codex
 
 - **Codex:** operational state, approvals, session replay, coordination, gamification, cost records.
-- **JSONL:** training exports, run telemetry, optional session file export — **not** authoritative when a DB is attached.
+- **JSONL:** training exports, run telemetry, optional dogfood traces — **not** authoritative when Codex holds the same domain’s rows (orchestrator sessions: DB-only load path).
 
 ## Struct Deduplication Policy
 

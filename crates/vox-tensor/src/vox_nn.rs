@@ -44,6 +44,9 @@ pub enum Module<B: Backend> {
     LayerNorm(burn::nn::LayerNorm<B>),
     MultiHeadAttention(burn::nn::attention::MultiHeadAttention<B>),
     TransformerEncoder(burn::nn::transformer::TransformerEncoder<B>),
+    TransformerDecoder(burn::nn::transformer::TransformerDecoder<B>),
+    MaxPool2d(burn::nn::pool::MaxPool2d),
+    AvgPool2d(burn::nn::pool::AvgPool2d),
 }
 
 impl<B: Backend> Module<B> {
@@ -137,6 +140,30 @@ impl<B: Backend> Module<B> {
         Module::TransformerEncoder(config.init(&device))
     }
 
+    pub fn transformer_decoder(
+        d_model: usize,
+        d_ff: usize,
+        n_heads: usize,
+        n_layers: usize,
+    ) -> Self {
+        let device = Default::default();
+        let config =
+            burn::nn::transformer::TransformerDecoderConfig::new(d_model, d_ff, n_heads, n_layers);
+        Module::TransformerDecoder(config.init(&device))
+    }
+
+    pub fn max_pool2d(kernel_size: usize, stride: usize) -> Self {
+        let config = burn::nn::pool::MaxPool2dConfig::new([kernel_size, kernel_size])
+            .with_strides([stride, stride]);
+        Module::MaxPool2d(config.init())
+    }
+
+    pub fn avg_pool2d(kernel_size: usize, stride: usize) -> Self {
+        let config = burn::nn::pool::AvgPool2dConfig::new([kernel_size, kernel_size])
+            .with_strides([stride, stride]);
+        Module::AvgPool2d(config.init())
+    }
+
     pub fn forward(&self, x: &Tensor<B>) -> Tensor<B> {
         match self {
             Module::Linear(layer) => match x {
@@ -198,6 +225,30 @@ impl<B: Backend> Module<B> {
                     Tensor::D3(layer.forward(enc_input))
                 }
                 _ => panic!("TransformerEncoder expects D3 [batch, seq_len, d_model]"),
+            },
+            Module::TransformerDecoder(layer) => match x {
+                Tensor::Tuple2(target, memory) => {
+                    let tgt_d3 = match &**target {
+                        Tensor::D3(t) => t.clone(),
+                        _ => panic!("TransformerDecoder expects D3 target"),
+                    };
+                    let mem_d3 = match &**memory {
+                        Tensor::D3(m) => m.clone(),
+                        _ => panic!("TransformerDecoder expects D3 memory"),
+                    };
+                    let dec_input =
+                        burn::nn::transformer::TransformerDecoderInput::new(tgt_d3, mem_d3);
+                    Tensor::D3(layer.forward(dec_input))
+                }
+                _ => panic!("TransformerDecoder expects Tuple2(D3, D3) [target, memory]"),
+            },
+            Module::MaxPool2d(layer) => match x {
+                Tensor::D4(input) => Tensor::D4(layer.forward(input.clone())),
+                _ => panic!("MaxPool2d expects D4"),
+            },
+            Module::AvgPool2d(layer) => match x {
+                Tensor::D4(input) => Tensor::D4(layer.forward(input.clone())),
+                _ => panic!("AvgPool2d expects D4"),
             },
         }
     }

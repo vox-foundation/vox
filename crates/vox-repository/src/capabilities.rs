@@ -26,6 +26,12 @@ pub struct TaskCapabilityHints {
     /// Agent advertises an on-device NPU / neural accelerator.
     #[serde(default)]
     pub npu: bool,
+    /// Agent/Task supports visual intelligence (VLM, OCR, layout audit).
+    #[serde(default)]
+    pub visus_eligible: bool,
+    /// Agent/Task supports multi-modal payloads (image + text + audio).
+    #[serde(default)]
+    pub multi_modal: bool,
     /// Optional host class label (`server`, `desktop`, `mobile`, `browser`, …).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device_class: Option<String>,
@@ -50,10 +56,19 @@ pub struct TaskCapabilityHints {
     /// Soft routing hint: deprioritize agents without any GPU capability (Mens-style training intent).
     #[serde(default)]
     pub prefer_gpu_compute: bool,
+    /// Hardware/inference tier (e.g., "local").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub routing_tier: Option<String>,
+    /// When true, Socrates low-confidence warnings cannot be bypassed by the agent.
+    #[serde(default)]
+    pub is_low_confidence_bypass_blocked: bool,
+    /// When true, force a Socratic research pass even if confidence is moderate.
+    #[serde(default)]
+    pub force_socrates_research: bool,
 }
 
 /// Markers for tooling gates (Cargo, Node, etc.).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RepoCapabilities {
     /// `Vox.toml` present at repository root.
     pub vox_project: bool,
@@ -151,6 +166,12 @@ pub fn merge_agent_capabilities(
     if !out.npu && probed.npu {
         out.npu = true;
     }
+    if !out.visus_eligible && probed.visus_eligible {
+        out.visus_eligible = true;
+    }
+    if !out.multi_modal && probed.multi_modal {
+        out.multi_modal = true;
+    }
     if out.device_class.is_none() {
         out.device_class = probed.device_class.clone();
     }
@@ -159,6 +180,9 @@ pub fn merge_agent_capabilities(
     }
     if out.min_cpu_cores.is_none() {
         out.min_cpu_cores = probed.min_cpu_cores;
+    }
+    if out.routing_tier.is_none() {
+        out.routing_tier = probed.routing_tier;
     }
     out
 }
@@ -213,6 +237,8 @@ mod tests {
         assert!(!h.gpu_vulkan);
         assert!(!h.gpu_webgpu);
         assert!(!h.npu);
+        assert!(!h.visus_eligible);
+        assert!(!h.multi_modal);
         assert!(h.device_class.is_none());
         assert!(h.cpu_cores.is_none());
         assert!(h.labels.is_empty());

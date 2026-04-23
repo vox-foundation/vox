@@ -1,0 +1,19 @@
+{
+  "name": "docs-astro",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.8",
+    "@astrojs/starlight": "^0.38.3",
+    "astro": "^6.0.1",
+    "sharp": "^0.34.2",
+    "starlight-llms-txt": "^0.8.1",
+    "typescript": "^6.0.3"
+  }
+}

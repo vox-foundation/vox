@@ -16,6 +16,16 @@ pub fn expand_spoken_symbols(text: &str) -> String {
         ("semicolon", ";"),
         ("colon", ":"),
         ("new line", "\n"),
+        ("underscore", "_"),
+        ("double equals", "=="),
+        ("not equals", "!="),
+        ("dot dot dot", "..."),
+        ("dot dot", ".."),
+        ("bang", "!"),
+        ("ampersand", "&"),
+        ("pipe", "|"),
+        ("asterisk", "*"),
+        ("backslash", "\\"),
     ];
     for (phrase, sym) in pairs {
         let plen = phrase.len();
@@ -45,6 +55,8 @@ pub fn strip_casing_command(transcript: &str) -> Option<(CasingStyle, &str)> {
         ("snakecase ", CasingStyle::Snake),
         ("constant case ", CasingStyle::Constant),
         ("constantcase ", CasingStyle::Constant),
+        ("kebab case ", CasingStyle::Kebab),
+        ("kebabcase ", CasingStyle::Kebab),
     ] {
         if lower.starts_with(prefix) {
             let rest = t[prefix.len()..].trim_start();
@@ -65,6 +77,8 @@ pub enum CasingStyle {
     Snake,
     /// `SCREAMING_SNAKE_CASE`.
     Constant,
+    /// `kebab-case`.
+    Kebab,
 }
 
 impl CasingStyle {
@@ -76,6 +90,11 @@ impl CasingStyle {
             return String::new();
         }
         match self {
+            Self::Kebab => parts
+                .iter()
+                .map(|w| w.to_ascii_lowercase())
+                .collect::<Vec<_>>()
+                .join("-"),
             Self::Snake => parts
                 .iter()
                 .map(|w| w.to_ascii_lowercase())

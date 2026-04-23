@@ -1,6 +1,6 @@
 {
   "schema": "vox.build_timings.snapshot_metadata/v1",
-  "captured_at": "2026-03-21",
+  "captured_at": "2026-04-03",
   "paired_artifact": "latest.jsonl",
   "cache_state": "incremental_warm_shared_target_dir",
   "rustc": {

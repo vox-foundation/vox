@@ -1,0 +1,84 @@
+{
+  "x-vox-version": 1,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/schemas/canonical-map.v1.schema.json",
+  "title": "Documentation canonical map v1",
+  "type": "object",
+  "required": ["schema_version", "domains"],
+  "additionalProperties": false,
+  "properties": {
+    "x-vox-version": {
+      "type": "integer"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "domains": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "canon_doc"],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9.-]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tier": {
+            "type": "string",
+            "enum": ["A-spec", "B-canon", "C-generated", "D-index"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["current", "experimental", "legacy", "research", "roadmap", "deprecated"]
+          },
+          "spec_paths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": []
+          },
+          "canon_doc": {
+            "type": "string",
+            "minLength": 1
+          },
+          "generated_docs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": []
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": []
+          },
+          "owning_crate_globs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "default": []
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

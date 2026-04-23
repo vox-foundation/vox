@@ -134,8 +134,10 @@ fn collect_query_plans_expr(
                 collect_query_plans_stmt(st, out);
             }
         }
+        HirExpr::Try(t) => collect_query_plans_expr(t.target.as_ref(), out),
         HirExpr::IntLit(_, _)
         | HirExpr::FloatLit(_, _)
+        | HirExpr::DecimalLit(_, _)
         | HirExpr::StringLit(_, _)
         | HirExpr::BoolLit(_, _)
         | HirExpr::Ident(_, _) => {}
@@ -156,6 +158,20 @@ fn collect_query_plans_stmt(
         HirStmt::Return { value: Some(v), .. } => collect_query_plans_expr(v, out),
         HirStmt::Return { value: None, .. } => {}
         HirStmt::Expr { expr, .. } => collect_query_plans_expr(expr, out),
+        HirStmt::While {
+            condition, body, ..
+        } => {
+            collect_query_plans_expr(condition, out);
+            for st in body {
+                collect_query_plans_stmt(st, out);
+            }
+        }
+        HirStmt::Loop { body, .. } => {
+            for st in body {
+                collect_query_plans_stmt(st, out);
+            }
+        }
+        HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
     }
 }
 

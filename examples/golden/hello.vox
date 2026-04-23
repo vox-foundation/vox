@@ -1,6 +1,6 @@
 // ---
 // title: "Hello Example"
-// description: "Minimal Vox function: typed parameter, string return, and the ret keyword."
+// description: "Minimal Vox function: typed parameter, string return, and the return keyword."
 // syntax_version: "0.8"
 // status: golden
 // category: example
@@ -10,6 +10,8 @@
 // training_weight: 1.0
 // ---
 // @training_prompt: Write a minimal Vox hello-world function
+// ANCHOR: display
 fn hello(name: str) to str {
-    ret "Hello " + name + "!"
+    return "Hello " + name + "!"
 }
+// ANCHOR_END: display

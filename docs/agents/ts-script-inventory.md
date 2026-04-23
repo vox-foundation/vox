@@ -1,3 +1,10 @@
+---
+title: "Ts Script Inventory"
+description: "Agent support documentation for ts script inventory"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # TypeScript script inventory (expanded)
 
 | Area | Path pattern | Disposition |

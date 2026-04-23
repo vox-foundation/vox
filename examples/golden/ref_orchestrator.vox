@@ -1,0 +1,22 @@
+// ANCHOR: mcp_tool
+@mcp.tool "Calculate the sum of two integers"
+fn sum(a: int, b: int) to int {
+    return a + b
+}
+// ANCHOR_END: mcp_tool
+
+// ANCHOR: mcp_resource
+@mcp.resource ("notes://recent", "Recent system notes")
+fn get_recent_notes() to str {
+    return "This is a note from the system."
+}
+// ANCHOR_END: mcp_resource
+
+// ANCHOR: orchestrator_config
+env staging {
+    base "node:22-alpine"
+    packages ["curl"]
+    env STAGE = "staging"
+    expose [8080]
+}
+// ANCHOR_END: orchestrator_config

@@ -111,39 +111,35 @@ pub async fn run(
         let ingest_path = ingest_path.to_path_buf();
         let run_scope = path.to_string_lossy().to_string();
         let total = findings.len();
-        let (tx, rx) = std::sync::mpsc::channel();
-        std::thread::spawn(move || {
-            let r = (|| -> anyhow::Result<()> {
-                let db = Codex::connect_default_sync()
-                    .map_err(|e| anyhow::anyhow!("connect: {:?}", e))?;
-                let user_id = vox_ludus::db::canonical_user_id();
-                let task_queue = vox_toestub::TaskQueue::from_findings(&findings);
-                let fix_suggestions_json = serde_json::to_string(&task_queue.fix_suggestions)
-                    .unwrap_or_else(|_| "[]".to_string());
-                db.block_on(async {
-                    save_task_queue(
-                        &db,
-                        &user_id,
-                        &run_scope,
-                        task_queue.total_findings as i64,
-                        &fix_suggestions_json,
-                    )
-                    .await
-                })
-                .map_err(|e| anyhow::anyhow!("save_task_queue: {:?}", e))?;
-                println!(
-                    "Ingested {} findings from {} into VoxDB task queue (user_id={}).",
-                    total,
-                    ingest_path.display(),
-                    user_id
-                );
-                db.shutdown_for_drop();
-                Ok(())
-            })();
-            let _ = tx.send(r);
+        let handle = tokio::spawn(async move {
+            let db = Codex::connect_default()
+                .await
+                .map_err(|e| anyhow::anyhow!("connect: {:?}", e))?;
+            let user_id = vox_ludus::db::canonical_user_id();
+            let task_queue = vox_toestub::TaskQueue::from_findings(&findings);
+            let fix_suggestions_json = serde_json::to_string(&task_queue.fix_suggestions)
+                .unwrap_or_else(|_| "[]".to_string());
+            
+            save_task_queue(
+                &db,
+                &user_id,
+                &run_scope,
+                task_queue.total_findings as i64,
+                &fix_suggestions_json,
+            )
+            .await
+            .map_err(|e| anyhow::anyhow!("save_task_queue: {:?}", e))?;
+            
+            println!(
+                "Ingested {} findings from {} into VoxDB task queue (user_id={}).",
+                total,
+                ingest_path.display(),
+                user_id
+            );
+            db.shutdown_for_drop();
+            Ok::<(), anyhow::Error>(())
         });
-        tokio::task::block_in_place(|| rx.recv())
-            .map_err(|_| anyhow::anyhow!("ingest thread channel closed"))??;
+        handle.await.map_err(|_| anyhow::anyhow!("ingest task panicked"))??;
         return Ok(());
     }
 

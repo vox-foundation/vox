@@ -32,6 +32,8 @@ pub struct WorkflowTraceRecord {
     pub execution_log_excerpt: String,
     /// Model-produced Vox snippet, if captured.
     pub synthesized_vox: Option<String>,
+    /// NNT small-world routing efficiency score (0.0-1.0).
+    pub routing_efficiency: Option<f64>,
 }
 
 /// A2A message pair for coordination training.
@@ -52,4 +54,23 @@ pub struct A2ATraceRecord {
 /// Serialize `row` as a single JSONL line (no trailing newline).
 pub fn jsonl_line<T: Serialize>(row: &T) -> anyhow::Result<String> {
     Ok(serde_json::to_string(row)?)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NegativeLexParseTypeckRecord {
+    pub source: String,
+    pub errors_json: String,
+    pub origin: String,
+    pub reward_signal: f64,
+}
+
+#[cfg(feature = "database")]
+pub async fn auto_ingest_negative_vox(
+    source: &str,
+    errors_json: &str,
+    db: &vox_db::VoxDb,
+) -> anyhow::Result<()> {
+    db.upsert_corpus_pair(source, errors_json, "agent", 0.0, "negative")
+        .await
+        .map_err(|e| anyhow::anyhow!(e.to_string()))
 }

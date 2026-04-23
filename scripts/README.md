@@ -6,6 +6,7 @@ Policy: **`vox ci`** is canonical; scripts here are optional thin delegates — 
 
 | Script | Prefer |
 |--------|--------|
+| `windows/vox-dev.ps1`, `vox-dev.sh` | When **`vox`** is not on **`PATH`**: run any **`vox …`** argv via **`cargo run -p vox-cli`** from the clone (auto **`--features coderabbit`** if an arg is `coderabbit` and `VOX_DEV_FEATURES` unset). See **`docs/src/reference/cli.md`** (Bootstrap / dev launcher). |
 | `check_docs_ssot.sh` / `.ps1` | `vox ci check-docs-ssot` |
 | `check_codex_ssot.sh` / `.ps1` | `vox ci check-codex-ssot` |
 | `verify_workspace_manifest.sh` | `vox ci manifest` |
@@ -18,7 +19,7 @@ Policy: **`vox ci`** is canonical; scripts here are optional thin delegates — 
 | `populi_release_gate.sh` / `.ps1` (legacy wrappers) | **`vox ci mesh-gate --profile m1m4`** |
 | `populi/release_training_gate.sh` / `.ps1`, `populi/release_ci_full_gate.ps1`, `populi/mens_gate_safe.ps1`, `populi/mens_gate_safe.sh` | `vox ci mesh-gate --profile training` / `ci_full` (use **`mens_gate_safe.* --detach`** when the gate would exceed tool timeouts) |
 | `mens/release_training_gate.sh` / `.ps1` | Legacy forwards to `populi/release_training_gate.*` |
-| `run_qwen25_qlora_real_4080.ps1` | Optional **operator** helper: CUDA (or CPU Candle) build + background **`vox mens train --backend qlora …`**. Same argv as **`vox-mens train …`** (thin binary; see `docs/src/architecture/mens-training-ssot.md`). |
+| `run_qwen35_qlora_real_4080.ps1` | Optional **operator** helper: CUDA (or CPU Candle) build + background **`vox mens train --backend qlora …`** (Qwen 3.5 SSOT). Same argv as **`vox-mens train …`** (thin binary; see `docs/src/architecture/mens-training-ssot.md`). `run_qwen25_qlora_real_4080.ps1` is a deprecated forwarder. |
 | `populi/dogfood_qlora_cuda.ps1` | Dogfood QLoRA preset (**`vox mens train --background`** + `--log-dir`). |
 
 Full inventory: **`docs/src/architecture/script-surface-audit.md`**.

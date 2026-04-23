@@ -1,0 +1,78 @@
+// vox:caps fs env process
+import fs;
+import path;
+import process;
+import env;
+
+fn main() {
+    let mut root = ".";
+    let root_opt = env.get("VOX_REPO_ROOT");
+    if root_opt.is_some() {
+        root = root_opt.unwrap();
+    }
+    
+    // Canonical allowlist (all lowercase, forward slashes)
+    let allowlist = [
+        "scripts/windows/vox-dev.ps1",
+        "scripts/vox-dev.sh",
+        "scripts/install.ps1",
+        "scripts/install.sh"
+    ];
+
+    print("Running script-hygiene check...");
+    let mut violations = [];
+
+    let prohibited_exts = [".sh", ".ps1", ".py"];
+    let check_dirs = ["scripts"];
+    
+    for dir in check_dirs {
+        let dir_path = path.join(root, dir);
+        for ext in prohibited_exts {
+            let pattern = dir_path + "/**/*" + ext;
+            let found_res = fs.glob(pattern);
+            if found_res.is_err() {
+                continue;
+            }
+            let found = found_res.unwrap();
+            for f in found {
+                if f.contains("node_modules") {
+                    continue;
+                }
+                // Normalize path: forward slashes and lowercase
+                let f_norm = f.replace("\\", "/").to_lower();
+                
+                // Trim root prefix if present
+                let mut f_rel = f_norm;
+                if root isnt "." {
+                    let mut root_norm = root.replace("\\", "/").to_lower();
+                    if not root_norm.ends_with("/") {
+                        root_norm = root_norm + "/";
+                    }
+                    if f_norm.starts_with(root_norm) {
+                        f_rel = f_norm.replace(root_norm, "");
+                    }
+                } else {
+                    if f_norm.starts_with("./") {
+                        f_rel = f_norm.replace("./", "");
+                    }
+                }
+                
+                if not allowlist.contains(f_rel) {
+                    violations = violations.push(f);
+                }
+            }
+        }
+    }
+
+    if violations.len() > 0 {
+        print("❌ Script hygiene violations found:");
+        for v in violations {
+            print("  - " + v);
+        }
+        print("\nPolicy: All project automation MUST be written as .vox files.");
+        print("See AGENTS.md for details.");
+        process.exit(1);
+    }
+
+    print("✅ Script hygiene check passed.");
+}

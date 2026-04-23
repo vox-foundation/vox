@@ -2,8 +2,10 @@
 title: "Mobile and edge AI — SSOT"
 description: "Official documentation for Mobile and edge AI — SSOT for the Vox language. Detailed technical reference, architecture guides, and impleme"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Mobile and edge AI — SSOT
@@ -19,7 +21,7 @@ This page is the **single place** for how Vox treats **Android / iOS / browser**
 ## Industry context (2025–2026)
 
 - **On-device LLM inference:** Google **LiteRT-LM** is the cross-platform direction for Android, iOS, web, and desktop with hardware acceleration; see [LiteRT-LM](https://ai.google.dev/edge/litert-lm) and [LLM inference (AI Edge)](https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference). Older MediaPipe-only flows are being superseded; plan migrations against current AI Edge docs.
-- **LoRA / adapters:** Practical path is **fine-tune on a workstation or cloud**, then **ship base + adapter** (or converted bundle) to the device. LiteRT LLM LoRA on-device is still **integration-heavy** (see discussion in [LiteRT issue #1420](https://github.com/google-ai-edge/LiteRT/issues/1420)).
+- **LoRA / adapters:** Practical path is **fine-tune on a workstation or cloud**, then **ship base + adapter** (or converted bundle) -> the device. LiteRT LLM LoRA on-device is still **integration-heavy** (see discussion in [LiteRT issue #1420](https://github.com/google-ai-edge/LiteRT/issues/1420)).
 - **Web tier:** **WebGPU** helps browser-side compute but is **not universal** (OS version, browser policy, and security modes can disable it). Treat PWA / WebGPU as an **optional** tier, not the only mobile story.
 
 ## Vox tiers
@@ -29,6 +31,23 @@ This page is the **single place** for how Vox treats **Android / iOS / browser**
 | **Workstation** | `vox mens train` (Burn / Candle) | `vox mens serve`, Ollama, cloud OpenAI-compatible | Yes (`vox-mcp`, `vox run`, `vox populi`) | Default SSOT paths. |
 | **Mobile native** | **Off-device** (`mobile_edge` contract / preset) | LiteRT-LM, Core ML, vendor SDKs | Yes — HTTP control plane + [`NodeRecord`](../../../crates/vox-populi/src/lib.rs) | Register capabilities from the app; see mens env vars below. |
 | **Browser** | Off-device | WebGPU + WASM (when available) | Optional (HTTP client to mens) | Not WASI `vox run --isolation wasm` (that is desktop Wasmtime). |
+
+## Mobile support boundary (normative)
+
+Mobile support is split across distinct product surfaces. Do not collapse them into one claim.
+
+| Surface | Status | In scope now | Out of scope now |
+|---------|--------|--------------|------------------|
+| **Mobile browser for Vox-built apps** | Supported direction | `.vox` compiles to web apps that run in mobile browsers; mobile compatibility is a web-stack contract concern | Native-phone parity with server-script runtime semantics |
+| **Phone as remote management client** | Supported direction | Phone/browser controls a **remote** Vox host (MCP/orchestrator/Codex) over authenticated network APIs | Local phone execution of the full Vox CLI/toolchain |
+| **Native mobile inference participation** | Partially supported | App-owned runtime (LiteRT/Core ML), mens HTTP registration, capability hints (`mobile`, `npu`, `gpu_vulkan`) | On-device Mens training, on-device Ollama daemon |
+| **Direct on-device `.vox` script runtime** | Experimental / deferred | Narrow future R&D subset only, if explicitly versioned and capability-scoped | Full parity with workstation `vox run` / Cargo-backed native runtime |
+
+This SSOT does **not** define Vox as a replacement for Kotlin or Swift. The recommended product path is:
+
+- Vox for browser-first full-stack app generation.
+- Remote phone management for planning, editing, validation, and orchestration against a remote Vox host.
+- Native mobile only where thin wrappers or inference SDK integration are the right boundary.
 
 ## Training pathway for mobile (`mobile_edge`)
 
@@ -104,4 +123,19 @@ See [mens SSOT](populi.md) for the full `VOX_MESH_*` table.
 - [Deployment compose SSOT](deployment-compose.md) — server/container Compose vs mobile (inference profiles, no phone OCI).
 - [Orchestration unified SSOT](orchestration-unified.md) — capability merge rules.
 - [Environment variables (SSOT)](env-vars.md).
-- [vox-mcp API](../api/vox-mcp.md) — Ollama fallback is **desktop-oriented**.
+- [vox-mcp API](../reference/cli.md) — Ollama fallback is **desktop-oriented**.
+
+## Direct on-device `.vox` runtime (experimental boundary)
+
+If Vox later explores direct on-device `.vox` execution, treat it as a reduced, versioned subset and not parity with workstation/server runtime semantics.
+
+Initial unsupported-by-default classes should include:
+
+- actors/workflows/activities
+- server/query/mutation function surfaces
+- MCP tool declarations in script bodies
+- async `main` in wasm isolation lanes
+- host-assumed builtins without mobile/browser-safe shims (for example current `std.http.*` wasm guardrails)
+
+Use the existing WASI guardrails and diagnostics as a baseline contract source, not as a claim of stock-phone parity.
+

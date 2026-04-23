@@ -82,14 +82,16 @@ pub enum DbCliCore {
         #[arg(long, default_value_t = 30)]
         days: u32,
     },
-    /// Dry-run JSON for `contracts/db/retention-policy.yaml` (`days` rules only)
+    /// Dry-run JSON for `contracts/db/retention-policy.yaml` (`days`, `ms_days`, `expires_lt_now`).
+    ///
+    /// SSOT: `contracts/db/retention-policy.yaml`; rationale in mdBook `telemetry-retention-sensitivity-ssot`.
     #[command(name = "prune-plan")]
     PrunePlan {
         /// Policy file (default: repo `contracts/db/retention-policy.yaml` next to vox-cli)
         #[arg(long)]
         policy: Option<PathBuf>,
     },
-    /// Apply `days` deletions from the retention policy (destructive)
+    /// Apply policy-driven deletes (`days`, `ms_days`, `expires_lt_now`) — destructive
     #[command(name = "prune-apply")]
     PruneApply {
         #[arg(long)]
@@ -144,6 +146,16 @@ pub enum DbCliCore {
     /// Show retrieval / embedding diagnostics
     #[command(name = "retrieval-status")]
     RetrievalStatus,
+    /// Mirror a markdown tree into Codex `search_documents` / chunks (local RAG corpus).
+    #[command(name = "mirror-search-corpus")]
+    MirrorSearchCorpus {
+        /// Root directory to scan recursively for `*.md` files.
+        #[arg(long)]
+        root: PathBuf,
+        /// Prefix for `search_documents.source_uri` (e.g. `vox-docs:`).
+        #[arg(long, default_value = "vox-docs:")]
+        source_uri_prefix: String,
+    },
     /// Ingest research from a URL
     #[command(name = "research-ingest-url")]
     ResearchIngestUrl {
@@ -270,7 +282,7 @@ pub enum DbCliCore {
         #[arg(long, default_value_t = 50)]
         limit: i64,
     },
-    /// List research metrics for a session id
+    /// List research metrics for a session id (`research_metrics` — trust / sensitivity: `docs/src/architecture/telemetry-trust-ssot.md`).
     #[command(name = "research-metrics")]
     ResearchMetrics {
         /// `research_metrics.session_id` prefix (TEXT), e.g. `mcp:<repository_id>`, `bench:<repository_id>`, or a linked session key.
@@ -299,5 +311,64 @@ pub enum DbCliCore {
         /// Minimum reliability score (0.0 to 1.0)
         #[arg(long)]
         min_score: Option<f64>,
+    },
+    /// Query historical execution time for tools
+    #[command(name = "exec-history")]
+    ExecHistory {
+        /// Optional tool key to filter by
+        #[arg(long)]
+        tool_key: Option<String>,
+        /// Optional repository ID to filter by
+        #[arg(long)]
+        repo: Option<String>,
+        /// Row limit for listing
+        #[arg(long, default_value_t = 20)]
+        limit: i64,
+        /// Output raw JSON
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// List historical MENS training runs from `populi_training_run` (Row limit defaults to 20).
+    #[command(name = "mens-runs")]
+    MensRuns {
+        /// Row limit for listing.
+        #[arg(long, default_value_t = 20)]
+        limit: u32,
+    },
+    /// List MENS-specific telemetry (entropy, diversity, sample counts) from `research_metrics` (limit 50).
+    #[command(name = "mens-metrics")]
+    MensMetrics {
+        /// Optional domain filter (vox-lang, rust-expert, agents).
+        #[arg(long)]
+        domain: Option<String>,
+        /// Row limit for listing.
+        #[arg(long, default_value_t = 50)]
+        limit: u32,
+    },
+    /// Show dynamic build health for a repository (slowest crates, cache hits, fingerprint drift).
+    #[command(name = "build-health")]
+    BuildHealth {
+        /// Specific repository ID (defaults to current discovery).
+        #[arg(long)]
+        repo: Option<String>,
+        /// Output raw JSON for scripting.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Show build-time regressions vs historical averages for a repository.
+    #[command(name = "build-regressions")]
+    BuildRegressions {
+        /// Specific repository ID (defaults to current discovery).
+        #[arg(long)]
+        repo: Option<String>,
+        /// Run ID to audit (defaults to latest).
+        #[arg(long)]
+        run_id: Option<i64>,
+        /// Regression ratio threshold (e.g. 1.25 for 25% slower).
+        #[arg(long, default_value_t = 1.5)]
+        threshold: f64,
+        /// Output raw JSON for scripting.
+        #[arg(long, default_value_t = false)]
+        json: bool,
     },
 }

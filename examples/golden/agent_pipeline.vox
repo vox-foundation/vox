@@ -10,15 +10,17 @@
 // training_weight: 1.0
 // ---
 // @training_prompt: Model task payloads as an ADT and handle them in an actor `on` handler.
+// ANCHOR: display
 type TaskMessage =
     | Msg(id: int, payload: str)
 
 fn data_agent_ready() to str {
-    ret "Ready"
+    return "Ready"
 }
 
 actor WorkerAgent {
     on HandleTask(id: int, payload: str) to str {
-        ret "Task " + str(id) + " done"
+        return "Task " + str(id) + " done"
     }
 }
+// ANCHOR_END: display

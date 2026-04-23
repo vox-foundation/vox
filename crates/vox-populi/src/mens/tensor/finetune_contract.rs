@@ -21,6 +21,7 @@ pub struct FineTuneContract {
     pub quant: QuantSpec,
     pub exec: ExecSpec,
     pub artifact: ArtifactSpec,
+    pub collateral_damage_verified: bool,
 }
 
 /// Base model + tokenizer resolution.
@@ -112,6 +113,8 @@ pub struct ExecSpec {
     pub qlora_proxy_max_layers: Option<usize>,
     /// Candle QLoRA: suffix LM — CE on the last **K** positions per row (1 = last token only).
     pub qlora_ce_last_k: usize,
+    /// Dynamic curriculum schedule for difficult-gated training.
+    pub curriculum_schedule: Option<super::training_config::CurriculumSchedule>,
 }
 
 /// Export / merge preferences.
@@ -179,7 +182,10 @@ impl FineTuneContract {
                 train_file: config.train_file.clone(),
                 tokenizer_mode: config.tokenizer_mode,
                 min_rating: config.min_rating,
-                context_filter: config.context_filter.clone(),
+                context_filter: config
+                    .context_filter
+                    .as_ref()
+                    .map(|cf| serde_json::to_string(cf).unwrap_or_default()),
             },
             adapter: AdapterSpec {
                 method,
@@ -208,11 +214,13 @@ impl FineTuneContract {
                 qlora_lm_head_only: config.qlora_lm_head_only,
                 qlora_proxy_max_layers: config.qlora_proxy_max_layers,
                 qlora_ce_last_k: config.qlora_ce_last_k,
+                curriculum_schedule: config.curriculum_schedule.clone(),
             },
             artifact: ArtifactSpec {
                 deployment_target: config.deployment_target,
                 ..ArtifactSpec::default()
             },
+            collateral_damage_verified: false,
         }
     }
 }
@@ -280,6 +288,14 @@ pub fn finetune_contract_digest(c: &FineTuneContract) -> String {
         }
     }
     c.exec.qlora_ce_last_k.hash(&mut h);
+    if let Some(ref s) = c.exec.curriculum_schedule {
+        s.epoch_1_max_difficulty.hash(&mut h);
+        s.epoch_2_max_difficulty.hash(&mut h);
+        s.epoch_3_max_difficulty.hash(&mut h);
+        if let Some(ref ph) = s.curriculum_phases {
+            ph.hash(&mut h);
+        }
+    }
 
     c.artifact.adapter_schema_version.hash(&mut h);
     c.artifact.allow_placeholder_attention_merge.hash(&mut h);
@@ -431,7 +447,7 @@ mod digest_tests {
         };
         let c_a = FineTuneContract::from_training_config(&cfg_a, PopuliTrainBackend::CandleQlora);
         let cfg_b = LoraTrainingConfig {
-            upstream_model_id: Some("Qwen/Qwen2.5-Coder-3B-Instruct".into()),
+            upstream_model_id: Some("Qwen/Qwen3.5-4B".into()),
             ..Default::default()
         };
         let c_b = FineTuneContract::from_training_config(&cfg_b, PopuliTrainBackend::CandleQlora);

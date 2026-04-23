@@ -1,0 +1,18 @@
+---
+description: Prevent use of retired Vox crates, env vars, and API symbols
+alwaysApply: true
+---
+# Retired surfaces (LLM Guard)
+
+NEVER use these symbols — they cause broken integration:
+
+| Retired | Use instead |
+|---|---|
+| `vox-dei` (orchestrator crate) | `vox-orchestrator` |
+| `vox-ars` | `vox-skills` |
+| `vox-gamify` | `vox-ludus` |
+| `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` |
+| `@component fn Name()` | `component Name() {}` |
+| `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
+| `recall()` | `recall_async()` |
+| `persist_fact()` | `sync_to_db()` |

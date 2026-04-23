@@ -5,15 +5,13 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'docs-astro/**'
       - 'crates/vox-doc-pipeline/**'
       - 'examples/**'
 
 # ── Permissions ────────────────────────────────────────────────────────────
 # GitHub Pages requires pages: write + id-token: write.
-# When porting to GitLab/Gitea, remove this block entirely —
-# those platforms use separate deploy keys or CI variables.
 permissions:
-  contents: write
   pages: write
   id-token: write
 
@@ -22,22 +20,12 @@ jobs:
     name: Build Documentation
     runs-on: ubuntu-latest
     env:
-      # Public site origin for sitemap.xml (match GitHub Pages / docs URL).
-      MDBOOK_SITEMAP_DOMAIN: https://vox-lang.org/
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
 
-      # ── Rust toolchain ──────────────────────────────────────────────────
-      # Portable alternative: rustup update stable && rustup default stable
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      # ── mdBook ─────────────────────────────────────────────────────────
-      # Portable alternative (any platform): cargo install mdbook --locked
-      - name: Install mdBook
-        uses: peaceiris/actions-mdbook@v2
-        with:
-          mdbook-version: '0.4.40'
 
       - name: Install sccache
         uses: mozilla-actions/sccache-action@v0.0.5
@@ -48,43 +36,49 @@ jobs:
           RUSTC_WRAPPER: sccache
 
       - name: Run Docs Pipeline (extract + validate SUMMARY)
-        run: |
-          cargo run -p vox-doc-pipeline
+        run: cargo run -p vox-doc-pipeline
         env:
-          # Passed through to feed.xml lastBuildDate for reproducible builds.
-          # GitHub sets this to the ISO 8601 commit timestamp; the pipeline
-          # accepts both ISO strings and Unix epoch integers.
           SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp }}
 
-      - name: Validate feed.xml (well-formed XML)
-        run: xmllint --noout docs/src/feed.xml
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-      - name: Check SUMMARY.md drift
-        run: cargo run -p vox-doc-pipeline -- --check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
-      - name: Build mdBook
-        run: mdbook build docs
+      - name: Install docs-astro deps
+        working-directory: docs-astro
+        run: pnpm install --frozen-lockfile
 
-      - name: Install mdBook tools
+      - name: Build Starlight
+        working-directory: docs-astro
+        run: pnpm build
+
+      - name: Run Lychee Link Checker for UI
+        continue-on-error: true
+        uses: lycheeverse/lychee-action@v1.9.3
+        with:
+          args: --base docs-astro/dist --verbose --no-progress --format json --output docs-astro/lychee_report.json 'docs-astro/dist/**/*.html'
+          fail: false
+
+      - name: Link Checker Guidance
         run: |
-          cargo install mdbook-metadata --locked
-          cargo install mdbook-sitemap-generator --version 0.2.0 --locked
-
-      - name: Generate sitemap.xml
-        working-directory: docs
-        run: mdbook-sitemap-generator --domain "${MDBOOK_SITEMAP_DOMAIN}" --output book/html/sitemap.xml
+          if grep -q '"errors": [1-9]' docs-astro/lychee_report.json; then
+            echo "::warning title=Broken Links Warning::Documentation contains broken links."
+            echo "::notice title=Whitelist Guidance::To ignore a persistent or archival link, add it to .lycheeignore."
+          fi
 
       # ── Archive docs artifact ───────────────────────────────────────────
-      # This step is platform-agnostic: it produces docs.tar.gz as a
-      # portable build artifact.
       - name: Archive docs
-        run: tar -czf docs.tar.gz docs/book/
+        run: tar -czf docs.tar.gz docs-astro/dist/
 
       # ── GitHub Pages Deploy ─────────────────────────────────────────────
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/book/html
+          path: docs-astro/dist
 
   deploy-pages:
     name: Deploy to GitHub Pages
@@ -97,3 +91,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+

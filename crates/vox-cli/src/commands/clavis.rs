@@ -1,5 +1,10 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::{Subcommand, ValueEnum};
+use tracing::{error, info};
+use vox_identity::trust::TrustedNodeRegistry;
+use vox_mesh_types::ClavisSyncEnvelope;
+use vox_populi::http_client::PopuliHttpClient;
+use vox_populi::transport::A2ADeliverRequest;
 
 fn redact_value(value: &str) -> String {
     if value.chars().count() > 6 {
@@ -56,6 +61,7 @@ pub enum BundleArg {
     MinimalCloudDev,
     GpuCloud,
     PublishReview,
+    MeshRoles,
 }
 
 impl From<BundleArg> for vox_clavis::SecretBundle {
@@ -65,6 +71,7 @@ impl From<BundleArg> for vox_clavis::SecretBundle {
             BundleArg::MinimalCloudDev => Self::MinimalCloudDev,
             BundleArg::GpuCloud => Self::GpuCloud,
             BundleArg::PublishReview => Self::PublishReview,
+            BundleArg::MeshRoles => Self::MeshRoles,
         }
     }
 }
@@ -111,6 +118,12 @@ impl From<ProfileArg> for vox_clavis::Profile {
     }
 }
 
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum OutputFormat {
+    Human,
+    JsonV1,
+}
+
 #[derive(Subcommand, Debug)]
 pub enum ClavisCmd {
     /// Show secret readiness for a workflow (credentials / env resolution).
@@ -124,6 +137,8 @@ pub enum ClavisCmd {
         mode: DoctorModeArg,
         #[arg(long, value_enum)]
         bundle: Option<BundleArg>,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Human)]
+        format: OutputFormat,
     },
     /// Store a registry token in ~/.vox/auth.json (compat mode).
     Set {
@@ -138,6 +153,25 @@ pub enum ClavisCmd {
     BackendStatus,
     /// Migrate plaintext `auth.json` tokens into secure local store.
     MigrateAuthStore,
+    /// Fetch unmanaged legacy signals (.env) and inject into secure storage.
+    #[command(name = "import-env")]
+    ImportEnv {
+        /// Path to a specific .env file to import. Defaults to `.env` in current directory.
+        #[arg(long)]
+        file: Option<std::path::PathBuf>,
+        /// If set, preview the import without writing to the vault.
+        #[arg(long)]
+        dry_run: bool,
+    },
+    /// Sync shareable secrets across the mesh.
+    Sync {
+        /// Sync with other nodes in the mesh.
+        #[arg(long)]
+        mesh: bool,
+        /// If set, preview which secrets would be synced.
+        #[arg(long)]
+        dry_run: bool,
+    },
 }
 
 pub async fn run(cmd: ClavisCmd) -> Result<()> {
@@ -147,7 +181,8 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
             profile,
             mode,
             bundle,
-        } => run_doctor(workflow, profile, mode, bundle).await,
+            format,
+        } => run_doctor(workflow, profile, mode, bundle, format).await,
         ClavisCmd::Set {
             registry,
             token,
@@ -189,17 +224,87 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
             println!("migrated {moved} auth entries to secure store");
             Ok(())
         }
+        ClavisCmd::ImportEnv { file, dry_run } => {
+            let path = file.unwrap_or_else(|| std::path::PathBuf::from(".env"));
+            if !path.exists() {
+                return Err(anyhow::anyhow!("File not found: {}", path.display()));
+            }
+            if dry_run {
+                println!(
+                    "(dry-run) Scanning {} for managed secrets...",
+                    path.display()
+                );
+            }
+            let content = std::fs::read_to_string(&path)?;
+            let mut count = 0;
+            let backend = if dry_run {
+                None
+            } else {
+                Some(
+                    vox_clavis::backend::vox_vault::VoxCloudBackend::new()
+                        .map_err(|e| anyhow::anyhow!("{:?}", e))?,
+                )
+            };
+
+            for line in content.lines() {
+                let line = line.trim();
+                // simple env parsing ignoring comments
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if let Some((key, val)) = line.split_once('=') {
+                    let key = key.trim();
+                    let val = val.trim().trim_matches(|c| c == '"' || c == '\'');
+                    // Find if this key is managed
+                    if let Some(spec) = vox_clavis::all_specs().iter().find(|s| {
+                        s.canonical_env == key
+                            || s.aliases.contains(&key)
+                            || s.deprecated_aliases.contains(&key)
+                    }) {
+                        if let Some(b) = &backend {
+                            b.write_secret(spec.canonical_env, val)
+                                .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+                            println!("Imported {} -> {}", key, spec.canonical_env);
+                        } else {
+                            println!(
+                                "(dry-run) Found {} -> {} (val: {})",
+                                key,
+                                spec.canonical_env,
+                                redact_value(val)
+                            );
+                        }
+                        count += 1;
+                    }
+                }
+            }
+            if dry_run {
+                println!(
+                    "Dry-run complete: {} managed secrets identified in {}",
+                    count,
+                    path.display()
+                );
+            } else {
+                println!(
+                    "Import complete: {} managed secrets injected into vault from {}",
+                    count,
+                    path.display()
+                );
+            }
+            Ok(())
+        }
+        ClavisCmd::Sync { mesh, dry_run } => run_sync(mesh, dry_run).await,
     }
 }
 
 async fn run_doctor(
     workflow: WorkflowArg,
-    profile: ProfileArg,
+    profile_arg: ProfileArg,
     mode: DoctorModeArg,
     bundle: Option<BundleArg>,
+    format: OutputFormat,
 ) -> Result<()> {
     let wf = vox_clavis::Workflow::from(workflow);
-    let profile = vox_clavis::Profile::from(profile);
+    let profile = vox_clavis::Profile::from(profile_arg);
     let resolved_mode = match mode {
         DoctorModeArg::Auto if local_inference_allows_no_cloud_key() => DoctorModeArg::Local,
         DoctorModeArg::Auto => DoctorModeArg::Cloud,
@@ -214,8 +319,238 @@ async fn run_doctor(
             vox_clavis::RequirementMode::from(resolved_mode),
         )
     };
+
+    if matches!(format, OutputFormat::JsonV1) {
+        emit_doctor_json_v1(wf, profile, mode, resolved_mode)
+    } else {
+        emit_doctor_human(workflow, profile_arg, resolved_mode, bundle, requirements)
+    }
+}
+
+#[derive(serde::Serialize)]
+struct DoctorJsonV1 {
+    schema: &'static str,
+    generated_at_ms: i64,
+    workflow: String,
+    profile: String,
+    mode: String,
+    vault_diagnostic: String,
+    backend_mode: String,
+    rollout_flags: vox_config::RolloutFlagSnapshot,
+    secrets: Vec<DoctorSecretRow>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    account_warning: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    suggested_migrations: Vec<String>,
+}
+
+#[derive(serde::Serialize)]
+struct DoctorSecretRow {
+    id: String,
+    canonical_env: String,
+    status: String,
+    source: String,
+    class: String,
+    material_kind: String,
+    capabilities: Vec<String>,
+    bundle_membership: Vec<String>,
+    is_present: bool,
+    redacted_value: String,
+    remediation: Option<String>,
+    deprecated_alias_in_use: Option<String>,
+    feature_gate_missing: bool,
+}
+
+fn emit_doctor_json_v1(
+    workflow: vox_clavis::Workflow,
+    profile: vox_clavis::Profile,
+    mode: DoctorModeArg,
+    _resolved_mode: DoctorModeArg,
+) -> Result<()> {
+    let mut secrets = Vec::new();
+    let _bundles = vox_clavis::all_bundle_doc_names();
+
+    // Mapping from SecretId to list of bundle doc names they belong to
+    let mut ms: std::collections::BTreeMap<vox_clavis::SecretId, Vec<&'static str>> =
+        std::collections::BTreeMap::new();
+    for spec in vox_clavis::all_specs() {
+        ms.insert(spec.id, Vec::new());
+    }
+
+    for &b in vox_clavis::SecretBundle::variants() {
+        let reqs = vox_clavis::requirements_for_bundle(b);
+        let b_name = b.doc_name();
+
+        let mut ids = std::collections::BTreeSet::new();
+        for r in &reqs.blocking {
+            match r {
+                vox_clavis::RequirementSet::AllOf(list)
+                | vox_clavis::RequirementSet::AnyOf(list) => {
+                    for &id in *list {
+                        ids.insert(id);
+                    }
+                }
+            }
+        }
+        for &id in &reqs.optional {
+            ids.insert(id);
+        }
+
+        for id in ids {
+            if let Some(list) = ms.get_mut(&id) {
+                list.push(b_name);
+            }
+        }
+    }
+
+    for spec in vox_clavis::all_specs() {
+        let resolved = vox_clavis::resolve_secret(spec.id);
+
+        let memberships = ms
+            .get(&spec.id)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let is_deprecated_alias = matches!(
+            resolved.status,
+            vox_clavis::ResolutionStatus::DeprecatedAliasUsed
+        );
+
+        secrets.push(DoctorSecretRow {
+            id: format!("{:?}", spec.id),
+            canonical_env: spec.canonical_env.to_string(),
+            status: format!("{:?}", resolved.status),
+            source: format!("{:?}", resolved.source),
+            class: format!("{:?}", spec.id.metadata().class),
+            material_kind: format!("{:?}", spec.id.metadata().material_kind),
+            capabilities: vox_clavis::capabilities_for_secret(spec.id)
+                .iter()
+                .map(|c| format!("{:?}", c))
+                .collect(),
+            bundle_membership: memberships,
+            is_present: resolved.is_present(),
+            redacted_value: resolved.redacted(),
+            remediation: if resolved.is_present() {
+                None
+            } else {
+                Some(spec.remediation.to_string())
+            },
+            deprecated_alias_in_use: if is_deprecated_alias {
+                Some(spec.canonical_env.to_string())
+            } else {
+                None
+            },
+            feature_gate_missing: matches!(
+                resolved.status,
+                vox_clavis::ResolutionStatus::BackendUnavailable
+            ),
+        });
+    }
+
+    let account_id = std::env::var(vox_clavis::OPERATOR_ACCOUNT_ID).unwrap_or_default();
+    let account_warning = if account_id == "default-account" || account_id.is_empty() {
+        Some("VOX_ACCOUNT_ID is using a default or empty value. This can cause multi-device vault conflicts.".to_string())
+    } else {
+        None
+    };
+
+    let mut suggested_migrations = Vec::new();
+    if let Ok(content) = std::fs::read_to_string(".env") {
+        for line in content.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if let Some((key, _)) = line.split_once('=') {
+                let key = key.trim();
+                if let Some(spec) = vox_clavis::all_specs()
+                    .iter()
+                    .find(|s| s.canonical_env == key || s.aliases.contains(&key))
+                {
+                    let res = vox_clavis::resolve_secret(spec.id);
+                    if !matches!(res.source, Some(vox_clavis::SecretSource::SecureStore)) {
+                        suggested_migrations.push(format!(
+                            "migrate `{}` from .env to secure vault via `vox clavis import-env`",
+                            key
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    let report = DoctorJsonV1 {
+        schema: "contracts/reports/clavis-doctor.v1.json",
+        generated_at_ms: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64,
+        workflow: format!("{:?}", workflow),
+        profile: format!("{:?}", profile),
+        mode: format!("{:?}", mode),
+        vault_diagnostic: vox_clavis::backend::vox_vault::cloudless_vault_env_diagnostic()
+            .to_string(),
+        backend_mode: format!("{:?}", vox_clavis::BackendMode::from_env()),
+        rollout_flags: vox_config::rollout_flag_snapshot(),
+        secrets,
+        account_warning,
+        suggested_migrations,
+    };
+
+    println!("{}", serde_json::to_string_pretty(&report)?);
+    Ok(())
+}
+
+fn emit_doctor_human(
+    workflow: WorkflowArg,
+    profile: ProfileArg,
+    resolved_mode: DoctorModeArg,
+    bundle: Option<BundleArg>,
+    requirements: vox_clavis::WorkflowRequirements,
+) -> Result<()> {
     println!("clavis doctor ({workflow:?}, {profile:?})");
+    println!(
+        "cloudless_vault_store: {}",
+        vox_clavis::backend::vox_vault::cloudless_vault_env_diagnostic()
+    );
     println!("active_mode: {resolved_mode:?}");
+
+    let account_id = std::env::var(vox_clavis::OPERATOR_ACCOUNT_ID)
+        .unwrap_or_else(|_| "default-account".to_string());
+    if account_id == "default-account" {
+        println!(
+            "warning: VOX_ACCOUNT_ID is default-account; use a unique identifier for vault isolation"
+        );
+    }
+
+    if let Ok(content) = std::fs::read_to_string(".env") {
+        let mut count = 0;
+        for line in content.lines() {
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            if let Some((key, _)) = line.split_once('=') {
+                let key = key.trim();
+                if let Some(spec) = vox_clavis::all_specs()
+                    .iter()
+                    .find(|s| s.canonical_env == key || s.aliases.contains(&key))
+                {
+                    let res = vox_clavis::resolve_secret(spec.id);
+                    if !matches!(res.source, Some(vox_clavis::SecretSource::SecureStore)) {
+                        if count == 0 {
+                            println!("suggested migrations (unmanaged .env keys detected):");
+                        }
+                        println!("  - migrate `{}` to vault via `vox clavis import-env`", key);
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
     if let Some(bundle) = bundle {
         println!("bundle: {bundle:?}");
     }
@@ -322,6 +657,171 @@ async fn run_doctor(
         rf.db_circuit_breaker_env,
         rf.db_sync_remote_integration_gate,
         rf.db_embedded_replica_integration_gate
+    );
+    if !rf.workflow_journal_codex_persist {
+        println!(
+            "warning: VOX_WORKFLOW_JOURNAL_CODEX_OFF disables Codex workflow journal append (durable replay still depends on workflow_activity_log)"
+        );
+    }
+    if rf.db_circuit_breaker_env {
+        println!(
+            "warning: VOX_DB_CIRCUIT_BREAKER may gate workflow durability writes under DB stress"
+        );
+    }
+    Ok(())
+}
+
+async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
+    if !mesh {
+        println!("clavis sync: no targets specified (use --mesh)");
+        return Ok(());
+    }
+
+    println!("clavis sync: identifying shareable secrets...");
+    let mut shareable_secrets = Vec::new();
+    for spec in vox_clavis::all_specs() {
+        if spec.id.metadata().shareable {
+            let res = vox_clavis::resolve_secret(spec.id);
+            if let Some(val) = res.expose() {
+                shareable_secrets.push((spec, val.to_string()));
+            }
+        }
+    }
+
+    if shareable_secrets.is_empty() {
+        println!("no shareable secrets found in vault.");
+        return Ok(());
+    }
+
+    println!("found {} shareable secrets.", shareable_secrets.len());
+
+    let registry = TrustedNodeRegistry::new();
+    let trusted_nodes = registry.list().context("Failed to list trusted nodes")?;
+
+    if trusted_nodes.is_empty() {
+        println!("no trusted nodes found in registry. secret sync requires established trust.");
+        return Ok(());
+    }
+
+    println!("broadcasting to {} trusted nodes...", trusted_nodes.len());
+
+    let sender_node_id = vox_config::local_user_id();
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    // Use the local registry to find control plane URLs for trusted nodes
+    let local_reg_path = vox_populi::local_registry_path();
+    let populi_reg = vox_populi::LocalRegistry::new(local_reg_path)
+        .load()
+        .context("Failed to load populi registry")?;
+
+    let mut success_count = 0;
+    let mut fail_count = 0;
+
+    let p_env = vox_populi::populi_env();
+    for node in trusted_nodes {
+        println!(
+            "  syncing to node: {} ({})",
+            node.node_id,
+            node.label.as_deref().unwrap_or("unlabeled")
+        );
+
+        let node_record = populi_reg.nodes.iter().find(|n| n.id == node.node_id);
+        let control_url = node_record
+            .and_then(|n| n.listen_addr.as_ref())
+            .or_else(|| {
+                // Fallback to local control plane if node_id matches local or if it's the only one known
+                if node.node_id == sender_node_id {
+                    p_env.control_addr.as_ref()
+                } else {
+                    None
+                }
+            });
+
+        let Some(url) = control_url else {
+            println!(
+                "    warning: no control plane URL found for node {}; skipping",
+                node.node_id
+            );
+            fail_count += 1;
+            continue;
+        };
+
+        let mut pk_bytes = [0u8; 32];
+        hex::decode_to_slice(&node.pubkey_hex, &mut pk_bytes)
+            .context("Failed to decode node public key")?;
+        let pk = vox_crypto::facades::encryption_public_key_from_bytes(pk_bytes);
+
+        let client = PopuliHttpClient::new(url).with_env_token();
+
+        for (spec, secret_val) in &shareable_secrets {
+            if dry_run {
+                println!("    [dry-run] would seal and push {}", spec.canonical_env);
+                continue;
+            }
+
+            let sealed = vox_crypto::facades::seal(&pk, secret_val.as_bytes())
+                .map_err(|e| anyhow::anyhow!("Encryption failed: {}", e))?;
+
+            let envelope = ClavisSyncEnvelope {
+                secret_id: spec.id.to_string(),
+                sealed_payload: sealed,
+                sender_node_id: sender_node_id.clone(),
+                timestamp_unix_ms: now_ms,
+            };
+
+            let payload =
+                serde_json::to_string(&envelope).context("Failed to serialize envelope")?;
+
+            let deliver_req = A2ADeliverRequest {
+                sender_agent_id: "0".to_string(),
+                receiver_agent_id: "0".to_string(),
+                message_type: "clavis_sync".to_string(),
+                payload,
+                idempotency_key: Some(format!(
+                    "clavis_sync:{}:{}:{}",
+                    node.node_id, spec.canonical_env, now_ms
+                )),
+                privacy_class: Some("trusted".to_string()),
+                payload_blake3_hex: None,
+                worker_ed25519_sig_b64: None,
+                jwe_payload: None,
+                priority: 255,
+                task_kind: Some("clavis_sync".to_string()),
+                model_id: None,
+            };
+
+            match client.relay_a2a(&deliver_req).await {
+                Ok(_) => {
+                    success_count += 1;
+                    info!(
+                        target_node = %node.node_id,
+                        secret = %spec.canonical_env,
+                        "Clavis secret sync successful"
+                    );
+                }
+                Err(e) => {
+                    error!(
+                        target_node = %node.node_id,
+                        secret = %spec.canonical_env,
+                        error = %e,
+                        "Clavis secret sync failed"
+                    );
+                    println!(
+                        "    error: failed to deliver {} to {}: {}",
+                        spec.canonical_env, url, e
+                    );
+                    fail_count += 1;
+                }
+            }
+        }
+    }
+
+    println!(
+        "sync complete. {} successes, {} failures.",
+        success_count, fail_count
     );
     Ok(())
 }

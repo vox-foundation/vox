@@ -4,7 +4,6 @@
 //! replaying the full oplog.
 
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 
 use crate::config::OrchestratorConfig;
 use crate::orchestrator::OrchestratorStatus;
@@ -83,27 +82,37 @@ impl OrchestratorState {
         }
     }
 
-    /// Save state to a JSON file.
-    pub fn save(&self, path: &Path) -> Result<(), StateError> {
+    /// Save state to VoxDb.
+    pub async fn save_to_db(&self, db: &vox_db::VoxDb) -> Result<(), StateError> {
         let json = serde_json::to_string_pretty(self).map_err(StateError::Serialize)?;
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(StateError::Io)?;
-        }
-        std::fs::write(path, json).map_err(StateError::Io)?;
-        tracing::info!("Orchestrator state saved to {}", path.display());
+        db.save_memory(vox_db::SaveMemoryParams {
+            agent_id: "global",
+            session_id: "global",
+            memory_type: "orchestrator_state",
+            content: &json,
+            metadata: None,
+            importance: 1.0,
+            vcs_snapshot_id: None,
+        })
+        .await
+        .map_err(|e| StateError::Io(std::io::Error::other(e.to_string())))?;
+        tracing::info!("Orchestrator state saved to VoxDb");
         Ok(())
     }
 
-    /// Load state from a JSON file.
-    pub fn load(path: &Path) -> Result<Option<Self>, StateError> {
-        if !path.exists() {
-            return Ok(None);
+    /// Load state from VoxDb.
+    pub async fn load_from_db(db: &vox_db::VoxDb) -> Result<Option<Self>, StateError> {
+        let memories = db
+            .recall_memory("global", Some("orchestrator_state"), 1, None)
+            .await
+            .unwrap_or_default();
+        if let Some(mem) = memories.into_iter().next() {
+            let state: Self =
+                serde_json::from_str(&mem.content).map_err(StateError::Deserialize)?;
+            tracing::info!("Orchestrator state loaded from VoxDb");
+            return Ok(Some(state));
         }
-        let content = crate::bounded_fs::read_utf8_path_capped(path)
-            .map_err(|e| StateError::Io(std::io::Error::other(e.to_string())))?;
-        let state: Self = serde_json::from_str(&content).map_err(StateError::Deserialize)?;
-        tracing::info!("Orchestrator state loaded from {}", path.display());
-        Ok(Some(state))
+        Ok(None)
     }
 }
 
@@ -131,58 +140,4 @@ pub enum StateError {
     /// On-disk JSON did not match the expected schema.
     #[error("Deserialization error: {0}")]
     Deserialize(serde_json::Error),
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::config::OrchestratorConfig;
-
-    #[test]
-    fn save_and_load_roundtrip() {
-        let dir = std::env::temp_dir().join("vox_orch_state_test");
-        std::fs::create_dir_all(&dir).ok();
-        let path = dir.join("state.json");
-
-        let state = OrchestratorState {
-            version: 1,
-            config: OrchestratorConfig::for_testing(),
-            agents: vec![SavedAgentState {
-                id: 1,
-                name: "parser".to_string(),
-                queued_count: 3,
-                urgent_count: 1,
-                normal_count: 1,
-                background_count: 1,
-                completed_count: 7,
-                paused: false,
-            }],
-            total_completed: 7,
-            saved_at: "12345".to_string(),
-            context_entries: std::collections::HashMap::new(),
-            plugin_states: std::collections::HashMap::new(),
-        };
-
-        state.save(&path).expect("save");
-        let loaded = OrchestratorState::load(&path)
-            .expect("load")
-            .expect("should exist");
-
-        assert_eq!(loaded.total_completed, 7);
-        assert_eq!(loaded.agents.len(), 1);
-        assert_eq!(loaded.agents[0].name, "parser");
-
-        // Cleanup
-        std::fs::remove_file(&path).ok();
-    }
-
-    #[test]
-    fn load_missing_file_returns_none() {
-        let result = OrchestratorState::load(Path::new("/nonexistent/path/state.json"));
-        assert!(result.unwrap().is_none());
-    }
 }

@@ -22,7 +22,9 @@ turso = { workspace = true }
 tokio = { workspace = true }
 toml = { workspace = true }
 reqwest = { workspace = true }
+vox-reqwest-defaults = { workspace = true }
 glob = { workspace = true }
+workspace-hack = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

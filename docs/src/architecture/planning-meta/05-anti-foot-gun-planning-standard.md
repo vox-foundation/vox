@@ -2,8 +2,10 @@
 title: "Anti-foot-gun planning standard"
 description: "Normative planning standard that blocks common planning mistakes which cause migration regressions, drift, or unsafe rollout assumptions."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Anti-foot-gun planning standard
@@ -94,7 +96,7 @@ If any answer is missing, the section is incomplete.
 
 ## Red flag patterns
 
-These phrases or patterns are not acceptable without refinement:
+These phrases or patterns are not acceptable without refinement {
 
 - “handle later” without deferral metadata,
 - “safe enough” without evidence criteria,
@@ -140,4 +142,6 @@ This standard is active when:
 - all planning docs reference it for high-risk sections,
 - reviewer checklists enforce blocker classes,
 - no unresolved blocker-class violations remain in accepted planning docs.
+
+
 

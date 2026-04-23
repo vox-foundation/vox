@@ -1,5 +1,6 @@
 //! Post-processing for transcripts (ITN, cleanup). Heavier rules land here over time.
 
+pub mod llm_correction_prompt;
 pub mod rules;
 
 use std::collections::HashSet;
@@ -7,6 +8,18 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 
 use crate::runtime_config::RefineTunables;
+use crate::speaker_profile::SpeakerProfile;
+
+/// Specialization domain for STT rules.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum DomainMode {
+    /// General speech domain (default).
+    #[default]
+    General,
+    /// Rust/code-oriented domain.
+    Code,
+}
 
 /// Correction strictness profile for transcript refinement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -26,6 +39,8 @@ pub enum OratioCorrectionProfile {
 pub struct CorrectionContext {
     /// Correction strictness profile.
     pub profile: OratioCorrectionProfile,
+    /// Refinement domain for rules (e.g., General, Code).
+    pub domain: DomainMode,
     /// Confidence / penalty tunables (defaults match historical hard-coded refine).
     pub refine_tunables: RefineTunables,
     /// Optional domain lexicon to prefer during replacements.
@@ -34,6 +49,8 @@ pub struct CorrectionContext {
     pub protected_tokens: HashSet<String>,
     /// Emit debug logs with input payloads and replacement details.
     pub debug_payload: bool,
+    /// Speaker Profile dictates rules logic (e.g., dysarthric exceptions).
+    pub speaker_profile: SpeakerProfile,
 }
 
 impl CorrectionContext {
@@ -46,8 +63,10 @@ impl CorrectionContext {
     ) -> Self {
         Self {
             profile,
+            domain: rt.asr.domain_mode,
             refine_tunables: rt.refine,
             debug_payload,
+            speaker_profile: SpeakerProfile::Standard,
             ..Default::default()
         }
     }

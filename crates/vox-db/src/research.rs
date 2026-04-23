@@ -2,30 +2,12 @@
 //! `codex_capability_map` for competitive / capability tracking.
 //!
 //! Use [`crate::VoxDb::ingest_research_document_async`] or [`crate::VoxDb::ingest_research_document`]
-//! with a [`ResearchIngestRequest`]. Capability-map DDL is applied when those APIs touch the map.
+//! with a [`ResearchIngestRequest`]. `codex_capability_map` is created by Arca baseline.
 
 use crate::VoxDb;
 use crate::store::StoreError;
 use serde::{Deserialize, Serialize};
 use turso::params;
-
-const CAP_TABLE: &str = "
-CREATE TABLE IF NOT EXISTS codex_capability_map (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    topic TEXT NOT NULL,
-    vendor TEXT NOT NULL,
-    area TEXT NOT NULL,
-    openclaw_capability TEXT NOT NULL,
-    vox_evidence TEXT NOT NULL,
-    status TEXT NOT NULL,
-    advantage_direction TEXT NOT NULL,
-    recommended_action TEXT NOT NULL,
-    linked_paths_json TEXT NOT NULL,
-    metadata_json TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-CREATE INDEX IF NOT EXISTS idx_codex_cap_vendor_topic ON codex_capability_map (vendor, topic);
-";
 
 /// Serializable metadata for a captured research artifact (before DB insert).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -68,7 +50,7 @@ pub struct ResearchIngestRequest {
     pub body: String,
     /// Optional knowledge-base id for partitioning.
     pub kb_id: Option<String>,
-    /// Reserved for future vector ingest; ignored today.
+    /// Optional chunk embeddings aligned with the chunked body when available.
     pub embeddings: Vec<Vec<f32>>,
 }
 
@@ -77,7 +59,7 @@ pub struct ResearchIngestRequest {
 pub struct ResearchIngestResult {
     /// `knowledge_nodes` row id from the insert.
     pub packet_id: i64,
-    /// Reserved for future normalized document table.
+    /// Optional normalized `search_documents` row id when dual-write succeeds.
     pub document_id: Option<i64>,
     /// `snippets` row ids for each text chunk.
     pub chunk_ids: Vec<i64>,
@@ -112,6 +94,34 @@ pub struct CapabilityMapRecord {
     pub metadata: serde_json::Value,
 }
 
+/// Consolidated metrics for a research evaluation run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResearchEvalRunRecord {
+    pub run_id: String,
+    pub model_id: String,
+    pub config: serde_json::Value,
+    pub metrics: serde_json::Value,
+    pub latency_p50_ms: Option<i64>,
+    pub latency_p99_ms: Option<i64>,
+    pub tier_distribution: serde_json::Value,
+    pub created_at_ms: i64,
+}
+
+/// Single query sample from a research evaluation run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResearchEvalSampleRecord {
+    pub run_id: String,
+    pub query: String,
+    pub gold_answer: Option<String>,
+    pub model_answer: String,
+    pub recall_at_5: Option<f64>,
+    pub groundedness: Option<f64>,
+    pub quality_score: Option<f64>,
+    pub latency_ms: Option<i64>,
+    pub evidence: serde_json::Value,
+    pub recorded_at_ms: i64,
+}
+
 fn blake3_hex(data: &[u8]) -> String {
     blake3::hash(data).to_hex().to_string()
 }
@@ -138,11 +148,6 @@ fn chunk_text(body: &str, max_chunk: usize) -> Vec<String> {
         out.push(String::new());
     }
     out
-}
-
-async fn ensure_cap_table(db: &VoxDb) -> Result<(), StoreError> {
-    db.connection().execute_batch(CAP_TABLE).await?;
-    Ok(())
 }
 
 impl VoxDb {
@@ -227,9 +232,56 @@ impl VoxDb {
             chunk_ids.push(self.conn.last_insert_rowid());
         }
 
+        let document_id = self
+            .upsert_search_document(
+                &req.packet.source_url,
+                &req.packet.title,
+                &req.packet.source_type,
+                &hash,
+            )
+            .await?;
+        let embedding_refs = vec![None; chunks.len()];
+        self.replace_search_document_chunks_with_refs(document_id, &chunks, &embedding_refs)
+            .await?;
+        if req.embeddings.len() == chunks.len() {
+            for (idx, vector) in req.embeddings.iter().enumerate() {
+                if vector.is_empty() {
+                    continue;
+                }
+                let rows = self
+                    .query_all(
+                        "SELECT id FROM search_document_chunks
+                         WHERE document_id = ?1 AND chunk_index = ?2 LIMIT 1",
+                        params![document_id, idx as i64],
+                    )
+                    .await?;
+                let Some(row) = rows.into_iter().next() else {
+                    continue;
+                };
+                let chunk_id: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                let snippet: String = chunks[idx].chars().take(240).collect();
+                let embedding_id = self
+                    .store_embedding(
+                        "search_document_chunk",
+                        &chunk_id.to_string(),
+                        "research_ingest",
+                        vector,
+                        Some(snippet.as_str()),
+                        None,
+                    )
+                    .await?;
+                self.connection()
+                    .execute(
+                        "UPDATE search_document_chunks SET embedding_ref = ?1 WHERE id = ?2",
+                        params![embedding_id.to_string(), chunk_id],
+                    )
+                    .await?;
+            }
+        }
+
         Ok(ResearchIngestResult {
             packet_id: packet_rowid,
-            document_id: None,
+            document_id: Some(document_id),
             chunk_ids,
             kb_id: req.kb_id.clone(),
             content_hash: hash,
@@ -318,7 +370,6 @@ impl VoxDb {
         rec: &CapabilityMapRecord,
     ) -> Result<i64, StoreError> {
         self.block_on(async {
-            ensure_cap_table(self).await?;
             let linked = serde_json::to_string(&rec.linked_paths)
                 .map_err(|e| StoreError::Serialization(e.to_string()))?;
             let meta = serde_json::to_string(&rec.metadata)
@@ -365,7 +416,6 @@ impl VoxDb {
         let vendor = vendor.map(str::to_string);
         let topic = topic.map(str::to_string);
         self.block_on(async {
-            ensure_cap_table(self).await?;
             let mut rows = match (&vendor, &topic) {
                 (Some(v), Some(t)) => {
                     self
@@ -435,6 +485,112 @@ impl VoxDb {
             }
             Ok(out)
         })
+    }
+
+    /// Persist a consolidated research evaluation run record.
+    pub async fn record_research_eval_run(
+        &self,
+        rec: &ResearchEvalRunRecord,
+    ) -> Result<i64, StoreError> {
+        let config_str = serde_json::to_string(&rec.config)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let metrics_str = serde_json::to_string(&rec.metrics)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+        let tier_str = serde_json::to_string(&rec.tier_distribution)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+
+        let rec = rec.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO research_eval_runs (
+                        run_id, model_id, config_json, metrics_json,
+                        latency_p50_ms, latency_p99_ms, tier_distribution_json, created_at_ms
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    params![
+                        rec.run_id,
+                        rec.model_id,
+                        config_str,
+                        metrics_str,
+                        rec.latency_p50_ms,
+                        rec.latency_p99_ms,
+                        tier_str,
+                        rec.created_at_ms
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await?;
+        Ok(self.conn.last_insert_rowid())
+    }
+
+    /// Persist a single research evaluation sample.
+    pub async fn record_research_eval_sample(
+        &self,
+        rec: &ResearchEvalSampleRecord,
+    ) -> Result<i64, StoreError> {
+        let evidence_str = serde_json::to_string(&rec.evidence)
+            .map_err(|e| StoreError::Serialization(e.to_string()))?;
+
+        let rec_cl = rec.clone();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO research_eval_samples (
+                        run_id, query, gold_answer, model_answer,
+                        recall_at_5, groundedness, quality_score, latency_ms,
+                        evidence_json, recorded_at_ms
+                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                    params![
+                        rec_cl.run_id,
+                        rec_cl.query,
+                        rec_cl.gold_answer,
+                        rec_cl.model_answer,
+                        rec_cl.recall_at_5,
+                        rec_cl.groundedness,
+                        rec_cl.quality_score,
+                        rec_cl.latency_ms,
+                        evidence_str,
+                        rec_cl.recorded_at_ms
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await?;
+
+        // Also populate the flat telemetry table for evaluation SSOT consistency
+        let _ = self
+            .insert_telemetry_flat_raw(
+                "eval-harness",
+                &rec.run_id,
+                "vox-research",
+                "ResearchEvalSample",
+                Some("eval-search"),
+                Some("localized-dispatcher-0.1"),
+                Some("local"),
+                rec.latency_ms,
+                None,
+                None,
+                None,
+                Some(
+                    &serde_json::to_string(&serde_json::json!({
+                        "query": rec.query,
+                        "quality_score": rec.quality_score,
+                        "groundedness": rec.groundedness,
+                    }))
+                    .unwrap_or_default(),
+                ),
+            )
+            .await
+            .ok();
+
+        Ok(self.conn.last_insert_rowid())
     }
 }
 

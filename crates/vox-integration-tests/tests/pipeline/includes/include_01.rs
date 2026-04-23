@@ -43,12 +43,16 @@ fn pipeline_codegen_produces_chatbot_ts_bundle_without_express() {
     let output = generate_without_express!(&module);
     assert_eq!(
         output.files.len(),
-        3,
-        "types.ts + vox-tanstack-query.tsx + Chat.tsx (Express server.ts is opt-in via VOX_EMIT_EXPRESS_SERVER)"
+        4,
+        "types.ts + vox-app-contract.json + vox-tanstack-query.tsx + Chat.tsx (Express server.ts is opt-in via VOX_EMIT_EXPRESS_SERVER)"
     );
 
     let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(filenames.contains(&"types.ts"), "Should produce types.ts");
+    assert!(
+        filenames.contains(&"vox-app-contract.json"),
+        "Should emit app contract JSON"
+    );
     assert!(
         filenames.contains(&"vox-tanstack-query.tsx"),
         "Should emit TanStack query helper"
@@ -401,7 +405,7 @@ fn pipeline_table_rust_codegen_e2e() {
 // --- routes codegen test ---
 
 #[test]
-fn codegen_routes_produces_app_tsx() {
+fn codegen_routes_produces_route_manifest_ts() {
     let src = "routes {\n    \"/\" to home\n    \"/about\" to about\n}";
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
@@ -410,31 +414,24 @@ fn codegen_routes_produces_app_tsx() {
 
     let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
-        filenames.contains(&"App.tsx"),
-        "Should produce App.tsx, got: {:?}",
+        filenames.contains(&"routes.manifest.ts"),
+        "Should produce routes.manifest.ts, got: {:?}",
         filenames
     );
 
-    let app = output.files.iter().find(|(n, _)| n == "App.tsx").unwrap();
+    let m = output
+        .files
+        .iter()
+        .find(|(n, _)| n == "routes.manifest.ts")
+        .unwrap();
+    assert!(m.1.contains("export const voxRoutes"), "manifest exports voxRoutes");
+    assert!(m.1.contains("\"/about\""), "Should keep /about path");
     assert!(
-        app.1.contains("@tanstack/react-router"),
-        "Should import @tanstack/react-router"
-    );
-    assert!(
-        app.1.contains("RouterProvider"),
-        "Should use RouterProvider"
-    );
-    assert!(app.1.contains("path: '/'"), "Should have root route path");
-    assert!(
-        app.1.contains("path: 'about'"),
-        "Should have /about as TanStack path segment"
-    );
-    assert!(
-        app.1.contains("import { home }"),
+        m.1.contains("import { home }"),
         "Should import home component"
     );
     assert!(
-        app.1.contains("import { about }"),
+        m.1.contains("import { about }"),
         "Should import about component"
     );
 }
@@ -451,16 +448,20 @@ routes {
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
     let output = generate(&hir).unwrap();
-    let app = output.files.iter().find(|(n, _)| n == "App.tsx").unwrap();
+    let m = output
+        .files
+        .iter()
+        .find(|(n, _)| n == "routes.manifest.ts")
+        .unwrap();
     assert!(
-        app.1.contains("pendingComponent: Spinner"),
-        "TanStack createRoute should reference @loading component; got:\n{}",
-        app.1
+        m.1.contains("globalPendingComponent = Spinner"),
+        "route manifest should register @loading as global pending; got:\n{}",
+        m.1
     );
     assert!(
-        app.1.contains("Spinner"),
+        m.1.contains("Spinner"),
         "Should import Spinner alongside route targets; got:\n{}",
-        app.1
+        m.1
     );
     assert!(
         output.files.iter().any(|(n, _)| n == "Spinner.tsx"),
@@ -469,7 +470,7 @@ routes {
 }
 
 #[test]
-fn codegen_tanstack_start_emits_vox_router_without_nested_provider() {
+fn codegen_tanstack_start_flag_does_not_emit_separate_router_file() {
     let src = "routes {\n    \"/\" to home\n    \"/about\" to about\n}";
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
@@ -478,38 +479,120 @@ fn codegen_tanstack_start_emits_vox_router_without_nested_provider() {
         &hir,
         CodegenOptions {
             tanstack_start: true,
+            ..Default::default()
         },
     )
     .unwrap();
 
     let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
-        filenames.contains(&"VoxTanStackRouter.tsx"),
-        "Should produce VoxTanStackRouter.tsx, got: {:?}",
+        filenames.contains(&"routes.manifest.ts"),
+        "Should produce routes.manifest.ts, got: {:?}",
+        filenames
+    );
+    assert!(
+        !filenames.contains(&"VoxTanStackRouter.tsx"),
+        "Legacy VoxTanStackRouter.tsx must not be emitted, got: {:?}",
         filenames
     );
     assert!(
         !filenames.contains(&"App.tsx"),
-        "TanStack Start mode should not emit App.tsx, got: {:?}",
+        "Compiler must not emit App.tsx; user-owned adapter only, got: {:?}",
         filenames
     );
+}
 
-    let vox = output
+#[test]
+fn golden_web_routing_fullstack_codegen_emits_manifest_and_client() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden/web_routing_fullstack.vox");
+    let src = read_utf8_path_capped(&path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let tokens = lex(&src);
+    let module = parse(tokens).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
+    let names: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
+    assert!(
+        names.iter().any(|n| *n == "routes.manifest.ts"),
+        "expected routes.manifest.ts, got {names:?}"
+    );
+    assert!(
+        names.iter().any(|n| *n == "vox-client.ts"),
+        "expected vox-client.ts for @query, got {names:?}"
+    );
+    let client = output
         .files
         .iter()
-        .find(|(n, _)| n == "VoxTanStackRouter.tsx")
-        .unwrap();
+        .find(|(n, _)| n == "vox-client.ts")
+        .map(|(_, c)| c.as_str())
+        .expect("vox-client.ts");
     assert!(
-        vox.1.contains("export const voxRouteTree"),
-        "Should export voxRouteTree"
+        client.contains("method: \"GET\"") && client.contains("$get"),
+        "vox-client must use GET for @query"
+    );
+    let manifest = output
+        .files
+        .iter()
+        .find(|(n, _)| n == "routes.manifest.ts")
+        .map(|(_, c)| c.as_str())
+        .expect("routes.manifest.ts");
+    assert!(
+        manifest.contains("children:") && manifest.contains("load_section"),
+        "nested manifest with loader:\n{manifest}"
     );
     assert!(
-        !vox.1.contains("RouterProvider"),
-        "Start route module must not embed RouterProvider"
+        manifest.contains("export const notFoundComponent"),
+        "not_found export:\n{manifest}"
+    );
+}
+
+#[test]
+fn golden_blog_fullstack_codegen_emits_manifest_get_and_post() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden/blog_fullstack.vox");
+    let src = read_utf8_path_capped(&path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let tokens = lex(&src);
+    let module = parse(tokens).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
+    let names: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
+    assert!(
+        names.iter().any(|n| *n == "routes.manifest.ts"),
+        "expected routes.manifest.ts, got {names:?}"
     );
     assert!(
-        vox.1.contains("@tanstack/react-router"),
-        "Should import TanStack Router"
+        names.iter().any(|n| *n == "vox-client.ts"),
+        "expected vox-client.ts, got {names:?}"
+    );
+    let client = output
+        .files
+        .iter()
+        .find(|(n, _)| n == "vox-client.ts")
+        .map(|(_, c)| c.as_str())
+        .expect("vox-client.ts");
+    assert!(
+        client.contains("method: \"GET\"") && client.contains("list_posts"),
+        "GET @query:\n{client}"
+    );
+    assert!(
+        client.contains("method: \"POST\"") && client.contains("publish_post"),
+        "@mutation POST:\n{client}"
+    );
+}
+
+#[test]
+fn golden_v0_shadcn_island_codegen_includes_routes_manifest() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden/v0_shadcn_island.vox");
+    let src = read_utf8_path_capped(&path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let tokens = lex(&src);
+    let module = parse(tokens).unwrap();
+    let hir = vox_compiler::hir::lower_module(&module);
+    let output = generate(&hir).unwrap();
+    let names: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
+    assert!(
+        names.iter().any(|n| *n == "routes.manifest.ts"),
+        "expected routes.manifest.ts with @v0 golden, got {names:?}"
     );
 }
 
@@ -517,9 +600,9 @@ fn codegen_tanstack_start_emits_vox_router_without_nested_provider() {
 
 #[test]
 fn codegen_bind_expands_to_value_onchange() {
-    let src = r#"@component fn LoginForm() to Element {
+    let src = r#"component LoginForm() {
     let (email, set_email) = use_state("")
-    ret <input bind={email} />
+    view: <input bind={email} />
 }"#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
@@ -554,10 +637,10 @@ fn codegen_bind_expands_to_value_onchange() {
 
 #[test]
 fn codegen_use_effect_maps_to_react_hook() {
-    let src = r#"@component fn Timer() to Element {
+    let src = r#"component Timer() {
     let (count, set_count) = use_state(0)
     use_effect(fn(_x) count)
-    ret <div>{count}</div>
+    view: <div>{count}</div>
 }"#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
@@ -584,7 +667,7 @@ fn codegen_use_effect_maps_to_react_hook() {
 
 #[test]
 fn dashboard_full_pipeline_e2e() {
-    let src = "type Message = | User(text: str) | Bot(text: str)\n\n@v0 \"A metrics dashboard with KPIs\" fn Dashboard() to Element\n\n@component fn ChatWidget() to Element {\n    let (messages, set_messages) = use_state([])\n    let (input, set_input) = use_state(\"\")\n    ret <div class=\"chat\">\n        <input bind={input} />\n        <button on_click={fn(e) set_input(\"\")} >\"Send\"</button>\n    </div>\n}\n\nhttp get \"/api/stats\" to list[int] {\n    ret 42\n}\n\nroutes {\n    \"/\" to Dashboard\n    \"/chat\" to ChatWidget\n}";
+    let src = "type Message = | User(text: str) | Bot(text: str)\n\n@v0 \"A metrics dashboard with KPIs\" fn Dashboard() to Element\n\ncomponent ChatWidget() {\n    let (messages, set_messages) = use_state([])\n    let (input, set_input) = use_state(\"\")\n    view: (\n        <div class=\"chat\">\n            <input bind={input} />\n            <button on_click={fn(e) set_input(\"\")} >\"Send\"</button>\n        </div>\n    )\n}\n\nhttp get \"/api/stats\" to list[int] {\n    ret 42\n}\n\nroutes {\n    \"/\" to Dashboard\n    \"/chat\" to ChatWidget\n}";
 
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
@@ -611,8 +694,8 @@ fn dashboard_full_pipeline_e2e() {
         "Express server.ts is opt-in (VOX_EMIT_EXPRESS_SERVER); http routes are served by Axum"
     );
     assert!(
-        filenames.contains(&"App.tsx"),
-        "Should produce App.tsx for routes:"
+        filenames.contains(&"routes.manifest.ts"),
+        "Should produce routes.manifest.ts for routes:"
     );
 
     // @v0 placeholder
@@ -649,14 +732,14 @@ fn dashboard_full_pipeline_e2e() {
         "bind setter should be set_input"
     );
 
-    // routes -> App.tsx
-    let app = output.files.iter().find(|(n, _)| n == "App.tsx").unwrap();
-    assert!(app.1.contains("path: '/'"), "App should route /");
-    assert!(app.1.contains("path: 'chat'"), "App should route /chat");
-    assert!(
-        app.1.contains("RouterProvider"),
-        "App should use TanStack RouterProvider"
-    );
+    // routes -> routes.manifest.ts
+    let m = output
+        .files
+        .iter()
+        .find(|(n, _)| n == "routes.manifest.ts")
+        .unwrap();
+    assert!(m.1.contains("\"/\""), "expected root path in manifest:\n{}", m.1);
+    assert!(m.1.contains("\"/chat\""));
 
     // types.ts
     let types = output.files.iter().find(|(n, _)| n == "types.ts").unwrap();
@@ -704,8 +787,8 @@ fn chatbot_full_pipeline_e2e() {
         "Should produce Chat.css (from style block)"
     );
     assert!(
-        filenames.contains(&"App.tsx"),
-        "Should produce App.tsx (from routes)"
+        filenames.contains(&"routes.manifest.ts"),
+        "Should produce routes.manifest.ts (from routes)"
     );
 
     let chat_css = output.files.iter().find(|(n, _)| n == "Chat.css").unwrap();
@@ -725,7 +808,7 @@ fn chatbot_full_pipeline_e2e() {
     );
 }
 
-/// Island + Path C `component` + classic `@component fn` + client `routes` + HTTP route
+/// Island + Path C `component` surfaces + client `routes` + HTTP route
 /// (blueprint OP-0037 / OP-0047 / OP-0289 family).
 const MIXED_SURFACE_SRC: &str = r#"
 import react.use_state
@@ -746,9 +829,9 @@ component Dash() {
     )
 }
 
-@component fn Shell() to Element {
+component Shell() {
     let (x, _set_x) = use_state(0)
-    ret <span>{x}</span>
+    view: <span>{x}</span>
 }
 
 routes {
@@ -788,17 +871,17 @@ fn pipeline_mixed_declarations_hir_counts_and_web_ir_validate() {
     );
     assert_eq!(hir.islands.len(), 1);
     assert_eq!(hir.islands[0].0.name, "Chart");
-    assert_eq!(hir.reactive_components.len(), 1);
-    assert_eq!(hir.components.len(), 1);
+    assert_eq!(hir.reactive_components.len(), 2);
+    assert_eq!(hir.components.len(), 0);
     assert_eq!(hir.client_routes.len(), 1);
     assert_eq!(hir.routes.len(), 1);
     assert!(
         hir.lowering_migration.used_reactive_component_path,
-        "expected Path C Dash"
+        "expected Path C Dash + Shell"
     );
     assert!(
-        hir.lowering_migration.used_classic_component_path,
-        "expected classic Shell"
+        !hir.lowering_migration.used_classic_component_path,
+        "MIXED_SURFACE is Path C only (no @component fn Shell)"
     );
 
     let web = lower_hir_to_web_ir(&hir);
@@ -846,13 +929,13 @@ fn pipeline_mixed_surface_worked_app_web_ir_gate_and_tsx_substrings() {
             shell.contains("span") || shell.contains("Span"),
             "Shell.tsx:\n{shell}"
         );
-        let app = output
+        let m = output
             .files
             .iter()
-            .find(|(n, _)| n == "App.tsx")
+            .find(|(n, _)| n == "routes.manifest.ts")
             .map(|(_, c)| c.as_str())
-            .expect("App.tsx");
-        assert!(app.contains("Dash"), "App.tsx:\n{app}");
+            .expect("routes.manifest.ts");
+        assert!(m.contains("Dash"), "routes.manifest.ts:\n{m}");
         let meta = output
             .files
             .iter()
@@ -903,7 +986,7 @@ fn assert_mixed_surface_codegen_core_files() {
         let hir = vox_compiler::hir::lower_module(&module);
         let output = generate(&hir).expect("codegen");
         let names: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
-        for needle in ["Dash.tsx", "Shell.tsx", "App.tsx", "vox-islands-meta.ts"] {
+        for needle in ["Dash.tsx", "Shell.tsx", "routes.manifest.ts", "vox-islands-meta.ts"] {
             assert!(
                 names.contains(&needle),
                 "expected {needle} in {:?}",
@@ -926,17 +1009,17 @@ fn pipeline_hir_emit_legacy_shrink_public_api_codegen() {
 // --- TanStack Start scaffold (no Node): keep in sync with `vox-cli` `scaffold_tanstack_start_layout` ---
 
 #[test]
-fn tanstack_start_scaffold_programmatic_router_layout() {
+fn tanstack_start_scaffold_manifest_writes_file_routes() {
     use std::fs;
     let tmp = tempfile::tempdir().expect("tempdir");
     let ts_out = tmp.path().join("ts_out");
     let app = tmp.path().join("app");
     fs::create_dir_all(&ts_out).expect("ts_out");
     fs::write(
-        ts_out.join("VoxTanStackRouter.tsx"),
-        "// stub\nexport const voxRouteTree = {} as never;\n",
+        ts_out.join("routes.manifest.ts"),
+        "export const voxRoutes = [] as never[];\n",
     )
-    .expect("vox");
+    .expect("manifest");
     fs::write(
         ts_out.join("Home.tsx"),
         "export function Home() { return null; }\n",
@@ -948,8 +1031,8 @@ fn tanstack_start_scaffold_programmatic_router_layout() {
         "routeTree.gen.ts missing"
     );
     assert!(
-        !app.join("src/routes/index.tsx").exists(),
-        "programmatic Start must not write routes/index.tsx"
+        app.join("src/routes/index.tsx").is_file(),
+        "Start + manifest uses file routes (index.tsx)"
     );
     assert!(app.join("src/router.tsx").is_file());
 }

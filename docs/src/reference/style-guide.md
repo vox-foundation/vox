@@ -1,9 +1,11 @@
 ---
 title: "Vox Documentation Style Guide"
-description: "Official documentation for Vox Documentation Style Guide for the Vox language. Detailed technical reference, architecture guides, and imp"
+description: "Official documentation style guide for the Vox language, covering tone, syntax formatting, and documentation structure."
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Vox Documentation Style Guide
 
@@ -42,5 +44,6 @@ All documentation must fall into one of these four categories:
 
 ## 4. AI & Agent Friendliness
 - **Clear Metadata**: Use frontmatter or clear H1 tags to help AI agents index the page.
-- **Descriptive Links**: Use [Technical Reference](../api/vox-ast.md) instead of [here](../api/vox-ast.md).
+- **Descriptive Links**: Use [Technical Reference](../reference/cli.md) instead of [here](../reference/cli.md).
 - **Structured Data**: Use tables for configuration flags or API parameters.
+

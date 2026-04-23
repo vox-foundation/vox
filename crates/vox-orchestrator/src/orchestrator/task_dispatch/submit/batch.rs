@@ -1,14 +1,17 @@
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::time::Duration;
-
 use crate::locks::LockKind;
 use crate::oplog::OperationKind;
 use crate::scope::ScopeEnforcement;
-use crate::services::{PolicyCheckResult, PolicyEngine, RouteResult, RoutingService};
+use crate::services::{
+    PolicyCheckResult, PolicyEngine, PolicyTrustRelax, RouteResult, RoutingService,
+};
 use crate::types::{AccessKind, AgentId, AgentTask, FileAffinity, TaskId};
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 use super::super::super::{MAX_TASK_TRACES, Orchestrator, OrchestratorError, TaskTraceStep};
+#[cfg(feature = "runtime")]
+use super::AGENT_NOTIFY_TIMEOUT;
+use super::attention_fields::{populate_task_attention_fields, submission_approval_block_reason};
 
 impl Orchestrator {
     /// Submit a batch of interdependent tasks (async).
@@ -46,11 +49,10 @@ impl Orchestrator {
                 if tmp_dep_idx < assigned_ids.len() {
                     desc.depends_on.push(assigned_ids[tmp_dep_idx]);
                 } else {
-                    tracing::warn!(
+                    return Err(OrchestratorError::ScopeDenied(format!(
                         "Task descriptor {} referenced out-of-bounds temp dep {}",
-                        i,
-                        tmp_dep_idx
-                    );
+                        i, tmp_dep_idx
+                    )));
                 }
             }
 
@@ -63,6 +65,9 @@ impl Orchestrator {
             );
             task.capability_requirements = desc.capability_requirements.clone();
             task.session_id = desc.session_id.clone();
+            if desc.requires_approval {
+                task.status = crate::types::TaskStatus::BlockedOnApproval;
+            }
             task.start(); // ensure started_at_ms is populated
 
             // Add all collected deps
@@ -77,8 +82,28 @@ impl Orchestrator {
                     None,
                     desc.capability_requirements.as_ref(),
                     Some(desc.description.as_str()),
+                    Some(my_id),
                 )
                 .await?;
+            if !crate::sync_lock::rw_read(&*self.agents).contains_key(&agent_id) {
+                return Err(OrchestratorError::AgentNotFound(agent_id));
+            }
+
+            populate_task_attention_fields(self, &mut task, agent_id, &desc.file_manifest);
+            if let Some(reason) = submission_approval_block_reason(&task) {
+                return Err(OrchestratorError::ApprovalBlocked(reason));
+            }
+
+            let policy_trust = {
+                let cfg = crate::sync_lock::rw_read(&*self.config);
+                let mut t = PolicyTrustRelax::default();
+                if cfg.trust_gate_relax_enabled {
+                    t.relax_scope_strict_on_high_reliability = true;
+                    t.min_reliability = cfg.trust_gate_relax_min_reliability;
+                    t.agent_reliability = self.lookup_agent_reliability_sync(agent_id);
+                }
+                t
+            };
 
             {
                 let scope_guard_lock = (scope_enforcement != ScopeEnforcement::Disabled)
@@ -90,6 +115,7 @@ impl Orchestrator {
                     &self.event_bus,
                     &desc.file_manifest,
                     agent_id,
+                    policy_trust,
                 ) {
                     PolicyCheckResult::Allowed => {}
                     PolicyCheckResult::LockConflict(e) => {
@@ -139,6 +165,17 @@ impl Orchestrator {
             self.record_activity();
             crate::sync_lock::rw_write(&self.monitor).record_progress(agent_id);
             let session_id_for_retrieval = task.session_id.clone();
+            let intake_description = task.description.clone();
+            let cleanup_claims = || {
+                for fa in &desc.file_manifest {
+                    if fa.access == AccessKind::Write {
+                        self.lock_manager.release(&fa.path, agent_id);
+                        self.affinity_map.release(&fa.path);
+                        crate::sync_lock::rw_write(&*self.scope_guard)
+                            .revoke_file(agent_id, &fa.path);
+                    }
+                }
+            };
             // Enqueue
             let handle_to_notify = {
                 let agents = crate::sync_lock::rw_read(&*self.agents);
@@ -155,15 +192,24 @@ impl Orchestrator {
                     crate::sync_lock::rw_write(&*self.task_assignments).insert(my_id, agent_id);
 
                     // Grab the handle for notification outside the agents lock
-                    crate::sync_lock::rw_read(&*self.agent_handles)
-                        .get(&agent_id)
-                        .cloned()
+                    #[cfg(feature = "runtime")]
+                    {
+                        crate::sync_lock::rw_read(&*self.agent_handles)
+                            .get(&agent_id)
+                            .cloned()
+                    }
+                    #[cfg(not(feature = "runtime"))]
+                    {
+                        None::<()>
+                    }
                 } else {
-                    None
+                    cleanup_claims();
+                    return Err(OrchestratorError::AgentNotFound(agent_id));
                 }
             };
 
             // Notify outside all locks
+            #[cfg(feature = "runtime")]
             if let Some(handle) = handle_to_notify {
                 let json = serde_json::to_string(&crate::runtime::AgentCommand::ProcessQueue)
                     .unwrap_or_else(|e| {
@@ -174,8 +220,8 @@ impl Orchestrator {
                     from: vox_runtime::Pid::new(),
                     payload: vox_runtime::mailbox::MessagePayload::Json(json),
                 });
-                const NOTIFY_TIMEOUT: Duration = Duration::from_secs(30);
-                match tokio::time::timeout(NOTIFY_TIMEOUT, handle.send(env)).await {
+                let handle: &vox_runtime::process::ProcessHandle = &handle;
+                match tokio::time::timeout(AGENT_NOTIFY_TIMEOUT, handle.send(env)).await {
                     Ok(send_res) => {
                         if let Err(e) = send_res {
                             tracing::warn!("submit_batch: agent notify send failed: {e:?}");
@@ -183,7 +229,7 @@ impl Orchestrator {
                     }
                     Err(_) => tracing::warn!(
                         "submit_batch: agent notify timed out after {:?}",
-                        NOTIFY_TIMEOUT
+                        AGENT_NOTIFY_TIMEOUT
                     ),
                 }
             }
@@ -216,7 +262,16 @@ impl Orchestrator {
                 );
             }
 
-            self.attach_session_retrieval_envelope_if_present(my_id, &session_id_for_retrieval);
+            let attached_retrieval =
+                self.attach_session_retrieval_envelope_if_present(my_id, &session_id_for_retrieval);
+            if !attached_retrieval {
+                self.attach_goal_search_context_with_retrieval(
+                    my_id,
+                    &intake_description,
+                    &desc.file_manifest,
+                )
+                .await;
+            }
 
             results.push(my_id);
         }
@@ -250,6 +305,9 @@ impl Orchestrator {
                 temp_deps: vec![],
                 capability_requirements: None,
                 session_id: session_id.clone(),
+                thread_id: None,
+                requires_approval: false,
+                test_decision: None,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -262,6 +320,9 @@ impl Orchestrator {
                 temp_deps: vec![0],
                 capability_requirements: None,
                 session_id: session_id.clone(),
+                thread_id: None,
+                requires_approval: false,
+                test_decision: None,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -274,6 +335,9 @@ impl Orchestrator {
                 temp_deps: vec![1],
                 capability_requirements: None,
                 session_id: session_id.clone(),
+                thread_id: None,
+                requires_approval: false,
+                test_decision: None,
             },
             crate::types::TaskDescriptor {
                 description: format!(
@@ -286,6 +350,9 @@ impl Orchestrator {
                 temp_deps: vec![2],
                 capability_requirements: None,
                 session_id,
+                thread_id: None,
+                requires_approval: false,
+                test_decision: None,
             },
         ];
         self.submit_batch(descriptors).await
@@ -324,6 +391,7 @@ impl Orchestrator {
         target_agent: Option<&str>,
         task_capability_requirements: Option<&crate::contract::TaskCapabilityHints>,
         task_description: Option<&str>,
+        source_task_id: Option<TaskId>,
     ) -> Result<AgentId, OrchestratorError> {
         if let Some(agent_name) = target_agent {
             // First check if an agent with this name exists
@@ -377,6 +445,14 @@ impl Orchestrator {
             None
         };
 
+        let mut effective_requirements = task_capability_requirements.cloned().unwrap_or_default();
+        if let Some(desc) = task_description {
+            if desc.contains("[[category:visus]]") || desc.contains("[[visus]]") {
+                effective_requirements.visus_eligible = true;
+                effective_requirements.multi_modal = true;
+            }
+        }
+
         let attention_trust_scores = if crate::sync_lock::rw_read(&*self.config).attention_enabled {
             Some(crate::sync_lock::rw_read(&*self.budget_manager).trust_snapshot())
         } else {
@@ -394,6 +470,8 @@ impl Orchestrator {
             let agents = crate::sync_lock::rw_read(&*self.agents);
             let groups = crate::sync_lock::rw_read(&*self.groups);
             let config = crate::sync_lock::rw_read(&*self.config);
+            let budget = crate::sync_lock::rw_read(&*self.budget_manager);
+            let local_tokens = budget.local_inference_tokens();
 
             RoutingService::route(
                 manifest,
@@ -401,8 +479,9 @@ impl Orchestrator {
                 &groups,
                 &agents,
                 &config,
+                local_tokens,
                 reliability_map.as_ref(),
-                task_capability_requirements,
+                Some(&effective_requirements),
                 task_description,
                 remote,
                 task_completion_trust_scores.as_ref(),
@@ -413,7 +492,13 @@ impl Orchestrator {
 
         match result {
             RouteResult::Existing(id) => Ok(id),
-            RouteResult::SpawnAgent(name) => self.spawn_dynamic_agent(&name),
+            RouteResult::SpawnAgent(name) => self.spawn_dynamic_agent_with_parent(
+                &name,
+                None,
+                Some("route_spawn"),
+                source_task_id,
+                Some(effective_requirements),
+            ),
         }
     }
 }
@@ -438,13 +523,18 @@ fn build_repo_shard_descriptors(
 ) -> Vec<crate::types::TaskDescriptor> {
     let shard_count = shard_manifests.len();
     let mut descriptors = Vec::with_capacity(shard_count.saturating_mul(2).saturating_add(1));
+    let schedule = crate::services::CampaignScheduler::plan(objective, shard_count);
+    let mode_tag = schedule.mode.as_tag();
+    let mut gen_descriptor_index_by_shard = std::collections::HashMap::<usize, usize>::new();
 
     // Generation tasks (indices 0..N-1)
-    for (idx, file_manifest) in shard_manifests.iter().enumerate() {
+    for shard_idx in &schedule.shard_order {
+        let file_manifest = &shard_manifests[*shard_idx];
+        let descriptor_idx = descriptors.len();
         descriptors.push(crate::types::TaskDescriptor {
             description: format!(
-                "[PHASE:SHARD_GEN][SHARD:{}]\nGenerate repository shard implementation for:\n{}",
-                idx, objective
+                "[PHASE:SHARD_GEN][MODE:{mode_tag}][SHARD:{}]\nGenerate repository shard implementation for:\n{}",
+                shard_idx, objective
             ),
             priority,
             file_manifest: file_manifest.clone(),
@@ -452,30 +542,40 @@ fn build_repo_shard_descriptors(
             temp_deps: vec![],
             capability_requirements: None,
             session_id: session_id.clone(),
+            thread_id: None,
+                requires_approval: false,
+                test_decision: None,
         });
+        gen_descriptor_index_by_shard.insert(*shard_idx, descriptor_idx);
     }
 
     // Validation tasks (indices N..2N-1), each depends on its corresponding generator.
-    for (idx, file_manifest) in shard_manifests.iter().enumerate() {
+    let mut validation_temp_deps = Vec::with_capacity(shard_count);
+    for shard_idx in &schedule.shard_order {
+        let file_manifest = &shard_manifests[*shard_idx];
+        let gen_dep = *gen_descriptor_index_by_shard.get(shard_idx).unwrap_or(&0);
         descriptors.push(crate::types::TaskDescriptor {
             description: format!(
-                "[PHASE:SHARD_VALIDATE][SHARD:{}]\nValidate generated shard for canonical output and parseability:\n{}",
-                idx, objective
+                "[PHASE:SHARD_VALIDATE][MODE:{mode_tag}][SHARD:{}]\nValidate generated shard for canonical output and parseability:\n{}",
+                shard_idx, objective
             ),
             priority,
             file_manifest: file_manifest.clone(),
             depends_on: vec![],
-            temp_deps: vec![idx],
+            temp_deps: vec![gen_dep],
             capability_requirements: None,
             session_id: session_id.clone(),
+            thread_id: None,
+                requires_approval: false,
+                test_decision: None,
         });
+        validation_temp_deps.push(descriptors.len().saturating_sub(1));
     }
 
     // Reducer task depends on *all* validation tasks (validation-first merge gate).
-    let validation_temp_deps: Vec<usize> = (shard_count..(shard_count.saturating_mul(2))).collect();
     descriptors.push(crate::types::TaskDescriptor {
         description: format!(
-            "[PHASE:REDUCE]\nMerge validated shard outputs into repository-scale result for:\n{}",
+            "[PHASE:REDUCE][MODE:{mode_tag}]\nMerge validated shard outputs into repository-scale result for:\n{}",
             objective
         ),
         priority,
@@ -484,6 +584,9 @@ fn build_repo_shard_descriptors(
         temp_deps: validation_temp_deps,
         capability_requirements: None,
         session_id,
+        thread_id: None,
+                requires_approval: false,
+                test_decision: None,
     });
 
     descriptors

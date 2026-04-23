@@ -2,13 +2,18 @@
 title: "Clavis SSOT"
 description: "Canonical secret-management source of truth for Vox Clavis"
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-04-11"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 ## Clavis SSOT
 
 `vox-clavis` is the canonical source of truth for managed secret metadata and resolution precedence.
+
+Research and forward-looking analysis live in [Clavis secrets, env vars, and API key strategy research 2026](../architecture/clavis-secrets-env-research-2026.md).
+Threat and policy controls are documented in [Clavis Cloudless Threat Model V1](../architecture/clavis-cloudless-threat-model-v1.md), with execution steps in [Clavis Cloudless Implementation Catalog](../architecture/clavis-cloudless-implementation-catalog.md).
 
 ## Naming Convention
 
@@ -34,8 +39,10 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `TOGETHER_API_KEY` | Remote fine-tune API | Optional cloud training | `vox-cli train --provider together` |
 | `GITHUB_TOKEN` | Publishing/review automation | Workflow-specific required | `vox-cli review/publish` |
 | `VOX_NEWS_TWITTER_TOKEN`, `VOX_NEWS_OPENCOLLECTIVE_TOKEN`, `VOX_SOCIAL_REDDIT_*`, `VOX_SOCIAL_YOUTUBE_*` | Scientia/news syndication | Optional (per channel) | `vox-publisher` resolves via Clavis `SecretId` specs; GitHub syndication also accepts `VOX_NEWS_GITHUB_TOKEN` as an alias of `GITHUB_TOKEN` |
-| `ZENODO_ACCESS_TOKEN`, `OPENREVIEW_EMAIL`, `OPENREVIEW_PASSWORD`, `CROSSREF_PLUS_API_KEY`, `VOX_ARXIV_ASSIST_HANDOFF_SECRET` | Scholarly repository adapters | Optional (`Workflow::Publish` / `publish_review` bundle) | Zenodo / OpenReview / Crossref clients resolve via Clavis; VOX-prefixed aliases accepted where listed |
+| `ZENODO_ACCESS_TOKEN`, `OPENREVIEW_EMAIL`, `OPENREVIEW_ACCESS_TOKEN`, `OPENREVIEW_PASSWORD`, `CROSSREF_PLUS_API_KEY`, `DATACITE_REPOSITORY`, `DATACITE_PASSWORD`, `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET`, `TAVILY_API_KEY`, `TAVILY_PROJECT`, `X_TAVILY_API_KEY`, `VOX_ARXIV_ASSIST_HANDOFF_SECRET` (plus `VOX_*` aliases for DataCite, ORCID, Tavily where listed below) | Scholarly repository adapters | Optional (`Workflow::Publish` / `publish_review` bundle) | Zenodo / OpenReview / Crossref / DataCite / ORCID / Tavily clients resolve via Clavis; VOX-prefixed aliases accepted where listed |
 | `VOX_DB_URL`, `VOX_DB_TOKEN` | Remote DB | Workflow-specific required | DB remote flows |
+| `VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN` | Optional telemetry ingest (explicit `vox telemetry upload`) | Optional | `vox-cli` resolves via `SecretId::VoxTelemetryUploadUrl` / `VoxTelemetryUploadToken`; see [ADR 023](../adr/023-optional-telemetry-remote-upload.md) |
+| `VOX_SEARCH_QDRANT_API_KEY` | Qdrant HTTP `api-key` (optional RAG sidecar) | Optional | [`vox_search::vector_qdrant`](../../../crates/vox-search/src/vector_qdrant.rs) via `SecretId::VoxSearchQdrantApiKey` |
 | `VOX_MESH_TOKEN` | Populi control-plane auth (legacy full-access token) | Workflow-specific required (any mesh-class token) | Mesh transport/auth |
 | `VOX_MESH_WORKER_TOKEN` | Worker-scoped populi HTTP bearer | Optional (advance pools) | `POST` join/heartbeat/inbox/ack |
 | `VOX_MESH_SUBMITTER_TOKEN` | Submitter-scoped populi HTTP bearer | Optional | `POST` A2A deliver only |
@@ -43,77 +50,13 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `VOX_MESH_JWT_HMAC_SECRET` | HS256 key for mesh JWT bearer | Optional | JWT claims `role`, `jti`, `exp` |
 | `VOX_MESH_WORKER_RESULT_VERIFY_KEY` | Ed25519 verify key (hex or Standard base64) | Optional | Signed `job_result` / `job_fail` payloads |
 | `VOX_API_KEY`, `VOX_BEARER_TOKEN` | Runtime ingress auth | Optional hardening | `vox-runtime` auth gate |
+| `VOX_MCP_HTTP_BEARER_TOKEN`, `VOX_MCP_HTTP_READ_BEARER_TOKEN` | MCP HTTP gateway auth | Optional hardening | `vox-mcp` HTTP gateway auth surfaces |
 | `V0_API_KEY`, `VOX_OPENCLAW_TOKEN` | Auxiliary tooling | Optional | island generation / OpenClaw |
+| `*_TUNING_TEMPERATURE`, `*_TUNING_TOP_P` | LLM inference overrides (Gemini, Ollama, OpenAI, Anthropic, Together) | Optional | Resolution precedence: Request > Env > Tool Default |
 
 ## Managed Secret Env Names
 
-- `GEMINI_API_KEY`
-- `VOX_GEMINI_API_KEY`
-- `GOOGLE_AI_STUDIO_KEY`
-- `OPENROUTER_API_KEY`
-- `VOX_OPENROUTER_API_KEY`
-- `OPENAI_API_KEY`
-- `VOX_OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY`
-- `VOX_ANTHROPIC_API_KEY`
-- `HF_TOKEN`
-- `VOX_HF_TOKEN`
-- `HUGGING_FACE_HUB_TOKEN`
-- `GITHUB_TOKEN`
-- `VOX_GITHUB_TOKEN`
-- `VOX_NEWS_GITHUB_TOKEN`
-- `GH_TOKEN`
-- `VOX_NEWS_TWITTER_TOKEN`
-- `VOX_NEWS_OPENCOLLECTIVE_TOKEN`
-- `VOX_SOCIAL_REDDIT_CLIENT_ID`
-- `VOX_SOCIAL_REDDIT_CLIENT_SECRET`
-- `VOX_SOCIAL_REDDIT_REFRESH_TOKEN`
-- `VOX_SOCIAL_REDDIT_USER_AGENT`
-- `VOX_SOCIAL_YOUTUBE_CLIENT_ID`
-- `VOX_SOCIAL_YOUTUBE_CLIENT_SECRET`
-- `VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN`
-- `ZENODO_ACCESS_TOKEN`
-- `VOX_ZENODO_ACCESS_TOKEN`
-- `OPENREVIEW_EMAIL`
-- `VOX_OPENREVIEW_EMAIL`
-- `OPENREVIEW_PASSWORD`
-- `VOX_OPENREVIEW_PASSWORD`
-- `CROSSREF_PLUS_API_KEY`
-- `VOX_CROSSREF_PLUS_API_KEY`
-- `VOX_ARXIV_ASSIST_HANDOFF_SECRET`
-- `GROQ_API_KEY`
-- `VOX_GROQ_API_KEY`
-- `CEREBRAS_API_KEY`
-- `VOX_CEREBRAS_API_KEY`
-- `MISTRAL_API_KEY`
-- `VOX_MISTRAL_API_KEY`
-- `DEEPSEEK_API_KEY`
-- `VOX_DEEPSEEK_API_KEY`
-- `SAMBANOVA_API_KEY`
-- `VOX_SAMBANOVA_API_KEY`
-- `CUSTOM_OPENAI_API_KEY`
-- `VOX_CUSTOM_OPENAI_API_KEY`
-- `V0_API_KEY`
-- `VOX_V0_API_KEY`
-- `VOX_OPENCLAW_TOKEN`
-- `TOGETHER_API_KEY`
-- `VOX_TOGETHER_API_KEY`
-- `VOX_RUNPOD_API_KEY`
-- `VOX_VAST_API_KEY`
-- `VOX_API_KEY`
-- `VOX_BEARER_TOKEN`
-- `VOX_DB_URL`
-- `VOX_TURSO_URL`
-- `TURSO_URL`
-- `VOX_DB_TOKEN`
-- `VOX_TURSO_TOKEN`
-- `TURSO_AUTH_TOKEN`
-- `VOX_MESH_TOKEN`
-- `VOX_MESH_WORKER_TOKEN`
-- `VOX_MESH_SUBMITTER_TOKEN`
-- `VOX_MESH_ADMIN_TOKEN`
-- `VOX_MESH_JWT_HMAC_SECRET`
-- `VOX_MESH_WORKER_RESULT_VERIFY_KEY`
+{{#include ../../../contracts/clavis/managed-env-names.md}}
 
 ## Resolution Precedence
 
@@ -156,3 +99,56 @@ For each managed secret ID:
 - `vox clavis get <registry>`
 - `vox clavis backend-status`
 - `vox clavis migrate-auth-store`
+- FORGE_TOKEN
+- GH_TOKEN
+- GITLAB_TOKEN
+- GL_TOKEN
+- GOOGLE_AI_STUDIO_KEY
+- HUGGING_FACE_HUB_TOKEN
+- POPULI_API_KEY
+- TURSO_AUTH_TOKEN
+- TURSO_URL
+- VOX_ANTHROPIC_API_KEY
+- VOX_CEREBRAS_API_KEY
+- VOX_CROSSREF_PLUS_API_KEY
+- VOX_CUSTOM_OPENAI_API_KEY
+- VOX_DEEPSEEK_API_KEY
+- VOX_FORGE_TOKEN
+- VOX_GEMINI_API_KEY
+- VOX_GROQ_API_KEY
+- VOX_HF_TOKEN
+- VOX_MISTRAL_API_KEY
+- VOX_OPENAI_API_KEY
+- VOX_OPENREVIEW_EMAIL
+- VOX_OPENREVIEW_PASSWORD
+- VOX_POPULI_API_KEY
+- VOX_SAMBANOVA_API_KEY
+- VOX_SOCIAL_REDDIT_CLIENT_ID
+- VOX_SOCIAL_REDDIT_CLIENT_SECRET
+- VOX_SOCIAL_REDDIT_REFRESH_TOKEN
+- VOX_SOCIAL_REDDIT_USER_AGENT
+- VOX_SOCIAL_YOUTUBE_CLIENT_ID
+- VOX_SOCIAL_YOUTUBE_CLIENT_SECRET
+- VOX_SOCIAL_YOUTUBE_REFRESH_TOKEN
+- VOX_TOGETHER_API_KEY
+- VOX_TURSO_TOKEN
+- VOX_TURSO_URL
+- VOX_V0_API_KEY
+- VOX_WEBHOOK_INGRESS_TOKEN
+- VOX_WEBHOOK_SIGNING_SECRET
+- VOX_ZENODO_ACCESS_TOKEN
+- VOX_SOCIAL_MASTODON_TOKEN
+- VOX_SOCIAL_MASTODON_DOMAIN
+- VOX_SOCIAL_LINKEDIN_ACCESS_TOKEN
+- VOX_SOCIAL_DISCORD_WEBHOOK_URL
+- GEMINI_TUNING_TEMPERATURE
+- GEMINI_TUNING_TOP_P
+- OLLAMA_TUNING_TEMPERATURE
+- OLLAMA_TUNING_TOP_P
+- OPENAI_TUNING_TEMPERATURE
+- OPENAI_TUNING_TOP_P
+- ANTHROPIC_TUNING_TEMPERATURE
+- ANTHROPIC_TUNING_TOP_P
+- TOGETHER_TUNING_TEMPERATURE
+- TOGETHER_TUNING_TOP_P
+

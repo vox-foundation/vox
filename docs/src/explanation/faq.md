@@ -1,17 +1,25 @@
 ---
 title: "Vox FAQ: Frequently Asked Questions"
-description: "Answers to common questions about the Vox programming language: setup, concurrency, durability, and AI integration."
-category: "how-to"
-last_updated: 2026-03-24
+description: "Answers to common questions about Vox, its current architecture, generated outputs, MCP support, and Mens training lanes."
+category: "explanation"
+status: "current"
+last_updated: "2026-03-28"
 training_eligible: true
+
+schema_type: "FAQPage"
+keywords: ["Vox FAQ", "Vox language questions", "AI native language runtime", "null safety programming"]
 ---
 
 # Vox Frequently Asked Questions (FAQ)
 
+This page answers product and architecture questions.
+
+For operational fixes, environment issues, or command failures, use the [Troubleshooting FAQ](../how-to/troubleshooting-faq.md).
+
 ## Language Basics
 
 ### What is Vox?
-Vox is an AI-native, full-stack programming language that unifies frontend, backend, and infrastructure into a single, LLM-friendly syntax. It compiles to Rust (backend) and TypeScript (frontend) — it does not replace either, but orchestrates both from one codebase.
+Vox is a full-stack programming language and toolchain that aims to keep more of the application structure in one place. The current repository documents a compiler and CLI that generate Rust and TypeScript artifacts, plus a wider ecosystem of orchestration, MCP, and Mens-related tooling.
 
 ### Is Vox statically typed?
 Yes. Vox uses bidirectional type inference: you rarely need explicit types inside function bodies, but all signatures are validated at compile time.
@@ -22,8 +30,9 @@ Null is completely banned. Absent values use `Option[T]` (`Some(value)` or `None
 ## Installation & Toolchain
 
 ### How do I install and update Vox?
-Build from source with `cargo install --locked --path crates/vox-cli` (or use the install scripts in the repo).  
-To discover what your currently installed binary supports, run `vox commands --recommended` and `vox commands --include-nested`.
+Build from source with `cargo install --locked --path crates/vox-cli`.
+
+To discover what your installed binary actually supports, run `vox commands --recommended` and `vox commands --format json --include-nested`. The docs intentionally distinguish between the current compiled CLI surface and broader workspace capabilities.
 
 ### What does `vox build` do?
 `vox build` lexes, parses, and type-checks your `.vox` file, then generates Rust and TypeScript output.  
@@ -34,37 +43,49 @@ Yes. Use `import rust:<crate>` (for example `import rust:serde_json as json`) fo
 
 ## Architecture & Runtime
 
-### What are Actors and Workflows?
 - **Actor** — a stateful unit of concurrency with a private mailbox. Processes one message at a time; no shared-state races.
-- **Workflow** — a durable state machine that coordinates long-running work. If your server crashes mid-execution, the workflow resumes exactly where it left off on restart.
+- **Workflow** — a long-running orchestration construct. Today, the interpreted workflow runtime provides the repo's durable step-replay path, while generated Rust workflows are not yet full durable state machines (see [ADR-021](../adr/021-generated-workflow-durability-parity.md)).
 
 ### What is the Mens?
-Vox's distributed compute layer. Nodes across regions communicate and route actor messages natively — no Redis or RabbitMQ setup required. The Mens BaaS layer handles Codex (Turso) database connections and actor routing automatically.
+In current repo language, **Mens** refers to the model-training lane and local model generation pipeline, while **Populi / mesh** refers to coordination, inference serving, and distributed execution surfaces. Older docs sometimes used the terms loosely; newer docs keep those lanes separate.
+
+### What is the difference between `activity` and `workflow`?
+A **workflow** is an overarching orchestrator that tracks progress durably across steps, whereas an **activity** is an individual, retryable unit of work that performs side effects (like an API call). Workflows run activities but are not meant to contain side effects directly.
+
+### What is `@island` and how does it differ from `@island`?
+`@island` is the single mechanism for creating client-side UI explicitly using React. `@island` was an older, deprecated concept removed completely in v0.3 and will result in a hard parser error.
+
+### What is `Codex` and how does it relate to SQLite?
+**Codex** is the logical data environment — the unified data and knowledge store in Vox that application code interacts with. It acts as a high-level facade over **Arca**, which handles the actual physical storage (SQLite/Turso layer under the hood).
 
 ### How is Vox different from Go or Erlang/Elixir?
-Go's goroutines and Erlang's processes are ephemeral — a crash loses their state. Vox Workflows are durably persisted. Vox also adds static typing (Rust codegen) and a unified UI layer (React/TypeScript), which neither Go nor Erlang/Elixir provide out of the box.
+Vox is opinionated about generated outputs, durable workflows, and keeping more application structure in one language. Its design language overlaps with actor and workflow systems, but the repo also includes code generation, contracts, and web-facing lanes that are not trying to be a drop-in clone of Go or Erlang/Elixir.
 
 ## AI & ML Integration
 
 ### How does Vox support AI agents?
-Vox has native [Model Context Protocol (MCP)](https://modelcontextprotocol.io) support. Add `@mcp.tool` to any function and Vox automatically generates a standard MCP JSON schema — your app instantly becomes a tool or data source for external agents (Claude, OpenAI, etc.).
+The repo has native [Model Context Protocol (MCP)](https://modelcontextprotocol.io) integration and a growing set of tool-registry contracts. In the current documentation set, the canonical sources are the MCP registry contract pages and the `vox-mcp` workspace surfaces, not older duplicate reference tables.
 
 ### What is Mens, and how do I fine-tune a model?
-Mens is Vox's native ML pipeline for QLoRA (Quantized Low-Rank Adaptation) fine-tuning of LLMs on your codebase — entirely in Rust, no Python required. Run:
+Mens is the repo's native model-training lane. The current default production mix is still code-oriented; documentation prose extraction exists, but architecture Q&A is not the default training objective today.
+
+For the canonical training entrypoint:
 
 ```bash
 vox mens train --backend qlora
 ```
 
-It crawls files marked `training_eligible: true`, builds tensors, and runs the Candle training backend. See [How To: Train Mens Models](../how-to/how-to-train-mens-4080.md).
+See [Mens native training SSOT](../reference/mens-training.md), [Mens training data contract](../reference/mens-training-data-contract.md), and [How To: Train Mens Models](../how-to/how-to-train-mens-4080.md).
 
 ### What is the Socrates Protocol?
-An anti-hallucination layer built into the orchestrator. Before generating or approving code, Vox asks the underlying LLM to self-evaluate confidence and structure its reasoning — reducing spurious output.
+An orchestration-layer reasoning protocol (SOP). Before generating or approving code, Vox uses structural prompts to force the underlying LLM to evaluate confidence and structure its reasoning via the MCP control plane.
 
 ## Deployment & Community
 
 ### How do I deploy a Vox app?
-Vox compiles to a single statically-linked binary. Deploy it anywhere — AWS, Render, a Raspberry Pi, or the Vox Mens.
+Deployment surfaces exist, but they are not all equivalent in maturity. Treat the deployment and portability docs as the current source of truth for the lane you are using rather than assuming every repo path is equally production-ready.
 
 ### Is Vox open source? How do I contribute?
-Yes, Apache-2.0 licensed. Submit PRs on GitHub, follow `STYLE.md`, and run `vox ci manifest` plus `vox ci command-compliance` before pushing.
+Yes, Apache-2.0 licensed. Start with the [Contributor hub](../contributors/contributor-hub.md), follow `STYLE.md`, and use the relevant `vox ci` guards for the area you changed.
+
+

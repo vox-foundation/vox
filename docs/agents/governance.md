@@ -1,3 +1,10 @@
+---
+title: "Governance"
+description: "Agent support documentation for governance"
+category: "contributor"
+status: "current"
+training_eligible: true
+---
 # Architectural Governance (TOESTUB)
 
 The Vox codebase enforces architectural health automatically using the TOESTUB engine.
@@ -11,7 +18,7 @@ bash scripts/quality/toestub_scoped.sh                    # default root: crates
 cargo run -p vox-toestub --bin toestub -- <PATH>         # explicit scan root
 ```
 
-**Minimal `vox` binary** — subcommand is behind **`--features stub-check`** (see [`cli.md`](../reference/cli.md#vox-stub-check-feature-stub-check)):
+**Minimal `vox` binary** — subcommand is behind **`--features stub-check`** (see [`cli.md`](../src/reference/cli.md#vox-stub-check-feature-stub-check)):
 
 ```bash
 cargo build -p vox-cli --features stub-check
@@ -20,7 +27,7 @@ vox stub-check --severity error            # only errors and critical
 # Fix suggestions: `--suggest-fixes` (default true); there is no `--fix` flag
 ```
 
-GitHub CI runs the **scoped** TOESTUB pass above (`toestub_scoped.sh`). When you run **`vox stub-check`**, it exits non-zero on error/critical findings for the configured scan (see CLI flags in `ref-cli.md`).
+GitHub CI runs the **scoped** TOESTUB pass above (`toestub_scoped.sh`). When you run **`vox stub-check`**, it exits non-zero on error/critical findings for the configured scan (see CLI flags in [`ref-cli.md`](../src/ref-cli.md)).
 
 ## Enforced Rules
 
@@ -44,19 +51,23 @@ TOESTUB rule IDs are emitted as shown below (see `crates/vox-toestub/src/detecto
 | `stringly-typed-enum` | String fields with enum-like comment lists | Warning |
 | `rust/unwrap-call` | Heuristic `.unwrap()` nudge (skips common test paths) | Info |
 | `cross-platform/line-endings` | CR / CRLF in scanned sources vs LF policy (finding id `cross-platform/crlf`) | Warning |
+| `skeleton/hollow-fn` | Functions with trivially-default return values (`Ok(())`, `true`, `Vec::new()`, etc.) | Warning |
+| `scaling/surfaces` | Blocking I/O in async, unbounded reads, SQL/HTTP heuristics | Warning (sub-ids vary) |
 
 **CI parity:** hard gate is **`vox ci line-endings`** (forward-only diff); see [runner contract](../src/ci/runner-contract.md#line-endings-cross-platform).
 
 ## Local scratch, logs, and side `target/` trees
 
-- **`.gitignore` (first line of defense):** keep broad, *root-anchored* rules where possible (see root `.gitignore` — `target-*/`, `/target*.stale-*/`, `/*.txt`, …) so ad-hoc logs, overflow Cargo target dirs, and rename leftovers stay untracked without listing every filename variant.
+- **`.gitignore` (pattern SSOT):** keep broad, *root-anchored* rules so CI/agent Cargo side trees, logs, and rename leftovers stay untracked. **Do not duplicate the full pattern list in prose** — open root [`.gitignore`](../../.gitignore) for the live set (root scratch globs, `mens/runs` exceptions, etc.).
+- **Cargo target isolation:** the workspace pins canonical `CARGO_TARGET_DIR` via [`.cargo/config.toml`](../../.cargo/config.toml). Nested CI / isolated mesh-gate builds use **OS temp** under `vox-targets/<repo-hash>/…`, not new repo-root `target-*` trees. `build_service` rejects disallowed `CARGO_TARGET_DIR` overrides (see `crates/vox-cli/src/artifact_policy.rs`).
+- **Policy cleanup:** `vox ci artifact-audit` lists classes + delete candidates; `vox ci artifact-prune --dry-run | --apply` applies age/size rules from [`contracts/operations/workspace-artifact-retention.v1.yaml`](../../contracts/operations/workspace-artifact-retention.v1.yaml) (never deletes git-tracked paths).
 - **TOESTUB:** use for **tracked source** shape (stubs, sprawl, god-object, **CR/LF** via `cross-platform/line-endings`). It does **not** replace `.gitignore` for build trees or one-off command output — those never enter the scan set if ignored.
-- **When adding a new scratch pattern:** prefer one **general** rule (e.g. `/check_err*.log` at repo root) over many exact names; avoid ignoring paths that could be real product folders (if unsure, root-anchor with `/`).
-- **Optional cleanup:** `cargo clean` (honors `.cargo/config.toml` `CARGO_TARGET_DIR`); remove stale `target*.stale-*` dirs after closing handles on `target/**/vox.exe`.
+- **When adding a new scratch pattern:** prefer one **general** root-anchored rule over many exact names; cross-check `.gitignore` (e.g. root JSON error dumps use patterns like `/check_err*.json`, not a duplicate ad hoc list here).
+- **Optional cleanup:** `cargo clean` (honors `.cargo/config.toml` `CARGO_TARGET_DIR`); for Windows file locks, close processes holding the binary, then remove leftover rename trees or run **`vox ci artifact-prune --apply`** after review.
 
-## God Object Lock
+## God Object Limit (Multi-Tier)
 
-Files exceeding **500 lines** or structs with **> 12 methods** are locked for new features.
+Soft Info `300 lines`, Warning `400 lines`, Error `500 lines` or `12 methods` per class/struct. This enforces small contextual density for MENS training. Suppressions for legacy files are tracked in `contracts/toestub/suppressions.v1.json`.
 Before adding to them, refactor into traits and sub-modules first.
 
 Affected files as of March 2026:
@@ -69,11 +80,11 @@ No directory may contain more than **20 files**. When exceeded, sub-slice into
 feature modules. Example:
 ```
 # From:
-crates/vox-mcp/src/tool_a.rs
-crates/vox-mcp/src/tool_b.rs  (20+ files)
+crates/vox-orchestrator/src/mcp_tools/tool_a.rs
+crates/vox-orchestrator/src/mcp_tools/tool_b.rs  (20+ files)
 
 # To:
-crates/vox-mcp/src/tools/
+crates/vox-orchestrator/src/mcp_tools/tools/
   tool_a.rs
   tool_b.rs
   mod.rs
@@ -139,6 +150,8 @@ Before marking any PR or task complete, verify:
 # Prefer check over build for agent sessions (faster, no linker lock):
 cargo check -p vox-cli
 
-# Transient Windows linker errors (LNK1104) → retry or use check:
-$env:CARGO_TARGET_DIR = "target_alt"; cargo check -p vox-orchestrator
+# Transient Windows linker errors (LNK1104) → retry or use `cargo check`.
+# If you must override target dir for triage, use an OS temp path or ~/.vox/.
+# Do NOT create new unignored `target-*` folders in the repo root; it violates artifact policy.
+$env:CARGO_TARGET_DIR = "$env:TEMP\vox-triage"; cargo check -p vox-orchestrator
 ```

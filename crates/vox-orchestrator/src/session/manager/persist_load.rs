@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-use std::fs::{self, File, OpenOptions};
-use std::io::{BufRead, BufReader, Write};
+
 use std::path::PathBuf;
 
 use crate::types::AgentId;
@@ -10,125 +9,10 @@ use super::super::state::{Session, SessionEvent, SessionState, SessionTurn, now_
 use super::SessionManager;
 
 impl SessionManager {
-    /// Load a session by replaying events from JSONL.
-    #[deprecated(note = "JSONL persistence is being replaced by VoxDb SSOT")]
-    pub fn load_from_jsonl(&mut self, session_id: &str) -> Result<(), SessionError> {
-        let path = self.session_path(session_id);
-        if !path.exists() {
-            return Err(SessionError::NotFound(session_id.to_string()));
-        }
-
-        let file = File::open(&path)?;
-        let reader = BufReader::new(file);
-
-        let mut session: Option<Session> = None;
-
-        for line in reader.lines() {
-            let line = line?;
-            let line = line.trim().trim_start_matches('\u{feff}');
-            if line.is_empty() {
-                continue;
-            }
-            // One logical JSONL row can contain multiple concatenated objects if writers interleave
-            // before newline (stress / coverage); stream-parse every value on the line.
-            let iter = serde_json::Deserializer::from_str(line).into_iter::<SessionEvent>();
-            for ev in iter {
-                let event: SessionEvent = ev.map_err(SessionError::Serialize)?;
-                match event {
-                    SessionEvent::Created {
-                        session_id: sid,
-                        agent_id,
-                        created_at,
-                    } => {
-                        let now = now_secs();
-                        session = Some(Session {
-                            id: sid,
-                            agent_id: AgentId(agent_id),
-                            state: SessionState::Active,
-                            created_at,
-                            last_active: now,
-                            last_expensive_op_at: None,
-                            turns: Vec::new(),
-                            meta: HashMap::new(),
-                            plugin_state: HashMap::new(),
-                            turn_count: 0,
-                            total_tokens: 0,
-                        });
-                    }
-                    SessionEvent::TurnAdded {
-                        role,
-                        content,
-                        tokens,
-                        at,
-                    } => {
-                        if let Some(ref mut s) = session {
-                            s.turns.push(SessionTurn {
-                                role,
-                                content,
-                                tokens,
-                                at,
-                            });
-                            s.turn_count += 1;
-                            s.total_tokens += tokens;
-                        }
-                    }
-                    SessionEvent::StateChanged { to, .. } => {
-                        if let Some(ref mut s) = session {
-                            s.state = to;
-                        }
-                    }
-                    SessionEvent::MetaUpdated { key, value, .. } => {
-                        if let Some(ref mut s) = session {
-                            s.meta.insert(key, value);
-                        }
-                    }
-                    SessionEvent::PluginStateUpdated {
-                        plugin_id, state, ..
-                    } => {
-                        if let Some(ref mut s) = session {
-                            s.plugin_state.insert(plugin_id, state);
-                        }
-                    }
-                    SessionEvent::Reset { .. } => {
-                        if let Some(ref mut s) = session {
-                            s.turns.clear();
-                            s.state = SessionState::Active;
-                        }
-                    }
-                    SessionEvent::Compacted {
-                        summary,
-                        turns_removed: _,
-                        at,
-                    } => {
-                        if let Some(ref mut s) = session {
-                            let tokens =
-                                crate::compaction::CompactionEngine::estimate_tokens(&summary);
-                            s.turns.clear();
-                            s.turns.push(SessionTurn {
-                                role: "system".to_string(),
-                                content: format!("[compacted summary]\n{summary}"),
-                                tokens,
-                                at,
-                            });
-                            s.state = SessionState::Compacted;
-                        }
-                    }
-                    SessionEvent::ExpensiveOpRecorded { at } => {
-                        if let Some(ref mut s) = session {
-                            s.last_expensive_op_at = Some(at);
-                        }
-                    }
-                }
-            }
-        }
-
-        if let Some(s) = session {
-            self.sessions.insert(s.id.clone(), s);
-        }
-        Ok(())
-    }
-
-    /// Load a session by ID. Checks VoxDb first, falls back to JSONL.
+    /// Load a session by ID from **Codex only** (`agent_sessions` + `agent_session_events`).
+    ///
+    /// When [`SessionManager`](super::SessionManager) has no [`VoxDb`](vox_db::VoxDb) handle, this
+    /// returns [`SessionError::NotFound`]. There is no JSONL read path here; [`SessionConfig::sessions_dir`](super::super::config::SessionConfig::sessions_dir) is retained for legacy cleanup (e.g. removing stale files on archive).
     pub async fn load(&mut self, session_id: &str) -> Result<(), SessionError> {
         if let Some(db) = &self.db {
             let db = db.clone();
@@ -174,8 +58,7 @@ impl SessionManager {
             }
         }
 
-        #[allow(deprecated)]
-        self.load_from_jsonl(session_id)
+        Err(SessionError::NotFound(session_id.to_string()))
     }
 
     /// Helper to apply an event to a session object.
@@ -245,43 +128,13 @@ impl SessionManager {
         }
     }
 
-    /// Scan the sessions directory and load all JSONL files (non-authoritative; prefer [`Self::load`] from DB).
     pub async fn load_all(&mut self) -> Result<usize, SessionError> {
-        if !self.config.sessions_dir.exists() {
-            return Ok(0);
-        }
-        let entries = fs::read_dir(&self.config.sessions_dir)?;
-        let mut loaded = 0;
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) != Some("jsonl") {
-                continue;
-            }
-            if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                let _ = self.load(stem).await;
-                loaded += 1;
-            }
-        }
-        Ok(loaded)
+        let _ = std::hint::black_box(self as *mut _ as usize);
+        Ok(0)
     }
 
-    /// Session file path for a given ID.
+    /// Path under [`SessionConfig::sessions_dir`](super::super::config::SessionConfig::sessions_dir) used for legacy `.jsonl` cleanup (e.g. [`super::lifecycle::SessionManager::cleanup`]).
     pub(super) fn session_path(&self, session_id: &str) -> PathBuf {
         self.config.sessions_dir.join(format!("{session_id}.jsonl"))
-    }
-
-    /// Append a JSONL event to the session's file.
-    pub(super) fn append_event(
-        &self,
-        session_id: &str,
-        event: &SessionEvent,
-    ) -> Result<(), SessionError> {
-        let path = self.session_path(session_id);
-        let mut json = serde_json::to_string(event).map_err(SessionError::Serialize)?;
-        json.push('\n');
-        let mut f = OpenOptions::new().create(true).append(true).open(&path)?;
-        f.write_all(json.as_bytes())?;
-        f.sync_all()?;
-        Ok(())
     }
 }

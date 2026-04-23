@@ -17,6 +17,15 @@ pub enum ParseErrorClass {
     Expression,
     Statement,
     TypeExpr,
+    /// Tombstoned / archived construct that is no longer supported.
+    Tombstoned,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ParseSeverity {
+    #[default]
+    Error,
+    Warning,
 }
 
 /// A parse error with detailed context.
@@ -27,6 +36,7 @@ pub struct ParseError {
     pub expected: Vec<String>,
     pub found: Option<String>,
     pub class: ParseErrorClass,
+    pub severity: ParseSeverity,
 }
 
 impl ParseError {
@@ -56,6 +66,20 @@ impl ParseError {
             expected,
             found,
             class,
+            severity: ParseSeverity::Error,
+        }
+    }
+
+    /// Build a parse warning.
+    #[must_use]
+    pub fn warning(span: Span, message: impl Into<String>, class: ParseErrorClass) -> Self {
+        Self {
+            message: message.into(),
+            span,
+            expected: vec![],
+            found: None,
+            class,
+            severity: ParseSeverity::Warning,
         }
     }
 }

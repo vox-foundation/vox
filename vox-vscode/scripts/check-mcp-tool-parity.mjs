@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 const extRoot = path.join(repoRoot, 'vox-vscode');
 const yamlPath = path.join(repoRoot, 'contracts', 'mcp', 'tool-registry.canonical.yaml');
-const rustAliasesPath = path.join(repoRoot, 'crates', 'vox-mcp', 'src', 'tools', 'tool_aliases.rs');
+const rustAliasesPath = path.join(repoRoot, 'crates', 'vox-orchestrator', 'src', 'mcp_tools', 'tool_aliases.rs');
 
 function loadAliasesFromRust() {
     const text = fs.readFileSync(rustAliasesPath, 'utf8');
@@ -31,10 +31,10 @@ function canonicalName(name) {
 
 const raw = fs.readFileSync(yamlPath, 'utf8');
 const canonical = new Set();
-const re = /^\s*-\s*name:\s*"([^"]+)"/gm;
+const re = /^\s*-\s*name:\s*(?:"([^"]+)"|([a-zA-Z0-9_:]+))/gm;
 let m;
 while ((m = re.exec(raw)) !== null) {
-    canonical.add(m[1]);
+    canonical.add(m[1] ?? m[2]);
 }
 
 function collectTsFiles(dir, out = []) {

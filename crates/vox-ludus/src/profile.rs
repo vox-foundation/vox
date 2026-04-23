@@ -13,6 +13,47 @@ use crate::streak::{StreakResult, StreakTracker};
 use crate::util::now_unix;
 use serde::{Deserialize, Serialize};
 
+/// Community trust level based on verification and reputation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub enum TrustTier {
+    /// Local-only play. No global synchronization or leaderboard access.
+    Novice = 0,
+    /// GitHub linked. Basic synchronization and community participation.
+    Linked = 1,
+    /// Verified consistent contributor with multiple successful builds.
+    Proven = 2,
+    /// Community veteran with high reputation and peer-vouched status.
+    Master = 3,
+}
+
+impl Default for TrustTier {
+    fn default() -> Self {
+        Self::Novice
+    }
+}
+
+impl TrustTier {
+    /// Short label for CLI display.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Novice => "Novice",
+            Self::Linked => "Linked",
+            Self::Proven => "Proven",
+            Self::Master => "Master",
+        }
+    }
+
+    /// Color / emoji for the tier.
+    pub fn icon(&self) -> &'static str {
+        match self {
+            Self::Novice => "👤",
+            Self::Linked => "🔗",
+            Self::Proven => "🛡️",
+            Self::Master => "👑",
+        }
+    }
+}
+
 // ─── Constants ───────────────────────────────────────────
 
 /// Energy regenerated per regen tick.
@@ -172,6 +213,15 @@ pub struct LudusProfile {
     /// Number of streak shields available (protects against one day of inactivity).
     #[serde(default)]
     pub streak_shields: i32,
+    /// Community trust tier (0=Novice, 1=Linked, 2=Proven, 3=Master).
+    #[serde(default)]
+    pub trust_tier: TrustTier,
+    /// Flag indicating if rewards are currently suppressed due to a penalty.
+    #[serde(default)]
+    pub reward_suppressed: bool,
+    /// Unix timestamp when the reward suppression expires.
+    #[serde(default)]
+    pub suppressed_until_ts: i64,
 }
 
 impl LudusProfile {
@@ -193,6 +243,9 @@ impl LudusProfile {
             lumens: 0,
             generosity_lumens: 0,
             streak_shields: 0,
+            trust_tier: TrustTier::Novice,
+            reward_suppressed: false,
+            suppressed_until_ts: 0,
         }
     }
 

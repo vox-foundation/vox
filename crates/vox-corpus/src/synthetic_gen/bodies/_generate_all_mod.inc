@@ -182,6 +182,21 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
         );
     }
 
+    // CoT Organic Vox Code Generation (Reasoning-First)
+    if cfg.emit_cot_organic_vox {
+        let cot_organic = crate::codegen_vox::generate_cot_organic_corpus(cfg.seed);
+        let cot_n = crate::codegen_vox::write_organic_to_jsonl(&cot_organic, &output_path.with_file_name("synthetic_cot_temp.jsonl"), false)?;
+        
+        // Append the CoT lines to the main file
+        let cot_lines = std::fs::read_to_string(output_path.with_file_name("synthetic_cot_temp.jsonl"))?;
+        for line in cot_lines.lines() {
+            writeln!(file, "{line}")?;
+            total += 1;
+        }
+        let _ = std::fs::remove_file(output_path.with_file_name("synthetic_cot_temp.jsonl"));
+        eprintln!("  [synthetic] organic_vox_cot (Reasoning-First): {cot_n} pairs");
+    }
+
     // Tool-chain orchestration pairs
     let tc_n = routing_pairs::generate_tool_chain_pairs(&mut file, cfg)?;
     total += tc_n;
@@ -227,6 +242,13 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
         eprintln!("  [synthetic] telemetry_trace: {n} pairs");
     }
 
+    // KCH Anti-conflation negative DPO pairs (Wave 4)
+    if cfg.emit_kch_anticonflation {
+        let n = kch_anticonflation::generate_kch_anticonflation_pairs(&mut file, cfg)?;
+        total += n;
+        eprintln!("  [synthetic] kch_anticonflation: {n} pairs");
+    }
+
     file.flush()?;
     eprintln!(
         "  [synthetic] total: {total} pairs → {}",
@@ -237,7 +259,7 @@ pub fn generate_all(cfg: &SyntheticGenConfig, output_path: &Path) -> anyhow::Res
     // Re-read the generated JSONL and apply the typo/synonym/case augmentation
     // engine to produce 3× more training variants with natural language noise.
     if cfg.augment_after_generate {
-        let raw_lines: Vec<String> = crate::bounded_fs::read_utf8_path_capped(output_path)?
+        let raw_lines: Vec<String> = vox_bounded_fs::read_utf8_path_capped(output_path)?
             .lines()
             .map(String::from)
             .collect();

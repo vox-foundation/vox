@@ -2,8 +2,10 @@
 title: "ADR 011: Scientia publication manifest SSOT"
 description: "Unifies Scientia, news, and scholarly submission around one publication manifest and digest-bound approvals."
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 011: Scientia publication manifest SSOT
@@ -68,3 +70,5 @@ Adopt a single publication domain model centered on a canonical manifest persist
   - `docs/src/architecture/scientia-publication-readiness-audit.md`
   - `docs/src/architecture/scientia-publication-automation-ssot.md`
   - `docs/src/reference/scientia-publication-worthiness-rules.md`
+
+

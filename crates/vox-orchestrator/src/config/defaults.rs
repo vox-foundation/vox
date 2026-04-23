@@ -49,13 +49,19 @@ pub(super) fn default_resource_exponent() -> f64 {
     1.0
 }
 pub(super) fn default_max_spawn_per_tick() -> usize {
-    1
+    5
 }
 pub(super) fn default_scaling_cooldown_ms() -> u64 {
     5_000
 }
 pub(super) fn default_urgent_rebalance_threshold() -> usize {
     3
+}
+pub(super) fn default_execution_time_budget_multiplier() -> f64 {
+    1.5
+}
+pub(super) fn default_financial_cost_budget_micros() -> i64 {
+    50_000 // default $0.05
 }
 pub(super) fn default_max_toestub_debug_iterations() -> u8 {
     3
@@ -70,6 +76,14 @@ pub(super) fn default_populi_poll_interval_secs() -> u64 {
 
 pub(super) fn default_populi_remote_result_poll_interval_secs() -> u64 {
     5
+}
+
+pub(super) fn default_populi_remote_worker_poll_interval_secs() -> u64 {
+    5
+}
+
+pub(super) fn default_populi_remote_result_max_messages_per_poll() -> usize {
+    64
 }
 
 pub(super) fn default_populi_http_timeout_ms() -> u64 {
@@ -114,6 +128,9 @@ pub(super) fn default_trust_trusted_threshold() -> u32 {
 pub(super) fn default_trust_auto_approve_min() -> f64 {
     0.85
 }
+pub(super) fn default_trust_gate_relax_min_reliability() -> f64 {
+    default_trust_auto_approve_min()
+}
 pub(super) fn default_attention_trust_routing_weight() -> f64 {
     2.0
 }
@@ -122,6 +139,9 @@ pub(super) fn default_trust_task_completion_floor() -> f64 {
 }
 pub(super) fn default_trust_task_completion_weight() -> f64 {
     1.5
+}
+pub(super) fn default_routing_exploration_epsilon() -> f64 {
+    0.05
 }
 
 /// Routing bonus for shard-role specialization.
@@ -154,4 +174,50 @@ pub(super) fn default_repo_reduce_conflict_cooldown_penalty() -> f64 {
 /// ephemeral worker retirement operate on consistent time scales.
 pub(super) fn default_repo_reduce_conflict_cooldown_ms() -> u64 {
     default_idle_retirement()
+}
+
+pub(super) fn default_populi_remote_lease_timeout_ms() -> u64 {
+    300_000
+}
+
+pub(super) fn default_observer_poll_interval_ms() -> u64 {
+    10_000
+}
+
+pub(super) fn default_planning_depth() -> String {
+    "standard".to_string()
+}
+pub(super) fn default_parallel_context_enabled() -> bool {
+    true
+}
+pub(super) fn default_context_gather_timeout_secs() -> u64 {
+    15
+}
+pub(super) fn default_min_quality_score() -> f64 {
+    0.0
+}
+pub(super) fn default_context_compression_enabled() -> bool {
+    true
+}
+
+pub(super) fn default_exec_time_safety_multiplier() -> f64 {
+    2.0
+}
+pub(super) fn default_exec_time_timeout_rate_alert() -> f64 {
+    0.20
+}
+pub(super) fn default_exec_time_default_budget_ms() -> u64 {
+    30_000
+}
+pub(super) fn default_exec_time_history_window_days() -> u32 {
+    30
+}
+pub(super) fn default_local_breakeven_tokens() -> u64 {
+    9_100_000
+}
+pub(super) fn default_research_max_hops() -> u8 {
+    3
+}
+pub(super) fn default_research_quality_target() -> f64 {
+    0.8
 }

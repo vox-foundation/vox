@@ -5,8 +5,10 @@
 //! must not be sent through [`turso::Connection::execute_batch`] (which uses `execute` only).
 //!
 //! Applied settings:
-//! - `journal_mode=WAL`
+//! - `journal_mode=WAL` (or `mvcc` if `VOX_DB_MVCC=1`)
 //! - `busy_timeout=5000`
 //! - `synchronous=NORMAL`
 //! - `foreign_keys=ON`
-//! - `cache_size=-8000`
+//! - `cache_size=-65536`
+//! - `temp_store=MEMORY`
+//! - `mmap_size=268435456`

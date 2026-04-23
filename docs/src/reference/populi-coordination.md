@@ -2,8 +2,10 @@
 title: "Mens Coordination & Database Write Safety"
 description: "Official documentation for Mens Coordination & Database Write Safety for the Vox language. Detailed technical reference, architecture gui"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Mens Coordination & Database Write Safety
@@ -16,6 +18,8 @@ reliably across process and machine boundaries.
 > All orchestrator coordination state (locks, op-log, A2A messages, heartbeats)
 > persists to Turso when `VOX_MESH_ENABLED=1`. On a single machine without mens
 > these remain in-process only for zero-overhead local development.
+
+**Mental model:** “Distributed” here means **many orchestrator processes** (e.g. two `vox-mcp` hosts) sharing **durable Turso rows** and **HTTP A2A** — not a single long-lived orchestrator singleton in one OS process. File routing and per-process structures still exist in each process; cross-node arbitration uses coordination tables (`distributed_locks`, etc.). The shared bootstrap factory lives in [`vox_orchestrator::bootstrap`](../../../crates/vox-orchestrator/src/bootstrap.rs).
 
 ---
 
@@ -239,3 +243,5 @@ Lock TTL defaults: 30s for file edits, 5m for long-running tasks.
 - `crates/vox-orchestrator/src/occ.rs` — OCC write guards
 - `crates/vox-db/src/circuit_breaker.rs` — DB circuit breaker
 - `crates/vox-db/src/schema/domains/sql/coordination.sql` — coordination DDL (Arca fragment; merged in `gamification_coordination.rs`)
+
+

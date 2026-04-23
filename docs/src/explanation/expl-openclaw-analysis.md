@@ -2,12 +2,14 @@
 title: "OpenClaw Competitive Analysis"
 description: "Official documentation for OpenClaw Competitive Analysis for the Vox language. Detailed technical reference, architecture guides, and imp"
 category: "explanation"
-last_updated: 2026-03-24
+last_updated: "2026-03-29"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # OpenClaw Competitive Analysis
 
-> **Canonical definition (Vox docs):** OpenClaw is an **open-source TypeScript agent platform**—a self-hosted gateway connecting chat platforms to LLMs with local tool access. **ClawHub** denotes its public **skills marketplace** (community skill bundles and discovery). Vox does not ship OpenClaw; integration is via **`vox openclaw`** (CLI, feature **`ars`**) and **`vox_ars::OpenClawClient`**. The short glossary entry cross-links here as SSOT.
+> **Canonical definition (Vox docs):** OpenClaw is an **open-source TypeScript agent platform**—a self-hosted gateway connecting chat platforms to LLMs with local tool access. **ClawHub** denotes its public **skills marketplace** (community skill bundles and discovery). Vox does not ship OpenClaw; integration is via **`vox openclaw`** (CLI, feature **`ars`**) and **`vox_skills::OpenClawClient`**. The short glossary entry cross-links here as SSOT.
 >
 > **Status**: Research document — Feb 2026
 >
@@ -15,7 +17,7 @@ training_eligible: true
 
 ## What is OpenClaw?
 
-OpenClaw is an open-source autonomous AI agent platform (large public GitHub footprint) by Peter Steinberger, built in TypeScript. It is often described as a self-hosted "operating system for AI agents" — a hub-and-spoke gateway connecting chat platforms (WhatsApp, Telegram, Discord, Slack, iMessage) to LLMs (Claude, GPT, Gemini, local models) with full local tool access (shell, browser, files).
+OpenClaw is an open-source autonomous AI agent platform (large public GitHub footprint) by Peter Steinberger, built in TypeScript. It is often described as a self-hosted "operating system for AI agents" — a hub-and-spoke gateway connecting chat platforms (WhatsApp, Telegram, Discord, Slack, iMessage) -> LLMs (Claude, GPT, Gemini, local models) with full local tool access (shell, browser, files).
 
 ## Architectural Comparison
 
@@ -48,7 +50,7 @@ Achievements, companions with moods, daily quests, bug battles, leaderboards, co
 `@mcp.tool` decorator compiles directly to MCP tool definitions from syntax. No glue code.
 
 ### 6. Actor-Based Runtime
-Process spawning, supervisors, schedulers, subscription system, feedback loops for durable execution.
+Process spawning, supervisors, schedulers, subscription system, and feedback loops. **Durable execution** in Vox is primarily a **workflow** story today (interpreted `vox mens workflow …` step replay with a run id), not a guarantee that every spawned process is automatically crash-resumable; orchestration and Codex surfaces add their own persistence semantics separately.
 
 ## What OpenClaw Does Better (Improvement Opportunities)
 
@@ -133,7 +135,7 @@ Vox now treats OpenClaw interoperability as a WS-first runtime contract, not onl
 
 - **Primary transport:** OpenClaw Gateway WebSocket protocol (`connect.challenge` event, `connect` request, request/response/event frames).
 - **Secondary fallback:** OpenClaw HTTP compatibility surfaces where needed (`/v1/chat/completions`, `/v1/responses`) and existing skills endpoints.
-- **Internal boundary:** `OpenClawRuntimeAdapter` in Rust (`vox-ars`) isolates wire protocol details from CLI/runtime consumers.
+- **Internal boundary:** `OpenClawRuntimeAdapter` in Rust (`vox-skills`) isolates wire protocol details from CLI/runtime consumers.
 - **Script surface:** `.vox` gets a low-complexity builtin module (`OpenClaw.*`) that lowers into runtime helper calls and still passes normal parse/type/HIR gates.
 - **Endpoint SSOT:** adapter resolution prefers explicit overrides, then env/Clavis, then upstream discovery (`/.well-known/openclaw.json`) with cached last-known-good fallback, then deterministic local defaults.
 - **Packaging posture:** Vox bootstrap/upgrade can install a managed `openclaw-gateway` sidecar from release assets when present in `checksums.txt`, avoiding hardcoded URL catalogs.
@@ -158,3 +160,5 @@ Protocol fixtures are versioned in:
 The CI guard `vox ci openclaw-contract` validates required fixture presence and baseline shape invariants.
 
 Resolver and sidecar lifecycle SSOT: `docs/src/reference/openclaw-discovery-sidecar-ssot.md`.
+
+

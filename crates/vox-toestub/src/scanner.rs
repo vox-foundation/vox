@@ -121,7 +121,7 @@ impl Scanner {
             }
 
             // Read file contents
-            if let Ok(content) = crate::bounded_fs::read_utf8_path_capped(path) {
+            if let Ok(content) = vox_bounded_fs::read_utf8_path_capped(path) {
                 out.push(SourceFile::new(path.to_path_buf(), content));
             }
         }

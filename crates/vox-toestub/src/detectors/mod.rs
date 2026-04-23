@@ -10,10 +10,14 @@ pub mod empty_body;
 pub mod file_organization;
 /// Single files that exceed line or method-count thresholds (“god object” smell).
 pub mod god_object;
+/// Functions with trivially-default return values (compile but do nothing meaningful).
+pub mod hollow_fn;
 /// CR / CRLF in source files vs LF policy (`vox ci line-endings` parity).
 pub mod line_endings;
 /// Suspicious literals (large ints, long strings) that should be named constants.
 pub mod magic_value;
+/// Functions that are declared but not called anywhere in the crate.
+pub mod reachability;
 /// Scaling risks: blocking I/O in async, unbounded reads, SQL/HTTP heuristics.
 pub mod scaling;
 /// Optional JSON-schema cross-check when a schema path is configured.
@@ -34,6 +38,9 @@ pub mod unwired_module;
 pub mod unwrap_call;
 /// Premature “done” comments or victory language without matching tests or implementation.
 pub mod victory_claim;
+
+/// Enforces Cargo.toml workspace dependencies inheritance and detects orphan crates
+pub mod workspace_drift;
 
 use crate::rules::DetectionRule;
 
@@ -59,12 +66,15 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(unwrap_call::UnwrapCallDetector::new()),
         Box::new(line_endings::LineEndingDetector::new()),
         Box::new(scaling::ScalingSurfacesDetector::new()),
+        Box::new(hollow_fn::HollowFnDetector::new()),
+        Box::new(reachability::ReachabilityDetector::new()),
+        Box::new(workspace_drift::WorkspaceDriftDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    17
+    20
 }
 
 #[cfg(test)]
@@ -91,7 +101,7 @@ mod tests {
         use crate::rules::SourceFile;
         use std::path::PathBuf;
         let detector = god_object::GodObjectDetector::default();
-        let content = "fn main() {}\n".repeat(detector.max_lines + 1);
+        let content = "fn main() {}\n".repeat(detector.hard_max_lines + 1);
         let file = SourceFile::new(PathBuf::from("large.rs"), content);
         let findings = detector.detect(&file, None);
         assert!(!findings.is_empty());

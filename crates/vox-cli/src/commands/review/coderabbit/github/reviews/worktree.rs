@@ -8,7 +8,7 @@ use vox_forge::github::GitHubProvider;
 use vox_forge::{GitForgeProvider, NewChangeRequest};
 
 use super::super::super::path_policy;
-use super::super::api::{github_token, owner_repo_from_path};
+use super::super::api::{forge_token, owner_repo_from_path};
 use super::super::comments::trigger_coderabbit;
 
 pub fn worktree_dir(repo: &Path, review_branch: &str) -> PathBuf {
@@ -106,7 +106,7 @@ pub async fn create_chunk_pr_via_worktree(
     full_review: bool,
 ) -> Result<u64> {
     let (owner, repo_name) = owner_repo_from_path(repo_root)?;
-    let token = github_token()?;
+    let token = forge_token()?;
     let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
 
     // ── 1. Prune stale git worktree metadata (survives directory deletion) ────

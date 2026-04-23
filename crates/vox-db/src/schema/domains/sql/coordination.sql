@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS agent_oplog (
 CREATE INDEX IF NOT EXISTS idx_agent_oplog_agent ON agent_oplog(agent_id);
 CREATE INDEX IF NOT EXISTS idx_agent_oplog_ts ON agent_oplog(timestamp_ms);
 CREATE INDEX IF NOT EXISTS idx_agent_oplog_repo ON agent_oplog(repository_id);
+CREATE INDEX IF NOT EXISTS idx_agent_oplog_repo_ts ON agent_oplog(repository_id, timestamp_ms);
 
 CREATE TABLE IF NOT EXISTS a2a_messages (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,6 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_a2a_acknowledged ON a2a_messages (acknowledged);
 CREATE INDEX IF NOT EXISTS idx_a2a_thread ON a2a_messages (thread_id);
 CREATE INDEX IF NOT EXISTS idx_a2a_inbox_claim
     ON a2a_messages(receiver_agent, repository_id, acknowledged, claim_until_ms);
+CREATE INDEX IF NOT EXISTS idx_a2a_ack_created ON a2a_messages(acknowledged, created_at);
 
 CREATE TABLE IF NOT EXISTS mesh_heartbeats (
     node_id       TEXT    NOT NULL,

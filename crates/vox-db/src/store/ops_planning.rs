@@ -1,6 +1,6 @@
 use turso::params;
 
-use crate::store::types::{PlanNodeRow, StoreError};
+use crate::store::types::{PlanNodeAttemptRow, PlanNodeRow, PlanSessionRow, StoreError};
 
 impl crate::VoxDb {
     pub async fn create_plan_session(
@@ -40,6 +40,27 @@ impl crate::VoxDb {
             .await
     }
 
+    pub async fn update_plan_session_goal_text(
+        &self,
+        plan_session_id: &str,
+        goal_text: &str,
+    ) -> Result<(), StoreError> {
+        let plan_session_id = plan_session_id.to_string();
+        let goal_text = goal_text.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE plan_sessions SET goal_text = ?2, updated_at = datetime('now') WHERE plan_session_id = ?1",
+                    params![plan_session_id.as_str(), goal_text.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
     pub async fn append_plan_version(
         &self,
         plan_session_id: &str,
@@ -57,8 +78,8 @@ impl crate::VoxDb {
             .call(|| async move {
                 conn.execute(
                     "INSERT OR REPLACE INTO plan_versions (
-                    plan_session_id, version, parent_version, trigger_event, trigger_payload_json
-                ) VALUES (?1, ?2, ?3, ?4, ?5)",
+                    plan_session_id, version, parent_version, trigger_event, trigger_payload_json, quality_score, reviewer_verdict
+                ) VALUES (?1, ?2, ?3, ?4, ?5, 0.0, 'pending')",
                     params![
                         plan_session_id.as_str(),
                         version,
@@ -71,6 +92,35 @@ impl crate::VoxDb {
                 conn.execute(
                     "UPDATE plan_sessions SET current_version = ?2, updated_at = datetime('now') WHERE plan_session_id = ?1",
                     params![plan_session_id.as_str(), version],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    pub async fn update_plan_version_quality(
+        &self,
+        plan_session_id: &str,
+        version: i64,
+        quality_score: f64,
+        reviewer_verdict: &str,
+    ) -> Result<(), StoreError> {
+        let plan_session_id = plan_session_id.to_string();
+        let reviewer_verdict = reviewer_verdict.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "UPDATE plan_versions SET quality_score = ?1, reviewer_verdict = ?2 
+                     WHERE plan_session_id = ?3 AND version = ?4",
+                    params![
+                        quality_score,
+                        reviewer_verdict.as_str(),
+                        plan_session_id.as_str(),
+                        version,
+                    ],
                 )
                 .await?;
                 Ok::<(), StoreError>(())
@@ -295,6 +345,27 @@ impl crate::VoxDb {
             .await
     }
 
+    pub async fn approve_all_blocked_plan_nodes(
+        &self,
+        plan_session_id: &str,
+    ) -> Result<u64, StoreError> {
+        let plan_session_id = plan_session_id.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                let affected = conn
+                    .execute(
+                        "UPDATE plan_nodes SET status = 'pending', updated_at = datetime('now')
+                 WHERE plan_session_id = ?1 AND status = 'blocked_on_approval'",
+                        params![plan_session_id.as_str()],
+                    )
+                    .await?;
+                Ok::<u64, StoreError>(affected as u64)
+            })
+            .await
+    }
+
     pub async fn update_plan_session_iterative_fields(
         &self,
         plan_session_id: &str,
@@ -331,5 +402,153 @@ impl crate::VoxDb {
                 Ok::<(), StoreError>(())
             })
             .await
+    }
+
+    pub async fn record_test_decision(
+        &self,
+        task_id: &str,
+        decision: &str,
+        rationale: &str,
+        recorded_at_ms: i64,
+    ) -> Result<(), StoreError> {
+        let task_id = task_id.to_string();
+        let decision = decision.to_string();
+        let rationale = rationale.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO plan_test_decisions (
+                    task_id, decision, rationale, recorded_at_ms
+                ) VALUES (?1, ?2, ?3, ?4)
+                ON CONFLICT(task_id) DO UPDATE SET
+                    decision = excluded.decision,
+                    rationale = excluded.rationale,
+                    recorded_at_ms = excluded.recorded_at_ms",
+                    params![
+                        task_id.as_str(),
+                        decision.as_str(),
+                        rationale.as_str(),
+                        recorded_at_ms
+                    ],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    pub async fn load_test_decision(
+        &self,
+        task_id: &str,
+    ) -> Result<Option<(String, String)>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT decision, rationale FROM plan_test_decisions WHERE task_id = ?1",
+                params![task_id],
+            )
+            .await?;
+        if let Some(r) = rows.next().await? {
+            return Ok(Some((r.get::<String>(0)?, r.get::<String>(1)?)));
+        }
+        Ok(None)
+    }
+
+    /// Load one plan session row by primary key.
+    pub async fn get_plan_session_by_id(
+        &self,
+        plan_session_id: &str,
+    ) -> Result<Option<PlanSessionRow>, StoreError> {
+        let plan_session_id = plan_session_id.to_string();
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT plan_session_id, origin_session_id, goal_text, strategy, current_version, status 
+                 FROM plan_sessions WHERE plan_session_id = ?1",
+                params![plan_session_id.as_str()],
+            )
+            .await?;
+        if let Some(r) = rows.next().await? {
+            return Ok(Some(PlanSessionRow {
+                plan_session_id: r.get::<String>(0)?,
+                origin_session_id: r.get::<Option<String>>(1)?,
+                goal_text: r.get::<String>(2)?,
+                strategy: r.get::<String>(3)?,
+                current_version: r.get::<i64>(4)?,
+                status: r.get::<String>(5)?,
+            }));
+        }
+        Ok(None)
+    }
+
+    pub async fn list_plan_sessions(
+        &self,
+        limit: i64,
+        status_filter: Option<&str>,
+    ) -> Result<Vec<PlanSessionRow>, StoreError> {
+        let limit = limit.clamp(1, 200);
+        let mut rows = if let Some(status) = status_filter {
+            self.conn
+                .query(
+                    "SELECT plan_session_id, origin_session_id, goal_text, strategy, current_version, status 
+                     FROM plan_sessions WHERE status = ?1 ORDER BY updated_at DESC LIMIT ?2",
+                    params![status, limit],
+                )
+                .await?
+        } else {
+            self.conn
+                .query(
+                    "SELECT plan_session_id, origin_session_id, goal_text, strategy, current_version, status 
+                     FROM plan_sessions ORDER BY updated_at DESC LIMIT ?1",
+                    params![limit],
+                )
+                .await?
+        };
+
+        let mut out = Vec::new();
+        while let Some(r) = rows.next().await? {
+            out.push(PlanSessionRow {
+                plan_session_id: r.get::<String>(0)?,
+                origin_session_id: r.get::<Option<String>>(1)?,
+                goal_text: r.get::<String>(2)?,
+                strategy: r.get::<String>(3)?,
+                current_version: r.get::<i64>(4)?,
+                status: r.get::<String>(5)?,
+            });
+        }
+        Ok(out)
+    }
+
+    pub async fn list_plan_node_attempts(
+        &self,
+        plan_session_id: &str,
+        node_id: &str,
+    ) -> Result<Vec<PlanNodeAttemptRow>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT plan_session_id, version, node_id, attempt_no, task_id, outcome, error_text, latency_ms, created_at
+                 FROM plan_node_attempts WHERE plan_session_id = ?1 AND node_id = ?2
+                 ORDER BY attempt_no ASC",
+                params![plan_session_id, node_id],
+            )
+            .await?;
+        let mut out = Vec::new();
+        while let Some(r) = rows.next().await? {
+            out.push(PlanNodeAttemptRow {
+                plan_session_id: r.get::<String>(0)?,
+                version: r.get::<i64>(1)?,
+                node_id: r.get::<String>(2)?,
+                attempt_no: r.get::<i64>(3)?,
+                task_id: r.get::<Option<String>>(4)?,
+                outcome: r.get::<String>(5)?,
+                error_text: r.get::<Option<String>>(6)?,
+                latency_ms: r.get::<Option<i64>>(7)?,
+                created_at: r.get::<String>(8)?,
+            });
+        }
+        Ok(out)
     }
 }

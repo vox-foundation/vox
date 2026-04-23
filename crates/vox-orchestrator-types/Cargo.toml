@@ -1,0 +1,13 @@
+[package]
+name = "vox-orchestrator-types"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+
+[build-dependencies]
+serde_yaml = { workspace = true }
+serde = { workspace = true, features = ["derive"] }

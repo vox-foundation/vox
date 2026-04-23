@@ -7,6 +7,7 @@
 #![allow(clippy::collapsible_if)]
 
 /// Compile-time and first-run installation of embedded skills.
+pub mod ars_shim;
 pub mod builtins;
 /// In-memory skill bundle (`VoxSkillBundle`) and JSON (de)serialization.
 pub mod bundle;
@@ -26,6 +27,12 @@ pub mod registry;
 #[cfg(feature = "skills-registry")]
 /// HTTP client for the remote skills marketplace (`skills-registry` feature).
 pub mod registry_api;
+
+/// Unified container sandbox for community skill execution.
+///
+/// Uses `vox-container`'s Docker/Podman backend — the same infrastructure
+/// used for `.vox` application deployment — to sandbox untrusted skills.
+pub mod sandbox;
 
 pub use builtins::install_builtins;
 pub use bundle::{SkillBundle, VoxSkillBundle};

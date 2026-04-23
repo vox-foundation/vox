@@ -23,6 +23,10 @@ pub struct VoxMeshToml {
     /// Extra capability labels (merged with env `VOX_MESH_LABELS`).
     #[serde(default)]
     pub labels: Option<Vec<String>>,
+    /// Ollama-shaped local inference base URL (e.g. `http://127.0.0.1:11434` for Schola or Ollama.app).
+    /// Maps to `OrchestratorConfig::populi_inference_base_url` (operators still set `POPULI_URL` unless tooling applies this).
+    #[serde(default)]
+    pub inference_base_url: Option<String>,
 }
 
 /// Error reading or parsing `Vox.toml` for the mesh section only.
@@ -54,7 +58,11 @@ fn is_empty_mesh(m: &VoxMeshToml) -> bool {
         None => true,
         Some(labels) => labels.is_empty(),
     };
-    m.control_url.is_none() && m.scope_id.is_none() && m.advertise_gpu.is_none() && labels_empty
+    m.control_url.is_none()
+        && m.scope_id.is_none()
+        && m.advertise_gpu.is_none()
+        && m.inference_base_url.is_none()
+        && labels_empty
 }
 
 /// Read **`[mesh]`** or legacy **`[mens]`** from `path` (typically `.../Vox.toml`).
@@ -133,12 +141,17 @@ labels = ["pool=a", "pool=b"]
 [mesh]
 control_url = "http://127.0.0.1:10000"
 scope_id = "mesh-scope"
+inference_base_url = "http://127.0.0.1:11435"
 "#,
         )
         .unwrap();
         let m = read_vox_populi_toml(&p).unwrap().expect("mesh");
         assert_eq!(m.control_url.as_deref(), Some("http://127.0.0.1:10000"));
         assert_eq!(m.scope_id.as_deref(), Some("mesh-scope"));
+        assert_eq!(
+            m.inference_base_url.as_deref(),
+            Some("http://127.0.0.1:11435")
+        );
     }
 
     #[test]

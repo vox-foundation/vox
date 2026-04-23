@@ -7,23 +7,25 @@ type ChatResult =
     | Success(text: str)
     | Error(message: str)
 
-@component fn Chat() to Element {
+component Chat() {
     let (messages, set_messages) = use_state([{role: "bot", text: ""}])
     let (input, set_input) = use_state("")
     let send = fn (_e) (set_messages(messages.append({role: "user", text: input})), spawn(ChatClient).send(input), set_input(""))
-    <div class="chat_container">
-        <div class="messages">
-            for msg in messages {
-                <div class="message {msg.role}">
-                    {msg.text}
-                </div>
-            }
+    view: (
+        <div class="chat_container">
+            <div class="messages">
+                for msg in messages {
+                    <div class="message {msg.role}">
+                        {msg.text}
+                    </div>
+                }
+            </div>
+            <div class="input_area">
+                <input class="chat_input" bind={input} on_key_up={fn (e: KeyboardEvent) e.key is "Enter" and send(e)} placeholder="Type a message..." />
+                <button class="send_btn" on_click={send}>"Send"</button>
+            </div>
         </div>
-        <div class="input_area">
-            <input class="chat_input" bind={input} on_key_up={fn (e: KeyboardEvent) e.key is "Enter" and send(e)} placeholder="Type a message..." />
-            <button class="send_btn" on_click={send}>"Send"</button>
-        </div>
-    </div>
+    )
 }
 
 style {

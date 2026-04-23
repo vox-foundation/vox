@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/communication/interruption-decision.schema.json",
+  "title": "InterruptionDecisionEnvelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "surface",
+    "decision",
+    "reason",
+    "timestamp_ms"
+  ],
+  "properties": {
+    "surface": {
+      "type": "string",
+      "minLength": 1
+    },
+    "channel": {
+      "type": "string",
+      "enum": [
+        "chat_clarification",
+        "plan_review",
+        "task_submit",
+        "a2a_escalation",
+        "inline_assist",
+        "other"
+      ]
+    },
+    "decision": {
+      "type": "string",
+      "enum": [
+        "interrupt_now",
+        "defer_until_checkpoint",
+        "batch_with_existing_prompt",
+        "proceed_autonomously",
+        "require_human_before_continue",
+        "InterruptNow",
+        "DeferUntilCheckpoint",
+        "BatchWithExistingPrompt",
+        "ProceedAutonomously",
+        "RequireHumanBeforeContinue"
+      ]
+    },
+    "policy_outcome": {
+      "type": "string"
+    },
+    "decision_legacy_debug": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scaled_cost_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "expected_information_gain_bits": {
+          "type": "number"
+        },
+        "expected_user_cost": {
+          "type": "number"
+        },
+        "confidence_estimate": {
+          "type": "number"
+        },
+        "contradiction_ratio": {
+          "type": "number"
+        },
+        "pending_clarification_backlog": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "trust_score": {
+          "type": "number"
+        },
+        "irreversible_or_high_risk": {
+          "type": "boolean"
+        }
+      }
+    },
+    "timestamp_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

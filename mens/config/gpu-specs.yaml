@@ -202,9 +202,9 @@ presets:
 
   # Matches 16GB cards — RTX 4080 / 4080 Super / 4070 Ti Super (primary dev GPU)
   prosumer_16g:
-    seq_len: 512
+    seq_len: 1024
     batch_size: 1
-    grad_accum: 1
+    grad_accum: 4
     lr: 2.0e-5
     max_vram_mb: 16384
 

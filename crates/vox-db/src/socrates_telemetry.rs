@@ -1,5 +1,11 @@
 //! Persist **Socrates** calibration signals into `research_metrics` / `eval_runs` for drift monitoring
 //! and proxy “hallucination risk” tracking when gold labels are absent.
+//!
+//! - **`socrates_surface`** ([`crate::research_metrics_contract::METRIC_TYPE_SOCRATES_SURFACE`], session `mcp:<repository_id>`):
+//!   per-turn MCP/tool surface metrics — typically **S1**, **S2** when `retrieval` or domain fields expose workspace shape.
+//! - **`memory_hybrid_fusion`** ([`crate::research_metrics_contract::METRIC_TYPE_MEMORY_HYBRID_FUSION`], session
+//!   [`crate::research_metrics_contract::SESSION_ID_MEMORY_HYBRID_FUSION`]): hybrid retrieval fusion — treat as **S2**
+//!   workspace-adjacent (counts and fusion metadata, not end-user content).
 
 use crate::research_metrics_contract::{
     METRIC_TYPE_MEMORY_HYBRID_FUSION, METRIC_TYPE_SOCRATES_SURFACE,
@@ -20,6 +26,7 @@ pub fn hallucination_risk_proxy(decision: RiskDecision, contradiction_ratio: f64
         RiskDecision::Answer => 0.0_f64,
         RiskDecision::Ask => 0.45_f64,
         RiskDecision::Abstain => 1.0_f64,
+        RiskDecision::Disambiguate => 0.5_f64,
     };
     let cr = contradiction_ratio.clamp(0.0, 1.0);
     (base + 0.35 * cr).min(1.0)
@@ -75,7 +82,9 @@ pub struct SocratesSurfaceTelemetry {
     pub retrieval: Option<Value>,
 }
 
-fn parse_model_identity(model_used: Option<&str>) -> (Option<String>, Option<String>, Option<String>) {
+fn parse_model_identity(
+    model_used: Option<&str>,
+) -> (Option<String>, Option<String>, Option<String>) {
     let Some(raw) = model_used.map(str::trim).filter(|s| !s.is_empty()) else {
         return (None, None, None);
     };
@@ -195,12 +204,12 @@ impl VoxDb {
         let tw = TelemetryWriteOptions::new(repository_id);
         let row_id = self
             .append_research_metric(
-            &tw.session_mcp(),
-            METRIC_TYPE_SOCRATES_SURFACE,
-            Some(proxy),
-            Some(&json),
-        )
-        .await?;
+                &tw.session_mcp(),
+                METRIC_TYPE_SOCRATES_SURFACE,
+                Some(proxy),
+                Some(&json),
+            )
+            .await?;
 
         let entity_id = model_used.unwrap_or("unknown-model");
         let trust_domain = domain_tags
@@ -248,6 +257,7 @@ impl VoxDb {
         let refusal_observation = match decision {
             RiskDecision::Abstain => 0.0,
             RiskDecision::Ask => 0.5,
+            RiskDecision::Disambiguate => 0.5,
             RiskDecision::Answer => 1.0,
         };
         let _ = self
@@ -355,6 +365,7 @@ impl VoxDb {
                         RiskDecision::Answer => agg.answer_count += 1,
                         RiskDecision::Ask => agg.ask_count += 1,
                         RiskDecision::Abstain => agg.abstain_count += 1,
+                        RiskDecision::Disambiguate => agg.abstain_count += 1,
                     }
                 }
             }

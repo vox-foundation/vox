@@ -17,7 +17,7 @@ pub async fn run(file: &Path, out_dir: &Path, port: Option<u16>, open: bool) -> 
         serde_json::json!({
             "file": file.display().to_string(),
             "out_dir": out_dir.display().to_string(),
-            "port": port.unwrap_or(3000),
+            "port": port.unwrap_or_else(crate::config::default_port),
             "open": open,
         }),
         open,

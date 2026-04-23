@@ -1,13 +1,13 @@
 use crate::ast::span::Span;
 
 /// Unique identifier for definitions within a module.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct DefId(
     /// Opaque numeric id assigned during HIR lowering.
     pub u32,
 );
 /// A function parameter in HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirParam {
     /// Parameter definition id.
     pub id: DefId,
@@ -86,7 +86,7 @@ pub struct HirDbQueryPlan {
 }
 
 /// Type representation in HIR (resolved from [`crate::ast::types::TypeExpr`]).
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum HirType {
     /// Named scalar or path type (`int`, `User`).
     Named(String),
@@ -98,11 +98,22 @@ pub enum HirType {
     Tuple(Vec<HirType>),
     /// Unit / void.
     Unit,
+    /// Fixed-point decimal.
+    Decimal,
+}
+
+/// Try expression (`x?`).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirTry {
+    /// Target expression being tried.
+    pub target: Box<HirExpr>,
+    /// Span covering the `?`.
+    pub span: Span,
 }
 
 /// Expression in HIR (mirrors AST but with resolved names).
 #[allow(clippy::large_enum_variant)] // `DbTableOp` carries query plans; boxing would churn the whole compiler.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum HirExpr {
     /// Integer literal.
     IntLit(i64, Span),
@@ -112,6 +123,8 @@ pub enum HirExpr {
     StringLit(String, Span),
     /// Boolean literal.
     BoolLit(bool, Span),
+    /// Fixed-point decimal literal.
+    DecimalLit(String, Span),
     /// Local or global identifier.
     Ident(String, Span),
     /// Object literal `{ k: v }`.
@@ -165,10 +178,12 @@ pub enum HirExpr {
     JsxSelfClosing(HirJsxSelfClosing),
     /// Statement block used as expression.
     Block(Vec<HirStmt>, Span),
+    /// Error propagation (`?`).
+    Try(HirTry),
 }
 
 /// Named or positional call argument.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirArg {
     /// Label for named args (`json=`); `None` for positional.
     pub name: Option<String>,
@@ -177,7 +192,7 @@ pub struct HirArg {
 }
 
 /// Binary operators in HIR.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HirBinOp {
     /// `+`
     Add,
@@ -203,12 +218,14 @@ pub enum HirBinOp {
     Is,
     /// `isnt`
     Isnt,
+    /// `%`
+    Mod,
     /// `|>`
     Pipe,
 }
 
 /// Unary operators in HIR.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum HirUnOp {
     /// `not`
     Not,
@@ -217,7 +234,7 @@ pub enum HirUnOp {
 }
 
 /// Single `match` arm.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirMatchArm {
     /// Matched pattern.
     pub pattern: HirPattern,
@@ -230,7 +247,7 @@ pub struct HirMatchArm {
 }
 
 /// Pattern after lowering (names resolved where applicable).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum HirPattern {
     /// Bind identifier.
     Ident(String, Span),
@@ -245,7 +262,7 @@ pub enum HirPattern {
 }
 
 /// Statement in HIR.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum HirStmt {
     /// `let` / `let mut` binding.
     Let {
@@ -283,10 +300,36 @@ pub enum HirStmt {
         /// Span covering the statement.
         span: Span,
     },
+    /// While loop.
+    While {
+        /// Loop condition.
+        condition: HirExpr,
+        /// Loop body.
+        body: Vec<HirStmt>,
+        /// Span.
+        span: Span,
+    },
+    /// Infinite loop.
+    Loop {
+        /// Loop body.
+        body: Vec<HirStmt>,
+        /// Span.
+        span: Span,
+    },
+    /// Break.
+    Break {
+        /// Span.
+        span: Span,
+    },
+    /// Continue.
+    Continue {
+        /// Span.
+        span: Span,
+    },
 }
 
 /// JSX element with children.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirJsxElement {
     /// Tag name.
     pub tag: String,
@@ -299,7 +342,7 @@ pub struct HirJsxElement {
 }
 
 /// Self-closing JSX element.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirJsxSelfClosing {
     /// Tag name.
     pub tag: String,
@@ -310,7 +353,7 @@ pub struct HirJsxSelfClosing {
 }
 
 /// JSX attribute.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirJsxAttr {
     /// Attribute name.
     pub name: String,

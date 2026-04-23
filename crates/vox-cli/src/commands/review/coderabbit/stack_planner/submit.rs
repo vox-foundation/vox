@@ -155,7 +155,7 @@ async fn run_stack_submit_core(
         let remote_url = bridge.remote_url().context("Get remote URL")?;
         let (owner, repo_name) = github::parse_github_owner_repo(&remote_url)
             .context("Parse owner/repo from remote URL")?;
-        let token = github::github_token()?;
+        let token = github::forge_token()?;
         let provider = GitHubProvider::new(&token).map_err(|e| anyhow::anyhow!("{e}"))?;
         let repo_info = provider
             .repo_info(&owner, &repo_name)

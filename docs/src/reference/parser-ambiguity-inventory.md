@@ -2,8 +2,10 @@
 title: "Parser ambiguity and robustness inventory"
 description: "Known parse edge cases, error classes, and fixture locations for the canonical vox-compiler parser"
 category: "reference"
-last_updated: 2026-03-25
+last_updated: "2026-03-25"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Parser ambiguity and robustness inventory
@@ -30,9 +32,10 @@ Each [`ParseError`](../../../crates/vox-compiler/src/parser/error.rs) carries a 
 | **INV-02** | [`examples/parser-inventory/nested-unclosed.vox`](../../../examples/parser-inventory/nested-unclosed.vox) | Unbalanced braces inside function → parser errors + recovery. |
 | **INV-03** | [`examples/parser-inventory/pub-bogus.vox`](../../../examples/parser-inventory/pub-bogus.vox) | `pub` not followed by `fn`/`type` → declaration-class error. |
 
-Automated **no-panic** corpus: [`crates/vox-compiler/tests/parser_corpus_no_panic.rs`](../../../crates/vox-compiler/tests/parser_corpus_no_panic.rs).
+Automated **no-panic** corpus { [`crates/vox-compiler/tests/parser_corpus_no_panic_test.rs`](../../../crates/vox-compiler/tests/parser_corpus_no_panic_test.rs).
 
 ## Related
 
-- [Lexer / tokens — lexicon](lexicon.md)
-- [STYLE / examples](../../examples/STYLE.md)
+- [Lexer / tokens — Vox Language Reference](../reference/ref-syntax.md)
+- [STYLE / examples](../../../examples/STYLE.md)
+

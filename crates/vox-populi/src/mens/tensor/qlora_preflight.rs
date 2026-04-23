@@ -36,16 +36,19 @@ fn resolve_embedding_table(
     for &key in EMBED_KEYS {
         let mut bad_for_key: Vec<String> = Vec::new();
         for wp in weight_paths {
-            let bytes =
-                std::fs::read(wp).with_context(|| format!("read weight shard {}", wp.display()))?;
-            let st = SafeTensors::deserialize(&bytes)
-                .with_context(|| format!("parse {}", wp.display()))?;
+            let file = std::fs::File::open(wp)
+                .with_context(|| format!("open weight shard {}", wp.display()))?;
+            let mmap = unsafe {
+                memmap2::Mmap::map(&file).with_context(|| format!("mmap {}", wp.display()))?
+            };
+            let st = SafeTensors::deserialize(&mmap)
+                .with_context(|| format!("parse handle {}", wp.display()))?;
             let Ok(t) = st.tensor(key) else {
                 continue;
             };
             let shape = t.shape();
             if shape.len() == 2 {
-                return Ok((key.to_string(), shape[0], shape[1]));
+                return Ok((key.into(), shape[0], shape[1]));
             }
             bad_for_key.push(format!("{} shape {:?}", wp.display(), shape));
         }
@@ -115,7 +118,7 @@ fn warn_on_missing_qwen35_rope_keys(
         }
     }
     if !missing.is_empty() {
-        super::train_log::warn(&format!(
+        super::train_log::debug(&format!(
             "qwen3_5 RoPE tensors (`inv_freq`) are missing for {} layer(s) in shards; trainer will synthesize rotary frequencies from config `rope_theta` when available. Missing (up to 8): {:?}",
             missing.len(),
             missing.into_iter().take(8).collect::<Vec<_>>()
@@ -125,10 +128,12 @@ fn warn_on_missing_qwen35_rope_keys(
 
 fn first_tensor_shape(weight_paths: &[PathBuf], key: &str) -> anyhow::Result<Option<Vec<usize>>> {
     for wp in weight_paths {
-        let bytes =
-            std::fs::read(wp).with_context(|| format!("read weight shard {}", wp.display()))?;
+        let file = std::fs::File::open(wp)
+            .with_context(|| format!("open weight shard {}", wp.display()))?;
+        let mmap =
+            unsafe { memmap2::Mmap::map(&file).with_context(|| format!("mmap {}", wp.display()))? };
         let st =
-            SafeTensors::deserialize(&bytes).with_context(|| format!("parse {}", wp.display()))?;
+            SafeTensors::deserialize(&mmap).with_context(|| format!("parse {}", wp.display()))?;
         if let Ok(t) = st.tensor(key) {
             return Ok(Some(t.shape().to_vec()));
         }

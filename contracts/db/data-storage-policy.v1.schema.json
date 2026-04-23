@@ -1,0 +1,27 @@
+{
+  "x-vox-version": 1,
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vox-lang.org/schemas/db/data-storage-policy.v1.schema.json",
+  "title": "DataStoragePolicy",
+  "type": "object",
+  "properties": {
+    "version": { "type": "integer" },
+    "x-vox-version": { "type": "integer" },
+    "tiers": { "type": "object" },
+    "env_vars": { "type": "object" },
+    "rust_policy": { "type": "object" },
+    "repo_hygiene": { "type": "object" },
+    "contract_policy": { "type": "object" },
+    "ignored_paths": { "type": "array", "items": { "type": "string" } },
+    "frozen_core_crates": { "type": "array", "items": { "type": "string" } },
+    "forbidden_root_glob_prefixes": { "type": "array", "items": { "type": "string" } },
+    "generated_files": { "type": "array", "items": { "type": "object" } }
+  },
+  "required": [
+    "tiers",
+    "env_vars",
+    "rust_policy",
+    "repo_hygiene",
+    "contract_policy"
+  ]
+}

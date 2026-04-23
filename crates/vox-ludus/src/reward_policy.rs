@@ -40,7 +40,7 @@ impl SessionState {
     }
 
     /// Whether this is the first occurrence of an event type this session.
-    pub fn is_novel(&self, event_type: &str) -> bool {
+    pub fn has_not_been_seen(&self, event_type: &str) -> bool {
         !self.seen_types.contains(event_type)
     }
 
@@ -50,8 +50,11 @@ impl SessionState {
     }
 }
 
-/// How many times the same event may fire in a session before rewards zero out.
-pub const GRIND_THRESHOLD: u32 = 30;
+/// How many times the same event may fire in a session before rewards taper out.
+pub const GRIND_TAPER_END: u32 = 30;
+
+/// The point at which rewards become completely suppressed.
+pub const GRIND_ZERO_THRESHOLD: u32 = 31;
 
 /// Novelty bonus factor applied to the first occurrence of each event type.
 const NOVELTY_FACTOR: f64 = 1.5;
@@ -109,6 +112,8 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         // Queued work (orchestrator bus) — policy-first; companion/counters in `process_rewards`.
         "task_submitted" => BaseReward::new(8, 1),
         "task_failed" => BaseReward::new(0, 0),
+        "task_doubted" => BaseReward::new(10, 2),
+        "task_resolved" => BaseReward::new(20, 4), // Base resolution reward
 
         // Agent lifecycle
         "agent_spawned" => BaseReward::new(25, 2),
@@ -127,6 +132,13 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         "agent_handoff_accepted" => BaseReward::new(50, 10),
         "peer_teach_session" => BaseReward::with_lumens(500, 100, 50), // High social value
         "message_sent" => BaseReward::new(1, 0),
+
+        // GitHub / Collaboration
+        "pr_merged" => BaseReward::with_lumens(200, 40, 15),
+        "code_reviewed" => BaseReward::with_lumens(100, 20, 10),
+        "issue_closed" => BaseReward::new(150, 30),
+        "helped_peer" => BaseReward::with_lumens(300, 60, 20),
+        "bounty_completed" => BaseReward::with_lumens(1000, 200, 50),
 
         // Code quality signals
         "refactor" => BaseReward::with_lumens(150, 30, 5),
@@ -174,6 +186,7 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         "populi_corpus_contributed" => BaseReward::with_lumens(500, 100, 15),
         "populi_inference_run" => BaseReward::new(5, 1),
         "populi_finetune_epoch" => BaseReward::new(2000, 400),
+        "mens_flywheel_triggered" => BaseReward::with_lumens(200, 40, 10),
 
         // ── Vox language features ─────────────────────────
         "vox_example_created" => BaseReward::new(200, 40),
@@ -246,14 +259,37 @@ pub fn learning_mode_crystal_jitter(
     if !matches!(crate::config_gate::mode(), vox_config::GamifyMode::Learning) {
         return 0;
     }
-    use std::collections::hash_map::DefaultHasher;
+    // FNV-1a inline to guarantee stability across Rust upgrades.
+    struct Fnv1a(u64);
+    impl std::hash::Hasher for Fnv1a {
+        fn finish(&self) -> u64 {
+            self.0
+        }
+        fn write(&mut self, bytes: &[u8]) {
+            for &b in bytes {
+                self.0 = (self.0 ^ b as u64).wrapping_mul(1099511628211);
+            }
+        }
+    }
     use std::hash::{Hash, Hasher};
     let day = crate::quest::current_day_number();
-    let mut h = DefaultHasher::new();
+    let mut h = Fnv1a(14695981039346656037);
     user_id.hash(&mut h);
     day.hash(&mut h);
     event_type.hash(&mut h);
     h.finish() % 4
+}
+
+// ── Trust Tier ────────────────────────────────────────────
+
+/// Multiplier for rewards based on the player's community trust tier.
+pub fn trust_tier_multiplier(tier: crate::profile::TrustTier) -> f64 {
+    match tier {
+        crate::profile::TrustTier::Novice => 0.5,
+        crate::profile::TrustTier::Linked => 1.0,
+        crate::profile::TrustTier::Proven => 1.2,
+        crate::profile::TrustTier::Master => 1.5,
+    }
 }
 
 // ── Policy engine ─────────────────────────────────────────
@@ -285,6 +321,7 @@ pub fn apply_policy(
     base: &BaseReward,
     mode_multiplier: f64,
     streak_days: u32,
+    trust_tier: crate::profile::TrustTier,
     event_type: &str,
     session: &mut SessionState,
 ) -> PolicyReward {
@@ -298,7 +335,7 @@ pub fn apply_policy(
     let grind_multiplier = match count {
         c if c <= full_cap => 1.0,
         c if c <= half_cap => 0.5,
-        c if c <= 30 => 0.1,
+        c if c <= GRIND_TAPER_END => 0.1,
         _ => {
             tracing::debug!(
                 "grind cap: event '{}' has fired {} times this session, reward zeroed",
@@ -322,13 +359,18 @@ pub fn apply_policy(
     // Novelty bonus for first occurrence (already recorded above, so check if count == 1)
     let novelty = if count == 1 { NOVELTY_FACTOR } else { 1.0 };
 
-    let effective_multiplier = mode_multiplier * streak_bonus * novelty * grind_multiplier;
+    // Trust tier multiplier
+    let trust_mult = trust_tier_multiplier(trust_tier);
+
+    let effective_multiplier =
+        mode_multiplier * streak_bonus * novelty * grind_multiplier * trust_mult;
     let grind_capped = grind_multiplier < 1.0;
     let xp = (base.xp as f64 * effective_multiplier).round() as u64;
     let crystals = (base.crystals as f64 * effective_multiplier).round() as u64;
+    let lumens = (base.lumens as f64 * grind_multiplier).round() as i64;
 
     tracing::debug!(
-        "policy: event='{}' base=({},{},{}) mode={:.2} streak={:.2} novelty={:.2} grind={:.2} → xp={} crystals={} lumens={}",
+        "policy: event='{}' base=({},{},{}) mode={:.2} streak={:.2} novelty={:.2} grind={:.2} trust={:.2} → xp={} crystals={} lumens={}",
         event_type,
         base.xp,
         base.crystals,
@@ -337,15 +379,16 @@ pub fn apply_policy(
         streak_bonus,
         novelty,
         grind_multiplier,
+        trust_mult,
         xp,
         crystals,
-        base.lumens
+        lumens
     );
 
     PolicyReward {
         xp,
         crystals,
-        lumens: base.lumens,
+        lumens,
         grant_shield: base.grant_shield,
         effective_multiplier,
         grind_capped,
@@ -387,7 +430,14 @@ pub fn apply_policy_with_overrides(
     session: &mut SessionState,
 ) -> PolicyReward {
     let base = overrides.resolve(event_type);
-    apply_policy(&base, mode_multiplier, streak_days, event_type, session)
+    apply_policy(
+        &base,
+        mode_multiplier,
+        streak_days,
+        crate::profile::TrustTier::Linked,
+        event_type,
+        session,
+    )
 }
 
 // ── Diagnostics ───────────────────────────────────────────
@@ -469,7 +519,14 @@ mod tests {
     fn mode_multiplier_scales_reward() {
         let base = BaseReward::new(10, 2);
         let mut session = SessionState::default();
-        let r = apply_policy(&base, 1.5, 0, "task_completed", &mut session);
+        let r = apply_policy(
+            &base,
+            1.5,
+            0,
+            crate::profile::TrustTier::Linked,
+            "task_completed",
+            &mut session,
+        );
         assert!(r.xp > 10); // novelty + mode
         assert!(!r.grind_capped);
     }
@@ -478,10 +535,24 @@ mod tests {
     fn grind_cap_zeros_reward() {
         let base = BaseReward::new(10, 2);
         let mut session = SessionState::default();
-        for _ in 0..=GRIND_THRESHOLD {
-            let _ = apply_policy(&base, 1.0, 0, "task_completed", &mut session);
+        for _ in 0..=GRIND_ZERO_THRESHOLD {
+            let _ = apply_policy(
+                &base,
+                1.0,
+                0,
+                crate::profile::TrustTier::Linked,
+                "task_completed",
+                &mut session,
+            );
         }
-        let r = apply_policy(&base, 1.0, 0, "task_completed", &mut session);
+        let r = apply_policy(
+            &base,
+            1.0,
+            0,
+            crate::profile::TrustTier::Linked,
+            "task_completed",
+            &mut session,
+        );
         assert!(r.grind_capped);
         assert_eq!(r.xp, 0);
     }
@@ -490,8 +561,22 @@ mod tests {
     fn novelty_bonus_only_on_first() {
         let base = BaseReward::new(10, 0);
         let mut session = SessionState::default();
-        let first = apply_policy(&base, 1.0, 0, "unique_event", &mut session);
-        let second = apply_policy(&base, 1.0, 0, "unique_event", &mut session);
+        let first = apply_policy(
+            &base,
+            1.0,
+            0,
+            crate::profile::TrustTier::Linked,
+            "unique_event",
+            &mut session,
+        );
+        let second = apply_policy(
+            &base,
+            1.0,
+            0,
+            crate::profile::TrustTier::Linked,
+            "unique_event",
+            &mut session,
+        );
         assert!(first.xp > second.xp, "first should have novelty bonus");
     }
 
@@ -500,8 +585,22 @@ mod tests {
         let base = BaseReward::new(10, 0);
         let mut s1 = SessionState::default();
         let mut s2 = SessionState::default();
-        let no_streak = apply_policy(&base, 1.0, 0, "task_completed", &mut s1);
-        let with_streak = apply_policy(&base, 1.0, 25, "task_completed", &mut s2);
+        let no_streak = apply_policy(
+            &base,
+            1.0,
+            0,
+            crate::profile::TrustTier::Linked,
+            "task_completed",
+            &mut s1,
+        );
+        let with_streak = apply_policy(
+            &base,
+            1.0,
+            25,
+            crate::profile::TrustTier::Linked,
+            "task_completed",
+            &mut s2,
+        );
         assert!(with_streak.xp >= no_streak.xp);
     }
 
@@ -510,5 +609,35 @@ mod tests {
         let bug = base_reward("bug_fix");
         let task = base_reward("task_completed");
         assert!(bug.xp > task.xp, "bug fixes should earn more XP");
+    }
+
+    #[test]
+    fn lumen_tapering_works() {
+        let base = BaseReward::with_lumens(100, 20, 10);
+        let mut session = SessionState::default();
+
+        // Firing many times to trigger grind multiplier < 1.0
+        // mcp_tool_called has (8, 14) thresholds
+        for _ in 0..10 {
+            let _ = apply_policy(
+                &base,
+                1.0,
+                0,
+                crate::profile::TrustTier::Linked,
+                "mcp_tool_called",
+                &mut session,
+            );
+        }
+
+        let r = apply_policy(
+            &base,
+            1.0,
+            0,
+            crate::profile::TrustTier::Linked,
+            "mcp_tool_called",
+            &mut session,
+        );
+        assert!(r.grind_capped);
+        assert!(r.lumens < 10, "Lumens should be tapered down from 10");
     }
 }

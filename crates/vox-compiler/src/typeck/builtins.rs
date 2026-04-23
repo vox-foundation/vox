@@ -1,4 +1,6 @@
-use crate::builtin_registry::builtin_registry_entries;
+use crate::builtin_registry::{
+    builtin_entry_param_tys, builtin_entry_result_ty, builtin_registry_entries,
+};
 use crate::typeck::env::{AdtDef, Binding, BindingKind, TypeEnv, VariantDef};
 use crate::typeck::ty::Ty;
 
@@ -138,8 +140,20 @@ impl BuiltinTypes {
             },
         );
 
+        // assert(condition: bool) → Unit
+        env.define(
+            "assert".into(),
+            Binding {
+                ty: Ty::Fn(vec![Ty::Bool], Box::new(Ty::Unit)),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
         // std — namespace for `std.fs.*`, `std.path.*`, `std.env.*`, `std.process.*`,
-        // `std.json.*`, `std.crypto.*`, `std.time.*`, `std.log.*`, and direct hash/time helpers.
+        // `std.json.*`, `std.http.*`, `std.crypto.*`, `std.time.*`, `std.log.*`,
+        // and direct hash/time helpers.
         env.define(
             "std".into(),
             Binding {
@@ -190,6 +204,99 @@ impl BuiltinTypes {
                 ty: Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Int)),
                 mutable: false,
                 kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // range(start: int, end: int) → List[int]
+        env.define(
+            "range".into(),
+            Binding {
+                ty: Ty::Fn(
+                    vec![Ty::Int, Ty::Int],
+                    Box::new(Ty::List(Box::new(Ty::Int))),
+                ),
+                mutable: false,
+                kind: BindingKind::Function,
+                is_deprecated: false,
+            },
+        );
+
+        // null → Option[T]
+        env.define(
+            "null".into(),
+            Binding {
+                ty: Ty::Option(Box::new(Ty::GenericParam(0))),
+                mutable: false,
+                kind: BindingKind::Constructor,
+                is_deprecated: false,
+            },
+        );
+
+        // ── Automation/Glue namespaces ────────────────────────
+
+        // fs module
+        env.define(
+            "fs".into(),
+            Binding {
+                ty: Ty::Named("FsModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // path module
+        env.define(
+            "path".into(),
+            Binding {
+                ty: Ty::Named("PathModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // json module
+        env.define(
+            "json".into(),
+            Binding {
+                ty: Ty::Named("JsonModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // process module
+        env.define(
+            "process".into(),
+            Binding {
+                ty: Ty::Named("ProcessModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // env module
+        env.define(
+            "env".into(),
+            Binding {
+                ty: Ty::Named("EnvModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // clavis module
+        env.define(
+            "clavis".into(),
+            Binding {
+                ty: Ty::Named("ClavisModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
                 is_deprecated: false,
             },
         );
@@ -310,6 +417,28 @@ impl BuiltinTypes {
             },
         );
 
+        // Chromium/CDP browser module (native runtime only).
+        env.define(
+            "Browser".into(),
+            Binding {
+                ty: Ty::Named("BrowserModule".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
+        // Mobile native bridge (std.mobile).
+        env.define(
+            "mobile".into(),
+            Binding {
+                ty: Ty::Named("StdMobileNs".into()),
+                mutable: false,
+                kind: BindingKind::Import,
+                is_deprecated: false,
+            },
+        );
+
         // ── Method registrations ──────────────────────────────
 
         // List methods
@@ -321,7 +450,23 @@ impl BuiltinTypes {
                 Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
             ),
         );
+        list_methods.insert(
+            "push".into(),
+            Ty::Fn(
+                vec![Ty::GenericParam(0)],
+                Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
+        list_methods.insert(
+            "get".into(),
+            Ty::Fn(
+                vec![Ty::Int],
+                Box::new(Ty::Option(Box::new(Ty::GenericParam(0)))),
+            ),
+        );
         list_methods.insert("length".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        list_methods.insert("len".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        list_methods.insert("join".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)));
         list_methods.insert(
             "map".into(),
             Ty::Fn(
@@ -339,7 +484,126 @@ impl BuiltinTypes {
                 Box::new(Ty::List(Box::new(Ty::GenericParam(0)))),
             ),
         );
+        list_methods.insert(
+            "contains".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Bool)),
+        );
         methods.insert("List".into(), list_methods);
+
+        // Fs module methods
+        let mut fs_methods = std::collections::HashMap::new();
+        fs_methods.insert(
+            "read_file".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        fs_methods.insert(
+            "write_file".into(),
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Bool)),
+        );
+        fs_methods.insert(
+            "list_dir".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+            ),
+        );
+        fs_methods.insert(
+            "glob".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::List(Box::new(Ty::Str))))),
+            ),
+        );
+        methods.insert("FsModule".into(), fs_methods);
+
+        // Path module methods
+        let mut path_methods = std::collections::HashMap::new();
+        path_methods.insert(
+            "join".into(),
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Str)),
+        );
+        methods.insert("PathModule".into(), path_methods);
+
+        // Json module methods
+        let mut json_methods = std::collections::HashMap::new();
+        json_methods.insert(
+            "stringify".into(),
+            Ty::Fn(vec![Ty::GenericParam(0)], Box::new(Ty::Str)),
+        );
+        json_methods.insert(
+            "parse".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::GenericParam(0))),
+        );
+        methods.insert("JsonModule".into(), json_methods);
+
+        // Process module methods
+        let mut process_methods = std::collections::HashMap::new();
+        let process_output = Ty::Record(vec![
+            ("stdout".into(), Ty::Str),
+            ("stderr".into(), Ty::Str),
+            ("code".into(), Ty::Int),
+        ]);
+        process_methods.insert(
+            "spawn".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+                Box::new(Ty::Option(Box::new(process_output.clone()))),
+            ),
+        );
+        process_methods.insert(
+            "spawn_background".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+                Box::new(Ty::Result(Box::new(Ty::Int))),
+            ),
+        );
+        process_methods.insert(
+            "run".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+                Box::new(Ty::Option(Box::new(process_output.clone()))),
+            ),
+        );
+        process_methods.insert(
+            "exec".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+                Box::new(Ty::Result(Box::new(Ty::Unit))),
+            ),
+        );
+        process_methods.insert(
+            "register_exit_command".into(),
+            Ty::Fn(
+                vec![Ty::Str, Ty::List(Box::new(Ty::Str))],
+                Box::new(Ty::Result(Box::new(Ty::Unit))),
+            ),
+        );
+        process_methods.insert("exit".into(), Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)));
+        methods.insert("ProcessModule".into(), process_methods);
+
+        // Env module methods
+        let mut env_methods = std::collections::HashMap::new();
+        env_methods.insert(
+            "get".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        env_methods.insert(
+            "args".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))),
+        );
+        env_methods.insert(
+            "set".into(),
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Unit)),
+        );
+        methods.insert("EnvModule".into(), env_methods);
+
+        // Clavis module methods
+        let mut clavis_methods = std::collections::HashMap::new();
+        clavis_methods.insert(
+            "resolve".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        methods.insert("ClavisModule".into(), clavis_methods);
 
         // String methods
         let mut str_methods = std::collections::HashMap::new();
@@ -352,6 +616,18 @@ impl BuiltinTypes {
         str_methods.insert("trim".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         str_methods.insert("to_upper".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         str_methods.insert("to_lower".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        str_methods.insert(
+            "replace".into(),
+            Ty::Fn(vec![Ty::Str, Ty::Str], Box::new(Ty::Str)),
+        );
+        str_methods.insert(
+            "ends_with".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
+        );
+        str_methods.insert(
+            "starts_with".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
+        );
         methods.insert("Str".into(), str_methods);
 
         // HTTP module methods
@@ -398,20 +674,50 @@ impl BuiltinTypes {
         let mut openclaw_methods = std::collections::HashMap::new();
         for entry in builtin_registry_entries()
             .iter()
+            .copied()
             .filter(|e| e.namespace == "OpenClaw")
         {
-            let params = match entry.arg_count {
-                0 => vec![],
-                1 => vec![Ty::Str],
-                2 => vec![Ty::Str, Ty::Str],
-                _ => continue,
+            let Some(params) = builtin_entry_param_tys(entry) else {
+                continue;
             };
             openclaw_methods.insert(
                 entry.name.to_string(),
-                Ty::Fn(params, Box::new(Ty::Result(Box::new(Ty::Str)))),
+                Ty::Fn(params, Box::new(builtin_entry_result_ty(entry))),
             );
         }
         methods.insert("OpenClawModule".into(), openclaw_methods);
+
+        let mut browser_methods = std::collections::HashMap::new();
+        for entry in builtin_registry_entries()
+            .iter()
+            .copied()
+            .filter(|e| e.namespace == "Browser")
+        {
+            let Some(params) = builtin_entry_param_tys(entry) else {
+                continue;
+            };
+            browser_methods.insert(
+                entry.name.to_string(),
+                Ty::Fn(params, Box::new(builtin_entry_result_ty(entry))),
+            );
+        }
+        methods.insert("BrowserModule".into(), browser_methods);
+
+        let mut mobile_methods = std::collections::HashMap::new();
+        for entry in builtin_registry_entries()
+            .iter()
+            .copied()
+            .filter(|e| e.namespace == "std.mobile")
+        {
+            let Some(params) = builtin_entry_param_tys(entry) else {
+                continue;
+            };
+            mobile_methods.insert(
+                entry.name.to_string(),
+                Ty::Fn(params, Box::new(builtin_entry_result_ty(entry))),
+            );
+        }
+        methods.insert("StdMobileNs".into(), mobile_methods);
 
         // Request methods
         let mut req_methods = std::collections::HashMap::new();
@@ -422,6 +728,16 @@ impl BuiltinTypes {
         req_methods.insert("text".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
         methods.insert("Request".into(), req_methods);
 
+        // Option methods
+        let mut option_methods = std::collections::HashMap::new();
+        option_methods.insert(
+            "unwrap".into(),
+            Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
+        );
+        option_methods.insert("is_some".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        option_methods.insert("is_none".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        methods.insert("Option".into(), option_methods);
+
         // Response methods
         let mut resp_methods = std::collections::HashMap::new();
         resp_methods.insert("text".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
@@ -431,6 +747,16 @@ impl BuiltinTypes {
         );
         resp_methods.insert("status".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
         methods.insert("Response".into(), resp_methods);
+
+        // Result methods
+        let mut result_methods = std::collections::HashMap::new();
+        result_methods.insert(
+            "unwrap".into(),
+            Ty::Fn(vec![], Box::new(Ty::GenericParam(0))),
+        );
+        result_methods.insert("is_ok".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        result_methods.insert("is_err".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        methods.insert("Result".into(), result_methods);
 
         Self { methods }
     }
@@ -489,6 +815,23 @@ impl BuiltinTypes {
             };
         }
 
+        if let Ty::Record(_) = obj_ty {
+            return match method {
+                "get" => {
+                    // get(key: str) -> Option[any]
+                    Some(Ty::Fn(
+                        vec![Ty::Str],
+                        Box::new(Ty::Option(Box::new(Ty::GenericParam(0)))),
+                    ))
+                }
+                "keys" => {
+                    // keys() -> List[str]
+                    Some(Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))))
+                }
+                _ => None,
+            };
+        }
+
         let type_key = match obj_ty {
             Ty::Named(n) => n.as_str(),
             Ty::List(_) => "List",
@@ -501,9 +844,10 @@ impl BuiltinTypes {
     }
 
     /// Look up a variable in builtins (legacy interface, used by old infer code).
-    pub fn lookup_var(&self, _name: &str) -> Option<Ty> {
+    pub fn lookup_var(&self, name: &str) -> Option<Ty> {
         // This is now handled by TypeEnv, so this method is a no-op.
         // Kept for backward compatibility during migration.
+        let _ = std::hint::black_box(name.as_ptr() as usize);
         None
     }
 }

@@ -1,5 +1,10 @@
 //! `vox generate` — generate validated Vox code using the QWEN fine-tuned model.
 //!
+//! **Product scope:** this command uses **HTTP → localhost** only (`/generate`). It does **not**
+//! attach the workspace journey DB, emit `contracts/orchestration/journey-envelope.v1.schema.json`,
+//! or share MCP `vox_generate_code` routing — see `docs/src/reference/cli.md`
+//! (“`vox generate` (HTTP inference) vs MCP codegen”).
+//!
 //! Calls the inference server at localhost:7863 (started by `python scripts/vox_inference.py --serve`)
 //! or starts it automatically if not running.
 //!
@@ -26,7 +31,7 @@ pub async fn run(
     let endpoint = format!("{}/generate", url);
 
     // Check if server is running
-    let client = reqwest::Client::builder()
+    let client = vox_reqwest_defaults::client_builder()
         .timeout(std::time::Duration::from_secs(120))
         .build()
         .context("Failed to build HTTP client")?;

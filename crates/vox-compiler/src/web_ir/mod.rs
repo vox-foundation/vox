@@ -73,6 +73,17 @@ impl SourceSpanTable {
     }
 }
 
+/// Lowered `@scheduled("…") fn …` for worker / manifest tooling (WebIR shell; ADR 012).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScheduledJobSpec {
+    /// Function name from source.
+    pub name: String,
+    /// Interval or cron string from `@scheduled("…")`.
+    pub interval: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub span: Option<SourceSpanId>,
+}
+
 /// Classify optionality for validator + emit boundary (ADR 012 nullability policy).
 ///
 /// **Fail-fast (OP-0050):** invalid combinations (e.g. `Required` with no initializer where the
@@ -107,6 +118,9 @@ pub struct WebIrModule {
     pub style_nodes: Vec<StyleNode>,
     /// Stage **R**: client [`RouteNode::RouteTree`] plus HTTP loaders and RPC-shaped contracts.
     pub route_nodes: Vec<RouteNode>,
+    /// `@scheduled` jobs from HIR ([`crate::hir::HirFn::schedule_interval`]).
+    #[serde(default)]
+    pub scheduled_jobs: Vec<ScheduledJobSpec>,
     /// External / escape-hatch nodes (Phase 1 may leave empty; reserved for interop audits — OP-S053).
     pub interop_nodes: Vec<InteropNode>,
     /// Lowering-time notes (e.g. unlowered AST); not a substitute for [`validate::validate_web_ir`] diagnostics.
@@ -218,6 +232,34 @@ pub enum StyleDeclarationValue {
     Raw(String),
     /// Design-token or variable reference name.
     TokenRef(String),
+    /// Parsed color value.
+    Color(CssColor),
+    /// Numeric length with unit.
+    Length(f64, LengthUnit),
+    /// Valid keyword (e.g., "flex", "none", "auto").
+    Keyword(String),
+    /// Unitless number.
+    Number(f64),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum CssColor {
+    Hex(String),
+    Rgb(u8, u8, u8),
+    Rgba(u8, u8, u8, f32),
+    Named(String),
+    Hsl(f32, f32, f32),
+    Var(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum LengthUnit {
+    Px,
+    Rem,
+    Em,
+    Percent,
+    Vw,
+    Vh,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -225,6 +267,8 @@ pub enum StyleNode {
     Rule {
         selector: StyleSelector,
         declarations: Vec<(String, StyleDeclarationValue)>,
+        /// Specificity score (A, B, C) where A=ID, B=Class/Pseudo-class, C=Element/Pseudo-element.
+        specificity: (u8, u8, u8),
         span: Option<SourceSpanId>,
     },
     Selector(StyleSelector),
@@ -250,6 +294,7 @@ pub enum StyleNode {
 pub enum StyleSelector {
     Class(String),
     Id(String),
+    Element(String),
     /// Full selector text as authored in a `style { }` block (e.g. `.btn`, `h1`, `.a > .b`).
     Unparsed(String),
     Compound(Vec<StyleSelector>),
@@ -283,6 +328,16 @@ pub struct WebIrLowerSummary {
     pub dom_expr_fallbacks: usize,
     /// Rows appended to [`WebIrModule::diagnostic_nodes`] from lowering gaps.
     pub lowering_diagnostics: usize,
+    /// Count of `routes { }` entries with a `with loader:` / `loader:` binding (manifest parity).
+    pub route_entries_with_loader: usize,
+    /// Count of route entries with explicit `pending:` / pending component binding.
+    pub route_entries_with_pending: usize,
+    /// `routes { }` blocks that declare `not_found:`.
+    pub route_blocks_with_not_found: usize,
+    /// `routes { }` blocks that declare `error:`.
+    pub route_blocks_with_error: usize,
+    /// Rows in [`WebIrModule::scheduled_jobs`] from lowering.
+    pub scheduled_jobs_lowered: usize,
 }
 
 /// Populated by [`validate::validate_web_ir_with_metrics`].
@@ -294,6 +349,7 @@ pub struct WebIrValidateMetrics {
     pub behavior_nodes_checked: usize,
     pub style_nodes_checked: usize,
     pub island_mounts_checked: usize,
+    pub scheduled_jobs_checked: usize,
 }
 
 // ---------------------------------------------------------------------------
@@ -330,6 +386,9 @@ pub struct RouteContract {
     pub pattern: String,
     /// Small JSON attachment (e.g. target component name); keep router-shaped, not full RPC schemas.
     pub meta: serde_json::Value,
+    /// Nested client routes (same shape as HIR [`crate::ast::decl::RouteEntry::children`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<RouteContract>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

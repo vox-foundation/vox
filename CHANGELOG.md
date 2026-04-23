@@ -1,11 +1,39 @@
+---
+title: "Changelog"
+description: "All notable changes to the Vox project are documented here."
+category: "ci"
+status: "current"
+training_eligible: true
+training_rationale: "Maintains a history of project changes, useful for understanding evolution and bug fixes."
+---
 # Changelog
 
 All notable changes to the Vox project are documented here.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-18
+
+### Added
+- **V0.5 Core SSOT**: Created `docs/src/architecture/v0.5-core-ssot.md` as the authoritative architecture summary for the v0.5 release.
+- **Golden Path Validation**: Verified end-to-end build and dry-run deployment for `marquee_app` via Fly.io target.
+
+### Fixed
+- **CI/SSOT Stability**: 
+    - Resolved 270+ documentation drift errors by archiving stale research into `docs/src/archive/research-2026-q1/`.
+    - Bulk-fixed metadata (`training_eligible`, `archived_date`) for all archived research documents.
+    - Cleaned up `contracts/documentation/canonical-map.v1.yaml` to match the current documentation tree.
+    - Fixed orphan surface inventory check to handle missing files gracefully.
+- **CLI/Constants**: Pruned stale document references from `crates/vox-cli/src/commands/ci/constants.rs`.
+
 ### Changed
 
+- **vox-db / Mens training:** Removed `VoxDb::connect_default_with_training_fallback` and automatic `vox_training_telemetry.db` sidecar attach; training uses `connect_default` only. Legacy primary returns `LegacySchemaChain` until codex export/import cutover. `VOX_DB_TRAINING_TELEMETRY_SIDECAR` is unused (docs removed).
+- **Operations SSOT / CI:** `contracts/operations/catalog.v1.yaml` is the only hand-edited source for first-party MCP + `vox-cli` + capability registry rows; `contracts/mcp/tool-registry.canonical.yaml`, `contracts/cli/command-registry.yaml` (vox-cli section), and `contracts/capability/capability-registry.yaml` are generated via `vox ci operations-sync --target {mcp,cli,capability,all} --write`. `vox ci operations-verify` now enforces strict file parity, `input_schemas.rs` coverage per tool, and `http-read-role-governance.yaml` vs catalog; the catalog carries a `capability:` block (runtime builtin maps + capability exemptions). Removed transitional `contracts/capability/curated-from-operations.generated.yaml`.
+- **`vox-orchestrator` / daemon parity:** Populi mesh federation poll, **`VOX_ORCHESTRATOR_EVENT_LOG`**, and Codex clarification inbox drain live in **`mesh_federation_poll`**, **`orchestrator_event_log`**, and **`clarification_db_inbox_poll`**; **`vox-mcp`** delegates to them and **`vox-orchestrator-d`** runs the same background sidecars when config/DB apply. ADR 022 Phase B item 1 updated accordingly.
+- **`vox-mcp` / daemon probe:** **`ServerState::probe_external_orchestrator_daemon_if_configured`** compares **`orch.ping`** **`repository_id`** to the MCP embed (**WARN** on mismatch; **`VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT`** → **ERROR**) and records **`orch_daemon_repo_id_aligned`** for optional RPC. **`VOX_MCP_ORCHESTRATOR_RPC_READS`** enables all aligned read pilots (or set per-tool **`TASK_STATUS` / `START` / `STATUS_TOOL`** flags). **`vox_orchestrator_start`** also calls **`orch.agent_ids`** (**`daemon_reported_agent_ids`**, mismatch note in **`honest_message`**). Shared **`orch_daemon_tcp_client_when_repo_aligned`**. **`OrchDaemonClient`** has **`orchestrator_status`**, **`task_status`**, **`spawn_agent_named`**, **`agent_ids`** helpers.
+- **IPC-first write pilots:** `vox_protocol::orch_daemon_method` adds **`orch.submit_task`**, **`orch.complete_task`**, **`orch.fail_task`**, **`orch.cancel_task`**, **`orch.reorder_task`**, **`orch.drain_agent`**, **`orch.rebalance`**, **`orch.spawn_agent_ext`**, **`orch.retire_agent`**, **`orch.pause_agent`**, **`orch.resume_agent`**; daemon dispatch + client helpers implemented, MCP routes task/agent lifecycle through backend selectors with **`VOX_MCP_ORCHESTRATOR_RPC_WRITES`** (and per-slice overrides). Added contract schema [`contracts/orchestration/orch-daemon-rpc-methods.schema.json`](contracts/orchestration/orch-daemon-rpc-methods.schema.json) and protocol catalog entry `orchestrator-json-line-rpc`.
+- **Workspace:** **`vox-dei`** is a normal workspace member (minimal **`lib.rs`**); **`vox-py`** remains the only root **`exclude`**. Docs and `vox-cli` comments updated; **`vox ci no-vox-dei-import`** unchanged.
 - **`ServerState::new_test`**: uses **`OrchestratorConfig::for_testing()`** ( **`toestub_gate: false`**, tight limits) so MCP tests do not inherit production post-task behavior that can run nested **`cargo check --workspace`** for Rust manifests. The **`conflict_diff_success_payload_has_expected_keys`** contract test no longer calls **`complete_task`**; it builds an in-memory snapshot + **`record_conflict`** only (avoids multi-minute / LNK1104-prone paths). Production **`ServerState::new`** is unchanged.
 - **Eval benchmark matrix**: `contracts/eval/benchmark-matrix.schema.json` now uses a fixed **`enum`** for each `benchmark_classes` entry (no arbitrary strings). `vox-cli` `eval_matrix` centralizes crate / feature / test-filter literals, runs **`ci command-compliance`** checks **in-process** (`command_compliance::run`) so `eval-matrix run` does not spawn `cargo run` (avoids Windows `vox.exe` replacement locks), and has **drift tests** (matrix JSON ∪ milestones ↔ Rust SSOT ↔ schema enum). GitLab **`vox-ci-guards`** runs **`ci line-endings`** and **`ci command-compliance`** to match the GitHub guard slice.
 - **`vox fmt`**: wired to **`vox_compiler::fmt::try_format`** (parse → print → re-parse; atomic in-place write; **`--check`**). **Packaging Phase B:** **`vox install`** removed from the CLI (use **`vox add`** / **`vox lock`** / **`vox sync`** / **`vox pm`**); `command-registry.yaml` row dropped; **`vox ci command-compliance`** adds **`check_project_pm_commands_no_toolchain_lane`** (WP5) and **`check_operator_docs_no_legacy_vox_install_pm_nudge`** (WP4). **`cargo check -p vox-cli --all-features`:** stub **`serve/inference`** (Burn loader retired), **`workflow`** uses **`vox_db::LogExecutionParams`**, **`dei`** **`undo`/`redo`** use **`Orchestrator::init_db`** + **`sync_lock::rw_read(&orch.oplog)`**.
@@ -17,7 +45,15 @@ All notable changes to the Vox project are documented here.
 
 ### Added
 
-- **Docs / scripts:** [`docs/src/how-to/examples-corpus.md`](docs/src/how-to/examples-corpus.md), [`docs/src/how-to/first-full-stack-app.md`](docs/src/how-to/first-full-stack-app.md); [`scripts/examples_strict_parse.sh`](scripts/examples_strict_parse.sh), [`scripts/examples_strict_parse.ps1`](scripts/examples_strict_parse.ps1).
+- **Codex / data-plane CI:** `vox ci query-all-guard` and `vox ci turso-import-guard` (diff-scoped; `--all` for full tree), both run from `vox ci ssot-drift`; allowlists under `docs/agents/query-all-allowlist.txt` and `docs/agents/turso-import-allowlist.txt`. Ludus periodic reward SQL moved to `vox-db` `gamify_periodic_conditions` so `vox-ludus` no longer calls `query_all`.
+- **Clavis cloudless vault env:** `VOX_CLAVIS_VAULT_PATH`, `VOX_CLAVIS_VAULT_URL`, `VOX_CLAVIS_VAULT_TOKEN` (precedence over deprecated `VOX_TURSO_*` / `TURSO_*` when compat aliases allowed); `vox clavis doctor` prints `cloudless_vault_store` diagnostics.
+- **Telemetry (optional remote upload):** `vox telemetry status|export|enqueue|upload` with local JSON spool (`crates/vox-cli/src/telemetry_spool.rs`), Clavis `VoxTelemetryUploadUrl` / `VoxTelemetryUploadToken`, ADR [`docs/src/adr/023-optional-telemetry-remote-upload.md`](docs/src/adr/023-optional-telemetry-remote-upload.md), wire spec [`docs/src/architecture/telemetry-remote-sink-spec.md`](docs/src/architecture/telemetry-remote-sink-spec.md). Regenerate CLI/capability rows from `contracts/operations/catalog.v1.yaml` via `vox ci operations-sync --target cli --write` (and capability/MCP targets if you changed catalog tool rows). **Release discipline:** any change to telemetry contracts, upload behavior, or related env/Clavis IDs gets a bullet under **Telemetry** in this file’s `[Unreleased]` section.
+- **Telemetry (Agent Budgeting):** Added `agent_exec_history` (S1) collection with 3-pillar tracking (time, compute tokens, vendor USD logic). Validated by `vox ci data-ssot-guards` with native 90-day retention aging.
+- **Docs (research):** [`docs/src/architecture/terminal-exec-policy-research-findings-2026.md`](docs/src/architecture/terminal-exec-policy-research-findings-2026.md) — PowerShell-first agent shells, Cursor/Gemini/Codex policy evidence, allowlist bypass lessons, alignment with operations SSOT; linked from `SUMMARY.md`, research/architecture indexes, `AGENTS.md`, `GEMINI.md`, and agent instruction docs.
+- **Telemetry trust SSOT (docs):** architecture pages for trust boundaries, taxonomy (roadmap), retention/sensitivity (roadmap), client disclosure, implementation blueprint, and executable backlog; `VOX_BENCHMARK_TELEMETRY` / `VOX_SYNTAX_K_TELEMETRY` documented in `docs/src/reference/env-vars.md`. Entry points: `docs/src/architecture/telemetry-trust-ssot.md`, `AGENTS.md`, contributor hub.
+- **LLM premature-completion SSOT:** `contracts/operations/completion-policy.v1.yaml` + telemetry JSON Schemas; `vox ci completion-audit` (writes `contracts/reports/completion-audit.v1.json`), `completion-gates` (Tier A + Tier B baseline `contracts/reports/completion-baseline.v1.json`), `completion-ingest` → VoxDB `ci_completion_*`; wired into `command-compliance`, `ssot-drift`, and GitHub `ci.yml`. Architecture: [`docs/src/architecture/completion-policy-ssot.md`](docs/src/architecture/completion-policy-ssot.md). Mens scorecard `summary.json` adds optional `completion_policy` crosswalk. **`--features completion-toestub`:** merges TOESTUB `victory-claim` into audit (Tier C per policy); CI uses it for `completion-audit`. **`completion-ingest`** fills snapshot `new_count` / `resolved_count` vs prior run fingerprints. **`contracts/reports/completion-task-ledger.v1.json`:** 768 explicit `T-WS###-NN` IDs. MCP chat system prompt adds anti-skeleton rider pointing at the policy. **`vox ci completion-audit --scan-extra <dir>`** (repeatable): audit generated trees under the repo (canonical paths must stay inside root).
+- **`vox-orchestrator-d`** — TCP or **stdio** newline [`DispatchRequest`](crates/vox-protocol/src/lib.rs) (`orch.ping`, `orch.status`, `orch.task_status`, `orch.spawn_agent`, `orch.agent_ids`); shared **`VOX_MCP_AGENT_FLEET`** [`AgentFleet`](crates/vox-orchestrator/src/runtime.rs) spawn with MCP; MCP **`probe_external_orchestrator_daemon_if_configured`** skips stdio peer.
+- **Docs / scripts:** [`docs/src/how-to/examples-corpus.md`](docs/src/how-to/examples-corpus.md), [`docs/src/how-to/first-full-stack-app.md`](docs/src/how-to/first-full-stack-app.md); 
 - **Tests:** `budgets_json_loads_and_defines_all_timing_lanes`, `tool_registry_slice_tolerates_bracket_in_description` (LLM-audit hardening).
 - **`vox ci build-timings`** — wall-clock **`cargo check`** for default `vox-cli`, GPU+stub lane, optional CUDA lane (`--json` supported). **`--crates`** adds `vox-cli --no-default-features`, `vox-db`, `vox-oratio`, `vox-mens --features train`, and **`vox-cli --features oratio`** lanes. Optional soft budgets: `docs/ci/build-timings/budgets.json` with **`VOX_BUILD_TIMINGS_BUDGET_WARN=1`** / **`VOX_BUILD_TIMINGS_BUDGET_FAIL=1`**. GitHub CI runs **`build-timings --crates`** in place of the standalone GPU/stub check step.
 - **`oratio`** feature — Oratio / `vox-oratio` is no longer pulled by default **`mens-base`**; enable **`--features oratio`** for **`vox oratio`** (canonical speech CLI; alias **`vox speech`**). CI feature matrix includes an **`oratio`** compile lane.
@@ -83,7 +119,10 @@ All notable changes to the Vox project are documented here.
 
 
 ### Fixed
-- **Docs SSOT:** `orphan-surface-inventory.md` workspace crate list includes **`vox-dei`** (excluded crate under `crates/vox-dei`) so `vox ci check-docs-ssot` matches filesystem inventory.
+- **Codex / CI SSOT:** Restore `scripts/check_codex_ssot.sh` (bash delegate to `vox ci check-codex-ssot`); align `contracts/db/baseline-version-policy.yaml` with `BASELINE_VERSION` **45** and the current baseline SQL Keccak digest; refresh `contracts/capability/model-manifest.generated.json` so `vox ci ssot-drift` stays green.
+- **Telemetry trust SSOT:** `docs/src/architecture/telemetry-trust-ssot.md` maps build timing / `build_*` observability, `VOX_BENCHMARK_TELEMETRY`, and MCP `vox_benchmark_list` `source` selectors.
+- **Tests:** `vox-test-harness` `hir_fn` initializer matches `HirFn::is_mobile_native`; `vox-db` `local_tests` fixes `VOX_DATA_DIR` `set_var` delimiter typo.
+- **Docs SSOT:** `orphan-surface-inventory.md` workspace crate list includes **`vox-dei`** so `vox ci check-docs-ssot` matches filesystem inventory.
 - **`vox ci build-timings`:** Soft budgets load only from **`docs/ci/build-timings/budgets.json`** (no duplicate Rust const); `VOX_BUILD_TIMINGS_BUDGET_FAIL=1` works without `BUDGET_WARN`; `--json` serialization errors surface with context; `nvcc` probe uses **`CUDA_PATH`** / **`CUDA_HOME`** when `PATH` is stripped.
 - **`vox ci command-compliance`:** `TOOL_REGISTRY` slice uses stable **anchor** before `pub fn tool_registry` so `]` inside description strings cannot break parsing.
 - **`vox ci command-compliance`**: MCP wiring validates `TOOL_REGISTRY` vs canonical-only `handle_tool_call` arms and checks `crates/vox-mcp/src/tools/tool_aliases.rs` (`TOOL_WIRE_ALIASES` → canonical names).

@@ -87,16 +87,16 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         },
     });
 
-    let mesh_mode = std::env::var("VOX_MESH_MODE")
-        .ok()
+    let mesh_mode = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshMode)
+        .expose()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "lan".to_string());
-    let mesh_token_set = std::env::var("VOX_MESH_TOKEN")
-        .ok()
+    let mesh_token_set = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+        .expose()
         .is_some_and(|v| !v.trim().is_empty());
-    let mesh_scope_set = std::env::var("VOX_MESH_SCOPE_ID")
-        .ok()
+    let mesh_scope_set = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+        .expose()
         .is_some_and(|v| !v.trim().is_empty());
     checks.push(Check {
         name: "Populi mesh security defaults".to_string(),

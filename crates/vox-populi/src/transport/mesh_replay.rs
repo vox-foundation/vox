@@ -41,7 +41,7 @@ fn maps_from_file(path: &Path) -> Result<MeshReplayMaps, PopuliRegistryError> {
     if !path.is_file() {
         return Ok(MeshReplayMaps::default());
     }
-    let raw = crate::bounded_fs::read_utf8_path_capped(path)
+    let raw = vox_bounded_fs::read_utf8_path_capped(path)
         .map_err(|e| PopuliRegistryError::Io(std::io::Error::other(e.to_string())))?;
     let f: MeshReplayFile =
         serde_json::from_str(&raw).map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
@@ -79,16 +79,18 @@ fn persist_maps(path: &Path, maps: &MeshReplayMaps) -> Result<(), PopuliRegistry
 
 #[must_use]
 pub(super) fn mesh_replay_persist_path(a2a_store: Option<&PathBuf>) -> Option<PathBuf> {
-    if std::env::var("VOX_MESH_REPLAY_PERSIST")
-        .ok()
-        .is_some_and(|v| {
+    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshReplayPersist)
+        .expose()
+        .is_some_and(|v: &str| {
             let t = v.trim();
             t == "0" || t.eq_ignore_ascii_case("false")
         })
     {
         return None;
     }
-    if let Ok(v) = std::env::var("VOX_MESH_REPLAY_STATE_PATH") {
+    if let Some(v) =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshReplayStatePath).expose()
+    {
         let t = v.trim();
         if !t.is_empty() {
             return Some(PathBuf::from(t.to_string()));

@@ -7,8 +7,9 @@ authors.workspace = true
 description = "HTTP webhook gateway for the Vox agent system"
 
 [dependencies]
+vox-build-meta = { workspace = true }
 vox-orchestrator = { workspace = true }
-vox-db           = { path = "../vox-db" }
+vox-db           = { workspace = true }
 serde            = { workspace = true }
 serde_json       = { workspace = true }
 tokio            = { workspace = true }
@@ -16,13 +17,15 @@ anyhow           = { workspace = true }
 thiserror        = { workspace = true }
 tracing          = { workspace = true }
 sha3             = { workspace = true }
+sha2             = { workspace = true }
+ed25519-dalek    = { workspace = true }
 data-encoding    = { workspace = true }
 # HTTP server
 axum             = { version = "0.8", features = ["macros"] }
-tower            = { version = "0.5" }
-hyper            = { version = "1" }
 # HTTP client (for outbound webhooks)
 reqwest          = { workspace = true }
+vox-reqwest-defaults = { workspace = true }
+workspace-hack = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

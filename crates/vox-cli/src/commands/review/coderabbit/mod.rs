@@ -68,10 +68,20 @@ pub enum CodeRabbitAction {
         #[arg(long)]
         group_filter: Option<String>,
         /// Review the **entire codebase** (`git ls-files`) instead of just changed files.
-        /// Creates a fresh baseline at current `origin/main` and opens PRs for every tracked file.
+        /// Publishes baseline from the host's **default branch** (`repo_info.default_branch`,
+        /// typically `main`): an empty-tree commit on top of `origin/<default>` for full-repo mode.
         /// Skips the drift check (N/A when reviewing the whole repo).
         #[arg(long, default_value_t = false)]
         full_repo: bool,
+        /// Extra path prefix to exclude (repeatable; merged after `[review.coderabbit] exclude_prefixes`).
+        #[arg(long = "extra-exclude-prefix", action = clap::ArgAction::Append)]
+        extra_exclude_prefix: Vec<String>,
+        /// Write ignored candidate paths as JSON (`[{ "path", "reason" }, …]`) after planning.
+        #[arg(long)]
+        write_ignored_paths: Option<PathBuf>,
+        /// Split oversized groups by sorted path chunks (legacy); default is path-prefix packing.
+        #[arg(long, default_value_t = false)]
+        legacy_chunk_split: bool,
     },
     /// Generate stacked PRs comparing a historical commit to the current local state safely.
     #[command(name = "historical-submit")]
@@ -147,8 +157,69 @@ pub enum CodeRabbitAction {
         path: PathBuf,
         #[arg(long, short = 'o')]
         output: Option<PathBuf>,
+        /// Persist local cache under `.coderabbit/ingested_findings.json`.
         #[arg(long, default_value_t = false)]
         persist: bool,
+        /// Persist only to VoxDB (no local cache write).
+        #[arg(long, default_value_t = false)]
+        db_only: bool,
+        /// Persist to VoxDB and local cache mirror.
+        #[arg(long, default_value_t = false)]
+        db_and_cache: bool,
+        /// Optional replay/lookback window tag (for audit metadata only).
+        #[arg(long)]
+        reingest_window: Option<String>,
+        /// Optional idempotency key used for run-level dedupe.
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Import historical `.coderabbit/ingested_findings.json` into VoxDB.
+    #[command(name = "db-backfill")]
+    DbBackfill {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        input: Option<PathBuf>,
+        #[arg(long, default_value_t = false)]
+        persist_local_cache: bool,
+        #[arg(long)]
+        idempotency_key: Option<String>,
+    },
+    /// Show DB-backed review report summary for repo/PR.
+    #[command(name = "db-report")]
+    DbReport {
+        pr: u64,
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long, default_value_t = 20)]
+        limit: i64,
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Show DB-backed status summary for this repository.
+    #[command(name = "db-status")]
+    DbStatus {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
+    /// Build and validate review-derived dataset for MENS ingestion loop.
+    #[command(name = "learning-sync")]
+    LearningSync {
+        #[arg(default_value = ".")]
+        path: PathBuf,
+        #[arg(long)]
+        repository_id: Option<String>,
+        #[arg(long, default_value_t = 1000)]
+        limit: i64,
+    },
+    /// Retry one deadletter row id.
+    #[command(name = "deadletter-retry")]
+    DeadletterRetry {
+        id: i64,
+        #[arg(default_value = ".")]
+        path: PathBuf,
     },
     /// Build a markdown/json task checklist from a PR's CodeRabbit comments.
     Tasks {
@@ -193,6 +264,9 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             delay_secs,
             group_filter,
             full_repo,
+            extra_exclude_prefix,
+            write_ignored_paths,
+            legacy_chunk_split,
         } => {
             let repo = resolve_repo(&path)?;
             let vox = config::load_from_dir(&repo);
@@ -226,6 +300,13 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             cfg.force_chunks = force_chunks;
             cfg.group_filter = group_filter;
             cfg.full_repo = full_repo;
+            cfg.extra_exclude_prefixes = extra_exclude_prefix;
+            cfg.write_ignored_paths = write_ignored_paths;
+            cfg.allow_markdown_prefixes = vox.allow_markdown_prefixes.clone();
+            cfg.legacy_chunk_split = legacy_chunk_split || vox.legacy_chunk_split;
+            cfg.groups_config = vox.groups_config.as_ref().map(PathBuf::from);
+            cfg.semantic_workspace_crates = vox.semantic_workspace_crates;
+            cfg.max_unassigned_ratio = vox.max_unassigned_ratio;
             semantic_planner::run_semantic_submit(&repo, &cfg).await?;
         }
         CodeRabbitAction::HistoricalSubmit {
@@ -327,9 +408,63 @@ pub async fn run(action: CodeRabbitAction) -> Result<()> {
             path,
             output,
             persist,
+            db_only,
+            db_and_cache,
+            reingest_window,
+            idempotency_key,
         } => {
             let repo = resolve_repo(&path)?;
-            ingest::run_ingest(pr, output.as_deref(), persist, &repo).await?;
+            ingest::run_ingest(
+                pr,
+                output.as_deref(),
+                persist,
+                db_only,
+                db_and_cache,
+                reingest_window.as_deref(),
+                idempotency_key.as_deref(),
+                &repo,
+            )
+            .await?;
+        }
+        CodeRabbitAction::DbBackfill {
+            path,
+            input,
+            persist_local_cache,
+            idempotency_key,
+        } => {
+            let repo = resolve_repo(&path)?;
+            ingest::run_db_backfill(
+                input.as_deref(),
+                persist_local_cache,
+                idempotency_key.as_deref(),
+                &repo,
+            )
+            .await?;
+        }
+        CodeRabbitAction::DbReport {
+            pr,
+            path,
+            limit,
+            json,
+        } => {
+            let repo = resolve_repo(&path)?;
+            ingest::run_db_report(pr, &repo, limit, json).await?;
+        }
+        CodeRabbitAction::DbStatus { path, json } => {
+            let repo = resolve_repo(&path)?;
+            ingest::run_db_status(&repo, json).await?;
+        }
+        CodeRabbitAction::LearningSync {
+            path,
+            repository_id,
+            limit,
+        } => {
+            let repo = resolve_repo(&path)?;
+            ingest::run_learning_sync(&repo, repository_id.as_deref(), limit).await?;
+        }
+        CodeRabbitAction::DeadletterRetry { id, path } => {
+            let repo = resolve_repo(&path)?;
+            ingest::run_deadletter_retry(id, &repo).await?;
         }
         CodeRabbitAction::Tasks {
             pr,

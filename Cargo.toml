@@ -1,17 +1,13 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
-exclude = [
-    "crates/vox-dei",
-    "crates/vox-py",
-]
+members = ["crates/*","crates/workspace-hack", "scratch/test_block_on"]
 default-members = ["crates/vox-cli"]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.4.0"
 edition = "2024"
-license = "MIT OR Apache-2.0"
-authors = ["Vox Contributors"]
+license = "Apache-2.0"
+authors = ["Bert Brainerd"]
 repository = "https://github.com/vox-foundation/vox.git"
 rust-version = "1.92"
 keywords = ["vox", "language", "compilers"]
@@ -23,13 +19,22 @@ unsafe_code = "warn"
 [workspace.lints.clippy]
 all = "warn"
 
+[profile.dev]
+incremental = true
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+opt-level = 1
+
 [workspace.dependencies]
+workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
-vox-ars                   = { path = "crates/vox-ars" }
+
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-clavis                = { path = "crates/vox-clavis" }
 vox-cli                   = { path = "crates/vox-cli" }
 vox-bounded-fs            = { path = "crates/vox-bounded-fs" }
+vox-browser               = { path = "crates/vox-browser" }
 vox-compiler              = { path = "crates/vox-compiler" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
@@ -40,17 +45,44 @@ vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
 vox-eval                  = { path = "crates/vox-eval" }
 vox-forge                 = { path = "crates/vox-forge" }
+vox-crypto                = { path = "crates/vox-crypto" }
+vox-identity              = { path = "crates/vox-identity" }
 
+vox-audio-ingress         = { path = "crates/vox-audio-ingress" }
+vox-build-meta            = { path = "crates/vox-build-meta" }
+vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
+vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
+vox-integration-tests     = { path = "crates/vox-integration-tests" }
+vox-mcp-meta              = { path = "crates/vox-mcp-meta" }
+vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
+vox-schola                = { path = "crates/vox-schola" }
+vox-scientia-api          = { path = "crates/vox-scientia-api" }
+vox-scientia-core         = { path = "crates/vox-scientia-core" }
+vox-scientia-runtime      = { path = "crates/vox-scientia-runtime" }
+vox-scientia-social       = { path = "crates/vox-scientia-social" }
+vox-scientia-ingest       = { path = "crates/vox-scientia-ingest" }
+vox-test-harness          = { path = "crates/vox-test-harness" }
+vox-tools                 = { path = "crates/vox-tools" }
+vox-webhook               = { path = "crates/vox-webhook" }
 vox-git                   = { path = "crates/vox-git" }
+vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
+vox-grammar-export        = { path = "crates/vox-grammar-export" }
 vox-lsp                   = { path = "crates/vox-lsp" }
 vox-ludus                 = { path = "crates/vox-ludus" }
-vox-populi                  = { path = "crates/vox-populi" }
-vox-mcp                   = { path = "crates/vox-mcp" }
+vox-populi                = { path = "crates/vox-populi" }
+vox-mens                  = { path = "crates/vox-mens" }
+vox-mesh-types            = { path = "crates/vox-mesh-types" }
+
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
+vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
 vox-openai-sse            = { path = "crates/vox-openai-sse" }
 vox-openai-wire           = { path = "crates/vox-openai-wire" }
 vox-pm                    = { path = "crates/vox-pm" }
+vox-publisher             = { path = "crates/vox-publisher", default-features = false }
+vox-cli-core              = { path = "crates/vox-cli-core" }
+
+vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
 vox-primitives            = { path = "crates/vox-primitives" }
 vox-protocol              = { path = "crates/vox-protocol" }
 vox-reqwest-defaults      = { path = "crates/vox-reqwest-defaults" }
@@ -63,7 +95,8 @@ vox-ssg                   = { path = "crates/vox-ssg" }
 vox-tensor                = { path = "crates/vox-tensor" }
 vox-toestub               = { path = "crates/vox-toestub" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
-vox-publisher             = { path = "crates/vox-publisher" }
+vox-search                = { path = "crates/vox-search" }
+vox-dashboard             = { path = "crates/vox-dashboard" }
 
 # External dependencies (centralized versions)
 logos              = "0.16"
@@ -74,12 +107,15 @@ serde_json         = "1"
 serde_yaml         = "0.9"
 toml               = "0.8"
 miette             = { version = "7.6", features = ["fancy"] }
-tokio              = { version = "1", features = ["rt", "macros", "sync", "time", "net", "process", "io-util", "fs", "rt-multi-thread"] }
+aho-corasick       = "1"
+tokio              = { version = "1", features = ["rt", "macros", "sync", "time", "net", "process", "io-util", "fs", "rt-multi-thread", "signal"] }
 tokio-stream       = { version = "0.1", default-features = false }
 tracing            = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 anyhow             = "1"
 reqwest            = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
+bsky-sdk = { version = "0.1", default-features = false, features = ["atrium-xrpc-client", "rich-text", "default-client"] }
+atrium-api = { version = "0.25", default-features = false, features = ["bluesky"] }
 sha2               = "0.10"
 sha3               = "0.10"
 bincode            = "2"
@@ -87,31 +123,35 @@ data-encoding      = "2"
 thiserror          = "1"
 base64             = "0.22"
 owo-colors         = "4"
-chrono             = { version = "0.4", default-features = false, features = ["clock", "std"] }
+chrono             = { version = "0.4", default-features = false, features = ["clock", "std", "serde"] }
 regex              = "1"
 comfy-table        = "7"
 tempfile           = "3"
 turso              = { version = "0.4", default-features = false, features = ["sync"] }
 blake3             = "1"
-jsonwebtoken       = "9"
-ed25519-dalek      = "2"
+jsonwebtoken       = { version = "9", default-features = false }
+ed25519-dalek      = { version = "2", default-features = false }
+x25519-dalek       = { version = "2", default-features = false, features = ["static_secrets"] }
 insta              = { version = "1", features = ["json"] }
 async-trait        = "0.1"
 futures-util       = "0.3"
 glob               = "0.3"
+hound              = "3.5.1"
 dirs               = "6"
+mime_guess         = "2.0"
 uuid               = { version = "1", features = ["v4", "serde"] }
 async-stream       = "0.3"
-tower-lsp-server   = "0.23"
 xxhash-rust        = { version = "0.8", features = ["xxh3"] }
 sysinfo            = "0.38"
 walkdir            = "2"
+rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
 burn               = { version = "0.19", default-features = false, features = ["std", "ndarray"] }
 candle-core        = { version = "0.9", default-features = false }
 candle-nn          = { version = "0.9", default-features = false }
 safetensors        = "0.4"
 tokenizers         = "0.21"
+memmap2            = "0.9"
 # 0.4+ resolves Hugging Face relative `Location` redirects in tokio metadata (0.3 breaks with `relative URL without a base`).
 hf-hub             = { version = "0.4" }
 keyring            = "3"
@@ -120,18 +160,77 @@ peft-rs            = "1.0"
 bytes              = "1"
 schemars           = { version = "1", features = ["derive"] }
 jsonschema         = { version = "0.26", default-features = false }
+openapiv3          = "2"
+governor           = "0.10"
 strum              = { version = "0.26", features = ["derive"] }
 serial_test        = "3"
+wiremock           = "0.6"
+tantivy            = "0.22"
+scraper            = "0.20"
+html2text          = "0.12"
+# Optional NVIDIA management library bindings (runtime `nvml.dll` / `libnvidia-ml.so`).
+nvml-wrapper       = { version = "0.11", default-features = false }
+# Wave 5: Async mesh results
+dashmap            = { version = "6", default-features = false }
+rust_decimal       = { version = "1.36", features = ["serde", "db-diesel-postgres"], default-features = false }
+aes-gcm            = "0.10"
+unicode-segmentation = "1.12"
+argon2             = "0.5"
 
-# Turso / libsql pulls `aegis`; patch uses **pure-rust** defaults so MSVC builds skip the C backend (no clang-cl).
+# [VOX AUDIT 2026-04-13] Centralized sprawling versions found in sub-crates
+axum               = { version = "0.8", default-features = false }
+axum-extra         = "0.12.5"
+tower-http         = "0.6.2"
+subtle             = "2.6"
+futures            = "0.3"
+chacha20poly1305   = "0.10"
+aead               = { version = "0.5", features = ["std"] }
+gix                = { version = "0.70", default-features = false }
+jj-lib             = { version = "=0.27.0", default-features = false }
+wasmtime           = "42.0.1"
+wasmtime-wasi      = "42.0.1"
+zip                = "8.4.0"
+self_update        = "0.43.1"
+landlock           = "0.4.4"
+win32job           = "2"
+windows-sys        = "0.59"
+tavily             = "2.1.0"
+quick-xml          = "0.31"
+flate2             = "1"
+tokio-tungstenite  = { version = "0.24", default-features = false }
+rubato             = "0.15.0"
+symphonia          = "0.5.4"
+sherpa-onnx        = "1.12"
+syn                = "2"
+proc-macro2        = "1"
+semver             = "1"
+secrecy            = "0.10"
+rmcp               = "0.16"
+rmp-serde          = "1"
+lru                = "0.13"
+futures-core       = "0.3"
+quote              = "1"
+similar            = "2"
+globset            = "0.4"
+which              = "7"
+wgpu               = "26"
+ctrlc              = "3.4"
+
+
 [patch.crates-io]
-aegis = { path = "patches/aegis-0.9.8" }
 # Vox: stabilize deep o_proj proxy stacks + correct grad-accum scaling in `training_step_lm`.
 qlora-rs = { path = "patches/qlora-rs-1.0.5" }
 # Vox: pass -ccbin MSVC cl path via cc::Build to avoid missing cl.exe when running cargo build without developer prompt.
 candle-kernels = { path = "patches/candle-kernels-0.9.2" }
+# Vox: enable pure-rust crypto on all targets so MSVC builds do not require clang-cl (aegis C backend).
+aegis = { path = "patches/aegis-0.9.8" }
 
 [profile.release]
+lto = "thin"
+strip = "debuginfo"
+
+[profile.ci]
+inherits = "release"
 lto = "thin"
 strip = "debuginfo"
 

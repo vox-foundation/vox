@@ -1,0 +1,46 @@
+// ---
+// title: "Getting Started Template"
+// description: "Complete one-file full-stack app template for tutorial purposes."
+// status: golden
+// ---
+
+// ANCHOR: start
+// ANCHOR: data_model
+@table type Note {
+    title: str
+    content: str
+}
+// ANCHOR_END: data_model
+
+@server fn health() to Result[str] {
+    return Ok("ok")
+}
+
+// ANCHOR: ui
+component App() {
+    view: <div>"Hello Vox"</div>
+}
+// ANCHOR_END: ui
+
+routes {
+    "/" to App
+}
+// ANCHOR_END: start
+
+// ANCHOR: concepts
+// ANCHOR: logic
+@query fn get_notes() to List[Note] {
+    return db.Note.all()
+}
+
+@mutation fn create_note(title: str, content: str) to Result[Id[Note]] {
+    let id = db.Note.insert({ title: title, content: content })?
+    return Ok(id)
+}
+
+workflow order(id: str) to Result[Unit] {
+    let status = check_inventory(id)
+    return Ok(Unit)
+}
+// ANCHOR_END: logic
+// ANCHOR_END: concepts

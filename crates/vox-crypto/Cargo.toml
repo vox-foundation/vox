@@ -1,0 +1,19 @@
+[package]
+name = "vox-crypto"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+blake3.workspace = true
+sha3.workspace = true
+xxhash-rust.workspace = true
+chacha20poly1305 = { workspace = true }
+zeroize = { version = "1.8", features = ["zeroize_derive"] }
+aead = { workspace = true }
+rand = { workspace = true }
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+x25519-dalek = { workspace = true }
+hex = "0.4.3"

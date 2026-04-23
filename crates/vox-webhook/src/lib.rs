@@ -6,6 +6,8 @@
 //! Public re-exports are thin facades; see submodule files for behavior.
 #![allow(unused)]
 
+/// Bridge: routes broadcast webhook events into the orchestrator inbox.
+pub mod bridge;
 /// Channel adapters (Discord, Slack, …).
 pub mod channel;
 /// Outbound webhook delivery and retries.
@@ -16,6 +18,8 @@ pub mod handler;
 pub mod router;
 /// HMAC / digest signing helpers.
 pub mod signing;
+
+pub use bridge::{InboxItemKind, OrchestratorInboxItem, WebhookOrchestratorBridge};
 
 pub use channel::{Channel, ChannelEvent, ChannelKind, ChannelManager};
 pub use delivery::{OutboundWebhook, WebhookDelivery, WebhookDeliveryResult};

@@ -1,0 +1,196 @@
+//! `vox deploy` — execute `Vox.toml` `[deploy]` via [`vox_container`].
+
+use crate::cli_args::DeployArgs;
+use crate::commands::pm_lifecycle::lockfile_path;
+use anyhow::{Context, Result};
+use std::path::PathBuf;
+use vox_container::generate::EnvironmentSpec;
+use vox_container::{
+    BareMetalTarget, ComposeTarget, ContainerRuntime, DeployTarget, KubernetesTarget,
+    build_container_target, detect_runtime, generate_systemd_unit, resolve_target_kind,
+};
+use vox_pm::VoxManifest;
+
+/// `vox deploy` — build/push OCI images, run compose, apply Kubernetes manifests, or bare-metal systemd.
+pub async fn run(args: DeployArgs) -> Result<()> {
+    let manifest_path = PathBuf::from("Vox.toml");
+    let manifest = VoxManifest::load(&manifest_path)
+        .map_err(|e| anyhow::anyhow!("{e}"))
+        .with_context(|| "No Vox.toml found. Run `vox init` first.")?;
+
+    let deploy = manifest.deploy.as_ref().context(
+        "No [deploy] section in Vox.toml. Add [deploy] with target and target-specific tables.",
+    )?;
+
+    if args.locked {
+        let p = lockfile_path();
+        if !p.exists() {
+            anyhow::bail!(
+                "missing `{}` — run `vox lock` first (or omit `--locked`)",
+                p.display()
+            );
+        }
+    }
+
+    let project_root = std::env::current_dir()?;
+    let env_name = args.environment.as_str();
+    let target_kind = resolve_target_kind(args.target.as_deref(), deploy.target.as_deref());
+
+    let mut runtime_holder: Option<Box<dyn ContainerRuntime>> = None;
+
+    let target = match target_kind {
+        "container" => {
+            let pref: vox_container::detect::RuntimePreference = deploy
+                .runtime
+                .as_deref()
+                .or(args.runtime.as_deref())
+                .unwrap_or("auto")
+                .parse()
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            runtime_holder =
+                Some(detect_runtime(pref).context("container runtime detection / availability")?);
+
+            let build_args: Vec<(String, String)> = deploy
+                .container
+                .as_ref()
+                .map(|c| c.build_args.clone())
+                .unwrap_or_default();
+
+            let dockerfile = deploy
+                .container
+                .as_ref()
+                .and_then(|c| c.dockerfile.as_deref());
+
+            let ct = build_container_target(
+                &manifest.package.name,
+                env_name,
+                deploy.effective_image_name(),
+                deploy.effective_registry(),
+                dockerfile,
+                &build_args,
+                &project_root,
+            );
+            DeployTarget::Container(ct)
+        }
+        "compose" => {
+            let cfg = deploy
+                .compose
+                .as_ref()
+                .context("deploy target is compose but [deploy.compose] is missing")?;
+            let project_name = cfg
+                .project_name
+                .clone()
+                .unwrap_or_else(|| manifest.package.name.clone());
+            let file = cfg.file.as_deref().unwrap_or("docker-compose.yml");
+            DeployTarget::Compose(ComposeTarget {
+                compose_file: project_root.join(file),
+                project_name,
+                services: cfg.services.clone(),
+                detach: args.detach,
+            })
+        }
+        "kubernetes" => {
+            let cfg = deploy
+                .kubernetes
+                .as_ref()
+                .context("deploy target is kubernetes but [deploy.kubernetes] is missing")?;
+            let manifests_dir = cfg
+                .manifests_dir
+                .as_deref()
+                .context("[deploy.kubernetes].manifests_dir is required")?;
+            DeployTarget::Kubernetes(KubernetesTarget {
+                cluster: cfg.cluster.clone(),
+                namespace: cfg
+                    .namespace
+                    .clone()
+                    .unwrap_or_else(|| "default".to_string()),
+                manifests_dir: project_root.join(manifests_dir),
+                replicas: cfg.replicas,
+            })
+        }
+        "bare-metal" => {
+            let cfg = deploy
+                .bare_metal
+                .as_ref()
+                .context("deploy target is bare-metal but [deploy.bare-metal] is missing")?;
+            let host = cfg
+                .host
+                .as_deref()
+                .context("[deploy.bare-metal].host is required")?;
+            let service_name = cfg
+                .service_name
+                .clone()
+                .unwrap_or_else(|| manifest.package.name.clone());
+            let deploy_dir = cfg
+                .deploy_dir
+                .clone()
+                .unwrap_or_else(|| format!("/opt/{}", manifest.package.name));
+
+            let spec = EnvironmentSpec {
+                base_image: "bare-metal".to_string(),
+                workdir: Some(deploy_dir.clone()),
+                ..Default::default()
+            };
+            let service_file_content = generate_systemd_unit(&spec, &service_name);
+
+            let user = cfg.user.clone().unwrap_or_else(default_ssh_user);
+
+            DeployTarget::BareMetal(BareMetalTarget {
+                host: host.to_string(),
+                user,
+                port: cfg.port.unwrap_or(22),
+                deploy_dir,
+                service_name,
+                service_file_content,
+            })
+        }
+        "fly" => {
+            let cfg = deploy.fly.as_ref().cloned().unwrap_or_default();
+            let app_name = cfg
+                .app_name
+                .clone()
+                .unwrap_or_else(|| manifest.package.name.clone());
+
+            vox_container::DeployTarget::Fly(vox_container::deploy_target::FlyTarget {
+                app_name,
+                org: cfg.org.clone(),
+                region: cfg.region.clone(),
+                project_root: project_root.clone(),
+            })
+        }
+        "coolify" => {
+            let cfg = deploy
+                .coolify
+                .as_ref()
+                .context("deploy target is coolify but [deploy.coolify] is missing")?;
+
+            vox_container::DeployTarget::Coolify(vox_container::deploy_target::CoolifyTarget {
+                base_url: cfg.base_url.clone().unwrap_or_default(),
+                token: std::env::var(&cfg.token_env).unwrap_or_default(),
+                app_uuid: cfg.app_uuid.clone().unwrap_or_default(),
+                force_rebuild: cfg.force_rebuild,
+            })
+        }
+        _ => anyhow::bail!("unsupported deploy target kind: {target_kind}"),
+    };
+
+    let runtime_ref = runtime_holder
+        .as_deref()
+        .map(|r| r as &dyn ContainerRuntime);
+
+    println!(
+        "Deploying environment `{}` via {} target",
+        env_name,
+        target.kind_name()
+    );
+    target
+        .execute(runtime_ref, args.dry_run)
+        .context("deploy execution failed")?;
+    Ok(())
+}
+
+fn default_ssh_user() -> String {
+    std::env::var("USER")
+        .or_else(|_| std::env::var("USERNAME"))
+        .unwrap_or_else(|_| "root".to_string())
+}

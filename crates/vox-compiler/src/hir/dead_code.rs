@@ -41,6 +41,9 @@ pub fn check_dead_code(module: &HirModule) -> Vec<(String, Span)> {
     for m in &module.mcp_tools {
         visit_fn(&m.func, &mut used);
     }
+    for m in &module.mcp_resources {
+        visit_fn(&m.func, &mut used);
+    }
     for q in &module.queries {
         visit_fn(&q.func, &mut used);
     }
@@ -142,13 +145,18 @@ fn visit_stmt(stmt: &HirStmt, used: &mut HashSet<String>) {
         }
         HirStmt::Return { value: None, .. } => {}
         HirStmt::Expr { expr, .. } => visit_expr(expr, used),
-        HirStmt::Emit { value, .. } => visit_expr(value, used),
-        HirStmt::For { iterable, body, .. } => {
-            visit_expr(iterable, used);
-            for stmt in body {
-                visit_stmt(stmt, used);
+        HirStmt::While { condition, body, .. } => {
+            visit_expr(condition, used);
+            for s in body {
+                visit_stmt(s, used);
             }
         }
+        HirStmt::Loop { body, .. } => {
+            for s in body {
+                visit_stmt(s, used);
+            }
+        }
+        HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
         _ => {}
     }
 }
@@ -203,19 +211,6 @@ fn visit_expr(expr: &HirExpr, used: &mut HashSet<String>) {
         HirExpr::For(_, iter, body, _) => {
             visit_expr(iter, used);
             visit_expr(body, used);
-        }
-        HirExpr::While {
-            condition, body, ..
-        } => {
-            visit_expr(condition, used);
-            for stmt in body {
-                visit_stmt(stmt, used);
-            }
-        }
-        HirExpr::Loop { body, .. } => {
-            for stmt in body {
-                visit_stmt(stmt, used);
-            }
         }
         HirExpr::TryCatch {
             body, catch_body, ..

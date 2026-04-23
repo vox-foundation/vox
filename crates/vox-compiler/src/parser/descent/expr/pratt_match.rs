@@ -23,20 +23,21 @@ impl Parser {
                     span: start,
                 }
             }
-            Token::StringLit(s) => {
+            Token::StringLit(s) | Token::SingleStringLit(s) => {
                 self.advance();
                 Expr::StringLit {
                     value: s,
                     span: start,
                 }
             }
-            Token::SingleQuoteStringLit(s) => {
+            Token::DecLit(s) => {
                 self.advance();
-                Expr::StringLit {
+                Expr::DecimalLit {
                     value: s,
                     span: start,
                 }
             }
+
             Token::True => {
                 self.advance();
                 Expr::BoolLit {
@@ -72,7 +73,7 @@ impl Parser {
             Token::LParen => {
                 self.advance();
                 let e = self.parse_expr()?;
-                if self.eat(&Token::Comma) {
+                let paren_expr = if self.eat(&Token::Comma) {
                     let mut elems = vec![e];
                     loop {
                         self.skip_newlines();
@@ -85,26 +86,93 @@ impl Parser {
                         }
                     }
                     self.skip_newlines();
-                    self.expect(&Token::RParen)?;
+                    if self.expect(&Token::RParen).is_err() {
+                        return Err(());
+                    }
                     Expr::TupleLit {
                         elements: elems,
                         span: start.merge(self.span()),
                     }
                 } else {
                     self.skip_newlines();
-                    self.expect(&Token::RParen)?;
+                    if self.expect(&Token::RParen).is_err() {
+                        return Err(());
+                    }
                     e
+                };
+
+                if self.eat(&Token::FatArrow) {
+                    let mut params = Vec::new();
+                    match paren_expr {
+                        Expr::Ident { name, span } => {
+                            params.push(crate::ast::expr::Param {
+                                name,
+                                type_ann: None,
+                                default: None,
+                                span,
+                            });
+                        }
+                        Expr::TupleLit { elements, .. } => {
+                            for elem in elements {
+                                match elem {
+                                    Expr::Ident { name, span } => {
+                                        params.push(crate::ast::expr::Param {
+                                            name,
+                                            type_ann: None,
+                                            default: None,
+                                            span,
+                                        });
+                                    }
+                                    _ => {
+                                        self.errors.push(ParseError::classified(
+                                            elem.span(),
+                                            "Expected identifier in lambda parameters",
+                                            vec![],
+                                            None,
+                                            ParseErrorClass::Expression,
+                                        ));
+                                        return Err(());
+                                    }
+                                }
+                            }
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                paren_expr.span(),
+                                "Expected identifier or tuple in lambda parameters",
+                                vec![],
+                                None,
+                                ParseErrorClass::Expression,
+                            ));
+                            return Err(());
+                        }
+                    }
+                    let body = self.parse_expr()?;
+                    Expr::Lambda {
+                        params,
+                        return_type: None,
+                        body: Box::new(body),
+                        span: start.merge(self.span()),
+                    }
+                } else {
+                    paren_expr
                 }
             }
             Token::LBracket => {
                 self.advance();
                 let mut elems = Vec::new();
                 while !matches!(self.peek(), Token::RBracket | Token::Eof) {
+                    self.skip_newlines();
+                    if matches!(self.peek(), Token::RBracket | Token::Eof) {
+                        break;
+                    }
                     elems.push(self.parse_expr()?);
+                    self.skip_newlines();
                     if !self.eat(&Token::Comma) {
                         break;
                     }
                 }
+                self.skip_newlines();
                 self.expect(&Token::RBracket)?;
                 Expr::ListLit {
                     elements: elems,
@@ -127,13 +195,45 @@ impl Parser {
                 }
             }
             Token::Lt => self.parse_jsx()?,
-            Token::Ident(name) => {
+            Token::Ident(name) | Token::TypeIdent(name) => {
                 self.advance();
-                Expr::Ident { name, span: start }
+                if self.eat(&Token::FatArrow) {
+                    let body = self.parse_expr()?;
+                    Expr::Lambda {
+                        params: vec![crate::ast::expr::Param {
+                            name: name.clone(),
+                            type_ann: None,
+                            default: None,
+                            span: start,
+                        }],
+                        return_type: None,
+                        body: Box::new(body),
+                        span: start.merge(self.span()),
+                    }
+                } else {
+                    Expr::Ident { name, span: start }
+                }
             }
-            Token::TypeIdent(name) => {
+            Token::Env => {
                 self.advance();
-                Expr::Ident { name, span: start }
+                Expr::Ident {
+                    name: "env".to_string(),
+                    span: start,
+                }
+            }
+            Token::To => {
+                self.advance();
+                Expr::Ident {
+                    name: "to".to_string(),
+                    span: start,
+                }
+            }
+            Token::Http => {
+                self.advance();
+                Expr::Ident {
+                    name: "http".to_string(),
+                    span: start,
+                }
             }
             _ => {
                 self.errors.push(ParseError::classified(
@@ -233,8 +333,9 @@ impl Parser {
             });
         }
 
-        let is_object = if let Some(Token::Ident(_) | Token::TypeIdent(_)) =
-            self.tokens.get(i).map(|t| &t.token)
+        let is_object = if let Some(
+            Token::Ident(_) | Token::TypeIdent(_) | Token::StringLit(_) | Token::SingleStringLit(_),
+        ) = self.tokens.get(i).map(|t| &t.token)
         {
             let mut j = i + 1;
             while j < self.tokens.len() && matches!(self.tokens[j].token, Token::Newline) {
@@ -266,7 +367,26 @@ impl Parser {
             if matches!(self.peek(), Token::RBrace | Token::Eof) {
                 break;
             }
-            let key = self.parse_ident_name()?;
+            let key = match self.peek().clone() {
+                Token::Ident(n) | Token::TypeIdent(n) => {
+                    self.advance();
+                    n
+                }
+                Token::StringLit(s) | Token::SingleStringLit(s) => {
+                    self.advance();
+                    s
+                }
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Expected identifier or string as object key",
+                        vec![],
+                        None,
+                        ParseErrorClass::Expression,
+                    ));
+                    return Err(());
+                }
+            };
             self.expect(&Token::Colon)?;
             let value = self.parse_expr()?;
             fields.push((key, value));
@@ -274,6 +394,7 @@ impl Parser {
                 break;
             }
         }
+        self.skip_newlines();
         self.expect(&Token::RBrace)?;
         Ok(Expr::ObjectLit {
             fields,
@@ -295,7 +416,17 @@ impl Parser {
             }
             let arm_start = self.span();
             let pattern = self.parse_pattern()?;
-            self.expect(&Token::Arrow)?;
+            if self.eat(&Token::Arrow) {
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "The '->' syntax is deprecated for match arms. Use '=>'.",
+                    vec![],
+                    None,
+                    ParseErrorClass::Expression,
+                ));
+            } else {
+                self.expect(&Token::FatArrow)?;
+            }
             let body = self.parse_expr()?;
             arms.push(MatchArm {
                 pattern,
@@ -340,11 +471,7 @@ impl Parser {
         let binding = self.parse_ident_name()?;
         self.expect(&Token::In)?;
         let iterable = self.parse_expr()?;
-        self.expect(&Token::LBrace)?;
-        self.skip_newlines();
         let body = self.parse_expr()?;
-        self.skip_newlines();
-        self.eat(&Token::RBrace);
         Ok(Expr::For {
             binding,
             iterable: Box::new(iterable),
@@ -359,7 +486,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-        let return_type = if self.eat(&Token::To) {
+        let return_type = if self.eat_return_arrow() {
             Some(self.parse_type_expr()?)
         } else {
             None

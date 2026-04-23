@@ -1,0 +1,71 @@
+x-vox-version: 1
+# SSOT: LLM premature-completion / anti-skeleton policy (tiers A/B/C).
+# Validated by `vox ci command-compliance` and used by `vox ci completion-audit`.
+schema_version: 1
+tier_definitions:
+  A:
+    description: >
+      Hard-block eligible when matcher is deterministic, FP risk is low,
+      and TP/TN fixtures exist in-repo.
+  B:
+    description: >
+      Baseline + regression gate; trend debt (ignored tests, MVP markers, etc.).
+  C:
+    description: >
+      Advisory / heuristics only until promoted after calibration.
+promotion:
+  b_to_a_requires:
+    - deterministic_matcher
+    - tp_tn_fixtures_in_ci
+    - rolling_precision_evidence
+    - owner_signoff
+  demotion_a_to_b_triggers:
+    - precision_regression
+    - waiver_abuse_threshold
+# Explicit allowlist for known contract debt (remove entries as enforcement lands).
+audit_exemptions:
+  contract_enforced_by_empty_ids:
+    - db-retention-policy
+    - sql-write-ownership-rev-c
+    - toestub-run-json-v1-schema
+    - toestub-suppression-v1-schema
+    - toestub-prelude-allowlist-v1
+  stub_response_path_suffixes:
+    - crates/vox-project-scaffold/src/lib.rs
+
+detectors:
+  - id: contract-index-enforced-by-empty
+    tier: A
+    description: >
+      Mature contracts/index.yaml rows must not list enforced_by: [] unless
+      description marks draft or placeholder intent.
+  - id: stub-response-literal
+    tier: A
+    description: Production Rust must not return stub-response sentinel strings.
+  - id: ignored-test-debt
+    tier: B
+    description: Count of #[ignore] in crates/**/*.rs test-like paths.
+  - id: todo-macro-prod
+    tier: B
+    description: Count of todo!() in non-test Rust under crates/ (excludes **/tests/**).
+  - id: victory-claim
+    tier: B
+    description: >
+      TOESTUB victory-claim detector (premature Done/complete comments, lazy TODO/FIXME).
+      Advisory unless promoted after calibration; emitted when vox-cli is built with
+      feature completion-toestub.
+  - id: skeleton-hollow-fn
+    tier: B
+    description: >
+      Functions with trivially-default return values (Ok(()), true, Vec::new(), etc.)
+      that compile but perform no meaningful computation. TOESTUB skeleton/hollow-fn.
+  - id: skeleton-declared-not-called
+    tier: C
+    description: >
+      Public functions with no observed call sites in the crate (advisory until
+      false-positive calibration completes).
+mens:
+  anti_stub_maps_to_tier_B: true
+  summary_field: completion_policy
+orchestrator:
+  no_write_completion_ssot: crates/vox-orchestrator/src/services/policy.rs

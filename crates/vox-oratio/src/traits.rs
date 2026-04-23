@@ -7,24 +7,46 @@ use serde::{Deserialize, Serialize};
 
 use crate::refine::{CorrectionContext, CorrectionTrace};
 
-fn load_lexicon_from_env() -> Option<crate::speech_lexicon::SpeechLexicon> {
-    let p = std::env::var("VOX_ORATIO_SPEECH_LEXICON_PATH").ok()?;
-    let path = Path::new(p.trim());
+fn try_load_lexicon_path(path: &Path) -> Option<crate::speech_lexicon::SpeechLexicon> {
     let bytes = std::fs::read(path).ok()?;
     crate::speech_lexicon::SpeechLexicon::from_json_slice(&bytes).ok()
+}
+
+/// Loads and merges speech lexicons: explicit `VOX_ORATIO_SPEECH_LEXICON_PATH`, then optional
+/// `<VOX_REPOSITORY_ROOT or VOX_REPO_ROOT>/.vox/speech_lexicon.json` when those roots are set.
+fn load_lexicon_from_env() -> Option<crate::speech_lexicon::SpeechLexicon> {
+    let mut acc = crate::speech_lexicon::SpeechLexicon::default();
+    if let Some(p) =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSpeechLexiconPath).expose()
+    {
+        let path = Path::new(p.trim());
+        if let Some(lex) = try_load_lexicon_path(path) {
+            acc.merge_from(lex);
+        }
+    }
+    let repo_root_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot);
+    let repo_root = repo_root_resolved.expose();
+    if let Some(root) = repo_root {
+        let candidate = Path::new(root.trim()).join(".vox/speech_lexicon.json");
+        if let Some(lex) = try_load_lexicon_path(&candidate) {
+            acc.merge_from(lex);
+        }
+    }
+    if acc.is_empty() { None } else { Some(acc) }
 }
 
 fn contextual_bias_phrases_with_lex(
     lex: Option<&crate::speech_lexicon::SpeechLexicon>,
 ) -> Vec<String> {
     const DEFAULT_MAX: usize = 256;
-    let max_phrases: usize = std::env::var("VOX_ORATIO_MAX_BIAS_PHRASES")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(DEFAULT_MAX);
+    let max_phrases: usize =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioMaxBiasPhrases)
+            .expose()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEFAULT_MAX);
     let contextual_on = !matches!(
-        std::env::var("VOX_ORATIO_CONTEXTUAL_BIAS"),
-        Ok(s) if s == "0" || s.eq_ignore_ascii_case("false")
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioContextualBias).expose(),
+        Some(s) if s == "0" || s.eq_ignore_ascii_case("false")
     );
     if !contextual_on {
         return Vec::new();
@@ -32,9 +54,11 @@ fn contextual_bias_phrases_with_lex(
     let lex_phrases = lex
         .map(|l| l.bias_phrases_sorted(max_phrases))
         .unwrap_or_default();
-    let extra: Vec<String> = std::env::var("VOX_ORATIO_SESSION_HOTWORDS")
-        .map(|s| crate::contextual_bias::parse_hotword_csv(&s))
-        .unwrap_or_default();
+    let extra: Vec<String> =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSessionHotwords)
+            .expose()
+            .map(|s| crate::contextual_bias::parse_hotword_csv(&s))
+            .unwrap_or_default();
     crate::contextual_bias::merge_bias_phrases(lex_phrases, &extra, max_phrases)
 }
 
@@ -111,16 +135,25 @@ impl TranscribeDetail {
 /// Human-readable description of which Oratio capabilities are active.
 #[must_use]
 pub fn transcript_status() -> &'static str {
-    #[cfg(feature = "stt-candle")]
-    {
-        "Vox Oratio: Candle Whisper (Rust) STT enabled; symphonia decode + 16 kHz resample; \
-         `.txt`/`.md` passthrough. Env: VOX_ORATIO_MODEL, VOX_ORATIO_REVISION, VOX_ORATIO_LANGUAGE, \
-         VOX_ORATIO_CUDA (requires `cuda` feature)."
-    }
-    #[cfg(not(feature = "stt-candle"))]
-    {
-        "Vox Oratio: built without `stt-candle`; only `.txt`/`.md` transcript passthrough is available."
-    }
+    #[cfg(all(feature = "stt-sherpa", feature = "stt-candle"))]
+    return "Vox Oratio: dual backends compiled — Sherpa-ONNX + Candle Whisper. \
+            Active backend: VOX_ORATIO_BACKEND (auto|whisper|sherpa).";
+
+    #[cfg(all(feature = "stt-sherpa", not(feature = "stt-candle")))]
+    return "Vox Oratio: Sherpa-ONNX STT backend active. Env: VOX_ORATIO_BACKEND, \
+            VOX_ORATIO_SHERPA_MODEL, VOX_ORATIO_SHERPA_MODEL_DIR.";
+
+    #[cfg(all(feature = "stt-candle", not(feature = "stt-sherpa")))]
+    return "Vox Oratio: Candle Whisper (Rust) STT enabled; symphonia decode + 16 kHz resample; \
+            `.txt`/`.md` passthrough. Env: VOX_ORATIO_MODEL, VOX_ORATIO_REVISION, VOX_ORATIO_LANGUAGE, \
+            VOX_ORATIO_CUDA (requires `cuda` feature); long audio: VOX_ORATIO_CHUNK_SEC, \
+            VOX_ORATIO_CHUNK_OVERLAP_SEC, optional VOX_ORATIO_EMIT_PARTIAL_PATH (JSONL), \
+            VOX_ORATIO_STREAM_TOKENS; constrained decode knobs: VOX_ORATIO_LOGIT_BIAS_STRENGTH, \
+            VOX_ORATIO_LOGIT_BIAS_MAX_TOKENS, VOX_ORATIO_LOGIT_FORBID_TOKENS, \
+            VOX_ORATIO_CONSTRAINED_TRIE, VOX_ORATIO_CONSTRAINED_PHRASES, VOX_ORATIO_TRIE_STUCK_STEPS.";
+
+    #[cfg(all(not(feature = "stt-candle"), not(feature = "stt-sherpa")))]
+    return "Vox Oratio: built without `stt-candle` or `stt-sherpa`; only `.txt`/`.md` transcript passthrough is available.";
 }
 
 /// Transcribe `path` with explicit refinement context and optional Whisper language override.
@@ -144,35 +177,65 @@ pub fn transcribe_path_detailed(
         return Ok(finalize_after_refine(raw_text, refined));
     }
 
-    #[cfg(feature = "stt-candle")]
-    {
-        if matches!(
-            ext.as_str(),
-            "wav" | "mp3" | "flac" | "ogg" | "oga" | "aac" | "m4a" | "mp4" | "opus"
-        ) {
-            let (_diag, whisper_lang) = crate::language::prepare_language_hint(language_hint);
-            let raw_text =
-                crate::transcribe_audio_file_with_language(path, whisper_lang.as_deref())?;
-            let refined = crate::refine::refine_transcript(&raw_text, ctx);
-            return Ok(finalize_after_refine(raw_text, refined));
-        }
+    let is_audio_or_video = matches!(
+        ext.as_str(),
+        "wav"
+            | "mp3"
+            | "flac"
+            | "ogg"
+            | "oga"
+            | "aac"
+            | "m4a"
+            | "opus"
+            | "mp4"
+            | "mkv"
+            | "avi"
+            | "webm"
+            | "mov"
+    );
+
+    if is_audio_or_video {
+        let (pcm, sample_rate) = match crate::backends::audio_io::pcm_decode_to_16k_mono(path) {
+            Ok(res) => (res, 16_000),
+            Err(e) => {
+                // If symphonia fails, try ffmpeg fallback for video containers
+                if matches!(ext.as_str(), "mp4" | "mkv" | "avi" | "webm" | "mov") {
+                    tracing::info!("audio_io failed: {}, attempting ffmpeg fallback", e);
+                    match crate::subtitle::ffmpeg_extract::extract_audio_ffmpeg(path) {
+                        Ok(res) => (res, 16_000),
+                        Err(e2) => {
+                            anyhow::bail!("audio extraction failed: {} (ffmpeg failed: {})", e, e2)
+                        }
+                    }
+                } else {
+                    anyhow::bail!("audio decode failed: {}", e);
+                }
+            }
+        };
+
+        // Allow acoustic preprocess via AsrBackend path
+        let budget_ms =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs)
+                .expose()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(25u64);
+        // Note: preprocess_audio_pcm_f32_reported returns (Vec<f32>, AcousticsPreprocessDiagnostics)
+        let (pcm, _diag) =
+            crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms);
+
+        let (_diag, whisper_lang) = crate::language::prepare_language_hint(language_hint);
+
+        let backend = crate::backend_dispatch::create_backend()?;
+        let out = backend.transcribe_pcm(&pcm, sample_rate, whisper_lang.as_deref())?;
+
+        let refined = crate::refine::refine_transcript(&out.raw_text, ctx);
+        return Ok(finalize_after_refine(out.raw_text, refined));
     }
 
     anyhow::bail!(
-        "Vox Oratio: unsupported extension {:?} for file {}. \
-         Supported: .txt / .md{}. Build with `stt-candle` for audio.",
+        "Vox Oratio: unsupported extension {:?} for file {}.",
         path.extension().unwrap_or_default(),
-        path.display(),
-        {
-            #[cfg(feature = "stt-candle")]
-            {
-                " plus .wav, .mp3, .flac, .ogg, …"
-            }
-            #[cfg(not(feature = "stt-candle"))]
-            {
-                ""
-            }
-        }
+        path.display()
     );
 }
 

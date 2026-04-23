@@ -13,7 +13,7 @@ use super::ScholarlySubmissionReceipt;
 use super::error::{ScholarlyError, classify_scholarly_http};
 use super::flags;
 use crate::publication::PublicationManifest;
-use crate::submission_package::{self, ScholarlyVenue};
+use crate::submission::{self, ScholarlyVenue};
 use crate::zenodo_api_types::{ZenodoDeposition, ZenodoDepositionCreateBody};
 use crate::zenodo_metadata;
 
@@ -22,8 +22,8 @@ const ZENODO_API_SANDBOX: &str = "https://sandbox.zenodo.org/api";
 
 #[must_use]
 fn zenodo_http_max_attempts() -> u32 {
-    std::env::var("VOX_ZENODO_HTTP_MAX_ATTEMPTS")
-        .ok()
+    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoHttpMaxAttempts)
+        .expose()
         .and_then(|s| s.trim().parse().ok())
         .filter(|&n| (1..=10).contains(&n))
         .unwrap_or(3)
@@ -58,8 +58,8 @@ impl ZenodoHttpClient {
                 message: "Zenodo access token is empty".into(),
             });
         }
-        let base = std::env::var("VOX_ZENODO_API_BASE")
-            .ok()
+        let base = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoApiBase)
+            .expose()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| {
@@ -72,8 +72,8 @@ impl ZenodoHttpClient {
         Ok(Self {
             base,
             token: t.to_string(),
-            http: reqwest::Client::builder()
-                .user_agent("vox-publisher/scholarly-zenodo")
+            http: vox_reqwest_defaults::client_builder()
+                .user_agent("vox-publisher/submission")
                 .build()
                 .map_err(|e| ScholarlyError::Config {
                     message: format!("http client: {e}"),
@@ -357,7 +357,7 @@ fn zenodo_load_staging_sha_map(root: &Path) -> Result<HashMap<String, String>, S
 
 fn zenodo_relpaths_to_upload(root: &Path) -> Result<Vec<String>, ScholarlyError> {
     let allow = flags::zenodo_upload_allowlist();
-    let plan: Vec<String> = submission_package::staging_artifacts(ScholarlyVenue::Zenodo)
+    let plan: Vec<String> = submission::staging_artifacts(ScholarlyVenue::Zenodo)
         .into_iter()
         .map(|a| a.relative_path)
         .filter(|r| r != "arxiv_bundle.tar.gz" && r != "arxiv_handoff.json")

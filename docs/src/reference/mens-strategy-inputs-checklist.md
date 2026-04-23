@@ -2,8 +2,10 @@
 title: "Mens strategy inputs checklist"
 description: "Handoff checklist for the second-pass implementation-planning phase after VoxMens research groundwork."
 category: "reference"
-last_updated: 2026-03-28
+last_updated: "2026-03-28"
 training_eligible: false
+
+schema_type: "TechArticle"
 ---
 # Mens strategy inputs checklist
 
@@ -179,3 +181,4 @@ The central strategic question is still the right one:
 > Are the remaining failures due mostly to missing architecture around Qwen, or due to limits of using a non-Vox-native base model at all?
 
 This groundwork bundle is designed so that the next pass can answer that question with an implementation strategy rather than with another broad discovery pass.
+

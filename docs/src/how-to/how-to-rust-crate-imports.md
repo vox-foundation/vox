@@ -2,8 +2,10 @@
 title: "How-To: Rust crate imports in Vox scripts"
 description: "Syntax, compiler pipeline, Cargo.toml synthesis, diagnostics, limitations, and pragmatic ways to reduce boilerplate without over-engineering."
 category: "how-to"
-last_updated: 2026-03-27
+last_updated: "2026-03-28"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 
 # How-To: Rust crate imports in Vox scripts
@@ -17,6 +19,7 @@ In the bell-curve interop model, `import rust:...` is a **Tier 3 escape hatch**.
 Rust crate imports use the reserved prefix `rust:` on an `import` entry. They can be comma-separated with ordinary symbol imports in the same `import` statement.
 
 ```vox
+// vox:skip
 import react.use_state
 import rust:serde_json
 import rust:serde_json(version: "1") as json
@@ -81,7 +84,7 @@ Project dependencies for **Vox packages** still flow through `Vox.toml` / `vox.l
 - Declaring extra Cargo dependencies for **generated script binaries** and **generated full-stack Rust** outputs.
 - Deterministic **merge/dedup** of dependency lines per crate name in codegen.
 - **Strict error when** the same crate name is imported with **incompatible** version/path/git/rev metadata.
-- **WASI script guardrail:** some native-only crates listed in codegen (e.g. `tokio`, `axum`) are rejected as rust imports in WASI mode; see `generate_script_with_target` in `pipeline.rs`.
+- **WASI script guardrail:** native-only crates listed under `wasi_unsupported_rust_imports` in [`contracts/rust/ecosystem-support.yaml`](../../../contracts/rust/ecosystem-support.yaml) are rejected as rust imports in WASI mode; examples include `tokio` and `axum`.
 
 ### What does *not* work yet (important)
 
@@ -91,6 +94,30 @@ Project dependencies for **Vox packages** still flow through `Vox.toml` / `vox.l
 - **No linkage to `cargo vendor` / vendoring policy** in this path alone; reproducibility remains “whatever Cargo resolves” unless you tighten versions or use path/git explicitly.
 
 **Plain language:** today’s feature is best thought of as **“make this script’s generated crate depend on these Rust packages.”** It is **not** yet **“call arbitrary Rust APIs from Vox with one line.”**
+
+## Support-class annotations and reproducibility warnings
+
+Rust imports now carry a support-class classification for clearer operator expectations:
+
+- `first_class`
+- `internal_runtime_only`
+- `escape_hatch_only`
+- `deferred`
+
+Current compiler behavior:
+
+- emits warnings when a crate is classified as `internal_runtime_only` or `deferred`
+- emits warnings when a crate is classified as `escape_hatch_only`
+- emits warnings when a crate has `planned` semantics in the support registry
+- emits warnings when no `version` / `path` / `git` pin is provided (Cargo fallback `*`)
+- emits warnings when import-level pins are provided for full app template-managed crates (those templates may own versions/paths)
+- annotates generated `Cargo.toml` dependency lines with `# vox_rust_import support_class=...`
+
+These annotations are guidance, not a typed interop promise.
+
+Canonical support matrix and contract metadata:
+
+- [Rust ecosystem support contract](../reference/rust-ecosystem-support-contract.md)
 
 For common app capabilities, prefer:
 
@@ -115,7 +142,7 @@ These are ordered by **value / effort**:
    If `Vox.toml` or a sibling `Cargo.toml` / lockfile already pins `serde_json`, allow `import rust:serde_json` **without** repeating `version: "…"`, by resolving from the project graph when building from a workspace package. **Compatibility:** When no pin exists, keep today’s behavior (`*` or diagnostic). **K win:** One-line imports match user expectation of “like Cargo.”
 
 2. **`vox check` / `cargo check` parity messaging (low)**  
-   When script codegen fails, surface Cargo’s error with a hint: “dependency X declared via `import rust:X` at line L.” Ties the mental model to the line they wrote.
+   When script codegen fails, surface Cargo’s error with a hint { “dependency X declared via `import rust:X` at line L.” Ties the mental model to the line they wrote.
 
 3. **Curated `vox-*` or shims for 5–10 hot crates (medium)**  
    Instead of full `rustdoc` typing, expose **`std`-style namespaces** for e.g. JSON, time, UUID (wrappers in `vox-runtime` or a small `vox-shims` crate). **K win:** Users learn one Vox API; compiler stays small. **Big win:** Works today under the existing builtin pattern.
@@ -136,7 +163,7 @@ Those belong behind explicit **feature gates** and product milestones, not on th
 
 ## Related docs
 
-- [Keyword: `import` syntax](../api/keywords/import.md)
+- [Keyword: `import` syntax](../reference/ref-syntax.md)
 - [CLI reference: PM vs generated `Cargo.lock`](../reference/cli.md)
 - [Diagnostic taxonomy](../reference/diagnostic-taxonomy.md)
 - [Vox packaging blueprint](../architecture/vox-packaging-implementation-blueprint.md) (extension boundaries)
@@ -144,3 +171,5 @@ Those belong behind explicit **feature gates** and product milestones, not on th
 ---
 
 **Maintenance:** When you change parser, HIR, registration, or codegen behavior for rust imports, update this page and the golden JSON under `crates/vox-cli/tests/golden/` if diagnostics or spans shift.
+After contract/policy edits, run `cargo run -p vox-cli --quiet -- ci rust-ecosystem-policy`.
+

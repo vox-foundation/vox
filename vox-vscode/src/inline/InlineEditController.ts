@@ -81,7 +81,6 @@ async function runEdit(mcp: VoxMcpClient, variant: 'edit' | 'fix' | 'explain'): 
 
     const selection = editor.selection;
     const range = selection.isEmpty ? editor.document.lineAt(selection.active.line).range : selection;
-    const currentText = editor.document.getText(range);
     const language = editor.document.languageId;
 
     let prompt: string;

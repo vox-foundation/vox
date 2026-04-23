@@ -17,12 +17,18 @@ impl OrchestratorConfig {
         }
     }
 
+    /// Effective web search policy (environment-driven fallback).
+    #[must_use]
+    pub fn effective_search_policy(&self) -> vox_search::policy::SearchPolicy {
+        vox_search::policy::SearchPolicy::from_env()
+    }
+
     /// Load configuration from a TOML file.
     ///
     /// Looks for an `[orchestrator]` section in the given file.
     /// Returns the default config if the section is missing.
     pub fn load_from_toml(path: &Path) -> Result<Self, ConfigError> {
-        let content = crate::bounded_fs::read_utf8_path_capped(path)
+        let content = vox_bounded_fs::read_utf8_path_capped(path)
             .map_err(|e| ConfigError::Io(std::io::Error::other(e.to_string())))?;
         let table: toml::Table = toml::from_str(&content).map_err(ConfigError::Parse)?;
 

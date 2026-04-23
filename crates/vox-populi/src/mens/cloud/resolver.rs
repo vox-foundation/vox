@@ -75,6 +75,7 @@ pub fn preset_for_vram(vram_mb: u64) -> &'static str {
 pub struct CloudResolver {
     vast: Option<Arc<VastClient>>,
     runpod: Option<Arc<RunPodClient>>,
+    local: Option<Arc<super::local_provider::LocalProvider>>,
     estimator: TimeEstimator,
     pub budget: Arc<BudgetLedger>,
     pub config: Arc<CloudProviderConfig>,
@@ -92,22 +93,24 @@ impl CloudResolver {
         profiles: Vec<(String, usize, usize, f64)>,
         budget: Arc<BudgetLedger>,
         config: Arc<CloudProviderConfig>,
+        local: Option<Arc<super::local_provider::LocalProvider>>,
     ) -> anyhow::Result<Self> {
         let estimator = TimeEstimator::new(&gpu_specs_path, profiles)?;
         let vast = VastClient::from_env(Arc::clone(&config)).ok().map(Arc::new);
         let runpod = RunPodClient::from_env(Arc::clone(&config))
             .ok()
             .map(Arc::new);
-        if vast.is_none() && runpod.is_none() {
+        if vast.is_none() && runpod.is_none() && local.is_none() {
             anyhow::bail!(
-                "No cloud providers available. Set at least one of:\n\
-                 - VOX_VAST_API_KEY (Vast.ai)\n\
-                 - VOX_RUNPOD_API_KEY (RunPod)"
+                "No GPU providers available. Either:\n\
+                 - Set VOX_VAST_API_KEY (Vast.ai) or VOX_RUNPOD_API_KEY (RunPod)\n\
+                 - Ensure a GPU is detected locally (vox mens probe)"
             );
         }
         Ok(Self {
             vast,
             runpod,
+            local,
             estimator,
             budget,
             config,
@@ -136,7 +139,18 @@ impl CloudResolver {
             vec![]
         };
 
-        Self::new(specs_path, profiles, budget, config)
+        // Initialize local provider if hardware supports it
+        let hw = crate::mens::hardware::HardwareRegistry::probe().await;
+        let local = if hw.vram_mb > 0 {
+            Some(Arc::new(super::local_provider::LocalProvider::new(
+                hw,
+                config.clone(),
+            )))
+        } else {
+            None
+        };
+
+        Self::new(specs_path, profiles, budget, config, local)
     }
 
     /// Query all configured providers and return offers ranked by estimated cost.
@@ -149,8 +163,10 @@ impl CloudResolver {
             matches!(req.target, CloudTarget::Auto | CloudTarget::Vast) && self.vast.is_some();
         let use_runpod =
             matches!(req.target, CloudTarget::Auto | CloudTarget::RunPod) && self.runpod.is_some();
+        let use_local =
+            matches!(req.target, CloudTarget::Auto | CloudTarget::Local) && self.local.is_some();
 
-        let (vast_r, runpod_r) = tokio::join!(
+        let (vast_r, runpod_r, local_r) = tokio::join!(
             async {
                 if use_vast {
                     self.vast
@@ -173,9 +189,23 @@ impl CloudResolver {
                     Ok(vec![])
                 }
             },
+            async {
+                if use_local {
+                    self.local
+                        .as_ref()
+                        .unwrap()
+                        .list_offers(req.min_vram_mb)
+                        .await
+                } else {
+                    Ok(vec![])
+                }
+            },
         );
 
         let mut all: Vec<GpuOffer> = vec![];
+        if let Ok(v) = local_r {
+            all.extend(v);
+        }
         match vast_r {
             Ok(v) => all.extend(v),
             Err(e) => tracing::warn!("Vast.ai query failed (skipping): {e}"),
@@ -260,7 +290,7 @@ impl CloudResolver {
             epochs: spec.epochs,
         };
         let ranked = self.resolve(&req).await?;
-        let (_handle, join) = self.dispatch_top(&ranked, &spec).await?;
+        let (_handle, join, _provider) = self.dispatch_top(&ranked, &spec).await?;
 
         // Wait for the watchdog if requested or just return handle
         // For the CLI, we usually want to wait until completion or detach.
@@ -275,7 +305,11 @@ impl CloudResolver {
         &self,
         ranked: &[ResolvedOffer],
         spec: &CloudJobSpec,
-    ) -> anyhow::Result<(JobHandle, tokio::task::JoinHandle<()>)> {
+    ) -> anyhow::Result<(
+        JobHandle,
+        tokio::task::JoinHandle<()>,
+        Arc<dyn CloudProvider>,
+    )> {
         let top = ranked.first().ok_or_else(|| {
             anyhow::anyhow!("No offers to dispatch — resolve returned empty list")
         })?;
@@ -300,9 +334,11 @@ impl CloudResolver {
                 .as_ref()
                 .map(|c| Arc::clone(c) as Arc<dyn CloudProvider>)
                 .ok_or_else(|| anyhow::anyhow!("RunPod client not available"))?,
-            ProviderKind::Local => {
-                anyhow::bail!("Cannot cloud-dispatch a Local offer")
-            }
+            ProviderKind::Local => self
+                .local
+                .as_ref()
+                .map(|c| Arc::clone(c) as Arc<dyn CloudProvider>)
+                .ok_or_else(|| anyhow::anyhow!("Local provider not available"))?,
         };
 
         let mut handle = provider.dispatch(&top.offer, spec).await?;
@@ -329,7 +365,7 @@ impl CloudResolver {
         };
         let wh = watchdog.spawn();
 
-        Ok((handle, wh))
+        Ok((handle, wh, provider))
     }
 
     /// Print a ranked offer table to stdout (CLI display).
@@ -357,7 +393,10 @@ impl CloudResolver {
                 "{:<8} {:<20} {:<7} ${:<8.3} {:<10} ${:<9.2} {:<5} {}",
                 r.offer.provider.display_name(),
                 gpu_display,
-                format!("{} GB", r.offer.vram_mb / 1024),
+                format!(
+                    "{} GB",
+                    r.offer.vram_mb / crate::mens::hardware::types::MB_PER_GB
+                ),
                 r.offer.price_per_hour_usd,
                 time_str,
                 r.estimated_cost_usd,
@@ -393,6 +432,7 @@ pub fn build_train_spec(
         epochs: 3,
         batch_size: 4,
         serve_port: 8080,
+        persistent: false,
     }
 }
 
@@ -419,5 +459,6 @@ pub fn build_serve_spec(
         epochs: 0,
         batch_size: 1,
         serve_port,
+        persistent: false,
     }
 }

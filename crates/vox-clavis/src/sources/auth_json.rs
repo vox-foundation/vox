@@ -4,7 +4,6 @@ use keyring::Entry;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 
-use crate::bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_opt};
 use crate::errors::SecretError;
 use crate::types::SecretSource;
 
@@ -64,7 +63,8 @@ fn read_credentials_file(path: &Path) -> Result<CliCredentials, SecretError> {
     if !path.exists() {
         return Ok(CliCredentials::default());
     }
-    let content = read_utf8_path_capped(path)?;
+    let content =
+        vox_bounded_fs::read_utf8_path_capped(path).map_err(|e| SecretError::Io(e.to_string()))?;
     Ok(serde_json::from_str::<CliCredentials>(&content).unwrap_or_default())
 }
 
@@ -105,7 +105,7 @@ pub fn read_registry_token(registry: &str) -> Option<(SecretString, SecretSource
     if !path.exists() {
         if registry == "voxpm" {
             let legacy = vox_dir().join("auth_token");
-            let token = read_utf8_path_capped_opt(legacy.as_path())?;
+            let token = vox_bounded_fs::read_utf8_path_capped_opt(legacy.as_path())?;
             let token = token.trim().to_string();
             if token.is_empty() {
                 return None;
@@ -118,7 +118,7 @@ pub fn read_registry_token(registry: &str) -> Option<(SecretString, SecretSource
         return None;
     }
 
-    let content = read_utf8_path_capped_opt(path.as_path())?;
+    let content = vox_bounded_fs::read_utf8_path_capped_opt(path.as_path())?;
     let creds = serde_json::from_str::<CliCredentials>(&content).ok()?;
     let auth = creds.registries.get(registry)?;
     if auth.token == SECURE_SENTINEL {

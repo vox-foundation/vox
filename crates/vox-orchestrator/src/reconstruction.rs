@@ -62,6 +62,97 @@ impl AgentExecutionRole {
     }
 }
 
+/// Compact prompt-compiled contract for repository reconstruction campaigns.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct RepoReconstructionSpec {
+    /// Stable campaign id (same value used by task hints and lineage payloads).
+    pub campaign_id: String,
+    /// Human-provided objective (typically short prompt / tweet-sized request).
+    pub objective: String,
+    /// Optional constraints (runtime, security, language/version rails).
+    #[serde(default)]
+    pub constraints: Vec<String>,
+    /// Optional acceptance checks that define "done".
+    #[serde(default)]
+    pub acceptance_tests: Vec<String>,
+    /// Architecture assumptions captured during planning/research.
+    #[serde(default)]
+    pub architecture_assumptions: Vec<String>,
+    /// Planned shard boundaries for fan-out execution.
+    #[serde(default)]
+    pub shard_boundaries: Vec<ReconstructionShardBoundary>,
+}
+
+/// One shard boundary in a reconstruction campaign.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ReconstructionShardBoundary {
+    /// Stable shard id scoped to [`RepoReconstructionSpec::campaign_id`].
+    pub shard_id: String,
+    /// Human-readable shard summary.
+    pub summary: String,
+    /// Paths targeted by this shard (glob-like patterns or exact paths).
+    #[serde(default)]
+    pub path_hints: Vec<String>,
+    /// Optional role preference for routing (planner/builder/verifier/...).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<AgentExecutionRole>,
+}
+
+/// Artifact categories for retrieval-first reconstruction state.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum ReconstructionArtifactKind {
+    RepoSkeleton,
+    CrateBoundary,
+    SymbolGraph,
+    ApiContract,
+    DocsFact,
+    TestExpectation,
+    Hypothesis,
+    Contradiction,
+    PatchAttempt,
+    VerificationEvidence,
+    PlannerBrief,
+}
+
+impl ReconstructionArtifactKind {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::RepoSkeleton => "repo_skeleton",
+            Self::CrateBoundary => "crate_boundary",
+            Self::SymbolGraph => "symbol_graph",
+            Self::ApiContract => "api_contract",
+            Self::DocsFact => "docs_fact",
+            Self::TestExpectation => "test_expectation",
+            Self::Hypothesis => "hypothesis",
+            Self::Contradiction => "contradiction",
+            Self::PatchAttempt => "patch_attempt",
+            Self::VerificationEvidence => "verification_evidence",
+            Self::PlannerBrief => "planner_brief",
+        }
+    }
+}
+
+/// Durable artifact row payload used by campaign storage and retrieval.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ReconstructionArtifactRecord {
+    /// Campaign that owns this artifact.
+    pub campaign_id: String,
+    /// Stable artifact id (for references from tasks and verifier outputs).
+    pub artifact_id: String,
+    /// Artifact category.
+    pub kind: ReconstructionArtifactKind,
+    /// Opaque artifact payload (JSON object recommended).
+    pub payload: serde_json::Value,
+    /// Optional tags to accelerate retrieval by lane (e.g. `crate:vox-orchestrator`).
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Optional source summary (tool/action that produced this artifact).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+}
+
 /// Coarse verification layers used to explain trust decisions.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VerificationLayerStatus {
@@ -101,6 +192,9 @@ pub struct ReconstructionEvidence {
     pub contract_checks_ok: bool,
     pub docs_ssot_ok: bool,
     pub regression_checks_ok: bool,
+    /// Optional typed verifier failures emitted by the repair gate.
+    #[serde(default)]
+    pub failures: Vec<VerificationFailureKind>,
 }
 
 impl ReconstructionEvidence {
@@ -131,6 +225,33 @@ impl ReconstructionEvidence {
     pub fn passes_gate(&self) -> bool {
         self.compile_ok && self.targeted_tests_ok && self.score() >= 0.80
     }
+}
+
+/// Typed verifier failure classes used to generate repair tasks.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
+pub enum VerificationFailureKind {
+    Compile,
+    Tests,
+    Contract,
+    DocsSsot,
+    Regression,
+    Grounding,
+    Contradiction,
+    Unknown,
+}
+
+/// Campaign-level benchmark KPIs for the reconstruction ladder.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct ReconstructionBenchmarkKpis {
+    /// Wall clock latency from prompt ingest to latest checkpoint.
+    pub elapsed_ms: u64,
+    /// Fraction [0.0, 1.0] of autonomous recovery attempts that succeeded.
+    pub autonomous_recovery_rate: f32,
+    /// Fraction [0.0, 1.0] of regenerated files passing validation.
+    pub regenerated_file_success_rate: f32,
+    /// Cost in USD-like units per successful reconstruction step.
+    pub cost_per_success_step: f64,
 }
 
 /// Resumable campaign state for long-horizon reconstruction runs.
@@ -176,6 +297,7 @@ mod tests {
             contract_checks_ok: false,
             docs_ssot_ok: false,
             regression_checks_ok: false,
+            failures: Vec::new(),
         };
         assert!(e.score() >= 0.60);
         assert!(!e.passes_gate());
@@ -192,5 +314,13 @@ mod tests {
         };
         assert_eq!(v.passed_layers(), 3);
         assert!(v.score() > 0.5);
+    }
+
+    #[test]
+    fn artifact_kind_strings_are_stable() {
+        assert_eq!(
+            ReconstructionArtifactKind::VerificationEvidence.as_str(),
+            "verification_evidence"
+        );
     }
 }

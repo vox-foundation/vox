@@ -11,6 +11,10 @@ pub enum PopuliHttpOp {
     Join,
     /// `GET /v1/populi/nodes` (counts in journal only; no arbitrary URLs).
     Snapshot,
+    /// `POST /v1/populi/dispatch` for remote task execution.
+    Dispatch,
+    /// `GET /v1/populi/dispatch/result/{dispatch_id}` for remote task polling.
+    Wait,
 }
 
 /// One planned activity invocation extracted from workflow HIR.
@@ -24,8 +28,30 @@ pub struct PlannedActivity {
     pub activity_id: Option<String>,
     /// Wall-clock timeout for mens HTTP sub-steps from `with { timeout: … }` (milliseconds).
     pub timeout_ms: Option<u64>,
+    /// Additional attempts after the first one for interpreted mesh activity execution.
+    pub retries: u32,
+    /// Delay before the first retry after a failed interpreted mesh activity attempt.
+    pub initial_backoff_ms: Option<u64>,
     /// Populi control-plane operation when [`Self::mens`] is true.
     pub populi_op: PopuliHttpOp,
+    /// Optional labels for mesh routing (e.g. `gpu`, `region=us-east-1`).
+    pub required_labels: Option<Vec<String>>,
+    /// When true, dispatch as a detached task and poll for completion.
+    pub is_detached: bool,
+}
+
+/// Replay-oriented node for interpreted durable workflow execution.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReplayNode {
+    /// Execute one activity step and persist/replay by `activity_id`.
+    Activity(PlannedActivity),
+}
+
+/// Linear replay IR produced from workflow HIR for the interpreted runtime.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WorkflowReplayIr {
+    /// Ordered replay nodes for deterministic interpreted execution.
+    pub nodes: Vec<ReplayNode>,
 }
 
 /// Mens-tagged activity (name convention: `mesh_*`, plus [`PopuliHttpOp`]).
@@ -39,4 +65,8 @@ pub struct PopuliActivity {
     pub timeout_ms: Option<u64>,
     /// Stable id for journal / idempotency (`with { activity_id }` or generated).
     pub activity_id: String,
+    /// Mesh routing labels.
+    pub required_labels: Option<Vec<String>>,
+    /// Asynchronous execution.
+    pub is_detached: bool,
 }

@@ -13,6 +13,23 @@ pub enum LudusCli {
     Morning,
     Record,
     Status,
+    /// Authenticate Ludus with a remote provider (e.g. GitHub).
+    Auth {
+        /// The provider to authenticate with (currently only "github" is supported).
+        #[arg(value_name = "PROVIDER")]
+        provider: String,
+    },
+    /// Synchronize external contribution data from GitHub and award XP.
+    SyncGithub,
+    /// Run a Monte Carlo battle simulation sweep to validate combat balance.
+    MonteCarloSweep {
+        /// Number of battles to simulate (default: 1000).
+        #[arg(long, default_value_t = 1000)]
+        iterations: u32,
+        /// Directory to write JSONL/Markdown artifacts.
+        #[arg(long, default_value = ".vox/artifacts/simulation")]
+        output_dir: PathBuf,
+    },
     CompanionList,
     CompanionCreate {
         #[arg(long)]
@@ -142,6 +159,30 @@ pub enum LudusCli {
     /// Live terminal HUD over the in-process orchestrator (requires `ludus-hud`).
     #[cfg(feature = "ludus-hud")]
     Hud,
+    DisputeFile {
+        #[arg(long)]
+        target_user: String,
+        #[arg(long)]
+        event_id: Option<String>,
+        #[arg(long)]
+        rationale: String,
+    },
+    DisputeVote {
+        #[arg(long)]
+        dispute_id: String,
+        #[arg(long)]
+        verdict: String,
+        #[arg(long)]
+        rationale: Option<String>,
+    },
+    DisputeStatus {
+        #[arg(long)]
+        dispute_id: String,
+    },
+    DisputeAppeal {
+        #[arg(long)]
+        dispute_id: String,
+    },
 }
 
 /// Dispatch `vox ludus …`.
@@ -150,6 +191,12 @@ pub async fn run(cmd: LudusCli) -> Result<()> {
         LudusCli::Morning => ludus::morning_digest().await,
         LudusCli::Record => ludus::record_activity().await,
         LudusCli::Status => ludus::status().await,
+        LudusCli::Auth { provider } => ludus::auth_command(&provider).await,
+        LudusCli::SyncGithub => ludus::sync_command().await,
+        LudusCli::MonteCarloSweep {
+            iterations,
+            output_dir,
+        } => ludus::run_monte_carlo_sweep(iterations, output_dir).await,
         LudusCli::CompanionList => ludus::companion_list().await,
         LudusCli::CompanionCreate { name, code_file } => {
             ludus::companion_create(&name, &code_file).await
@@ -218,5 +265,17 @@ pub async fn run(cmd: LudusCli) -> Result<()> {
         LudusCli::ShieldUse => ludus::shield_use().await,
         #[cfg(feature = "ludus-hud")]
         LudusCli::Hud => ludus::ludus_hud_run().await,
+        LudusCli::DisputeFile {
+            target_user,
+            event_id,
+            rationale,
+        } => ludus::dispute_file(&target_user, event_id.as_deref(), &rationale).await,
+        LudusCli::DisputeVote {
+            dispute_id,
+            verdict,
+            rationale,
+        } => ludus::dispute_vote(&dispute_id, &verdict, rationale.as_deref()).await,
+        LudusCli::DisputeStatus { dispute_id } => ludus::dispute_status(&dispute_id).await,
+        LudusCli::DisputeAppeal { dispute_id } => ludus::dispute_appeal(&dispute_id).await,
     }
 }

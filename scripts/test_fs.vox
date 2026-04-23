@@ -1,0 +1,4 @@
+fn main() {
+    let x = std.fs.exists("foo");
+    print(str(x));
+}

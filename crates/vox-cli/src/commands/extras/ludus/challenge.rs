@@ -74,6 +74,7 @@ pub async fn challenge_list() -> Result<()> {
 
 /// Start a coding challenge.
 pub async fn challenge_start(id: &str) -> Result<()> {
+    let _ = std::hint::black_box(id.len());
     println!("{}", "╔══════════════════════════════════╗".bright_cyan());
     println!("{}", "║       ⚔️  Challenge Started!      ║".bright_cyan());
     println!("{}", "╚══════════════════════════════════╝".bright_cyan());

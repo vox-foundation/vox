@@ -112,6 +112,9 @@ mod tests {
             category: DiagnosticCategory::Typecheck,
             code: None,
             fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
         }];
         let fixes = fixer.suggest_fixes("let x = 1", &diags);
         assert_eq!(fixes.len(), 1);
@@ -133,9 +136,45 @@ mod tests {
             category: DiagnosticCategory::Typecheck,
             code: None,
             fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
         }];
         let fixes = fixer.suggest_fixes("ret x", &diags);
         assert_eq!(fixes.len(), 1);
         assert!(fixes[0].diff.contains("No automated fix available"));
+    }
+
+    #[test]
+    fn rule_based_autofixer_suggests_component_migration() {
+        let fixer = RuleBasedAutoFixer::default();
+        let source = "@component fn Header() to Element { view: <header /> }";
+        let diags = vec![Diagnostic {
+            severity: TypeckSeverity::Warning,
+            message: "Classic @component fn syntax is retired.".to_string(),
+            span: Span { start: 0, end: 54 },
+            expected_type: None,
+            found_type: None,
+            context: Some("@component fn Header() to Element { view: <header /> }".to_string()),
+            suggestions: vec!["component Header() { view: <header /> }".to_string()],
+            category: DiagnosticCategory::Lint,
+            code: Some("lint.legacy_component_fn".into()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        }];
+        let fixes = fixer.suggest_fixes(source, &diags);
+        assert_eq!(fixes.len(), 1);
+        assert!(
+            fixes[0]
+                .diff
+                .contains("-@component fn Header() to Element { view: <header /> }")
+        );
+        assert!(
+            fixes[0]
+                .diff
+                .contains("+component Header() { view: <header /> }")
+        );
     }
 }

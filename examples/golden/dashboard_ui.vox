@@ -4,12 +4,13 @@
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [@island, @component, routes, type, jsx]
+// constructs: [@island, component, routes, type, jsx]
 // last_validated: 2026-03-26
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Create a minimal dashboard page with an island chart and a route table.
+// @training_prompt: Create a minimal dashboard page with an island chart and a route table.
+// ANCHOR: display
 type DashboardStatus =
     | Loading
     | Ready(data: str)
@@ -18,9 +19,9 @@ type DashboardStatus =
     data: list[int]
 }
 
-@component fn DashboardView() to Element {
-    ret <div className="dashboard">
-        <h1>Dashboard</h1>
+component DashboardView() {
+    view: <div class="dashboard">
+        <h1>"Dashboard"</h1>
         <DataChart data=[1, 2, 3] />
     </div>
 }
@@ -28,3 +29,4 @@ type DashboardStatus =
 routes {
     "/" to DashboardView
 }
+// ANCHOR_END: display

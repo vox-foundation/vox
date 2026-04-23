@@ -7,7 +7,13 @@ pub enum ResolutionStatus {
     MissingRequired,
     InvalidEmpty,
     DeprecatedAliasUsed,
+    RejectedLegacyAlias,
+    RejectedSourcePolicy,
+    RejectedClassPolicy,
     BackendUnavailable,
+    ProfileOverrideUsed,
+    StaleRotation,
+    NearingExpiry,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

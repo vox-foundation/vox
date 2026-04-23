@@ -38,6 +38,7 @@ impl RoutingService {
         groups: &AffinityGroupRegistry,
         agents: &HashMap<AgentId, Arc<std::sync::RwLock<AgentQueue>>>,
         config: &OrchestratorConfig,
+        local_tokens: u64,
         agent_reliability: Option<&HashMap<AgentId, f64>>,
         task_capability_requirements: Option<&TaskCapabilityHints>,
         task_description: Option<&str>,
@@ -112,7 +113,19 @@ impl RoutingService {
             }
         }
 
-        // 3d. Repo shard workflow specialization and reliability penalties.
+        // 3d. Hardware breakeven: if local token budget exceeded, severely penalize non-local agents.
+        if local_tokens > config.local_breakeven_tokens {
+            for (agent_id, score) in scores.iter_mut() {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
+                    if q.capabilities.routing_tier.as_deref() != Some("local") {
+                        *score -= 50_000.0;
+                    }
+                }
+            }
+        }
+
+        // 3e. Repo shard workflow specialization and reliability penalties.
         Self::apply_repo_shard_phase_signals(&mut scores, agents, config, task_description);
 
         // 3e. Dimension-specific trust floor and utility blend.
@@ -128,13 +141,27 @@ impl RoutingService {
             }
         }
 
-        // 3f. Attention-aware routing: prefer agents with higher EWMA trust score.
+        // 3f. Attention-aware routing: UCB exploration (Task 61) replaces greedy trust selection.
+        //     New/uncertain agents get exploration bonus proportional to sqrt(variance).
         if config.attention_enabled {
+            if rand::random::<f64>() < config.routing_exploration_epsilon {
+                let eligible: Vec<_> = agents
+                    .keys()
+                    .filter(|k| scores.get(k).copied().unwrap_or(0.0) >= -1000.0)
+                    .copied()
+                    .collect();
+                if !eligible.is_empty() {
+                    use rand::Rng;
+                    let idx = rand::thread_rng().gen_range(0..eligible.len());
+                    return RouteResult::Existing(eligible[idx]);
+                }
+            }
+
             if let Some(trust_map) = attention_trust_scores {
-                let w = config.attention_trust_routing_weight;
+                let c = config.attention_trust_routing_weight;
                 for (agent_id, score) in scores.iter_mut() {
                     if let Some(ts) = trust_map.get(agent_id) {
-                        *score += ts.trust_score * w;
+                        *score += ts.ucb_score(c);
                     }
                 }
             }
@@ -252,6 +279,26 @@ impl RoutingService {
                 }
             }
         }
+        if req.visus_eligible {
+            for (agent_id, score) in scores.iter_mut() {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
+                    if !q.capabilities.visus_eligible {
+                        *score -= PENALTY;
+                    }
+                }
+            }
+        }
+        if req.multi_modal {
+            for (agent_id, score) in scores.iter_mut() {
+                if let Some(q_lock) = agents.get(agent_id) {
+                    let q = crate::sync_lock::rw_read(q_lock);
+                    if !q.capabilities.multi_modal {
+                        *score -= PENALTY;
+                    }
+                }
+            }
+        }
         if let Some(min_v) = req.min_vram_mb {
             for (agent_id, score) in scores.iter_mut() {
                 if let Some(q_lock) = agents.get(agent_id) {
@@ -301,12 +348,19 @@ impl RoutingService {
     }
 
     fn remote_hint_matches_task(r: &RemotePopuliRoutingHint, req: &TaskCapabilityHints) -> bool {
+        if !r.is_federation_schedulable() {
+            return false;
+        }
         if req.labels.is_empty() {
             return false;
         }
         Self::labels_cover(&r.labels, &req.labels)
             && (!req.gpu_cuda || r.gpu_cuda)
             && (!req.gpu_metal || r.gpu_metal)
+            && (!req.visus_eligible || r.capabilities.visus_eligible)
+            && (!req.multi_modal || r.capabilities.multi_modal)
+            && (!(req.gpu_cuda || req.gpu_metal || req.prefer_gpu_compute)
+                || r.is_federation_gpu_eligible())
             && match req.min_vram_mb {
                 None => true,
                 Some(need) => r.min_vram_mb.is_some_and(|have| have >= need),
@@ -327,6 +381,13 @@ impl RoutingService {
         let Some(remote) = remote_populi_hints.filter(|s| !s.is_empty()) else {
             return;
         };
+        let remote_schedulable = remote
+            .iter()
+            .filter(|r| r.is_federation_schedulable())
+            .count();
+        if remote_schedulable == 0 {
+            return;
+        }
         if !req.labels.is_empty() {
             let local_matches = agents.values().any(|q_lock| {
                 Self::labels_cover(
@@ -367,7 +428,10 @@ impl RoutingService {
             }
         }
         if req.prefer_gpu_compute || req.gpu_cuda || req.gpu_metal {
-            let remote_gpu = remote.iter().filter(|r| r.gpu_cuda || r.gpu_metal).count();
+            let remote_gpu = remote
+                .iter()
+                .filter(|r| r.is_federation_schedulable() && r.is_federation_gpu_eligible())
+                .count();
             if remote_gpu > 0 {
                 tracing::trace!(
                     target: "vox.orchestrator.routing",
@@ -457,7 +521,8 @@ impl RoutingService {
             let remote_train_gpu = remote
                 .iter()
                 .filter(|h| {
-                    h.training_labels.iter().any(|l| l.starts_with("workload="))
+                    h.is_federation_schedulable()
+                        && h.training_labels.iter().any(|l| l.starts_with("workload="))
                         && (h.gpu_cuda || h.gpu_metal)
                         && match req.min_vram_mb {
                             None => true,
@@ -575,6 +640,7 @@ mod tests {
 
         let mut config = OrchestratorConfig::for_testing();
         config.socrates_reputation_routing = true;
+        config.routing_exploration_epsilon = 0.0;
 
         let mut rel = HashMap::new();
         rel.insert(a1, 0.15);
@@ -586,6 +652,7 @@ mod tests {
             &groups,
             &agents,
             &config,
+            0,
             Some(&rel),
             None,
             None,
@@ -652,6 +719,7 @@ mod tests {
             &groups,
             &agents,
             &OrchestratorConfig::default(),
+            0,
             None,
             Some(&hints),
             None,
@@ -699,7 +767,20 @@ mod tests {
             gpu_cuda: false,
             gpu_metal: false,
             min_vram_mb: None,
+            gpu_total_count: None,
+            gpu_healthy_count: None,
+            gpu_allocatable_count: None,
+            gpu_inventory_source: None,
+            gpu_truth_layer: None,
             training_labels: vec![],
+            maintenance: false,
+            quarantined: false,
+            heartbeat_stale: false,
+            nvidia_driver_version: None,
+            cuda_driver_version: None,
+            gpu_readiness_ok: None,
+            gpu_readiness_reason: None,
+            gpu_readiness_checked_unix_ms: None,
         }];
         let route = RoutingService::route(
             &manifest,
@@ -707,6 +788,7 @@ mod tests {
             &groups,
             &agents,
             &config,
+            0,
             None,
             Some(&hints),
             None,
@@ -715,6 +797,104 @@ mod tests {
             None, // attention_trust_scores
         );
         assert_eq!(route, RouteResult::Existing(a1));
+    }
+
+    #[test]
+    fn remote_hint_matching_ignores_quarantined_maintenance_or_stale_nodes() {
+        let req = TaskCapabilityHints {
+            labels: vec!["pool=a".to_string()],
+            gpu_cuda: true,
+            min_vram_mb: Some(12_288),
+            ..Default::default()
+        };
+        let mut quarantined = RemotePopuliRoutingHint {
+            node_id: "remote-q".into(),
+            capabilities: TaskCapabilityHints {
+                labels: vec!["pool=a".into()],
+                gpu_cuda: true,
+                min_vram_mb: Some(24_576),
+                ..Default::default()
+            },
+            labels: vec!["pool=a".into()],
+            gpu_cuda: true,
+            gpu_metal: false,
+            min_vram_mb: Some(24_576),
+            gpu_total_count: None,
+            gpu_healthy_count: None,
+            gpu_allocatable_count: None,
+            gpu_inventory_source: None,
+            gpu_truth_layer: None,
+            training_labels: vec!["workload=mens-train".into()],
+            maintenance: false,
+            quarantined: true,
+            heartbeat_stale: false,
+            nvidia_driver_version: None,
+            cuda_driver_version: None,
+            gpu_readiness_ok: None,
+            gpu_readiness_reason: None,
+            gpu_readiness_checked_unix_ms: None,
+        };
+        assert!(!RoutingService::remote_hint_matches_task(
+            &quarantined,
+            &req
+        ));
+
+        quarantined.quarantined = false;
+        quarantined.maintenance = true;
+        assert!(!RoutingService::remote_hint_matches_task(
+            &quarantined,
+            &req
+        ));
+
+        quarantined.maintenance = false;
+        assert!(RoutingService::remote_hint_matches_task(&quarantined, &req));
+
+        quarantined.heartbeat_stale = true;
+        assert!(!RoutingService::remote_hint_matches_task(
+            &quarantined,
+            &req
+        ));
+    }
+
+    #[test]
+    fn remote_hint_matching_requires_allocatable_or_healthy_gpu_for_gpu_tasks() {
+        let req = TaskCapabilityHints {
+            labels: vec!["pool=a".to_string()],
+            gpu_cuda: true,
+            ..Default::default()
+        };
+        let mut hint = RemotePopuliRoutingHint {
+            node_id: "remote-gpu".into(),
+            capabilities: TaskCapabilityHints {
+                labels: vec!["pool=a".into()],
+                gpu_cuda: true,
+                ..Default::default()
+            },
+            labels: vec!["pool=a".into()],
+            gpu_cuda: true,
+            gpu_metal: false,
+            min_vram_mb: Some(8_192),
+            gpu_total_count: Some(2),
+            gpu_healthy_count: Some(0),
+            gpu_allocatable_count: Some(0),
+            gpu_inventory_source: Some("probed".into()),
+            gpu_truth_layer: Some("layer_b_allocatable".into()),
+            training_labels: vec![],
+            maintenance: false,
+            quarantined: false,
+            heartbeat_stale: false,
+            nvidia_driver_version: None,
+            cuda_driver_version: None,
+            gpu_readiness_ok: None,
+            gpu_readiness_reason: None,
+            gpu_readiness_checked_unix_ms: None,
+        };
+        assert!(!RoutingService::remote_hint_matches_task(&hint, &req));
+        hint.gpu_healthy_count = Some(2);
+        hint.gpu_allocatable_count = Some(1);
+        assert!(RoutingService::remote_hint_matches_task(&hint, &req));
+        hint.gpu_readiness_ok = Some(false);
+        assert!(!RoutingService::remote_hint_matches_task(&hint, &req));
     }
 
     #[test]
@@ -758,6 +938,7 @@ mod tests {
             &groups,
             &agents,
             &config,
+            0,
             None,
             Some(&req),
             None,
@@ -791,7 +972,10 @@ mod tests {
 
         let mut config = OrchestratorConfig::for_testing();
         config.attention_enabled = true;
-        config.attention_trust_routing_weight = 10.0;
+        // Keep weight moderate so UCB trust + exploration does not clamp both agents to the
+        // same ceiling (would make `max_by` tie-break on HashMap order).
+        config.attention_trust_routing_weight = 2.0;
+        config.routing_exploration_epsilon = 0.0;
 
         let mut trust = HashMap::new();
         trust.insert(
@@ -804,6 +988,8 @@ mod tests {
                 successful_outcomes: 2,
                 below_tier_streak: 0,
                 last_updated_ms: 0,
+                variance: 0.10,
+                is_override: false,
             },
         );
         trust.insert(
@@ -816,6 +1002,8 @@ mod tests {
                 successful_outcomes: 19,
                 below_tier_streak: 0,
                 last_updated_ms: 0,
+                variance: 0.05,
+                is_override: false,
             },
         );
 
@@ -825,6 +1013,7 @@ mod tests {
             &groups,
             &agents,
             &config,
+            0,
             None,
             None,
             None,
@@ -870,6 +1059,7 @@ mod tests {
             &groups,
             &agents,
             &config,
+            0,
             None,
             None,
             None,

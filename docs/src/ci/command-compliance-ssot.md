@@ -1,5 +1,20 @@
+---
+title: "Command compliance SSOT"
+description: "Legacy filename. Canonical pointer hub is docs/src/ci/documentation-pointers.md; command compliance behavior lives in reference/command-compliance.md."
+category: "ci"
+status: "legacy"
+last_updated: "2026-04-06"
+
+schema_type: "TechArticle"
+---
+
 # Command compliance SSOT
 
-Registry + docs parity expectations for **`vox ci command-compliance`** live in **[`reference/command-compliance.md`](../reference/command-compliance.md)**.
+Legacy path retained for stable links.
 
-CI-facing checklist copies should link there; this `docs/src/ci/` path exists so `check-docs-ssot` file lists stay consistent.
+Use:
+
+- **Authority pointers:** [`documentation-pointers.md`](documentation-pointers.md)
+- **Canonical behavior:** [`reference/command-compliance.md`](../reference/command-compliance.md)
+
+

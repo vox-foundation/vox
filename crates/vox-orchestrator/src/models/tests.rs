@@ -15,6 +15,7 @@ mod llm_usage_key_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
+            observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
             supported_parameters: vec![],
@@ -40,6 +41,7 @@ mod llm_usage_key_tests {
             cost_per_1k_input: 0.01,
             cost_per_1k_output: 0.01,
             is_free: false,
+            observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
             supported_parameters: vec![],
@@ -65,6 +67,7 @@ mod llm_usage_key_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
+            observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
             supported_parameters: vec![],
@@ -90,6 +93,7 @@ mod llm_usage_key_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
+            observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
             supported_parameters: vec![],
@@ -100,6 +104,39 @@ mod llm_usage_key_tests {
                 provider: "google".into(),
                 model: "gemini-2.0-flash-lite".into(),
             }
+        );
+    }
+}
+
+#[cfg(test)]
+mod key_guard_tests {
+    use crate::config::CostPreference;
+    use crate::models::ModelRegistry;
+    use crate::types::TaskCategory;
+
+    #[test]
+    fn premium_alias_resolves_to_available_model_when_anthropic_key_absent() {
+        // SAFETY: standard test env modification
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::remove_var("ANTHROPIC_API_KEY");
+            std::env::remove_var("VOX_ANTHROPIC_API_KEY");
+        }
+        let registry = ModelRegistry::new(); // uses default which has Mythos (Anthropic) for codegen
+
+        let best = registry.best_for(TaskCategory::CodeGen, 5, CostPreference::Performance);
+        assert!(
+            best.is_some(),
+            "Should find a fallback model even if key is missing"
+        );
+
+        // Default router logic falls back from Mythos to the cheapest rank-matched paid model that is present,
+        // or a default fallback if none. If we wired sonnet 4.6 correctly, without anthropic key,
+        // it shouldn't pick Mythos. Wait, Sonnet is OpenRouter.
+        let m = best.unwrap();
+        assert_ne!(
+            m.id, "claude-mythos-preview-20260407",
+            "Should not pick Mythos when Anthropic API key is missing"
         );
     }
 }
@@ -141,7 +178,8 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });
@@ -155,14 +193,19 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });
         let picked = r
-            .best_for_with_filter(TaskCategory::CodeGen, 2, CostPreference::Performance, |m| {
-                m.is_free && !matches!(m.provider_type, ProviderType::Ollama)
-            })
+            .best_for_with_filter(
+                TaskCategory::CodeGen,
+                2,
+                CostPreference::Performance,
+                |m| m.is_free && !matches!(m.provider_type, ProviderType::Ollama),
+                None,
+            )
             .expect("non-ollama free");
         assert_eq!(picked.id, "gemini-2.0-flash-lite");
     }
@@ -180,7 +223,8 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });
@@ -194,7 +238,8 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: true,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });
@@ -215,7 +260,8 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: false,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });
@@ -229,7 +275,8 @@ mod registry_filter_tests {
             cost_per_1k_input: 0.0,
             cost_per_1k_output: 0.0,
             is_free: false,
-            strengths: vec!["codegen".into()],
+            observed_cost_per_1k: None,
+            strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
             supported_parameters: vec![],
         });

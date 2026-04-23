@@ -6,4 +6,5 @@ description = "Scientia API surface helpers for CLI and MCP."
 
 [dependencies]
 vox-scientia-core = { path = "../vox-scientia-core" }
-vox-scientia-social = { path = "../vox-scientia-social" }
+vox-publisher = { path = "../vox-publisher", default-features = false }
+workspace-hack = { workspace = true }

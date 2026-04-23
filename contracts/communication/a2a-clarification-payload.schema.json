@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/communication/a2a-clarification-payload.schema.json",
+  "title": "A2AClarificationPayload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "clarification_intent",
+    "hypothesis_set_id"
+  ],
+  "properties": {
+    "clarification_intent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hypothesis_set_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "question_kind": {
+      "type": "string",
+      "enum": [
+        "multiple_choice",
+        "open_ended",
+        "entry"
+      ]
+    },
+    "expected_information_gain_bits": {
+      "type": "number",
+      "minimum": 0
+    },
+    "expected_user_cost": {
+      "type": "number",
+      "minimum": 0
+    },
+    "requested_evidence_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "requested_evidence_dimensions_json": {
+      "type": "string"
+    },
+    "urgency": {
+      "type": "string",
+      "enum": [
+        "low",
+        "normal",
+        "high",
+        "critical"
+      ]
+    },
+    "stop_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_turns"],
+      "properties": {
+        "max_turns": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "min_gain_bits": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "stop_policy_json": {
+      "type": "string"
+    }
+  }
+}

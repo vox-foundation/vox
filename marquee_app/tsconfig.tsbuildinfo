@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./dist/dashboard.tsx","./dist/itemdetail.tsx","./dist/api.ts","./dist/routes.manifest.ts","./dist/schema.ts","./dist/schemas.ts","./dist/vox-client.ts","./dist/vox-tanstack-query.tsx"],"errors":true,"version":"5.8.3"}

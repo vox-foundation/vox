@@ -17,6 +17,7 @@ pub mod candle_inference_serve;
 pub mod candle_model_qwen;
 pub mod populi_train;
 pub mod train_log;
+#[cfg(feature = "mens-train")]
 pub mod training_text;
 
 pub mod lora;
@@ -73,7 +74,12 @@ mod candle_qlora_train;
 #[cfg(feature = "mens-train")]
 mod candle_qlora_weights;
 #[cfg(feature = "mens-train")]
+pub mod domain_profiles;
+pub mod domain_router;
+#[cfg(feature = "mens-train")]
 pub mod execution_planner;
+#[cfg(feature = "mens-train")]
+pub mod external_serving_handoff;
 #[cfg(feature = "mens-train")]
 pub mod finetune_contract;
 #[cfg(feature = "mens-train")]

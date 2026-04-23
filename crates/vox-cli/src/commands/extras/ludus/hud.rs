@@ -7,11 +7,11 @@ use tokio::time::{Duration, sleep};
 use vox_ludus::companion::{Companion, Interaction, render_multi_agent_status};
 use vox_ludus::db::canonical_user_id;
 use vox_orchestrator::types::AgentMessage;
-use vox_orchestrator::{Orchestrator, OrchestratorConfig};
+use vox_orchestrator::{OrchestratorConfig, build_repo_scoped_orchestrator};
 
 pub async fn run() -> Result<()> {
     let config = OrchestratorConfig::default();
-    let orch = Orchestrator::new(config);
+    let orch = build_repo_scoped_orchestrator(config, None).orchestrator;
     let mut rx = orch.bulletin().subscribe();
     let uid = canonical_user_id();
 
@@ -57,6 +57,15 @@ pub async fn run() -> Result<()> {
                             tracing::debug!(
                                 agent_id = agent_id.0,
                                 "ludus hud: task failed (companion mood updated)"
+                            );
+                        }
+                    }
+                    AgentMessage::TaskDoubted { agent_id, .. } => {
+                        if let Some(c) = companions.get_mut(&agent_id.0) {
+                            c.interact(Interaction::TaskDoubted);
+                            tracing::debug!(
+                                agent_id = agent_id.0,
+                                "ludus hud: task doubted (companion mood updated)"
                             );
                         }
                     }

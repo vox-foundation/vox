@@ -1,0 +1,14 @@
+fn run_machine(initial: int) -> int {
+    let mut s = initial
+    while s < 10 {
+        match s {
+            0 -> { s = 1 }
+            1 -> { s += 2 }
+            other -> { s += 1 }
+        }
+        if s == 5 {
+            continue
+        }
+    }
+    return s
+}

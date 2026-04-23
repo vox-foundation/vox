@@ -67,17 +67,19 @@ import react.use_memo
 import react.use_ref
 import react.use_callback
 
-@component fn HooksDemo() to Element {
+component HooksDemo() {
     let (count, set_count) = use_state(0)
     let doubled = use_memo(fn(_x) count * 2)
     let input_ref = use_ref(0)
     let increment = use_callback(fn(_e) set_count(count + 1))
     use_effect(fn(_x) count)
-    <div class="hooks_demo">
-        <p>"Count: " {count}</p>
-        <p>"Doubled: " {doubled}</p>
-        <button on_click={increment}>"+"</button>
-    </div>
+    view: (
+        <div class="hooks_demo">
+            <p>"Count: " {count}</p>
+            <p>"Doubled: " {doubled}</p>
+            <button on_click={increment}>"+"</button>
+        </div>
+    )
 }
 
 routes {
@@ -114,9 +116,7 @@ fn pipeline_hooks_demo_codegen() {
 
 #[test]
 fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
-    use vox_compiler::codegen_ts::reactive::{
-        reactive_view_bridge_stats, reset_reactive_view_bridge_stats_for_tests,
-    };
+
     use vox_compiler::web_ir::emit_tsx::emit_component_view_tsx;
     use vox_compiler::web_ir::lower::lower_hir_to_web_ir;
     use vox_compiler::web_ir::validate::validate_web_ir;
@@ -135,14 +135,14 @@ fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
         "expected hooks demo class/root in preview:\n{preview}"
     );
 
-    // Mixed surface: classic `Shell` (hooks) + Path C `Dash` — `VOX_WEBIR_EMIT_REACTIVE_VIEWS` runs the bridge
+    // Mixed surface: Path C `Shell` (hooks) + Path C `Dash` — `VOX_WEBIR_EMIT_REACTIVE_VIEWS` runs the bridge
     // for `Dash` (Web IR preview when normalized JSX matches legacy, else parity fallback).
     let mix_tokens = lex(MIXED_SURFACE_SRC);
     let mix_mod = parse(mix_tokens).expect("parse MIXED_SURFACE");
     let mix_hir = vox_compiler::hir::lower_module(&mix_mod);
     // Do not nest `with_web_ir_validate_cleared` here: it also takes `ENV_MUTEX` and would deadlock.
     with_reactive_emit_views_enabled(|| {
-        reset_reactive_view_bridge_stats_for_tests();
+
         let out = generate(&mix_hir).expect("MIXED_SURFACE codegen");
         let dash = out
             .files
@@ -162,9 +162,9 @@ fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
             .expect("Shell.tsx");
         assert!(
             shell.contains("useState"),
-            "classic Shell retains hooks:\n{shell}"
+            "Shell retains hooks:\n{shell}"
         );
-        let stats = reactive_view_bridge_stats();
+        let stats = out.reactive_stats;
         assert!(
             stats.web_ir_view_emitted >= 1,
             "expected Web IR preview for reactive Dash (island prop order matches legacy); stats={stats:?}"
@@ -184,10 +184,12 @@ const ISLAND_DEMO_SRC: &str = r#"@island InteractiveChart {
     endpoint: str
 }
 
-@component fn IslandHost() to Element {
-    <div class="island_host">
-        <h1>"Islands Demo"</h1>
-    </div>
+component IslandHost() {
+    view: (
+        <div class="island_host">
+            <h1>"Islands Demo"</h1>
+        </div>
+    )
 }
 
 routes {

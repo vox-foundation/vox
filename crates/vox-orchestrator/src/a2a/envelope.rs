@@ -8,6 +8,8 @@ pub const REMOTE_TASK_ENVELOPE_TYPE: &str = "remote_task_envelope";
 pub const REMOTE_TASK_ACK_TYPE: &str = "remote_task_ack";
 /// Stable A2A wire type for remote task execution results.
 pub const REMOTE_TASK_RESULT_TYPE: &str = "remote_task_result";
+/// Stable A2A wire type for best-effort remote task cancellation hints.
+pub const REMOTE_TASK_CANCEL_TYPE: &str = "remote_task_cancel";
 
 /// Envelope sent across mesh A2A relay to request remote execution.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -31,6 +33,27 @@ pub struct RemoteTaskEnvelope {
     /// Originator wall clock when the envelope was emitted (unix ms).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub submitted_unix_ms: Option<u64>,
+    /// Populi execution lease id when lease-gated remote execution is active (ADR 017).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub exec_lease_id: Option<String>,
+    /// Optional reconstruction / campaign grouping id for workers and telemetry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub campaign_id: Option<String>,
+    /// Optional JSON array or object of durable artifact references (URIs, ids) for retrieval-first handoff.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artifact_refs_json: Option<String>,
+    /// Optional logical session id for downstream context lookup / anti-bleed routing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
+    /// Optional logical thread id for branch continuity within a session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<String>,
+    /// Optional serialized canonical context envelope carried directly on the wire.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_envelope_json: Option<String>,
+    /// Optional portable harness contract carried with the relay for stage/role/gate transparency.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness_spec_json: Option<String>,
 }
 
 /// Ack payload for a remote task envelope.
@@ -42,6 +65,18 @@ pub struct RemoteTaskAck {
     pub accepted: bool,
     /// Optional diagnostic detail.
     pub detail: Option<String>,
+}
+
+/// Cancel / revoke hint for a previously delivered remote task envelope.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RemoteTaskCancel {
+    /// Idempotency key from the original envelope.
+    pub idempotency_key: String,
+    /// Originating orchestrator task id.
+    pub task_id: u64,
+    /// Optional operator or system reason.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
 }
 
 /// Result payload for a remote task envelope.
@@ -74,6 +109,64 @@ pub struct DbA2AMessage {
     pub acknowledged: bool,
     pub created_at: String,
     pub repository_id: String,
+}
+
+/// Canonical delivery plane names shared by orchestrator docs and MCP A2A responses.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum A2ADeliveryPlane {
+    /// In-process mailbox delivery via the orchestrator message bus.
+    LocalEphemeral,
+    /// Durable local storage via the orchestrator DB inbox.
+    LocalDurable,
+    /// Remote Populi mesh relay over HTTP.
+    RemoteMesh,
+}
+
+impl A2ADeliveryPlane {
+    /// Stable string used in JSON responses and protocol docs.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::LocalEphemeral => "local_ephemeral",
+            Self::LocalDurable => "local_durable",
+            Self::RemoteMesh => "remote_mesh",
+        }
+    }
+
+    /// Legacy MCP route token preserved for compatibility.
+    #[must_use]
+    pub fn legacy_route_token(self) -> &'static str {
+        match self {
+            Self::LocalEphemeral => "local",
+            Self::LocalDurable => "db",
+            Self::RemoteMesh => "mesh",
+        }
+    }
+}
+
+/// Canonical inbox source names exposed by MCP A2A reads.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum A2AInboxPlane {
+    /// Read only the local in-process inbox.
+    Local,
+    /// Read only the Populi mesh inbox.
+    Mesh,
+    /// Merge local and mesh inbox sources.
+    Merged,
+}
+
+impl A2AInboxPlane {
+    /// Stable string used in JSON responses and protocol docs.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Local => "local",
+            Self::Mesh => "mesh",
+            Self::Merged => "merged",
+        }
+    }
 }
 
 /// Routing hint for mens messaging.

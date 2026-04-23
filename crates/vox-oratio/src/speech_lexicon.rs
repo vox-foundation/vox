@@ -50,6 +50,19 @@ impl SpeechLexicon {
         Ok(Self { map })
     }
 
+    /// Merge `other` into `self`; existing keys in `self` win (deterministic precedence for stacked lexicons).
+    pub fn merge_from(&mut self, other: Self) {
+        for (k, v) in other.map {
+            self.map.entry(k).or_insert(v);
+        }
+    }
+
+    /// True when no entries were loaded.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
+
     /// Unique aliases and canonicals for contextual biasing / reranking (longest strings are most discriminative).
     #[must_use]
     pub fn bias_phrases_sorted(&self, max_phrases: usize) -> Vec<String> {
@@ -112,5 +125,17 @@ mod tests {
             br#"{"schema_version":"1","entries":[{"canonical":"getUser","aliases":["getter"]}]}"#;
         let lex = SpeechLexicon::from_json_slice(raw).unwrap();
         assert_eq!(lex.apply("call getter now"), "call getUser now");
+    }
+
+    #[test]
+    fn merge_prefers_first_on_conflict() {
+        let mut a =
+            SpeechLexicon::from_json_slice(br#"{"entries":[{"canonical":"AAA","aliases":["x"]}]}"#)
+                .unwrap();
+        let b =
+            SpeechLexicon::from_json_slice(br#"{"entries":[{"canonical":"BBB","aliases":["x"]}]}"#)
+                .unwrap();
+        a.merge_from(b);
+        assert_eq!(a.apply("x"), "AAA");
     }
 }

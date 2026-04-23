@@ -1,0 +1,24 @@
+x-vox-version: 1
+version: v1
+dataset:
+  classes:
+    - Publish
+    - AskForEvidence
+    - Abstain/DoNotPublish
+  fixture_location: contracts/reports/scientia-worthiness-eval/
+metrics:
+  - precision
+  - recall
+  - f1
+  - hard_gate_false_positive_rate
+  - hard_gate_false_negative_rate
+calibration:
+  profiles:
+    - journal
+    - preprint
+    - repository
+    - social
+release_gates:
+  min_precision: 0.85
+  min_recall: 0.80
+  max_hard_gate_false_positive_rate: 0.05

@@ -35,7 +35,8 @@ pub(crate) fn generate_tool_pairs(
 pub(crate) fn example_args_for_tool(tool: &str, rng: &mut Rng) -> Value {
     match tool {
         "vox_submit_task" => {
-            let task = EXAMPLE_TASKS[rng.next() as usize % EXAMPLE_TASKS.len()];
+            let tasks = crate::synthetic_gen::example_tasks();
+            let task = tasks[rng.next() as usize % tasks.len().max(1)].clone();
             json!({ "description": task, "files": ["src/main.vox"] })
         }
         "vox_task_status" | "vox_complete_task" | "vox_fail_task" | "vox_cancel_task" => {

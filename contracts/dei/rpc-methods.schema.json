@@ -190,6 +190,21 @@
               },
               "mode": {
                 "type": "string"
+              },
+              "scope_files": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "maxLength": 4096
+                }
+              },
+              "max_tasks": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2000
+              },
+              "write_to_disk": {
+                "type": "boolean"
               }
             },
             "required": [
@@ -249,10 +264,14 @@
               },
               "mode": {
                 "type": "string"
+              },
+              "write_to_disk": {
+                "type": "boolean"
               }
             },
             "required": [
-              "session_id"
+              "session_id",
+              "delta_hint"
             ],
             "additionalProperties": true
           }

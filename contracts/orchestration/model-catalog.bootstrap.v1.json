@@ -1,0 +1,203 @@
+[
+  {
+    "x-vox-version": 1,
+    "id": "llama3:latest",
+    "canonical_slug": "local/llama3:latest",
+    "provider": "ollama",
+    "provider_type": "ollama",
+    "max_tokens": 128000,
+    "cost_per_1k": 0.0,
+    "cost_per_1k_input": 0.0,
+    "cost_per_1k_output": 0.0,
+    "is_free": true,
+    "strengths": ["codegen", "parsing"],
+    "capabilities": {
+      "tier": "local",
+      "supports_json": false,
+      "supports_vision": false,
+      "supports_native_tools": false,
+      "max_context": 0
+    },
+    "supported_parameters": []
+  },
+  {
+    "id": "qwen/qwen3-coder:free",
+    "canonical_slug": "qwen/qwen3-free",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 32000,
+    "cost_per_1k": 0.0,
+    "cost_per_1k_input": 0.0,
+    "cost_per_1k_output": 0.0,
+    "is_free": true,
+    "strengths": ["codegen", "parsing"],
+    "capabilities": {
+      "tier": "light",
+      "supports_json": false,
+      "supports_vision": false,
+      "supports_native_tools": false,
+      "max_context": 0
+    },
+    "supported_parameters": []
+  },
+  {
+    "id": "meta-llama/llama-4-scout:free",
+    "canonical_slug": "llama/llama-4-free",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 128000,
+    "cost_per_1k": 0.0,
+    "cost_per_1k_input": 0.0,
+    "cost_per_1k_output": 0.0,
+    "is_free": true,
+    "strengths": ["inter_agent", "logic"],
+    "capabilities": {
+      "tier": "light",
+      "supports_json": false,
+      "supports_vision": false,
+      "supports_native_tools": false,
+      "max_context": 0
+    },
+    "supported_parameters": []
+  },
+  {
+    "id": "google/gemini-2.0-flash-lite",
+    "canonical_slug": "google/gemini-flash-lite",
+    "provider": "google",
+    "provider_type": "google_direct",
+    "max_tokens": 1000000,
+    "cost_per_1k": 0.0,
+    "cost_per_1k_input": 0.0,
+    "cost_per_1k_output": 0.0,
+    "is_free": true,
+    "strengths": ["logic", "inter_agent"],
+    "capabilities": {
+      "tier": "light",
+      "supports_json": false,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 0
+    },
+    "supported_parameters": []
+  },
+  {
+    "id": "meta-llama/llama-4-maverick",
+    "canonical_slug": "llama/llama-4-maverick",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 128000,
+    "cost_per_1k": 0.06,
+    "cost_per_1k_input": 0.02,
+    "cost_per_1k_output": 0.1,
+    "is_free": false,
+    "strengths": ["inter_agent", "logic"],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": false,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 0
+    },
+    "supported_parameters": []
+  },
+  {
+    "id": "deepseek/deepseek-r1",
+    "canonical_slug": "deepseek/deepseek-r1",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 128000,
+    "cost_per_1k": 0.2,
+    "cost_per_1k_input": 0.014,
+    "cost_per_1k_output": 0.28,
+    "is_free": false,
+    "strengths": ["logic", "review"],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": false,
+      "supports_vision": false,
+      "supports_native_tools": true,
+      "max_context": 0
+    },
+    "supported_parameters": []
+  },
+  {
+    "id": "google/gemini-2.5-pro-preview",
+    "canonical_slug": "google/gemini-pro",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 2000000,
+    "cost_per_1k": 5.0,
+    "cost_per_1k_input": 1.25,
+    "cost_per_1k_output": 5.0,
+    "is_free": false,
+    "strengths": ["planning", "research"],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": false,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 0
+    },
+    "supported_parameters": []
+  },
+  {
+    "id": "anthropic/claude-sonnet-4.6",
+    "canonical_slug": "anthropic/sonnet",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 200000,
+    "cost_per_1k": 15.0,
+    "cost_per_1k_input": 3.0,
+    "cost_per_1k_output": 15.0,
+    "is_free": false,
+    "strengths": ["codegen", "review", "debugging", "security"],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": false,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 0
+    },
+    "supported_parameters": []
+  },
+  {
+    "id": "qwen/qwen-3.5-vl",
+    "canonical_slug": "qwen/qwen-3.5-vl",
+    "provider": "openrouter",
+    "provider_type": "open_router",
+    "max_tokens": 128000,
+    "cost_per_1k": 0.1,
+    "cost_per_1k_input": 0.05,
+    "cost_per_1k_output": 0.2,
+    "is_free": false,
+    "strengths": ["visus", "vision"],
+    "capabilities": {
+      "tier": "pro",
+      "supports_json": false,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 0
+    },
+    "supported_parameters": []
+  },
+  {
+    "id": "claude-mythos-preview-20260407",
+    "canonical_slug": "anthropic/mythos-preview",
+    "provider": "anthropic",
+    "provider_type": "anthropic",
+    "max_tokens": 200000,
+    "cost_per_1k": 125.0,
+    "cost_per_1k_input": 25.0,
+    "cost_per_1k_output": 125.0,
+    "is_free": false,
+    "strengths": ["codegen", "debugging", "logic", "review", "research", "security"],
+    "capabilities": {
+      "tier": "elite",
+      "supports_json": true,
+      "supports_vision": true,
+      "supports_native_tools": true,
+      "max_context": 0
+    },
+    "supported_parameters": ["tools", "response_format", "reasoning"]
+  }
+]

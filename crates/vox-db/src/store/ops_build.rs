@@ -5,6 +5,15 @@ use turso::params;
 use crate::store::types::StoreError;
 use serde::Serialize;
 
+/// Persisted dependency-shape summary for a build run.
+#[derive(Debug, Clone, Serialize)]
+pub struct BuildDependencyShape {
+    /// Build run id this snapshot is attached to.
+    pub run_id: i64,
+    /// Raw JSON payload (bounded summary from CLI collector).
+    pub dependency_json: serde_json::Value,
+}
+
 /// Summary returned by [`VoxDb::query_build_health`].
 #[derive(Debug, Clone, Serialize)]
 pub struct BuildHealthSummary {
@@ -64,6 +73,24 @@ pub struct WarningRow {
 }
 
 impl crate::VoxDb {
+    /// Return the most recent build run id for a repository.
+    pub async fn query_latest_build_run_id(
+        &self,
+        repository_id: &str,
+    ) -> Result<Option<i64>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id FROM build_run
+                 WHERE repository_id = ?1
+                 ORDER BY recorded_at DESC
+                 LIMIT 1",
+                (repository_id,),
+            )
+            .await?;
+        Ok(rows.next().await?.and_then(|r| r.get(0).ok()))
+    }
+
     /// Insert a new build run row; returns the new `id`.
     pub async fn insert_build_run(
         &self,
@@ -177,6 +204,31 @@ impl crate::VoxDb {
         Ok(())
     }
 
+    /// Upsert one dependency-shape payload for a build run.
+    pub async fn insert_build_dependency_shape(
+        &self,
+        run_id: i64,
+        dependency_json: &serde_json::Value,
+    ) -> Result<(), StoreError> {
+        let payload = serde_json::to_string(dependency_json).map_err(|e| {
+            StoreError::Serialization(format!("serialize dependency shape JSON: {e}"))
+        })?;
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO build_run_dependency_shape (run_id, dependency_json)
+                     VALUES (?1, ?2)
+                     ON CONFLICT(run_id) DO UPDATE SET dependency_json = excluded.dependency_json",
+                    params![run_id, payload.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
     /// Build health summary for the latest run in this repository.
     pub async fn query_build_health(
         &self,
@@ -270,28 +322,26 @@ impl crate::VoxDb {
         &self,
         repository_id: &str,
         run_id: i64,
+        threshold: f64,
     ) -> Result<Vec<RegressionRow>, StoreError> {
         let mut rows = self
             .conn
             .query(
-                "WITH baseline AS (
+                "WITH crate_baselines AS (
                 SELECT cs.name, AVG(cs.elapsed_ms) AS avg_ms
                 FROM build_crate_sample cs
                 JOIN build_run br ON cs.run_id = br.id
                 WHERE br.repository_id = ?1 AND br.id < ?2 AND cs.fresh = 0
                 GROUP BY cs.name
             )
-            SELECT * FROM (
-                SELECT cs.name, cs.elapsed_ms, b.avg_ms,
-                       CAST(cs.elapsed_ms AS REAL) / b.avg_ms AS ratio
-                FROM build_crate_sample cs
-                JOIN build_run br ON cs.run_id = br.id
-                JOIN baseline b ON cs.name = b.name
-                WHERE br.id = ?2
-            )
-            WHERE ratio >= 1.5
+            SELECT cs.name, cs.elapsed_ms, b.avg_ms,
+                   CAST(cs.elapsed_ms AS REAL) / b.avg_ms AS ratio
+            FROM build_crate_sample cs
+            JOIN build_run br ON cs.run_id = br.id
+            JOIN crate_baselines b ON cs.name = b.name
+            WHERE br.id = ?2 AND (CAST(cs.elapsed_ms AS REAL) / b.avg_ms) >= ?3
             ORDER BY ratio DESC",
-                (repository_id, run_id),
+                (repository_id, run_id, threshold),
             )
             .await?;
 
@@ -352,5 +402,34 @@ impl crate::VoxDb {
             });
         }
         Ok(results)
+    }
+
+    /// Return the latest dependency-shape payload for this repository, if available.
+    pub async fn query_latest_build_dependency_shape(
+        &self,
+        repository_id: &str,
+    ) -> Result<Option<BuildDependencyShape>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT br.id, COALESCE(brds.dependency_json, '{}')
+                 FROM build_run br
+                 LEFT JOIN build_run_dependency_shape brds ON brds.run_id = br.id
+                 WHERE br.repository_id = ?1
+                 ORDER BY br.recorded_at DESC
+                 LIMIT 1",
+                (repository_id,),
+            )
+            .await?;
+        let Some(row) = rows.next().await? else {
+            return Ok(None);
+        };
+        let run_id: i64 = row.get(0)?;
+        let raw: String = row.get(1).unwrap_or_else(|_| "{}".to_string());
+        let dependency_json: serde_json::Value = serde_json::from_str(&raw).unwrap_or_default();
+        Ok(Some(BuildDependencyShape {
+            run_id,
+            dependency_json,
+        }))
     }
 }

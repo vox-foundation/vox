@@ -1,87 +1,90 @@
 ---
-title: "Tutorial: UI Integration"
-description: "Official documentation for Tutorial: UI Integration for the Vox language. Detailed technical reference, architecture guides, and implemen"
-category: "tutorial"
-last_updated: 2026-03-24
+title: "Tutorial: Building UI with Islands"
+description: "Learn how to build modern, reactive user interfaces with Vox using islands."
+category: "tutorials"
+status: "current"
+last_updated: "2026-04-06"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
-# Tutorial: UI Integration
+# Tutorial: Building UI with Islands
 
-Learn how to build modern, reactive user interfaces with Vox. This tutorial covers the `@component` decorator, JSX-like syntax, and binding UI state to backend logic.
+Learn how to build modern, reactive user interfaces with Vox. This tutorial covers the `@island` decorator, JSX-like syntax, and binding UI state to backend logic.
 
-## 1. The `@component` Decorator
+> [!NOTE]
+> The `@island` decorator was updated in v0.3 to use standard brace syntax and return arrows (`->`). 
 
-Vox UI components are defined with the `@component` decorator. They look and feel like React components but are compiled for maximum performance.
+## 1. The `@island` Decorator
+
+Vox interactive UI components are defined with the `@island` decorator. They look and feel like React components but are compiled and hydrated for maximum performance.
 
 ```vox
-# Skip-Test
-@component fn Profile(name: str, bio: str) to Element:
+// vox:skip
+@island
+fn Profile(name: str, bio: str) -> Element {
     <div class="p-6 bg-white shadow rounded-lg">
-        <h2 class="text-xl font-bold">name</h2>
-        <p class="text-gray-600">bio</p>
+        <h2 class="text-xl font-bold">{name}</h2>
+        <p class="text-gray-600">{bio}</p>
     </div>
+}
 ```
 
-## 2. JSX in Vox
+## 2. Server vs. Client
 
-Vox supports a JSX-like syntax directly in `.vox` files. You can embed variables, use loops, and conditionally render elements.
+You can mix lightweight server-rendered HTML routes with rich client-side islands. 
 
 ```vox
-# Skip-Test
-@component fn UserList(users: list[str]) to Element:
+// vox:skip
+http get "/profile" -> Element {
+    // This renders purely on the server
+    <html>
+        <body>
+            <h1>"User Profile"</h1>
+            // The island mounts on the client
+            <Profile name="Alice" bio="Developer" />
+        </body>
+    </html>
+}
+```
+
+## 3. JSX in Vox
+
+Vox supports a JSX-like syntax directly in `.vox` files. You can embed variables using braces, map over collections, and conditionally render elements.
+
+```vox
+// vox:skip
+@island
+fn UserList(users: list[str]) -> Element {
     <ul class="divide-y">
-        for user in users:
-            <li class="py-2">user</li>
+        {users.map(fn(user) {
+            <li class="py-2">{user}</li>
+        })}
     </ul>
-```
-
-## 3. Styling with Scoped Blocks
-
-Components can include scoped style blocks. These styles are automatically hashed to prevent global namespace pollution.
-
-```vox
-# Skip-Test
-@component fn FancyButton(label: str) to Element:
-    <button class="my-btn">label</button>
-
-    style:
-        .my-btn {
-            background: linear-gradient(to right, #4f46e5, #06b6d4);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 9999px;
-            transition: transform 0.2s;
-        }
-        .my-btn:hover {
-            transform: scale(1.05);
-        }
+}
 ```
 
 ## 4. Binding to Backend Logic
 
-The true power of Vox lies in its technical unification. You can call `@server` functions or interact with actors directly from your UI event handlers.
+The true power of Vox lies in its technical unification. You can call `@mutation` or `@server fn` functions directly from your UI event handlers. Use standard React-like `onChange` or `onClick` attributes.
 
 ```vox
-# Skip-Test
-@server fn subscribe(email: str) to bool:
-    ret true
-
-@component fn NewsletterForm() to Element:
-    <form on_submit={e => subscribe(e.target.email.value)}>
-        <input type="email" name="email" />
-        <button type="submit">"Join"</button>
-    </form>
+{{#include ../../../examples/golden/getting_started.vox:ui}}
 ```
 
-## 5. Summary
+## 5. Routing
 
-Vox UI integration provides:
-- **Type Safety**: Backend types flow seamlessly into the frontend.
-- **Developer Ergonomics**: Write full-stack logic in a single language.
-- **High Performance**: Compiled UI with minimal runtime overhead.
+You map a route to your island or server handler through the global `routes { }` block.
+
+```vox
+// vox:skip
+routes {
+    "/" -> NewsletterForm
+}
+```
 
 ---
 
 **Next Steps**:
-- [Language Reference](../reference/ref-language.md) — Detailed JSX specification.
-- [First App](tut-first-app.md) — Apply these UI patterns to your todo list.
+- [Language Syntax](../reference/ref-syntax.md) — Detailed JSX specification.
+- [First App](tut-first-app.md) — Apply these UI patterns to a collaborative task list.

@@ -1,0 +1,46 @@
+name: Release Installers
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows-msi:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-wix
+        run: cargo install cargo-wix
+      - name: Build MSI
+        run: cargo wix --no-build --package vox-cli
+        # Note: In a real pipeline, `cargo build --release --locked -p vox-cli` 
+        # would be run first to populate target/release/vox.exe.
+
+  build-linux-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
+      - name: Build DEB
+        run: cargo deb -p vox-cli
+
+  publish-macos-brew:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Release
+        run: cargo build --release --locked -p vox-cli
+      - name: Archive and Hash
+        run: |
+          tar -czvf vox-darwin.tar.gz -C target/release vox
+          shasum -a 256 vox-darwin.tar.gz > checksum.txt
+      - name: Upload to Homebrew Tap
+        run: |
+          echo "Simulating Homebrew Tap update..."
+          # Logic to dispatch repository event to vox-foundation/homebrew-vox

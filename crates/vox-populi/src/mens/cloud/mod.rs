@@ -34,7 +34,7 @@ pub mod watchdog;
 
 pub use budget::BudgetLedger;
 pub use estimator::TimeEstimator;
-pub use resolver::CloudResolver;
+pub use resolver::{CloudResolver, ResolveRequest};
 
 use std::time::{Duration, SystemTime};
 
@@ -162,19 +162,21 @@ pub struct CloudProviderConfig {
 
 impl Default for CloudProviderConfig {
     fn default() -> Self {
-        let max_budget = std::env::var("VOX_CLOUD_MAX_BUDGET")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(10.0_f64);
-        let cache_ttl = std::env::var("VOX_CLOUD_PRICE_TTL")
-            .ok()
-            .and_then(|s| s.parse().ok())
+        let max_budget = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudMaxBudget)
+            .expose()
+            .and_then(|s| s.parse::<f64>().ok())
+            .unwrap_or(10.0);
+        let cache_ttl = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudPriceTtl)
+            .expose()
+            .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(30_u64);
-        let image =
-            std::env::var("VOX_CLOUD_IMAGE").unwrap_or_else(|_| DEFAULT_CLOUD_IMAGE.to_string());
-        let abs_max = std::env::var("VOX_CLOUD_MAX_RUNTIME")
-            .ok()
-            .and_then(|s| s.parse().ok())
+        let image = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudImage)
+            .expose()
+            .unwrap_or(DEFAULT_CLOUD_IMAGE)
+            .to_string();
+        let abs_max = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudMaxRuntime)
+            .expose()
+            .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(3600_u64);
         Self {
             max_budget_usd: max_budget,
@@ -275,7 +277,7 @@ impl GpuOffer {
 /// Previously named `TrainCommand`; renamed to reflect that it covers all job kinds.
 #[derive(Debug, Clone)]
 pub struct CloudJobSpec {
-    /// HuggingFace model repo. Example: `"Qwen/Qwen2.5-Coder-3B-Instruct"`.
+    /// HuggingFace model repo. Example: `"Qwen/Qwen3.5-4B"` (see `DEFAULT_MODEL_ID`).
     pub model_id: String,
     /// Training preset name (`"auto"` lets the cloud instance auto-detect via VRAM).
     pub preset: String,
@@ -306,6 +308,8 @@ pub struct CloudJobSpec {
     pub batch_size: usize,
     /// Port to expose for `Infer`/`Agent` jobs. Default 8080.
     pub serve_port: u16,
+    /// Keep the instance alive after task completion as a persistent mesh node.
+    pub persistent: bool,
 }
 
 impl CloudJobSpec {
@@ -327,6 +331,7 @@ impl CloudJobSpec {
             epochs: 3,
             batch_size: 4,
             serve_port: 8080,
+            persistent: false,
         }
     }
 
@@ -348,6 +353,7 @@ impl CloudJobSpec {
             epochs: 0,
             batch_size: 1,
             serve_port: 8080,
+            persistent: false,
         }
     }
 
@@ -365,6 +371,7 @@ impl CloudJobSpec {
 }
 include!("part_jobs.rs");
 include!("part_cli.rs");
+pub mod local_provider;
 
 #[cfg(test)]
 mod tests {
@@ -402,6 +409,7 @@ mod tests {
             started_at: SystemTime::now(),
             estimated_seconds: 3600.0,
             price_per_hour_usd: 1.0,
+            is_persistent: false,
         };
         assert!(h.accrued_cost_usd() < 0.01);
     }

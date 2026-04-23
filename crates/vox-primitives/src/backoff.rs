@@ -53,17 +53,8 @@ mod tests {
 
     #[test]
     fn geometric_matches_social_retry_powers() {
-        assert_eq!(
-            backoff_ms_geometric_attempt(1, 800, 60_000, 6),
-            800
-        );
-        assert_eq!(
-            backoff_ms_geometric_attempt(2, 800, 60_000, 6),
-            1_600
-        );
-        assert_eq!(
-            backoff_ms_geometric_attempt(7, 800, 60_000, 6),
-            51_200
-        );
+        assert_eq!(backoff_ms_geometric_attempt(1, 800, 60_000, 6), 800);
+        assert_eq!(backoff_ms_geometric_attempt(2, 800, 60_000, 6), 1_600);
+        assert_eq!(backoff_ms_geometric_attempt(7, 800, 60_000, 6), 51_200);
     }
 }

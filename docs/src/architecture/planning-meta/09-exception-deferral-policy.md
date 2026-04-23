@@ -2,8 +2,10 @@
 title: "Exception and deferral policy"
 description: "Policy for planning exceptions and deferrals, including allowed classes, mandatory metadata, expiry, review cadence, and retirement workflow."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Exception and deferral policy
@@ -125,4 +127,6 @@ This policy is active when:
 - all planning exceptions/deferrals use allowed classes and metadata,
 - expired records are surfaced and handled as blockers,
 - retirement workflow is consistently applied.
+
+
 

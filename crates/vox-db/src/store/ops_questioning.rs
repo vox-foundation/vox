@@ -329,6 +329,32 @@ impl crate::VoxDb {
         Ok(rows.next().await?.is_some())
     }
 
+    /// Count unanswered assistant clarification prompts for this MCP session + repository.
+    pub async fn count_pending_clarifications_for_mcp_session(
+        &self,
+        session_id: &str,
+        repository_id: &str,
+    ) -> Result<u32, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT COUNT(*) FROM question_events qe
+                 INNER JOIN question_sessions qs ON qs.id = qe.question_session_id
+                 WHERE qs.session_id = ?1 AND qs.repository_id = ?2
+                   AND qs.ended_at_ms IS NULL
+                   AND qe.actor = 'assistant'
+                   AND qe.answer_text IS NULL",
+                params![session_id, repository_id],
+            )
+            .await?;
+        let row = rows
+            .next()
+            .await?
+            .ok_or_else(|| StoreError::Db("expected count row".to_string()))?;
+        let c: i64 = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+        Ok(c.max(0) as u32)
+    }
+
     async fn resolve_question_event_id_for_answer(
         &self,
         question_session_id: i64,

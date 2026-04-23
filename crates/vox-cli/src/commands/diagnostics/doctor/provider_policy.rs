@@ -1,6 +1,6 @@
 //! Static provider support metadata for `vox doctor` (codex build).
 //!
-//! Mirrors DeI-style policy lookups without depending on the excluded `vox-dei` workspace crate.
+//! Mirrors DeI-style policy lookups without depending on the `vox-dei` crate.
 
 /// How trustworthy quota numbers are for a provider.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

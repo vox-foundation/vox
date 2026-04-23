@@ -32,6 +32,12 @@ Agent and terminal shells may not have `PATH` set like a normal user login. To a
 - **`CARGO_TARGET_DIR` in your shell:** If you (or a script) set this to a side folder (e.g. `target-ci-check`), every `cargo build` / `cargo run` uses that directory instead of the repo’s default `target` from `.cargo/config.toml`. That is fine for isolation, but remember to **clear it** when you want the normal layout again — PowerShell: `$env:CARGO_TARGET_DIR = $null` in the **current** terminal (environment variables do not “stick” in Git; only your session/user env might).
 - **Turso / `aegis` on Windows (MSVC)**: The workspace `[patch.crates-io]` in the root `Cargo.toml` points `aegis` at `patches/aegis-0.9.8` with **`pure-rust`** in default features so the native C build is skipped. If you disable that patch or hit a `cc-rs` / `clang-cl.exe` error when building deps, install [LLVM for Windows](https://releases.llvm.org/) and prepend **`C:\Program Files\LLVM\bin`** to `PATH` (or set `CC` / `CXX` appropriately) so `clang-cl.exe` is found.
 
+## Dev launcher (when `vox` is not on PATH)
+
+- If `vox` is not globally installed, forward commands via local bootstrap shell scripts:
+  - Windows: `pwsh -File scripts/windows/vox-dev.ps1 <command>`
+  - Bash: `./scripts/vox-dev.sh <command>`
+
 ## Running tests
 
 - Use `cargo test --workspace` for full test runs. For quick iteration, run tests per crate, e.g. `cargo test -p vox-cli` or a specific test name.

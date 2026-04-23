@@ -46,7 +46,7 @@ impl std::fmt::Display for SessionState {
     }
 }
 
-/// A JSONL event appended to the session file.
+/// An event appended to the session db row.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
 pub enum SessionEvent {

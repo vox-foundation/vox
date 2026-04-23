@@ -2,11 +2,14 @@ use crate::types::AgentId;
 
 use super::budget::{ActionDescriptor, ApprovalTier, TierGateConfig, TrustTier};
 
-/// Per-agent trust score with EWMA smoothing and hysteresis demotion.
+/// Per-agent trust score with Kalman-filter update and hysteresis demotion.
+///
+/// The Kalman filter converges faster than EWMA for agents with consistent histories
+/// (Task 62) while the `variance` field enables UCB exploration (Task 61).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AgentTrustScore {
     pub agent_id: AgentId,
-    /// EWMA trust score ∈ [0.0, 1.0].
+    /// Kalman-filtered trust estimate ∈ [0.0, 1.0].
     pub trust_score: f64,
     pub tier: TrustTier,
     pub total_outcomes: u32,
@@ -14,34 +17,63 @@ pub struct AgentTrustScore {
     /// Consecutive events below current tier's lower bound (hysteresis counter).
     pub below_tier_streak: u32,
     pub last_updated_ms: u64,
+    /// Kalman estimate variance ∈ [0.0, 1.0] — high = uncertain = more exploration (Task 60).
+    pub variance: f64,
+    /// Manual override flag (Task 64)
+    pub is_override: bool,
 }
 
 impl AgentTrustScore {
-    /// Create a new agent with Bayesian prior trust = 0.3.
+    /// Create a new agent with Empirical Bayes prior: trust = 0.5, variance = 0.25 (Task 63).
+    ///
+    /// The high initial variance (0.25) drives UCB exploration for new agents so they receive
+    /// tasks before their performance is fully characterized.
     pub fn new(agent_id: AgentId) -> Self {
         Self {
             agent_id,
-            trust_score: 0.3,
+            trust_score: 0.5,
             tier: TrustTier::Untrusted,
             total_outcomes: 0,
             successful_outcomes: 0,
             below_tier_streak: 0,
             last_updated_ms: crate::types::now_unix_ms(),
+            variance: 0.25,
+            is_override: false,
         }
     }
 
-    /// Update trust with EWMA. `success` = true if approved and no rollback.
+    /// Update trust with a discrete Kalman filter step (Task 62).
+    ///
+    /// The Kalman gain `K = P / (P + R)` (measurement noise R = 0.1) adapts the update
+    /// magnitude to the current variance, converging faster than a fixed-α EWMA when
+    /// the agent is consistent.
+    ///
     /// `provisional_min` and `trusted_min` come from `OrchestratorConfig`.
     pub fn record_outcome(
         &mut self,
         success: bool,
-        alpha: f64,
+        _alpha: f64,
         provisional_min: u32,
         trusted_min: u32,
     ) -> f64 {
-        let outcome = if success { 1.0 } else { 0.0 };
-        self.trust_score = alpha * outcome + (1.0 - alpha) * self.trust_score;
-        self.trust_score = self.trust_score.clamp(0.0, 1.0);
+        const MEASUREMENT_NOISE: f64 = 0.10;
+        const PROCESS_NOISE: f64 = 0.005;
+
+        if self.is_override {
+            return self.trust_score;
+        }
+
+        let observation = if success { 1.0_f64 } else { 0.0_f64 };
+
+        // Prediction step: variance grows by process noise
+        let p_pred = (self.variance + PROCESS_NOISE).min(1.0);
+
+        // Update step: Kalman gain
+        let k = p_pred / (p_pred + MEASUREMENT_NOISE);
+        self.trust_score =
+            (self.trust_score + k * (observation - self.trust_score)).clamp(0.0, 1.0);
+        self.variance = (1.0 - k) * p_pred;
+
         self.total_outcomes += 1;
         if success {
             self.successful_outcomes += 1;
@@ -49,6 +81,16 @@ impl AgentTrustScore {
         self.last_updated_ms = crate::types::now_unix_ms();
         self.update_tier(provisional_min, trusted_min);
         self.trust_score
+    }
+
+    /// UCB (Upper Confidence Bound) score for exploration-driven routing (Task 61).
+    ///
+    /// Combines the Kalman trust estimate with an exploration bonus proportional to `variance`.
+    /// Agents with high uncertainty receive a bonus that encourages the router to sample them,
+    /// spreading load more evenly than pure greedy selection.
+    pub fn ucb_score(&self, exploration_weight: f64) -> f64 {
+        // UCB1-style: μ + c * σ  where σ = sqrt(variance)
+        (self.trust_score + exploration_weight * self.variance.sqrt()).clamp(0.0, 2.0)
     }
 
     fn update_tier(&mut self, provisional_min: u32, trusted_min: u32) {

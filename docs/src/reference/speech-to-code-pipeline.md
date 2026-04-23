@@ -2,13 +2,17 @@
 title: "Speech-to-code pipeline (Oratio → MCP → compiler → MENS)"
 description: "Architecture and contracts for spoken input to validated Vox code."
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Speech-to-code pipeline
 
-End-to-end flow: **audio or transcript** → **Oratio** (`vox-oratio`, optional peak normalize + contextual phrase rerank) → optional **routing intents** (token-aware classifier) → **MCP** tools (`generate_vox_code`, `validate_file`) → **full frontend validation** (including **HIR**) via `vox_lsp::validate_document_with_hir` → **MENS** training data (`asr_refine`, `speech_to_code` mix formats).
+End-to-end flow: **audio or transcript** → **Oratio** (`vox-oratio`, optional peak normalize + contextual phrase rerank) → optional **routing intents** (token-aware classifier) → **MCP** tools (**`vox_speech_to_code`** orchestrates transcribe + `vox_generate_code`; or use `vox_oratio_*` + `vox_generate_code` separately; `validate_file` for explicit checks) → **full frontend validation** (including **HIR**) via `vox_lsp::validate_document_with_hir` → **MENS** training data (`asr_refine`, `speech_to_code` mix formats).
+
+**Ingress:** HTTP **`vox-audio-ingress`** (`/api/audio/transcribe` JSON path body, `/api/audio/transcribe/upload` multipart) plus edge capture doc: [`speech-capture-architecture.md`](speech-capture-architecture.md).
 
 ### Failure-oriented notes
 
@@ -18,7 +22,7 @@ End-to-end flow: **audio or transcript** → **Oratio** (`vox-oratio`, optional 
 
 ## KPIs and contracts
 
-- JSON schemas: [`contracts/speech-to-code/`](../../contracts/speech-to-code/README.md)
+- JSON schemas: [`contracts/speech-to-code/`](../../../contracts/speech-to-code/README.md)
 - Failure taxonomy: `SpeechFailureCategory` in `vox-oratio::failure_taxonomy`
 - Correlation IDs: `vox-oratio::trace::new_correlation_id()` (propagate in MCP responses)
 
@@ -33,7 +37,7 @@ MCP `validate_file` and `generate_vox_code` validation retries use **`validate_d
 
 ## Corpus mix
 
-- `record_format: speech_to_code` — see [`crates/vox-corpus/src/corpus/mix.rs`](../../crates/vox-corpus/src/corpus/mix.rs) and `mens/schemas/speech_to_code_trace.schema.json`.
+- `record_format: speech_to_code` — see [`crates/vox-corpus/src/corpus/mix.rs`](../../../crates/vox-corpus/src/corpus/mix/mod.rs) and `mens/schemas/speech_to_code_trace.schema.json`.
 
 ## Deterministic speech helpers
 
@@ -42,7 +46,9 @@ MCP `validate_file` and `generate_vox_code` validation retries use **`validate_d
 
 ## Related
 
+- [Speech capture architecture (edge vs backend)](speech-capture-architecture.md)
 - [Oratio & speech SSOT](oratio-speech.md)
 - [Operations / security / rollout](speech-to-code-operations.md)
 - [MENS training](mens-training.md)
 - [MENS speech curriculum](mens-speech-curriculum.md)
+

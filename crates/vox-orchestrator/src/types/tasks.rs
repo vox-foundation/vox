@@ -7,6 +7,37 @@ use std::time::Instant;
 
 use super::ids::{TaskId, is_zero_f64, now_unix_ms};
 
+fn default_victory_condition() -> crate::VictoryCondition {
+    crate::VictoryCondition::CompilationOnly
+}
+
+/// Maximum number of times a task can be handed off before it is considered an infinite loop.
+pub const MAX_A2A_BOUNCE: u8 = 5;
+
+/// Financial and temporal budget constraints for a task.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Budget {
+    /// Maximum allowed cost for the task in USD.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_cost_usd: Option<f64>,
+    /// Maximum allowed wall-clock latency for the task in milliseconds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_latency_ms: Option<u64>,
+}
+
+/// One turn in a task's conversational history (for agent-to-agent context).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskTurn {
+    /// Agent that performed this turn.
+    pub agent_id: super::ids::AgentId,
+    /// Human-readable agent name.
+    pub agent_name: String,
+    /// Final condensed summary/report from the agent.
+    pub message: String,
+    /// Unix timestamp (ms) when turn was recorded.
+    pub timestamp_ms: u64,
+}
+
 /// Priority level for a task. Higher priority tasks are dequeued first.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -43,8 +74,48 @@ pub enum TaskStatus {
     Failed(String),
     /// Blocked waiting for another task to complete.
     Blocked(TaskId),
+    /// Blocked waiting for human approval.
+    BlockedOnApproval,
     /// Explicitly cancelled by user or system.
     Cancelled,
+    /// Flagged by a human as "Suspect", awaiting high-audit resolution.
+    Doubted(Option<String>),
+}
+
+/// Execution phase of the agentic loop (OOPAV).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TaskPhase {
+    /// Initial environment and task inspection.
+    Inspect,
+    /// Localizing the problem to specific files or code blocks.
+    Localize,
+    /// Forming a hypothesis for the fix or implementation.
+    Hypothesize,
+    /// Performing the actual code modification or tool execution.
+    Act,
+    /// Verifying the results (e.g. running tests).
+    Verify,
+    /// Final decision and summary generation.
+    Decide,
+}
+
+impl TaskPhase {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Inspect => "inspect",
+            Self::Localize => "localize",
+            Self::Hypothesize => "hypothesize",
+            Self::Act => "act",
+            Self::Verify => "verify",
+            Self::Decide => "decide",
+        }
+    }
+}
+
+impl fmt::Display for TaskPhase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 impl fmt::Display for TaskStatus {
@@ -55,7 +126,15 @@ impl fmt::Display for TaskStatus {
             Self::Completed => write!(f, "completed"),
             Self::Failed(reason) => write!(f, "failed: {}", reason),
             Self::Blocked(dep) => write!(f, "blocked on {}", dep),
+            Self::BlockedOnApproval => write!(f, "blocked on approval"),
             Self::Cancelled => write!(f, "cancelled"),
+            Self::Doubted(reason) => {
+                if let Some(r) = reason {
+                    write!(f, "doubted: {}", r)
+                } else {
+                    write!(f, "doubted")
+                }
+            }
         }
     }
 }
@@ -96,28 +175,23 @@ impl FileAffinity {
     }
 }
 
-/// General category of a task to guide model selection.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
-pub enum TaskCategory {
-    /// Parser / syntax work.
-    Parsing,
-    /// Static analysis and type system work.
-    TypeChecking,
-    /// Debugger-driven investigation.
-    Debugging,
-    /// Open-ended information gathering.
-    Research,
-    /// Test authoring and execution.
-    Testing,
-    /// Default — codegen and implementation tasks.
-    #[default]
-    CodeGen,
-    /// Code review and critique.
-    Review,
+pub use crate::models::generated::TaskCategory;
+
+/// Populi mesh holds execution authority for this task; local actors must not dequeue it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct PopuliRemoteDelegate {
+    /// Same key as [`crate::a2a::RemoteTaskEnvelope::idempotency_key`] for cancel/result correlation.
+    pub idempotency_key: String,
+    /// Populi execution lease id when lease APIs are active for this task class.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lease_id: Option<String>,
+    /// Claimer node identity used for lease renew/release calls.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claimer_node_id: Option<String>,
 }
 
 /// Optional hints applied at enqueue time and merged into [`AgentTask`] for routing / telemetry.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct TaskEnqueueHints {
     /// When set, overrides default task category.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -125,6 +199,12 @@ pub struct TaskEnqueueHints {
     /// Estimated complexity 1–10; clamped when merged onto the task.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub complexity: Option<u8>,
+    /// Optional trace identifier for cross-system correlation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    /// Optional budget constraints for the task.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub budget: Option<Budget>,
     /// Non-binding preference string (e.g. tier hint); stored on [`AgentTask::model_preference`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_preference: Option<String>,
@@ -140,10 +220,37 @@ pub struct TaskEnqueueHints {
     /// Optional explicit specialization role for multi-agent protocol runs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_role: Option<crate::reconstruction::AgentExecutionRole>,
+    /// Optional logical thread id preserving branch continuity inside a session.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<String>,
+    /// Optional portable harness contract supplied by the caller.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness_spec_json: Option<String>,
+    /// Optional tool declaration hints (e.g. [[tool:vox_run_tests]]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_hints: Vec<String>,
+    /// Optional research intent hints (e.g. [[research:vector]]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub research_hints: Vec<String>,
+    /// Optional labels for mesh capability routing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub required_labels: Option<Vec<String>>,
+    /// True if the mesh task should detach for asynchronous execution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub is_detached: Option<bool>,
+    /// Whether this task requires human approval before execution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub requires_approval: Option<bool>,
+    /// Pre-computed Socrates tracking from the planner phase.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub socrates_context: Option<crate::socrates::SocratesTaskContext>,
+    /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 }
 
 /// Completion-time attestation metadata supplied by clients (e.g. MCP) for policy checks.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct CompletionAttestation {
     /// Human-readable completion summary used for no-write policy validation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -151,6 +258,10 @@ pub struct CompletionAttestation {
     /// Optional list of checks the caller claims were run.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub checks_passed: Vec<String>,
+    /// Evidence references that must appear in the session [`crate::ContextEnvelope`] (substring match).
+    /// Also see `[[voxcite:...]]` markers in [`Self::completion_summary`].
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub evidence_citations: Vec<String>,
     /// Optional artifacts produced by the task (workspace-relative paths preferred).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub artifact_paths: Vec<PathBuf>,
@@ -163,6 +274,11 @@ pub struct CompletionAttestation {
     /// Required when `force_risky` is true.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub force_risky_reason: Option<String>,
+    /// Observer summary produced at task exit (Task 65).
+    ///
+    /// Populated by the MCP completion handler when an `Observer` was active for this task.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observation_summary: Option<crate::observer::ObservationSummary>,
 }
 
 /// Description of a task before it is assigned an ID and routed in the orchestrator.
@@ -184,6 +300,15 @@ pub struct TaskDescriptor {
     /// Optional session link (for chat/workflow grouping in Mens).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    /// Optional logical thread id preserving branch continuity for handoff or remote execution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<String>,
+    /// Whether this task requires human approval before execution.
+    #[serde(default)]
+    pub requires_approval: bool,
+    /// Explicit testing requirement for this task.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test_decision: Option<crate::planning::TestDecision>,
 }
 
 /// A unit of work to be executed by an agent.
@@ -199,6 +324,9 @@ pub struct AgentTask {
     pub status: TaskStatus,
     /// Files this task needs to read or write.
     pub file_manifest: Vec<FileAffinity>,
+    /// The victory condition tier required to pass verification.
+    #[serde(default = "default_victory_condition")]
+    pub victory_condition: crate::VictoryCondition,
     /// Tasks that must complete before this one can start.
     pub depends_on: Vec<TaskId>,
     /// Estimated complexity (1-10 scale).
@@ -209,8 +337,29 @@ pub struct AgentTask {
     pub model_override: Option<String>,
     /// Task category to help select the best model.
     pub task_category: TaskCategory,
+    /// Explicit testing requirement decision if known.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test_decision: Option<crate::planning::TestDecision>,
+    /// Optional trace identifier for cross-system correlation (FIX-14).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    /// Optional budget constraints for the task (FIX-18).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub budget: Option<Budget>,
     /// Number of times this task has been re-routed due to validation failures.
     pub debug_iterations: u8,
+    /// Number of times this task has failed Toestub gates.
+    #[serde(default)]
+    pub toestub_iterations: u8,
+    /// Number of times this task has failed Socrates evidence checks.
+    #[serde(default)]
+    pub socrates_iterations: u8,
+    /// Optional tool declaration hints extracted from description (e.g. `[[tool:vox_run_tests]]`).
+    #[serde(default)]
+    pub tool_hints: Vec<String>,
+    /// Optional research intent hints extracted from description (e.g. `[[research:vector]]`).
+    #[serde(default)]
+    pub research_hints: Vec<String>,
     /// Number of retry attempts (for timeout/failure recovery).
     pub retry_count: u32,
     /// When the task was created (not serialized — reconstructed on load).
@@ -233,6 +382,9 @@ pub struct AgentTask {
     /// Optional session link (for chat/workflow grouping in Mens).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
+    /// Optional logical thread id preserving branch continuity for handoff or remote execution.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<String>,
     /// Effective attention weight computed at gate time (Phase 15). 0.0 = not yet computed.
     #[serde(default, skip_serializing_if = "is_zero_f64")]
     pub attention_weight: f64,
@@ -251,6 +403,9 @@ pub struct AgentTask {
     /// Serialized execution policy generated by planner.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_policy_json: Option<String>,
+    /// Optional human resolution report (VALIDATED/OVERRULED summary).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub audit_report: Option<String>,
     /// Optional campaign id for grouped reconstruction attempts.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub campaign_id: Option<String>,
@@ -260,6 +415,30 @@ pub struct AgentTask {
     /// Optional explicit execution role (planner/builder/verifier/reproducer/researcher).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_role: Option<crate::reconstruction::AgentExecutionRole>,
+    /// Optional portable harness contract attached to the task for relay, audit, and replay.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub harness_spec_json: Option<String>,
+    /// When set, this task was handed to Populi A2A remote execution; local queue must not run it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub populi_remote_delegate: Option<PopuliRemoteDelegate>,
+    /// Rolling window of observer reports for this task, capped at 20 entries (Task 58).
+    ///
+    /// Populated by the `Observer` each time `observe_file` / `observe_rust_file` is called
+    /// for this task. Intentionally excluded from the hot serialization path via `skip_serializing_if`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub observation_history: Vec<vox_db::store::ObservationReport>,
+    /// Number of times this task was handed off between agents (A2A bounce guard).
+    #[serde(default)]
+    pub handoff_count: u8,
+    /// Structured execution history for context injection (Surgical Injection).
+    #[serde(default)]
+    pub transcript: Vec<TaskTurn>,
+    /// Current execution phase (Wave 2 OOPAV).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_phase: Option<TaskPhase>,
+    /// Optional manifest of blob/image attachments for visual auditing or multi-modal continuation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attachment_manifest: Option<crate::attachment_manifest::AttachmentManifest>,
 }
 
 impl AgentTask {
@@ -270,9 +449,20 @@ impl AgentTask {
         priority: TaskPriority,
         file_manifest: Vec<FileAffinity>,
     ) -> Self {
+        let description = description.into();
+        let (tool_hints, research_hints) = Self::parse_description_hints(&description);
+        let mut task_category = TaskCategory::default();
+        if description.contains("[[category:visus]]") {
+            task_category = TaskCategory::Visus;
+        } else if description.contains("[[category:research]]") {
+            task_category = TaskCategory::Research;
+        } else if description.contains("[[category:codegen]]") {
+            task_category = TaskCategory::CodeGen;
+        }
+
         Self {
             id,
-            description: description.into(),
+            description,
             priority,
             status: TaskStatus::Queued,
             file_manifest,
@@ -280,8 +470,16 @@ impl AgentTask {
             estimated_complexity: 5,
             model_preference: None,
             model_override: None,
-            task_category: TaskCategory::default(),
+            test_decision: None,
+            trace_id: None,
+            budget: None,
+            task_category,
             debug_iterations: 0,
+            toestub_iterations: 0,
+            socrates_iterations: 0,
+            tool_hints,
+            research_hints,
+            campaign_id: None,
             retry_count: 0,
             created_at: Some(Instant::now()),
             created_at_ms: now_unix_ms(),
@@ -290,16 +488,63 @@ impl AgentTask {
             socrates: None,
             capability_requirements: None,
             session_id: None,
+            thread_id: None,
             attention_weight: 0.0,
             approval_tier: None,
             plan_session_id: None,
             plan_node_id: None,
             plan_version: None,
             execution_policy_json: None,
-            campaign_id: None,
             benchmark_tier: None,
             execution_role: None,
+            harness_spec_json: None,
+            audit_report: None,
+            populi_remote_delegate: None,
+            victory_condition: crate::VictoryCondition::CompilationOnly,
+            observation_history: Vec::new(),
+            handoff_count: 0,
+            transcript: Vec::new(),
+            current_phase: None,
+            attachment_manifest: None,
         }
+    }
+
+    /// Extract structured hints from double-bracketed tags in the description.
+    ///
+    /// Matches `[[tool:name]]` and `[[research:topic]]`.
+    pub fn parse_description_hints(description: &str) -> (Vec<String>, Vec<String>) {
+        let mut tools = Vec::new();
+        let mut research = Vec::new();
+
+        // Simple manual scan to avoid heavy regex in core task types if possible.
+        let mut start = 0;
+        while let Some(open) = description[start..].find("[[") {
+            let open_pos = start + open;
+            if let Some(close) = description[open_pos..].find("]]") {
+                let close_pos = open_pos + close;
+                let inner = &description[open_pos + 2..close_pos];
+                if let Some(colon) = inner.find(':') {
+                    let kind = &inner[..colon];
+                    let value = inner[colon + 1..].trim();
+                    if !value.is_empty() {
+                        match kind {
+                            "tool" => tools.push(value.to_string()),
+                            "research" => research.push(value.to_string()),
+                            "category" => {
+                                // Category hints are handled at the dispatch/creation layer
+                                // but we store them here if needed for telemetry.
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                start = close_pos + 2;
+            } else {
+                break;
+            }
+        }
+
+        (tools, research)
     }
 
     /// Attach a session ID to this task.
@@ -341,6 +586,76 @@ impl AgentTask {
             .collect()
     }
 
+    /// Merge hints into the task object.
+    pub fn apply_hints(&mut self, h: &TaskEnqueueHints) {
+        if let Some(c) = h.complexity {
+            self.estimated_complexity = c.clamp(1, 10);
+        }
+        if let Some(ref m) = h.model_override {
+            self.model_override = Some(m.clone());
+        }
+        if let Some(ref p) = h.model_preference {
+            self.model_preference = Some(p.clone());
+        }
+        if let Some(cat) = h.task_category {
+            self.task_category = cat;
+        }
+        if let Some(ref campaign_id) = h.campaign_id {
+            let trimmed = campaign_id.trim();
+            if !trimmed.is_empty() {
+                self.campaign_id = Some(trimmed.to_string());
+            }
+        }
+        if let Some(tier) = h.benchmark_tier {
+            self.benchmark_tier = Some(tier);
+        }
+        if let Some(role) = h.execution_role {
+            self.execution_role = Some(role);
+        }
+        if let Some(ref thread_id) = h.thread_id {
+            let trimmed = thread_id.trim();
+            if !trimmed.is_empty() {
+                self.thread_id = Some(trimmed.to_string());
+            }
+        }
+        if !h.tool_hints.is_empty() {
+            self.tool_hints.extend(h.tool_hints.clone());
+        }
+        if !h.research_hints.is_empty() {
+            self.research_hints.extend(h.research_hints.clone());
+        }
+        if let Some(ref harness_spec_json) = h.harness_spec_json {
+            let trimmed = harness_spec_json.trim();
+            if !trimmed.is_empty() {
+                self.harness_spec_json = Some(trimmed.to_string());
+            }
+        }
+        if let Some(ref labels) = h.required_labels {
+            if !labels.is_empty() {
+                let mut reqs = self.capability_requirements.take().unwrap_or_default();
+                reqs.labels.extend(labels.clone());
+                self.capability_requirements = Some(reqs);
+            }
+        }
+        if let Some(req_apprv) = h.requires_approval {
+            if req_apprv {
+                self.status = TaskStatus::BlockedOnApproval;
+            }
+        }
+        if let Some(ref soc) = h.socrates_context {
+            self.socrates = Some(soc.clone());
+        }
+        if let Some(ref attachment_manifest) = h.attachment_manifest {
+            self.attachment_manifest = Some(attachment_manifest.clone());
+        }
+        if let Some(ref trace_id) = h.trace_id {
+            self.trace_id = Some(trace_id.clone());
+        }
+        if let Some(ref budget) = h.budget {
+            self.budget = Some(budget.clone());
+        }
+    }
+
     /// Mark the task as started, recording the start timestamp.
     pub fn start(&mut self) -> &mut Self {
         self.started_at_ms = Some(now_unix_ms());
@@ -356,6 +671,70 @@ impl AgentTask {
     pub fn elapsed_since_last_expensive_op_ms(&self) -> Option<u64> {
         self.last_expensive_op_ms
             .map(|t| now_unix_ms().saturating_sub(t))
+    }
+
+    /// Append a turn to the task's transcript, maintaining a rolling window to prevent context bloat.
+    pub fn append_turn(&mut self, agent_id: super::ids::AgentId, name: String, message: String) {
+        self.transcript.push(TaskTurn {
+            agent_id,
+            agent_name: name,
+            message,
+            timestamp_ms: now_unix_ms(),
+        });
+        // Hard limit on transcript depth to ensure LLM prompt density.
+        if self.transcript.len() > 10 {
+            self.transcript.remove(0);
+        }
+    }
+
+    /// Enforce state machine transitions for the task status.
+    pub fn transition_to(&mut self, new_status: TaskStatus) -> Result<(), String> {
+        // Allow self-transitions
+        if std::mem::discriminant(&self.status) == std::mem::discriminant(&new_status) {
+            self.status = new_status;
+            return Ok(());
+        }
+
+        match (&self.status, &new_status) {
+            (TaskStatus::Queued, TaskStatus::InProgress | TaskStatus::Cancelled) => {}
+            (
+                TaskStatus::InProgress,
+                TaskStatus::Completed
+                | TaskStatus::Failed(_)
+                | TaskStatus::Cancelled
+                | TaskStatus::Blocked(_)
+                | TaskStatus::BlockedOnApproval
+                | TaskStatus::Doubted(_)
+                | TaskStatus::Queued,
+            ) => {}
+            (TaskStatus::Blocked(_), TaskStatus::Queued | TaskStatus::Cancelled) => {}
+            (
+                TaskStatus::BlockedOnApproval,
+                TaskStatus::Queued | TaskStatus::Cancelled | TaskStatus::InProgress,
+            ) => {}
+            (TaskStatus::Failed(_), TaskStatus::Queued | TaskStatus::Cancelled) => {}
+            (TaskStatus::Doubted(_), TaskStatus::Queued | TaskStatus::Cancelled) => {}
+            _ => {
+                return Err(format!(
+                    "Invalid state transition from {} to {}",
+                    self.status, new_status
+                ));
+            }
+        }
+        self.status = new_status;
+        Ok(())
+    }
+
+    /// Predict the number of tokens this task will consume based on its complexity and category.
+    pub fn estimated_token_count(&self) -> u64 {
+        let base = match self.task_category {
+            TaskCategory::CodeGen => 2000,
+            TaskCategory::Research => 4000,
+            TaskCategory::Visus => 8000,
+            _ => 1000,
+        };
+        let complexity_mult = f64::from(self.estimated_complexity).powi(2) / 25.0; // 5 is 1.0, 10 is 4.0
+        (base as f64 * complexity_mult).round() as u64
     }
 }
 
@@ -456,6 +835,17 @@ mod tests {
             campaign_id: Some("camp-123".to_string()),
             benchmark_tier: Some(crate::reconstruction::ReconstructionBenchmarkTier::CrateRegen),
             execution_role: Some(crate::reconstruction::AgentExecutionRole::Verifier),
+            thread_id: Some("thread-123".to_string()),
+            harness_spec_json: Some("{\"schema_version\":1}".to_string()),
+            tool_hints: vec![],
+            research_hints: vec![],
+            required_labels: None,
+            is_detached: None,
+            requires_approval: None,
+            socrates_context: None,
+            attachment_manifest: None,
+            trace_id: None,
+            budget: None,
         };
         let json = serde_json::to_string(&hints).expect("serialize hints");
         let back: TaskEnqueueHints = serde_json::from_str(&json).expect("deserialize hints");
@@ -467,6 +857,11 @@ mod tests {
         assert_eq!(
             back.execution_role,
             Some(crate::reconstruction::AgentExecutionRole::Verifier)
+        );
+        assert_eq!(back.thread_id.as_deref(), Some("thread-123"));
+        assert_eq!(
+            back.harness_spec_json.as_deref(),
+            Some("{\"schema_version\":1}")
         );
     }
 }

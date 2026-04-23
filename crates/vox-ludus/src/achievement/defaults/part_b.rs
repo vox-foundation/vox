@@ -11,6 +11,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::BuildMastery,
             xp_reward: 50,
             crystal_reward: 10,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("build_streak_3".into()),
@@ -20,6 +22,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::BuildMastery,
             xp_reward: 150,
             crystal_reward: 30,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("build_streak_10".into()),
@@ -29,6 +33,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::BuildMastery,
             xp_reward: 400,
             crystal_reward: 80,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("build_streak_30".into()),
@@ -38,6 +44,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::BuildMastery,
             xp_reward: 1_200,
             crystal_reward: 250,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("first_fix".into()),
@@ -47,6 +55,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::BuildMastery,
             xp_reward: 75,
             crystal_reward: 15,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("zero_warnings".into()),
@@ -56,6 +66,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::BuildMastery,
             xp_reward: 200,
             crystal_reward: 40,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("toestub_clean_crate".into()),
@@ -65,6 +77,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::BuildMastery,
             xp_reward: 300,
             crystal_reward: 60,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("toestub_clean_workspace".into()),
@@ -74,6 +88,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::BuildMastery,
             xp_reward: 2_000,
             crystal_reward: 400,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         // ── Documentation ─────────────────────────────────────
         Achievement {
@@ -84,6 +100,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::Documentation,
             xp_reward: 25,
             crystal_reward: 5,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("fifty_docs".into()),
@@ -93,6 +111,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::Documentation,
             xp_reward: 200,
             crystal_reward: 40,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("five_hundred_docs".into()),
@@ -102,6 +122,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::Documentation,
             xp_reward: 800,
             crystal_reward: 160,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("crate_doc_clean".into()),
@@ -111,6 +133,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::Documentation,
             xp_reward: 300,
             crystal_reward: 60,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("workspace_doc_clean".into()),
@@ -120,6 +144,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::Documentation,
             xp_reward: 3_000,
             crystal_reward: 600,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("research_doc_written".into()),
@@ -129,6 +155,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::Documentation,
             xp_reward: 200,
             crystal_reward: 40,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
         Achievement {
             id: AchievementId("adr_written".into()),
@@ -138,6 +166,8 @@ pub(super) fn part_b() -> Vec<Achievement> {
             category: AchievementCategory::Documentation,
             xp_reward: 300,
             crystal_reward: 60,
+            icon_slug: "todo".to_string(),
+            secret: false,
         },
     ]
 }

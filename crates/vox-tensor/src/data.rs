@@ -2,19 +2,36 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-/// A single prompt→response training pair (matches dogfood JSONL schema).
-#[derive(Debug, Deserialize, Clone)]
+/// A byte-level span aligned with a syntax element kind and a loss weight.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyntaxSpan {
+    pub start: usize,
+    pub end: usize,
+    pub weight: f32,
+    pub kind: String,
+}
+
+/// One turn in a ChatML conversation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatmlTurn {
+    /// Role: "system", "user", or "assistant".
+    pub role: String,
+    /// Message content.
+    pub content: String,
+}
+
+/// A single prompt→response training pair or multi-turn sequence (matches dogfood JSONL schema).
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct TrainingPair {
-    /// User-side prompt text as loaded from dogfood JSONL (typically the instruction or prior context).
-    ///
-    /// Paired with [`TrainingPair::response`] for supervised fine-tuning or evaluation.
-    #[serde(alias = "instruction")]
-    pub prompt: String,
-    /// Target assistant completion for the same record (what the model should emit for `prompt`).
-    #[serde(alias = "output")]
-    pub response: String,
+    pub prompt: Option<String>,
+    pub instruction: Option<String>,
+    pub response: Option<String>,
+    pub output: Option<String>,
+    /// Optional multi-turn messages. If present, typically preferred over single-turn prompt/response.
+    #[serde(alias = "turns")]
+    pub messages: Option<Vec<ChatmlTurn>>,
     /// Optional quality rating (1-5). Absent means unrated.
     pub rating: Option<u8>,
     /// Optional category tag (construct type).
@@ -27,12 +44,28 @@ pub struct TrainingPair {
     pub response_mode: Option<String>,
     /// Optional task family tag (e.g. `docs_code`, `tool_trace`, `speech_to_code`).
     pub task_family: Option<String>,
+    /// Attention budgeting decision
+    pub interruption_decision: Option<String>,
+    /// Attention budget agent trust score
+    pub agent_trust_score: Option<f64>,
+    /// Optional syntax-aware spans for loss weighting.
+    pub syntax_spans: Option<Vec<SyntaxSpan>>,
+}
+
+impl TrainingPair {
+    pub fn effective_prompt(&self) -> Option<&String> {
+        self.prompt.as_ref().or(self.instruction.as_ref())
+    }
+
+    pub fn effective_response(&self) -> Option<&String> {
+        self.response.as_ref().or(self.output.as_ref())
+    }
 }
 
 // ─── Minimal character-level vocabulary ──────────────────────────────────────
-// We build a deterministic vocab: all printable ASCII characters (32-126)
-// get their own token, plus a handful of Vox compound-keyword tokens,
-// plus three control tokens: [PAD]=0, [UNK]=1, [EOS]=2.
+// PAD/UNK/EOS, one id per printable ASCII (32–126), then ChatML / ``` compounds only.
+// Production QLoRA uses the Hugging Face tokenizer — see docs/src/reference/mens-training.md.
+// Control: [PAD]=0, [UNK]=1, [EOS]=2.
 const PAD_ID: usize = 0;
 const UNK_ID: usize = 1;
 const EOS_ID: usize = 2;
@@ -42,52 +75,13 @@ const ASCII_BASE: usize = 3;
 const ASCII_LEN: usize = 95;
 const COMPOUND_BASE: usize = ASCII_BASE + ASCII_LEN;
 
-/// Compound (multi-char) tokens specific to Vox constructs.
-/// Order is significant — earlier tokens are tried first.
-const COMPOUND_TOKENS: &[&str] = &[
-    // Vox compound keywords
-    "workflow",
-    "activity",
-    "ret ",
-    "let ",
-    "actor ",
-    "fn ",
-    "type ",
-    "import ",
-    "spawn(",
-    "match ",
-    "with {",
-    "->",
-    "=>",
-    "::",
-    "..",
-    "!=",
-    "==",
-    ">=",
-    "<=",
-    "<|im_start|>",
-    "<|im_end|>",
-    "```",
-    "@mcp",
-    "@table",
-    "@query",
-    "@mutation",
-    "@action",
-    "@server",
-    "@test",
-    "@component",
-    "@agent_def",
-    "@skill",
-    "@v0",
-];
+/// Greedy multi-byte matches before per-byte ASCII (longer strings listed first).
+const COMPOUND_TOKENS: &[&str] = &["<|redacted_im_end|>", "<|im_start|>", "```"];
 
-/// Total vocabulary size.
+/// Lab tokenizer vocab size (not HF / QLoRA checkpoint vocab).
 pub const VOCAB_SIZE: usize = COMPOUND_BASE + COMPOUND_TOKENS.len();
 
-/// A deterministic, dependency-free character-level tokenizer for Vox source code.
-///
-/// Longer compound tokens (Vox keywords, ChatML markers) are matched greedily
-/// before falling back to individual ASCII characters. Non-ASCII bytes map to UNK.
+/// Legacy Burn / dogfood tokenizer: ASCII + ChatML fence compounds only.
 pub struct VoxTokenizer;
 
 impl VoxTokenizer {
@@ -159,6 +153,19 @@ impl VoxTokenizer {
         Self::encode(&text)
     }
 
+    /// Format multi-turn sequence in ChatML and encode.
+    pub fn encode_chatml_turns(turns: &[ChatmlTurn]) -> Vec<u32> {
+        let mut text = String::new();
+        for turn in turns {
+            text.push_str(&format!(
+                "<|im_start|>{role}\n{content}<|im_end|>\n",
+                role = turn.role,
+                content = turn.content
+            ));
+        }
+        Self::encode(text.trim_end())
+    }
+
     /// ChatML prefix through user turn (open assistant slot) — for native inference with `VoxTokenizer`.
     pub fn encode_chatml_inference_prefix(system: &str, user: &str) -> Vec<u32> {
         let text = format!(
@@ -171,8 +178,7 @@ impl VoxTokenizer {
 
     /// Tokenize and pad/truncate to exactly `max_len` tokens.
     ///
-    /// Returns `(input_ids, labels)` where labels mask the prompt with -100 so
-    /// the model only learns to reproduce the assistant response.
+    /// Labels mask the prompt with -100 so the model only learns to reproduce the assistant response.
     pub fn tokenize_for_training(
         system: &str,
         user: &str,
@@ -189,6 +195,35 @@ impl VoxTokenizer {
         );
         let prompt_len = Self::encode(&prompt_text).len();
 
+        Self::mask_and_pad(&full_ids, prompt_len, max_len)
+    }
+
+    /// Tokenize multi-turn turns for training.
+    pub fn tokenize_turns_for_training(
+        turns: &[ChatmlTurn],
+        max_len: usize,
+    ) -> (Vec<i64>, Vec<i64>) {
+        let full_ids = Self::encode_chatml_turns(turns);
+
+        // Find the boundary of the last user turn
+        let mut last_assistant_start = 0usize;
+        let mut text = String::new();
+        for (i, turn) in turns.iter().enumerate() {
+            if i == turns.len() - 1 && turn.role == "assistant" {
+                last_assistant_start = Self::encode(&text).len()
+                    + Self::encode(&format!("<|im_start|>assistant\n")).len();
+            }
+            text.push_str(&format!(
+                "<|im_start|>{role}\n{content}<|im_end|>\n",
+                role = turn.role,
+                content = turn.content
+            ));
+        }
+
+        Self::mask_and_pad(&full_ids, last_assistant_start, max_len)
+    }
+
+    fn mask_and_pad(full_ids: &[u32], prompt_len: usize, max_len: usize) -> (Vec<i64>, Vec<i64>) {
         // Truncate if needed, leaving room for EOS
         let truncated: Vec<i64> = full_ids
             .iter()
@@ -293,12 +328,13 @@ impl Iterator for JsonlDataLoader {
                     continue;
                 }
             }
-            let (input_ids, labels) = VoxTokenizer::tokenize_for_training(
-                &self.system_prompt,
-                &pair.prompt,
-                &pair.response,
-                self.max_len,
-            );
+            let (input_ids, labels) = if let Some(ref turns) = pair.messages {
+                VoxTokenizer::tokenize_turns_for_training(turns, self.max_len)
+            } else if let (Some(p), Some(r)) = (&pair.prompt, &pair.response) {
+                VoxTokenizer::tokenize_for_training(&self.system_prompt, p, r, self.max_len)
+            } else {
+                continue; // skip if no training data
+            };
             return Some((input_ids, labels, pair));
         }
     }
@@ -390,16 +426,14 @@ mod tests {
         let ids = VoxTokenizer::encode(text);
         assert!(!ids.is_empty());
         let decoded = VoxTokenizer::decode(&ids);
-        // fn is a compound token — decoded should still reproduce the original text
         assert_eq!(decoded, text);
     }
 
     #[test]
     fn compound_token_matched_before_chars() {
-        let ids = VoxTokenizer::encode("workflow");
-        // Should be a single compound token, not 8 individual chars
+        let ids = VoxTokenizer::encode("<|im_start|>");
         assert_eq!(ids.len(), 1);
-        assert_eq!(ids[0] as usize, COMPOUND_BASE); // first compound token
+        assert_eq!(ids[0] as usize, COMPOUND_BASE + 1);
     }
 
     #[test]
@@ -444,7 +478,7 @@ mod tests {
         let loader = JsonlDataLoader::new(&path).unwrap();
         let rows: Vec<_> = loader.collect();
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].2.prompt, "write a fn");
+        assert_eq!(rows[0].2.prompt.as_deref(), Some("write a fn"));
         let _ = std::fs::remove_file(&path);
     }
 
@@ -453,8 +487,18 @@ mod tests {
         let p: TrainingPair =
             serde_json::from_str(r#"{"instruction":"fix this","output":"fn ok() to int: ret 0"}"#)
                 .expect("instruction/output aliases");
-        assert_eq!(p.prompt, "fix this");
-        assert_eq!(p.response, "fn ok() to int: ret 0");
+        assert_eq!(p.prompt.as_deref(), Some("fix this"));
+        assert_eq!(p.response.as_deref(), Some("fn ok() to int: ret 0"));
+    }
+
+    #[test]
+    fn debug_parse_real_data() {
+        let json = r#"{"category":"import","difficulty":1,"instruction":"Write Vox code demonstrating example","lane":"vox_codegen","origin":"human","output":"// Minimal notify demo — same handler shape as `examples/golden/mobile_camera.vox`.\n\nimport std.mobile\n\ncomponent App() {\n    view:\n        <button onclick={fn() {\n            mobile.notify(\"Hello\", \"From Vox!\")\n        }}>\"Notify Me\"</button>\n}\n","prompt":"Write Vox code demonstrating example","rating":5,"response":"// Minimal notify demo — same handler shape as `examples/golden/mobile_camera.vox`.\n\nimport std.mobile\n\ncomponent App() {\n    view:\n        <button onclick={fn() {\n            mobile.notify(\"Hello\", \"From Vox!\")\n        }}>\"Notify Me\"</button>\n}\n","response_mode":"code_only","schema_version":"vox_dogfood_v1","source":"examples\\golden\\mobile_test.vox","task_family":"vox_codegen"}"#;
+        let parsed: Result<TrainingPair, _> = serde_json::from_str(json);
+        match parsed {
+            Ok(_) => {}
+            Err(e) => panic!("Parse error on real data: {}", e),
+        }
     }
 
     #[test]
@@ -467,8 +511,8 @@ mod tests {
         }
         let pairs = load_all(&path, 0).unwrap();
         assert_eq!(pairs.len(), 1);
-        assert_eq!(pairs[0].prompt, "hello");
-        assert_eq!(pairs[0].response, "world");
+        assert_eq!(pairs[0].prompt.as_deref(), Some("hello"));
+        assert_eq!(pairs[0].response.as_deref(), Some("world"));
         let _ = std::fs::remove_file(&path);
     }
 

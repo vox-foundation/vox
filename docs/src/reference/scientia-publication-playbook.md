@@ -2,8 +2,10 @@
 title: "Scientia publication failure playbook"
 description: "Deterministic remediation for common publication gate and syndication failures."
 category: "reference"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Scientia publication failure playbook
@@ -37,7 +39,7 @@ Supported adapters include `local_ledger` (default), `echo_ledger`, `zenodo`, `o
 
 - **Dual approval:** submit and job ticks require two digest-bound approvers; missing approval yields CLI/MCP errors or tick outcome `preflight_rejected` with message `dual digest-bound approvals…`. See [scholarly-digest-approval-invariants](../architecture/scholarly-digest-approval-invariants.md).
 - **Digest mismatch:** job `content_sha3_256` must match the live manifest row; otherwise preflight fails (often permanent). Re-create the job or re-run submit from the CLI/MCP after updating the manifest.
-- **`external_submission_attempts`:** `error_class` follows `ScholarlyError` (`disabled`, `config`, `auth`, `rate_limit`, `transient`, `fatal`) or raw HTTP-derived classes on the `Http` variant; `http_status` is populated for auth (401/403), rate limits (429), 5xx-mapped transients, and other `Http` failures. Job-only **`preflight`** is not a `ScholarlyError`.
+- **`external_submission_attempts` {** `error_class` follows `ScholarlyError` (`disabled`, `config`, `auth`, `rate_limit`, `transient`, `fatal`) or raw HTTP-derived classes on the `Http` variant; `http_status` is populated for auth (401/403), rate limits (429), 5xx-mapped transients, and other `Http` failures. Job-only **`preflight`** is not a `ScholarlyError`.
 - **Operator tick:** `vox db publication-external-jobs-tick` / MCP `vox_scientia_publication_external_jobs_tick` leases due rows and calls `submit_with_adapter`; inspect JSON `results[].outcome` (`succeeded`, `submit_failed`, `preflight_rejected`, `claim_lost`, etc.).
 - **Preflight `metadata_complete`:** CLI `--preflight-profile metadata-complete` / MCP `preflight_profile: "metadata_complete"` requires `scientific_publication` in `metadata_json`, at least one author, `license_spdx`, and non-empty `abstract_text`. Use before Zenodo/Crossref-sidecar workflows.
 
@@ -52,3 +54,5 @@ Syndication tokens resolve through **Clavis** (`vox_clavis::resolve_secret`) for
 ## crates.io channel
 
 If `crates_io` appears in routing, expect **explicit** non-success outcomes until a real adapter exists—never assume a crate was published.
+
+

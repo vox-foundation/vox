@@ -1,7 +1,18 @@
 //! Shared [`clap::Args`] structs for top-level `vox` commands and Latin namespace groups.
 
 use clap::{Args, ValueEnum};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+
+/// Build mode (`app` or `library`).
+#[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize, PartialEq)]
+pub enum BuildMode {
+    /// Emit app code + components (default).
+    #[default]
+    App,
+    /// Emit UI-agnostic models, schemas, and client fetchers.
+    Library,
+}
 
 /// `vox build` / `vox fabrica build`
 #[derive(Args, Clone, Debug)]
@@ -9,9 +20,23 @@ pub struct BuildArgs {
     /// Path to the `.vox` file
     #[arg(required = true)]
     pub file: PathBuf,
+    /// Build mode (App or Library)
+    #[arg(long, value_enum, default_value_t = crate::cli_args::BuildMode::App)]
+    pub mode: crate::cli_args::BuildMode,
     /// Output directory for generated TypeScript
     #[arg(short, long, default_value = "dist")]
     pub out_dir: PathBuf,
+    /// Native mobile build target (e.g., ios, android, native)
+    #[arg(long)]
+    pub target: Option<String>,
+    /// Write one-shot user scaffold (`app/App.tsx`, Vite, Tailwind v4) next to output if files are missing.
+    /// Same as `VOX_WEB_EMIT_SCAFFOLD=1` (flag takes precedence when either is set).
+    #[arg(long)]
+    pub scaffold: bool,
+    /// Emit **WebIR** JSON (`web-ir.v1.json`) into the output directory (frontend IR only).
+    /// For the full **VoxIrModule** bundle (HIR + embedded WebIR), use `vox check <file>.vox --emit-ir`.
+    #[arg(long)]
+    pub emit_ir: bool,
 }
 
 /// `vox check` / `vox fabrica check`
@@ -19,9 +44,19 @@ pub struct BuildArgs {
 pub struct CheckArgs {
     #[arg(required = true)]
     pub file: PathBuf,
-    /// Append successful check output as a training JSONL record
-    #[arg(long, value_name = "PATH")]
-    pub emit_training_jsonl: Option<PathBuf>,
+
+    /// Set individual output format (overrides global --json)
+    #[arg(
+        long,
+        visible_alias = "format",
+        value_name = "FORMAT",
+        default_value = "text"
+    )]
+    pub output_format: String,
+    /// Emit the full **VoxIrModule** JSON next to the source file as `<stem>.vox-ir.json`
+    /// (HIR module fields plus `module.web_ir` when present).
+    #[arg(long)]
+    pub emit_ir: bool,
 }
 
 /// `vox test` / `vox fabrica test`
@@ -29,6 +64,18 @@ pub struct CheckArgs {
 pub struct TestArgs {
     #[arg(required = true)]
     pub file: PathBuf,
+    /// Filter tests by label
+    #[arg(long)]
+    pub filter: Option<String>,
+    /// Number of property testing iterations
+    #[arg(long)]
+    pub forall_iterations: Option<u32>,
+    /// Instrument for branch coverage
+    #[arg(long)]
+    pub coverage: bool,
+    /// Update snapshot golden files
+    #[arg(long)]
+    pub update_snapshots: bool,
 }
 
 /// `vox run` / `vox fabrica run`
@@ -42,6 +89,15 @@ pub struct RunArgs {
     /// `app` = generated server; `script` = `fn main()` script lane; `auto` = heuristic.
     #[arg(long, value_enum, default_value_t = crate::commands::run::RunMode::Auto)]
     pub mode: crate::commands::run::RunMode,
+    /// Alias for --mode interp (HIR interpreter)
+    #[arg(long, conflicts_with = "mode")]
+    pub interp: bool,
+    /// Alias for --mode script (WASI/Native execution)
+    #[arg(long, conflicts_with = "mode")]
+    pub script: bool,
+    /// Alias for --mode app (full web app)
+    #[arg(long, conflicts_with = "mode")]
+    pub app: bool,
     #[arg(trailing_var_arg = true)]
     pub args: Vec<String>,
 }
@@ -60,6 +116,9 @@ pub struct ScriptArgs {
     pub isolation: Option<String>,
     #[arg(long)]
     pub trust_class: Option<String>,
+    /// Optional target triple for cross-compilation (Wave 4).
+    #[arg(long)]
+    pub target_triple: Option<String>,
     #[arg(trailing_var_arg = true)]
     pub args: Vec<String>,
 }
@@ -77,11 +136,24 @@ pub struct DevArgs {
     pub open: bool,
 }
 
+/// Bundling mode: `app` (web + backend) or `script` (binary only).
+#[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize)]
+pub enum BundleMode {
+    /// Web application with React frontend and Axum backend.
+    #[default]
+    App,
+    /// Native binary script for mesh/CLI execution.
+    Script,
+}
+
 /// `vox bundle` / `vox fabrica bundle`
 #[derive(Args, Clone, Debug)]
 pub struct BundleArgs {
     #[arg(required = true)]
     pub file: PathBuf,
+    /// Bundling mode.
+    #[arg(long, value_enum, default_value_t = BundleMode::App)]
+    pub mode: BundleMode,
     #[arg(short, long, default_value = "dist")]
     pub out_dir: PathBuf,
     #[arg(long)]
@@ -100,6 +172,23 @@ pub struct FmtArgs {
     pub check: bool,
 }
 
+/// `vox play` / `vox fabrica play`
+#[derive(Args, Clone, Debug)]
+pub struct PlayArgs {
+    /// Optional file to execute or project name to scaffold.
+    pub path: Option<PathBuf>,
+    /// Start an interactive REPL session.
+    #[arg(long)]
+    pub repl: bool,
+}
+
+/// `vox repair`
+#[derive(Args, Clone, Debug)]
+pub struct RepairArgs {
+    /// File to repair.
+    pub file: PathBuf,
+}
+
 /// `vox doctor` / `vox mens doctor`
 #[derive(Args, Clone, Debug)]
 pub struct DoctorArgs {
@@ -116,20 +205,9 @@ pub struct DoctorArgs {
     /// OCI / automation: run default doctor checks and exit with non-zero status if any fail (no banner; stable for HEALTHCHECK).
     #[arg(long, default_value_t = false)]
     pub probe: bool,
-}
-
-/// `vox train` (legacy; canonical: `vox mens train`)
-#[cfg(all(feature = "gpu", feature = "mens-dei"))]
-#[derive(Args, Clone, Debug)]
-pub struct TrainLegacyArgs {
-    #[arg(long)]
-    pub data_dir: Option<PathBuf>,
-    #[arg(long)]
-    pub output_dir: Option<PathBuf>,
-    #[arg(long)]
-    pub provider: Option<String>,
-    #[arg(long, default_value = "false")]
-    pub native: bool,
+    /// Prepend NVIDIA CUDA toolkit bin dirs to the User PATH and set User CUDA_PATH.
+    #[arg(long, default_value_t = false)]
+    pub fix_cuda_path: bool,
 }
 
 /// `vox stub-check` / `vox mens stub-check`
@@ -215,6 +293,29 @@ pub struct SyncArgs {
     /// Fail when the lockfile does not strictly match `Vox.toml`.
     #[arg(long)]
     pub frozen: bool,
+}
+
+/// `vox deploy` — apply `Vox.toml` `[deploy]` via container / compose / Kubernetes / bare-metal.
+#[derive(Args, Clone, Debug)]
+pub struct DeployArgs {
+    /// Deployment environment label (image tag suffix, e.g. `production`).
+    #[arg(default_value = "production")]
+    pub environment: String,
+    /// Override `[deploy].target` (`container`, `compose`, `kubernetes`, `bare-metal`, …).
+    #[arg(long)]
+    pub target: Option<String>,
+    /// Override `[deploy].runtime` for OCI builds (`auto`, `docker`, `podman`).
+    #[arg(long)]
+    pub runtime: Option<String>,
+    /// Print actions without mutating remote systems or registries (best-effort).
+    #[arg(long, default_value_t = false)]
+    pub dry_run: bool,
+    /// For compose targets: run `up` detached (`-d`).
+    #[arg(long, default_value_t = false)]
+    pub detach: bool,
+    /// Require `vox.lock` to exist (CI / reproducibility gate).
+    #[arg(long, default_value_t = false)]
+    pub locked: bool,
 }
 
 /// Binary release host for `vox upgrade --source release` (`VOX_UPGRADE_PROVIDER`).

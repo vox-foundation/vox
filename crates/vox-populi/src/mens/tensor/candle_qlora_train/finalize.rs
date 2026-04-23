@@ -224,6 +224,25 @@ pub(super) fn finalize_training_run(
         }))?,
     )?;
 
+    let handoff = crate::mens::tensor::external_serving_handoff::ExternalServingHandoffV1::schola_training_run(
+        out,
+        config.base_model.as_deref().unwrap_or("unknown"),
+        final_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("candle_qlora_adapter.safetensors"),
+    );
+    if let Err(e) = crate::mens::tensor::external_serving_handoff::write_handoff(out, &handoff) {
+        train_log::warn(&format!(
+            "external_serving_handoff_v1.json not written: {e}"
+        ));
+    } else {
+        train_log::info(&format!(
+            "Wrote external_serving_handoff_v1.json to {}",
+            out.join("external_serving_handoff_v1.json").display()
+        ));
+    }
+
     train_log::info(&format!(
         "Training complete — micro_steps={} optimizer_steps={} no_supervised_skip_rate={:.2}% — adapter: {}",
         global_step,

@@ -1,13 +1,13 @@
 ---
 description: When adding or renaming vox CLI commands, keep registry and docs in sync.
-globs: crates/vox-cli/**/*.rs, contracts/cli/*.yaml, contracts/cli/*.json, docs/src/reference/cli.md, docs/src/architecture/cli-*.md, docs/src/ci/command-*.md
+globs: crates/vox-cli/**/*.rs, contracts/cli/*.yaml, contracts/cli/*.json, contracts/operations/*.yaml, contracts/operations/*.json, docs/src/reference/cli.md, docs/src/architecture/cli-*.md, docs/src/ci/command-*.md
 alwaysApply: false
 ---
 
 # CLI command changes
 
-- Add the operation to **`contracts/cli/command-registry.yaml`** (and respect **`command-registry.schema.json`**).
+- Add the **`vox-cli` projection** to **`contracts/operations/catalog.v1.yaml`** (schema **`catalog.v1.schema.json`**), then run **`vox ci operations-sync --target cli --write`** (or **`--target all`**) so **`contracts/cli/command-registry.yaml`** is regenerated (respect **`command-registry.schema.json`** on the committed artifact).
 - Update **`docs/src/reference/cli.md`** for any `vox-cli` row with default **`ref_cli_required`** (omit `ref_cli_required: false` only when intentionally exempt).
 - For new **top-level** subcommands, add a row to **`docs/src/architecture/cli-reachability-ssot.md`** unless the registry sets **`reachability_required: false`**.
-- Run **`cargo run -p vox-cli -- ci command-compliance`** from the repo root before merging.
+- Run **`vox ci operations-verify`** and **`cargo run -p vox-cli -- ci command-compliance`** from the repo root before merging.
 - See **`docs/src/architecture/cli-design-rules-ssot.md`** and **`docs/src/ci/command-compliance-ssot.md`**.

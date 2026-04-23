@@ -9,9 +9,11 @@
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Define a Vox actor with an Increment handler that returns the next value.
+// @training_prompt: Define a Vox actor with an Increment handler that returns the next value.
+// ANCHOR: display
 actor CounterActor {
     on Increment(current: int) to int {
-        ret current + 1
+        return current + 1
     }
 }
+// ANCHOR_END: display

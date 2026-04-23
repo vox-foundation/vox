@@ -1,5 +1,6 @@
 ---
 description: LF line endings, paths, and cross-platform guardrails for Vox repo work
+globs: ["**/*.rs", "**/*.vox", "**/*.ts"]
 alwaysApply: true
 ---
 
@@ -23,5 +24,6 @@ alwaysApply: true
 ## Docs touchpoints
 
 - **`AGENTS.md`** — cross-platform summary.
+- **Root `.gitignore`** — pattern SSOT for scratch/build trees adjacent to LF policy.
 - **`docs/src/ci/runner-contract.md`** — `vox ci line-endings` and env vars.
-- **`docs/agents/governance.md`** — TOESTUB **`cross-platform/line-endings`**.
+- **`docs/agents/governance.md`** — TOESTUB **`cross-platform/line-endings`**; workspace artifact policy (`vox ci artifact-audit` / `artifact-prune`).

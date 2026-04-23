@@ -5,5 +5,6 @@ edition.workspace = true
 description = "Scientia runtime orchestration helpers."
 
 [dependencies]
-vox-scientia-core = { path = "../vox-scientia-core" }
-vox-scientia-social = { path = "../vox-scientia-social" }
+vox-scientia-core = { workspace = true }
+vox-scientia-social = { workspace = true }
+workspace-hack = { workspace = true }

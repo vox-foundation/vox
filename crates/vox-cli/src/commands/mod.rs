@@ -5,13 +5,17 @@
 //! legacy inline path. New work should route through `pipeline` for consistent diagnostics.
 
 pub mod add;
-/// AI subsystem handling training, models, and eval logic (requires features: `gpu` or `mens-dei` or `mens-base`).
-#[cfg(any(feature = "gpu", feature = "mens-dei", feature = "mens-base"))]
-pub mod ai;
+
+#[cfg(feature = "dei")]
+pub mod attention;
+/// Identity and master key generation.
+pub mod auth;
 /// Building and codegen orchestration endpoints.
 pub mod build;
 /// Packaging tools for bundling Vox web apps (e.g., TanStack/Vite wrapper).
 pub mod bundle;
+/// Catalog explicit management commands (`vox catalog`).
+pub mod catalog;
 /// Validation and static checking (`vox check`).
 pub mod check;
 /// CI / SSOT guard commands (`vox ci`).
@@ -20,8 +24,9 @@ pub mod ci;
 pub mod clavis;
 /// Codex integration logic for `vox db` subcommands.
 pub mod codex;
+/// `vox config` CLI endpoint logic.
+pub mod config;
 /// Training data extraction / mixing pipelines (`vox corpus`).
-pub mod corpus;
 /// Codex research ingest / reliability helpers (`vox db` research subcommands).
 mod db_research;
 pub mod remove;
@@ -36,12 +41,16 @@ pub(crate) mod db_retention;
 /// DEI decision engine commands (requires `--features dei`).
 #[cfg(feature = "dei")]
 pub mod dei;
+/// `vox deploy` — `Vox.toml` `[deploy]` execution (`vox-container`).
+pub mod deploy;
 /// Auto-reloading compilation daemon runner (`vox dev`).
 pub mod dev;
 /// Submodules for `architect`, `doctor`, `clean`, etc.
 pub mod diagnostics;
 /// API documentation generator wrapper (`vox doc`).
 pub mod doc;
+/// Extension lane: unified entry for legacy/ML subcommands (ars, ludus, oratio, schola).
+pub mod ext;
 /// Supplemental subcommands (snippet, share, ars).
 pub mod extras;
 /// Socrates / evidence fusion for scientia worthiness (`metadata_json.scientia_evidence`).
@@ -53,6 +62,8 @@ pub use extras::ars;
 pub mod fmt;
 /// `vox info` — package metadata from registry / local Arca store (`vox-pm`).
 pub mod info;
+/// `vox init` — scaffold `Vox.toml` / `src/main.vox` / skill markdown.
+pub mod init;
 /// Web island UI creation handler (`vox island`).
 #[cfg(feature = "island")]
 pub mod island;
@@ -60,23 +71,29 @@ pub mod island;
 #[cfg(feature = "live")]
 pub mod live;
 pub mod lock;
-/// Legacy login command (compat shim to Clavis).
-pub mod login;
-/// Legacy logout command (compat shim to Clavis).
-pub mod logout;
 /// Launch Language Server Protocol wrapper (`vox lsp`).
 pub mod lsp;
+/// Start the Vox MCP server wrapper (`vox mcp`).
+pub mod mcp;
+#[cfg(feature = "mcp-server")]
+pub mod mcp_server;
+/// React interop / web stack migrations (`vox migrate web`, …).
+pub mod migrate;
+pub mod model;
+pub mod new;
 /// `vox openclaw` tools for orchestrator testing.
 #[cfg(feature = "ars")]
 pub mod openclaw;
+pub mod play;
 pub mod pm;
 pub mod pm_lifecycle;
-/// Local registry + HTTP control plane (`vox populi status|serve`; requires `populi`).
-#[cfg(feature = "populi")]
-pub mod populi_cli;
-/// One-command populi lifecycle helpers (`vox populi up|down|status`; requires `populi`).
-#[cfg(feature = "populi")]
-pub mod populi_lifecycle;
+pub mod repair;
+#[cfg(feature = "dei")]
+pub mod safety;
+
+/// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).
+pub mod repo;
+pub mod repo_init;
 pub(crate) mod repo_upgrade;
 /// TOESTUB structural testing guard logic.
 #[cfg(feature = "stub-check")]
@@ -88,7 +105,7 @@ pub mod upgrade;
 #[cfg(feature = "extras-ludus")]
 pub use extras::ludus;
 /// AI-powered CodeRabbit review adapter (`vox review`).
-#[cfg(any(feature = "mens-dei", feature = "coderabbit"))]
+#[cfg(any(feature = "dei", feature = "coderabbit"))]
 pub mod review;
 /// Native execution via local runtime execution (`vox run`).
 pub mod run;
@@ -96,18 +113,28 @@ pub mod run;
 pub mod runtime;
 /// Vox Scientia research facade (`vox scientia` → `vox db` research tools).
 pub mod scientia;
+pub(crate) mod scientia_ledger_contract;
+/// Optional telemetry upload queue (`vox telemetry`).
+pub mod telemetry;
 /// Test suite integration wrapper (`vox test`).
 pub mod test;
 pub mod update;
 
-/// Speech-to-text and transcript refinement (`vox oratio`).
-#[cfg(feature = "oratio")]
-pub mod oratio_cmd;
+pub mod grammar;
 
-/// ML tooling specific commands (`vox mens`).
-#[cfg(any(feature = "mens-base", feature = "gpu"))]
-pub mod mens;
+/// Unified research operations: infrastructure and evaluation.
+pub mod research;
 
-/// Training tools (`vox schola`).
-#[cfg(feature = "gpu")]
-pub mod schola;
+/// Manual plan bridging via PlanningOrchestrator
+pub mod plan;
+
+/// LLM-native context and prompt generation tools
+pub mod llm;
+
+/// Vox Visus: Voice of Vision. Agentic GUI visual intelligence and bug detection.
+#[cfg(feature = "dei")]
+pub mod visus;
+
+/// Local orchestration dashboard (`vox dashboard`).
+#[cfg(feature = "dashboard")]
+pub mod dashboard;

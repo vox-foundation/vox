@@ -1,5 +1,0 @@
-# Mens training SSOT
-
-Mens training reference (hardware, datasets, smoke checks) lives in **[`reference/mens-training.md`](../reference/mens-training.md)**.
-
-This architecture filename is a stable bookmark for SSOT inventories; edit the reference page for procedural detail.

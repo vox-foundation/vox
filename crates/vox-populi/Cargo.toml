@@ -6,12 +6,15 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = []
+default = ["mens-gpu"]
+# NVIDIA NVML probe → Populi `NodeRecord` gpu_* fields (optional; requires NVML at runtime).
+nvml-gpu-probe = ["vox-repository/nvml-probe"]
 # HTTP control plane (join / heartbeat / list) for multi-node loopback or LAN (TLS in ops layer).
 transport = [
     "dep:axum",
     "dep:tokio",
     "dep:reqwest",
+    "dep:vox-reqwest-defaults",
     "dep:tower-http",
     "dep:subtle",
     "dep:vox-bounded-fs",
@@ -20,7 +23,8 @@ transport = [
     "dep:blake3",
     "dep:data-encoding",
     "dep:base64",
-    "dep:tower_governor",
+    "dep:dashmap",
+    "dep:vox-db",
 ]
 # Mens ML — core deps (absorbed former `vox-mens` crate).
 mens = [
@@ -37,7 +41,7 @@ mens = [
     "dep:vox-db",
     "dep:vox-bounded-fs",
 ]
-mens-gpu = ["mens", "dep:burn", "vox-tensor/gpu", "dep:tokenizers", "dep:safetensors"]
+mens-gpu = ["mens", "dep:burn", "vox-tensor/gpu", "dep:tokenizers", "dep:safetensors", "dep:wgpu", "dep:nvml-wrapper", "dep:windows"]
 mens-candle-qlora = [
     "mens",
     "dep:candle-core",
@@ -46,22 +50,24 @@ mens-candle-qlora = [
     "dep:tokenizers",
     "dep:qlora-rs",
     "dep:peft-rs",
+    "dep:memmap2",
 ]
 mens-candle-qlora-cuda = [
     "mens-candle-qlora",
     "candle-core/cuda",
     "candle-nn/cuda",
 ]
-mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub"]
+mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-compiler"]
 mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
     "dep:async-trait",
-    "dep:futures",
     "dep:reqwest",
+    "dep:vox-reqwest-defaults",
 ]
 
 [dependencies]
+owo-colors = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -69,30 +75,36 @@ tracing = { workspace = true }
 vox-repository = { workspace = true }
 vox-primitives = { workspace = true }
 vox-clavis = { workspace = true }
+vox-constrained-gen = { workspace = true }
+vox-grammar-export = { workspace = true }
+vox-crypto = { workspace = true }
+vox-mesh-types = { workspace = true }
 
 # Populi transport
-axum = { version = "0.8", optional = true }
+axum = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true, default-features = false, features = ["json", "rustls-tls"] }
-tower-http = { version = "0.6.2", optional = true, features = ["trace", "request-id"] }
-subtle = { version = "2.6", optional = true }
+vox-reqwest-defaults = { workspace = true, optional = true }
+tower-http = { workspace = true, optional = true, features = ["trace", "request-id"] }
+vox-db = { workspace = true, optional = true }
+subtle = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true, optional = true }
 ed25519-dalek = { workspace = true, optional = true }
 blake3 = { workspace = true, optional = true }
 data-encoding = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
+dashmap = { workspace = true, optional = true }
 
 # Mens (optional)
 anyhow = { workspace = true, optional = true }
 serde_yaml = { workspace = true, optional = true }
-ctrlc = { version = "3.4", features = ["termination"], optional = true }
+ctrlc = { workspace = true, features = ["termination"], optional = true }
 chrono = { workspace = true, optional = true }
 dirs = { workspace = true, optional = true }
 sysinfo = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 vox-tensor = { workspace = true, optional = true }
 vox-corpus = { workspace = true, optional = true }
-vox-db = { workspace = true, optional = true }
 vox-bounded-fs = { workspace = true, optional = true }
 burn = { workspace = true, optional = true, features = ["autodiff", "wgpu", "train"] }
 hf-hub = { workspace = true, optional = true }
@@ -102,12 +114,21 @@ safetensors = { workspace = true, optional = true }
 tokenizers = { workspace = true, optional = true }
 qlora-rs = { workspace = true, optional = true }
 peft-rs = { workspace = true, optional = true }
-async-trait = { version = "0.1", optional = true }
-futures = { version = "0.3", optional = true }
-tower_governor = { version = "0.7", optional = true, features = ["axum"] }
+async-trait = { workspace = true, optional = true }
+futures = { workspace = true }
+vox-eval = { workspace = true, optional = true }
+vox-compiler = { workspace = true, optional = true }
+memmap2 = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true }
+nvml-wrapper = { workspace = true, optional = true }
+windows = { version = "0.58", features = ["Win32_Graphics_Dxgi", "Win32_Foundation"], optional = true }
+
+workspace-hack = { workspace = true }
+hex = "0.4.3"
 
 [dev-dependencies]
 jsonschema = { workspace = true, default-features = false }
+openapiv3 = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 reqwest = { workspace = true, default-features = false, features = ["json", "rustls-tls"] }
 serde_yaml = { workspace = true }
@@ -118,6 +139,15 @@ blake3 = { workspace = true }
 data-encoding = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
+serial_test = { workspace = true }
+
+[[test]]
+name = "http_control_plane"
+required-features = ["transport"]
+
+[[test]]
+name = "dispatch_persistence"
+required-features = ["transport"]
 
 [lints]
 workspace = true

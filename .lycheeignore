@@ -1,0 +1,28 @@
+# Ignored dynamically for rate limit / anti-bot
+.*linkedin\.com.*
+.*cursor\.com/.*
+.*sigstore\.dev/.*
+.*tanstack\.com/.*
+^https://slsa\\.dev/how-to/get-started/?$
+docs/src/archive/
+crates/.*
+scripts/.*
+\.agents/.*
+docs/news/templates/.*
+.*iclr\.cc/.*
+.*ascentcore\.com/.*
+.*eslint-react.*
+.*modelcontextprotocol\.io.*
+.*docs\.doppler\.com.*
+.*learn\.microsoft\.com.*
+.*storage\.googleapis\.com.*
+.*babel\.dev.*
+.*diva-portal\.org.*
+.*\.gemini/antigravity/.*
+file://.*\.cargo/config\.toml
+# Known planned-but-not-yet-authored architecture stubs (tracked in data-storage-ssot findings F74+)
+# Remove each entry when the corresponding document is created.
+docs/src/architecture/telemetry-trust-ssot\.md
+docs/src/architecture/research-diagnostic-questioning-2026\.md
+docs/src/architecture/plan-adequacy\.md
+docs/src/architecture/agent-event-kind-ludus-matrix\.md

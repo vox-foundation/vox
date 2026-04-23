@@ -3,8 +3,8 @@
 use serde::Serialize;
 use turso::params;
 
-use crate::store::StoreError;
 use crate::VoxDb;
+use crate::store::StoreError;
 
 /// Aggregates for one `created_at_ms` window on `trust_observations`.
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -48,9 +48,12 @@ async fn window_agg(
         .next()
         .await?
         .ok_or_else(|| StoreError::Db("trust drift: empty aggregate".into()))?;
-    let count = row.get::<i64>(0).map_err(|e| StoreError::Db(e.to_string()))?;
+    let count = row
+        .get::<i64>(0)
+        .map_err(|e| StoreError::Db(e.to_string()))?;
     let mean_observation = if count > 0 {
-        row.get::<f64>(1).map_err(|e| StoreError::Db(e.to_string()))?
+        row.get::<f64>(1)
+            .map_err(|e| StoreError::Db(e.to_string()))?
     } else {
         0.0
     };
@@ -70,7 +73,7 @@ impl VoxDb {
         dimension: Option<&str>,
         window_ms: i64,
     ) -> Result<TrustObservationDriftReport, StoreError> {
-        let w = window_ms.max(60_000).min(86_400_000 * 30);
+        let w = window_ms.clamp(60_000, 86_400_000 * 30);
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as i64)
@@ -93,7 +96,6 @@ impl VoxDb {
 
 #[cfg(all(test, feature = "local"))]
 mod tests {
-    use super::*;
     use crate::{DbConfig, TrustObservationInput, VoxDb};
 
     #[tokio::test]

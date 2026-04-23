@@ -9,10 +9,9 @@ pub use vox_config::{
     state_dir,
 };
 
-/// Separate SQLite file for training-run telemetry when the primary [`default_db_path`] uses a
-/// legacy `schema_version` chain (see [`crate::VoxDb::connect_default_with_training_fallback`]).
-/// If this file is present but also legacy, the fallback connector resets **this file only** to the
-/// current baseline so training can still persist runs.
+/// Historical path for `vox_training_telemetry.db` next to the canonical [`default_db_path`].
+/// Training telemetry now uses the same DB as [`crate::VoxDb::connect_default`]; if the primary is
+/// legacy ([`crate::StoreError::LegacySchemaChain`]), migrate per `docs/src/operations/voxdb-cutover-runbook.md`.
 #[must_use]
 pub fn training_telemetry_db_path() -> Option<PathBuf> {
     default_db_path().map(|p| p.with_file_name("vox_training_telemetry.db"))

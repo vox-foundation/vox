@@ -2,8 +2,10 @@
 title: "Package management migration (2026)"
 description: "Old-to-new command mappings for Cargo-first Vox PM, retired install/Python lanes, and tooling upgrades."
 category: "reference"
-last_updated: 2026-03-27
+last_updated: "2026-03-27"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Package management migration (2026)
@@ -18,7 +20,7 @@ This note is the **operator-facing mapping** for the packaging redesign (hybrid 
 | **`vox upgrade`** for dependencies | **`vox update`** and **`vox sync`**. **`vox upgrade`** is **toolchain-only**: default **check-only**; **`--apply --source release`** installs a release binary with **`checksums.txt`**; **`--apply --source repo`** updates a git checkout and runs **`cargo install --locked --path crates/vox-cli`** (see [`cli.md`](cli.md)). |
 | **`vox pm vendor`** at old top-level | Unchanged capability: **`vox pm vendor`** (tree under **`vox pm`**). |
 | **`vox mens train-uv`** | **`vox mens train --backend qlora`** ([`mens-training.md`](mens-training.md)). |
-| **`vox container init`** / **`uv sync`** as the product PM lane | **`Vox.toml`** + **`vox lock`** + **`vox sync`**; container images follow the repo **`Dockerfile`** / **`docker/Dockerfile.populi`** pattern (`cargo … --locked`). Python bridge docs are **historical** only ([`how-to-pytorch.md`](../how-to/how-to-pytorch.md), [`vox-py.md`](../api/vox-py.md)). |
+| **`vox container init`** / **`uv sync`** as the product PM lane | **`Vox.toml`** + **`vox lock`** + **`vox sync`**; container images follow the repo **`Dockerfile`** / **`infra/containers/Dockerfile.populi`** pattern (`cargo … --locked`). Python bridge docs are **historical** only ([`how-to-pytorch.md`](../how-to/how-to-pytorch.md), [`vox-py.md`](../reference/cli.md)). |
 
 ## Verification and release posture
 
@@ -34,3 +36,4 @@ This note is the **operator-facing mapping** for the packaging redesign (hybrid 
 
 - [`how-to-cli-ecosystem.md`](../how-to/how-to-cli-ecosystem.md) — ecosystem entry and **`vox install`** removal note.
 - [`cli-command-surface.generated.md`](cli-command-surface.generated.md) — generated status table (`vox ci command-sync --write`).
+

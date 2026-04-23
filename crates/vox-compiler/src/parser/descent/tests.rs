@@ -1,5 +1,5 @@
 use super::*;
-use crate::ast::decl::{ImportPathKind, ReactiveMemberDecl, RoutesParseSummary};
+use crate::ast::decl::{Decl, ImportPathKind, ReactiveMemberDecl, RoutesParseSummary};
 use crate::ast::expr::{BinOp, Expr};
 use crate::ast::stmt::Stmt;
 use crate::lexer::cursor::lex;
@@ -20,7 +20,7 @@ fn assert_parse_fails(source: &str) {
 
 #[test]
 fn test_parse_simple_fn() {
-    let m = parse_str("fn add(a, b) to int { ret a + b }");
+    let m = parse_str("fn add(a, b) to int { return a + b }");
     assert_eq!(m.declarations.len(), 1);
     assert!(matches!(&m.declarations[0], Decl::Function(f) if f.name == "add"));
 }
@@ -68,7 +68,7 @@ fn test_parse_rust_import_with_alias_and_meta() {
 
 #[test]
 fn test_parse_let() {
-    let m = parse_str("fn main() { let x = 42\n ret x }");
+    let m = parse_str("fn main() { let x = 42\n return x }");
     if let Decl::Function(f) = &m.declarations[0] {
         assert_eq!(f.body.len(), 2);
         assert!(matches!(&f.body[0], Stmt::Let { .. }));
@@ -78,14 +78,13 @@ fn test_parse_let() {
 }
 
 #[test]
-fn test_parse_component() {
-    let m = parse_str("@component fn Chat() to Element { ret 0 }");
-    assert!(matches!(&m.declarations[0], Decl::Component(_)));
+fn classic_component_fn_is_parse_error() {
+    assert_parse_fails("@component fn Chat() to Element { return 0 }");
 }
 
 #[test]
 fn test_parse_loading_decl() {
-    let m = parse_str("@loading fn RouteSpinner() to Element { ret <div/> }");
+    let m = parse_str("@loading fn RouteSpinner() to Element { return <div/> }");
     assert!(matches!(
         &m.declarations[0],
         Decl::Loading(l) if l.func.name == "RouteSpinner"
@@ -108,7 +107,7 @@ fn test_parse_at_component_reactive_path_c() {
 
 #[test]
 fn test_parse_http_route() {
-    let m = parse_str("http post \"/api/chat\" to Result { ret 0 }");
+    let m = parse_str("http post \"/api/chat\" to Result { return 0 }");
     assert!(matches!(&m.declarations[0], Decl::HttpRoute(r) if r.path == "/api/chat"));
 }
 
@@ -141,7 +140,7 @@ fn test_parse_type_def() {
 
 #[test]
 fn test_parse_operator_precedence() {
-    let m = parse_str("fn f() { ret 1 + 2 * 3 }");
+    let m = parse_str("fn f() { return 1 + 2 * 3 }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Return {
             value:
@@ -165,36 +164,23 @@ fn test_parse_operator_precedence() {
 
 #[test]
 fn test_parse_pipe() {
-    let m = parse_str("fn f() { ret x |> transform |> render }");
+    let m = parse_str("fn f() { return x |> transform |> render }");
     assert!(matches!(&m.declarations[0], Decl::Function(_)));
 }
 
 #[test]
-fn test_parse_actor() {
-    let m = parse_str("actor Worker { on receive(msg) to str { ret msg } }");
-    if let Decl::Actor(a) = &m.declarations[0] {
-        assert_eq!(a.name, "Worker");
-        assert_eq!(a.handlers.len(), 1);
-        assert_eq!(a.handlers[0].event_name, "receive");
-    } else {
-        panic!("Expected actor");
-    }
+fn test_parse_actor_is_tombstoned() {
+    assert_parse_fails("actor Worker { on receive(msg) to str { return msg } }");
 }
 
 #[test]
-fn test_parse_workflow() {
-    let m = parse_str("workflow process(file: str) to str { ret file }");
-    if let Decl::Workflow(w) = &m.declarations[0] {
-        assert_eq!(w.name, "process");
-        assert_eq!(w.params.len(), 1);
-    } else {
-        panic!("Expected workflow");
-    }
+fn test_parse_workflow_is_tombstoned() {
+    assert_parse_fails("workflow process(file: str) to str { return file }");
 }
 
 #[test]
 fn test_parse_lambda() {
-    let m = parse_str("fn f() { let add = fn(a, b) a + b\n ret add(1, 2) }");
+    let m = parse_str("fn f() { let add = fn(a, b) a + b\n return add(1, 2) }");
     if let Decl::Function(f) = &m.declarations[0] {
         assert_eq!(f.body.len(), 2);
         if let Stmt::Let {
@@ -213,7 +199,7 @@ fn test_parse_lambda() {
 
 #[test]
 fn test_parse_if_else() {
-    let m = parse_str("fn f(x) { if x { ret 1\n} else { ret 0\n} }");
+    let m = parse_str("fn f(x) { if x { return 1\n} else { return 0\n} }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Expr {
             expr:
@@ -235,7 +221,7 @@ fn test_parse_if_else() {
 
 #[test]
 fn test_parse_mutable_let() {
-    let m = parse_str("fn f() { let mut x = 0\n x = 1\n ret x }");
+    let m = parse_str("fn f() { let mut x = 0\n x = 1\n return x }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Let { mutable, .. } = &f.body[0] {
             assert!(mutable, "Should be mutable");
@@ -247,7 +233,7 @@ fn test_parse_mutable_let() {
 
 #[test]
 fn test_parse_method_chain() {
-    let m = parse_str("fn f() { ret list.map(fn(x) x).filter(fn(x) x) }");
+    let m = parse_str("fn f() { return list.map(fn(x) x).filter(fn(x) x) }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Return {
             value: Some(Expr::MethodCall { method, .. }),
@@ -263,40 +249,35 @@ fn test_parse_method_chain() {
 
 #[test]
 fn test_parse_jsx_self_closing() {
-    let m = parse_str("@component fn App() to Element { <input value=\"test\" /> }");
-    if let Decl::Component(c) = &m.declarations[0] {
-        if let Stmt::Expr {
-            expr: Expr::JsxSelfClosing(_),
-            ..
-        } = &c.func.body[0]
-        {
-            // ok
-        } else {
-            panic!("Expected self-closing JSX");
+    let m = parse_str("component App() { view: <input value=\"test\" /> }");
+    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
+        match &r.view {
+            Some(Expr::JsxSelfClosing(_)) => {}
+            other => panic!("Expected self-closing JSX in view, got {other:?}"),
         }
+    } else {
+        panic!("Expected reactive component");
     }
 }
 
 #[test]
 fn test_parse_jsx_with_children() {
-    let m = parse_str("@component fn A() to Element { <div><span>hello</span></div> }");
-    if let Decl::Component(c) = &m.declarations[0] {
-        if let Stmt::Expr {
-            expr: Expr::Jsx(el),
-            ..
-        } = &c.func.body[0]
-        {
+    let m = parse_str("component A() { view: <div><span>hello</span></div> }");
+    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
+        if let Some(Expr::Jsx(el)) = &r.view {
             assert_eq!(el.tag, "div");
             assert_eq!(el.children.len(), 1);
         } else {
-            panic!("Expected JSX element");
+            panic!("Expected JSX element in view");
         }
+    } else {
+        panic!("Expected reactive component");
     }
 }
 
 #[test]
 fn test_parse_spawn() {
-    let m = parse_str("fn f() { ret spawn(Worker) }");
+    let m = parse_str("fn f() { return spawn(Worker) }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Return {
             value: Some(Expr::Spawn { .. }),
@@ -328,7 +309,7 @@ fn test_parse_for_loop() {
 
 #[test]
 fn test_parse_pub_fn() {
-    let m = parse_str("pub fn helper() to int { ret 42 }");
+    let m = parse_str("pub fn helper() to int { return 42 }");
     if let Decl::Function(f) = &m.declarations[0] {
         assert!(f.is_pub);
         assert_eq!(f.name, "helper");
@@ -339,27 +320,19 @@ fn test_parse_pub_fn() {
 
 #[test]
 fn test_parse_multiple_decls() {
-    let src = "import std\n\nfn a() { ret 1 }\n\nfn b() { ret 2 }";
+    let src = "import std\n\nfn a() { return 1 }\n\nfn b() { return 2 }";
     let m = parse_str(src);
     assert_eq!(m.declarations.len(), 3, "import + 2 functions");
 }
 
 #[test]
-fn test_parse_activity() {
-    let m = parse_str("activity send_email(recipient: str) to str { ret recipient }");
-    if let Decl::Activity(a) = &m.declarations[0] {
-        assert_eq!(a.name, "send_email");
-        assert_eq!(a.params.len(), 1);
-        assert_eq!(a.params[0].name, "recipient");
-        assert!(a.return_type.is_some());
-    } else {
-        panic!("Expected activity declaration, got {:?}", m.declarations[0]);
-    }
+fn test_parse_activity_is_tombstoned() {
+    assert_parse_fails("activity send_email(recipient: str) to str { return recipient }");
 }
 
 #[test]
 fn test_parse_with_expression() {
-    let m = parse_str("fn f() { ret call() with { timeout: 5 } }");
+    let m = parse_str("fn f() { return call() with { timeout: 5 } }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Return {
             value: Some(Expr::With {
@@ -404,11 +377,11 @@ fn test_parse_index() {
     }
 }
 #[test]
-fn test_parse_v0_prompt() {
-    let m = parse_str("@v0 \"A dashboard with charts\" fn Dashboard() to Element");
+fn test_parse_v0_component() {
+    let m = parse_str("@v0 \"yM1xXq6\" Dashboard {}");
     if let Decl::V0Component(v) = &m.declarations[0] {
         assert_eq!(v.name, "Dashboard");
-        assert_eq!(v.prompt, "A dashboard with charts");
+        assert_eq!(v.v0_id, "yM1xXq6");
         assert!(v.image_path.is_none());
     } else {
         panic!("Expected V0Component, got {:?}", m.declarations[0]);
@@ -416,12 +389,12 @@ fn test_parse_v0_prompt() {
 }
 
 #[test]
-fn test_parse_v0_from_image() {
-    let m = parse_str("@v0 from \"design.png\" fn Dashboard() to Element");
+fn test_parse_v0_component_from_image() {
+    let m = parse_str(r#"@v0 from "mock.png" Landing {}"#);
     if let Decl::V0Component(v) = &m.declarations[0] {
-        assert_eq!(v.name, "Dashboard");
-        assert!(v.prompt.is_empty());
-        assert_eq!(v.image_path.as_deref(), Some("design.png"));
+        assert_eq!(v.name, "Landing");
+        assert_eq!(v.v0_id, "");
+        assert_eq!(v.image_path.as_deref(), Some("mock.png"));
     } else {
         panic!("Expected V0Component, got {:?}", m.declarations[0]);
     }
@@ -446,7 +419,7 @@ fn test_parse_island_optional_prop() {
 
 #[test]
 fn test_parse_server_fn_brace_shape() {
-    let m = parse_str("@server fn echo(x: str) to str {\n    ret x\n}");
+    let m = parse_str("@server fn echo(x: str) to str {\n    return x\n}");
     if let Decl::ServerFn(s) = &m.declarations[0] {
         assert_eq!(s.func.name, "echo");
         assert_eq!(s.func.params.len(), 1);
@@ -494,7 +467,7 @@ fn test_parse_routes_root_and_nested_path_literals() {
 #[test]
 fn test_parse_reactive_effect_mount_cleanup_view() {
     let m = parse_str(
-        "@component Demo(x: int) {\n  state n: int = x\n  effect: { }\n  mount: { }\n  cleanup: { }\n  view: <span>{n}</span>\n}",
+        "@component Demo(x: int) {\n  state n: int = x\n  effect: { }\n  on mount: { }\n  on cleanup: { }\n  view: <span>{n}</span>\n}",
     );
     if let Decl::ReactiveComponent(r) = &m.declarations[0] {
         assert_eq!(r.name, "Demo");
@@ -523,6 +496,23 @@ fn test_parse_reactive_effect_mount_cleanup_view() {
             m.declarations[0]
         );
     }
+}
+
+#[test]
+fn test_parse_std_http_dotted_path_and_import() {
+    let m = parse_str(
+        "import std.http\n\nfn main() {\n  let _ = std.http.get_text(\"https://example.com\")\n}\n",
+    );
+    assert!(
+        m.declarations.iter().any(|d| matches!(d, Decl::Import(_))),
+        "expected import decl"
+    );
+    assert!(
+        m.declarations
+            .iter()
+            .any(|d| matches!(d, Decl::Function(_))),
+        "expected fn decl"
+    );
 }
 
 #[test]
@@ -567,14 +557,15 @@ fn test_routes_parse_summary_matches_paths() {
     }
 }
 
-/// OP-0029: unknown reactive member token uses [`ParseErrorClass::ReactiveComponentMember`].
+/// OP-0029: misplaced `view` JSX without `view:` is a hard parse failure (colon expectation).
 #[test]
 fn test_reactive_body_unknown_token_diagnostic_class() {
-    let tokens = lex("@component Bad() { not_a_member 1 }");
+    let tokens = lex("@component Bad() {\n  view <div />\n}");
     let err = parse(tokens).expect_err("expected parse failure");
     assert!(
-        err.iter()
-            .any(|e| e.class == ParseErrorClass::ReactiveComponentMember),
+        err.iter().any(
+            |e| e.class == ParseErrorClass::ExpectToken || e.class == ParseErrorClass::TopLevel
+        ),
         "{err:?}"
     );
 }
@@ -588,4 +579,101 @@ fn test_web_surface_syntax_inventory_non_empty() {
         joined.contains("@island") && joined.contains("routes {"),
         "{joined}"
     );
+}
+
+#[test]
+fn test_parse_agent_and_environment() {
+    let m = parse_str(
+        r#"
+agent Assistant {
+    version "1.0"
+}
+environment staging {
+    base "node"
+}
+"#,
+    );
+    assert_eq!(2, m.declarations.len());
+    assert!(matches!(m.declarations[0], Decl::Agent(_)));
+    assert!(matches!(m.declarations[1], Decl::Environment(_)));
+}
+
+// ── parse_script tests (audit item A.1) ──────────────────────────────────────
+
+fn parse_script_str(source: &str) -> Module {
+    let tokens = lex(source);
+    parse_script(tokens).unwrap_or_else(|e| panic!("Script parse errors: {e:?}"))
+}
+
+/// Top-level `let` statement is wrapped in a synthetic `fn main()`.
+#[test]
+fn test_parse_script_top_level_let_becomes_main() {
+    let m = parse_script_str("let x = 42");
+    // The module must contain exactly one declaration: synthetic fn main.
+    assert_eq!(
+        m.declarations.len(),
+        1,
+        "expected exactly synthetic fn main"
+    );
+    if let Decl::Function(f) = &m.declarations[0] {
+        assert_eq!(f.name, "main");
+        assert_eq!(f.params.len(), 0);
+        assert!(!f.is_pub);
+        assert_eq!(f.body.len(), 1);
+        assert!(matches!(&f.body[0], Stmt::Let { .. }));
+    } else {
+        panic!("Expected Decl::Function(main), got {:?}", m.declarations[0]);
+    }
+}
+
+/// A plain expression at the top level becomes a Stmt::Expr inside main.
+#[test]
+fn test_parse_script_top_level_expr_becomes_main_body() {
+    let m = parse_script_str("print(42)");
+    if let Decl::Function(f) = &m.declarations[0] {
+        assert_eq!(f.name, "main");
+        assert_eq!(f.body.len(), 1);
+        assert!(matches!(&f.body[0], Stmt::Expr { .. }));
+    } else {
+        panic!("expected fn main");
+    }
+}
+
+/// Mixed file: a declaration + top-level statements. Declarations stay as-is;
+/// statements are collected into synthetic main appended after them.
+#[test]
+fn test_parse_script_mixed_decl_and_stmts() {
+    let src = "fn helper() to int { return 1 }\nlet result = helper()";
+    let m = parse_script_str(src);
+    // Expect: fn helper, then synthetic fn main.
+    assert_eq!(m.declarations.len(), 2, "expected helper + synthetic main");
+    assert!(matches!(&m.declarations[0], Decl::Function(f) if f.name == "helper"));
+    assert!(matches!(&m.declarations[1], Decl::Function(f) if f.name == "main"));
+    if let Decl::Function(main) = &m.declarations[1] {
+        assert_eq!(main.body.len(), 1);
+        assert!(matches!(&main.body[0], Stmt::Let { .. }));
+    }
+}
+
+/// A pure-declaration file (no top-level statements) produces no synthetic main.
+#[test]
+fn test_parse_script_pure_decl_file_no_synthetic_main() {
+    let src = "fn add(a, b) to int { return a + b }";
+    let m = parse_script_str(src);
+    assert_eq!(m.declarations.len(), 1);
+    assert!(matches!(&m.declarations[0], Decl::Function(f) if f.name == "add"));
+}
+
+/// Multiple top-level statements all end up in one synthetic main body.
+#[test]
+fn test_parse_script_multiple_stmts_single_main() {
+    let src = "let x = 1\nlet y = 2\nlet z = x";
+    let m = parse_script_str(src);
+    assert_eq!(m.declarations.len(), 1);
+    if let Decl::Function(f) = &m.declarations[0] {
+        assert_eq!(f.name, "main");
+        assert_eq!(f.body.len(), 3);
+    } else {
+        panic!("expected fn main");
+    }
 }

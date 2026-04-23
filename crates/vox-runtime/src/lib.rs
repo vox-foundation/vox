@@ -12,6 +12,8 @@ pub mod builtins;
 #[cfg(feature = "database")]
 /// Optional Codex / Turso database handle when the `database` feature is enabled.
 pub mod db;
+/// Garbage collection arena and !Send pointers for actor memory isolation.
+pub mod gc;
 /// Hugging Face router, Hub listings, and Mens/Ollama capability probes.
 pub mod inference_env;
 /// OpenAI-compatible chat/embed clients, registry entries, and usage metrics.
@@ -36,6 +38,8 @@ pub mod registry;
 pub mod resilient_http;
 /// RAG-style chunk retrieval, context budgets, and provenance records.
 pub mod retrieval;
+/// Shared routing decision telemetry for DB joins (bounded `reason_json`).
+pub mod routing_telemetry;
 /// Cooperative Tokio-backed scheduler registering spawned actors.
 pub mod scheduler;
 /// Per-table reactive mutation notifications (broadcast channels for reactive queries).

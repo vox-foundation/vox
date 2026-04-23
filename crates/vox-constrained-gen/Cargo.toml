@@ -1,0 +1,20 @@
+[package]
+name = "vox-constrained-gen"
+description = "Grammar-constrained inference engine for Vox — Earley/PDA backends, deadlock watchdog, and stream-of-revision."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+vox-grammar-export = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+workspace-hack = { workspace = true }
+
+[dev-dependencies]
+serial_test = { workspace = true }
+
+[lints]
+workspace = true

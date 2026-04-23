@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { VoxMcpClient } from '../core/VoxMcpClient';
-import type { GamifyState, Achievement } from '../types';
+import type { GamifyState } from '../types';
 import { ConfigManager } from '../core/ConfigManager';
 
 export class GamifyManager {

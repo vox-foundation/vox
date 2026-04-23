@@ -1,0 +1,29 @@
+x-vox-version: 1
+# Projection profile limits for syndication compile (vox-publisher `distribution_compile`).
+# `template_profile` strings from `distribution.topic-packs.yaml` must resolve here (CI-enforced).
+version: 1
+profiles:
+  short_insight_thread:
+    description: "Twitter/X short summary or thread chunk."
+    max_title_chars: 280
+    max_primary_chars: 260
+  deep_dive_selfpost:
+    description: "Reddit self-post body cap; title uses Reddit limits at compile."
+    max_title_chars: 300
+    max_primary_chars: 700
+  launch_title:
+    description: "Hacker News title-focused surface."
+    max_title_chars: 80
+    max_primary_chars: 500
+  release_digest:
+    description: "GitHub release notes body."
+    max_title_chars: 500
+    max_primary_chars: 5000
+  demo_explainer:
+    description: "YouTube description-first explainer."
+    max_title_chars: 100
+    max_primary_chars: 5000
+  fallback:
+    description: "Safe defaults when an unknown template_profile is referenced."
+    max_title_chars: 300
+    max_primary_chars: 2000

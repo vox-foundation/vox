@@ -2,8 +2,10 @@
 title: "Information-theoretic questioning protocol"
 description: "SSOT for when and how Vox asks clarifying questions with maximum diagnostic value per user effort."
 category: "reference"
-last_updated: 2026-03-27
+last_updated: "2026-03-28"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Information-theoretic questioning protocol
@@ -45,6 +47,17 @@ Prefer when hypothesis space is known and bounded.
 - Include a deliberate "other / none of the above" only when genuinely needed.
 - Design unselected options to remain diagnostically useful (infer constraints/preferences).
 
+### Assumption-confirm (`assumption_confirm`)
+
+Prefer when agent confidence in its inferred value is ≥ 0.80 and the value is not
+policy-sensitive or destructive.
+
+- State the assumed value explicitly: *"I'm assuming X. Correct me if wrong; otherwise I'll proceed."*
+- Include a default timeout: how long the agent waits before proceeding with the assumption.
+- Include a brief impact note: what changes if the assumption is wrong.
+- Do **not** use when the assumption is irreversible — use `multiple_choice` or `entry` instead.
+- Anti-pattern: stating the assumption confidently without a clear correction mechanism (obsequiousness trap).
+
 ### Open-ended (`open_ended`)
 
 Prefer when user intent space is broad or unknown.
@@ -78,6 +91,22 @@ Choose the highest-scoring candidate that passes policy constraints:
 - `expected_user_cost <= max_expected_user_cost`
 - `clarification_turn_index < max_clarification_turns`
 
+## Structural question funnel
+
+High-diagnostic questioning follows a three-stage funnel. Each stage runs only if the
+previous left material ambiguity.
+
+1. **Intent** — Resolves the plan branch (`open_ended` or `binary`). Most tasks resolve here.
+2. **Scope/constraint** — Resolves the execution envelope (`multiple_choice` or `entry`).
+3. **Parameter confirm** — Confirms specifics for high-stakes or highly parameterized actions (`assumption_confirm` or `entry`).
+
+For planning specifically:
+
+1. Is the goal unambiguous with clear scope? → Plan without asking.
+2. Does the goal map to N≥2 materially different plan shapes AND EVPI exceeds threshold? → Ask ONE disambiguating question. See `planning-meta/12-question-gate-standard.md`.
+3. Is any high-risk step irreversible? → Confirm with `assumption_confirm` before that step executes.
+4. Is the plan thin but the missing detail is specification-level (not intent-level)? → Auto-expand via `auto_expand_thin_plan`; ask only for genuine intent gaps.
+
 ## Stopping rules
 
 Stop clarification when any condition is met:
@@ -98,7 +127,41 @@ Questioning must be cost-aware with attention budget coupling:
 - Raise gain threshold when attention budget is near exhaustion.
 - Prefer concise multiple-choice in high temporal demand contexts.
 
+### Attention budget → EIG threshold table
+
+The EIG threshold for question approval scales with focus depth and budget state:
+
+| Budget / focus state | EIG threshold adjustment | Permitted question types |
+|---|---|---|
+| `FocusDepth::Ambient`, spend < 50% | None (use configured baseline) | All types |
+| `FocusDepth::Focused`, spend 50–80% | +20% | All types; prefer `multiple_choice` |
+| `FocusDepth::Deep`, spend > 80% | +50% | `binary`, `assumption_confirm` only |
+| `BudgetSignal::Critical` | Questions suppressed | None; proceed on best inference |
+| `BudgetSignal::CostExceeded` | Questions suppressed | None; proceed on safe default |
+| `interrupt_ewma > 0.8` | +50% (backlog penalty) | Defer non-critical; batch with next checkpoint |
+
 MCP records estimated wall-time per `session_id` and can mirror those debits into the orchestrator global attention budget. Cap override and mirror toggle: **`VOX_QUESTIONING_MAX_ATTENTION_MS`**, **`VOX_QUESTIONING_MIRROR_GLOBAL_ATTENTION`** — see [Environment variables (SSOT)](env-vars.md#mcp-socrates-questioning).
+
+### Dynamic interruption control (runtime)
+
+When **`VOX_ORCHESTRATOR_ATTENTION_ENABLED=true`**, MCP **does not** emit every model-proposed question immediately. The orchestrator evaluates [`evaluate_interruption`](../../../crates/vox-orchestrator/src/attention/interruption_policy.rs) using:
+
+- information gain vs. normalized user cost (same SSOT ratio),
+- live [`AttentionBudget`](../../../crates/vox-orchestrator/src/attention/budget.rs) (spent ratio, focus depth / interrupt EWMA),
+- trust, contradiction, risk band, open session hints, and turn caps.
+
+Outcomes: **interrupt now** (persist question + [`AttentionEvent`](../../../crates/vox-orchestrator/src/attention/budget.rs)), **defer**, **batch with existing prompt**, or **proceed autonomously** (metric-only). High-risk / abstain-band cases can still **require human** before continue. Answered clarifications append **`ClarificationAnswered`** attention rows via `vox_questioning_submit_answer`. **`VOX_ORCHESTRATOR_ATTENTION_ENABLED=false`** keeps prior behavior (no dynamic deferral on this path).
+
+Runtime now records policy-only outcomes (`PolicyDeferred`, `PolicyProceedAuto`) as first-class attention events, so calibration can learn from **suppressed** interruptions too (not only displayed prompts).
+
+`Vox.toml` `[orchestrator]` can tune channel calibration via `interruption_calibration` (gain offsets, backlog penalty, trust-adjustment scale) without changing policy code.
+
+Surface behavior differs:
+
+- `vox_submit_task`: defer/proceed-auto record telemetry and continue submit; require-human blocks unless description carries explicit marker (`[approval:confirm]`, `[approval:reviewed]`, `[human-approved]`).
+- `vox_a2a_send` (pilot-visible escalation types): defer/proceed-auto suppress send and return `deferred=true`; require-human blocks.
+- `vox_a2a_send` (pilot-visible escalation types): defer suppresses send and returns `decision=DeferUntilCheckpoint` with `deferred=true`; proceed-auto suppresses send and returns `decision=ProceedAutonomously` with `deferred=false`; require-human blocks.
+- `vox_plan`/`vox_replan`/`vox_plan_status`: defer/proceed-auto suppress only the questioning trace; plan output still returns.
 
 ## A2A clarification contract
 
@@ -118,6 +181,11 @@ Recommended `msg_type` values:
 - `clarification_request`
 - `clarification_response`
 - `clarification_stop`
+
+Contract schemas:
+
+- [`contracts/communication/a2a-clarification-payload.schema.json`](../../../contracts/communication/a2a-clarification-payload.schema.json)
+- [`contracts/communication/interruption-decision.schema.json`](../../../contracts/communication/interruption-decision.schema.json)
 
 ## Metrics (minimum set)
 
@@ -143,6 +211,10 @@ Question-level runtime telemetry must be queryable in VoxDB via dedicated questi
 
 ## Related SSOTs
 
-- `docs/src/reference/socrates-protocol.md`
+- `docs/src/reference/socrates-protocol.md` — confidence gate and Ask decision
 - `docs/src/reference/scientia-publication-worthiness-rules.md`
 - `docs/src/reference/orchestration-unified.md`
+- `docs/src/architecture/research-diagnostic-questioning-2026.md` — full research grounding (POMDP, EVPI, gap analysis, implementation roadmap)
+- `docs/src/architecture/planning-meta/12-question-gate-standard.md` — Tier 1 normative rules for planning-mode questioning
+
+

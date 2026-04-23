@@ -79,7 +79,7 @@ fn skip_walkdir_entry(path: &Path) -> bool {
 /// Collect `@v0` component names from `.vox` files under `root` (for optional `vox doctor` checks).
 #[must_use]
 pub fn scan_v0_component_names_from_vox_sources(root: &Path) -> Vec<String> {
-    let re = Regex::new(r#"@v0\s+(?:from\s+"[^"]+"|"[^"]*")\s+fn\s+(\w+)"#)
+    let re = Regex::new(r#"@v0\s+(?:from\s+"[^"]+"|"[^"]*")\s+(?:fn\s+)?(\w+)"#)
         .expect("static @v0 scan regex");
     let mut names = Vec::new();
     let walker = WalkDir::new(root)
@@ -164,7 +164,7 @@ mod tests {
         std::fs::create_dir_all(&sub).expect("mkdir");
         std::fs::write(
             sub.join("ui.vox"),
-            "@v0 \"A panel\" fn Stats() to Element\n\n@v0 from \"x.png\" fn Gallery() to Element\n",
+            "@v0 \"A panel\" Stats {}\n\n@v0 from \"x.png\" fn Gallery() to Element\n",
         )
         .expect("write vox");
         let mut names = scan_v0_component_names_from_vox_sources(tmp.path());

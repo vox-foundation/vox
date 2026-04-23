@@ -27,6 +27,7 @@ pub(crate) fn emit_type(ty: &HirType) -> String {
             }
         }
         HirType::Unit => "()".into(),
+        HirType::Decimal => "rust_decimal::Decimal".into(),
         _ => "serde_json::Value".into(),
     }
 }

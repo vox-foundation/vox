@@ -1,0 +1,44 @@
+// ---
+// title: "Index Showcase"
+// description: "Consolidated examples for the Vox homepage."
+// syntax_version: "0.3"
+// status: golden
+// category: example
+// constructs: [@table, @server, @island, routes]
+// ---
+
+// ANCHOR: data
+@table type Task {
+    title: str
+    done: bool
+}
+
+@server fn complete_task(id: Id[Task]) to Result[Unit] {
+    db.Task.update(id, { done: true })
+    return Ok(Unit)
+}
+// ANCHOR_END: data
+
+// ANCHOR: ui
+component TaskList(tasks: List[Task]) {
+    view: <div>
+        {tasks.map(fn(t) {
+            <label>
+                <input 
+                    type="checkbox" 
+                    checked={t.done} 
+                    onChange={fn() complete_task(t.id)} 
+                />
+                {t.title}
+            </label>
+        })}
+    </div>
+}
+// ANCHOR_END: ui
+
+// ANCHOR: mcp
+@mcp.tool "search_docs: Search documentation for a query"
+fn search_docs(query: str) to List[str] {
+    return db.query("SELECT context FROM Docs WHERE context LIKE ?", ["%" + query + "%"])
+}
+// ANCHOR_END: mcp

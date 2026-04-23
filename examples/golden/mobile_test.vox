@@ -1,0 +1,10 @@
+// Minimal notify demo — same handler shape as `examples/golden/mobile_camera.vox`.
+
+import std.mobile
+
+component App() {
+    view:
+        <button onclick={fn() {
+            mobile.notify("Hello", "From Vox!")
+        }}>"Notify Me"</button>
+}

@@ -53,11 +53,7 @@ impl crate::VoxDb {
     pub fn block_on<R: Send>(&self, fut: impl std::future::Future<Output = R> + Send) -> R {
         match tokio::runtime::Handle::try_current() {
             Ok(handle) => tokio::task::block_in_place(|| handle.block_on(fut)),
-            Err(_) => tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("VoxDb::block_on could not build Tokio runtime")
-                .block_on(fut),
+            Err(_) => panic!("VoxDb::block_on requires an active Tokio runtime"),
         }
     }
 

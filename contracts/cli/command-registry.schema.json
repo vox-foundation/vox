@@ -45,26 +45,31 @@
           "items": { "type": "string", "minLength": 1 }
         },
         "latin_ns": {
-          "type": "string",
+          "type": ["string", "null"],
           "description": "Canonical Latin namespace (fabrica, mens, ars, recensio, …)"
         },
         "catalog_group": {
-          "type": "string",
+          "type": ["string", "null"],
           "description": "Optional UX lane for vox commands (e.g. oratio); defaults from latin_ns when omitted."
         },
         "product_lane": {
-          "type": "string",
-          "enum": ["app", "workflow", "ai", "interop", "data", "platform"],
-          "description": "Bell-curve product lane used for docs/catalog grouping without renaming CLI paths."
+          "description": "Bell-curve product lane used for docs/catalog grouping without renaming CLI paths.",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "string",
+              "enum": ["app", "workflow", "ai", "interop", "data", "platform"]
+            }
+          ]
         },
         "feature_gate": { "type": ["string", "null"] },
         "status": {
           "type": "string",
           "enum": ["active", "deprecated", "retired", "internal"]
         },
-        "handler_rust": { "type": "string" },
-        "ref_cli_required": { "type": "boolean" },
-        "reachability_required": { "type": "boolean" }
+        "handler_rust": { "type": ["string", "null"] },
+        "ref_cli_required": { "type": ["boolean", "null"] },
+        "reachability_required": { "type": ["boolean", "null"] }
       }
     },
     "script_dual": {

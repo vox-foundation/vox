@@ -2,8 +2,10 @@
 title: "Planning taxonomy and glossary"
 description: "Canonical terminology for planning-meta artifacts, including preferred terms, forbidden ambiguous aliases, and historical mappings."
 category: "architecture"
-last_updated: 2026-03-26
+last_updated: "2026-03-26"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # Planning taxonomy and glossary
@@ -90,4 +92,6 @@ This glossary is complete when:
 - all planning-meta documents use canonical terms for core concepts,
 - ambiguous aliases are either removed or mapped,
 - tier and evidence language is consistent across the corpus.
+
+
 

@@ -1,6 +1,4 @@
 import * as vscode from 'vscode';
-import * as cp from 'child_process';
-import { VoxMcpClient } from './VoxMcpClient';
 import { ConfigManager } from './ConfigManager';
 import {
     LanguageClient,

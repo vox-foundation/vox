@@ -206,6 +206,7 @@ pub fn post_spawn_sandbox(child: &std::process::Child) -> Result<()> {
 /// No-op on non-Windows platforms.
 #[cfg(not(target_os = "windows"))]
 pub fn post_spawn_sandbox(_child: &std::process::Child) -> Result<()> {
+    let _ = std::hint::black_box(_child.id());
     Ok(())
 }
 
@@ -222,6 +223,7 @@ mod tests {
             no_cache: false,
             isolation: None,
             trust_class: None,
+            target_triple: None,
             #[cfg(feature = "script-execution")]
             wasi_dirs: vec![],
         }

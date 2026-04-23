@@ -1,0 +1,81 @@
+{
+  "x-vox-version": 1,
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vox-lang.org/contracts/operations/completion-policy.v1.schema.json",
+  "title": "completion policy v1",
+  "type": "object",
+  "required": ["schema_version", "tier_definitions", "detectors"],
+  "additionalProperties": false,
+  "properties": {
+    "x-vox-version": { "type": "integer" },
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "tier_definitions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["description"],
+        "properties": {
+          "description": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "b_to_a_requires": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "demotion_a_to_b_triggers": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "detectors": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "tier", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "tier": { "type": "string", "enum": ["A", "B", "C"] },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "mens": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "anti_stub_maps_to_tier_B": { "type": "boolean" },
+        "summary_field": { "type": "string" }
+      }
+    },
+    "orchestrator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "no_write_completion_ssot": { "type": "string" }
+      }
+    },
+    "audit_exemptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contract_enforced_by_empty_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "stub_response_path_suffixes": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -5,4 +5,21 @@ edition.workspace = true
 description = "Scientia core publication models, preflight, and worthiness APIs."
 
 [dependencies]
-vox-publisher = { workspace = true }
+vox-db = { workspace = true }
+vox-clavis = { workspace = true }
+vox-bounded-fs = { workspace = true }
+vox-primitives = { workspace = true }
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+reqwest = { workspace = true }
+regex = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+vox-search = { workspace = true }
+sha2 = { workspace = true }
+vox-forge = { path = "../vox-forge", features = ["github", "gitlab"] }
+pulldown-cmark = "0.13"
+vox-publisher = { path = "../vox-publisher", default-features = false }
+workspace-hack = { workspace = true }

@@ -2,7 +2,6 @@
 //!
 //! Replaces the retired Python inventory scripts; verify via `vox ci doc-inventory verify`.
 
-mod bounded_fs;
 mod cli_generate;
 mod constants;
 mod counts;

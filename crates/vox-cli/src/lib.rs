@@ -10,17 +10,19 @@ pub mod benchmark_telemetry;
 #[cfg(feature = "script-execution")]
 mod build_lock;
 mod build_service;
-mod cli_actions;
-mod cli_args;
+pub mod cli_actions;
+pub mod cli_args;
 mod cli_dispatch;
 mod codex_cmd;
 mod command_contract;
 mod command_registry_model;
 use crate::codex_cmd::CodexCmd;
+pub mod artifact_policy;
 pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
+pub mod telemetry_spool;
 /// External `vox-dei-d` RPC boundary (method id SSOT).
 pub mod dei_daemon;
 /// Colored CLI output helpers (`print_info`, `print_success`, …).
@@ -42,19 +44,19 @@ mod latin_cmd;
 ))]
 mod lock_telemetry;
 pub mod pipeline;
-#[cfg(feature = "populi")]
-mod populi_codex_telemetry;
 mod process_supervision;
+/// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
+pub(crate) mod render;
 #[cfg(feature = "island")]
 mod table;
 pub mod templates;
-mod training;
 /// WASI preopen mode for `script-execution` / `execution-api` runners.
 #[cfg(any(feature = "script-execution", feature = "execution-api"))]
 mod wasi_dir_mode;
 mod watcher;
-#[cfg(feature = "workflow-runtime")]
-mod workflow_journal_codex;
+pub mod workflow_journal_codex;
+/// Workspace journey VoxDb connect for repo-scoped CLI subcommands.
+pub mod workspace_db;
 
 /// Legacy v0 integration helpers (external codegen API).
 pub mod v0;
@@ -63,7 +65,7 @@ pub(crate) mod v0_tsx_normalize;
 
 pub use dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
-use clap::{Args, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 use clap_complete::Shell;
 
 /// Build version string: `0.x.y+build.N (githash)`
@@ -76,32 +78,9 @@ pub const VOX_VERSION: &str = concat!(
     ")",
 );
 
-/// Initialize [`tracing`] for `vox` / `vox-compilerd`: respects `RUST_LOG`, defaults to `info`.
-///
-/// Uses [`tracing_subscriber::fmt`] with [`tracing_subscriber::EnvFilter`]. Safe to call once per
-/// process; repeated calls are ignored (`try_init`).
-pub fn init_tracing_for_cli() {
-    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
-    let _ = tracing_subscriber::fmt().with_env_filter(filter).try_init();
-}
-
-/// Global flags available before every subcommand (`vox --color never build …`).
-#[derive(Args, Clone, Debug, Default)]
-pub struct GlobalOpts {
-    /// When to emit ANSI colors (`NO_COLOR` still disables).
-    #[arg(long, global = true, value_name = "WHEN", value_enum)]
-    pub color: Option<crate::diagnostics::ColorChoice>,
-    /// Hint subcommands to prefer machine JSON where supported (`VOX_CLI_GLOBAL_JSON=1`).
-    #[arg(long, global = true)]
-    pub json: bool,
-    /// More verbose logs (sets `RUST_LOG=debug` when unset — see [`run_vox_cli_from_parsed`] before tracing init).
-    #[arg(long, global = true, short = 'v')]
-    pub verbose: bool,
-    /// Quieter stderr for supported subcommands (`VOX_CLI_QUIET=1`).
-    #[arg(long, global = true, short = 'q')]
-    pub quiet: bool,
-}
+pub use vox_cli_core::GlobalOpts;
+pub use vox_cli_core::apply_global_opts;
+pub use vox_cli_core::init_tracing_for_cli;
 
 /// Full `vox` invocation: global options + subcommand.
 #[derive(Parser)]
@@ -156,8 +135,15 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: latin_cmd::DiagCmd,
     },
+    /// Extensions lane — unified entry for legacy and ML subcommands (`ext`).
+    #[command(name = "ext")]
+    Ext {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: crate::commands::ext::ExtCmd,
+    },
     /// Craft / skills lane — snippet, share, skill, … (`ars`).
-    #[command(name = "ars")]
+    #[command(name = "ars", hide = true)]
     Ars {
         /// Subcommand.
         #[command(subcommand)]
@@ -177,6 +163,18 @@ pub enum Cli {
         /// Subcommand.
         #[command(subcommand)]
         cmd: commands::review::ReviewCli,
+    },
+    /// Manage global configuration and preferences.
+    Config {
+        /// Subcommand
+        #[command(subcommand)]
+        cmd: commands::config::ConfigCmd,
+    },
+    /// Identity and master key integration (`vox auth`).
+    Auth {
+        /// Subcommand
+        #[command(subcommand)]
+        cmd: commands::auth::AuthCmd,
     },
     /// Build a Vox source file, producing TypeScript output
     Build {
@@ -208,6 +206,12 @@ pub enum Cli {
         /// Arguments.
         #[command(flatten)]
         args: cli_args::ScriptArgs,
+    },
+    #[cfg(not(feature = "script-execution"))]
+    #[command(name = "script")]
+    ScriptStub {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        _args: Vec<String>,
     },
     /// Watch and rebuild via `vox-compilerd` (install daemon next to `vox` or on PATH)
     Dev {
@@ -247,64 +251,150 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::LockArgs,
     },
+    /// Check toolchain and local environment readiness (`vox doctor`).
+    Doctor {
+        #[command(flatten)]
+        args: cli_args::DoctorArgs,
+    },
+    /// Workspace layout validation + god-object scan (`vox architect`).
+    #[cfg(any(feature = "codex", feature = "stub-check"))]
+    Architect {
+        #[command(subcommand)]
+        cmd: crate::cli_actions::ArchitectAction,
+    },
+    /// TOESTUB scan + Codex baselines / Ludus rewards (`vox stub-check`).
+    #[cfg(feature = "stub-check")]
+    StubCheck {
+        #[command(flatten)]
+        args: cli_args::StubCheckArgs,
+    },
     /// Materialize registry packages from `vox.lock` into `.vox_modules/dl/`.
     Sync {
         #[command(flatten)]
         args: cli_args::SyncArgs,
+    },
+    /// Deprecated: use `vox auth connect` instead.
+    #[command(hide = true)]
+    Login,
+    /// Deprecated: use `vox auth` instead.
+    #[command(hide = true)]
+    Logout,
+    /// Share / search packages via local Arca index (`vox share`).
+    Share {
+        #[command(subcommand)]
+        cmd: crate::commands::extras::share_cli::ShareCli,
+    },
+    /// Deprecated: use `vox mens train` instead.
+    #[command(hide = true)]
+    Train {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Snippet helpers (local `vox-pm` store).
+    Snippet {
+        #[command(subcommand)]
+        cmd: crate::commands::extras::snippet_cli::SnippetCli,
+    },
+    /// ARS skill registry + promote / context (`vox skill`).
+    #[cfg(feature = "ars")]
+    Skill {
+        #[command(subcommand)]
+        cmd: crate::commands::extras::skill_cmd::SkillCmd,
+    },
+    /// Ludus gamification: profile, companions, quests, and battle simulations.
+    #[cfg(feature = "extras-ludus")]
+    #[command(name = "ludus")]
+    Ludus {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: crate::commands::extras::ludus_cli::LudusCli,
+    },
+    /// Deploy from `Vox.toml` `[deploy]` (OCI build/push, compose, Kubernetes, or bare-metal SSH).
+    Deploy {
+        #[command(flatten)]
+        args: cli_args::DeployArgs,
     },
     /// Advanced package manager / registry commands (`search`, `publish`, `vendor`, …).
     Pm {
         #[command(subcommand)]
         cmd: commands::pm::PmCli,
     },
+    /// Agentic Planning tools: Create, replan, and bypass planning steps (`vox plan`).
+    Plan {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::plan::PlanCmd,
+    },
+    /// LLM-native context and prompt generation tools (`vox llm prompt`)
+    Llm {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::llm::LlmCmd,
+    },
+    /// Vox Visus: Voice of Vision. Agentic GUI visual intelligence and bug detection.
+    #[cfg(feature = "dei")]
+    Visus {
+        #[command(subcommand)]
+        cmd: commands::visus::VisusCmd,
+    },
+    /// Launch the local orchestration dashboard in a browser (`vox dashboard`).
+    #[cfg(feature = "dashboard")]
+    Dashboard {
+        #[command(flatten)]
+        args: crate::commands::dashboard::DashboardArgs,
+    },
     /// Toolchain upgrade: `--source release` (checksums.txt binary) or `--source repo` (git + `cargo install --locked`); never edits `Vox.toml` / `vox.lock`.
     Upgrade {
         #[command(flatten)]
         args: cli_args::UpgradeToolchainArgs,
     },
-    /// Deprecated compatibility command; use `vox clavis set` instead.
-    Login {
-        /// Registry name (for example `google`, `openrouter`, `voxpm`).
+    /// Scaffold a new Vox project (`Vox.toml`, `src/main.vox`, `.vox_modules/`, or `<name>.skill.md`).
+    Init {
+        /// Project / package name (defaults to current directory name).
+        name: Option<String>,
+        /// Package kind: `application`, `skill`, `agent`, `workflow`, `chatbot`, `library`, …
         #[arg(long)]
-        registry: Option<String>,
-        /// Token to store (omit for interactive prompt).
-        token: Option<String>,
-        /// Optional username for registry flows.
+        kind: Option<String>,
+        /// Application template: `chatbot`, `dashboard`, or `api` (with `--kind application` or default).
         #[arg(long)]
-        username: Option<String>,
+        template: Option<String>,
     },
-    /// Deprecated compatibility command; use `vox clavis` instead.
-    Logout {
-        /// Registry to remove (default `voxpm`).
-        #[arg(long)]
-        registry: Option<String>,
+    /// Scaffold a new Vox application from opinionated presets (`vox new web`)
+    New {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::new::NewCmd,
+    },
+    /// Scaffold and immediately run a temporary Vox project (`vox play`)
+    Play {
+        #[command(flatten)]
+        args: cli_args::PlayArgs,
+    },
+    /// Automatically repair syntax and type errors in a `.vox` file via LLM (`vox repair`)
+    Repair {
+        #[command(flatten)]
+        args: cli_args::RepairArgs,
+    },
+    /// Source migrations for React interop / retired web syntax (`migrate web`, …).
+    Migrate {
+        #[command(subcommand)]
+        cmd: commands::migrate::MigrateCmd,
+    },
+    /// Start the Vox MCP (Model Context Protocol) server
+    Mcp,
+    /// Export the Vox language grammar in various formats for MENS training.
+    Grammar {
+        /// Arguments.
+        #[command(flatten)]
+        args: commands::grammar::GrammarParams,
     },
     /// Start the Vox Language Server
     Lsp,
-    /// Check toolchain and local environment readiness (`--build-perf` / `--json` need `--features codex`)
-    Doctor {
-        /// Arguments.
-        #[command(flatten)]
-        args: cli_args::DoctorArgs,
-    },
-    /// Workspace layout validation + god-object scan (needs `--features codex` or `stub-check`)
-    #[cfg(any(feature = "codex", feature = "stub-check"))]
-    Architect {
-        /// Subcommand.
+    /// Interactive shell or PowerShell AST exec-policy check (`shell check`, `shell repl`).
+    Shell {
+        /// Subcommand (default: `repl`).
         #[command(subcommand)]
-        cmd: cli_actions::ArchitectAction,
-    },
-    /// Snippet helpers (local Arca `VoxDb`; `VOX_DB_*` / Turso aliases or project `.vox/store.db`)
-    Snippet {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: commands::extras::snippet_cli::SnippetCli,
-    },
-    /// Share / search packages via local Arca index
-    Share {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: commands::extras::share_cli::ShareCli,
+        cmd: Option<commands::runtime::shell::ShellCmd>,
     },
     /// Codex / Arca database tools (verify, legacy JSONL export/import)
     Codex {
@@ -312,11 +402,30 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: CodexCmd,
     },
+    /// Manage the Vox attention-budgeting system and A2A thresholds.
+    #[cfg(feature = "dei")]
+    Attention {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::attention::AttentionCommand,
+    },
+    /// Repository discovery status, catalog (`.vox/repositories.yaml`), and cross-repo queries.
+    Repo {
+        /// Subcommand (`Option` so bare `vox repo` defaults to status in dispatch).
+        #[command(subcommand)]
+        cmd: Option<commands::repo::RepoCmd>,
+    },
     /// Local VoxDB: schema, samples, research ingest, preferences
     Db {
         /// Subcommand.
         #[command(subcommand)]
         cmd: commands::db_cli::DbCli,
+    },
+    /// Manage the `.vox/repositories.yaml` cross-repo catalog.
+    Catalog {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::catalog::CatalogCmd,
     },
     /// Vox Scientia — research / capability map facade (delegates to `vox db` tools)
     Scientia {
@@ -334,32 +443,18 @@ pub enum Cli {
     },
     /// OpenClaw / ClawHub gateway (skill import, approvals); requires `--features ars`
     #[cfg(feature = "ars")]
-    #[command(visible_alias = "oc")]
+    #[command(visible_alias = "oc", hide = true)]
     Openclaw {
         /// Action.
         #[command(subcommand)]
         action: commands::openclaw::OpenClawAction,
     },
-    /// ARS skill registry + promote / context (`--features ars`)
-    #[cfg(feature = "ars")]
-    Skill {
+    /// Manage and inspect Vox safety, coherence, and agent guardrails.
+    #[cfg(feature = "dei")]
+    Safety {
         /// Subcommand.
         #[command(subcommand)]
-        cmd: commands::extras::skill_cmd::SkillCmd,
-    },
-    /// Ludus gamification (`--features extras-ludus`)
-    #[cfg(feature = "extras-ludus")]
-    Ludus {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: commands::extras::ludus_cli::LudusCli,
-    },
-    /// TOESTUB scan + Codex baselines / Ludus rewards (`--features stub-check`)
-    #[cfg(feature = "stub-check")]
-    StubCheck {
-        /// Arguments.
-        #[command(flatten)]
-        args: cli_args::StubCheckArgs,
+        cmd: commands::safety::SafetyCommand,
     },
     /// CI guards: manifest, SSOT checks, feature matrix, doc inventory (no shell/Python required).
     Ci {
@@ -367,21 +462,21 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::ci::CiCmd,
     },
-    /// Mens: train, serve, corpus, eval (`mens-base` default; native train needs `gpu`)
-    #[cfg(any(feature = "mens-base", feature = "gpu"))]
-    Mens {
-        /// Action.
+    /// Manage models: discovery, scoreboard, and explainability (`vox model`).
+    #[command(name = "model")]
+    Model {
+        /// Subcommand.
         #[command(subcommand)]
-        action: commands::mens::PopuliAction,
+        cmd: commands::model::ModelCmd,
     },
-    /// Oratio: speech-to-text / transcripts (`--features oratio`).
-    #[cfg(feature = "oratio")]
-    #[command(visible_alias = "speech")]
-    Oratio {
-        /// Action.
+
+    /// Unified research operations: infrastructure (up/down/status) and eval.
+    Research {
+        /// Subcommand.
         #[command(subcommand)]
-        action: commands::oratio_cmd::OratioAction,
+        cmd: commands::research::ResearchCmd,
     },
+
     /// CodeRabbit batch PRs + ingest (`--features coderabbit`).
     #[cfg(feature = "coderabbit")]
     Review {
@@ -396,39 +491,42 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: cli_actions::IslandCli,
     },
-    /// Fine-tune: legacy entry — **`--provider local`** bails with **`vox mens train --backend qlora …`**; Together API; **`--native`** Burn scratch (requires `gpu` + `mens-dei`). **Canonical native QLoRA:** `vox mens train`.
-    #[cfg(all(feature = "gpu", feature = "mens-dei"))]
-    Train {
-        /// Arguments.
-        #[command(flatten)]
-        args: cli_args::TrainLegacyArgs,
+
+    /// Emergency stop the orchestrator (MCP/daemon local stop request)
+    Stop {
+        /// Reason for stopping
+        reason: Option<String>,
     },
-    /// Populi registry + HTTP control plane (`--features populi`).
-    #[cfg(feature = "populi")]
+    /// ML/AI domain: train, serve, probe (Delegated to `vox-mens`).
+    #[command(name = "mens")]
+    Mens {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Mesh coordination: join, status, admin (Delegated to `vox-mens`).
+    #[command(name = "populi")]
     Populi {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Speech-to-Code: transcribe, listen (Delegated to `vox-mens`).
+    #[command(name = "oratio", visible_alias = "speech")]
+    Oratio {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Scholarship/Scientia domain (Delegated to `vox-schola`).
+    #[command(name = "schola")]
+    Schola {
+        #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
+        args: Vec<String>,
+    },
+    /// Optional telemetry upload queue (local spool + explicit upload; ADR 023).
+    Telemetry {
         /// Subcommand.
         #[command(subcommand)]
-        cmd: commands::populi_cli::PopuliCli,
+        cmd: commands::telemetry::TelemetryCmd,
     },
-}
-
-/// Apply [`GlobalOpts`] (color, JSON hint, quiet) before dispatching a subcommand.
-#[allow(unsafe_code)]
-pub fn apply_global_opts(g: &GlobalOpts) {
-    if let Some(c) = g.color {
-        crate::diagnostics::set_color_choice(c);
-    }
-    if g.json {
-        // SAFETY: CLI startup is single-threaded before Tokio worker threads spawn env readers.
-        unsafe {
-            crate::config::set_process_env("VOX_CLI_GLOBAL_JSON", "1");
-        }
-    }
-    if g.quiet {
-        unsafe {
-            crate::config::set_process_env("VOX_CLI_QUIET", "1");
-        }
-    }
 }
 
 /// Run the `vox` CLI (parsed from `std::env::args`).
@@ -440,7 +538,7 @@ pub async fn run_vox_cli() -> anyhow::Result<()> {
 /// Run after parsing a [`VoxCliRoot`]: optional `RUST_LOG=debug` for `--verbose`, [`init_tracing_for_cli`], then dispatch.
 #[allow(unsafe_code)]
 pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
-    if root.global.verbose && std::env::var_os("RUST_LOG").is_none() {
+    if root.global.verbose > 0 && std::env::var_os("RUST_LOG").is_none() {
         // SAFETY: CLI startup is single-threaded before Tokio workers read `RUST_LOG`.
         unsafe {
             crate::config::set_process_env("RUST_LOG", "debug");
@@ -449,19 +547,4 @@ pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
     init_tracing_for_cli();
     apply_global_opts(&root.global);
     cli_dispatch::dispatch_cli(root.cmd, &root.global).await
-}
-
-/// Run as `vox mens …` while the process argv is `vox-mens …` (inserts the `mens` subcommand).
-///
-/// Used by the **`vox-mens`** binary (`required-features = ["mens-base"]`).
-pub async fn run_vox_cli_mens_prefixed() -> anyhow::Result<()> {
-    let mut args: Vec<String> = std::env::args().collect();
-    if args.len() < 2 {
-        anyhow::bail!(
-            "usage: vox-mens <subcommand> …\n  Equivalent to: vox mens <subcommand> …\n  Speech / STT: use vox oratio (or vox speech), not vox-mens.\n  Native training needs: cargo build -p vox-cli --features gpu"
-        );
-    }
-    args.insert(1, "mens".into());
-    let root = VoxCliRoot::try_parse_from(&args).map_err(|e| anyhow::anyhow!("{e}"))?;
-    run_vox_cli_from_parsed(root).await
 }

@@ -1,21 +1,28 @@
 // ---
 // title: "Mcp Tools Example"
-// description: "@mcp.tool declarations for agent discovery (only @mcp.tool is in core lexer/parser today)."
+// description: "@mcp.tool and @mcp.resource declarations for agent discovery."
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [@mcp.tool, fn]
+// constructs: [@mcp.tool, @mcp.resource, fn]
 // last_validated: 2026-03-26
 // training_eligible: true
 // training_weight: 1.0
 // ---
-# @training_prompt: Define Vox MCP tools for reading paths (resources use @mcp.tool until @mcp.resource is added).
+// @training_prompt: Define Vox MCP tools and read-only resources.
+// ANCHOR: display
 @mcp.tool "read_file: Reads a file from disk"
 fn read_file(path: str) to str {
-    ret "file contents"
+    return "file contents"
 }
 
 @mcp.tool "file_uri: Echo path as a logical file URI"
 fn file_uri(path: str) to str {
-    ret "file://" + path
+    return "file://" + path
 }
+
+@mcp.resource("vox://golden/mcp-status", "Static status blob for golden tests")
+fn mcp_golden_status() to str {
+    return "ok"
+}
+// ANCHOR_END: display

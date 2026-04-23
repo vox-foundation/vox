@@ -184,3 +184,50 @@ pub async fn run_battle_submit(
         })))
     }
 }
+
+/// Run a Monte Carlo battle simulation sweep and write results to file.
+pub fn run_monte_carlo_battle_sweep(
+    iterations: u32,
+    output_dir: PathBuf,
+) -> Result<crate::simulation::SimulationReport> {
+    let report = crate::simulation::run_monte_carlo_battle_sweep(iterations);
+
+    // Ensure output directory exists
+    if !output_dir.exists() {
+        std::fs::create_dir_all(&output_dir)?;
+    }
+
+    // Write JSONL (atomic artifact)
+    let jsonl_path = output_dir.join("telemetry.jsonl");
+    let jsonl_content = serde_json::to_string(&report)?;
+    std::fs::write(&jsonl_path, jsonl_content)?;
+
+    // Write Markdown Summary (atomic artifact)
+    let summary_path = output_dir.join("summary.md");
+    let mut md = String::new();
+    md.push_str("# Monte Carlo Battle Sweep Results\n\n");
+    md.push_str(&format!("- **Iterations**: {}\n", report.iterations));
+    md.push_str(&format!(
+        "- **Overall Win Rate**: {:.2}%\n",
+        report.win_rate * 100.0
+    ));
+    md.push_str(&format!("- **Average Turns**: {:.2}\n\n", report.avg_turns));
+    md.push_str("| Bug Type | Wins | Losses | Total | Avg Turns |\n");
+    md.push_str("|----------|------|--------|-------|-----------|\n");
+
+    // Sort keys for deterministic output
+    let mut keys: Vec<_> = report.results_by_type.keys().collect();
+    keys.sort();
+
+    for t in keys {
+        let stats = &report.results_by_type[t];
+        md.push_str(&format!(
+            "| {} | {} | {} | {} | {:.2} |\n",
+            t, stats.wins, stats.losses, stats.total, stats.avg_turns
+        ));
+    }
+
+    std::fs::write(&summary_path, md)?;
+
+    Ok(report)
+}

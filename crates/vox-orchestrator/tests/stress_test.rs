@@ -1,7 +1,16 @@
 use std::time::Duration;
 
 use proptest::prelude::*;
-use vox_orchestrator::{FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority};
+use vox_orchestrator::{
+    CompletionAttestation, FileAffinity, Orchestrator, OrchestratorConfig, TaskPriority,
+};
+
+fn stress_completion_attestation() -> CompletionAttestation {
+    CompletionAttestation {
+        checks_passed: vec!["peer_review_approved".to_string()],
+        ..Default::default()
+    }
+}
 
 /// Fails the suite fast if drain logic livelocks under load.
 const STRESS_DRAIN_MAX_OUTER_ROUNDS: usize = 200_000;
@@ -50,7 +59,9 @@ async fn submit_and_drain(orch: &Orchestrator, task_count: usize) {
                 None
             };
             if let Some(tid) = task_id {
-                orch.complete_task(tid).await.unwrap();
+                orch.complete_task_with_attestation(tid, Some(stress_completion_attestation()))
+                    .await
+                    .unwrap();
                 progress = true;
             }
         }
@@ -150,7 +161,12 @@ async fn stress_test_1000_tasks_10_agents() {
                 };
 
                 if let Some(task) = next_task {
-                    orch.complete_task(task.id).await.unwrap();
+                    orch.complete_task_with_attestation(
+                        task.id,
+                        Some(stress_completion_attestation()),
+                    )
+                    .await
+                    .unwrap();
                     progress = true;
                 }
             }

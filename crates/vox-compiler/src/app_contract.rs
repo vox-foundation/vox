@@ -5,13 +5,21 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::ast::decl::RouteEntry;
 use crate::ast::types::TypeExpr;
 use crate::hir::{HirHttpMethod, HirModule};
 use crate::typeck::env::TypeEnv;
 use crate::typeck::registration::{resolve_hir_type, type_signature_from_hir};
 
 /// Versioned schema for [`AppContractModule`].
-pub const APP_CONTRACT_SCHEMA_VERSION: u32 = 1;
+pub const APP_CONTRACT_SCHEMA_VERSION: u32 = 2;
+/// Default app HTTP port for generated server configuration.
+pub const APP_DEFAULT_HTTP_PORT: u16 = 3000;
+/// Default mobile-safe tap target baseline used by generated web templates.
+pub const APP_MOBILE_MIN_TAP_TARGET_PX: u16 = 44;
+/// Default viewport contract emitted by generated web app shells.
+pub const APP_VIEWPORT_META_CONTENT: &str =
+    "width=device-width, initial-scale=1.0, viewport-fit=cover";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppContractModule {
@@ -22,7 +30,29 @@ pub struct AppContractModule {
     pub mutation_fns: Vec<AppMutationContract>,
     pub client_routes: Vec<AppClientRouteContract>,
     pub islands: Vec<AppIslandContract>,
+    /// MCP tools from `@mcp.tool` (names, descriptions, signatures) — machine-readable SSOT for tooling.
+    #[serde(default)]
+    pub mcp_tools: Vec<AppMcpToolContract>,
+    /// MCP resources from `@mcp.resource` (URIs, descriptions, signatures).
+    #[serde(default)]
+    pub mcp_resources: Vec<AppMcpResourceContract>,
     pub server_config: AppServerConfigContract,
+}
+
+/// MCP tool surface derived from HIR (`@mcp.tool`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppMcpToolContract {
+    pub name: String,
+    pub description: String,
+    pub signature: String,
+}
+
+/// MCP resource surface derived from HIR (`@mcp.resource`).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppMcpResourceContract {
+    pub uri: String,
+    pub description: String,
+    pub signature: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,6 +122,20 @@ fn fn_signature(params: &[crate::hir::HirParam], ret: Option<&crate::hir::HirTyp
     type_signature_from_hir(params, ret, &env)
 }
 
+fn collect_app_client_routes(entries: &[RouteEntry]) -> Vec<AppClientRouteContract> {
+    let mut out = Vec::new();
+    for e in entries {
+        out.push(AppClientRouteContract {
+            path: e.path.clone(),
+            component_name: e.component_name.clone(),
+            redirect: e.redirect.clone(),
+            is_wildcard: e.is_wildcard,
+        });
+        out.extend(collect_app_client_routes(&e.children));
+    }
+    out
+}
+
 fn type_expr_signature(te: &TypeExpr) -> String {
     match te {
         TypeExpr::Named { name, .. } => name.clone(),
@@ -124,6 +168,8 @@ fn type_expr_signature(te: &TypeExpr) -> String {
             format!("({elems})")
         }
         TypeExpr::Unit { .. } => "Unit".to_string(),
+        TypeExpr::Infer { .. } => "any".to_string(),
+        TypeExpr::Decimal { .. } => "dec".to_string(),
     }
 }
 
@@ -179,14 +225,7 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
     let client_routes = module
         .client_routes
         .iter()
-        .flat_map(|r| {
-            r.0.entries.iter().map(|entry| AppClientRouteContract {
-                path: entry.path.clone(),
-                component_name: entry.component_name.clone(),
-                redirect: entry.redirect.clone(),
-                is_wildcard: entry.is_wildcard,
-            })
-        })
+        .flat_map(|r| collect_app_client_routes(&r.0.entries))
         .collect();
 
     let islands = module
@@ -207,6 +246,26 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
         })
         .collect();
 
+    let mcp_tools = module
+        .mcp_tools
+        .iter()
+        .map(|t| AppMcpToolContract {
+            name: t.func.name.clone(),
+            description: t.description.clone(),
+            signature: fn_signature(&t.func.params, t.func.return_type.as_ref()),
+        })
+        .collect();
+
+    let mcp_resources = module
+        .mcp_resources
+        .iter()
+        .map(|r| AppMcpResourceContract {
+            uri: r.uri.clone(),
+            description: r.description.clone(),
+            signature: fn_signature(&r.func.params, r.func.return_type.as_ref()),
+        })
+        .collect();
+
     AppContractModule {
         schema_version: APP_CONTRACT_SCHEMA_VERSION,
         http_routes,
@@ -215,9 +274,11 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
         mutation_fns,
         client_routes,
         islands,
+        mcp_tools,
+        mcp_resources,
         server_config: AppServerConfigContract {
-            bind_host: "127.0.0.1".to_string(),
-            default_port: 3000,
+            bind_host: std::net::Ipv4Addr::LOCALHOST.to_string(),
+            default_port: APP_DEFAULT_HTTP_PORT,
             port_env_var: "VOX_PORT".to_string(),
             dev_proxy_env_var: "VOX_SSR_DEV_URL".to_string(),
             static_assets_embed_dir: "public/".to_string(),

@@ -29,7 +29,7 @@ pub(super) fn resolve_chat_api_key(config: &LlmConfig) -> String {
                 .expose()
                 .unwrap_or_default()
                 .to_string(),
-            "openai" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenAiApiKey)
+            "openai" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiApiKey)
                 .expose()
                 .unwrap_or_default()
                 .to_string(),

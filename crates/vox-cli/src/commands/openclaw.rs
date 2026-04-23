@@ -8,12 +8,12 @@
 //! - List and resolve pending approval requests from the approval broker
 
 use clap::Subcommand;
-use vox_ars::{
+use vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME;
+use vox_skills::ars_shim::{
     DefaultOpenClawRuntimeAdapter, OpenClawClient, OpenClawConnectionOverrides,
     OpenClawDiscoveryOverrides, OpenClawRemoteConfig, OpenClawRuntimeAdapter,
     connect_runtime_adapter_with_overrides, resolve_openclaw_endpoints,
 };
-use vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME;
 use vox_skills::new_registry_arc;
 
 // ── Subcommand Enum ────────────────────────────────────────────────────────────
@@ -386,7 +386,7 @@ async fn cmd_import(
     json: bool,
 ) -> anyhow::Result<()> {
     let mut adapter = make_adapter(gateway.clone(), None, token.clone()).await?;
-    let skill: vox_ars::ArsSkill = adapter
+    let skill: vox_skills::ars_shim::ArsSkill = adapter
         .import_skill(&slug)
         .await
         .map_err(|e| anyhow::anyhow!("Import failed: {e}"))?;
@@ -460,10 +460,11 @@ async fn cmd_list_remote(
     json: bool,
 ) -> anyhow::Result<()> {
     let mut adapter = make_adapter(gateway, None, token).await?;
-    let skills: Vec<vox_ars::OpenClawSkillSpec> = adapter
-        .list_remote_skills()
-        .await
-        .map_err(|e| anyhow::anyhow!("List failed: {e}"))?;
+    let skills: Vec<vox_skills::ars_shim::OpenClawSkillSpec> =
+        adapter
+            .list_remote_skills()
+            .await
+            .map_err(|e| anyhow::anyhow!("List failed: {e}"))?;
 
     if json {
         println!(
@@ -547,7 +548,7 @@ async fn cmd_approvals(mcp_url: String, json: bool) -> anyhow::Result<()> {
             "arguments": {}
         }
     });
-    let client = reqwest::Client::builder()
+    let client = vox_reqwest_defaults::client_builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()?;
     let resp = client.post(&url).json(&body).send().await;
@@ -591,7 +592,7 @@ async fn cmd_resolve(
             "arguments": args
         }
     });
-    let client = reqwest::Client::builder()
+    let client = vox_reqwest_defaults::client_builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()?;
     match client.post(&url).json(&body).send().await {
@@ -728,12 +729,13 @@ async fn cmd_search_remote(
     json: bool,
 ) -> anyhow::Result<()> {
     let mut adapter = make_adapter(gateway, None, token).await?;
-    let skills: Vec<vox_ars::OpenClawSkillSpec> = adapter
-        .list_remote_skills()
-        .await
-        .map_err(|e| anyhow::anyhow!("Search failed: {e}"))?;
+    let skills: Vec<vox_skills::ars_shim::OpenClawSkillSpec> =
+        adapter
+            .list_remote_skills()
+            .await
+            .map_err(|e| anyhow::anyhow!("Search failed: {e}"))?;
     let q = query.to_lowercase();
-    let matches: Vec<vox_ars::OpenClawSkillSpec> = skills
+    let matches: Vec<vox_skills::ars_shim::OpenClawSkillSpec> = skills
         .into_iter()
         .filter(|s| {
             s.name.to_lowercase().contains(&q)
@@ -789,7 +791,7 @@ async fn cmd_doctor(
         "{}/v1/skills",
         resolved.http_gateway_url.trim_end_matches('/')
     );
-    let http_status = reqwest::Client::builder()
+    let http_status = vox_reqwest_defaults::client_builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()?
         .get(&http_probe_url)
@@ -847,9 +849,7 @@ async fn cmd_doctor(
                     }
                     tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
                     backoff_ms = vox_primitives::backoff::next_backoff_ms_double_clamped(
-                        backoff_ms,
-                        100,
-                        30_000,
+                        backoff_ms, 100, 30_000,
                     );
                 }
             }

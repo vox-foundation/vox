@@ -35,3 +35,37 @@ pub mod types;
 
 /// Byte-offset span attached to parsed nodes.
 pub use span::Span;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn dummy_span() -> span::Span {
+        span::Span::new(0, 0)
+    }
+
+    #[test]
+    fn test_ast_dummy_span_integrity() {
+        let span = dummy_span();
+        assert_eq!(
+            span.start, 0,
+            "AST Dummy span must anchor at origin 0 byte-offset."
+        );
+        assert_eq!(span.end, 0, "AST Dummy span must anchor at length 0.");
+    }
+
+    #[test]
+    fn test_ast_scalar_mapping_structure() {
+        let expected_ident = String::from("int");
+        let ident = types::TypeExpr::Named {
+            name: expected_ident.clone(),
+            span: dummy_span(),
+        };
+        if let types::TypeExpr::Named { name, span } = ident {
+            assert_eq!(name, "int");
+            assert_eq!(span.start, 0);
+        } else {
+            panic!("Expected TypeExpr::Named variant for surface scalar mapping.");
+        }
+    }
+}

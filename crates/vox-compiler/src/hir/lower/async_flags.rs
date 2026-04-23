@@ -10,6 +10,11 @@ fn has_async_stmt(s: &HirStmt) -> bool {
         HirStmt::Assign { value, .. } => has_async_expr(value),
         HirStmt::Return { value, .. } => value.as_ref().is_some_and(has_async_expr),
         HirStmt::Expr { expr, .. } => has_async_expr(expr),
+        HirStmt::While {
+            condition, body, ..
+        } => has_async_expr(condition) || has_async_stmts(body),
+        HirStmt::Loop { body, .. } => has_async_stmts(body),
+        HirStmt::Break { .. } | HirStmt::Continue { .. } => false,
     }
 }
 
@@ -21,6 +26,7 @@ fn has_async_expr(e: &HirExpr) -> bool {
         | HirExpr::BoolLit(..)
         | HirExpr::Ident(..)
         | HirExpr::Spawn(..)
+        | HirExpr::DecimalLit(..)
         | HirExpr::Jsx(..)
         | HirExpr::JsxSelfClosing(..) => false,
         HirExpr::ListLit(elements, _) | HirExpr::TupleLit(elements, _) => {
@@ -58,5 +64,6 @@ fn has_async_expr(e: &HirExpr) -> bool {
         HirExpr::Pipe(l, r, _) => has_async_expr(l) || has_async_expr(r),
         HirExpr::With(l, r, _) => has_async_expr(l) || has_async_expr(r),
         HirExpr::Block(stmts, _) => has_async_stmts(stmts),
+        HirExpr::Try(t) => has_async_expr(t.target.as_ref()),
     }
 }

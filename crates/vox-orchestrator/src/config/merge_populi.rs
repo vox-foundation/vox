@@ -35,4 +35,12 @@ pub(crate) fn apply_vox_populi_toml(
     if mesh.advertise_gpu == Some(true) {
         config.default_agent_capabilities.gpu_cuda = true;
     }
+    if let Some(url) = mesh
+        .inference_base_url
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        config.populi_inference_base_url = Some(url.to_string());
+    }
 }

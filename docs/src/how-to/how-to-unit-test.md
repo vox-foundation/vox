@@ -1,9 +1,12 @@
 ---
 title: "How-To: Test Your Logic"
-description: "Official documentation for How-To: Test Your Logic for the Vox language. Detailed technical reference, architecture guides, and implement"
+description: "Write automated test cases using Vox."
 category: "how-to"
-last_updated: 2026-03-24
+status: "current"
+last_updated: "2026-04-06"
 training_eligible: true
+
+schema_type: "HowTo"
 ---
 # How-To: Test Your Logic
 
@@ -14,50 +17,82 @@ Learn how to write and run automated tests for your Vox application using the bu
 Use the `@test` decorator to mark functions as test cases. These functions can be run with the `vox test` command.
 
 ```vox
-# Skip-Test
-@test fn test_addition():
+// vox:skip
+@test 
+fn test_addition() -> Unit {
     assert(1 + 1 == 2)
+}
 ```
 
-## 2. Using Fixtures
+## 2. Hand-Rolled Setup Helpers (Fixtures)
 
-Fixtures provide set-up logic that can be reused across multiple tests. Use the `@fixture` decorator.
+Rather than language-level magic, Vox encourages simple, plain functions for setup logic that can be reused across test cases.
 
 ```vox
-# Skip-Test
-@fixture fn mock_db() to Database:
-    ret spawn MockDatabase()
+// vox:skip
+fn setup_mock_db() -> Database {
+    return spawn MockDatabase()
+}
 
-@test fn test_query(db = mock_db):
+@test 
+fn test_query() -> Unit {
+    let db = setup_mock_db()
     let result = db.call(query("SELECT 1"))
     assert(result == [1])
+}
 ```
 
-## 3. Mocking Dependencies
+> [!WARNING]
+> Historical decorators `@fixture` and `@mock` are considered aspirational. Use standard helper functions for state-setup instead.
 
-Use the `@mock` decorator to intercept calls to external services or server functions during testing.
+## 3. Property Writing with `@forall`
+
+Vox supports property-based testing. The test runner will generate random inputs for your function to find edge cases where your assertions fail.
 
 ```vox
-# Skip-Test
-@mock fn mock_email_service(to: str, msg: str):
-    print("Mock sent: " + msg)
-
-@test fn test_signup():
-    with mock_email_service:
-        signup("test@example.com")
+// vox:skip
+@forall
+fn test_addition_commutative(a: int, b: int) -> Unit {
+    assert(a + b == b + a)
+}
 ```
 
-## 4. Integration Testing
+## 4. Fuzzing with `@fuzz`
 
-Test your full-stack logic by running the compiler and checking the generated output or simulating HTTP requests.
+For deeper security and stability testing, the `@fuzz` decorator uses the project's native LLVM-based fuzzer to explore illegal execution paths.
+
+```vox
+// vox:skip
+@fuzz
+fn fuzz_parser(input: str) -> Unit {
+    let _ = parse_json(input) // Fuzzer tries to crash this
+}
+```
+
+## 5. Running Tests and Output Format
+
+Use the `vox test` command to execute your suite.
 
 ```bash
-# Run all tests in the project
 vox test src/
 ```
 
----
+**Output Example**:
+```text
+[PASS] tests::test_addition (1.2ms)
+[PASS] tests::test_addition_commutative (100 iterations)
+[FAIL] tests::fuzz_parser
+       > Reason: Panic at core.vox:120 (division by zero)
+       > Input: "{"a": 0}"
+```
 
-**Related Reference**:
+## Summary
+- Use `@test` for standard unit tests.
+- Use `@forall` for property-based data validation.
+- Use `@fuzz` for security and crash-resilience testing.
+- Write standard functions that serve as setups, fixtures, and mocks explicitly.
+- Run `vox test <path>` to execute blocks tagged with `@test`.
+
+## Related
 - [CLI Reference](../reference/cli.md) — `vox test` flags and configuration.
-- [Tutorial: First App](../tutorials/tut-first-app.md) — Example of testing a todo list.
+- [Durable Workflows](../tutorials/tut-workflow-durability.md) — Understanding testable workflows.

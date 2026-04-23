@@ -7,6 +7,9 @@ use vox_config::config::GamifyMode;
 #[tokio::test]
 async fn ludus_orchestrator_dedupe_skips_duplicate_event_id() {
     let db = vox_db::VoxDb::open_memory().await.expect("db");
+    vox_ludus::db::apply_ludus_migrations(&db)
+        .await
+        .expect("migrations");
     let uid = "dedupe-orchestrator-user";
     let ev = serde_json::json!({
         "type": "task_completed",
@@ -32,6 +35,9 @@ async fn ludus_orchestrator_dedupe_skips_duplicate_event_id() {
 #[tokio::test]
 async fn ludus_policy_snapshot_rows_track_events() {
     let db = vox_db::VoxDb::open_memory().await.expect("db");
+    vox_ludus::db::apply_ludus_migrations(&db)
+        .await
+        .expect("migrations");
     let uid = vox_ludus::db::canonical_user_id();
     let before = vox_ludus::db::list_recent_policy_snapshots(&db, &uid, 500)
         .await
@@ -58,6 +64,9 @@ async fn ludus_policy_snapshot_rows_track_events() {
 #[tokio::test]
 async fn ludus_route_event_explicit_id_matches_auto_user_kpi() {
     let db = vox_db::VoxDb::open_memory().await.expect("db");
+    vox_ludus::db::apply_ludus_migrations(&db)
+        .await
+        .expect("migrations");
     let uid = vox_ludus::db::canonical_user_id();
     let ev = serde_json::json!({
         "type": "check_completed",
@@ -108,8 +117,22 @@ fn policy_streak_bonus_increases_reward() {
     let mut s_no_streak = SessionState::default();
     let mut s_streak = SessionState::default();
 
-    let r_no = apply_policy(&base, 1.0, 0, "task_completed", &mut s_no_streak);
-    let r_14 = apply_policy(&base, 1.0, 14, "task_completed", &mut s_streak);
+    let r_no = apply_policy(
+        &base,
+        1.0,
+        0,
+        vox_ludus::profile::TrustTier::Linked,
+        "task_completed",
+        &mut s_no_streak,
+    );
+    let r_14 = apply_policy(
+        &base,
+        1.0,
+        14,
+        vox_ludus::profile::TrustTier::Linked,
+        "task_completed",
+        &mut s_streak,
+    );
 
     assert!(
         r_14.xp >= r_no.xp,
@@ -131,8 +154,22 @@ fn policy_serious_mode_halves_rewards() {
     let mut s_balanced = SessionState::default();
     let mut s_serious = SessionState::default();
 
-    let r_bal = apply_policy(&base, 1.0, 0, "task_completed", &mut s_balanced);
-    let r_ser = apply_policy(&base, 0.5, 0, "task_completed", &mut s_serious);
+    let r_bal = apply_policy(
+        &base,
+        1.0,
+        0,
+        vox_ludus::profile::TrustTier::Linked,
+        "task_completed",
+        &mut s_balanced,
+    );
+    let r_ser = apply_policy(
+        &base,
+        0.5,
+        0,
+        vox_ludus::profile::TrustTier::Linked,
+        "task_completed",
+        &mut s_serious,
+    );
 
     assert!(
         r_ser.xp < r_bal.xp,
@@ -142,7 +179,7 @@ fn policy_serious_mode_halves_rewards() {
 
 #[test]
 fn policy_grind_cap_kicks_in() {
-    use vox_ludus::reward_policy::{BaseReward, GRIND_THRESHOLD, SessionState, apply_policy};
+    use vox_ludus::reward_policy::{BaseReward, GRIND_ZERO_THRESHOLD, SessionState, apply_policy};
     let base = BaseReward {
         xp: 10,
         crystals: 2,
@@ -151,14 +188,28 @@ fn policy_grind_cap_kicks_in() {
     };
     let mut session = SessionState::default();
 
-    for _ in 0..=GRIND_THRESHOLD {
-        let _ = apply_policy(&base, 1.0, 0, "task_completed", &mut session);
+    for _ in 0..=GRIND_ZERO_THRESHOLD {
+        let _ = apply_policy(
+            &base,
+            1.0,
+            0,
+            vox_ludus::profile::TrustTier::Linked,
+            "task_completed",
+            &mut session,
+        );
     }
-    let r = apply_policy(&base, 1.0, 0, "task_completed", &mut session);
+    let r = apply_policy(
+        &base,
+        1.0,
+        0,
+        vox_ludus::profile::TrustTier::Linked,
+        "task_completed",
+        &mut session,
+    );
     assert!(
         r.grind_capped,
         "grind cap should trigger after {} repetitions",
-        GRIND_THRESHOLD
+        GRIND_ZERO_THRESHOLD
     );
     assert_eq!(r.xp, 0, "grind-capped reward should be 0 XP");
 }
@@ -175,7 +226,14 @@ fn policy_novelty_bonus_for_new_event_type() {
     let mut session = SessionState::default();
 
     // First time seeing this event type → novelty bonus
-    let r = apply_policy(&base, 1.0, 0, "conflict_resolved", &mut session);
+    let r = apply_policy(
+        &base,
+        1.0,
+        0,
+        vox_ludus::profile::TrustTier::Linked,
+        "conflict_resolved",
+        &mut session,
+    );
     assert!(
         r.xp > 50,
         "first-time event should get novelty XP bonus; got {}",

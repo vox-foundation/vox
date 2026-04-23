@@ -22,7 +22,12 @@ impl RunBackend for NativeBackend {
         let _ = shared_target;
         let script_target_dir = cache_dir.join("target");
 
-        let binary_name = if cfg!(target_os = "windows") {
+        let is_windows_target = if let Some(t) = opts.target_triple.as_ref() {
+            t.contains("windows")
+        } else {
+            cfg!(target_os = "windows")
+        };
+        let binary_name = if is_windows_target {
             "vox-script.exe"
         } else {
             "vox-script"
@@ -41,11 +46,16 @@ impl RunBackend for NativeBackend {
         let use_release = opts.trust_class.as_deref() != Some("trusted_dev")
             && std::env::var("VOX_SCRIPT_RELEASE").is_ok();
 
-        let profile_args: &[&str] = if use_release {
-            &["build", "--release"]
+        let mut profile_args: Vec<&str> = if use_release {
+            vec!["build", "--release"]
         } else {
-            &["build", "--profile", "script-dev"]
+            vec!["build", "--profile", "script-dev"]
         };
+
+        if let Some(t) = opts.target_triple.as_ref() {
+            profile_args.push("--target");
+            profile_args.push(t);
+        }
 
         // Per-entry `script-dev` profile only under this cache dir. Do not write under
         // `script-cache/.cargo/` — that path is shared by all hashes and parallel `vox run`
@@ -85,7 +95,14 @@ impl RunBackend for NativeBackend {
         }
 
         let profile_dir = if use_release { "release" } else { "script-dev" };
-        let binary_path = script_target_dir.join(profile_dir).join(binary_name);
+        let binary_path = if let Some(t) = opts.target_triple.as_ref() {
+            script_target_dir
+                .join(t)
+                .join(profile_dir)
+                .join(binary_name)
+        } else {
+            script_target_dir.join(profile_dir).join(binary_name)
+        };
         std::fs::copy(&binary_path, &per_entry_binary)?;
 
         Ok(per_entry_binary)

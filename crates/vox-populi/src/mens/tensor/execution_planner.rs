@@ -282,6 +282,7 @@ mod tests {
                 config_json: None,
                 tokenizer_json: None,
             },
+            collateral_damage_verified: false,
             provenance: ModelProvenanceSpec {
                 base_family: None,
                 upstream_model_id: None,
@@ -321,6 +322,7 @@ mod tests {
                 qlora_lm_head_only: false,
                 qlora_proxy_max_layers: None,
                 qlora_ce_last_k: 1,
+                curriculum_schedule: None,
             },
             artifact: ArtifactSpec::default(),
         }

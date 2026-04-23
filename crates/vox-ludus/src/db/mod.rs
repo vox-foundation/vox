@@ -36,7 +36,7 @@ pub use companion::{delete_companion, get_companion, list_companions, upsert_com
 pub use counters::{get_counter, increment_counter, set_counter};
 pub use dedupe::try_claim_processed_event;
 pub use feedback::insert_feedback;
-pub use helpers::canonical_user_id;
+pub use helpers::{apply_ludus_migrations, canonical_user_id};
 pub use hint_telemetry::log_hint_event;
 pub use kpi::{
     PolicySnapshotRow, list_policy_snapshots_since_days, list_recent_policy_snapshots,
@@ -58,3 +58,5 @@ pub use quest_battle::{
     list_quests, update_battle, update_quest_status, upsert_quest,
 };
 pub use teaching::{get_teaching_profile, insert_policy_snapshot, upsert_teaching_profile};
+mod disputes;
+pub use disputes::*;

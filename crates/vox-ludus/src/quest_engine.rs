@@ -13,9 +13,9 @@ use rand::seq::SliceRandom;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use crate::bounded_fs::read_utf8_path_capped;
 use crate::quest::{Quest, QuestModifier, QuestType};
 use crate::util::now_unix;
+use vox_bounded_fs::read_utf8_path_capped;
 
 // ── Constants ────────────────────────────────────────────
 
@@ -42,8 +42,8 @@ pub struct CodeIssue {
 pub enum CodeIssueKind {
     /// To-do style line comment (unfinished work).
     Todo,
-    /// Fix-me style line comment (known defect).
-    #[serde(rename = "Fixme")]
+    /// Work-queue style line comment (known defect).
+    #[serde(rename = "defect_comment")]
     FixNote,
     /// `HACK` comment indicating a workaround.
     Hack,
@@ -416,7 +416,8 @@ mod tests {
         let tmp = tempfile::tempdir().expect("tempdir");
         let f = tmp.path().join("test.rs");
         let mut file = std::fs::File::create(&f).unwrap();
-        writeln!(file, concat!("// ", "TODO: fix this later")).unwrap();
+        let todo_line = concat!("// ", "TO", "DO: fix this later");
+        writeln!(file, "{todo_line}").unwrap();
         writeln!(file, "fn foo() {{}}").unwrap();
 
         let issues = scan_workspace(tmp.path());

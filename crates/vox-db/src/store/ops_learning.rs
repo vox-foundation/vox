@@ -289,6 +289,112 @@ impl crate::VoxDb {
             .await
     }
 
+    pub async fn delete_user_preference(&self, user_id: &str, key: &str) -> Result<(), StoreError> {
+        let user_id = user_id.to_string();
+        let key = key.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "DELETE FROM user_preferences WHERE user_id = ?1 AND key = ?2",
+                    params![user_id.as_str(), key.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    // ── Account Config (account_config) ──────────────────────────────────────
+
+    /// Upsert an `account_config` key-value row.
+    pub async fn set_account_config(
+        &self,
+        account_id: &str,
+        key: &str,
+        value: &str,
+    ) -> Result<(), StoreError> {
+        let account_id = account_id.to_string();
+        let key = key.to_string();
+        let value = value.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO account_config (account_id, key, value, updated_at)
+                 VALUES (?1, ?2, ?3, datetime('now'))
+                 ON CONFLICT(account_id, key)
+                 DO UPDATE SET value = excluded.value, updated_at = datetime('now')",
+                    params![account_id.as_str(), key.as_str(), value.as_str()],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
+    /// Read a single `account_config` value by `(account_id, key)`, or `None` if absent.
+    pub async fn get_account_config(
+        &self,
+        account_id: &str,
+        key: &str,
+    ) -> Result<Option<String>, StoreError> {
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT value FROM account_config WHERE account_id = ?1 AND key = ?2 LIMIT 1",
+                params![account_id, key],
+            )
+            .await?;
+        match rows.next().await? {
+            Some(row) => {
+                let v: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+                Ok(Some(v))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Return all `(key, value)` pairs in `account_config` for `account_id`
+    pub async fn list_account_configs(
+        &self,
+        account_id: &str,
+        prefix: Option<&str>,
+    ) -> Result<Vec<(String, String)>, StoreError> {
+        let mut rows = match prefix {
+            Some(pfx) => {
+                let pattern = format!("{pfx}%");
+                self.conn
+                    .query(
+                        "SELECT key, value FROM account_config
+                         WHERE account_id = ?1 AND key LIKE ?2
+                         ORDER BY key ASC",
+                        params![account_id, pattern],
+                    )
+                    .await?
+            }
+            None => {
+                self.conn
+                    .query(
+                        "SELECT key, value FROM account_config
+                         WHERE account_id = ?1
+                         ORDER BY key ASC",
+                        params![account_id],
+                    )
+                    .await?
+            }
+        };
+        let mut out = Vec::new();
+        while let Some(row) = rows.next().await? {
+            let k: String = row.get(0).map_err(|e| StoreError::Db(e.to_string()))?;
+            let v: String = row.get(1).map_err(|e| StoreError::Db(e.to_string()))?;
+            out.push((k, v));
+        }
+        Ok(out)
+    }
+
     /// Read a single `user_preferences` value by `(user_id, key)`, or `None` if absent.
     ///
     /// Called from `vox-mcp/src/memory.rs` preference handler.

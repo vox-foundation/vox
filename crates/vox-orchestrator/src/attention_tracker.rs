@@ -18,6 +18,7 @@ pub struct AttentionSessionSummary {
     pub rejected: u32,
     pub efficiency: f64,
     pub auto_approve_ratio: f64,
+    pub max_offender: Option<(u64, u64)>,
 }
 
 /// Persists attention metrics to Arca (VoxDB) collections.
@@ -50,12 +51,34 @@ impl<'a> AttentionTracker<'a> {
             "effective_complexity": event.effective_complexity,
             "decision_entropy_bits": event.decision_entropy_bits,
             "timestamp_ms": event.timestamp_ms,
+            "channel": event.channel,
+            "policy_reason": event.policy_reason,
         }))
         .await?;
         Ok(())
     }
 
     // ── attention_events: QUERY (aggregate) ───────────────────────────────
+
+    /// Retrieve the most recent attention events up to a given limit.
+    pub async fn list_events(
+        &self,
+        limit: u32,
+    ) -> Result<Vec<AttentionEvent>, Box<dyn std::error::Error + Send + Sync>> {
+        let col = self.db.collection("attention_events");
+        col.ensure_table().await?;
+        let all = col.find(&json!({})).await?;
+
+        let mut events = Vec::new();
+        for (_id, doc) in all {
+            if let Ok(ev) = serde_json::from_value::<AttentionEvent>(doc) {
+                events.push(ev);
+            }
+        }
+        events.sort_by(|a, b| b.timestamp_ms.cmp(&a.timestamp_ms));
+        events.truncate(limit as usize);
+        Ok(events)
+    }
 
     /// Session summary: total spent, efficiency, auto-approve ratio.
     pub async fn session_summary(
@@ -70,6 +93,7 @@ impl<'a> AttentionTracker<'a> {
         let mut total = 0u32;
         let mut auto = 0u32;
         let mut rejected = 0u32;
+        let mut agent_costs = std::collections::HashMap::new();
 
         for (_id, doc) in &all {
             let ts = doc["timestamp_ms"].as_u64().unwrap_or(0);
@@ -77,7 +101,11 @@ impl<'a> AttentionTracker<'a> {
                 continue;
             }
             total += 1;
-            total_cost += doc["cost_ms"].as_u64().unwrap_or(0);
+            let cost = doc["cost_ms"].as_u64().unwrap_or(0);
+            total_cost += cost;
+            if let Some(aid) = doc["agent_id"].as_u64() {
+                *agent_costs.entry(aid).or_insert(0) += cost;
+            }
             // Deserialize outcome via serde to avoid magic string comparison.
             // If deserialization fails the record is malformed; skip it gracefully.
             if let Ok(outcome) =
@@ -106,6 +134,7 @@ impl<'a> AttentionTracker<'a> {
             } else {
                 0.0
             },
+            max_offender: agent_costs.into_iter().max_by_key(|&(_, c)| c),
         })
     }
 
@@ -130,6 +159,7 @@ impl<'a> AttentionTracker<'a> {
             "successful_outcomes": trust.successful_outcomes,
             "below_tier_streak": trust.below_tier_streak,
             "last_updated_ms": trust.last_updated_ms,
+            "is_override": trust.is_override,
         });
 
         if let Some((id, _)) = existing.into_iter().next() {
@@ -156,12 +186,15 @@ impl<'a> AttentionTracker<'a> {
         if let Some((_id, doc)) = rows.into_iter().next() {
             Ok(Some(AgentTrustScore {
                 agent_id,
-                trust_score: doc["trust_score"].as_f64().unwrap_or(0.3),
+                trust_score: doc["trust_score"].as_f64().unwrap_or(0.5),
                 tier: serde_json::from_value(doc["tier"].clone()).unwrap_or(TrustTier::Untrusted),
                 total_outcomes: doc["total_outcomes"].as_u64().unwrap_or(0) as u32,
                 successful_outcomes: doc["successful_outcomes"].as_u64().unwrap_or(0) as u32,
                 below_tier_streak: doc["below_tier_streak"].as_u64().unwrap_or(0) as u32,
                 last_updated_ms: doc["last_updated_ms"].as_u64().unwrap_or(0),
+                // Variance not yet persisted in DB — hydrate from EB prior on load.
+                variance: doc["variance"].as_f64().unwrap_or(0.10),
+                is_override: doc["is_override"].as_bool().unwrap_or(false),
             }))
         } else {
             Ok(None)
@@ -186,12 +219,14 @@ impl<'a> AttentionTracker<'a> {
             let aid = AgentId(doc["agent_id"].as_u64().unwrap_or(0));
             let ts = AgentTrustScore {
                 agent_id: aid,
-                trust_score: doc["trust_score"].as_f64().unwrap_or(0.3),
+                trust_score: doc["trust_score"].as_f64().unwrap_or(0.5),
                 tier: serde_json::from_value(doc["tier"].clone()).unwrap_or(TrustTier::Untrusted),
                 total_outcomes: doc["total_outcomes"].as_u64().unwrap_or(0) as u32,
                 successful_outcomes: doc["successful_outcomes"].as_u64().unwrap_or(0) as u32,
                 below_tier_streak: doc["below_tier_streak"].as_u64().unwrap_or(0) as u32,
                 last_updated_ms: doc["last_updated_ms"].as_u64().unwrap_or(0),
+                variance: doc["variance"].as_f64().unwrap_or(0.10),
+                is_override: doc["is_override"].as_bool().unwrap_or(false),
             };
             result.insert(aid, ts);
         }

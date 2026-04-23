@@ -23,8 +23,73 @@ pub struct RemotePopuliRoutingHint {
     pub gpu_metal: bool,
     /// Remote node advertises minimum VRAM (MiB), if known.
     pub min_vram_mb: Option<u32>,
+    /// Layer A raw visible GPU count when available.
+    pub gpu_total_count: Option<u32>,
+    /// Layer A healthy GPU count when available.
+    pub gpu_healthy_count: Option<u32>,
+    /// Layer B allocatable GPU count when available.
+    pub gpu_allocatable_count: Option<u32>,
+    /// Source marker (`probed`, `advertised`, ...).
+    pub gpu_inventory_source: Option<String>,
+    /// Truth layer marker (`layer_a_verified`, `layer_b_allocatable`, `layer_c_advertised`).
+    pub gpu_truth_layer: Option<String>,
+    /// NVIDIA kernel driver version when reported on the remote `NodeRecord`.
+    pub nvidia_driver_version: Option<String>,
+    /// CUDA driver version when reported on the remote `NodeRecord`.
+    pub cuda_driver_version: Option<String>,
+    /// Remote worker-reported GPU readiness (`false` excludes GPU mesh eligibility).
+    pub gpu_readiness_ok: Option<bool>,
+    /// Machine-readable readiness detail when `gpu_readiness_ok` is `false`.
+    pub gpu_readiness_reason: Option<String>,
+    /// Unix ms when readiness was last evaluated on the remote node.
+    pub gpu_readiness_checked_unix_ms: Option<u64>,
     /// Labels related to training workloads (`workload=mens-train`, pool tags, etc.).
     pub training_labels: Vec<String>,
+    /// Node is in maintenance/drain mode and should not receive new work.
+    pub maintenance: bool,
+    /// Node is quarantined and ineligible for new claims.
+    pub quarantined: bool,
+    /// Last heartbeat is older than [`crate::config::OrchestratorConfig::stale_threshold_ms`]
+    /// at federation poll time (partition / crashed worker).
+    pub heartbeat_stale: bool,
+}
+
+impl RemotePopuliRoutingHint {
+    /// Eligible for experimental federation routing visibility (not quarantined, not draining, heartbeat fresh).
+    #[inline]
+    #[must_use]
+    pub fn is_federation_schedulable(&self) -> bool {
+        !self.quarantined && !self.maintenance && !self.heartbeat_stale
+    }
+
+    /// Advertises CUDA/Metal and has non-zero healthy/allocatable GPU counts when those fields are present.
+    #[inline]
+    #[must_use]
+    pub fn is_federation_gpu_eligible(&self) -> bool {
+        if self.gpu_readiness_ok == Some(false) {
+            return false;
+        }
+        if self.gpu_allocatable_count.is_some_and(|n| n == 0) {
+            return false;
+        }
+        if self.gpu_healthy_count.is_some_and(|n| n == 0) {
+            return false;
+        }
+        self.gpu_cuda || self.gpu_metal
+    }
+}
+
+/// Deltas after applying a new federation hint snapshot (for MCP / embedder follow-ups).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PopuliRoutingHintUpdate {
+    /// Count of schedulable remote nodes before the update.
+    pub prev_schedulable: usize,
+    /// Count of schedulable remote nodes after the update.
+    pub new_schedulable: usize,
+    /// Count of GPU-eligible remote nodes before the update.
+    pub prev_gpu_eligible: usize,
+    /// Count of GPU-eligible remote nodes after the update.
+    pub new_gpu_eligible: usize,
 }
 
 /// One line per remote node for status payloads (no full capability struct).

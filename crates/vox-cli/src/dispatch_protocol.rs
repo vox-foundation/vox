@@ -23,7 +23,11 @@ mod tests {
         assert_eq!(back.id, "abc");
         match back.payload {
             DispatchPayload::Done { exit } => assert_eq!(exit, 0),
-            other => panic!("expected Done payload, got {other:?}"),
+            unexpected_payload => {
+                panic!(
+                    "dispatch roundtrip: expected terminal exit payload, got {unexpected_payload:?}"
+                )
+            }
         }
     }
 

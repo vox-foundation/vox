@@ -29,6 +29,10 @@ pub struct Achievement {
     pub xp_reward: u32,
     /// Crystal reward for unlocking.
     pub crystal_reward: u32,
+    /// Sluggified icon name for high-fidelity UIs.
+    pub icon_slug: String,
+    /// Hidden until unlocked.
+    pub secret: bool,
 }
 
 /// Achievement categories.
@@ -55,6 +59,10 @@ pub enum AchievementCategory {
     Security,
     /// Documentation milestones.
     Documentation,
+    /// Human-in-the-loop and social agent milestones.
+    Social,
+    /// Workflow and process milestones.
+    Workflow,
 }
 
 /// Record of an unlocked achievement.

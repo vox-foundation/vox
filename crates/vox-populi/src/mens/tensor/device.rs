@@ -30,6 +30,7 @@ pub struct TrainProfile {
     pub label: &'static str,
     pub max_seq_len: usize,
     pub suggested_batch: usize,
+    pub suggested_rank: usize,
 }
 
 /// Parse `--device` / dispatch strings into a [`DeviceKind`].
@@ -56,185 +57,17 @@ pub fn detect_gpu_vendor() -> String {
     g.vendor
 }
 
-fn vendor_from_model(model: &str) -> String {
-    let m = model.to_lowercase();
-    if m.contains("nvidia")
-        || m.contains("geforce")
-        || m.contains("rtx")
-        || m.contains("gtx")
-        || m.contains("quadro")
-        || m.contains("tesla")
-        || m.contains("titan")
-        || m.contains("a100")
-        || m.contains("a6000")
-        || m.contains("h100")
-        || m.contains("l40")
-        || m.contains(" l4")
-        || m.contains("hopper")
-        || m.contains(" 4080")
-        || m.contains(" 4090")
-        || m.contains(" 4070")
-        || m.contains(" 4060")
-        || m.contains(" 3090")
-        || m.contains(" 3080")
-    {
-        return "nvidia".into();
-    }
-    if m.contains("amd") || m.contains("radeon") {
-        return "amd".into();
-    }
-    if m.contains("intel") && (m.contains("arc") || m.contains("iris") || m.contains("uhd")) {
-        return "intel".into();
-    }
-    if m.contains("apple") || m.contains("m1") || m.contains("m2") || m.contains("m3") {
-        return "apple".into();
-    }
-    "unknown".into()
-}
-
-/// Probe GPU metadata. Override with **`VOX_GPU_MODEL`** + **`VOX_GPU_VRAM_MB`** for CI or headless hosts.
+/// Probe GPU metadata.
 #[must_use]
 pub fn probe_gpu() -> GpuInfo {
-    if let (Ok(model), Ok(vram_s)) = (
-        std::env::var("VOX_GPU_MODEL"),
-        std::env::var("VOX_GPU_VRAM_MB"),
-    ) && let Ok(vram_mb) = vram_s.parse::<u64>()
-    {
-        let vendor = vendor_from_model(&model);
-        return GpuInfo {
-            model_name: model,
-            vram_mb,
-            vendor,
-        };
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        if let Some((name, mb)) = probe_gpu_wmic() {
-            let vendor = vendor_from_model(&name);
-            return GpuInfo {
-                model_name: name,
-                vram_mb: mb,
-                vendor,
-            };
-        }
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        if let Some(g) = probe_gpu_linux() {
-            return g;
-        }
-    }
+    // New SSOT: use the hardware registry
+    let summary = futures::executor::block_on(crate::mens::hardware::probe());
 
     GpuInfo {
-        model_name: "unknown".into(),
-        vram_mb: 0,
-        vendor: "cpu".into(),
+        model_name: summary.model_name.clone(),
+        vram_mb: summary.vram_mb,
+        vendor: format!("{:?}", summary.vendor).to_lowercase(),
     }
-}
-
-#[cfg(target_os = "linux")]
-fn probe_gpu_linux() -> Option<GpuInfo> {
-    probe_gpu_nvidia_smi_linux().or_else(probe_gpu_lspci_linux)
-}
-
-#[cfg(target_os = "linux")]
-fn probe_gpu_nvidia_smi_linux() -> Option<GpuInfo> {
-    use std::process::Command;
-    let out = Command::new("nvidia-smi")
-        .args([
-            "--query-gpu=name,memory.total",
-            "--format=csv,noheader,nounits",
-        ])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let line = String::from_utf8_lossy(&out.stdout).lines().next()?.trim();
-    if line.is_empty() {
-        return None;
-    }
-    let mut parts = line.split(',').map(|s| s.trim());
-    let name = parts.next()?.to_string();
-    let mb_part = parts.next().unwrap_or("0");
-    let vram_mb: u64 = mb_part
-        .split_whitespace()
-        .next()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0);
-    let vendor = vendor_from_model(&name);
-    Some(GpuInfo {
-        model_name: name,
-        vram_mb,
-        vendor,
-    })
-}
-
-#[cfg(target_os = "linux")]
-fn probe_gpu_lspci_linux() -> Option<GpuInfo> {
-    use std::process::Command;
-    let out = Command::new("lspci").output().ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let text = String::from_utf8_lossy(&out.stdout);
-    for line in text.lines() {
-        let lower = line.to_lowercase();
-        if !lower.contains("vga") && !lower.contains("3d") && !lower.contains("display") {
-            continue;
-        }
-        let name = line.split(':').nth(2).unwrap_or(line).trim().to_string();
-        if name.len() < 3 {
-            continue;
-        }
-        let vendor = vendor_from_model(&name);
-        return Some(GpuInfo {
-            model_name: name,
-            vram_mb: 0,
-            vendor,
-        });
-    }
-    None
-}
-
-#[cfg(target_os = "windows")]
-fn probe_gpu_wmic() -> Option<(String, u64)> {
-    use std::process::Command;
-    let out = Command::new("wmic")
-        .args([
-            "path",
-            "win32_VideoController",
-            "get",
-            "Name,AdapterRAM",
-            "/format:csv",
-        ])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    let text = String::from_utf8_lossy(&out.stdout);
-    let mut best: Option<(String, u64)> = None;
-    for line in text.lines().skip(1) {
-        let parts: Vec<&str> = line.split(',').map(str::trim).collect();
-        if parts.len() < 3 {
-            continue;
-        }
-        let name = parts[1].to_string();
-        if name.is_empty() {
-            continue;
-        }
-        let ram = parts[2].parse::<u64>().unwrap_or(0);
-        let mb = if ram > 0 { ram / (1024 * 1024) } else { 0 };
-        best = Some(match best {
-            None => (name, mb),
-            Some((ref n0, m0)) if mb > m0 => (name, mb),
-            Some(b) => b,
-        });
-    }
-    best
 }
 
 /// Very rough **megabyte** estimate for transformer-style training (activations + weights, FP32-ish).
@@ -269,10 +102,6 @@ pub fn estimate_training_vram_mb(
 }
 
 /// Rough VRAM heuristic for **Candle QLoRA** (qlora-rs NF4 frozen bases).
-///
-/// [`estimate_training_vram_mb`] assumes FP32-ish transformer blocks; NF4 weights are much smaller.
-/// Activations, mmap embeddings, and trainable LoRA still dominate on long sequences — this uses a
-/// conservative **~35%** scale of the FP heuristic (floor 256 MB). Use for warnings only.
 #[must_use]
 pub fn estimate_training_vram_mb_qlora(
     d_model: usize,
@@ -317,10 +146,17 @@ pub fn print_gpu_summary_for(prefix: &str) {
     );
 }
 
-/// VRAM currently in use — not available without driver APIs; returns **`None`**.
+/// VRAM currently in use — not available without driver APIs.
 #[must_use]
 pub fn sample_vram_used_mb() -> Option<u64> {
-    None
+    #[cfg(feature = "nvml-gpu-probe")]
+    {
+        crate::mens::hardware::nvml::monitor_nvml().map(|t| t.memory_used_mb)
+    }
+    #[cfg(not(feature = "nvml-gpu-probe"))]
+    {
+        None
+    }
 }
 
 /// User-facing hint when OOM / allocation fails.
@@ -334,21 +170,31 @@ pub fn oom_guidance() -> &'static str {
 pub fn recommend_config(vram_mb: u64) -> TrainProfile {
     if vram_mb >= 24_000 {
         TrainProfile {
-            label: "high",
+            label: "ultra",
             max_seq_len: 1024,
             suggested_batch: 4,
+            suggested_rank: 32,
         }
-    } else if vram_mb >= 8_000 {
+    } else if vram_mb >= 12_000 {
+        TrainProfile {
+            label: "high",
+            max_seq_len: 512,
+            suggested_batch: 4,
+            suggested_rank: 16,
+        }
+    } else if vram_mb >= 7_000 {
         TrainProfile {
             label: "mid",
             max_seq_len: 512,
             suggested_batch: 2,
+            suggested_rank: 12,
         }
     } else {
         TrainProfile {
             label: "low",
             max_seq_len: 256,
             suggested_batch: 1,
+            suggested_rank: 8,
         }
     }
 }

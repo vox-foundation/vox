@@ -108,6 +108,31 @@ impl Default for LlmPolicyTunables {
     }
 }
 
+/// Decode-time constrained generation policy (logit bias/masks/trie).
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct LogitConstraintTunables {
+    /// Additive bias for hotword/lexicon token ids.
+    pub bias_strength: f32,
+    /// Maximum number of unique token ids to bias.
+    pub bias_max_tokens: usize,
+    /// Enable token-trie hard constraints (`VOX_ORATIO_CONSTRAINED_TRIE` equivalent).
+    pub constrained_trie: bool,
+    /// Reset trie after this many non-matching decoded tokens.
+    pub trie_stuck_steps: usize,
+}
+
+impl Default for LogitConstraintTunables {
+    fn default() -> Self {
+        Self {
+            bias_strength: 0.8,
+            bias_max_tokens: 256,
+            constrained_trie: false,
+            trie_stuck_steps: 2,
+        }
+    }
+}
+
 /// Session timing defaults (UX capture vs inference wall-clock caps).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -133,11 +158,30 @@ impl Default for SessionTimingDefaults {
     }
 }
 
+/// Target ASR Backend and Domain.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AsrBackendConfig {
+    pub backend: String,
+    pub domain_mode: crate::refine::DomainMode,
+}
+
+impl Default for AsrBackendConfig {
+    fn default() -> Self {
+        Self {
+            backend: "auto".to_string(),
+            domain_mode: crate::refine::DomainMode::General,
+        }
+    }
+}
+
 /// Merged Oratio runtime configuration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 #[derive(Default)]
 pub struct OratioRuntimeConfig {
+    /// Target ASR Backend and Domain.
+    pub asr: AsrBackendConfig,
     /// Session timing defaults (capture vs inference vs wall cap).
     pub session_timing: SessionTimingDefaults,
     /// Deterministic refine confidence tunables.
@@ -148,6 +192,8 @@ pub struct OratioRuntimeConfig {
     pub hf: HfTunables,
     /// Default LLM polish policy (MCP; deterministic path remains primary).
     pub llm: LlmPolicyTunables,
+    /// Decode-time constrained generation defaults.
+    pub logit: LogitConstraintTunables,
 }
 
 /// Top-level TOML keys (all optional).
@@ -173,6 +219,10 @@ struct OratioRuntimeConfigFile {
     llm_refinement_default: Option<bool>,
     llm_min_det_confidence: Option<f32>,
     llm_max_output_tokens: Option<u64>,
+    logit_bias_strength: Option<f32>,
+    logit_bias_max_tokens: Option<usize>,
+    logit_constrained_trie: Option<bool>,
+    logit_trie_stuck_steps: Option<usize>,
 }
 
 impl OratioRuntimeConfig {
@@ -241,6 +291,18 @@ impl OratioRuntimeConfig {
         }
         if let Some(v) = flat.llm_max_output_tokens {
             self.llm.llm_max_output_tokens = v.max(64);
+        }
+        if let Some(v) = flat.logit_bias_strength {
+            self.logit.bias_strength = v;
+        }
+        if let Some(v) = flat.logit_bias_max_tokens {
+            self.logit.bias_max_tokens = v.max(1);
+        }
+        if let Some(v) = flat.logit_constrained_trie {
+            self.logit.constrained_trie = v;
+        }
+        if let Some(v) = flat.logit_trie_stuck_steps {
+            self.logit.trie_stuck_steps = v.max(1);
         }
         Ok(())
     }
@@ -350,6 +412,29 @@ impl OratioRuntimeConfig {
         {
             self.llm.llm_max_output_tokens = v.max(64);
         }
+        env_f32!("VOX_ORATIO_LOGIT_BIAS_STRENGTH", self.logit.bias_strength);
+        if let Ok(s) = var("VOX_ORATIO_LOGIT_BIAS_MAX_TOKENS")
+            && let Ok(v) = s.parse::<usize>()
+        {
+            self.logit.bias_max_tokens = v.max(1);
+        }
+        env_bool!("VOX_ORATIO_CONSTRAINED_TRIE", self.logit.constrained_trie);
+        if let Ok(s) = var("VOX_ORATIO_TRIE_STUCK_STEPS")
+            && let Ok(v) = s.parse::<usize>()
+        {
+            self.logit.trie_stuck_steps = v.max(1);
+        }
+
+        if let Ok(s) = var("VOX_ORATIO_BACKEND") {
+            self.asr.backend = s.trim().to_ascii_lowercase();
+        }
+        if let Ok(s) = var("VOX_ORATIO_DOMAIN_MODE") {
+            if s.trim().to_ascii_lowercase() == "code" {
+                self.asr.domain_mode = crate::refine::DomainMode::Code;
+            } else {
+                self.asr.domain_mode = crate::refine::DomainMode::General;
+            }
+        }
     }
 
     /// `defaults` → optional `VOX_ORATIO_CONFIG` file → env.
@@ -412,6 +497,7 @@ pub fn runtime_config_diagnostic_json(cfg: &OratioRuntimeConfig) -> serde_json::
         "routing": cfg.routing,
         "hf": cfg.hf,
         "llm": cfg.llm,
+        "logit": cfg.logit,
     })
 }
 

@@ -73,6 +73,7 @@ impl<B: Backend> Tensor<B> {
             Tensor::D4(t) => TensorShape(t.shape().dims.into()),
             Tensor::D1Int(t) => TensorShape(t.shape().dims.into()),
             Tensor::D2Int(t) => TensorShape(t.shape().dims.into()),
+            Tensor::Tuple2(_, _) => panic!("shape: unsupported for Tuple2"),
         }
     }
 }

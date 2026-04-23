@@ -22,6 +22,10 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
+
+use rayon::prelude::*;
+use xxhash_rust::xxh3::xxh3_64;
 
 use anyhow::Context;
 use serde::Deserialize;
@@ -54,6 +58,9 @@ pub struct MixSource {
     /// When `true`, silently skip this source if the file does not exist (no warning printed).
     #[serde(default)]
     pub optional: bool,
+    /// Probability (0.0 to 1.0) of including a row in the output.
+    #[serde(default)]
+    pub sample_rate: Option<f64>,
 }
 
 fn default_weight() -> f64 {
@@ -78,7 +85,7 @@ pub struct MixConfigSchema {
 impl MixConfigSchema {
     /// Read and validate a mix YAML file from disk.
     pub fn load(path: &Path) -> anyhow::Result<Self> {
-        let raw = crate::bounded_fs::read_utf8_path_capped(path)
+        let raw = vox_bounded_fs::read_utf8_path_capped(path)
             .with_context(|| format!("read mix config {}", path.display()))?;
         let cfg: Self = serde_yaml::from_str(&raw)
             .with_context(|| format!("parse mix YAML {}", path.display()))?;
@@ -109,13 +116,15 @@ impl Default for MixRunOptions {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MixSourceReportRow {
     pub path: String,
     pub weight: f64,
     pub optional: bool,
     pub record_format: Option<String>,
     pub resolved_path: String,
+    /// Metadata for incremental skip: mtime and size.
+    pub source_fingerprint: String,
     pub input_lines: usize,
     pub repeats: usize,
     pub emitted_lines: usize,
@@ -123,11 +132,13 @@ pub struct MixSourceReportRow {
     pub share_of_output: f64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct MixRunReport {
     pub config_path: String,
     pub output_path: String,
     pub strict: bool,
+    /// Hash of the MixConfigSchema fields and include/exclude lanes.
+    pub config_fingerprint: String,
     pub sources: Vec<MixSourceReportRow>,
     pub total_emitted: usize,
 }
@@ -275,6 +286,30 @@ pub fn normalize_training_jsonl_line(
             }
             serde_json::to_string(&serde_json::Value::Object(row)).map_err(|e| e.to_string())
         }
+        Some("workflow_trace") => {
+            let rec: crate::tool_workflow_corpus::WorkflowTraceRecord =
+                serde_json::from_str(trimmed)
+                    .map_err(|e| format!("workflow_trace: invalid json: {e}"))?;
+            let prompt = format!(
+                "[vox_workflow_supervision]\nIntent: {}\n\nExecution Log Excerpt:\n{}\n\nEmit a JSON object with routing_efficiency (0.0-1.0).\n",
+                rec.intent.trim(),
+                rec.execution_log_excerpt.trim()
+            );
+            let mut row = serde_json::Map::new();
+            row.insert("prompt".to_string(), serde_json::Value::String(prompt));
+            let response = serde_json::json!({
+                "routing_efficiency": rec.routing_efficiency.unwrap_or(1.0),
+            });
+            row.insert(
+                "response".to_string(),
+                serde_json::Value::String(response.to_string()),
+            );
+            row.insert(
+                "category".to_string(),
+                serde_json::Value::String("workflow_trace".into()),
+            );
+            serde_json::to_string(&serde_json::Value::Object(row)).map_err(|e| e.to_string())
+        }
         _ => Ok(trimmed.to_string()),
     }
 }
@@ -313,6 +348,38 @@ fn default_task_family_from_lane(lane: &str) -> &'static str {
     }
 }
 
+/// Infer corpus origin from row metadata when not explicitly set.
+///
+/// Research (Continual Learning §mode-collapse) proves that synthetic data
+/// must never *replace* human ground-truth. Every row must carry an explicit
+/// `origin` so batches can be validated against `min_human_ratio`.
+fn infer_origin(obj: &serde_json::Map<String, serde_json::Value>) -> &'static str {
+    if let Some(v) = obj.get("origin").and_then(|x| x.as_str()) {
+        // Already set — don't overwrite.
+        return match v {
+            "human" => "human",
+            "synthetic" => "synthetic",
+            "agent" => "agent",
+            _ => "synthetic", // conservative default
+        };
+    }
+    // Heuristic: rows from extract_rs / extract_vox are human-written crate source.
+    if let Some(src) = obj.get("source").and_then(|x| x.as_str()) {
+        if src.contains("crates/") || src.ends_with(".rs") || src.ends_with(".vox") {
+            return "human";
+        }
+        if src.starts_with("tool_trace:") || src.starts_with("agent:") {
+            return "agent";
+        }
+    }
+    if let Some(cat) = obj.get("category").and_then(|x| x.as_str()) {
+        if cat == "tool_trace" || cat == "speech_to_code" {
+            return "agent";
+        }
+    }
+    "synthetic"
+}
+
 fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
     let mut v: serde_json::Value =
         serde_json::from_str(line).map_err(|e| format!("invalid training row json: {e}"))?;
@@ -340,9 +407,99 @@ fn enrich_lane_metadata(line: &str) -> Result<(String, String), String> {
             serde_json::Value::String(default_task_family_from_lane(&lane).to_string()),
         );
     }
+    // Task 2.3.2: ensure every row carries an origin tag for batch validation.
+    if !obj.contains_key("origin") {
+        let origin = infer_origin(obj);
+        obj.insert(
+            "origin".to_string(),
+            serde_json::Value::String(origin.to_string()),
+        );
+    }
+
+    // Ensure assistant-token density: every training pair MUST have an assistant response.
+    // If using 'messages', the last message MUST be from the 'assistant'.
+    if let Some(serde_json::Value::Array(msgs)) = obj.get("messages") {
+        if let Some(last) = msgs.last() {
+            let role = last.get("role").and_then(|v| v.as_str()).unwrap_or("");
+            if role != "assistant" {
+                // If the last message isn't an assistant turn, try to append 'response'/'output' if it exists
+                let resp_val = obj.get("response").or_else(|| obj.get("output"));
+                if let Some(resp) = resp_val.and_then(|v| v.as_str()) {
+                    let mut msgs = msgs.clone();
+                    let mut turn = serde_json::Map::new();
+                    turn.insert(
+                        "role".to_string(),
+                        serde_json::Value::String("assistant".into()),
+                    );
+                    turn.insert(
+                        "content".to_string(),
+                        serde_json::Value::String(resp.into()),
+                    );
+                    msgs.push(serde_json::Value::Object(turn));
+                    obj.insert("messages".to_string(), serde_json::Value::Array(msgs));
+                } else {
+                    return Err("messages array does not end with assistant turn and no response/output field found".into());
+                }
+            }
+        } else {
+            return Err("messages array is empty".into());
+        }
+    } else {
+        let has_resp = obj
+            .get("response")
+            .or_else(|| obj.get("output"))
+            .and_then(|v| v.as_str())
+            .is_some();
+        if !has_resp {
+            return Err("neither messages nor response/output field present".into());
+        }
+    }
+
     serde_json::to_string(&v)
         .map(|s| (s, lane))
         .map_err(|e| e.to_string())
+}
+
+/// Calculate a fingerprint for a source file based on path, mtime, and size.
+fn calculate_file_fingerprint(p: &Path) -> String {
+    let Ok(meta) = std::fs::metadata(p) else {
+        return "missing".into();
+    };
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let size = meta.len();
+    format!(
+        "{:x}",
+        xxh3_64(format!("{}:{mtime}:{size}", p.display()).as_bytes())
+    )
+}
+
+/// Calculate a composite fingerprint for the mix configuration variables.
+fn calculate_config_fingerprint(cfg: &MixConfigSchema) -> String {
+    let mut s = String::new();
+    s.push_str(&cfg.output);
+    for lane in &cfg.include_lanes {
+        s.push_str(lane);
+    }
+    for lane in &cfg.exclude_lanes {
+        s.push_str(lane);
+    }
+    for src in &cfg.sources {
+        s.push_str(&src.path);
+        s.push_str(&src.weight.to_string());
+        if let Some(f) = &src.record_format {
+            s.push_str(f);
+        }
+        if let Some(sr) = &src.sample_rate {
+            s.push_str(&sr.to_string());
+        }
+        s.push_str(&src.optional.to_string());
+    }
+    format!("{:x}", xxh3_64(s.as_bytes()))
 }
 
 /// Same as [`run_mix_with_options`] with [`MixRunOptions::default`] (lenient; writes report).
@@ -355,9 +512,7 @@ pub fn run_mix(config_path: &Path) -> anyhow::Result<()> {
 /// Concatenate sources in order, repeating each file's lines proportional to `weight` (rounded up to one copy minimum).
 ///
 /// Relative paths in the mix YAML are resolved against `path_base` when set (e.g. Cargo workspace root),
-/// otherwise against [`std::env::current_dir`]. This must match
-/// [`crate::training::mix_prepare::refresh_train_contract_override_from_mix`] so the written file
-/// matches the override path passed to [`crate::training::preflight::validate_train_preflight`].
+/// otherwise against [`std::env::current_dir`].
 pub fn run_mix_with_options(
     config_path: &Path,
     path_base: Option<&Path>,
@@ -369,88 +524,191 @@ pub fn run_mix_with_options(
     });
     let cwd = base_buf.as_path();
     let out_path = cwd.join(&cfg.output);
-    if let Some(parent) = out_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
 
     let MixRunOptions {
         strict,
         write_report,
     } = options;
 
+    let config_fp = calculate_config_fingerprint(&cfg);
+
+    // Incremental skip check
+    if write_report {
+        let report_name = out_path
+            .file_stem()
+            .map(|s| format!("{}.mix_report.json", s.to_string_lossy()))
+            .unwrap_or_else(|| "mix_report.json".into());
+        let report_path = out_path.with_file_name(report_name);
+        if report_path.is_file() && out_path.is_file() {
+            if let Ok(raw) = std::fs::read_to_string(&report_path) {
+                if let Ok(report) = serde_json::from_str::<MixRunReport>(&raw) {
+                    if report.config_fingerprint == config_fp {
+                        let mut all_match = true;
+                        for src_report in &report.sources {
+                            let p = cwd.join(&src_report.path);
+                            if calculate_file_fingerprint(&p) != src_report.source_fingerprint {
+                                all_match = false;
+                                break;
+                            }
+                        }
+                        if all_match {
+                            tracing::info!(
+                                "  [mix] Incremental skip: {} is fresh",
+                                out_path.display()
+                            );
+                            return Ok(());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(parent) = out_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    let mut total_out = 0usize;
+    let include_lanes: Arc<HashSet<String>> = Arc::new(if cfg.include_lanes.is_empty() {
+        HashSet::from(["vox_codegen".to_string()])
+    } else {
+        cfg.include_lanes.iter().cloned().collect()
+    });
+    let exclude_lanes: Arc<HashSet<String>> = Arc::new(cfg.exclude_lanes.iter().cloned().collect());
+    let lane_counts = Arc::new(Mutex::new(
+        std::collections::BTreeMap::<String, usize>::new(),
+    ));
+
+    let out_file = File::create(&out_path)
+        .with_context(|| format!("create mix output {}", out_path.display()))?;
+    let out_file = Arc::new(Mutex::new(std::io::BufWriter::new(out_file)));
+
     let mut report_rows: Vec<MixSourceReportRow> = Vec::with_capacity(cfg.sources.len());
 
     for src in &cfg.sources {
         let p = cwd.join(&src.path);
-        if !p.is_file() {
-            if src.optional {
-                tracing::trace!("[mix] skip optional missing source {}", p.display());
-                report_rows.push(MixSourceReportRow {
-                    path: src.path.clone(),
-                    weight: src.weight,
-                    optional: true,
-                    record_format: src.record_format.clone(),
-                    resolved_path: p.display().to_string(),
-                    input_lines: 0,
-                    repeats: 0,
-                    emitted_lines: 0,
-                    skipped_reason: Some("missing_file".into()),
-                    share_of_output: 0.0,
-                });
-            } else if strict {
-                anyhow::bail!("[mix] strict: required source missing: {}", p.display());
-            } else {
-                eprintln!(
-                    "  [mix] ⚠ Missing required source: {}. Run 'vox mens corpus generate' first, or add 'optional: true' to mix.yaml.",
-                    p.display()
-                );
-                report_rows.push(MixSourceReportRow {
-                    path: src.path.clone(),
-                    weight: src.weight,
-                    optional: false,
-                    record_format: src.record_format.clone(),
-                    resolved_path: p.display().to_string(),
-                    input_lines: 0,
-                    repeats: 0,
-                    emitted_lines: 0,
-                    skipped_reason: Some("missing_file".into()),
-                    share_of_output: 0.0,
-                });
-            }
-            continue;
-        }
-        if src.weight <= 0.0 {
-            eprintln!(
-                "  [mix] source '{}' has weight 0.0 — it will be ignored",
-                p.display()
-            );
-            report_rows.push(MixSourceReportRow {
+        let src_fp = calculate_file_fingerprint(&p);
+
+        if !p.is_file() || src.weight <= 0.0 {
+            let mut row = MixSourceReportRow {
                 path: src.path.clone(),
                 weight: src.weight,
                 optional: src.optional,
                 record_format: src.record_format.clone(),
                 resolved_path: p.display().to_string(),
+                source_fingerprint: src_fp,
                 input_lines: 0,
                 repeats: 0,
                 emitted_lines: 0,
-                skipped_reason: Some("weight_zero".into()),
+                skipped_reason: None,
                 share_of_output: 0.0,
-            });
+            };
+            if !p.is_file() {
+                if src.optional {
+                    row.skipped_reason = Some("missing_file_optional".into());
+                } else {
+                    row.skipped_reason = Some("missing_file".into());
+                    if !strict {
+                        eprintln!("  [mix] ⚠ Missing required source: {}", p.display());
+                    } else {
+                        anyhow::bail!("[mix] strict: required source missing: {}", p.display());
+                    }
+                }
+            } else {
+                row.skipped_reason = Some("weight_zero".into());
+            }
+            report_rows.push(row);
             continue;
         }
-        let repeats = (src.weight.max(0.0)).ceil().max(1.0) as usize;
-        let file = File::open(&p).with_context(|| format!("open {}", p.display()))?;
-        let lines: Vec<String> = BufReader::new(file)
-            .lines()
-            .map_while(Result::ok)
-            .filter(|l| !l.trim().is_empty())
-            .collect();
 
-        if lines.is_empty() && !src.optional && strict {
-            anyhow::bail!(
-                "[mix] strict: required source has no non-empty lines: {}",
-                p.display()
-            );
+        let repeats = (src.weight.max(0.0)).ceil().max(1.0) as usize;
+        let sample_rate = src.sample_rate.unwrap_or(1.0).clamp(0.0, 1.0);
+
+        // Use a persistent reader for the source
+        let file = File::open(&p).with_context(|| format!("open {}", p.display()))?;
+        let reader = BufReader::new(file);
+
+        let mut emitted_this_src = 0usize;
+        let mut input_lines_count = 0usize;
+
+        // Process in chunks to balance parallelism vs memory
+        let chunk_size = 10_000;
+        let mut lines_iter = reader.lines();
+
+        loop {
+            let mut chunk = Vec::with_capacity(chunk_size);
+            for _ in 0..chunk_size {
+                if let Some(Ok(l)) = lines_iter.next() {
+                    chunk.push(l);
+                } else {
+                    break;
+                }
+            }
+            if chunk.is_empty() {
+                break;
+            }
+
+            input_lines_count += chunk.len();
+
+            // Parallel normalization and filtering
+            let record_format = src.record_format.clone();
+            let include_lanes = Arc::clone(&include_lanes);
+            let exclude_lanes = Arc::clone(&exclude_lanes);
+            let lane_counts = Arc::clone(&lane_counts);
+
+            let processed_chunk: Vec<String> = chunk
+                .into_par_iter()
+                .filter_map(|line| {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        return None;
+                    }
+
+                    // Sampling logic
+                    if sample_rate < 1.0 {
+                        let mut rng = rand::thread_rng();
+                        use rand::Rng;
+                        if !rng.gen_bool(sample_rate) {
+                            return None;
+                        }
+                    }
+
+                    let normalized =
+                        match normalize_training_jsonl_line(trimmed, record_format.as_deref()) {
+                            Ok(s) => s,
+                            Err(e) => {
+                                eprintln!("  [mix] skip line error: {e}");
+                                return None;
+                            }
+                        };
+                    let (normalized, lane) = match enrich_lane_metadata(&normalized) {
+                        Ok(pair) => pair,
+                        Err(e) => {
+                            eprintln!("  [mix] skip line meta error: {e}");
+                            return None;
+                        }
+                    };
+                    if !include_lanes.contains(&lane) || exclude_lanes.contains(&lane) {
+                        return None;
+                    }
+
+                    let mut counts = lane_counts.lock().unwrap();
+                    *counts.entry(lane).or_insert(0) += 1;
+
+                    Some(normalized)
+                })
+                .collect();
+
+            if !processed_chunk.is_empty() {
+                let mut out = out_file.lock().unwrap();
+                for _ in 0..repeats {
+                    for row in &processed_chunk {
+                        writeln!(out, "{row}")?;
+                        total_out += 1;
+                        emitted_this_src += 1;
+                    }
+                }
+            }
         }
 
         report_rows.push(MixSourceReportRow {
@@ -459,10 +717,13 @@ pub fn run_mix_with_options(
             optional: src.optional,
             record_format: src.record_format.clone(),
             resolved_path: p.display().to_string(),
-            input_lines: lines.len(),
+            source_fingerprint: src_fp,
+            input_lines: input_lines_count,
             repeats,
-            emitted_lines: 0,
-            skipped_reason: if lines.is_empty() {
+            emitted_lines: emitted_this_src,
+            skipped_reason: if emitted_this_src == 0 && input_lines_count > 0 {
+                Some("no_lines_passed_filters".into())
+            } else if input_lines_count == 0 {
                 Some("empty_file".into())
             } else {
                 None
@@ -471,72 +732,10 @@ pub fn run_mix_with_options(
         });
     }
 
-    let mut out = File::create(&out_path)
-        .with_context(|| format!("create mix output {}", out_path.display()))?;
-    let mut total_out = 0usize;
-    let include_lanes: HashSet<String> = if cfg.include_lanes.is_empty() {
-        HashSet::from(["vox_codegen".to_string()])
-    } else {
-        cfg.include_lanes.iter().cloned().collect()
-    };
-    let exclude_lanes: HashSet<String> = cfg.exclude_lanes.iter().cloned().collect();
-    let mut lane_counts: std::collections::BTreeMap<String, usize> =
-        std::collections::BTreeMap::new();
-
-    for (row_idx, src) in cfg.sources.iter().enumerate() {
-        let p = cwd.join(&src.path);
-        let row = report_rows
-            .get_mut(row_idx)
-            .expect("mix report row count matches sources");
-
-        if !p.is_file() || src.weight <= 0.0 {
-            continue;
-        }
-
-        let repeats = (src.weight.max(0.0)).ceil().max(1.0) as usize;
-        let file = File::open(&p).with_context(|| format!("open {}", p.display()))?;
-        let lines: Vec<String> = BufReader::new(file)
-            .lines()
-            .map_while(Result::ok)
-            .filter(|l| !l.trim().is_empty())
-            .collect();
-
-        let mut emitted_this_src = 0usize;
-        for _ in 0..repeats {
-            for line in &lines {
-                let normalized =
-                    match normalize_training_jsonl_line(line, src.record_format.as_deref()) {
-                        Ok(s) => s,
-                        Err(e) => {
-                            eprintln!("  [mix] skip line in {}: {e}", p.display());
-                            continue;
-                        }
-                    };
-                let (normalized, lane) = match enrich_lane_metadata(&normalized) {
-                    Ok(pair) => pair,
-                    Err(e) => {
-                        eprintln!("  [mix] skip line in {}: {e}", p.display());
-                        continue;
-                    }
-                };
-                if !include_lanes.is_empty() && !include_lanes.contains(&lane) {
-                    continue;
-                }
-                if exclude_lanes.contains(&lane) {
-                    continue;
-                }
-                *lane_counts.entry(lane).or_insert(0) += 1;
-                writeln!(out, "{normalized}")?;
-                total_out += 1;
-                emitted_this_src += 1;
-            }
-        }
-        row.emitted_lines = emitted_this_src;
-        if emitted_this_src == 0 && !lines.is_empty() {
-            row.skipped_reason = Some("all_lines_failed_normalization".into());
-        } else if emitted_this_src > 0 {
-            row.skipped_reason = None;
-        }
+    // Flush the writer
+    {
+        let mut out = out_file.lock().unwrap();
+        out.flush()?;
     }
 
     if strict {
@@ -544,7 +743,10 @@ pub fn run_mix_with_options(
             anyhow::bail!("[mix] strict: mixed output would be empty (check sources and weights)");
         }
         for row in &report_rows {
-            if row.optional || row.skipped_reason.as_deref() == Some("weight_zero") {
+            if row.optional
+                || row.skipped_reason.as_deref() == Some("weight_zero")
+                || row.skipped_reason.as_deref() == Some("missing_file_optional")
+            {
                 continue;
             }
             if row.emitted_lines == 0 {
@@ -576,6 +778,7 @@ pub fn run_mix_with_options(
             config_path: config_path.display().to_string(),
             output_path: out_path.display().to_string(),
             strict,
+            config_fingerprint: config_fp,
             sources: report_rows,
             total_emitted: total_out,
         };
@@ -587,8 +790,9 @@ pub fn run_mix_with_options(
         eprintln!("  [mix] report → {}", report_path.display());
     }
 
+    let lane_counts = lane_counts.lock().unwrap();
     if !lane_counts.is_empty() {
-        eprintln!("  [mix] lane distribution: {:?}", lane_counts);
+        eprintln!("  [mix] lane distribution: {:?}", *lane_counts);
     }
     eprintln!("  [mix] wrote {} lines → {}", total_out, out_path.display());
     Ok(())

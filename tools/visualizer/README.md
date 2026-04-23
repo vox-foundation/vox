@@ -1,5 +1,7 @@
 # React + TypeScript + Vite
 
+**Vox repo note:** Full-stack codegen now centers on **`routes.manifest.ts`**, **`vox-client.ts`**, and user-owned router adapters (see [`docs/src/architecture/react-interop-hybrid-adapter-cookbook.md`](../../docs/src/architecture/react-interop-hybrid-adapter-cookbook.md)). When ingesting compiler output for visualization, prefer manifest route graphs over legacy `App.tsx` / `VoxTanStackRouter.tsx` artifacts (removed from emission).
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

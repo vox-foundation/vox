@@ -30,6 +30,14 @@ pub async fn get_profile(db: &Codex, user_id: &str) -> Result<Option<LudusProfil
             lumens: row[14],
             generosity_lumens: row[15],
             streak_shields: row[16] as i32,
+            trust_tier: match row[17] {
+                1 => crate::profile::TrustTier::Linked,
+                2 => crate::profile::TrustTier::Proven,
+                3 => crate::profile::TrustTier::Master,
+                _ => crate::profile::TrustTier::Novice,
+            },
+            reward_suppressed: row[18] != 0,
+            suppressed_until_ts: row[19],
         }))
     } else {
         Ok(None)
@@ -57,6 +65,9 @@ pub async fn upsert_profile(db: &Codex, p: &LudusProfile) -> Result<()> {
         p.lumens,
         p.generosity_lumens,
         p.streak_shields as i64,
+        p.trust_tier as i64,
+        if p.reward_suppressed { 1 } else { 0 },
+        p.suppressed_until_ts,
     )
     .await?;
     Ok(())

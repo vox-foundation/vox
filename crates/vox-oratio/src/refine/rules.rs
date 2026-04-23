@@ -23,6 +23,27 @@ fn default_confusion_map() -> HashMap<&'static str, &'static str> {
     ])
 }
 
+fn code_confusion_map() -> HashMap<&'static str, &'static str> {
+    HashMap::from([
+        ("unwrap or else", "unwrap_or_else"),
+        ("unwrap or default", "unwrap_or_default"),
+        ("hash map", "HashMap"),
+        ("box dine", "Box<dyn "),
+        ("to string", "to_string"),
+        ("pub fun", "pub fn"),
+        ("pub function", "pub fn"),
+        ("let mute", "let mut "),
+        ("a sync", "async"),
+        ("vec bang", "vec!"),
+        ("debug bang", "dbg!"),
+        ("print len", "println!"),
+        ("print el in", "println!"),
+        ("if let some", "if let Some"),
+        ("impl for", "impl for "),
+        ("mut self", "mut self"),
+    ])
+}
+
 fn default_domain_lexicon() -> HashSet<String> {
     [
         "vox",
@@ -81,7 +102,11 @@ pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput {
         });
     }
 
-    let confusion = default_confusion_map();
+    let mut confusion = default_confusion_map();
+    if ctx.domain == crate::refine::DomainMode::Code {
+        confusion.extend(code_confusion_map());
+    }
+
     let mut domain_lexicon = default_domain_lexicon();
     for item in &ctx.domain_lexicon {
         domain_lexicon.insert(item.to_ascii_lowercase());
@@ -94,16 +119,25 @@ pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput {
             continue;
         }
         let lower = token.to_ascii_lowercase();
-        if let Some(mapped) = confusion.get(lower.as_str()) {
-            trace.push(CorrectionTrace {
-                rule: "confusion_map".to_string(),
-                before: token.to_string(),
-                after: (*mapped).to_string(),
-                reason: "Matched common ASR confusion token".to_string(),
-            });
-            rewritten.push((*mapped).to_string());
-            continue;
+
+        // If the speaker profile is dysarthric, bypass the standard confusion
+        // map as their speech patterns require their distinct fine-tuned mappings.
+        if !matches!(
+            ctx.speaker_profile,
+            crate::speaker_profile::SpeakerProfile::Dysarthric(_)
+        ) {
+            if let Some(mapped) = confusion.get(lower.as_str()) {
+                trace.push(CorrectionTrace {
+                    rule: "confusion_map".to_string(),
+                    before: token.to_string(),
+                    after: (*mapped).to_string(),
+                    reason: "Matched common ASR confusion token".to_string(),
+                });
+                rewritten.push((*mapped).to_string());
+                continue;
+            }
         }
+
         if domain_lexicon.contains(&lower) {
             if token != lower {
                 trace.push(CorrectionTrace {

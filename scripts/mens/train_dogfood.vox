@@ -1,0 +1,49 @@
+// vox:caps fs subprocess env
+// Native replacement for dogfood_qlora_cuda.ps1.
+
+fn main() {
+    print("--- Vox Training (Dogfood QLoRA) ---")
+    
+    let mut args = [
+        "mens", "train",
+        "--backend", "qlora",
+        "--tokenizer", "hf",
+        "--preset", "qwen_4080_16g",
+        "--model", "Qwen/Qwen3.5-4B",
+        "--data-dir", "target/dogfood",
+        "--output-dir", "mens/runs/qwen35_qlora_dogfood",
+        "--device", "cuda",
+        "--qlora-require-full-proxy-stack",
+        "--data-mode", "strict",
+        "--background"
+    ]
+    
+    let log_dir = "mens/runs/logs"
+    print("Log Dir: " + log_dir)
+    args.push("--log-dir")
+    args.push(log_dir)
+
+    print("Executing training (detached)...")
+    let mut proc = process.run("vox", args)
+    if proc is null {
+        print("  'vox' not found on PATH, falling back to 'cargo run'...")
+        let mut cargo_args = ["run", "-p", "vox-cli", "--"]
+        for a in args {
+            cargo_args.push(a)
+        }
+        proc = process.run("cargo", cargo_args)
+    }
+
+    match proc {
+        Some(res) -> {
+            if res.code == 0 {
+                print("✓ Training spawned. Check logs in " + log_dir)
+            } else {
+                print("✗ Training failed to spawn with code: " + str(res.code))
+            }
+        }
+        None -> {
+            print("✗ Failed to execute process.")
+        }
+    }
+}

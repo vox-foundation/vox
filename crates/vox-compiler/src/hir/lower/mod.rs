@@ -27,6 +27,7 @@ use crate::hir::*;
 use crate::web_prefixes::{MUTATION_FN_API_PREFIX, QUERY_FN_API_PREFIX, SERVER_FN_API_PREFIX};
 
 mod async_flags;
+mod contracts;
 mod db_select_normalize;
 mod decl;
 mod expr_db;
@@ -35,20 +36,34 @@ mod lowering_expr;
 #[path = "stmt.rs"]
 mod lowering_stmt;
 
+/// Configuration for HIR lowering.
+#[derive(Debug, Clone, Default)]
+pub struct LowerConfig {
+    /// If true, `@test` declarations will be omitted from the output.
+    pub strip_tests: bool,
+}
+
 /// Lower an AST Module to a HirModule.
 pub fn lower_module(module: &Module) -> HirModule {
-    let mut ctx = LowerCtx::new();
+    lower_module_with_config(module, &LowerConfig::default())
+}
+
+/// Lower an AST Module to a HirModule with explicit configuration.
+pub fn lower_module_with_config(module: &Module, config: &LowerConfig) -> HirModule {
+    let mut ctx = LowerCtx::new(config.clone());
     ctx.lower(module)
 }
 
 struct LowerCtx {
     def_map: DefMap,
+    config: LowerConfig,
 }
 
 impl LowerCtx {
-    fn new() -> Self {
+    fn new(config: LowerConfig) -> Self {
         Self {
             def_map: DefMap::new(),
+            config,
         }
     }
 
@@ -63,6 +78,7 @@ impl LowerCtx {
             workflows: Vec::new(),
             activities: Vec::new(),
             tests: Vec::new(),
+            foralls: Vec::new(),
             server_fns: Vec::new(),
             query_fns: Vec::new(),
             mutation_fns: Vec::new(),
@@ -72,6 +88,7 @@ impl LowerCtx {
             vector_indexes: Vec::new(),
             search_indexes: Vec::new(),
             mcp_tools: Vec::new(),
+            mcp_resources: Vec::new(),
             components: Vec::new(),
             v0_components: Vec::new(),
             client_routes: Vec::new(),
@@ -84,6 +101,8 @@ impl LowerCtx {
             loadings: Vec::new(),
             not_founds: Vec::new(),
             reactive_components: Vec::new(),
+            agents: Vec::new(),
+            environments: Vec::new(),
             legacy_ast_nodes: Vec::new(),
             lowering_migration: crate::hir::HirLoweringMigrationFlags::default(),
         };
@@ -156,8 +175,26 @@ impl LowerCtx {
                         func,
                     });
                 }
+                Decl::McpResource(m) => {
+                    let func = self.lower_fn(&m.func, false);
+                    hir.mcp_resources.push(HirMcpResource {
+                        uri: m.uri.clone(),
+                        description: m.description.clone(),
+                        func,
+                    });
+                }
                 Decl::Test(t) => {
-                    hir.tests.push(self.lower_fn(&t.func, false));
+                    if !self.config.strip_tests {
+                        hir.tests.push(self.lower_fn(&t.func, false));
+                    }
+                }
+                Decl::Forall(f) => {
+                    let func = self.lower_fn(&f.func, false);
+                    hir.foralls.push(HirForall {
+                        label: f.label.clone(),
+                        iterations: f.iterations,
+                        func,
+                    });
                 }
                 // `route_path` is the stable HTTP contract surface for WebIR `RouteNode` / client stubs.
                 Decl::ServerFn(s) => {
@@ -245,10 +282,16 @@ impl LowerCtx {
                     hir.islands.push(HirIsland(decl.clone()));
                 }
                 Decl::Layout(decl) => {
-                    hir.layouts.push(HirLayout(decl.clone()));
+                    let func = self.lower_fn(&decl.func, true);
+                    hir.layouts.push(HirLayout { func });
                 }
                 Decl::Page(decl) => {
-                    hir.pages.push(HirPage(decl.clone()));
+                    let func = self.lower_fn(&decl.func, true);
+                    hir.pages.push(HirPage {
+                        path: decl.path.clone(),
+                        func,
+                        span: decl.span,
+                    });
                 }
                 Decl::Context(decl) => {
                     hir.contexts.push(HirContext(decl.clone()));
@@ -272,6 +315,17 @@ impl LowerCtx {
                     hir.lowering_migration.used_reactive_component_path = true;
                     hir.reactive_components
                         .push(self.lower_reactive_component(decl));
+                }
+                Decl::Agent(a) => {
+                    hir.agents.push(self.lower_agent(a));
+                }
+                Decl::Environment(e) => {
+                    hir.environments.push(self.lower_environment(e));
+                }
+                Decl::Scheduled(s) => {
+                    let mut lowered = self.lower_fn(&s.func, false);
+                    lowered.schedule_interval = Some(s.interval.clone());
+                    hir.functions.push(lowered);
                 }
                 _ => {
                     hir.legacy_ast_nodes.push(decl.clone());
@@ -325,7 +379,7 @@ fn collect_pattern_binding_names(pat: &Pattern, out: &mut HashSet<String>) {
 #[must_use]
 pub fn lower_classic_component_view(comp: &HirComponent) -> Option<(HirExpr, HashSet<String>)> {
     let func = &comp.0.func;
-    let mut ctx = LowerCtx::new();
+    let mut ctx = LowerCtx::new(LowerConfig::default());
     let mut state_names = HashSet::new();
 
     for p in &func.params {
@@ -358,6 +412,9 @@ pub fn lower_classic_component_view(comp: &HirComponent) -> Option<(HirExpr, Has
                 }
             }
             Stmt::Return { value: None, .. } => {}
+            Stmt::While { .. } | Stmt::Loop { .. } | Stmt::Break { .. } | Stmt::Continue { .. } => {
+                let _ = ctx.lower_stmt(stmt);
+            }
         }
     }
 
@@ -752,5 +809,24 @@ fn f() to Unit {
         assert_eq!(hir.collections.len(), 1);
         assert_eq!(hir.vector_indexes.len(), 1);
         assert_eq!(hir.search_indexes.len(), 1);
+    }
+
+    #[test]
+    fn test_hir_lowering_environment() {
+        let tokens = crate::lexer::lex(
+            r#"
+environment staging {
+    base "node:22-alpine"
+    packages ["curl"]
+}
+"#,
+        );
+        let m = crate::parser::parse(tokens).unwrap();
+        let hir = lower_module(&m);
+        assert_eq!(1, hir.environments.len());
+        let env = &hir.environments[0];
+        assert_eq!(env.name, "staging");
+        assert_eq!(env.base_image.as_deref(), Some("node:22-alpine"));
+        assert_eq!(env.packages, vec!["curl".to_string()]);
     }
 }

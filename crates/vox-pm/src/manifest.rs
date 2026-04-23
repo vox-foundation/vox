@@ -185,6 +185,9 @@ pub struct DeploySection {
     /// [Coolify](https://coolify.io/) PaaS deployment configuration.
     #[serde(default)]
     pub coolify: Option<crate::deploy_coolify::CoolifyDeployConfig>,
+    /// Fly.io PaaS deployment configuration.
+    #[serde(default)]
+    pub fly: Option<FlyDeployConfig>,
 }
 
 impl DeploySection {
@@ -274,6 +277,20 @@ pub struct KubernetesDeployConfig {
     pub manifests_dir: Option<String>,
 }
 
+/// Fly.io deploy configuration (`[deploy.fly]`).
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct FlyDeployConfig {
+    /// App name. Defaults to the project name.
+    #[serde(default)]
+    pub app_name: Option<String>,
+    /// Organization to deploy to.
+    #[serde(default)]
+    pub org: Option<String>,
+    /// Region to deploy to.
+    #[serde(default)]
+    pub region: Option<String>,
+}
+
 impl VoxManifest {
     /// Parse a `Vox.toml` from a string.
     pub fn from_str(content: &str) -> Result<Self, ManifestError> {
@@ -314,7 +331,7 @@ impl VoxManifest {
                 version: "0.1.0".to_string(),
                 kind: kind.to_string(),
                 description: Some(format!("A Vox {kind}")),
-                license: Some("MIT".to_string()),
+                license: Some("Apache-2.0".to_string()),
                 authors: Vec::new(),
                 repository: None,
                 homepage: None,
@@ -389,7 +406,7 @@ name = "my-app"
 version = "1.2.3"
 kind = "application"
 description = "My cool app"
-license = "MIT"
+license = "Apache-2.0"
 authors = ["alice", "bob"]
 keywords = ["web", "ai"]
 
@@ -443,6 +460,7 @@ auth = ["auth-utils"]
         assert_eq!(manifest.package.kind, "application");
         let toml_str = manifest.to_toml_string().unwrap();
         assert!(toml_str.contains("hello-world"));
+        assert!(toml_str.contains("Apache-2.0"));
     }
 
     #[test]

@@ -16,7 +16,7 @@ pub struct ReviewClient {
 impl ReviewClient {
     /// Create a client with an explicit provider list.
     pub fn new(providers: Vec<ReviewProvider>) -> Self {
-        let http = reqwest::Client::builder()
+        let http = vox_reqwest_defaults::client_builder()
             .timeout(Duration::from_secs(120))
             .user_agent("vox-review/0.1")
             .build()
@@ -143,7 +143,7 @@ impl ReviewClient {
                 model,
                 site_url,
             } => {
-                let key = resolve_key(api_key, "OPENROUTER_API_KEY");
+                let key = resolve_key(api_key, vox_clavis::SecretId::OpenRouterApiKey);
                 if key.is_empty() {
                     return Err("No OpenRouter API key".to_string());
                 }
@@ -162,7 +162,7 @@ impl ReviewClient {
                 model,
                 base_url,
             } => {
-                let key = resolve_key(api_key, "OPENAI_API_KEY");
+                let key = resolve_key(api_key, vox_clavis::SecretId::OpenaiApiKey);
                 if key.is_empty() {
                     return Err("No OpenAI API key".to_string());
                 }
@@ -171,7 +171,7 @@ impl ReviewClient {
                     .await
             }
             ReviewProvider::Gemini { api_key, model } => {
-                let key = resolve_key(api_key, "GEMINI_API_KEY");
+                let key = resolve_key(api_key, vox_clavis::SecretId::GeminiApiKey);
                 if key.is_empty() {
                     return Err("No Gemini API key".to_string());
                 }
@@ -391,9 +391,12 @@ impl ReviewClient {
     }
 }
 
-fn resolve_key(stored: &str, env_var: &str) -> String {
+fn resolve_key(stored: &str, secret_id: vox_clavis::SecretId) -> String {
     if stored.is_empty() {
-        std::env::var(env_var).unwrap_or_default()
+        vox_clavis::resolve_secret(secret_id)
+            .expose()
+            .map(|s| s.to_string())
+            .unwrap_or_default()
     } else {
         stored.to_string()
     }

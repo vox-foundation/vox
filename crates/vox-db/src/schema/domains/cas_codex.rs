@@ -121,6 +121,7 @@ CREATE TABLE IF NOT EXISTS audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_codex_schema_lineage_baseline ON codex_schema_lineage(baseline_id);
 CREATE INDEX IF NOT EXISTS idx_codex_change_log_topic ON codex_change_log(topic);
+CREATE INDEX IF NOT EXISTS idx_codex_change_log_topic_id ON codex_change_log(topic, id);
 CREATE INDEX IF NOT EXISTS idx_codex_change_log_created ON codex_change_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_codex_subscriptions_topic ON codex_subscriptions(topic);
 CREATE INDEX IF NOT EXISTS idx_codex_query_snapshots_name ON codex_query_snapshots(query_name);

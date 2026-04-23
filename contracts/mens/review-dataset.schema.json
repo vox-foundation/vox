@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.org/contracts/mens/review-dataset.schema.json",
+  "title": "Mens External Review Replay Row",
+  "description": "Schema for ReviewDatasetBuild rows used in automated code review extraction",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "prompt": { "type": "string", "minLength": 1 },
+    "response": { "type": "string", "minLength": 1 },
+    "category": { "type": "string", "minLength": 1 },
+    "severity": { "type": "string", "minLength": 1 },
+    "placement_kind": { "type": "string", "minLength": 1 },
+    "source_id": { "type": "string", "minLength": 1 },
+    "repository_id": { "type": "string", "minLength": 1 },
+    "pr_number": { "type": "integer" },
+    "file_path": { "type": ["string", "null"] },
+    "line_start": { "type": ["integer", "null"] },
+    "correctness_state": { "type": "string", "minLength": 1 },
+    "sample_kind": { 
+      "type": "string", 
+      "enum": ["review_fix_pairs", "review_antipattern_memory", "review_regression_challenges"]
+    }
+  },
+  "required": [
+    "prompt",
+    "response",
+    "category",
+    "severity",
+    "placement_kind",
+    "source_id",
+    "repository_id",
+    "pr_number",
+    "correctness_state",
+    "sample_kind"
+  ]
+}

@@ -11,6 +11,7 @@ pub struct OutboundWebhook {
     /// Target URL
     pub url: String,
     /// Optional HMAC secret for signing outbound payloads
+    #[serde(skip_serializing)]
     pub secret: Option<String>,
     /// Maximum delivery attempts
     pub max_retries: u32,
@@ -74,10 +75,10 @@ impl WebhookDelivery {
     /// Reuse one instance across tasks: the client pools connections and is cheap to clone internally.
     pub fn new() -> Self {
         Self {
-            client: reqwest::Client::builder()
+            client: vox_reqwest_defaults::client_builder()
                 .timeout(std::time::Duration::from_secs(10))
                 .build()
-                .unwrap_or_default(),
+                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
         }
     }
 

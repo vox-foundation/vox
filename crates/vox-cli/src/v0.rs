@@ -18,6 +18,27 @@ use crate::island_paths::{island_component_dir, island_component_tsx_path};
 
 const V0_API_URL: &str = "https://api.v0.dev/v1/chats";
 
+/// Full URL for the v0 chats endpoint (including path). Override with **`VOX_V0_API_URL`** for tests or proxies.
+fn v0_chats_url() -> String {
+    std::env::var("VOX_V0_API_URL")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| V0_API_URL.to_string())
+}
+
+fn extract_tsx_from_chat_response(chat_res: ChatResponse) -> Result<String> {
+    if let Some(files) = chat_res.files {
+        for file in files {
+            if file.name.ends_with(".tsx") || file.name.ends_with(".jsx") {
+                return Ok(file.content);
+            }
+        }
+        Err(anyhow!("v0 response did not contain any .tsx/.jsx files"))
+    } else {
+        Err(anyhow!("v0 response did not contain any files"))
+    }
+}
+
 #[derive(Serialize)]
 struct ChatRequest {
     message: String,
@@ -91,13 +112,14 @@ async fn fetch_v0_tsx(
         image: image_data,
     };
 
+    let url = v0_chats_url();
     let res = client
-        .post(V0_API_URL)
+        .post(&url)
         .header("Authorization", format!("Bearer {}", api_key))
         .json(&req_body)
         .send()
         .await
-        .context("Failed to send request to v0 API")?;
+        .with_context(|| format!("Failed to send request to v0 API ({url})"))?;
 
     if !res.status().is_success() {
         let status = res.status();
@@ -110,16 +132,7 @@ async fn fetch_v0_tsx(
         .await
         .context("Failed to parse v0 API response")?;
 
-    if let Some(files) = chat_res.files {
-        for file in files {
-            if file.name.ends_with(".tsx") || file.name.ends_with(".jsx") {
-                return Ok(file.content);
-            }
-        }
-        Err(anyhow!("v0 response did not contain any .tsx/.jsx files"))
-    } else {
-        Err(anyhow!("v0 response did not contain any files"))
-    }
+    extract_tsx_from_chat_response(chat_res)
 }
 
 /// Generate a UI component using v0.dev based on a prompt.
@@ -398,6 +411,96 @@ fn ts_type_to_vox(ts: &str) -> String {
         "str".to_string()
     } else {
         "str".to_string()
+    }
+}
+
+#[cfg(test)]
+mod v0_response_tests {
+    use super::*;
+
+    #[test]
+    fn extract_tsx_prefers_tsx_file() {
+        let chat = ChatResponse {
+            id: "1".into(),
+            files: Some(vec![
+                V0File {
+                    name: "readme.md".into(),
+                    content: "# x".into(),
+                },
+                V0File {
+                    name: "Widget.tsx".into(),
+                    content: "export function Widget() {}".into(),
+                },
+            ]),
+            demo: None,
+        };
+        let s = extract_tsx_from_chat_response(chat).unwrap();
+        assert!(s.contains("Widget"));
+    }
+
+    #[test]
+    fn extract_tsx_errors_when_no_files() {
+        let chat = ChatResponse {
+            id: "1".into(),
+            files: None,
+            demo: None,
+        };
+        assert!(extract_tsx_from_chat_response(chat).is_err());
+    }
+}
+
+#[cfg(test)]
+#[allow(unsafe_code)]
+mod v0_wiremock_tests {
+    use super::*;
+    use serial_test::serial;
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    fn restore_env(key: &str, prev: Option<String>) {
+        // SAFETY: `serial_test` runs this module's tests sequentially; we restore before returning.
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var(key, v),
+                None => std::env::remove_var(key),
+            }
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[serial]
+    async fn fetch_hits_vox_v0_api_url() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/v1/chats"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(
+                r#"{"id":"mock","files":[{"name":"Demo.tsx","content":"export function Demo() { return null; }"}]}"#,
+            ))
+            .mount(&server)
+            .await;
+
+        let url = format!("{}/v1/chats", server.uri());
+        let prev_url = std::env::var("VOX_V0_API_URL").ok();
+        let prev_key = std::env::var(vox_clavis::SecretId::V0ApiKey.spec().canonical_env).ok();
+        // SAFETY: paired with `restore_env` below; serialized by `#[serial]`.
+        unsafe {
+            std::env::set_var("VOX_V0_API_URL", url.as_str());
+            std::env::set_var(
+                vox_clavis::SecretId::V0ApiKey.spec().canonical_env,
+                "test-key",
+            );
+        }
+
+        let got = fetch_v0_tsx("Demo", "make a card", None)
+            .await
+            .expect("fetch");
+        assert!(got.contains("export function Demo"));
+
+        restore_env("VOX_V0_API_URL", prev_url);
+        restore_env(
+            vox_clavis::SecretId::V0ApiKey.spec().canonical_env,
+            prev_key,
+        );
     }
 }
 

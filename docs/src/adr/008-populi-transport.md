@@ -2,8 +2,10 @@
 title: "ADR 008: Mens transport"
 description: "Official documentation for ADR 008: Mens transport for the Vox language. Detailed technical reference, architecture guides, and implement"
 category: "reference"
-last_updated: 2026-03-24
+last_updated: "2026-03-24"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 
 # ADR 008: Mens transport
@@ -29,3 +31,5 @@ Vox needs a **CPU-first** mens: workers advertise capabilities and can federate 
 **Status:** optional / best-effort — **not** part of the transport contract.
 
 When **`VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL=true`**, embedders (e.g. `vox-mcp`) may feed cached **`GET /v1/populi/nodes`** capability hints into `RoutingService` for **extra logging and soft score bumps** on **local** agent queues. **Remote task execution is out of scope:** no RPC in this ADR dispatches work to another node. Semantics may change or be removed in a breaking release if replaced by a real placement layer; operators must not rely on it for correctness or SLA.
+
+

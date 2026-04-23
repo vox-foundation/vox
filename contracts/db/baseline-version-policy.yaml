@@ -4,8 +4,10 @@ schema_version: 1
 
 policy:
   # Integer stored in DB `schema_version` table after baseline migration succeeds.
-  repository_baseline_integer: 41
-  # Keccak-256 hex digest of concatenated domain DDL from SCHEMA_FRAGMENTS (see schema_baseline_digest_hex).
+  repository_baseline_integer: 59
+  # Keccak-256 (0x-prefixed) of `vox_db::schema::baseline_sql()` — `vox ci check-codex-ssot` enforces parity when set.
+  repository_baseline_digest_hex: "0x6c0747200da0316740ba9731adf0139bcb7412550f98de1bb617382181f42132"
+  # Keccak-256 over `vox_db::schema::baseline_sql()` (= ordered SCHEMA_FRAGMENTS + spec append DDL).
   digest_source: vox_db_schema_manifest_baseline_sql
   # Human-facing product name for the DB API layer.
   product_api_name: Codex
@@ -17,3 +19,9 @@ notes:
     Docs and OpenAPI historically referred to baseline "1" as a conceptual greenfield label.
     The authoritative migration integer is `repository_baseline_integer` above and must match
     `pub const BASELINE_VERSION` in crates/vox-db/src/schema/manifest.rs.
+    When baseline SQL changes, update `repository_baseline_digest_hex` to `vox_db::schema::schema_baseline_digest_hex()`
+    (CI: `vox ci check-codex-ssot`).
+  - >-
+    Authoritative **bundle order** for concatenated Arca baseline DDL is `SCHEMA_FRAGMENTS` in
+    `crates/vox-db/src/schema/manifest.rs` (foundation → … → publish_cloud), then the `schema::spec`
+    append slice; a future logical-spec generator should emit those same two tiers.

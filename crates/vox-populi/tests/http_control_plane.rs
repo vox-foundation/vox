@@ -1,18 +1,22 @@
 #![allow(missing_docs)]
 #![allow(clippy::await_holding_lock)] // Env lock serializes transport tests across whole async bodies.
-#![cfg(feature = "transport")]
+// `#[serial]` serializes all tests in this binary: `VOX_MESH_*` env is process-wide (see e.g. `VOX_MESH_A2A_MAX_MESSAGES`).
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Mutex;
 use std::time::Duration;
 
+use serial_test::serial;
 use vox_populi::http_client::PopuliHttpClient;
-use vox_populi::transport::{AdminQuarantineRequest, PopuliHttpAuth, PopuliTransportState};
+use vox_populi::transport::{
+    AdminMaintenanceRequest, AdminQuarantineRequest, PopuliHttpAuth, PopuliTransportState,
+};
 use vox_populi::{node_record_for_current_process, transport};
 
 static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
 #[tokio::test]
+#[serial]
 async fn join_list_heartbeat_roundtrip() {
     let state = PopuliTransportState::new();
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
@@ -45,6 +49,7 @@ async fn join_list_heartbeat_roundtrip() {
 }
 
 #[tokio::test]
+#[serial]
 async fn leave_removes_node() {
     let state = PopuliTransportState::new();
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
@@ -72,6 +77,7 @@ async fn leave_removes_node() {
 }
 
 #[tokio::test]
+#[serial]
 async fn mesh_token_requires_bearer() {
     let state = PopuliTransportState::new();
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
@@ -99,6 +105,7 @@ async fn mesh_token_requires_bearer() {
 }
 
 #[tokio::test]
+#[serial]
 async fn health_ok_without_bearer_when_token_required() {
     let state = PopuliTransportState::new();
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
@@ -125,6 +132,7 @@ async fn health_ok_without_bearer_when_token_required() {
 }
 
 #[tokio::test]
+#[serial]
 async fn join_rejected_when_scope_mismatch() {
     let state = PopuliTransportState::with_required_scope(Some("cluster-a".into()));
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
@@ -153,6 +161,7 @@ async fn join_rejected_when_scope_mismatch() {
 }
 
 #[tokio::test]
+#[serial]
 async fn join_ok_when_scope_matches() {
     let state = PopuliTransportState::with_required_scope(Some("cluster-a".into()));
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
@@ -177,10 +186,13 @@ async fn join_ok_when_scope_matches() {
 }
 
 #[tokio::test]
+#[serial]
 #[allow(unsafe_code)]
 async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
-    let prev = std::env::var("VOX_MESH_SERVER_STALE_PRUNE_MS").ok();
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshServerStalePruneMs)
+        .expose()
+        .map(|s| s.to_string());
     unsafe {
         std::env::set_var("VOX_MESH_SERVER_STALE_PRUNE_MS", "5");
     }
@@ -219,10 +231,13 @@ async fn list_nodes_omits_stale_entries_when_server_prune_env_set() {
 }
 
 #[tokio::test]
+#[serial]
 #[allow(unsafe_code)]
 async fn a2a_deliver_respects_in_memory_cap() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
-    let prev = std::env::var("VOX_MESH_A2A_MAX_MESSAGES").ok();
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshA2aMaxMessages)
+        .expose()
+        .map(|s| s.to_string());
     unsafe {
         std::env::set_var("VOX_MESH_A2A_MAX_MESSAGES", "3");
     }
@@ -243,8 +258,8 @@ async fn a2a_deliver_respects_in_memory_cap() {
         let r = http
             .post(format!("{base}/v1/populi/a2a/deliver"))
             .json(&serde_json::json!({
-                "sender_agent_id": "s",
-                "receiver_agent_id": "r",
+                "sender_agent_id": "1",
+                "receiver_agent_id": "2",
                 "message_type": "t",
                 "payload": format!("{i}")
             }))
@@ -255,7 +270,7 @@ async fn a2a_deliver_respects_in_memory_cap() {
     }
     let inbox = http
         .post(format!("{base}/v1/populi/a2a/inbox"))
-        .json(&serde_json::json!({ "receiver_agent_id": "r" }))
+        .json(&serde_json::json!({ "receiver_agent_id": "2" }))
         .send()
         .await
         .unwrap();
@@ -273,6 +288,44 @@ async fn a2a_deliver_respects_in_memory_cap() {
 }
 
 #[tokio::test]
+#[serial]
+async fn a2a_deliver_rejects_non_numeric_agent_ids() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    let base = format!("http://{}", bound);
+    let http = reqwest::Client::new();
+    for (sender, receiver) in [("bad", "1"), ("1", "r"), ("", "1"), ("1", "  ")] {
+        let r = http
+            .post(format!("{base}/v1/populi/a2a/deliver"))
+            .json(&serde_json::json!({
+                "sender_agent_id": sender,
+                "receiver_agent_id": receiver,
+                "message_type": "t",
+                "payload": "x"
+            }))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(
+            r.status(),
+            reqwest::StatusCode::BAD_REQUEST,
+            "sender={sender:?} receiver={receiver:?}"
+        );
+    }
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
 async fn oversized_json_body_returns_413() {
     let state = PopuliTransportState::new();
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
@@ -308,13 +361,23 @@ async fn oversized_json_body_returns_413() {
 }
 
 #[tokio::test]
+#[serial]
 #[allow(unsafe_code)]
 async fn bootstrap_exchange_works_once() {
     let _guard = ENV_MUTEX.lock().expect("env lock");
-    let prev_bootstrap = std::env::var("VOX_MESH_BOOTSTRAP_TOKEN").ok();
-    let prev_expires = std::env::var("VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS").ok();
-    let prev_token = std::env::var("VOX_MESH_TOKEN").ok();
-    let prev_scope = std::env::var("VOX_MESH_SCOPE_ID").ok();
+    let prev_bootstrap = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshBootstrapToken)
+        .expose()
+        .map(|s| s.to_string());
+    let prev_expires =
+        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshBootstrapExpiresUnixMs)
+            .expose()
+            .map(|s| s.to_string());
+    let prev_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+        .expose()
+        .map(|s| s.to_string());
+    let prev_scope = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+        .expose()
+        .map(|s| s.to_string());
 
     let bootstrap = "bootstrap-unit-test-token";
     // SAFETY: serialized by `ENV_MUTEX`, restored at test end.
@@ -324,7 +387,10 @@ async fn bootstrap_exchange_works_once() {
             "VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS",
             (vox_populi::wall_clock_unix_ms() + 120_000).to_string(),
         );
-        std::env::set_var("VOX_MESH_TOKEN", "mesh-unit-token");
+        std::env::set_var(
+            vox_clavis::SecretId::VoxMeshToken.spec().canonical_env,
+            "mesh-unit-token",
+        );
         std::env::set_var("VOX_MESH_SCOPE_ID", "scope-unit");
     }
 
@@ -370,8 +436,10 @@ async fn bootstrap_exchange_works_once() {
             None => std::env::remove_var("VOX_MESH_BOOTSTRAP_EXPIRES_UNIX_MS"),
         }
         match prev_token {
-            Some(v) => std::env::set_var("VOX_MESH_TOKEN", v),
-            None => std::env::remove_var("VOX_MESH_TOKEN"),
+            Some(v) => {
+                std::env::set_var(vox_clavis::SecretId::VoxMeshToken.spec().canonical_env, v)
+            }
+            None => std::env::remove_var(vox_clavis::SecretId::VoxMeshToken.spec().canonical_env),
         }
         match prev_scope {
             Some(v) => std::env::set_var("VOX_MESH_SCOPE_ID", v),
@@ -381,6 +449,7 @@ async fn bootstrap_exchange_works_once() {
 }
 
 #[tokio::test]
+#[serial]
 async fn quarantine_blocks_claim_until_cleared() {
     let state = PopuliTransportState::new();
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
@@ -407,9 +476,13 @@ async fn quarantine_blocks_claim_until_cleared() {
         message_type: vox_populi::transport::A2A_MESSAGE_JOB_SUBMIT.into(),
         payload: "{}".into(),
         idempotency_key: None,
-        privacy_class: None,
+        privacy_class: Some("private".into()),
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
+        jwe_payload: None,
+        priority: 128,
+        task_kind: None,
+        model_id: None,
     })
     .await
     .unwrap();
@@ -446,6 +519,186 @@ async fn quarantine_blocks_claim_until_cleared() {
 }
 
 #[tokio::test]
+#[serial]
+async fn maintenance_blocks_claim_and_lease_renew() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+
+    let worker = node_record_for_current_process("maint-worker".into(), None);
+    http.join(&worker).await.unwrap();
+    http.admin_maintenance(&AdminMaintenanceRequest {
+        node_id: "maint-worker".into(),
+        maintenance: true,
+        maintenance_until_unix_ms: None,
+        maintenance_for_ms: None,
+    })
+    .await
+    .unwrap();
+
+    http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+        sender_agent_id: "0".into(),
+        receiver_agent_id: "17".into(),
+        message_type: "x".into(),
+        payload: "{}".into(),
+        idempotency_key: None,
+        privacy_class: Some("private".into()),
+        payload_blake3_hex: None,
+        worker_ed25519_sig_b64: None,
+        jwe_payload: None,
+        priority: 128,
+        task_kind: None,
+        model_id: None,
+    })
+    .await
+    .unwrap();
+
+    let inbox_blocked: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/v1/populi/a2a/inbox"))
+        .json(&serde_json::json!({
+            "receiver_agent_id": "17",
+            "claimer_node_id": "maint-worker",
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(inbox_blocked["messages"].as_array().unwrap().len(), 0);
+
+    http.admin_maintenance(&AdminMaintenanceRequest {
+        node_id: "maint-worker".into(),
+        maintenance: false,
+        maintenance_until_unix_ms: None,
+        maintenance_for_ms: None,
+    })
+    .await
+    .unwrap();
+
+    let inbox_claimed: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/v1/populi/a2a/inbox"))
+        .json(&serde_json::json!({
+            "receiver_agent_id": "17",
+            "claimer_node_id": "maint-worker",
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let mid = inbox_claimed["messages"][0]["id"].as_u64().unwrap();
+
+    http.admin_maintenance(&AdminMaintenanceRequest {
+        node_id: "maint-worker".into(),
+        maintenance: true,
+        maintenance_until_unix_ms: None,
+        maintenance_for_ms: None,
+    })
+    .await
+    .unwrap();
+    let renew_resp = reqwest::Client::new()
+        .post(format!("{base}/v1/populi/a2a/lease-renew"))
+        .json(&serde_json::json!({
+            "receiver_agent_id": "17",
+            "message_id": mid,
+            "claimer_node_id": "maint-worker",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(renew_resp.status(), reqwest::StatusCode::FORBIDDEN);
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn maintenance_deadline_expires_and_claims_resume() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+
+    let worker = node_record_for_current_process("maint-deadline-worker".into(), None);
+    http.join(&worker).await.unwrap();
+    http.admin_maintenance(&AdminMaintenanceRequest {
+        node_id: "maint-deadline-worker".into(),
+        maintenance: true,
+        maintenance_until_unix_ms: None,
+        maintenance_for_ms: Some(80),
+    })
+    .await
+    .unwrap();
+
+    http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+        sender_agent_id: "0".into(),
+        receiver_agent_id: "901".into(),
+        message_type: "x".into(),
+        payload: "{}".into(),
+        idempotency_key: None,
+        privacy_class: Some("private".into()),
+        payload_blake3_hex: None,
+        worker_ed25519_sig_b64: None,
+        jwe_payload: None,
+        priority: 128,
+        task_kind: None,
+        model_id: None,
+    })
+    .await
+    .unwrap();
+
+    let blocked: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/v1/populi/a2a/inbox"))
+        .json(&serde_json::json!({
+            "receiver_agent_id": "901",
+            "claimer_node_id": "maint-deadline-worker",
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(blocked["messages"].as_array().unwrap().len(), 0);
+
+    tokio::time::sleep(Duration::from_millis(150)).await;
+
+    let claimed: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/v1/populi/a2a/inbox"))
+        .json(&serde_json::json!({
+            "receiver_agent_id": "901",
+            "claimer_node_id": "maint-deadline-worker",
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(claimed["messages"].as_array().unwrap().len(), 1);
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
 async fn a2a_lease_renew_requires_holder() {
     let state = PopuliTransportState::new();
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
@@ -466,9 +719,13 @@ async fn a2a_lease_renew_requires_holder() {
         message_type: "x".into(),
         payload: "{}".into(),
         idempotency_key: None,
-        privacy_class: None,
+        privacy_class: Some("private".into()),
         payload_blake3_hex: None,
         worker_ed25519_sig_b64: None,
+        jwe_payload: None,
+        priority: 128,
+        task_kind: None,
+        model_id: None,
     })
     .await
     .unwrap();
@@ -509,6 +766,591 @@ async fn a2a_lease_renew_requires_holder() {
 }
 
 #[tokio::test]
+#[serial]
+async fn remote_exec_lease_grant_renew_release_happy_path() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+    let node = node_record_for_current_process("exec-worker".into(), None);
+    http.join(&node).await.unwrap();
+
+    let g1 = http
+        .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+            claimer_node_id: "exec-worker".into(),
+            scope_key: "task:unit-a".into(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(g1.holder_node_id, "exec-worker");
+    assert_eq!(g1.scope_key, "task:unit-a");
+    assert!(!g1.lease_id.is_empty());
+    assert!(g1.expires_unix_ms > 0);
+
+    http.exec_lease_renew(&vox_populi::transport::RemoteExecLeaseRenewRequest {
+        lease_id: g1.lease_id.clone(),
+        claimer_node_id: "exec-worker".into(),
+    })
+    .await
+    .unwrap();
+
+    http.exec_lease_release(&vox_populi::transport::RemoteExecLeaseReleaseRequest {
+        lease_id: g1.lease_id.clone(),
+        claimer_node_id: "exec-worker".into(),
+    })
+    .await
+    .unwrap();
+
+    let renew_gone = http
+        .exec_lease_renew(&vox_populi::transport::RemoteExecLeaseRenewRequest {
+            lease_id: g1.lease_id.clone(),
+            claimer_node_id: "exec-worker".into(),
+        })
+        .await;
+    let err = renew_gone.expect_err("renew after release should fail");
+    assert!(
+        err.is_http_status(404),
+        "expected structured 404 status, got {err}"
+    );
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn exec_lease_list_reflects_grant_and_sweep() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+    assert!(http.list_exec_leases().await.unwrap().leases.is_empty());
+
+    let node = node_record_for_current_process("exec-list-worker".into(), None);
+    http.join(&node).await.unwrap();
+    let g1 = http
+        .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+            claimer_node_id: "exec-list-worker".into(),
+            scope_key: "task:list-a".into(),
+        })
+        .await
+        .unwrap();
+    let listed = http.list_exec_leases().await.unwrap();
+    assert_eq!(listed.leases.len(), 1);
+    assert_eq!(listed.leases[0].lease_id, g1.lease_id);
+    assert_eq!(listed.leases[0].holder_node_id, "exec-list-worker");
+
+    http.exec_lease_release(&vox_populi::transport::RemoteExecLeaseReleaseRequest {
+        lease_id: g1.lease_id,
+        claimer_node_id: "exec-list-worker".into(),
+    })
+    .await
+    .unwrap();
+    assert!(http.list_exec_leases().await.unwrap().leases.is_empty());
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn admin_exec_lease_revoke_removes_row_without_holder_release() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+    let node = node_record_for_current_process("exec-revoke-worker".into(), None);
+    http.join(&node).await.unwrap();
+    let g = http
+        .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+            claimer_node_id: "exec-revoke-worker".into(),
+            scope_key: "task:admin-revoke".into(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(http.list_exec_leases().await.unwrap().leases.len(), 1);
+
+    http.admin_exec_lease_revoke(&vox_populi::transport::AdminExecLeaseRevokeRequest {
+        lease_id: g.lease_id.clone(),
+    })
+    .await
+    .unwrap();
+    assert!(http.list_exec_leases().await.unwrap().leases.is_empty());
+
+    let missing = http
+        .admin_exec_lease_revoke(&vox_populi::transport::AdminExecLeaseRevokeRequest {
+            lease_id: g.lease_id,
+        })
+        .await;
+    assert!(missing.is_err(), "second revoke should 404",);
+    let err = missing.unwrap_err();
+    assert!(err.is_http_status(404), "expected 404, got {err}");
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn exec_lease_release_succeeds_under_maintenance_for_holder_cleanup() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+    let node = node_record_for_current_process("exec-maint-release".into(), None);
+    http.join(&node).await.unwrap();
+
+    let g1 = http
+        .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+            claimer_node_id: "exec-maint-release".into(),
+            scope_key: "task:drain-test".into(),
+        })
+        .await
+        .unwrap();
+
+    http.admin_maintenance(&AdminMaintenanceRequest {
+        node_id: "exec-maint-release".into(),
+        maintenance: true,
+        maintenance_until_unix_ms: None,
+        maintenance_for_ms: None,
+    })
+    .await
+    .unwrap();
+
+    let renew_blocked = http
+        .exec_lease_renew(&vox_populi::transport::RemoteExecLeaseRenewRequest {
+            lease_id: g1.lease_id.clone(),
+            claimer_node_id: "exec-maint-release".into(),
+        })
+        .await;
+    assert!(
+        renew_blocked.is_err(),
+        "renew should fail while claimer is in maintenance"
+    );
+
+    http.exec_lease_release(&vox_populi::transport::RemoteExecLeaseReleaseRequest {
+        lease_id: g1.lease_id.clone(),
+        claimer_node_id: "exec-maint-release".into(),
+    })
+    .await
+    .expect("release must succeed so scope_key can be cleared during drain");
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn remote_exec_lease_grant_idempotent_for_same_holder() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+    let node = node_record_for_current_process("exec-same".into(), None);
+    http.join(&node).await.unwrap();
+
+    let g1 = http
+        .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+            claimer_node_id: "exec-same".into(),
+            scope_key: "scope-idem".into(),
+        })
+        .await
+        .unwrap();
+    let g2 = http
+        .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+            claimer_node_id: "exec-same".into(),
+            scope_key: "scope-idem".into(),
+        })
+        .await
+        .unwrap();
+    assert_eq!(g1.lease_id, g2.lease_id);
+    assert!(g2.expires_unix_ms >= g1.expires_unix_ms);
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn remote_exec_lease_renew_requires_holder() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+    http.join(&node_record_for_current_process("rex-a".into(), None))
+        .await
+        .unwrap();
+    http.join(&node_record_for_current_process("rex-b".into(), None))
+        .await
+        .unwrap();
+    let g = http
+        .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+            claimer_node_id: "rex-a".into(),
+            scope_key: "s-hold".into(),
+        })
+        .await
+        .unwrap();
+    let bad = reqwest::Client::new()
+        .post(format!("{base}/v1/populi/exec/lease/renew"))
+        .json(&serde_json::json!({
+            "lease_id": g.lease_id,
+            "claimer_node_id": "rex-b",
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(bad.status(), reqwest::StatusCode::CONFLICT);
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn remote_exec_lease_second_holder_gets_409() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+    http.join(&node_record_for_current_process("exec-a".into(), None))
+        .await
+        .unwrap();
+    http.join(&node_record_for_current_process("exec-b".into(), None))
+        .await
+        .unwrap();
+    http.exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+        claimer_node_id: "exec-a".into(),
+        scope_key: "shared-scope".into(),
+    })
+    .await
+    .unwrap();
+    let err = http
+        .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+            claimer_node_id: "exec-b".into(),
+            scope_key: "shared-scope".into(),
+        })
+        .await
+        .unwrap_err();
+    assert!(err.is_http_status(409), "expected 409 conflict, got {err}");
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn a2a_inbox_non_claimer_honors_max_messages() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+
+    for i in 0..3 {
+        http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+            sender_agent_id: "1".into(),
+            receiver_agent_id: "9".into(),
+            message_type: format!("m{i}"),
+            payload: "{}".into(),
+            idempotency_key: None,
+            privacy_class: Some("private".into()),
+            payload_blake3_hex: None,
+            worker_ed25519_sig_b64: None,
+            jwe_payload: None,
+            priority: 128,
+            task_kind: None,
+            model_id: None,
+        })
+        .await
+        .unwrap();
+    }
+
+    let limited: serde_json::Value = reqwest::Client::new()
+        .post(format!("{base}/v1/populi/a2a/inbox"))
+        .json(&serde_json::json!({
+            "receiver_agent_id": "9",
+            "max_messages": 1
+        }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(
+        limited["messages"].as_array().map(|a| a.len()).unwrap_or(0),
+        1
+    );
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn a2a_inbox_non_claimer_honors_before_message_cursor() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+
+    for i in 0..3 {
+        http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+            sender_agent_id: "1".into(),
+            receiver_agent_id: "10".into(),
+            message_type: format!("m{i}"),
+            payload: "{}".into(),
+            idempotency_key: None,
+            privacy_class: Some("private".into()),
+            payload_blake3_hex: None,
+            worker_ed25519_sig_b64: None,
+            jwe_payload: None,
+            priority: 128,
+            task_kind: None,
+            model_id: None,
+        })
+        .await
+        .unwrap();
+    }
+    let first_page = http
+        .relay_a2a_inbox_limited("10", Some(2), None)
+        .await
+        .unwrap();
+    assert_eq!(first_page.messages.len(), 2);
+    let cursor = first_page.messages.last().unwrap().id;
+    let page = http
+        .relay_a2a_inbox_limited("10", Some(64), Some(cursor))
+        .await
+        .unwrap();
+    assert_eq!(page.messages.len(), 1);
+    assert!(page.messages.iter().all(|m| m.id < cursor));
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn a2a_inbox_all_paged_collects_full_inbox() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+
+    for i in 0..5 {
+        http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+            sender_agent_id: "1".into(),
+            receiver_agent_id: "11".into(),
+            message_type: format!("m{i}"),
+            payload: "{}".into(),
+            idempotency_key: None,
+            privacy_class: Some("private".into()),
+            payload_blake3_hex: None,
+            worker_ed25519_sig_b64: None,
+            jwe_payload: None,
+            priority: 128,
+            task_kind: None,
+            model_id: None,
+        })
+        .await
+        .unwrap();
+    }
+
+    let all = http.relay_a2a_inbox_all_paged("11", 2).await.unwrap();
+    assert_eq!(all.len(), 5);
+    assert!(all.windows(2).all(|w| w[0].id > w[1].id));
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+async fn a2a_inbox_pager_next_page_walks_until_empty() {
+    let state = PopuliTransportState::new();
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    let bound = listener.local_addr().unwrap();
+    let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base = format!("http://{}", bound);
+    let http = PopuliHttpClient::new(&base);
+
+    for i in 0..4 {
+        http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+            sender_agent_id: "1".into(),
+            receiver_agent_id: "12".into(),
+            message_type: format!("m{i}"),
+            payload: "{}".into(),
+            idempotency_key: None,
+            privacy_class: Some("private".into()),
+            payload_blake3_hex: None,
+            worker_ed25519_sig_b64: None,
+            jwe_payload: None,
+            priority: 128,
+            task_kind: None,
+            model_id: None,
+        })
+        .await
+        .unwrap();
+    }
+
+    let mut pager = vox_populi::http_client::A2AInboxPager::new("12", 2);
+    let p1 = pager.next_page(&http).await.unwrap();
+    let p2 = pager.next_page(&http).await.unwrap();
+    let p3 = pager.next_page(&http).await.unwrap();
+    let p4 = pager.next_page(&http).await.unwrap();
+    assert_eq!(p1.len(), 2);
+    assert_eq!(p2.len(), 2);
+    assert!(p3.is_empty());
+    assert!(p4.is_empty());
+    assert!(p1[0].id > p1[1].id);
+    assert!(p2[0].id > p2[1].id);
+    assert!(p1[1].id > p2[0].id);
+
+    server.abort();
+}
+
+#[tokio::test]
+#[serial]
+#[allow(unsafe_code)]
+async fn exec_lease_store_survives_restart_when_path_configured() {
+    let _guard = ENV_MUTEX.lock().expect("env lock");
+    let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshExecLeaseStorePath)
+        .expose()
+        .map(|s| s.to_string());
+    let dir = tempfile::tempdir().expect("tempdir");
+    let lease_path = dir.path().join("exec-leases.json");
+    unsafe {
+        std::env::set_var("VOX_MESH_EXEC_LEASE_STORE_PATH", &lease_path);
+    }
+
+    let lease_id = {
+        let state = PopuliTransportState::new_for_serve();
+        let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+        let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+        let bound = listener.local_addr().unwrap();
+        let app = transport::populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+        let server = tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let base = format!("http://{}", bound);
+        let http = PopuliHttpClient::new(&base);
+        http.join(&node_record_for_current_process(
+            "persist-worker".into(),
+            None,
+        ))
+        .await
+        .unwrap();
+        let grant = http
+            .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+                claimer_node_id: "persist-worker".into(),
+                scope_key: "task:persist-1".into(),
+            })
+            .await
+            .unwrap();
+        server.abort();
+        grant.lease_id
+    };
+
+    let state2 = PopuliTransportState::new_for_serve();
+    let addr2 = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
+    let listener2 = tokio::net::TcpListener::bind(addr2).await.unwrap();
+    let bound2 = listener2.local_addr().unwrap();
+    let app2 = transport::populi_http_app_with_auth(state2, PopuliHttpAuth::Open);
+    let server2 = tokio::spawn(async move {
+        axum::serve(listener2, app2).await.unwrap();
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let base2 = format!("http://{}", bound2);
+    let http2 = PopuliHttpClient::new(&base2);
+    http2
+        .join(&node_record_for_current_process(
+            "persist-worker".into(),
+            None,
+        ))
+        .await
+        .unwrap();
+    http2
+        .exec_lease_renew(&vox_populi::transport::RemoteExecLeaseRenewRequest {
+            lease_id,
+            claimer_node_id: "persist-worker".into(),
+        })
+        .await
+        .unwrap();
+    server2.abort();
+
+    unsafe {
+        match prev {
+            Some(v) => std::env::set_var("VOX_MESH_EXEC_LEASE_STORE_PATH", v),
+            None => std::env::remove_var("VOX_MESH_EXEC_LEASE_STORE_PATH"),
+        }
+    }
+}
+
+#[tokio::test]
+#[serial]
 async fn mesh_jwt_hs256_accepts_and_rejects_jti_replay() {
     use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
     use serde::Serialize;
@@ -566,6 +1408,7 @@ async fn mesh_jwt_hs256_accepts_and_rejects_jti_replay() {
 }
 
 #[tokio::test]
+#[serial]
 async fn job_result_attestation_requires_full_key_when_fields_present() {
     let state = PopuliTransportState::new();
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, 0));
@@ -585,13 +1428,17 @@ async fn job_result_attestation_requires_full_key_when_fields_present() {
             message_type: vox_populi::transport::A2A_MESSAGE_JOB_RESULT.into(),
             payload: "{}".into(),
             idempotency_key: None,
-            privacy_class: None,
+            privacy_class: Some("private".into()),
             payload_blake3_hex: Some(
                 "0000000000000000000000000000000000000000000000000000000000000000".into(),
             ),
             worker_ed25519_sig_b64: Some(
                 "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".into(),
             ),
+            jwe_payload: None,
+            priority: 128,
+            task_kind: None,
+            model_id: None,
         })
         .await
         .unwrap_err();
@@ -604,6 +1451,7 @@ async fn job_result_attestation_requires_full_key_when_fields_present() {
 }
 
 #[tokio::test]
+#[serial]
 async fn job_result_attestation_accepts_valid_signature() {
     use base64::Engine as _;
     use ed25519_dalek::{Signer, SigningKey};
@@ -626,7 +1474,7 @@ async fn job_result_attestation_accepts_valid_signature() {
     tokio::time::sleep(Duration::from_millis(50)).await;
     let base = format!("http://{}", bound);
     let http = PopuliHttpClient::new(&base);
-    let payload = r#"{"status":"done"}"#;
+    let payload = r#"{"status":"ok"}"#;
     let digest = *blake3::hash(payload.as_bytes()).as_bytes();
     let sig = sk.sign(&digest);
     let digest_hex = data_encoding::HEXLOWER.encode(&digest);
@@ -637,9 +1485,13 @@ async fn job_result_attestation_accepts_valid_signature() {
         message_type: vox_populi::transport::A2A_MESSAGE_JOB_RESULT.into(),
         payload: payload.into(),
         idempotency_key: None,
-        privacy_class: None,
+        privacy_class: Some("private".into()),
         payload_blake3_hex: Some(digest_hex),
         worker_ed25519_sig_b64: Some(sig_b64),
+        jwe_payload: None,
+        priority: 128,
+        task_kind: None,
+        model_id: None,
     })
     .await
     .unwrap();

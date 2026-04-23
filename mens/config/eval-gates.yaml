@@ -44,3 +44,9 @@ anti_stub:
   max_trivial_placeholder_event_rate: 0.08
   min_construct_richness_mean: 0.20
   block: true
+
+review_recurrence:
+  max_repeated_finding_rate: 0.30
+  max_post_training_regression_rate: 0.15
+  min_recurrence_delta: 0.01
+  block: true

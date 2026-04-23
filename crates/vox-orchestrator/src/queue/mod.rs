@@ -10,6 +10,13 @@ use std::collections::VecDeque;
 use crate::contract::TaskCapabilityHints;
 use crate::types::{AgentId, AgentTask, TaskId};
 
+/// [`AgentQueue::hold_for_populi_remote`] could not reserve the in-progress slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PopuliRemoteHoldError {
+    /// Another task is already running on this agent queue.
+    AgentBusy,
+}
+
 /// Per-agent priority task queue.
 ///
 /// Tasks are stored in priority order (Urgent > Normal > Background).
@@ -29,7 +36,7 @@ pub struct AgentQueue {
     /// Whether this queue is paused (no dequeue).
     pub paused: bool,
     /// Last time this agent was active (enqueued, dequeued, or completed a task).
-    pub last_active: std::time::SystemTime,
+    pub last_active: std::time::Instant,
     /// ID of the AI agent session mapped to this queue, if any.
     pub agent_session_id: Option<String>,
     /// Hardware capabilities this agent queue provides (for GPU-aware routing).

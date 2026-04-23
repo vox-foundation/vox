@@ -1,109 +1,156 @@
 ---
 title: "Reference: Decorator Registry"
-description: "Official documentation for Reference: Decorator Registry for the Vox language. Detailed technical reference, architecture guides, and imp"
+description: "All available decorators and their technical effects."
 category: "reference"
-last_updated: 2026-03-24
+status: "current"
+last_updated: "2026-04-06"
 training_eligible: true
+
+schema_type: "TechArticle"
 ---
 # Reference: Decorator Registry
 
-Vox uses decorators to provide metadata to the compiler and runtime. This registry lists all available decorators and their technical effects.
+Vox uses decorators to provide metadata to the compiler and runtime. This registry lists all available decorators and their technical effects. Note that `actor`, `workflow`, and `activity` are core keywords, not decorators.
 
 ## Backend & Logic
 
-### `@server fn`
+### `@server`
 - **Goal**: Creates a backend API endpoint.
 - **Effect**: Generates a Rust Axum handler and a TypeScript client.
-- **Usage**: `@server fn my_fn(args) to Result[T]`
+- **Usage**: `@server fn my_fn(args: ...)`
 
-### `@query fn`
+### `@query`
 - **Goal**: Read-only database operation.
 - **Effect**: Optimized for concurrent reads; cannot perform mutations.
-- **Usage**: `@query fn get_data() to list[Item]`
+- **Usage**: `@query fn get_data() -> List[Item] { ... }`
 
-### `@mutation fn`
+### `@mutation`
 - **Goal**: Write database operation.
 - **Effect**: Wraps execution in a database transaction.
-- **Usage**: `@mutation fn save_data() to bool`
+- **Usage**: `@mutation fn save_data() -> bool { ... }`
 
-### `@actor`
-- **Goal**: Defines a stateful concurrency unit.
-- **Effect**: Manages private state and a serial mailbox.
-- **Usage**: `@actor type MyActor: ...`
+### `@scheduled`
+> [!NOTE]
+> Planned — not yet parseable.
+- **Goal**: Run a background task periodically.
+- **Effect**: Compiles to a Tokio timer loop or cron job scheduling block.
+- **Usage**:
+```vox
+// vox:skip
+@scheduled("0 * * * *")
+fn hourly_task() { 
+    // Logic here
+}
+```
 
-### `@workflow`
-- **Goal**: Durable, long-running process.
-- **Effect**: Automatic journaling and checkpointing of state.
-- **Usage**: `@workflow fn my_process()`
+### `@pure`
+> [!NOTE]
+> Planned — not yet parseable.
+- **Goal**: Designates a function as side-effect free.
+- **Effect**: Allows the compiler to aggressively optimize and caching the output.
+- **Usage**: `@pure fn compute_hash(data: str) -> str { ... }`
 
-### `@activity`
-- **Goal**: Retryable step within a workflow.
-- **Effect**: Exactly-once execution guarantee with retry policy.
-- **Usage**: `@activity fn reliable_step()`
+### `@deprecated`
+> [!NOTE]
+> Planned — not yet parseable.
+- **Goal**: Marks a function or type as pending removal.
+- **Effect**: Emits compiler warnings when used.
+- **Usage**: `@deprecated("Use new_function instead")`
 
 ## Data Modeling
 
 ### `@table`
 - **Goal**: Defines a persistent database table.
 - **Effect**: Generates Rust migrations and typed query interfaces.
-- **Usage**: `@table type MyRecord: ...`
+- **Usage**:
+```vox
+// vox:skip
+@table type MyRecord {
+    id: str
+}
+```
+
+### `@index`
+- **Goal**: Creates a database index.
+- **Effect**: Generates SQL for fast lookup on specified properties.
+- **Usage**: `@index MyRecord.by_id on (id)`
 
 ### `@require`
 - **Goal**: Adds runtime validation guards.
 - **Effect**: Injects validation checks before assignment/constructor.
-- **Usage**: `@require(len(self.pwd) > 8) type User: ...`
+- **Usage**:
+```vox
+// vox:skip
+@require(len(self.pwd) > 8)
+type User {
+    pwd: str
+}
+```
 
 ## UI & Frontend
 
-### `@component`
-- **Goal**: Defines a reactive UI component.
-- **Effect**: Compiles to a React component with scoped styles.
-- **Usage**: `@component fn MyUI() to Element`
+### `@island`
+- **Goal**: Declare a **React island** implemented under repo-root **`islands/`** (TSX), separate from the main Vite app.
+- **Effect**: Parser emits `HirIsland`. Writes `vox-islands-meta.ts`. Mounts onto the client.
+- **Usage**:
+  ```vox
+  // vox:skip
+  @island Counter { initial: Option[int] }
+  ```
 
 ### `@loading`
 - **Goal**: Suspense / transition UI for TanStack Router while a lazy route or data boundary resolves.
-- **Effect**: Emits `{Name}.tsx` like a plain component. When **`routes:`** produces **`App.tsx` / `VoxTanStackRouter.tsx`**, the **first** `@loading` in the module becomes **`pendingComponent`** on each **`createRoute`** (additional `@loading` decls still emit TSX but are ignored for the router shim).
-- **Usage**: `@loading fn Spinner() to Element { ret <div>"…"</div> }`
+- **Effect**: Emits `{Name}.tsx`. When `routes { }` produces the router shim, this becomes the `pendingComponent`.
+- **Usage**:
+```vox
+// vox:skip
+@loading
+fn Spinner() -> Element { 
+    <div class="spinner">"…"</div>
+}
+```
 
 ### `@v0`
-- **Goal**: AI-generated React component via v0.dev (`V0_API_KEY`).
-- **Effect**: `vox build` fetches or stubs `.tsx`; output is normalized to a **named** `export function Name` so **`routes:`** / **TanStack Router** can `import { Name } from "./Name.tsx"` (same rule for **`islands/`** v0 output).
-- **Usage**: `@v0 "prompt" fn Dashboard() to Element` or `@v0 from "design.png" fn Dashboard() to Element`
-
-### `@island`
-- **Goal**: Declare a **React island** implemented under repo-root **`islands/`** (TSX), separate from the main Vite app.
-- **Effect**: Parser emits `Decl::Island`; `vox-codegen-ts` writes `vox-islands-meta.ts` with declared names. `vox run` / bundle builds **`island-mount.js`**, which hydrates DOM nodes with **`data-vox-island="Name"`** (optional props via **`data-prop-*`** attributes).
-- **Usage**:
-  ```vox
-  @island Counter:
-    initial?: int
-  ```
+- **Goal**: Retrieve an AI-generated React component natively via Vercel's unofficial CLI.
+- **Effect**: Downloads `.tsx` implementation and wraps it as an island.
+- **Usage**: `@v0 "chat-id" fn Dashboard() -> Element { }`
 
 ## Testing & Tooling
 
 ### `@test`
 - **Goal**: Marks a function as a test case for `vox test`.
 - **Effect**: Included in the project test suite.
+- **Usage**: `@test fn check_auth() { ... }`
 
 ### `@mock`
-- **Goal**: Intercepts function calls for testing.
-- **Effect**: Replaces implementation with a mock during test execution.
+> [!NOTE] 
+> **Planned.** Not yet supported by the parser. Use standard functions for test setup or `spawn` dependencies.
 
 ### `@fixture`
-- **Goal**: Provides reusable setup logic for tests.
-- **Effect**: Automatically injected into test functions.
+> [!NOTE] 
+> **Planned.** Not yet supported by the parser. Use helper functions called within `@test` blocks instead.
 
-### `@agent`
-- **Goal**: Defines an AI agent role.
-- **Effect**: Configures system prompts and tool access.
-
+### `agent` (Keyword)
+Agents are defined using the `agent` keyword (not a decorator).
+```vox
+// vox:skip
+agent Assistant { 
+    instructions: "Help the user"
+    tools: [search_kb]
+}
+```
 ### `@mcp.tool`
 - **Goal**: Exports a function as an MCP tool.
 - **Effect**: Registered with the MCP server for discovery by AI agents.
 
-## Python Interop (retired)
+```vox
+{{#include ../../../examples/golden/ref_orchestrator.vox:mcp_tool}}
+```
 
-### `@py.import` {#pyimport}
-- **Status**: Retired for strategic package/runtime lanes.
-- **Behavior**: Parsed only for backward compatibility in legacy flows; not part of the supported dependency lifecycle.
-- **Replacement**: Use Rust-native dependency surfaces (`import rust:<crate>` + `vox lock/sync/run`) and Rust ML/runtime tooling.
+### `@mcp.resource`
+- **Goal**: Exposes dynamic readable content to MCP.
+- **Effect**: Registers a resource URI endpoint via `getResources`.
+
+```vox
+{{#include ../../../examples/golden/ref_orchestrator.vox:mcp_resource}}
+```

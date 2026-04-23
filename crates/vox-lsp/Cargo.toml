@@ -6,7 +6,7 @@ edition.workspace = true
 
 [dependencies]
 tower-lsp = "0.20"
-tower-lsp-server = { workspace = true }
+tower-lsp-server = "0.23"
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -14,10 +14,12 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 vox-compiler = { workspace = true }
-vox-db = { path = "../vox-db" }
-vox-ludus = { path = "../vox-ludus" }
+vox-db.workspace = true
+vox-ludus.workspace = true
 vox-bounded-fs = { workspace = true }
+vox-clavis.workspace = true
 anyhow = { workspace = true }
+workspace-hack = { workspace = true }
 
 [lints]
 workspace = true

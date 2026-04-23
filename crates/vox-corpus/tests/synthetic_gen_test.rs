@@ -3,7 +3,7 @@
 #![allow(missing_docs)]
 
 use tempfile::NamedTempFile;
-use vox_corpus::bounded_fs::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use vox_corpus::corpus::coverage::analyse_str_with_taxonomy;
 use vox_corpus::synthetic_gen::{
     A2A_MESSAGE_TYPES, ORCHESTRATOR_TOOLS, SKILL_TOOLS, SyntheticGenConfig, TOOL_REGISTRY_SLIM,
