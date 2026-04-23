@@ -132,3 +132,7 @@ pub mod llm;
 /// Vox Visus: Voice of Vision. Agentic GUI visual intelligence and bug detection.
 #[cfg(feature = "dei")]
 pub mod visus;
+
+/// Local orchestration dashboard (`vox dashboard`).
+#[cfg(feature = "dashboard")]
+pub mod dashboard;

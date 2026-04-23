@@ -300,6 +300,10 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
                 .await
                 .map_err(|e| anyhow::anyhow!("{:?}", e))?;
         }
+        #[cfg(feature = "dashboard")]
+        Cli::Dashboard { args } => {
+            crate::commands::dashboard::run(args).await?;
+        }
         Cli::Research { cmd } => crate::commands::research::run(cmd).await?,
         #[cfg(feature = "coderabbit")]
         Cli::Review { cmd } => {

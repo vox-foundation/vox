@@ -5,10 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-
+import { useVoxTransport } from './transport';
 import { getVsCodeApi } from './utils/vscode';
-import { parseHostToWebviewMessage } from '../../src/protocol/hostToWebviewMessages';
-import { ChatSessionMeta, ComposerState, WorkspaceInspectorState, AttentionStatusPayload } from '../../src/types';
+import { ChatSessionMeta, ComposerState, WorkspaceInspectorState, AttentionStatusPayload } from './types';
 
 import { UnifiedDashboard } from './components/UnifiedDashboard';
 import { EngineeringDiagnostics } from './components/EngineeringDiagnostics';
@@ -68,67 +67,65 @@ function App() {
   };
 
   useEffect(() => {
-    const handler = (event: MessageEvent) => {
-      const parsed = parseHostToWebviewMessage(event.data);
-      if (!parsed) return;
-      switch (parsed.type) {
-        case 'voxStatus': setVoxStatus(parsed.value); break;
-        case 'gamifyUpdate': setGamify(parsed.value); break;
-        case 'astResult': setAst(parsed.value); break;
-        case 'pipelineStatus': setPipeline(parsed.value); break;
-        case 'activeEditorChanged': setActiveFile(String(parsed.value ?? '')); break;
-        case 'a2aTasks': setTasks(Array.isArray(parsed.value) ? parsed.value : []); break;
-        case 'budgetHistory': if (parsed.value) setBudgetHistory(parsed.value as any[]); break;
-        case 'workflowStatus': setWorkflowStatus(parsed.value); break;
-        case 'meshStatus': setMeshStatus(parsed.value); break;
-        case 'intentionMatrix': setIntentionMatrix(parsed.value); break;
-        case 'oplog': if (parsed.value) setOplog(parsed.value as any[]); break;
-        case 'agentsUpdate': if (parsed.value) setAgents(parsed.value as any[]); break;
-        case 'capabilitiesUpdate': setCapabilities(parsed.value); break;
-        case 'ludusProgressSnapshot':
-          if (parsed.value && typeof parsed.value === 'object' && !Array.isArray(parsed.value)) {
-            setLudusSnapshot(parsed.value as Record<string, unknown>);
+    const transport = useVoxTransport();
+    // Start WebSocket connection
+    transport.connect();
+    
+    // Set up event listeners
+    const unsubs = [
+        transport.on('voxStatus', (val: any) => setVoxStatus(val)),
+        transport.on('gamifyUpdate', (val: any) => setGamify(val)),
+        transport.on('astResult', (val: any) => setAst(val)),
+        transport.on('pipelineStatus', (val: any) => setPipeline(val)),
+        transport.on('activeEditorChanged', (val: any) => setActiveFile(String(val ?? ''))),
+        transport.on('a2aTasks', (val: any) => setTasks(Array.isArray(val) ? val : [])),
+        transport.on('budgetHistory', (val: any) => { if (val) setBudgetHistory(val as any[]); }),
+        transport.on('workflowStatus', (val: any) => setWorkflowStatus(val)),
+        transport.on('meshStatus', (val: any) => setMeshStatus(val)),
+        transport.on('intentionMatrix', (val: any) => setIntentionMatrix(val)),
+        transport.on('oplog', (val: any) => { if (val) setOplog(val as any[]); }),
+        transport.on('agentsUpdate', (val: any) => { if (val) setAgents(val as any[]); }),
+        transport.on('capabilitiesUpdate', (val: any) => setCapabilities(val)),
+        transport.on('ludusProgressSnapshot', (val: any) => {
+          if (val && typeof val === 'object' && !Array.isArray(val)) {
+            setLudusSnapshot(val as Record<string, unknown>);
           }
-          break;
-        case 'chatHistory': setChatMessages(Array.isArray(parsed.value) ? parsed.value : []); break;
-        case 'chatMeta': setChatMeta((parsed.value as ChatSessionMeta) ?? null); break;
-        case 'attentionStatus': setAttentionStatus(parsed.value as AttentionStatusPayload); break;
-        case 'attentionAlert': setAttentionAlert(parsed.value); break;
-        case 'workspaceContext': setWorkspaceContext(parsed.value); break;
-        case 'composerState': setComposerState((parsed.value as ComposerState) ?? null); break;
-        case 'inspectorState': setInspectorState((parsed.value as WorkspaceInspectorState) ?? null); break;
-        case 'planAdequacyQuestions': {
-          const pv = parsed.value as { questions?: string[]; score?: number } | undefined;
+        }),
+        transport.on('chatHistory', (val: any) => setChatMessages(Array.isArray(val) ? val : [])),
+        transport.on('chatMeta', (val: any) => setChatMeta((val as ChatSessionMeta) ?? null)),
+        transport.on('attentionStatus', (val: any) => setAttentionStatus(val as AttentionStatusPayload)),
+        transport.on('attentionAlert', (val: any) => setAttentionAlert(val)),
+        transport.on('workspaceContext', (val: any) => setWorkspaceContext(val)),
+        transport.on('composerState', (val: any) => setComposerState((val as ComposerState) ?? null)),
+        transport.on('inspectorState', (val: any) => setInspectorState((val as WorkspaceInspectorState) ?? null)),
+        transport.on('planAdequacyQuestions', (val: any) => {
+          const pv = val as { questions?: string[]; score?: number } | undefined;
           if (Array.isArray(pv?.questions) && pv.questions.length > 0) {
             setPlanAdequacyQuestions(pv.questions);
           }
-          break;
-        }
-        case 'playSound':
-          if (typeof parsed.value === 'string') {
-            playSound(parsed.value as SoundType);
+        }),
+        transport.on('playSound', (val: any) => {
+          if (typeof val === 'string') {
+            playSound(val as SoundType);
           }
-          break;
-        case 'achievementEarned': {
-          const ach = parsed.value as any;
+        }),
+        transport.on('achievementEarned', (val: any) => {
+          const ach = val as any;
           addToast({
             title: ach.name || 'Achievement Earned',
             message: ach.description || '',
             type: 'achievement',
           });
-          break;
-        }
-        case 'taskDoubted': {
-          const val = parsed.value as any;
+        }),
+        transport.on('taskDoubted', (val: any) => {
           addToast({
             title: 'Task Flagged as Suspect',
             message: `Task ${val.taskId} is being audited by Internal Affairs.`,
             type: 'warning',
           });
-          break;
-        }
-        case 'taskResolved': {
-          const { validated } = parsed.value as any;
+        }),
+        transport.on('taskResolved', (val: any) => {
+          const { validated } = val as any;
           addToast({
             title: validated ? 'Task Validated' : 'Task Overruled',
             message: validated
@@ -136,13 +133,14 @@ function App() {
               : 'Agent over-confidence detected.',
             type: validated ? 'success' : 'danger',
           });
-          break;
-        }
-      }
-    };
-    window.addEventListener('message', handler);
+        })
+    ];
+
     vscode.postMessage({ type: 'getInitialData' });
-    return () => window.removeEventListener('message', handler);
+    
+    return () => {
+      unsubs.forEach(unsub => unsub());
+    };
   }, []);
 
   useEffect(() => {
@@ -398,7 +396,7 @@ function App() {
   );
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden vox-root bg-background text-foreground">
+    <div className="flex w-full h-full overflow-hidden vox-root bg-background text-foreground absolute inset-0">
       <aside className="vox-nav-rail w-[72px] shrink-0 border-r border-border border-opacity-30 flex flex-col items-center py-4 gap-4 z-50 bg-secondary">
         <div className="flex flex-col gap-6 w-full px-2">
           {tabs.map((tab) => (
@@ -448,7 +446,7 @@ function App() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="flex-1 min-h-0 w-full"
+            className="flex-1 flex flex-col min-h-0 w-full overflow-hidden"
           >
             <ErrorBoundary>{renderContent()}</ErrorBoundary>
           </motion.div>
@@ -518,7 +516,4 @@ const NavIcon = ({ icon, label, subtitle, active, onClick }: any) => (
   </button>
 );
 
-const rootElement = document.getElementById('root');
-if (rootElement) {
-  createRoot(rootElement).render(<App />);
-}
+export default App;

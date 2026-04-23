@@ -337,6 +337,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::visus::VisusCmd,
     },
+    /// Launch the local orchestration dashboard in a browser (`vox dashboard`).
+    #[cfg(feature = "dashboard")]
+    Dashboard {
+        #[command(flatten)]
+        args: crate::commands::dashboard::DashboardArgs,
+    },
     /// Toolchain upgrade: `--source release` (checksums.txt binary) or `--source repo` (git + `cargo install --locked`); never edits `Vox.toml` / `vox.lock`.
     Upgrade {
         #[command(flatten)]

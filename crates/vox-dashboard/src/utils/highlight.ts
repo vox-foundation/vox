@@ -13,7 +13,7 @@
 import { createHighlighter, type Highlighter, type LanguageRegistration } from 'shiki';
 // Static import — esbuild resolves and inlines this JSON at build time so the
 // grammar is always available inside the webview sandbox (no filesystem reads).
-import voxGrammar from '../../../syntaxes/vox.tmLanguage.json';
+import voxGrammar from './vox.tmLanguage.json';
 
 let _hl: Highlighter | null = null;
 let _initPromise: Promise<Highlighter> | null = null;

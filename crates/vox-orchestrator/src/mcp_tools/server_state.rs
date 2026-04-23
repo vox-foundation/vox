@@ -147,6 +147,47 @@ impl ServerState {
         state
     }
 
+    /// Minimal constructor for vox-orchestrator-d daemon that already has an Orchestrator.
+    pub fn new_for_daemon(
+        orchestrator: Arc<Orchestrator>,
+        orchestrator_config: OrchestratorConfig,
+        repository: vox_repository::RepositoryContext,
+        session_manager: Arc<TokMutex<SessionManager>>,
+        skill_registry: Arc<SkillRegistry>,
+    ) -> Self {
+        let workspace_root = Some(repository.root.clone());
+        let http_client = vox_reqwest_defaults::client_builder()
+            .timeout(std::time::Duration::from_secs(120))
+            .build()
+            .expect("reqwest client for vox-mcp");
+
+        Self {
+            orchestrator,
+            orchestrator_config,
+            db: None,
+            repository,
+            workspace_root,
+            questioning_attention_spent_ms: Arc::new(PrRwLock::new(HashMap::new())),
+            catalog_cache: Arc::new(TokRwLock::new(None)),
+            orch_daemon_repo_id_aligned: Arc::new(AtomicBool::new(false)),
+            clarification_db_inbox_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_remote_result_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_remote_worker_poll_join: Arc::new(PrRwLock::new(None)),
+            populi_remote_snapshot: Arc::new(PrRwLock::new(RemotePopuliSnapshot::default())),
+            sqlite_capabilities: None,
+            session_manager,
+            skill_registry,
+            transient_events: Arc::new(TokMutex::new(Vec::new())),
+            mcp_chat_model_override: Arc::new(PrRwLock::new(None)),
+            budget_manager: Arc::new(BudgetManager::new(None)),
+            http_client,
+            mention_path_cache: Arc::new(PrMutex::new(None)),
+            observer: Arc::new(Observer::with_default_policy()),
+        }
+    }
+
+
     fn mcp_env_truthy(id: vox_clavis::SecretId) -> bool {
         let resolved = vox_clavis::resolve_secret(id);
         resolved.expose().is_some_and(|v| {

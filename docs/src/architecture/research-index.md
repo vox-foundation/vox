@@ -32,6 +32,9 @@ This file tracks the single source of truth for Vox architecture, research findi
 
 - [Shiki, mdBook & Doc Platform Evaluation (2026-04-22)](shiki-mdbook-doc-platform-research-2026.md) — Quantified feature matrix across 7 doc platforms (mdBook, Zola, VitePress, Starlight, Docusaurus, MkDocs, Nextra). Identifies Shiki `^4.0.1` as already a dependency of `vox-vscode`; proposes eliminating `highlight-vox.js` grammar drift via a `mdbook-shiki-vox` preprocessor and a medium-term migration to Starlight. Covers LLM-friendly documentation formats, `llms.txt` standard, and AI-first documentation architecture principles.
 
+## User Interface & Dashboard
+- [Vox Dashboard Migration Research (2026-04-22)](dashboard-migration-research-2026.md) — Architectural decisions and prerequisites for migrating the Vox orchestration UI from an editor-bound VS Code webview to a standalone Axum-served SPA.
+
 ## Gamification & Identity
 - [Ludus Identity & GitHub Integration Research (2026)](ludus-identity-github-integration-research-2026.md) — Architecture for decentralized Ludus profile storage, GitHub account linking via Device Flow, and contribution-based XP scoring.
 - [Ludus Security & Anti-Cheat Research (2026)](ludus-security-and-anti-cheat-research-2026.md) — Multi-layered defense strategy including reputation-weighted scaling, proof-of-contribution verification, and community-driven peer auditing.

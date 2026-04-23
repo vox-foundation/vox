@@ -1,9 +1,12 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
-  /* Map opaque Tailwind-like panels to VS Code theme tokens when available */
-  --vox-panel-bg: var(--vscode-sideBar-background, rgba(9, 9, 11, 1));
-  --vox-panel-fg: var(--vscode-sideBar-foreground, #e4e4e7);
-  --vox-border: var(--vscode-panel-border, rgba(255, 255, 255, 0.06));
+  --vox-panel-bg: rgba(9, 9, 11, 1);
+  --vox-panel-fg: #e4e4e7;
+  --vox-border: rgba(255, 255, 255, 0.06);
 }
 
 body {
@@ -16,21 +19,20 @@ body {
   color-scheme: light dark;
 }
 
-/* Sidebar webview shell — theme tokens without inline styles */
 .vox-root {
-  background: var(--vscode-sideBar-background, #09090b);
-  color: var(--vscode-sideBar-foreground, #e4e4e7);
+  background: #09090b;
+  color: #e4e4e7;
 }
 
 .vox-nav-rail {
-  border-color: var(--vscode-panel-border, rgba(255, 255, 255, 0.06));
-  background: var(--vscode-sideBar-background, rgba(255, 255, 255, 0.02));
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .vox-exec-hint {
-  border-color: var(--vscode-panel-border);
-  background: var(--vscode-editor-inactiveSelectionBackground, rgba(100, 100, 100, 0.15));
-  color: var(--vscode-descriptionForeground, inherit);
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(100, 100, 100, 0.15);
+  color: inherit;
 }
 
 .glass {

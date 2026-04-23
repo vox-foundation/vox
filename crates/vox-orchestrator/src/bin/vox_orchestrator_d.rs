@@ -110,6 +110,36 @@ async fn main() -> anyhow::Result<()> {
     let flywheel = vox_orchestrator::services::flywheel::FlywheelMonitor::new(orch.clone());
     flywheel.spawn().await;
 
+    // HTTP Gateway requires a ServerState
+    let session_cfg = vox_orchestrator::SessionConfig {
+        repository_id: Some(repository_id.clone()),
+        sessions_dir: build.repository.root.join(vox_config::mcp_sessions_dir(&repository_id)),
+        ..vox_orchestrator::SessionConfig::default()
+    };
+    let session_manager = vox_orchestrator::SessionManager::new(session_cfg)
+        .unwrap_or_else(|e| panic!("Session manager initialization failed: {}", e));
+    
+    let registry = vox_skills::new_registry_arc();
+    let registry_for_builtins = registry.clone();
+    tokio::spawn(async move {
+        let _ = vox_skills::install_builtins(&registry_for_builtins).await;
+    });
+
+    let mut state = vox_orchestrator::mcp_tools::server_state::ServerState::new_for_daemon(
+        orch.clone(),
+        orch_config.clone(),
+        build.repository.clone(),
+        Arc::new(tokio::sync::Mutex::new(session_manager)),
+        registry,
+    );
+    if let Some(db) = db_holder.clone() {
+        state = state.with_db_initialized(db).await;
+    }
+
+    if let Err(e) = vox_orchestrator::mcp_tools::http_gateway::spawn_http_gateway_if_enabled(state) {
+        tracing::error!(error = %e, "Failed to spawn HTTP gateway");
+    }
+
     if orch_daemon::is_stdio_transport(&bind_raw) {
         return orch_daemon::run_stdio_server(repository_id, orch).await;
     }

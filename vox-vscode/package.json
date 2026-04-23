@@ -377,12 +377,6 @@
     "views": {
       "vox-sidebar": [
         {
-          "type": "webview",
-          "id": "vox-sidebar.chat",
-          "name": "Vox Workspace",
-          "icon": "$(zap)"
-        },
-        {
           "id": "vox-snapshots",
           "name": "Snapshots",
           "when": "config.vox.vcs.showSnapshotBar",
@@ -396,11 +390,9 @@
     "generate:mcp-registry": "node ./scripts/generate-mcp-tool-registry.mjs",
     "check:mcp-parity": "node ./scripts/check-mcp-tool-parity.mjs",
     "check:activation-parity": "node ./scripts/check-activation-parity.mjs",
-    "build:css": "tailwindcss -i ./webview-ui/src/input.css -o ./out/webview.css --minify",
-    "watch:css": "tailwindcss -i ./webview-ui/src/input.css -o ./out/webview.css --watch",
-    "compile": "npm run generate:mcp-registry && npm run check:mcp-parity && npm run build:css && tsc -p ./ && node esbuild.js && node ./scripts/smoke-host-messages.mjs && node ./scripts/smoke-webview-render.mjs",
-    "watch": "npm run build:css && npx concurrently \"npm run watch:css\" \"tsc -watch -p ./\"",
-    "lint": "eslint src webview-ui/src --max-warnings 100",
+    "compile": "npm run generate:mcp-registry && npm run check:mcp-parity && tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --max-warnings 100",
     "package": "vsce package"
   },
   "devDependencies": {

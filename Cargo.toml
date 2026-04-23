@@ -96,6 +96,7 @@ vox-tensor                = { path = "crates/vox-tensor" }
 vox-toestub               = { path = "crates/vox-toestub" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
+vox-dashboard             = { path = "crates/vox-dashboard" }
 
 # External dependencies (centralized versions)
 logos              = "0.16"

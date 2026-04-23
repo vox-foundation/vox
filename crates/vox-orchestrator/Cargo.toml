@@ -11,8 +11,10 @@ default = [
     "populi-transport",
     "news-publish",
     "json-schema",
+    "json-schema",
     "mcp-native",
 ]
+dashboard = ["dep:vox-dashboard"]
 mcp-native = ["dep:schemars"]
 # Populi HTTP mesh client (`vox-populi` transport). Disable for faster `cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate`.
 populi-transport = ["dep:vox-populi", "vox-populi/transport"]
@@ -71,6 +73,7 @@ vox-config.workspace = true
 vox-socrates-policy.workspace = true
 vox-eval.workspace = true
 vox-repository.workspace = true
+vox-dashboard = { workspace = true, optional = true }
 vox-populi = { path = "../vox-populi", optional = true, default-features = false }
 vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = "0.1.89"

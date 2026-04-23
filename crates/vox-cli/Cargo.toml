@@ -63,7 +63,7 @@ stub-check = [
 completion-toestub = ["dep:vox-toestub"]
 # No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to `vox-dei` (still do not add `vox-dei` as a dependency; see `vox ci no-vox-dei-import`).
 # Dashboard UX is the VS Code extension (see `docs/src/reference/cli.md`).
-dashboard = []
+dashboard = ["dep:vox-dashboard"]
 # OpenClaw / skill registry (`openclaw`); `vox-skills` carries the ARS shim.
 ars = ["dep:vox-skills"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-ludus` (uses `vox-db`).
@@ -146,6 +146,7 @@ vox-orchestrator = { workspace = true }
 vox-populi = { workspace = true, features = ["transport"] }
 vox-mesh-types = { workspace = true }
 vox-workflow-runtime = { workspace = true, optional = true }
+vox-dashboard = { workspace = true, optional = true }
 
 vox-repository = { workspace = true }
 vox-project-scaffold = { workspace = true }

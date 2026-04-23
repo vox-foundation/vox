@@ -58,6 +58,27 @@ const DEFAULT_ALLOWED_TOOLS: &[&str] = &[
     "vox_orchestrator_status",
     "vox_task_status",
     "vox_repo_index_status",
+    "vox_pause_agent",
+    "vox_resume_agent",
+    "vox_drain_agent",
+    "vox_retire_agent",
+    "vox_cancel_task",
+    "vox_emergency_stop",
+    "vox_rebalance",
+    "vox_doubt_task",
+    "vox_ludus_progress_snapshot",
+    "vox_ludus_notification_ack",
+    "vox_ludus_notifications_ack_all",
+    "vox_budget_status",
+    "vox_language_surface",
+    "vox_pipeline_status",
+    "vox_a2a_tasks",
+    "vox_oplog",
+    "vox_preference_set",
+    "vox_preference_get",
+    "vox_attention_reset",
+    "vox_trust_override",
+    "vox_set_agent_budget",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -145,7 +166,10 @@ struct WsMessageOut {
 
 /// Returns true when `VOX_MCP_HTTP_ENABLED` is truthy.
 pub fn http_gateway_enabled() -> bool {
-    read_bool_env(vox_clavis::SecretId::VoxMcpHttpEnabled).unwrap_or(false)
+    let result = read_bool_env(vox_clavis::SecretId::VoxMcpHttpEnabled).unwrap_or(false);
+    println!("DEBUG: http_gateway_enabled() -> {}", result);
+    println!("DEBUG: VOX_MCP_HTTP_ENABLED env: {:?}", std::env::var("VOX_MCP_HTTP_ENABLED"));
+    result
 }
 
 /// Start the optional HTTP+WebSocket gateway in a background task.
@@ -178,6 +202,16 @@ pub fn spawn_http_gateway_if_enabled(
             .map(str::to_string);
     let allow_unauthenticated =
         read_bool_env(vox_clavis::SecretId::VoxMcpHttpAllowUnauthenticated).unwrap_or(false);
+        
+    // Auto-permit unauthenticated access when dashboard is running on loopback only
+    #[cfg(feature = "dashboard")]
+    let allow_unauthenticated = allow_unauthenticated
+        || (bind_host == DEFAULT_BIND_HOST
+            && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashboardEnabled)
+                .expose()
+                .map(|s| s.trim() == "1")
+                .unwrap_or(false));
+
     if bearer_token.is_none() && read_bearer_token.is_none() && !allow_unauthenticated {
         anyhow::bail!(
             "VOX_MCP_HTTP_ENABLED=1 requires VOX_MCP_HTTP_BEARER_TOKEN or VOX_MCP_HTTP_READ_BEARER_TOKEN unless VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED=1 is explicitly set."
@@ -222,7 +256,12 @@ pub fn spawn_http_gateway_if_enabled(
         .route("/v1/eval", post(http_eval))
         .route("/v1/ws", get(http_ws))
         .route("/v1/mobile", get(http_mobile_workspace))
-        .route("/v1/mobile/status", get(http_mobile_status))
+        .route("/v1/mobile/status", get(http_mobile_status));
+
+    #[cfg(feature = "dashboard")]
+    let app = app.merge(vox_dashboard::dashboard_router());
+
+    let app = app
         .layer(DefaultBodyLimit::max(256 * 1024))
         .with_state(gateway_state.clone());
 
