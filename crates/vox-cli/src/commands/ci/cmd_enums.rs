@@ -460,6 +460,13 @@ pub enum CiCmd {
         #[arg(long)]
         strict: bool,
     },
+    /// Fetch and format the latest deploy-hetzner.yml GitHub Action status.
+    #[command(name = "deploy-status")]
+    DeployStatus {
+        /// Optional file path to write the markdown summary to.
+        #[arg(long)]
+        write_to: Option<PathBuf>,
+    },
 }
 
 #[derive(clap::Args, Debug, Clone)]

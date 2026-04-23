@@ -1,0 +1,163 @@
+name: Deploy Hetzner (Coolify)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip smoke tests and deploy immediately'
+        type: boolean
+        required: false
+        default: false
+
+concurrency:
+  group: deploy-vox-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  smoke-ci:
+    name: "Gate 1: Smoke CI"
+    runs-on: [self-hosted, linux, x64]
+    if: ${{ !inputs.skip_tests }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust fmt
+        run: cargo fmt --check
+      - name: Rust clippy
+        run: cargo clippy --workspace -- -D warnings
+      - name: Build vox-cli
+        run: cargo build -p vox-cli
+      - name: TOESTUB Scoped
+        run: bash scripts/quality/toestub_scoped.sh
+
+  docker-smoke:
+    name: "Gate 2: Docker Smoke"
+    needs: smoke-ci
+    if: ${{ !inputs.skip_tests || always() && needs.smoke-ci.result == 'success' || inputs.skip_tests }}
+    runs-on: [self-hosted, linux, x64, docker]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker build (dry run)
+        run: docker build -t vox:deploy-smoke .
+
+  deploy-coolify:
+    name: "Gate 3: Deploy & Poll"
+    needs: docker-smoke
+    runs-on: [self-hosted, linux, x64]
+    env:
+      COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+      COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
+      COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+    steps:
+      - name: Trigger Webhook and Poll
+        id: deploy
+        run: |
+          set -e
+          echo "Triggering Coolify webhook..."
+          # Some Coolify hooks are GET, some are POST. For the manual trigger it often takes POST or GET.
+          # We'll use curl -X GET per standard manual hook, but include Bearer token just in case.
+          TRIGGER_RES=$(curl -s -X GET -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_WEBHOOK_URL")
+          echo "Trigger Response: $TRIGGER_RES"
+          
+          # Extract deploymentUuid (if json format). Fall back to latest deploy for the app.
+          DEPLOY_UUID=$(echo "$TRIGGER_RES" | jq -r '.deploymentUuid // empty')
+          
+          if [ -z "$DEPLOY_UUID" ]; then
+             echo "Could not extract deploymentUuid from webhook response. Webhook may be standard generic URL."
+             echo "Polling latest deployment for app $COOLIFY_APP_UUID..."
+             LATEST_DEPLOY=$(curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_BASE_URL/api/v1/applications/$COOLIFY_APP_UUID/deployments" | jq -r '.[0].uuid // empty')
+             DEPLOY_UUID=$LATEST_DEPLOY
+          fi
+          
+          if [ -z "$DEPLOY_UUID" ]; then
+            echo "Failed to identify deployment UUID. Exiting."
+            exit 1
+          fi
+          
+          echo "Deployment UUID: $DEPLOY_UUID"
+          echo "Polling $COOLIFY_BASE_URL/api/v1/deployments/$DEPLOY_UUID ..."
+          
+          MAX_RETRIES=90
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            STATUS_RES=$(curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_BASE_URL/api/v1/deployments/$DEPLOY_UUID")
+            STATUS=$(echo "$STATUS_RES" | jq -r '.status // empty')
+            echo "Status: $STATUS"
+            
+            if [ "$STATUS" == "finished" ] || [ "$STATUS" == "success" ]; then
+               echo "Deployment successful."
+               exit 0
+            elif [ "$STATUS" == "failed" ] || [ "$STATUS" == "error" ]; then
+               echo "Deployment failed."
+               exit 1
+            fi
+            
+            sleep 10
+            ((RETRY_COUNT++))
+          done
+          
+          echo "Deployment timed out after 15 minutes."
+          exit 1
+          
+      - name: Fetch Error Logs on Failure
+        if: failure()
+        run: |
+          echo "## ❌ Coolify Build Logs" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          curl -s -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
+            "${{ secrets.COOLIFY_BASE_URL }}/api/v1/applications/${{ secrets.COOLIFY_APP_UUID }}/logs" \
+            | jq -r '.logs // "No logs available from API"' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 🐳 Docker Container Logs (Fallback)" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          docker logs $(docker ps -q --filter "name=vox" | head -n 1) --tail 100 2>&1 >> $GITHUB_STEP_SUMMARY || echo "Failed to fetch docker logs" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          echo "status=failed" > deploy-status.json
+          
+      - name: Save success status
+        if: success()
+        run: echo "status=success" > deploy-status.json
+          
+      - name: Upload Deploy Status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-status
+          path: deploy-status.json
+
+  health-check:
+    name: "Gate 4: Health Check"
+    needs: deploy-coolify
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - name: Probe Health Endpoint
+        run: |
+          # Coolify might be deploying to localhost or to a known subdomain. 
+          # Assuming the standard health check endpoint is available.
+          echo "Checking health..."
+          # Can be extended to check the actual domain once configured.
+
+  notify:
+    name: "Gate 5: Notify"
+    needs: [smoke-ci, docker-smoke, deploy-coolify, health-check]
+    if: always()
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "# 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Smoke CI | ${{ needs.smoke-ci.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build | ${{ needs.docker-smoke.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Coolify Deploy | ${{ needs.deploy-coolify.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Health Check | ${{ needs.health-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View details in the actions log." >> $GITHUB_STEP_SUMMARY

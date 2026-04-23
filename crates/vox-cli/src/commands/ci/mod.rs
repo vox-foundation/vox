@@ -14,6 +14,7 @@ pub mod completion_quality;
 mod contracts_index;
 pub mod data_storage_guard;
 mod dep_sprawl;
+pub mod deploy_status;
 mod determinism_audit;
 mod doctest_md;
 mod eval_matrix;

@@ -119,6 +119,7 @@ pub struct CoolifyTarget {
     pub token: String,
     pub app_uuid: String,
     pub force_rebuild: bool,
+    pub wait_timeout_secs: Option<u64>,
 }
 
 impl DeployTarget {
@@ -503,8 +504,6 @@ fn execute_coolify(cfg: &CoolifyTarget, dry_run: bool) -> Result<()> {
         return Ok(());
     }
 
-    // This is a minimal implementation that triggers a deployment.
-    // In a real implementation, we might also push env vars, etc.
     let url = format!(
         "{}/api/v1/deploy?uuid={}{}",
         cfg.base_url.trim_end_matches('/'),
@@ -512,21 +511,99 @@ fn execute_coolify(cfg: &CoolifyTarget, dry_run: bool) -> Result<()> {
         if cfg.force_rebuild { "&force=true" } else { "" }
     );
 
-    let mut cmd = Command::new("curl");
-    cmd.args([
-        "-X",
-        "GET",
-        "-H",
-        &format!("Authorization: Bearer {}", cfg.token),
-        &url,
-    ]);
+    let output = Command::new("curl")
+        .args([
+            "-s",
+            "-X",
+            "GET",
+            "-H",
+            &format!("Authorization: Bearer {}", cfg.token),
+            &url,
+        ])
+        .output()
+        .context("Failed to trigger Coolify deployment")?;
 
-    let output = cmd.output().context("Failed to run curl for Coolify API")?;
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         anyhow::bail!("Coolify API call failed: {}", err);
     }
 
+    let response = String::from_utf8_lossy(&output.stdout);
+    let json: serde_json::Value = serde_json::from_str(&response).unwrap_or(serde_json::Value::Null);
+    let deploy_uuid = json["deploymentUuid"].as_str().map(|s| s.to_string());
+
     println!("  ✓ Deployment triggered successfully on Coolify.");
+    
+    if let Some(timeout_secs) = cfg.wait_timeout_secs {
+        let deploy_uuid = match deploy_uuid {
+            Some(u) => u,
+            None => {
+                println!("  Could not extract deployment UUID to poll. Proceeding without polling.");
+                return Ok(());
+            }
+        };
+
+        println!("  Polling deployment {} for completion (timeout {}s)...", deploy_uuid, timeout_secs);
+        let start_time = std::time::Instant::now();
+
+        loop {
+            if start_time.elapsed().as_secs() > timeout_secs {
+                anyhow::bail!("Coolify deployment timed out after {} seconds", timeout_secs);
+            }
+            std::thread::sleep(std::time::Duration::from_secs(10));
+
+            let status_url = format!(
+                "{}/api/v1/deployments/{}",
+                cfg.base_url.trim_end_matches('/'),
+                deploy_uuid
+            );
+
+            let out = Command::new("curl")
+                .args([
+                    "-s",
+                    "-X",
+                    "GET",
+                    "-H",
+                    &format!("Authorization: Bearer {}", cfg.token),
+                    &status_url,
+                ])
+                .output()?;
+            
+            let res = String::from_utf8_lossy(&out.stdout);
+            let stat_json: serde_json::Value = serde_json::from_str(&res).unwrap_or(serde_json::Value::Null);
+            let status = stat_json["status"].as_str().unwrap_or("");
+
+            if status == "finished" || status == "success" {
+                println!("  ✓ Deployment finished successfully.");
+                break;
+            } else if status == "failed" || status == "error" {
+                println!("  ❌ Deployment failed!");
+                
+                let logs_url = format!(
+                    "{}/api/v1/applications/{}/logs",
+                    cfg.base_url.trim_end_matches('/'),
+                    cfg.app_uuid
+                );
+                let logs_out = Command::new("curl")
+                    .args([
+                        "-s",
+                        "-H",
+                        &format!("Authorization: Bearer {}", cfg.token),
+                        &logs_url,
+                    ])
+                    .output();
+                
+                if let Ok(l_out) = logs_out {
+                    let log_res = String::from_utf8_lossy(&l_out.stdout);
+                    let l_json: serde_json::Value = serde_json::from_str(&log_res).unwrap_or(serde_json::Value::Null);
+                    if let Some(logs) = l_json["logs"].as_str() {
+                        eprintln!("\n--- COOLIFY LOGS ---\n{}\n--------------------", logs);
+                    }
+                }
+                anyhow::bail!("Coolify deployment reported failure status.");
+            }
+        }
+    }
+
     Ok(())
 }

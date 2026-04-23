@@ -10,6 +10,8 @@ status: "current"
 
 This document synthesizes the architectural decisions and prerequisites discovered during the migration of the Vox orchestration UI from an editor-bound `vox-vscode` webview to a standalone `crates/vox-dashboard` crate served via Axum.
 
+> **Note**: This research has been ratified and superseded by [ADR 024](../adr/024-dashboard-axum-spa.md).
+
 ## Decision
 
 We have decoupled the orchestration dashboard from the VS Code extension, opting for a local Axum-served Single Page Application (SPA). The SPA is bundled at compile-time into the `vox-orchestrator` binary (or the thin `vox-dashboard-d` daemon) using `include_dir!`. This eliminates the need for Node.js at runtime, removes the dependency on the VS Code extension host, and allows universal access from any browser or editor via `vox dashboard`.
