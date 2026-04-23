@@ -203,7 +203,7 @@ fn pipeline_web_ir_lower_summary_counts_http_and_classic() {
         "expected HTTP loader contracts, got {summary:?}"
     );
     assert!(
-        summary.reactive_components >= 1,
+        summary.components >= 1,
         "expected Path C components in HIR/WebIR summary, got {summary:?}"
     );
     assert_eq!(
@@ -223,7 +223,7 @@ fn pipeline_chat_classic_web_ir_validate_clean() {
     let hir = vox_compiler::hir::lower_module(&module);
     let (web, summary) = lower_hir_to_web_ir_with_summary(&hir);
     assert!(
-        summary.reactive_components >= 1,
+        summary.components >= 1,
         "Chat Path C should appear in reactive summary, got {summary:?}"
     );
     assert!(

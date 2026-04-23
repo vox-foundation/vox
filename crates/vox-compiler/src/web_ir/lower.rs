@@ -35,8 +35,8 @@ use crate::codegen_ts::hir_emit::{
 };
 use crate::codegen_ts::island_emit::island_data_prop_attr;
 use crate::hir::{
-    HirComponent, HirExpr, HirJsxAttr, HirJsxElement, HirJsxSelfClosing, HirModule, HirParam,
-    HirPattern, HirReactiveMember, HirRoutes, HirServerFn, HirStmt,
+    HirPattern, HirReactiveMember, HirEndpointFn, HirEndpointKind, HirStmt, HirModule, HirExpr,
+    HirJsxElement, HirJsxSelfClosing, HirJsxAttr, HirParam,
 };
 use crate::web_ir::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, MutationContract, RouteContract, RouteNode,
@@ -257,6 +257,7 @@ fn lower_jsx_attr_pair(
     vec![(name, val)]
 }
 
+#[allow(dead_code)]
 fn lower_route_contract_entry(
     e: &crate::ast::decl::RouteEntry,
     parent_id: &str,
@@ -288,25 +289,13 @@ fn lower_route_contract_entry(
     }
 }
 
-fn lower_routes(routes: &HirRoutes) -> RouteNode {
-    let contracts: Vec<RouteContract> = routes
-        .0
-        .entries
-        .iter()
-        .enumerate()
-        .map(|(i, e)| lower_route_contract_entry(e, "", i))
-        .collect();
-    RouteNode::RouteTree {
-        routes: contracts,
-        span: None,
-    }
-}
+
 
 fn qualify(component: &str, name: &str) -> String {
     format!("{component}::{name}")
 }
 
-fn fn_signature_for_contract(sf: &HirServerFn) -> String {
+fn fn_signature_for_contract(sf: &HirEndpointFn) -> String {
     let params: Vec<String> = sf.params.iter().map(param_type_annotation).collect();
     let ret = sf
         .return_type
@@ -325,7 +314,7 @@ fn param_type_annotation(p: &HirParam) -> String {
     format!("{}: {}", p.name, ty)
 }
 
-fn mutation_payload_type(sf: &HirServerFn) -> String {
+fn mutation_payload_type(sf: &HirEndpointFn) -> String {
     sf.params
         .first()
         .map(param_type_annotation)
@@ -482,10 +471,8 @@ fn lower_styles_from_classic_components(
         }
     };
 
-    for HirComponent(decl) in &hir.components {
-        push_blocks(&decl.styles, m, summary);
-    }
-    for rc in &hir.reactive_components {
+
+    for rc in &hir.components {
         push_blocks(&rc.styles, m, summary);
     }
 }
@@ -516,45 +503,37 @@ fn lower_http_routes(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLo
     }
 }
 
-fn lower_server_fn_contracts(
+fn lower_endpoint_contracts(
     hir: &HirModule,
     m: &mut WebIrModule,
     summary: &mut WebIrLowerSummary,
 ) {
-    for sf in &hir.server_fns {
-        m.route_nodes
-            .push(RouteNode::ServerFnContract(ServerFnContract {
-                name: sf.name.clone(),
-                export_path: sf.route_path.clone(),
-                signature: fn_signature_for_contract(sf),
-                span: None,
-            }));
-        summary.server_fn_contracts += 1;
-    }
-}
-
-fn lower_query_fn_contracts(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
-    for qf in &hir.query_fns {
-        m.route_nodes
-            .push(RouteNode::ServerFnContract(ServerFnContract {
-                name: qf.name.clone(),
-                export_path: qf.route_path.clone(),
-                signature: fn_signature_for_contract(qf),
-                span: None,
-            }));
-        summary.query_fn_contracts += 1;
-    }
-}
-
-fn lower_mutation_contracts(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
-    for mf in &hir.mutation_fns {
-        m.route_nodes
-            .push(RouteNode::MutationContract(MutationContract {
-                name: mf.name.clone(),
-                payload_type: mutation_payload_type(mf),
-                span: None,
-            }));
-        summary.mutation_contracts += 1;
+    for sf in &hir.endpoint_fns {
+        match sf.kind {
+            HirEndpointKind::Server | HirEndpointKind::Query => {
+                m.route_nodes
+                    .push(RouteNode::ServerFnContract(ServerFnContract {
+                        name: sf.name.clone(),
+                        export_path: sf.route_path.clone(),
+                        signature: fn_signature_for_contract(sf),
+                        span: None,
+                    }));
+                if sf.kind == HirEndpointKind::Server {
+                    summary.server_fn_contracts += 1;
+                } else {
+                    summary.query_fn_contracts += 1;
+                }
+            }
+            HirEndpointKind::Mutation => {
+                m.route_nodes
+                    .push(RouteNode::MutationContract(MutationContract {
+                        name: sf.name.clone(),
+                        payload_type: mutation_payload_type(sf),
+                        span: None,
+                    }));
+                summary.mutation_contracts += 1;
+            }
+        }
     }
 }
 
@@ -572,10 +551,7 @@ fn lower_scheduled_jobs(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebI
 }
 
 fn note_lowering_gaps(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
-    summary.classic_components_deferred = hir
-        .components
-        .len()
-        .saturating_sub(summary.classic_component_views_lowered);
+    summary.classic_components_deferred = 0;
     if !hir.legacy_ast_nodes.is_empty() {
         m.diagnostic_nodes.push(WebIrDiagnostic {
             code: "web_ir.lower.unlowered_ast_decls".to_string(),
@@ -603,17 +579,11 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
 
     let mut summary = WebIrLowerSummary::default();
 
-    // Stage R — TanStack client route trees
-    for r in &hir.client_routes {
-        m.route_nodes.push(lower_routes(r));
-        summary.client_route_trees += 1;
-    }
+
 
     // Stage R — HTTP handlers and RPC-shaped endpoints from HIR
     lower_http_routes(hir, &mut m, &mut summary);
-    lower_server_fn_contracts(hir, &mut m, &mut summary);
-    lower_query_fn_contracts(hir, &mut m, &mut summary);
-    lower_mutation_contracts(hir, &mut m, &mut summary);
+    lower_endpoint_contracts(hir, &mut m, &mut summary);
     lower_scheduled_jobs(hir, &mut m, &mut summary);
 
     // Stage S — classic `@component` scoped CSS (AST-retained)
@@ -622,8 +592,8 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
     let mut arena = DomArena::new();
 
     // Stage B + D — Path C reactive components
-    summary.reactive_components = hir.reactive_components.len();
-    for rc in &hir.reactive_components {
+    summary.components = hir.components.len();
+    for rc in &hir.components {
         let state_names = reactive_component_name_set_for_web_ir(rc);
 
         for mem in &rc.members {
@@ -679,13 +649,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
         }
     }
 
-    for comp in &hir.components {
-        if let Some((view, state_names)) = crate::hir::lower_classic_component_view(comp) {
-            let root = arena.lower_expr(&view, &state_names, &island_names);
-            m.view_roots.push((comp.0.func.name.clone(), root));
-            summary.classic_component_views_lowered += 1;
-        }
-    }
+
 
     summary.dom_expr_fallbacks = arena.expr_fallback_count;
     m.dom_nodes = arena.nodes;
@@ -697,9 +661,10 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
     (m, summary)
 }
 
-fn accumulate_route_manifest_summary(hir: &HirModule, summary: &mut WebIrLowerSummary) {
+fn accumulate_route_manifest_summary(_hir: &HirModule, _summary: &mut WebIrLowerSummary) {
     use crate::ast::decl::RouteEntry;
 
+    #[allow(dead_code)]
     fn walk_entry(e: &RouteEntry, loaders: &mut usize, pending: &mut usize) {
         if e.loader_name.is_some() {
             *loaders += 1;
@@ -712,22 +677,7 @@ fn accumulate_route_manifest_summary(hir: &HirModule, summary: &mut WebIrLowerSu
         }
     }
 
-    for block in &hir.client_routes {
-        let d = &block.0;
-        if d.not_found_component.is_some() {
-            summary.route_blocks_with_not_found += 1;
-        }
-        if d.error_component.is_some() {
-            summary.route_blocks_with_error += 1;
-        }
-        for e in &d.entries {
-            walk_entry(
-                e,
-                &mut summary.route_entries_with_loader,
-                &mut summary.route_entries_with_pending,
-            );
-        }
-    }
+
 }
 
 /// Build a [`WebIrModule`] from lowered HIR (reactive views + `routes:` contracts + behaviors).

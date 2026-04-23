@@ -318,7 +318,7 @@ pub struct WebIrLowerSummary {
     pub query_fn_contracts: usize,
     pub mutation_contracts: usize,
     /// Path C reactive components in HIR (each may contribute `view_roots` + `behavior_nodes`).
-    pub reactive_components: usize,
+    pub components: usize,
     /// Classic `@component fn` bodies lowered into [`WebIrModule::view_roots`] (OP-0179).
     pub classic_component_views_lowered: usize,
     /// Classic components without a JSX view in the supported emit shape (remainder).

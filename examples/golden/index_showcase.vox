@@ -4,7 +4,7 @@
 // syntax_version: "0.3"
 // status: golden
 // category: example
-// constructs: [@table, @server, @island, routes]
+// constructs: [@table, @endpoint(kind: server), @island, routes]
 // ---
 
 // ANCHOR: data
@@ -13,7 +13,7 @@
     done: bool
 }
 
-@server fn complete_task(id: Id[Task]) to Result[Unit] {
+@endpoint(kind: server) fn complete_task(id: Id[Task]) to Result[Unit] {
     db.Task.update(id, { done: true })
     return Ok(Unit)
 }

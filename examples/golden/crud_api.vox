@@ -1,32 +1,32 @@
 // ---
 // title: "Crud Api Example"
-// description: "Data layer: @table, @query, @mutation, http route, db.* (canonical surface)."
+// description: "Data layer: @table, @endpoint(kind: query), @endpoint(kind: mutation), http route, db.* (canonical surface)."
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [@table, @query, @mutation, http, db, filter]
+// constructs: [@table, @endpoint(kind: query), @endpoint(kind: mutation), http, db, filter]
 // last_validated: 2026-03-25
 // training_eligible: true
 // training_weight: 1.0
 // ---
-// @training_prompt: Write a minimal CRUD-oriented Vox module: @table, @query, @mutation, one http route, and db.Table operations (get/find, all, insert).
+// @training_prompt: Write a minimal CRUD-oriented Vox module: @table, @endpoint(kind: query), @endpoint(kind: mutation), one http route, and db.Table operations (get/find, all, insert).
 // ANCHOR: display
 @table type User {
     name: str
     active: bool
 }
 
-@query
+@endpoint(kind: query)
 fn user_count() to int {
     return len(db.User.all())
 }
 
-@query
+@endpoint(kind: query)
 fn active_user_count() to int {
     return len(db.User.filter({ active: true }))
 }
 
-@mutation
+@endpoint(kind: mutation)
 fn seed_user(name: str) to Unit {
     db.User.insert({ name: name, active: true })
 }

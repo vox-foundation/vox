@@ -70,9 +70,7 @@ component InventoryView() {
     </div>
 }
 
-routes {
-    "/inventory" to InventoryView
-}
+
 // ANCHOR_END: ui_layer
 
 // ANCHOR: capability_layer

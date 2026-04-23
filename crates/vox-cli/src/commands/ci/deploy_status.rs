@@ -40,7 +40,7 @@ pub async fn run(write_to: Option<PathBuf>) -> Result<()> {
         }
     };
 
-    let run_id = deploy_run["id"].as_i64().unwrap_or(0);
+    let _run_id = deploy_run["id"].as_i64().unwrap_or(0);
     let status = deploy_run["status"].as_str().unwrap_or("unknown");
     let conclusion = deploy_run["conclusion"].as_str().unwrap_or("pending");
     let html_url = deploy_run["html_url"].as_str().unwrap_or("");

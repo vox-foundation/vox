@@ -10,7 +10,7 @@
 //!   and return-type presence. Body stmts stay in HIR and are emitted by each backend.
 //! * Lowering is additive: the existing HIR structs ([`HirRoute`], [`HirServerFn`]) are
 //!   unchanged — `RouteIR` is a read-only projection computed at codegen time.
-use crate::hir::{HirHttpMethod, HirModule, HirParam, HirRoute, HirServerFn};
+use crate::hir::{HirHttpMethod, HirModule, HirParam, HirRoute, HirEndpointFn};
 
 /// Unified HTTP route contract used by Rust and TypeScript backends.
 ///
@@ -123,7 +123,7 @@ impl RouteIR {
 
     /// Lower a `HirServerFn` into a `RouteIR` with typed params.
     #[must_use]
-    pub fn from_server_fn(sf: &HirServerFn, kind: RouteKind) -> Self {
+    pub fn from_server_fn(sf: &HirEndpointFn, kind: RouteKind) -> Self {
         let method = match kind {
             RouteKind::QueryFn => RouteMethod::Get,
             _ => RouteMethod::Post,
@@ -160,17 +160,17 @@ pub fn lower_module_routes(module: &HirModule) -> Vec<RouteIR> {
     }
 
     // Server / query / mutation functions
-    let mut fns: Vec<(&HirServerFn, RouteKind)> = module
-        .server_fns
+    let mut fns: Vec<(&HirEndpointFn, RouteKind)> = module
+        .endpoint_fns
         .iter()
-        .map(|sf| (sf, RouteKind::ServerFn))
-        .chain(module.query_fns.iter().map(|sf| (sf, RouteKind::QueryFn)))
-        .chain(
-            module
-                .mutation_fns
-                .iter()
-                .map(|sf| (sf, RouteKind::MutationFn)),
-        )
+        .map(|sf| {
+            let kind = match sf.kind {
+                crate::hir::HirEndpointKind::Server => RouteKind::ServerFn,
+                crate::hir::HirEndpointKind::Query => RouteKind::QueryFn,
+                crate::hir::HirEndpointKind::Mutation => RouteKind::MutationFn,
+            };
+            (sf, kind)
+        })
         .collect();
     fns.sort_by(|(a, _), (b, _)| {
         a.route_path

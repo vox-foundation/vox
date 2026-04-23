@@ -4,7 +4,7 @@
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [actor, on, db, @query, @mutation, @table, List, Option, match]
+// constructs: [actor, on, db, @endpoint(kind: query), @endpoint(kind: mutation), @table, List, Option, match]
 // last_validated: 2026-04-13
 // training_eligible: true
 // training_weight: 1.0
@@ -35,7 +35,7 @@ actor TelemetryGateway {
     }
 }
 
-@query
+@endpoint(kind: query)
 fn get_average_temperature(id: str) to float {
     let logs = db.DeviceLog.filter({ device_id: id })
     if len(logs) is 0 {

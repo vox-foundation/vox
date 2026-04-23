@@ -4,7 +4,7 @@
 //! JSON-in-query encoding: sorted keys, each value is `JSON.stringify` + `encodeURIComponent`) and
 //! **`POST` + JSON body** for `@mutation` / `@server`. Cache-friendly reads use GET as intended.
 
-use crate::hir::{HirModule, HirServerFn};
+use crate::hir::{HirModule, HirEndpointFn, HirEndpointKind};
 
 /// Stable output filename for the generated client.
 pub const VOX_CLIENT_FILENAME: &str = "vox-client.ts";
@@ -76,20 +76,14 @@ async function $post<T>(path: string, schema?: { parse: (x: any) => T }, body?: 
 "#,
     );
 
-    for sf in &hir.server_fns {
-        out.push_str(&emit_one_fn(sf, false));
-    }
-    for qf in &hir.query_fns {
-        out.push_str(&emit_one_fn(qf, true));
-    }
-    for mf in &hir.mutation_fns {
-        out.push_str(&emit_one_fn(mf, false));
+    for sf in &hir.endpoint_fns {
+        out.push_str(&emit_one_fn(sf, sf.kind == HirEndpointKind::Query));
     }
 
     out
 }
 
-fn emit_one_fn(sf: &HirServerFn, is_query: bool) -> String {
+fn emit_one_fn(sf: &HirEndpointFn, is_query: bool) -> String {
     let name = &sf.name;
     let return_type = sf.return_type.as_ref().map_or(
         "unknown".to_string(),

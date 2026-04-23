@@ -137,6 +137,20 @@ pub struct MutationDecl {
     pub func: FnDecl,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum EndpointKind {
+    Query,
+    Mutation,
+    Server,
+}
+
+/// Unified endpoint declaration (wraps a function with @endpoint semantics).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct EndpointDecl {
+    pub kind: EndpointKind,
+    pub func: FnDecl,
+}
+
 /// Skill declaration: a modular AI capability.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct SkillDecl {

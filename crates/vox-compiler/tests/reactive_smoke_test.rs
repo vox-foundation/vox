@@ -1283,7 +1283,7 @@ component ParityT() {
 "#;
     let module = vox_compiler::parser::parse(vox_compiler::lexer::lex(src)).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
-    let rc = hir.reactive_components.first().expect("reactive component");
+    let rc = hir.components.first().expect("reactive component");
     let view = rc.view.as_ref().expect("view");
     let state_name = match &rc.members[0] {
         HirReactiveMember::State(s) => s.name.clone(),

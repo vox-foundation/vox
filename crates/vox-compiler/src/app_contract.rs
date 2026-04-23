@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::ast::decl::RouteEntry;
+
 use crate::ast::types::TypeExpr;
 use crate::hir::{HirHttpMethod, HirModule};
 use crate::typeck::env::TypeEnv;
@@ -28,7 +28,6 @@ pub struct AppContractModule {
     pub server_fns: Vec<AppServerFnContract>,
     pub query_fns: Vec<AppServerFnContract>,
     pub mutation_fns: Vec<AppMutationContract>,
-    pub client_routes: Vec<AppClientRouteContract>,
     pub islands: Vec<AppIslandContract>,
     /// MCP tools from `@mcp.tool` (names, descriptions, signatures) — machine-readable SSOT for tooling.
     #[serde(default)]
@@ -77,15 +76,6 @@ pub struct AppMutationContract {
     pub signature: String,
     pub wraps_db_transaction: bool,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AppClientRouteContract {
-    pub path: String,
-    pub component_name: String,
-    pub redirect: Option<String>,
-    pub is_wildcard: bool,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppIslandPropContract {
     pub name: String,
@@ -121,21 +111,6 @@ fn fn_signature(params: &[crate::hir::HirParam], ret: Option<&crate::hir::HirTyp
     let env = TypeEnv::new();
     type_signature_from_hir(params, ret, &env)
 }
-
-fn collect_app_client_routes(entries: &[RouteEntry]) -> Vec<AppClientRouteContract> {
-    let mut out = Vec::new();
-    for e in entries {
-        out.push(AppClientRouteContract {
-            path: e.path.clone(),
-            component_name: e.component_name.clone(),
-            redirect: e.redirect.clone(),
-            is_wildcard: e.is_wildcard,
-        });
-        out.extend(collect_app_client_routes(&e.children));
-    }
-    out
-}
-
 fn type_expr_signature(te: &TypeExpr) -> String {
     match te {
         TypeExpr::Named { name, .. } => name.clone(),
@@ -191,8 +166,9 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
         .collect();
 
     let server_fns = module
-        .server_fns
+        .endpoint_fns
         .iter()
+        .filter(|sf| sf.kind == crate::hir::HirEndpointKind::Server)
         .map(|sf| AppServerFnContract {
             name: sf.name.clone(),
             route_path: sf.route_path.clone(),
@@ -201,8 +177,9 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
         .collect();
 
     let query_fns = module
-        .query_fns
+        .endpoint_fns
         .iter()
+        .filter(|sf| sf.kind == crate::hir::HirEndpointKind::Query)
         .map(|qf| AppServerFnContract {
             name: qf.name.clone(),
             route_path: qf.route_path.clone(),
@@ -212,8 +189,9 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
 
     let wraps_db_transaction = !module.tables.is_empty();
     let mutation_fns = module
-        .mutation_fns
+        .endpoint_fns
         .iter()
+        .filter(|sf| sf.kind == crate::hir::HirEndpointKind::Mutation)
         .map(|mf| AppMutationContract {
             name: mf.name.clone(),
             route_path: mf.route_path.clone(),
@@ -222,11 +200,6 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
         })
         .collect();
 
-    let client_routes = module
-        .client_routes
-        .iter()
-        .flat_map(|r| collect_app_client_routes(&r.0.entries))
-        .collect();
 
     let islands = module
         .islands
@@ -272,7 +245,6 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
         server_fns,
         query_fns,
         mutation_fns,
-        client_routes,
         islands,
         mcp_tools,
         mcp_resources,

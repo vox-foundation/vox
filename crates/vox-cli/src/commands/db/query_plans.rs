@@ -180,7 +180,10 @@ pub(crate) fn collect_query_fn_plans(
     query_filter: Option<&str>,
 ) -> Vec<QueryPlanExplainRow> {
     let mut out = Vec::new();
-    for q in &hir.query_fns {
+    for q in &hir.endpoint_fns {
+        if !matches!(q.kind, vox_compiler::hir::HirEndpointKind::Query) {
+            continue;
+        }
         if query_filter.is_some_and(|f| f != q.name.as_str()) {
             continue;
         }
@@ -237,7 +240,7 @@ pub async fn explain(
     let out = serde_json::json!({
         "file": path.display().to_string(),
         "query_filter": query,
-        "query_function_count": result.hir.query_fns.len(),
+        "query_function_count": result.hir.endpoint_fns.iter().filter(|e| matches!(e.kind, vox_compiler::hir::HirEndpointKind::Query)).count(),
         "plan_count": plans.len(),
         "plans": plans,
     });

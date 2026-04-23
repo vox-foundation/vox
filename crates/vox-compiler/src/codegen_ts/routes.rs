@@ -26,7 +26,7 @@
 
 use crate::codegen_ts::hir_emit::{emit_hir_expr, emit_hir_pattern};
 use crate::codegen_ts::island_emit::empty_island_set;
-use crate::hir::{HirExpr, HirHttpMethod, HirModule, HirRoute, HirServerFn, HirStmt};
+use crate::hir::{HirExpr, HirHttpMethod, HirModule, HirRoute, HirEndpointFn, HirEndpointKind, HirStmt};
 use std::collections::HashSet;
 
 /// Mock `ClaudeActor` embedded in generated `server.ts` when HTTP routes exist (OP-0172 SSOT).
@@ -128,23 +128,14 @@ fn sorted_http_routes(hir: &HirModule) -> Vec<&HirRoute> {
     v
 }
 
-fn sorted_server_fns(hir: &HirModule) -> Vec<&HirServerFn> {
-    let mut v: Vec<_> = hir
-        .server_fns
-        .iter()
-        .chain(hir.query_fns.iter())
-        .chain(hir.mutation_fns.iter())
-        .collect();
+fn sorted_endpoint_fns(hir: &HirModule) -> Vec<&HirEndpointFn> {
+    let mut v: Vec<_> = hir.endpoint_fns.iter().collect();
     v.sort_by(|a, b| {
         a.route_path
             .cmp(&b.route_path)
             .then_with(|| a.name.cmp(&b.name))
     });
     v
-}
-
-fn is_hir_query_fn(hir: &HirModule, sf: &HirServerFn) -> bool {
-    hir.query_fns.iter().any(|q| q.id == sf.id)
 }
 
 fn emit_hir_route_expr(expr: &HirExpr) -> String {
@@ -252,9 +243,9 @@ pub fn generate_routes(hir: &HirModule) -> String {
 pub fn generate_routes_from_ctx(ctx: &ExpressRouteEmitCtx<'_>) -> String {
     let hir = ctx.hir();
     let routes = sorted_http_routes(hir);
-    let server_fns = sorted_server_fns(hir);
+    let endpoint_fns = sorted_endpoint_fns(hir);
 
-    if routes.is_empty() && server_fns.is_empty() {
+    if routes.is_empty() && endpoint_fns.is_empty() {
         return String::new();
     }
 
@@ -295,9 +286,9 @@ pub fn generate_routes_from_ctx(ctx: &ExpressRouteEmitCtx<'_>) -> String {
         out.push_str("});\n\n");
     }
 
-    for sf in &server_fns {
+    for sf in &endpoint_fns {
         let route_path = &sf.route_path;
-        let is_query = is_hir_query_fn(hir, sf);
+        let is_query = sf.kind == HirEndpointKind::Query;
         let method = if is_query { "get" } else { "post" };
         out.push_str(&format!(
             "app.{method}(\"{route_path}\", async (req: Request, res: Response) => {{\n"

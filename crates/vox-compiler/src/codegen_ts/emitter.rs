@@ -14,7 +14,7 @@
 use crate::app_contract::project_app_contract;
 use crate::codegen_ts::activity::{generate_activity_hir, generate_activity_runner};
 use crate::codegen_ts::adt::generate_types;
-use crate::codegen_ts::component::{generate_component, generate_component_from_web_ir};
+
 use crate::codegen_ts::island_emit::collect_island_names;
 use crate::codegen_ts::reactive::generate_reactive_component;
 use crate::codegen_ts::routes::generate_routes;
@@ -100,11 +100,7 @@ pub fn generate_with_options(
         ));
     }
 
-    let web_projection_cache = if hir.reactive_components.is_empty()
-        && hir.components.is_empty()
-        && hir.loadings.is_empty()
-        && hir.client_routes.is_empty()
-    {
+    let web_projection_cache = if hir.components.is_empty() {
         None
     } else {
         Some(crate::web_ir::lower::project_web_from_core(hir))
@@ -112,22 +108,9 @@ pub fn generate_with_options(
     let web_projection_ref = web_projection_cache.as_ref();
 
     if options.mode != BuildMode::Library {
-        // Generate components
-        for hir_comp in &hir.components {
-            let comp = &hir_comp.0;
-            let (filename, content) = web_projection_ref
-                .and_then(|web| {
-                    generate_component_from_web_ir(&comp.func, !comp.styles.is_empty(), web)
-                })
-                .unwrap_or_else(|| {
-                    generate_component(&comp.func, !comp.styles.is_empty(), &island_names)
-                });
-            files.push((filename, content));
-        }
-
         // Generate reactive components (Path C). Optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` uses Web IR
         // preview emit for `view:` when validate is clean and whitespace-normalized JSX matches legacy.
-        for rc in &hir.reactive_components {
+        for rc in &hir.components {
             let (filename, content) = generate_reactive_component(
                 hir,
                 rc,
@@ -138,31 +121,6 @@ pub fn generate_with_options(
             files.push((filename, content));
         }
 
-        // Route loading / suspense UI (`@loading fn … to Element`) — TanStack `pendingComponent`
-        for hir_loading in &hir.loadings {
-            let (filename, content) = web_projection_ref
-                .and_then(|web| generate_component_from_web_ir(&hir_loading.0.func, false, web))
-                .unwrap_or_else(|| generate_component(&hir_loading.0.func, false, &island_names));
-            files.push((filename, content));
-        }
-
-        // Generate v0 component placeholders
-        for hir_v0 in &hir.v0_components {
-            let v0 = &hir_v0.0;
-            let filename = format!("{}.tsx", v0.name);
-
-            let comment = if let Some(ref img) = v0.image_path {
-                format!("From image: {img}")
-            } else {
-                format!("v0 integration ID: {}", v0.v0_id)
-            };
-
-            let content = format!(
-                "// @v0 generated component\n// {}\n// Note: This file will be overwritten by `npx v0 add` sidecar during build.\n// Install this island (shadcn): npx shadcn@latest add <component-url-or-name>\nimport React from \"react\";\n\nexport function {}(): React.ReactElement {{\n  return <div>{{/* @v0 component pending v0 CLI download */}}</div>;\n}}\n",
-                comment, v0.name
-            );
-            files.push((filename, content));
-        }
     }
 
     // Generate Express server only when explicitly requested (Axum + api.ts is canonical).
@@ -213,54 +171,13 @@ pub fn generate_with_options(
     }
 
     // Typed fetch client for `@query` (GET + JSON query values) / `@mutation` / `@server` (POST JSON).
-    let has_api_fns =
-        !hir.server_fns.is_empty() || !hir.query_fns.is_empty() || !hir.mutation_fns.is_empty();
+    let has_api_fns = !hir.endpoint_fns.is_empty();
     if has_api_fns {
         files.push((VOX_CLIENT_FILENAME.to_string(), emit_vox_client(hir)));
     }
 
-    // Generate scoped CSS modules for components with style blocks (classic + Path C reactive).
-    for hir_comp in &hir.components {
-        let comp = &hir_comp.0;
-        if !comp.styles.is_empty() {
-            let filename = format!("{}.css", comp.func.name);
-            let mut css = String::new();
-            css.push_str(&format!("@layer {} {{\n", comp.func.name));
-            for block in &comp.styles {
-                css.push_str(&format!("  {} {{\n", block.selector));
-                for (prop, val) in &block.properties {
-                    // Convert Vox camelCase property names to CSS kebab-case
-                    let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
-                        if c.is_uppercase() {
-                            acc.push('-');
-                            acc.push(c.to_ascii_lowercase());
-                        } else {
-                            acc.push(c);
-                        }
-                        acc
-                    });
 
-                    let css_val = if val.trim().starts_with("tokens.") {
-                        format!(
-                            "var(--vox-{})",
-                            val.trim()
-                                .strip_prefix("tokens.")
-                                .unwrap()
-                                .replace('.', "-")
-                        )
-                    } else {
-                        val.clone()
-                    };
-
-                    css.push_str(&format!("    {}: {};\n", css_prop, css_val));
-                }
-                css.push_str("  }\n\n");
-            }
-            css.push_str("}\n\n");
-            files.push((filename, css));
-        }
-    }
-    for rc in &hir.reactive_components {
+    for rc in &hir.components {
         if rc.styles.is_empty() {
             continue;
         }
@@ -346,25 +263,7 @@ pub fn generate_with_options(
                 )
             }
         }
-        None if !hir.client_routes.is_empty() => {
-            let w = crate::web_ir::lower::project_web_from_core(hir);
-            if options.mode == BuildMode::Library {
-                (
-                    "routes.manifest.json",
-                    crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(
-                        &w, hir,
-                    )?,
-                )
-            } else {
-                (
-                    "routes.manifest.ts",
-                    crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(
-                        &w, hir,
-                    )?,
-                )
-            }
-        }
-        _ => ("", None),
+        None => ("", None),
     };
     if let Some(manifest) = route_manifest {
         files.push((manifest_filename.to_string(), manifest));

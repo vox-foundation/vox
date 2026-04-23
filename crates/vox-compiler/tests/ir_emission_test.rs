@@ -34,7 +34,7 @@ fn test_ir_emission_with_hashing_and_inference() {
 
     let greet_fn = res
         .hir
-        .server_fns
+        .endpoint_fns
         .iter()
         .find(|f| f.name == "greet")
         .expect("greet not found");
@@ -48,7 +48,7 @@ fn test_ir_emission_with_hashing_and_inference() {
 
     // Check content
     assert!(vox_ir.module.functions.iter().any(|f| f.name == "add"));
-    assert!(vox_ir.module.server_fns.iter().any(|f| f.name == "greet"));
+    assert!(vox_ir.module.endpoint_fns.iter().any(|f| f.name == "greet"));
 
     let ir: serde_json::Value = serde_json::to_value(&vox_ir).expect("VoxIrModule as JSON Value");
     let schema_val: serde_json::Value =

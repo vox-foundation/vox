@@ -12,7 +12,7 @@
 }
 // ANCHOR_END: data_model
 
-@server fn health() to Result[str] {
+@endpoint(kind: server) fn health() to Result[str] {
     return Ok("ok")
 }
 
@@ -22,18 +22,16 @@ component App() {
 }
 // ANCHOR_END: ui
 
-routes {
-    "/" to App
-}
+
 // ANCHOR_END: start
 
 // ANCHOR: concepts
 // ANCHOR: logic
-@query fn get_notes() to List[Note] {
+@endpoint(kind: query) fn get_notes() to List[Note] {
     return db.Note.all()
 }
 
-@mutation fn create_note(title: str, content: str) to Result[Id[Note]] {
+@endpoint(kind: mutation) fn create_note(title: str, content: str) to Result[Id[Note]] {
     let id = db.Note.insert({ title: title, content: content })?
     return Ok(id)
 }

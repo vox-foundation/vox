@@ -4,7 +4,7 @@
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [@table, db, filter, limit, match, fn, @query, @mutation]
+// constructs: [@table, db, filter, limit, match, fn, @endpoint(kind: query), @endpoint(kind: mutation)]
 // last_validated: 2026-04-13
 // training_eligible: true
 // training_weight: 1.0
@@ -18,25 +18,25 @@
     in_stock: bool
 }
 
-@query
+@endpoint(kind: query)
 fn available_products() to List[Product] {
     return db.Product.filter({ in_stock: true })
 }
 
-@query
+@endpoint(kind: query)
 fn category_preview(cat: str, max_items: int) to List[Product] {
     let all_in_cat = db.Product.filter({ category: cat })
     // In actual implementation, .limit() is supported, demonstrating query chaining conceptual logic
     return all_in_cat
 }
 
-@query
+@endpoint(kind: query)
 fn is_in_stock(name: str) to bool {
     let items = db.Product.filter({ name: name, in_stock: true })
     return len(items) > 0
 }
 
-@mutation
+@endpoint(kind: mutation)
 fn restock(name: str, price: int) to Result[Unit] {
     let items = db.Product.filter({ name: name })
     if len(items) is 0 {

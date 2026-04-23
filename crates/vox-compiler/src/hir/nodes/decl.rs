@@ -18,17 +18,7 @@ pub enum HirFieldOwnership {
     AppContract,
 }
 
-/// Tracks which HIR lowering paths ran so migrations and WebIR handoff can account for
-/// dual component stacks (`@component` vs Path C reactive) and declarative hook surfaces (OP-0036, OP-0042).
-#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
-pub struct HirLoweringMigrationFlags {
-    /// Legacy `@component fn` / `Decl::Component` lowered into [`HirModule::components`].
-    pub used_classic_component_path: bool,
-    /// Path C `component Name() { ... }` reactive declarations lowered into [`HirModule::reactive_components`].
-    pub used_reactive_component_path: bool,
-    /// `Decl::Hook` / `@hook` entries retained for TS hooks (escape-hatch accounting).
-    pub has_legacy_hook_surfaces: bool,
-}
+
 
 /// A fully lowered Vox module: every declaration category is collected into its own vector.
 ///
@@ -56,12 +46,8 @@ pub struct HirModule {
     pub tests: Vec<HirFn>,
     /// `@forall` properties.
     pub foralls: Vec<HirForall>,
-    /// `@server` RPC functions.
-    pub server_fns: Vec<HirServerFn>,
-    /// `@query` read-only DB / API functions (GET + JSON query args, `/api/query/...`).
-    pub query_fns: Vec<HirServerFn>,
-    /// `@mutation` write functions (POST JSON body, `/api/mutation/...`).
-    pub mutation_fns: Vec<HirServerFn>,
+    /// Unified endpoint functions (`@endpoint`, `@server`, `@query`, `@mutation`).
+    pub endpoint_fns: Vec<HirEndpointFn>,
     /// Codex table schemas.
     pub tables: Vec<HirTable>,
     /// Table indexes.
@@ -82,38 +68,17 @@ pub struct HirModule {
     pub environments: Vec<HirEnvironment>,
 
     // UI surfaces (AST-retained where needed for emit + WebIR projection)
-    /// Classic `@component fn` components (Path B); prefer Path C `component`.
-    pub components: Vec<HirComponent>,
-    /// Extracted v0 components.
-    pub v0_components: Vec<HirV0Component>,
-    /// Client-side `routes { }` declarations.
-    pub client_routes: Vec<HirRoutes>,
     /// Standalone islands.
     pub islands: Vec<HirIsland>,
-    /// Route layouts.
-    pub layouts: Vec<HirLayout>,
-    /// Route pages.
-    pub pages: Vec<HirPage>,
-    /// React context wrappers.
-    pub contexts: Vec<HirContext>,
-    /// React hooks.
-    pub hooks: Vec<HirHook>,
-    /// Error boundaries.
-    pub error_boundaries: Vec<HirErrorBoundary>,
-    /// Loading/Suspense fallbacks.
-    pub loadings: Vec<HirLoading>,
-    /// Not Found views.
-    pub not_founds: Vec<HirNotFound>,
     /// Reactive components (Path C).
-    pub reactive_components: Vec<HirReactiveComponent>,
+    pub components: Vec<HirReactiveComponent>,
 
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     /// HTTP routes, tables, activities, and `@server` fns are lowered to [`HirRoute`], [`HirTable`],
     /// [`HirActivity`], and [`HirServerFn`]; TS codegen reads those directly (Path C).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 
-    /// Which declarative lowering paths were exercised (classic vs reactive UI, hooks).
-    pub lowering_migration: HirLoweringMigrationFlags,
+
 }
 
 /// Snapshot of a post-migration semantic-only HIR shape.
@@ -128,9 +93,7 @@ pub struct SemanticHirModule {
     pub types: Vec<HirTypeDef>,
     pub routes: Vec<HirRoute>,
     pub tests: Vec<HirFn>,
-    pub server_fns: Vec<HirServerFn>,
-    pub query_fns: Vec<HirServerFn>,
-    pub mutation_fns: Vec<HirServerFn>,
+    pub endpoint_fns: Vec<HirEndpointFn>,
     pub tables: Vec<HirTable>,
     pub indexes: Vec<HirIndex>,
     pub collections: Vec<HirCollection>,
@@ -140,7 +103,7 @@ pub struct SemanticHirModule {
     pub mcp_resources: Vec<HirMcpResource>,
     pub agents: Vec<HirAgent>,
     pub environments: Vec<HirEnvironment>,
-    pub reactive_components: Vec<HirReactiveComponent>,
+    pub components: Vec<HirReactiveComponent>,
 }
 
 impl HirModule {
@@ -157,9 +120,7 @@ impl HirModule {
             ("workflows", HirFieldOwnership::MigrationOnly),
             ("activities", HirFieldOwnership::MigrationOnly),
             ("tests", HirFieldOwnership::SemanticCore),
-            ("server_fns", HirFieldOwnership::AppContract),
-            ("query_fns", HirFieldOwnership::AppContract),
-            ("mutation_fns", HirFieldOwnership::AppContract),
+            ("endpoint_fns", HirFieldOwnership::AppContract),
             ("tables", HirFieldOwnership::SemanticCore),
             ("indexes", HirFieldOwnership::SemanticCore),
             ("collections", HirFieldOwnership::SemanticCore),
@@ -169,20 +130,10 @@ impl HirModule {
             ("mcp_resources", HirFieldOwnership::SemanticCore),
             ("agents", HirFieldOwnership::SemanticCore),
             ("environments", HirFieldOwnership::SemanticCore),
-            ("components", HirFieldOwnership::MigrationOnly),
-            ("v0_components", HirFieldOwnership::MigrationOnly),
-            ("client_routes", HirFieldOwnership::AppContract),
             ("islands", HirFieldOwnership::AppContract),
-            ("layouts", HirFieldOwnership::AppContract),
-            ("pages", HirFieldOwnership::MigrationOnly),
-            ("contexts", HirFieldOwnership::MigrationOnly),
-            ("hooks", HirFieldOwnership::MigrationOnly),
-            ("error_boundaries", HirFieldOwnership::AppContract),
-            ("loadings", HirFieldOwnership::AppContract),
-            ("not_founds", HirFieldOwnership::AppContract),
-            ("reactive_components", HirFieldOwnership::SemanticCore),
+
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
-            ("lowering_migration", HirFieldOwnership::MigrationOnly),
+            ("components", HirFieldOwnership::SemanticCore),
         ]
     }
 
@@ -196,9 +147,7 @@ impl HirModule {
             types: self.types.clone(),
             routes: self.routes.clone(),
             tests: self.tests.clone(),
-            server_fns: self.server_fns.clone(),
-            query_fns: self.query_fns.clone(),
-            mutation_fns: self.mutation_fns.clone(),
+            endpoint_fns: self.endpoint_fns.clone(),
             tables: self.tables.clone(),
             indexes: self.indexes.clone(),
             collections: self.collections.clone(),
@@ -208,60 +157,14 @@ impl HirModule {
             mcp_resources: self.mcp_resources.clone(),
             agents: self.agents.clone(),
             environments: self.environments.clone(),
-            reactive_components: self.reactive_components.clone(),
+            components: self.components.clone(),
         }
     }
 }
 
-/// A component lowered to HIR (currently retaining AST for TS codegen until full HirExpr migration).
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirComponent(pub crate::ast::decl::ComponentDecl);
-
-/// A v0 component lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirV0Component(pub crate::ast::decl::V0ComponentDecl);
-
-/// Routes layout lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirRoutes(pub crate::ast::decl::RoutesDecl);
-
 /// Island component lowered to HIR.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirIsland(pub crate::ast::decl::IslandDecl);
-
-/// Route layout component lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirLayout {
-    pub func: HirFn,
-}
-
-/// Route page component lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirPage {
-    pub path: String,
-    pub func: HirFn,
-    pub span: Span,
-}
-
-/// Context component lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirContext(pub crate::ast::decl::ContextDecl);
-
-/// Hook component lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirHook(pub crate::ast::decl::HookDecl);
-
-/// Errorboundary lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirErrorBoundary(pub crate::ast::decl::ErrorBoundaryDecl);
-
-/// Loading route lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirLoading(pub crate::ast::decl::LoadingDecl);
-
-/// Not Found view lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirNotFound(pub crate::ast::decl::NotFoundDecl);
 
 /// A resolved import.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -477,9 +380,18 @@ pub struct HirActivity {
     pub span: Span,
 }
 
-/// A server function — callable from the frontend, auto-generates API route + fetch wrapper.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HirEndpointKind {
+    Query,
+    Mutation,
+    Server,
+}
+
+/// A server endpoint function — callable from the frontend, auto-generates API route + fetch wrapper.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirServerFn {
+pub struct HirEndpointFn {
+    /// Endpoint kind (query, mutation, server).
+    pub kind: HirEndpointKind,
     /// Function id.
     pub id: DefId,
     /// Exposed name.
@@ -490,7 +402,7 @@ pub struct HirServerFn {
     pub return_type: Option<HirType>,
     /// Function body.
     pub body: Vec<HirStmt>,
-    /// HTTP path bound to this server fn.
+    /// HTTP path bound to this endpoint fn.
     pub route_path: String,
     /// Span covering the declaration.
     pub span: Span,
@@ -731,7 +643,7 @@ mod tests {
         );
         assert!(
             map.iter()
-                .any(|(name, own)| *name == "server_fns" && *own == HirFieldOwnership::AppContract)
+                .any(|(name, own)| *name == "endpoint_fns" && *own == HirFieldOwnership::AppContract)
         );
         assert!(
             map.iter()
@@ -743,7 +655,7 @@ mod tests {
     fn semantic_hir_projection_drops_migration_vectors() {
         let hir = HirModule::default();
         let projected = hir.to_semantic_hir();
-        assert!(projected.reactive_components.is_empty());
+        assert!(projected.components.is_empty());
         // These vectors are migration-only and intentionally absent from `SemanticHirModule`.
         assert!(projected.functions.is_empty());
     }

@@ -106,7 +106,7 @@ mod tests {
             span,
         };
         let mut module = HirModule::default();
-        module.reactive_components.push(HirReactiveComponent {
+        module.components.push(HirReactiveComponent {
             id: DefId(1),
             name: "TaskList".to_string(),
             params: vec![],

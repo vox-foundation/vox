@@ -871,9 +871,8 @@ fn pipeline_mixed_declarations_hir_counts_and_web_ir_validate() {
     );
     assert_eq!(hir.islands.len(), 1);
     assert_eq!(hir.islands[0].0.name, "Chart");
-    assert_eq!(hir.reactive_components.len(), 2);
-    assert_eq!(hir.components.len(), 0);
-    assert_eq!(hir.client_routes.len(), 1);
+    assert_eq!(hir.components.len(), 2);
+
     assert_eq!(hir.routes.len(), 1);
     assert!(
         hir.lowering_migration.used_reactive_component_path,

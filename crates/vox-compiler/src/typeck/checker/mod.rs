@@ -86,15 +86,11 @@ impl<'a> Checker<'a> {
         for act in &module.activities {
             self.check_activity(act);
         }
-        for sf in &mut module.server_fns {
-            self.check_server_fn(sf);
-        }
-        for sf in &mut module.query_fns {
-            self.check_server_fn(sf);
-            self.enforce_query_read_only(sf);
-        }
-        for sf in &mut module.mutation_fns {
-            self.check_server_fn(sf);
+        for sf in &mut module.endpoint_fns {
+            self.check_endpoint_fn(sf);
+            if sf.kind == crate::hir::HirEndpointKind::Query {
+                self.enforce_query_read_only(sf);
+            }
         }
         for t in &mut module.tests {
             self.check_function(t);
@@ -108,7 +104,7 @@ impl<'a> Checker<'a> {
         for r in &module.routes {
             self.check_route(r);
         }
-        for rc in &module.reactive_components {
+        for rc in &module.components {
             self.check_reactive_component(rc);
         }
         for a in &module.agents {
@@ -368,7 +364,7 @@ impl<'a> Checker<'a> {
         self.env.pop_scope();
     }
 
-    fn check_server_fn(&mut self, sf: &mut HirServerFn) {
+    fn check_endpoint_fn(&mut self, sf: &mut HirEndpointFn) {
         let was_inferred = sf.return_type.is_none();
         let mut ret_ty = sf
             .return_type
@@ -486,7 +482,7 @@ impl<'a> Checker<'a> {
         }
     }
 
-    fn enforce_query_read_only(&mut self, sf: &HirServerFn) {
+    fn enforce_query_read_only(&mut self, sf: &HirEndpointFn) {
         if Self::contains_db_write_or_unsafe_in_stmts(&sf.body) {
             self.diags.push(Diagnostic {
                 severity: TypeckSeverity::Error,

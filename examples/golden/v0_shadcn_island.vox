@@ -19,6 +19,4 @@ component Shell() {
     view: <span>"shell"</span>
 }
 
-routes {
-    "/" to Shell
-}
+

@@ -2,7 +2,7 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    Decl, EffectDecl, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind, IslandDecl,
+    Decl, EffectDecl, EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind, IslandDecl,
     IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
     OnMountDecl, PostCondition, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl,
     RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl,
@@ -578,24 +578,86 @@ impl Parser {
     }
 
     pub(crate) fn parse_server_fn(&mut self) -> Result<Decl, ()> {
+        let span = self.span();
         self.advance(); // eat @server
+        self.errors.push(ParseError::warning(
+            span,
+            "The `@server` decorator is deprecated. Use `@endpoint(kind: server)` instead.",
+            ParseErrorClass::Tombstoned,
+        ));
         self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
         Ok(Decl::ServerFn(ServerFnDecl { func: f }))
     }
 
     pub(crate) fn parse_query_fn(&mut self) -> Result<Decl, ()> {
+        let span = self.span();
         self.advance(); // eat @query
+        self.errors.push(ParseError::warning(
+            span,
+            "The `@query` decorator is deprecated. Use `@endpoint(kind: query)` instead.",
+            ParseErrorClass::Tombstoned,
+        ));
         self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
         Ok(Decl::Query(QueryDecl { func: f }))
     }
 
     pub(crate) fn parse_mutation_fn(&mut self) -> Result<Decl, ()> {
+        let span = self.span();
         self.advance(); // eat @mutation
+        self.errors.push(ParseError::warning(
+            span,
+            "The `@mutation` decorator is deprecated. Use `@endpoint(kind: mutation)` instead.",
+            ParseErrorClass::Tombstoned,
+        ));
         self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
         Ok(Decl::Mutation(MutationDecl { func: f }))
+    }
+
+    pub(crate) fn parse_endpoint(&mut self) -> Result<Decl, ()> {
+        self.advance(); // eat @endpoint
+        self.expect(&Token::LParen)?;
+        let mut kind = None;
+        if let Token::Ident(k) = self.peek().clone() {
+            if k == "kind" {
+                self.advance();
+                self.expect(&Token::Colon)?;
+                if let Token::Ident(v) = self.peek().clone() {
+                    match v.as_str() {
+                        "query" => kind = Some(EndpointKind::Query),
+                        "mutation" => kind = Some(EndpointKind::Mutation),
+                        "server" => kind = Some(EndpointKind::Server),
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Unknown endpoint kind. Expected query, mutation, or server.",
+                                vec!["query".into(), "mutation".into(), "server".into()],
+                                Some(v),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                    self.advance();
+                }
+            }
+        }
+        self.expect(&Token::RParen)?;
+        if kind.is_none() {
+            self.errors.push(ParseError::classified(
+                self.span(),
+                "Expected `kind: query`, `kind: mutation`, or `kind: server` inside `@endpoint(...)`.",
+                vec!["kind: query".into()],
+                Some(self.peek().to_string()),
+                ParseErrorClass::Declaration,
+            ));
+            return Err(());
+        }
+        self.skip_newlines();
+        let f = self.parse_fn_decl(false)?;
+        Ok(Decl::Endpoint(EndpointDecl { kind: kind.unwrap(), func: f }))
     }
 
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {

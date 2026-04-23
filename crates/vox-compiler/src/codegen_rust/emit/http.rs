@@ -1,5 +1,5 @@
 use crate::app_contract::project_app_contract;
-use crate::hir::{HirHttpMethod, HirModule, HirRoute, HirServerFn};
+use crate::hir::{HirHttpMethod, HirModule, HirRoute};
 
 use super::stmt_expr::emit_stmt;
 use super::tables::emit_db_setup;
@@ -27,11 +27,12 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
         }
     }
     // `@query` handlers are GET + query-string args; `@server` / `@mutation` stay POST + JSON body.
-    if !module.query_fns.is_empty() {
-        needs_get = true;
-    }
-    if !module.server_fns.is_empty() || !module.mutation_fns.is_empty() {
-        needs_post = true;
+    for sf in &module.endpoint_fns {
+        if sf.kind == crate::hir::HirEndpointKind::Query {
+            needs_get = true;
+        } else {
+            needs_post = true;
+        }
     }
 
     let mut routing_methods = Vec::new();
@@ -56,7 +57,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
             routing_methods.join(", ")
         ));
     }
-    if !module.query_fns.is_empty() {
+    if module.endpoint_fns.iter().any(|sf| sf.kind == crate::hir::HirEndpointKind::Query) {
         out.push_str("use axum::extract::Query;\n");
     }
     out.push_str("use axum::response::{Response, IntoResponse};\n");
@@ -193,9 +194,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str("    }\n");
 
     let has_routes = !module.routes.is_empty()
-        || !module.server_fns.is_empty()
-        || !module.query_fns.is_empty()
-        || !module.mutation_fns.is_empty();
+        || !module.endpoint_fns.is_empty();
 
     // Setup routes
     if has_routes {
@@ -269,27 +268,30 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
         out.push_str(&emit_route_handler(route, has_tables));
     }
 
-    // Generate server function handlers
-    for sf in &module.server_fns {
-        out.push_str(&emit_server_fn_handler(sf, has_tables, "handle_sf_", false));
-    }
-
-    for qf in &module.query_fns {
-        out.push_str(&emit_query_fn_handler(qf, has_tables, "handle_q_"));
-    }
-
-    for (idx, mf) in module.mutation_fns.iter().enumerate() {
-        let wrap_mutation_tx = app_contract
-            .mutation_fns
-            .get(idx)
-            .map(|c| c.wraps_db_transaction)
-            .unwrap_or(has_tables);
-        out.push_str(&emit_server_fn_handler(
-            mf,
-            has_tables,
-            "handle_m_",
-            wrap_mutation_tx,
-        ));
+    let mut mutation_idx = 0;
+    for sf in &module.endpoint_fns {
+        match sf.kind {
+            crate::hir::HirEndpointKind::Server => {
+                out.push_str(&emit_server_fn_handler(sf, has_tables, "handle_sf_", false));
+            }
+            crate::hir::HirEndpointKind::Query => {
+                out.push_str(&emit_query_fn_handler(sf, has_tables, "handle_q_"));
+            }
+            crate::hir::HirEndpointKind::Mutation => {
+                let wrap_mutation_tx = app_contract
+                    .mutation_fns
+                    .get(mutation_idx)
+                    .map(|c| c.wraps_db_transaction)
+                    .unwrap_or(has_tables);
+                out.push_str(&emit_server_fn_handler(
+                    sf,
+                    has_tables,
+                    "handle_m_",
+                    wrap_mutation_tx,
+                ));
+                mutation_idx += 1;
+            }
+        }
     }
 
     out
@@ -353,7 +355,7 @@ fn emit_route_handler(route: &HirRoute, has_tables: bool) -> String {
 
 /// Generate an Axum handler for a server function.
 fn emit_server_fn_handler(
-    sf: &HirServerFn,
+    sf: &crate::hir::HirEndpointFn,
     has_tables: bool,
     name_prefix: &str,
     wrap_mutation_tx: bool,
@@ -409,7 +411,7 @@ fn emit_server_fn_handler(
 }
 
 /// Axum GET handler for `@query`: args are JSON-encoded query values (`name=<json>`), keys sorted on the client.
-fn emit_query_fn_handler(sf: &HirServerFn, has_tables: bool, name_prefix: &str) -> String {
+fn emit_query_fn_handler(sf: &crate::hir::HirEndpointFn, has_tables: bool, name_prefix: &str) -> String {
     let mut out = String::new();
     out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
     if has_tables {

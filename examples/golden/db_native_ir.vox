@@ -4,7 +4,7 @@
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [@table, @query, db, where, select, order_by, limit]
+// constructs: [@table, @endpoint(kind: query), db, where, select, order_by, limit]
 // last_validated: 2026-03-26
 // training_eligible: true
 // training_weight: 1.0
@@ -17,7 +17,7 @@
     ok: bool
 }
 
-@query
+@endpoint(kind: query)
 fn hot_sessions() to int {
     let rows = db.SessionEvent.where({ ok: { eq: true }, latencyms: { gt: 50 } }).using("hybrid").live("session.events").scope("populi").sync().order_by("latencyms", "desc").limit(20).select("sessionid", "latencyms")
     return len(rows)

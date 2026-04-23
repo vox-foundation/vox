@@ -88,7 +88,7 @@ fn assert_golden_file(path: &Path) {
                 "server_fn_contracts": lower_summary.server_fn_contracts,
                 "query_fn_contracts": lower_summary.query_fn_contracts,
                 "mutation_contracts": lower_summary.mutation_contracts,
-                "reactive_components": lower_summary.reactive_components,
+                "components": lower_summary.components,
                 "classic_component_views_lowered": lower_summary.classic_component_views_lowered,
                 "classic_components_deferred": lower_summary.classic_components_deferred,
                 "style_rules_lowered": lower_summary.style_rules_lowered,

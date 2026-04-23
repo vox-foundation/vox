@@ -77,14 +77,7 @@ pub fn check_dead_code(module: &HirModule) -> Vec<(String, Span)> {
     for f in &module.fixtures {
         visit_fn(f, &mut used);
     }
-    for c in &module.contexts {
-        if let Some(e) = &c.default_expr {
-            visit_expr(e, &mut used);
-        }
-    }
-    for h in &module.hooks {
-        visit_fn_body(&h.body, &mut used);
-    }
+
     for p in &module.providers {
         visit_fn(&p.func, &mut used);
     }
@@ -108,17 +101,7 @@ pub fn check_dead_code(module: &HirModule) -> Vec<(String, Span)> {
         }
     }
 
-    for c in &module.contexts {
-        if !used.contains(&c.name) {
-            warnings.push((format!("context `{}` is never used", c.name), c.span));
-        }
-    }
 
-    for h in &module.hooks {
-        if !used.contains(&h.name) {
-            warnings.push((format!("hook `{}` is never used", h.name), h.span));
-        }
-    }
 
     warnings
 }

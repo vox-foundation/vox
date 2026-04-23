@@ -24,7 +24,7 @@ mod tests {
     use super::*;
     use crate::ast::span::Span;
     use crate::hir::{
-        DefId, HirActor, HirExpr, HirModule, HirRustImport, HirServerFn, HirStmt, HirTable,
+        DefId, HirActor, HirExpr, HirModule, HirRustImport, HirEndpointFn, HirStmt, HirTable,
         HirTableField, HirType, HirWorkflow,
     };
     use emit::{emit_cargo_toml, emit_main, emit_table_struct};
@@ -386,7 +386,8 @@ mod tests {
     fn emit_main_registers_query_and_mutation_routes() {
         let sp = Span::new(0, 0);
         let mut module = empty_module();
-        module.query_fns.push(HirServerFn {
+        module.endpoint_fns.push(HirEndpointFn {
+            kind: crate::hir::HirEndpointKind::Query,
             id: DefId(10),
             name: "q1".into(),
             params: vec![],
@@ -398,7 +399,8 @@ mod tests {
             route_path: "/api/query/q1".into(),
             span: sp,
         });
-        module.mutation_fns.push(HirServerFn {
+        module.endpoint_fns.push(HirEndpointFn {
+            kind: crate::hir::HirEndpointKind::Mutation,
             id: DefId(11),
             name: "m1".into(),
             params: vec![],
@@ -424,7 +426,8 @@ mod tests {
         let sp = Span::new(0, 0);
         let mut module = empty_module();
         module.tables.push(simple_task_table());
-        module.mutation_fns.push(HirServerFn {
+        module.endpoint_fns.push(HirEndpointFn {
+            kind: crate::hir::HirEndpointKind::Mutation,
             id: DefId(11),
             name: "m1".into(),
             params: vec![],

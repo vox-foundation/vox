@@ -185,25 +185,7 @@ pub fn register_hir_module(
     for f in &module.functions {
         register_hir_function(env, f, uf.as_deref_mut());
     }
-    for sf in &module.server_fns {
-        register_fn_like(
-            env,
-            &sf.params,
-            sf.return_type.as_ref(),
-            &sf.name,
-            uf.as_deref_mut(),
-        );
-    }
-    for sf in &module.query_fns {
-        register_fn_like(
-            env,
-            &sf.params,
-            sf.return_type.as_ref(),
-            &sf.name,
-            uf.as_deref_mut(),
-        );
-    }
-    for sf in &module.mutation_fns {
+    for sf in &module.endpoint_fns {
         register_fn_like(
             env,
             &sf.params,

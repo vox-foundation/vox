@@ -112,7 +112,7 @@ component T() {
     let module = parse(tokens).expect("parse T");
     let hir = vox_compiler::hir::lower_module(&module);
     let rc = hir
-        .reactive_components
+        .components
         .first()
         .expect("one reactive component");
     let view = rc.view.as_ref().expect("view");

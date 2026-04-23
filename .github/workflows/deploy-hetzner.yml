@@ -14,7 +14,7 @@ on:
 
 concurrency:
   group: deploy-vox-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   smoke-ci:

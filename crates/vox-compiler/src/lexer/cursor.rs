@@ -133,7 +133,7 @@ mod tests {
 
     #[test]
     fn test_decorators() {
-        let tokens = lex_tokens("@component @mcp.tool @mcp.resource @mobile.native @island");
+        let tokens = lex_tokens("@component @tool @mcp.tool @resource @mcp.resource @native @island");
         assert_eq!(
             tokens,
             vec![
@@ -266,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_agent_environment_tokens() {
-        let tokens = lex_tokens("agent environment migrate");
+        let tokens = lex_tokens("agent env migrate");
         assert!(tokens.contains(&Token::Agent));
         assert!(tokens.contains(&Token::Env));
         assert!(tokens.contains(&Token::Migrate));

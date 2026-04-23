@@ -105,7 +105,7 @@ fn op_s076_behavior_view_map_gate_mixed_surface_summary() {
     let module = parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
     let (_web, s) = lower_hir_to_web_ir_with_summary(&hir);
-    assert!(s.reactive_components >= 2, "{s:?}");
+    assert!(s.components >= 2, "{s:?}");
     assert_eq!(s.classic_component_views_lowered, 0, "{s:?}");
 }
 

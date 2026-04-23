@@ -26,54 +26,24 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
     for f in &module.tests {
         validate_fn(f, "test", &mut errors);
     }
-    for l in &module.layouts {
-        validate_fn(&l.func, "layout", &mut errors);
-    }
-    for p in &module.pages {
-        validate_fn(&p.func, "page", &mut errors);
-        if p.path.is_empty() {
-            errors.push(HirValidationError {
-                message: "page path is empty".into(),
-                span: p.span,
-                correction_hint: Some(
-                    "@page must declare a route path, e.g. @page(\"/about\")".into(),
-                ),
-            });
-        }
-    }
-    for s in &module.server_fns {
-        validate_name_and_params(&s.name, &s.params, s.span, "server fn", &mut errors);
+
+    for s in &module.endpoint_fns {
+        let label = match s.kind {
+            crate::hir::HirEndpointKind::Server => "server fn",
+            crate::hir::HirEndpointKind::Query => "@query fn",
+            crate::hir::HirEndpointKind::Mutation => "@mutation fn",
+        };
+        validate_name_and_params(&s.name, &s.params, s.span, label, &mut errors);
         if s.route_path.is_empty() {
+            let (hint, kind_str) = match s.kind {
+                crate::hir::HirEndpointKind::Server => ("@endpoint(kind: server) must declare a route, e.g. @endpoint(kind: server) fn foo()", "server fn"),
+                crate::hir::HirEndpointKind::Query => ("@endpoint(kind: query) must declare a route, e.g. @endpoint(kind: query) fn foo()", "@query fn"),
+                crate::hir::HirEndpointKind::Mutation => ("@endpoint(kind: mutation) must declare a route, e.g. @endpoint(kind: mutation) fn foo()", "@mutation fn"),
+            };
             errors.push(HirValidationError {
-                message: "server fn route_path is empty".into(),
+                message: format!("{kind_str} route_path is empty"),
                 span: s.span,
-                correction_hint: Some(
-                    "@server must declare a route, e.g. @server(\"/api/my-endpoint\")".into(),
-                ),
-            });
-        }
-    }
-    for s in &module.query_fns {
-        validate_name_and_params(&s.name, &s.params, s.span, "@query fn", &mut errors);
-        if s.route_path.is_empty() {
-            errors.push(HirValidationError {
-                message: "@query fn route_path is empty".into(),
-                span: s.span,
-                correction_hint: Some(
-                    "@query must declare a route, e.g. @query(\"/api/get-item\")".into(),
-                ),
-            });
-        }
-    }
-    for s in &module.mutation_fns {
-        validate_name_and_params(&s.name, &s.params, s.span, "@mutation fn", &mut errors);
-        if s.route_path.is_empty() {
-            errors.push(HirValidationError {
-                message: "@mutation fn route_path is empty".into(),
-                span: s.span,
-                correction_hint: Some(
-                    "@mutation must declare a route, e.g. @mutation(\"/api/update-item\")".into(),
-                ),
+                correction_hint: Some(hint.into()),
             });
         }
     }
@@ -349,7 +319,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         }
     }
 
-    for rc in &module.reactive_components {
+    for rc in &module.components {
         validate_name_and_params(
             &rc.name,
             &rc.params,

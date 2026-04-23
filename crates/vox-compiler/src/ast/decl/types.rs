@@ -130,6 +130,8 @@ pub enum Decl {
     Query(QueryDecl),
     /// Transactional write function.
     Mutation(MutationDecl),
+    /// Unified endpoint function (`@endpoint`).
+    Endpoint(EndpointDecl),
 
     /// Packaged LLM / tool skill.
     Skill(SkillDecl),
@@ -202,6 +204,7 @@ impl Decl {
             Decl::Impl(i) => i.span,
             Decl::Query(q) => q.func.span,
             Decl::Mutation(m) => m.func.span,
+            Decl::Endpoint(e) => e.func.span,
 
             Decl::Skill(s) => s.func.span,
             Decl::AgentDef(ad) => ad.func.span,

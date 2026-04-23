@@ -38,9 +38,9 @@ fn emit_main_registers_query_get_before_fallback() {
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);
     assert!(
-        hir.query_fns.len() == 1,
+        hir.endpoint_fns.len() == 1,
         "fixture should contain one @query: {:?}",
-        hir.query_fns
+        hir.endpoint_fns
     );
     let main_rs = emit_main(&hir, "demo");
     let fallback = main_rs.find(".fallback(serve_dispatch)").expect("fallback");

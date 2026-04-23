@@ -1,9 +1,8 @@
 use crate::ast::scalar_mapping::VoxScalar;
-use crate::hir::{HirModule, HirServerFn, HirType};
+use crate::hir::{HirModule, HirType};
 
 pub fn emit_api_client(module: &HirModule) -> String {
-    if module.server_fns.is_empty() && module.query_fns.is_empty() && module.mutation_fns.is_empty()
-    {
+    if module.endpoint_fns.is_empty() {
         return String::new();
     }
 
@@ -14,20 +13,15 @@ pub fn emit_api_client(module: &HirModule) -> String {
 
     out.push_str("const API_BASE = '';\n\n");
 
-    for sf in &module.server_fns {
-        out.push_str(&emit_api_ts_fn(sf, false));
-    }
-    for qf in &module.query_fns {
-        out.push_str(&emit_api_ts_fn(qf, true));
-    }
-    for mf in &module.mutation_fns {
-        out.push_str(&emit_api_ts_fn(mf, false));
+    for sf in &module.endpoint_fns {
+        let is_query = sf.kind == crate::hir::HirEndpointKind::Query;
+        out.push_str(&emit_api_ts_fn(sf, is_query));
     }
 
     out
 }
 
-fn emit_api_ts_fn(sf: &HirServerFn, is_query: bool) -> String {
+fn emit_api_ts_fn(sf: &crate::hir::HirEndpointFn, is_query: bool) -> String {
     let params: Vec<String> = sf
         .params
         .iter()

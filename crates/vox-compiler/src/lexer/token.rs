@@ -112,6 +112,8 @@ pub enum Token {
     AtMcpResource,
     #[token("@test")]
     AtTest,
+    #[token("@endpoint")]
+    AtEndpoint,
     #[token("@server")]
     AtServer,
     #[token("@query")]
@@ -366,6 +368,7 @@ impl std::fmt::Display for Token {
             Token::AtResource => write!(f, "@resource"),
             Token::AtMcpResource => write!(f, "@mcp.resource"),
             Token::AtTest => write!(f, "@test"),
+            Token::AtEndpoint => write!(f, "@endpoint"),
             Token::AtServer => write!(f, "@server"),
             Token::AtQuery => write!(f, "@query"),
             Token::AtMutation => write!(f, "@mutation"),

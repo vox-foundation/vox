@@ -1,9 +1,8 @@
 use super::*;
-use crate::ast::decl::{Decl, ImportPathKind, ReactiveMemberDecl, RoutesParseSummary};
+use crate::ast::decl::{Decl, ImportPathKind, RoutesParseSummary};
 use crate::ast::expr::{BinOp, Expr};
 use crate::ast::stmt::Stmt;
 use crate::lexer::cursor::lex;
-use crate::parser::ParseErrorClass;
 
 fn parse_str(source: &str) -> Module {
     let tokens = lex(source);
@@ -92,28 +91,18 @@ fn test_parse_loading_decl() {
 }
 
 #[test]
-fn test_parse_at_component_reactive_path_c() {
-    let m =
-        parse_str("@component Widget(x: int) {\n  state n: int = x\n  view: <span>{n}</span>\n}");
-    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
-        assert_eq!(r.name, "Widget");
-        assert_eq!(r.params.len(), 1);
-        assert_eq!(r.members.len(), 1);
-        assert!(r.view.is_some());
-    } else {
-        panic!("Expected Decl::ReactiveComponent for @component Path C form");
-    }
+fn test_parse_at_component_reactive_path_c_is_tombstoned() {
+    assert_parse_fails("@component Widget(x: int) {\n  state n: int = x\n  view: <span>{n}</span>\n}");
 }
 
 #[test]
-fn test_parse_http_route() {
-    let m = parse_str("http post \"/api/chat\" to Result { return 0 }");
-    assert!(matches!(&m.declarations[0], Decl::HttpRoute(r) if r.path == "/api/chat"));
+fn test_parse_http_route_is_tombstoned() {
+    assert_parse_fails("http post \"/api/chat\" to Result { return 0 }");
 }
 
 #[test]
 fn test_parse_match() {
-    let m = parse_str("fn f() { match x { Ok(r) -> r\n Error(e) -> e\n } }");
+    let m = parse_str("fn f() { match x { Ok(r) => r\n Error(e) => e\n } }");
     if let Decl::Function(f) = &m.declarations[0] {
         if let Stmt::Expr {
             expr: Expr::Match { arms, .. },
@@ -465,37 +454,10 @@ fn test_parse_routes_root_and_nested_path_literals() {
 }
 
 #[test]
-fn test_parse_reactive_effect_mount_cleanup_view() {
-    let m = parse_str(
+fn test_parse_reactive_effect_mount_cleanup_view_is_tombstoned() {
+    assert_parse_fails(
         "@component Demo(x: int) {\n  state n: int = x\n  effect: { }\n  on mount: { }\n  on cleanup: { }\n  view: <span>{n}</span>\n}",
     );
-    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
-        assert_eq!(r.name, "Demo");
-        assert!(
-            r.members
-                .iter()
-                .any(|m| matches!(m, ReactiveMemberDecl::Effect(_))),
-            "expected effect member"
-        );
-        assert!(
-            r.members
-                .iter()
-                .any(|m| matches!(m, ReactiveMemberDecl::OnMount(_))),
-            "expected mount member"
-        );
-        assert!(
-            r.members
-                .iter()
-                .any(|m| matches!(m, ReactiveMemberDecl::OnCleanup(_))),
-            "expected cleanup member"
-        );
-        assert!(r.view.is_some());
-    } else {
-        panic!(
-            "Expected Decl::ReactiveComponent, got {:?}",
-            m.declarations[0]
-        );
-    }
 }
 
 #[test]
@@ -557,18 +519,6 @@ fn test_routes_parse_summary_matches_paths() {
     }
 }
 
-/// OP-0029: misplaced `view` JSX without `view:` is a hard parse failure (colon expectation).
-#[test]
-fn test_reactive_body_unknown_token_diagnostic_class() {
-    let tokens = lex("@component Bad() {\n  view <div />\n}");
-    let err = parse(tokens).expect_err("expected parse failure");
-    assert!(
-        err.iter().any(
-            |e| e.class == ParseErrorClass::ExpectToken || e.class == ParseErrorClass::TopLevel
-        ),
-        "{err:?}"
-    );
-}
 
 /// OP-0015: syntax inventory strings remain wired for tooling/docs extraction.
 #[test]

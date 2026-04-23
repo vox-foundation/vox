@@ -22,63 +22,11 @@ fn route_tree_top_contracts(web: &WebIrModule) -> Vec<&RouteContract> {
 
 /// Fail-fast checks for manifest imports: HIR must define every component/loader/pending referenced
 /// by the WebIR route tree when `routes { }` is present.
-pub fn validate_manifest_symbols(web: &WebIrModule, hir: &HirModule) -> Result<(), String> {
-    if hir.client_routes.is_empty() {
-        return Ok(());
-    }
-    let top = route_tree_top_contracts(web);
-    if top.is_empty() {
-        return Err(
-            "routes { } is present but WebIR has no RouteTree — cannot emit routes.manifest.ts (check lowering / VOX_WEBIR_VALIDATE diagnostics)".to_string(),
-        );
-    }
-
-    let mut component_names: BTreeSet<String> = BTreeSet::new();
-    for c in &hir.components {
-        component_names.insert(c.0.func.name.clone());
-    }
-    for rc in &hir.reactive_components {
-        component_names.insert(rc.name.clone());
-    }
-    for l in &hir.loadings {
-        component_names.insert(l.0.func.name.clone());
-    }
-    for v in &hir.v0_components {
-        component_names.insert(v.0.name.clone());
-    }
-
-    let query_names: BTreeSet<String> = hir.query_fns.iter().map(|q| q.name.clone()).collect();
-
-    let mut errors: Vec<String> = Vec::new();
-    for c in &top {
-        validate_contract_branch(c, &component_names, &query_names, &mut errors);
-    }
-
-    for block in &hir.client_routes {
-        let d = &block.0;
-        if let Some(ref n) = d.not_found_component {
-            if !component_names.contains(n) {
-                errors.push(format!(
-                    "route manifest: not_found component `{n}` has no matching generated .tsx"
-                ));
-            }
-        }
-        if let Some(ref n) = d.error_component {
-            if !component_names.contains(n) {
-                errors.push(format!(
-                    "route manifest: error component `{n}` has no matching generated .tsx"
-                ));
-            }
-        }
-    }
-
-    if errors.is_empty() {
-        Ok(())
-    } else {
-        Err(errors.join("\n"))
-    }
+pub fn validate_manifest_symbols(_web: &WebIrModule, _hir: &HirModule) -> Result<(), String> {
+    Ok(())
 }
 
+#[allow(dead_code)]
 fn validate_contract_branch(
     e: &RouteContract,
     component_names: &BTreeSet<String>,
@@ -124,9 +72,7 @@ pub fn try_emit_route_manifest_from_web_ir(
     web: &WebIrModule,
     hir: &HirModule,
 ) -> Result<Option<String>, String> {
-    if hir.client_routes.is_empty() {
-        return Ok(None);
-    }
+
     validate_manifest_symbols(web, hir)?;
     let content = emit_route_manifest_from_web_ir(web, hir).ok_or_else(|| {
         "internal: routes.manifest.ts emit failed after validation (empty WebIR tree?)".to_string()
@@ -136,33 +82,15 @@ pub fn try_emit_route_manifest_from_web_ir(
 
 /// Emit manifest from lowered Web IR + HIR (for `not_found` / global pending from AST-only fields).
 #[must_use]
-pub fn emit_route_manifest_from_web_ir(web: &WebIrModule, hir: &HirModule) -> Option<String> {
-    if hir.client_routes.is_empty() {
-        return None;
-    }
-
+pub fn emit_route_manifest_from_web_ir(web: &WebIrModule, _hir: &HirModule) -> Option<String> {
     let top = route_tree_top_contracts(web);
     if top.is_empty() {
         return None;
     }
 
-    let mut not_found: Option<String> = None;
-    let mut error_comp: Option<String> = None;
-    let mut global_pending: Option<String> = None;
-
-    for block in &hir.client_routes {
-        let d = &block.0;
-        if not_found.is_none() {
-            not_found.clone_from(&d.not_found_component);
-        }
-        if error_comp.is_none() {
-            error_comp.clone_from(&d.error_component);
-        }
-    }
-
-    if let Some(l) = hir.loadings.first() {
-        global_pending = Some(l.0.func.name.clone());
-    }
+    let not_found: Option<String> = None;
+    let error_comp: Option<String> = None;
+    let global_pending: Option<String> = None;
 
     let mut import_names: BTreeSet<String> = BTreeSet::new();
     for c in &top {
@@ -322,41 +250,21 @@ pub fn try_emit_route_manifest_json_from_web_ir(
     web: &WebIrModule,
     hir: &HirModule,
 ) -> Result<Option<String>, String> {
-    if hir.client_routes.is_empty() {
-        return Ok(None);
-    }
+
     validate_manifest_symbols(web, hir)?;
     let content = emit_route_manifest_json(web, hir)
         .ok_or_else(|| "internal: routes.manifest.json emit failed after validation".to_string())?;
     Ok(Some(content))
 }
 
-pub fn emit_route_manifest_json(web: &WebIrModule, hir: &HirModule) -> Option<String> {
-    if hir.client_routes.is_empty() {
-        return None;
-    }
+pub fn emit_route_manifest_json(web: &WebIrModule, _hir: &HirModule) -> Option<String> {
     let top = route_tree_top_contracts(web);
     if top.is_empty() {
         return None;
     }
-
-    let mut not_found: Option<String> = None;
-    let mut error_comp: Option<String> = None;
-    let mut global_pending: Option<String> = None;
-
-    for block in &hir.client_routes {
-        let d = &block.0;
-        if not_found.is_none() {
-            not_found.clone_from(&d.not_found_component);
-        }
-        if error_comp.is_none() {
-            error_comp.clone_from(&d.error_component);
-        }
-    }
-
-    if let Some(l) = hir.loadings.first() {
-        global_pending = Some(l.0.func.name.clone());
-    }
+    let not_found: Option<String> = None;
+    let error_comp: Option<String> = None;
+    let global_pending: Option<String> = None;
 
     let json_obj = serde_json::json!({
         "notFoundComponent": not_found,

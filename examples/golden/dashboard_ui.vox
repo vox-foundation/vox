@@ -26,7 +26,5 @@ component DashboardView() {
     </div>
 }
 
-routes {
-    "/" to DashboardView
-}
+
 // ANCHOR_END: display
