@@ -10,7 +10,7 @@ name: vox-eval-sandbox
 services:
   eval:
     build:
-      context: ..
+      context: .
       dockerfile: Dockerfile
       args:
         # Only compile the MCP HTTP gateway feature; omit everything else.
