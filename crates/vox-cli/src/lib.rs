@@ -449,6 +449,13 @@ pub enum Cli {
         #[command(subcommand)]
         action: commands::openclaw::OpenClawAction,
     },
+    /// Manage and inspect Vox safety, coherence, and agent guardrails.
+    #[cfg(feature = "dei")]
+    Safety {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::safety::SafetyCommand,
+    },
     /// CI guards: manifest, SSOT checks, feature matrix, doc inventory (no shell/Python required).
     Ci {
         /// Subcommand.

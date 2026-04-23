@@ -2,6 +2,12 @@
 //!
 //! [`ContextStore`] is snapshot-friendly and backs cross-agent coordination without
 //! hitting the database for ephemeral coordination state.
+
+pub mod injection_policy;
+pub mod token_optimization;
+
+pub use injection_policy::*;
+pub use token_optimization::*;
 use std::sync::Arc;
 
 use std::collections::HashMap;

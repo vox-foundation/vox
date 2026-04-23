@@ -59,6 +59,12 @@ pub struct TaskCapabilityHints {
     /// Hardware/inference tier (e.g., "local").
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub routing_tier: Option<String>,
+    /// When true, Socrates low-confidence warnings cannot be bypassed by the agent.
+    #[serde(default)]
+    pub is_low_confidence_bypass_blocked: bool,
+    /// When true, force a Socratic research pass even if confidence is moderate.
+    #[serde(default)]
+    pub force_socrates_research: bool,
 }
 
 /// Markers for tooling gates (Cargo, Node, etc.).

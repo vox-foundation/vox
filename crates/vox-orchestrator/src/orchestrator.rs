@@ -40,6 +40,7 @@ pub mod task_dispatch;
 /// Error type for orchestrator operations.
 pub mod types;
 pub mod workflow_bridge;
+pub mod safety;
 
 #[cfg(test)]
 mod tests;
@@ -115,4 +116,12 @@ pub struct Orchestrator {
     pub stop_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
     /// Cumulative Tavily search credits used in the current session.
     pub tavily_credits_used: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    /// Cryptographic tool receipt ledger.
+    pub tool_ledger: std::sync::Arc<std::sync::RwLock<crate::tool_receipt::ToolReceiptLedger>>,
+    /// Generic resource lock manager.
+    pub resource_locks: crate::locks::ResourceLockManager,
+    /// PII-aware privacy router.
+    pub privacy_router: std::sync::Arc<std::sync::RwLock<crate::privacy_router::PrivacyRouter>>,
+    /// Cross-model consensus judge.
+    pub judge_model: std::sync::Arc<std::sync::RwLock<crate::judge_model::JudgeModel>>,
 }

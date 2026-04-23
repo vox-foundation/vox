@@ -36,6 +36,8 @@ pub struct CostDefenseConfig {
     pub monthly_pacing_warn_pct: f64,
     /// Monthly budget ceiling in USD (Layer 5 denominator).
     pub monthly_budget_usd: f64,
+    /// Per-tenant daily budget ceilings in USD. Key = tenant_id.
+    pub tenant_daily_caps: HashMap<String, f64>,
     /// Allowed model tier names when `model_pinning_enabled` is true.
     /// Tasks requesting a tier not in this list are rejected.
     pub allowed_model_tiers: Vec<String>,
@@ -50,6 +52,7 @@ impl Default for CostDefenseConfig {
             model_pinning_enabled: true,
             monthly_pacing_warn_pct: 0.80,
             monthly_budget_usd: 500.0,
+            tenant_daily_caps: HashMap::new(),
             allowed_model_tiers: vec![
                 "local".to_string(),
                 "mid".to_string(),
@@ -78,6 +81,12 @@ pub enum CostDefenseRejection {
     ModelNotPinned { requested_tier: String },
     /// Layer 5: monthly pacing threshold breached (warning, not hard block).
     MonthlyPacingWarning { spent_usd: f64, warn_at_usd: f64 },
+    /// Layer 6: Tenant-specific daily budget is exhausted.
+    TenantBudgetExhausted {
+        tenant_id: String,
+        spent_usd: f64,
+        limit_usd: f64,
+    },
 }
 
 /// Mutable state tracked by the circuit breaker across tasks.
@@ -87,15 +96,18 @@ pub struct CostDefenseState {
     pub daily_spent_usd: f64,
     /// Cumulative USD spent this month.
     pub monthly_spent_usd: f64,
+    /// Per-tenant USD spent today. Key = tenant_id.
+    pub tenant_spent_usd: HashMap<String, f64>,
     /// Per-task retry counters for the current day. Key = task_id.
     pub task_retry_counts: HashMap<String, u32>,
 }
 
 impl CostDefenseState {
     /// Record a completed task's cost.
-    pub fn record_cost(&mut self, cost_usd: f64) {
+    pub fn record_cost(&mut self, tenant_id: &str, cost_usd: f64) {
         self.daily_spent_usd += cost_usd;
         self.monthly_spent_usd += cost_usd;
+        *self.tenant_spent_usd.entry(tenant_id.to_string()).or_insert(0.0) += cost_usd;
     }
 
     /// Record a retry attempt for a task.
@@ -109,6 +121,7 @@ impl CostDefenseState {
     /// Reset daily counters (e.g. at midnight).
     pub fn reset_daily(&mut self) {
         self.daily_spent_usd = 0.0;
+        self.tenant_spent_usd.clear();
         self.task_retry_counts.clear();
     }
 
@@ -150,6 +163,7 @@ impl CostCircuitBreaker {
         &self,
         estimated_duration_secs: u64,
         task_id: &str,
+        tenant_id: &str,
         requested_model_tier: &str,
         estimated_cost_usd: f64,
     ) -> Vec<CostDefenseRejection> {
@@ -217,6 +231,18 @@ impl CostCircuitBreaker {
             });
         }
 
+        // Layer 6: Tenant budget isolation
+        if let Some(limit_usd) = self.config.tenant_daily_caps.get(tenant_id) {
+            let spent = self.state.tenant_spent_usd.get(tenant_id).copied().unwrap_or(0.0);
+            if spent + estimated_cost_usd > *limit_usd {
+                rejections.push(CostDefenseRejection::TenantBudgetExhausted {
+                    tenant_id: tenant_id.to_string(),
+                    spent_usd: spent,
+                    limit_usd: *limit_usd,
+                });
+            }
+        }
+
         rejections
     }
 
@@ -228,8 +254,8 @@ impl CostCircuitBreaker {
     }
 
     /// Record a completed task's cost and update state.
-    pub fn record_task_completion(&mut self, task_id: &str, actual_cost_usd: f64) {
-        self.state.record_cost(actual_cost_usd);
+    pub fn record_task_completion(&mut self, task_id: &str, tenant_id: &str, actual_cost_usd: f64) {
+        self.state.record_cost(tenant_id, actual_cost_usd);
         self.state.record_retry(task_id);
     }
 }
@@ -245,7 +271,7 @@ mod tests {
     #[test]
     fn layer1_timeout_blocks_long_tasks() {
         let cb = default_breaker();
-        let r = cb.check_before_task(600, "t1", "local", 0.01);
+        let r = cb.check_before_task(600, "t1", "tenant-1", "local", 0.01);
         assert!(
             r.iter()
                 .any(|x| matches!(x, CostDefenseRejection::TaskTimeout { .. }))
@@ -255,7 +281,7 @@ mod tests {
     #[test]
     fn layer1_timeout_allows_short_tasks() {
         let cb = default_breaker();
-        let r = cb.check_before_task(60, "t1", "local", 0.01);
+        let r = cb.check_before_task(60, "t1", "tenant-1", "local", 0.01);
         assert!(
             !r.iter()
                 .any(|x| matches!(x, CostDefenseRejection::TaskTimeout { .. }))
@@ -268,7 +294,7 @@ mod tests {
         for _ in 0..3 {
             cb.state.record_retry("t1");
         }
-        let r = cb.check_before_task(10, "t1", "local", 0.01);
+        let r = cb.check_before_task(10, "t1", "tenant-1", "local", 0.01);
         assert!(
             r.iter()
                 .any(|x| matches!(x, CostDefenseRejection::RetryLimitExceeded { .. }))
@@ -279,7 +305,7 @@ mod tests {
     fn layer3_daily_budget_kill_switch() {
         let mut cb = default_breaker();
         cb.state.daily_spent_usd = 24.0;
-        let r = cb.check_before_task(10, "t1", "local", 2.0);
+        let r = cb.check_before_task(10, "t1", "tenant-1", "local", 2.0);
         assert!(
             r.iter()
                 .any(|x| matches!(x, CostDefenseRejection::DailyBudgetExhausted { .. }))
@@ -290,7 +316,7 @@ mod tests {
     fn layer3_daily_budget_allows_within_limit() {
         let mut cb = default_breaker();
         cb.state.daily_spent_usd = 10.0;
-        let r = cb.check_before_task(10, "t1", "local", 5.0);
+        let r = cb.check_before_task(10, "t1", "tenant-1", "local", 5.0);
         assert!(
             !r.iter()
                 .any(|x| matches!(x, CostDefenseRejection::DailyBudgetExhausted { .. }))
@@ -300,7 +326,7 @@ mod tests {
     #[test]
     fn layer4_model_pinning_blocks_unknown_tier() {
         let cb = default_breaker();
-        let r = cb.check_before_task(10, "t1", "super-premium", 0.01);
+        let r = cb.check_before_task(10, "t1", "tenant-1", "super-premium", 0.01);
         assert!(
             r.iter()
                 .any(|x| matches!(x, CostDefenseRejection::ModelNotPinned { .. }))
@@ -310,7 +336,7 @@ mod tests {
     #[test]
     fn layer4_model_pinning_allows_known_tier() {
         let cb = default_breaker();
-        let r = cb.check_before_task(10, "t1", "mid", 0.01);
+        let r = cb.check_before_task(10, "t1", "tenant-1", "mid", 0.01);
         assert!(
             !r.iter()
                 .any(|x| matches!(x, CostDefenseRejection::ModelNotPinned { .. }))
@@ -321,7 +347,7 @@ mod tests {
     fn layer5_monthly_pacing_warning() {
         let mut cb = default_breaker();
         cb.state.monthly_spent_usd = 450.0; // > 80% of 500
-        let r = cb.check_before_task(10, "t1", "local", 1.0);
+        let r = cb.check_before_task(10, "t1", "tenant-1", "local", 1.0);
         assert!(
             r.iter()
                 .any(|x| matches!(x, CostDefenseRejection::MonthlyPacingWarning { .. }))
@@ -349,9 +375,10 @@ mod tests {
     #[test]
     fn record_task_completion_updates_state() {
         let mut cb = default_breaker();
-        cb.record_task_completion("t1", 1.50);
+        cb.record_task_completion("t1", "tenant-1", 1.50);
         assert!((cb.state.daily_spent_usd - 1.5).abs() < f64::EPSILON);
         assert!((cb.state.monthly_spent_usd - 1.5).abs() < f64::EPSILON);
+        assert_eq!(cb.state.tenant_spent_usd.get("tenant-1"), Some(&1.5));
         assert_eq!(cb.state.task_retry_counts.get("t1"), Some(&1));
     }
 
@@ -379,7 +406,21 @@ mod tests {
     #[test]
     fn clean_task_no_rejections() {
         let cb = default_breaker();
-        let r = cb.check_before_task(60, "t1", "local", 0.50);
+        let r = cb.check_before_task(60, "t1", "tenant-1", "local", 0.50);
         assert!(r.is_empty(), "clean task should pass all layers: {:?}", r);
+    }
+
+    #[test]
+    fn layer6_tenant_budget_enforced() {
+        let mut cfg = CostDefenseConfig::default();
+        cfg.tenant_daily_caps.insert("expensive-tenant".into(), 10.0);
+        let mut cb = CostCircuitBreaker::new(cfg);
+        cb.state.record_cost("expensive-tenant", 9.0);
+        
+        let r = cb.check_before_task(10, "t1", "expensive-tenant", 2.0);
+        assert!(
+            r.iter()
+                .any(|x| matches!(x, CostDefenseRejection::TenantBudgetExhausted { .. }))
+        );
     }
 }

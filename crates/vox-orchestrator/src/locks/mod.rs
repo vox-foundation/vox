@@ -2,8 +2,10 @@
 
 mod lease;
 mod refresh;
+mod resource;
 
 pub use lease::*;
+pub use resource::*;
 
 use std::collections::HashMap;
 use std::path::PathBuf;

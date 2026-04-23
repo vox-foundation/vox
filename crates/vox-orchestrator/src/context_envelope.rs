@@ -138,7 +138,7 @@ pub enum ContextInjectionMode {
 }
 
 /// Priority used by context budget policy.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ContextPriority {
     Low,

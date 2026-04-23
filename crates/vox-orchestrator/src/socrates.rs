@@ -130,6 +130,7 @@ impl SessionRetrievalEnvelope {
             orient_report: None,
             answered_questions: vec![],
             research_model_enabled: false,
+            fabricated_tool_claims: None,
         }
     }
 }
@@ -223,6 +224,9 @@ pub struct SocratesTaskContext {
     /// When true, upstream routing may prefer the dedicated research adapter (Lane G) when wired.
     #[serde(default)]
     pub research_model_enabled: bool,
+    /// Receipt IDs claimed by the agent that were not found or verified in the ledger.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fabricated_tool_claims: Option<Vec<String>>,
 }
 
 /// Result of applying the completion gate.
@@ -299,6 +303,23 @@ pub fn evaluate_socrates_gate(
         // This forces either explicit manual override or strict compliance to prevent sloppy
         // commits when the human is compromised due to burnout/late hours.
         confidence = (confidence - 0.40).clamp(0.0, 1.0);
+    }
+
+    if let Some(ref fabricated) = ctx.fabricated_tool_claims {
+        if !fabricated.is_empty() {
+            // Hard block on fabricated tool calls.
+            return SocratesGateOutcome {
+                decision: RiskDecision::Abstain,
+                confidence: 0.0,
+                contradiction_ratio: 1.0,
+                band: RiskBand::Low,
+                research_decision: SocratesResearchDecision {
+                    should_research: false,
+                    trigger: format!("Fabricated tool receipts detected: {:?}", fabricated),
+                    suggested_query: None,
+                },
+            };
+        }
     }
 
     let band = policy.classify_risk(confidence, contradiction_ratio, ctx.citation_coverage);
@@ -415,6 +436,7 @@ pub fn spawn_socrates_research_poller(orch: std::sync::Arc<crate::Orchestrator>)
                         if let Ok(task_id) = task_res {
                             let socrates_context = SocratesTaskContext {
                                 required_citations: 1,
+                                fabricated_tool_claims: None,
                                 ..Default::default()
                             };
                             let _ = orch.attach_socrates_context(task_id, socrates_context);

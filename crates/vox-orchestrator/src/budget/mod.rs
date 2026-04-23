@@ -152,6 +152,40 @@ pub enum BudgetSignal {
         tool_key: String,
         default_budget_ms: u64,
     },
+    /// Circuit breaker fired: agent appears to be in an infinite loop or making no progress.
+    HaltAgent {
+        reason: String,
+    },
+    /// Warning: agent has made many consecutive tool calls without user interaction.
+    DoomLoopSuspect {
+        consecutive_calls: u32,
+    },
+}
+
+/// A record of a single agent iteration for drift detection.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DriftRecord {
+    pub iteration: u32,
+    pub token_cost: u64,
+    pub output_fingerprint: u64,
+    pub timestamp_ms: u64,
+}
+
+/// Decision from the drift detector.
+#[derive(Debug, Clone, PartialEq)]
+pub enum DriftDecision {
+    Continue,
+    WarnUser { iterations: u32, cost_usd: f64 },
+    HaltAgent { reason: String },
+}
+
+/// Internal state for tracking agent semantic drift.
+#[derive(Debug, Clone, Default)]
+pub struct DriftState {
+    pub records: VecDeque<DriftRecord>,
+    pub consecutive_tool_calls: u32,
+    pub drift_streak: u32,
+    pub cost_since_drift_start: f64,
 }
 
 /// Tracks agent context budgets globally.
@@ -167,6 +201,8 @@ pub struct BudgetManager {
     pub(crate) global_financial_cost_micros: Arc<std::sync::atomic::AtomicI64>,
     pub(crate) execution_time_budget_multiplier: Arc<std::sync::atomic::AtomicU64>,
     pub(crate) local_inference_tokens: Arc<std::sync::atomic::AtomicU64>,
+    pub(crate) drift: Arc<std::sync::RwLock<HashMap<AgentId, DriftState>>>,
+    pub(crate) drift_cost_threshold_usd: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl BudgetManager {
@@ -184,6 +220,10 @@ impl BudgetManager {
             )),
             local_inference_tokens: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             db: Arc::new(std::sync::RwLock::new(db)),
+            drift: Arc::new(std::sync::RwLock::new(HashMap::new())),
+            drift_cost_threshold_usd: Arc::new(std::sync::atomic::AtomicU64::new(
+                0.5f64.to_bits(),
+            )),
         }
     }
 
@@ -285,6 +325,14 @@ impl BudgetManager {
         let inc_micros = (cost_usd * 1_000_000.0).round() as i64;
         self.global_financial_cost_micros
             .fetch_add(inc_micros, std::sync::atomic::Ordering::Relaxed);
+
+        // Update drift cost tracking
+        let mut drift_map = sync_lock::rw_write(&*self.drift);
+        if let Some(state) = drift_map.get_mut(&agent_id) {
+            if state.drift_streak > 0 {
+                state.cost_since_drift_start += cost_usd;
+            }
+        }
     }
 
     pub fn check_budget(&self, agent_id: AgentId) -> Option<ContextBudget> {
@@ -332,10 +380,107 @@ impl BudgetManager {
                     tokens_remaining: b.tokens_available(),
                 }
             } else {
+                let drift_map = sync_lock::rw_read(&*self.drift);
+                if let Some(state) = drift_map.get(&agent_id) {
+                    if state.drift_streak >= 3 {
+                        return BudgetSignal::HaltAgent {
+                            reason: format!(
+                                "Semantic drift detected: {} identical iterations costing ${:.4}",
+                                state.drift_streak, state.cost_since_drift_start
+                            ),
+                        };
+                    }
+                    if state.consecutive_tool_calls >= 25 {
+                        return BudgetSignal::DoomLoopSuspect {
+                            consecutive_calls: state.consecutive_tool_calls,
+                        };
+                    }
+                }
                 BudgetSignal::Normal { usage_ratio: ratio }
             }
         } else {
             BudgetSignal::Normal { usage_ratio: 0.0 }
+        }
+    }
+
+    /// Record agent output and check for semantic drift (identical repeating outputs).
+    pub fn record_iteration_output(
+        &self,
+        agent_id: AgentId,
+        output_text: &str,
+        is_tool_call: bool,
+    ) -> DriftDecision {
+        let mut drift_map = sync_lock::rw_write(&*self.drift);
+        let state = drift_map.entry(agent_id).or_default();
+
+        if is_tool_call {
+            state.consecutive_tool_calls += 1;
+        } else {
+            state.consecutive_tool_calls = 0;
+        }
+
+        // Fingerprint the last part of the output (most relevant for loops)
+        let sample = if output_text.len() > 512 {
+            &output_text[output_text.len() - 512..]
+        } else {
+            output_text
+        };
+        let fingerprint = vox_crypto::fast_hash(sample.as_bytes());
+
+        let matched = state
+            .records
+            .iter()
+            .any(|r| r.output_fingerprint == fingerprint);
+
+        if matched {
+            state.drift_streak += 1;
+        } else {
+            state.drift_streak = 0;
+            state.cost_since_drift_start = 0.0;
+        }
+
+        // Keep last 5 records
+        let timestamp_ms = chrono::Utc::now().timestamp_millis() as u64;
+        let iteration = state.records.front().map(|r| r.iteration + 1).unwrap_or(1);
+        state.records.push_front(DriftRecord {
+            iteration,
+            token_cost: 0, // Filled by record_usage/cost separately or could pass here
+            output_fingerprint: fingerprint,
+            timestamp_ms,
+        });
+        if state.records.len() > 5 {
+            state.records.pop_back();
+        }
+
+        let threshold = f64::from_bits(
+            self.drift_cost_threshold_usd
+                .load(std::sync::atomic::Ordering::Relaxed),
+        );
+
+        if state.drift_streak >= 3 && state.cost_since_drift_start > threshold {
+            DriftDecision::HaltAgent {
+                reason: format!(
+                    "Semantic drift: repeating output for {} iterations (cost: ${:.4})",
+                    state.drift_streak, state.cost_since_drift_start
+                ),
+            }
+        } else if state.drift_streak >= 2 {
+            DriftDecision::WarnUser {
+                iterations: state.drift_streak,
+                cost_usd: state.cost_since_drift_start,
+            }
+        } else {
+            DriftDecision::Continue
+        }
+    }
+
+    /// Reset drift tracking for an agent (called when progress is made).
+    pub fn reset_drift(&self, agent_id: AgentId) {
+        let mut drift_map = sync_lock::rw_write(&*self.drift);
+        if let Some(state) = drift_map.get_mut(&agent_id) {
+            state.drift_streak = 0;
+            state.cost_since_drift_start = 0.0;
+            state.consecutive_tool_calls = 0;
         }
     }
 

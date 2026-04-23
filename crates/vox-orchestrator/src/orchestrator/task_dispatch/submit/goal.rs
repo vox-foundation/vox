@@ -121,6 +121,7 @@ fn socrates_task_from_search_pass(
         orient_report: None,
         answered_questions: vec![],
         research_model_enabled: false,
+        fabricated_tool_claims: None,
     }
 }
 
@@ -216,6 +217,7 @@ impl Orchestrator {
             orient_report: None,
             answered_questions: vec![],
             research_model_enabled: false,
+            fabricated_tool_claims: None,
         };
         ctx
     }

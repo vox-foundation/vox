@@ -440,4 +440,8 @@ pub struct OrchestratorConfig {
     /// Minimum evidence quality [0, 1] to skip iterative hops (default: 0.8).
     #[serde(default = "default_research_quality_target")]
     pub research_quality_target: f64,
+    /// Persistent HMAC key (32 bytes hex) for the tool receipt ledger.
+    /// If empty, a new key is generated each session (ephemeral).
+    #[serde(default)]
+    pub tool_ledger_key: String,
 }

@@ -88,6 +88,8 @@ pub mod play;
 pub mod pm;
 pub mod pm_lifecycle;
 pub mod repair;
+#[cfg(feature = "dei")]
+pub mod safety;
 
 /// Explicit multi-repo catalog and read-only polyrepo queries (`vox repo`).
 pub mod repo;

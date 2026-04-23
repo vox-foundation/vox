@@ -70,6 +70,14 @@ impl crate::orchestrator::Orchestrator {
             tavily_credits_used: Arc::new(AtomicUsize::new(0)),
             remote_populi_routing_hints: Arc::new(RwLock::new(Vec::new())),
             stop_flag: Arc::new(AtomicBool::new(false)),
+            tool_ledger: Arc::new(RwLock::new(crate::tool_receipt::ToolReceiptLedger::from_config(&config))),
+            resource_locks: crate::locks::ResourceLockManager::new(),
+            privacy_router: Arc::new(RwLock::new(crate::privacy_router::PrivacyRouter::new(
+                crate::privacy_router::PrivacyRoutingPolicy::default(),
+            ))),
+            judge_model: Arc::new(RwLock::new(crate::judge_model::JudgeModel::new(
+                crate::judge_model::JudgePolicy::Never,
+            ))),
         }
     }
 
@@ -130,6 +138,14 @@ impl crate::orchestrator::Orchestrator {
             tavily_credits_used: Arc::new(AtomicUsize::new(0)),
             remote_populi_routing_hints: Arc::new(RwLock::new(Vec::new())),
             stop_flag: Arc::new(AtomicBool::new(false)),
+            tool_ledger: Arc::new(RwLock::new(crate::tool_receipt::ToolReceiptLedger::from_config(&config))),
+            resource_locks: crate::locks::ResourceLockManager::new(),
+            privacy_router: Arc::new(RwLock::new(crate::privacy_router::PrivacyRouter::new(
+                crate::privacy_router::PrivacyRoutingPolicy::default(),
+            ))),
+            judge_model: Arc::new(RwLock::new(crate::judge_model::JudgeModel::new(
+                crate::judge_model::JudgePolicy::Never,
+            ))),
         }
     }
 

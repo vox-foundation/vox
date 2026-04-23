@@ -59,6 +59,10 @@ sha3 = { workspace = true }
 xxhash-rust = { workspace = true }
 hmac = "0.12.1"
 sha2 = "0.10.8"
+tiktoken-rs = "0.6"
+hex = "0.4.3"
+getrandom = "0.2"
+vox-crypto.workspace = true
 
 # Optional dependencies behind feature flags
 vox-runtime = { workspace = true, optional = true }

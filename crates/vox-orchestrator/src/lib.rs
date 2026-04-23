@@ -132,8 +132,12 @@ pub mod orchestrator;
 
 /// Dynamic planning domain (router, synthesis, policies, replanning).
 pub mod planning;
+/// PII-aware privacy routing and data isolation policies.
+pub mod privacy_router;
 /// Read-only mens HTTP federation snapshot types (filled by MCP / embedders).
 pub mod populi_federation;
+/// PII-aware redacting filter for sensitive data.
+pub mod pii_filter;
 /// Populi remote execution gating and lease-class helpers.
 pub mod populi_remote;
 /// Question/answer routing between agents.
@@ -165,6 +169,12 @@ pub mod socrates;
 pub mod state;
 /// Rolling summarization of agent interactions.
 pub mod summary;
+/// Cryptographic receipts for tool execution grounding.
+pub mod tool_receipt;
+/// Entropy-based hallucination detection.
+pub mod entropy_scorer;
+/// Cross-model consensus and judge logic.
+pub mod judge_model;
 pub mod topology;
 /// Core identifiers, tasks, messages, and shared value types.
 pub mod types;
@@ -254,9 +264,11 @@ pub use planning::{
     ExecutionPolicy, PlanNode, PlanSessionRecord, PlanStatus, PlanVersionRecord, PlanningMode,
     PlanningStrategy, PlanningTaskMeta, ReplanTrigger, RouterEvaluation,
 };
+pub use privacy_router::{PrivacyLevel, PrivacyRouter, PrivacyRoutingPolicy};
 pub use populi_federation::{
     PopuliNodeBrief, PopuliRoutingHintUpdate, RemotePopuliRoutingHint, RemotePopuliSnapshot,
 };
+pub use pii_filter::PiiFilter;
 pub use reconstruction::{
     AgentExecutionRole, CampaignMemorySnapshot, ReconstructionArtifactKind,
     ReconstructionArtifactRecord, ReconstructionBenchmarkKpis, ReconstructionBenchmarkTier,
@@ -278,6 +290,9 @@ pub use socrates::{
     SessionRetrievalEnvelope, SocratesGateOutcome, SocratesTaskContext, evaluate_socrates_gate,
     session_context_envelope_key,
 };
+pub use tool_receipt::{ReceiptValidationResult, ToolReceipt, ToolReceiptLedger};
+pub use entropy_scorer::{calculate_entropy, score_confidence};
+pub use judge_model::{JudgeModel, JudgePolicy, JudgeVerdict};
 pub use summary::SummaryManager;
 pub use topology::{
     AgentDelegationBinding, AgentRole, AgentTopologyNode, AgentTopologySnapshot, DelegationEdge,

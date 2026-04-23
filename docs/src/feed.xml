@@ -5,8 +5,17 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Thu, 23 Apr 2026 03:03:51 GMT</lastBuildDate>
+  <lastBuildDate>Thu, 23 Apr 2026 05:35:11 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Next-Generation AI Orchestrator: Systemic Flaws, Power User Demands, and Production Design Patterns</title>
+    <link>https://vox-lang.org/architecture/nextgen-orchestrator-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/nextgen-orchestrator-research-2026.html</guid>
+    <description>Comprehensive research synthesis covering enterprise AI orchestration failure modes, native-systems performance advantages, multi-provider routing semantics, autonomous FinOps, hallucination prevention, mesh GPU architecture, multi-agent coherence, and the rationale for AI-first domain-specific languages.</description>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>ADR 001 — Burn Backend Selection for vox-tensor</title>
@@ -243,16 +252,6 @@
     <link>https://vox-lang.org/adr/index.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/index.html</guid>
     <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
-    <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Architecture Decision Records (index)</title>
-    <link>https://vox-lang.org/adr/README.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/README.html</guid>
-    <description>Entrypoint mirror for ADR cross-links used by CI doc gates.</description>
     <pubDate>Wed, 22 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>

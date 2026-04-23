@@ -14,6 +14,13 @@ pub fn secure_hash(data: &[u8]) -> [u8; 32] {
     hasher.finalize().into()
 }
 
+/// Secure keyed hash (BLAKE3 MAC)
+pub fn keyed_hash(key: &[u8; 32], data: &[u8]) -> [u8; 32] {
+    let mut hasher = blake3::Hasher::new_keyed(key);
+    hasher.update(data);
+    hasher.finalize().into()
+}
+
 /// Fast generic hashing for caches (XXH3)
 pub fn fast_hash(data: &[u8]) -> u64 {
     xxh3_64(data)

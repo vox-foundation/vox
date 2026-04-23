@@ -43,6 +43,7 @@ training_eligible: false
 - [Master planning index](architecture/planning-meta/01-master-planning-index.md)
 - [Milestone and gate definition spec](architecture/planning-meta/08-milestone-gate-definition-spec.md)
 - [Model Orchestration SSOT — Audit & Convergence Plan (2026-04-20)](architecture/model-orchestration-ssot-audit-2026.md)
+- [Next-Generation AI Orchestrator: Systemic Flaws, Power User Demands, and Production Design Patterns](architecture/nextgen-orchestrator-research-2026.md)
 - [Planning critique and gap analysis](architecture/planning-meta/04-planning-critique-gap-analysis.md)
 - [Planning meta exception register](architecture/planning-meta/exception-register.md)
 - [Planning meta maintenance log](architecture/planning-meta/maintenance-log.md)

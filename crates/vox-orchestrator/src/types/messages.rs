@@ -115,6 +115,16 @@ pub enum AgentMessage {
         /// Serialized value.
         value: String,
     },
+    /// A resource lock was acquired.
+    ResourceLockAcquired {
+        agent_id: AgentId,
+        resource_id: String,
+    },
+    /// A resource lock was released.
+    ResourceLockReleased {
+        agent_id: AgentId,
+        resource_id: String,
+    },
     /// A structured agent-to-agent message (Integrates A2A into Bulletin).
     A2A(A2AMessage),
 }
@@ -163,6 +173,10 @@ pub enum A2AMessageType {
     BroadcastNews,
     /// MENS Observer requests validation research from Socrates.
     SocratesResearchRequest,
+    /// Request for a generic resource lock.
+    ResourceLockRequest,
+    /// Grant for a generic resource lock.
+    ResourceLockGrant,
 }
 
 impl A2AMessageType {
@@ -184,6 +198,8 @@ impl A2AMessageType {
             Self::SnapshotShare => "snapshot_share",
             Self::BroadcastNews => "broadcast_news",
             Self::SocratesResearchRequest => "socrates_research_request",
+            Self::ResourceLockRequest => "resource_lock_request",
+            Self::ResourceLockGrant => "resource_lock_grant",
         }
     }
 }

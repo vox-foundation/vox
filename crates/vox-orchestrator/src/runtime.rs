@@ -301,6 +301,33 @@ impl TaskProcessor for AiTaskProcessor {
                     route,
                 )
                 .await;
+
+            // Drift detection (Doom-loop protection)
+            let drift_decision = self.orchestrator.record_agent_iteration(
+                agent_id,
+                &phase_out,
+                phase_out.contains("@tool"),
+            );
+            match drift_decision {
+                crate::budget::DriftDecision::HaltAgent { reason } => {
+                    tracing::error!(agent_id = agent_id.0, %reason, "halted agent due to semantic drift");
+                    self.event_bus.emit(AgentEventKind::DoubtReported {
+                        agent_id,
+                        task_id: task.id,
+                        reason: reason.clone(),
+                    });
+                    return Err(anyhow::anyhow!("Safety Halt: {}", reason));
+                }
+                crate::budget::DriftDecision::WarnUser { iterations, cost_usd } => {
+                    tracing::warn!(
+                        agent_id = agent_id.0,
+                        iterations,
+                        cost_usd,
+                        "agent showing early signs of semantic drift"
+                    );
+                }
+                crate::budget::DriftDecision::Continue => {}
+            }
             if !notes.is_empty() {
                 notes.push_str("\n\n");
             }

@@ -554,6 +554,18 @@ pub enum AgentEventKind {
         cost_usd: f64,
         content_preview: String,
     },
+    /// A task was flagged for potential drift or doubt (Doom-loop protection).
+    DoubtReported {
+        agent_id: AgentId,
+        task_id: TaskId,
+        reason: String,
+    },
+    /// Semantic drift was confirmed; agent may be halted.
+    SemanticDriftDetected {
+        agent_id: AgentId,
+        iterations: usize,
+        cost_usd: f64,
+    },
 }
 
 // ---------------------------------------------------------------------------

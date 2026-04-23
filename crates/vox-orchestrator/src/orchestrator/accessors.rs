@@ -408,4 +408,30 @@ impl Orchestrator {
     ) -> std::sync::Arc<std::sync::RwLock<crate::workspace::WorkspaceManager>> {
         self.workspace_manager_handle()
     }
+
+    /// Access the cryptographic tool receipt ledger handle.
+    pub fn tool_ledger_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::tool_receipt::ToolReceiptLedger>> {
+        std::sync::Arc::clone(&self.tool_ledger)
+    }
+
+    /// Access the generic resource lock manager.
+    pub fn resource_locks(&self) -> &crate::locks::ResourceLockManager {
+        &self.resource_locks
+    }
+
+    /// Access the privacy router handle.
+    pub fn privacy_router_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::privacy_router::PrivacyRouter>> {
+        std::sync::Arc::clone(&self.privacy_router)
+    }
+
+    /// Access the consensus judge model handle.
+    pub fn judge_model_handle(
+        &self,
+    ) -> std::sync::Arc<std::sync::RwLock<crate::judge_model::JudgeModel>> {
+        std::sync::Arc::clone(&self.judge_model)
+    }
 }

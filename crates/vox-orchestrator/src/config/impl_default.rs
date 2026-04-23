@@ -144,6 +144,7 @@ impl Default for OrchestratorConfig {
             research_max_hops: super::defaults::default_research_max_hops(),
             research_quality_gate_enabled: default_true(),
             research_quality_target: super::defaults::default_research_quality_target(),
+            tool_ledger_key: String::new(),
         }
     }
 }

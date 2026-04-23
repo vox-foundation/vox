@@ -28,14 +28,24 @@ impl Orchestrator {
             socrates_shadow,
             socrates_enforce,
             socrates_policy,
+            bypass_blocked,
+            force_research,
         ) = {
             let config = crate::sync_lock::rw_read(&*self.config);
+            let (bb, fr) = if let Some(q_lock) = self.agent_queue(agent_id) {
+                let q = crate::sync_lock::rw_read(&*q_lock);
+                (q.capabilities.is_low_confidence_bypass_blocked, q.capabilities.force_socrates_research)
+            } else {
+                (false, false)
+            };
             (
                 config.completion_grounding_shadow,
                 config.completion_grounding_enforce,
                 config.socrates_gate_shadow,
                 config.socrates_gate_enforce,
                 config.effective_socrates_policy(),
+                bb,
+                fr,
             )
         };
 
@@ -102,11 +112,16 @@ impl Orchestrator {
             augmented.fatigue_active = true;
         }
 
-        let outcome = crate::socrates::evaluate_socrates_gate(
+        let mut outcome = crate::socrates::evaluate_socrates_gate(
             &augmented,
             &socrates_policy,
             task.description.as_str(),
         );
+
+        if force_research && !outcome.research_decision.should_research {
+            outcome.research_decision.should_research = true;
+            outcome.research_decision.trigger = "Policy: force_socrates_research enabled".to_string();
+        }
 
         if socrates_shadow {
             tracing::info!(
@@ -137,10 +152,14 @@ impl Orchestrator {
             research_results = results;
         }
 
-        if socrates_enforce
+        let is_low_confidence = outcome.confidence < 0.7 || outcome.contradiction_ratio > 0.3;
+        let bypass_disallowed = bypass_blocked && is_low_confidence;
+
+        if (socrates_enforce || bypass_disallowed)
             && !trust_relax_gates
             && (outcome.decision != vox_socrates_policy::RiskDecision::Answer
-                || !research_results.is_empty())
+                || !research_results.is_empty()
+                || bypass_disallowed)
             && task.debug_iterations < max_socrates_debug_iterations
         {
             let mut t = task.clone();
@@ -182,10 +201,15 @@ impl Orchestrator {
                 .as_ref()
                 .and_then(|ctx| ctx.recommended_next_action.as_deref())
                 .unwrap_or("gather_more_grounding");
-            t.description.push_str(&format!(
-                "\n\n[SOCRATES GATE]\nRisk decision {:?} (confidence {:.2}, contradiction {:.2}). Improve grounding (citations, evidence) or resolve contradictions before completing. Suggested next action: {}.\n",
-                outcome.decision, outcome.confidence, outcome.contradiction_ratio, next_action,
-            ));
+            let mut reason = format!(
+                "Risk decision {:?} (confidence {:.2}, contradiction {:.2}). Improve grounding (citations, evidence) or resolve contradictions before completing.",
+                outcome.decision, outcome.confidence, outcome.contradiction_ratio
+            );
+            if bypass_disallowed {
+                reason.push_str(" Bypass blocked by security policy due to low confidence.");
+            }
+            reason.push_str(&format!(" Suggested next action: {}.", next_action));
+            t.description.push_str(&format!("\n\n[SOCRATES GATE]\n{}\n", reason));
             t.status = TaskStatus::Queued;
             Ok(GateOutcome {
                 requeue: Some((t, "Socrates risk gate blocked completion".into(), 1, 0)),
