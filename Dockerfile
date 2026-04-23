@@ -38,7 +38,7 @@ EXPOSE 3000
 EXPOSE 9847
 
 # Health check via vox doctor --probe
-HEALTHCHECK --interval:30s --timeout:5s --start-period:10s \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
     CMD vox doctor --probe
 
 ENTRYPOINT ["vox", "run", "--interp", "/usr/local/bin/vox-entrypoint.vox"]
