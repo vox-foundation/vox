@@ -30,4 +30,7 @@ https://vox-lang.org/
 https://github.com/vox-foundation/vox/discussions
 file://.*docs/AGENTS\.md
 file://.*docs/src/architecture/.*
+file://.*vox-vscode/.*
+file://.*docs/theme/.*
+file://.*docs/src/index\.md
 
