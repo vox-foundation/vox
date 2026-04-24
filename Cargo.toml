@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*","crates/workspace-hack", "scratch/test_block_on"]
+members = ["crates/*","crates/workspace-hack"]
 default-members = ["crates/vox-cli"]
 
 [workspace.package]
