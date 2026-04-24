@@ -7,6 +7,7 @@ use std::path::Path;
 pub struct DashboardToken(pub String);
 
 impl DashboardToken {
+    #[allow(dead_code)]
     pub fn generate_or_load(state_dir: &Path) -> Result<Self> {
         let token_path = state_dir.join("dashboard.token");
 

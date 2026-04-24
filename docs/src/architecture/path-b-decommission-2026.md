@@ -1,3 +1,10 @@
+---
+title: "Migration of Vox Compiler to AI-Native Architecture"
+description: "Decommission log for Path B HIR primitives and migration to the reactive Path C UI standard."
+category: architecture
+status: current
+---
+
 # Migration of Vox Compiler to AI-Native Architecture
 
 ## Objective

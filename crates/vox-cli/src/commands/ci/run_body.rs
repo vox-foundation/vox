@@ -348,5 +348,11 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::DepSprawl { cap } => dep_sprawl::run(&root, cap),
         CiCmd::DoctestMd { paths, strict } => doctest_md::run(paths, strict).await,
         CiCmd::DeployStatus { write_to } => super::deploy_status::run(write_to).await,
+        CiCmd::WatchRun { sha, timeout_secs, advisory, failures_only } => super::watch_run::run(super::watch_run::WatchRunArgs {
+            sha,
+            timeout_secs,
+            advisory,
+            failures_only,
+        }).await,
     }
 }

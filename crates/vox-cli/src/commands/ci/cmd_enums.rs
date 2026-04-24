@@ -467,6 +467,22 @@ pub enum CiCmd {
         #[arg(long)]
         write_to: Option<PathBuf>,
     },
+    /// Poll GitHub Actions checks for the current HEAD (or a specific SHA) and print failures.
+    #[command(name = "watch-run")]
+    WatchRun {
+        /// Specific commit SHA to poll (defaults to HEAD).
+        #[arg(long)]
+        sha: Option<String>,
+        /// Timeout in seconds.
+        #[arg(long, default_value_t = 600)]
+        timeout_secs: u64,
+        /// Exit 0 even on failures (useful for advisory hooks).
+        #[arg(long)]
+        advisory: bool,
+        /// Only print failed checks.
+        #[arg(long)]
+        failures_only: bool,
+    },
 }
 
 #[derive(clap::Args, Debug, Clone)]

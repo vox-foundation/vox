@@ -11,6 +11,7 @@ use super::Checker;
 use super::match_exhaust::check_hir_match_exhaustiveness;
 
 impl<'a> Checker<'a> {
+    #[allow(dead_code)]
     fn check_db_select_projection(
         &mut self,
         fields: &[(String, Ty)],
@@ -51,6 +52,7 @@ impl<'a> Checker<'a> {
         ok
     }
 
+    #[allow(dead_code)]
     fn validate_db_predicate(
         &mut self,
         pred: &HirDbPredicate,

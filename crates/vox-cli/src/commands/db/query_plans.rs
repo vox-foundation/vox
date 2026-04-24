@@ -10,6 +10,7 @@ pub(crate) struct QueryPlanExplainRow {
     pub(crate) plan: vox_compiler::hir::HirDbQueryPlan,
 }
 
+#[allow(dead_code)]
 fn fallback_plan_from_db_op(
     table: &str,
     op: vox_compiler::hir::HirDbTableOp,
