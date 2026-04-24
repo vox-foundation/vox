@@ -147,6 +147,28 @@ pub async fn run(args: WatchRunArgs) -> Result<()> {
                 println!("\n  Check:  {}", name);
                 println!("  Result: {}", conclusion);
                 println!("  URL:    {}", url);
+                
+                if let Some(id) = run["id"].as_u64() {
+                    println!("  Fetching logs...");
+                    match fetch_job_log(&client, &token, id).await {
+                        Ok(log) => {
+                            let lines: Vec<&str> = log.lines().collect();
+                            let tail = if lines.len() > 30 {
+                                &lines[lines.len() - 30..]
+                            } else {
+                                &lines[..]
+                            };
+                            println!("  --- Last 30 lines of log ---");
+                            for line in tail {
+                                println!("    {}", line);
+                            }
+                            println!("  ----------------------------");
+                        }
+                        Err(e) => {
+                            println!("  Could not fetch logs: {}", e);
+                        }
+                    }
+                }
             }
             println!("\n  View all: https://github.com/{}/commit/{}/checks", GITHUB_REPO, head_sha);
             println!("  Self-heal: run `vox ci watch-run --sha {}` to re-poll after fixes.", short_sha);
@@ -193,6 +215,23 @@ async fn fetch_check_runs(
         .cloned()
         .unwrap_or_default();
     Ok(runs)
+}
+
+/// Fetch logs for a specific job ID
+async fn fetch_job_log(client: &reqwest::Client, token: &str, job_id: u64) -> Result<String> {
+    let url = format!("https://api.github.com/repos/{}/actions/jobs/{}/logs", GITHUB_REPO, job_id);
+    let resp = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .header("User-Agent", "vox-cli")
+        .send()
+        .await?;
+        
+    if resp.status().is_success() {
+        Ok(resp.text().await?)
+    } else {
+        anyhow::bail!("API returned {}", resp.status());
+    }
 }
 
 /// Get HEAD SHA from git.

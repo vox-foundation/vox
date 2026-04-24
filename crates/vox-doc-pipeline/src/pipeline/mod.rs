@@ -338,7 +338,7 @@ pub fn run() {
             eprintln!("{e:#}");
             std::process::exit(1);
         }
-        if current.trim() != output.trim() {
+        if current.trim().replace("\r\n", "\n") != output.trim().replace("\r\n", "\n") {
             eprintln!(
                 "SUMMARY.md is out of sync with docs/src. Run `cargo run -p vox-doc-pipeline` to update."
             );

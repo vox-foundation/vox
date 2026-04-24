@@ -115,6 +115,15 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             // 2. Run Astro build
             let docs_dir = root.join("docs-astro");
             let pnpm = crate::frontend::pnpm_executable();
+            
+            let st = Command::new(&pnpm)
+                .current_dir(&docs_dir)
+                .args(["install", "--frozen-lockfile"])
+                .status()?;
+            if !st.success() {
+                return Err(anyhow!("Astro pnpm install failed"));
+            }
+
             let st = Command::new(&pnpm)
                 .current_dir(&docs_dir)
                 .args(["run", "build"])

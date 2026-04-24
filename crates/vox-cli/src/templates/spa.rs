@@ -264,7 +264,8 @@ pub fn package_json(tanstack_start: bool, file_route_tsr_pregen: bool) -> String
     "lucide-react": "^0.468.0",
     "@tanstack/react-router": "{tr}",
     "@tanstack/react-start": "{ts}",
-    "@tanstack/react-query": "{rq}"
+    "@tanstack/react-query": "{rq}",
+    "zod": "^3.23.0"
   }},
   "devDependencies": {{
     "@types/node": "^22.0.0",
@@ -302,7 +303,8 @@ pub fn package_json(tanstack_start: bool, file_route_tsr_pregen: bool) -> String
     "react-dom": "^19.0.0",
     "lucide-react": "^0.468.0",
     "@tanstack/react-router": "{tr}",
-    "@tanstack/react-query": "{rq}"
+    "@tanstack/react-query": "{rq}",
+    "zod": "^3.23.0"
   }},
   "devDependencies": {{
     "@types/react": "^19.0.0",
