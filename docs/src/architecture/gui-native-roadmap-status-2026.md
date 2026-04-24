@@ -24,7 +24,7 @@ training_eligible: false
 |------|--------|--------|-------|
 | TASK-0.1 — ADR 024: Dashboard as Axum SPA | ✅ Done | `b7536331` | `docs/src/adr/024-dashboard-axum-spa.md` created. Index updated. |
 | TASK-0.2 — Replace loopback-auto-unauth with token auth | ✅ Done | `bb72c7e3` | `token.rs` created. `DashboardToken::generate_or_load()` implemented. Meta-tag injection in `assets.rs`. |
-| TASK-0.3 — Strict Origin/Host allowlist middleware | 🟡 Partial | `00588f6a` | Inline `check_origin_allowlist` closure in `mod.rs` (lines 287-316). Checks loopback origin/host. Missing: separate `origin_guard.rs` module, rejection body `{"error":"origin_denied"}`, WS-upgrade strict check, unit tests. |
+| TASK-0.3 — Strict Origin/Host allowlist middleware | ✅ Done | `327bf460` | Extracted origin check into `origin_guard.rs` with JSON error body, strict WS-upgrade check, and comprehensive unit tests. |
 | TASK-0.4 — CSP, X-Frame-Options, Referrer-Policy, CORS | 🟡 Partial | `b7536331` | `X-Frame-Options` and `Content-Security-Policy` headers present in `assets.rs`. CorsLayer not yet installed in gateway router. |
 | TASK-0.5 — Fix `vox dashboard` CLI detachment + readiness polling | ✅ Done | `b7536331` | `DashboardLauncher` struct with `setsid()`/Windows `DETACHED_PROCESS` flags implemented. |
 | TASK-0.6 — Harden `transport.ts`: backoff, auth refresh | 🟡 Partial | `b7536331` | Needs verification of backoff caps and `authStatus` event emission. |
@@ -94,8 +94,7 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in order)
 
-1. **TASK-0.3 (finish)** — Extract inline origin check into proper `origin_guard.rs` with unit tests + JSON error body + WS-upgrade strict check.
-2. **TASK-0.8** — Write integration tests for dashboard auth + asset serving.
-3. **TASK-2.1 (finish)** — Remove remaining `hir.components` Path B field usages from `codegen_ts/emitter.rs`, `web_ir/lower.rs`, `typeck/checker/mod.rs`, `hir/validate.rs`.
-4. **TASK-0.4 (finish)** — Install `CorsLayer` in gateway router.
-5. **TASK-2.3** — Collapse `DbTableOp` variants.
+1. **TASK-0.8** — Write integration tests for dashboard auth + asset serving.
+2. **TASK-2.1 (finish)** — Remove remaining `hir.components` Path B field usages from `codegen_ts/emitter.rs`, `web_ir/lower.rs`, `typeck/checker/mod.rs`, `hir/validate.rs`.
+3. **TASK-0.4 (finish)** — Install `CorsLayer` in gateway router.
+4. **TASK-2.3** — Collapse `DbTableOp` variants.
