@@ -1,7 +1,8 @@
 use clap::Subcommand;
 use miette::Result;
 use owo_colors::OwoColorize;
-use vox_orchestrator::{AgentId, Orchestrator, OrchestratorConfig, build_repo_scoped_orchestrator_for_repository, discover_repository_or_fallback};
+use vox_orchestrator::{AgentId, Orchestrator, OrchestratorConfig, build_repo_scoped_orchestrator_for_repository};
+use vox_repository::discover_repository_or_fallback;
 
 /// Manage and inspect the Vox safety and coherence systems.
 #[derive(Debug, Subcommand)]
@@ -51,18 +52,18 @@ async fn status_cmd(workspace_root: &std::path::Path) -> Result<()> {
         let signal = bm.agent_budget_signal(agent_status.id);
         let signal_str = match signal {
             vox_orchestrator::budget::BudgetSignal::Normal { usage_ratio } => 
-                format!("Normal ({:.1}%)", usage_ratio * 100.0).green(),
+                format!("Normal ({:.1}%)", usage_ratio * 100.0),
             vox_orchestrator::budget::BudgetSignal::HighLoad { usage_ratio, .. } => 
-                format!("High Load ({:.1}%)", usage_ratio * 100.0).yellow(),
+                format!("High Load ({:.1}%)", usage_ratio * 100.0),
             vox_orchestrator::budget::BudgetSignal::Critical { .. } => 
-                "CRITICAL".red().bold(),
+                "CRITICAL".to_string(),
             vox_orchestrator::budget::BudgetSignal::CostExceeded { .. } => 
-                "COST EXCEEDED".red().bold(),
+                "COST EXCEEDED".to_string(),
             vox_orchestrator::budget::BudgetSignal::HaltAgent { reason } => 
-                format!("HALTED: {}", reason).red().bold(),
+                format!("HALTED: {}", reason),
             vox_orchestrator::budget::BudgetSignal::DoomLoopSuspect { consecutive_calls } => 
-                format!("DOOM LOOP SUSPECT ({} calls)", consecutive_calls).yellow().bold(),
-            _ => "Unknown".dimmed(),
+                format!("DOOM LOOP SUSPECT ({} calls)", consecutive_calls),
+            _ => "Unknown".to_string(),
         };
 
         println!(
@@ -77,7 +78,7 @@ async fn status_cmd(workspace_root: &std::path::Path) -> Result<()> {
     println!("{}", "Active Locks:".bold().underline());
     println!("  Tool Receipts:  {}", orch.tool_ledger_handle().read().unwrap().len());
     
-    let locks = orch.resource_locks_handle().read().unwrap();
+    let locks = orch.resource_locks();
     println!("  Resource Locks: {}", locks.len());
 
     Ok(())
@@ -89,7 +90,8 @@ async fn ledger_cmd(agent_id_opt: Option<u64>, workspace_root: &std::path::Path)
         .map_err(|e| miette::miette!("{}", e))?;
     
     let build = build_repo_scoped_orchestrator_for_repository(config, &repo);
-    let ledger = build.orchestrator.tool_ledger_handle().read().unwrap();
+    let ledger_handle = build.orchestrator.tool_ledger_handle();
+    let ledger = ledger_handle.read().unwrap();
 
     println!("{}", "Tool Receipt Ledger".bold().underline());
     let snapshot = ledger.snapshot();
@@ -112,8 +114,7 @@ async fn locks_cmd(workspace_root: &std::path::Path) -> Result<()> {
         .map_err(|e| miette::miette!("{}", e))?;
     
     let build = build_repo_scoped_orchestrator_for_repository(config, &repo);
-    let locks_handle = build.orchestrator.resource_locks_handle();
-    let locks = locks_handle.read().unwrap();
+    let locks = build.orchestrator.resource_locks();
 
     println!("{}", "Active Resource Locks".bold().underline());
     let snapshot = locks.snapshot();

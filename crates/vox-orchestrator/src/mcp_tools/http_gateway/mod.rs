@@ -194,7 +194,7 @@ pub fn spawn_http_gateway_if_enabled(
         .expose()
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(DEFAULT_BIND_PORT);
-    let bearer_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpBearerToken)
+    let mut bearer_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpBearerToken)
         .expose()
         .map(str::trim)
         .filter(|s| !s.is_empty())
@@ -257,7 +257,7 @@ pub fn spawn_http_gateway_if_enabled(
         server_state: state,
         bearer_token: bearer_token.clone(),
         read_bearer_token,
-        dashboard_token,
+        dashboard_token: dashboard_token.clone(),
         allow_unauthenticated,
         health_auth_required,
         require_forwarded_https,
@@ -282,7 +282,7 @@ pub fn spawn_http_gateway_if_enabled(
         .route("/v1/mobile/status", get(http_mobile_status));
 
     #[cfg(feature = "dashboard")]
-    let app = app.merge(vox_dashboard::dashboard_router(dashboard_token.map(|t| t.0)));
+    let app = app.merge(vox_dashboard::dashboard_router(dashboard_token.as_ref().map(|t| t.0.clone())));
 
     async fn check_origin_allowlist(
         axum::extract::State(state): axum::extract::State<GatewayState>,
