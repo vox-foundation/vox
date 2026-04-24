@@ -115,6 +115,7 @@ ci/sync-ignore-files
 ci/toestub-scoped
 ci/toestub-self-apply
 ci/turso-import-guard
+ci/watch-run
 ci/workflow-scripts
 clavis
 clavis/backend-status

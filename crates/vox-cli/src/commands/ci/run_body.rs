@@ -112,31 +112,15 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             if !st.success() {
                 return Err(anyhow!("failed to generate SUMMARY.md"));
             }
-            // 2. Run mdbook build docs (assuming mdbook is on PATH)
-            let st = Command::new("mdbook")
-                .current_dir(&root)
-                .args(["build", "docs"])
+            // 2. Run Astro build
+            let docs_dir = root.join("docs-astro");
+            let pnpm = crate::frontend::pnpm_executable();
+            let st = Command::new(&pnpm)
+                .current_dir(&docs_dir)
+                .args(["run", "build"])
                 .status()?;
             if !st.success() {
-                return Err(anyhow!("mdbook build docs failed"));
-            }
-            // 3. sitemap.xml (mdbook-sitemap-generator is a post-build CLI, not a preprocessor)
-            let domain = std::env::var("MDBOOK_SITEMAP_DOMAIN")
-                .unwrap_or_else(|_| "https://vox-lang.org/".to_string());
-            let domain_arg = domain.trim_end_matches('/').to_string();
-            let st = Command::new("mdbook-sitemap-generator")
-                .current_dir(root.join("docs"))
-                .args([
-                    "--domain",
-                    domain_arg.as_str(),
-                    "--output",
-                    "book/html/sitemap.xml",
-                ])
-                .status()?;
-            if !st.success() {
-                return Err(anyhow!(
-                    "mdbook-sitemap-generator failed (install: cargo install mdbook-sitemap-generator --version 0.2.0 --locked)"
-                ));
+                return Err(anyhow!("Astro build docs failed"));
             }
             println!("Documentation built successfully.");
             Ok(())

@@ -74,10 +74,11 @@ pub fn try_emit_route_manifest_from_web_ir(
 ) -> Result<Option<String>, String> {
 
     validate_manifest_symbols(web, hir)?;
-    let content = emit_route_manifest_from_web_ir(web, hir).ok_or_else(|| {
-        "internal: routes.manifest.ts emit failed after validation (empty WebIR tree?)".to_string()
-    })?;
-    Ok(Some(content))
+    if let Some(content) = emit_route_manifest_from_web_ir(web, hir) {
+        Ok(Some(content))
+    } else {
+        Ok(None)
+    }
 }
 
 /// Emit manifest from lowered Web IR + HIR (for `not_found` / global pending from AST-only fields).
@@ -252,9 +253,11 @@ pub fn try_emit_route_manifest_json_from_web_ir(
 ) -> Result<Option<String>, String> {
 
     validate_manifest_symbols(web, hir)?;
-    let content = emit_route_manifest_json(web, hir)
-        .ok_or_else(|| "internal: routes.manifest.json emit failed after validation".to_string())?;
-    Ok(Some(content))
+    if let Some(content) = emit_route_manifest_json(web, hir) {
+        Ok(Some(content))
+    } else {
+        Ok(None)
+    }
 }
 
 pub fn emit_route_manifest_json(web: &WebIrModule, _hir: &HirModule) -> Option<String> {

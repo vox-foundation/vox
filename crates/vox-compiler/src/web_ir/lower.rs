@@ -581,6 +581,8 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
 
 
 
+
+
     // Stage R — HTTP handlers and RPC-shaped endpoints from HIR
     lower_http_routes(hir, &mut m, &mut summary);
     lower_endpoint_contracts(hir, &mut m, &mut summary);
