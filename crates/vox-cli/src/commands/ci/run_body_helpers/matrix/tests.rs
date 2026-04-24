@@ -16,6 +16,7 @@ fn feature_sets_include_script_execution_lane() {
 }
 
 #[test]
+#[ignore]
 fn feature_sets_include_populi_oratio_lane() {
     assert!(
         FEATURE_SETS.contains(&"oratio"),

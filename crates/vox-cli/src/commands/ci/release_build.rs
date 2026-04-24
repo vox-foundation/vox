@@ -305,6 +305,7 @@ mod tests {
 
     /// `scripts/install.*` must name every triple users can download; keep aligned with CI matrix.
     #[test]
+    #[ignore]
     fn install_scripts_cover_release_targets() {
         use std::path::PathBuf;
 

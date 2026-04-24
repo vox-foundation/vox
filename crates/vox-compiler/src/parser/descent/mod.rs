@@ -111,13 +111,15 @@ impl Parser {
 
     pub(crate) fn eat_return_arrow(&mut self) -> bool {
         if self.eat(&Token::Arrow) {
-            self.errors.push(ParseError::classified(
+            let mut err = ParseError::classified(
                 self.span(),
                 "The '->' syntax is deprecated for return types. Use 'to'.",
                 vec![],
                 None,
                 ParseErrorClass::Expression,
-            ));
+            );
+            err.severity = ParseSeverity::Warning;
+            self.errors.push(err);
             true
         } else {
             self.eat(&Token::To)
@@ -205,7 +207,7 @@ impl Parser {
 
             let is_tombstoned = matches!(
                 self.peek(),
-                Token::Actor | Token::Workflow | Token::Activity | Token::Http | Token::AtComponent
+                Token::Actor | Token::Workflow | Token::Activity | Token::Http | Token::AtComponent | Token::Agent | Token::Env
             );
 
             if is_tombstoned {
@@ -317,6 +319,10 @@ impl Parser {
                 | Token::AtQuery
                 | Token::AtMutation
                 | Token::AtEndpoint
+                | Token::AtTable
+                | Token::TypeKw
+                | Token::Agent
+                | Token::Env
                 | Token::Component
                 | Token::AtForall
                 | Token::AtScheduled
@@ -451,7 +457,7 @@ impl Parser {
                 }
             }
             Token::AtIndex => self.parse_index(),
-            Token::Actor | Token::Workflow | Token::Activity | Token::Http | Token::AtComponent => {
+            Token::Actor | Token::Workflow | Token::Activity | Token::Http | Token::AtComponent | Token::Agent | Token::Env => {
                 let tok = self.peek().clone();
                 self.errors.push(ParseError::classified(
                     self.span(),
@@ -463,6 +469,8 @@ impl Parser {
                 self.advance();
                 Err(())
             }
+            Token::TypeKw => self.parse_typedef(false),
+            Token::AtTable => self.parse_table(),
             Token::Ident(ref name) if name == "routes" => self.parse_routes(),
             _ => {
                 self.errors.push(ParseError::classified(

@@ -14,6 +14,7 @@
     "missing_cases": [],
     "expected_type": null,
     "found_type": null,
+    "correction_hints": [],
     "suggested_fixes": [],
     "related_spans": []
   },
@@ -32,6 +33,7 @@
     "missing_cases": [],
     "expected_type": null,
     "found_type": null,
+    "correction_hints": [],
     "suggested_fixes": [],
     "related_spans": []
   },
@@ -50,6 +52,7 @@
     "missing_cases": [],
     "expected_type": null,
     "found_type": null,
+    "correction_hints": [],
     "suggested_fixes": [],
     "related_spans": []
   }

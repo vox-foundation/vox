@@ -59,4 +59,44 @@ impl Parser {
             span: start.merge(self.span()),
         }))
     }
+    pub(crate) fn parse_table(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
+        self.advance(); // eat @table
+        self.expect(&Token::TypeKw)?;
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LBrace)?;
+        let mut fields = Vec::new();
+        loop {
+            self.skip_newlines();
+            if self.eat(&Token::RBrace) {
+                break;
+            }
+            if matches!(self.peek(), Token::Eof) {
+                break;
+            }
+            let fstart = self.span();
+            let fname = self.parse_ident_name()?;
+            self.expect(&Token::Colon)?;
+            let ftype = self.parse_type_expr()?;
+            fields.push(crate::ast::decl::TableField {
+                name: fname,
+                type_ann: ftype,
+                description: None,
+                span: fstart.merge(self.span()),
+            });
+            self.eat(&Token::Comma);
+        }
+        Ok(Decl::Table(crate::ast::decl::TableDecl {
+            name,
+            fields,
+            description: None,
+            json_layout: None,
+            auth_provider: None,
+            roles: vec![],
+            cors: None,
+            is_pub: false,
+            is_deprecated: false,
+            span: start.merge(self.span()),
+        }))
+    }
 }

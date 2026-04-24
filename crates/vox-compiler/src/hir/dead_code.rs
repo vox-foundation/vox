@@ -162,7 +162,7 @@ fn visit_expr(expr: &HirExpr, used: &mut HashSet<String>) {
         HirExpr::Unary(_, operand, _) => {
             visit_expr(operand, used);
         }
-        HirExpr::MethodCall(obj, _, args, _) => {
+        HirExpr::MethodCall(obj, _, args, _, _) => {
             visit_expr(obj, used);
             for arg in args {
                 visit_expr(&arg.value, used);

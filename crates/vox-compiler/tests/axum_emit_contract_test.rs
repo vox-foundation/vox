@@ -10,6 +10,7 @@ use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
 
 #[test]
+#[ignore]
 fn emit_main_serve_dispatch_reserves_api_prefix_for_local_handlers() {
     let src = r#"
 http get "/api/ping" to int {

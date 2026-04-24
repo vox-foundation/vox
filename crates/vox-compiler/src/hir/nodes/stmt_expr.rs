@@ -140,22 +140,7 @@ pub enum HirExpr {
     /// Call; `bool` indicates tail-call hint when used by backend.
     Call(Box<HirExpr>, Vec<HirArg>, bool, Span),
     /// Method call `obj.method(args)`.
-    MethodCall(Box<HirExpr>, String, Vec<HirArg>, Span),
-    /// Lowered `db.Table.op(args)` Codex call (see [`HirDbTableOp`]).
-    DbTableOp {
-        table: String,
-        op: HirDbTableOp,
-        args: Vec<HirArg>,
-        /// Column projection from `.select(...)` (subset of table fields); `None` means `SELECT *`.
-        select_cols: Option<Vec<String>>,
-        /// Optional ORDER BY clause (`column`, `ascending`).
-        order_by: Option<(String, bool)>,
-        /// Optional LIMIT expression (must typecheck as int).
-        limit: Option<Box<HirExpr>>,
-        /// Shared serializable plan consumed by codegen and tooling.
-        plan: Option<HirDbQueryPlan>,
-        span: Span,
-    },
+    MethodCall(Box<HirExpr>, String, Vec<HirArg>, Option<Box<HirDbQueryPlan>>, Span),
     /// Field projection.
     FieldAccess(Box<HirExpr>, String, Span),
     /// `match` expression.

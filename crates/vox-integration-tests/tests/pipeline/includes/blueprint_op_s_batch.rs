@@ -91,7 +91,7 @@ fn op_s062_server_contract_fixture_multi_route_has_get_stats() {
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
     assert!(
-        hir.server_fns.iter().any(|s| s.name == "get_stats"),
+        hir.endpoint_fns.iter().any(|s| s.name == "get_stats"),
         "expected @server fn get_stats in fixture"
     );
     vox_compiler::codegen_ts::routes::validate_express_route_emit_input(&hir).expect("express ok");

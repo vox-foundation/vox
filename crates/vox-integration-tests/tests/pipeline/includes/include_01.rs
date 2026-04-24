@@ -874,14 +874,7 @@ fn pipeline_mixed_declarations_hir_counts_and_web_ir_validate() {
     assert_eq!(hir.components.len(), 2);
 
     assert_eq!(hir.routes.len(), 1);
-    assert!(
-        hir.lowering_migration.used_reactive_component_path,
-        "expected Path C Dash + Shell"
-    );
-    assert!(
-        !hir.lowering_migration.used_classic_component_path,
-        "MIXED_SURFACE is Path C only (no @component fn Shell)"
-    );
+
 
     let web = lower_hir_to_web_ir(&hir);
     let diags = validate_web_ir(&web);

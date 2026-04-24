@@ -20,33 +20,15 @@ where
                 .collect();
             format!("serde_json::json!({{ {} }})", props.join(", "))
         }
-        HirExpr::MethodCall(obj, method, args, _) => super::method_emit::emit_method_call(
+        HirExpr::MethodCall(obj, method, args, plan, _) => super::method_emit::emit_method_call(
             emit,
             obj.as_ref(),
             method.as_str(),
             args,
+            plan.as_deref(),
             fallible_db,
         ),
-        HirExpr::DbTableOp {
-            table,
-            op,
-            args,
-            select_cols,
-            order_by,
-            limit,
-            plan,
-            ..
-        } => super::method_emit::emit_db_table_op(
-            emit,
-            table.as_str(),
-            *op,
-            args,
-            select_cols,
-            order_by,
-            limit,
-            plan.as_ref(),
-            fallible_db,
-        ),
+
         HirExpr::Spawn(target, _) => {
             if let HirExpr::Ident(n, _) = &**target {
                 format!("{}Handle::spawn()", n)

@@ -39,6 +39,9 @@ fn golden_rust_import_lowering_diagnostic_json() {
     );
 
     let actual_raw = format_diagnostics_json_pretty(&result, file_label);
+    if std::env::var("BLESS").is_ok() {
+        std::fs::write(golden_path(), &actual_raw).unwrap();
+    }
     let actual_val = serde_json::from_str::<serde_json::Value>(&actual_raw).expect("actual JSON");
     let actual_val = normalize_diagnostic_json(actual_val);
 

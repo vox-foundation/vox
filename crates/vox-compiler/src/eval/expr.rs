@@ -232,7 +232,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 }),
             }
         }
-        HirExpr::MethodCall(obj, method, args, _) => {
+        HirExpr::MethodCall(obj, method, args, _, _) => {
             let o = eval_expr(interp, obj)?;
             let mut eval_args = Vec::new();
             for a in args {

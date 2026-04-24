@@ -38,14 +38,12 @@ fn has_async_expr(e: &HirExpr) -> bool {
         HirExpr::Call(callee, args, is_await, _) => {
             *is_await || has_async_expr(callee) || args.iter().map(|a| &a.value).any(has_async_expr)
         }
-        HirExpr::MethodCall(obj, m, args, _) => {
-            if m == "send" {
+        HirExpr::MethodCall(obj, m, args, plan, _) => {
+            if m == "send" || plan.is_some() {
                 return true;
             }
             has_async_expr(obj) || args.iter().map(|a| &a.value).any(has_async_expr)
         }
-        // All Codex table ops are lowered to `.await` in Rust codegen.
-        HirExpr::DbTableOp { .. } => true,
         HirExpr::FieldAccess(obj, _, _) => has_async_expr(obj),
         HirExpr::Match(subj, arms, _) => {
             has_async_expr(subj)

@@ -63,12 +63,12 @@ fn collect_deps(expr: &HirExpr, state_names: &HashSet<String>, deps: &mut HashSe
                 collect_deps(&arg.value, state_names, deps);
             }
         }
-        HirExpr::DbTableOp { args, .. } => {
+        HirExpr::MethodCall(_, _, args, Some(_), _) => {
             for arg in args {
                 collect_deps(&arg.value, state_names, deps);
             }
         }
-        HirExpr::MethodCall(obj, _, args, _) => {
+        HirExpr::MethodCall(obj, _, args, _, _) => {
             collect_deps(obj, state_names, deps);
             for arg in args {
                 collect_deps(&arg.value, state_names, deps);

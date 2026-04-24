@@ -132,13 +132,13 @@ with `// toestub-ignore(security/hardcoded-secret) — SHA256 test fixture`.
 
 ### `arch/schema_compliance` — Error
 **Triggers:** A `.vox` code block in `docs/src/` is neither included via
-`{{#include path/to/examples/golden/file.vox}}` nor annotated with `// vox:skip`.
+`{{#include ../../../examples/golden/hello.vox:display}}` nor annotated with `// vox:skip`.
 
 **Fix:**
 ```markdown
 <!-- Option A: include from golden (preferred — gets compiled in CI) -->
 ```vox
-{{#include ../../../examples/golden/my_example.vox}}
+{{#include ../../../examples/golden/hello.vox:display}}
 ```
 
 <!-- Option B: illustrative snippet not meant to compile -->

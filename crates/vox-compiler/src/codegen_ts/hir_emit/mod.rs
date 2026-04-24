@@ -238,47 +238,13 @@ pub fn emit_hir_expr(
                 .collect();
             format!("{callee_str}({})", args_str.join(", "))
         }
-        HirExpr::DbTableOp {
-            table,
-            op,
-            args,
-            select_cols,
-            order_by,
-            limit,
-            plan,
-            ..
-        } => {
-            let method = match op {
-                crate::hir::HirDbTableOp::Insert => "insert",
-                crate::hir::HirDbTableOp::Get => "get",
-                crate::hir::HirDbTableOp::Delete => "delete",
-                crate::hir::HirDbTableOp::All => "all",
-                crate::hir::HirDbTableOp::FilterRecord => "filter",
-                crate::hir::HirDbTableOp::Count => "count",
-                crate::hir::HirDbTableOp::UnsafeQueryRawClause => "unsafe_query_raw_clause",
-            };
+        HirExpr::MethodCall(obj, method, args, plan, _) => {
+            let obj_str = emit_hir_expr(obj, state_names, island_names);
             let args_str: Vec<String> = args
                 .iter()
                 .map(|a| emit_hir_expr(&a.value, state_names, island_names))
                 .collect();
-            let mut base = format!("db.{table}.{method}({})", args_str.join(", "));
-            if let Some((col, asc)) = order_by {
-                let dir = if *asc { "asc" } else { "desc" };
-                base.push_str(&format!(".order_by(\"{}\", \"{}\")", col, dir));
-            }
-            if let Some(lim) = limit {
-                base.push_str(&format!(
-                    ".limit({})",
-                    emit_hir_expr(lim.as_ref(), state_names, island_names)
-                ));
-            }
-            if let Some(cols) = select_cols {
-                let cols_js: Vec<String> = cols
-                    .iter()
-                    .map(|c| format!("\"{}\"", c.replace('\"', "\\\"")))
-                    .collect();
-                base.push_str(&format!(".select({})", cols_js.join(", ")));
-            }
+            let mut base = format!("{obj_str}.{method}({})", args_str.join(", "));
             if let Some(p) = plan {
                 if p.capabilities.requires_sync {
                     base.push_str(".sync()");
@@ -299,14 +265,6 @@ pub fn emit_hir_expr(
                 }
             }
             base
-        }
-        HirExpr::MethodCall(obj, method, args, _) => {
-            let obj_str = emit_hir_expr(obj, state_names, island_names);
-            let args_str: Vec<String> = args
-                .iter()
-                .map(|a| emit_hir_expr(&a.value, state_names, island_names))
-                .collect();
-            format!("{obj_str}.{method}({})", args_str.join(", "))
         }
         HirExpr::FieldAccess(obj, field, _) => {
             let obj_str = emit_hir_expr(obj, state_names, island_names);

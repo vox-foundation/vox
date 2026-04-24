@@ -34,26 +34,7 @@ fn collect_query_plans_expr(
 ) {
     use vox_compiler::hir::HirExpr;
     match expr {
-        HirExpr::DbTableOp {
-            table,
-            op,
-            args,
-            select_cols,
-            order_by,
-            limit,
-            plan,
-            ..
-        } => {
-            out.push(plan.clone().unwrap_or_else(|| {
-                fallback_plan_from_db_op(table, *op, select_cols, order_by, limit)
-            }));
-            for a in args {
-                collect_query_plans_expr(&a.value, out);
-            }
-            if let Some(l) = limit {
-                collect_query_plans_expr(l, out);
-            }
-        }
+
         HirExpr::ObjectLit(fields, _) => {
             for (_, v) in fields {
                 collect_query_plans_expr(v, out);
@@ -75,7 +56,10 @@ fn collect_query_plans_expr(
                 collect_query_plans_expr(&a.value, out);
             }
         }
-        HirExpr::MethodCall(obj, _, args, _) => {
+        HirExpr::MethodCall(obj, _, args, plan_opt, _) => {
+            if let Some(plan) = plan_opt {
+                out.push(*plan.clone());
+            }
             collect_query_plans_expr(obj, out);
             for a in args {
                 collect_query_plans_expr(&a.value, out);

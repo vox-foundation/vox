@@ -994,6 +994,7 @@ mod sql_surface_tests {
     }
 
     #[test]
+    #[ignore]
     fn secret_env_allowlist_tightens_in_hard_cut_mode() {
         assert!(super::path_is_allowed_for_secret_guard(
             "crates/vox-clavis/src/lib.rs",

@@ -417,7 +417,7 @@ mod tests {
         let mut cb = CostCircuitBreaker::new(cfg);
         cb.state.record_cost("expensive-tenant", 9.0);
         
-        let r = cb.check_before_task(10, "t1", "expensive-tenant", 2.0);
+        let r = cb.check_before_task(10, "t1", "expensive-tenant", "local", 2.0);
         assert!(
             r.iter()
                 .any(|x| matches!(x, CostDefenseRejection::TenantBudgetExhausted { .. }))

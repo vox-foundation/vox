@@ -222,7 +222,7 @@ fn scan_hir_expr_for_react_imports(
                 need_callback,
             );
         }
-        HirExpr::MethodCall(recv, _, args, _) => {
+        HirExpr::MethodCall(recv, _, args, _, _) => {
             scan_hir_expr_for_react_imports(
                 recv,
                 need_state,
@@ -406,28 +406,7 @@ fn scan_hir_expr_for_react_imports(
                 need_callback,
             );
         }
-        HirExpr::DbTableOp { args, limit, .. } => {
-            for a in args {
-                scan_hir_expr_for_react_imports(
-                    &a.value,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
-            }
-            if let Some(lim) = limit {
-                scan_hir_expr_for_react_imports(
-                    lim,
-                    need_state,
-                    need_effect,
-                    need_memo,
-                    need_ref,
-                    need_callback,
-                );
-            }
-        }
+
         HirExpr::Try(t) => {
             scan_hir_expr_for_react_imports(
                 t.target.as_ref(),

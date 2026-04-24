@@ -142,7 +142,7 @@ fn emit_hir_route_expr(expr: &HirExpr) -> String {
     let empty = HashSet::new();
     let no_islands = empty_island_set();
     match expr {
-        HirExpr::MethodCall(object, method, args, _) => {
+        HirExpr::MethodCall(object, method, args, _, _) => {
             let obj = emit_hir_route_expr(object);
             let args_str: Vec<String> = args
                 .iter()

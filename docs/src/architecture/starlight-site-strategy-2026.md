@@ -38,15 +38,15 @@ This document records the comprehensive research findings and action plan produc
 
 ### Current State (`docs/src/index.md`)
 The existing landing page was designed for mdBook's HTML pass-through rendering. It uses:
-- Raw `{{#include ../../README.md:anchor}}` directives — **BROKEN in Starlight** (Starlight does not support mdBook `{{#include}}` syntax).
+- Raw `{{#include ../../../README.md:anchor}}` directives — **BROKEN in Starlight** (Starlight does not support mdBook `{{#include}}` syntax).
 - Inline HTML divs relying on mdBook's CSS variables (`var(--table-border-color)`) — **BROKEN** in Starlight context.
 - Hardcoded `.md` links — need to be converted to Starlight-style slug paths.
 
 ### Critical Issue: README ↔ Docs Portal SSOT
 The `docs/src/index.md` currently pulls sections from `README.md` via `{{#include}}` anchors:
-- `{{#include ../../README.md:why_vox}}`
-- `{{#include ../../README.md:tier_table}}`
-- `{{#include ../../README.md:community_license}}`
+- `{{#include ../../../README.md:why_vox}}`
+- `{{#include ../../../README.md:tier_table}}`
+- `{{#include ../../../README.md:community_license}}`
 
 **This is broken in Starlight.** We need a new approach to the SSOT problem.
 
@@ -137,7 +137,7 @@ mdBook generated URLs like `/architecture/foo.html`. Starlight generates `/archi
 All links in `llms.txt` point to `vox.foundation` not `vox-lang.org`. This will cause 404s for AI agents trying to follow those references.
 
 ### Gap 7: `{{#include}}` Directives in `index.md` (CRITICAL)
-The landing page `docs/src/index.md` contains mdBook-specific `{{#include ../../README.md:anchor}}` directives that Starlight will render as literal text. This is the most visible regression.
+The landing page `docs/src/index.md` contains mdBook-specific `{{#include ../../../README.md:anchor}}` directives that Starlight will render as literal text. This is the most visible regression.
 
 ### Gap 8: Content Collection Config Duplicated (LOW)
 Both `docs-astro/src/content/config.ts` and `docs-astro/src/content.config.ts` appear to exist. Only one should be authoritative.

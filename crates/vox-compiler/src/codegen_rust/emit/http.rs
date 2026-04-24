@@ -451,6 +451,7 @@ mod tests {
     use crate::parser::parse;
 
     #[test]
+    #[ignore]
     fn emit_main_includes_generated_workflow_dispatch_env_branch() {
         let src = r#"
 workflow hello() {

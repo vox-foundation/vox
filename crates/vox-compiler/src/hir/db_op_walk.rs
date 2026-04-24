@@ -16,14 +16,12 @@ pub(crate) fn for_each_db_table_op_in_module(
     f: &mut impl FnMut(DbTableOpSite<'_>),
 ) {
     for_each_hir_expr_in_module(module, &mut |expr| {
-        if let HirExpr::DbTableOp {
-            table, op, plan, ..
-        } = expr
+        if let HirExpr::MethodCall(_, _, _, Some(plan), _) = expr
         {
             f(DbTableOpSite {
-                table: table.as_str(),
-                op: *op,
-                plan: plan.as_ref(),
+                table: &plan.table,
+                op: plan.op,
+                plan: Some(&**plan),
             });
         }
     });
@@ -156,14 +154,7 @@ fn walk_stmt(stmt: &HirStmt, f: &mut impl FnMut(&HirExpr)) {
 fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
     f(expr);
     match expr {
-        HirExpr::DbTableOp { args, limit, .. } => {
-            for a in args {
-                walk_arg(a, f);
-            }
-            if let Some(l) = limit {
-                walk_expr(l.as_ref(), f);
-            }
-        }
+
         HirExpr::ObjectLit(fields, _) => {
             for (_, v) in fields {
                 walk_expr(v, f);
@@ -185,7 +176,7 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
                 walk_arg(a, f);
             }
         }
-        HirExpr::MethodCall(obj, _, args, _) => {
+        HirExpr::MethodCall(obj, _, args, _, _) => {
             walk_expr(obj.as_ref(), f);
             for a in args {
                 walk_arg(a, f);
@@ -280,14 +271,7 @@ fn walk_stmt_mut(stmt: &mut HirStmt, f: &mut impl FnMut(&mut HirExpr)) {
 fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
     f(expr);
     match expr {
-        HirExpr::DbTableOp { args, limit, .. } => {
-            for a in args {
-                walk_arg_mut(a, f);
-            }
-            if let Some(l) = limit {
-                walk_expr_mut(l.as_mut(), f);
-            }
-        }
+
         HirExpr::ObjectLit(fields, _) => {
             for (_, v) in fields {
                 walk_expr_mut(v, f);
@@ -309,7 +293,7 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
                 walk_arg_mut(a, f);
             }
         }
-        HirExpr::MethodCall(obj, _, args, _) => {
+        HirExpr::MethodCall(obj, _, args, _, _) => {
             walk_expr_mut(obj.as_mut(), f);
             for a in args {
                 walk_arg_mut(a, f);

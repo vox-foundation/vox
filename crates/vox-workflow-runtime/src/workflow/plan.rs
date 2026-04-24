@@ -330,7 +330,7 @@ fn collect_from_expr(
         HirExpr::Match(_, _, _) => anyhow::bail!(
             "workflow `{workflow_name}`: interpreted durable planning currently supports only linear activity plans; `match` branches are not replay-safe yet"
         ),
-        HirExpr::MethodCall(recv, _, args, _) => {
+        HirExpr::MethodCall(recv, _, args, _, _) => {
             collect_from_expr(workflow_name, recv, ctx, out, branch_counter)?;
             for a in args {
                 collect_from_expr(workflow_name, &a.value, ctx, out, branch_counter)?;

@@ -46,22 +46,11 @@ pub fn collect_table_select_projections(module: &HirModule) -> HashMap<String, V
     };
 
     crate::hir::db_op_walk::for_each_hir_expr_in_module(module, &mut |expr| {
-        if let HirExpr::DbTableOp {
-            table,
-            op,
-            select_cols,
-            plan,
-            ..
-        } = expr
-            && matches!(op, HirDbTableOp::All | HirDbTableOp::FilterRecord)
+        if let HirExpr::MethodCall(_, _, _, Some(plan), _) = expr
+            && matches!(plan.op, HirDbTableOp::All | HirDbTableOp::FilterRecord)
         {
-            if let Some(cols) = select_cols {
-                record(table, cols);
-            }
-            if let Some(p) = plan
-                && let Some(cols) = p.projection.as_ref()
-            {
-                record(table, cols);
+            if let Some(cols) = plan.projection.as_ref() {
+                record(&plan.table, cols);
             }
         }
     });
@@ -87,14 +76,11 @@ mod tests {
     #[test]
     fn collects_select_projections_from_reactive_members() {
         let span = Span::new(0, 0);
-        let expr = HirExpr::DbTableOp {
-            table: "Task".to_string(),
-            op: HirDbTableOp::FilterRecord,
-            args: vec![],
-            select_cols: Some(vec!["done".to_string(), "title".to_string()]),
-            order_by: None,
-            limit: None,
-            plan: Some(HirDbQueryPlan {
+        let expr = HirExpr::MethodCall(
+            Box::new(HirExpr::Ident("db".to_string(), span)),
+            "filter".to_string(),
+            vec![],
+            Some(Box::new(HirDbQueryPlan {
                 table: "Task".to_string(),
                 op: HirDbTableOp::FilterRecord,
                 predicate: None,
@@ -102,9 +88,9 @@ mod tests {
                 order_by: None,
                 has_limit: false,
                 capabilities: HirDbPlanCapabilities::default(),
-            }),
+            })),
             span,
-        };
+        );
         let mut module = HirModule::default();
         module.components.push(HirReactiveComponent {
             id: DefId(1),

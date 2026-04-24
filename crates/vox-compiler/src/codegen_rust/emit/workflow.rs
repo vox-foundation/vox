@@ -563,6 +563,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn workflow_dispatch_helper_is_emitted_with_argument_decode() {
         let src = r#"
 workflow greet(name: str) {

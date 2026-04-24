@@ -30,8 +30,8 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         | HirExpr::Binary(_, _, _, s)
         | HirExpr::Unary(_, _, s)
         | HirExpr::Call(_, _, _, s)
-        | HirExpr::MethodCall(_, _, _, s)
-        | HirExpr::DbTableOp { span: s, .. }
+        | HirExpr::MethodCall(_, _, _, _, s)
+        
         | HirExpr::FieldAccess(_, _, s)
         | HirExpr::Match(_, _, s)
         | HirExpr::If(_, _, _, s)
@@ -536,16 +536,7 @@ impl<'a> Checker<'a> {
 
     fn contains_db_write_or_unsafe_in_expr(expr: &HirExpr) -> bool {
         match expr {
-            HirExpr::DbTableOp { op, args, .. } => {
-                matches!(
-                    op,
-                    HirDbTableOp::Insert
-                        | HirDbTableOp::Delete
-                        | HirDbTableOp::UnsafeQueryRawClause
-                ) || args
-                    .iter()
-                    .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value))
-            }
+
             HirExpr::ObjectLit(fields, _) => fields
                 .iter()
                 .any(|(_, v)| Self::contains_db_write_or_unsafe_in_expr(v)),
@@ -557,8 +548,19 @@ impl<'a> Checker<'a> {
                     || Self::contains_db_write_or_unsafe_in_expr(r)
             }
             HirExpr::Unary(_, e, _) => Self::contains_db_write_or_unsafe_in_expr(e),
-            HirExpr::Call(callee, args, _, _) | HirExpr::MethodCall(callee, _, args, _) => {
+            HirExpr::Call(callee, args, _, _) | HirExpr::MethodCall(callee, _, args, None, _) => {
                 Self::contains_db_write_or_unsafe_in_expr(callee)
+                    || args
+                        .iter()
+                        .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value))
+            }
+            HirExpr::MethodCall(callee, _, args, Some(plan), _) => {
+                matches!(
+                    plan.op,
+                    HirDbTableOp::Insert
+                        | HirDbTableOp::Delete
+                        | HirDbTableOp::UnsafeQueryRawClause
+                ) || Self::contains_db_write_or_unsafe_in_expr(callee)
                     || args
                         .iter()
                         .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value))

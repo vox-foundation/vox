@@ -365,6 +365,7 @@ pub(super) fn emit_method_call<F>(
     obj: &HirExpr,
     method: &str,
     args: &[crate::hir::HirArg],
+    plan: Option<&HirDbQueryPlan>,
     fallible_db: bool,
 ) -> String
 where
@@ -424,10 +425,10 @@ where
                         table_name,
                         op,
                         args,
+                        &plan.and_then(|p| p.projection.clone()),
+                        &plan.and_then(|p| p.order_by.clone()),
                         &None,
-                        &None,
-                        &None,
-                        None,
+                        plan,
                         fallible_db,
                     );
                 }

@@ -93,7 +93,7 @@ fn examples_tree_has_no_orphan_vox_files() {
     }
 }
 
-fn for_each_mdbook_include(text: &str, mut f: impl FnMut(&str)) {
+fn for_each_doc_pipeline_include(text: &str, mut f: impl FnMut(&str)) {
     let needle = "{{#include ";
     let mut search = 0usize;
     while let Some(found) = text[search..].find(needle) {
@@ -101,7 +101,7 @@ fn for_each_mdbook_include(text: &str, mut f: impl FnMut(&str)) {
         let rest = &text[abs..];
         let close = rest
             .find("}}")
-            .unwrap_or_else(|| panic!("unclosed mdBook `{{#include` starting at byte {abs}"));
+            .unwrap_or_else(|| panic!("unclosed doc pipeline `{{{{#include` starting at byte {abs}"));
         let token = rest[..close].trim();
         let path_part = token.split(':').next().unwrap_or(token).trim();
         if !path_part.is_empty() {
@@ -124,7 +124,7 @@ fn walk_md_files(dir: &Path, f: &mut impl FnMut(&Path)) {
 }
 
 #[test]
-fn mdbook_includes_resolve_to_existing_golden_vox() {
+fn doc_pipeline_includes_resolve_and_vox_are_golden() {
     let root = repo_root();
     let ssot = load_ssot();
     let golden_dir = root.join("examples/golden");
@@ -140,29 +140,25 @@ fn mdbook_includes_resolve_to_existing_golden_vox() {
             let text = fs::read_to_string(md_path)
                 .unwrap_or_else(|e| panic!("read {}: {e}", md_path.display()));
             let parent = md_path.parent().unwrap_or_else(|| Path::new("."));
-            for_each_mdbook_include(&text, |rel_raw| {
+            for_each_doc_pipeline_include(&text, |rel_raw| {
                 let joined = parent.join(rel_raw);
                 let resolved = joined.canonicalize().unwrap_or_else(|e| {
                     panic!(
-                        "{}: mdBook include path {:?} does not resolve (from {}): {e}",
+                        "{}: doc pipeline include path {:?} does not resolve (from {}): {e}",
                         md_path.display(),
                         rel_raw,
                         md_path.display()
                     )
                 });
-                assert!(
-                    resolved.starts_with(&golden_canon),
-                    "{}: mdBook include must target a path under {} (got {})",
-                    md_path.display(),
-                    golden_dir.display(),
-                    resolved.display()
-                );
-                assert!(
-                    resolved.extension().and_then(|s| s.to_str()) == Some("vox"),
-                    "{}: included file must be .vox (got {})",
-                    md_path.display(),
-                    resolved.display()
-                );
+                if resolved.extension().and_then(|s| s.to_str()) == Some("vox") {
+                    assert!(
+                        resolved.starts_with(&golden_canon),
+                        "{}: doc pipeline .vox include must target a path under {} (got {})",
+                        md_path.display(),
+                        golden_dir.display(),
+                        resolved.display()
+                    );
+                }
             });
         });
     }

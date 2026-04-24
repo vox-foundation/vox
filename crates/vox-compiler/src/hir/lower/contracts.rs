@@ -235,7 +235,7 @@ impl LowerCtx {
                 // Recursively visit the new match to inject postconditions into the Err branch's return.
                 self.inject_postconditions_into_expr(expr, post_stmts);
             }
-            HirExpr::Call(callee, args, _, _) | HirExpr::MethodCall(callee, _, args, _) => {
+            HirExpr::Call(callee, args, _, _) | HirExpr::MethodCall(callee, _, args, _, _) => {
                 self.inject_postconditions_into_expr(callee, post_stmts);
                 for arg in args {
                     self.inject_postconditions_into_expr(&mut arg.value, post_stmts);
@@ -271,14 +271,7 @@ impl LowerCtx {
                     self.inject_postconditions_into_expr(&mut attr.value, post_stmts);
                 }
             }
-            HirExpr::DbTableOp { args, limit, .. } => {
-                for arg in args {
-                    self.inject_postconditions_into_expr(&mut arg.value, post_stmts);
-                }
-                if let Some(l) = limit {
-                    self.inject_postconditions_into_expr(l, post_stmts);
-                }
-            }
+
             // Lambdas create a new return context, so we do NOT inject postconditions into them.
             HirExpr::Lambda(..) => {}
             HirExpr::IntLit(..)

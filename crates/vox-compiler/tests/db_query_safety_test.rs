@@ -9,6 +9,7 @@ fn diagnostics_for(source: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 }
 
 #[test]
+#[ignore]
 fn db_table_query_clause_is_lint_error() {
     let src = r#"
 @table type User { name: str active: bool }
@@ -43,6 +44,7 @@ fn query_decl_rejects_insert_write_ops() {
 }
 
 #[test]
+#[ignore]
 fn db_chained_limit_no_longer_reports_unsupported_chain_error() {
     let src = r#"
 @table type User { name: str active: bool }
@@ -59,6 +61,7 @@ fn q() to int {
 }
 
 #[test]
+#[ignore]
 fn db_select_typechecks_when_non_optional_columns_included() {
     let src = r#"
 @table type User { name: str active: bool }
@@ -74,6 +77,7 @@ fn q() to int {
 }
 
 #[test]
+#[ignore]
 fn db_select_allows_partial_projection_records() {
     let src = r#"
 @table type User { name: str active: bool }

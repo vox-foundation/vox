@@ -74,7 +74,7 @@ fn resolve_activity_name(operand: &HirExpr) -> String {
             HirExpr::Ident(name, _) => name.clone(),
             _ => "activity".to_string(),
         },
-        HirExpr::MethodCall(_, method, _, _) => method.clone(),
+        HirExpr::MethodCall(_, method, _, _, _) => method.clone(),
         HirExpr::Ident(name, _) => name.clone(),
         _ => "activity".to_string(),
     }

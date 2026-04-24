@@ -80,16 +80,13 @@ impl LowerCtx {
             } => {
                 if let Some(chain) = super::expr_db::extract_db_query_chain(self, e) {
                     let plan = super::expr_db::make_db_plan_from_chain(&chain);
-                    return HirExpr::DbTableOp {
-                        table: chain.table,
-                        op: chain.op,
-                        args: chain.args,
-                        select_cols: chain.select_cols,
-                        order_by: chain.order_by,
-                        limit: chain.limit.map(Box::new),
-                        plan: Some(plan),
-                        span: *span,
-                    };
+                    return HirExpr::MethodCall(
+                        Box::new(self.lower_expr(object)),
+                        method.clone(),
+                        chain.args,
+                        Some(Box::new(plan)),
+                        *span,
+                    );
                 }
                 let obj_hir = self.lower_expr(object);
                 let hir_args: Vec<HirArg> = args
@@ -113,16 +110,7 @@ impl LowerCtx {
                         has_limit: false,
                         capabilities: HirDbPlanCapabilities::default(),
                     };
-                    return HirExpr::DbTableOp {
-                        table,
-                        op: HirDbTableOp::Count,
-                        args: count_args,
-                        select_cols: None,
-                        order_by: None,
-                        limit: None,
-                        plan: Some(plan),
-                        span: *span,
-                    };
+                    return HirExpr::MethodCall(Box::new(obj_hir), method.clone(), count_args, Some(Box::new(plan)), *span);
                 }
                 if method == "filter"
                     && let Some(table) = super::expr_db::db_table_handle_name(&obj_hir)
@@ -147,16 +135,7 @@ impl LowerCtx {
                         has_limit: false,
                         capabilities: HirDbPlanCapabilities::default(),
                     };
-                    return HirExpr::DbTableOp {
-                        table,
-                        op: HirDbTableOp::FilterRecord,
-                        args: filter_args,
-                        select_cols: None,
-                        order_by: None,
-                        limit: None,
-                        plan: Some(plan),
-                        span: *span,
-                    };
+                    return HirExpr::MethodCall(Box::new(obj_hir), method.clone(), filter_args, Some(Box::new(plan)), *span);
                 }
                 if let Some((table, op)) =
                     super::expr_db::db_table_op_from_field(&obj_hir, method.as_str())
@@ -165,14 +144,7 @@ impl LowerCtx {
                     if matches!(op, HirDbTableOp::UnsafeQueryRawClause) {
                         cap.emits_change_log = true;
                     }
-                    HirExpr::DbTableOp {
-                        table: table.clone(),
-                        op,
-                        args: hir_args,
-                        select_cols: None,
-                        order_by: None,
-                        limit: None,
-                        plan: Some(HirDbQueryPlan {
+                    HirExpr::MethodCall(Box::new(obj_hir), method.clone(), hir_args, Some(Box::new(HirDbQueryPlan {
                             table,
                             op,
                             predicate: None,
@@ -180,11 +152,9 @@ impl LowerCtx {
                             order_by: None,
                             has_limit: false,
                             capabilities: cap,
-                        }),
-                        span: *span,
-                    }
+                        })), *span)
                 } else {
-                    HirExpr::MethodCall(Box::new(obj_hir), method.clone(), hir_args, *span)
+                    HirExpr::MethodCall(Box::new(obj_hir), method.clone(), hir_args, None, *span)
                 }
             }
             Expr::FieldAccess {
