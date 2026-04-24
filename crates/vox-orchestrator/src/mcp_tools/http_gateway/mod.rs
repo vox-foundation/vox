@@ -286,7 +286,14 @@ pub fn spawn_http_gateway_if_enabled(
     #[cfg(feature = "dashboard")]
     let app = app.merge(vox_dashboard::dashboard_router(dashboard_token.as_ref().map(|t| t.0.clone())));
 
+    let cors = tower_http::cors::CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any)
+        .expose_headers(tower_http::cors::Any);
+
     let app = app
+        .layer(cors)
         .layer(axum::middleware::from_fn_with_state(gateway_state.clone(), origin_guard::check_origin_allowlist))
         .layer(DefaultBodyLimit::max(256 * 1024))
         .with_state(gateway_state.clone());
