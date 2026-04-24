@@ -33,4 +33,5 @@ file://.*docs/src/architecture/.*
 file://.*vox-vscode/.*
 file://.*docs/theme/.*
 file://.*docs/src/index\.md
+file://.*docs/book\.toml
 
