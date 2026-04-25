@@ -162,6 +162,110 @@ impl HirModule {
     }
 }
 
+/// HTTP route lowered to HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirRoute {
+    /// HTTP method.
+    pub method: HirHttpMethod,
+    /// Path pattern string.
+    pub path: String,
+    /// Stable contract key (`METHOD path`) for WebIR / client stubs (OP-0040).
+    pub route_contract: String,
+    /// Declared response type.
+    pub return_type: Option<HirType>,
+    /// Handler body.
+    pub body: Vec<HirStmt>,
+    /// Span covering the route.
+    pub span: Span,
+}
+
+/// HTTP methods for [`HirRoute`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HirHttpMethod {
+    /// GET
+    Get,
+    /// POST
+    Post,
+    /// PUT
+    Put,
+    /// DELETE
+    Delete,
+}
+
+impl HirHttpMethod {
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Get => "GET",
+            Self::Post => "POST",
+            Self::Put => "PUT",
+            Self::Delete => "DELETE",
+        }
+    }
+}
+
+/// Actor definition in HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirActor {
+    /// Actor type id.
+    pub id: DefId,
+    /// Actor name.
+    pub name: String,
+    /// Message handlers.
+    pub handlers: Vec<HirActorHandler>,
+    /// Span covering the actor.
+    pub span: Span,
+}
+
+/// Single actor message handler.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirActorHandler {
+    /// Event name.
+    pub event_name: String,
+    /// Parameters.
+    pub params: Vec<HirParam>,
+    /// Return type.
+    pub return_type: Option<HirType>,
+    /// Handler body.
+    pub body: Vec<HirStmt>,
+    /// Span covering the handler.
+    pub span: Span,
+}
+
+/// Workflow definition in HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirWorkflow {
+    /// Workflow id.
+    pub id: DefId,
+    /// Workflow name.
+    pub name: String,
+    /// Input parameters.
+    pub params: Vec<HirParam>,
+    /// Output type.
+    pub return_type: Option<HirType>,
+    /// Workflow body.
+    pub body: Vec<HirStmt>,
+    /// Span covering the workflow.
+    pub span: Span,
+}
+
+/// Activity definition in HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirActivity {
+    /// Activity id.
+    pub id: DefId,
+    /// Activity name.
+    pub name: String,
+    /// Parameters.
+    pub params: Vec<HirParam>,
+    /// Return type.
+    pub return_type: Option<HirType>,
+    /// Activity body.
+    pub body: Vec<HirStmt>,
+    /// Span covering the activity.
+    pub span: Span,
+}
+
 /// Island component lowered to HIR.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirIsland(pub crate::ast::decl::IslandDecl);
@@ -273,110 +377,6 @@ pub struct HirVariant {
     /// Named fields with types.
     pub fields: Vec<(String, HirType)>,
     /// Span covering the variant.
-    pub span: Span,
-}
-
-/// HTTP route in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirRoute {
-    /// HTTP method.
-    pub method: HirHttpMethod,
-    /// Path pattern string.
-    pub path: String,
-    /// Stable contract key (`METHOD path`) for WebIR / client stubs (OP-0040).
-    pub route_contract: String,
-    /// Declared response type.
-    pub return_type: Option<HirType>,
-    /// Handler body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the route.
-    pub span: Span,
-}
-
-/// HTTP methods for [`HirRoute`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub enum HirHttpMethod {
-    /// GET
-    Get,
-    /// POST
-    Post,
-    /// PUT
-    Put,
-    /// DELETE
-    Delete,
-}
-
-impl HirHttpMethod {
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Get => "GET",
-            Self::Post => "POST",
-            Self::Put => "PUT",
-            Self::Delete => "DELETE",
-        }
-    }
-}
-
-/// Actor definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActor {
-    /// Actor type id.
-    pub id: DefId,
-    /// Actor name.
-    pub name: String,
-    /// Message handlers.
-    pub handlers: Vec<HirActorHandler>,
-    /// Span covering the actor.
-    pub span: Span,
-}
-
-/// Single actor handler.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActorHandler {
-    /// Event name.
-    pub event_name: String,
-    /// Parameters.
-    pub params: Vec<HirParam>,
-    /// Return type.
-    pub return_type: Option<HirType>,
-    /// Handler body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the handler.
-    pub span: Span,
-}
-
-/// Workflow definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirWorkflow {
-    /// Workflow id.
-    pub id: DefId,
-    /// Workflow name.
-    pub name: String,
-    /// Input parameters.
-    pub params: Vec<HirParam>,
-    /// Output type.
-    pub return_type: Option<HirType>,
-    /// Workflow body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the workflow.
-    pub span: Span,
-}
-
-/// Activity definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActivity {
-    /// Activity id.
-    pub id: DefId,
-    /// Activity name.
-    pub name: String,
-    /// Parameters.
-    pub params: Vec<HirParam>,
-    /// Return type.
-    pub return_type: Option<HirType>,
-    /// Activity body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the activity.
     pub span: Span,
 }
 

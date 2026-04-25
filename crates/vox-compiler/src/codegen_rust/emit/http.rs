@@ -1,4 +1,4 @@
-use crate::app_contract::project_app_contract;
+﻿use crate::app_contract::project_app_contract;
 use crate::hir::{HirHttpMethod, HirModule, HirRoute};
 
 use super::stmt_expr::emit_stmt;

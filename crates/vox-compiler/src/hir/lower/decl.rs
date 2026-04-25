@@ -105,88 +105,6 @@ impl LowerCtx {
         }
     }
 
-    pub(crate) fn lower_route(&mut self, r: &HttpRouteDecl) -> HirRoute {
-        let method = match r.method {
-            HttpMethod::Get => HirHttpMethod::Get,
-            HttpMethod::Post => HirHttpMethod::Post,
-            HttpMethod::Put => HirHttpMethod::Put,
-            HttpMethod::Delete => HirHttpMethod::Delete,
-        };
-        let route_contract = format!("{} {}", method.as_str(), r.path);
-        self.def_map.push_scope();
-        let body = r.body.iter().map(|s| self.lower_stmt(s)).collect();
-        self.def_map.pop_scope();
-
-        HirRoute {
-            method,
-            path: r.path.clone(),
-            route_contract,
-            return_type: r.return_type.as_ref().map(|t| self.lower_type(t)),
-            body,
-            span: r.span,
-        }
-    }
-
-    pub(crate) fn lower_actor(&mut self, a: &ActorDecl) -> HirActor {
-        let id = self.def_map.define(a.name.clone());
-        HirActor {
-            id,
-            name: a.name.clone(),
-            handlers: a
-                .handlers
-                .iter()
-                .map(|h| {
-                    self.def_map.push_scope();
-                    let params = h.params.iter().map(|p| self.lower_param(p)).collect();
-                    let body = h.body.iter().map(|s| self.lower_stmt(s)).collect();
-                    self.def_map.pop_scope();
-                    HirActorHandler {
-                        event_name: h.event_name.clone(),
-                        params,
-                        return_type: h.return_type.as_ref().map(|t| self.lower_type(t)),
-                        body,
-                        span: h.span,
-                    }
-                })
-                .collect(),
-            span: a.span,
-        }
-    }
-
-    pub(crate) fn lower_workflow(&mut self, w: &WorkflowDecl) -> HirWorkflow {
-        let id = self.def_map.define(w.name.clone());
-        self.def_map.push_scope();
-        let params = w.params.iter().map(|p| self.lower_param(p)).collect();
-        let body = w.body.iter().map(|s| self.lower_stmt(s)).collect();
-        self.def_map.pop_scope();
-
-        HirWorkflow {
-            id,
-            name: w.name.clone(),
-            params,
-            return_type: w.return_type.as_ref().map(|t| self.lower_type(t)),
-            body,
-            span: w.span,
-        }
-    }
-
-    pub(crate) fn lower_activity(&mut self, a: &ActivityDecl) -> HirActivity {
-        let id = self.def_map.define(a.name.clone());
-        self.def_map.push_scope();
-        let params = a.params.iter().map(|p| self.lower_param(p)).collect();
-        let body = a.body.iter().map(|s| self.lower_stmt(s)).collect();
-        self.def_map.pop_scope();
-
-        HirActivity {
-            id,
-            name: a.name.clone(),
-            params,
-            return_type: a.return_type.as_ref().map(|t| self.lower_type(t)),
-            body,
-            span: a.span,
-        }
-    }
-
     pub(crate) fn lower_table(&mut self, t: &TableDecl) -> HirTable {
         let id = self.def_map.define(t.name.clone());
         HirTable {
@@ -346,6 +264,88 @@ impl LowerCtx {
             run_commands: e.run_commands.clone(),
             is_deprecated: e.is_deprecated,
             span: e.span,
+        }
+    }
+
+    pub(crate) fn lower_route(&mut self, r: &HttpRouteDecl) -> HirRoute {
+        let method = match r.method {
+            HttpMethod::Get => HirHttpMethod::Get,
+            HttpMethod::Post => HirHttpMethod::Post,
+            HttpMethod::Put => HirHttpMethod::Put,
+            HttpMethod::Delete => HirHttpMethod::Delete,
+        };
+        let route_contract = format!("{} {}", method.as_str(), r.path);
+        self.def_map.push_scope();
+        let body = r.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+
+        HirRoute {
+            method,
+            path: r.path.clone(),
+            route_contract,
+            return_type: r.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            span: r.span,
+        }
+    }
+
+    pub(crate) fn lower_actor(&mut self, a: &ActorDecl) -> HirActor {
+        let id = self.def_map.define(a.name.clone());
+        HirActor {
+            id,
+            name: a.name.clone(),
+            handlers: a
+                .handlers
+                .iter()
+                .map(|h| {
+                    self.def_map.push_scope();
+                    let params = h.params.iter().map(|p| self.lower_param(p)).collect();
+                    let body = h.body.iter().map(|s| self.lower_stmt(s)).collect();
+                    self.def_map.pop_scope();
+                    HirActorHandler {
+                        event_name: h.event_name.clone(),
+                        params,
+                        return_type: h.return_type.as_ref().map(|t| self.lower_type(t)),
+                        body,
+                        span: h.span,
+                    }
+                })
+                .collect(),
+            span: a.span,
+        }
+    }
+
+    pub(crate) fn lower_workflow(&mut self, w: &WorkflowDecl) -> HirWorkflow {
+        let id = self.def_map.define(w.name.clone());
+        self.def_map.push_scope();
+        let params = w.params.iter().map(|p| self.lower_param(p)).collect();
+        let body = w.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+
+        HirWorkflow {
+            id,
+            name: w.name.clone(),
+            params,
+            return_type: w.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            span: w.span,
+        }
+    }
+
+    pub(crate) fn lower_activity(&mut self, a: &ActivityDecl) -> HirActivity {
+        let id = self.def_map.define(a.name.clone());
+        self.def_map.push_scope();
+        let params = a.params.iter().map(|p| self.lower_param(p)).collect();
+        let body = a.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+
+        HirActivity {
+            id,
+            name: a.name.clone(),
+            params,
+            return_type: a.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            span: a.span,
         }
     }
 }

@@ -29,9 +29,9 @@ training_eligible: false
 | TASK-0.5 — Fix `vox dashboard` CLI detachment + readiness polling | ✅ Done | `b7536331` | `DashboardLauncher` struct with `setsid()`/Windows `DETACHED_PROCESS` flags implemented. |
 | TASK-0.6 — Harden `transport.ts`: backoff, auth refresh | 🟡 Partial | `b7536331` | Needs verification of backoff caps and `authStatus` event emission. |
 | TASK-0.7 — Fix `App.tsx` hooks violation + dead imports | ✅ Done | `b7536331` | `useVoxTransport()` moved to top of component. Dead imports removed. |
-| TASK-0.8 — Integration tests for dashboard crate | ❌ Not started | — | No test files under `crates/vox-dashboard/tests/`. |
+| TASK-0.8 — Integration tests for dashboard crate | ✅ Done | `HEAD` | Tests implemented in `crates/vox-dashboard/tests/` (`auth.rs`, `asset_serving.rs`, `origin_guard.rs`) and pass successfully. |
 
-**Phase 0 verdict:** 4 complete, 2 partial, 2 not started. TASK-0.3 is the critical blocker for security hardening.
+**Phase 0 verdict:** 6 complete, 1 partial, 0 not started.
 
 ---
 
@@ -57,10 +57,10 @@ training_eligible: false
 | TASK-2.2 — Unify `@server`/`@query`/`@mutation` → `@endpoint(kind: …)` | ✅ Done | `00588f6a` | `HirEndpointFn` with `EndpointKind` unified. `query_fns`/`mutation_fns`/`server_fns` collapsed to `endpoint_fns`. |
 | TASK-2.3 — Collapse `HirExpr::DbTableOp` into `MethodCall` | ✅ Done | `HEAD` | `HirExpr::DbTableOp` removed entirely; operations lowered into `MethodCall` with `HirDbQueryPlan`. Obsolete comment removed. |
 | TASK-2.4 — Resolve `HirExpr::Pipe` vs `Binary(Pipe)` | ✅ Done | `HEAD` | Removed redundant `HirExpr::Pipe` variant; pipeline expressions now strictly use `HirExpr::Binary(HirBinOp::Pipe, ...)`. All matches updated safely. |
-| TASK-2.5 — Retire `http` bare-keyword routing | ❌ Not started | — |  |
+| TASK-2.5 — Retire `http` bare-keyword routing | ✅ Done | `HEAD` | Tombstoned in parser. Verified via `test_parse_http_route_is_tombstoned`. |
 | TASK-2.6 — Align `workflow`/`activity`/`actor` | ❌ Not started | — |  |
 
-**Phase 2 verdict:** 4 complete, 0 partial, 2 not started.
+**Phase 2 verdict:** 5 complete, 0 partial, 1 not started.
 
 ---
 
@@ -94,6 +94,6 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in order)
 
-1. **TASK-0.8** — Write integration tests for dashboard auth + asset serving.
-2. **TASK-0.4 (finish)** — Install `CorsLayer` in gateway router.
-3. **TASK-2.5** — Retire `http` bare-keyword routing.
+1. **TASK-2.6** — Align `workflow`/`activity`/`actor`
+2. **TASK-1.4** — Clean up `index.css` duplication.
+3. **TASK-3.1** — Add grammar unification rule to AGENTS.md.

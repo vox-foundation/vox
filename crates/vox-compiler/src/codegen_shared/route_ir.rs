@@ -1,4 +1,4 @@
-//! Shared Route Intermediate Representation — the single source of truth for HTTP route
+﻿//! Shared Route Intermediate Representation — the single source of truth for HTTP route
 //! contracts that both Rust (Axum) and TypeScript (Express) codegen emit against.
 //!
 //! Neither [`crate::codegen_rust::emit::http`] nor [`crate::codegen_ts::routes`] should
