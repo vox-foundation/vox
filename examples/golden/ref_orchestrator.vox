@@ -13,10 +13,8 @@ fn get_recent_notes() to str {
 // ANCHOR_END: mcp_resource
 
 // ANCHOR: orchestrator_config
-env staging {
-    base "node:22-alpine"
-    packages ["curl"]
-    env STAGE = "staging"
-    expose [8080]
+// Note: env constructs are tombstoned. Use Dockerfile or standardized CI pipelines.
+fn orchestrator_staging_config() to str {
+    return "node:22-alpine"
 }
 // ANCHOR_END: orchestrator_config

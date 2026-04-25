@@ -16,7 +16,6 @@ use crate::codegen_ts::activity::{generate_activity_hir, generate_activity_runne
 use crate::codegen_ts::adt::generate_types;
 
 use crate::codegen_ts::island_emit::collect_island_names;
-use crate::codegen_ts::reactive::generate_reactive_component;
 use crate::codegen_ts::routes::generate_routes;
 use crate::codegen_ts::tanstack_query_emit::vox_tanstack_query_tsx;
 use crate::codegen_ts::vox_client::{VOX_CLIENT_FILENAME, emit_vox_client};
@@ -79,8 +78,8 @@ pub fn generate_with_options(
     options: CodegenOptions,
 ) -> Result<CodegenOutput, String> {
     let mut files = Vec::new();
-    let mut reactive_stats = crate::codegen_ts::reactive::ReactiveViewBridgeStats::default();
-    let island_names = collect_island_names(hir);
+    let reactive_stats = crate::codegen_ts::reactive::ReactiveViewBridgeStats::default();
+    let _island_names = collect_island_names(hir);
     let app_contract = project_app_contract(hir);
 
     // Generate type definitions
@@ -98,29 +97,6 @@ pub fn generate_with_options(
             "vox-tanstack-query.tsx".to_string(),
             vox_tanstack_query_tsx(),
         ));
-    }
-
-    let web_projection_cache = if hir.components.is_empty() {
-        None
-    } else {
-        Some(crate::web_ir::lower::project_web_from_core(hir))
-    };
-    let web_projection_ref = web_projection_cache.as_ref();
-
-    if options.mode != BuildMode::Library {
-        // Generate reactive components (Path C). Optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` uses Web IR
-        // preview emit for `view:` when validate is clean and whitespace-normalized JSX matches legacy.
-        for rc in &hir.components {
-            let (filename, content) = generate_reactive_component(
-                hir,
-                rc,
-                &island_names,
-                web_projection_ref,
-                &mut reactive_stats,
-            );
-            files.push((filename, content));
-        }
-
     }
 
     // Generate Express server only when explicitly requested (Axum + api.ts is canonical).
@@ -177,46 +153,6 @@ pub fn generate_with_options(
     }
 
 
-    for rc in &hir.components {
-        if rc.styles.is_empty() {
-            continue;
-        }
-        let filename = format!("{}.css", rc.name);
-        let mut css = String::new();
-        css.push_str(&format!("@layer {} {{\n", rc.name));
-        for block in &rc.styles {
-            css.push_str(&format!("  {} {{\n", block.selector));
-            for (prop, val) in &block.properties {
-                let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
-                    if c.is_uppercase() {
-                        acc.push('-');
-                        acc.push(c.to_ascii_lowercase());
-                    } else {
-                        acc.push(c);
-                    }
-                    acc
-                });
-
-                let css_val = if val.trim().starts_with("tokens.") {
-                    format!(
-                        "var(--vox-{})",
-                        val.trim()
-                            .strip_prefix("tokens.")
-                            .unwrap()
-                            .replace('.', "-")
-                    )
-                } else {
-                    val.clone()
-                };
-
-                css.push_str(&format!("    {}: {};\n", css_prop, css_val));
-            }
-            css.push_str("  }\n\n");
-        }
-        css.push_str("}\n\n");
-        files.push((filename, css));
-    }
-
     // Process vox.tokens.json into vox-tokens.css
     if let Ok(tokens_content) = std::fs::read_to_string("vox.tokens.json") {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&tokens_content) {
@@ -245,25 +181,21 @@ pub fn generate_with_options(
         }
     }
 
-    maybe_web_ir_validate(hir, web_projection_cache.as_ref())?;
+    let web_projection = crate::web_ir::lower::project_web_from_core(hir);
+    maybe_web_ir_validate(hir, Some(&web_projection))?;
 
-    let (manifest_filename, route_manifest) = match web_projection_ref {
-        Some(w) => {
-            if options.mode == BuildMode::Library {
-                (
-                    "routes.manifest.json",
-                    crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(
-                        w, hir,
-                    )?,
-                )
-            } else {
-                (
-                    "routes.manifest.ts",
-                    crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(w, hir)?,
-                )
-            }
-        }
-        None => ("", None),
+    let (manifest_filename, route_manifest) = if options.mode == BuildMode::Library {
+        (
+            "routes.manifest.json",
+            crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(
+                &web_projection, hir,
+            )?,
+        )
+    } else {
+        (
+            "routes.manifest.ts",
+            crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(&web_projection, hir)?,
+        )
     };
     if let Some(manifest) = route_manifest {
         files.push((manifest_filename.to_string(), manifest));

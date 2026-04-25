@@ -101,7 +101,7 @@ where
             s.push_str(&emit(body));
             s
         }
-        HirExpr::Pipe(left, right, _) => {
+        HirExpr::Binary(crate::hir::HirBinOp::Pipe, left, right, _) => {
             format!("({})({})", emit(right), emit(left))
         }
         HirExpr::For(name, iter, body, _) => {

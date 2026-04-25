@@ -1,7 +1,7 @@
 //! Walk [`HirExpr`] trees to find every [`HirExpr::DbTableOp`] site (shared by runtime projection).
 
 use crate::hir::{
-    HirArg, HirDbQueryPlan, HirDbTableOp, HirExpr, HirModule, HirReactiveMember, HirStmt,
+    HirArg, HirDbQueryPlan, HirDbTableOp, HirExpr, HirModule, HirStmt,
 };
 
 /// One occurrence of a lowered `db.Table.op(...)` expression.
@@ -57,21 +57,7 @@ pub(crate) fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut
     for res in &module.mcp_resources {
         walk_stmts(&res.func.body, f);
     }
-    for rc in &module.components {
-        for m in &rc.members {
-            match m {
-                HirReactiveMember::State(s) => walk_expr(&s.init, f),
-                HirReactiveMember::Derived(d) => walk_expr(&d.expr, f),
-                HirReactiveMember::Effect(e) => walk_expr(&e.body, f),
-                HirReactiveMember::OnMount(e) => walk_expr(&e.body, f),
-                HirReactiveMember::OnCleanup(e) => walk_expr(&e.body, f),
-                HirReactiveMember::Stmt(s) => walk_stmt(s, f),
-            }
-        }
-        if let Some(view) = &rc.view {
-            walk_expr(view, f);
-        }
-    }
+
 }
 
 pub(crate) fn for_each_hir_expr_in_module_mut(
@@ -107,21 +93,7 @@ pub(crate) fn for_each_hir_expr_in_module_mut(
     for res in &mut module.mcp_resources {
         walk_stmts_mut(&mut res.func.body, f);
     }
-    for rc in &mut module.components {
-        for m in &mut rc.members {
-            match m {
-                HirReactiveMember::State(s) => walk_expr_mut(&mut s.init, f),
-                HirReactiveMember::Derived(d) => walk_expr_mut(&mut d.expr, f),
-                HirReactiveMember::Effect(e) => walk_expr_mut(&mut e.body, f),
-                HirReactiveMember::OnMount(e) => walk_expr_mut(&mut e.body, f),
-                HirReactiveMember::OnCleanup(e) => walk_expr_mut(&mut e.body, f),
-                HirReactiveMember::Stmt(s) => walk_stmt_mut(s, f),
-            }
-        }
-        if let Some(view) = &mut rc.view {
-            walk_expr_mut(view, f);
-        }
-    }
+
 }
 
 fn walk_stmts(stmts: &[HirStmt], f: &mut impl FnMut(&HirExpr)) {
@@ -204,10 +176,6 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
             walk_expr(body.as_ref(), f);
         }
         HirExpr::Lambda(_, _, body, _) => walk_expr(body.as_ref(), f),
-        HirExpr::Pipe(l, r, _) => {
-            walk_expr(l.as_ref(), f);
-            walk_expr(r.as_ref(), f);
-        }
         HirExpr::Spawn(t, _) => walk_expr(t.as_ref(), f),
         HirExpr::With(b, o, _) => {
             walk_expr(b.as_ref(), f);
@@ -321,10 +289,7 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
             walk_expr_mut(body.as_mut(), f);
         }
         HirExpr::Lambda(_, _, body, _) => walk_expr_mut(body.as_mut(), f),
-        HirExpr::Pipe(l, r, _) => {
-            walk_expr_mut(l.as_mut(), f);
-            walk_expr_mut(r.as_mut(), f);
-        }
+
         HirExpr::Spawn(t, _) => walk_expr_mut(t.as_mut(), f),
         HirExpr::With(b, o, _) => {
             walk_expr_mut(b.as_mut(), f);

@@ -339,10 +339,6 @@ fn collect_from_expr(
         HirExpr::FieldAccess(recv, _, _) => {
             collect_from_expr(workflow_name, recv, ctx, out, branch_counter)?
         }
-        HirExpr::Pipe(a, b, _) => {
-            collect_from_expr(workflow_name, a, ctx, out, branch_counter)?;
-            collect_from_expr(workflow_name, b, ctx, out, branch_counter)?;
-        }
         HirExpr::Lambda(_, _, body, _) => {
             collect_from_expr(workflow_name, body, ctx, out, branch_counter)?
         }

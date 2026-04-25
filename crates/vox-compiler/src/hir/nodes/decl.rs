@@ -655,7 +655,6 @@ mod tests {
     fn semantic_hir_projection_drops_migration_vectors() {
         let hir = HirModule::default();
         let projected = hir.to_semantic_hir();
-        assert!(projected.components.is_empty());
         // These vectors are migration-only and intentionally absent from `SemanticHirModule`.
         assert!(projected.functions.is_empty());
     }

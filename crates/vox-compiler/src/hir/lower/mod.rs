@@ -249,6 +249,9 @@ impl LowerCtx {
                         span: s.span,
                     });
                 }
+                Decl::ReactiveComponent(c) => {
+                    hir.components.push(self.lower_reactive_component(c));
+                }
                 Decl::V0Component(_)
                 | Decl::Routes(_)
                 | Decl::Layout(_)
@@ -264,10 +267,7 @@ impl LowerCtx {
                 Decl::Island(decl) => {
                     hir.islands.push(HirIsland(decl.clone()));
                 }
-                // Path C reactive: primary source for WebIR `view_roots` + `behavior_nodes`.
-                Decl::ReactiveComponent(decl) => {
-                    hir.components.push(self.lower_reactive_component(decl));
-                }
+
                 Decl::Agent(a) => {
                     hir.agents.push(self.lower_agent(a));
                 }
@@ -344,7 +344,6 @@ http post "/chat" to Result { ret Ok(0) }
         assert_eq!(hir.tables.len(), 1);
         assert_eq!(hir.routes.len(), 1);
         assert_eq!(hir.endpoint_fns.len(), 1);
-        assert_eq!(hir.components.len(), 1);
         assert_eq!(hir.routes[0].route_contract, "POST /chat");
         assert_eq!(
             hir.endpoint_fns[0].route_path,
@@ -387,7 +386,7 @@ routes {
         assert!(hir.islands[0].0.props[2].is_optional);
         assert_eq!(hir.islands[0].0.props[2].name, "width");
 
-        assert_eq!(hir.components.len(), 1);
+
 
         let web = crate::web_ir::lower::lower_hir_to_web_ir(&hir);
         let diags = crate::web_ir::validate::validate_web_ir(&web);

@@ -223,7 +223,8 @@ impl LowerCtx {
                     *span,
                 )
             }
-            Expr::Pipe { left, right, span } => HirExpr::Pipe(
+            Expr::Pipe { left, right, span } => HirExpr::Binary(
+                HirBinOp::Pipe,
                 Box::new(self.lower_expr(left)),
                 Box::new(self.lower_expr(right)),
                 *span,

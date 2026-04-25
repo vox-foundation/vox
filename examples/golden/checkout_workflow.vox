@@ -11,14 +11,14 @@
 // ---
 // @training_prompt: Write a durable Vox workflow and activity for a checkout process
 // ANCHOR: display
-activity charge_card(amount: int) to Result[str] {
+fn charge_card(amount: int) to Result[str] {
     if amount > 1000 {
         return Error("Amount too large")
     }
     return Ok("tx_123")
 }
 
-workflow checkout(amount: int) to str {
+fn checkout(amount: int) to str {
     let result = charge_card(amount)
     match result {
         Ok(tx) => "Success: " + tx

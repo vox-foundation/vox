@@ -36,7 +36,7 @@ component App() {
     return Ok(id)
 }
 
-workflow order(id: str) to Result[Unit] {
+fn order(id: str) to Result[Unit] {
     let status = check_inventory(id)
     return Ok(Unit)
 }

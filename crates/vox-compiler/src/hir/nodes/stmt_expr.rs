@@ -112,7 +112,6 @@ pub struct HirTry {
 }
 
 /// Expression in HIR (mirrors AST but with resolved names).
-#[allow(clippy::large_enum_variant)] // `DbTableOp` carries query plans; boxing would churn the whole compiler.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum HirExpr {
     /// Integer literal.
@@ -151,8 +150,6 @@ pub enum HirExpr {
     For(String, Box<HirExpr>, Box<HirExpr>, Span),
     /// Lambda / closure.
     Lambda(Vec<HirParam>, Option<HirType>, Box<HirExpr>, Span),
-    /// Pipeline `a |> b`.
-    Pipe(Box<HirExpr>, Box<HirExpr>, Span),
     /// `spawn` actor constructor.
     Spawn(Box<HirExpr>, Span),
     /// `with` options wrapper.

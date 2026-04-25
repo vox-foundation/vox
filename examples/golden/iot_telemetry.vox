@@ -23,16 +23,14 @@
     active: bool
 }
 
-actor TelemetryGateway {
-    on Ingest(id: str, temp: float, code: int) to Result[Unit] {
-        let registry = db.DeviceRegistry.filter({ device_id: id })
-        if len(registry) is 0 {
-            return Error("Unknown device")
-        }
-        
-        db.DeviceLog.insert({ device_id: id, temperature: temp, status_code: code, timestamp: "2026-04-13" })?
-        return Ok(Unit)
+fn TelemetryGateway_Ingest(id: str, temp: float, code: int) to Result[Unit] {
+    let registry = db.DeviceRegistry.filter({ device_id: id })
+    if len(registry) is 0 {
+        return Error("Unknown device")
     }
+    
+    db.DeviceLog.insert({ device_id: id, temperature: temp, status_code: code, timestamp: "2026-04-13" })?
+    return Ok(Unit)
 }
 
 @endpoint(kind: query)

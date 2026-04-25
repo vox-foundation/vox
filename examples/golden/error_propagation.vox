@@ -41,14 +41,14 @@ fn compute(raw_a: str, raw_b: str) to Result[int] {
     }
 }
 
-activity validate_email(email: str) to Result[str] {
+fn validate_email(email: str) to Result[str] {
     if len(email) < 5 {
         return Error("email too short")
     }
     return Ok(email)
 }
 
-activity send_welcome(email: str) to Result[Unit] {
+fn send_welcome(email: str) to Result[Unit] {
     return Ok(Unit)
 }
 
@@ -60,7 +60,7 @@ fn proceed_onboarding(addr: str) to Result[str] {
     }
 }
 
-workflow onboard_user(email: str) to Result[str] {
+fn onboard_user(email: str) to Result[str] {
     let valid = validate_email(email)
     match valid {
         Error(e) => Error(e)

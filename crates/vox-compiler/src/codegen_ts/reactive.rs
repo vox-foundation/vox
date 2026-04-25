@@ -378,7 +378,7 @@ fn scan_hir_expr_for_react_imports(
                 need_callback,
             );
         }
-        HirExpr::Pipe(a, b, _) | HirExpr::With(a, b, _) => {
+        HirExpr::With(a, b, _) => {
             scan_hir_expr_for_react_imports(
                 a,
                 need_state,

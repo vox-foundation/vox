@@ -10417,13 +10417,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "test_block_on"
-version = "0.4.0"
-dependencies = [
- "tokio",
-]
-
-[[package]]
 name = "text_placeholder"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12080,6 +12073,7 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
+ "tower 0.5.3",
  "tower-http",
  "tracing",
  "workspace-hack",
@@ -12496,6 +12490,7 @@ dependencies = [
  "tiktoken-rs",
  "tokio",
  "toml 0.8.23",
+ "tower-http",
  "tower-lsp",
  "tower-lsp-server",
  "tracing",

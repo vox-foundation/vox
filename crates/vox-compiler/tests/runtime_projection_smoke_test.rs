@@ -24,9 +24,9 @@ import react.use_state
     width?: int
 }
 
-@component Dash() {
-    state n: int = 0
-    view: <div class="dashboard">{n}</div>
+fn Dash() to str {
+    let n = 0
+    return "div"
 }
 
 routes {
@@ -89,7 +89,7 @@ fn q() to Unit {
 #[test]
 fn module_task_capability_hints_none_without_db_metadata() {
     let src = r#"
-fn f() to Unit { () }
+fn f() to int { return 1 }
 "#;
     let hir = lower_src(src);
     let rp = project_runtime_from_core(&hir);

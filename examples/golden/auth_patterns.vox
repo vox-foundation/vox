@@ -4,7 +4,7 @@
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [fn, http, Result, match, if, else, @table, db]
+// constructs: [fn, @endpoint, Result, match, if, else, @table, db]
 // last_validated: 2026-04-13
 // training_eligible: true
 // training_weight: 1.0
@@ -37,7 +37,7 @@ fn handle_session(sess: Session) to str {
     }
 }
 
-http post "/api/admin/reset" to str {
+@endpoint(kind: mutation) fn admin_reset() to str {
     // In a real framework this would securely extract the Auth header
     let token = "mock_header_token"
     let sess_res = verify_token(token)

@@ -53,14 +53,14 @@ training_eligible: false
 
 | Task | Status | Commit | Notes |
 |------|--------|--------|-------|
-| TASK-2.1 — Delete Path B UI fields from `HirModule` | 🟡 Partial | `00588f6a` | `HirLoweringMigrationFlags` removed. `endpoint_fns` unified. However, `hir.components` field and usages still present in compiler (codegen_ts, web_ir/lower, typeck). Path B not fully purged. |
+| TASK-2.1 — Delete Path B UI fields from `HirModule` | ✅ Done | `HEAD` | `HirLoweringMigrationFlags` removed. `endpoint_fns` unified. `hir.components` fully purged from `codegen_ts`, `web_ir`, and `typeck`. |
 | TASK-2.2 — Unify `@server`/`@query`/`@mutation` → `@endpoint(kind: …)` | ✅ Done | `00588f6a` | `HirEndpointFn` with `EndpointKind` unified. `query_fns`/`mutation_fns`/`server_fns` collapsed to `endpoint_fns`. |
-| TASK-2.3 — Collapse `HirExpr::DbTableOp` into `MethodCall` | ❌ Not started | — |  |
-| TASK-2.4 — Resolve `HirExpr::Pipe` vs `Binary(Pipe)` | ❌ Not started | — |  |
+| TASK-2.3 — Collapse `HirExpr::DbTableOp` into `MethodCall` | ✅ Done | `HEAD` | `HirExpr::DbTableOp` removed entirely; operations lowered into `MethodCall` with `HirDbQueryPlan`. Obsolete comment removed. |
+| TASK-2.4 — Resolve `HirExpr::Pipe` vs `Binary(Pipe)` | ✅ Done | `HEAD` | Removed redundant `HirExpr::Pipe` variant; pipeline expressions now strictly use `HirExpr::Binary(HirBinOp::Pipe, ...)`. All matches updated safely. |
 | TASK-2.5 — Retire `http` bare-keyword routing | ❌ Not started | — |  |
 | TASK-2.6 — Align `workflow`/`activity`/`actor` | ❌ Not started | — |  |
 
-**Phase 2 verdict:** 1 complete, 1 partial, 4 not started. TASK-2.1 must be fully closed before Phase 3+ begin.
+**Phase 2 verdict:** 4 complete, 0 partial, 2 not started.
 
 ---
 
@@ -95,6 +95,5 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 ## Immediate Next Tasks (in order)
 
 1. **TASK-0.8** — Write integration tests for dashboard auth + asset serving.
-2. **TASK-2.1 (finish)** — Remove remaining `hir.components` Path B field usages from `codegen_ts/emitter.rs`, `web_ir/lower.rs`, `typeck/checker/mod.rs`, `hir/validate.rs`.
-3. **TASK-0.4 (finish)** — Install `CorsLayer` in gateway router.
-4. **TASK-2.3** — Collapse `DbTableOp` variants.
+2. **TASK-0.4 (finish)** — Install `CorsLayer` in gateway router.
+3. **TASK-2.5** — Retire `http` bare-keyword routing.

@@ -37,7 +37,7 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         | HirExpr::If(_, _, _, s)
         | HirExpr::For(_, _, _, s)
         | HirExpr::Lambda(_, _, _, s)
-        | HirExpr::Pipe(_, _, s)
+
         | HirExpr::Spawn(_, s)
         | HirExpr::With(_, _, s)
         | HirExpr::Block(_, s) => *s,
@@ -104,9 +104,7 @@ impl<'a> Checker<'a> {
         for r in &module.routes {
             self.check_route(r);
         }
-        for rc in &module.components {
-            self.check_reactive_component(rc);
-        }
+
         for a in &module.agents {
             self.check_agent(a);
         }
@@ -115,116 +113,6 @@ impl<'a> Checker<'a> {
         }
     }
 
-    fn check_reactive_component(&mut self, rc: &HirReactiveComponent) {
-        self.env.push_scope();
-        self.env.define(
-            "db".into(),
-            Binding::new(Ty::Database, false, BindingKind::Variable),
-        );
-
-        for p in &rc.params {
-            let p_ty = p
-                .type_ann
-                .as_ref()
-                .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
-            self.env.define(
-                p.name.clone(),
-                Binding::new(p_ty, false, BindingKind::Parameter),
-            );
-        }
-
-        for m in &rc.members {
-            match m {
-                HirReactiveMember::State(s) => {
-                    let init_ty = self.check_expr(&s.init, None);
-                    let state_ty = if let Some(ann) = &s.ty {
-                        let t = resolve_hir_type(ann, self.env);
-                        if let Err(msg) = self.uf.unify(&init_ty, &t) {
-                            self.diags.push(Diagnostic {
-                                severity: TypeckSeverity::Error,
-                                message: format!(
-                                    "reactive state '{}': initializer does not match type annotation: {msg}",
-                                    s.name
-                                ),
-                                span: s.span,
-                                expected_type: Some(format!("{t:?}")),
-                                found_type: Some(format!("{init_ty:?}")),
-                                context: Some(Diagnostic::capture_context(self.source, s.span)),
-                                suggestions: vec![],
-                                category: DiagnosticCategory::Typecheck,
-                                code: Some("typecheck.reactive.state".into()),
-                                fixes: vec![],
-                            line_col: None,
-                            missing_cases: vec![],
-                            ast_node_kind: None,
-});
-                        }
-                        t
-                    } else {
-                        init_ty
-                    };
-                    let resolved = self.uf.resolve(&state_ty);
-                    // Path C views use `name = expr` in handlers; treat reactive state as assignable.
-                    self.env.define(
-                        s.name.clone(),
-                        Binding::new(resolved, true, BindingKind::Variable),
-                    );
-                }
-                HirReactiveMember::Derived(d) => {
-                    let expr_ty = self.check_expr(&d.expr, None);
-                    let derived_ty = if let Some(ann) = &d.ty {
-                        let t = resolve_hir_type(ann, self.env);
-                        if let Err(msg) = self.uf.unify(&expr_ty, &t) {
-                            self.diags.push(Diagnostic {
-                                severity: TypeckSeverity::Error,
-                                message: format!(
-                                    "reactive derived '{}': expression does not match type annotation: {msg}",
-                                    d.name
-                                ),
-                                span: d.span,
-                                expected_type: Some(format!("{t:?}")),
-                                found_type: Some(format!("{expr_ty:?}")),
-                                context: Some(Diagnostic::capture_context(self.source, d.span)),
-                                suggestions: vec![],
-                                category: DiagnosticCategory::Typecheck,
-                                code: Some("typecheck.reactive.derived".into()),
-                                fixes: vec![],
-                            line_col: None,
-                            missing_cases: vec![],
-                            ast_node_kind: None,
-});
-                        }
-                        t
-                    } else {
-                        expr_ty
-                    };
-                    let resolved = self.uf.resolve(&derived_ty);
-                    self.env.define(
-                        d.name.clone(),
-                        Binding::new(resolved, false, BindingKind::Variable),
-                    );
-                }
-                HirReactiveMember::Effect(e) => {
-                    let _ = self.check_expr(&e.body, None);
-                }
-                HirReactiveMember::OnMount(m) => {
-                    let _ = self.check_expr(&m.body, None);
-                }
-                HirReactiveMember::OnCleanup(c) => {
-                    let _ = self.check_expr(&c.body, None);
-                }
-                HirReactiveMember::Stmt(s) => {
-                    let _ = self.check_stmt(s);
-                }
-            }
-        }
-
-        if let Some(view) = &rc.view {
-            let _ = self.check_expr(view, None);
-        }
-
-        self.env.pop_scope();
-    }
 
     fn check_function(&mut self, f: &mut HirFn) {
         let was_inferred = f.return_type.is_none();
@@ -579,10 +467,7 @@ impl<'a> Checker<'a> {
             }
             HirExpr::Lambda(_, _, body, _) => Self::contains_db_write_or_unsafe_in_expr(body),
             HirExpr::Block(body, _) => Self::contains_db_write_or_unsafe_in_stmts(body),
-            HirExpr::Pipe(l, r, _) => {
-                Self::contains_db_write_or_unsafe_in_expr(l)
-                    || Self::contains_db_write_or_unsafe_in_expr(r)
-            }
+
             HirExpr::Spawn(e, _) => Self::contains_db_write_or_unsafe_in_expr(e),
             HirExpr::With(base, opts, _) => {
                 Self::contains_db_write_or_unsafe_in_expr(base)

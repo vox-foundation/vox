@@ -12,7 +12,7 @@ fn check_source(source: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 fn should_infer_return_type_if_missing() {
     let source = r#"
 fn f(x: int) {
-    ret x
+    return x
 }
 "#;
     let diags = check_source(source);

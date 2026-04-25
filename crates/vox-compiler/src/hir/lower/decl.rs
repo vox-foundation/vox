@@ -227,14 +227,13 @@ impl LowerCtx {
         }
     }
 
-    pub(crate) fn lower_reactive_component(
-        &mut self,
-        r: &ReactiveComponentDecl,
-    ) -> HirReactiveComponent {
+
+
+    pub(crate) fn lower_reactive_component(&mut self, r: &ReactiveComponentDecl) -> HirReactiveComponent {
         let id = self.def_map.define(r.name.clone());
         self.def_map.push_scope();
         let params = r.params.iter().map(|p| self.lower_param(p)).collect();
-        let members = r
+        let members: Vec<HirReactiveMember> = r
             .members
             .iter()
             .map(|m| match m {

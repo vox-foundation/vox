@@ -11,12 +11,12 @@
 // ---
 // @training_prompt: Implement a webhook handler that triggers a durable background workflow.
 // ANCHOR: display
-activity process_batch(batch_id: str) to Result[int] {
+fn process_batch(batch_id: str) to Result[int] {
     // Heavy compute task
     return Ok(100)
 }
 
-activity notify_completion(batch_id: str, count: int) to Result[Unit] {
+fn notify_completion(batch_id: str, count: int) to Result[Unit] {
     // External API call mock
     return Ok(Unit)
 }
@@ -26,7 +26,7 @@ fn handle_batch(batch_id: str, count: int) to Result[Unit] {
     return Ok(Unit)
 }
 
-workflow async_batch_job(batch_id: str) to Result[Unit] {
+fn async_batch_job(batch_id: str) to Result[Unit] {
     let process_res = process_batch(batch_id)
     match process_res {
         Error(e) => Error("fail")
@@ -34,7 +34,7 @@ workflow async_batch_job(batch_id: str) to Result[Unit] {
     }
 }
 
-http post "/webhook/batch" to str {
+@endpoint(kind: mutation) fn handler() to str {
     // Normally parses incoming JSON payload for batch_id
     let simulated_batch_id = "batch_789"
     // Fire and forget triggering of the durable workflow

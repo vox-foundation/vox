@@ -313,11 +313,7 @@ pub fn emit_hir_expr(
             emit_hir_expr(h.target.as_ref(), state_names, island_names)
         }
         HirExpr::DecimalLit(v, _) => format!("\"{v}\""),
-        HirExpr::Pipe(l, r, _) => {
-            let left = emit_hir_expr(l, state_names, island_names);
-            let right = emit_hir_expr(r, state_names, island_names);
-            format!("{right}({left})")
-        }
+
         HirExpr::Spawn(target, _) => {
             let t = emit_hir_expr(target, state_names, island_names);
             format!("new {t}()")

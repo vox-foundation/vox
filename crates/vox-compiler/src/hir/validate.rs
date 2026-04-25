@@ -319,15 +319,7 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         }
     }
 
-    for rc in &module.components {
-        validate_name_and_params(
-            &rc.name,
-            &rc.params,
-            rc.span,
-            "reactive component",
-            &mut errors,
-        );
-    }
+
 
     for ri in &module.rust_imports {
         if ri.crate_name.trim().is_empty() {

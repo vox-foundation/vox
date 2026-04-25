@@ -101,7 +101,7 @@ fn collect_deps(expr: &HirExpr, state_names: &HashSet<String>, deps: &mut HashSe
                 collect_deps(&arm.body, state_names, deps);
             }
         }
-        HirExpr::Pipe(left, right, _) | HirExpr::With(left, right, _) => {
+        HirExpr::With(left, right, _) => {
             collect_deps(left, state_names, deps);
             collect_deps(right, state_names, deps);
         }
