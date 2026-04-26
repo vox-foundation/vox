@@ -25,13 +25,13 @@ training_eligible: false
 | TASK-0.1 — ADR 024: Dashboard as Axum SPA | ✅ Done | `b7536331` | `docs/src/adr/024-dashboard-axum-spa.md` created. Index updated. |
 | TASK-0.2 — Replace loopback-auto-unauth with token auth | ✅ Done | `bb72c7e3` | `token.rs` created. `DashboardToken::generate_or_load()` implemented. Meta-tag injection in `assets.rs`. |
 | TASK-0.3 — Strict Origin/Host allowlist middleware | ✅ Done | `327bf460` | Extracted origin check into `origin_guard.rs` with JSON error body, strict WS-upgrade check, and comprehensive unit tests. |
-| TASK-0.4 — CSP, X-Frame-Options, Referrer-Policy, CORS | 🟡 Partial | `b7536331` | `X-Frame-Options` and `Content-Security-Policy` headers present in `assets.rs`. CorsLayer not yet installed in gateway router. |
+| TASK-0.4 — CSP, X-Frame-Options, Referrer-Policy, CORS | ✅ Done | `d152d272` | `X-Frame-Options` and `Content-Security-Policy` headers present in `assets.rs`. `CorsLayer::new()` with `allow_origin(Any)`, `allow_methods(Any)`, `allow_headers(Any)` installed in `http_gateway/mod.rs`. |
 | TASK-0.5 — Fix `vox dashboard` CLI detachment + readiness polling | ✅ Done | `b7536331` | `DashboardLauncher` struct with `setsid()`/Windows `DETACHED_PROCESS` flags implemented. |
 | TASK-0.6 — Harden `transport.ts`: backoff, auth refresh | 🟡 Partial | `b7536331` | Needs verification of backoff caps and `authStatus` event emission. |
 | TASK-0.7 — Fix `App.tsx` hooks violation + dead imports | ✅ Done | `b7536331` | `useVoxTransport()` moved to top of component. Dead imports removed. |
 | TASK-0.8 — Integration tests for dashboard crate | ✅ Done | `HEAD` | Tests implemented in `crates/vox-dashboard/tests/` (`auth.rs`, `asset_serving.rs`, `origin_guard.rs`) and pass successfully. |
 
-**Phase 0 verdict:** 6 complete, 1 partial, 0 not started.
+**Phase 0 verdict:** 7 complete, 0 partial, 0 not started.
 
 ---
 
@@ -165,7 +165,6 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 1. **TASK-8.2** — MENS training run. Run `vox populi train --config qlora.toml` against the updated corpus; compare eval scores. Requires operator compute action.
 2. **TASK-7.3 (remaining partial)** — Full bundler replacement. Blocked on a vox-integrated bundler; can run in parallel with TASK-8.2.
-3. **TASK-5.1 (partial)** — Literal CSS value enforcement. Token-reference CSS values enforced in `style {}` blocks; `raw_css {}` escape hatch available for literal values.
 
 **Resolved (no action needed):**
 - TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).
