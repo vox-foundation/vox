@@ -89,9 +89,22 @@ Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): P
 
 **Sequencing note.** All four tasks listed "Phase 2 complete" as their only common precondition and were parallel-safe per the roadmap. Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md) §C2 (the GUI wedge), TASK-4.4 was the first P0 demonstration — it landed the contrast-validated color type the audit identified as the highest-impact accessibility-error prevention (research cites contrast as 26.6% of WCAG violations). Phase 4 is now fully complete; Phase 5 is unblocked.
 
-## Phases 5–8
+## Phase 5 — Validation Layer
 
-All not started. Dependencies on Phase 4.
+| Task | Priority | Status | Notes |
+|------|----------|--------|-------|
+| TASK-5.1 — Token resolution validator | P0 (literal CSS color/dimension → compile error) | ✅ Done | `HEAD` | `check_literal_value()` in `web_ir/validate.rs` fires unconditionally (no registry required): `Raw` hex/rgb/hsl strings → `literal_color_value`; `Color(Hex|Rgb|Rgba|Named|Hsl)` → `literal_color_value`; `Length(_, _)` → `literal_dimension_value`. `TokenRef`/`Keyword`/`Number` pass through. 4 tests passing. |
+| TASK-5.2 — Route reachability validator | P0 (dead route unrepresentable) | 🔲 Not started | Depends on TASK-5.1 |
+| TASK-5.3 — AriaNode + a11y validator | P0 (missing aria-label on interactive element unrepresentable) | 🔲 Not started | Depends on TASK-5.1 |
+| TASK-5.4 — v0.dev output validator | P0 (integration gate) | 🔲 Not started | Depends on TASK-5.1–5.3 |
+
+**Phase 5 verdict:** 1 complete, 3 not started.
+
+---
+
+## Phases 6–8
+
+All not started. Dependencies on Phase 5.
 
 ---
 
@@ -111,7 +124,9 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in order)
 
-1. **Phase 5** — Begin Phase 5 tasks (unblocked by Phase 4 completion).
+1. **TASK-5.2** — Route reachability validator (dead route → compile error).
+2. **TASK-5.3** — AriaNode + a11y validator (missing aria-label on interactive element → compile error).
+3. **TASK-5.4** — v0.dev output validator (integration gate; depends on 5.1–5.3).
 
 **Resolved (no action needed):**
 - TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).
