@@ -14,6 +14,22 @@ impl LowerCtx {
         body = self.inject_contracts(f, body);
         self.def_map.pop_scope();
 
+        let capabilities = f
+            .effects
+            .iter()
+            .map(|e| match e {
+                crate::ast::decl::EffectAnnotation::Net => crate::hir::HirCapability::Net,
+                crate::ast::decl::EffectAnnotation::Db => crate::hir::HirCapability::Db,
+                crate::ast::decl::EffectAnnotation::Fs => crate::hir::HirCapability::Fs,
+                crate::ast::decl::EffectAnnotation::Env => crate::hir::HirCapability::Env,
+                crate::ast::decl::EffectAnnotation::Clock => crate::hir::HirCapability::Clock,
+                crate::ast::decl::EffectAnnotation::Random => crate::hir::HirCapability::Random,
+                crate::ast::decl::EffectAnnotation::Spawn => crate::hir::HirCapability::Spawn,
+                crate::ast::decl::EffectAnnotation::Mcp(t) => crate::hir::HirCapability::Mcp(t.clone()),
+                crate::ast::decl::EffectAnnotation::Nothing => crate::hir::HirCapability::Nothing,
+            })
+            .collect();
+
         HirFn {
             id,
             name: f.name.clone(),
@@ -30,6 +46,7 @@ impl LowerCtx {
             llm_model: f.llm_model.clone(),
             is_deprecated: f.is_deprecated,
             schedule_interval: None,
+            capabilities,
             postconditions: f
                 .postconditions
                 .iter()

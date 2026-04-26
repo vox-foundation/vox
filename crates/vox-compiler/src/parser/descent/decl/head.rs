@@ -759,6 +759,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
+        let effects = self.parse_uses_clause();
         let return_type = if self.eat_return_arrow() {
             Some(self.parse_type_expr()?)
         } else {
@@ -792,6 +793,7 @@ impl Parser {
             verify_mode: crate::ast::decl::fundecl::VerifyMode::Off,
             test_strategy: None,
             is_mobile_native,
+            effects,
             span: start.merge(self.span()),
         })
     }
@@ -865,5 +867,86 @@ impl Parser {
                 Err(())
             }
         }
+    }
+
+    /// Parse an optional `uses <effect-list>` clause after `)` in a function signature.
+    ///
+    /// Grammar: `uses (<effect-name> | mcp(<tool-name>)) (',' (<effect-name> | mcp(<tool-name>)))*`
+    /// where `effect-name` ∈ {net, db, fs, env, clock, random, spawn, nothing}.
+    ///
+    /// Returns an empty vec when no `uses` keyword is present (unannotated = unconstrained).
+    pub(crate) fn parse_uses_clause(&mut self) -> Vec<crate::ast::decl::EffectAnnotation> {
+        // `uses` is a contextual keyword — check by value, not token type.
+        let is_uses = matches!(self.peek(), Token::Ident(n) if n == "uses");
+        if !is_uses {
+            return Vec::new();
+        }
+        self.advance(); // eat `uses`
+
+        let mut effects = Vec::new();
+        loop {
+            let eff = match self.peek().clone() {
+                Token::Ident(ref name) => {
+                    let name = name.clone();
+                    if name == "mcp" {
+                        self.advance(); // eat `mcp`
+                        if self.eat(&Token::LParen) {
+                            let tool = match self.peek().clone() {
+                                Token::Ident(t) | Token::TypeIdent(t) => {
+                                    self.advance();
+                                    t
+                                }
+                                _ => {
+                                    self.errors.push(ParseError::classified(
+                                        self.span(),
+                                        "Expected MCP tool name inside `mcp(...)`",
+                                        vec!["tool_name".into()],
+                                        Some(self.peek().to_string()),
+                                        ParseErrorClass::Declaration,
+                                    ));
+                                    return effects;
+                                }
+                            };
+                            let _ = self.expect(&Token::RParen);
+                            crate::ast::decl::EffectAnnotation::Mcp(tool)
+                        } else {
+                            crate::ast::decl::EffectAnnotation::Mcp(String::new())
+                        }
+                    } else if let Some(eff) = crate::ast::decl::EffectAnnotation::from_keyword(&name) {
+                        self.advance();
+                        eff
+                    } else {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            format!("Unknown effect `{name}`; expected one of: net, db, fs, env, clock, random, spawn, mcp(…), nothing"),
+                            vec!["net".into(), "db".into(), "fs".into(), "env".into(), "clock".into(), "random".into(), "spawn".into(), "mcp(…)".into(), "nothing".into()],
+                            Some(name),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return effects;
+                    }
+                }
+                // `env` is a keyword token, allow it here.
+                Token::Env => {
+                    self.advance();
+                    crate::ast::decl::EffectAnnotation::Env
+                }
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Expected effect name after `uses`",
+                        vec!["net".into(), "db".into(), "nothing".into()],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return effects;
+                }
+            };
+            effects.push(eff);
+            if !self.eat(&Token::Comma) {
+                break;
+            }
+        }
+        effects
     }
 }

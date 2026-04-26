@@ -259,6 +259,9 @@ pub struct HirFn {
     /// `@pure` — metadata for pipeline tooling (effect guarantees are not proven in HIR).
     #[serde(default)]
     pub is_pure: bool,
+    /// Capabilities declared via `uses` clause. Empty = unannotated; `[Nothing]` = pure.
+    #[serde(default)]
+    pub capabilities: Vec<HirCapability>,
     /// Whether the function body is implemented via an LLM.
     #[serde(default)]
     pub is_llm: bool,
@@ -561,6 +564,49 @@ pub struct HirOnMount {
 pub struct HirOnCleanup {
     pub body: HirExpr,
     pub span: Span,
+}
+
+/// A capability declared via the `uses` clause: `fn f() uses net, db { … }`.
+///
+/// Distinct from [`HirEffect`] which is a reactive lifecycle effect (`effect { … }` block).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+pub enum HirCapability {
+    Net,
+    Db,
+    Fs,
+    Env,
+    Clock,
+    Random,
+    Spawn,
+    /// `mcp(tool_name)` — parameterized MCP tool call.
+    Mcp(String),
+    /// `uses nothing` — explicitly pure.
+    Nothing,
+}
+
+impl HirCapability {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Net => "net",
+            Self::Db => "db",
+            Self::Fs => "fs",
+            Self::Env => "env",
+            Self::Clock => "clock",
+            Self::Random => "random",
+            Self::Spawn => "spawn",
+            Self::Mcp(_) => "mcp",
+            Self::Nothing => "nothing",
+        }
+    }
+}
+
+impl std::fmt::Display for HirCapability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Mcp(tool) => write!(f, "mcp({tool})"),
+            other => write!(f, "{}", other.as_str()),
+        }
+    }
 }
 
 /// A typed URL path declaration lowered to HIR: `url Path { Home; Task(id: Id[Task]) }`.

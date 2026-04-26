@@ -42,6 +42,10 @@ pub struct FnDecl {
     pub is_deprecated: bool,
     /// Whether the function is pure (no side effects).
     pub is_pure: bool,
+    /// Explicit effect annotations from the `uses` clause.
+    /// Empty means unannotated (unconstrained); `[Nothing]` means `uses nothing` (pure).
+    #[serde(default)]
+    pub effects: Vec<super::effect::EffectAnnotation>,
     /// Whether the function is subject to observability tracing.
     pub is_traced: bool,
     /// Whether the function body is implemented via an LLM.

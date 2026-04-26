@@ -266,6 +266,7 @@ impl Parser {
                 verify_mode: VerifyMode::Off,
                 test_strategy: None,
                 is_mobile_native: false,
+                effects: vec![],
                 span: script_start.merge(script_end),
             };
             decls.push(Decl::Function(main_fn));
