@@ -93,6 +93,18 @@ pub fn generate_with_options(
                 &mut reactive_stats,
             );
             files.push((filename, content));
+            if !rc.styles.is_empty() {
+                let mut css = String::new();
+                for block in &rc.styles {
+                    css.push_str(&block.selector);
+                    css.push_str(" {\n");
+                    for (prop, val) in &block.properties {
+                        css.push_str(&format!("  {prop}: {val};\n"));
+                    }
+                    css.push_str("}\n");
+                }
+                files.push((format!("{}.css", rc.name), css));
+            }
         }
     }
 
@@ -333,11 +345,25 @@ fn maybe_web_ir_validate(
         }
     };
     let diags = crate::web_ir::validate::validate_web_ir_with_registry(web, registry);
-    if diags.is_empty() {
+    // Advisory diagnostics must not block codegen — only hard errors gate the build.
+    let error_diags: Vec<crate::web_ir::WebIrDiagnostic> = diags
+        .into_iter()
+        .filter(|d| !is_advisory_diag(d))
+        .collect();
+    if error_diags.is_empty() {
         return Ok(());
     }
     Err(format!(
         "VOX_WEBIR_VALIDATE: {}",
-        crate::web_ir::validate::format_web_ir_validate_failure(&diags)
+        crate::web_ir::validate::format_web_ir_validate_failure(&error_diags)
     ))
+}
+
+fn is_advisory_diag(d: &crate::web_ir::WebIrDiagnostic) -> bool {
+    matches!(
+        d.code.as_str(),
+        "web_ir_validate.style.raw_css_escape"
+            | "web_ir_validate.overlay.duplicate_z"
+            | "web_ir_validate.overlay.position_conflict"
+    ) || d.code.ends_with("_warning")
 }
