@@ -110,11 +110,11 @@ Per [`VOX_GUI_NATIVE_ROADMAP_2026.md`](../../../VOX_GUI_NATIVE_ROADMAP_2026.md) 
 |------|----------|--------|-------|
 | TASK-6.1 — Semantic primitive set | P0/P1 (GUI primitive authoring surface) | ✅ Done | `HEAD` | `web_ir/primitives/mod.rs` with 14 primitives (stack/column, row, wrap, text, heading, link, image, button, panel, card, list, list_item, route_outlet). Lowering in `lower.rs` intercepts JSX tags, strips consumed props (gap, size, weight, align, wrap, variant, level, surface), injects Tailwind classes + HTML tag. A11y fix: `DomNode::Expr` children satisfy accessible-name check. 18 unit tests + 4 integration tests. |
 | TASK-6.2 — Token-ref-only style values | P0/P1 | ✅ Done | `968cae6f` | `StyleBlock.is_raw_css` + `StyleNode::Rule.is_raw_css`. Parser accepts `raw_css { }` escape (warning). Normal `style { }` remains token-ref only. 3 tests. |
-| TASK-6.3 — Surface pair primitive | P0 | 🔲 Not started | `surface: primary` binds fg/bg token pair; contrast guaranteed by construction |
+| TASK-6.3 — Surface pair primitive | P0 | ✅ Done | `0fd8bb1a` | `surface: NAME` on any visual primitive → `data-vox-surface` attr + CSS vars `--fg`/`--bg`. `tokens/mod.rs` with `SurfacePairEntry` + `lookup_surface()`. Validator fires `unknown_surface` error for unregistered names. 4 integration tests. |
 | TASK-6.4 — Overlay block + z-index DAG validator | P0 | 🔲 Not started | `validate_overlay.rs` |
 | TASK-6.5 — Contrast ratio along ancestor chain | P0 | 🔲 Not started | Extends `validate_a11y.rs` |
 
-**Phase 6 verdict:** 2 complete, 3 not started.
+**Phase 6 verdict:** 3 complete, 2 not started.
 
 ---
 
@@ -140,7 +140,7 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in order)
 
-1. **TASK-6.3** — Surface pair primitive (`surface: primary` binds fg/bg token pair; contrast guaranteed by construction). Unblocked.
+1. **TASK-6.4** — Overlay block + z-index DAG validator. Precondition: TASK-6.1 ✅. Unblocked.
 
 **Resolved (no action needed):**
 - TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).
