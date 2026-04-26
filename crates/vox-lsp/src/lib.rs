@@ -3,9 +3,6 @@
 //! Shared validation helpers used by the LSP binary and MCP / orchestrator quality gates.
 
 use tower_lsp::lsp_types::{Diagnostic, DiagnosticSeverity, NumberOrString, Position, Range};
-use vox_compiler::ast::decl::Decl;
-use vox_compiler::ast::expr::Expr;
-use vox_compiler::ast::stmt::Stmt;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
 use vox_compiler::typeck::Diagnostic as TypeckDiagnostic;
@@ -180,114 +177,6 @@ fn mesh_workflow_env_warnings(
             }
         })
         .collect()
-}
-
-fn collect_mesh_activity_spans_from_stmts(stmts: &[Stmt], out: &mut Vec<vox_compiler::ast::Span>) {
-    for s in stmts {
-        match s {
-            Stmt::Let { value, .. }
-            | Stmt::Assign { value, .. }
-            | Stmt::Expr { expr: value, .. } => {
-                collect_mesh_activity_spans_from_expr(value, out);
-            }
-            Stmt::Return {
-                value: Some(value), ..
-            } => collect_mesh_activity_spans_from_expr(value, out),
-            Stmt::Return { value: None, .. } => {}
-            Stmt::While {
-                condition, body, ..
-            } => {
-                collect_mesh_activity_spans_from_expr(condition, out);
-                collect_mesh_activity_spans_from_stmts(body, out);
-            }
-            Stmt::Loop { body, .. } => {
-                collect_mesh_activity_spans_from_stmts(body, out);
-            }
-            Stmt::Break { .. } | Stmt::Continue { .. } => {}
-        }
-    }
-}
-
-fn collect_mesh_activity_spans_from_expr(expr: &Expr, out: &mut Vec<vox_compiler::ast::Span>) {
-    match expr {
-        Expr::With { operand, .. } => collect_mesh_activity_spans_from_expr(operand, out),
-        Expr::Call { callee, .. } => {
-            if let Expr::Ident { name, span } = callee.as_ref() {
-                if name.starts_with("mesh_") {
-                    out.push(*span);
-                }
-            } else {
-                collect_mesh_activity_spans_from_expr(callee, out);
-            }
-        }
-        Expr::If {
-            condition,
-            then_body,
-            else_body,
-            ..
-        } => {
-            collect_mesh_activity_spans_from_expr(condition, out);
-            collect_mesh_activity_spans_from_stmts(then_body, out);
-            if let Some(e) = else_body {
-                collect_mesh_activity_spans_from_stmts(e, out);
-            }
-        }
-        Expr::Block { stmts, .. } => collect_mesh_activity_spans_from_stmts(stmts, out),
-        Expr::Binary { left, right, .. } => {
-            collect_mesh_activity_spans_from_expr(left, out);
-            collect_mesh_activity_spans_from_expr(right, out);
-        }
-        Expr::Unary { operand, .. } => collect_mesh_activity_spans_from_expr(operand, out),
-        Expr::Match { subject, arms, .. } => {
-            collect_mesh_activity_spans_from_expr(subject, out);
-            for arm in arms {
-                if let Some(g) = &arm.guard {
-                    collect_mesh_activity_spans_from_expr(g, out);
-                }
-                collect_mesh_activity_spans_from_expr(arm.body.as_ref(), out);
-            }
-        }
-        Expr::MethodCall { object, args, .. } => {
-            collect_mesh_activity_spans_from_expr(object, out);
-            for a in args {
-                collect_mesh_activity_spans_from_expr(&a.value, out);
-            }
-        }
-        Expr::FieldAccess { object, .. } => collect_mesh_activity_spans_from_expr(object, out),
-        Expr::Pipe { left, right, .. } => {
-            collect_mesh_activity_spans_from_expr(left, out);
-            collect_mesh_activity_spans_from_expr(right, out);
-        }
-        Expr::Lambda { body, .. } => collect_mesh_activity_spans_from_expr(body, out),
-        Expr::For { iterable, body, .. } => {
-            collect_mesh_activity_spans_from_expr(iterable, out);
-            collect_mesh_activity_spans_from_expr(body, out);
-        }
-        Expr::Spawn { target, .. } => collect_mesh_activity_spans_from_expr(target, out),
-        Expr::ListLit { elements, .. } => {
-            for el in elements {
-                collect_mesh_activity_spans_from_expr(el, out);
-            }
-        }
-        Expr::ObjectLit { fields, .. } => {
-            for (_, v) in fields {
-                collect_mesh_activity_spans_from_expr(v, out);
-            }
-        }
-        Expr::TupleLit { elements, .. } => {
-            for el in elements {
-                collect_mesh_activity_spans_from_expr(el, out);
-            }
-        }
-        Expr::StringInterp { parts, .. } => {
-            for p in parts {
-                if let vox_compiler::ast::expr::StringPart::Interpolation(inner) = p {
-                    collect_mesh_activity_spans_from_expr(inner, out);
-                }
-            }
-        }
-        _ => {}
-    }
 }
 
 /// Identifier-like character (ASCII alnum + underscore).
