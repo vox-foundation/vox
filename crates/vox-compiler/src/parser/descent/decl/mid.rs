@@ -99,4 +99,69 @@ impl Parser {
             span: start.merge(self.span()),
         }))
     }
+
+    /// Parse `url Name { Variant; Variant(arg: Type); Variant(?opt: Type) }`.
+    pub(crate) fn parse_url_decl(&mut self, is_pub: bool) -> Result<Decl, ()> {
+        use crate::parser::error::{ParseError, ParseErrorClass};
+        let start = self.span();
+        self.advance(); // eat `url`
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LBrace)?;
+        let mut variants = Vec::new();
+        loop {
+            self.skip_newlines();
+            if self.eat(&Token::RBrace) {
+                break;
+            }
+            if matches!(self.peek(), Token::Eof) {
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "Unexpected EOF inside `url` block",
+                    vec!["}".into()],
+                    None,
+                    ParseErrorClass::Declaration,
+                ));
+                return Err(());
+            }
+            let vstart = self.span();
+            let vname = self.parse_ident_name()?;
+            let mut args = Vec::new();
+            if self.eat(&Token::LParen) {
+                loop {
+                    self.skip_newlines();
+                    if matches!(self.peek(), Token::RParen) {
+                        break;
+                    }
+                    let astart = self.span();
+                    let optional = self.eat(&Token::Question);
+                    let aname = self.parse_ident_name()?;
+                    self.expect(&Token::Colon)?;
+                    let atype = self.parse_type_expr()?;
+                    args.push(crate::ast::decl::UrlArg {
+                        name: aname,
+                        optional,
+                        type_ann: atype,
+                        span: astart.merge(self.span()),
+                    });
+                    if !self.eat(&Token::Comma) {
+                        break;
+                    }
+                }
+                self.expect(&Token::RParen)?;
+            }
+            variants.push(crate::ast::decl::UrlVariant {
+                name: vname,
+                args,
+                span: vstart.merge(self.span()),
+            });
+            // Allow an optional comma between variants; newlines are skipped at loop top
+            self.eat(&Token::Comma);
+        }
+        Ok(Decl::Url(crate::ast::decl::UrlDecl {
+            name,
+            variants,
+            is_pub,
+            span: start.merge(self.span()),
+        }))
+    }
 }

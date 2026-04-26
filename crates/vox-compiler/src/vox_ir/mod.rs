@@ -1,6 +1,6 @@
 use crate::hir::{
-    HirActivity, HirActor, HirAgent, HirFn, HirImport, HirMcpResource, HirMcpTool, HirRoute,
-    HirRustImport, HirEndpointFn, HirTable, HirTypeDef, HirWorkflow,
+    HirAgent, HirFn, HirImport, HirMcpResource, HirMcpTool, HirRoute,
+    HirRustImport, HirEndpointFn, HirTable, HirTypeDef, HirUrlDecl,
 };
 use crate::web_ir::WebIrModule;
 use serde::{Deserialize, Serialize};
@@ -29,14 +29,12 @@ pub struct VoxIrContent {
     pub functions: Vec<HirFn>,
     pub types: Vec<HirTypeDef>,
     pub routes: Vec<HirRoute>,
-    pub actors: Vec<HirActor>,
-    pub workflows: Vec<HirWorkflow>,
-    pub activities: Vec<HirActivity>,
     pub endpoint_fns: Vec<HirEndpointFn>,
     pub tables: Vec<HirTable>,
     pub mcp_tools: Vec<HirMcpTool>,
     pub mcp_resources: Vec<HirMcpResource>,
     pub agents: Vec<HirAgent>,
+    pub url_decls: Vec<HirUrlDecl>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub web_ir: Option<WebIrModule>,
 }

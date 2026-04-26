@@ -150,12 +150,9 @@ fn mesh_workflow_env_warnings(
     if vox_populi_enabled_from_env() {
         return Vec::new();
     }
-    let mut spans = Vec::new();
-    for d in &module.declarations {
-        if let Decl::Workflow(w) = d {
-            collect_mesh_activity_spans_from_stmts(&w.body, &mut spans);
-        }
-    }
+    let spans: Vec<vox_compiler::ast::span::Span> = Vec::new();
+    // workflow construct is tombstoned; no workflow bodies to walk
+    let _ = module;
     spans
         .into_iter()
         .map(|span| {

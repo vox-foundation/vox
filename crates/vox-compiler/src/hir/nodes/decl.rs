@@ -36,12 +36,6 @@ pub struct HirModule {
     pub types: Vec<HirTypeDef>,
     /// HTTP route handlers.
     pub routes: Vec<HirRoute>,
-    /// Actor definitions.
-    pub actors: Vec<HirActor>,
-    /// Workflow state machines.
-    pub workflows: Vec<HirWorkflow>,
-    /// Workflow activities.
-    pub activities: Vec<HirActivity>,
     /// `@test` functions.
     pub tests: Vec<HirFn>,
     /// `@forall` properties.
@@ -73,9 +67,10 @@ pub struct HirModule {
     /// Reactive components (Path C).
     pub components: Vec<HirReactiveComponent>,
 
+    /// Typed URL path declarations (`url Name { … }`).
+    pub url_decls: Vec<HirUrlDecl>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
-    /// HTTP routes, tables, activities, and `@server` fns are lowered to [`HirRoute`], [`HirTable`],
-    /// [`HirActivity`], and [`HirServerFn`]; TS codegen reads those directly (Path C).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 
 
@@ -104,6 +99,7 @@ pub struct SemanticHirModule {
     pub agents: Vec<HirAgent>,
     pub environments: Vec<HirEnvironment>,
     pub components: Vec<HirReactiveComponent>,
+    pub url_decls: Vec<HirUrlDecl>,
 }
 
 impl HirModule {
@@ -116,9 +112,6 @@ impl HirModule {
             ("functions", HirFieldOwnership::SemanticCore),
             ("types", HirFieldOwnership::SemanticCore),
             ("routes", HirFieldOwnership::AppContract),
-            ("actors", HirFieldOwnership::MigrationOnly),
-            ("workflows", HirFieldOwnership::MigrationOnly),
-            ("activities", HirFieldOwnership::MigrationOnly),
             ("tests", HirFieldOwnership::SemanticCore),
             ("endpoint_fns", HirFieldOwnership::AppContract),
             ("tables", HirFieldOwnership::SemanticCore),
@@ -134,6 +127,7 @@ impl HirModule {
 
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
             ("components", HirFieldOwnership::SemanticCore),
+            ("url_decls", HirFieldOwnership::SemanticCore),
         ]
     }
 
@@ -158,6 +152,7 @@ impl HirModule {
             agents: self.agents.clone(),
             environments: self.environments.clone(),
             components: self.components.clone(),
+            url_decls: self.url_decls.clone(),
         }
     }
 }
@@ -202,68 +197,6 @@ impl HirHttpMethod {
             Self::Delete => "DELETE",
         }
     }
-}
-
-/// Actor definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActor {
-    /// Actor type id.
-    pub id: DefId,
-    /// Actor name.
-    pub name: String,
-    /// Message handlers.
-    pub handlers: Vec<HirActorHandler>,
-    /// Span covering the actor.
-    pub span: Span,
-}
-
-/// Single actor message handler.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActorHandler {
-    /// Event name.
-    pub event_name: String,
-    /// Parameters.
-    pub params: Vec<HirParam>,
-    /// Return type.
-    pub return_type: Option<HirType>,
-    /// Handler body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the handler.
-    pub span: Span,
-}
-
-/// Workflow definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirWorkflow {
-    /// Workflow id.
-    pub id: DefId,
-    /// Workflow name.
-    pub name: String,
-    /// Input parameters.
-    pub params: Vec<HirParam>,
-    /// Output type.
-    pub return_type: Option<HirType>,
-    /// Workflow body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the workflow.
-    pub span: Span,
-}
-
-/// Activity definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActivity {
-    /// Activity id.
-    pub id: DefId,
-    /// Activity name.
-    pub name: String,
-    /// Parameters.
-    pub params: Vec<HirParam>,
-    /// Return type.
-    pub return_type: Option<HirType>,
-    /// Activity body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the activity.
-    pub span: Span,
 }
 
 /// Island component lowered to HIR.
@@ -627,6 +560,33 @@ pub struct HirOnMount {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirOnCleanup {
     pub body: HirExpr,
+    pub span: Span,
+}
+
+/// A typed URL path declaration lowered to HIR: `url Path { Home; Task(id: Id[Task]) }`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirUrlDecl {
+    pub id: DefId,
+    pub name: String,
+    pub variants: Vec<HirUrlVariant>,
+    pub is_pub: bool,
+    pub span: Span,
+}
+
+/// A single variant in a [`HirUrlDecl`].
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirUrlVariant {
+    pub name: String,
+    pub args: Vec<HirUrlArg>,
+    pub span: Span,
+}
+
+/// A parameter in a [`HirUrlVariant`].
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirUrlArg {
+    pub name: String,
+    pub optional: bool,
+    pub ty: HirType,
     pub span: Span,
 }
 

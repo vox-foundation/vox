@@ -17,6 +17,8 @@ pub mod logic;
 pub mod typedef;
 /// Client routing, layouts, themes, and SSG page metadata.
 pub mod ui;
+/// Typed URL path declarations (`url Name { … }`).
+pub mod url;
 
 pub use config::*;
 pub use db::*;
@@ -24,6 +26,7 @@ pub use fundecl::*;
 pub use logic::*;
 pub use typedef::*;
 pub use ui::*;
+pub use url::*;
 
 mod callable;
 mod reactive;

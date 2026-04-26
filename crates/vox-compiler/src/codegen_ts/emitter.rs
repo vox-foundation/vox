@@ -12,7 +12,6 @@
 //! only validated [`crate::web_ir::WebIrModule`] slices is tracked in the internal Web IR blueprint.
 
 use crate::app_contract::project_app_contract;
-use crate::codegen_ts::activity::{generate_activity_hir, generate_activity_runner};
 use crate::codegen_ts::adt::generate_types;
 
 use crate::codegen_ts::island_emit::collect_island_names;
@@ -88,6 +87,12 @@ pub fn generate_with_options(
     if has_types {
         files.push(("types.ts".to_string(), types_content));
     }
+
+    // Generate typed URL declarations
+    let url_content = crate::codegen_ts::url_emit::emit_url_decls(hir);
+    if !url_content.is_empty() {
+        files.push(("urls.ts".to_string(), url_content));
+    }
     if let Ok(contract_json) = serde_json::to_string_pretty(&app_contract) {
         files.push(("vox-app-contract.json".to_string(), contract_json));
     }
@@ -112,16 +117,6 @@ pub fn generate_with_options(
             files.push(("server.ts".to_string(), routes_content));
         }
 
-        // Generate activities from HIR (canonical)
-        if !hir.activities.is_empty() {
-            let mut activities_content = String::new();
-            activities_content.push_str(&generate_activity_runner());
-            activities_content.push('\n');
-            for activity in &hir.activities {
-                activities_content.push_str(&generate_activity_hir(activity));
-            }
-            files.push(("activities.ts".to_string(), activities_content));
-        }
     }
 
     // Generate table interfaces + schema from HIR
@@ -153,36 +148,25 @@ pub fn generate_with_options(
     }
 
 
-    // Process vox.tokens.json into vox-tokens.css
-    if let Ok(tokens_content) = std::fs::read_to_string("vox.tokens.json") {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&tokens_content) {
-            let mut tokens_css = String::from(":root {\n");
-
-            fn flatten_tokens(val: &serde_json::Value, prefix: &str, out: &mut String) {
-                if let Some(obj) = val.as_object() {
-                    for (k, v) in obj {
-                        let new_prefix = if prefix.is_empty() {
-                            k.clone()
-                        } else {
-                            format!("{}-{}", prefix, k)
-                        };
-                        flatten_tokens(v, &new_prefix, out);
-                    }
-                } else if let Some(s) = val.as_str() {
-                    out.push_str(&format!("  --vox-{}: {};\n", prefix, s));
-                } else if let Some(n) = val.as_number() {
-                    out.push_str(&format!("  --vox-{}: {};\n", prefix, n));
-                }
-            }
-
-            flatten_tokens(&json, "", &mut tokens_css);
-            tokens_css.push_str("}\n");
-            files.push(("vox-tokens.css".to_string(), tokens_css));
-        }
+    // Load vox.tokens.json via TokenRegistry: emits typed CSS + TS and validates token refs.
+    let token_registry =
+        crate::tokens::TokenRegistry::load_from_str(
+            &std::fs::read_to_string("vox.tokens.json").unwrap_or_default(),
+        )
+        .ok();
+    if let Some(ref reg) = token_registry {
+        files.push((
+            "vox-tokens.css".to_string(),
+            crate::codegen_ts::tokens_emit::emit_tokens_css(reg),
+        ));
+        files.push((
+            "tokens.ts".to_string(),
+            crate::codegen_ts::tokens_emit::emit_tokens_ts(reg),
+        ));
     }
 
     let web_projection = crate::web_ir::lower::project_web_from_core(hir);
-    maybe_web_ir_validate(hir, Some(&web_projection))?;
+    maybe_web_ir_validate(hir, Some(&web_projection), token_registry.as_ref())?;
 
     let (manifest_filename, route_manifest) = if options.mode == BuildMode::Library {
         (
@@ -308,9 +292,13 @@ pub fn generate_with_options(
 
 /// WebIR lower + validate gate (OP-0113, OP-0124). **On by default;** set `VOX_WEBIR_VALIDATE=0` / `false` /
 /// `no` / `off` to skip.
+///
+/// When a [`crate::tokens::TokenRegistry`] is supplied, token reference resolution and
+/// WCAG contrast validation run as part of the style stage (TASK-4.4).
 fn maybe_web_ir_validate(
     hir: &HirModule,
     cached_web: Option<&crate::web_ir::WebIrModule>,
+    registry: Option<&crate::tokens::TokenRegistry>,
 ) -> Result<(), String> {
     if !crate::web_migration_env::web_ir_validate_gate_enabled() {
         return Ok(());
@@ -323,7 +311,7 @@ fn maybe_web_ir_validate(
             &fallback
         }
     };
-    let diags = crate::web_ir::validate::validate_web_ir(web);
+    let diags = crate::web_ir::validate::validate_web_ir_with_registry(web, registry);
     if diags.is_empty() {
         return Ok(());
     }

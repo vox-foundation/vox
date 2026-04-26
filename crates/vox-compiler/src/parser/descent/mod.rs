@@ -444,6 +444,7 @@ impl Parser {
                         Ok(Decl::Function(f))
                     }
                     Token::TypeKw => self.parse_typedef(true),
+                    Token::Ident(ref name) if name == "url" => self.parse_url_decl(true),
                     _ => {
                         self.errors.push(ParseError::classified(
                             self.span(),
@@ -470,6 +471,7 @@ impl Parser {
                 Err(())
             }
             Token::TypeKw => self.parse_typedef(false),
+            Token::Ident(ref name) if name == "url" => self.parse_url_decl(false),
             Token::AtTable => self.parse_table(),
             Token::Ident(ref name) if name == "routes" => self.parse_routes(),
             _ => {
