@@ -93,12 +93,12 @@ Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): P
 
 | Task | Priority | Status | Notes |
 |------|----------|--------|-------|
-| TASK-5.1 — Token resolution validator | P0 (literal CSS color/dimension → compile error) | ✅ Done | `HEAD` | `check_literal_value()` in `web_ir/validate.rs` fires unconditionally (no registry required): `Raw` hex/rgb/hsl strings → `literal_color_value`; `Color(Hex|Rgb|Rgba|Named|Hsl)` → `literal_color_value`; `Length(_, _)` → `literal_dimension_value`. `TokenRef`/`Keyword`/`Number` pass through. 4 tests passing. |
-| TASK-5.2 — Route reachability validator | P0 (dead route unrepresentable) | 🔲 Not started | Depends on TASK-5.1 |
-| TASK-5.3 — AriaNode + a11y validator | P0 (missing aria-label on interactive element unrepresentable) | 🔲 Not started | Depends on TASK-5.1 |
-| TASK-5.4 — v0.dev output validator | P0 (integration gate) | 🔲 Not started | Depends on TASK-5.1–5.3 |
+| TASK-5.1 — Token resolution validator | P0 (literal CSS color/dimension → compile error) | ✅ Done | `2aca2730` | `check_literal_value()` in `web_ir/validate.rs` fires unconditionally: `Raw` hex/rgb/hsl strings, `Color` variants, `Length` → `literal_color_value` / `literal_dimension_value`. 4 tests. |
+| TASK-5.2 — Route reachability validator | P0 (broken link → compile error, dead route → warning) | ✅ Done | `1e0d943d` | `validate_route_reachability()` in `web_ir/validate.rs`: checks `meta["component"]` → `view_roots` (missing_component error); literal `<a href="...">` vs route patterns (broken_link error); unreachable route warning. 5 integration tests. |
+| TASK-5.3 — A11y validator | P0 (img_missing_alt, interactive_missing_label, role_button_missing_keyboard) | ✅ Done | `1e0d943d` | New `web_ir/validate_a11y.rs`: walks DOM arena checking `tag` + `attrs`; wired into `validate_web_ir_full()`. 10 unit tests + 2 integration tests. |
+| TASK-5.4 — v0.dev output validator | P0 (integration gate — a11y + design-token checks on v0 output) | ✅ Done | `ab0454a8` | New `vox-cli/src/v0_validate.rs`: regex-based TSX pre-flight scanner (no `swc_ecma_parser` needed); catches `v0.a11y.img_missing_alt`, `v0.a11y.interactive_missing_label`, `v0.style.literal_color`, `v0.style.literal_dimension`. Wired into `island generate` pipeline; violations printed as stderr warnings. 10 unit tests. |
 
-**Phase 5 verdict:** 1 complete, 3 not started.
+**Phase 5 verdict:** 4 complete, 0 partial, 0 not started. Phase 5 is **complete** — all preconditions for Phase 6 are satisfied.
 
 ---
 
@@ -124,9 +124,7 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in order)
 
-1. **TASK-5.2** — Route reachability validator (dead route → compile error).
-2. **TASK-5.3** — AriaNode + a11y validator (missing aria-label on interactive element → compile error).
-3. **TASK-5.4** — v0.dev output validator (integration gate; depends on 5.1–5.3).
+1. **Phase 6** — Begin Phase 6 tasks (unblocked by Phase 5 completion).
 
 **Resolved (no action needed):**
 - TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).
