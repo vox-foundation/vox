@@ -32,7 +32,8 @@ fn emit_one(sm: &HirStateMachineDecl, out: &mut String) {
     // ── State type ─────────────────────────────────────────────────────────
     out.push_str(&format!("export type {name} =\n"));
     for (i, st) in sm.states.iter().enumerate() {
-        let sep = if i + 1 < sm.states.len() { " |" } else { "  " };
+        let sep = " |";
+        let _ = i;
         out.push_str(&format!("  {sep} {{ readonly _tag: {:?}", st.name));
         for field in &st.fields {
             let ty_str = field
@@ -61,7 +62,8 @@ fn emit_one(sm: &HirStateMachineDecl, out: &mut String) {
     if !seen_events.is_empty() {
         out.push_str(&format!("export type {name}Event =\n"));
         for (i, event) in seen_events.iter().enumerate() {
-            let sep = if i + 1 < seen_events.len() { " |" } else { "  " };
+            let sep = " |";
+            let _ = i;
             // Collect params for this event from the first matching transition.
             let params: Vec<&str> = sm
                 .transitions

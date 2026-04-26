@@ -1,14 +1,109 @@
-// TASK-7.2 target: port PipelineView + WorkflowScrubber + AgentFlow to .vox.
+// TASK-7.2: ForgeTab — pipeline visualization + workflow time-travel scrubber.
 //
-// Components to port from src/components/:
-//   - PipelineView.tsx      — execution pipeline visualisation
-//   - WorkflowScrubber.tsx  — workflow timeline scrubber
-//   - UnifiedDashboard.tsx  — composite forge view
+// Components ported from src/components/:
+//   - PipelineView.tsx      — static 5-stage pipeline display (data via props later)
+//   - WorkflowScrubber.tsx  — play/pause state + empty-state layout
 //
-// State machines to introduce (highest priority, uses TASK-4.1 state_machine primitive):
-//   - WorkflowScrubberState: Paused -> Playing -> Scrubbing -> Paused
-//   - PipelineState:         Idle -> Running(step) -> Completed | Failed
+// State machines (uses TASK-4.1 state_machine primitive):
+//   - ScrubberState: Paused -> Playing -> Scrubbing -> Paused
+//   - PipelinePhase: Idle -> Running -> Completed | Failed
 //
-// Precondition: TASK-7.1 ✅ (AppShell shell in place).
-//
-// vox:skip — this file is a scaffold target, not yet compilable.
+// Transport calls (vox_plan_resume) are deferred to @island or Phase 2 bridge.
+
+partial state_machine ScrubberState {
+    state Paused
+    state Playing
+    state Scrubbing
+
+    on Play from Paused -> Playing
+    on Pause from Playing -> Paused
+    on Scrub from Playing -> Scrubbing
+    on StopScrub from Scrubbing -> Paused
+}
+
+partial state_machine PipelinePhase {
+    state Idle
+    state Running
+    terminal state Completed
+    terminal state Failed
+
+    on Start from Idle -> Running
+    on Complete from Running -> Completed
+    on Fault from Running -> Failed
+}
+
+component PipelineStage(name: str, desc: str) {
+    view: (
+        <column class="p-8 flex-1 border-r border-white/5 gap-4">
+            <row class="justify-between mb-6">
+                <panel class="w-10 h-10 rounded-xl bg-zinc-900 border border-white/5 items-center justify-center">
+                    <text class="text-zinc-500 text-xs font-mono">{name}</text>
+                </panel>
+                <text class="text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20">"IDLE"</text>
+            </row>
+            <text class="text-2xl font-bold text-white/90">{name}</text>
+            <text class="text-zinc-500 text-sm leading-relaxed">{desc}</text>
+            <panel class="flex-1 rounded-2xl border border-white/5 p-5 font-mono">
+                <text class="text-xs text-zinc-500 italic">"No output yet."</text>
+            </panel>
+        </column>
+    )
+}
+
+component PipelineView() {
+    view: (
+        <row class="h-full bg-zinc-950">
+            <PipelineStage name="Lexer" desc="Logos-based tokenization" />
+            <PipelineStage name="Parser" desc="Rowan GreenTree CST generation" />
+            <PipelineStage name="HIR" desc="High-level IR with name resolution" />
+            <PipelineStage name="TypeCheck" desc="Bidirectional unification logic" />
+            <PipelineStage name="CodeGen" desc="Rust and TypeScript emission" />
+        </row>
+    )
+}
+
+component WorkflowScrubber() {
+    state is_playing: bool = false
+
+    view: (
+        <column class="p-10 bg-zinc-950 h-full gap-8 text-white">
+            <row class="justify-between items-center">
+                <column class="gap-2">
+                    <text class="text-3xl font-black tracking-tighter text-white">"TIME TRAVEL"</text>
+                    <text class="text-xs text-zinc-400 font-bold tracking-widest">"DURABLE WORKFLOW STATE INSPECTOR"</text>
+                </column>
+                <row class="gap-4 bg-white/5 p-2 rounded-2xl border border-white/5 items-center">
+                    <button class="w-10 h-10 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center">"<<"</button>
+                    <button class="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center" on:click={is_playing = not is_playing}>{if is_playing { "PAUSE" } else { "PLAY" }}</button>
+                    <button class="w-10 h-10 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center">">>"</button>
+                </row>
+            </row>
+            <panel class="flex-1 flex items-center justify-center">
+                <column class="items-center gap-4 text-zinc-500">
+                    <text class="text-sm font-bold uppercase tracking-widest">"NO ACTIVE WORKFLOW"</text>
+                    <text class="text-xs">"Durable state execution will appear here when orchestrated."</text>
+                </column>
+            </panel>
+        </column>
+    )
+}
+
+component ForgeTab() {
+    state active_panel: str = "pipeline"
+
+    view: (
+        <column class="flex-1 overflow-hidden">
+            <row class="h-10 border-b border-zinc-800 px-4 items-center gap-2 shrink-0">
+                <button class="tab-btn" on:click={active_panel = "pipeline"}>"PIPELINE"</button>
+                <button class="tab-btn" on:click={active_panel = "scrubber"}>"SCRUBBER"</button>
+            </row>
+            <panel class="flex-1 overflow-hidden">
+                {if active_panel is "pipeline" {
+                    <PipelineView />
+                } else {
+                    <WorkflowScrubber />
+                }}
+            </panel>
+        </column>
+    )
+}
