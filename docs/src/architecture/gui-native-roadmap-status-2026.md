@@ -130,7 +130,12 @@ Per [`VOX_GUI_NATIVE_ROADMAP_2026.md`](../../../VOX_GUI_NATIVE_ROADMAP_2026.md) 
 
 ## Phase 8 — Corpus + MENS
 
-All not started. Dependencies on Phase 7.
+| Task | Status | Commit | Notes |
+|------|--------|--------|-------|
+| TASK-8.1 — Atomic corpus migration PR | ✅ Done | `135b7591` | Golden corpus `.vox` files were already clean. Migrated 9 training-eligible docs + `vox_system_prompt.txt` to fn-based actor/workflow/activity syntax and current component syntax. Created `scripts/migrate-corpus.vox` verification script. All 247 compiler tests pass. |
+| TASK-8.2 — MENS training run on new corpus | 🔲 Not started | — | Requires operator to run `vox populi train --config qlora.toml` and compare eval scores. |
+
+**Phase 8 verdict:** 1 complete, 1 pending operator action (compute).
 
 ---
 
@@ -150,7 +155,8 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in order)
 
-1. **Phase 8** — Corpus + MENS. All Phase 7 tasks are at or near completion; Phase 8 dependencies are satisfied. Remaining TASK-7.3 partial (bundler replacement) can run in parallel with Phase 8 work.
+1. **TASK-8.2** — MENS training run. Run `vox populi train --config qlora.toml` against the updated corpus; compare eval scores. Requires operator compute action.
+2. **TASK-7.3 (remaining partial)** — Full bundler replacement. Blocked on a vox-integrated bundler; can run in parallel with TASK-8.2.
 
 **Resolved (no action needed):**
 - TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).
