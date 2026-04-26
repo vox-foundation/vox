@@ -619,6 +619,69 @@ fn react_import_line(members: &[HirReactiveMember]) -> String {
     )
 }
 
+/// Walk an HIR expression tree and collect uppercase JSX tag names that correspond
+/// to known Vox components. Used to emit cross-component import statements.
+fn collect_jsx_component_refs(
+    expr: &HirExpr,
+    known: &HashSet<String>,
+    out: &mut HashSet<String>,
+) {
+    match expr {
+        HirExpr::Jsx(el) => {
+            if el.tag.starts_with(|c: char| c.is_uppercase()) && known.contains(&el.tag) {
+                out.insert(el.tag.clone());
+            }
+            for child in &el.children {
+                collect_jsx_component_refs(child, known, out);
+            }
+        }
+        HirExpr::JsxSelfClosing(el) => {
+            if el.tag.starts_with(|c: char| c.is_uppercase()) && known.contains(&el.tag) {
+                out.insert(el.tag.clone());
+            }
+        }
+        HirExpr::If(cond, then_stmts, else_stmts, _) => {
+            collect_jsx_component_refs(cond, known, out);
+            for s in then_stmts {
+                collect_jsx_component_refs_stmt(s, known, out);
+            }
+            if let Some(stmts) = else_stmts {
+                for s in stmts {
+                    collect_jsx_component_refs_stmt(s, known, out);
+                }
+            }
+        }
+        HirExpr::Block(stmts, _) => {
+            for s in stmts {
+                collect_jsx_component_refs_stmt(s, known, out);
+            }
+        }
+        HirExpr::For(_, iter, body, _) => {
+            collect_jsx_component_refs(iter, known, out);
+            collect_jsx_component_refs(body, known, out);
+        }
+        _ => {}
+    }
+}
+
+fn collect_jsx_component_refs_stmt(
+    stmt: &HirStmt,
+    known: &HashSet<String>,
+    out: &mut HashSet<String>,
+) {
+    match stmt {
+        HirStmt::Expr { expr, .. } => collect_jsx_component_refs(expr, known, out),
+        HirStmt::Let { value, .. } => collect_jsx_component_refs(value, known, out),
+        HirStmt::Assign { value, .. } => collect_jsx_component_refs(value, known, out),
+        HirStmt::Return { value, .. } => {
+            if let Some(v) = value {
+                collect_jsx_component_refs(v, known, out);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// `island_names` should be [`crate::codegen_ts::island_emit::collect_island_names`] for the enclosing [`crate::hir::HirModule`].
 ///
 /// `hir` must be the full module (needed for optional Web IR view bridge).
@@ -639,6 +702,28 @@ pub fn generate_reactive_component(
     let state_names = collect_reactive_binding_names(&rc.members);
 
     out.push_str(&react_import_line(&rc.members));
+
+    // Emit import statements for other Vox components referenced in the view.
+    let known_components: HashSet<String> =
+        hir.components.iter().map(|c| c.name.clone()).collect();
+    let mut comp_refs: HashSet<String> = HashSet::new();
+    if let Some(view_expr) = &rc.view {
+        collect_jsx_component_refs(view_expr, &known_components, &mut comp_refs);
+    }
+    // Also walk the view inside members (e.g. inline JSX in state initialisers).
+    for m in &rc.members {
+        if let HirReactiveMember::Stmt(s) = m {
+            collect_jsx_component_refs_stmt(s, &known_components, &mut comp_refs);
+        }
+    }
+    let mut sorted_refs: Vec<String> = comp_refs.into_iter().collect();
+    sorted_refs.sort();
+    for comp in &sorted_refs {
+        out.push_str(&format!("import {{ {comp} }} from \"./{comp}\";\n"));
+    }
+    if !sorted_refs.is_empty() {
+        out.push('\n');
+    }
 
     if !rc.styles.is_empty() {
         out.push_str(&format!("import \"./{name}.css\";\n\n"));
@@ -727,4 +812,76 @@ pub fn generate_reactive_component(
 
     out.push_str("}\n");
     (filename, out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hir::lower::lower_module;
+    use crate::lexer::lex;
+    use crate::parser::parse;
+
+    fn compile(src: &str) -> Vec<(String, String)> {
+        let tokens = lex(src);
+        let module = parse(tokens).expect("parse error");
+        let hir = lower_module(&module);
+        let island_names = HashSet::new();
+        let mut stats = ReactiveViewBridgeStats::default();
+        hir.components
+            .iter()
+            .map(|rc| generate_reactive_component(&hir, rc, &island_names, None, &mut stats))
+            .collect()
+    }
+
+    fn get(files: &[(String, String)], name: &str) -> String {
+        files
+            .iter()
+            .find(|(f, _)| f == name)
+            .map(|(_, c)| c.clone())
+            .unwrap_or_default()
+    }
+
+    #[test]
+    fn test_cross_component_import_emitted() {
+        let files = compile(
+            "component Inner() { view: (<panel><text>\"hi\"</text></panel>) }\n\
+             component Outer() { view: (<column><Inner /></column>) }",
+        );
+        let outer = get(&files, "Outer.tsx");
+        assert!(
+            outer.contains("import { Inner } from \"./Inner\";"),
+            "expected import for Inner in Outer.tsx, got:\n{outer}"
+        );
+    }
+
+    #[test]
+    fn test_no_import_for_html_primitives() {
+        let files = compile("component Card() { view: (<panel><text>\"x\"</text></panel>) }");
+        let card = get(&files, "Card.tsx");
+        // 'panel' and 'text' are primitives, must not generate import lines
+        assert!(
+            !card.contains("import { panel }"),
+            "primitive 'panel' should not be imported"
+        );
+        assert!(
+            !card.contains("import { text }"),
+            "primitive 'text' should not be imported"
+        );
+    }
+
+    #[test]
+    fn test_import_inside_if_branch() {
+        let files = compile(
+            "component Badge() { view: (<text>\"x\"</text>) }\n\
+             component Host(show: bool) {\n\
+               state s: bool = false\n\
+               view: ({if s { <Badge /> } else { <text>\"no\"</text> }})\n\
+             }",
+        );
+        let host = get(&files, "Host.tsx");
+        assert!(
+            host.contains("import { Badge } from \"./Badge\";"),
+            "expected Badge import inside if branch:\n{host}"
+        );
+    }
 }

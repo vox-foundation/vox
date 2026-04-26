@@ -1,5 +1,10 @@
 import React, { useState } from "react";
 
+import { CommandTab } from "./CommandTab";
+import { ForgeTab } from "./ForgeTab";
+import { NetworkTab } from "./NetworkTab";
+import { SpeakTab } from "./SpeakTab";
+
 export function AppShell(): React.ReactElement {
   const [tab, set_tab] = useState("speak");
   return (
