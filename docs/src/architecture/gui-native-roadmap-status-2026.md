@@ -139,6 +139,14 @@ Per [`VOX_GUI_NATIVE_ROADMAP_2026.md`](../../../VOX_GUI_NATIVE_ROADMAP_2026.md) 
 
 ---
 
+## Phase 9 — Route Pipeline Restoration
+
+| Task | Status | Commit | Notes |
+|------|--------|--------|-------|
+| TASK-9.1 — Wire `Decl::Routes` → HIR → WebIR | ✅ Done | `240375b0` | `HirModule::client_routes` added. `Decl::Routes` now lowers to `hir.client_routes` instead of being silently dropped. `lower_client_routes` in `web_ir/lower.rs` produces `RouteNode::RouteTree`. `routes.manifest.ts` now emitted on build. Duplicate `routes {}` correctly triggers `web_ir_validate.route.duplicate_contract_id`. `is_advisory_diagnostic` SSOT in `web_ir::validate`. 4 vox-cli test failures resolved; corpus digest golden updated. |
+
+---
+
 ## Token / Clavis Status
 
 `FORGE_TOKEN` is now stored in `~/.vox/auth.json` (local Clavis vault, **not
@@ -157,6 +165,7 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 1. **TASK-8.2** — MENS training run. Run `vox populi train --config qlora.toml` against the updated corpus; compare eval scores. Requires operator compute action.
 2. **TASK-7.3 (remaining partial)** — Full bundler replacement. Blocked on a vox-integrated bundler; can run in parallel with TASK-8.2.
+3. **TASK-5.1 (partial)** — Literal CSS value enforcement. Token-reference CSS values enforced in `style {}` blocks; `raw_css {}` escape hatch available for literal values.
 
 **Resolved (no action needed):**
 - TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).
