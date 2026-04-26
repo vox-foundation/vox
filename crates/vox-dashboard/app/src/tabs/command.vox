@@ -1,0 +1,13 @@
+// TASK-7.2 target: port EngineeringDiagnostics + task dispatch UI to .vox.
+//
+// Components to port from src/components/:
+//   - EngineeringDiagnostics.tsx — compiler diagnostic display
+//   - AttentionPanel.tsx         — orchestrator attention alerts
+//   - ContextExplorer.tsx        — context window explorer
+//
+// State machines to introduce:
+//   - DiagnosticViewState: Collapsed -> Expanded -> Filtered
+//
+// Precondition: TASK-7.1 ✅ (AppShell shell in place).
+//
+// vox:skip — this file is a scaffold target, not yet compilable.

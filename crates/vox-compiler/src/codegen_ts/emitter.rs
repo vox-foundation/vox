@@ -15,6 +15,7 @@ use crate::app_contract::project_app_contract;
 use crate::codegen_ts::adt::generate_types;
 
 use crate::codegen_ts::island_emit::collect_island_names;
+use crate::codegen_ts::reactive::generate_reactive_component;
 use crate::codegen_ts::routes::generate_routes;
 use crate::codegen_ts::tanstack_query_emit::vox_tanstack_query_tsx;
 use crate::codegen_ts::vox_client::{VOX_CLIENT_FILENAME, emit_vox_client};
@@ -77,9 +78,23 @@ pub fn generate_with_options(
     options: CodegenOptions,
 ) -> Result<CodegenOutput, String> {
     let mut files = Vec::new();
-    let reactive_stats = crate::codegen_ts::reactive::ReactiveViewBridgeStats::default();
-    let _island_names = collect_island_names(hir);
+    let mut reactive_stats = crate::codegen_ts::reactive::ReactiveViewBridgeStats::default();
+    let island_names = collect_island_names(hir);
     let app_contract = project_app_contract(hir);
+
+    if options.mode != BuildMode::Library && !hir.components.is_empty() {
+        let web_projection = crate::web_ir::lower::project_web_from_core(hir);
+        for rc in &hir.components {
+            let (filename, content) = generate_reactive_component(
+                hir,
+                rc,
+                &island_names,
+                Some(&web_projection),
+                &mut reactive_stats,
+            );
+            files.push((filename, content));
+        }
+    }
 
     // Generate type definitions
     let types_content = generate_types(hir);

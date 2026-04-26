@@ -1,0 +1,14 @@
+// TASK-7.2 target: port PipelineView + WorkflowScrubber + AgentFlow to .vox.
+//
+// Components to port from src/components/:
+//   - PipelineView.tsx      — execution pipeline visualisation
+//   - WorkflowScrubber.tsx  — workflow timeline scrubber
+//   - UnifiedDashboard.tsx  — composite forge view
+//
+// State machines to introduce (highest priority, uses TASK-4.1 state_machine primitive):
+//   - WorkflowScrubberState: Paused -> Playing -> Scrubbing -> Paused
+//   - PipelineState:         Idle -> Running(step) -> Completed | Failed
+//
+// Precondition: TASK-7.1 ✅ (AppShell shell in place).
+//
+// vox:skip — this file is a scaffold target, not yet compilable.

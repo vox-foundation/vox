@@ -1,0 +1,13 @@
+// TASK-7.2 target: port ComposerPanel + chat session UI to .vox.
+//
+// Components to port from src/components/:
+//   - ComposerPanel.tsx  — chat input + session management
+//   - CodeBlock.tsx      — markdown code rendering
+//   - IntentionMatrix.tsx — intent classification display
+//
+// State machines to introduce:
+//   - ChatSessionState: Idle -> Composing -> Submitting -> Streaming -> Idle
+//
+// Precondition: TASK-7.1 ✅ (AppShell shell in place).
+//
+// vox:skip — this file is a scaffold target, not yet compilable.

@@ -1,0 +1,15 @@
+// TASK-7.2 target: port MeshTopology + agent graph UI to .vox.
+//
+// Components to port from src/components/:
+//   - MeshTopology.tsx  — agent mesh visualisation (@xyflow/react)
+//   - AgentFlow.tsx     — agent pipeline graph
+//
+// Note: @xyflow/react is a third-party library with no Vox primitive equivalent.
+// Port strategy: wrap as an @island with typed props; keep @xyflow internals in TSX.
+//
+// State machines to introduce:
+//   - MeshViewState: Overview -> NodeSelected(id) -> EdgeSelected(id)
+//
+// Precondition: TASK-7.1 ✅ (AppShell shell in place).
+//
+// vox:skip — this file is a scaffold target, not yet compilable.
