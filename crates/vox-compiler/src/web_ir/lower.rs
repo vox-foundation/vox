@@ -515,6 +515,7 @@ fn lower_styles_from_classic_components(
                 selector,
                 declarations,
                 specificity,
+                is_raw_css: block.is_raw_css,
                 span: None,
             });
             summary.style_rules_lowered += 1;

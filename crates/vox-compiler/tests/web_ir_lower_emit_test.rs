@@ -419,6 +419,7 @@ fn web_ir_schema_node_families_roundtrip_through_json() {
         span: None,
     });
     m.view_roots.push(("Smoke".into(), DomNodeId(1)));
+    m.view_roots.push(("Home".into(), DomNodeId(1)));
 
     m.behavior_nodes.push(BehaviorNode::StateDecl {
         name: "x".into(),
@@ -452,6 +453,7 @@ fn web_ir_schema_node_families_roundtrip_through_json() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("color".into(), StyleDeclarationValue::Raw("red".into()))],
+        is_raw_css: false,
         span: None,
     });
     m.style_nodes.push(StyleNode::TokenRef {
@@ -873,6 +875,7 @@ fn web_ir_validate_style_rejects_empty_declarations() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![],
+        is_raw_css: false,
         span: None,
     });
     let diags = validate_web_ir(&m);
@@ -890,6 +893,7 @@ fn web_ir_validate_style_rejects_empty_property_name() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![(String::new(), StyleDeclarationValue::Raw("x".into()))],
+        is_raw_css: false,
         span: None,
     });
     let diags = validate_web_ir(&m);
@@ -956,6 +960,7 @@ fn web_ir_validate_failure_format_matches_vox_webir_validate_gate() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![],
+        is_raw_css: false,
         span: None,
     });
     let diags = validate_web_ir(&m);
@@ -1118,6 +1123,7 @@ fn op_s058_style_todo_fixture_empty_rule_body_diagnosed() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("x".into()),
         declarations: vec![],
+        is_raw_css: false,
         span: None,
     });
     let d = validate_web_ir(&m);
@@ -1187,6 +1193,7 @@ fn op_s106_style_node_contract_fixture_non_empty_rule() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("color".into(), StyleDeclarationValue::Raw("red".into()))],
+        is_raw_css: false,
         span: None,
     });
     assert!(validate_web_ir(&m).is_empty());
@@ -1201,6 +1208,7 @@ fn op_s108_style_node_contract_gate_roundtrip() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("margin".into(), StyleDeclarationValue::Raw("0".into()))],
+        is_raw_css: false,
         span: None,
     });
     let j = serde_json::to_string(&m).unwrap();
@@ -1216,6 +1224,7 @@ fn op_s110_style_node_validation_fixture_empty_prop_name() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("".into(), StyleDeclarationValue::Raw("x".into()))],
+        is_raw_css: false,
         span: None,
     });
     let d = validate_web_ir(&m);
@@ -1275,6 +1284,15 @@ fn op_s146_fixture_pack_e2_route_contract_json_stable() {
         }],
         span: None,
     });
+    // "Home" view root is required for the route reachability validator.
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(0),
+        tag: "div".into(),
+        attrs: vec![],
+        children: vec![],
+        span: None,
+    });
+    m.view_roots.push(("Home".into(), DomNodeId(0)));
     assert!(validate_web_ir(&m).is_empty());
 }
 
@@ -1329,6 +1347,7 @@ fn op_s190_style_route_integration_fixture() {
             "padding".into(),
             StyleDeclarationValue::Raw("\"1px\"".into()),
         )],
+        is_raw_css: false,
         span: None,
     });
     m.route_nodes.push(RouteNode::RouteTree {
@@ -1558,6 +1577,7 @@ fn web_ir_validate_style_rejects_hex_color_raw() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("color".into(), StyleDeclarationValue::Raw("#ff0000".into()))],
+        is_raw_css: false,
         span: None,
     });
     let diags = validate_web_ir(&m);
@@ -1579,6 +1599,7 @@ fn web_ir_validate_style_rejects_color_variant() {
             "background".into(),
             StyleDeclarationValue::Color(vox_compiler::web_ir::CssColor::Hex("#abc".into())),
         )],
+        is_raw_css: false,
         span: None,
     });
     let diags = validate_web_ir(&m);
@@ -1599,6 +1620,7 @@ fn web_ir_validate_style_rejects_literal_dimension() {
             "padding".into(),
             StyleDeclarationValue::Length(16.0, vox_compiler::web_ir::LengthUnit::Px),
         )],
+        is_raw_css: false,
         span: None,
     });
     let diags = validate_web_ir(&m);
@@ -1620,6 +1642,7 @@ fn web_ir_validate_style_token_ref_is_ok() {
             "color".into(),
             StyleDeclarationValue::TokenRef("color-primary".into()),
         )],
+        is_raw_css: false,
         span: None,
     });
     let diags = validate_web_ir(&m);
@@ -1874,5 +1897,88 @@ component Passthrough() {
         }),
         "ordinary div should not have primitive Tailwind classes injected; nodes: {:?}",
         web.dom_nodes
+    );
+}
+
+// ── TASK-6.2: token-ref-only style values / raw_css escape ────────────────────
+
+/// raw_css {} escape emits a warning diagnostic, not an error.
+#[test]
+fn raw_css_escape_emits_warning_not_error() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("legacy".into()),
+        declarations: vec![("color".into(), StyleDeclarationValue::Raw("#ff0000".into()))],
+        is_raw_css: true,
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.style.raw_css_escape"),
+        "expected raw_css_escape warning: {diags:?}"
+    );
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.style.literal_color_value"),
+        "raw_css block must NOT fire literal_color_value error: {diags:?}"
+    );
+}
+
+/// Normal style {} block with a raw hex color still fires the error.
+#[test]
+fn normal_style_block_literal_color_still_errors() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("bad".into()),
+        declarations: vec![("color".into(), StyleDeclarationValue::Color(
+            vox_compiler::web_ir::CssColor::Hex("#ff0000".into())
+        ))],
+        is_raw_css: false,
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.style.literal_color_value"),
+        "expected literal_color_value error in normal style block: {diags:?}"
+    );
+}
+
+/// Parser round-trip: raw_css {} block lowers with is_raw_css=true.
+#[test]
+fn raw_css_style_block_lowers_with_flag() {
+    let src = r##"
+component Card() {
+    view: <div class="card"></div>
+}
+raw_css {
+    .card {
+        color: "#ff0000"
+    }
+}
+"##;
+    let tokens = vox_compiler::lexer::lex(src);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    let raw_css_rule = web.style_nodes.iter().find(|n| {
+        if let vox_compiler::web_ir::StyleNode::Rule { is_raw_css, .. } = n {
+            *is_raw_css
+        } else {
+            false
+        }
+    });
+    assert!(raw_css_rule.is_some(), "expected a raw_css style rule; got: {:?}", web.style_nodes);
+
+    // Validate should emit warning, not hard error on literal color.
+    let diags = validate_web_ir(&web);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.style.raw_css_escape"),
+        "expected raw_css_escape warning: {diags:?}"
+    );
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.style.literal_color_value"),
+        "raw_css should not fire literal_color_value: {diags:?}"
     );
 }

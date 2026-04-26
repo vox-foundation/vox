@@ -96,6 +96,9 @@ pub struct StyleBlock {
     pub selector: String,
     /// List of (property, value) pairs.
     pub properties: Vec<(String, String)>,
+    /// `true` when this block came from a `raw_css { }` escape hatch.
+    /// Raw CSS values are allowed (as a warning) inside these blocks.
+    pub is_raw_css: bool,
     /// Source location.
     pub span: Span,
 }

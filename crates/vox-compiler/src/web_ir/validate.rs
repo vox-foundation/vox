@@ -271,9 +271,20 @@ fn validate_styles_with_registry(
         if let StyleNode::Rule {
             selector,
             declarations,
+            is_raw_css,
             ..
         } = node
         {
+            // raw_css {} escape hatch: emit a single warning per rule instead of errors.
+            if *is_raw_css {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.raw_css_escape".to_string(),
+                    message: "raw_css {{ }} escape hatch used — prefer design tokens for all style values".to_string(),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+                continue;
+            }
             let sel_key = match selector {
                 StyleSelector::Class(c) => format!(".{}", c),
                 StyleSelector::Id(i) => format!("#{}", i),
