@@ -123,10 +123,10 @@ Per [`VOX_GUI_NATIVE_ROADMAP_2026.md`](../../../VOX_GUI_NATIVE_ROADMAP_2026.md) 
 | Task | Status | Notes |
 |------|--------|-------|
 | TASK-7.1 — Re-author App.tsx as app.vox | ✅ Done | `app.vox` created with tab switcher. `build.rs` integrates `vox build`. `HirExpr::If` IIFE bug fixed — codegen now emits nested ternaries. Reactive component pipeline restored in emitter. Generated `AppShell.tsx` produces clean `(tab === "speak" ? <SpeakTab /> : ...)` output. |
-| TASK-7.2 — Port 13 tab panels to .vox | 🟡 In progress | `forge.vox` complete: `PipelineStage`, `PipelineView`, `WorkflowScrubber`, `ForgeTab` components + `ScrubberState`/`PipelinePhase` state machines (discriminated union + reducer emitted to `state_machines.ts`). `state_machine_emit.rs` union-pipe bug fixed. Remaining: `speak.vox`, `command.vox`, `network.vox` (transport-dependent parts deferred to `@island` strategy). |
+| TASK-7.2 — Port 13 tab panels to .vox | ✅ Done | `0951020b`/`f5c25275` | All 4 tabs authored in Vox. `forge.vox`: `PipelineStage`/`PipelineView`/`WorkflowScrubber`/`ForgeTab` + `ScrubberState`/`PipelinePhase` state machines. `speak.vox`: `ChatMessage`/`ComposerPanel`/`SpeakTab` + `ChatSessionState`. `command.vox`: `DiagnosticRow`/`DiagnosticsPanel`/`TaskDispatch`/`CommandTab` + `DiagnosticViewState`. `network.vox`: `NodeBadge`/`MeshLegend`/`NetworkTab` + `MeshViewState`. `state_machine_emit.rs` union-pipe bug fixed. Transport-dependent interactions deferred to `@island` (Phase 2). |
 | TASK-7.3 — Delete Vite/Tailwind parallel setup | 🔲 Not started | Blocked on 7.1 + 7.2. |
 
-**Phase 7 verdict:** 1 complete, 1 in progress, 1 not started.
+**Phase 7 verdict:** 2 complete, 1 not started (TASK-7.3 blocked on Vite/Tailwind teardown decision).
 
 ## Phase 8 — Corpus + MENS
 
@@ -150,7 +150,7 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in order)
 
-1. **TASK-7.2 (remaining)** — Port `speak.vox`, `command.vox`, `network.vox`. Transport-dependent components (ComposerPanel, NetworkGraph) deferred to `@island` strategy. `forge.vox` already complete and compiling.
+1. **TASK-7.3** — Delete Vite/Tailwind parallel setup. Blocked on operator decision: confirm `vox build` + `build.rs` is the sole frontend pipeline before removing `vite.config.ts`, `postcss.config.js`, and the npm devDependencies.
 
 **Resolved (no action needed):**
 - TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).
