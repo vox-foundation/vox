@@ -30,6 +30,7 @@ use vox_compiler::web_ir::{
     RouteContract, RouteNode, ServerFnContract, StyleDeclarationValue, StyleNode, StyleSelector,
     WebIrModule, WebIrVersion,
 };
+use vox_compiler::web_ir::validate_a11y::validate_a11y;
 
 #[test]
 fn web_ir_lowering_validates_and_emits_counter_view() {
@@ -1626,5 +1627,124 @@ fn web_ir_validate_style_token_ref_is_ok() {
         diags.iter().all(|d| d.code != "web_ir_validate.style.literal_color_value"
             && d.code != "web_ir_validate.style.literal_dimension_value"),
         "token ref must not trigger literal value errors: {diags:?}"
+    );
+}
+
+// ── TASK-5.2: route reachability ──────────────────────────────────────────────
+
+fn route_tree(contracts: Vec<RouteContract>) -> RouteNode {
+    RouteNode::RouteTree { routes: contracts, span: None }
+}
+
+fn route_contract(id: &str, pattern: &str, component: Option<&str>) -> RouteContract {
+    let meta = if let Some(c) = component {
+        serde_json::json!({ "component": c })
+    } else {
+        serde_json::Value::Object(Default::default())
+    };
+    RouteContract { id: id.to_string(), pattern: pattern.to_string(), meta, children: vec![] }
+}
+
+fn link_element(href: &str) -> DomNode {
+    DomNode::Element {
+        id: DomNodeId(99),
+        tag: "a".to_string(),
+        attrs: vec![("href".to_string(), href.to_string())],
+        children: vec![],
+        span: None,
+    }
+}
+
+#[test]
+fn web_ir_validate_route_missing_component_is_error() {
+    let mut m = WebIrModule::default();
+    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", Some("Home"))]));
+    // view_roots does NOT include "Home"
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.route.missing_component"),
+        "expected missing_component: {diags:?}"
+    );
+}
+
+#[test]
+fn web_ir_validate_route_component_exists_is_ok() {
+    let mut m = WebIrModule::default();
+    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", Some("Home"))]));
+    m.view_roots.push(("Home".to_string(), DomNodeId(0)));
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.route.missing_component"),
+        "unexpected missing_component: {diags:?}"
+    );
+}
+
+#[test]
+fn web_ir_validate_route_broken_link_is_error() {
+    let mut m = WebIrModule::default();
+    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", None)]));
+    m.dom_nodes.push(link_element("/nonexistent"));
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.route.broken_link"),
+        "expected broken_link: {diags:?}"
+    );
+}
+
+#[test]
+fn web_ir_validate_route_matching_link_is_ok() {
+    let mut m = WebIrModule::default();
+    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", None)]));
+    m.dom_nodes.push(link_element("/home"));
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.route.broken_link"),
+        "unexpected broken_link: {diags:?}"
+    );
+}
+
+#[test]
+fn web_ir_validate_route_unreachable_warns() {
+    let mut m = WebIrModule::default();
+    m.route_nodes.push(route_tree(vec![route_contract("r1", "/about", None)]));
+    // No link elements in DOM → unreachable
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
+        "expected unreachable: {diags:?}"
+    );
+}
+
+// ── TASK-5.3: a11y validator integration ─────────────────────────────────────
+
+fn elem_node(id: u32, tag: &str, attrs: Vec<(&str, &str)>, children: Vec<u32>) -> DomNode {
+    DomNode::Element {
+        id: DomNodeId(id),
+        tag: tag.to_string(),
+        attrs: attrs.into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+        children: children.into_iter().map(DomNodeId).collect(),
+        span: None,
+    }
+}
+
+#[test]
+fn web_ir_validate_a11y_img_missing_alt_fires_via_validate_web_ir() {
+    let mut m = WebIrModule::default();
+    m.dom_nodes.push(elem_node(0, "img", vec![("src", "logo.png")], vec![]));
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
+        "expected img_missing_alt via validate_web_ir: {diags:?}"
+    );
+}
+
+#[test]
+fn web_ir_validate_a11y_button_missing_label_fires_via_validate_web_ir() {
+    let mut m = WebIrModule::default();
+    m.dom_nodes.push(elem_node(0, "button", vec![], vec![]));
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+        "expected interactive_missing_label via validate_web_ir: {diags:?}"
     );
 }

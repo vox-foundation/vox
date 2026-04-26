@@ -23,6 +23,7 @@
 pub mod emit_tsx;
 pub mod lower;
 pub mod validate;
+pub mod validate_a11y;
 
 use serde::{Deserialize, Serialize};
 

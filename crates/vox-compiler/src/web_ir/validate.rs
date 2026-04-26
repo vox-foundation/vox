@@ -408,6 +408,109 @@ fn validate_styles_with_registry(
     }
 }
 
+/// TASK-5.2: route reachability — component existence + broken link detection + unreachable routes.
+fn validate_route_reachability(
+    module: &WebIrModule,
+    out: &mut Vec<WebIrDiagnostic>,
+    _metrics: &mut WebIrValidateMetrics,
+) {
+    // Collect (pattern, Option<component_name>) from all route trees.
+    let mut route_entries: Vec<(String, Option<String>)> = Vec::new();
+    for node in &module.route_nodes {
+        if let RouteNode::RouteTree { routes, .. } = node {
+            collect_route_entries(routes, &mut route_entries);
+        }
+    }
+    if route_entries.is_empty() {
+        return;
+    }
+
+    // Check that component names declared in route meta exist as view roots.
+    let view_root_names: HashSet<&str> =
+        module.view_roots.iter().map(|(n, _)| n.as_str()).collect();
+    for (pattern, component_opt) in &route_entries {
+        if let Some(component) = component_opt {
+            if !component.is_empty() && !view_root_names.contains(component.as_str()) {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.route.missing_component".to_string(),
+                    message: format!(
+                        "Route '{}' declares component '{}' but no matching view root exists",
+                        pattern, component
+                    ),
+                    span: None,
+                    category: Some("route".to_string()),
+                });
+            }
+        }
+    }
+
+    // Collect all literal href/to values from link elements in the DOM arena.
+    let known_patterns: HashSet<&str> =
+        route_entries.iter().map(|(p, _)| p.as_str()).collect();
+    let mut referenced: HashSet<String> = HashSet::new();
+
+    for node in &module.dom_nodes {
+        let DomNode::Element { tag, attrs, .. } = node else {
+            continue;
+        };
+        let is_link = tag == "a" || tag == "link";
+        if !is_link {
+            continue;
+        }
+        for (key, val) in attrs {
+            if key == "href" || key == "to" {
+                let href = val.trim();
+                if href.starts_with('/') {
+                    referenced.insert(href.to_string());
+                    if !known_patterns.contains(href) {
+                        out.push(WebIrDiagnostic {
+                            code: "web_ir_validate.route.broken_link".to_string(),
+                            message: format!(
+                                "Link href '{}' does not match any declared route pattern",
+                                href
+                            ),
+                            span: None,
+                            category: Some("route".to_string()),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Warn on routes with no inbound literal link (unreachable).
+    for (pattern, _) in &route_entries {
+        if pattern == "/" {
+            continue; // root is always reachable
+        }
+        if !referenced.contains(pattern.as_str()) {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.route.unreachable".to_string(),
+                message: format!(
+                    "Route '{}' has no inbound link in the DOM (may be unreachable via dynamic navigation)",
+                    pattern
+                ),
+                span: None,
+                category: Some("route".to_string()),
+            });
+        }
+    }
+}
+
+fn collect_route_entries(contracts: &[RouteContract], out: &mut Vec<(String, Option<String>)>) {
+    for c in contracts {
+        let component = c
+            .meta
+            .get("component")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        out.push((c.pattern.clone(), component));
+        if !c.children.is_empty() {
+            collect_route_entries(&c.children, out);
+        }
+    }
+}
+
 /// TASK-5.1: reject literal CSS color and dimension values regardless of token registry.
 /// Fires unconditionally so that raw `#rrggbb` / `rgb(…)` / `42px` values are always
 /// compile errors, not just warnings gated on a loaded registry.
@@ -685,10 +788,12 @@ fn validate_web_ir_full(
 
     validate_dom_roots(module, &mut out, &mut metrics);
     validate_route_families(module, &mut out, &mut metrics);
+    validate_route_reachability(module, &mut out, &mut metrics);
     validate_behaviors(module, &mut out, &mut metrics);
     validate_styles_with_registry(module, &mut out, &mut metrics, registry);
     validate_scheduled_jobs(module, &mut out, &mut metrics);
     validate_interop(module, &mut out);
+    super::validate_a11y::validate_a11y(module, &mut out);
 
     (out, metrics)
 }
