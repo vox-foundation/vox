@@ -242,6 +242,7 @@ impl DomArena {
 /// Props that are consumed by the primitive resolver and must not appear on the final HTML element.
 const PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
     "gap", "size", "weight", "align", "wrap", "variant", "level", "surface",
+    "z", "position",
 ];
 
 /// TASK-6.1: if `tag` is a known primitive, replace it with the canonical HTML tag and inject
@@ -294,6 +295,21 @@ fn apply_primitive_emission(
         } else {
             attrs.push(("style".to_string(), style_val));
         }
+    }
+    // TASK-6.4: overlay markers — add data-vox-overlay, data-vox-z, data-vox-pos for validator.
+    match tag {
+        "overlay" => {
+            attrs.push(("data-vox-overlay".to_string(), "true".to_string()));
+        }
+        "toast" | "drawer" | "modal" => {
+            if let Some(z_val) = unquoted.iter().find(|(k, _)| k == "z").map(|(_, v)| v.clone()) {
+                attrs.push(("data-vox-z".to_string(), z_val));
+            }
+            if let Some(pos_val) = unquoted.iter().find(|(k, _)| k == "position").map(|(_, v)| v.clone()) {
+                attrs.push(("data-vox-pos".to_string(), pos_val));
+            }
+        }
+        _ => {}
     }
     (emission.html_tag.to_string(), attrs)
 }

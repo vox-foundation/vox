@@ -261,6 +261,51 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
             aria_role: Some("main"),
             surface_ref: surface_name.clone(),
         }),
+        // ── Overlay ───────────────────────────────────────────────────────
+        "overlay" => Some(PrimitiveEmission {
+            html_tag: "div",
+            base_classes: vec!["relative".to_string()],
+            aria_role: Some("presentation"),
+            surface_ref: surface_name.clone(),
+        }),
+        "toast" => {
+            let mut classes = vec!["fixed".to_string()];
+            apply_overlay_position(get_attr("position"), &mut classes);
+            apply_z_index(get_attr("z"), &mut classes);
+            Some(PrimitiveEmission {
+                html_tag: "div",
+                base_classes: classes,
+                aria_role: Some("alert"),
+                surface_ref: surface_name.clone(),
+            })
+        }
+        "drawer" => {
+            let mut classes = vec!["fixed".to_string()];
+            apply_overlay_position(get_attr("position"), &mut classes);
+            apply_z_index(get_attr("z"), &mut classes);
+            Some(PrimitiveEmission {
+                html_tag: "div",
+                base_classes: classes,
+                aria_role: Some("dialog"),
+                surface_ref: surface_name.clone(),
+            })
+        }
+        "modal" => {
+            let mut classes = vec![
+                "fixed".to_string(),
+                "inset-0".to_string(),
+                "flex".to_string(),
+                "items-center".to_string(),
+                "justify-center".to_string(),
+            ];
+            apply_z_index(get_attr("z"), &mut classes);
+            Some(PrimitiveEmission {
+                html_tag: "div",
+                base_classes: classes,
+                aria_role: Some("dialog"),
+                surface_ref: surface_name.clone(),
+            })
+        }
         _ => None,
     }
 }
@@ -343,6 +388,59 @@ fn apply_size_padding(size: Option<&str>, classes: &mut Vec<String>) {
             classes.push("px-4".to_string());
             classes.push("py-2".to_string());
         }
+    }
+}
+
+fn apply_overlay_position(position: Option<&str>, classes: &mut Vec<String>) {
+    match position {
+        Some("top_right") | Some("top-right") => {
+            classes.push("top-0".to_string());
+            classes.push("right-0".to_string());
+        }
+        Some("top_left") | Some("top-left") => {
+            classes.push("top-0".to_string());
+            classes.push("left-0".to_string());
+        }
+        Some("bottom_right") | Some("bottom-right") => {
+            classes.push("bottom-0".to_string());
+            classes.push("right-0".to_string());
+        }
+        Some("bottom_left") | Some("bottom-left") => {
+            classes.push("bottom-0".to_string());
+            classes.push("left-0".to_string());
+        }
+        Some("top") => {
+            classes.push("top-0".to_string());
+            classes.push("left-0".to_string());
+            classes.push("right-0".to_string());
+        }
+        Some("bottom") => {
+            classes.push("bottom-0".to_string());
+            classes.push("left-0".to_string());
+            classes.push("right-0".to_string());
+        }
+        Some("left") => {
+            classes.push("top-0".to_string());
+            classes.push("bottom-0".to_string());
+            classes.push("left-0".to_string());
+        }
+        Some("right") => {
+            classes.push("top-0".to_string());
+            classes.push("bottom-0".to_string());
+            classes.push("right-0".to_string());
+        }
+        Some("center") => {
+            classes.push("inset-0".to_string());
+            classes.push("m-auto".to_string());
+        }
+        _ => {}
+    }
+}
+
+fn apply_z_index(z: Option<&str>, classes: &mut Vec<String>) {
+    if let Some(val) = z {
+        // Tailwind JIT arbitrary z-index: z-[100]
+        classes.push(format!("z-[{val}]"));
     }
 }
 

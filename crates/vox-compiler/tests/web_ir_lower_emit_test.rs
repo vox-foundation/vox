@@ -2085,3 +2085,79 @@ fn surface_without_registry_no_error() {
         "surface validation without registry should not fire: {diags:?}"
     );
 }
+
+// ── TASK-6.4: overlay block + z-index DAG validator ─────────────────────────
+
+/// overlay primitive lowered to div with data-vox-overlay attr.
+#[test]
+fn overlay_primitive_lowers_to_overlay_marker() {
+    let src = r##"
+component Layout() {
+    view: <overlay>
+        <toast z="100" position="top_right">Notification</toast>
+    </overlay>
+}
+"##;
+    let tokens = vox_compiler::lexer::lex(src);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    let overlay_elem = web.dom_nodes.iter().find(|n| {
+        if let DomNode::Element { tag, attrs, .. } = n {
+            tag == "div" && attrs.iter().any(|(k, v)| k == "data-vox-overlay" && v == "true")
+        } else {
+            false
+        }
+    });
+    assert!(overlay_elem.is_some(), "expected overlay div; nodes: {:?}", web.dom_nodes);
+
+    let toast_elem = web.dom_nodes.iter().find(|n| {
+        if let DomNode::Element { attrs, .. } = n {
+            attrs.iter().any(|(k, v)| k == "data-vox-z" && v == "100")
+                && attrs.iter().any(|(k, v)| k == "data-vox-pos" && v == "top_right")
+        } else {
+            false
+        }
+    });
+    assert!(toast_elem.is_some(), "expected toast with data-vox-z=100 and data-vox-pos=top_right; nodes: {:?}", web.dom_nodes);
+}
+
+/// Duplicate z-index on overlay children fires a diagnostic.
+#[test]
+fn overlay_duplicate_z_integration() {
+    use vox_compiler::web_ir::validate_overlay::validate_overlay;
+
+    let mut m = WebIrModule::default();
+    // overlay root at index 0
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(0),
+        tag: "div".into(),
+        attrs: vec![("data-vox-overlay".into(), "true".into())],
+        children: vec![DomNodeId(1), DomNodeId(2)],
+        span: None,
+    });
+    // child 1: z=100, top_right
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(1),
+        tag: "div".into(),
+        attrs: vec![("data-vox-z".into(), "100".into()), ("data-vox-pos".into(), "top_right".into())],
+        children: vec![],
+        span: None,
+    });
+    // child 2: also z=100 — conflict
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(2),
+        tag: "div".into(),
+        attrs: vec![("data-vox-z".into(), "100".into()), ("data-vox-pos".into(), "top_left".into())],
+        children: vec![],
+        span: None,
+    });
+
+    let mut diags = Vec::new();
+    validate_overlay(&m, &mut diags);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.overlay.duplicate_z"),
+        "expected duplicate_z: {diags:?}"
+    );
+}
