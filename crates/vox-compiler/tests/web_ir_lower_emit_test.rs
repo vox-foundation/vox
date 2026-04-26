@@ -1547,3 +1547,84 @@ component Gate() {
         );
     }
 }
+
+// ── TASK-5.1: literal CSS value enforcement (fires without registry) ──────────
+
+#[test]
+fn web_ir_validate_style_rejects_hex_color_raw() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("c".into()),
+        declarations: vec![("color".into(), StyleDeclarationValue::Raw("#ff0000".into()))],
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    let d = diags
+        .iter()
+        .find(|x| x.code == "web_ir_validate.style.literal_color_value")
+        .expect("literal_color_value diag expected");
+    assert_eq!(d.category.as_deref(), Some("style"));
+    assert!(d.message.contains("color"), "message: {}", d.message);
+}
+
+#[test]
+fn web_ir_validate_style_rejects_color_variant() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("c".into()),
+        declarations: vec![(
+            "background".into(),
+            StyleDeclarationValue::Color(vox_compiler::web_ir::CssColor::Hex("#abc".into())),
+        )],
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    let d = diags
+        .iter()
+        .find(|x| x.code == "web_ir_validate.style.literal_color_value")
+        .expect("literal_color_value diag for Color variant");
+    assert_eq!(d.category.as_deref(), Some("style"));
+}
+
+#[test]
+fn web_ir_validate_style_rejects_literal_dimension() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("c".into()),
+        declarations: vec![(
+            "padding".into(),
+            StyleDeclarationValue::Length(16.0, vox_compiler::web_ir::LengthUnit::Px),
+        )],
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    let d = diags
+        .iter()
+        .find(|x| x.code == "web_ir_validate.style.literal_dimension_value")
+        .expect("literal_dimension_value diag expected");
+    assert_eq!(d.category.as_deref(), Some("style"));
+    assert!(d.message.contains("padding"), "message: {}", d.message);
+}
+
+#[test]
+fn web_ir_validate_style_token_ref_is_ok() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("c".into()),
+        declarations: vec![(
+            "color".into(),
+            StyleDeclarationValue::TokenRef("color-primary".into()),
+        )],
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.style.literal_color_value"
+            && d.code != "web_ir_validate.style.literal_dimension_value"),
+        "token ref must not trigger literal value errors: {diags:?}"
+    );
+}
