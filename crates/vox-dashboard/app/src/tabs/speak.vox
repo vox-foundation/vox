@@ -1,13 +1,81 @@
-// TASK-7.2 target: port ComposerPanel + chat session UI to .vox.
+// TASK-7.2: SpeakTab — Loquela chat composer + session display.
 //
-// Components to port from src/components/:
-//   - ComposerPanel.tsx  — chat input + session management
-//   - CodeBlock.tsx      — markdown code rendering
-//   - IntentionMatrix.tsx — intent classification display
+// Components:
+//   - ChatMessage     — single message bubble (role + content)
+//   - ComposerPanel   — text input + send button (local state; transport via @island Phase 2)
+//   - SpeakTab        — root tab with session header + composer
 //
-// State machines to introduce:
-//   - ChatSessionState: Idle -> Composing -> Submitting -> Streaming -> Idle
-//
-// Precondition: TASK-7.1 ✅ (AppShell shell in place).
-//
-// vox:skip — this file is a scaffold target, not yet compilable.
+// State machines:
+//   - ChatSessionState: Idle -> Composing -> Submitting -> Idle
+//     Streaming state deferred to @island bridge (requires useVoxTransport).
+
+partial state_machine ChatSessionState {
+    state Idle
+    state Composing
+    state Submitting
+
+    on StartTyping from Idle -> Composing
+    on Submit from Composing -> Submitting
+    on Done from Submitting -> Idle
+    on Cancel from Submitting -> Idle
+    on Clear from Composing -> Idle
+}
+
+component ChatMessage(role: str, content: str) {
+    view: (
+        <row class={if role is "user" { "justify-end px-4 py-2" } else { "justify-start px-4 py-2" }}>
+            <panel class={if role is "user" { "max-w-xl bg-blue-600/20 border border-blue-500/30 rounded-2xl rounded-br-sm px-4 py-3" } else { "max-w-2xl bg-white/5 border border-white/10 rounded-2xl rounded-bl-sm px-4 py-3" }}>
+                <text class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">{role}</text>
+                <text class="text-sm text-white/80 leading-relaxed">{content}</text>
+            </panel>
+        </row>
+    )
+}
+
+component ComposerPanel() {
+    state is_submitting: bool = false
+
+    view: (
+        <column class="border-t border-white/10 p-4 gap-3 bg-zinc-950/80">
+            <row class="gap-3 items-end">
+                <panel class="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-4 py-3 min-h-16">
+                    <text class="text-sm text-white/50 italic">"Type a message…"</text>
+                </panel>
+                <button
+                    class={if is_submitting { "w-12 h-12 rounded-xl bg-blue-600/50 text-white/50 flex items-center justify-center" } else { "w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center" }}
+                    on:click={is_submitting = not is_submitting}
+                >
+                    {if is_submitting { "…" } else { "→" }}
+                </button>
+            </row>
+            <row class="justify-between items-center px-1">
+                <text class="text-xs text-zinc-500">"Shift+Enter for new line"</text>
+                <text class="text-xs text-zinc-600">"Transport bridge: Phase 2"</text>
+            </row>
+        </column>
+    )
+}
+
+component SpeakTab() {
+    view: (
+        <column class="flex-1 overflow-hidden bg-zinc-950">
+            <row class="h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0">
+                <column class="gap-0">
+                    <text class="text-sm font-black tracking-tighter text-white">"LOQUELA"</text>
+                    <text class="text-xs text-zinc-500 tracking-widest">"VOICE INTERFACE"</text>
+                </column>
+                <row class="gap-2 items-center">
+                    <panel class="w-2 h-2 rounded-full bg-zinc-600"></panel>
+                    <text class="text-xs text-zinc-500">"NO ACTIVE SESSION"</text>
+                </row>
+            </row>
+            <panel class="flex-1 overflow-y-auto py-4">
+                <column class="items-center justify-center h-full gap-4 text-zinc-500">
+                    <text class="text-sm font-bold uppercase tracking-widest">"START A CONVERSATION"</text>
+                    <text class="text-xs">"Messages will appear here once a session is active."</text>
+                </column>
+            </panel>
+            <ComposerPanel />
+        </column>
+    )
+}
