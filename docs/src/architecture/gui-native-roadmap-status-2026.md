@@ -124,9 +124,9 @@ Per [`VOX_GUI_NATIVE_ROADMAP_2026.md`](../../../VOX_GUI_NATIVE_ROADMAP_2026.md) 
 |------|--------|-------|
 | TASK-7.1 — Re-author App.tsx as app.vox | ✅ Done | `app.vox` created with tab switcher. `build.rs` integrates `vox build`. `HirExpr::If` IIFE bug fixed — codegen now emits nested ternaries. Reactive component pipeline restored in emitter. Generated `AppShell.tsx` produces clean `(tab === "speak" ? <SpeakTab /> : ...)` output. |
 | TASK-7.2 — Port 13 tab panels to .vox | ✅ Done | `0951020b`/`f5c25275` | All 4 tabs authored in Vox. `forge.vox`: `PipelineStage`/`PipelineView`/`WorkflowScrubber`/`ForgeTab` + `ScrubberState`/`PipelinePhase` state machines. `speak.vox`: `ChatMessage`/`ComposerPanel`/`SpeakTab` + `ChatSessionState`. `command.vox`: `DiagnosticRow`/`DiagnosticsPanel`/`TaskDispatch`/`CommandTab` + `DiagnosticViewState`. `network.vox`: `NodeBadge`/`MeshLegend`/`NetworkTab` + `MeshViewState`. `state_machine_emit.rs` union-pipe bug fixed. Transport-dependent interactions deferred to `@island` (Phase 2). |
-| TASK-7.3 — Delete Vite/Tailwind parallel setup | 🔲 Not started | Blocked on 7.1 + 7.2. |
+| TASK-7.3 — Delete Vite/Tailwind parallel setup | 🟡 Partial | `05c1ee60` | Vox-generated components wired into Vite entry (`src/App.tsx` → thin `ErrorBoundary + AppShell` wrapper). Tailwind `content` extended to scan `app/src/generated/`. 5 legacy components deleted (replaced by vox-generated equivalents). Cross-component import codegen gap fixed in `reactive.rs` (+ 3 unit tests). `package.json` + `vite.config.ts` retained: `vox build` produces TSX source not browser bundles — Vite still required for bundling. Full deletion blocked on a vox-integrated bundler. |
 
-**Phase 7 verdict:** 2 complete, 1 not started (TASK-7.3 blocked on Vite/Tailwind teardown decision).
+**Phase 7 verdict:** 2 complete, 1 partial (TASK-7.3 component wiring done; full bundler replacement deferred).
 
 ## Phase 8 — Corpus + MENS
 
@@ -150,7 +150,7 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in order)
 
-1. **TASK-7.3** — Delete Vite/Tailwind parallel setup. Blocked on operator decision: confirm `vox build` + `build.rs` is the sole frontend pipeline before removing `vite.config.ts`, `postcss.config.js`, and the npm devDependencies.
+1. **Phase 8** — Corpus + MENS. All Phase 7 tasks are at or near completion; Phase 8 dependencies are satisfied. Remaining TASK-7.3 partial (bundler replacement) can run in parallel with Phase 8 work.
 
 **Resolved (no action needed):**
 - TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).
