@@ -1,7 +1,9 @@
 //! Effect propagation check: `caller.capabilities ⊇ callee.capabilities`.
 //!
 //! Only enforced when the caller has an explicit `uses` clause (or `@pure`).
-//! Unannotated callers are unconstrained until stdlib intrinsics are fully annotated.
+//! Stdlib intrinsic capabilities are checked by module name on MethodCall nodes:
+//! `http.*` → Net, `db.*` → Db, `fs.*` → Fs, `env.*` → Env,
+//! `time.*` / `clock.*` → Clock, `process.*` → Spawn.
 
 use std::collections::{HashMap, HashSet};
 
@@ -125,7 +127,26 @@ fn check_expr(
                 check_arg(arg, caller, caller_set, cap_map, source, diags);
             }
         }
-        HirExpr::MethodCall(obj, _, args, _, _) => {
+        HirExpr::MethodCall(obj, method_name, args, _, span) => {
+            // Enforce stdlib intrinsic capabilities when the receiver is a known module.
+            if let HirExpr::Ident(module_name, _) = obj.as_ref() {
+                if let Some(required) = stdlib_module_capability(module_name) {
+                    if !caller_set.contains(&required) {
+                        let mut d = Diagnostic::error(
+                            format!(
+                                "Function `{}` calls `{}.{}()` which requires `{}`, \
+                                 but `{}` does not declare `uses {}`",
+                                caller.name, module_name, method_name, required,
+                                caller.name, required
+                            ),
+                            *span,
+                            source,
+                        );
+                        d.category = DiagnosticCategory::EffectViolation;
+                        diags.push(d);
+                    }
+                }
+            }
             check_expr(obj, caller, caller_set, cap_map, source, diags);
             for arg in args {
                 check_arg(arg, caller, caller_set, cap_map, source, diags);
@@ -208,6 +229,20 @@ fn check_expr(
     }
 }
 
+/// Map a stdlib module name to its required capability.
+/// Any method call on the module inherits this capability.
+fn stdlib_module_capability(module: &str) -> Option<HirCapability> {
+    match module {
+        "http" | "HTTP" => Some(HirCapability::Net),
+        "db" | "DB" | "database" => Some(HirCapability::Db),
+        "fs" | "filesystem" => Some(HirCapability::Fs),
+        "env" | "environment" => Some(HirCapability::Env),
+        "time" | "clock" | "Clock" => Some(HirCapability::Clock),
+        "process" | "Process" => Some(HirCapability::Spawn),
+        _ => None,
+    }
+}
+
 fn check_arg(
     arg: &HirArg,
     caller: &HirFn,
@@ -275,5 +310,63 @@ fn caller() uses net, db to str { fetch() }",
 fn caller() to str { fetch() }",
         );
         assert_eq!(diags.len(), 1, "expected one violation: {diags:?}");
+    }
+
+    // ── Stdlib intrinsic capability tests ────────────────────────────────────
+
+    #[test]
+    fn test_http_method_call_requires_net() {
+        let diags = check(r#"fn f() uses nothing to str { http.get("https://example.com") }"#);
+        assert_eq!(diags.len(), 1, "expected net violation: {diags:?}");
+        assert!(diags[0].message.contains("net"), "message: {}", diags[0].message);
+        assert!(diags[0].message.contains("http.get"), "message: {}", diags[0].message);
+    }
+
+    #[test]
+    fn test_http_method_call_ok_with_net() {
+        let diags = check(r#"fn f() uses net to str { http.get("https://example.com") }"#);
+        assert!(diags.is_empty(), "unexpected: {diags:?}");
+    }
+
+    #[test]
+    fn test_db_method_call_requires_db() {
+        let diags = check(r#"fn f() uses nothing to str { db.query("SELECT 1") }"#);
+        assert_eq!(diags.len(), 1, "expected db violation: {diags:?}");
+        assert!(diags[0].message.contains("db"), "message: {}", diags[0].message);
+    }
+
+    #[test]
+    fn test_db_method_call_ok_with_db() {
+        let diags = check(r#"fn f() uses db to str { db.insert("users", {}) }"#);
+        assert!(diags.is_empty(), "unexpected: {diags:?}");
+    }
+
+    #[test]
+    fn test_fs_method_call_requires_fs() {
+        let diags = check(r#"fn f() uses nothing to str { fs.read("/etc/hosts") }"#);
+        assert_eq!(diags.len(), 1, "expected fs violation: {diags:?}");
+        assert!(diags[0].message.contains("fs"), "message: {}", diags[0].message);
+    }
+
+    #[test]
+    fn test_unannotated_caller_skips_stdlib_check() {
+        // Unannotated callers must not be penalised — open world.
+        let diags = check(r#"fn f() to str { http.get("https://example.com") }"#);
+        assert!(diags.is_empty(), "unannotated caller must not be checked: {diags:?}");
+    }
+
+    #[test]
+    fn test_env_method_call_requires_env() {
+        let diags = check(r#"fn f() uses nothing to str { env.get("HOME") }"#);
+        assert_eq!(diags.len(), 1, "expected env violation: {diags:?}");
+        assert!(diags[0].message.contains("env"), "message: {}", diags[0].message);
+    }
+
+    #[test]
+    fn test_multiple_stdlib_calls_all_checked() {
+        // Caller declares net but not db — db call should error, http should not.
+        let diags = check(r#"fn f() uses net to str { http.get("url"); db.query("SELECT 1") }"#);
+        assert_eq!(diags.len(), 1, "expected exactly one violation: {diags:?}");
+        assert!(diags[0].message.contains("db"), "expected db violation: {}", diags[0].message);
     }
 }

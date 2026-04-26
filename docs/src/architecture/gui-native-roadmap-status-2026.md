@@ -81,7 +81,7 @@ Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): P
 | Task | Priority | Status | Notes |
 |------|----------|--------|-------|
 | TASK-4.1 — Add `state_machine` first-class block | P0 (missing (state, event) handler unrepresentable via exhaustiveness), P1 (collapses ad-hoc reducer-hook patterns to one shape), P2 (`state_machine` keyword distinctive) | ✅ Done | `HEAD` | `state_machine Name { state S; terminal state T; on Event from S -> T; on Event from any -> T }` contextual keywords. `partial state_machine` opts out of exhaustiveness. AST `StateMachineDecl`/`SmState`/`SmTransition`/`SmField`, HIR `HirStateMachineDecl`/`HirSmState`/`HirSmTransition`/`HirSmFrom`, parser, lowering, 5 structural checks in `typeck/state_machine_check.rs` (duplicate states, ambiguous transitions, terminal outgoing, unreachable terminals, exhaustiveness), TS emit (`state_machines.ts` discriminated union + reducer stub). VoxIR `state_machines` field added. 20 tests passing (11 unit + 9 integration). |
-| TASK-4.2 — Add effect annotations (`uses net, db, mcp(...)`) | P0 ("function secretly touches network" unrepresentable via effect propagation), P3 (effects declared locally on the signature; no global flow analysis), P2 (`uses` clause distinctive) | ✅ Done | `HEAD` | `fn f() uses net, db, mcp(tool) { … }` contextual clause. `EffectAnnotation` AST enum, `HirCapability` HIR enum, `capabilities: Vec<HirCapability>` on `HirFn`, `typeck/effect_check.rs` propagation checker (caller.caps ⊇ callee.caps enforced when caller is annotated). `@pure` treated as `uses nothing`. 9 tests passing. Pending: stdlib intrinsic annotation pass (Phase 5). |
+| TASK-4.2 — Add effect annotations (`uses net, db, mcp(...)`) | P0 ("function secretly touches network" unrepresentable via effect propagation), P3 (effects declared locally on the signature; no global flow analysis), P2 (`uses` clause distinctive) | ✅ Done | `HEAD` | `fn f() uses net, db, mcp(tool) { … }` contextual clause. `EffectAnnotation` AST enum, `HirCapability` HIR enum, `capabilities: Vec<HirCapability>` on `HirFn`, `typeck/effect_check.rs` propagation checker (caller.caps ⊇ callee.caps enforced when caller is annotated). `@pure` treated as `uses nothing`. Stdlib intrinsic pass complete: `http.*`→Net, `db.*`→Db, `fs.*`→Fs, `env.*`→Env, `time.*`/`clock.*`→Clock, `process.*`→Spawn enforced on MethodCall nodes. 13 tests passing. |
 | TASK-4.3 — Add typed URLs primitive | P0 (broken link to deleted route unrepresentable via URL variant graph), P1 (single URL algebra replacing string patterns + raw `<Link to="/…">`), P2 (`url Path { … }` block distinctive) | ✅ Done | `HEAD` | `url Name { Variant; Variant(arg: Type); Variant(?opt: Type) }` contextual keyword. AST `UrlDecl`, HIR `HirUrlDecl`/`HirUrlVariant`/`HirUrlArg`, parser, lowering, typeck registration, TS emit (`urls.ts` with discriminated union + builder object), VoxIR schema updated. 9 tests passing. |
 | TASK-4.4 — Compile `vox.tokens.json` into types | P0 (unknown token name → compile error; pair contrast validated at token-load time — warning at &lt;4.5:1, error at &lt;3:1 on body text), P1 (collapses raw `#rrggbb` / `rgb(…)` / hardcoded-px to named tokens) | ✅ Done | `TokenRegistry` + WCAG 2.1 contrast engine + `validate_web_ir_with_registry` integrated into `maybe_web_ir_validate`. `vox-tokens.css` and `tokens.ts` emitted from `codegen_ts/tokens_emit.rs`. Schema at `contracts/tokens/tokens.v1.json`. Canon doc: `docs/src/reference/token-system.md`. 21 tests passing. |
 
@@ -111,7 +111,9 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in order)
 
-1. **TASK-0.6** — Harden `transport.ts`: verify backoff caps and `authStatus` event emission.
-2. **TASK-1.2** — Decide on `vox-dashboard-d` binary (Option A: delete, Option B: make it work).
-3. **TASK-4.2 follow-up** — Stdlib intrinsic annotation pass: give `http.get` → `net`, `db.*` → `db`, etc. their effect sets so the checker can enforce open-world propagation.
-4. **Phase 5** — Begin Phase 5 tasks (unblocked by Phase 4 completion).
+1. **Phase 5** — Begin Phase 5 tasks (unblocked by Phase 4 completion).
+
+**Resolved (no action needed):**
+- TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).
+- TASK-1.2: `vox-dashboard-d` binary never existed — decision N/A.
+- TASK-4.2 stdlib pass: complete (see above).
