@@ -843,6 +843,9 @@ fn validate_web_ir_full(
     validate_scheduled_jobs(module, &mut out, &mut metrics);
     validate_interop(module, &mut out);
     super::validate_a11y::validate_a11y(module, &mut out);
+    if let Some(reg) = registry {
+        super::validate_a11y::validate_a11y_with_registry(module, reg, &mut out);
+    }
     super::validate_overlay::validate_overlay(module, &mut out);
 
     (out, metrics)

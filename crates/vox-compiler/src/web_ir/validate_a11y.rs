@@ -8,6 +8,9 @@
 //! - Any element with `role="button"` without accessible name → error.
 //! - Any element with `role="button"` without a keyboard handler → error.
 //!
+//! TASK-6.5 adds ancestor-chain contrast checking:
+//! - `<p>` / `<h1>`–`<h6>` inside a surface with insufficient contrast → compile error.
+//!
 //! All codes are under `web_ir_validate.a11y.*`.
 
 use super::{BehaviorNode, DomNode, DomNodeId, WebIrDiagnostic, WebIrModule};
@@ -124,6 +127,118 @@ fn check_keyboard_handler(
     }
 }
 
+/// TASK-6.5: Walk the DOM from each view root, tracking the current surface pair context.
+/// At `p` / `h1`–`h6` nodes with an active surface, compute WCAG 2.1 contrast and emit
+/// `web_ir_validate.a11y.insufficient_contrast` (error < 3:1) or
+/// `web_ir_validate.a11y.low_contrast` (warning < 4.5:1 for body text).
+pub fn validate_a11y_with_registry(
+    module: &WebIrModule,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    for (_name, root_id) in &module.view_roots {
+        walk_contrast(module, *root_id, None, registry, out);
+    }
+}
+
+fn walk_contrast(
+    module: &WebIrModule,
+    node_id: DomNodeId,
+    current_surface: Option<(String, String)>,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    let Some(node) = module.dom_nodes.get(node_id.0 as usize) else {
+        return;
+    };
+    match node {
+        DomNode::Element { tag, attrs, children, .. } => {
+            // Inherit or update surface context from data-vox-surface attr.
+            let surface_ctx: Option<(String, String)> =
+                if let Some(surface_name) = attrs
+                    .iter()
+                    .find(|(k, _)| k == "data-vox-surface")
+                    .map(|(_, v)| v.as_str())
+                {
+                    registry
+                        .lookup_surface(surface_name)
+                        .map(|e| (e.fg_key.clone(), e.bg_key.clone()))
+                        .or_else(|| current_surface.clone())
+                } else {
+                    current_surface.clone()
+                };
+
+            if let Some((ref fg_key, ref bg_key)) = surface_ctx {
+                check_text_contrast(tag, fg_key, bg_key, registry, out);
+            }
+
+            for child_id in children {
+                walk_contrast(module, *child_id, surface_ctx.clone(), registry, out);
+            }
+        }
+        DomNode::Fragment { children, .. } => {
+            for child_id in children {
+                walk_contrast(module, *child_id, current_surface.clone(), registry, out);
+            }
+        }
+        DomNode::Conditional { then_children, else_children, .. } => {
+            for child_id in then_children.iter().chain(else_children.iter()) {
+                walk_contrast(module, *child_id, current_surface.clone(), registry, out);
+            }
+        }
+        DomNode::Loop { body, .. } => {
+            for child_id in body {
+                walk_contrast(module, *child_id, current_surface.clone(), registry, out);
+            }
+        }
+        DomNode::Text { .. }
+        | DomNode::Slot { .. }
+        | DomNode::Expr { .. }
+        | DomNode::IslandMount { .. } => {}
+    }
+}
+
+fn check_text_contrast(
+    tag: &str,
+    fg_key: &str,
+    bg_key: &str,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    let is_text_tag = matches!(tag, "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6");
+    if !is_text_tag {
+        return;
+    }
+    let Some(fg_hex) = registry.lookup(fg_key) else { return };
+    let Some(bg_hex) = registry.lookup(bg_key) else { return };
+    let Some(ratio) = crate::tokens::wcag21_contrast_ratio(fg_hex, bg_hex) else { return };
+
+    // h1–h3 are large text (≥18pt regular or ≥14pt bold): WCAG 2.1 minimum 3:1.
+    // p, h4–h6 are body text: warn <4.5:1, error <3:1.
+    let is_large = matches!(tag, "h1" | "h2" | "h3");
+    let (error_threshold, warn_threshold): (f64, f64) = if is_large { (3.0, 3.0) } else { (3.0, 4.5) };
+
+    if ratio < error_threshold {
+        out.push(WebIrDiagnostic {
+            code: "web_ir_validate.a11y.insufficient_contrast".to_string(),
+            message: format!(
+                "`<{tag}>` contrast {ratio:.2}:1 is below {error_threshold:.1}:1 minimum (WCAG 2.1 §1.4.3)"
+            ),
+            span: None,
+            category: Some("a11y".to_string()),
+        });
+    } else if ratio < warn_threshold {
+        out.push(WebIrDiagnostic {
+            code: "web_ir_validate.a11y.low_contrast".to_string(),
+            message: format!(
+                "`<{tag}>` contrast {ratio:.2}:1 is below recommended {warn_threshold:.1}:1 (WCAG 2.1 §1.4.3)"
+            ),
+            span: None,
+            category: Some("a11y".to_string()),
+        });
+    }
+}
+
 /// Recursively check whether a set of child DOM nodes contains any non-empty text content
 /// or expression nodes (which may produce text at runtime).
 fn has_non_empty_text_child(module: &WebIrModule, child_ids: &[DomNodeId]) -> bool {
@@ -154,7 +269,7 @@ fn has_non_empty_text_child(module: &WebIrModule, child_ids: &[DomNodeId]) -> bo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::web_ir::{DomNodeId, StyleNode, StyleSelector, WebIrModule};
+    use crate::web_ir::{DomNodeId, WebIrModule};
 
     fn elem(id: u32, tag: &str, attrs: Vec<(&str, &str)>, children: Vec<u32>) -> DomNode {
         DomNode::Element {
@@ -273,6 +388,110 @@ mod tests {
             out.iter().any(|d| d.code == "web_ir_validate.a11y.role_button_missing_keyboard"),
             "expected role_button_missing_keyboard: {out:?}"
         );
+    }
+
+    // ---- TASK-6.5 contrast tests ----
+
+    fn registry_with_surface(
+        surface_name: &str,
+        fg_hex: &str,
+        bg_hex: &str,
+    ) -> crate::tokens::TokenRegistry {
+        let mut reg = crate::tokens::TokenRegistry::default();
+        reg.by_css_var.insert("fg-test".to_string(), fg_hex.to_string());
+        reg.by_css_var.insert("bg-test".to_string(), bg_hex.to_string());
+        reg.surface_pairs.insert(
+            surface_name.to_string(),
+            crate::tokens::SurfacePairEntry {
+                fg_key: "fg-test".to_string(),
+                bg_key: "bg-test".to_string(),
+            },
+        );
+        reg
+    }
+
+    fn module_with_surface_and_tag(surface_name: &str, text_tag: &str) -> WebIrModule {
+        let mut m = WebIrModule::default();
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "div".to_string(),
+            attrs: vec![("data-vox-surface".to_string(), surface_name.to_string())],
+            children: vec![DomNodeId(1)],
+            span: None,
+        });
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(1),
+            tag: text_tag.to_string(),
+            attrs: vec![],
+            children: vec![],
+            span: None,
+        });
+        m.view_roots.push(("Page".to_string(), DomNodeId(0)));
+        m
+    }
+
+    #[test]
+    fn passing_contrast_no_error() {
+        // #1d3557 on #ffffff — deep navy, ratio ≈ 12.6:1
+        let reg = registry_with_surface("dark", "#1d3557", "#ffffff");
+        let m = module_with_surface_and_tag("dark", "p");
+        let mut out = Vec::new();
+        validate_a11y_with_registry(&m, &reg, &mut out);
+        assert!(out.is_empty(), "unexpected diagnostics: {out:?}");
+    }
+
+    #[test]
+    fn insufficient_contrast_emits_error() {
+        // #cccccc on #ffffff — ratio ≈ 1.6:1, below the 3:1 error threshold
+        let reg = registry_with_surface("low", "#cccccc", "#ffffff");
+        let m = module_with_surface_and_tag("low", "p");
+        let mut out = Vec::new();
+        validate_a11y_with_registry(&m, &reg, &mut out);
+        assert!(
+            out.iter().any(|d| d.code == "web_ir_validate.a11y.insufficient_contrast"),
+            "expected insufficient_contrast: {out:?}"
+        );
+    }
+
+    #[test]
+    fn low_contrast_body_text_emits_warning() {
+        // #888888 on #ffffff — ratio ≈ 3.5:1, between 3:1 and 4.5:1 → low_contrast warning for body text
+        let reg = registry_with_surface("mid", "#888888", "#ffffff");
+        let m = module_with_surface_and_tag("mid", "p");
+        let mut out = Vec::new();
+        validate_a11y_with_registry(&m, &reg, &mut out);
+        assert!(
+            out.iter().any(|d| d.code == "web_ir_validate.a11y.low_contrast"),
+            "expected low_contrast warning for p at ~3.5:1: {out:?}"
+        );
+    }
+
+    #[test]
+    fn no_surface_context_skips_contrast_check() {
+        // p element with no ancestor data-vox-surface → no contrast check regardless
+        let reg = registry_with_surface("any", "#cccccc", "#ffffff");
+        let mut m = WebIrModule::default();
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "p".to_string(),
+            attrs: vec![],
+            children: vec![],
+            span: None,
+        });
+        m.view_roots.push(("Page".to_string(), DomNodeId(0)));
+        let mut out = Vec::new();
+        validate_a11y_with_registry(&m, &reg, &mut out);
+        assert!(out.is_empty(), "should skip check without surface context: {out:?}");
+    }
+
+    #[test]
+    fn heading_large_text_passes_at_3_to_1() {
+        // h1 uses large-text threshold (3:1); #888888 on #ffffff ≈ 3.5:1 → passes
+        let reg = registry_with_surface("dark", "#888888", "#ffffff");
+        let m = module_with_surface_and_tag("dark", "h1");
+        let mut out = Vec::new();
+        validate_a11y_with_registry(&m, &reg, &mut out);
+        assert!(out.is_empty(), "h1 at ~3.5:1 should pass large-text 3:1 threshold: {out:?}");
     }
 
     #[test]
