@@ -37,19 +37,8 @@ pub(crate) fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut
     for r in &module.routes {
         walk_stmts(&r.body, f);
     }
-    for w in &module.workflows {
-        walk_stmts(&w.body, f);
-    }
-    for a in &module.activities {
-        walk_stmts(&a.body, f);
-    }
     for sf in &module.endpoint_fns {
         walk_stmts(&sf.body, f);
-    }
-    for actor in &module.actors {
-        for h in &actor.handlers {
-            walk_stmts(&h.body, f);
-        }
     }
     for tool in &module.mcp_tools {
         walk_stmts(&tool.func.body, f);
@@ -73,19 +62,8 @@ pub(crate) fn for_each_hir_expr_in_module_mut(
     for r in &mut module.routes {
         walk_stmts_mut(&mut r.body, f);
     }
-    for w in &mut module.workflows {
-        walk_stmts_mut(&mut w.body, f);
-    }
-    for a in &mut module.activities {
-        walk_stmts_mut(&mut a.body, f);
-    }
     for sf in &mut module.endpoint_fns {
         walk_stmts_mut(&mut sf.body, f);
-    }
-    for actor in &mut module.actors {
-        for h in &mut actor.handlers {
-            walk_stmts_mut(&mut h.body, f);
-        }
     }
     for tool in &mut module.mcp_tools {
         walk_stmts_mut(&mut tool.func.body, f);

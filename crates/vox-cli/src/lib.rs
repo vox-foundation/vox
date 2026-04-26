@@ -501,7 +501,10 @@ pub enum Cli {
         reason: Option<String>,
     },
     /// ML/AI domain: train, serve, probe (Delegated to `vox-mens`).
-    #[command(name = "mens")]
+    #[command(
+        name = "mens",
+        long_about = "ML/AI domain: train, serve, probe (Delegated to `vox-mens`).\n\nQuick-start:\n  vox mens train   — run MENS fine-tuning on the current corpus\n  vox mens serve   — launch the local inference endpoint\n  vox mens probe   — run eval probes against the live model"
+    )]
     Mens {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,

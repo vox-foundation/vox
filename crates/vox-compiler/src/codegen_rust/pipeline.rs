@@ -112,39 +112,6 @@ pub fn generate_script_with_target(
     if target == ScriptTarget::Wasi {
         let mut unsupported: Vec<String> = Vec::new();
 
-        if !module.actors.is_empty() {
-            unsupported.push(format!(
-                "actors are not supported in WASI mode: {}",
-                module
-                    .actors
-                    .iter()
-                    .map(|a| a.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ));
-        }
-        if !module.workflows.is_empty() {
-            unsupported.push(format!(
-                "workflows are not supported in WASI mode: {}",
-                module
-                    .workflows
-                    .iter()
-                    .map(|w| w.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ));
-        }
-        if !module.activities.is_empty() {
-            unsupported.push(format!(
-                "activities are not supported in WASI mode: {}",
-                module
-                    .activities
-                    .iter()
-                    .map(|a| a.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ));
-        }
         if !module.endpoint_fns.is_empty() {
             unsupported.push(format!(
                 "endpoint functions are not supported in WASI mode: {}",
