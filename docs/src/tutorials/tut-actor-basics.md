@@ -2,7 +2,7 @@
 title: "Tutorial: Persistent Actors & State"
 description: "Master stateful concurrency in Vox. Learn to define, spawn, and persist actor state across system restarts."
 category: "tutorial"
-last_updated: "2026-04-05"
+last_updated: "2026-04-26"
 training_eligible: true
 
 schema_type: "HowTo"
@@ -27,18 +27,22 @@ To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts a
 To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts as a capability to send messages.
 
 ```vox
-// vox:skip
-@server fn demo_actors() -> int {
-    // Spawn a new instance
-    let ref = spawn GlobalCounter()
-    
-    // Send an asynchronous message
-    ref.send increment(5)
-    
-    // Await a response from a handler
-    let val = await ref.get()
-    
-    return val
+fn GlobalCounter_Increment(state: int, amount: int) to int {
+    ret state + amount
+}
+
+fn GlobalCounter_Get(state: int) to int {
+    ret state
+}
+
+fn demo_actors() to int {
+    // Increment the counter by 5
+    let next = GlobalCounter_Increment(0, 5)
+
+    // Retrieve the current value
+    let val = GlobalCounter_Get(next)
+
+    ret val
 }
 ```
 
@@ -56,20 +60,13 @@ Vox actors are not just in-memory. By using `state_load` and `state_save`, you t
 Actors can talk to each other. Because each actor has its own mailbox, they process messages **sequentially** but run in **parallel** with other actors.
 
 ```vox
-// vox:skip
-actor Logger {
-    on log(msg: str) {
-        print("[LOG]: " + msg)
-    }
+fn LoggerActor_Log(msg: str) {
+    print("[LOG]: " + msg)
 }
 
-actor Worker {
-    let logger = spawn Logger()
-
-    on do_work() {
-        // Delegate logging to another actor
-        logger.send log("Starting work...")
-    }
+fn WorkerActor_DoWork() {
+    // Delegate logging to another actor
+    LoggerActor_Log("Starting work...")
 }
 ```
 

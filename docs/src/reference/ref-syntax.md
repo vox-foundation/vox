@@ -3,7 +3,7 @@ title: "Language Syntax Reference"
 description: "A comprehensive, scannable syntax quick-reference page."
 category: "reference"
 status: "current"
-last_updated: "2026-04-06"
+last_updated: "2026-04-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -43,7 +43,7 @@ Functions mapping natively to networking, storage, or internal agentic constrain
 // vox:skip
 // ANCHOR: functions
 fn add(a: int, b: int) to int {
-    return a + b;
+    ret a + b
 }
 
 component Button(label: str) {
@@ -57,7 +57,7 @@ component Button(label: str) {
 // From examples/golden/ref_orchestrator.vox
 @mcp.tool "search: Search the knowledge base"
 fn search(query: str) to List[str] {
-    return ["result 1", "result 2"]
+    ret ["result 1", "result 2"]
 }
 ```
 
@@ -84,9 +84,9 @@ type Shape =
 // vox:skip
 fn check(n: int) to str {
     if n > 0 {
-        return "positive"
+        ret "positive"
     } else {
-        return "other"
+        ret "other"
     }
 }
 ```
@@ -134,7 +134,7 @@ The `?` suffix unpacks an `Ok` result, returning early if the result is an `Erro
 // vox:skip
 fn build_report() to Result[str] {
     let raw_data = get_data()?
-    return Ok("Report { " + raw_data)
+    ret Ok("Report { " + raw_data)
 }
 ```
 
@@ -142,22 +142,19 @@ Actors operate isolated asynchronous loops responding to discrete event handler 
 
 ```vox
 // vox:skip
-actor Counter {
-    count: int = 0
-    on increment(n: int) {
-        count += n
-    }
-    on get() to int {
-        return count
-    }
+fn Counter_increment(count: int, n: int) to int {
+    ret count + n
+}
+
+fn Counter_get(count: int) to int {
+    ret count
 }
 ```
 
 ```vox
 // vox:skip
-let c = spawn Counter()
-c ! increment(5)
-let val = c.get()
+let c = spawn Counter_increment(0, 5)
+let val = Counter_get(c)
 ```
 
 ## Agents
@@ -175,12 +172,12 @@ Use `workflow` to group state machine processes that survive process restarts. U
 ```vox
 // vox:skip
 @query fn get_notes() to List[Note] {
-    return db.Note.all()
+    ret db.Note.all()
 }
 
 @mutation fn create_note(title: str, content: str) to Result[Id[Note]] {
     let id = db.Note.insert({ title: title, content: content })?
-    return Ok(id)
+    ret Ok(id)
 }
 ```
 
@@ -200,15 +197,15 @@ routes {
 ```
 
 ### Return Keyword
-`return` is the canonical way to return a value from a function.
+`ret` is the canonical way to return a value from a function.
 
 > [!WARNING]
-> The `ret` alias is **deprecated** and will be removed in a future version. Use `return` for all new code.
+> The `return` keyword is **tombstoned** and will be removed in a future version. Use `ret` for all new code.
 
 ```vox
 // vox:skip
-fn double(x: int) to int { return x * 2 }
-fn square(x: int) to int { return x * x }
+fn double(x: int) to int { ret x * 2 }
+fn square(x: int) to int { ret x * x }
 ```
 
 Vox imports use fully qualified paths. Use `import rust:<crate>` for native interop.
