@@ -1982,3 +1982,106 @@ raw_css {
         "raw_css should not fire literal_color_value: {diags:?}"
     );
 }
+
+// ── TASK-6.3: surface pair primitive ─────────────────────────────────────────
+
+/// Known surface name in registry → no error.
+#[test]
+fn surface_known_name_no_error() {
+    use vox_compiler::tokens::TokenRegistry;
+    use vox_compiler::web_ir::validate::validate_web_ir_with_registry;
+
+    let tokens_json = r##"{
+        "color": { "background": "#ffffff", "primary": "#3a86ff", "text": { "value": "#1d3557" } },
+        "surface": {
+            "primary": { "$surface_pair": true, "fg": "color.background", "bg": "color.primary" }
+        }
+    }"##;
+    let registry = TokenRegistry::load_from_str(tokens_json).expect("parse tokens");
+
+    let mut m = WebIrModule::default();
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(0),
+        tag: "div".into(),
+        attrs: vec![("data-vox-surface".into(), "primary".into())],
+        children: vec![],
+        span: None,
+    });
+    let diags = validate_web_ir_with_registry(&m, Some(&registry));
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.surface.unknown_surface"),
+        "known surface should not fire unknown_surface: {diags:?}"
+    );
+}
+
+/// Unknown surface name in registry → error.
+#[test]
+fn surface_unknown_name_fires_error() {
+    use vox_compiler::tokens::TokenRegistry;
+    use vox_compiler::web_ir::validate::validate_web_ir_with_registry;
+
+    let tokens_json = r##"{
+        "surface": {
+            "default": { "$surface_pair": true, "fg": "color.text", "bg": "color.background" }
+        }
+    }"##;
+    let registry = TokenRegistry::load_from_str(tokens_json).expect("parse tokens");
+
+    let mut m = WebIrModule::default();
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(0),
+        tag: "div".into(),
+        attrs: vec![("data-vox-surface".into(), "nonexistent".into())],
+        children: vec![],
+        span: None,
+    });
+    let diags = validate_web_ir_with_registry(&m, Some(&registry));
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.surface.unknown_surface"),
+        "expected unknown_surface error: {diags:?}"
+    );
+}
+
+/// surface attr on panel primitive → lowers to data-vox-surface attr + style CSS vars.
+#[test]
+fn surface_primitive_lowers_to_css_vars() {
+    let src = r##"
+component Page() {
+    view: <panel surface="primary"></panel>
+}
+"##;
+    let tokens = vox_compiler::lexer::lex(src);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    let has_surface = web.dom_nodes.iter().any(|n| {
+        if let DomNode::Element { tag, attrs, .. } = n {
+            tag == "div"  // panel → div
+                && attrs.iter().any(|(k, v)| k == "data-vox-surface" && v == "primary")
+                && attrs.iter().any(|(k, v)| k == "style" && v.contains("--vox-surface-primary-fg"))
+        } else {
+            false
+        }
+    });
+    assert!(has_surface, "expected panel with data-vox-surface + CSS vars; nodes: {:?}", web.dom_nodes);
+}
+
+/// surface attr without registry → no surface validation errors (registry is optional).
+#[test]
+fn surface_without_registry_no_error() {
+    let mut m = WebIrModule::default();
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(0),
+        tag: "div".into(),
+        attrs: vec![("data-vox-surface".into(), "anything".into())],
+        children: vec![],
+        span: None,
+    });
+    // validate_web_ir doesn't use a registry — surface validation skipped
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.surface.unknown_surface"),
+        "surface validation without registry should not fire: {diags:?}"
+    );
+}

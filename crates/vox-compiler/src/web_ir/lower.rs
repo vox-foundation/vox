@@ -282,6 +282,19 @@ fn apply_primitive_emission(
             attrs.push(("role".to_string(), role.to_string()));
         }
     }
+    // TASK-6.3: surface pair — inject CSS vars and a data-vox-surface attr for validation.
+    if let Some(surface) = &emission.surface_ref {
+        attrs.push(("data-vox-surface".to_string(), surface.clone()));
+        let style_val = format!(
+            "--fg: var(--vox-surface-{surface}-fg); --bg: var(--vox-surface-{surface}-bg)"
+        );
+        if let Some(pos) = attrs.iter().position(|(k, _)| k == "style") {
+            let existing = attrs[pos].1.clone();
+            attrs[pos].1 = format!("{style_val}; {existing}");
+        } else {
+            attrs.push(("style".to_string(), style_val));
+        }
+    }
     (emission.html_tag.to_string(), attrs)
 }
 

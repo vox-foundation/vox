@@ -34,6 +34,9 @@ pub struct PrimitiveEmission {
     pub base_classes: Vec<String>,
     /// WAI-ARIA role override when different from the HTML implicit role.
     pub aria_role: Option<&'static str>,
+    /// Surface pair name from `surface` attr (e.g. `"primary"`).
+    /// Lowering will inject CSS vars `--fg` / `--bg` and add a `data-vox-surface` attr for validation.
+    pub surface_ref: Option<String>,
 }
 
 impl PrimitiveEmission {
@@ -53,6 +56,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
     let get_attr = |name: &str| -> Option<&str> {
         attrs.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str())
     };
+    let surface_name: Option<String> = get_attr("surface").map(|s| s.to_string());
 
     match tag {
         // ── Layout ────────────────────────────────────────────────────────
@@ -64,6 +68,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 html_tag: "div",
                 base_classes: classes,
                 aria_role: None,
+                surface_ref: surface_name.clone(),
             })
         }
         "row" => {
@@ -77,6 +82,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 html_tag: "div",
                 base_classes: classes,
                 aria_role: None,
+                surface_ref: surface_name.clone(),
             })
         }
         "wrap" => {
@@ -90,6 +96,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 html_tag: "div",
                 base_classes: classes,
                 aria_role: None,
+                surface_ref: surface_name.clone(),
             })
         }
         // ── Content ───────────────────────────────────────────────────────
@@ -101,6 +108,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 html_tag: "p",
                 base_classes: classes,
                 aria_role: None,
+                surface_ref: surface_name.clone(),
             })
         }
         "heading" => {
@@ -127,6 +135,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 html_tag: tag,
                 base_classes: classes,
                 aria_role: None,
+                surface_ref: surface_name.clone(),
             })
         }
         "link" => {
@@ -140,12 +149,14 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 html_tag: "a",
                 base_classes: classes,
                 aria_role: None,
+                surface_ref: surface_name.clone(),
             })
         }
         "image" => Some(PrimitiveEmission {
             html_tag: "img",
             base_classes: vec!["max-w-full".to_string(), "h-auto".to_string()],
             aria_role: None,
+            surface_ref: surface_name.clone(),
         }),
         // ── Interactive ───────────────────────────────────────────────────
         "button" => {
@@ -195,6 +206,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 html_tag: "button",
                 base_classes: classes,
                 aria_role: None,
+                surface_ref: surface_name.clone(),
             })
         }
         // ── Structural ────────────────────────────────────────────────────
@@ -211,6 +223,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 html_tag: "div",
                 base_classes: classes,
                 aria_role: Some("region"),
+                surface_ref: surface_name.clone(),
             })
         }
         "card" => {
@@ -227,22 +240,26 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 html_tag: "div",
                 base_classes: classes,
                 aria_role: Some("region"),
+                surface_ref: surface_name.clone(),
             })
         }
         "list" => Some(PrimitiveEmission {
             html_tag: "ul",
             base_classes: vec!["list-none".to_string(), "space-y-1".to_string()],
             aria_role: None,
+            surface_ref: surface_name.clone(),
         }),
         "list_item" | "list-item" => Some(PrimitiveEmission {
             html_tag: "li",
             base_classes: vec![],
             aria_role: None,
+            surface_ref: surface_name.clone(),
         }),
         "route_outlet" | "route-outlet" => Some(PrimitiveEmission {
             html_tag: "div",
             base_classes: vec!["contents".to_string()],
             aria_role: Some("main"),
+            surface_ref: surface_name.clone(),
         }),
         _ => None,
     }

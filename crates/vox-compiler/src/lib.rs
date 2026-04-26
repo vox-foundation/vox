@@ -28,6 +28,7 @@ pub mod runtime_projection;
 pub mod rust_interop_support;
 pub mod serialization;
 pub mod syntax_k;
+pub mod tokens;
 pub mod typeck;
 pub mod vox_ir;
 pub mod web_ir;

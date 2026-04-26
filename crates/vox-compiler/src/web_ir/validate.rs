@@ -389,6 +389,11 @@ fn validate_styles_with_registry(
         }
     }
 
+    // TASK-6.3: validate data-vox-surface attrs against registered surface pairs.
+    if let Some(reg) = registry {
+        validate_surface_refs(module, reg, out);
+    }
+
     // Validate WCAG contrast pairs declared in the token file
     if let Some(reg) = registry {
         for diag in reg.validate_contrast() {
@@ -762,6 +767,39 @@ pub fn format_web_ir_validate_failure(diags: &[WebIrDiagnostic]) -> String {
         })
         .collect::<Vec<_>>()
         .join("; ")
+}
+
+/// TASK-6.3: walk DOM arena checking `data-vox-surface` attrs against registered surface pairs.
+/// Fires `web_ir_validate.surface.unknown_surface` when the name is not in the registry.
+fn validate_surface_refs(
+    module: &WebIrModule,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    for node in &module.dom_nodes {
+        let DomNode::Element { attrs, .. } = node else { continue };
+        for (k, v) in attrs {
+            if k != "data-vox-surface" {
+                continue;
+            }
+            if registry.lookup_surface(v).is_none() {
+                let known: Vec<&str> = registry.surface_pairs.keys().map(|s| s.as_str()).collect();
+                let hint = if known.is_empty() {
+                    String::new()
+                } else {
+                    format!(" Known surfaces: {}.", known.join(", "))
+                };
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.surface.unknown_surface".to_string(),
+                    message: format!(
+                        "Unknown surface pair '{v}' — not declared in vox.tokens.json.{hint}"
+                    ),
+                    span: None,
+                    category: Some("surface".to_string()),
+                });
+            }
+        }
+    }
 }
 
 /// Run structural checks that should hold before any target emitter, with counters for gates (OP-0094).
