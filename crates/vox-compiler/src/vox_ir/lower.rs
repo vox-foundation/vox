@@ -35,6 +35,7 @@ pub fn lower_hir_to_vox_ir(hir: &HirModule, source: Option<&str>) -> VoxIrModule
             mcp_resources: hir.mcp_resources.clone(),
             agents: hir.agents.clone(),
             url_decls: hir.url_decls.clone(),
+            state_machines: hir.state_machines.clone(),
             web_ir: Some(web_ir),
         },
     }

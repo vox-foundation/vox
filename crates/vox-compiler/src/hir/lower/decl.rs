@@ -326,4 +326,35 @@ impl LowerCtx {
         }
     }
 
+    pub(crate) fn lower_state_machine(&mut self, s: &StateMachineDecl) -> HirStateMachineDecl {
+        let id = self.def_map.define(s.name.clone());
+        HirStateMachineDecl {
+            id,
+            name: s.name.clone(),
+            states: s.states.iter().map(|st| HirSmState {
+                name: st.name.clone(),
+                fields: st.fields.iter().map(|f| HirSmField {
+                    name: f.name.clone(),
+                    ty: f.type_ann.as_ref().map(|t| self.lower_type(t)),
+                    span: f.span,
+                }).collect(),
+                is_terminal: st.is_terminal,
+                span: st.span,
+            }).collect(),
+            transitions: s.transitions.iter().map(|tr| HirSmTransition {
+                event_name: tr.event_name.clone(),
+                event_params: tr.event_params.clone(),
+                from: match &tr.from {
+                    SmFromPattern::Named(n) => HirSmFrom::Named(n.clone()),
+                    SmFromPattern::Any => HirSmFrom::Any,
+                },
+                to_state: tr.to_state.clone(),
+                span: tr.span,
+            }).collect(),
+            is_partial: s.is_partial,
+            is_pub: s.is_pub,
+            span: s.span,
+        }
+    }
+
 }

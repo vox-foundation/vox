@@ -27,6 +27,8 @@ pub mod checker;
 pub mod diagnostics;
 /// Effect propagation check: `caller.capabilities ⊇ callee.capabilities`.
 pub mod effect_check;
+/// State machine exhaustiveness and structural checks.
+pub mod state_machine_check;
 /// Environment management for symbols, types, and scopes.
 pub mod env;
 /// Core logic for unification-based type inference.
@@ -56,6 +58,7 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
     let builtins = BuiltinTypes::register_all(&mut env);
     let mut diags = typecheck_hir(hir, &mut env, &builtins, source);
     diags.extend(effect_check::check_effect_compliance(hir, source));
+    diags.extend(state_machine_check::check_state_machines(hir, source));
     diags
 }
 

@@ -35,6 +35,8 @@ pub mod vox_client;
 pub mod tokens_emit;
 /// `url` block TypeScript discriminated union + builder emit.
 pub mod url_emit;
+/// `state_machine` TypeScript discriminated union + reducer emit.
+pub mod state_machine_emit;
 /// Zod schema emission.
 pub mod zod_emit;
 

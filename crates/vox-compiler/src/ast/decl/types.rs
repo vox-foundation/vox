@@ -171,6 +171,8 @@ pub enum Decl {
     ReactiveComponent(ReactiveComponentDecl),
     /// Typed URL path declaration (`url Name { … }`).
     Url(UrlDecl),
+    /// First-class state machine with exhaustiveness enforcement.
+    StateMachine(StateMachineDecl),
 }
 impl Decl {
     /// Primary source span for this declaration (used for diagnostics).
@@ -223,6 +225,7 @@ impl Decl {
             Decl::Island(i) => i.span,
             Decl::ReactiveComponent(r) => r.span,
             Decl::Url(u) => u.span,
+            Decl::StateMachine(s) => s.span,
         }
     }
 }

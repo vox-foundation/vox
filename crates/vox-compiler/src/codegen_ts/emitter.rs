@@ -93,6 +93,12 @@ pub fn generate_with_options(
     if !url_content.is_empty() {
         files.push(("urls.ts".to_string(), url_content));
     }
+
+    // Generate state machine types + reducers
+    let sm_content = crate::codegen_ts::state_machine_emit::emit_state_machine_decls(hir);
+    if !sm_content.is_empty() {
+        files.push(("state_machines.ts".to_string(), sm_content));
+    }
     if let Ok(contract_json) = serde_json::to_string_pretty(&app_contract) {
         files.push(("vox-app-contract.json".to_string(), contract_json));
     }

@@ -80,14 +80,14 @@ Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): P
 
 | Task | Priority | Status | Notes |
 |------|----------|--------|-------|
-| TASK-4.1 — Add `state_machine` first-class block | P0 (missing (state, event) handler unrepresentable via exhaustiveness), P1 (collapses ad-hoc reducer-hook patterns to one shape), P2 (`state_machine` keyword distinctive) | ❌ Not started | Preconditions: Phase 2 complete. ~2–3 weeks. |
+| TASK-4.1 — Add `state_machine` first-class block | P0 (missing (state, event) handler unrepresentable via exhaustiveness), P1 (collapses ad-hoc reducer-hook patterns to one shape), P2 (`state_machine` keyword distinctive) | ✅ Done | `HEAD` | `state_machine Name { state S; terminal state T; on Event from S -> T; on Event from any -> T }` contextual keywords. `partial state_machine` opts out of exhaustiveness. AST `StateMachineDecl`/`SmState`/`SmTransition`/`SmField`, HIR `HirStateMachineDecl`/`HirSmState`/`HirSmTransition`/`HirSmFrom`, parser, lowering, 5 structural checks in `typeck/state_machine_check.rs` (duplicate states, ambiguous transitions, terminal outgoing, unreachable terminals, exhaustiveness), TS emit (`state_machines.ts` discriminated union + reducer stub). VoxIR `state_machines` field added. 20 tests passing (11 unit + 9 integration). |
 | TASK-4.2 — Add effect annotations (`uses net, db, mcp(...)`) | P0 ("function secretly touches network" unrepresentable via effect propagation), P3 (effects declared locally on the signature; no global flow analysis), P2 (`uses` clause distinctive) | ✅ Done | `HEAD` | `fn f() uses net, db, mcp(tool) { … }` contextual clause. `EffectAnnotation` AST enum, `HirCapability` HIR enum, `capabilities: Vec<HirCapability>` on `HirFn`, `typeck/effect_check.rs` propagation checker (caller.caps ⊇ callee.caps enforced when caller is annotated). `@pure` treated as `uses nothing`. 9 tests passing. Pending: stdlib intrinsic annotation pass (Phase 5). |
 | TASK-4.3 — Add typed URLs primitive | P0 (broken link to deleted route unrepresentable via URL variant graph), P1 (single URL algebra replacing string patterns + raw `<Link to="/…">`), P2 (`url Path { … }` block distinctive) | ✅ Done | `HEAD` | `url Name { Variant; Variant(arg: Type); Variant(?opt: Type) }` contextual keyword. AST `UrlDecl`, HIR `HirUrlDecl`/`HirUrlVariant`/`HirUrlArg`, parser, lowering, typeck registration, TS emit (`urls.ts` with discriminated union + builder object), VoxIR schema updated. 9 tests passing. |
 | TASK-4.4 — Compile `vox.tokens.json` into types | P0 (unknown token name → compile error; pair contrast validated at token-load time — warning at &lt;4.5:1, error at &lt;3:1 on body text), P1 (collapses raw `#rrggbb` / `rgb(…)` / hardcoded-px to named tokens) | ✅ Done | `TokenRegistry` + WCAG 2.1 contrast engine + `validate_web_ir_with_registry` integrated into `maybe_web_ir_validate`. `vox-tokens.css` and `tokens.ts` emitted from `codegen_ts/tokens_emit.rs`. Schema at `contracts/tokens/tokens.v1.json`. Canon doc: `docs/src/reference/token-system.md`. 21 tests passing. |
 
-**Phase 4 verdict:** 3 complete (TASK-4.2, TASK-4.3, TASK-4.4), 0 partial, 1 not started.
+**Phase 4 verdict:** 4 complete (TASK-4.1, TASK-4.2, TASK-4.3, TASK-4.4), 0 partial, 0 not started.
 
-**Sequencing note.** All four tasks list "Phase 2 complete" as their only common precondition; they are parallel-safe per the roadmap. Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md) §C2 (the GUI wedge), TASK-4.4 was the first P0 demonstration — it landed the contrast-validated color type the audit identified as the highest-impact accessibility-error prevention (research cites contrast as 26.6% of WCAG violations). Recommended sequence for remaining tasks: TASK-4.3 → TASK-4.1 / TASK-4.2 (parallel).
+**Sequencing note.** All four tasks listed "Phase 2 complete" as their only common precondition and were parallel-safe per the roadmap. Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md) §C2 (the GUI wedge), TASK-4.4 was the first P0 demonstration — it landed the contrast-validated color type the audit identified as the highest-impact accessibility-error prevention (research cites contrast as 26.6% of WCAG violations). Phase 4 is now fully complete; Phase 5 is unblocked.
 
 ## Phases 5–8
 
@@ -111,7 +111,7 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in order)
 
-1. **TASK-4.1** — Add `state_machine` first-class block (P0: missing state/event handler unrepresentable).
-2. **TASK-0.6** — Harden `transport.ts`: verify backoff caps and `authStatus` event emission.
-3. **TASK-1.2** — Decide on `vox-dashboard-d` binary (Option A: delete, Option B: make it work).
-4. **TASK-4.2 follow-up** — Stdlib intrinsic annotation pass: give `http.get` → `net`, `db.*` → `db`, etc. their effect sets so the checker can enforce open-world propagation.
+1. **TASK-0.6** — Harden `transport.ts`: verify backoff caps and `authStatus` event emission.
+2. **TASK-1.2** — Decide on `vox-dashboard-d` binary (Option A: delete, Option B: make it work).
+3. **TASK-4.2 follow-up** — Stdlib intrinsic annotation pass: give `http.get` → `net`, `db.*` → `db`, etc. their effect sets so the checker can enforce open-world propagation.
+4. **Phase 5** — Begin Phase 5 tasks (unblocked by Phase 4 completion).

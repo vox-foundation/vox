@@ -70,6 +70,9 @@ pub struct HirModule {
     /// Typed URL path declarations (`url Name { … }`).
     pub url_decls: Vec<HirUrlDecl>,
 
+    /// State machine declarations (`state_machine Name { … }`).
+    pub state_machines: Vec<HirStateMachineDecl>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 
@@ -634,6 +637,55 @@ pub struct HirUrlArg {
     pub optional: bool,
     pub ty: HirType,
     pub span: Span,
+}
+
+// ── State machine HIR types (TASK-4.1) ────────────────────────────────────
+
+/// A `state_machine Name { … }` lowered to HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirStateMachineDecl {
+    pub id: DefId,
+    pub name: String,
+    pub states: Vec<HirSmState>,
+    pub transitions: Vec<HirSmTransition>,
+    /// `partial state_machine` — exhaustiveness check is skipped.
+    pub is_partial: bool,
+    pub is_pub: bool,
+    pub span: Span,
+}
+
+/// A state variant inside a state machine.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirSmState {
+    pub name: String,
+    pub fields: Vec<HirSmField>,
+    pub is_terminal: bool,
+    pub span: Span,
+}
+
+/// A payload field on a state variant or event.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirSmField {
+    pub name: String,
+    pub ty: Option<HirType>,
+    pub span: Span,
+}
+
+/// A transition rule: `on Event from State -> Target`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirSmTransition {
+    pub event_name: String,
+    pub event_params: Vec<String>,
+    pub from: HirSmFrom,
+    pub to_state: String,
+    pub span: Span,
+}
+
+/// The `from` clause of a transition.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HirSmFrom {
+    Named(String),
+    Any,
 }
 
 #[cfg(test)]

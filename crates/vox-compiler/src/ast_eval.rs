@@ -102,6 +102,7 @@ fn count_module_constructs(module: &Module) -> ConstructCounts {
             Decl::Agent(_) | Decl::AgentDef(_) => "agent",
             Decl::Island(_) => "island",
             Decl::Url(_) => "url",
+            Decl::StateMachine(_) => "state_machine",
             _ => "other",
         };
         *histogram.entry(key.to_string()).or_insert(0) += 1;

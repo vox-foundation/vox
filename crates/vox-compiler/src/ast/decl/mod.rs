@@ -19,6 +19,8 @@ pub mod logic;
 pub mod typedef;
 /// Client routing, layouts, themes, and SSG page metadata.
 pub mod ui;
+/// State machine declarations (`state_machine Name { … }`).
+pub mod state_machine;
 /// Typed URL path declarations (`url Name { … }`).
 pub mod url;
 
@@ -29,6 +31,7 @@ pub use fundecl::*;
 pub use logic::*;
 pub use typedef::*;
 pub use ui::*;
+pub use state_machine::*;
 pub use url::*;
 
 mod callable;

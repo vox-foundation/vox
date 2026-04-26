@@ -262,6 +262,9 @@ impl LowerCtx {
                 Decl::Url(u) => {
                     hir.url_decls.push(self.lower_url_decl(u));
                 }
+                Decl::StateMachine(s) => {
+                    hir.state_machines.push(self.lower_state_machine(s));
+                }
                 Decl::Agent(a) => {
                     hir.agents.push(self.lower_agent(a));
                 }
