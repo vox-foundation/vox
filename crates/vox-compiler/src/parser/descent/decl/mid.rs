@@ -174,7 +174,7 @@ impl Parser {
         is_pub: bool,
         is_partial: bool,
     ) -> Result<Decl, ()> {
-        use crate::ast::decl::{SmField, SmFromPattern, SmState, SmTransition, StateMachineDecl};
+        use crate::ast::decl::{SmState, SmTransition, StateMachineDecl};
         use crate::parser::error::{ParseError, ParseErrorClass};
 
         let start = self.span();

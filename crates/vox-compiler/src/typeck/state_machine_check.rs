@@ -10,7 +10,7 @@
 use std::collections::{HashMap, HashSet};
 
 use crate::hir::{HirModule, HirSmFrom, HirStateMachineDecl};
-use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
+use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory};
 
 pub fn check_state_machines(module: &HirModule, source: &str) -> Vec<Diagnostic> {
     let mut diags = Vec::new();

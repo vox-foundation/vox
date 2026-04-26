@@ -7,7 +7,7 @@
 //!
 //! Output file: `state_machines.ts`.
 
-use crate::hir::{HirModule, HirSmState, HirStateMachineDecl, HirType};
+use crate::hir::{HirModule, HirStateMachineDecl, HirType};
 
 /// Emit `state_machines.ts` content for all state machines in the module.
 /// Returns an empty string if the module has no state machines.
@@ -149,7 +149,6 @@ fn hir_type_to_ts(ty: &HirType) -> String {
             format!("({}) => {}", ps.join(", "), hir_type_to_ts(ret))
         }
         HirType::Decimal => "string".to_string(),
-        _ => "unknown".to_string(),
     }
 }
 
