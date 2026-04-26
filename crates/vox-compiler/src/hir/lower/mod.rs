@@ -243,8 +243,10 @@ impl LowerCtx {
                 Decl::ReactiveComponent(c) => {
                     hir.components.push(self.lower_reactive_component(c));
                 }
+                Decl::Routes(r) => {
+                    hir.client_routes.push(r.clone());
+                }
                 Decl::V0Component(_)
-                | Decl::Routes(_)
                 | Decl::Layout(_)
                 | Decl::Page(_)
                 | Decl::Context(_)

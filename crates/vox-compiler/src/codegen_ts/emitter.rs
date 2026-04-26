@@ -360,10 +360,5 @@ fn maybe_web_ir_validate(
 }
 
 fn is_advisory_diag(d: &crate::web_ir::WebIrDiagnostic) -> bool {
-    matches!(
-        d.code.as_str(),
-        "web_ir_validate.style.raw_css_escape"
-            | "web_ir_validate.overlay.duplicate_z"
-            | "web_ir_validate.overlay.position_conflict"
-    ) || d.code.ends_with("_warning")
+    crate::web_ir::validate::is_advisory_diagnostic(d)
 }

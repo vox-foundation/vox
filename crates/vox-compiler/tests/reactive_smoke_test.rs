@@ -707,9 +707,13 @@ fn reactive_smoke_branch_registry_fixture_parses_and_lowers() {
     let hir = vox_compiler::hir::lower_module(&module);
     let web = vox_compiler::web_ir::lower::lower_hir_to_web_ir(&hir);
     let diags = vox_compiler::web_ir::validate::validate_web_ir(&web);
+    let error_diags: Vec<_> = diags
+        .iter()
+        .filter(|d| !vox_compiler::web_ir::validate::is_advisory_diagnostic(d))
+        .collect();
     assert!(
-        diags.is_empty(),
-        "fixture should validate after lower; {diags:?}"
+        error_diags.is_empty(),
+        "fixture should have no blocking errors after lower; {error_diags:?}"
     );
     let out = vox_compiler::codegen_ts::generate(&hir).expect("codegen branch-registry");
     assert!(

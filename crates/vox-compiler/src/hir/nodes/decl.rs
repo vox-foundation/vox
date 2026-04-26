@@ -66,6 +66,8 @@ pub struct HirModule {
     pub islands: Vec<HirIsland>,
     /// Reactive components (Path C).
     pub components: Vec<HirReactiveComponent>,
+    /// Client routing blocks (`routes { … }`).
+    pub client_routes: Vec<crate::ast::decl::RoutesDecl>,
 
     /// Typed URL path declarations (`url Name { … }`).
     pub url_decls: Vec<HirUrlDecl>,

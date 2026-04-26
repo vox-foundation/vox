@@ -336,7 +336,6 @@ fn lower_jsx_attr_pair(
     vec![(name, val)]
 }
 
-#[allow(dead_code)]
 fn lower_route_contract_entry(
     e: &crate::ast::decl::RouteEntry,
     parent_id: &str,
@@ -369,6 +368,22 @@ fn lower_route_contract_entry(
 }
 
 
+
+fn lower_client_routes(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
+    for rd in &hir.client_routes {
+        let routes: Vec<RouteContract> = rd
+            .entries
+            .iter()
+            .enumerate()
+            .map(|(i, e)| lower_route_contract_entry(e, "", i))
+            .collect();
+        m.route_nodes.push(RouteNode::RouteTree {
+            routes,
+            span: None,
+        });
+        summary.client_route_trees += 1;
+    }
+}
 
 fn qualify(component: &str, name: &str) -> String {
     format!("{component}::{name}")
@@ -661,7 +676,8 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
 
 
 
-    // Stage R — HTTP handlers and RPC-shaped endpoints from HIR
+    // Stage R — client `routes { }` blocks + HTTP handlers + RPC-shaped endpoints from HIR
+    lower_client_routes(hir, &mut m, &mut summary);
     lower_http_routes(hir, &mut m, &mut summary);
     lower_endpoint_contracts(hir, &mut m, &mut summary);
     lower_scheduled_jobs(hir, &mut m, &mut summary);

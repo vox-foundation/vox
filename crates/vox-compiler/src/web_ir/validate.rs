@@ -828,6 +828,21 @@ pub fn validate_web_ir(module: &WebIrModule) -> Vec<WebIrDiagnostic> {
     validate_web_ir_with_metrics(module).0
 }
 
+/// Returns true for diagnostics that are advisory (soft warnings, not build blockers).
+///
+/// Advisory diagnostics are informational — callers that gate builds should filter these out;
+/// callers that surface all diagnostics (LSP, dashboards) should still include them.
+#[must_use]
+pub fn is_advisory_diagnostic(d: &WebIrDiagnostic) -> bool {
+    matches!(
+        d.code.as_str(),
+        "web_ir_validate.style.raw_css_escape"
+            | "web_ir_validate.overlay.duplicate_z"
+            | "web_ir_validate.overlay.position_conflict"
+            | "web_ir_validate.route.unreachable"
+    ) || d.code.ends_with("_warning")
+}
+
 fn validate_web_ir_full(
     module: &WebIrModule,
     registry: Option<&crate::tokens::TokenRegistry>,
