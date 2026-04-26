@@ -124,7 +124,8 @@ fn check_keyboard_handler(
     }
 }
 
-/// Recursively check whether a set of child DOM nodes contains any non-empty text.
+/// Recursively check whether a set of child DOM nodes contains any non-empty text content
+/// or expression nodes (which may produce text at runtime).
 fn has_non_empty_text_child(module: &WebIrModule, child_ids: &[DomNodeId]) -> bool {
     for child_id in child_ids {
         let Some(node) = module.dom_nodes.get(child_id.0 as usize) else {
@@ -141,6 +142,9 @@ fn has_non_empty_text_child(module: &WebIrModule, child_ids: &[DomNodeId]) -> bo
                     return true;
                 }
             }
+            // Expression nodes ({label}, {count}, etc.) may produce text at runtime;
+            // treat their presence as satisfying the accessible-name requirement.
+            DomNode::Expr { .. } => return true,
             _ => {}
         }
     }

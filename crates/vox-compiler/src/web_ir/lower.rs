@@ -163,10 +163,12 @@ impl DomArena {
                 island_names,
             );
         }
-        let mut attrs = Vec::new();
+        let mut attrs: Vec<(String, String)> = Vec::new();
         for attr in &el.attributes {
             attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
         }
+        // TASK-6.1: resolve primitive tags → canonical HTML tag + Tailwind class list.
+        let (tag, attrs) = apply_primitive_emission(&el.tag, attrs);
         let child_ids: Vec<DomNodeId> = el
             .children
             .iter()
@@ -174,7 +176,7 @@ impl DomArena {
             .collect();
         self.push(DomNode::Element {
             id: DomNodeId(0),
-            tag: el.tag.clone(),
+            tag,
             attrs,
             children: child_ids,
             span: None,
@@ -190,13 +192,15 @@ impl DomArena {
         if island_names.contains(&el.tag) {
             return self.lower_island(&el.tag, &el.attributes, 0, state_names, island_names);
         }
-        let mut attrs = Vec::new();
+        let mut attrs: Vec<(String, String)> = Vec::new();
         for attr in &el.attributes {
             attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
         }
+        // TASK-6.1: resolve primitive tags.
+        let (tag, attrs) = apply_primitive_emission(&el.tag, attrs);
         self.push(DomNode::Element {
             id: DomNodeId(0),
-            tag: el.tag.clone(),
+            tag,
             attrs,
             children: vec![],
             span: None,
@@ -235,6 +239,52 @@ impl DomArena {
 /// Map JSX attribute name + value the same way as TS `hir_emit` (OP-S015).
 ///
 /// Event spellings (`on_click`, `on:click`) become React-style `onClick` names on [`DomNode::Element`];
+/// Props that are consumed by the primitive resolver and must not appear on the final HTML element.
+const PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
+    "gap", "size", "weight", "align", "wrap", "variant", "level", "surface",
+];
+
+/// TASK-6.1: if `tag` is a known primitive, replace it with the canonical HTML tag and inject
+/// the primitive's Tailwind class list into the `className` attribute (merging with any existing
+/// `class` / `className` attr from the author).  Returns `(html_tag, final_attrs)`.
+fn apply_primitive_emission(
+    tag: &str,
+    mut attrs: Vec<(String, String)>,
+) -> (String, Vec<(String, String)>) {
+    // JSX string literals arrive with surrounding quotes ("\"value\""); strip them for prop resolution.
+    let unquoted: Vec<(String, String)> = attrs
+        .iter()
+        .map(|(k, v)| {
+            let v = v.trim_matches('"').trim_matches('\'');
+            (k.clone(), v.to_string())
+        })
+        .collect();
+    let Some(emission) = super::primitives::resolve(tag, &unquoted) else {
+        return (tag.to_string(), attrs);
+    };
+    // Remove primitive-specific props that are consumed by the resolver.
+    attrs.retain(|(k, _)| !PRIMITIVE_CONSUMED_PROPS.contains(&k.as_str()));
+    let base = emission.class_string();
+    if !base.is_empty() {
+        // Merge with any existing class / className attr from the author.
+        if let Some(pos) = attrs
+            .iter()
+            .position(|(k, _)| k == "className" || k == "class")
+        {
+            let existing = attrs[pos].1.clone();
+            attrs[pos].1 = format!("{base} {existing}");
+        } else {
+            attrs.push(("className".to_string(), base));
+        }
+    }
+    if let Some(role) = emission.aria_role {
+        if !attrs.iter().any(|(k, _)| k == "role") {
+            attrs.push(("role".to_string(), role.to_string()));
+        }
+    }
+    (emission.html_tag.to_string(), attrs)
+}
+
 /// handler bodies stay as stringified TS expressions. Dedicated [`BehaviorNode::EventHandler`] rows are
 /// reserved for future binding tables — Phase 1 keeps behavior on the DOM edge for parity with `hir_emit`.
 ///

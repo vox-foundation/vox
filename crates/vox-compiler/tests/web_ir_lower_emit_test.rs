@@ -1748,3 +1748,131 @@ fn web_ir_validate_a11y_button_missing_label_fires_via_validate_web_ir() {
         "expected interactive_missing_label via validate_web_ir: {diags:?}"
     );
 }
+
+// ── TASK-6.1: primitives lowering ─────────────────────────────────────────────
+
+#[test]
+fn primitives_stack_lowered_to_div_flex_col() {
+    let source = r#"
+component Layout() {
+    view: (
+        <stack gap="4">
+            <text>"Hello"</text>
+        </stack>
+    )
+}
+"#;
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    let stack_node = web.dom_nodes.iter().find(|n| {
+        if let DomNode::Element { tag, attrs, .. } = n {
+            tag == "div"
+                && attrs.iter().any(|(k, v)| {
+                    k == "className"
+                        && v.contains("flex-col")
+                        && v.contains("flex")
+                        && v.contains("gap-4")
+                })
+        } else {
+            false
+        }
+    });
+    assert!(
+        stack_node.is_some(),
+        "expected <div className='flex flex-col gap-4'> from <stack gap='4'>; nodes: {:?}",
+        web.dom_nodes
+    );
+}
+
+#[test]
+fn primitives_button_lowered_to_button_with_primary_classes() {
+    let source = r#"
+component Cta() {
+    view: (
+        <button variant="default">"Click me"</button>
+    )
+}
+"#;
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    let btn = web.dom_nodes.iter().find(|n| {
+        if let DomNode::Element { tag, attrs, .. } = n {
+            tag == "button"
+                && attrs.iter().any(|(k, v)| {
+                    k == "className" && v.contains("bg-primary")
+                })
+        } else {
+            false
+        }
+    });
+    assert!(
+        btn.is_some(),
+        "expected <button className='... bg-primary ...'> from <button variant='default'>; nodes: {:?}",
+        web.dom_nodes
+    );
+}
+
+#[test]
+fn primitives_row_lowered_to_div_flex_row() {
+    let source = r#"
+component R() {
+    view: (
+        <row>"item"</row>
+    )
+}
+"#;
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    assert!(
+        web.dom_nodes.iter().any(|n| {
+            if let DomNode::Element { tag, attrs, .. } = n {
+                tag == "div" && attrs.iter().any(|(k, v)| k == "className" && v.contains("flex-row"))
+            } else {
+                false
+            }
+        }),
+        "expected <div className='... flex-row ...'> from <row>; nodes: {:?}",
+        web.dom_nodes
+    );
+}
+
+#[test]
+fn primitives_unknown_html_tags_pass_through_unchanged() {
+    let source = r#"
+component Passthrough() {
+    view: (
+        <div class="custom">"content"</div>
+    )
+}
+"#;
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    // JSX lowering maps class→className and wraps string values in quotes.
+    assert!(
+        web.dom_nodes.iter().any(|n| {
+            if let DomNode::Element { tag, attrs, .. } = n {
+                tag == "div"
+                    && !attrs.iter().any(|(k, v)| {
+                        // Must NOT have any primitive-injected Tailwind like flex, flex-col, etc.
+                        k == "className" && (v.contains("flex") || v.contains("bg-"))
+                    })
+            } else {
+                false
+            }
+        }),
+        "ordinary div should not have primitive Tailwind classes injected; nodes: {:?}",
+        web.dom_nodes
+    );
+}

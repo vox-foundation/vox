@@ -22,6 +22,7 @@
 
 pub mod emit_tsx;
 pub mod lower;
+pub mod primitives;
 pub mod validate;
 pub mod validate_a11y;
 
