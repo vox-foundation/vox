@@ -29,12 +29,6 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
                 markdown.push_str(&result.source[f.span.start..f.span.end]);
                 markdown.push_str("\n```\n\n");
             }
-            Decl::Actor(a) => {
-                markdown.push_str(&format!("## Actor: `{}`\n\n", a.name));
-                markdown.push_str("```vox\n");
-                markdown.push_str(&result.source[a.span.start..a.span.end]);
-                markdown.push_str("\n```\n\n");
-            }
             Decl::TypeDef(t) => {
                 markdown.push_str(&format!("## Type: `{}`\n\n", t.name));
                 markdown.push_str("```vox\n");
@@ -45,12 +39,6 @@ pub async fn run(file: &Path, out_dir: &Path) -> Result<()> {
                 markdown.push_str(&format!("## Table: `{}`\n\n", t.name));
                 markdown.push_str("```vox\n");
                 markdown.push_str(&result.source[t.span.start..t.span.end]);
-                markdown.push_str("\n```\n\n");
-            }
-            Decl::Workflow(w) => {
-                markdown.push_str(&format!("## Workflow: `{}`\n\n", w.name));
-                markdown.push_str("```vox\n");
-                markdown.push_str(&result.source[w.span.start..w.span.end]);
                 markdown.push_str("\n```\n\n");
             }
             _ => {}

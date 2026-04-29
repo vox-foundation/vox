@@ -24,8 +24,8 @@ mod tests {
     use super::*;
     use crate::ast::span::Span;
     use crate::hir::{
-        DefId, HirActor, HirExpr, HirModule, HirRustImport, HirEndpointFn, HirStmt, HirTable,
-        HirTableField, HirType, HirWorkflow,
+        DefId, HirExpr, HirModule, HirRustImport, HirEndpointFn, HirStmt, HirTable,
+        HirTableField, HirType,
     };
     use emit::{emit_cargo_toml, emit_main, emit_table_struct};
 
@@ -280,64 +280,6 @@ mod tests {
         let module = empty_module();
         let result = generate_script_with_target(&module, "test-script", None, ScriptTarget::Wasi);
         assert!(result.is_ok(), "clean WASI script should pass guardrail");
-    }
-
-    #[test]
-    fn wasi_with_actor_fails_guardrail() {
-        let mut module = empty_module();
-        module.actors.push(HirActor {
-            id: DefId(0),
-            name: "MyActor".to_string(),
-            handlers: vec![],
-            span: Span::new(0, 0),
-        });
-        let result = generate_script_with_target(&module, "test-script", None, ScriptTarget::Wasi);
-        assert!(
-            result.is_err(),
-            "WASI script with actor should fail guardrail"
-        );
-        let err = result.unwrap_err().to_string();
-        assert!(err.contains("actors"), "error should mention actors: {err}");
-    }
-
-    #[test]
-    fn wasi_with_workflow_fails_guardrail() {
-        let mut module = empty_module();
-        module.workflows.push(HirWorkflow {
-            id: DefId(0),
-            name: "MyWorkflow".to_string(),
-            params: vec![],
-            return_type: None,
-            body: vec![],
-            span: Span::new(0, 0),
-        });
-        let result = generate_script_with_target(&module, "test-script", None, ScriptTarget::Wasi);
-        assert!(
-            result.is_err(),
-            "WASI script with workflow should fail guardrail"
-        );
-        let err = result.unwrap_err().to_string();
-        assert!(
-            err.contains("workflows"),
-            "error should mention workflows: {err}"
-        );
-    }
-
-    #[test]
-    fn native_with_actor_passes() {
-        let mut module = empty_module();
-        module.actors.push(HirActor {
-            id: DefId(0),
-            name: "MyActor".to_string(),
-            handlers: vec![],
-            span: Span::new(0, 0),
-        });
-        let result =
-            generate_script_with_target(&module, "test-script", None, ScriptTarget::Native);
-        assert!(
-            result.is_ok(),
-            "native script with actor should not be blocked"
-        );
     }
 
     #[test]

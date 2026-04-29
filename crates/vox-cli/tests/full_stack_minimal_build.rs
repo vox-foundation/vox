@@ -193,7 +193,7 @@ import react.use_state
 
 @island ParityP { label: str }
 
-@component ParityPage() {
+component ParityPage() {
     state s: str = "x"
     view: (
         <div class="parity-wrap">
@@ -316,7 +316,7 @@ import react.use_state
 
 @island ParityP { label: str }
 
-@component ParityPage() {
+component ParityPage() {
     state s: str = "x"
     view: (
         <div class="parity-wrap">

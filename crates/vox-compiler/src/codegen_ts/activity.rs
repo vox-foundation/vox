@@ -1,11 +1,6 @@
 use crate::ast::decl::ActivityDecl;
 use crate::codegen_ts::component::map_vox_type_to_ts;
-// Activity steps: compat `emit_hir_stmt` for durable workflows (OP-0136).
-use crate::codegen_ts::hir_emit::emit_hir_stmt;
-use crate::codegen_ts::island_emit::empty_island_set;
 use crate::codegen_ts::jsx::emit_stmt;
-use crate::hir::HirActivity;
-use std::collections::HashSet;
 
 /// Generate a TypeScript async function from a Vox activity declaration.
 /// Returns the TypeScript source code for the activity.
@@ -47,44 +42,6 @@ pub fn generate_activity(activity: &ActivityDecl) -> String {
         out.push_str(&emit_stmt(stmt, 1));
     }
 
-    out.push_str("}\n\n");
-    out
-}
-
-/// Generate activity TS from lowered HIR (Path C — no `legacy_ast_nodes`).
-#[must_use]
-pub fn generate_activity_hir(activity: &HirActivity) -> String {
-    let name = &activity.name;
-    let mut out = String::new();
-    let params: Vec<String> = activity
-        .params
-        .iter()
-        .map(|p| {
-            let ts_type = p.type_ann.as_ref().map_or("any".to_string(), |t| {
-                crate::codegen_ts::hir_emit::map_hir_type_to_ts(t)
-            });
-            format!("{}: {}", p.name, ts_type)
-        })
-        .collect();
-    let return_type = activity
-        .return_type
-        .as_ref()
-        .map_or("Promise<any>".to_string(), |t| {
-            format!(
-                "Promise<{}>",
-                crate::codegen_ts::hir_emit::map_hir_type_to_ts(t)
-            )
-        });
-    out.push_str(&format!(
-        "export async function {}({}): {} {{\n",
-        name,
-        params.join(", "),
-        return_type
-    ));
-    let empty = HashSet::new();
-    for stmt in &activity.body {
-        out.push_str(&emit_hir_stmt(stmt, &empty, empty_island_set(), 1));
-    }
     out.push_str("}\n\n");
     out
 }

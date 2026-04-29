@@ -33,7 +33,7 @@ fn extract_codegen_activity_names(lib_src: &str) -> Vec<String> {
 fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
     let src = r#"
 @server fn chat(prompt: str) to str {
-    ret prompt
+    return prompt
 }
 "#;
     let hir = lower(src);
@@ -58,7 +58,7 @@ fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
 fn parity_contract_api_client_supports_secure_headers_and_streaming() {
     let src = r#"
 @server fn summarize(input: str) to str {
-    ret input
+    return input
 }
 "#;
     let hir = lower(src);
@@ -135,17 +135,17 @@ fn parity_contract_generated_linear_activity_identity_matches_interpreted_plan()
 type MyRes = | Ok(v: str) | Error
 
 activity send_email(recipient: str) to Result[str] {
-    ret Ok(recipient)
+    return Ok(recipient)
 }
 
 activity write_audit(msg: str) to Result[str] {
-    ret Ok(msg)
+    return Ok(msg)
 }
 
 workflow main_flow() to Result[str] {
     let a = send_email("person@example.com") with { activity_id: "email-step", retries: 3, timeout: "10s" }
     let b = write_audit("mail sent") with { activity_id: "audit-step" }
-    ret b
+    return b
 }
 "#;
     let hir = lower(src);
@@ -189,12 +189,12 @@ fn parity_contract_generated_with_id_alias_matches_interpreted_activity_id() {
 type MyRes = | Ok(v: str) | Error
 
 activity send_email(recipient: str) to Result[str] {
-    ret Ok(recipient)
+    return Ok(recipient)
 }
 
 workflow main_flow() to Result[str] {
     let a = send_email("person@example.com") with { id: "email-step-alias", retries: 2 }
-    ret a
+    return a
 }
 "#;
     let hir = lower(src);

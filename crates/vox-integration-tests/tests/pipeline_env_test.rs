@@ -74,6 +74,6 @@ http post "/api/chat" to ChatResult {
     let body = request.json()
     let prompt = body.message
     let response = spawn(Claude).send(prompt)
-    ret response
+    return response
 }
 "#;

@@ -17,16 +17,16 @@ Microservice developers typically reach for complex infrastructure like Celery, 
 
 ## The Vox Paradigm: Native Durable Execution
 
-Vox gives you **Durable Execution** out of the box using two keywords: `@workflow` and `activity`.
+Vox gives you **Durable Execution** out of the box using plain `fn` declarations — the interpreted runtime handles journaling automatically.
 
 You write a single function that looks like linear, synchronous code. Behind the scenes, Vox records the result of each `activity` in a persistent journal or VoxDB. If your server is killed midway through a workflow, upon restart Vox rapidly replays the workflow state, skips the already-completed steps natively (without re-running them), and resumes execution at the exact line of code where it left off.
 
 ## Core Snippet: Surviving a Server Crash
 
 ```vox
-// vox:skip
-// Activities are wrapped by the workflow runtime.
-activity charge_payment(amount: int, token: str) -> Result[str] {
+// vox:skip — inline record literals in call args and multi-line `with` are parser limitations
+// Activities are plain functions — the runtime wraps them with retry/journal.
+fn charge_payment(amount: int, token: str) to Result[str] {
     let result = std.http.post_json("https://api.stripe.com/v1/charges", {
         amount: amount,
         source: token
@@ -34,7 +34,7 @@ activity charge_payment(amount: int, token: str) -> Result[str] {
     return Ok(result.json().id)
 }
 
-activity send_email(user: str, message: str) -> Result[Unit] {
+fn send_email(user: str, message: str) to Result[Unit] {
     std.http.post_json("https://api.sendgrid.com/v3/mail/send", {
         to: user,
         text: message
@@ -42,7 +42,7 @@ activity send_email(user: str, message: str) -> Result[Unit] {
     return Ok(())
 }
 
-workflow process_order(customer: str, amount: int, card_tok: str) -> Result[str] {
+fn process_order(customer: str, amount: int, card_tok: str) to Result[str] {
     // 1. Charge via retryable activity.
     let payment_id = charge_payment(amount, card_tok)
         with { retries: 3, timeout: "30s", initial_backoff: "500ms" }

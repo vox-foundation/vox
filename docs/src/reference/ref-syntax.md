@@ -3,7 +3,7 @@ title: "Language Syntax Reference"
 description: "A comprehensive, scannable syntax quick-reference page."
 category: "reference"
 status: "current"
-last_updated: "2026-04-06"
+last_updated: "2026-04-26"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -43,7 +43,7 @@ Functions mapping natively to networking, storage, or internal agentic constrain
 // vox:skip
 // ANCHOR: functions
 fn add(a: int, b: int) to int {
-    return a + b;
+    return a + b
 }
 
 component Button(label: str) {
@@ -142,22 +142,19 @@ Actors operate isolated asynchronous loops responding to discrete event handler 
 
 ```vox
 // vox:skip
-actor Counter {
-    count: int = 0
-    on increment(n: int) {
-        count += n
-    }
-    on get() to int {
-        return count
-    }
+fn Counter_increment(count: int, n: int) to int {
+    return count + n
+}
+
+fn Counter_get(count: int) to int {
+    return count
 }
 ```
 
 ```vox
 // vox:skip
-let c = spawn Counter()
-c ! increment(5)
-let val = c.get()
+let c = spawn Counter_increment(0, 5)
+let val = Counter_get(c)
 ```
 
 ## Agents
@@ -201,9 +198,6 @@ routes {
 
 ### Return Keyword
 `return` is the canonical way to return a value from a function.
-
-> [!WARNING]
-> The `ret` alias is **deprecated** and will be removed in a future version. Use `return` for all new code.
 
 ```vox
 // vox:skip

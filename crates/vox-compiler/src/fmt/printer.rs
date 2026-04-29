@@ -184,38 +184,6 @@ impl Printer {
                 }
                 self.dedent();
             }
-            Decl::Workflow(w) => {
-                self.write_indent();
-                self.out.push_str("workflow ");
-                self.out.push_str(&w.name);
-                self.print_fn_body(&w.params, &w.return_type, &w.body);
-            }
-            Decl::Activity(a) => {
-                self.write_indent();
-                self.out.push_str("activity ");
-                self.out.push_str(&a.name);
-                self.print_fn_body(&a.params, &a.return_type, &a.body);
-            }
-            Decl::Actor(a) => {
-                self.write_indent();
-                self.out.push_str("actor ");
-                self.out.push_str(&a.name);
-                self.out.push_str(
-                    " {
-",
-                );
-                self.indent();
-                for handler in &a.handlers {
-                    self.write_indent();
-                    self.out.push_str("on ");
-                    self.out.push_str(&handler.event_name);
-                    self.print_fn_body(&handler.params, &handler.return_type, &handler.body);
-                    self.out.push('\n');
-                }
-                self.dedent();
-                self.write_indent();
-                self.out.push('}');
-            }
             Decl::Environment(e) => self.print_environment(e),
             Decl::Island(isle) => {
                 self.write_indent();

@@ -30,6 +30,7 @@ use vox_compiler::web_ir::{
     RouteContract, RouteNode, ServerFnContract, StyleDeclarationValue, StyleNode, StyleSelector,
     WebIrModule, WebIrVersion,
 };
+use vox_compiler::web_ir::validate_a11y::validate_a11y;
 
 #[test]
 fn web_ir_lowering_validates_and_emits_counter_view() {
@@ -418,6 +419,7 @@ fn web_ir_schema_node_families_roundtrip_through_json() {
         span: None,
     });
     m.view_roots.push(("Smoke".into(), DomNodeId(1)));
+    m.view_roots.push(("Home".into(), DomNodeId(1)));
 
     m.behavior_nodes.push(BehaviorNode::StateDecl {
         name: "x".into(),
@@ -451,6 +453,7 @@ fn web_ir_schema_node_families_roundtrip_through_json() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("color".into(), StyleDeclarationValue::Raw("red".into()))],
+        is_raw_css: false,
         span: None,
     });
     m.style_nodes.push(StyleNode::TokenRef {
@@ -872,6 +875,7 @@ fn web_ir_validate_style_rejects_empty_declarations() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![],
+        is_raw_css: false,
         span: None,
     });
     let diags = validate_web_ir(&m);
@@ -889,6 +893,7 @@ fn web_ir_validate_style_rejects_empty_property_name() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![(String::new(), StyleDeclarationValue::Raw("x".into()))],
+        is_raw_css: false,
         span: None,
     });
     let diags = validate_web_ir(&m);
@@ -955,6 +960,7 @@ fn web_ir_validate_failure_format_matches_vox_webir_validate_gate() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![],
+        is_raw_css: false,
         span: None,
     });
     let diags = validate_web_ir(&m);
@@ -1117,6 +1123,7 @@ fn op_s058_style_todo_fixture_empty_rule_body_diagnosed() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("x".into()),
         declarations: vec![],
+        is_raw_css: false,
         span: None,
     });
     let d = validate_web_ir(&m);
@@ -1186,6 +1193,7 @@ fn op_s106_style_node_contract_fixture_non_empty_rule() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("color".into(), StyleDeclarationValue::Raw("red".into()))],
+        is_raw_css: false,
         span: None,
     });
     assert!(validate_web_ir(&m).is_empty());
@@ -1200,6 +1208,7 @@ fn op_s108_style_node_contract_gate_roundtrip() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("margin".into(), StyleDeclarationValue::Raw("0".into()))],
+        is_raw_css: false,
         span: None,
     });
     let j = serde_json::to_string(&m).unwrap();
@@ -1215,6 +1224,7 @@ fn op_s110_style_node_validation_fixture_empty_prop_name() {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("c".into()),
         declarations: vec![("".into(), StyleDeclarationValue::Raw("x".into()))],
+        is_raw_css: false,
         span: None,
     });
     let d = validate_web_ir(&m);
@@ -1274,6 +1284,15 @@ fn op_s146_fixture_pack_e2_route_contract_json_stable() {
         }],
         span: None,
     });
+    // "Home" view root is required for the route reachability validator.
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(0),
+        tag: "div".into(),
+        attrs: vec![],
+        children: vec![],
+        span: None,
+    });
+    m.view_roots.push(("Home".into(), DomNodeId(0)));
     assert!(validate_web_ir(&m).is_empty());
 }
 
@@ -1328,6 +1347,7 @@ fn op_s190_style_route_integration_fixture() {
             "padding".into(),
             StyleDeclarationValue::Raw("\"1px\"".into()),
         )],
+        is_raw_css: false,
         span: None,
     });
     m.route_nodes.push(RouteNode::RouteTree {
@@ -1546,4 +1566,598 @@ component Gate() {
             threshold
         );
     }
+}
+
+// ── TASK-5.1: literal CSS value enforcement (fires without registry) ──────────
+
+#[test]
+fn web_ir_validate_style_rejects_hex_color_raw() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("c".into()),
+        declarations: vec![("color".into(), StyleDeclarationValue::Raw("#ff0000".into()))],
+        is_raw_css: false,
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    let d = diags
+        .iter()
+        .find(|x| x.code == "web_ir_validate.style.literal_color_value")
+        .expect("literal_color_value diag expected");
+    assert_eq!(d.category.as_deref(), Some("style"));
+    assert!(d.message.contains("color"), "message: {}", d.message);
+}
+
+#[test]
+fn web_ir_validate_style_rejects_color_variant() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("c".into()),
+        declarations: vec![(
+            "background".into(),
+            StyleDeclarationValue::Color(vox_compiler::web_ir::CssColor::Hex("#abc".into())),
+        )],
+        is_raw_css: false,
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    let d = diags
+        .iter()
+        .find(|x| x.code == "web_ir_validate.style.literal_color_value")
+        .expect("literal_color_value diag for Color variant");
+    assert_eq!(d.category.as_deref(), Some("style"));
+}
+
+#[test]
+fn web_ir_validate_style_rejects_literal_dimension() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("c".into()),
+        declarations: vec![(
+            "padding".into(),
+            StyleDeclarationValue::Length(16.0, vox_compiler::web_ir::LengthUnit::Px),
+        )],
+        is_raw_css: false,
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    let d = diags
+        .iter()
+        .find(|x| x.code == "web_ir_validate.style.literal_dimension_value")
+        .expect("literal_dimension_value diag expected");
+    assert_eq!(d.category.as_deref(), Some("style"));
+    assert!(d.message.contains("padding"), "message: {}", d.message);
+}
+
+#[test]
+fn web_ir_validate_style_token_ref_is_ok() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("c".into()),
+        declarations: vec![(
+            "color".into(),
+            StyleDeclarationValue::TokenRef("color-primary".into()),
+        )],
+        is_raw_css: false,
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.style.literal_color_value"
+            && d.code != "web_ir_validate.style.literal_dimension_value"),
+        "token ref must not trigger literal value errors: {diags:?}"
+    );
+}
+
+// ── TASK-5.2: route reachability ──────────────────────────────────────────────
+
+fn route_tree(contracts: Vec<RouteContract>) -> RouteNode {
+    RouteNode::RouteTree { routes: contracts, span: None }
+}
+
+fn route_contract(id: &str, pattern: &str, component: Option<&str>) -> RouteContract {
+    let meta = if let Some(c) = component {
+        serde_json::json!({ "component": c })
+    } else {
+        serde_json::Value::Object(Default::default())
+    };
+    RouteContract { id: id.to_string(), pattern: pattern.to_string(), meta, children: vec![] }
+}
+
+fn link_element(href: &str) -> DomNode {
+    DomNode::Element {
+        id: DomNodeId(99),
+        tag: "a".to_string(),
+        attrs: vec![("href".to_string(), href.to_string())],
+        children: vec![],
+        span: None,
+    }
+}
+
+#[test]
+fn web_ir_validate_route_missing_component_is_error() {
+    let mut m = WebIrModule::default();
+    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", Some("Home"))]));
+    // view_roots does NOT include "Home"
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.route.missing_component"),
+        "expected missing_component: {diags:?}"
+    );
+}
+
+#[test]
+fn web_ir_validate_route_component_exists_is_ok() {
+    let mut m = WebIrModule::default();
+    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", Some("Home"))]));
+    m.view_roots.push(("Home".to_string(), DomNodeId(0)));
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.route.missing_component"),
+        "unexpected missing_component: {diags:?}"
+    );
+}
+
+#[test]
+fn web_ir_validate_route_broken_link_is_error() {
+    let mut m = WebIrModule::default();
+    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", None)]));
+    m.dom_nodes.push(link_element("/nonexistent"));
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.route.broken_link"),
+        "expected broken_link: {diags:?}"
+    );
+}
+
+#[test]
+fn web_ir_validate_route_matching_link_is_ok() {
+    let mut m = WebIrModule::default();
+    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", None)]));
+    m.dom_nodes.push(link_element("/home"));
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.route.broken_link"),
+        "unexpected broken_link: {diags:?}"
+    );
+}
+
+#[test]
+fn web_ir_validate_route_unreachable_warns() {
+    let mut m = WebIrModule::default();
+    m.route_nodes.push(route_tree(vec![route_contract("r1", "/about", None)]));
+    // No link elements in DOM → unreachable
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
+        "expected unreachable: {diags:?}"
+    );
+}
+
+// ── TASK-5.3: a11y validator integration ─────────────────────────────────────
+
+fn elem_node(id: u32, tag: &str, attrs: Vec<(&str, &str)>, children: Vec<u32>) -> DomNode {
+    DomNode::Element {
+        id: DomNodeId(id),
+        tag: tag.to_string(),
+        attrs: attrs.into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+        children: children.into_iter().map(DomNodeId).collect(),
+        span: None,
+    }
+}
+
+#[test]
+fn web_ir_validate_a11y_img_missing_alt_fires_via_validate_web_ir() {
+    let mut m = WebIrModule::default();
+    m.dom_nodes.push(elem_node(0, "img", vec![("src", "logo.png")], vec![]));
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
+        "expected img_missing_alt via validate_web_ir: {diags:?}"
+    );
+}
+
+#[test]
+fn web_ir_validate_a11y_button_missing_label_fires_via_validate_web_ir() {
+    let mut m = WebIrModule::default();
+    m.dom_nodes.push(elem_node(0, "button", vec![], vec![]));
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+        "expected interactive_missing_label via validate_web_ir: {diags:?}"
+    );
+}
+
+// ── TASK-6.1: primitives lowering ─────────────────────────────────────────────
+
+#[test]
+fn primitives_stack_lowered_to_div_flex_col() {
+    let source = r#"
+component Layout() {
+    view: (
+        <stack gap="4">
+            <text>"Hello"</text>
+        </stack>
+    )
+}
+"#;
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    let stack_node = web.dom_nodes.iter().find(|n| {
+        if let DomNode::Element { tag, attrs, .. } = n {
+            tag == "div"
+                && attrs.iter().any(|(k, v)| {
+                    k == "className"
+                        && v.contains("flex-col")
+                        && v.contains("flex")
+                        && v.contains("gap-4")
+                })
+        } else {
+            false
+        }
+    });
+    assert!(
+        stack_node.is_some(),
+        "expected <div className='flex flex-col gap-4'> from <stack gap='4'>; nodes: {:?}",
+        web.dom_nodes
+    );
+}
+
+#[test]
+fn primitives_button_lowered_to_button_with_primary_classes() {
+    let source = r#"
+component Cta() {
+    view: (
+        <button variant="default">"Click me"</button>
+    )
+}
+"#;
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    let btn = web.dom_nodes.iter().find(|n| {
+        if let DomNode::Element { tag, attrs, .. } = n {
+            tag == "button"
+                && attrs.iter().any(|(k, v)| {
+                    k == "className" && v.contains("bg-primary")
+                })
+        } else {
+            false
+        }
+    });
+    assert!(
+        btn.is_some(),
+        "expected <button className='... bg-primary ...'> from <button variant='default'>; nodes: {:?}",
+        web.dom_nodes
+    );
+}
+
+#[test]
+fn primitives_row_lowered_to_div_flex_row() {
+    let source = r#"
+component R() {
+    view: (
+        <row>"item"</row>
+    )
+}
+"#;
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    assert!(
+        web.dom_nodes.iter().any(|n| {
+            if let DomNode::Element { tag, attrs, .. } = n {
+                tag == "div" && attrs.iter().any(|(k, v)| k == "className" && v.contains("flex-row"))
+            } else {
+                false
+            }
+        }),
+        "expected <div className='... flex-row ...'> from <row>; nodes: {:?}",
+        web.dom_nodes
+    );
+}
+
+#[test]
+fn primitives_unknown_html_tags_pass_through_unchanged() {
+    let source = r#"
+component Passthrough() {
+    view: (
+        <div class="custom">"content"</div>
+    )
+}
+"#;
+    let tokens = vox_compiler::lexer::lex(source);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    // JSX lowering maps class→className and wraps string values in quotes.
+    assert!(
+        web.dom_nodes.iter().any(|n| {
+            if let DomNode::Element { tag, attrs, .. } = n {
+                tag == "div"
+                    && !attrs.iter().any(|(k, v)| {
+                        // Must NOT have any primitive-injected Tailwind like flex, flex-col, etc.
+                        k == "className" && (v.contains("flex") || v.contains("bg-"))
+                    })
+            } else {
+                false
+            }
+        }),
+        "ordinary div should not have primitive Tailwind classes injected; nodes: {:?}",
+        web.dom_nodes
+    );
+}
+
+// ── TASK-6.2: token-ref-only style values / raw_css escape ────────────────────
+
+/// raw_css {} escape emits a warning diagnostic, not an error.
+#[test]
+fn raw_css_escape_emits_warning_not_error() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("legacy".into()),
+        declarations: vec![("color".into(), StyleDeclarationValue::Raw("#ff0000".into()))],
+        is_raw_css: true,
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.style.raw_css_escape"),
+        "expected raw_css_escape warning: {diags:?}"
+    );
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.style.literal_color_value"),
+        "raw_css block must NOT fire literal_color_value error: {diags:?}"
+    );
+}
+
+/// Normal style {} block with a raw hex color still fires the error.
+#[test]
+fn normal_style_block_literal_color_still_errors() {
+    let mut m = WebIrModule::default();
+    m.style_nodes.push(StyleNode::Rule {
+        specificity: (0, 1, 0),
+        selector: StyleSelector::Class("bad".into()),
+        declarations: vec![("color".into(), StyleDeclarationValue::Color(
+            vox_compiler::web_ir::CssColor::Hex("#ff0000".into())
+        ))],
+        is_raw_css: false,
+        span: None,
+    });
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.style.literal_color_value"),
+        "expected literal_color_value error in normal style block: {diags:?}"
+    );
+}
+
+/// Parser round-trip: raw_css {} block lowers with is_raw_css=true.
+#[test]
+fn raw_css_style_block_lowers_with_flag() {
+    let src = r##"
+component Card() {
+    view: <div class="card"></div>
+}
+raw_css {
+    .card {
+        color: "#ff0000"
+    }
+}
+"##;
+    let tokens = vox_compiler::lexer::lex(src);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    let raw_css_rule = web.style_nodes.iter().find(|n| {
+        if let vox_compiler::web_ir::StyleNode::Rule { is_raw_css, .. } = n {
+            *is_raw_css
+        } else {
+            false
+        }
+    });
+    assert!(raw_css_rule.is_some(), "expected a raw_css style rule; got: {:?}", web.style_nodes);
+
+    // Validate should emit warning, not hard error on literal color.
+    let diags = validate_web_ir(&web);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.style.raw_css_escape"),
+        "expected raw_css_escape warning: {diags:?}"
+    );
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.style.literal_color_value"),
+        "raw_css should not fire literal_color_value: {diags:?}"
+    );
+}
+
+// ── TASK-6.3: surface pair primitive ─────────────────────────────────────────
+
+/// Known surface name in registry → no error.
+#[test]
+fn surface_known_name_no_error() {
+    use vox_compiler::tokens::TokenRegistry;
+    use vox_compiler::web_ir::validate::validate_web_ir_with_registry;
+
+    let tokens_json = r##"{
+        "color": { "background": "#ffffff", "primary": "#3a86ff", "text": { "value": "#1d3557" } },
+        "surface": {
+            "primary": { "$surface_pair": true, "fg": "color.background", "bg": "color.primary" }
+        }
+    }"##;
+    let registry = TokenRegistry::load_from_str(tokens_json).expect("parse tokens");
+
+    let mut m = WebIrModule::default();
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(0),
+        tag: "div".into(),
+        attrs: vec![("data-vox-surface".into(), "primary".into())],
+        children: vec![],
+        span: None,
+    });
+    let diags = validate_web_ir_with_registry(&m, Some(&registry));
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.surface.unknown_surface"),
+        "known surface should not fire unknown_surface: {diags:?}"
+    );
+}
+
+/// Unknown surface name in registry → error.
+#[test]
+fn surface_unknown_name_fires_error() {
+    use vox_compiler::tokens::TokenRegistry;
+    use vox_compiler::web_ir::validate::validate_web_ir_with_registry;
+
+    let tokens_json = r##"{
+        "surface": {
+            "default": { "$surface_pair": true, "fg": "color.text", "bg": "color.background" }
+        }
+    }"##;
+    let registry = TokenRegistry::load_from_str(tokens_json).expect("parse tokens");
+
+    let mut m = WebIrModule::default();
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(0),
+        tag: "div".into(),
+        attrs: vec![("data-vox-surface".into(), "nonexistent".into())],
+        children: vec![],
+        span: None,
+    });
+    let diags = validate_web_ir_with_registry(&m, Some(&registry));
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.surface.unknown_surface"),
+        "expected unknown_surface error: {diags:?}"
+    );
+}
+
+/// surface attr on panel primitive → lowers to data-vox-surface attr + style CSS vars.
+#[test]
+fn surface_primitive_lowers_to_css_vars() {
+    let src = r##"
+component Page() {
+    view: <panel surface="primary"></panel>
+}
+"##;
+    let tokens = vox_compiler::lexer::lex(src);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    let has_surface = web.dom_nodes.iter().any(|n| {
+        if let DomNode::Element { tag, attrs, .. } = n {
+            tag == "div"  // panel → div
+                && attrs.iter().any(|(k, v)| k == "data-vox-surface" && v == "primary")
+                && attrs.iter().any(|(k, v)| k == "style" && v.contains("--vox-surface-primary-fg"))
+        } else {
+            false
+        }
+    });
+    assert!(has_surface, "expected panel with data-vox-surface + CSS vars; nodes: {:?}", web.dom_nodes);
+}
+
+/// surface attr without registry → no surface validation errors (registry is optional).
+#[test]
+fn surface_without_registry_no_error() {
+    let mut m = WebIrModule::default();
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(0),
+        tag: "div".into(),
+        attrs: vec![("data-vox-surface".into(), "anything".into())],
+        children: vec![],
+        span: None,
+    });
+    // validate_web_ir doesn't use a registry — surface validation skipped
+    let diags = validate_web_ir(&m);
+    assert!(
+        diags.iter().all(|d| d.code != "web_ir_validate.surface.unknown_surface"),
+        "surface validation without registry should not fire: {diags:?}"
+    );
+}
+
+// ── TASK-6.4: overlay block + z-index DAG validator ─────────────────────────
+
+/// overlay primitive lowered to div with data-vox-overlay attr.
+#[test]
+fn overlay_primitive_lowers_to_overlay_marker() {
+    let src = r##"
+component Layout() {
+    view: <overlay>
+        <toast z="100" position="top_right">Notification</toast>
+    </overlay>
+}
+"##;
+    let tokens = vox_compiler::lexer::lex(src);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let web = lower_hir_to_web_ir(&hir);
+
+    let overlay_elem = web.dom_nodes.iter().find(|n| {
+        if let DomNode::Element { tag, attrs, .. } = n {
+            tag == "div" && attrs.iter().any(|(k, v)| k == "data-vox-overlay" && v == "true")
+        } else {
+            false
+        }
+    });
+    assert!(overlay_elem.is_some(), "expected overlay div; nodes: {:?}", web.dom_nodes);
+
+    let toast_elem = web.dom_nodes.iter().find(|n| {
+        if let DomNode::Element { attrs, .. } = n {
+            attrs.iter().any(|(k, v)| k == "data-vox-z" && v == "100")
+                && attrs.iter().any(|(k, v)| k == "data-vox-pos" && v == "top_right")
+        } else {
+            false
+        }
+    });
+    assert!(toast_elem.is_some(), "expected toast with data-vox-z=100 and data-vox-pos=top_right; nodes: {:?}", web.dom_nodes);
+}
+
+/// Duplicate z-index on overlay children fires a diagnostic.
+#[test]
+fn overlay_duplicate_z_integration() {
+    use vox_compiler::web_ir::validate_overlay::validate_overlay;
+
+    let mut m = WebIrModule::default();
+    // overlay root at index 0
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(0),
+        tag: "div".into(),
+        attrs: vec![("data-vox-overlay".into(), "true".into())],
+        children: vec![DomNodeId(1), DomNodeId(2)],
+        span: None,
+    });
+    // child 1: z=100, top_right
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(1),
+        tag: "div".into(),
+        attrs: vec![("data-vox-z".into(), "100".into()), ("data-vox-pos".into(), "top_right".into())],
+        children: vec![],
+        span: None,
+    });
+    // child 2: also z=100 — conflict
+    m.dom_nodes.push(DomNode::Element {
+        id: DomNodeId(2),
+        tag: "div".into(),
+        attrs: vec![("data-vox-z".into(), "100".into()), ("data-vox-pos".into(), "top_left".into())],
+        children: vec![],
+        span: None,
+    });
+
+    let mut diags = Vec::new();
+    validate_overlay(&m, &mut diags);
+    assert!(
+        diags.iter().any(|d| d.code == "web_ir_validate.overlay.duplicate_z"),
+        "expected duplicate_z: {diags:?}"
+    );
 }

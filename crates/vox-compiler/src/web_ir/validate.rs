@@ -19,8 +19,9 @@
 use std::collections::HashSet;
 
 use super::{
-    BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, RouteContract, RouteNode,
-    StyleNode, StyleSelector, WebIrDiagnostic, WebIrModule, WebIrValidateMetrics,
+    BehaviorNode, CssColor, DomNode, DomNodeId, FieldOptionality, InteropNode, RouteContract,
+    RouteNode, StyleDeclarationValue, StyleNode, StyleSelector, WebIrDiagnostic, WebIrModule,
+    WebIrValidateMetrics,
 };
 
 fn walk_route_contract_ids(
@@ -256,10 +257,11 @@ fn validate_behaviors(
     }
 }
 
-fn validate_styles(
+fn validate_styles_with_registry(
     module: &WebIrModule,
     out: &mut Vec<WebIrDiagnostic>,
     metrics: &mut WebIrValidateMetrics,
+    registry: Option<&crate::tokens::TokenRegistry>,
 ) {
     let mut seen_selectors: std::collections::HashMap<String, Vec<String>> =
         std::collections::HashMap::new();
@@ -269,9 +271,20 @@ fn validate_styles(
         if let StyleNode::Rule {
             selector,
             declarations,
+            is_raw_css,
             ..
         } = node
         {
+            // raw_css {} escape hatch: emit a single warning per rule instead of errors.
+            if *is_raw_css {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.raw_css_escape".to_string(),
+                    message: "raw_css {{ }} escape hatch used — prefer design tokens for all style values".to_string(),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+                continue;
+            }
             let sel_key = match selector {
                 StyleSelector::Class(c) => format!(".{}", c),
                 StyleSelector::Id(i) => format!("#{}", i),
@@ -291,7 +304,7 @@ fn validate_styles(
             }
 
             let mut props_in_rule = std::collections::HashSet::new();
-            for (prop, _) in declarations {
+            for (prop, decl_val) in declarations {
                 if prop.is_empty() {
                     out.push(WebIrDiagnostic {
                         code: "web_ir_validate.style.empty_property".to_string(),
@@ -333,6 +346,9 @@ fn validate_styles(
                         });
                     }
 
+                    // TASK-5.1: literal CSS value enforcement (fires regardless of registry).
+                    check_literal_value(prop, decl_val, out);
+
                     if let Some(existing_props) = seen_selectors.get(&sel_key) {
                         if existing_props.contains(&css_prop) {
                             out.push(WebIrDiagnostic {
@@ -342,6 +358,11 @@ fn validate_styles(
                                 category: Some("style".to_string()),
                             });
                         }
+                    }
+
+                    // Token registry checks (only when a registry is loaded)
+                    if let Some(reg) = registry {
+                        check_declaration_against_registry(prop, decl_val, reg, out);
                     }
                 }
             }
@@ -366,6 +387,285 @@ fn validate_styles(
                 .or_default()
                 .extend(normalized_props);
         }
+    }
+
+    // TASK-6.3: validate data-vox-surface attrs against registered surface pairs.
+    if let Some(reg) = registry {
+        validate_surface_refs(module, reg, out);
+    }
+
+    // Validate WCAG contrast pairs declared in the token file
+    if let Some(reg) = registry {
+        for diag in reg.validate_contrast() {
+            let (code, severity_label) = match diag.severity {
+                crate::tokens::ContrastSeverity::Warning => (
+                    "web_ir_validate.style.token_contrast_warning",
+                    "warning",
+                ),
+                crate::tokens::ContrastSeverity::Error => (
+                    "web_ir_validate.style.token_contrast_error",
+                    "error",
+                ),
+            };
+            out.push(WebIrDiagnostic {
+                code: code.to_string(),
+                message: format!(
+                    "Token contrast {}: '{}' on '{}' is {:.2}:1 (requires ≥{:.1}:1 per WCAG 2.1)",
+                    severity_label,
+                    diag.foreground_key,
+                    diag.background_key,
+                    diag.ratio,
+                    diag.threshold
+                ),
+                span: None,
+                category: Some("style".to_string()),
+            });
+        }
+    }
+}
+
+/// TASK-5.2: route reachability — component existence + broken link detection + unreachable routes.
+fn validate_route_reachability(
+    module: &WebIrModule,
+    out: &mut Vec<WebIrDiagnostic>,
+    _metrics: &mut WebIrValidateMetrics,
+) {
+    // Collect (pattern, Option<component_name>) from all route trees.
+    let mut route_entries: Vec<(String, Option<String>)> = Vec::new();
+    for node in &module.route_nodes {
+        if let RouteNode::RouteTree { routes, .. } = node {
+            collect_route_entries(routes, &mut route_entries);
+        }
+    }
+    if route_entries.is_empty() {
+        return;
+    }
+
+    // Check that component names declared in route meta exist as view roots.
+    let view_root_names: HashSet<&str> =
+        module.view_roots.iter().map(|(n, _)| n.as_str()).collect();
+    for (pattern, component_opt) in &route_entries {
+        if let Some(component) = component_opt {
+            if !component.is_empty() && !view_root_names.contains(component.as_str()) {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.route.missing_component".to_string(),
+                    message: format!(
+                        "Route '{}' declares component '{}' but no matching view root exists",
+                        pattern, component
+                    ),
+                    span: None,
+                    category: Some("route".to_string()),
+                });
+            }
+        }
+    }
+
+    // Collect all literal href/to values from link elements in the DOM arena.
+    let known_patterns: HashSet<&str> =
+        route_entries.iter().map(|(p, _)| p.as_str()).collect();
+    let mut referenced: HashSet<String> = HashSet::new();
+
+    for node in &module.dom_nodes {
+        let DomNode::Element { tag, attrs, .. } = node else {
+            continue;
+        };
+        let is_link = tag == "a" || tag == "link";
+        if !is_link {
+            continue;
+        }
+        for (key, val) in attrs {
+            if key == "href" || key == "to" {
+                let href = val.trim();
+                if href.starts_with('/') {
+                    referenced.insert(href.to_string());
+                    if !known_patterns.contains(href) {
+                        out.push(WebIrDiagnostic {
+                            code: "web_ir_validate.route.broken_link".to_string(),
+                            message: format!(
+                                "Link href '{}' does not match any declared route pattern",
+                                href
+                            ),
+                            span: None,
+                            category: Some("route".to_string()),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Warn on routes with no inbound literal link (unreachable).
+    for (pattern, _) in &route_entries {
+        if pattern == "/" {
+            continue; // root is always reachable
+        }
+        if !referenced.contains(pattern.as_str()) {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.route.unreachable".to_string(),
+                message: format!(
+                    "Route '{}' has no inbound link in the DOM (may be unreachable via dynamic navigation)",
+                    pattern
+                ),
+                span: None,
+                category: Some("route".to_string()),
+            });
+        }
+    }
+}
+
+fn collect_route_entries(contracts: &[RouteContract], out: &mut Vec<(String, Option<String>)>) {
+    for c in contracts {
+        let component = c
+            .meta
+            .get("component")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        out.push((c.pattern.clone(), component));
+        if !c.children.is_empty() {
+            collect_route_entries(&c.children, out);
+        }
+    }
+}
+
+/// TASK-5.1: reject literal CSS color and dimension values regardless of token registry.
+/// Fires unconditionally so that raw `#rrggbb` / `rgb(…)` / `42px` values are always
+/// compile errors, not just warnings gated on a loaded registry.
+fn check_literal_value(prop: &str, decl_val: &StyleDeclarationValue, out: &mut Vec<WebIrDiagnostic>) {
+    match decl_val {
+        StyleDeclarationValue::Raw(s) => {
+            let s = s.trim();
+            let is_hex_color = s.starts_with('#') && {
+                let rest = &s[1..];
+                (rest.len() == 3 || rest.len() == 4 || rest.len() == 6 || rest.len() == 8)
+                    && rest.chars().all(|c| c.is_ascii_hexdigit())
+            };
+            let is_functional_color = s.starts_with("rgb(")
+                || s.starts_with("rgba(")
+                || s.starts_with("hsl(")
+                || s.starts_with("hsla(");
+            let is_dimension = {
+                let suffixes = ["px", "rem", "em", "%", "vh", "vw", "vmin", "vmax"];
+                suffixes.iter().any(|suf| {
+                    s.ends_with(suf) && s[..s.len() - suf.len()].trim().parse::<f64>().is_ok()
+                })
+            };
+            if is_hex_color || is_functional_color {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.literal_color_value".to_string(),
+                    message: format!(
+                        "Literal color value on property '{}'. Use a design token (tokens.<name>) instead.",
+                        prop
+                    ),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+            } else if is_dimension {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.literal_dimension_value".to_string(),
+                    message: format!(
+                        "Literal dimension value '{}' on property '{}'. Use a design token instead.",
+                        s, prop
+                    ),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+            }
+        }
+        StyleDeclarationValue::Color(color) => {
+            let is_literal = matches!(
+                color,
+                CssColor::Hex(_)
+                    | CssColor::Rgb(_, _, _)
+                    | CssColor::Rgba(_, _, _, _)
+                    | CssColor::Named(_)
+                    | CssColor::Hsl(_, _, _)
+            );
+            if is_literal {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.literal_color_value".to_string(),
+                    message: format!(
+                        "Literal color value on property '{}'. Use a design token (tokens.<name>) instead.",
+                        prop
+                    ),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+            }
+        }
+        StyleDeclarationValue::Length(_, _) => {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.style.literal_dimension_value".to_string(),
+                message: format!(
+                    "Literal dimension value on property '{}'. Use a design token instead.",
+                    prop
+                ),
+                span: None,
+                category: Some("style".to_string()),
+            });
+        }
+        StyleDeclarationValue::TokenRef(_)
+        | StyleDeclarationValue::Keyword(_)
+        | StyleDeclarationValue::Number(_) => {}
+    }
+}
+
+fn check_declaration_against_registry(
+    prop: &str,
+    decl_val: &StyleDeclarationValue,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    match decl_val {
+        StyleDeclarationValue::TokenRef(token_ref) => {
+            // token_ref is stored as "vox-color-primary"; strip "vox-" to get registry key
+            let lookup_key = token_ref.strip_prefix("vox-").unwrap_or(token_ref.as_str());
+            if registry.lookup(lookup_key).is_none() {
+                let suggestions = crate::tokens::suggest_tokens(lookup_key, registry);
+                let hint = if suggestions.is_empty() {
+                    String::new()
+                } else {
+                    format!(" Did you mean: {}?", suggestions.join(", "))
+                };
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.unknown_token".to_string(),
+                    message: format!(
+                        "Unknown token reference '{}' (not defined in vox.tokens.json).{}",
+                        token_ref, hint
+                    ),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+            }
+        }
+        StyleDeclarationValue::Color(color) => {
+            let is_color_prop = prop == "color"
+                || prop.ends_with("color")
+                || prop == "background"
+                || prop == "fill"
+                || prop == "stroke";
+            if is_color_prop {
+                let is_literal = matches!(
+                    color,
+                    CssColor::Hex(_)
+                        | CssColor::Rgb(_, _, _)
+                        | CssColor::Rgba(_, _, _, _)
+                        | CssColor::Named(_)
+                        | CssColor::Hsl(_, _, _)
+                );
+                if is_literal {
+                    out.push(WebIrDiagnostic {
+                        code: "web_ir_validate.style.raw_color_value".to_string(),
+                        message: format!(
+                            "Raw color literal on property '{}'. Use a design token (tokens.<name>) for compile-time contrast validation.",
+                            prop
+                        ),
+                        span: None,
+                        category: Some("style".to_string()),
+                    });
+                }
+            }
+        }
+        _ => {}
     }
 }
 
@@ -469,26 +769,99 @@ pub fn format_web_ir_validate_failure(diags: &[WebIrDiagnostic]) -> String {
         .join("; ")
 }
 
+/// TASK-6.3: walk DOM arena checking `data-vox-surface` attrs against registered surface pairs.
+/// Fires `web_ir_validate.surface.unknown_surface` when the name is not in the registry.
+fn validate_surface_refs(
+    module: &WebIrModule,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    for node in &module.dom_nodes {
+        let DomNode::Element { attrs, .. } = node else { continue };
+        for (k, v) in attrs {
+            if k != "data-vox-surface" {
+                continue;
+            }
+            if registry.lookup_surface(v).is_none() {
+                let known: Vec<&str> = registry.surface_pairs.keys().map(|s| s.as_str()).collect();
+                let hint = if known.is_empty() {
+                    String::new()
+                } else {
+                    format!(" Known surfaces: {}.", known.join(", "))
+                };
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.surface.unknown_surface".to_string(),
+                    message: format!(
+                        "Unknown surface pair '{v}' — not declared in vox.tokens.json.{hint}"
+                    ),
+                    span: None,
+                    category: Some("surface".to_string()),
+                });
+            }
+        }
+    }
+}
+
 /// Run structural checks that should hold before any target emitter, with counters for gates (OP-0094).
 #[must_use]
 pub fn validate_web_ir_with_metrics(
     module: &WebIrModule,
 ) -> (Vec<WebIrDiagnostic>, WebIrValidateMetrics) {
-    let mut out = Vec::new();
-    let mut metrics = WebIrValidateMetrics::default();
+    validate_web_ir_full(module, None)
+}
 
-    validate_dom_roots(module, &mut out, &mut metrics);
-    validate_route_families(module, &mut out, &mut metrics);
-    validate_behaviors(module, &mut out, &mut metrics);
-    validate_styles(module, &mut out, &mut metrics);
-    validate_scheduled_jobs(module, &mut out, &mut metrics);
-    validate_interop(module, &mut out);
-
-    (out, metrics)
+/// Run structural checks including token registry validation.
+///
+/// Pass `Some(&registry)` to enable unknown-token errors and raw-color warnings (TASK-4.4).
+/// Callers that have no project root (e.g. unit tests over isolated modules) can pass `None`.
+#[must_use]
+pub fn validate_web_ir_with_registry(
+    module: &WebIrModule,
+    registry: Option<&crate::tokens::TokenRegistry>,
+) -> Vec<WebIrDiagnostic> {
+    validate_web_ir_full(module, registry).0
 }
 
 /// Run structural checks that should hold before any target emitter.
 #[must_use]
 pub fn validate_web_ir(module: &WebIrModule) -> Vec<WebIrDiagnostic> {
     validate_web_ir_with_metrics(module).0
+}
+
+/// Returns true for diagnostics that are advisory (soft warnings, not build blockers).
+///
+/// Advisory diagnostics are informational — callers that gate builds should filter these out;
+/// callers that surface all diagnostics (LSP, dashboards) should still include them.
+#[must_use]
+pub fn is_advisory_diagnostic(d: &WebIrDiagnostic) -> bool {
+    matches!(
+        d.code.as_str(),
+        "web_ir_validate.style.raw_css_escape"
+            | "web_ir_validate.overlay.duplicate_z"
+            | "web_ir_validate.overlay.position_conflict"
+            | "web_ir_validate.route.unreachable"
+    ) || d.code.ends_with("_warning")
+}
+
+fn validate_web_ir_full(
+    module: &WebIrModule,
+    registry: Option<&crate::tokens::TokenRegistry>,
+) -> (Vec<WebIrDiagnostic>, WebIrValidateMetrics) {
+    let mut out = Vec::new();
+    let mut metrics = WebIrValidateMetrics::default();
+
+    validate_dom_roots(module, &mut out, &mut metrics);
+    validate_route_families(module, &mut out, &mut metrics);
+    validate_route_reachability(module, &mut out, &mut metrics);
+    validate_behaviors(module, &mut out, &mut metrics);
+    validate_styles_with_registry(module, &mut out, &mut metrics, registry);
+    validate_scheduled_jobs(module, &mut out, &mut metrics);
+    validate_interop(module, &mut out);
+    super::validate_a11y::validate_a11y(module, &mut out);
+    if let Some(reg) = registry {
+        super::validate_a11y::validate_a11y_with_registry(module, reg, &mut out);
+    }
+    super::validate_overlay::validate_overlay(module, &mut out);
+
+    (out, metrics)
 }

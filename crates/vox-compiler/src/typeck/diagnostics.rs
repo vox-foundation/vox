@@ -58,6 +58,10 @@ pub enum DiagnosticCategory {
     RuntimeContract,
     /// Optional lints and style rules.
     Lint,
+    /// `uses` clause effect propagation violations.
+    EffectViolation,
+    /// `state_machine` structural and exhaustiveness violations.
+    StateMachineCheck,
 }
 
 /// Line/column enrichment added on demand by machine consumers (LSP, healing loop).

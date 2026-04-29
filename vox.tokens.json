@@ -1,9 +1,14 @@
 {
+  "$schema": "./contracts/tokens/tokens.v1.json",
   "color": {
     "primary": "#3a86ff",
     "secondary": "#ff006e",
     "background": "#ffffff",
-    "text": "#1d3557"
+    "text": {
+      "value": "#1d3557",
+      "on": "color.background",
+      "text_role": "body"
+    }
   },
   "spacing": {
     "sm": "8px",
@@ -14,5 +19,22 @@
   "font": {
     "base": "16px",
     "large": "20px"
+  },
+  "surface": {
+    "default": {
+      "$surface_pair": true,
+      "fg": "color.text",
+      "bg": "color.background"
+    },
+    "primary": {
+      "$surface_pair": true,
+      "fg": "color.background",
+      "bg": "color.primary"
+    },
+    "secondary": {
+      "$surface_pair": true,
+      "fg": "color.background",
+      "bg": "color.secondary"
+    }
   }
 }

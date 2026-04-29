@@ -261,33 +261,12 @@ impl Decl {
                     p.func.is_traced = true;
                 }
             }
-            Decl::Workflow(w) => {
-                if is_deprecated {
-                    w.is_deprecated = true;
-                }
-                if is_traced {
-                    w.is_traced = true;
-                }
-            }
-            Decl::Activity(a) => {
-                if is_deprecated {
-                    a.is_deprecated = true;
-                }
-                if is_traced {
-                    a.is_traced = true;
-                }
-            }
             Decl::HttpRoute(h) => {
                 if is_deprecated {
                     h.is_deprecated = true;
                 }
                 if is_traced {
                     h.is_traced = true;
-                }
-            }
-            Decl::Actor(a) => {
-                if is_deprecated {
-                    a.is_deprecated = true;
                 }
             }
             Decl::Table(t) => {

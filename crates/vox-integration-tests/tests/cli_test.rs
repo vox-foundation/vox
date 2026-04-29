@@ -30,7 +30,7 @@ fn b090_vox_init_creates_expected_scaffold() {
     // Write expected scaffold
     fs::write(
         &main_vox,
-        "fn main() to str { ret \"Hello from Vox!\" }
+        "fn main() to str { return \"Hello from Vox!\" }
 ",
     )
     .expect("write main.vox");
@@ -69,7 +69,7 @@ fn b090_vox_init_creates_expected_scaffold() {
 /// by directly using the parser (same logic used by `vox build`).
 #[test]
 fn b091_vox_build_invalid_file_produces_error() {
-    let invalid_src = "fn broken((\n    ret 0\n";
+    let invalid_src = "fn broken((\n    return 0\n";
     let tokens = vox_compiler::lexer::cursor::lex(invalid_src);
     let result = vox_compiler::parser::parse(tokens);
     assert!(result.is_err(), "Parsing invalid syntax should return Err");
@@ -136,7 +136,8 @@ routes {
     );
 }
 
-/// API template source parses without errors.
+/// API template: valid parts (table + fn) parse without errors.
+/// `http` bare-keyword routing is tombstoned (TASK-2.5) and tested separately.
 #[test]
 fn e5_api_template_parses_cleanly() {
     let api_src = r#"import std.json
@@ -146,12 +147,12 @@ fn e5_api_template_parses_cleanly() {
     value: str
 }
 
-http get "/items" to list[Item] {
-    ret []
+fn get_items() to list[Item] {
+    return []
 }
 
-http post "/items" to str {
-    ret Ok("created")
+fn create_item() to str {
+    return Ok("created")
 }
 "#;
     let tokens = vox_compiler::lexer::lex(api_src);
@@ -160,5 +161,15 @@ http post "/items" to str {
         result.is_ok(),
         "API template should parse cleanly; errors: {:?}",
         result.err()
+    );
+}
+
+/// `http` bare-keyword routing is tombstoned (TASK-2.5).
+#[test]
+fn e5_http_keyword_is_tombstoned() {
+    let src = r#"http get "/items" to str { return "ok" }"#;
+    assert!(
+        vox_compiler::parser::parse(vox_compiler::lexer::lex(src)).is_err(),
+        "tombstoned `http` keyword should produce a parse error"
     );
 }

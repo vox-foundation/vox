@@ -77,15 +77,6 @@ impl<'a> Checker<'a> {
         for f in &mut module.functions {
             self.check_function(f);
         }
-        for a in &module.actors {
-            self.check_actor(a);
-        }
-        for w in &module.workflows {
-            self.check_workflow(w);
-        }
-        for act in &module.activities {
-            self.check_activity(act);
-        }
         for sf in &mut module.endpoint_fns {
             self.check_endpoint_fn(sf);
             if sf.kind == crate::hir::HirEndpointKind::Query {
@@ -159,99 +150,6 @@ impl<'a> Checker<'a> {
             }
         }
 
-        self.env.pop_return_type();
-        self.env.pop_scope();
-    }
-
-    fn check_actor(&mut self, a: &HirActor) {
-        for h in &a.handlers {
-            self.check_actor_handler(h);
-        }
-    }
-
-    fn check_actor_handler(&mut self, h: &HirActorHandler) {
-        self.check_db_scoped_handler(&h.return_type, &h.params, &h.body);
-    }
-
-    fn check_workflow(&mut self, w: &HirWorkflow) {
-        let mut ret_ty = w
-            .return_type
-            .as_ref()
-            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
-        if matches!(ret_ty, Ty::Infer) {
-            ret_ty = self.uf.fresh_var();
-        }
-        self.env.push_scope();
-        self.env.push_return_type(ret_ty.clone());
-
-        self.env.define(
-            "db".into(),
-            Binding::new(Ty::Database, false, BindingKind::Variable),
-        );
-
-        for p in &w.params {
-            let p_ty = p
-                .type_ann
-                .as_ref()
-                .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
-            self.env.define(
-                p.name.clone(),
-                Binding::new(p_ty, false, BindingKind::Parameter),
-            );
-        }
-        for stmt in &w.body {
-            let _ = self.check_stmt(stmt);
-        }
-        self.env.pop_return_type();
-        self.env.pop_scope();
-    }
-
-    fn check_activity(&mut self, a: &HirActivity) {
-        if a.return_type.is_none() {
-            self.diags.push(Diagnostic::warning(
-                "Activity should have an explicit return type (typically Result[T])".into(),
-                a.span,
-                self.source,
-            ));
-        }
-        let mut ret_ty = a
-            .return_type
-            .as_ref()
-            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
-        if matches!(ret_ty, Ty::Infer) {
-            ret_ty = self.uf.fresh_var();
-        }
-        if let Some(rt) = &a.return_type {
-            let declared = resolve_hir_type(rt, self.env);
-            if !matches!(declared, Ty::Result(_)) {
-                self.diags.push(Diagnostic::error(
-                    "Activity must return a Result type (e.g. Result[str])".into(),
-                    a.span,
-                    self.source,
-                ));
-            }
-        }
-        self.env.push_scope();
-        self.env.push_return_type(ret_ty.clone());
-
-        self.env.define(
-            "db".into(),
-            Binding::new(Ty::Database, false, BindingKind::Variable),
-        );
-
-        for p in &a.params {
-            let p_ty = p
-                .type_ann
-                .as_ref()
-                .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
-            self.env.define(
-                p.name.clone(),
-                Binding::new(p_ty, false, BindingKind::Parameter),
-            );
-        }
-        for stmt in &a.body {
-            let _ = self.check_stmt(stmt);
-        }
         self.env.pop_return_type();
         self.env.pop_scope();
     }

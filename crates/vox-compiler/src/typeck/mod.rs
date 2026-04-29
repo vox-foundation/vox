@@ -25,6 +25,10 @@ pub mod builtins;
 pub mod checker;
 /// Diagnostic structures and error reporting for type checking.
 pub mod diagnostics;
+/// Effect propagation check: `caller.capabilities ⊇ callee.capabilities`.
+pub mod effect_check;
+/// State machine exhaustiveness and structural checks.
+pub mod state_machine_check;
 /// Environment management for symbols, types, and scopes.
 pub mod env;
 /// Core logic for unification-based type inference.
@@ -52,7 +56,10 @@ pub use ty::ty_display;
 pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic> {
     let mut env = TypeEnv::new();
     let builtins = BuiltinTypes::register_all(&mut env);
-    typecheck_hir(hir, &mut env, &builtins, source)
+    let mut diags = typecheck_hir(hir, &mut env, &builtins, source);
+    diags.extend(effect_check::check_effect_compliance(hir, source));
+    diags.extend(state_machine_check::check_state_machines(hir, source));
+    diags
 }
 
 /// Lower `module` to HIR and run the type Checker (replacement for the removed AST-only path).
