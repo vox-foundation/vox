@@ -1,3 +1,4 @@
+// ANCHOR: basic_actor
 fn Counter_increment(current: int) to int {
     let count = current + 1
     print("Count is " + count)
