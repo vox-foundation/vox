@@ -60,7 +60,7 @@ training_eligible: false
 | TASK-2.3 — Collapse `HirExpr::DbTableOp` into `MethodCall` | ✅ Done | per `decl.rs:142` | `HirExpr::DbTableOp` removed entirely; operations lowered into `HirExpr::MethodCall(_, _, _, Option<Box<HirDbQueryPlan>>, _)`. |
 | TASK-2.4 — Resolve `HirExpr::Pipe` vs `Binary(Pipe)` | ✅ Done | per `decl.rs` enum | Standalone `HirExpr::Pipe` variant deleted; pipeline expressions strictly `HirExpr::Binary(HirBinOp::Pipe, ...)`. |
 | TASK-2.5 — Retire `http` bare-keyword routing | ✅ Done (parser) | per `parser/descent/tests.rs:99` | `test_parse_http_route_is_tombstoned` passes. Parser rejects with friendly error. **Caveat:** corpus migration of pre-existing `.vox` files using the form is not separately verified here — TASK-8.1 handles that atomically. |
-| TASK-2.6 — Align `workflow`/`activity`/`actor` | ✅ Done (Path B — retire) | this session | Parser tombstones permanent. Removed `HirActor`, `HirActorHandler`, `HirWorkflow`, `HirActivity` structs and `actors`/`workflows`/`activities` Vec fields from `HirModule`, `SemanticHirModule`, `VoxIrContent`. All lowering, typeck, and codegen paths for these retired. 15 files, −1 150 lines, 0 warnings. `HirRoute`/`AppContract` untouched. `BindingKind::Actor`/`lookup_actor`/`ActorHandlerSig` kept — live path for the `Claude` built-in actor expression checker. |
+| TASK-2.6 — Align `workflow`/`activity`/`actor` | ✅ Done (Path B — retire) | `6524b3f7` | Parser tombstones permanent. Removed `HirActor`, `HirActorHandler`, `HirWorkflow`, `HirActivity` structs and `actors`/`workflows`/`activities` Vec fields from `HirModule`, `SemanticHirModule`, `VoxIrContent`. All lowering, typeck, and codegen paths for these retired. 15 files, −1 150 lines, 0 warnings. `HirRoute`/`AppContract` untouched. `BindingKind::Actor`/`lookup_actor`/`ActorHandlerSig` kept — live path for the `Claude` built-in actor expression checker. |
 
 **Phase 2 verdict:** 6/6 complete. Phase 2 fully done.
 
@@ -120,12 +120,13 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in dependency order)
 
-1. **TASK-2.6 decision + finish** ← **only remaining blocker for Phase 4**. Operator picks:
-   - **Path A (collapse):** Re-enable `workflow`/`activity`/`actor` source forms; lower them as sugar to `FnDecl { durability: Some(_) }`. Delete standalone `HirActor`/`HirWorkflow`/`HirActivity` struct once lowering is wired. ≈1 day.
-   - **Path B (retire):** Keep parser tombstones permanent. Remove the three `MigrationOnly` HIR fields from `HirModule`/`SemanticHirModule`/`VoxIrContent`. Update `typeck/checker`, `typeck/registration`, `codegen_ts/activity.rs`. Guardrail tests in `codegen_rust/mod.rs` can be rewritten against `@durable fn`. ≈1 day.
-   - **Do not touch** `HirRoute` — `AppContract` ownership.
+Phases 0–3 are fully complete. TASK-2.6 landed as Path B (commit `6524b3f7`).
+Phase 4 is now fully unblocked.
 
-After TASK-2.6 lands, Phase 4 (state machines, effect annotations, typed URLs, design-token types) is fully unblocked.
+1. **TASK-4.x — Phase 4: State machines, effect annotations, typed URLs, design-token types.**
+   Start with the canonical roadmap source (`VOX_GUI_NATIVE_ROADMAP_2026.md` at repo root) for the full TASK-4.1–4.x specifications.
+
+2. **Optional cleanup:** `crates/vox-compiler/src/hir/dead_code.rs` references removed types but is not declared in `hir/mod.rs` (not compiled). Can be deleted safely when touching that area.
 
 ---
 
@@ -146,3 +147,10 @@ After TASK-2.6 lands, Phase 4 (state machines, effect annotations, typed URLs, d
   TASK-3.1 ✅ Done: §"Grammar Unification" section added to AGENTS.md.
   Phase 1 verdict updated to 5/5 complete. Phase 3 verdict: 1/1 complete.
   Next-tasks list reduced to TASK-2.6 only. (Agent session.)
+- 2026-04-29 — TASK-2.6 Path B executed: 15 compiler files, −1 150 lines,
+  `cargo check -p vox-compiler` 0 errors 0 warnings. `HirActor`,
+  `HirActorHandler`, `HirWorkflow`, `HirActivity` structs and all
+  lowering/typeck/codegen paths retired. `BindingKind::Actor`,
+  `ActorHandlerSig`, `lookup_actor` preserved (live Claude built-in path).
+  Phase 2 verdict: 6/6 complete. Commit `6524b3f7`. Phases 4–8 now
+  unblocked. (Agent session.)
