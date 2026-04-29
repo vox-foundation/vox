@@ -357,14 +357,32 @@ impl<'a> Checker<'a> {
                 crate::hir::HirReactiveMember::State(s) => {
                     let init_ty = self.check_expr(&s.init, None);
                     if let Some((_, decl_ty)) = state_vars.get(state_idx) {
-                        let _ = self.uf.unify(&init_ty, decl_ty);
+                        if let Err(msg) = self.uf.unify(&init_ty, decl_ty) {
+                            self.diags.push(Diagnostic::error(
+                                format!(
+                                    "Type mismatch in `state {}` initializer: {msg}",
+                                    s.name
+                                ),
+                                s.span,
+                                self.source,
+                            ));
+                        }
                     }
                     state_idx += 1;
                 }
                 crate::hir::HirReactiveMember::Derived(d) => {
                     let expr_ty = self.check_expr(&d.expr, None);
                     if let Some((_, decl_ty)) = derived_vars.get(derived_idx) {
-                        let _ = self.uf.unify(&expr_ty, decl_ty);
+                        if let Err(msg) = self.uf.unify(&expr_ty, decl_ty) {
+                            self.diags.push(Diagnostic::error(
+                                format!(
+                                    "Type mismatch in `derived {}` expression: {msg}",
+                                    d.name
+                                ),
+                                d.span,
+                                self.source,
+                            ));
+                        }
                     }
                     derived_idx += 1;
                 }
