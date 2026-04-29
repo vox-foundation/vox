@@ -107,6 +107,40 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 
 Full rationale, execution tier map, security model, and migration plan: [`docs/src/architecture/vox-as-glue-research-2026.md`](docs/src/architecture/vox-as-glue-research-2026.md)
 
+## Grammar Unification (Vox Source Syntax)
+
+Vox source follows one rule for top-level declarations:
+
+> **Bare-keyword blocks declare scope. Decorators modify declarations.**
+
+**Bare-keyword blocks** (each opens a scope with its own rules):
+`type`, `fn`, `component`, `state_machine`, `routes`, `module`, `actor`,
+`workflow`, `activity`.
+
+**Decorators** (modifiers composed on top of a declaration):
+`@table`, `@endpoint`, `@pure`, `@deprecated`, `@require`, `@mcp.tool`,
+`@durable`, `@v0`, `@test`, `@scheduled`.
+
+Decorators compose with bare-keyword blocks:
+
+```vox
+@table type Task { … }                        // decorator on a type declaration
+@endpoint(kind: query) fn list_tasks() { … }  // decorator on a function
+@durable fn process_order(id: OrderId) { … }  // durability via decorator, not keyword
+```
+
+**Rule for new features:** Do NOT introduce a new bare keyword for behavior
+that can be expressed as a decorator. New execution semantics (durability,
+tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
+
+**Implementation status (Phase 2):** `actor`, `workflow`, and `activity` are
+currently tombstoned at the parser level — source files cannot use these forms.
+Their unification into `@durable fn` / `@actor fn` decorator sugar is tracked
+under **TASK-2.6**. Until TASK-2.6 lands, the compiler rejects these keywords
+with a friendly error pointing to the decorator equivalent.
+
+See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/architecture/gui-native-roadmap-status-2026.md) §Phase 2.
+
 ## Cross-Platform Shell Discipline (Stable Rules)
 
 - **PowerShell 7 (`pwsh`) when available:** On any host where `pwsh` is installed, prefer it for the **two retained launcher files** and for interactive terminal work, so behavior matches [`contracts/terminal/exec-policy.v1.yaml`](contracts/terminal/exec-policy.v1.yaml) and [`vox shell check`](docs/src/reference/cli.md). On Windows, PowerShell is the default expectation even when only Windows PowerShell 5.1 (`powershell.exe`) is present.
