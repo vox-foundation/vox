@@ -5,8 +5,155 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 24 Apr 2026 03:12:44 GMT</lastBuildDate>
+  <lastBuildDate>Wed, 29 Apr 2026 04:43:24 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Shiki, mdBook &amp; Documentation Platform Evaluation (2026)</title>
+    <link>https://vox-lang.org/architecture/shiki-mdbook-doc-platform-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/shiki-mdbook-doc-platform-research-2026.html</guid>
+    <description>Comprehensive research and quantified feature comparison of documentation site generators and syntax highlighting strategies for an AI-native, Rust-first codebase in 2026.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Golden Examples: Working Vox Code</title>
+    <link>https://vox-lang.org/examples/golden.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/examples/golden.html</guid>
+    <description>Complete, validated Vox code examples demonstrating server functions, actors, workflows, MCP tools, and UI components in the Vox programming language.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Actors &amp; Workflows</title>
+    <link>https://vox-lang.org/explanation/expl-actors-workflows.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-actors-workflows.html</guid>
+    <description>Deep dive into Vox&apos;s primary concurrency primitives: stateful actor functions for message-passing and durable workflow functions for reliable orchestration.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Explanation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Rosetta Inventory: One Scenario, Four Languages</title>
+    <link>https://vox-lang.org/explanation/expl-rosetta-inventory.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-rosetta-inventory.html</guid>
+    <description>The same inventory merge across C++, Rust, Python, and Vox — not to show who wins, but to show what each language reveals about the problem.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Explanation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Glossary: Vox Terminology</title>
+    <link>https://vox-lang.org/explanation/glossary.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/glossary.html</guid>
+    <description>Authoritative vocabulary for the Vox language, runtime, and AI orchestration ecosystem.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Explanation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>How-To: Islands and Pages</title>
+    <link>https://vox-lang.org/how-to/how-to-islands-and-pages.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-islands-and-pages.html</guid>
+    <description>How to build and route full-stack web UIs using islands in Vox.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
+    <category domain="https://schema.org">HowTo</category>
+  </item>
+
+  <item>
+    <title>How-To: Scale Actors</title>
+    <link>https://vox-lang.org/how-to/how-to-scale-actors.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-scale-actors.html</guid>
+    <description>Strategies for distributing and managing Vox actor lifecycles across a cluster.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
+    <category domain="https://schema.org">HowTo</category>
+  </item>
+
+  <item>
+    <title>Journey: Reliable Background Workflows</title>
+    <link>https://vox-lang.org/journeys/durable-workflows.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/journeys/durable-workflows.html</guid>
+    <description>How to escape brittle external job queues using Vox&apos;s native Durable Execution for microservice reliability.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Tutorial</category>
+    <category domain="https://schema.org">HowTo</category>
+  </item>
+
+  <item>
+    <title>Language Syntax Reference</title>
+    <link>https://vox-lang.org/reference/ref-syntax.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/ref-syntax.html</guid>
+    <description>A comprehensive, scannable syntax quick-reference page.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Web Model Reference</title>
+    <link>https://vox-lang.org/reference/ref-web-model.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/ref-web-model.html</guid>
+    <description>Reference for building APIs and interactive frontends with the Vox web model.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Design token system</title>
+    <link>https://vox-lang.org/reference/token-system.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/token-system.html</guid>
+    <description>How vox.tokens.json is validated by the compiler and how tokens map to CSS custom properties.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Tutorial: Persistent Actors &amp; State</title>
+    <link>https://vox-lang.org/tutorials/tut-actor-basics.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/tutorials/tut-actor-basics.html</guid>
+    <description>Master stateful concurrency in Vox. Learn to define, spawn, and persist actor state across system restarts.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Tutorial</category>
+    <category domain="https://schema.org">HowTo</category>
+  </item>
+
+  <item>
+    <title>GUI-Native Language Roadmap — Execution Status</title>
+    <link>https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</guid>
+    <description>Live tracking of task completion for the Vox GUI-native language roadmap (April 2026).</description>
+    <pubDate>Tue, 28 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>MENS Training — Architecture Pointer</title>
+    <link>https://vox-lang.org/architecture/mens-training-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/mens-training-ssot.html</guid>
+    <description>Pointer page: procedural detail lives in the reference section.</description>
+    <pubDate>Sun, 26 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Tutorial: Building UI with Islands</title>
+    <link>https://vox-lang.org/tutorials/tut-ui-integration.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/tutorials/tut-ui-integration.html</guid>
+    <description>Learn how to build modern, reactive user interfaces with Vox using islands.</description>
+    <pubDate>Sun, 26 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Tutorial</category>
+    <category domain="https://schema.org">HowTo</category>
+  </item>
 
   <item>
     <title>ADR 001 — Burn Backend Selection for vox-tensor</title>
@@ -106,155 +253,6 @@
     <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 011: Scientia publication manifest SSOT</title>
-    <link>https://vox-lang.org/adr/011-scientia-publication-ssot.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/011-scientia-publication-ssot.html</guid>
-    <description>Unifies Scientia, news, and scholarly submission around one publication manifest and digest-bound approvals.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 012 — Internal Web IR strategy for Vox</title>
-    <link>https://vox-lang.org/adr/012-internal-web-ir-strategy.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/012-internal-web-ir-strategy.html</guid>
-    <description>Official documentation for ADR 012 — Internal Web IR strategy for Vox for the Vox language. Detailed technical reference, architecture gu</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 013 — OpenClaw WS-first native interop</title>
-    <link>https://vox-lang.org/adr/013-openclaw-ws-native-strategy.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/013-openclaw-ws-native-strategy.html</guid>
-    <description>Official documentation for ADR 013 — OpenClaw WS-first native interop for the Vox language.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 014: async-openai selective adoption (spike outcome)</title>
-    <link>https://vox-lang.org/adr/014-async-openai-selective-adoption-spike.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/014-async-openai-selective-adoption-spike.html</guid>
-    <description>Bounded spike: whether to adopt the async-openai crate after internal OpenAI-compat unification</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 015: Vox Docker/OCI portability SSOT</title>
-    <link>https://vox-lang.org/adr/015-vox-docker-oci-portability-ssot.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/015-vox-docker-oci-portability-ssot.html</guid>
-    <description>Formalizes Docker/OCI-backed application portability, layered SSOT boundaries, and the rule against a portability god object.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 016: Oratio streaming Whisper and constrained decode</title>
-    <link>https://vox-lang.org/adr/016-oratio-streaming-whisper-and-constrained-decode.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/016-oratio-streaming-whisper-and-constrained-decode.html</guid>
-    <description>Decide how Vox ships wire-level streaming Whisper and decoder-time constrained generation in Candle.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 017: Populi lease-based authoritative remote execution</title>
-    <link>https://vox-lang.org/adr/017-populi-lease-remote-execution.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/017-populi-lease-remote-execution.html</guid>
-    <description>Normative target model for single-owner lease semantics, A2A transport, and local fallback when promoting remote execution beyond best-effort relay.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 018: Populi GPU truth layering</title>
-    <link>https://vox-lang.org/adr/018-populi-gpu-truth-layering.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/018-populi-gpu-truth-layering.html</guid>
-    <description>Normative layering between probe-backed hardware facts, allocatable capacity, and operator policy labels for Populi scheduling.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 019: Durable workflow journal contract v1</title>
-    <link>https://vox-lang.org/adr/019-durable-workflow-journal-contract-v1.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/019-durable-workflow-journal-contract-v1.html</guid>
-    <description>Freeze the interpreted workflow durability boundary, replay source of truth, and v1 event contract.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 020: Populi mesh scaling — default transport posture</title>
-    <link>https://vox-lang.org/adr/020-populi-mesh-scaling-transport-default.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/020-populi-mesh-scaling-transport-default.html</guid>
-    <description>Records the decision to keep the HTTP control plane as the default scaling surface and when to adopt gossip or QUIC.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 021: Generated workflow durability parity</title>
-    <link>https://vox-lang.org/adr/021-generated-workflow-durability-parity.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/021-generated-workflow-durability-parity.html</guid>
-    <description>Defines the compatibility contract for bringing generated Rust workflows to durable replay parity.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Orchestrator bootstrap factory and daemon boundaries</title>
-    <link>https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</guid>
-    <description>Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-dei-d, and optional future orchestrator daemon.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 023: Optional telemetry remote upload</title>
-    <link>https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</guid>
-    <description>Opt-in local spool and explicit upload; no default transmission; Clavis-backed secrets.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 024 — Dashboard as local Axum-served SPA</title>
-    <link>https://vox-lang.org/adr/024-dashboard-axum-spa.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/024-dashboard-axum-spa.html</guid>
-    <description>Decision record for migrating the Vox dashboard from a VS Code webview to a standalone Axum-served SPA.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR-024: Formal Intent and Tool Receipt Auditing</title>
-    <link>https://vox-lang.org/adr/024-formal-intent.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/024-formal-intent.html</guid>
-    <description>Architecture Decision Record for formal intent and cryptographic tool receipts in the Vox ecosystem.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>
