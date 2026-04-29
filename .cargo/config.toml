@@ -23,5 +23,7 @@ rustflags = ["-C", "link-arg=/DEBUG:NONE", "-C", "link-arg=/STACK:8388608"]
 
 [env]
 # Force all cargo build/test invocations (including scripts) to use a unified target dir.
-# Prevents sprawl of rogue target-agent/, target-doc-inv/, etc. directories.
-CARGO_TARGET_DIR = "target"
+# `relative = true` resolves the path from this config file's directory, so git worktrees
+# under .claude/worktrees/ also write to the shared root target/ instead of creating their own.
+# Without `relative`, the plain string "target" is CWD-relative — each worktree gets its own.
+CARGO_TARGET_DIR = { value = "target", relative = true }
