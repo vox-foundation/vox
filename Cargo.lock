@@ -12858,7 +12858,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "similar",
  "tantivy",
  "tavily",
  "tempfile",
