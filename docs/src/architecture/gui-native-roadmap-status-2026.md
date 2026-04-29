@@ -3,7 +3,7 @@ title: "GUI-Native Language Roadmap — Execution Status"
 description: "Live tracking of task completion for the Vox GUI-native language roadmap (April 2026)."
 category: "architecture"
 status: "current"
-last_updated: "2026-04-26"
+last_updated: "2026-04-28"
 training_eligible: false
 ---
 
@@ -60,7 +60,7 @@ Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): P
 | TASK-2.3 — Collapse `HirExpr::DbTableOp` into `MethodCall` | P1 (collapse HirExpr variants) | ✅ Done | `HEAD` | `HirExpr::DbTableOp` removed entirely; operations lowered into `MethodCall` with `HirDbQueryPlan`. Obsolete comment removed. |
 | TASK-2.4 — Resolve `HirExpr::Pipe` vs `Binary(Pipe)` | P1 (one canonical pipe form) | ✅ Done | `HEAD` | Removed redundant `HirExpr::Pipe` variant; pipeline expressions now strictly use `HirExpr::Binary(HirBinOp::Pipe, ...)`. All matches updated safely. |
 | TASK-2.5 — Retire `http` bare-keyword routing | P1 (one route shape), P2 (removes Python-recognizable `http` keyword) | ✅ Done | `HEAD` | Tombstoned in parser. Verified via `test_parse_http_route_is_tombstoned`. |
-| TASK-2.6 — Align `workflow`/`activity`/`actor` | P1 (collapse 3 declaration shapes to 1) | ✅ Done | `HEAD` | Full dead-code sweep complete: `ActorDecl`/`WorkflowDecl`/`ActivityDecl` AST types, `HirActor`/`HirWorkflow`/`HirActivity` HIR types, all codegen emit functions, typeck registration/checker code, validate/dead_code/db_op_walk walkers, and VoxIr schema fields all removed. Parser tombstones already in place since prior commit. |
+| TASK-2.6 — Align `workflow`/`activity`/`actor` | P1 (collapse 3 declaration shapes to 1) | ✅ Done | `e7f3e884` | Full dead-code sweep complete: `ActorDecl`/`WorkflowDecl`/`ActivityDecl` AST types, `HirActor`/`HirWorkflow`/`HirActivity` HIR types, all codegen emit functions, typeck registration/checker code, validate/dead_code/db_op_walk walkers, and VoxIr schema fields all removed. Parser tombstones already in place since prior commit. Orphaned caller-side references (9 files) fixed in `e7f3e884`; downstream test suites (vox-workflow-runtime, vox-integration-tests) and grammar-export hash updated in `60fd439b`. |
 
 **Phase 2 verdict:** 6 complete, 0 partial, 0 not started. Aggregate priority advance: 6 redundant shapes collapsed (P1), 2 Python-recognizable keywords removed (P2). Phase 2 is **complete** — all preconditions for Phase 3 and Phase 4 are satisfied.
 
@@ -165,8 +165,11 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 1. **TASK-8.2** — MENS training run. Run `vox populi train --config qlora.toml` against the updated corpus; compare eval scores. Requires operator compute action.
 2. **TASK-7.3 (remaining partial)** — Full bundler replacement. Blocked on a vox-integrated bundler; can run in parallel with TASK-8.2.
+3. **`test_agent_mcp_roundtrip` pre-existing failure** — `vox_complete_task` called with integer `task_id = 1` but orchestrator uses `"T-0001"` string format. Fix: parse `vox_submit_task` response to extract the real task ID. Tracked as side-task chip.
+4. **`vox-corpus` synthetic_gen flakiness** — Windows temp file contention in parallel workspace mode. Tests pass in isolation (`cargo test -p vox-corpus`). Pre-existing; not introduced in this session. Fix: serialize temp-file access in synthetic_gen tests.
 
 **Resolved (no action needed):**
 - TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).
 - TASK-1.2: `vox-dashboard-d` binary never existed — decision N/A.
 - TASK-4.2 stdlib pass: complete (see above).
+- Post-`4843d7ce` orphan failures: all 9 caller-side files purged (`e7f3e884`); workflow-journal JSON schema repaired; grammar-export hash and rule names corrected (`60fd439b`). Workspace compiles cleanly.
