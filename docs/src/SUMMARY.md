@@ -629,6 +629,7 @@ training_eligible: false
 - [TanStack web roadmap](archive/research-2026-q1/tanstack-web-roadmap.md)
 - [Tavily Integration SSOT](reference/tavily-integration-ssot.md)
 - [Telemetry and research_metrics contract](reference/telemetry-metric-contract.md)
+- [Design token system](reference/token-system.md)
 - [Testing Standard — SSOT](archive/research-2026-q1/testing-standard.md)
 - [Trim, build, and defer (feature lifecycle)](archive/research-2026-q1/trim-build-defer-policy.md)
 - [TypeScript boundary policy](archive/research-2026-q1/typescript-migration-boundary.md)
