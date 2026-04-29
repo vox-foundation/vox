@@ -42,12 +42,12 @@ training_eligible: false
 | Task | Status | Commit | Notes |
 |------|--------|--------|-------|
 | TASK-1.1 — Delete `vscode.ts` shim | ✅ Done | `b7536331` | `rg` finds zero `vscode.postMessage` or `getVsCodeApi` references. |
-| TASK-1.2 — Fix or delete `vox-dashboard-d` binary | 🔲 Needs decision | — | Operator must choose Option A (delete) or Option B (make it work). |
-| TASK-1.3 — `build.rs` for `include_dir!` safety + ETag | 🟡 Partial | `b7536331` | `build.rs` exists; ETag/`If-None-Match` handling not yet confirmed in `assets.rs`. |
+| TASK-1.2 — Fix or delete `vox-dashboard-d` binary | ✅ N/A | — | `crates/vox-dashboard/src/bin/` exists but is empty — the binary was never created. No action required. |
+| TASK-1.3 — `build.rs` for `include_dir!` safety + ETag | ✅ Done | `b7536331` | `build.rs` confirmed present. ETag computed as `"<version>--<path>-<size>"` and `If-None-Match` checked in `assets.rs` lines 26–76. Returns 304 on match. |
 | TASK-1.4 — Clean up `index.css` duplication | ✅ Done | (audit-discovered) | Reinvented Tailwind utility block already removed (file is 233 lines vs 392 at audit baseline). Cosmetic blank-line cleanup applied 2026-04-25. |
 | TASK-1.5 — Pin workspace deps, remove `tsconfig.tsbuildinfo` | ✅ Done | `b7536331` | `tower-http` uses `workspace = true`. `tsbuildinfo` removed and gitignored. |
 
-**Phase 1 verdict:** 3 complete, 2 partial/decision-pending, 0 not started.
+**Phase 1 verdict:** 5/5 complete (TASK-1.2 N/A). Phase 1 fully done.
 
 ---
 
@@ -87,7 +87,7 @@ Recommend Path A: matches the roadmap, preserves expressivity, and consolidates 
 
 | Task | Status | Notes |
 |------|--------|-------|
-| TASK-3.1 — Add grammar unification rule to AGENTS.md | ❌ Not started | Depends on Phase 2. |
+| TASK-3.1 — Add grammar unification rule to AGENTS.md | ✅ Done | §"Grammar Unification (Vox Source Syntax)" added to `AGENTS.md` after §VoxScript-First Glue Code. Rule: bare-keyword blocks declare scope; decorators modify declarations. `actor`/`workflow`/`activity` tombstone state and TASK-2.6 noted. Architecture index cross-link will appear on next `vox-doc-pipeline` run (auto-generated file, not manually editable). |
 
 ---
 
@@ -120,12 +120,12 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in dependency order)
 
-1. **TASK-2.6 decision + finish** — Operator picks Path A (collapse: re-enable source forms, unify to `FnDecl + DurabilityKind`) or Path B (retire: keep tombstones, remove `MigrationOnly` HIR types from `HirModule`, update typeck and codegen). Note: `HirRoute` is `AppContract` and must NOT be touched. Estimated effort: 1 day after decision.
-2. **TASK-1.2 decision** — `vox-dashboard-d` binary: delete or make it work.
-3. **TASK-1.3 finish** — Confirm or implement ETag/`If-None-Match` handling in `assets.rs`.
-4. **TASK-3.1** — Add grammar unification rule to AGENTS.md (unblocked after TASK-2.6 lands).
+1. **TASK-2.6 decision + finish** ← **only remaining blocker for Phase 4**. Operator picks:
+   - **Path A (collapse):** Re-enable `workflow`/`activity`/`actor` source forms; lower them as sugar to `FnDecl { durability: Some(_) }`. Delete standalone `HirActor`/`HirWorkflow`/`HirActivity` struct once lowering is wired. ≈1 day.
+   - **Path B (retire):** Keep parser tombstones permanent. Remove the three `MigrationOnly` HIR fields from `HirModule`/`SemanticHirModule`/`VoxIrContent`. Update `typeck/checker`, `typeck/registration`, `codegen_ts/activity.rs`. Guardrail tests in `codegen_rust/mod.rs` can be rewritten against `@durable fn`. ≈1 day.
+   - **Do not touch** `HirRoute` — `AppContract` ownership.
 
-After TASK-2.6 lands, Phase 4 (state machines, effect annotations, typed URLs, design-token types) is unblocked.
+After TASK-2.6 lands, Phase 4 (state machines, effect annotations, typed URLs, design-token types) is fully unblocked.
 
 ---
 
@@ -141,3 +141,8 @@ After TASK-2.6 lands, Phase 4 (state machines, effect annotations, typed URLs, d
   not a Path B residual. 9 stale .py scripts deleted. Stale compiler WIP
   discarded. `.cargo/config.toml` fixed (`relative = true`). Phase 0 verdict
   updated to 8/8. (Agent session.)
+- 2026-04-29 — TASK-1.2 N/A confirmed (bin/ empty; binary never created).
+  TASK-1.3 ✅ Done confirmed (ETag + If-None-Match in assets.rs lines 26–76).
+  TASK-3.1 ✅ Done: §"Grammar Unification" section added to AGENTS.md.
+  Phase 1 verdict updated to 5/5 complete. Phase 3 verdict: 1/1 complete.
+  Next-tasks list reduced to TASK-2.6 only. (Agent session.)
