@@ -18,6 +18,7 @@ As your application grows beyond a single executable, Vox Actors must scale hori
 By default, an initialized Actor runs in memory on the node where `spawn` was invoked. In a distributed environment, you rely on the **Codex** to synchronize and persist state securely.
 
 ```vox
+// vox:skip — state_load/state_save are runtime builtins not yet visible to the parser
 fn SessionManager_Login(user: str) to Result[str] {
     let current_sessions = state_load("active_users")
     // logic ...
