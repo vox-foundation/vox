@@ -492,3 +492,145 @@ pub fn validate_web_ir_with_metrics(
 pub fn validate_web_ir(module: &WebIrModule) -> Vec<WebIrDiagnostic> {
     validate_web_ir_with_metrics(module).0
 }
+
+/// Run structural checks with an optional token registry for TokenRef validation.
+///
+/// Extends [`validate_web_ir`] with:
+/// - `web_ir_validate.style.unknown_token_ref` — a `StyleDeclarationValue::TokenRef` value
+///   is not present in the registry.
+/// - `web_ir_validate.style.raw_literal_color` — a `StyleDeclarationValue::Raw` value that
+///   looks like a literal color (`#rrggbb`, `rgb(…)`, `hsl(…)`) should use a token instead.
+///
+/// When `token_registry` is `None`, this is identical to [`validate_web_ir`].
+#[must_use]
+pub fn validate_web_ir_with_tokens(
+    module: &WebIrModule,
+    token_registry: Option<&crate::tokens::TokenRegistry>,
+) -> Vec<WebIrDiagnostic> {
+    let mut out = validate_web_ir(module);
+    let Some(registry) = token_registry else {
+        return out;
+    };
+    validate_token_refs(module, registry, &mut out);
+    out
+}
+
+fn looks_like_literal_color(s: &str) -> bool {
+    let s = s.trim();
+    if s.starts_with('#') && (s.len() == 4 || s.len() == 7) {
+        return true;
+    }
+    for prefix in &["rgb(", "rgba(", "hsl(", "hsla("] {
+        if s.starts_with(prefix) {
+            return true;
+        }
+    }
+    false
+}
+
+fn check_declaration_value(
+    name: &str,
+    value: &super::StyleDeclarationValue,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    use super::StyleDeclarationValue;
+    match value {
+        StyleDeclarationValue::TokenRef(token_name) => {
+            if !registry.contains(token_name) {
+                let suggestions = registry.suggest(token_name);
+                let hint = if suggestions.is_empty() {
+                    String::new()
+                } else {
+                    format!("; did you mean: {}?", suggestions.join(", "))
+                };
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.unknown_token_ref".to_string(),
+                    message: format!(
+                        "unknown token '{token_name}' on property '{name}'{hint}"
+                    ),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+            }
+        }
+        StyleDeclarationValue::Raw(raw) => {
+            if looks_like_literal_color(raw) {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.raw_literal_color".to_string(),
+                    message: format!(
+                        "literal color value {raw:?} on property '{name}' should use a design token"
+                    ),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+            }
+        }
+        _ => {}
+    }
+}
+
+fn validate_token_refs(
+    module: &WebIrModule,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    for node in &module.style_nodes {
+        match node {
+            StyleNode::Rule { declarations, .. } => {
+                for (prop, value) in declarations {
+                    check_declaration_value(prop, value, registry, out);
+                }
+            }
+            StyleNode::TokenRef { name, .. } => {
+                // A top-level TokenRef node — validate its name against the registry.
+                if !registry.contains(name) {
+                    let suggestions = registry.suggest(name);
+                    let hint = if suggestions.is_empty() {
+                        String::new()
+                    } else {
+                        format!("; did you mean: {}?", suggestions.join(", "))
+                    };
+                    out.push(WebIrDiagnostic {
+                        code: "web_ir_validate.style.unknown_token_ref".to_string(),
+                        message: format!("unknown token '{name}' in TokenRef node{hint}"),
+                        span: None,
+                        category: Some("style".to_string()),
+                    });
+                }
+            }
+            StyleNode::Declaration { property, value, .. } => {
+                check_declaration_value(property, value, registry, out);
+            }
+            _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_with_tokens_catches_unknown_ref() {
+        use crate::tokens::TokenRegistry;
+        use crate::web_ir::{StyleDeclarationValue, StyleNode, StyleSelector, WebIrModule};
+        let registry =
+            TokenRegistry::load_from_str(r##"{"color":{"primary":"#3a86ff"}}"##).unwrap();
+        let mut m = WebIrModule::default();
+        m.style_nodes.push(StyleNode::Rule {
+            selector: StyleSelector::Class("x".to_string()),
+            declarations: vec![(
+                "color".to_string(),
+                StyleDeclarationValue::TokenRef("color.nonexistent".to_string()),
+            )],
+            specificity: (0, 1, 0),
+            span: None,
+        });
+        let diags = validate_web_ir_with_tokens(&m, Some(&registry));
+        assert!(
+            diags.iter().any(|d| d.code == "web_ir_validate.style.unknown_token_ref"),
+            "expected unknown_token_ref diag, got: {diags:?}"
+        );
+    }
+}

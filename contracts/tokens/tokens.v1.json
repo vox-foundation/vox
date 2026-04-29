@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vox-lang.dev/contracts/tokens/tokens.v1.json",
+  "title": "Vox Design Token File",
+  "description": "Schema for vox.tokens.json. Version 1.0.",
+  "type": "object",
+  "properties": {
+    "version": { "type": "string", "enum": ["1.0"] },
+    "color": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "spacing": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "font": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "radius": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "typography": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "object"] }
+    },
+    "surface.pairs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "fg", "bg"],
+        "properties": {
+          "name": { "type": "string" },
+          "fg":   { "type": "string" },
+          "bg":   { "type": "string" }
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}

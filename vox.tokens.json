@@ -1,11 +1,23 @@
 {
+  "version": "1.0",
   "color": {
     "primary": "#3a86ff",
     "secondary": "#ff006e",
-    "background": "#ffffff",
-    "text": "#1d3557"
+    "background": "#09090b",
+    "surface.raised": "#18181b",
+    "surface.primary": "#3b82f6",
+    "surface.primary-fg": "#ffffff",
+    "surface.danger": "#ef4444",
+    "surface.danger-fg": "#ffffff",
+    "text": "#1d3557",
+    "text.muted": "#71717a"
   },
   "spacing": {
+    "s0": "0",
+    "s1": "0.25rem",
+    "s2": "0.5rem",
+    "s4": "1rem",
+    "s8": "2rem",
     "sm": "8px",
     "md": "16px",
     "lg": "24px",
@@ -14,5 +26,21 @@
   "font": {
     "base": "16px",
     "large": "20px"
-  }
+  },
+  "radius": {
+    "none": "0",
+    "sm": "0.25rem",
+    "md": "0.5rem",
+    "lg": "1rem",
+    "full": "9999px"
+  },
+  "typography": {
+    "body": "{\"size\":\"1rem\",\"line\":\"1.5\",\"weight\":400}",
+    "heading.l": "{\"size\":\"2rem\",\"line\":\"1.2\",\"weight\":700}"
+  },
+  "surface.pairs": [
+    {"name": "primary",   "fg": "color.surface.primary-fg", "bg": "color.surface.primary"},
+    {"name": "danger",    "fg": "color.surface.danger-fg",  "bg": "color.surface.danger"},
+    {"name": "muted",     "fg": "color.text.muted",         "bg": "color.background"}
+  ]
 }

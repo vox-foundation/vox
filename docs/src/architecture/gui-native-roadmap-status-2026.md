@@ -91,9 +91,20 @@ Recommend Path A: matches the roadmap, preserves expressivity, and consolidates 
 
 ---
 
-## Phases 4–8
+## Phase 4 — Compiler Primitive Expansion
 
-All not started. Dependencies on Phases 2–3.
+| Task | Status | Commit | Notes |
+|------|--------|--------|-------|
+| TASK-4.1 — Add `state_machine` first-class block | 🔲 Not started | — | Preconditions met. 2-3 week effort. |
+| TASK-4.2 — Add effect annotations (`uses net, db, mcp(...)`) | 🔲 Not started | — | Parallel with 4.1. 2-3 week effort. |
+| TASK-4.3 — Add typed URLs primitive | 🔲 Not started | — | Preconditions met. 1-2 week effort. |
+| TASK-4.4 — Add design-token types | ✅ Done | see below | `crates/vox-compiler/src/tokens/{mod,validate}.rs` created. `pub mod tokens` in `lib.rs`. `validate_web_ir_with_tokens` added (non-breaking). `vox.tokens.json` expanded. `contracts/tokens/tokens.v1.json` schema created. 10 token tests pass. |
+
+**Phase 4 verdict:** 1/4 complete. TASK-4.1, 4.2, 4.3 in progress.
+
+## Phases 5–8
+
+Not started. Dependencies on Phase 4.
 
 ---
 
@@ -154,3 +165,9 @@ Phase 4 is now fully unblocked.
   `ActorHandlerSig`, `lookup_actor` preserved (live Claude built-in path).
   Phase 2 verdict: 6/6 complete. Commit `6524b3f7`. Phases 4–8 now
   unblocked. (Agent session.)
+- 2026-04-29 — TASK-4.4 ✅ Done: `crates/vox-compiler/src/tokens/{mod,validate}.rs`
+  created. `TokenRegistry` with flattened lookup, Levenshtein suggestions,
+  `TokenValidationDiagnostic`. `validate_web_ir_with_tokens` added to
+  `web_ir/validate.rs` (non-breaking — existing callers unchanged). `vox.tokens.json`
+  expanded (radius, typography, surface.pairs). `contracts/tokens/tokens.v1.json`
+  schema created. 10 token tests pass, `cargo check -p vox-compiler` 0 errors. (Agent session.)
