@@ -15,7 +15,7 @@ schema_type: "TechArticle"
 A stateful, autonomous unit of computation that communicates via asynchronous messages. In Vox, actors are modeled as plain functions — one per handler. The runtime manages the mailbox and checkpoints state automatically.
 ```vox
 fn CounterActor_Increment(current: int, amount: int) to int {
-    ret current + amount
+    return current + amount
 }
 ```
 
@@ -55,7 +55,7 @@ A reactive UI component (compiled to React) that can be embedded in a server-ren
 An open standard that enables AI models to safely interact with local data and tools. Vox provides first-class support for exporting functions as MCP tools via `@mcp.tool`.
 ```vox
 @mcp.tool "Search KB"
-fn search_kb(topic: str) to str { ret "ok" }
+fn search_kb(topic: str) to str { return "ok" }
 ```
 
 ### Mens
@@ -78,5 +78,5 @@ The empty type, equivalent to `void` in C/TS or `()` in Rust.
 ### Workflow
 A durable, long-running process expressed as a plain `fn`, supporting orchestrated activities, retries, timeouts, and state persistence via the interpreted runtime (ADR-019).
 ```vox
-fn onboard(user: str) to Result[bool] { ret Ok(true) }
+fn onboard(user: str) to Result[bool] { return Ok(true) }
 ```

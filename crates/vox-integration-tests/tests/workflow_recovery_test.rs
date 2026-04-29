@@ -9,7 +9,7 @@ use vox_compiler::parser::parse;
 fn durable_workflow_recovery_keywords_are_tombstoned() {
     let source = r#"
 activity send_email(recipient: str, body: str) to Result[bool] {
-    ret Ok(true)
+    return Ok(true)
 }
 
 workflow welcome_onboarding(user_id: str) to Unit {

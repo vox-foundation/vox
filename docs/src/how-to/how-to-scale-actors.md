@@ -22,7 +22,7 @@ fn SessionManager_Login(user: str) to Result[str] {
     let current_sessions = state_load("active_users")
     // logic ...
     state_save("active_users", current_sessions)
-    ret Ok("Success")
+    return Ok("Success")
 }
 ```
 

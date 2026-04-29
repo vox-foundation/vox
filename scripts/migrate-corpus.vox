@@ -34,7 +34,7 @@ import process
 
 // Corpus locations to scan (relative to repo root).
 fn corpus_roots() to list[str] {
-    ret [
+    return [
         "examples/golden",
         "scripts",
         "docs/src",
@@ -44,13 +44,13 @@ fn corpus_roots() to list[str] {
 
 // File extensions to scan.
 fn scan_extensions() to list[str] {
-    ret ["vox", "md"]
+    return ["vox", "md"]
 }
 
 // Tombstoned top-level tokens that the parser rejects.
 // Kept in sync with `parser/descent/mod.rs` tombstone list.
 fn tombstoned_patterns() to list[str] {
-    ret [
+    return [
         "^actor ",
         "^actor\t",
         "^workflow ",
@@ -72,13 +72,13 @@ fn has_tombstoned_syntax(line: str) to bool {
     let patterns = tombstoned_patterns()
     for p in patterns {
         if str.starts_with_pattern(line, p) {
-            ret true
+            return true
         }
         if str.contains(line, p) {
-            ret true
+            return true
         }
     }
-    ret false
+    return false
 }
 
 fn is_skip_annotated(lines: list[str], line_idx: int) to bool {
@@ -89,15 +89,15 @@ fn is_skip_annotated(lines: list[str], line_idx: int) to bool {
     while i >= start {
         let l = str.trim(lines[i])
         if str.starts_with(l, "// vox:skip") {
-            ret true
+            return true
         }
         if str.starts_with(l, "```") && i < line_idx {
             // Hit a fence above but no vox:skip found
-            ret false
+            return false
         }
         i = i - 1
     }
-    ret false
+    return false
 }
 
 fn scan_file(file_path: str) to list[str] {
@@ -116,7 +116,7 @@ fn scan_file(file_path: str) to list[str] {
         }
     }
 
-    ret violations
+    return violations
 }
 
 fn should_scan(file_path: str) to bool {
@@ -124,10 +124,10 @@ fn should_scan(file_path: str) to bool {
     let exts = scan_extensions()
     for e in exts {
         if ext == e {
-            ret true
+            return true
         }
     }
-    ret false
+    return false
 }
 
 fn scan_root(root: str) to list[str] {
@@ -141,7 +141,7 @@ fn scan_root(root: str) to list[str] {
             }
         }
     }
-    ret all_violations
+    return all_violations
 }
 
 fn main() {

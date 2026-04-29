@@ -27,12 +27,12 @@ To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts a
 To use an actor, you must **spawn** it. This returns an `ActorRef`, which acts as a capability to send messages.
 
 ```vox
-fn GlobalCounter_Increment(state: int, amount: int) to int {
-    ret state + amount
+fn GlobalCounter_Increment(cur: int, amount: int) to int {
+    return cur + amount
 }
 
-fn GlobalCounter_Get(state: int) to int {
-    ret state
+fn GlobalCounter_Get(cur: int) to int {
+    return cur
 }
 
 fn demo_actors() to int {
@@ -42,7 +42,7 @@ fn demo_actors() to int {
     // Retrieve the current value
     let val = GlobalCounter_Get(next)
 
-    ret val
+    return val
 }
 ```
 

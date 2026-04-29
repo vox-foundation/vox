@@ -211,11 +211,11 @@ fn test_index_on_unknown_table_error() {
 fn test_arg_type_mismatch_error() {
     let src = r#"
 fn add(a: int, b: int) to int {
-    ret a
+    return a
 }
 
 fn main() to int {
-    ret add(1, "str")
+    return add(1, "str")
 }
 "#;
     let errs = errors(src);
@@ -234,11 +234,11 @@ fn main() to int {
 fn test_arg_count_mismatch_error() {
     let src = r#"
 fn add(a: int, b: int) to int {
-    ret a
+    return a
 }
 
 fn main() to int {
-    ret add(1)
+    return add(1)
 }
 "#;
     let errs = errors(src);
@@ -254,12 +254,12 @@ fn main() to int {
 fn test_generic_type_mismatch() {
     let src = r#"
 fn id<T>(x: T) to T {
-    ret x
+    return x
 }
 
 fn main() to int {
     let s: str = id(1)
-    ret 0
+    return 0
 }
 "#;
     let errs = errors(src);
@@ -279,12 +279,12 @@ fn main() to int {
 fn test_generic_identity_works() {
     let src = r#"
 fn id<T>(x: T) to T {
-    ret x
+    return x
 }
 
 fn main() to int {
     let i: int = id(1)
-    ret i
+    return i
 }
 "#;
     let errs = errors(src);

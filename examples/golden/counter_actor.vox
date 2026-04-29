@@ -4,7 +4,7 @@
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [actor, on, ret]
+// constructs: [actor, on, return]
 // last_validated: 2026-03-26
 // training_eligible: true
 // training_weight: 1.0

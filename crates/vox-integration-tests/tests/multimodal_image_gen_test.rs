@@ -9,12 +9,12 @@ use vox_compiler::parser::parse;
 fn tombstoned_activity_and_workflow_keywords_produce_parse_errors() {
     let source_activity = r#"
 activity generate_banner(prompt: str) to Result[str] {
-    ret Ok("ok")
+    return Ok("ok")
 }
 "#;
     let source_workflow = r#"
 workflow handle_branding(description: str) to Unit {
-    ret ()
+    return ()
 }
 "#;
 

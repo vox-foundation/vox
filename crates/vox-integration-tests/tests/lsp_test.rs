@@ -7,11 +7,11 @@ use vox_lsp::validate_document;
 #[test]
 fn b092_validate_document_error_at_correct_offset() {
     let src = r#"fn add(a: int, b: int) to int {
-    ret a + b
+    return a + b
 }
 
 fn main() to int {
-    ret add(1, "oops")
+    return add(1, "oops")
 }
 "#;
     let diags = validate_document(src);

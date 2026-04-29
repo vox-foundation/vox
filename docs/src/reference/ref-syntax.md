@@ -43,7 +43,7 @@ Functions mapping natively to networking, storage, or internal agentic constrain
 // vox:skip
 // ANCHOR: functions
 fn add(a: int, b: int) to int {
-    ret a + b
+    return a + b
 }
 
 component Button(label: str) {
@@ -57,7 +57,7 @@ component Button(label: str) {
 // From examples/golden/ref_orchestrator.vox
 @mcp.tool "search: Search the knowledge base"
 fn search(query: str) to List[str] {
-    ret ["result 1", "result 2"]
+    return ["result 1", "result 2"]
 }
 ```
 
@@ -84,9 +84,9 @@ type Shape =
 // vox:skip
 fn check(n: int) to str {
     if n > 0 {
-        ret "positive"
+        return "positive"
     } else {
-        ret "other"
+        return "other"
     }
 }
 ```
@@ -134,7 +134,7 @@ The `?` suffix unpacks an `Ok` result, returning early if the result is an `Erro
 // vox:skip
 fn build_report() to Result[str] {
     let raw_data = get_data()?
-    ret Ok("Report { " + raw_data)
+    return Ok("Report { " + raw_data)
 }
 ```
 
@@ -143,11 +143,11 @@ Actors operate isolated asynchronous loops responding to discrete event handler 
 ```vox
 // vox:skip
 fn Counter_increment(count: int, n: int) to int {
-    ret count + n
+    return count + n
 }
 
 fn Counter_get(count: int) to int {
-    ret count
+    return count
 }
 ```
 
@@ -172,12 +172,12 @@ Use `workflow` to group state machine processes that survive process restarts. U
 ```vox
 // vox:skip
 @query fn get_notes() to List[Note] {
-    ret db.Note.all()
+    return db.Note.all()
 }
 
 @mutation fn create_note(title: str, content: str) to Result[Id[Note]] {
     let id = db.Note.insert({ title: title, content: content })?
-    ret Ok(id)
+    return Ok(id)
 }
 ```
 
@@ -197,15 +197,12 @@ routes {
 ```
 
 ### Return Keyword
-`ret` is the canonical way to return a value from a function.
-
-> [!WARNING]
-> The `return` keyword is **tombstoned** and will be removed in a future version. Use `ret` for all new code.
+`return` is the canonical way to return a value from a function.
 
 ```vox
 // vox:skip
-fn double(x: int) to int { ret x * 2 }
-fn square(x: int) to int { ret x * x }
+fn double(x: int) to int { return x * 2 }
+fn square(x: int) to int { return x * x }
 ```
 
 Vox imports use fully qualified paths. Use `import rust:<crate>` for native interop.

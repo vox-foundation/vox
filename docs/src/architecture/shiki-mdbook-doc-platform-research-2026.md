@@ -48,7 +48,7 @@ matrix and produces a ranked recommendation.
 The current `docs/theme/highlight-vox.js` defines Vox keywords inline:
 
 ```
-keyword: 'fn let mut if else match for in to ret import type pub with on
+keyword: 'fn let mut if else match for in to return import type pub with on
          actor workflow spawn http activity component routes'
 ```
 

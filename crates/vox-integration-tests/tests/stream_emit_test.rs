@@ -9,7 +9,7 @@ use vox_compiler::typeck::typecheck_module;
 fn emit_outside_stream_reports_error() {
     let src = r#"fn bad() to int {
     emit 42
-    ret 0
+    return 0
 }
 "#;
     let tokens = lex(src);

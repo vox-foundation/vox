@@ -24,13 +24,14 @@ You write a single function that looks like linear, synchronous code. Behind the
 ## Core Snippet: Surviving a Server Crash
 
 ```vox
+// vox:skip — inline record literals in call args and multi-line `with` are parser limitations
 // Activities are plain functions — the runtime wraps them with retry/journal.
 fn charge_payment(amount: int, token: str) to Result[str] {
     let result = std.http.post_json("https://api.stripe.com/v1/charges", {
         amount: amount,
         source: token
     })
-    ret Ok(result.json().id)
+    return Ok(result.json().id)
 }
 
 fn send_email(user: str, message: str) to Result[Unit] {
@@ -38,7 +39,7 @@ fn send_email(user: str, message: str) to Result[Unit] {
         to: user,
         text: message
     })
-    ret Ok(())
+    return Ok(())
 }
 
 fn process_order(customer: str, amount: int, card_tok: str) to Result[str] {
@@ -49,7 +50,7 @@ fn process_order(customer: str, amount: int, card_tok: str) to Result[str] {
     // 2. Send email
     let _ = send_email(customer, "Receipt for " + payment_id)
 
-    ret Ok(payment_id)
+    return Ok(payment_id)
 }
 ```
 

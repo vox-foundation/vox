@@ -268,9 +268,9 @@ Vox draws on the Actor Model, popular in Erlang and Elixir precisely for this re
 fn InventoryActor_MergeRequest(current: int, incoming: int, max_stack: int) to int {
     let total = current + incoming
     if total > max_stack {
-        ret max_stack
+        return max_stack
     }
-    ret total
+    return total
 }
 ```
 
@@ -286,9 +286,9 @@ Vox embeds execution durability into the language itself via the `workflow` and 
 // (implemented in the interpreted runtime via ADR-019).
 fn reserve_slots(amount: int) to Result[str] {
     if amount <= 0 {
-        ret Error("invalid amount")
+        return Error("invalid amount")
     }
-    ret Ok("reserve_ok")
+    return Ok("reserve_ok")
 }
 
 fn settle_trade(amount: int) to str {

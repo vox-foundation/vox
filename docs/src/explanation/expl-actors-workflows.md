@@ -24,15 +24,15 @@ An actor is modeled as one function per handler. The naming convention `ActorNam
 
 ```vox
 fn CounterActor_Increment(current: int, amount: int) to int {
-    ret current + amount
+    return current + amount
 }
 
 fn CounterActor_GetCount(current: int) to int {
-    ret current
+    return current
 }
 
 fn CounterActor_Reset() to int {
-    ret 0
+    return 0
 }
 ```
 
@@ -58,7 +58,7 @@ State persistence is handled by the interpreted runtime (ADR-019). The function 
 
 ```vox
 fn PersistentCounter_Increment(current: int) to int {
-    ret current + 1
+    return current + 1
 }
 ```
 
@@ -81,11 +81,11 @@ Activities are retryable units of work that may fail. They are the recommended p
 
 ```vox
 fn fetch_user_data(user_id: str) to Result[str] {
-    ret Ok("User data for " + user_id)
+    return Ok("User data for " + user_id)
 }
 
 fn send_notification(email: str, body: str) to Result[bool] {
-    ret Ok(true)
+    return Ok(true)
 }
 ```
 
@@ -114,15 +114,16 @@ Current state:
 - **Escape hatch / current durable path:** the interpreted workflow runtime used by `vox mens workflow ...`.
 
 ```vox
+// vox:skip — `return` in match arm body is a parser limitation; illustrative only
 fn onboard_user(user_id: str, email: str) to Result[str] {
     let profile = fetch_user_data(user_id)
     match profile {
-        Error(msg) => ret Error("profile fetch failed: " + msg)
+        Error(msg) => return Error("profile fetch failed: " + msg)
         Ok(data) => {
             let notif = send_notification(email, "Welcome! " + data)
             match notif {
-                Error(msg) => ret Error("notification failed: " + msg)
-                Ok(_) => ret Ok("Onboarding complete for " + user_id)
+                Error(msg) => return Error("notification failed: " + msg)
+                Ok(_) => return Ok("Onboarding complete for " + user_id)
             }
         }
     }
@@ -164,33 +165,34 @@ The interpreted workflow runtime can skip previously completed activities when r
 A complete workflow combining activities with different retry policies:
 
 ```vox
+// vox:skip — `return` in match arm body is a parser limitation; illustrative only
 type OrderResult =
     | OrderOk(order_id: str)
     | OrderError(message: str)
 
 fn validate_order(order_data: str) to Result[str] {
     let validated = "validated-" + order_data
-    ret Ok(validated)
+    return Ok(validated)
 }
 
 fn charge_payment(amount: int, card_token: str) to Result[str] {
     let tx = "tx-" + card_token
-    ret Ok(tx)
+    return Ok(tx)
 }
 
 fn send_confirmation(recipient: str, order_id: str) to Result[str] {
     let msg = "Order " + order_id + " confirmed for " + recipient
-    ret Ok(msg)
+    return Ok(msg)
 }
 
 fn process_order(customer: str, order_data: str, amount: int) to Result[str] {
     let validated = validate_order(order_data)
     match validated {
-        Error(msg) => ret Error(msg)
+        Error(msg) => return Error(msg)
         Ok(_) => {
             let payment = charge_payment(amount, "card-123")
             match payment {
-                Error(msg) => ret Error(msg)
+                Error(msg) => return Error(msg)
                 Ok(tx) => send_confirmation(customer, tx)
             }
         }

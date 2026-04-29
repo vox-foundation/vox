@@ -150,7 +150,7 @@ fn codegen_ts_activity_produces_activities_file() {
 type MyRes = | Ok(v: str) | Error
 
 activity send_email(recipient: str, subject: str) to Result[str] {
-    ret Ok(recipient)
+    return Ok(recipient)
 }
 "#;
     let tokens = lex(src);
@@ -172,7 +172,7 @@ fn codegen_ts_activity_has_async_function() {
 type MyRes = | Ok(v: str) | Error
 
 activity fetch_data(url: str) to Result[str] {
-    ret Ok(url)
+    return Ok(url)
 }
 "#;
     let tokens = lex(src);
@@ -205,7 +205,7 @@ fn codegen_ts_activity_has_runtime_helper() {
 type MyRes = | Ok(v: str) | Error
 
 activity do_work() to Result[str] {
-    ret Ok("done")
+    return Ok("done")
 }
 "#;
     let tokens = lex(src);
@@ -438,7 +438,7 @@ fn codegen_routes_produces_route_manifest_ts() {
 
 #[test]
 fn codegen_routes_with_loading_emits_pending_component() {
-    let src = r#"@loading fn Spinner() to Element { ret <div>"wait"</div> }
+    let src = r#"@loading fn Spinner() to Element { return <div>"wait"</div> }
 
 routes {
     "/" to home
@@ -667,7 +667,7 @@ fn codegen_use_effect_maps_to_react_hook() {
 
 #[test]
 fn dashboard_full_pipeline_e2e() {
-    let src = "type Message = | User(text: str) | Bot(text: str)\n\n@v0 \"A metrics dashboard with KPIs\" fn Dashboard() to Element\n\ncomponent ChatWidget() {\n    let (messages, set_messages) = use_state([])\n    let (input, set_input) = use_state(\"\")\n    view: (\n        <div class=\"chat\">\n            <input bind={input} />\n            <button on_click={fn(e) set_input(\"\")} >\"Send\"</button>\n        </div>\n    )\n}\n\nhttp get \"/api/stats\" to list[int] {\n    ret 42\n}\n\nroutes {\n    \"/\" to Dashboard\n    \"/chat\" to ChatWidget\n}";
+    let src = "type Message = | User(text: str) | Bot(text: str)\n\n@v0 \"A metrics dashboard with KPIs\" fn Dashboard() to Element\n\ncomponent ChatWidget() {\n    let (messages, set_messages) = use_state([])\n    let (input, set_input) = use_state(\"\")\n    view: (\n        <div class=\"chat\">\n            <input bind={input} />\n            <button on_click={fn(e) set_input(\"\")} >\"Send\"</button>\n        </div>\n    )\n}\n\nhttp get \"/api/stats\" to list[int] {\n    return 42\n}\n\nroutes {\n    \"/\" to Dashboard\n    \"/chat\" to ChatWidget\n}";
 
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
@@ -839,7 +839,7 @@ routes {
 }
 
 http post "/api/x" to str {
-    ret "ok"
+    return "ok"
 }
 "#;
 
