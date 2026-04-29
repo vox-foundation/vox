@@ -65,6 +65,6 @@ Actors in Vox are designed for "Let it Crash" reliability. If an actor panics or
 
 ## Best Practices for Scale
 
-- **Prefer Workflows**: For long-running business logic, `workflow` is safer than a long-lived actor because and provides step-level journaling.
+- **Prefer Workflows**: For long-running business logic, `workflow` is safer than a long-lived actor because it provides step-level journaling.
 - **Stateless handlers**: Keep actor handlers as pure as possible between `state_load` and `state_save`.
 - **Avoid Large State**: Keep actor state small (under 1MB) to ensure rapid re-hydration across nodes.

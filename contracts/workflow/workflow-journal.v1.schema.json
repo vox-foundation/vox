@@ -366,6 +366,7 @@
     {
       "required": [
         "event",
+        "workflow",
         "activity",
         "activity_id",
         "signal_key"
@@ -392,6 +393,7 @@
     {
       "required": [
         "event",
+        "workflow",
         "activity",
         "activity_id",
         "waited_ms"

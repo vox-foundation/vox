@@ -18,6 +18,13 @@ pub fn emit_tokens_css(registry: &TokenRegistry) -> String {
 
     let mut out = String::from(":root {\n");
     for (key, value) in entries {
+        // Keys must only contain safe CSS identifier characters.  The
+        // TokenRegistry loader is the primary enforcement point; this
+        // debug_assert is the emitter's last-line-of-defense guard.
+        debug_assert!(
+            key.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'),
+            "token key '{key}' contains characters unsafe for CSS custom property names"
+        );
         out.push_str(&format!("  --vox-{}: {};\n", key, value));
     }
     out.push_str("}\n");
@@ -117,8 +124,28 @@ mod tests {
 
     #[test]
     fn output_is_deterministic() {
-        let reg = minimal_registry();
-        assert_eq!(emit_tokens_css(&reg), emit_tokens_css(&reg));
-        assert_eq!(emit_tokens_ts(&reg), emit_tokens_ts(&reg));
+        // Load two registries from the same JSON with keys declared in
+        // different insertion order to verify sort-based determinism, not
+        // just same-instance purity.
+        let json_a = r##"{
+            "color": { "primary": "#3a86ff", "background": "#ffffff" },
+            "spacing": { "sm": "8px", "md": "16px" }
+        }"##;
+        let json_b = r##"{
+            "spacing": { "md": "16px", "sm": "8px" },
+            "color": { "background": "#ffffff", "primary": "#3a86ff" }
+        }"##;
+        let reg_a = TokenRegistry::load_from_str(json_a).unwrap();
+        let reg_b = TokenRegistry::load_from_str(json_b).unwrap();
+        assert_eq!(
+            emit_tokens_css(&reg_a),
+            emit_tokens_css(&reg_b),
+            "CSS output must be identical regardless of key insertion order"
+        );
+        assert_eq!(
+            emit_tokens_ts(&reg_a),
+            emit_tokens_ts(&reg_b),
+            "TS output must be identical regardless of key insertion order"
+        );
     }
 }
