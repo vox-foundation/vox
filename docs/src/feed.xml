@@ -5,8 +5,26 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Wed, 29 Apr 2026 05:21:15 GMT</lastBuildDate>
+  <lastBuildDate>Wed, 29 Apr 2026 08:26:12 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Architecture Index</title>
+    <link>https://vox-lang.org/architecture/architecture-index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
+    <description>Auto-generated architecture index.</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>GUI-Native Language Roadmap — Execution Status</title>
+    <link>https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</guid>
+    <description>Live tracking of task completion for the Vox GUI-native language roadmap (April 2026).</description>
+    <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>cli</title>
@@ -16,15 +34,6 @@
     <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>GUI-Native Language Roadmap — Execution Status</title>
-    <link>https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</guid>
-    <description>Live tracking of task completion for the Vox GUI-native language roadmap (April 2026).</description>
-    <pubDate>Sat, 25 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>
@@ -242,16 +251,6 @@
     <link>https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</guid>
     <description>Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-dei-d, and optional future orchestrator daemon.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 023: Optional telemetry remote upload</title>
-    <link>https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</guid>
-    <description>Opt-in local spool and explicit upload; no default transmission; Clavis-backed secrets.</description>
     <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
