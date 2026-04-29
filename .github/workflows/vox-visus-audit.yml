@@ -23,10 +23,13 @@ jobs:
       uses: Swatinem/rust-cache@v2
       
     - name: Build Vox CLI
-      run: cargo build -p vox-cli --release
-      
+      # `vox visus` is compiled under #[cfg(feature = "dei")] — build with it
+      run: cargo build -p vox-cli --release --features dei
+
     - name: Run Visus Audit
       shell: pwsh
+      # Advisory: audits a placeholder URL; failures here do not block merge
+      continue-on-error: true
       run: |
         # In a real environment, we'd have a staging URL or use a local file
         # For this demo, we audit the project documentation site if it's served
