@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox-lang.dev/schemas/tokens.v1.json",
+  "title": "Vox token file (vox.tokens.json)",
+  "description": "Schema for vox.tokens.json. Each color value is either a plain hex string or an annotated object with optional WCAG contrast-pair metadata. Unknown token references in .vox source are compile errors; raw color literals on color properties are warnings.",
+  "type": "object",
+  "properties": {
+    "$schema": { "type": "string" },
+    "color": {
+      "type": "object",
+      "description": "Color tokens. Values are hex strings or annotated color objects. Keys become CSS custom properties: color.primary → --vox-color-primary.",
+      "additionalProperties": { "$ref": "#/$defs/colorGroup" }
+    },
+    "spacing": {
+      "type": "object",
+      "description": "Spacing tokens. Values are CSS length strings (e.g. '8px', '0.5rem'). Keys become CSS custom properties: spacing.md → --vox-spacing-md.",
+      "additionalProperties": { "type": "string" }
+    },
+    "font": {
+      "type": "object",
+      "description": "Font size tokens. Values are CSS size strings. Keys become CSS custom properties: font.base → --vox-font-base.",
+      "additionalProperties": { "type": "string" }
+    }
+  },
+  "additionalProperties": {
+    "type": "object"
+  },
+  "$defs": {
+    "colorGroup": {
+      "oneOf": [
+        { "$ref": "#/$defs/colorValue" },
+        {
+          "type": "object",
+          "description": "Named sub-group of color tokens.",
+          "additionalProperties": { "$ref": "#/$defs/colorValue" }
+        }
+      ]
+    },
+    "colorValue": {
+      "oneOf": [
+        {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+          "description": "Hex color value."
+        },
+        {
+          "type": "object",
+          "required": ["value"],
+          "properties": {
+            "value": {
+              "type": "string",
+              "pattern": "^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$",
+              "description": "Hex color value."
+            },
+            "on": {
+              "type": "string",
+              "description": "Dot-separated token path of the background this foreground sits on (e.g. 'color.background'). Triggers WCAG 2.1 contrast validation at token-load time."
+            },
+            "text_role": {
+              "type": "string",
+              "enum": ["body", "large", "ui"],
+              "description": "WCAG contrast threshold. 'body' requires ≥4.5:1 (warn) / ≥3:1 (error). 'large' and 'ui' require ≥3:1 (warn/error)."
+            }
+          },
+          "additionalProperties": false,
+          "description": "Annotated color token with optional WCAG contrast-pair metadata."
+        }
+      ]
+    }
+  }
+}
