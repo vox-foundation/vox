@@ -173,8 +173,12 @@ struct WsMessageOut {
 /// Returns true when `VOX_MCP_HTTP_ENABLED` is truthy.
 pub fn http_gateway_enabled() -> bool {
     let result = read_bool_env(vox_clavis::SecretId::VoxMcpHttpEnabled).unwrap_or(false);
+    let resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpEnabled);
     println!("DEBUG: http_gateway_enabled() -> {}", result);
-    println!("DEBUG: VOX_MCP_HTTP_ENABLED env: {:?}", std::env::var("VOX_MCP_HTTP_ENABLED"));
+    println!(
+        "DEBUG: VOX_MCP_HTTP_ENABLED resolved status: {:?} source: {:?}",
+        resolved.status, resolved.source
+    );
     result
 }
 

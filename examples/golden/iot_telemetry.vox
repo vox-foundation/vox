@@ -4,7 +4,7 @@
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [actor, on, db, @endpoint(kind: query), @endpoint(kind: mutation), @table, List, Option, match]
+// constructs: [fn, @table, @endpoint(kind: query), db, Result, Error, Ok, if, return]
 // last_validated: 2026-04-13
 // training_eligible: true
 // training_weight: 1.0

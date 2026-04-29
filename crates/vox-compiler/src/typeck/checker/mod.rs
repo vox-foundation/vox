@@ -105,6 +105,10 @@ impl<'a> Checker<'a> {
             self.check_route(r);
         }
 
+        for c in &module.components {
+            self.check_reactive_component(c);
+        }
+
         for a in &module.agents {
             self.check_agent(a);
         }
@@ -367,6 +371,52 @@ impl<'a> Checker<'a> {
                 e.span,
                 self.source,
             ));
+        }
+    }
+
+    /// Minimal typecheck pass for reactive components.
+    ///
+    /// Walks each member's expressions through `check_expr` so that typing
+    /// errors (use of undefined names, malformed expressions) inside
+    /// `state` / `derived` / `effect` / `on_mount` / `on_cleanup` / `view`
+    /// surface as diagnostics rather than being silently dropped. Cross-member
+    /// name resolution (e.g. a `derived` referencing a `state` by name) is not
+    /// yet wired up here; that requires the reactive-scope setup that lives
+    /// in the Path C lowering.
+    fn check_reactive_component(&mut self, c: &crate::hir::HirReactiveComponent) {
+        if c.name.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "Reactive component name cannot be empty".into(),
+                c.span,
+                self.source,
+            ));
+        }
+        for m in &c.members {
+            match m {
+                crate::hir::HirReactiveMember::State(s) => {
+                    let _ = self.check_expr(&s.init, None);
+                }
+                crate::hir::HirReactiveMember::Derived(d) => {
+                    let _ = self.check_expr(&d.expr, None);
+                }
+                crate::hir::HirReactiveMember::Effect(e) => {
+                    let _ = self.check_expr(&e.body, None);
+                }
+                crate::hir::HirReactiveMember::OnMount(om) => {
+                    let _ = self.check_expr(&om.body, None);
+                }
+                crate::hir::HirReactiveMember::OnCleanup(oc) => {
+                    let _ = self.check_expr(&oc.body, None);
+                }
+                crate::hir::HirReactiveMember::Stmt(_) => {
+                    // Stmts are handled by the lowering pipeline; typeck of
+                    // prelude statements is intentionally deferred until
+                    // reactive-scope setup is restored.
+                }
+            }
+        }
+        if let Some(view) = &c.view {
+            let _ = self.check_expr(view, None);
         }
     }
 

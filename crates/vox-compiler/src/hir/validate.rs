@@ -129,6 +129,10 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         }
     }
 
+    for c in &module.components {
+        validate_name_and_params(&c.name, &c.params, c.span, "reactive component", &mut errors);
+    }
+
     for actor in &module.actors {
         if actor.name.is_empty() {
             errors.push(HirValidationError {

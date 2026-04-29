@@ -15,7 +15,6 @@ use crate::app_contract::project_app_contract;
 use crate::codegen_ts::activity::{generate_activity_hir, generate_activity_runner};
 use crate::codegen_ts::adt::generate_types;
 
-use crate::codegen_ts::island_emit::collect_island_names;
 use crate::codegen_ts::routes::generate_routes;
 use crate::codegen_ts::tanstack_query_emit::vox_tanstack_query_tsx;
 use crate::codegen_ts::vox_client::{VOX_CLIENT_FILENAME, emit_vox_client};
@@ -79,7 +78,6 @@ pub fn generate_with_options(
 ) -> Result<CodegenOutput, String> {
     let mut files = Vec::new();
     let reactive_stats = crate::codegen_ts::reactive::ReactiveViewBridgeStats::default();
-    let _island_names = collect_island_names(hir);
     let app_contract = project_app_contract(hir);
 
     // Generate type definitions

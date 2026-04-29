@@ -241,7 +241,7 @@ impl<'a> Checker<'a> {
                 Ty::List(Box::new(elem_ty))
             }
 
-            HirExpr::Binary(HirBinOp::Pipe, left, right, _span) => {
+            HirExpr::Binary(HirBinOp::Pipe, left, right, span) => {
                 let l_ty = self.check_expr(left, None);
                 let raw_right = self.check_expr(right, None);
                 let r_ty = self.uf.resolve(&raw_right);
@@ -256,7 +256,7 @@ impl<'a> Checker<'a> {
                     _ => {
                         self.diags.push(Diagnostic::error(
                             format!("Not a function: {r_ty:?}"),
-                            *_span,
+                            *span,
                             self.source,
                         ));
                         Ty::Error

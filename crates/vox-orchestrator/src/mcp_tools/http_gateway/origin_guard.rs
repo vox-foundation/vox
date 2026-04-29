@@ -29,16 +29,16 @@ pub(super) fn is_origin_allowed(
         .and_then(|v| v.to_str().ok())
         .or_else(|| headers.get(axum::http::header::HOST).and_then(|v| v.to_str().ok()))
         .unwrap_or("");
-    
+
     if !origin.is_empty() {
-        let is_loopback = origin.starts_with("http://127.0.0.1") 
-            || origin.starts_with("http://localhost")
-            || origin.starts_with("https://127.0.0.1")
-            || origin.starts_with("https://localhost")
-            || origin.starts_with("127.0.0.1")
-            || origin.starts_with("localhost");
-            
-        if !is_loopback {
+        // Strip the optional scheme so the same check works for both `Origin`
+        // (`http://localhost:3000`) and `Host` (`localhost:8080`) headers.
+        let host_part = origin
+            .strip_prefix("http://")
+            .or_else(|| origin.strip_prefix("https://"))
+            .unwrap_or(origin);
+
+        if !is_loopback_host(host_part) {
             return false;
         }
     } else if is_upgrade {
@@ -47,6 +47,24 @@ pub(super) fn is_origin_allowed(
     }
 
     true
+}
+
+/// Returns true iff `host` is exactly a loopback name, optionally followed by
+/// `:<port>` or `/<path>`. Prevents subdomain spoofing like `localhost.evil.com`
+/// or `127.0.0.1.attacker.org` from passing a naive `starts_with` check.
+fn is_loopback_host(host: &str) -> bool {
+    for prefix in ["127.0.0.1", "localhost", "[::1]"] {
+        if host == prefix {
+            return true;
+        }
+        if let Some(rest) = host.strip_prefix(prefix) {
+            // Only ':' (port) or '/' (path) may follow a real loopback host.
+            if rest.starts_with(':') || rest.starts_with('/') {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 pub(super) async fn check_origin_allowlist(
@@ -101,6 +119,23 @@ mod tests {
         
         // Not allowed for other endpoints even if public_eval is true
         assert!(!is_origin_allowed(true, "/v1/info", &headers));
+    }
+
+    #[test]
+    fn test_origin_denied_localhost_subdomain_spoof() {
+        // Subdomain that *contains* "localhost" must not pass the loopback gate.
+        let mut headers = HeaderMap::new();
+        headers.insert("origin", HeaderValue::from_static("http://localhost.evil.com"));
+        assert!(!is_origin_allowed(false, "/v1/info", &headers));
+
+        let mut headers = HeaderMap::new();
+        headers.insert("host", HeaderValue::from_static("localhost.attacker.org"));
+        assert!(!is_origin_allowed(false, "/v1/info", &headers));
+
+        // Same for 127.0.0.1 prefix attacks.
+        let mut headers = HeaderMap::new();
+        headers.insert("origin", HeaderValue::from_static("http://127.0.0.1.evil.com"));
+        assert!(!is_origin_allowed(false, "/v1/info", &headers));
     }
 
     #[test]
