@@ -1,43 +1,32 @@
 #![allow(missing_docs)]
 
-use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
-use vox_compiler::typeck::typecheck_module;
 
+/// `activity` and `workflow` keywords are tombstoned (TASK-2.6).
+/// Parsing source that uses them produces a parse error rather than HIR nodes.
 #[test]
-fn multimodal_image_gen_pipeline() {
-    let source = r#"
-fn generate_image(prompt: str, size: Option[str]) to Result[str] {
-    ret Ok("https://example.com/banner.png")
-}
-
+fn tombstoned_activity_and_workflow_keywords_produce_parse_errors() {
+    let source_activity = r#"
 activity generate_banner(prompt: str) to Result[str] {
-    let result = generate_image(prompt, Some("1024x1024"))
-    ret result
+    return Ok("ok")
 }
-
+"#;
+    let source_workflow = r#"
 workflow handle_branding(description: str) to Unit {
-    let banner_url = generate_banner(description)
-    match banner_url {
-        Ok(_) -> print("Banner generated")
-        Error(e) -> print("Failed: " + e)
-    }
+    return ()
 }
 "#;
 
-    let tokens = lex(source);
-    let module = parse(tokens).expect("Parse failed");
-    let hir = lower_module(&module);
-
-    assert_eq!(hir.activities.len(), 1);
-    assert_eq!(hir.workflows.len(), 1);
-    assert_eq!(hir.activities[0].name, "generate_banner");
-
-    let diagnostics = typecheck_module(&module, "");
+    let result_activity = parse(lex(source_activity));
     assert!(
-        diagnostics.is_empty(),
-        "Typecheck failed: {:?}",
-        diagnostics
+        result_activity.is_err(),
+        "tombstoned `activity` keyword should produce a parse error"
+    );
+
+    let result_workflow = parse(lex(source_workflow));
+    assert!(
+        result_workflow.is_err(),
+        "tombstoned `workflow` keyword should produce a parse error"
     );
 }

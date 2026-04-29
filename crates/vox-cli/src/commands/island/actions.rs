@@ -5,6 +5,7 @@ use std::path::Path;
 
 use crate::island_paths::resolve_island_main_tsx;
 use crate::v0;
+use crate::v0_validate;
 
 use super::build::{bootstrap_islands_if_needed, build_islands};
 use super::stub_shadcn::inject_or_update_island_stub;
@@ -44,6 +45,20 @@ pub(super) async fn generate(
     let tsx = read_utf8_path_capped_async(&tsx_path)
         .await
         .with_context(|| format!("Cannot read generated TSX: {}", tsx_path.display()))?;
+
+    // TASK-5.4: pre-flight a11y + design-token validation on raw v0 output.
+    let violations = v0_validate::scan_tsx_violations(&tsx);
+    if !violations.is_empty() {
+        eprintln!(
+            "⚠️  v0 output for '{name}' has {} violation(s) — review before shipping:",
+            violations.len()
+        );
+        for v in &violations {
+            eprintln!("   {v}");
+        }
+        eprintln!("   Fix the above or wrap the component in a `raw_tsx {{ }}` escape block.");
+    }
+
     let island_block = v0::emit_island_stub(&tsx, name, target);
 
     // 3. Write island block to target .vox file or print for manual integration

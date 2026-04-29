@@ -251,7 +251,7 @@ impl LowerCtx {
                     self.inject_postconditions_into_expr(it, post_stmts);
                 }
             }
-            HirExpr::Binary(_, l, r, _) | HirExpr::Pipe(l, r, _) | HirExpr::With(l, r, _) => {
+            HirExpr::Binary(_, l, r, _) | HirExpr::With(l, r, _) => {
                 self.inject_postconditions_into_expr(l, post_stmts);
                 self.inject_postconditions_into_expr(r, post_stmts);
             }

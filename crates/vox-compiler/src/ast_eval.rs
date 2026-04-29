@@ -84,9 +84,6 @@ fn count_module_constructs(module: &Module) -> ConstructCounts {
             Decl::Component(_) | Decl::ReactiveComponent(_) => "component",
             Decl::TypeDef(_) => "type",
             Decl::Import(_) | Decl::PyImport(_) => "import",
-            Decl::Actor(_) => "actor",
-            Decl::Workflow(_) => "workflow",
-            Decl::Activity(_) => "activity",
             Decl::HttpRoute(_) => "http",
             Decl::McpTool(_) => "mcp_tool",
             Decl::McpResource(_) => "mcp_resource",
@@ -104,6 +101,8 @@ fn count_module_constructs(module: &Module) -> ConstructCounts {
             Decl::Routes(_) => "routes",
             Decl::Agent(_) | Decl::AgentDef(_) => "agent",
             Decl::Island(_) => "island",
+            Decl::Url(_) => "url",
+            Decl::StateMachine(_) => "state_machine",
             _ => "other",
         };
         *histogram.entry(key.to_string()).or_insert(0) += 1;

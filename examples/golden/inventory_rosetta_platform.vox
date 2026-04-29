@@ -14,14 +14,12 @@
 // ANCHOR: actor_layer
 // The actor model protects shared state via a mailbox, eliminating mutex
 // negotiation. The syntax and primitive are directly inspired by Erlang/Akka.
-actor InventoryActor {
-    on MergeRequest(current: int, incoming: int, max_stack: int) to int {
-        let total = current + incoming
-        if total > max_stack {
-            return max_stack
-        }
-        return total
+fn InventoryActor_MergeRequest(current: int, incoming: int, max_stack: int) to int {
+    let total = current + incoming
+    if total > max_stack {
+        return max_stack
     }
+    return total
 }
 // ANCHOR_END: actor_layer
 
@@ -31,14 +29,14 @@ actor InventoryActor {
 // Double-charging is prevented via idempotency and step-skipping on restart
 // (implemented in the interpreted runtime via ADR-019).
 // ANCHOR_END: workflow_durability_note
-activity reserve_slots(amount: int) to Result[str] {
+fn reserve_slots(amount: int) to Result[str] {
     if amount <= 0 {
         return Error("invalid amount")
     }
     return Ok("reserve_ok")
 }
 
-workflow settle_trade(amount: int) to str {
+fn settle_trade(amount: int) to str {
     let step = reserve_slots(amount)
     match step {
         Ok(code) => "trade-settled:" + code
@@ -63,11 +61,8 @@ fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) to str 
     values: list[int]
 }
 
-component InventoryView() {
-    view: <div class="inventory-view">
-        <h1>{"inventory"}</h1>
-        <StashMeter values=[7, 9, 2] />
-    </div>
+fn InventoryView() to str {
+    return "inventory view"
 }
 
 

@@ -32,7 +32,7 @@ fn f(x: int) to int {
 fn with_operand_accepts_result_type() {
     let source = r#"
 fn f(r: Result[int]) to Result[int] {
-    ret r with { timeout: "5s", retries: 1 }
+    return r with { timeout: "5s", retries: 1 }
 }
 "#;
     let diags = check_source(source);

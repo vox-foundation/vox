@@ -92,10 +92,6 @@ fn collect_query_plans_expr(
             collect_query_plans_expr(body, out);
         }
         HirExpr::Lambda(_, _, body, _) => collect_query_plans_expr(body, out),
-        HirExpr::Pipe(l, r, _) => {
-            collect_query_plans_expr(l, out);
-            collect_query_plans_expr(r, out);
-        }
         HirExpr::Spawn(target, _) => collect_query_plans_expr(target, out),
         HirExpr::With(base, opts, _) => {
             collect_query_plans_expr(base, out);

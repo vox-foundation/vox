@@ -1,5 +1,5 @@
 use super::*;
-use crate::ast::decl::{Decl, ImportPathKind, RoutesParseSummary};
+use crate::ast::decl::{Decl, EffectAnnotation, ImportPathKind, RoutesParseSummary};
 use crate::ast::expr::{BinOp, Expr};
 use crate::ast::stmt::Stmt;
 use crate::lexer::cursor::lex;
@@ -615,6 +615,62 @@ fn test_parse_script_pure_decl_file_no_synthetic_main() {
     assert!(matches!(&m.declarations[0], Decl::Function(f) if f.name == "add"));
 }
 
+/// `url Name { Variant }` parses to `Decl::Url`.
+#[test]
+fn test_parse_url_decl_simple() {
+    let m = parse_str("url Path {\nHome\n}");
+    assert_eq!(m.declarations.len(), 1);
+    match &m.declarations[0] {
+        Decl::Url(u) => {
+            assert_eq!(u.name, "Path");
+            assert_eq!(u.variants.len(), 1);
+            assert_eq!(u.variants[0].name, "Home");
+            assert!(u.variants[0].args.is_empty());
+            assert!(!u.is_pub);
+        }
+        other => panic!("Expected Decl::Url, got {other:?}"),
+    }
+}
+
+/// `url` block with parameterized variants.
+#[test]
+fn test_parse_url_decl_with_args() {
+    let m = parse_str("url Path {\nHome\nTask(id: str)\n}");
+    match &m.declarations[0] {
+        Decl::Url(u) => {
+            assert_eq!(u.variants.len(), 2);
+            assert_eq!(u.variants[1].name, "Task");
+            assert_eq!(u.variants[1].args.len(), 1);
+            assert_eq!(u.variants[1].args[0].name, "id");
+            assert!(!u.variants[1].args[0].optional);
+        }
+        other => panic!("Expected Decl::Url, got {other:?}"),
+    }
+}
+
+/// `url` block with optional argument (`?` prefix).
+#[test]
+fn test_parse_url_decl_optional_arg() {
+    let m = parse_str("url Path {\nLogin(?return_to: str)\n}");
+    match &m.declarations[0] {
+        Decl::Url(u) => {
+            assert_eq!(u.variants[0].args[0].optional, true);
+            assert_eq!(u.variants[0].args[0].name, "return_to");
+        }
+        other => panic!("Expected Decl::Url, got {other:?}"),
+    }
+}
+
+/// `pub url` parses as `is_pub = true`.
+#[test]
+fn test_parse_url_decl_pub() {
+    let m = parse_str("pub url Path {\nHome\n}");
+    match &m.declarations[0] {
+        Decl::Url(u) => assert!(u.is_pub),
+        other => panic!("Expected Decl::Url, got {other:?}"),
+    }
+}
+
 /// Multiple top-level statements all end up in one synthetic main body.
 #[test]
 fn test_parse_script_multiple_stmts_single_main() {
@@ -626,5 +682,67 @@ fn test_parse_script_multiple_stmts_single_main() {
         assert_eq!(f.body.len(), 3);
     } else {
         panic!("expected fn main");
+    }
+}
+
+// ── uses clause (TASK-4.2) ─────────────────────────────────────────────────
+
+/// `uses nothing` parses as `[EffectAnnotation::Nothing]`.
+#[test]
+fn test_parse_uses_nothing() {
+    let m = parse_str("fn add(a: int, b: int) uses nothing to int { a + b }");
+    match &m.declarations[0] {
+        Decl::Function(f) => {
+            assert_eq!(f.effects, vec![EffectAnnotation::Nothing]);
+        }
+        other => panic!("Expected Decl::Function, got {other:?}"),
+    }
+}
+
+/// `uses net` parses correctly.
+#[test]
+fn test_parse_uses_single_effect() {
+    let m = parse_str("fn fetch() uses net to str { \"ok\" }");
+    match &m.declarations[0] {
+        Decl::Function(f) => {
+            assert_eq!(f.effects, vec![EffectAnnotation::Net]);
+        }
+        other => panic!("Expected Decl::Function, got {other:?}"),
+    }
+}
+
+/// `uses net, db` parses as two effects.
+#[test]
+fn test_parse_uses_multiple_effects() {
+    let m = parse_str("fn save() uses net, db to bool { true }");
+    match &m.declarations[0] {
+        Decl::Function(f) => {
+            assert_eq!(f.effects, vec![EffectAnnotation::Net, EffectAnnotation::Db]);
+        }
+        other => panic!("Expected Decl::Function, got {other:?}"),
+    }
+}
+
+/// `uses mcp(vox_notify)` parses as `Mcp("vox_notify")`.
+#[test]
+fn test_parse_uses_mcp_parameterized() {
+    let m = parse_str("fn notify() uses mcp(vox_notify) to bool { true }");
+    match &m.declarations[0] {
+        Decl::Function(f) => {
+            assert_eq!(f.effects, vec![EffectAnnotation::Mcp("vox_notify".into())]);
+        }
+        other => panic!("Expected Decl::Function, got {other:?}"),
+    }
+}
+
+/// Missing `uses` clause leaves `effects` empty.
+#[test]
+fn test_parse_no_uses_clause_is_empty() {
+    let m = parse_str("fn pure_fn(x: int) to int { x + 1 }");
+    match &m.declarations[0] {
+        Decl::Function(f) => {
+            assert!(f.effects.is_empty(), "expected empty effects for unannotated fn");
+        }
+        other => panic!("Expected Decl::Function, got {other:?}"),
     }
 }

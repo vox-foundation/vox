@@ -1,10 +1,8 @@
 // ANCHOR: basic_actor
-actor Counter {
-    on increment(current: int) to int {
-        let count = current + 1
-        print("Count is " + count)
-        return count
-    }
+fn Counter_increment(current: int) to int {
+    let count = current + 1
+    print("Count is " + count)
+    return count
 }
 // ANCHOR_END: basic_actor
 

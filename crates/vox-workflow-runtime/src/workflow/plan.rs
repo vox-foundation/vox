@@ -25,23 +25,10 @@ pub fn plan_workflow_replay_ir(
     hir: &HirModule,
     workflow_name: &str,
 ) -> anyhow::Result<WorkflowReplayIr> {
-    let wf = hir
-        .workflows
-        .iter()
-        .find(|w| w.name == workflow_name)
-        .with_context(|| format!("workflow '{workflow_name}' not found"))?;
-    let mut raw = Vec::new();
-    let mut branch_counter = 0usize;
-    collect_activity_calls_from_stmts(
-        workflow_name,
-        &wf.body,
-        &ActivityWithOpts::default(),
-        &mut raw,
-        &mut branch_counter,
-    )?;
-    Ok(WorkflowReplayIr {
-        nodes: raw.into_iter().map(ReplayNode::Activity).collect(),
-    })
+    // The `workflow` HIR node was removed; durable workflows are now handled
+    // by vox-orchestrator at runtime. Planning from HIR is a no-op path.
+    let _ = hir;
+    anyhow::bail!("workflow '{workflow_name}' not found: workflow HIR is no longer available — use the vox-orchestrator for durable workflow execution")
 }
 
 #[derive(Clone, Default, Debug)]
@@ -338,10 +325,6 @@ fn collect_from_expr(
         }
         HirExpr::FieldAccess(recv, _, _) => {
             collect_from_expr(workflow_name, recv, ctx, out, branch_counter)?
-        }
-        HirExpr::Pipe(a, b, _) => {
-            collect_from_expr(workflow_name, a, ctx, out, branch_counter)?;
-            collect_from_expr(workflow_name, b, ctx, out, branch_counter)?;
         }
         HirExpr::Lambda(_, _, body, _) => {
             collect_from_expr(workflow_name, body, ctx, out, branch_counter)?

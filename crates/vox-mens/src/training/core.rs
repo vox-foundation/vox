@@ -42,10 +42,7 @@ pub fn extract_constructs(module: &vox_compiler::ast::decl::Module) -> Vec<Strin
             Decl::TypeDef(_) => "type",
             Decl::Import(_) => "import",
             Decl::PyImport(_) => "py_import",
-            Decl::Actor(_) => "actor",
             Decl::Const(_) => "const",
-            Decl::Workflow(_) => "workflow",
-            Decl::Activity(_) => "activity",
             Decl::HttpRoute(_) => "http_route",
             Decl::McpTool(_) => "mcp_tool",
             Decl::McpResource(_) => "mcp_resource",
@@ -85,6 +82,8 @@ pub fn extract_constructs(module: &vox_compiler::ast::decl::Module) -> Vec<Strin
             Decl::Page(_) => "page",
             Decl::ReactiveComponent(_) => "reactive_component",
             Decl::Endpoint(_) => "endpoint",
+            Decl::Url(_) => "url",
+            Decl::StateMachine(_) => "state_machine",
         };
         constructs.push(tag.to_string());
     }

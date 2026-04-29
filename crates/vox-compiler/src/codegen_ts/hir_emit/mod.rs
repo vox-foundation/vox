@@ -43,6 +43,33 @@ pub(crate) fn unwrap_inline_hir_block_expr(expr: &HirExpr) -> &HirExpr {
     expr
 }
 
+/// If `stmts` is a single JSX expression statement (or a nested `HirExpr::If` ternary), return
+/// its emitted string so the caller can use it directly in an inline ternary instead of a void IIFE.
+fn extract_single_jsx_expr(
+    stmts: &[HirStmt],
+    state_names: &HashSet<String>,
+    island_names: &HashSet<String>,
+) -> Option<String> {
+    if stmts.len() != 1 {
+        return None;
+    }
+    if let HirStmt::Expr { expr, .. } = &stmts[0] {
+        // Unwrap a single-expression block `{...}` that JSX expression children produce.
+        let inner = unwrap_inline_hir_block_expr(expr);
+        match inner {
+            HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) => {
+                return Some(emit_hir_expr(inner, state_names, island_names));
+            }
+            HirExpr::If(_, _, _, _) => {
+                // Nested if — recurse via the main emit path which will itself apply this logic.
+                return Some(emit_hir_expr(inner, state_names, island_names));
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 /// Expand `bind={…}` into (`value` expr string, `onChange` handler string), aligned with
 /// [`crate::codegen_ts::jsx::expand_bind_attribute`] and [`crate::web_ir::lower::lower_jsx_attr_pair`].
 #[must_use]
@@ -148,6 +175,10 @@ pub fn emit_hir_expr(
             }
         }
         HirExpr::Block(stmts, _) => {
+            // Inline single-JSX/if blocks so JSX child `{if ...}` emits as a ternary, not an IIFE.
+            if let Some(inline) = extract_single_jsx_expr(stmts, state_names, island_names) {
+                return inline;
+            }
             let mut out = String::new();
             out.push_str("(() => {\n");
             for stmt in stmts {
@@ -272,6 +303,17 @@ pub fn emit_hir_expr(
         }
         HirExpr::If(cond, then_stmts, else_stmts, _) => {
             let c = emit_hir_expr(cond, state_names, island_names);
+
+            // Fast path: single JSX expression in both branches → emit as inline ternary.
+            // This avoids void IIFEs like `(() => { <Comp />; })()` which render nothing.
+            if let Some(then_jsx) = extract_single_jsx_expr(then_stmts, state_names, island_names) {
+                let else_jsx = else_stmts
+                    .as_ref()
+                    .and_then(|s| extract_single_jsx_expr(s, state_names, island_names))
+                    .unwrap_or_else(|| "null".to_string());
+                return format!("({c} ? {then_jsx} : {else_jsx})");
+            }
+
             let mut then_out = String::new();
             for s in then_stmts {
                 then_out.push_str(&emit_hir_stmt(s, state_names, island_names, 0));
@@ -313,11 +355,7 @@ pub fn emit_hir_expr(
             emit_hir_expr(h.target.as_ref(), state_names, island_names)
         }
         HirExpr::DecimalLit(v, _) => format!("\"{v}\""),
-        HirExpr::Pipe(l, r, _) => {
-            let left = emit_hir_expr(l, state_names, island_names);
-            let right = emit_hir_expr(r, state_names, island_names);
-            format!("{right}({left})")
-        }
+
         HirExpr::Spawn(target, _) => {
             let t = emit_hir_expr(target, state_names, island_names);
             format!("new {t}()")
@@ -817,4 +855,75 @@ export const mobile = {
   }
 };
 "#.to_string()
+}
+
+#[cfg(test)]
+mod hir_emit_if_tests {
+    use super::*;
+    use crate::hir::*;
+
+    fn span() -> crate::ast::span::Span {
+        crate::ast::span::Span { start: 0, end: 0 }
+    }
+
+    fn jsx_self_closing(name: &str) -> HirExpr {
+        HirExpr::JsxSelfClosing(HirJsxSelfClosing {
+            tag: name.to_string(),
+            attributes: vec![],
+            span: span(),
+        })
+    }
+
+    fn expr_stmt(expr: HirExpr) -> HirStmt {
+        HirStmt::Expr { expr, span: span() }
+    }
+
+    #[test]
+    fn if_with_jsx_branches_emits_ternary_not_iife() {
+        let cond = HirExpr::BoolLit(true, span());
+        let then_stmts = vec![expr_stmt(jsx_self_closing("SpeakTab"))];
+        let else_stmts = vec![expr_stmt(jsx_self_closing("CommandTab"))];
+
+        let if_expr = HirExpr::If(
+            Box::new(cond),
+            then_stmts,
+            Some(else_stmts),
+            span(),
+        );
+
+        let out = emit_hir_expr(&if_expr, &HashSet::new(), &HashSet::new());
+
+        assert!(
+            out.contains("? <SpeakTab") || out.contains("?<SpeakTab"),
+            "expected ternary but got: {out}"
+        );
+        assert!(
+            !out.contains("(() => {"),
+            "void IIFE should not appear for single-JSX branches, but got: {out}"
+        );
+    }
+
+    #[test]
+    fn if_with_nested_jsx_if_emits_nested_ternary() {
+        let inner_cond = HirExpr::BoolLit(false, span());
+        let inner_then = vec![expr_stmt(jsx_self_closing("NetworkTab"))];
+        let inner_else = vec![expr_stmt(jsx_self_closing("ForgeTab"))];
+        let nested_if = HirExpr::If(Box::new(inner_cond), inner_then, Some(inner_else), span());
+
+        let outer_cond = HirExpr::BoolLit(true, span());
+        let outer_then = vec![expr_stmt(jsx_self_closing("SpeakTab"))];
+        let outer_else = vec![expr_stmt(nested_if)];
+        let outer_if = HirExpr::If(Box::new(outer_cond), outer_then, Some(outer_else), span());
+
+        let out = emit_hir_expr(&outer_if, &HashSet::new(), &HashSet::new());
+
+        assert!(
+            out.contains("<SpeakTab") && out.contains("<NetworkTab") && out.contains("<ForgeTab"),
+            "all three branches should appear: {out}"
+        );
+        assert!(
+            !out.contains("(() => {"),
+            "no void IIFEs in nested ternary: {out}"
+        );
+    }
 }

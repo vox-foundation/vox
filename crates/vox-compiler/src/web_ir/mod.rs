@@ -22,7 +22,10 @@
 
 pub mod emit_tsx;
 pub mod lower;
+pub mod primitives;
 pub mod validate;
+pub mod validate_a11y;
+pub mod validate_overlay;
 
 use serde::{Deserialize, Serialize};
 
@@ -269,6 +272,8 @@ pub enum StyleNode {
         declarations: Vec<(String, StyleDeclarationValue)>,
         /// Specificity score (A, B, C) where A=ID, B=Class/Pseudo-class, C=Element/Pseudo-element.
         specificity: (u8, u8, u8),
+        /// Came from a `raw_css { }` escape hatch — raw CSS values are warnings, not errors.
+        is_raw_css: bool,
         span: Option<SourceSpanId>,
     },
     Selector(StyleSelector),

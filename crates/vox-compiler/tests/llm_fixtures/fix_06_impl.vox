@@ -1,1 +1,1 @@
-fn test_06() to bool { ret true }
+fn test_06() to bool { return true }

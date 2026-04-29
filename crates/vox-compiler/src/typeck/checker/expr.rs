@@ -241,6 +241,28 @@ impl<'a> Checker<'a> {
                 Ty::List(Box::new(elem_ty))
             }
 
+            HirExpr::Binary(HirBinOp::Pipe, left, right, _span) => {
+                let l_ty = self.check_expr(left, None);
+                let raw_right = self.check_expr(right, None);
+                let r_ty = self.uf.resolve(&raw_right);
+                match r_ty {
+                    Ty::Fn(params, ret) => {
+                        if let Some(first) = params.first() {
+                            let _ = self.uf.unify(&l_ty, first);
+                        }
+                        ret.as_ref().clone()
+                    }
+                    Ty::Error => Ty::Error,
+                    _ => {
+                        self.diags.push(Diagnostic::error(
+                            format!("Not a function: {r_ty:?}"),
+                            *_span,
+                            self.source,
+                        ));
+                        Ty::Error
+                    }
+                }
+            }
             HirExpr::Binary(op, left, right, span) => {
                 let l_ty = self.check_expr(left, None);
                 let r_ty = self.check_expr(right, None);
@@ -514,20 +536,7 @@ impl<'a> Checker<'a> {
                 Ty::Fn(param_tys, Box::new(ret_ty))
             }
 
-            HirExpr::Pipe(left, right, _span) => {
-                let l_ty = self.check_expr(left, None);
-                let raw_right = self.check_expr(right, None);
-                let r_ty = self.uf.resolve(&raw_right);
-                match r_ty {
-                    Ty::Fn(params, ret) => {
-                        if let Some(first) = params.first() {
-                            let _ = self.uf.unify(&l_ty, first);
-                        }
-                        ret.as_ref().clone()
-                    }
-                    _ => l_ty,
-                }
-            }
+
 
             HirExpr::Spawn(inner, span) => {
                 let inner_ty = self.check_expr(inner, None);

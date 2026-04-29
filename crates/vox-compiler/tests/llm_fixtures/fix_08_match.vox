@@ -1,1 +1,1 @@
-fn match_test(x: int) to int { ret x }
+fn match_test(x: int) to int { return x }

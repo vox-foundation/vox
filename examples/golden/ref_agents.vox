@@ -1,27 +1,12 @@
 // ANCHOR: basic_agent
-agent Assistant {
-    version "1.0.0"
-
-    on greet(name: str) to str {
-        return "Hello " + name + ", how can I assist you today?"
-    }
-
-    migrate from "0.9.0" {
-        print("Migrating data...")
-    }
+// Note: The agent construct is tombstoned. Use standard functions and MCP skills instead.
+fn assistant_greet(name: str) to str {
+    return "Hello " + name + ", how can I assist you today?"
 }
 // ANCHOR_END: basic_agent
 
 // ANCHOR: stateful_agent
-agent MemoryBank {
+@table type MemoryBank {
     entries: List[str]
-
-    on add(item: str) {
-        entries = entries.append(item)
-    }
-
-    on recall() to List[str] {
-        return entries
-    }
 }
 // ANCHOR_END: stateful_agent

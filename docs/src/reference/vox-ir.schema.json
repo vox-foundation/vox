@@ -29,16 +29,12 @@
         "functions",
         "types",
         "routes",
-        "actors",
-        "workflows",
-        "activities",
-        "server_fns",
-        "query_fns",
-        "mutation_fns",
+        "endpoint_fns",
         "tables",
         "mcp_tools",
         "mcp_resources",
-        "agents"
+        "agents",
+        "url_decls"
       ],
       "additionalProperties": true,
       "properties": {
@@ -47,16 +43,12 @@
         "functions": { "type": "array" },
         "types": { "type": "array" },
         "routes": { "type": "array" },
-        "actors": { "type": "array" },
-        "workflows": { "type": "array" },
-        "activities": { "type": "array" },
-        "server_fns": { "type": "array" },
-        "query_fns": { "type": "array" },
-        "mutation_fns": { "type": "array" },
+        "endpoint_fns": { "type": "array" },
         "tables": { "type": "array" },
         "mcp_tools": { "type": "array" },
         "mcp_resources": { "type": "array" },
         "agents": { "type": "array" },
+        "url_decls": { "type": "array" },
         "web_ir": { "type": ["object", "null"] }
       }
     }

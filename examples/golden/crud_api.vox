@@ -31,7 +31,7 @@ fn seed_user(name: str) to Unit {
     db.User.insert({ name: name, active: true })
 }
 
-http get "/api/users" to int {
+@endpoint(kind: query) fn handler() to int {
     return len(db.User.all())
 }
 // ANCHOR_END: display

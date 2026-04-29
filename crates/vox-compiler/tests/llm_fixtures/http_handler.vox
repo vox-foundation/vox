@@ -1,4 +1,0 @@
-http get "/api/data" -> JsonBody {
-    let data = { status: "ok", count: 42 }
-    return JsonBody { data: data }
-}

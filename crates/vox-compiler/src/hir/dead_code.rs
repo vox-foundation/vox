@@ -220,7 +220,7 @@ fn visit_expr(expr: &HirExpr, used: &mut HashSet<String>) {
             visit_expr(body, used);
             visit_expr(opts, used);
         }
-        HirExpr::Pipe(left, right, _) => {
+        HirExpr::Binary(crate::hir::HirBinOp::Pipe, left, right, _) => {
             visit_expr(left, used);
             visit_expr(right, used);
         }

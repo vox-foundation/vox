@@ -37,7 +37,7 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         | HirExpr::If(_, _, _, s)
         | HirExpr::For(_, _, _, s)
         | HirExpr::Lambda(_, _, _, s)
-        | HirExpr::Pipe(_, _, s)
+
         | HirExpr::Spawn(_, s)
         | HirExpr::With(_, _, s)
         | HirExpr::Block(_, s) => *s,
@@ -77,15 +77,6 @@ impl<'a> Checker<'a> {
         for f in &mut module.functions {
             self.check_function(f);
         }
-        for a in &module.actors {
-            self.check_actor(a);
-        }
-        for w in &module.workflows {
-            self.check_workflow(w);
-        }
-        for act in &module.activities {
-            self.check_activity(act);
-        }
         for sf in &mut module.endpoint_fns {
             self.check_endpoint_fn(sf);
             if sf.kind == crate::hir::HirEndpointKind::Query {
@@ -104,9 +95,7 @@ impl<'a> Checker<'a> {
         for r in &module.routes {
             self.check_route(r);
         }
-        for rc in &module.components {
-            self.check_reactive_component(rc);
-        }
+
         for a in &module.agents {
             self.check_agent(a);
         }
@@ -115,116 +104,6 @@ impl<'a> Checker<'a> {
         }
     }
 
-    fn check_reactive_component(&mut self, rc: &HirReactiveComponent) {
-        self.env.push_scope();
-        self.env.define(
-            "db".into(),
-            Binding::new(Ty::Database, false, BindingKind::Variable),
-        );
-
-        for p in &rc.params {
-            let p_ty = p
-                .type_ann
-                .as_ref()
-                .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
-            self.env.define(
-                p.name.clone(),
-                Binding::new(p_ty, false, BindingKind::Parameter),
-            );
-        }
-
-        for m in &rc.members {
-            match m {
-                HirReactiveMember::State(s) => {
-                    let init_ty = self.check_expr(&s.init, None);
-                    let state_ty = if let Some(ann) = &s.ty {
-                        let t = resolve_hir_type(ann, self.env);
-                        if let Err(msg) = self.uf.unify(&init_ty, &t) {
-                            self.diags.push(Diagnostic {
-                                severity: TypeckSeverity::Error,
-                                message: format!(
-                                    "reactive state '{}': initializer does not match type annotation: {msg}",
-                                    s.name
-                                ),
-                                span: s.span,
-                                expected_type: Some(format!("{t:?}")),
-                                found_type: Some(format!("{init_ty:?}")),
-                                context: Some(Diagnostic::capture_context(self.source, s.span)),
-                                suggestions: vec![],
-                                category: DiagnosticCategory::Typecheck,
-                                code: Some("typecheck.reactive.state".into()),
-                                fixes: vec![],
-                            line_col: None,
-                            missing_cases: vec![],
-                            ast_node_kind: None,
-});
-                        }
-                        t
-                    } else {
-                        init_ty
-                    };
-                    let resolved = self.uf.resolve(&state_ty);
-                    // Path C views use `name = expr` in handlers; treat reactive state as assignable.
-                    self.env.define(
-                        s.name.clone(),
-                        Binding::new(resolved, true, BindingKind::Variable),
-                    );
-                }
-                HirReactiveMember::Derived(d) => {
-                    let expr_ty = self.check_expr(&d.expr, None);
-                    let derived_ty = if let Some(ann) = &d.ty {
-                        let t = resolve_hir_type(ann, self.env);
-                        if let Err(msg) = self.uf.unify(&expr_ty, &t) {
-                            self.diags.push(Diagnostic {
-                                severity: TypeckSeverity::Error,
-                                message: format!(
-                                    "reactive derived '{}': expression does not match type annotation: {msg}",
-                                    d.name
-                                ),
-                                span: d.span,
-                                expected_type: Some(format!("{t:?}")),
-                                found_type: Some(format!("{expr_ty:?}")),
-                                context: Some(Diagnostic::capture_context(self.source, d.span)),
-                                suggestions: vec![],
-                                category: DiagnosticCategory::Typecheck,
-                                code: Some("typecheck.reactive.derived".into()),
-                                fixes: vec![],
-                            line_col: None,
-                            missing_cases: vec![],
-                            ast_node_kind: None,
-});
-                        }
-                        t
-                    } else {
-                        expr_ty
-                    };
-                    let resolved = self.uf.resolve(&derived_ty);
-                    self.env.define(
-                        d.name.clone(),
-                        Binding::new(resolved, false, BindingKind::Variable),
-                    );
-                }
-                HirReactiveMember::Effect(e) => {
-                    let _ = self.check_expr(&e.body, None);
-                }
-                HirReactiveMember::OnMount(m) => {
-                    let _ = self.check_expr(&m.body, None);
-                }
-                HirReactiveMember::OnCleanup(c) => {
-                    let _ = self.check_expr(&c.body, None);
-                }
-                HirReactiveMember::Stmt(s) => {
-                    let _ = self.check_stmt(s);
-                }
-            }
-        }
-
-        if let Some(view) = &rc.view {
-            let _ = self.check_expr(view, None);
-        }
-
-        self.env.pop_scope();
-    }
 
     fn check_function(&mut self, f: &mut HirFn) {
         let was_inferred = f.return_type.is_none();
@@ -267,99 +146,6 @@ impl<'a> Checker<'a> {
             }
         }
 
-        self.env.pop_return_type();
-        self.env.pop_scope();
-    }
-
-    fn check_actor(&mut self, a: &HirActor) {
-        for h in &a.handlers {
-            self.check_actor_handler(h);
-        }
-    }
-
-    fn check_actor_handler(&mut self, h: &HirActorHandler) {
-        self.check_db_scoped_handler(&h.return_type, &h.params, &h.body);
-    }
-
-    fn check_workflow(&mut self, w: &HirWorkflow) {
-        let mut ret_ty = w
-            .return_type
-            .as_ref()
-            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
-        if matches!(ret_ty, Ty::Infer) {
-            ret_ty = self.uf.fresh_var();
-        }
-        self.env.push_scope();
-        self.env.push_return_type(ret_ty.clone());
-
-        self.env.define(
-            "db".into(),
-            Binding::new(Ty::Database, false, BindingKind::Variable),
-        );
-
-        for p in &w.params {
-            let p_ty = p
-                .type_ann
-                .as_ref()
-                .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
-            self.env.define(
-                p.name.clone(),
-                Binding::new(p_ty, false, BindingKind::Parameter),
-            );
-        }
-        for stmt in &w.body {
-            let _ = self.check_stmt(stmt);
-        }
-        self.env.pop_return_type();
-        self.env.pop_scope();
-    }
-
-    fn check_activity(&mut self, a: &HirActivity) {
-        if a.return_type.is_none() {
-            self.diags.push(Diagnostic::warning(
-                "Activity should have an explicit return type (typically Result[T])".into(),
-                a.span,
-                self.source,
-            ));
-        }
-        let mut ret_ty = a
-            .return_type
-            .as_ref()
-            .map_or(Ty::Infer, |t| resolve_hir_type(t, self.env));
-        if matches!(ret_ty, Ty::Infer) {
-            ret_ty = self.uf.fresh_var();
-        }
-        if let Some(rt) = &a.return_type {
-            let declared = resolve_hir_type(rt, self.env);
-            if !matches!(declared, Ty::Result(_)) {
-                self.diags.push(Diagnostic::error(
-                    "Activity must return a Result type (e.g. Result[str])".into(),
-                    a.span,
-                    self.source,
-                ));
-            }
-        }
-        self.env.push_scope();
-        self.env.push_return_type(ret_ty.clone());
-
-        self.env.define(
-            "db".into(),
-            Binding::new(Ty::Database, false, BindingKind::Variable),
-        );
-
-        for p in &a.params {
-            let p_ty = p
-                .type_ann
-                .as_ref()
-                .map_or(self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
-            self.env.define(
-                p.name.clone(),
-                Binding::new(p_ty, false, BindingKind::Parameter),
-            );
-        }
-        for stmt in &a.body {
-            let _ = self.check_stmt(stmt);
-        }
         self.env.pop_return_type();
         self.env.pop_scope();
     }
@@ -579,10 +365,7 @@ impl<'a> Checker<'a> {
             }
             HirExpr::Lambda(_, _, body, _) => Self::contains_db_write_or_unsafe_in_expr(body),
             HirExpr::Block(body, _) => Self::contains_db_write_or_unsafe_in_stmts(body),
-            HirExpr::Pipe(l, r, _) => {
-                Self::contains_db_write_or_unsafe_in_expr(l)
-                    || Self::contains_db_write_or_unsafe_in_expr(r)
-            }
+
             HirExpr::Spawn(e, _) => Self::contains_db_write_or_unsafe_in_expr(e),
             HirExpr::With(base, opts, _) => {
                 Self::contains_db_write_or_unsafe_in_expr(base)

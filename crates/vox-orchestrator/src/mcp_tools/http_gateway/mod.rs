@@ -16,6 +16,7 @@ use axum::Json;
 use axum::extract::DefaultBodyLimit;
 mod eval;
 use eval::*;
+mod origin_guard;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -194,7 +195,8 @@ pub fn spawn_http_gateway_if_enabled(
         .expose()
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(DEFAULT_BIND_PORT);
-    let bearer_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpBearerToken)
+    #[allow(unused_mut)]
+    let mut bearer_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpBearerToken)
         .expose()
         .map(str::trim)
         .filter(|s| !s.is_empty())
@@ -257,7 +259,7 @@ pub fn spawn_http_gateway_if_enabled(
         server_state: state,
         bearer_token: bearer_token.clone(),
         read_bearer_token,
-        dashboard_token,
+        dashboard_token: dashboard_token.clone(),
         allow_unauthenticated,
         health_auth_required,
         require_forwarded_https,
@@ -282,41 +284,17 @@ pub fn spawn_http_gateway_if_enabled(
         .route("/v1/mobile/status", get(http_mobile_status));
 
     #[cfg(feature = "dashboard")]
-    let app = app.merge(vox_dashboard::dashboard_router(dashboard_token.map(|t| t.0)));
+    let app = app.merge(vox_dashboard::dashboard_router(dashboard_token.as_ref().map(|t| t.0.clone())));
 
-    async fn check_origin_allowlist(
-        axum::extract::State(state): axum::extract::State<GatewayState>,
-        headers: axum::http::HeaderMap,
-        req: axum::extract::Request,
-        next: axum::middleware::Next,
-    ) -> axum::response::Response {
-        // Exempt the public eval sandbox from loopback restrictions
-        if state.public_eval_enabled && (req.uri().path() == "/v1/eval" || req.uri().path() == "/health") {
-            return next.run(req).await;
-        }
-
-        let origin = headers.get(axum::http::header::ORIGIN)
-            .and_then(|v| v.to_str().ok())
-            .or_else(|| headers.get(axum::http::header::HOST).and_then(|v| v.to_str().ok()))
-            .unwrap_or("");
-        
-        if !origin.is_empty() {
-            let is_loopback = origin.starts_with("http://127.0.0.1") 
-                || origin.starts_with("http://localhost")
-                || origin.starts_with("https://127.0.0.1")
-                || origin.starts_with("https://localhost")
-                || origin.starts_with("127.0.0.1")
-                || origin.starts_with("localhost");
-                
-            if !is_loopback && !state.public_eval_enabled {
-                return (axum::http::StatusCode::FORBIDDEN, "Forbidden: Invalid Origin/Host").into_response();
-            }
-        }
-        next.run(req).await
-    }
+    let cors = tower_http::cors::CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any)
+        .expose_headers(tower_http::cors::Any);
 
     let app = app
-        .layer(axum::middleware::from_fn_with_state(gateway_state.clone(), check_origin_allowlist))
+        .layer(cors)
+        .layer(axum::middleware::from_fn_with_state(gateway_state.clone(), origin_guard::check_origin_allowlist))
         .layer(DefaultBodyLimit::max(256 * 1024))
         .with_state(gateway_state.clone());
 

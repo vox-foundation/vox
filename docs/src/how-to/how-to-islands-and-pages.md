@@ -112,6 +112,7 @@ routes {
 > [!TIP]
 > Vox supports a special `@v0` decorator for pulling down interface prototypes.
 > ```vox
+> // vox:skip
 > @v0 "yM1xXq6"
 > fn PricingTable() -> Element
 > ```

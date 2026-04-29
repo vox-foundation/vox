@@ -92,19 +92,15 @@ mod tests {
             span,
         );
         let mut module = HirModule::default();
-        module.components.push(HirReactiveComponent {
+        module.endpoint_fns.push(crate::hir::HirEndpointFn {
             id: DefId(1),
             name: "TaskList".to_string(),
             params: vec![],
-            members: vec![HirReactiveMember::Derived(HirDerived {
-                id: DefId(2),
-                name: "rows".to_string(),
-                ty: None,
-                expr,
-                span,
-            })],
-            view: None,
-            styles: vec![],
+            return_type: None,
+            body: vec![crate::hir::HirStmt::Expr { expr, span }],
+            kind: crate::hir::HirEndpointKind::Query,
+            
+            route_path: "/test".to_string(),
             span,
         });
 

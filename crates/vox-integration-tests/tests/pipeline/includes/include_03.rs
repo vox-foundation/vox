@@ -8,7 +8,7 @@ const MCP_TOOL_SRC: &str = r#"type SearchResult =
 }
 
 @mcp.tool "Get system status" fn system_status() to str {
-    ret "healthy"
+    return "healthy"
 }
 "#;
 
@@ -124,15 +124,15 @@ routes {
 }
 
 http get "/api/todos" to str {
-    ret "[]"
+    return "[]"
 }
 
 http post "/api/todos" to str {
-    ret "created"
+    return "created"
 }
 
 @server fn get_stats() to int {
-    ret 42
+    return 42
 }
 "#;
 

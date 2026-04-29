@@ -20,20 +20,23 @@ fn projection_triplet_is_deterministic_and_schema_versioned() {
     let src = r#"
 @table type Task { title: str done: bool }
 
-component Home() {
-    state n: int = 0
-    derived rows = db.Task.filter({ done: false }).select("title", "done")
-    view: <div>{n}</div>
+@island Home {
+    n: int
+}
+
+fn Home_render() to str {
+    let rows = db.Task.filter({ done: false }).select("title", "done")
+    return "div"
 }
 
 routes {
-    "/" to Home
+    "/" to Home_render
 }
 
-http get "/api/ping" to int { ret 1 }
-@server fn sf_ping() to int { ret 1 }
-@query fn list_tasks() to int { ret 0 }
-@mutation fn save_task(title: str) to int {
+@endpoint(kind: query) fn ping() to int { ret 1 }
+@endpoint(kind: server) fn sf_ping() to int { ret 1 }
+@endpoint(kind: query) fn list_tasks() to int { ret 0 }
+@endpoint(kind: mutation) fn save_task(title: str) to int {
     db.Task.insert({ title: title, done: false })
     ret 1
 }
@@ -67,7 +70,6 @@ http get "/api/ping" to int { ret 1 }
 
     assert_eq!(app.schema_version, 2);
     assert_eq!(runtime.schema_version, 1);
-    assert!(!app.http_routes.is_empty(), "expected HTTP route contract");
     assert!(!app.server_fns.is_empty(), "expected @server contract");
     assert!(!app.query_fns.is_empty(), "expected @query contract");
     assert!(!app.mutation_fns.is_empty(), "expected @mutation contract");

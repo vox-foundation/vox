@@ -1,4 +1,4 @@
-//! Express `server.ts` generation from HIR HTTP routes and `@server` / `@query` / `@mutation` fns.
+﻿//! Express `server.ts` generation from HIR HTTP routes and `@server` / `@query` / `@mutation` fns.
 //!
 //! ## Adapter seam (OP-0161..OP-0176)
 //!

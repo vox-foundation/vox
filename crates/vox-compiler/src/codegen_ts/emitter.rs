@@ -12,7 +12,6 @@
 //! only validated [`crate::web_ir::WebIrModule`] slices is tracked in the internal Web IR blueprint.
 
 use crate::app_contract::project_app_contract;
-use crate::codegen_ts::activity::{generate_activity_hir, generate_activity_runner};
 use crate::codegen_ts::adt::generate_types;
 
 use crate::codegen_ts::island_emit::collect_island_names;
@@ -83,11 +82,49 @@ pub fn generate_with_options(
     let island_names = collect_island_names(hir);
     let app_contract = project_app_contract(hir);
 
+    if options.mode != BuildMode::Library && !hir.components.is_empty() {
+        let web_projection = crate::web_ir::lower::project_web_from_core(hir);
+        for rc in &hir.components {
+            let (filename, content) = generate_reactive_component(
+                hir,
+                rc,
+                &island_names,
+                Some(&web_projection),
+                &mut reactive_stats,
+            );
+            files.push((filename, content));
+            if !rc.styles.is_empty() {
+                let mut css = String::new();
+                for block in &rc.styles {
+                    css.push_str(&block.selector);
+                    css.push_str(" {\n");
+                    for (prop, val) in &block.properties {
+                        css.push_str(&format!("  {prop}: {val};\n"));
+                    }
+                    css.push_str("}\n");
+                }
+                files.push((format!("{}.css", rc.name), css));
+            }
+        }
+    }
+
     // Generate type definitions
     let types_content = generate_types(hir);
     let has_types = !types_content.is_empty();
     if has_types {
         files.push(("types.ts".to_string(), types_content));
+    }
+
+    // Generate typed URL declarations
+    let url_content = crate::codegen_ts::url_emit::emit_url_decls(hir);
+    if !url_content.is_empty() {
+        files.push(("urls.ts".to_string(), url_content));
+    }
+
+    // Generate state machine types + reducers
+    let sm_content = crate::codegen_ts::state_machine_emit::emit_state_machine_decls(hir);
+    if !sm_content.is_empty() {
+        files.push(("state_machines.ts".to_string(), sm_content));
     }
     if let Ok(contract_json) = serde_json::to_string_pretty(&app_contract) {
         files.push(("vox-app-contract.json".to_string(), contract_json));
@@ -98,29 +135,6 @@ pub fn generate_with_options(
             "vox-tanstack-query.tsx".to_string(),
             vox_tanstack_query_tsx(),
         ));
-    }
-
-    let web_projection_cache = if hir.components.is_empty() {
-        None
-    } else {
-        Some(crate::web_ir::lower::project_web_from_core(hir))
-    };
-    let web_projection_ref = web_projection_cache.as_ref();
-
-    if options.mode != BuildMode::Library {
-        // Generate reactive components (Path C). Optional `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` uses Web IR
-        // preview emit for `view:` when validate is clean and whitespace-normalized JSX matches legacy.
-        for rc in &hir.components {
-            let (filename, content) = generate_reactive_component(
-                hir,
-                rc,
-                &island_names,
-                web_projection_ref,
-                &mut reactive_stats,
-            );
-            files.push((filename, content));
-        }
-
     }
 
     // Generate Express server only when explicitly requested (Axum + api.ts is canonical).
@@ -136,16 +150,6 @@ pub fn generate_with_options(
             files.push(("server.ts".to_string(), routes_content));
         }
 
-        // Generate activities from HIR (canonical)
-        if !hir.activities.is_empty() {
-            let mut activities_content = String::new();
-            activities_content.push_str(&generate_activity_runner());
-            activities_content.push('\n');
-            for activity in &hir.activities {
-                activities_content.push_str(&generate_activity_hir(activity));
-            }
-            files.push(("activities.ts".to_string(), activities_content));
-        }
     }
 
     // Generate table interfaces + schema from HIR
@@ -177,93 +181,38 @@ pub fn generate_with_options(
     }
 
 
-    for rc in &hir.components {
-        if rc.styles.is_empty() {
-            continue;
-        }
-        let filename = format!("{}.css", rc.name);
-        let mut css = String::new();
-        css.push_str(&format!("@layer {} {{\n", rc.name));
-        for block in &rc.styles {
-            css.push_str(&format!("  {} {{\n", block.selector));
-            for (prop, val) in &block.properties {
-                let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
-                    if c.is_uppercase() {
-                        acc.push('-');
-                        acc.push(c.to_ascii_lowercase());
-                    } else {
-                        acc.push(c);
-                    }
-                    acc
-                });
-
-                let css_val = if val.trim().starts_with("tokens.") {
-                    format!(
-                        "var(--vox-{})",
-                        val.trim()
-                            .strip_prefix("tokens.")
-                            .unwrap()
-                            .replace('.', "-")
-                    )
-                } else {
-                    val.clone()
-                };
-
-                css.push_str(&format!("    {}: {};\n", css_prop, css_val));
-            }
-            css.push_str("  }\n\n");
-        }
-        css.push_str("}\n\n");
-        files.push((filename, css));
+    // Load vox.tokens.json via TokenRegistry: emits typed CSS + TS and validates token refs.
+    let token_registry =
+        crate::tokens::TokenRegistry::load_from_str(
+            &std::fs::read_to_string("vox.tokens.json").unwrap_or_default(),
+        )
+        .ok();
+    if let Some(ref reg) = token_registry {
+        files.push((
+            "vox-tokens.css".to_string(),
+            crate::codegen_ts::tokens_emit::emit_tokens_css(reg),
+        ));
+        files.push((
+            "tokens.ts".to_string(),
+            crate::codegen_ts::tokens_emit::emit_tokens_ts(reg),
+        ));
     }
 
-    // Process vox.tokens.json into vox-tokens.css
-    if let Ok(tokens_content) = std::fs::read_to_string("vox.tokens.json") {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&tokens_content) {
-            let mut tokens_css = String::from(":root {\n");
+    let web_projection = crate::web_ir::lower::project_web_from_core(hir);
+    maybe_web_ir_validate(hir, Some(&web_projection), token_registry.as_ref())?;
 
-            fn flatten_tokens(val: &serde_json::Value, prefix: &str, out: &mut String) {
-                if let Some(obj) = val.as_object() {
-                    for (k, v) in obj {
-                        let new_prefix = if prefix.is_empty() {
-                            k.clone()
-                        } else {
-                            format!("{}-{}", prefix, k)
-                        };
-                        flatten_tokens(v, &new_prefix, out);
-                    }
-                } else if let Some(s) = val.as_str() {
-                    out.push_str(&format!("  --vox-{}: {};\n", prefix, s));
-                } else if let Some(n) = val.as_number() {
-                    out.push_str(&format!("  --vox-{}: {};\n", prefix, n));
-                }
-            }
-
-            flatten_tokens(&json, "", &mut tokens_css);
-            tokens_css.push_str("}\n");
-            files.push(("vox-tokens.css".to_string(), tokens_css));
-        }
-    }
-
-    maybe_web_ir_validate(hir, web_projection_cache.as_ref())?;
-
-    let (manifest_filename, route_manifest) = match web_projection_ref {
-        Some(w) => {
-            if options.mode == BuildMode::Library {
-                (
-                    "routes.manifest.json",
-                    crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(
-                        w, hir,
-                    )?,
-                )
-            } else {
-                (
-                    "routes.manifest.ts",
-                    crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(w, hir)?,
-                )
-            }
-        }
-        None => ("", None),
+    let (manifest_filename, route_manifest) = if options.mode == BuildMode::Library {
+        (
+            "routes.manifest.json",
+            crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(
+                &web_projection, hir,
+            )?,
+        )
+    } else {
+        (
+            "routes.manifest.ts",
+            crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(&web_projection, hir)?,
+        )
     };
     if let Some(manifest) = route_manifest {
         files.push((manifest_filename.to_string(), manifest));
@@ -376,9 +325,13 @@ pub fn generate_with_options(
 
 /// WebIR lower + validate gate (OP-0113, OP-0124). **On by default;** set `VOX_WEBIR_VALIDATE=0` / `false` /
 /// `no` / `off` to skip.
+///
+/// When a [`crate::tokens::TokenRegistry`] is supplied, token reference resolution and
+/// WCAG contrast validation run as part of the style stage (TASK-4.4).
 fn maybe_web_ir_validate(
     hir: &HirModule,
     cached_web: Option<&crate::web_ir::WebIrModule>,
+    registry: Option<&crate::tokens::TokenRegistry>,
 ) -> Result<(), String> {
     if !crate::web_migration_env::web_ir_validate_gate_enabled() {
         return Ok(());
@@ -391,12 +344,21 @@ fn maybe_web_ir_validate(
             &fallback
         }
     };
-    let diags = crate::web_ir::validate::validate_web_ir(web);
-    if diags.is_empty() {
+    let diags = crate::web_ir::validate::validate_web_ir_with_registry(web, registry);
+    // Advisory diagnostics must not block codegen — only hard errors gate the build.
+    let error_diags: Vec<crate::web_ir::WebIrDiagnostic> = diags
+        .into_iter()
+        .filter(|d| !is_advisory_diag(d))
+        .collect();
+    if error_diags.is_empty() {
         return Ok(());
     }
     Err(format!(
         "VOX_WEBIR_VALIDATE: {}",
-        crate::web_ir::validate::format_web_ir_validate_failure(&diags)
+        crate::web_ir::validate::format_web_ir_validate_failure(&error_diags)
     ))
+}
+
+fn is_advisory_diag(d: &crate::web_ir::WebIrDiagnostic) -> bool {
+    crate::web_ir::validate::is_advisory_diagnostic(d)
 }

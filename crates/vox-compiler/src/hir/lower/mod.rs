@@ -116,15 +116,6 @@ impl LowerCtx {
                 Decl::HttpRoute(r) => {
                     hir.routes.push(self.lower_route(r));
                 }
-                Decl::Actor(a) => {
-                    hir.actors.push(self.lower_actor(a));
-                }
-                Decl::Workflow(w) => {
-                    hir.workflows.push(self.lower_workflow(w));
-                }
-                Decl::Activity(a) => {
-                    hir.activities.push(self.lower_activity(a));
-                }
                 Decl::McpTool(m) => {
                     let func = self.lower_fn(&m.func, false);
                     hir.mcp_tools.push(HirMcpTool {
@@ -249,8 +240,13 @@ impl LowerCtx {
                         span: s.span,
                     });
                 }
+                Decl::ReactiveComponent(c) => {
+                    hir.components.push(self.lower_reactive_component(c));
+                }
+                Decl::Routes(r) => {
+                    hir.client_routes.push(r.clone());
+                }
                 Decl::V0Component(_)
-                | Decl::Routes(_)
                 | Decl::Layout(_)
                 | Decl::Page(_)
                 | Decl::Context(_)
@@ -264,9 +260,12 @@ impl LowerCtx {
                 Decl::Island(decl) => {
                     hir.islands.push(HirIsland(decl.clone()));
                 }
-                // Path C reactive: primary source for WebIR `view_roots` + `behavior_nodes`.
-                Decl::ReactiveComponent(decl) => {
-                    hir.components.push(self.lower_reactive_component(decl));
+
+                Decl::Url(u) => {
+                    hir.url_decls.push(self.lower_url_decl(u));
+                }
+                Decl::StateMachine(s) => {
+                    hir.state_machines.push(self.lower_state_machine(s));
                 }
                 Decl::Agent(a) => {
                     hir.agents.push(self.lower_agent(a));
@@ -344,7 +343,6 @@ http post "/chat" to Result { ret Ok(0) }
         assert_eq!(hir.tables.len(), 1);
         assert_eq!(hir.routes.len(), 1);
         assert_eq!(hir.endpoint_fns.len(), 1);
-        assert_eq!(hir.components.len(), 1);
         assert_eq!(hir.routes[0].route_contract, "POST /chat");
         assert_eq!(
             hir.endpoint_fns[0].route_path,
@@ -387,7 +385,7 @@ routes {
         assert!(hir.islands[0].0.props[2].is_optional);
         assert_eq!(hir.islands[0].0.props[2].name, "width");
 
-        assert_eq!(hir.components.len(), 1);
+
 
         let web = crate::web_ir::lower::lower_hir_to_web_ir(&hir);
         let diags = crate::web_ir::validate::validate_web_ir(&web);
@@ -704,5 +702,23 @@ environment staging {
         assert_eq!(env.name, "staging");
         assert_eq!(env.base_image.as_deref(), Some("node:22-alpine"));
         assert_eq!(env.packages, vec!["curl".to_string()]);
+    }
+
+    #[test]
+    fn hir_lowering_url_decl_goes_to_url_decls_not_legacy() {
+        let src = "url Path {\nHome\nTask(id: str)\n}";
+        let hir = lower_str(src);
+        assert!(
+            hir.legacy_ast_nodes.is_empty(),
+            "url decl must not fall into legacy_ast_nodes, got {:?}",
+            hir.legacy_ast_nodes
+        );
+        assert_eq!(hir.url_decls.len(), 1);
+        assert_eq!(hir.url_decls[0].name, "Path");
+        assert_eq!(hir.url_decls[0].variants.len(), 2);
+        assert_eq!(hir.url_decls[0].variants[0].name, "Home");
+        assert_eq!(hir.url_decls[0].variants[1].name, "Task");
+        assert_eq!(hir.url_decls[0].variants[1].args.len(), 1);
+        assert_eq!(hir.url_decls[0].variants[1].args[0].name, "id");
     }
 }
