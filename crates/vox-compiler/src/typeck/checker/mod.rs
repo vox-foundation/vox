@@ -428,9 +428,12 @@ impl<'a> Checker<'a> {
                         .ty
                         .as_ref()
                         .map_or_else(|| self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
+                    // State is mutable: reactive components reassign it from
+                    // event handlers (e.g. `on:click={count = count + 1}`).
+                    // Derived stays immutable — it's a computed read.
                     self.env.define(
                         s.name.clone(),
-                        Binding::new(ty.clone(), false, BindingKind::Variable),
+                        Binding::new(ty.clone(), true, BindingKind::Variable),
                     );
                     state_vars.push((s.name.clone(), ty));
                 }
