@@ -60,9 +60,9 @@ training_eligible: false
 | TASK-2.3 — Collapse `HirExpr::DbTableOp` into `MethodCall` | ✅ Done | per `decl.rs:142` | `HirExpr::DbTableOp` removed entirely; operations lowered into `HirExpr::MethodCall(_, _, _, Option<Box<HirDbQueryPlan>>, _)`. |
 | TASK-2.4 — Resolve `HirExpr::Pipe` vs `Binary(Pipe)` | ✅ Done | per `decl.rs` enum | Standalone `HirExpr::Pipe` variant deleted; pipeline expressions strictly `HirExpr::Binary(HirBinOp::Pipe, ...)`. |
 | TASK-2.5 — Retire `http` bare-keyword routing | ✅ Done (parser) | per `parser/descent/tests.rs:99` | `test_parse_http_route_is_tombstoned` passes. Parser rejects with friendly error. **Caveat:** corpus migration of pre-existing `.vox` files using the form is not separately verified here — TASK-8.1 handles that atomically. |
-| TASK-2.6 — Align `workflow`/`activity`/`actor` | 🟡 Half-done (negative half) | `fa350de8` and earlier | **Parser side:** `actor`/`workflow`/`activity` are tombstoned per `test_parse_actor_is_tombstoned`/`test_parse_workflow_is_tombstoned`/`test_parse_activity_is_tombstoned`. **HIR side:** `HirActor`/`HirActorHandler`/`HirWorkflow`/`HirActivity`/`HirRoute`/`HirHttpMethod` were over-purged in TASK-2.1 then restored in `fa350de8`. The original collapse goal (sugar `workflow foo()` to `@durable fn foo()`, unifying into `FnDecl + Option<DurabilityKind>`) was **not** achieved. Re-plan needed: either keep tombstone permanent and remove the orphan HIR structs, or restore the source surface AND collapse to decorator sugar. See "TASK-2.6 retrospective" below. |
+| TASK-2.6 — Align `workflow`/`activity`/`actor` | ✅ Done (Path B — retire) | this session | Parser tombstones permanent. Removed `HirActor`, `HirActorHandler`, `HirWorkflow`, `HirActivity` structs and `actors`/`workflows`/`activities` Vec fields from `HirModule`, `SemanticHirModule`, `VoxIrContent`. All lowering, typeck, and codegen paths for these retired. 15 files, −1 150 lines, 0 warnings. `HirRoute`/`AppContract` untouched. `BindingKind::Actor`/`lookup_actor`/`ActorHandlerSig` kept — live path for the `Claude` built-in actor expression checker. |
 
-**Phase 2 verdict:** 5 complete, 1 partial. TASK-2.6 needs a re-plan decision from the operator before it can proceed.
+**Phase 2 verdict:** 6/6 complete. Phase 2 fully done.
 
 ### TASK-2.6 retrospective
 

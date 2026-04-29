@@ -36,12 +36,6 @@ pub struct HirModule {
     pub types: Vec<HirTypeDef>,
     /// HTTP route handlers.
     pub routes: Vec<HirRoute>,
-    /// Actor definitions.
-    pub actors: Vec<HirActor>,
-    /// Workflow state machines.
-    pub workflows: Vec<HirWorkflow>,
-    /// Workflow activities.
-    pub activities: Vec<HirActivity>,
     /// `@test` functions.
     pub tests: Vec<HirFn>,
     /// `@forall` properties.
@@ -116,9 +110,6 @@ impl HirModule {
             ("functions", HirFieldOwnership::SemanticCore),
             ("types", HirFieldOwnership::SemanticCore),
             ("routes", HirFieldOwnership::AppContract),
-            ("actors", HirFieldOwnership::MigrationOnly),
-            ("workflows", HirFieldOwnership::MigrationOnly),
-            ("activities", HirFieldOwnership::MigrationOnly),
             ("tests", HirFieldOwnership::SemanticCore),
             ("endpoint_fns", HirFieldOwnership::AppContract),
             ("tables", HirFieldOwnership::SemanticCore),
@@ -202,68 +193,6 @@ impl HirHttpMethod {
             Self::Delete => "DELETE",
         }
     }
-}
-
-/// Actor definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActor {
-    /// Actor type id.
-    pub id: DefId,
-    /// Actor name.
-    pub name: String,
-    /// Message handlers.
-    pub handlers: Vec<HirActorHandler>,
-    /// Span covering the actor.
-    pub span: Span,
-}
-
-/// Single actor message handler.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActorHandler {
-    /// Event name.
-    pub event_name: String,
-    /// Parameters.
-    pub params: Vec<HirParam>,
-    /// Return type.
-    pub return_type: Option<HirType>,
-    /// Handler body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the handler.
-    pub span: Span,
-}
-
-/// Workflow definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirWorkflow {
-    /// Workflow id.
-    pub id: DefId,
-    /// Workflow name.
-    pub name: String,
-    /// Input parameters.
-    pub params: Vec<HirParam>,
-    /// Output type.
-    pub return_type: Option<HirType>,
-    /// Workflow body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the workflow.
-    pub span: Span,
-}
-
-/// Activity definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActivity {
-    /// Activity id.
-    pub id: DefId,
-    /// Activity name.
-    pub name: String,
-    /// Parameters.
-    pub params: Vec<HirParam>,
-    /// Return type.
-    pub return_type: Option<HirType>,
-    /// Activity body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the activity.
-    pub span: Span,
 }
 
 /// Island component lowered to HIR.

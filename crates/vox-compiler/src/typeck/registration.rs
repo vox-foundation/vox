@@ -1,5 +1,5 @@
 use crate::hir::{
-    HirActivity, HirActor, HirAgent, HirFn, HirModule, HirTable, HirType, HirTypeDef, HirWorkflow,
+    HirAgent, HirFn, HirModule, HirTable, HirType, HirTypeDef,
 };
 use crate::rust_interop_support::{
     RustInteropSemanticsState, RustInteropSupportClass, classify_rust_crate,
@@ -7,8 +7,7 @@ use crate::rust_interop_support::{
 };
 use crate::typeck::diagnostics::Diagnostic;
 use crate::typeck::env::{
-    ActorHandlerSig, AdtDef, AgentHandlerSig, Binding, BindingKind, TypeEnv, VariantDef,
-    WorkflowSig,
+    AdtDef, AgentHandlerSig, Binding, BindingKind, TypeEnv, VariantDef,
 };
 use crate::typeck::ty::Ty;
 use crate::typeck::unify::InferenceContext;
@@ -203,15 +202,6 @@ pub fn register_hir_module(
     for r in &module.mcp_resources {
         register_hir_function(env, &r.func, uf.as_deref_mut());
     }
-    for a in &module.actors {
-        register_hir_actor(env, a, uf.as_deref_mut());
-    }
-    for w in &module.workflows {
-        register_hir_workflow(env, w, uf.as_deref_mut());
-    }
-    for act in &module.activities {
-        register_hir_activity(env, act, uf.as_deref_mut());
-    }
     for t in &module.tables {
         register_hir_table(env, t);
     }
@@ -402,116 +392,6 @@ fn register_fn_like(
     );
 }
 
-pub fn register_hir_actor(env: &mut TypeEnv, a: &HirActor, mut uf: Option<&mut InferenceContext>) {
-    let handlers: Vec<ActorHandlerSig> = a
-        .handlers
-        .iter()
-        .map(|h| ActorHandlerSig {
-            event_name: h.event_name.clone(),
-            params: h
-                .params
-                .iter()
-                .map(|p| {
-                    (
-                        p.name.clone(),
-                        p.type_ann
-                            .as_ref()
-                            .map_or(Ty::Infer, |t| resolve_hir_type(t, env)),
-                    )
-                })
-                .collect(),
-            return_type: h
-                .return_type
-                .as_ref()
-                .map(|t| resolve_hir_type(t, env))
-                .unwrap_or_else(|| {
-                    if let Some(ctx) = uf.as_deref_mut() {
-                        ctx.fresh_var()
-                    } else {
-                        Ty::Infer
-                    }
-                }),
-        })
-        .collect();
-    env.register_actor(a.name.clone(), handlers);
-}
-
-pub fn register_hir_workflow(
-    env: &mut TypeEnv,
-    w: &HirWorkflow,
-    mut uf: Option<&mut InferenceContext>,
-) {
-    env.register_workflow(WorkflowSig {
-        name: w.name.clone(),
-        params: w
-            .params
-            .iter()
-            .map(|p| {
-                (
-                    p.name.clone(),
-                    if let Some(t) = &p.type_ann {
-                        resolve_hir_type(t, env)
-                    } else if let Some(ctx) = uf.as_deref_mut() {
-                        ctx.fresh_var()
-                    } else {
-                        Ty::Infer
-                    },
-                )
-            })
-            .collect(),
-        return_type: w
-            .return_type
-            .as_ref()
-            .map(|t| resolve_hir_type(t, env))
-            .unwrap_or_else(|| {
-                if let Some(ctx) = uf.as_deref_mut() {
-                    ctx.fresh_var()
-                } else {
-                    Ty::Infer
-                }
-            }),
-    });
-}
-
-pub fn register_hir_activity(
-    env: &mut TypeEnv,
-    a: &HirActivity,
-    mut uf: Option<&mut InferenceContext>,
-) {
-    let param_tys: Vec<Ty> = a
-        .params
-        .iter()
-        .map(|p| {
-            if let Some(t) = &p.type_ann {
-                resolve_hir_type(t, env)
-            } else if let Some(ctx) = uf.as_deref_mut() {
-                ctx.fresh_var()
-            } else {
-                Ty::Infer
-            }
-        })
-        .collect();
-    let ret_ty = a
-        .return_type
-        .as_ref()
-        .map(|t| resolve_hir_type(t, env))
-        .unwrap_or_else(|| {
-            // Activities usually return Result[T]
-            if let Some(ctx) = uf.as_deref_mut() {
-                Ty::Result(Box::new(ctx.fresh_var()))
-            } else {
-                Ty::Infer
-            }
-        });
-    env.define(
-        a.name.clone(),
-        Binding::new(
-            Ty::Fn(param_tys, Box::new(ret_ty)),
-            false,
-            BindingKind::Activity,
-        ),
-    );
-}
 pub fn register_hir_table(env: &mut TypeEnv, t: &HirTable) {
     let fields: Vec<(String, Ty)> = t
         .fields

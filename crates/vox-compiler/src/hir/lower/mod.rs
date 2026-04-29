@@ -116,15 +116,6 @@ impl LowerCtx {
                 Decl::HttpRoute(r) => {
                     hir.routes.push(self.lower_route(r));
                 }
-                Decl::Actor(a) => {
-                    hir.actors.push(self.lower_actor(a));
-                }
-                Decl::Workflow(w) => {
-                    hir.workflows.push(self.lower_workflow(w));
-                }
-                Decl::Activity(a) => {
-                    hir.activities.push(self.lower_activity(a));
-                }
                 Decl::McpTool(m) => {
                     let func = self.lower_fn(&m.func, false);
                     hir.mcp_tools.push(HirMcpTool {
@@ -251,6 +242,9 @@ impl LowerCtx {
                 }
                 Decl::ReactiveComponent(c) => {
                     hir.components.push(self.lower_reactive_component(c));
+                }
+                Decl::Actor(_) | Decl::Workflow(_) | Decl::Activity(_) => {
+                    // Parser tombstones these — they never reach valid HIR.
                 }
                 Decl::V0Component(_)
                 | Decl::Routes(_)

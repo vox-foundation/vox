@@ -92,8 +92,6 @@ pub struct TypeEnv {
     types: HashMap<String, AdtDef>,
     /// Actor names → handler signatures: actor_name → [(handler_name, params, return_type)]
     actors: HashMap<String, Vec<ActorHandlerSig>>,
-    /// Workflow names → (params, return_type)
-    workflows: HashMap<String, WorkflowSig>,
     /// Agent names → handler signatures
     agents: HashMap<String, Vec<AgentHandlerSig>>,
     /// Stack of expected return types for currently checked functions
@@ -104,14 +102,6 @@ pub struct TypeEnv {
 #[derive(Debug, Clone)]
 pub struct ActorHandlerSig {
     pub event_name: String,
-    pub params: Vec<(String, Ty)>,
-    pub return_type: Ty,
-}
-
-/// Signature of a workflow.
-#[derive(Debug, Clone)]
-pub struct WorkflowSig {
-    pub name: String,
     pub params: Vec<(String, Ty)>,
     pub return_type: Ty,
 }
@@ -131,7 +121,6 @@ impl TypeEnv {
             scopes: vec![Scope::new()],
             types: HashMap::new(),
             actors: HashMap::new(),
-            workflows: HashMap::new(),
             agents: HashMap::new(),
             return_types: Vec::new(),
         }
@@ -271,32 +260,6 @@ impl TypeEnv {
     /// Look up an actor's handler signatures.
     pub fn lookup_actor(&self, name: &str) -> Option<&Vec<ActorHandlerSig>> {
         self.actors.get(name)
-    }
-
-    // ── Workflow registration ─────────────────────────────────
-
-    /// Register a workflow signature.
-    pub fn register_workflow(&mut self, sig: WorkflowSig) {
-        let name = sig.name.clone();
-        let ty = Ty::Fn(
-            sig.params.iter().map(|(_, t)| t.clone()).collect(),
-            Box::new(sig.return_type.clone()),
-        );
-        self.scopes[0].bindings.insert(
-            name.clone(),
-            Binding {
-                ty,
-                mutable: false,
-                kind: BindingKind::Function,
-                is_deprecated: false,
-            },
-        );
-        self.workflows.insert(name, sig);
-    }
-
-    /// Look up a workflow signature.
-    pub fn lookup_workflow(&self, name: &str) -> Option<&WorkflowSig> {
-        self.workflows.get(name)
     }
 
     /// Register an agent and its handler signatures.

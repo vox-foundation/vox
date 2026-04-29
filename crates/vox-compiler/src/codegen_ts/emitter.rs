@@ -12,7 +12,6 @@
 //! only validated [`crate::web_ir::WebIrModule`] slices is tracked in the internal Web IR blueprint.
 
 use crate::app_contract::project_app_contract;
-use crate::codegen_ts::activity::{generate_activity_hir, generate_activity_runner};
 use crate::codegen_ts::adt::generate_types;
 
 use crate::codegen_ts::island_emit::collect_island_names;
@@ -112,16 +111,6 @@ pub fn generate_with_options(
             files.push(("server.ts".to_string(), routes_content));
         }
 
-        // Generate activities from HIR (canonical)
-        if !hir.activities.is_empty() {
-            let mut activities_content = String::new();
-            activities_content.push_str(&generate_activity_runner());
-            activities_content.push('\n');
-            for activity in &hir.activities {
-                activities_content.push_str(&generate_activity_hir(activity));
-            }
-            files.push(("activities.ts".to_string(), activities_content));
-        }
     }
 
     // Generate table interfaces + schema from HIR
