@@ -174,10 +174,13 @@ struct WsMessageOut {
 pub fn http_gateway_enabled() -> bool {
     let result = read_bool_env(vox_clavis::SecretId::VoxMcpHttpEnabled).unwrap_or(false);
     let resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpEnabled);
-    println!("DEBUG: http_gateway_enabled() -> {}", result);
-    println!(
-        "DEBUG: VOX_MCP_HTTP_ENABLED resolved status: {:?} source: {:?}",
-        resolved.status, resolved.source
+    // Use tracing so this debug info honors RUST_LOG filters and never
+    // corrupts stdout for callers piping the gateway output.
+    tracing::debug!(
+        enabled = result,
+        status = ?resolved.status,
+        source = ?resolved.source,
+        "http gateway enablement resolved"
     );
     result
 }
