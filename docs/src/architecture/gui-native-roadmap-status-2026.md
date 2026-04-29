@@ -29,7 +29,7 @@ training_eligible: false
 | TASK-0.3 — Strict Origin/Host allowlist middleware | ✅ Done | `327bf460` | Extracted origin check into `origin_guard.rs` with JSON error body, strict WS-upgrade check, and comprehensive unit tests. |
 | TASK-0.4 — CSP, X-Frame-Options, Referrer-Policy, CORS | ✅ Done | `d152d272` | `X-Frame-Options` and `Content-Security-Policy` headers present in `assets.rs`. `CorsLayer::new()` with `allow_origin(Any)`, `allow_methods(Any)`, `allow_headers(Any)` installed in `http_gateway/mod.rs`. |
 | TASK-0.5 — Fix `vox dashboard` CLI detachment + readiness polling | ✅ Done | `b7536331` | `DashboardLauncher` struct with `setsid()`/Windows `DETACHED_PROCESS` flags implemented. |
-| TASK-0.6 — Harden `transport.ts`: backoff, auth refresh | 🟡 Partial | `b7536331` | Bearer attached, basic reconnect present. Still need: explicit `connectionStatus`/`authStatus` event union, exponential backoff with cap, 4401 close-code handling, UI banner wiring. |
+| TASK-0.6 — Harden `transport.ts`: backoff, auth refresh | ✅ Done | see commit | Typed discriminated-union events (`ConnectionStatusPayload`, `AuthStatusEvent`) with `VoxTransportEventMap` overloads on `on`/`emit`. Exponential backoff replaced with `Math.min(250·2ⁿ, 30 s)`. 4401 auth close-code stops reconnect loop. UI banner wired in exec-hint bar. Missing type exports in `types.ts` resolved; broken `'../../../src/types'` import paths in components fixed. |
 | TASK-0.7 — Fix `App.tsx` hooks violation + dead imports | ✅ Done | `b7536331` | `useVoxTransport()` moved to top of component. Dead imports removed. |
 | TASK-0.8 — Integration tests for dashboard crate | ✅ Done | `d152d272` | `crates/vox-dashboard/tests/{auth,asset_serving,origin_guard}.rs` present. |
 
@@ -163,7 +163,7 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ---
 
-## Repository hygiene flags (must address before next phase)
+## Repository hygiene flags
 
 1. **TASK-8.2** — MENS training run. Run `vox populi train --config qlora.toml` against the updated corpus; compare eval scores. Requires operator compute action.
 2. **TASK-7.3 (remaining partial)** — Full bundler replacement. Blocked on a vox-integrated bundler; can run in parallel with TASK-8.2.
