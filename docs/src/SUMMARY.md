@@ -426,7 +426,6 @@ training_eligible: false
 - [Data Storage Lint & CI Spec (2026)](architecture/data-storage-lint-and-ci-spec-2026.md)
 - [Data Storage Migration Backlog (2026)](architecture/data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](architecture/data-storage-ssot-2026.md)
-- [GUI-Native Language Roadmap — Execution Status](architecture/gui-native-roadmap-status-2026.md)
 - [MENS Research Track Blueprint 2026](archive/research-2026-q1/mens-research-track-blueprint-2026.md)
 - [Populi GPU mesh implementation plan 2026](archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md)
 - [Scientia Publication Pipeline — Full Implementation Plan v2 (2026)](archive/research-2026-q1/scientia-publication-pipeline-implementation-plan-2026.md)
