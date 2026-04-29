@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { BrainCircuit, Database, Globe2, RefreshCcw, Search, FolderKanban, Compass, Rocket } from 'lucide-react';
 import { voxTransport } from '../transport';
-import type { WorkspaceInspectorState } from '../../../src/types';
+import type { WorkspaceInspectorState } from '../types';
 
 function pretty(value: unknown): string {
   if (value == null) return 'None';
@@ -78,7 +78,7 @@ export function ContextExplorer({
               <div className="text-xs text-zinc-500">No visible editors.</div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {inspector?.openFiles.map((file) => (
+                {inspector?.openFiles?.map((file) => (
                   <span key={file} className="px-2 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[11px] text-blue-200">
                     {file}
                   </span>
@@ -89,7 +89,7 @@ export function ContextExplorer({
               <div className="mt-3">
                 <div className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-1">Diagnostics</div>
                 <div className="flex flex-col gap-1">
-                  {inspector?.activeEditor.diagnostics.slice(0, 4).map((diag) => (
+                  {inspector?.activeEditor?.diagnostics?.slice(0, 4).map((diag) => (
                     <div key={`${diag.line}-${diag.message}`} className="text-[11px] text-zinc-400">
                       {diag.severity} · L{diag.line} · {diag.message}
                     </div>
@@ -237,7 +237,7 @@ export function ContextExplorer({
             </div>
             {(inspector?.contextKeys?.length ?? 0) > 0 ? (
               <div className="mt-3 flex flex-wrap gap-2">
-                {inspector?.contextKeys.slice(0, 12).map((key) => (
+                {inspector?.contextKeys?.slice(0, 12).map((key: string) => (
                   <button
                     key={key}
                     type="button"

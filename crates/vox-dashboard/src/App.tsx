@@ -5,7 +5,14 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 import { useVoxTransport, voxTransport } from './transport';
-import { ChatSessionMeta, ComposerState, WorkspaceInspectorState, AttentionStatusPayload } from './types';
+import {
+  ChatSessionMeta,
+  ComposerState,
+  WorkspaceInspectorState,
+  AttentionStatusPayload,
+  ConnectionStatusPayload,
+  AuthStatusEvent,
+} from './types';
 
 import { UnifiedDashboard } from './components/UnifiedDashboard';
 import { EngineeringDiagnostics } from './components/EngineeringDiagnostics';
@@ -46,8 +53,8 @@ function App() {
   const [planAdequacyQuestions, setPlanAdequacyQuestions] = useState<string[]>([]);
   const [attentionStatus, setAttentionStatus] = useState<AttentionStatusPayload | null>(null);
   const [attentionAlert, setAttentionAlert] = useState<any | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<{status: string, code?: number, attempt?: number}>({status: 'connecting'});
-  const [authStatus, setAuthStatus] = useState<string>('authorized');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusPayload>({ status: 'connecting' });
+  const [authStatus, setAuthStatus] = useState<AuthStatusEvent>('authorized');
 
   // Local UI states
   const [chatInput, setChatInput] = useState<string>('');
@@ -136,8 +143,8 @@ function App() {
             type: validated ? 'success' : 'danger',
           });
         }),
-        transport.on('connection_status', (val: any) => setConnectionStatus(val as {status: string, code?: number, attempt?: number})),
-        transport.on('authStatus', (val: any) => setAuthStatus(val as string))
+        transport.on('connection_status', (val) => setConnectionStatus(val)),
+        transport.on('authStatus', (val) => setAuthStatus(val))
     ];
     
     return () => {

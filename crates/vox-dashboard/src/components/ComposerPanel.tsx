@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Files, Sparkles, Check, X, RefreshCcw } from 'lucide-react';
 import { voxTransport } from '../transport';
-import type { ComposerState } from '../../../src/types';
+import type { ComposerState } from '../types';
 import { CodeBlock } from './CodeBlock';
 
 function langFromPath(path: string): string {
@@ -138,7 +138,7 @@ export function ComposerPanel({
           <p className="text-[11px] text-steel font-mono">No staged composer drafts yet.</p>
         ) : (
           <div className="flex flex-col gap-3">
-            {composerState?.drafts.map((draft) => (
+            {composerState?.drafts?.map((draft) => (
               <article key={draft.path} className="rounded border border-border bg-machine p-3 hover:border-cyan transition-colors group">
                 <div className="flex items-start justify-between gap-3">
                   <div>

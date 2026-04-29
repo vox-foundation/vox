@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Zap, Activity, Settings2 } from 'lucide-react';
 import { voxTransport } from '../transport';
-import { AttentionAlert, AttentionStatusPayload } from '../../../src/types';
+import type { AttentionAlert, AttentionStatusPayload } from '../types';
 
 export const AttentionPanel = ({
     status,

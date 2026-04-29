@@ -268,7 +268,7 @@ export const UnifiedDashboard = ({
                 </div>
                 
                 {attentionStatus?.enabled && (
-                    <AttentionPanel status={attentionStatus} alert={attentionAlert} />
+                    <AttentionPanel status={attentionStatus} _alert={attentionAlert} />
                 )}
             </div>
         </div>
