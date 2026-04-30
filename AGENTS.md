@@ -137,7 +137,7 @@ tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 currently tombstoned at the parser level — source files cannot use these forms.
 Their unification into `@durable fn` / `@actor fn` decorator sugar is tracked
 under **TASK-2.6**. Until TASK-2.6 lands, the compiler rejects these keywords
-with a friendly error pointing to the decorator equivalent.
+with a tombstone error; decorator-equivalent guidance is still planned work in TASK-2.6.
 
 See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/architecture/gui-native-roadmap-status-2026.md) §Phase 2.
 

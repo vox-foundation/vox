@@ -565,10 +565,16 @@ impl ModelCatalog for AnthropicDirectCatalog {
         let resp: AnthropicModelsResponse = res.json().await?;
         let mut specs = Vec::new();
         for m in resp.data {
-            // Pricing is intentionally 0.0 here; the LiteLLMCatalog oracle (fetched in the
-            // refresh pipeline) supplies accurate input/output/cache prices for Anthropic
-            // models. Hardcoding values here caused silent drift as Anthropic updated pricing.
+            // Pricing is intentionally left at 0.0 here; the LiteLLMCatalog oracle (fetched
+            // immediately after in the refresh pipeline) supplies accurate prices. Hardcoding
+            // values caused silent drift as Anthropic updated pricing.
+            //
+            // IMPORTANT: Until LiteLLM fills in real prices, we must not emit a non-free model
+            // with 0.0 costs — that would make it rank as the "cheapest" candidate and distort
+            // routing. Mark pricing_unknown=true so the spec is treated as a placeholder and
+            // excluded from cost-ranked routing until the next LiteLLM patch arrives.
             let (c_in, c_out) = (0.0_f64, 0.0_f64);
+            let pricing_unknown = c_in == 0.0 && c_out == 0.0;
 
             // Classify tier by model name since we no longer hardcode prices here.
             let is_opus = m.id.contains("opus");
@@ -586,7 +592,9 @@ impl ModelCatalog for AnthropicDirectCatalog {
                 cost_per_1k: c_out,
                 cost_per_1k_input: c_in,
                 cost_per_1k_output: c_out,
-                is_free: false,
+                // Treat as free placeholder until LiteLLM supplies real pricing; this prevents
+                // zero-priced non-free models from topping economy routing before prices arrive.
+                is_free: pricing_unknown,
                 strengths: infer_strengths(&m.id, Some(&m.display_name), &[]),
                 capabilities: ModelCapabilities {
                     tier,
