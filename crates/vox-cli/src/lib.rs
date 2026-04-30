@@ -63,6 +63,7 @@ pub mod v0;
 /// Normalize v0.dev TSX for Vox `routes:` named imports.
 pub(crate) mod v0_tsx_normalize;
 /// Accessibility validator for v0.dev TSX output (TASK-5.4).
+#[cfg(feature = "island")]
 pub(crate) mod v0_tsx_validate;
 
 pub use dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};

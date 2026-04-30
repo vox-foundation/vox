@@ -39,7 +39,9 @@ enum AriaRole {
     Link,
     Img,
     TextInput,
+    #[allow(dead_code)] // Phase 6: checkbox/radio role checks
     Checkbox,
+    #[allow(dead_code)] // Phase 6: checkbox/radio role checks
     Radio,
     Combobox,
     Generic,
