@@ -163,10 +163,12 @@ impl DomArena {
                 island_names,
             );
         }
-        let mut attrs = Vec::new();
+        let mut attrs: Vec<(String, String)> = Vec::new();
         for attr in &el.attributes {
             attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
         }
+        // TASK-6.1: resolve primitive tags → canonical HTML tag + Tailwind class list.
+        let (tag, attrs) = apply_primitive_emission(&el.tag, attrs);
         let child_ids: Vec<DomNodeId> = el
             .children
             .iter()
@@ -174,7 +176,7 @@ impl DomArena {
             .collect();
         self.push(DomNode::Element {
             id: DomNodeId(0),
-            tag: el.tag.clone(),
+            tag,
             attrs,
             children: child_ids,
             span: None,
@@ -190,13 +192,15 @@ impl DomArena {
         if island_names.contains(&el.tag) {
             return self.lower_island(&el.tag, &el.attributes, 0, state_names, island_names);
         }
-        let mut attrs = Vec::new();
+        let mut attrs: Vec<(String, String)> = Vec::new();
         for attr in &el.attributes {
             attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
         }
+        // TASK-6.1: resolve primitive tags.
+        let (tag, attrs) = apply_primitive_emission(&el.tag, attrs);
         self.push(DomNode::Element {
             id: DomNodeId(0),
-            tag: el.tag.clone(),
+            tag,
             attrs,
             children: vec![],
             span: None,
@@ -235,6 +239,81 @@ impl DomArena {
 /// Map JSX attribute name + value the same way as TS `hir_emit` (OP-S015).
 ///
 /// Event spellings (`on_click`, `on:click`) become React-style `onClick` names on [`DomNode::Element`];
+/// Props that are consumed by the primitive resolver and must not appear on the final HTML element.
+const PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
+    "gap", "size", "weight", "align", "wrap", "variant", "level", "surface",
+    "z", "position",
+];
+
+/// TASK-6.1: if `tag` is a known primitive, replace it with the canonical HTML tag and inject
+/// the primitive's Tailwind class list into the `className` attribute (merging with any existing
+/// `class` / `className` attr from the author).  Returns `(html_tag, final_attrs)`.
+fn apply_primitive_emission(
+    tag: &str,
+    mut attrs: Vec<(String, String)>,
+) -> (String, Vec<(String, String)>) {
+    // JSX string literals arrive with surrounding quotes ("\"value\""); strip them for prop resolution.
+    let unquoted: Vec<(String, String)> = attrs
+        .iter()
+        .map(|(k, v)| {
+            let v = v.trim_matches('"').trim_matches('\'');
+            (k.clone(), v.to_string())
+        })
+        .collect();
+    let Some(emission) = super::primitives::resolve(tag, &unquoted) else {
+        return (tag.to_string(), attrs);
+    };
+    // Remove primitive-specific props that are consumed by the resolver.
+    attrs.retain(|(k, _)| !PRIMITIVE_CONSUMED_PROPS.contains(&k.as_str()));
+    let base = emission.class_string();
+    if !base.is_empty() {
+        // Merge with any existing class / className attr from the author.
+        if let Some(pos) = attrs
+            .iter()
+            .position(|(k, _)| k == "className" || k == "class")
+        {
+            let existing = attrs[pos].1.clone();
+            attrs[pos].1 = format!("{base} {existing}");
+        } else {
+            attrs.push(("className".to_string(), base));
+        }
+    }
+    if let Some(role) = emission.aria_role {
+        if !attrs.iter().any(|(k, _)| k == "role") {
+            attrs.push(("role".to_string(), role.to_string()));
+        }
+    }
+    // TASK-6.3: surface pair — inject CSS vars and a data-vox-surface attr for validation.
+    if let Some(surface) = &emission.surface_ref {
+        attrs.push(("data-vox-surface".to_string(), surface.clone()));
+        let style_val = format!(
+            "--fg: var(--vox-surface-{surface}-fg); --bg: var(--vox-surface-{surface}-bg)"
+        );
+        if let Some(pos) = attrs.iter().position(|(k, _)| k == "style") {
+            let existing = attrs[pos].1.clone();
+            attrs[pos].1 = format!("{style_val}; {existing}");
+        } else {
+            attrs.push(("style".to_string(), style_val));
+        }
+    }
+    // TASK-6.4: overlay markers — add data-vox-overlay, data-vox-z, data-vox-pos for validator.
+    match tag {
+        "overlay" => {
+            attrs.push(("data-vox-overlay".to_string(), "true".to_string()));
+        }
+        "toast" | "drawer" | "modal" => {
+            if let Some(z_val) = unquoted.iter().find(|(k, _)| k == "z").map(|(_, v)| v.clone()) {
+                attrs.push(("data-vox-z".to_string(), z_val));
+            }
+            if let Some(pos_val) = unquoted.iter().find(|(k, _)| k == "position").map(|(_, v)| v.clone()) {
+                attrs.push(("data-vox-pos".to_string(), pos_val));
+            }
+        }
+        _ => {}
+    }
+    (emission.html_tag.to_string(), attrs)
+}
+
 /// handler bodies stay as stringified TS expressions. Dedicated [`BehaviorNode::EventHandler`] rows are
 /// reserved for future binding tables — Phase 1 keeps behavior on the DOM edge for parity with `hir_emit`.
 ///
@@ -257,7 +336,6 @@ fn lower_jsx_attr_pair(
     vec![(name, val)]
 }
 
-#[allow(dead_code)]
 fn lower_route_contract_entry(
     e: &crate::ast::decl::RouteEntry,
     parent_id: &str,
@@ -290,6 +368,22 @@ fn lower_route_contract_entry(
 }
 
 
+
+fn lower_client_routes(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
+    for rd in &hir.client_routes {
+        let routes: Vec<RouteContract> = rd
+            .entries
+            .iter()
+            .enumerate()
+            .map(|(i, e)| lower_route_contract_entry(e, "", i))
+            .collect();
+        m.route_nodes.push(RouteNode::RouteTree {
+            routes,
+            span: None,
+        });
+        summary.client_route_trees += 1;
+    }
+}
 
 fn qualify(component: &str, name: &str) -> String {
     format!("{component}::{name}")
@@ -465,6 +559,7 @@ fn lower_styles_from_classic_components(
                 selector,
                 declarations,
                 specificity,
+                is_raw_css: block.is_raw_css,
                 span: None,
             });
             summary.style_rules_lowered += 1;
@@ -561,7 +656,6 @@ fn note_lowering_gaps(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrL
             ),
             span: None,
             category: Some("lower".to_string()),
-            ..Default::default()
         });
         summary.lowering_diagnostics += 1;
     }
@@ -582,7 +676,8 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
 
 
 
-    // Stage R — HTTP handlers and RPC-shaped endpoints from HIR
+    // Stage R — client `routes { }` blocks + HTTP handlers + RPC-shaped endpoints from HIR
+    lower_client_routes(hir, &mut m, &mut summary);
     lower_http_routes(hir, &mut m, &mut summary);
     lower_endpoint_contracts(hir, &mut m, &mut summary);
     lower_scheduled_jobs(hir, &mut m, &mut summary);

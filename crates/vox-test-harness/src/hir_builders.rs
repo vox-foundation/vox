@@ -34,12 +34,12 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         is_pub: false,
         is_mobile_native: false,
         is_pure: false,
-        effects: vec![],
         is_deprecated: false,
         is_llm: false,
         llm_model: None,
         schedule_interval: None,
         postconditions: vec![],
+        capabilities: vec![],
         span: dummy_span(),
     }
 }

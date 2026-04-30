@@ -253,7 +253,6 @@ impl Parser {
                 is_async: false,
                 is_deprecated: false,
                 is_pure: false,
-                effects: vec![],
                 is_traced: false,
                 is_llm: false,
                 llm_model: None,
@@ -267,6 +266,7 @@ impl Parser {
                 verify_mode: VerifyMode::Off,
                 test_strategy: None,
                 is_mobile_native: false,
+                effects: vec![],
                 span: script_start.merge(script_end),
             };
             decls.push(Decl::Function(main_fn));
@@ -445,6 +445,28 @@ impl Parser {
                         Ok(Decl::Function(f))
                     }
                     Token::TypeKw => self.parse_typedef(true),
+                    Token::Ident(ref name) if name == "url" => self.parse_url_decl(true),
+                    Token::Ident(ref name) if name == "state_machine" => {
+                        self.parse_state_machine_decl(true, false)
+                    }
+                    Token::Ident(ref name) if name == "partial" => {
+                        self.advance(); // eat `partial`
+                        match self.peek().clone() {
+                            Token::Ident(ref n) if n == "state_machine" => {
+                                self.parse_state_machine_decl(true, true)
+                            }
+                            _ => {
+                                self.errors.push(ParseError::classified(
+                                    self.span(),
+                                    "Expected `state_machine` after `partial`",
+                                    vec!["state_machine".into()],
+                                    Some(self.peek().to_string()),
+                                    ParseErrorClass::Declaration,
+                                ));
+                                Err(())
+                            }
+                        }
+                    }
                     _ => {
                         self.errors.push(ParseError::classified(
                             self.span(),
@@ -471,9 +493,30 @@ impl Parser {
                 Err(())
             }
             Token::TypeKw => self.parse_typedef(false),
+            Token::Ident(ref name) if name == "url" => self.parse_url_decl(false),
+            Token::Ident(ref name) if name == "state_machine" => {
+                self.parse_state_machine_decl(false, false)
+            }
+            Token::Ident(ref name) if name == "partial" => {
+                // `partial state_machine Name { … }`
+                self.advance(); // eat `partial`
+                match self.peek().clone() {
+                    Token::Ident(ref n) if n == "state_machine" => {
+                        self.parse_state_machine_decl(false, true)
+                    }
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Expected `state_machine` after `partial`",
+                            vec!["state_machine".into()],
+                            Some(self.peek().to_string()),
+                            ParseErrorClass::Declaration,
+                        ));
+                        Err(())
+                    }
+                }
+            }
             Token::AtTable => self.parse_table(),
-            Token::Ident(ref name) if name == "url" => self.parse_url_block(),
-            Token::Ident(ref name) if name == "state_machine" => self.parse_state_machine(),
             Token::Ident(ref name) if name == "routes" => self.parse_routes(),
             _ => {
                 self.errors.push(ParseError::classified(

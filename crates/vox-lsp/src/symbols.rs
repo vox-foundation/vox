@@ -38,27 +38,6 @@ impl SymbolEngine {
                 vec![],
                 text,
             )),
-            Decl::Actor(a) => Some(Self::make_symbol(
-                &a.name,
-                &a.span,
-                SymbolKind::CLASS,
-                vec![],
-                text,
-            )),
-            Decl::Workflow(w) => Some(Self::make_symbol(
-                &w.name,
-                &w.span,
-                SymbolKind::EVENT,
-                vec![],
-                text,
-            )),
-            Decl::Activity(a) => Some(Self::make_symbol(
-                &a.name,
-                &a.span,
-                SymbolKind::EVENT,
-                vec![],
-                text,
-            )),
             Decl::TypeDef(t) => Some(Self::make_symbol(
                 &t.name,
                 &t.span,

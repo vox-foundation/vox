@@ -29,14 +29,12 @@
         "functions",
         "types",
         "routes",
-        "actors",
-        "workflows",
-        "activities",
         "endpoint_fns",
         "tables",
         "mcp_tools",
         "mcp_resources",
-        "agents"
+        "agents",
+        "url_decls"
       ],
       "additionalProperties": true,
       "properties": {
@@ -45,14 +43,12 @@
         "functions": { "type": "array" },
         "types": { "type": "array" },
         "routes": { "type": "array" },
-        "actors": { "type": "array" },
-        "workflows": { "type": "array" },
-        "activities": { "type": "array" },
         "endpoint_fns": { "type": "array" },
         "tables": { "type": "array" },
         "mcp_tools": { "type": "array" },
         "mcp_resources": { "type": "array" },
         "agents": { "type": "array" },
+        "url_decls": { "type": "array" },
         "web_ir": { "type": ["object", "null"] }
       }
     }

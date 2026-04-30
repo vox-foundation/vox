@@ -17,9 +17,18 @@ pub use vox_install_policy::SUPPORTED_RELEASE_TARGETS;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 pub enum ReleasePackage {
+    /// Core `vox` CLI only (lean install — no ML/scientia plugins).
     Vox,
+    /// Standalone `vox-bootstrap` installer used by `scripts/install.{sh,ps1}`.
     Bootstrap,
+    /// `vox` core + `vox-bootstrap` (legacy "Both" tier — pre-plugin packaging).
     Both,
+    /// `vox-mens` plugin: ML/oratio/speech/populi/train subcommands (heavy: Candle).
+    Mens,
+    /// `vox-schola` plugin: scientia/schola subcommands.
+    Schola,
+    /// Every artifact: vox + bootstrap + every plugin binary. The "full" tier.
+    All,
 }
 
 pub(crate) fn validate_release_target(target: &str) -> Result<()> {
@@ -47,7 +56,18 @@ pub fn run(
         .with_context(|| format!("create out dir {}", out_dir_abs.display()))?;
 
     let mut checksum_lines = Vec::new();
-    if matches!(package, ReleasePackage::Vox | ReleasePackage::Both) {
+    let want_vox = matches!(
+        package,
+        ReleasePackage::Vox | ReleasePackage::Both | ReleasePackage::All
+    );
+    let want_bootstrap = matches!(
+        package,
+        ReleasePackage::Bootstrap | ReleasePackage::Both | ReleasePackage::All
+    );
+    let want_mens = matches!(package, ReleasePackage::Mens | ReleasePackage::All);
+    let want_schola = matches!(package, ReleasePackage::Schola | ReleasePackage::All);
+
+    if want_vox {
         let artifact_name = build_and_package_binary(
             repo_root,
             out_dir_abs.as_path(),
@@ -60,7 +80,7 @@ pub fn run(
         let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
         checksum_lines.push(checksum_line(&digest, &artifact_name));
     }
-    if matches!(package, ReleasePackage::Bootstrap | ReleasePackage::Both) {
+    if want_bootstrap {
         let artifact_name = build_and_package_binary(
             repo_root,
             out_dir_abs.as_path(),
@@ -69,6 +89,34 @@ pub fn run(
             "vox-bootstrap",
             bootstrap_executable_name(target),
             "vox-bootstrap",
+        )?;
+        let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
+        checksum_lines.push(checksum_line(&digest, &artifact_name));
+    }
+    if want_mens {
+        let mens_bin = plugin_executable_name(target, "vox-mens");
+        let artifact_name = build_and_package_binary(
+            repo_root,
+            out_dir_abs.as_path(),
+            target,
+            artifact_version,
+            "vox-mens",
+            &mens_bin,
+            "vox-mens",
+        )?;
+        let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
+        checksum_lines.push(checksum_line(&digest, &artifact_name));
+    }
+    if want_schola {
+        let schola_bin = plugin_executable_name(target, "vox-schola");
+        let artifact_name = build_and_package_binary(
+            repo_root,
+            out_dir_abs.as_path(),
+            target,
+            artifact_version,
+            "vox-schola",
+            &schola_bin,
+            "vox-schola",
         )?;
         let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
         checksum_lines.push(checksum_line(&digest, &artifact_name));
@@ -109,6 +157,18 @@ fn bootstrap_executable_name(target: &str) -> &'static str {
         "vox-bootstrap.exe"
     } else {
         "vox-bootstrap"
+    }
+}
+
+/// Plugin binary name resolution for `vox-mens` / `vox-schola` archives.
+///
+/// Returns an owned `String` rather than `&'static str` because plugin names
+/// are dynamic (any `vox-<name>` pattern), unlike the fixed core/bootstrap names.
+fn plugin_executable_name(target: &str, plugin: &str) -> String {
+    if is_windows_target(target) {
+        format!("{plugin}.exe")
+    } else {
+        plugin.to_string()
     }
 }
 
@@ -231,7 +291,7 @@ mod tests {
 
     use super::{
         artifact_filename, bootstrap_executable_name, checksum_line, executable_name,
-        validate_release_target,
+        plugin_executable_name, validate_release_target,
     };
 
     #[test]
@@ -255,6 +315,18 @@ mod tests {
         assert_eq!(
             bootstrap_executable_name("x86_64-unknown-linux-gnu"),
             "vox-bootstrap"
+        );
+        assert_eq!(
+            plugin_executable_name("x86_64-pc-windows-msvc", "vox-mens"),
+            "vox-mens.exe"
+        );
+        assert_eq!(
+            plugin_executable_name("x86_64-unknown-linux-gnu", "vox-mens"),
+            "vox-mens"
+        );
+        assert_eq!(
+            plugin_executable_name("aarch64-apple-darwin", "vox-schola"),
+            "vox-schola"
         );
     }
 

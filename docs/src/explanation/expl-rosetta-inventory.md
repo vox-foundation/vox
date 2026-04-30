@@ -262,17 +262,15 @@ When multiple players merge into the central chest concurrently, Rust requires t
 Vox draws on the Actor Model, popular in Erlang and Elixir precisely for this reason. The actor isolates the state. Callers interact by sending messages to a mailbox linearly, sidestepping deadlocks and lock poisoning natively.
 
 ```vox
-// vox:skip
 // The actor model protects shared state via a mailbox, eliminating mutex
-// negotiation. The syntax and primitive are directly inspired by Erlang/Akka.
-actor InventoryActor {
-    on MergeRequest(current: int, incoming: int, max_stack: int) -> int {
-        let total = current + incoming
-        if total > max_stack {
-            return max_stack
-        }
-        return total
+// negotiation. The pattern draws directly from Erlang/Akka: one function per
+// handler, state flows through parameters, runtime dispatches via mailbox.
+fn InventoryActor_MergeRequest(current: int, incoming: int, max_stack: int) to int {
+    let total = current + incoming
+    if total > max_stack {
+        return max_stack
     }
+    return total
 }
 ```
 
@@ -283,22 +281,21 @@ Distributed systems present the double-charge problem: if the process crashes af
 Vox embeds execution durability into the language itself via the `workflow` and `activity` primitives.
 
 ```vox
-// vox:skip
 // Workflows provide "at-least-once" execution by journaling activities.
 // Double-charging is prevented via idempotency and step-skipping on restart
 // (implemented in the interpreted runtime via ADR-019).
-activity reserve_slots(amount: int) -> Result[str] {
+fn reserve_slots(amount: int) to Result[str] {
     if amount <= 0 {
         return Error("invalid amount")
     }
     return Ok("reserve_ok")
 }
 
-workflow settle_trade(amount: int) -> str {
+fn settle_trade(amount: int) to str {
     let step = reserve_slots(amount)
     match step {
-        Ok(code) -> "trade-settled:" + code
-        Error(msg) -> "trade-failed:" + msg
+        Ok(code) => "trade-settled:" + code
+        Error(msg) => "trade-failed:" + msg
     }
 }
 ```

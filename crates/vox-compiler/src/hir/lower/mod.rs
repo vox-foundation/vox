@@ -243,69 +243,10 @@ impl LowerCtx {
                 Decl::ReactiveComponent(c) => {
                     hir.components.push(self.lower_reactive_component(c));
                 }
-                Decl::Url(u) => {
-                    use crate::hir::nodes::url::{HirUrlArg, HirUrlDecl, HirUrlVariant};
-                    let hir_variants = u.variants.iter().map(|v| HirUrlVariant {
-                        name: v.name.clone(),
-                        args: v.args.iter().map(|a| HirUrlArg {
-                            name: a.name.clone(),
-                            optional: a.optional,
-                            ty: a.ty.clone(),
-                            span: a.span,
-                        }).collect(),
-                        span: v.span,
-                    }).collect();
-                    hir.url_decls.push(HirUrlDecl {
-                        name: u.name.clone(),
-                        variants: hir_variants,
-                        span: u.span,
-                    });
-                }
-                Decl::StateMachine(m) => {
-                    use crate::hir::nodes::state_machine::{
-                        HirEventParam, HirStateDecl, HirStateField, HirStateMachineDecl,
-                        HirTransitionDecl, HirTransitionSource,
-                    };
-                    let hir_states = m.states.iter().map(|s| HirStateDecl {
-                        name: s.name.clone(),
-                        fields: s.fields.iter().map(|f| HirStateField {
-                            name: f.name.clone(),
-                            ty: f.ty.clone(),
-                            span: f.span,
-                        }).collect(),
-                        terminal: s.terminal,
-                        span: s.span,
-                    }).collect();
-                    let hir_transitions = m.transitions.iter().map(|t| HirTransitionDecl {
-                        event: t.event.clone(),
-                        event_params: t.event_params.iter().map(|p| HirEventParam {
-                            name: p.name.clone(),
-                            ty: p.ty.clone(),
-                            span: p.span,
-                        }).collect(),
-                        from: match &t.from {
-                            crate::ast::decl::state_machine::SmTransitionSource::State(s) => {
-                                HirTransitionSource::State(s.clone())
-                            }
-                            crate::ast::decl::state_machine::SmTransitionSource::Any => {
-                                HirTransitionSource::Any
-                            }
-                        },
-                        to: t.to.clone(),
-                        span: t.span,
-                    }).collect();
-                    hir.state_machines.push(HirStateMachineDecl {
-                        name: m.name.clone(),
-                        states: hir_states,
-                        transitions: hir_transitions,
-                        span: m.span,
-                    });
-                }
-                Decl::Actor(_) | Decl::Workflow(_) | Decl::Activity(_) => {
-                    // Parser tombstones these — they never reach valid HIR.
+                Decl::Routes(r) => {
+                    hir.client_routes.push(r.clone());
                 }
                 Decl::V0Component(_)
-                | Decl::Routes(_)
                 | Decl::Layout(_)
                 | Decl::Page(_)
                 | Decl::Context(_)
@@ -320,6 +261,12 @@ impl LowerCtx {
                     hir.islands.push(HirIsland(decl.clone()));
                 }
 
+                Decl::Url(u) => {
+                    hir.url_decls.push(self.lower_url_decl(u));
+                }
+                Decl::StateMachine(s) => {
+                    hir.state_machines.push(self.lower_state_machine(s));
+                }
                 Decl::Agent(a) => {
                     hir.agents.push(self.lower_agent(a));
                 }
@@ -755,5 +702,23 @@ environment staging {
         assert_eq!(env.name, "staging");
         assert_eq!(env.base_image.as_deref(), Some("node:22-alpine"));
         assert_eq!(env.packages, vec!["curl".to_string()]);
+    }
+
+    #[test]
+    fn hir_lowering_url_decl_goes_to_url_decls_not_legacy() {
+        let src = "url Path {\nHome\nTask(id: str)\n}";
+        let hir = lower_str(src);
+        assert!(
+            hir.legacy_ast_nodes.is_empty(),
+            "url decl must not fall into legacy_ast_nodes, got {:?}",
+            hir.legacy_ast_nodes
+        );
+        assert_eq!(hir.url_decls.len(), 1);
+        assert_eq!(hir.url_decls[0].name, "Path");
+        assert_eq!(hir.url_decls[0].variants.len(), 2);
+        assert_eq!(hir.url_decls[0].variants[0].name, "Home");
+        assert_eq!(hir.url_decls[0].variants[1].name, "Task");
+        assert_eq!(hir.url_decls[0].variants[1].args.len(), 1);
+        assert_eq!(hir.url_decls[0].variants[1].args[0].name, "id");
     }
 }

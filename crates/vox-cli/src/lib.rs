@@ -32,6 +32,9 @@ pub mod dispatch_protocol;
 /// Vite/React scaffold helpers and shared **pnpm** executable resolution (`pnpm_executable`).
 pub mod frontend;
 pub mod fs_utils;
+/// Fuzzy ranking for command catalog, MCP tool picker, and dashboard palette.
+/// Gated behind the `fuzzy-search` feature; falls back to identity ordering when disabled.
+pub mod fuzzy;
 mod island_paths;
 #[cfg(feature = "script-execution")]
 mod isolation;
@@ -62,6 +65,9 @@ pub mod workspace_db;
 pub mod v0;
 /// Normalize v0.dev TSX for Vox `routes:` named imports.
 pub(crate) mod v0_tsx_normalize;
+/// TASK-5.4: pre-flight validation of v0.dev TSX output (a11y + design-token checks).
+#[cfg(feature = "island")]
+pub(crate) mod v0_validate;
 
 pub use dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 
@@ -120,6 +126,9 @@ pub enum Cli {
         /// Include nested subcommands (default shows top-level only).
         #[arg(long)]
         include_nested: bool,
+        /// Fuzzy-search the catalog (implies --include-nested when set).
+        #[arg(long, value_name = "PATTERN")]
+        search: Option<String>,
     },
     /// Workshop lane — same as top-level `build` (`fabrica` = Latin *workshop*).
     #[command(name = "fabrica", visible_alias = "fab")]
@@ -498,7 +507,10 @@ pub enum Cli {
         reason: Option<String>,
     },
     /// ML/AI domain: train, serve, probe (Delegated to `vox-mens`).
-    #[command(name = "mens")]
+    #[command(
+        name = "mens",
+        long_about = "ML/AI domain: train, serve, probe (Delegated to `vox-mens`).\n\nQuick-start:\n  vox mens train   — run MENS fine-tuning on the current corpus\n  vox mens serve   — launch the local inference endpoint\n  vox mens probe   — run eval probes against the live model"
+    )]
     Mens {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,

@@ -1,6 +1,4 @@
-use crate::hir::{
-    HirAgent, HirFn, HirModule, HirTable, HirType, HirTypeDef,
-};
+use crate::hir::{HirAgent, HirFn, HirModule, HirTable, HirType, HirTypeDef, HirUrlDecl};
 use crate::rust_interop_support::{
     RustInteropSemanticsState, RustInteropSupportClass, classify_rust_crate,
     is_template_managed_app_dependency, semantics_state_for_rust_crate,
@@ -208,6 +206,9 @@ pub fn register_hir_module(
     for a in &module.agents {
         register_hir_agent(env, a, uf.as_deref_mut());
     }
+    for u in &module.url_decls {
+        register_hir_url_decl(env, u);
+    }
     diags
 }
 
@@ -311,6 +312,18 @@ pub fn register_hir_typedef(env: &mut TypeEnv, td: &HirTypeDef) {
         .collect();
     env.register_type(AdtDef {
         name: td.name.clone(),
+        variants,
+    });
+}
+
+/// Register a URL decl's name as an ADT type so variant names can be resolved.
+pub fn register_hir_url_decl(env: &mut TypeEnv, u: &HirUrlDecl) {
+    let variants: Vec<VariantDef> = u.variants.iter().map(|v| VariantDef {
+        name: v.name.clone(),
+        fields: v.args.iter().map(|a| (a.name.clone(), resolve_hir_type(&a.ty, env))).collect(),
+    }).collect();
+    env.register_type(AdtDef {
+        name: u.name.clone(),
         variants,
     });
 }

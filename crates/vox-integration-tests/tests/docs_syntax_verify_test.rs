@@ -27,6 +27,10 @@ fn test_all_markdown_vox_blocks_parse() {
         if entry.path().extension().and_then(|s| s.to_str()) != Some("md") {
             continue;
         }
+        // Skip archived docs — historical content is allowed to contain pre-tombstone syntax.
+        if entry.path().components().any(|c| c.as_os_str() == "archive") {
+            continue;
+        }
 
         let content = fs::read_to_string(entry.path()).unwrap();
         let parser = Parser::new(&content);
@@ -51,10 +55,14 @@ fn test_all_markdown_vox_blocks_parse() {
                     if in_vox_block {
                         in_vox_block = false;
 
-                        // Ignore skipped blocks or ones with intentional warning placeholders
-                        if current_block.contains("Skip-Test")
+                        // Ignore skipped blocks or ones with intentional warning placeholders.
+                        // `// vox:skip` is the canonical CLAUDE.md skip sentinel.
+                        // `{{#include ...}}` blocks are mdBook directives, not raw Vox.
+                        if current_block.contains("vox:skip")
+                            || current_block.contains("Skip-Test")
                             || current_block.contains("todo!(")
                             || current_block.contains("empty-body")
+                            || current_block.contains("{{#include")
                         {
                             continue;
                         }

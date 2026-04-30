@@ -96,6 +96,10 @@ impl<'a> Checker<'a> {
             self.check_route(r);
         }
 
+        for c in &module.components {
+            self.check_reactive_component(c);
+        }
+
         for a in &module.agents {
             self.check_agent(a);
         }
@@ -266,6 +270,142 @@ impl<'a> Checker<'a> {
                 self.source,
             ));
         }
+    }
+
+    /// Typecheck a reactive component (Path C).
+    ///
+    /// Sets up a component-local scope so member expressions resolve names
+    /// correctly:
+    /// - `db` is bound (components may issue queries)
+    /// - parameters are bound from `c.params`
+    /// - every `state`/`derived` name is forward-declared with a fresh
+    ///   inference variable (or its declared type if annotated) so members
+    ///   can reference each other regardless of source order
+    ///
+    /// Then each member is checked: `state.init` and `derived.expr` are
+    /// unified back into the forward-declared binding when annotated;
+    /// effects/lifecycle bodies and the view go through `check_expr`;
+    /// `Stmt` prelude members go through `check_stmt`.
+    fn check_reactive_component(&mut self, c: &crate::hir::HirReactiveComponent) {
+        if c.name.is_empty() {
+            self.diags.push(Diagnostic::error(
+                "Reactive component name cannot be empty".into(),
+                c.span,
+                self.source,
+            ));
+        }
+
+        self.env.push_scope();
+
+        self.env.define(
+            "db".into(),
+            Binding::new(Ty::Database, false, BindingKind::Variable),
+        );
+
+        for p in &c.params {
+            let p_ty = p
+                .type_ann
+                .as_ref()
+                .map_or_else(|| self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
+            self.env.define(
+                p.name.clone(),
+                Binding::new(p_ty, false, BindingKind::Parameter),
+            );
+        }
+
+        // Forward-declare state and derived bindings so members may reference
+        // one another in any order (e.g. a `derived` reading a later `state`).
+        // Track each binding's type variable so we can unify the inferred
+        // init/expr type back into it during the check pass.
+        let mut state_vars: Vec<(String, Ty)> = Vec::new();
+        let mut derived_vars: Vec<(String, Ty)> = Vec::new();
+        for m in &c.members {
+            match m {
+                crate::hir::HirReactiveMember::State(s) => {
+                    let ty = s
+                        .ty
+                        .as_ref()
+                        .map_or_else(|| self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
+                    // State is mutable: reactive components reassign it from
+                    // event handlers (e.g. `on:click={count = count + 1}`).
+                    // Derived stays immutable — it's a computed read.
+                    self.env.define(
+                        s.name.clone(),
+                        Binding::new(ty.clone(), true, BindingKind::Variable),
+                    );
+                    state_vars.push((s.name.clone(), ty));
+                }
+                crate::hir::HirReactiveMember::Derived(d) => {
+                    let ty = d
+                        .ty
+                        .as_ref()
+                        .map_or_else(|| self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
+                    self.env.define(
+                        d.name.clone(),
+                        Binding::new(ty.clone(), false, BindingKind::Variable),
+                    );
+                    derived_vars.push((d.name.clone(), ty));
+                }
+                _ => {}
+            }
+        }
+
+        let mut state_idx = 0usize;
+        let mut derived_idx = 0usize;
+        for m in &c.members {
+            match m {
+                crate::hir::HirReactiveMember::State(s) => {
+                    let init_ty = self.check_expr(&s.init, None);
+                    if let Some((_, decl_ty)) = state_vars.get(state_idx) {
+                        if let Err(msg) = self.uf.unify(&init_ty, decl_ty) {
+                            self.diags.push(Diagnostic::error(
+                                format!(
+                                    "Type mismatch in `state {}` initializer: {msg}",
+                                    s.name
+                                ),
+                                s.span,
+                                self.source,
+                            ));
+                        }
+                    }
+                    state_idx += 1;
+                }
+                crate::hir::HirReactiveMember::Derived(d) => {
+                    let expr_ty = self.check_expr(&d.expr, None);
+                    if let Some((_, decl_ty)) = derived_vars.get(derived_idx) {
+                        if let Err(msg) = self.uf.unify(&expr_ty, decl_ty) {
+                            self.diags.push(Diagnostic::error(
+                                format!(
+                                    "Type mismatch in `derived {}` expression: {msg}",
+                                    d.name
+                                ),
+                                d.span,
+                                self.source,
+                            ));
+                        }
+                    }
+                    derived_idx += 1;
+                }
+                crate::hir::HirReactiveMember::Effect(e) => {
+                    let _ = self.check_expr(&e.body, None);
+                }
+                crate::hir::HirReactiveMember::OnMount(om) => {
+                    let _ = self.check_expr(&om.body, None);
+                }
+                crate::hir::HirReactiveMember::OnCleanup(oc) => {
+                    let _ = self.check_expr(&oc.body, None);
+                }
+                crate::hir::HirReactiveMember::Stmt(stmt) => {
+                    let _ = self.check_stmt(stmt);
+                }
+            }
+        }
+
+        if let Some(view) = &c.view {
+            let _ = self.check_expr(view, None);
+        }
+
+        self.env.pop_scope();
     }
 
     fn enforce_query_read_only(&mut self, sf: &HirEndpointFn) {

@@ -1,4 +1,4 @@
-// style { } blocks on components.
+// style { } and raw_css { } blocks on components.
 
 use super::super::Parser;
 use crate::ast::decl::StyleBlock;
@@ -9,11 +9,13 @@ impl Parser {
         let mut styles = Vec::new();
         self.skip_newlines();
         while let Token::Ident(ref name) = self.peek().clone() {
-            if name != "style" {
-                break;
-            }
+            let is_raw_css = match name.as_str() {
+                "style" => false,
+                "raw_css" => true,
+                _ => break,
+            };
             let _start = self.span();
-            self.advance(); // eat 'style'
+            self.advance(); // eat 'style' or 'raw_css'
             if !self.eat(&Token::LBrace) {
                 break;
             }
@@ -57,13 +59,14 @@ impl Parser {
                         styles.push(StyleBlock {
                             selector,
                             properties,
+                            is_raw_css,
                             span: sel_start.merge(self.span()),
                         });
                     }
                     _ => break,
                 }
             }
-            self.eat(&Token::RBrace); // close style {
+            self.eat(&Token::RBrace); // close style { or raw_css {
         }
         styles
     }

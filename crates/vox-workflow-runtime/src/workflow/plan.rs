@@ -22,14 +22,13 @@ pub fn plan_workflow_activities(
 
 /// Build replay-oriented linear IR from workflow statements.
 pub fn plan_workflow_replay_ir(
-    _hir: &HirModule,
+    hir: &HirModule,
     workflow_name: &str,
 ) -> anyhow::Result<WorkflowReplayIr> {
-    // Workflow primitives are retired (TASK-2.6 Path B). The parser tombstones
-    // `workflow`/`activity` source forms. This planner is kept as a stub so the
-    // crate compiles; it returns an empty replay IR. Use `@durable fn` instead.
-    let _ = workflow_name;
-    Ok(WorkflowReplayIr { nodes: vec![] })
+    // The `workflow` HIR node was removed; durable workflows are now handled
+    // by vox-orchestrator at runtime. Planning from HIR is a no-op path.
+    let _ = hir;
+    anyhow::bail!("workflow '{workflow_name}' not found: workflow HIR is no longer available — use the vox-orchestrator for durable workflow execution")
 }
 
 #[derive(Clone, Default, Debug)]

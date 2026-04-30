@@ -18,15 +18,15 @@ fn run_step(name: str, args: list[str]) -> bool {
         Some(res) -> {
             if res.code == 0 {
                 print("  ✓ step complete.")
-                ret true
+                return true
             } else {
                 print("  ✗ step failed with code: " + str(res.code))
-                ret false
+                return false
             }
         }
         None -> {
             print("  ✗ failed to execute step.")
-            ret false
+            return false
         }
     }
 }

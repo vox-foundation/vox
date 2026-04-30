@@ -1,8 +1,6 @@
-use crate::ast::decl::effect::EffectKind;
 use crate::ast::decl::*;
 use crate::ast::expr;
 use crate::ast::types::TypeExpr;
-use crate::hir::nodes::effect::HirEffectKind;
 use crate::hir::*;
 
 use super::LowerCtx;
@@ -16,6 +14,22 @@ impl LowerCtx {
         body = self.inject_contracts(f, body);
         self.def_map.pop_scope();
 
+        let capabilities = f
+            .effects
+            .iter()
+            .map(|e| match e {
+                crate::ast::decl::EffectAnnotation::Net => crate::hir::HirCapability::Net,
+                crate::ast::decl::EffectAnnotation::Db => crate::hir::HirCapability::Db,
+                crate::ast::decl::EffectAnnotation::Fs => crate::hir::HirCapability::Fs,
+                crate::ast::decl::EffectAnnotation::Env => crate::hir::HirCapability::Env,
+                crate::ast::decl::EffectAnnotation::Clock => crate::hir::HirCapability::Clock,
+                crate::ast::decl::EffectAnnotation::Random => crate::hir::HirCapability::Random,
+                crate::ast::decl::EffectAnnotation::Spawn => crate::hir::HirCapability::Spawn,
+                crate::ast::decl::EffectAnnotation::Mcp(t) => crate::hir::HirCapability::Mcp(t.clone()),
+                crate::ast::decl::EffectAnnotation::Nothing => crate::hir::HirCapability::Nothing,
+            })
+            .collect();
+
         HirFn {
             id,
             name: f.name.clone(),
@@ -28,24 +42,11 @@ impl LowerCtx {
             is_pub: f.is_pub,
             is_mobile_native: f.is_mobile_native,
             is_pure: f.is_pure,
-            effects: f
-                .effects
-                .iter()
-                .map(|e| match &e.kind {
-                    EffectKind::Net => HirEffectKind::Net,
-                    EffectKind::Db => HirEffectKind::Db,
-                    EffectKind::Fs => HirEffectKind::Fs,
-                    EffectKind::Env => HirEffectKind::Env,
-                    EffectKind::Clock => HirEffectKind::Clock,
-                    EffectKind::Random => HirEffectKind::Random,
-                    EffectKind::Spawn => HirEffectKind::Spawn,
-                    EffectKind::Mcp(tool) => HirEffectKind::Mcp(tool.clone()),
-                })
-                .collect(),
             is_llm: f.is_llm,
             llm_model: f.llm_model.clone(),
             is_deprecated: f.is_deprecated,
             schedule_interval: None,
+            capabilities,
             postconditions: f
                 .postconditions
                 .iter()
@@ -302,6 +303,57 @@ impl LowerCtx {
             return_type: r.return_type.as_ref().map(|t| self.lower_type(t)),
             body,
             span: r.span,
+        }
+    }
+
+    pub(crate) fn lower_url_decl(&mut self, u: &UrlDecl) -> HirUrlDecl {
+        let id = self.def_map.define(u.name.clone());
+        HirUrlDecl {
+            id,
+            name: u.name.clone(),
+            variants: u.variants.iter().map(|v| HirUrlVariant {
+                name: v.name.clone(),
+                args: v.args.iter().map(|a| HirUrlArg {
+                    name: a.name.clone(),
+                    optional: a.optional,
+                    ty: self.lower_type(&a.type_ann),
+                    span: a.span,
+                }).collect(),
+                span: v.span,
+            }).collect(),
+            is_pub: u.is_pub,
+            span: u.span,
+        }
+    }
+
+    pub(crate) fn lower_state_machine(&mut self, s: &StateMachineDecl) -> HirStateMachineDecl {
+        let id = self.def_map.define(s.name.clone());
+        HirStateMachineDecl {
+            id,
+            name: s.name.clone(),
+            states: s.states.iter().map(|st| HirSmState {
+                name: st.name.clone(),
+                fields: st.fields.iter().map(|f| HirSmField {
+                    name: f.name.clone(),
+                    ty: f.type_ann.as_ref().map(|t| self.lower_type(t)),
+                    span: f.span,
+                }).collect(),
+                is_terminal: st.is_terminal,
+                span: st.span,
+            }).collect(),
+            transitions: s.transitions.iter().map(|tr| HirSmTransition {
+                event_name: tr.event_name.clone(),
+                event_params: tr.event_params.clone(),
+                from: match &tr.from {
+                    SmFromPattern::Named(n) => HirSmFrom::Named(n.clone()),
+                    SmFromPattern::Any => HirSmFrom::Any,
+                },
+                to_state: tr.to_state.clone(),
+                span: tr.span,
+            }).collect(),
+            is_partial: s.is_partial,
+            is_pub: s.is_pub,
+            span: s.span,
         }
     }
 

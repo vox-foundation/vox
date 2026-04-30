@@ -51,7 +51,7 @@ vox-eval = { workspace = true }
 vox-search = { workspace = true }
 vox-populi = { workspace = true, optional = true }
 vox-tensor = { workspace = true, optional = true }
-vox-oratio = { workspace = true, optional = true }
+vox-oratio = { workspace = true, optional = true, features = ["stt-candle", "compiler-rerank"] }
 vox-workflow-runtime = { workspace = true, optional = true }
 vox-build-meta = { workspace = true }
 vox-clavis = { workspace = true }

@@ -1,5 +1,5 @@
 use super::*;
-use crate::ast::decl::{Decl, ImportPathKind, RoutesParseSummary};
+use crate::ast::decl::{Decl, EffectAnnotation, ImportPathKind, RoutesParseSummary};
 use crate::ast::expr::{BinOp, Expr};
 use crate::ast::stmt::Stmt;
 use crate::lexer::cursor::lex;
@@ -461,45 +461,6 @@ fn test_parse_reactive_effect_mount_cleanup_view_is_tombstoned() {
 }
 
 #[test]
-fn test_parse_url_block() {
-    let src = "url Path {\n  Home\n  Task(id: str)\n}";
-    let m = parse_str(src);
-    let url_decl = m.declarations.iter().find_map(|d| {
-        if let Decl::Url(u) = d {
-            Some(u)
-        } else {
-            None
-        }
-    });
-    assert!(url_decl.is_some(), "expected Decl::Url");
-    let url = url_decl.unwrap();
-    assert_eq!(url.name, "Path");
-    assert_eq!(url.variants.len(), 2);
-    assert_eq!(url.variants[0].name, "Home");
-    assert_eq!(url.variants[1].name, "Task");
-    assert_eq!(url.variants[1].args.len(), 1);
-    assert_eq!(url.variants[1].args[0].name, "id");
-}
-
-#[test]
-fn test_parse_url_optional_args() {
-    let src = "url Path {\n  Login(?return_to: str)\n}";
-    let m = parse_str(src);
-    let url = m
-        .declarations
-        .iter()
-        .find_map(|d| {
-            if let Decl::Url(u) = d {
-                Some(u)
-            } else {
-                None
-            }
-        })
-        .expect("expected Decl::Url");
-    assert!(url.variants[0].args[0].optional);
-}
-
-#[test]
 fn test_parse_std_http_dotted_path_and_import() {
     let m = parse_str(
         "import std.http\n\nfn main() {\n  let _ = std.http.get_text(\"https://example.com\")\n}\n",
@@ -654,6 +615,62 @@ fn test_parse_script_pure_decl_file_no_synthetic_main() {
     assert!(matches!(&m.declarations[0], Decl::Function(f) if f.name == "add"));
 }
 
+/// `url Name { Variant }` parses to `Decl::Url`.
+#[test]
+fn test_parse_url_decl_simple() {
+    let m = parse_str("url Path {\nHome\n}");
+    assert_eq!(m.declarations.len(), 1);
+    match &m.declarations[0] {
+        Decl::Url(u) => {
+            assert_eq!(u.name, "Path");
+            assert_eq!(u.variants.len(), 1);
+            assert_eq!(u.variants[0].name, "Home");
+            assert!(u.variants[0].args.is_empty());
+            assert!(!u.is_pub);
+        }
+        other => panic!("Expected Decl::Url, got {other:?}"),
+    }
+}
+
+/// `url` block with parameterized variants.
+#[test]
+fn test_parse_url_decl_with_args() {
+    let m = parse_str("url Path {\nHome\nTask(id: str)\n}");
+    match &m.declarations[0] {
+        Decl::Url(u) => {
+            assert_eq!(u.variants.len(), 2);
+            assert_eq!(u.variants[1].name, "Task");
+            assert_eq!(u.variants[1].args.len(), 1);
+            assert_eq!(u.variants[1].args[0].name, "id");
+            assert!(!u.variants[1].args[0].optional);
+        }
+        other => panic!("Expected Decl::Url, got {other:?}"),
+    }
+}
+
+/// `url` block with optional argument (`?` prefix).
+#[test]
+fn test_parse_url_decl_optional_arg() {
+    let m = parse_str("url Path {\nLogin(?return_to: str)\n}");
+    match &m.declarations[0] {
+        Decl::Url(u) => {
+            assert_eq!(u.variants[0].args[0].optional, true);
+            assert_eq!(u.variants[0].args[0].name, "return_to");
+        }
+        other => panic!("Expected Decl::Url, got {other:?}"),
+    }
+}
+
+/// `pub url` parses as `is_pub = true`.
+#[test]
+fn test_parse_url_decl_pub() {
+    let m = parse_str("pub url Path {\nHome\n}");
+    match &m.declarations[0] {
+        Decl::Url(u) => assert!(u.is_pub),
+        other => panic!("Expected Decl::Url, got {other:?}"),
+    }
+}
+
 /// Multiple top-level statements all end up in one synthetic main body.
 #[test]
 fn test_parse_script_multiple_stmts_single_main() {
@@ -668,98 +685,64 @@ fn test_parse_script_multiple_stmts_single_main() {
     }
 }
 
+// ── uses clause (TASK-4.2) ─────────────────────────────────────────────────
+
+/// `uses nothing` parses as `[EffectAnnotation::Nothing]`.
 #[test]
-fn test_parse_state_machine_basic() {
-    let src = "state_machine Traffic {\n  state Green\n  state Red\n  terminal state Off\n  on Switch from Green -> Red\n  on Switch from Red -> Green\n}";
-    let m = parse_str(src);
-    let sm = m.declarations.iter().find_map(|d| {
-        if let Decl::StateMachine(s) = d { Some(s) } else { None }
-    });
-    assert!(sm.is_some(), "expected Decl::StateMachine");
-    let sm = sm.unwrap();
-    assert_eq!(sm.name, "Traffic");
-    assert_eq!(sm.states.len(), 3);
-    assert_eq!(sm.transitions.len(), 2);
-    // Third state is terminal
-    assert!(sm.states[2].terminal, "Off should be terminal");
-    assert_eq!(sm.states[2].name, "Off");
-    // First transition
-    assert_eq!(sm.transitions[0].event, "Switch");
-    use crate::ast::decl::state_machine::SmTransitionSource;
-    assert!(matches!(&sm.transitions[0].from, SmTransitionSource::State(s) if s == "Green"));
-    assert_eq!(sm.transitions[0].to, "Red");
+fn test_parse_uses_nothing() {
+    let m = parse_str("fn add(a: int, b: int) uses nothing to int { a + b }");
+    match &m.declarations[0] {
+        Decl::Function(f) => {
+            assert_eq!(f.effects, vec![EffectAnnotation::Nothing]);
+        }
+        other => panic!("Expected Decl::Function, got {other:?}"),
+    }
 }
 
+/// `uses net` parses correctly.
 #[test]
-fn test_parse_state_machine_with_fields() {
-    let src = "state_machine Job {\n  state Idle\n  state Running(id: str)\n  on Start(id: str) from any -> Running\n}";
-    let m = parse_str(src);
-    let sm = m.declarations.iter().find_map(|d| {
-        if let Decl::StateMachine(s) = d { Some(s) } else { None }
-    });
-    assert!(sm.is_some(), "expected Decl::StateMachine");
-    let sm = sm.unwrap();
-    assert_eq!(sm.states[1].fields.len(), 1);
-    assert_eq!(sm.states[1].fields[0].name, "id");
-    assert_eq!(sm.transitions[0].event_params.len(), 1);
-    assert_eq!(sm.transitions[0].event_params[0].name, "id");
-    use crate::ast::decl::state_machine::SmTransitionSource;
-    assert!(matches!(&sm.transitions[0].from, SmTransitionSource::Any));
+fn test_parse_uses_single_effect() {
+    let m = parse_str("fn fetch() uses net to str { \"ok\" }");
+    match &m.declarations[0] {
+        Decl::Function(f) => {
+            assert_eq!(f.effects, vec![EffectAnnotation::Net]);
+        }
+        other => panic!("Expected Decl::Function, got {other:?}"),
+    }
 }
 
-// ── TASK-4.2: effect annotations ─────────────────────────────────────────────
-
+/// `uses net, db` parses as two effects.
 #[test]
-fn test_parse_fn_uses_single_effect() {
-    // `fn fetch_tasks() uses net -> list[Task] { }` — single effect
-    let src = "fn fetch_tasks() uses net -> list[str] { }";
-    let m = parse_str(src);
-    let f = m.declarations.iter().find_map(|d| {
-        if let Decl::Function(f) = d { Some(f) } else { None }
-    });
-    assert!(f.is_some(), "expected Decl::Function");
-    let f = f.unwrap();
-    use crate::ast::decl::effect::EffectKind;
-    assert_eq!(f.effects.len(), 1, "expected 1 effect");
-    assert!(matches!(f.effects[0].kind, EffectKind::Net));
+fn test_parse_uses_multiple_effects() {
+    let m = parse_str("fn save() uses net, db to bool { true }");
+    match &m.declarations[0] {
+        Decl::Function(f) => {
+            assert_eq!(f.effects, vec![EffectAnnotation::Net, EffectAnnotation::Db]);
+        }
+        other => panic!("Expected Decl::Function, got {other:?}"),
+    }
 }
 
+/// `uses mcp(vox_notify)` parses as `Mcp("vox_notify")`.
 #[test]
-fn test_parse_fn_uses_multiple_effects() {
-    // `fn save_task() uses db, mcp(vox_notify_ludus) -> str { }` — multi-effect with mcp(...)
-    let src = "fn save_task() uses db, mcp(vox_notify_ludus) -> str { }";
-    let m = parse_str(src);
-    let f = m.declarations.iter().find_map(|d| {
-        if let Decl::Function(f) = d { Some(f) } else { None }
-    });
-    assert!(f.is_some(), "expected Decl::Function");
-    let f = f.unwrap();
-    use crate::ast::decl::effect::EffectKind;
-    assert_eq!(f.effects.len(), 2);
-    assert!(matches!(f.effects[0].kind, EffectKind::Db));
-    assert!(matches!(&f.effects[1].kind, EffectKind::Mcp(t) if t == "vox_notify_ludus"));
+fn test_parse_uses_mcp_parameterized() {
+    let m = parse_str("fn notify() uses mcp(vox_notify) to bool { true }");
+    match &m.declarations[0] {
+        Decl::Function(f) => {
+            assert_eq!(f.effects, vec![EffectAnnotation::Mcp("vox_notify".into())]);
+        }
+        other => panic!("Expected Decl::Function, got {other:?}"),
+    }
 }
 
+/// Missing `uses` clause leaves `effects` empty.
 #[test]
-fn test_parse_fn_no_uses_clause_is_empty() {
-    // Function with no `uses` clause should have empty effects vec.
-    let src = "fn total(xs: list[int]) -> int { }";
-    let m = parse_str(src);
-    let f = m.declarations.iter().find_map(|d| {
-        if let Decl::Function(f) = d { Some(f) } else { None }
-    });
-    assert!(f.is_some());
-    assert!(f.unwrap().effects.is_empty(), "no uses clause should mean empty effects");
-}
-
-#[test]
-fn test_parse_fn_uses_all_simple_effects() {
-    // Smoke test all non-parameterized effect kinds.
-    let src = "fn sink() uses net, db, fs, env, clock, random, spawn { }";
-    let m = parse_str(src);
-    let f = m.declarations.iter().find_map(|d| {
-        if let Decl::Function(f) = d { Some(f) } else { None }
-    });
-    assert!(f.is_some());
-    assert_eq!(f.unwrap().effects.len(), 7, "expected 7 effects");
+fn test_parse_no_uses_clause_is_empty() {
+    let m = parse_str("fn pure_fn(x: int) to int { x + 1 }");
+    match &m.declarations[0] {
+        Decl::Function(f) => {
+            assert!(f.effects.is_empty(), "expected empty effects for unannotated fn");
+        }
+        other => panic!("Expected Decl::Function, got {other:?}"),
+    }
 }

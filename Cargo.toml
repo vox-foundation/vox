@@ -44,6 +44,7 @@ vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }
 vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
 vox-eval                  = { path = "crates/vox-eval" }
+vox-exec-grammar          = { path = "crates/vox-exec-grammar" }
 vox-forge                 = { path = "crates/vox-forge" }
 vox-crypto                = { path = "crates/vox-crypto" }
 vox-identity              = { path = "crates/vox-identity" }
@@ -108,6 +109,7 @@ serde_yaml         = "0.9"
 toml               = "0.8"
 miette             = { version = "7.6", features = ["fancy"] }
 aho-corasick       = "1"
+nucleo             = { version = "0.5" }
 tokio              = { version = "1", features = ["rt", "macros", "sync", "time", "net", "process", "io-util", "fs", "rt-multi-thread", "signal"] }
 tokio-stream       = { version = "0.1", default-features = false }
 tracing            = "0.1"

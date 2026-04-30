@@ -26,6 +26,9 @@ This file tracks the single source of truth for Vox architecture, research findi
 - [FFScript Mutation API Spec (2026-04-23)](ffscript-mutation-api-spec-2026.md) — Full TypeScript interface for the `FFScriptDoc` wrapper class (T-041–T-045, T-051–T-052, T-054): 15 public methods (panel CRUD, dialogue, choice/branch, scene, placement, bubble, batch), branded ID types, MutationResult/JSON-Patch return shape, typed error hierarchy, Immer integration notes, Convex integration pattern, and corrected effort estimate (L, not M).
 - [FFScript Linter Engine Design (2026-04-23)](ffscript-linter-design-2026.md) — TypeScript interfaces and default rule catalogue for the pluggable FFScript linter (T-046–T-050, T-035–T-039 collapsed). Updated: LintFix uses serializable FixKind descriptor (Vox DiagnosticFix pattern) so fixes can be stored in Convex and replayed from CLI.
 
+## Competitive & Ecosystem Research
+- [Warp Terminal Research Findings (2026-04-29)](warp-research-findings-2026.md) — Systematic scan of warpdotdev/warp (~60 crates). Identifies AGPL-3.0-only license incompatibility blocking direct vendoring, maps Tier-S/A/B/C targets, confirms `deny.toml` already rejects AGPL, establishes clean-room reimplement path for `command-signatures-v2` → `vox-exec-grammar`, and recommends Zed (Apache-2.0) as the preferred upstream for B-tree/text primitives. Produced ADR-026, `crates/vox-exec-grammar` scaffold, `.voxindexingignore`, and `fuzzy-search` feature wire-up.
+
 ## FableForge Implementation Files
 
 Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Verify field names against the real schema before merging.

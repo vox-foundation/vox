@@ -1,1 +1,1 @@
-fn test_02(a: int) to int { ret a }
+fn test_02(a: int) to int { return a }

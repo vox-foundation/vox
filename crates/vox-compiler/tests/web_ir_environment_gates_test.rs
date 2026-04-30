@@ -53,9 +53,11 @@ routes {
     );
 }
 
-/// OP-S028: validate-on path rejects duplicate client route contract ids (two `routes { }` blocks).
+/// OP-S028: validate-on path rejects literal CSS color values in `style {}` blocks (TASK-5.1).
+/// `routes { }` blocks are silently dropped (Path B decommission, TASK-2.1); the validation gate
+/// is tested via the literal-color-value error instead.
 #[test]
-fn codegen_emitter_vox_webir_validate_fails_on_duplicate_route_trees() {
+fn codegen_emitter_vox_webir_validate_fails_on_literal_style_color() {
     let _lock = WEBIR_VALIDATE_EMITTER_LOCK
         .lock()
         .expect("WEBIR_VALIDATE_EMITTER_LOCK poisoned");
@@ -76,20 +78,11 @@ fn codegen_emitter_vox_webir_validate_fails_on_duplicate_route_trees() {
     let _guard = Guard { prev };
 
     let source = r#"
-import react.use_state
 component A() {
-    state n: int = 0
-    view: <span>{n}</span>
+    view: <div class="x">"hello"</div>
 }
-component B() {
-    state n: int = 0
-    view: <span>{n}</span>
-}
-routes {
-    "/" to A
-}
-routes {
-    "/b" to B
+style {
+    .x { color: "red" }
 }
 "#;
     let module = parse(lex(source)).expect("parse");

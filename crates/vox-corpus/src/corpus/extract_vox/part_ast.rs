@@ -41,10 +41,7 @@ fn decl_kind_and_name(decl: &Decl) -> (String, String) {
         Decl::TypeDef(t) => ("type".into(), t.name.clone()),
         Decl::Import(_) => ("import".into(), "import".into()),
         Decl::PyImport(p) => ("py_import".into(), p.alias.clone()),
-        Decl::Actor(a) => ("actor".into(), a.name.clone()),
         Decl::Const(c) => ("const".into(), c.name.clone()),
-        Decl::Workflow(w) => ("workflow".into(), w.name.clone()),
-        Decl::Activity(a) => ("activity".into(), a.name.clone()),
         Decl::HttpRoute(h) => (
             "http_route".into(),
             format!("{} {}", http_method_label(h.method), h.path),
@@ -88,6 +85,6 @@ fn decl_kind_and_name(decl: &Decl) -> (String, String) {
         Decl::ReactiveComponent(r) => ("reactive_component".into(), r.name.clone()),
         Decl::Endpoint(e) => ("endpoint".into(), e.func.name.clone()),
         Decl::Url(u) => ("url".into(), u.name.clone()),
-        Decl::StateMachine(m) => ("state_machine".into(), m.name.clone()),
+        Decl::StateMachine(s) => ("state_machine".into(), s.name.clone()),
     }
 }

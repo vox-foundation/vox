@@ -14,7 +14,7 @@ fn check_source(source: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 fn with_operand_requires_result_type() {
     let source = r#"
 fn f(x: int) to int {
-    ret x with { timeout: "5s" }
+    return x with { timeout: "5s" }
 }
 "#;
     let diags = check_source(source);

@@ -21,7 +21,7 @@ fn f(x: int) {
         .filter(|d| d.severity == TypeckSeverity::Error)
         .collect();
 
-    // CURRENTLY this should fail because it defaults to Unit and x is int
+    // Return type is inferred as `int` from the body, so no diagnostics expected.
     assert!(
         errors.is_empty(),
         "Function should infer return type 'int' from body: {errors:?}"

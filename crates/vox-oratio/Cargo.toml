@@ -9,7 +9,11 @@ keywords = ["vox", "speech", "stt", "whisper"]
 categories = ["multimedia::audio"]
 
 [features]
-default = ["stt-candle"]
+# No default features: heavy ML deps (Candle, hf-hub, tokenizers, symphonia, rubato)
+# must be opted into explicitly by consumers via `features = ["stt-candle"]`. This
+# prevents accidental bleed-through of ~100MB+ of native ML code into crates that
+# only need lightweight surfaces like `refine`, `routing`, or `runtime_config`.
+default = []
 # Pure-Rust inference via Hugging Face Candle (no whisper.cpp / clang).
 stt-candle = [
     "dep:candle-core",

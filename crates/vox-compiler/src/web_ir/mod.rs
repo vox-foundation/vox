@@ -22,7 +22,10 @@
 
 pub mod emit_tsx;
 pub mod lower;
+pub mod primitives;
 pub mod validate;
+pub mod validate_a11y;
+pub mod validate_overlay;
 
 use serde::{Deserialize, Serialize};
 
@@ -269,6 +272,8 @@ pub enum StyleNode {
         declarations: Vec<(String, StyleDeclarationValue)>,
         /// Specificity score (A, B, C) where A=ID, B=Class/Pseudo-class, C=Element/Pseudo-element.
         specificity: (u8, u8, u8),
+        /// Came from a `raw_css { }` escape hatch — raw CSS values are warnings, not errors.
+        is_raw_css: bool,
         span: Option<SourceSpanId>,
     },
     Selector(StyleSelector),
@@ -437,20 +442,6 @@ pub enum InteropNode {
 // Diagnostics
 // ---------------------------------------------------------------------------
 
-/// Severity level for a Web IR diagnostic.
-///
-/// Default is `Warning` so existing construction sites require no change;
-/// callers that want error-level enforcement set `severity: WebIrDiagnosticSeverity::Error`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum WebIrDiagnosticSeverity {
-    /// Advisory; build succeeds. Will become an error once an escape hatch is available.
-    #[default]
-    Warning,
-    /// Build failure.
-    Error,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebIrDiagnostic {
     pub code: String,
@@ -459,21 +450,6 @@ pub struct WebIrDiagnostic {
     /// Dashboard facet, e.g. `dom`, `route`, `behavior`, `style`, `island`, `lower`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
-    /// Severity — defaults to `Warning`; callers check this to decide build failure.
-    #[serde(default)]
-    pub severity: WebIrDiagnosticSeverity,
-}
-
-impl Default for WebIrDiagnostic {
-    fn default() -> Self {
-        Self {
-            code: String::new(),
-            message: String::new(),
-            span: None,
-            category: None,
-            severity: WebIrDiagnosticSeverity::Warning,
-        }
-    }
 }
 
 // Lifecycle: bump [`WebIrVersion`] when breaking serialized layout; keep [`validate_web_ir`] in sync

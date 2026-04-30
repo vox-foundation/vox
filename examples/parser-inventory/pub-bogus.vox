@@ -2,5 +2,5 @@
 pub let x = 1
 
 fn ok() -> int {
-    ret 0
+    return 0
 }

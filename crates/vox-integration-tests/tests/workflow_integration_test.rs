@@ -1,12 +1,5 @@
 #![allow(missing_docs)]
 
-// Tests for the retired `activity` / `workflow` HIR were removed as part of
-// TASK-2.6 (retire actor/workflow/activity HIR). Durable execution is now
-// expressed via effect-annotated `fn` declarations (`uses net, db, mcp(...)`,
-// TASK-4.2) rather than first-class `activity`/`workflow` decls. Parser-level
-// tombstoning of those keywords is covered in
-// `crates/vox-compiler/src/parser/descent/tests.rs`.
-
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
 use vox_compiler::typeck::diagnostics::TypeckSeverity;
@@ -25,7 +18,140 @@ fn errors(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
         .collect()
 }
 
-// --- Table / Index type checking ---
+fn warnings(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
+    check_src(src)
+        .into_iter()
+        .filter(|d| d.severity == TypeckSeverity::Warning)
+        .collect()
+}
+
+// ── Tombstone tests (TASK-2.6) ────────────────────────────────────────────────
+// `activity` and `workflow` keywords are tombstoned. Parsing source that
+// contains them must produce a parse error.
+
+#[test]
+fn tombstoned_activity_keyword_produces_parse_error() {
+    let src = r#"
+activity send_email(recipient: str, subject: str) to Result[str] {
+    Ok("ok")
+}
+"#;
+    assert!(
+        parse(lex(src)).is_err(),
+        "tombstoned `activity` keyword should produce a parse error"
+    );
+}
+
+#[test]
+fn tombstoned_workflow_keyword_produces_parse_error() {
+    let src = r#"
+workflow main_flow() to Result[str] {
+    Ok("done")
+}
+"#;
+    assert!(
+        parse(lex(src)).is_err(),
+        "tombstoned `workflow` keyword should produce a parse error"
+    );
+}
+
+#[test]
+fn tombstoned_activity_and_workflow_together_produce_parse_error() {
+    let src = r#"
+activity process_data(data: str) to Result[str] {
+    Ok(data)
+}
+
+workflow pipeline() to Result[str] {
+    let result = process_data("test") with { retries: 3 }
+    result
+}
+"#;
+    assert!(
+        parse(lex(src)).is_err(),
+        "tombstoned `activity` + `workflow` should produce a parse error"
+    );
+}
+
+// ── `with` operator on plain `fn` contexts ────────────────────────────────────
+
+#[test]
+fn test_with_operator_associativity() {
+    let src = r#"
+fn f() to Result[int] {
+    let x = Ok(1) with { meta: "data" }
+    x
+}
+"#;
+    let errs = errors(src);
+    assert!(
+        errs.is_empty(),
+        "`with` applies to Result operands; Ok(1) with options should typecheck, got: {:?}",
+        errs
+    );
+}
+
+#[test]
+fn test_with_non_record_options_error() {
+    let src = r#"
+fn f() to int {
+    let x = 1 with "invalid"
+    x
+}
+"#;
+    let errs = errors(src);
+    assert!(
+        !errs.is_empty(),
+        "Using 'with' with a non-record should produce error"
+    );
+    assert!(errs[0].message.contains("'with' options must be a record"));
+}
+
+#[test]
+fn test_with_unknown_option_key_warning() {
+    let src = r#"
+fn f() to int {
+    let x = 1 with { unknown_key: 42 }
+    x
+}
+"#;
+    let warns = warnings(src);
+    assert!(
+        !warns.is_empty(),
+        "Unknown 'with' option key should produce warning"
+    );
+    assert!(
+        warns[0].message.contains("Unknown 'with' option"),
+        "Got: {}",
+        warns[0].message
+    );
+}
+
+#[test]
+fn test_with_wrong_option_type_warning() {
+    let src = r#"
+fn f() to int {
+    let x = 1 with { retries: "not_a_number" }
+    x
+}
+"#;
+    let warns = warnings(src);
+    assert!(
+        !warns.is_empty(),
+        "Wrong type for 'retries' should produce warning"
+    );
+    assert!(
+        warns[0].message.contains("retries"),
+        "Got: {}",
+        warns[0].message
+    );
+    assert!(
+        warns[0].message.contains("Int"),
+        "Should mention expected type Int"
+    );
+}
+
+// ── Table / Index type checking ───────────────────────────────────────────────
 
 #[test]
 fn test_table_registration_no_errors() {
@@ -79,15 +205,17 @@ fn test_index_on_unknown_table_error() {
     );
 }
 
+// ── Argument / generic type checking ─────────────────────────────────────────
+
 #[test]
 fn test_arg_type_mismatch_error() {
     let src = r#"
 fn add(a: int, b: int) to int {
-    ret a
+    return a
 }
 
 fn main() to int {
-    ret add(1, "str")
+    return add(1, "str")
 }
 "#;
     let errs = errors(src);
@@ -106,11 +234,11 @@ fn main() to int {
 fn test_arg_count_mismatch_error() {
     let src = r#"
 fn add(a: int, b: int) to int {
-    ret a
+    return a
 }
 
 fn main() to int {
-    ret add(1)
+    return add(1)
 }
 "#;
     let errs = errors(src);
@@ -126,12 +254,12 @@ fn main() to int {
 fn test_generic_type_mismatch() {
     let src = r#"
 fn id<T>(x: T) to T {
-    ret x
+    return x
 }
 
 fn main() to int {
     let s: str = id(1)
-    ret 0
+    return 0
 }
 "#;
     let errs = errors(src);
@@ -151,12 +279,12 @@ fn main() to int {
 fn test_generic_identity_works() {
     let src = r#"
 fn id<T>(x: T) to T {
-    ret x
+    return x
 }
 
 fn main() to int {
     let i: int = id(1)
-    ret i
+    return i
 }
 "#;
     let errs = errors(src);
