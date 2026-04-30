@@ -11,10 +11,12 @@ mod decl;
 mod expr;
 mod stmt;
 mod stmt_expr;
+pub mod effect;
 pub mod url;
 pub mod state_machine;
 
 pub use decl::*;
+pub use effect::{HirEffectKind, HirEffectSet};
 pub use expr::*;
 pub use stmt::*;
 pub use url::*;

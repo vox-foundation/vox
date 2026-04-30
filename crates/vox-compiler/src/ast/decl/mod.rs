@@ -9,6 +9,8 @@
 pub mod config;
 /// Relational table, collection, and index declarations.
 pub mod db;
+/// Effect annotations for function declarations (`uses net, db, mcp(...)`) (TASK-4.2).
+pub mod effect;
 /// Functions, components, server handlers, MCP, hooks, and tests.
 pub mod fundecl;
 /// Actors, agents, workflows, activities, and HTTP routes.
@@ -22,6 +24,7 @@ pub mod state_machine;
 
 pub use config::*;
 pub use db::*;
+pub use effect::*;
 pub use fundecl::*;
 pub use logic::*;
 pub use typedef::*;

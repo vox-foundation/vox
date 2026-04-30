@@ -2,10 +2,11 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    Decl, EffectDecl, EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind, IslandDecl,
-    IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
-    OnMountDecl, PostCondition, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl,
-    RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl,
+    Decl, EffectAnnotation, EffectDecl, EffectKind, EndpointDecl, EndpointKind, FnDecl, ForallDecl,
+    ImportDecl, ImportPath, ImportPathKind, IslandDecl, IslandProp, LoadingDecl, McpResourceDecl,
+    McpToolDecl, MutationDecl, OnCleanupDecl, OnMountDecl, PostCondition, QueryDecl,
+    ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport, ScheduledDecl, ServerFnDecl,
+    TestDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -759,6 +760,10 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
+
+        // `uses net, db, mcp(tool_name)` — optional effect clause (TASK-4.2).
+        let effects = self.parse_uses_clause()?;
+
         let return_type = if self.eat_return_arrow() {
             Some(self.parse_type_expr()?)
         } else {
@@ -779,6 +784,7 @@ impl Parser {
             is_async: false,
             is_deprecated,
             is_pure,
+            effects,
             is_llm,
             llm_model,
             is_traced: false,
@@ -794,6 +800,69 @@ impl Parser {
             is_mobile_native,
             span: start.merge(self.span()),
         })
+    }
+
+    /// Parse an optional `uses effect1, effect2, mcp(tool)` clause.
+    /// Returns an empty vec if the next token is not `uses`.
+    pub(crate) fn parse_uses_clause(&mut self) -> Result<Vec<EffectAnnotation>, ()> {
+        // `uses` is lexed as Ident("uses"), not a dedicated keyword token.
+        if !matches!(self.peek(), Token::Ident(n) if n == "uses") {
+            return Ok(vec![]);
+        }
+        let _uses_span = self.span();
+        self.advance(); // consume "uses"
+
+        let mut effects = Vec::new();
+        loop {
+            let eff_start = self.span();
+            let kind = match self.peek().clone() {
+                Token::Ident(ref n) if n == "net"    => { self.advance(); EffectKind::Net }
+                Token::Ident(ref n) if n == "db"     => { self.advance(); EffectKind::Db }
+                Token::Ident(ref n) if n == "fs"     => { self.advance(); EffectKind::Fs }
+                // `env` and `spawn` are dedicated lexer tokens, not plain Ident.
+                Token::Env                            => { self.advance(); EffectKind::Env }
+                Token::Ident(ref n) if n == "clock"  => { self.advance(); EffectKind::Clock }
+                Token::Ident(ref n) if n == "random" => { self.advance(); EffectKind::Random }
+                Token::Spawn                          => { self.advance(); EffectKind::Spawn }
+                Token::Ident(ref n) if n == "mcp" => {
+                    self.advance(); // "mcp"
+                    self.expect(&Token::LParen)?;
+                    let tool = match self.peek().clone() {
+                        Token::Ident(t) | Token::StringLit(t) => { self.advance(); t }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "expected MCP tool name inside mcp(...)",
+                                vec!["identifier".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    };
+                    self.expect(&Token::RParen)?;
+                    EffectKind::Mcp(tool)
+                }
+                ref other => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        format!(
+                            "unknown effect kind `{other}`; expected net, db, fs, env, clock, random, spawn, or mcp(...)"
+                        ),
+                        vec!["net".into(), "db".into(), "fs".into(), "mcp(...)".into()],
+                        Some(other.to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    return Err(());
+                }
+            };
+            let eff_span = eff_start.merge(self.span());
+            effects.push(EffectAnnotation { kind, span: eff_span });
+            if !self.eat(&Token::Comma) {
+                break;
+            }
+        }
+        Ok(effects)
     }
 
     pub(crate) fn parse_ident_name(&mut self) -> Result<String, ()> {

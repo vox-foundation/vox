@@ -267,6 +267,9 @@ pub struct HirFn {
     /// `@pure` — metadata for pipeline tooling (effect guarantees are not proven in HIR).
     #[serde(default)]
     pub is_pure: bool,
+    /// Declared capability effects from `uses net, db, mcp(...)` (TASK-4.2).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: super::effect::HirEffectSet,
     /// Whether the function body is implemented via an LLM.
     #[serde(default)]
     pub is_llm: bool,

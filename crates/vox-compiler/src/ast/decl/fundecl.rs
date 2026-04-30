@@ -1,3 +1,4 @@
+use crate::ast::decl::effect::EffectAnnotation;
 use crate::ast::expr::{Expr, Param};
 use crate::ast::span::Span;
 use crate::ast::stmt::Stmt;
@@ -42,6 +43,9 @@ pub struct FnDecl {
     pub is_deprecated: bool,
     /// Whether the function is pure (no side effects).
     pub is_pure: bool,
+    /// Effect annotations declared with `uses net, db, mcp(...)` (TASK-4.2).
+    /// Empty means "no declared effects" (implicitly pure).
+    pub effects: Vec<EffectAnnotation>,
     /// Whether the function is subject to observability tracing.
     pub is_traced: bool,
     /// Whether the function body is implemented via an LLM.

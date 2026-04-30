@@ -96,11 +96,11 @@ Recommend Path A: matches the roadmap, preserves expressivity, and consolidates 
 | Task | Status | Commit | Notes |
 |------|--------|--------|-------|
 | TASK-4.1 — Add `state_machine` first-class block | ✅ Done (parser + HIR + typeck) | see below | `state_machine Name { state S, terminal state T, on Event from S -> T }` parsed. AST `StateMachineDecl/SmStateDecl/SmTransitionDecl` in `ast/decl/state_machine.rs`. `Decl::StateMachine` in `ast/decl/types.rs`. `HirStateMachineDecl/HirStateDecl/HirTransitionDecl` in `hir/nodes/state_machine.rs`. `state_machines: Vec<HirStateMachineDecl>` in `HirModule`/`SemanticHirModule`. Lowering in `hir/lower/mod.rs`. `typeck/state_machine_check.rs`: `E_SM_DUP_STATE`, `E_SM_TERMINAL_TRANSITION`, `E_SM_UNKNOWN_STATE`, `W_SM_EMPTY`. 6 tests pass. Web IR `BehaviorNode::StateMachine` and TSX reducer codegen deferred to Phase 5. |
-| TASK-4.2 — Add effect annotations (`uses net, db, mcp(...)`) | 🔲 Not started | — | Parallel with 4.1. 2-3 week effort. |
+| TASK-4.2 — Add effect annotations (`uses net, db, mcp(...)`) | ✅ Done (parser + HIR + typeck) | see below | `fn f() uses net, db, mcp(tool) -> T { }` parsed. AST `EffectKind/EffectAnnotation` in `ast/decl/effect.rs`. `FnDecl.effects: Vec<EffectAnnotation>` added. `HirEffectKind/HirEffectSet` in `hir/nodes/effect.rs`. `HirFn.effects` added. Lowering in `hir/lower/decl.rs`. `typeck/effect_check.rs`: `E_EFFECT_PURE_CONFLICT`, `E_EFFECT_DUPLICATE`. 10 tests pass. Call-graph propagation (`caller.effects ⊇ callee.effects`) deferred to Phase 5. |
 | TASK-4.3 — Add typed URLs primitive | ✅ Done (parser + HIR + typeck) | see below | `url Name { Variant, Variant(args) }` parsed. AST `UrlDecl/Variant/Arg` in `ast/decl/ui.rs`. `Decl::Url` in `ast/decl/types.rs`. `HirUrlDecl/Variant/Arg` in `hir/nodes/url.rs`. `url_decls: Vec<HirUrlDecl>` in `HirModule`/`SemanticHirModule`. Lowering in `hir/lower/mod.rs`. `typeck/url_check.rs` (duplicate variant error). 4 tests pass. TS emission and golden file updates deferred to Phase 5. |
 | TASK-4.4 — Add design-token types | ✅ Done | see below | `crates/vox-compiler/src/tokens/{mod,validate}.rs` created. `pub mod tokens` in `lib.rs`. `validate_web_ir_with_tokens` added (non-breaking). `vox.tokens.json` expanded. `contracts/tokens/tokens.v1.json` schema created. 10 token tests pass. |
 
-**Phase 4 verdict:** 3/4 complete. TASK-4.2 not started.
+**Phase 4 verdict:** 4/4 complete. Phase 4 fully done.
 
 ## Phases 5–8
 
@@ -165,6 +165,7 @@ Phase 4 is now fully unblocked.
   `ActorHandlerSig`, `lookup_actor` preserved (live Claude built-in path).
   Phase 2 verdict: 6/6 complete. Commit `6524b3f7`. Phases 4–8 now
   unblocked. (Agent session.)
+- 2026-04-30 — TASK-4.2 ✅ Done (parser + HIR + typeck): `fn f() uses net, db, mcp(tool) -> T { }` effect annotations implemented. 2 new files (`ast/decl/effect.rs`, `hir/nodes/effect.rs`, `typeck/effect_check.rs`), 6 files modified. `cargo check --workspace` 0 errors. 10 tests pass. Call-graph propagation deferred to Phase 5. Bugfix: `env` and `spawn` are dedicated lexer tokens — matched with `Token::Env` / `Token::Spawn`. (Agent session.)
 - 2026-04-30 — TASK-4.1 ✅ Done (parser + HIR + typeck): `state_machine Name { state S, terminal state T, on E from S -> T }` block implemented. 3 new files (`ast/decl/state_machine.rs`, `hir/nodes/state_machine.rs`, `typeck/state_machine_check.rs`), 11 files modified across compiler/corpus/mens. `cargo check --workspace` 0 errors. 6 tests pass. Web IR / TSX reducer deferred to Phase 5. (Agent session.)
 - 2026-04-30 — TASK-4.3 ✅ Done (parser + HIR + typeck core): `url Name { Variant }` block
   parsed; `UrlDecl/Variant/Arg` AST; `Decl::Url`; `HirUrlDecl/Variant/Arg`;

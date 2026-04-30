@@ -706,3 +706,60 @@ fn test_parse_state_machine_with_fields() {
     use crate::ast::decl::state_machine::SmTransitionSource;
     assert!(matches!(&sm.transitions[0].from, SmTransitionSource::Any));
 }
+
+// ── TASK-4.2: effect annotations ─────────────────────────────────────────────
+
+#[test]
+fn test_parse_fn_uses_single_effect() {
+    // `fn fetch_tasks() uses net -> list[Task] { }` — single effect
+    let src = "fn fetch_tasks() uses net -> list[str] { }";
+    let m = parse_str(src);
+    let f = m.declarations.iter().find_map(|d| {
+        if let Decl::Function(f) = d { Some(f) } else { None }
+    });
+    assert!(f.is_some(), "expected Decl::Function");
+    let f = f.unwrap();
+    use crate::ast::decl::effect::EffectKind;
+    assert_eq!(f.effects.len(), 1, "expected 1 effect");
+    assert!(matches!(f.effects[0].kind, EffectKind::Net));
+}
+
+#[test]
+fn test_parse_fn_uses_multiple_effects() {
+    // `fn save_task() uses db, mcp(vox_notify_ludus) -> str { }` — multi-effect with mcp(...)
+    let src = "fn save_task() uses db, mcp(vox_notify_ludus) -> str { }";
+    let m = parse_str(src);
+    let f = m.declarations.iter().find_map(|d| {
+        if let Decl::Function(f) = d { Some(f) } else { None }
+    });
+    assert!(f.is_some(), "expected Decl::Function");
+    let f = f.unwrap();
+    use crate::ast::decl::effect::EffectKind;
+    assert_eq!(f.effects.len(), 2);
+    assert!(matches!(f.effects[0].kind, EffectKind::Db));
+    assert!(matches!(&f.effects[1].kind, EffectKind::Mcp(t) if t == "vox_notify_ludus"));
+}
+
+#[test]
+fn test_parse_fn_no_uses_clause_is_empty() {
+    // Function with no `uses` clause should have empty effects vec.
+    let src = "fn total(xs: list[int]) -> int { }";
+    let m = parse_str(src);
+    let f = m.declarations.iter().find_map(|d| {
+        if let Decl::Function(f) = d { Some(f) } else { None }
+    });
+    assert!(f.is_some());
+    assert!(f.unwrap().effects.is_empty(), "no uses clause should mean empty effects");
+}
+
+#[test]
+fn test_parse_fn_uses_all_simple_effects() {
+    // Smoke test all non-parameterized effect kinds.
+    let src = "fn sink() uses net, db, fs, env, clock, random, spawn { }";
+    let m = parse_str(src);
+    let f = m.declarations.iter().find_map(|d| {
+        if let Decl::Function(f) = d { Some(f) } else { None }
+    });
+    assert!(f.is_some());
+    assert_eq!(f.unwrap().effects.len(), 7, "expected 7 effects");
+}

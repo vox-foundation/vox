@@ -253,6 +253,7 @@ impl Parser {
                 is_async: false,
                 is_deprecated: false,
                 is_pure: false,
+                effects: vec![],
                 is_traced: false,
                 is_llm: false,
                 llm_model: None,

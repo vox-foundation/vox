@@ -1,6 +1,8 @@
+use crate::ast::decl::effect::EffectKind;
 use crate::ast::decl::*;
 use crate::ast::expr;
 use crate::ast::types::TypeExpr;
+use crate::hir::nodes::effect::HirEffectKind;
 use crate::hir::*;
 
 use super::LowerCtx;
@@ -26,6 +28,20 @@ impl LowerCtx {
             is_pub: f.is_pub,
             is_mobile_native: f.is_mobile_native,
             is_pure: f.is_pure,
+            effects: f
+                .effects
+                .iter()
+                .map(|e| match &e.kind {
+                    EffectKind::Net => HirEffectKind::Net,
+                    EffectKind::Db => HirEffectKind::Db,
+                    EffectKind::Fs => HirEffectKind::Fs,
+                    EffectKind::Env => HirEffectKind::Env,
+                    EffectKind::Clock => HirEffectKind::Clock,
+                    EffectKind::Random => HirEffectKind::Random,
+                    EffectKind::Spawn => HirEffectKind::Spawn,
+                    EffectKind::Mcp(tool) => HirEffectKind::Mcp(tool.clone()),
+                })
+                .collect(),
             is_llm: f.is_llm,
             llm_model: f.llm_model.clone(),
             is_deprecated: f.is_deprecated,
