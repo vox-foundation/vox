@@ -85,7 +85,7 @@ anyhow.workspace = true
 serde_yaml.workspace = true
 vox-mcp-registry.workspace = true
 vox-capability-registry.workspace = true
-vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
+vox-oratio = { workspace = true, optional = true, features = ["stt-candle", "compiler-rerank"] }
 rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }

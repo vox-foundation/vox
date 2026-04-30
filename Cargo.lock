@@ -12071,6 +12071,7 @@ dependencies = [
  "mime_guess",
  "serde",
  "serde_json",
+ "serial_test",
  "tempfile",
  "tokio",
  "tower 0.5.3",

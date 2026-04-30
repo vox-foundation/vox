@@ -12,6 +12,7 @@ fn setup_dummy_assets() -> tempfile::TempDir {
     dir
 }
 
+#[serial_test::serial]
 #[tokio::test]
 async fn test_dashboard_router_serves_asset() {
     let _dir = setup_dummy_assets();
@@ -33,6 +34,7 @@ async fn test_dashboard_router_serves_asset() {
     assert!(headers.get("Content-Security-Policy").unwrap().to_str().unwrap().contains("frame-ancestors 'none'"));
 }
 
+#[serial_test::serial]
 #[tokio::test]
 async fn test_dashboard_router_injects_token() {
     let _dir = setup_dummy_assets();
@@ -52,6 +54,7 @@ async fn test_dashboard_router_injects_token() {
     assert!(html.contains("<meta name=\"vox-bearer\" content=\"secret_token_abc\">"));
 }
 
+#[serial_test::serial]
 #[tokio::test]
 async fn test_dashboard_router_no_token_injection() {
     let _dir = setup_dummy_assets();

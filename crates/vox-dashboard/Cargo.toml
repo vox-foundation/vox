@@ -26,3 +26,6 @@ const-fnv1a-hash = "1.1.0"
 [dev-dependencies]
 tempfile = { workspace = true }
 tower = { version = "0.5", features = ["util"] }
+# Serializes tests that mutate process-wide env vars (env::set_var is unsafe in
+# Rust 2024 and races with parallel test threads).
+serial_test = "3"

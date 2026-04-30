@@ -33,7 +33,25 @@ To minimize binary bloat and dependency sprawl, the Vox toolchain is split into 
 | `vox-mens` | `mens`, `train`, `populi`, `oratio` | Native ML training (QLoRA), inference serving, and mesh coordination. |
 | `vox-schola` | `schola`, `scientia` | Scientific publication, finding candidates, and novelty ledger management. |
 
-If a delegated binary is missing from your `PATH`, the `vox` CLI will provide installation instructions (e.g., `cargo install --path crates/vox-mens`).
+If a delegated binary is missing from your `PATH`, the `vox` CLI prints actionable installation instructions.
+
+### Install tiers
+
+The release pipeline (`vox ci release-build --package <tier>`) ships these
+artifacts per supported target triple, each as its own archive on the
+[Releases page](https://github.com/vox-foundation/vox/releases):
+
+| `--package` value | Produces | Use for |
+|---|---|---|
+| `vox` | `vox-<ver>-<target>.{tar.gz,zip}` | Lean install — compiler, package manager, orchestrator. No ML, no scientia. |
+| `bootstrap` | `vox-bootstrap-<ver>-<target>.{tar.gz,zip}` | Standalone installer used by `scripts/install.{sh,ps1}`. |
+| `mens` | `vox-mens-<ver>-<target>.{tar.gz,zip}` | ML / oratio / speech / populi / train plugin (heavy: Candle + Whisper). |
+| `schola` | `vox-schola-<ver>-<target>.{tar.gz,zip}` | Scientia / schola plugin. |
+| `both` | `vox` + `vox-bootstrap` | Legacy pre-plugin tier (kept for backwards compatibility). |
+| `all` | Everything above | Full install for CI / dogfood. |
+
+Download a plugin archive, extract the binary onto `PATH`, and `vox` will
+dispatch automatically — no rebuild of the core required.
 
 
 - **Global (before subcommand):** **`--color auto|always|never`** (see `NO_COLOR`), **`--json`** (sets `VOX_CLI_GLOBAL_JSON` for subcommands that support machine JSON), **`--verbose` / `-v`** (if `RUST_LOG` is unset, tracing uses `debug`), **`--quiet` / `-q`** (`VOX_CLI_QUIET`).

@@ -293,7 +293,7 @@ fn emitter_source_orders_validate_gate_before_route_manifest() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/codegen_ts/emitter.rs");
     let src = std::fs::read_to_string(&path).expect("read emitter.rs");
     let validate = src
-        .find("maybe_web_ir_validate(hir, web_projection_cache.as_ref())?")
+        .find("maybe_web_ir_validate(hir, Some(&web_projection))?")
         .expect("maybe_web_ir_validate call");
     let route_manifest = src
         .find("let route_manifest = match web_projection_ref {")

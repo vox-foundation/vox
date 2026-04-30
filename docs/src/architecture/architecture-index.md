@@ -84,4 +84,5 @@ training_eligible: false
 - [Data Storage Lint & CI Spec (2026)](architecture/data-storage-lint-and-ci-spec-2026.md)
 - [Data Storage Migration Backlog (2026)](architecture/data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](architecture/data-storage-ssot-2026.md)
+- [GUI-Native Language Roadmap — Execution Status](architecture/gui-native-roadmap-status-2026.md)
 
