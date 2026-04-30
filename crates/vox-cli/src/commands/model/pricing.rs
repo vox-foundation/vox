@@ -54,7 +54,7 @@ async fn run_show(model_filter: Option<String>) -> anyhow::Result<()> {
         "Model",
         "Provider",
         "Obs $/1K",
-        "Cat $/1K",
+        "Cat in $/1K",
         "Cache-hit $/1K",
         "Caching?",
         "Source",

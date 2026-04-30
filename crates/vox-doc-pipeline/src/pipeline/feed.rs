@@ -147,6 +147,24 @@ fn xml_escape(s: &str) -> String {
         .replace('\'', "&apos;")
 }
 
+/// Trim a description to at most `max_chars` characters, breaking only at word
+/// boundaries.  Appends `…` when the text is actually shortened.
+fn trim_description(s: &str, max_chars: usize) -> String {
+    let s = s.trim();
+    if s.chars().count() <= max_chars {
+        return s.to_string();
+    }
+    // Walk backwards from the limit to find the last whitespace boundary.
+    let truncated: String = s.chars().take(max_chars).collect();
+    let trimmed = match truncated.rfind(|c: char| c.is_whitespace()) {
+        Some(pos) => truncated[..pos].trim_end(),
+        None => truncated.trim_end(),
+    };
+    // Strip any trailing punctuation that looks odd before the ellipsis.
+    let trimmed = trimmed.trim_end_matches(|c| c == ',' || c == ';');
+    format!("{trimmed}\u{2026}")
+}
+
 /// Generate `docs/src/feed.xml` from pages that have `last_updated`.
 pub(crate) fn generate_feed(docs_src: &Path, pages: &[Page]) {
     const MAX_ITEMS: usize = 25;
@@ -192,7 +210,8 @@ pub(crate) fn generate_feed(docs_src: &Path, pages: &[Page]) {
         let slug = page.path.trim_end_matches(".md").replace('\\', "/");
         let url = format!("{FEED_BASE_URL}/{slug}.html");
         let title = xml_escape(&page.title);
-        let description = xml_escape(page.description.as_deref().unwrap_or(&page.title));
+        let raw_desc = page.description.as_deref().unwrap_or(&page.title);
+        let description = xml_escape(&trim_description(raw_desc, 160));
         let pub_date = page
             .last_updated
             .as_deref()

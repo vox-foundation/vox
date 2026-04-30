@@ -122,17 +122,40 @@ impl ModelRegistry {
                 if self.models.contains_key(wp.as_str()) {
                     Some(wp.clone())
                 } else {
-                    // Suffix fallback — find the first model whose ID ends with the bare name.
-                    self.models
-                        .keys()
-                        .find(|k| k.ends_with(suffix))
-                        .cloned()
+                    // Suffix fallback — only match when exactly one model ID ends with the
+                    // bare name. If multiple models share the suffix the match is ambiguous
+                    // and nondeterministic (HashMap ordering), so we skip and log instead.
+                    let mut matches =
+                        self.models.keys().filter(|k| k.ends_with(suffix));
+                    match (matches.next().cloned(), matches.next()) {
+                        (Some(key), None) => Some(key),
+                        _ => {
+                            tracing::debug!(
+                                target: "vox.orchestrator.models",
+                                suffix,
+                                litellm_id,
+                                "ambiguous or missing suffix match in apply_litellm_pricing; skipping"
+                            );
+                            None
+                        }
+                    }
                 }
             } else {
-                self.models
-                    .keys()
-                    .find(|k| k.ends_with(suffix))
-                    .cloned()
+                // Same deterministic suffix fallback without provider prefix.
+                let mut matches =
+                    self.models.keys().filter(|k| k.ends_with(suffix));
+                match (matches.next().cloned(), matches.next()) {
+                    (Some(key), None) => Some(key),
+                    _ => {
+                        tracing::debug!(
+                            target: "vox.orchestrator.models",
+                            suffix,
+                            litellm_id,
+                            "ambiguous or missing suffix match in apply_litellm_pricing; skipping"
+                        );
+                        None
+                    }
+                }
             };
 
             let Some(key) = found_key else { continue };
@@ -259,6 +282,25 @@ impl ModelRegistry {
                 // Fetch LiteLLM pricing oracle to supplement cache costs and Anthropic pricing.
                 let litellm_entries = crate::catalog::LiteLLMCatalog::new().fetch().await
                     .unwrap_or_default();
+
+                // Fetch AnthropicDirect catalog (key-gated; silently skipped when no key is
+                // present) so background refresh stays in parity with run_foreground_refresh().
+                match crate::catalog::AnthropicDirectCatalog::new().refresh().await {
+                    Ok(mut anthropic_models) => {
+                        for m in &mut anthropic_models {
+                            if m.pricing_source == crate::models::spec::PricingSource::Bootstrap {
+                                m.pricing_source =
+                                    crate::models::spec::PricingSource::AnthropicDirect;
+                            }
+                        }
+                        for m in anthropic_models {
+                            if !models.iter().any(|existing| existing.id == m.id) {
+                                models.push(m);
+                            }
+                        }
+                    }
+                    Err(_) => {} // no Anthropic key is expected in many environments
+                }
 
                 #[cfg(feature = "populi-transport")]
                 {
