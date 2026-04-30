@@ -1,6 +1,5 @@
 {
   "project": "Vox",
-  "version": "0.5.0",
   "description": "Architectual Single Source of Truth for File Paths and Governance",
   "thresholds": {
     "god_object": {
