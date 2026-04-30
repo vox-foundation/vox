@@ -32,6 +32,9 @@ pub mod dispatch_protocol;
 /// Vite/React scaffold helpers and shared **pnpm** executable resolution (`pnpm_executable`).
 pub mod frontend;
 pub mod fs_utils;
+/// Fuzzy ranking for command catalog, MCP tool picker, and dashboard palette.
+/// Gated behind the `fuzzy-search` feature; falls back to identity ordering when disabled.
+pub mod fuzzy;
 mod island_paths;
 #[cfg(feature = "script-execution")]
 mod isolation;
@@ -123,6 +126,9 @@ pub enum Cli {
         /// Include nested subcommands (default shows top-level only).
         #[arg(long)]
         include_nested: bool,
+        /// Fuzzy-search the catalog (implies --include-nested when set).
+        #[arg(long, value_name = "PATTERN")]
+        search: Option<String>,
     },
     /// Workshop lane — same as top-level `build` (`fabrica` = Latin *workshop*).
     #[command(name = "fabrica", visible_alias = "fab")]

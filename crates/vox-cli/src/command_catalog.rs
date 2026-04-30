@@ -108,6 +108,153 @@ pub fn select_entries(
         .collect()
 }
 
+/// Filter and rank `entries` by fuzzy match against `pattern`.
+///
+/// Matches against the command path joined as a string (e.g. `"vox shell check"`)
+/// and the `about` description.  Returns entries sorted by descending score with
+/// zero-score (no match) entries excluded.
+///
+/// When the `fuzzy-search` feature is disabled, falls back to a case-insensitive
+/// substring filter so call-sites work unconditionally.
+/// Build the single searchable string for an entry.
+/// Includes command path, all aliases, and the about text so that e.g.
+/// searching `"fab"` surfaces `vox fabrica` (alias: `fab`).
+#[cfg(feature = "fuzzy-search")]
+fn entry_search_key(e: &CommandCatalogEntry) -> String {
+    if e.aliases.is_empty() {
+        format!("{} — {}", e.command, e.about)
+    } else {
+        format!("{} ({}) — {}", e.command, e.aliases.join(", "), e.about)
+    }
+}
+
+/// Filter and rank `entries` by fuzzy match against `pattern`.
+///
+/// Candidates are built from `command`, all `aliases`, and `about` so that
+/// alias-only matches (e.g. `"fab"` → `vox fabrica`) are surfaced.
+/// Returns entries sorted by descending score; zero-score entries excluded.
+///
+/// Falls back to case-insensitive substring filter when `fuzzy-search` is disabled.
+pub fn search_entries(
+    entries: Vec<CommandCatalogEntry>,
+    pattern: &str,
+) -> Vec<CommandCatalogEntry> {
+    search_entries_scored(entries, pattern)
+        .into_iter()
+        .map(|s| s.entry)
+        .collect()
+}
+
+/// A search hit carrying both the matched entry and its match score.
+///
+/// `score` is non-zero when the `fuzzy-search` feature is enabled (nucleo
+/// score; higher = better match) and `0` for the substring-fallback path
+/// (where ordering is preserved from the input).
+#[derive(Debug, Clone, Serialize)]
+pub struct SearchResult {
+    pub entry: CommandCatalogEntry,
+    pub score: u32,
+    /// Which field the pattern matched against ("command", "alias", or "about").
+    /// Best-effort: only populated by the substring-fallback path; the fuzzy
+    /// path scores against a concatenated key so it cannot attribute precisely.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub matched_via: Option<String>,
+}
+
+/// Same as [`search_entries`] but returns scores and match attribution for
+/// JSON output and richer rendering.
+pub fn search_entries_scored(
+    entries: Vec<CommandCatalogEntry>,
+    pattern: &str,
+) -> Vec<SearchResult> {
+    if pattern.is_empty() {
+        return entries
+            .into_iter()
+            .map(|entry| SearchResult { entry, score: 0, matched_via: None })
+            .collect();
+    }
+
+    #[cfg(feature = "fuzzy-search")]
+    {
+        let mut matcher = crate::fuzzy::FuzzyMatcher::new();
+        let candidates: Vec<String> = entries.iter().map(entry_search_key).collect();
+        matcher
+            .rank(pattern, &candidates)
+            .into_iter()
+            .map(|(idx, score)| SearchResult {
+                entry: entries[idx].clone(),
+                score,
+                matched_via: None,
+            })
+            .collect()
+    }
+
+    #[cfg(not(feature = "fuzzy-search"))]
+    {
+        let pat = pattern.to_ascii_lowercase();
+        entries
+            .into_iter()
+            .filter_map(|entry| {
+                let matched_via = if entry.command.to_ascii_lowercase().contains(&pat) {
+                    Some("command".to_owned())
+                } else if entry.aliases.iter().any(|a| a.to_ascii_lowercase().contains(&pat)) {
+                    Some("alias".to_owned())
+                } else if entry.about.to_ascii_lowercase().contains(&pat) {
+                    Some("about".to_owned())
+                } else {
+                    return None;
+                };
+                Some(SearchResult { entry, score: 0, matched_via })
+            })
+            .collect()
+    }
+}
+
+/// JSON wrapper for search-mode output (richer than [`CommandCatalog`]).
+#[derive(Debug, Clone, Serialize)]
+pub struct SearchOutput {
+    pub generated_from: String,
+    pub pattern: String,
+    pub match_count: usize,
+    pub results: Vec<SearchResult>,
+}
+
+/// Render search results with alias context shown inline.
+///
+/// Differs from [`render_text`] in that the aliases column is included so users
+/// can see which alias triggered the match.
+pub fn render_search_results(entries: &[CommandCatalogEntry], pattern: &str) -> String {
+    let mut out = String::new();
+    out.push_str(&format!(
+        "Search results for {:?} ({} match{})\n",
+        pattern,
+        entries.len(),
+        if entries.len() == 1 { "" } else { "es" }
+    ));
+    out.push_str("Command | Aliases | Tier | Description\n");
+    out.push_str("------- | ------- | ---- | -----------\n");
+    for e in entries {
+        let tier = match e.tier {
+            CatalogTier::Recommended => "recommended",
+            CatalogTier::Advanced => "advanced",
+            CatalogTier::FeatureGated => "feature_gated",
+        };
+        let aliases = if e.aliases.is_empty() {
+            "-".to_owned()
+        } else {
+            e.aliases.join(", ")
+        };
+        out.push_str(&format!(
+            "{} | {} | {} | {}\n",
+            e.command,
+            aliases,
+            tier,
+            sanitize_about(&e.about)
+        ));
+    }
+    out
+}
+
 fn walk_command(cmd: &Command, prefix: &[String], out: &mut Vec<CommandCatalogEntry>) {
     let mut path = prefix.to_vec();
     path.push(cmd.get_name().to_string());
@@ -250,5 +397,36 @@ mod tests {
         let text = render_text(&subset);
         assert!(text.contains("vox build"));
         assert!(text.contains("recommended"));
+    }
+
+    #[test]
+    fn search_entries_returns_matches() {
+        let catalog = build_catalog();
+        // "shell" should match `vox shell` and `vox shell check`/`vox shell repl`.
+        let results = search_entries(catalog.entries, "shell");
+        assert!(
+            !results.is_empty(),
+            "search for 'shell' should return at least one entry"
+        );
+        assert!(
+            results.iter().any(|e| e.command.contains("shell")),
+            "expected a 'shell' command in results; got: {:?}",
+            results.iter().map(|e| &e.command).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn search_entries_empty_pattern_returns_all() {
+        let catalog = build_catalog();
+        let total = catalog.entries.len();
+        let results = search_entries(catalog.entries, "");
+        assert_eq!(results.len(), total);
+    }
+
+    #[test]
+    fn search_entries_no_match_returns_empty() {
+        let catalog = build_catalog();
+        let results = search_entries(catalog.entries, "zzz_no_such_command_xyzzy");
+        assert!(results.is_empty(), "expected no results for nonsense pattern");
     }
 }
