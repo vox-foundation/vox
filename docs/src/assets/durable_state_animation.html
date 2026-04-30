@@ -50,51 +50,59 @@
 
         /* NODE ANIMATIONS (SYNCED STRICTLY TO TIMELINE) */
 
-        /* Workflow node triggers when dispatching */
+        /* Loop-seam policy: every keyframe ends (100%) at its 0% state.
+           The final 95-100% segment is a "settle" tail so the 20s loop
+           reads as continuous instead of snapping back. */
+
         #node-workflow .asset { animation: nx-wf 20s infinite; }
         @keyframes nx-wf {
             0%, 9%, 18%, 38%, 48%, 68%, 88%, 100% { filter: brightness(1); }
-            10%, 15%, 40%, 45%, 60%, 65%, 90%, 95% { filter: brightness(2) drop-shadow(0 0 2% var(--violet)); }
+            10%, 15%, 40%, 45%, 60%, 65%, 90%, 93% { filter: brightness(2) drop-shadow(0 0 2% var(--violet)); }
         }
 
         #node-vault .asset { animation: nx-va 20s infinite; }
         @keyframes nx-va {
             0%, 7%, 38%, 48%, 100% { filter: brightness(1); }
-            8%, 12% { filter: brightness(2) drop-shadow(0 0 2% var(--cyan)); } /* Ack Commit */
-            40%, 45% { filter: brightness(3) drop-shadow(0 0 5% var(--cyan)); } /* Fire Rehydration */
+            8%, 12% { filter: brightness(2) drop-shadow(0 0 2% var(--cyan)); }
+            40%, 45% { filter: brightness(3) drop-shadow(0 0 5% var(--cyan)); }
         }
 
         #node-worker1 .asset { animation: nx-w1 20s infinite; }
         @keyframes nx-w1 {
             0%, 18% { filter: brightness(1); }
-            19%, 20% { filter: brightness(2) drop-shadow(0 0 2% var(--amber)); } /* Receive task */
-            21%, 23% { filter: brightness(3) sepia(1) hue-rotate(330deg) drop-shadow(0 0 3% var(--err)); } /* OOM Crash */
-            24%, 100% { filter: brightness(0.1) grayscale(1); } /* Dead */
+            19%, 20% { filter: brightness(2) drop-shadow(0 0 2% var(--amber)); }
+            21%, 23% { filter: brightness(3) sepia(1) hue-rotate(330deg) drop-shadow(0 0 3% var(--err)); }
+            24%, 95% { filter: brightness(0.1) grayscale(1); }
+            100% { filter: brightness(1); }
         }
         #node-worker1 .label { animation: nx-w1l 20s infinite; }
         @keyframes nx-w1l {
-            0%, 18% { border-color: #444; color: white; content: "COMPUTE NODE A"; }
-            19%, 23% { border-color: var(--amber); color: var(--amber); content: "EXEC: charge_card"; }
-            24%, 100% { border-color: var(--err); color: var(--err); text-decoration: line-through; content: "CONNECTION LOST"; }
+            0%, 18% { border-color: #444; color: white; text-decoration: none; }
+            19%, 23% { border-color: var(--amber); color: var(--amber); text-decoration: none; }
+            24%, 95% { border-color: var(--err); color: var(--err); text-decoration: line-through; }
+            100% { border-color: #444; color: white; text-decoration: none; }
         }
 
-        #node-worker2 .asset { animation: nx-w2 20s infinite; filter: brightness(0.1) grayscale(1); } /* Offline initially */
+        #node-worker2 .asset { animation: nx-w2 20s infinite; filter: brightness(0.1) grayscale(1); }
         @keyframes nx-w2 {
             0%, 68% { filter: brightness(0.1) grayscale(1); }
-            69%, 78% { filter: brightness(2) drop-shadow(0 0 2% var(--emerald)); } /* Process normally */
-            79%, 100% { filter: brightness(0.5); }
+            69%, 78% { filter: brightness(2) drop-shadow(0 0 2% var(--emerald)); }
+            79%, 95% { filter: brightness(0.5); }
+            100% { filter: brightness(0.1) grayscale(1); }
         }
         #node-worker2 .label { animation: nx-w2l 20s infinite; }
         @keyframes nx-w2l {
-            0%, 68% { border-color: #444; color: #555; content: "COMPUTE NODE B"; }
-            69%, 78% { border-color: var(--emerald); color: var(--emerald); content: "EXEC: charge_card"; }
-            79%, 100% { border-color: #444; color: white; content: "COMPUTE NODE B"; }
+            0%, 68% { border-color: #444; color: #555; }
+            69%, 78% { border-color: var(--emerald); color: var(--emerald); }
+            79%, 95% { border-color: #444; color: white; }
+            100% { border-color: #444; color: #555; }
         }
 
         #node-portal .asset { animation: nx-po 20s infinite; }
         @keyframes nx-po {
-            0%, 97% { filter: brightness(1); }
-            98%, 100% { filter: brightness(4) drop-shadow(0 0 5% white); }
+            0%, 89% { filter: brightness(1); }
+            91%, 93% { filter: brightness(4) drop-shadow(0 0 5% white); }
+            95%, 100% { filter: brightness(1); }
         }
 
 
@@ -105,37 +113,39 @@
         /* The Spine Route (WF to Vault and back) */
         .trk-spine { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-sp 20s infinite; }
         @keyframes tk-sp {
-            0%, 100% { stroke: var(--dim); }
-            0%, 9% { stroke: var(--violet); } /* 0-10%: Msg down */
+            0%, 9% { stroke: var(--violet); }
             10%, 29% { stroke: var(--dim); }
-            30%, 39% { stroke: var(--amber); } /* 30-40%: Query down */
-            40%, 49% { stroke: var(--cyan); stroke-width: 0.8%; } /* 40-50%: Massive blob up */
-            50%, 100% { stroke: var(--dim); }
+            30%, 39% { stroke: var(--amber); }
+            40%, 49% { stroke: var(--cyan); stroke-width: 0.8%; }
+            50%, 95% { stroke: var(--dim); }
+            100% { stroke: var(--violet); }
         }
 
         .trk-w1 { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-w1 20s infinite; }
         @keyframes tk-w1 {
             0%, 9% { stroke: var(--dim); stroke-dasharray: none; }
-            10%, 19% { stroke: var(--amber); stroke-dasharray: none; } /* Msg to W1 */
-            20%, 23% { stroke: var(--err); stroke-width: 0.8%; } /* Snaps */
-            24%, 100% { stroke: rgba(255,0,0,0.2); stroke-dasharray: 2 10; } /* Remains dead */
+            10%, 19% { stroke: var(--amber); stroke-dasharray: none; }
+            20%, 23% { stroke: var(--err); stroke-width: 0.8%; }
+            24%, 95% { stroke: rgba(255,0,0,0.2); stroke-dasharray: 2 10; }
+            100% { stroke: var(--dim); stroke-dasharray: none; }
         }
 
         .trk-w2 { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-w2 20s infinite; }
         @keyframes tk-w2 {
-            0%, 49% { stroke: transparent; } /* Doesn't exist initially */
-            50%, 59% { stroke: white; stroke-dasharray: 5 15; stroke-dashoffset: 100; } /* Connecting... drawing itself! */
+            0%, 49% { stroke: transparent; }
+            50%, 59% { stroke: white; stroke-dasharray: 5 15; stroke-dashoffset: 100; }
             60%, 69% { stroke: var(--dim); stroke-dasharray: none; }
-            70%, 79% { stroke: var(--amber); stroke-dasharray: none; } /* Msg to W2 */
-            80%, 89% { stroke: var(--emerald); stroke-dasharray: none; } /* Results from W2 */
-            90%, 100% { stroke: var(--dim); } /* Remains open */
+            70%, 79% { stroke: var(--amber); stroke-dasharray: none; }
+            80%, 89% { stroke: var(--emerald); stroke-dasharray: none; }
+            90%, 95% { stroke: var(--dim); }
+            100% { stroke: transparent; }
         }
 
         .trk-po { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-po 20s infinite; }
         @keyframes tk-po {
-            0%, 89% { stroke: var(--dim); }
-            90%, 99% { stroke: white; } /* Broadcast up */
-            100% { stroke: var(--dim); }
+            0%, 88% { stroke: var(--dim); }
+            90%, 93% { stroke: white; }
+            95%, 100% { stroke: var(--dim); }
         }
 
 
@@ -209,9 +219,9 @@
         /* 90-100% (18-20s) MCP BROADCAST */
         #pkt-out { animation: p-out 20s infinite linear; background: white; color: black; box-shadow: 0 0 3% white; }
         @keyframes p-out {
-            0%, 91% { left: 30%; top: 50%; opacity: 0; }
-            92%, 98% { opacity: 1; }
-            99%, 100% { left: 30%; top: 25%; opacity: 0; }
+            0%, 88% { left: 30%; top: 50%; opacity: 0; }
+            89%, 93% { opacity: 1; }
+            94%, 100% { left: 30%; top: 25%; opacity: 0; }
         }
 
     </style>

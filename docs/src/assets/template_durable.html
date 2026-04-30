@@ -50,16 +50,21 @@
 
         /* NODE ANIMATIONS (SYNCED STRICTLY TO TIMELINE) */
 
+        /* Loop-seam policy: every keyframe must end (100%) in the same visual
+           state it begins (0%). The final 95-100% segment is a "settle" tail
+           that smoothly returns each element to its initial state, so the
+           20s loop reads as continuous instead of snapping back. */
+
         #node-workflow .asset { animation: nx-wf 20s infinite; }
         @keyframes nx-wf {
             0%, 9%, 18%, 38%, 48%, 68%, 88%, 100% { filter: brightness(1); }
-            10%, 15%, 40%, 45%, 60%, 65%, 90%, 95% { filter: brightness(2) drop-shadow(0 0 2vh var(--violet)); }
+            10%, 15%, 40%, 45%, 60%, 65%, 90%, 93% { filter: brightness(2) drop-shadow(0 0 2vh var(--violet)); }
         }
 
         #node-vault .asset { animation: nx-va 20s infinite; }
         @keyframes nx-va {
             0%, 7%, 38%, 48%, 100% { filter: brightness(1); }
-            8%, 12% { filter: brightness(2) drop-shadow(0 0 2vh var(--cyan)); } 
+            8%, 12% { filter: brightness(2) drop-shadow(0 0 2vh var(--cyan)); }
             40%, 45% { filter: brightness(3) drop-shadow(0 0 5vh var(--cyan)); }
         }
 
@@ -68,32 +73,37 @@
             0%, 18% { filter: brightness(1); }
             19%, 20% { filter: brightness(2) drop-shadow(0 0 2vh var(--amber)); }
             21%, 23% { filter: brightness(3) sepia(1) hue-rotate(330deg) drop-shadow(0 0 3vh var(--err)); }
-            24%, 100% { filter: brightness(0.1) grayscale(1); }
+            24%, 95% { filter: brightness(0.1) grayscale(1); }
+            100% { filter: brightness(1); }
         }
         #node-worker1 .label { animation: nx-w1l 20s infinite; }
         @keyframes nx-w1l {
-            0%, 18% { border-color: #444; color: white; content: "COMPUTE NODE A"; }
-            19%, 23% { border-color: var(--amber); color: var(--amber); content: "EXEC: charge_card"; }
-            24%, 100% { border-color: var(--err); color: var(--err); text-decoration: line-through; content: "CONNECTION LOST"; }
+            0%, 18% { border-color: #444; color: white; text-decoration: none; }
+            19%, 23% { border-color: var(--amber); color: var(--amber); text-decoration: none; }
+            24%, 95% { border-color: var(--err); color: var(--err); text-decoration: line-through; }
+            100% { border-color: #444; color: white; text-decoration: none; }
         }
 
         #node-worker2 .asset { animation: nx-w2 20s infinite; filter: brightness(0.1) grayscale(1); }
         @keyframes nx-w2 {
             0%, 68% { filter: brightness(0.1) grayscale(1); }
             69%, 78% { filter: brightness(2) drop-shadow(0 0 2vh var(--emerald)); }
-            79%, 100% { filter: brightness(0.5); }
+            79%, 95% { filter: brightness(0.5); }
+            100% { filter: brightness(0.1) grayscale(1); }
         }
         #node-worker2 .label { animation: nx-w2l 20s infinite; }
         @keyframes nx-w2l {
-            0%, 68% { border-color: #444; color: #555; content: "COMPUTE NODE B"; }
-            69%, 78% { border-color: var(--emerald); color: var(--emerald); content: "EXEC: charge_card"; }
-            79%, 100% { border-color: #444; color: white; content: "COMPUTE NODE B"; }
+            0%, 68% { border-color: #444; color: #555; }
+            69%, 78% { border-color: var(--emerald); color: var(--emerald); }
+            79%, 95% { border-color: #444; color: white; }
+            100% { border-color: #444; color: #555; }
         }
 
         #node-portal .asset { animation: nx-po 20s infinite; }
         @keyframes nx-po {
-            0%, 97% { filter: brightness(1); }
-            98%, 100% { filter: brightness(4) drop-shadow(0 0 5vh white); }
+            0%, 89% { filter: brightness(1); }
+            91%, 93% { filter: brightness(4) drop-shadow(0 0 5vh white); }
+            95%, 100% { filter: brightness(1); }
         }
 
         /* SVG TRACKS */
@@ -102,12 +112,12 @@
 
         .trk-spine { fill: none; stroke-width: 0.5vh; stroke-linecap: round; animation: tk-sp 20s infinite; }
         @keyframes tk-sp {
-            0%, 100% { stroke: var(--dim); }
             0%, 9% { stroke: var(--violet); }
             10%, 29% { stroke: var(--dim); }
             30%, 39% { stroke: var(--amber); }
             40%, 49% { stroke: var(--cyan); stroke-width: 0.8vh; }
-            50%, 100% { stroke: var(--dim); }
+            50%, 95% { stroke: var(--dim); }
+            100% { stroke: var(--violet); }
         }
 
         .trk-w1 { fill: none; stroke-width: 0.5vh; stroke-linecap: round; animation: tk-w1 20s infinite; }
@@ -115,7 +125,8 @@
             0%, 9% { stroke: var(--dim); stroke-dasharray: none; }
             10%, 19% { stroke: var(--amber); stroke-dasharray: none; }
             20%, 23% { stroke: var(--err); stroke-width: 0.8vh; }
-            24%, 100% { stroke: rgba(255,0,0,0.2); stroke-dasharray: 2vh 10vh; }
+            24%, 95% { stroke: rgba(255,0,0,0.2); stroke-dasharray: 2vh 10vh; }
+            100% { stroke: var(--dim); stroke-dasharray: none; }
         }
 
         .trk-w2 { fill: none; stroke-width: 0.5vh; stroke-linecap: round; animation: tk-w2 20s infinite; }
@@ -125,14 +136,15 @@
             60%, 69% { stroke: var(--dim); stroke-dasharray: none; }
             70%, 79% { stroke: var(--amber); stroke-dasharray: none; }
             80%, 89% { stroke: var(--emerald); stroke-dasharray: none; }
-            90%, 100% { stroke: var(--dim); }
+            90%, 95% { stroke: var(--dim); }
+            100% { stroke: transparent; }
         }
 
         .trk-po { fill: none; stroke-width: 0.5vh; stroke-linecap: round; animation: tk-po 20s infinite; }
         @keyframes tk-po {
-            0%, 89% { stroke: var(--dim); }
-            90%, 99% { stroke: white; }
-            100% { stroke: var(--dim); }
+            0%, 88% { stroke: var(--dim); }
+            90%, 93% { stroke: white; }
+            95%, 100% { stroke: var(--dim); }
         }
 
         /* DATA PACKETS */
@@ -178,7 +190,7 @@
 
         /* Sold black background to block white line beneath */
         #pkt-out { animation: p-out 20s infinite linear; background: #000; color: white; border: 0.4vh solid white; box-shadow: 0 0 4vh white; }
-        @keyframes p-out { 0%, 91% { left: 30%; top: 50%; opacity: 0; } 92%, 98% { opacity: 1; } 99%, 100% { left: 30%; top: 25%; opacity: 0; } }
+        @keyframes p-out { 0%, 88% { left: 30%; top: 50%; opacity: 0; } 89%, 93% { opacity: 1; } 94%, 100% { left: 30%; top: 25%; opacity: 0; } }
 
     </style>
 </head>
