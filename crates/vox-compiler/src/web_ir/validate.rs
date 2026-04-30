@@ -478,6 +478,120 @@ fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// TASK-5.2 — Route reachability validator
+// ---------------------------------------------------------------------------
+
+/// Collect all `RouteContract.id` values by recursively walking a route tree.
+fn collect_route_ids<'a>(routes: &'a [RouteContract], ids: &mut HashSet<&'a str>) {
+    for r in routes {
+        ids.insert(r.id.as_str());
+        collect_route_ids(&r.children, ids);
+    }
+}
+
+/// Collect all `href` / `to` attribute values from `<link>` elements in the DOM arena.
+fn collect_link_targets(module: &WebIrModule, targets: &mut HashSet<String>) {
+    for node in &module.dom_nodes {
+        if let DomNode::Element { tag, attrs, .. } = node {
+            if tag.eq_ignore_ascii_case("link") || tag.eq_ignore_ascii_case("a") {
+                for (k, v) in attrs {
+                    if k == "href" || k == "to" {
+                        targets.insert(v.clone());
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Extract the component name from a `RouteContract.meta` JSON blob.
+///
+/// The lowering pass stores the component name at `meta["component"]`.
+fn route_component_name(r: &RouteContract) -> Option<&str> {
+    r.meta.get("component").and_then(|v| v.as_str())
+}
+
+/// Recursively check all routes in a tree for reachability and component existence.
+fn check_routes_reachability(
+    routes: &[RouteContract],
+    view_root_names: &HashSet<&str>,
+    link_targets: &HashSet<String>,
+    route_ids: &HashSet<&str>,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    for r in routes {
+        // W_ROUTE_MISSING_COMPONENT: meta["component"] names a component that has no view_root.
+        if let Some(comp) = route_component_name(r) {
+            if !comp.is_empty() && !view_root_names.contains(comp) {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.route.missing_component".to_string(),
+                    message: format!(
+                        "RouteContract '{}' references component '{}' but no matching view_root found",
+                        r.id, comp
+                    ),
+                    span: None,
+                    category: Some("route".to_string()),
+                    ..Default::default()
+                });
+            }
+        }
+
+        // W_ROUTE_UNREACHABLE: no inbound <link href|to> points at this route's id or pattern.
+        let reachable = link_targets.contains(&r.id)
+            || link_targets.contains(&r.pattern)
+            // Root / is always reachable (entry point).
+            || r.pattern == "/"
+            || r.pattern.is_empty();
+        if !reachable {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.route.unreachable".to_string(),
+                message: format!(
+                    "RouteContract '{}' (pattern '{}') has no inbound <link> in the DOM arena — \
+                     it may be unreachable",
+                    r.id, r.pattern
+                ),
+                span: None,
+                category: Some("route".to_string()),
+                severity: WebIrDiagnosticSeverity::Warning,
+            });
+        }
+
+        check_routes_reachability(&r.children, view_root_names, link_targets, route_ids, out);
+    }
+}
+
+/// **Stage Route-Reachability (TASK-5.2):** validates that every route's component exists
+/// and that routes are reachable from at least one `<link>` in the DOM arena.
+fn validate_route_reachability(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
+    // Collect view_root names (first element of each tuple).
+    let view_root_names: HashSet<&str> = module
+        .view_roots
+        .iter()
+        .map(|(name, _)| name.as_str())
+        .collect();
+
+    // Collect inbound link targets from the full DOM arena.
+    let mut link_targets = HashSet::new();
+    collect_link_targets(module, &mut link_targets);
+
+    // Collect all route IDs for duplicate-free traversal.
+    let mut route_ids = HashSet::new();
+
+    for node in &module.route_nodes {
+        if let RouteNode::RouteTree { routes, .. } = node {
+            collect_route_ids(routes, &mut route_ids);
+            check_routes_reachability(
+                routes,
+                &view_root_names,
+                &link_targets,
+                &route_ids,
+                out,
+            );
+        }
+    }
+}
+
 /// Semicolon-joined diagnostic lines for `VOX_WEBIR_VALIDATE` gates (OP-0287); shared with codegen.
 #[must_use]
 pub fn format_web_ir_validate_failure(diags: &[WebIrDiagnostic]) -> String {
@@ -505,6 +619,7 @@ pub fn validate_web_ir_with_metrics(
 
     validate_dom_roots(module, &mut out, &mut metrics);
     validate_route_families(module, &mut out, &mut metrics);
+    validate_route_reachability(module, &mut out);
     validate_behaviors(module, &mut out, &mut metrics);
     validate_styles(module, &mut out, &mut metrics);
     validate_scheduled_jobs(module, &mut out, &mut metrics);
@@ -857,6 +972,111 @@ mod tests {
         assert!(
             diags.iter().any(|d| d.code == "web_ir_validate.style.literal_value"),
             "new code literal_value must appear for named color 'red'"
+        );
+    }
+
+    // ── TASK-5.2: route reachability validator ────────────────────────────────
+
+    fn make_route(id: &str, pattern: &str, component: Option<&str>) -> RouteContract {
+        let meta = if let Some(c) = component {
+            serde_json::json!({ "component": c })
+        } else {
+            serde_json::Value::Object(Default::default())
+        };
+        RouteContract {
+            id: id.to_string(),
+            pattern: pattern.to_string(),
+            meta,
+            children: vec![],
+        }
+    }
+
+    #[test]
+    fn route_with_known_component_passes() {
+        use crate::web_ir::{DomNodeId, WebIrModule};
+        let mut m = WebIrModule::default();
+        m.view_roots.push(("HomePage".to_string(), DomNodeId(0)));
+        m.route_nodes.push(RouteNode::RouteTree {
+            routes: vec![make_route("route_0", "/", Some("HomePage"))],
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        assert!(
+            !diags.iter().any(|d| d.code == "web_ir_validate.route.missing_component"),
+            "component exists in view_roots — no missing_component diag expected"
+        );
+    }
+
+    #[test]
+    fn route_with_missing_component_warns() {
+        use crate::web_ir::WebIrModule;
+        let mut m = WebIrModule::default();
+        // No view_roots, but route references "HomePage".
+        m.route_nodes.push(RouteNode::RouteTree {
+            routes: vec![make_route("route_0", "/home", Some("HomePage"))],
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        assert!(
+            diags.iter().any(|d| d.code == "web_ir_validate.route.missing_component"),
+            "missing component should produce diagnostic"
+        );
+    }
+
+    #[test]
+    fn root_route_not_flagged_as_unreachable() {
+        use crate::web_ir::{DomNodeId, WebIrModule};
+        let mut m = WebIrModule::default();
+        m.view_roots.push(("App".to_string(), DomNodeId(0)));
+        m.route_nodes.push(RouteNode::RouteTree {
+            routes: vec![make_route("route_0", "/", Some("App"))],
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        assert!(
+            !diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
+            "root / route should never be flagged as unreachable"
+        );
+    }
+
+    #[test]
+    fn link_element_prevents_unreachable_warning() {
+        use crate::web_ir::{DomNode, DomNodeId, WebIrModule};
+        let mut m = WebIrModule::default();
+        m.view_roots.push(("About".to_string(), DomNodeId(0)));
+        // Add a <link to="/about"> DOM node.
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "link".to_string(),
+            attrs: vec![("to".to_string(), "/about".to_string())],
+            children: vec![],
+            span: None,
+        });
+        m.route_nodes.push(RouteNode::RouteTree {
+            routes: vec![make_route("route_about", "/about", Some("About"))],
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        assert!(
+            !diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
+            "<link to='/about'> makes /about route reachable"
+        );
+    }
+
+    #[test]
+    fn non_root_route_without_link_is_warned() {
+        use crate::web_ir::{DomNodeId, WebIrModule};
+        let mut m = WebIrModule::default();
+        m.view_roots.push(("About".to_string(), DomNodeId(0)));
+        // No DOM nodes at all.
+        m.route_nodes.push(RouteNode::RouteTree {
+            routes: vec![make_route("route_about", "/about", Some("About"))],
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        assert!(
+            diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
+            "/about without any <link> should warn as potentially unreachable"
         );
     }
 }

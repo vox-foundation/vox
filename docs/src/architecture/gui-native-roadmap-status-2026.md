@@ -107,11 +107,11 @@ Recommend Path A: matches the roadmap, preserves expressivity, and consolidates 
 | Task | Status | Commit | Notes |
 |------|--------|--------|-------|
 | TASK-5.1 — Token resolution validator hardening | ✅ Done | see below | `WebIrDiagnosticSeverity` enum added to `web_ir/mod.rs` (Warning/Error, default Warning). `is_literal_style_value()` extended: hex colors (#RGB/#RRGGBB/#RGBA/#RRGGBBAA), functional colors (rgb/rgba/hsl/hsla/oklch/oklab/lch/lab/color), CSS named colors (30 common), dimensional literals (px/rem/em/vh/vw/vmin/vmax/%/pt/cm/mm/ex/ch/fr/dvh/dvw). Code renamed `raw_literal_color` → `literal_value`. `Default` impl on `WebIrDiagnostic` + `..Default::default()` at all 29 construction sites. 9 tests pass. Severity will be promoted from Warning → Error in Phase 6 when `raw_css { }` escape hatch lands. |
-| TASK-5.2 — Route reachability validator | 🔲 Not started | — | Precondition: TASK-4.3 ✅. 3-4 day effort. |
+| TASK-5.2 — Route reachability validator | ✅ Done | see below | `validate_route_reachability()` added to `web_ir/validate.rs`. Checks: `web_ir_validate.route.missing_component` (RouteContract.meta["component"] not in view_roots), `web_ir_validate.route.unreachable` (no inbound `<link href\|to>` points to route ID or pattern; root `/` exempt). Wired into `validate_web_ir_with_metrics`. 5 new tests pass (14 total in module). |
 | TASK-5.3 — AriaNode + a11y validator | 🔲 Not started | — | 2-3 week effort. |
 | TASK-5.4 — v0.dev output validator | 🔲 Not started | — | Precondition: 5.1, 5.2, 5.3. |
 
-**Phase 5 verdict:** 1/4 complete.
+**Phase 5 verdict:** 2/4 complete.
 
 ## Phases 6–8
 
@@ -176,6 +176,7 @@ Phase 4 is now fully unblocked.
   `ActorHandlerSig`, `lookup_actor` preserved (live Claude built-in path).
   Phase 2 verdict: 6/6 complete. Commit `6524b3f7`. Phases 4–8 now
   unblocked. (Agent session.)
+- 2026-04-30 — TASK-5.2 ✅ Done: `validate_route_reachability()` added. Two new codes: `route.missing_component` and `route.unreachable`. Link detection from `<link href|to>` DOM nodes. Root `/` always reachable. 5 new tests (14 total). `cargo check --workspace` 0 errors. (Agent session.)
 - 2026-04-30 — TASK-5.1 ✅ Done: `WebIrDiagnosticSeverity` (Warning/Error) added to `WebIrDiagnostic`. Literal style value detector extended from hex+rgb/hsl to also cover named CSS colors (30 common) and dimensional literals (17 suffixes). Code renamed `raw_literal_color` → `literal_value`. `Default` impl on `WebIrDiagnostic`; 29 construction sites updated with `..Default::default()`. 9 tests pass, 0 workspace errors. Severity stays Warning until Phase 6 `raw_css{}` escape hatch. (Agent session.)
 - 2026-04-30 — TASK-4.2 ✅ Done (parser + HIR + typeck): `fn f() uses net, db, mcp(tool) -> T { }` effect annotations implemented. 2 new files (`ast/decl/effect.rs`, `hir/nodes/effect.rs`, `typeck/effect_check.rs`), 6 files modified. `cargo check --workspace` 0 errors. 10 tests pass. Call-graph propagation deferred to Phase 5. Bugfix: `env` and `spawn` are dedicated lexer tokens — matched with `Token::Env` / `Token::Spawn`. (Agent session.)
 - 2026-04-30 — TASK-4.1 ✅ Done (parser + HIR + typeck): `state_machine Name { state S, terminal state T, on E from S -> T }` block implemented. 3 new files (`ast/decl/state_machine.rs`, `hir/nodes/state_machine.rs`, `typeck/state_machine_check.rs`), 11 files modified across compiler/corpus/mens. `cargo check --workspace` 0 errors. 6 tests pass. Web IR / TSX reducer deferred to Phase 5. (Agent session.)
