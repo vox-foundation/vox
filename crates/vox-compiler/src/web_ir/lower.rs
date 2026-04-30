@@ -561,6 +561,7 @@ fn note_lowering_gaps(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrL
             ),
             span: None,
             category: Some("lower".to_string()),
+            ..Default::default()
         });
         summary.lowering_diagnostics += 1;
     }

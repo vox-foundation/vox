@@ -20,7 +20,8 @@ use std::collections::HashSet;
 
 use super::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, RouteContract, RouteNode,
-    StyleNode, StyleSelector, WebIrDiagnostic, WebIrModule, WebIrValidateMetrics,
+    StyleNode, StyleSelector, WebIrDiagnostic, WebIrDiagnosticSeverity, WebIrModule,
+    WebIrValidateMetrics,
 };
 
 fn walk_route_contract_ids(
@@ -37,6 +38,7 @@ fn walk_route_contract_ids(
                 message: format!("duplicate RouteContract.id {:?}", r.id),
                 span: None,
                 category: Some("route".to_string()),
+                ..Default::default()
             });
         }
         if !r.children.is_empty() {
@@ -52,6 +54,7 @@ fn check_dom_id(out: &mut Vec<WebIrDiagnostic>, len: usize, id: DomNodeId, ctx: 
             message: format!("{ctx}: DomNodeId({}) out of range (len {len})", id.0),
             span: None,
             category: Some("dom".to_string()),
+            ..Default::default()
         });
         return false;
     }
@@ -81,6 +84,7 @@ fn walk_dom_edges(
                     message: "IslandMount prop key must not be empty".to_string(),
                     span: None,
                     category: Some("island".to_string()),
+                    ..Default::default()
                 });
             }
         }
@@ -118,6 +122,7 @@ fn validate_dom_roots(
             message: "dom node arena exceeds implementation limit".to_string(),
             span: None,
             category: Some("dom".to_string()),
+                    ..Default::default()
         });
     }
 
@@ -159,6 +164,7 @@ fn validate_route_families(
                         message: format!("duplicate LoaderContract.route_id {:?}", route_id),
                         span: None,
                         category: Some("route".to_string()),
+                        ..Default::default()
                     });
                 }
                 if route_id.is_empty() {
@@ -167,6 +173,7 @@ fn validate_route_families(
                         message: "LoaderContract.route_id must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
+                    ..Default::default()
                     });
                 }
                 if contract.is_empty() {
@@ -175,6 +182,7 @@ fn validate_route_families(
                         message: "LoaderContract.contract must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
+                    ..Default::default()
                     });
                 }
             }
@@ -185,6 +193,7 @@ fn validate_route_families(
                         message: "ServerFnContract.name must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
+                    ..Default::default()
                     });
                 }
                 if s.export_path.is_empty() {
@@ -193,6 +202,7 @@ fn validate_route_families(
                         message: "ServerFnContract.export_path must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
+                    ..Default::default()
                     });
                 }
                 if s.signature.is_empty() {
@@ -201,6 +211,7 @@ fn validate_route_families(
                         message: "ServerFnContract.signature must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
+                    ..Default::default()
                     });
                 }
             }
@@ -211,6 +222,7 @@ fn validate_route_families(
                         message: "MutationContract.name must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
+                    ..Default::default()
                     });
                 }
                 if m.payload_type.is_empty() {
@@ -219,6 +231,7 @@ fn validate_route_families(
                         message: "MutationContract.payload_type must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
+                    ..Default::default()
                     });
                 }
             }
@@ -251,6 +264,7 @@ fn validate_behaviors(
                 ),
                 span: None,
                 category: Some("behavior".to_string()),
+                ..Default::default()
             });
         }
     }
@@ -287,6 +301,7 @@ fn validate_styles(
                     message: "StyleNode::Rule has no declarations".to_string(),
                     span: None,
                     category: Some("style".to_string()),
+                    ..Default::default()
                 });
             }
 
@@ -298,6 +313,7 @@ fn validate_styles(
                         message: "style declaration property name must not be empty".to_string(),
                         span: None,
                         category: Some("style".to_string()),
+                    ..Default::default()
                     });
                 } else {
                     let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
@@ -316,6 +332,7 @@ fn validate_styles(
                             message: format!("Duplicate property '{}' in the same rule", prop),
                             span: None,
                             category: Some("style".to_string()),
+                            ..Default::default()
                         });
                     }
 
@@ -330,6 +347,7 @@ fn validate_styles(
                             ),
                             span: None,
                             category: Some("style".to_string()),
+                            ..Default::default()
                         });
                     }
 
@@ -340,6 +358,7 @@ fn validate_styles(
                                 message: format!("Property '{}' redefined for selector '{}' at same specificity level", prop, sel_key),
                                 span: None,
                                 category: Some("style".to_string()),
+                                ..Default::default()
                             });
                         }
                     }
@@ -382,6 +401,7 @@ fn validate_scheduled_jobs(
                 message: "ScheduledJobSpec.name must not be empty".to_string(),
                 span: None,
                 category: Some("scheduled".to_string()),
+                    ..Default::default()
             });
         }
         if job.interval.trim().is_empty() {
@@ -390,6 +410,7 @@ fn validate_scheduled_jobs(
                 message: "ScheduledJobSpec.interval must not be empty".to_string(),
                 span: None,
                 category: Some("scheduled".to_string()),
+                    ..Default::default()
             });
         }
     }
@@ -409,6 +430,7 @@ fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                         message: "ReactComponentRef.component must not be empty".to_string(),
                         span: None,
                         category: Some("interop".to_string()),
+                    ..Default::default()
                     });
                 }
                 if import_source.is_empty() {
@@ -417,6 +439,7 @@ fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                         message: "ReactComponentRef.import_source must not be empty".to_string(),
                         span: None,
                         category: Some("interop".to_string()),
+                    ..Default::default()
                     });
                 }
             }
@@ -427,6 +450,7 @@ fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                         message: "ExternalModuleRef.specifier must not be empty".to_string(),
                         span: None,
                         category: Some("interop".to_string()),
+                    ..Default::default()
                     });
                 }
             }
@@ -437,6 +461,7 @@ fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                         message: "EscapeHatchExpr.expr must not be empty".to_string(),
                         span: None,
                         category: Some("interop".to_string()),
+                    ..Default::default()
                     });
                 }
                 if reason.is_empty() {
@@ -445,6 +470,7 @@ fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                         message: "EscapeHatchExpr.reason must not be empty".to_string(),
                         span: None,
                         category: Some("interop".to_string()),
+                    ..Default::default()
                     });
                 }
             }
@@ -515,16 +541,73 @@ pub fn validate_web_ir_with_tokens(
     out
 }
 
-fn looks_like_literal_color(s: &str) -> bool {
+/// Common CSS named colors that should use design tokens instead of literals.
+/// Non-exhaustive: covers the most frequent offenders; extend as needed.
+const CSS_NAMED_COLORS: &[&str] = &[
+    "red", "blue", "green", "yellow", "orange", "purple", "pink", "brown",
+    "black", "white", "gray", "grey", "cyan", "magenta", "lime", "indigo",
+    "violet", "gold", "silver", "teal", "navy", "maroon", "olive", "aqua",
+    "transparent", "currentcolor", "inherit", "initial", "unset",
+];
+
+/// CSS dimension suffixes that indicate a hard-coded unit value.
+const CSS_DIMENSION_SUFFIXES: &[&str] = &[
+    "px", "rem", "em", "vh", "vw", "vmin", "vmax", "%", "pt", "cm", "mm",
+    "ex", "ch", "fr", "dvh", "dvw", "svh", "svw",
+];
+
+/// Returns `true` if `s` is a literal style value that should use a design token:
+/// - Hex color (`#RGB`, `#RRGGBB`, `#RGBA`, `#RRGGBBAA`)
+/// - Functional color (`rgb(...)`, `rgba(...)`, `hsl(...)`, `hsla(...)`, `oklch(...)`)
+/// - CSS named color (`red`, `transparent`, …)
+/// - Dimensional literal (`12px`, `1.5rem`, `50%`, …)
+///
+/// Note: single bare keywords used as CSS values (e.g., `bold`, `auto`, `none`) are
+/// intentionally *not* flagged — they are not design-token candidates.
+fn is_literal_style_value(s: &str) -> bool {
     let s = s.trim();
-    if s.starts_with('#') && (s.len() == 4 || s.len() == 7) {
-        return true;
+    if s.is_empty() {
+        return false;
     }
-    for prefix in &["rgb(", "rgba(", "hsl(", "hsla("] {
-        if s.starts_with(prefix) {
+
+    // Hex color: #RGB, #RGBA, #RRGGBB, #RRGGBBAA (3–8 hex digits after #).
+    if s.starts_with('#') {
+        let rest = &s[1..];
+        if matches!(rest.len(), 3 | 4 | 6 | 8)
+            && rest.chars().all(|c| c.is_ascii_hexdigit())
+        {
             return true;
         }
     }
+
+    // Functional color notations.
+    for prefix in &["rgb(", "rgba(", "hsl(", "hsla(", "oklch(", "oklab(", "lch(", "lab(", "color("] {
+        if s.to_ascii_lowercase().starts_with(prefix) {
+            return true;
+        }
+    }
+
+    // Named CSS colors (case-insensitive).
+    let s_lower = s.to_ascii_lowercase();
+    if CSS_NAMED_COLORS.contains(&s_lower.as_str()) {
+        return true;
+    }
+
+    // Dimensional literals: optional sign, digits, optional decimal, then a known suffix.
+    // Strip leading sign if present.
+    let s_num = s.strip_prefix(['+', '-']).unwrap_or(s);
+    // Find where the numeric part ends.
+    let digit_end = s_num
+        .find(|c: char| !c.is_ascii_digit() && c != '.')
+        .unwrap_or(s_num.len());
+    if digit_end > 0 {
+        let suffix = &s_num[digit_end..];
+        let suffix_lower = suffix.to_ascii_lowercase();
+        if CSS_DIMENSION_SUFFIXES.contains(&suffix_lower.as_str()) {
+            return true;
+        }
+    }
+
     false
 }
 
@@ -551,18 +634,24 @@ fn check_declaration_value(
                     ),
                     span: None,
                     category: Some("style".to_string()),
+                    severity: WebIrDiagnosticSeverity::Warning,
                 });
             }
         }
         StyleDeclarationValue::Raw(raw) => {
-            if looks_like_literal_color(raw) {
+            if is_literal_style_value(raw) {
+                // Phase 5: warning (not yet error) because the `raw_css { }` escape hatch
+                // that would let users opt out is not added until Phase 6. Once that escape
+                // hatch lands, this will be promoted to `Error`.
                 out.push(WebIrDiagnostic {
-                    code: "web_ir_validate.style.raw_literal_color".to_string(),
+                    code: "web_ir_validate.style.literal_value".to_string(),
                     message: format!(
-                        "literal color value {raw:?} on property '{name}' should use a design token"
+                        "literal style value {raw:?} on property '{name}' should use a design token \
+                         (e.g. token(\"color.primary\")). Use `raw_css {{ }}` to suppress once available."
                     ),
                     span: None,
                     category: Some("style".to_string()),
+                    severity: WebIrDiagnosticSeverity::Warning,
                 });
             }
         }
@@ -596,6 +685,7 @@ fn validate_token_refs(
                         message: format!("unknown token '{name}' in TokenRef node{hint}"),
                         span: None,
                         category: Some("style".to_string()),
+                        severity: WebIrDiagnosticSeverity::Warning,
                     });
                 }
             }
@@ -631,6 +721,142 @@ mod tests {
         assert!(
             diags.iter().any(|d| d.code == "web_ir_validate.style.unknown_token_ref"),
             "expected unknown_token_ref diag, got: {diags:?}"
+        );
+    }
+
+    // ── TASK-5.1: is_literal_style_value coverage ────────────────────────────
+
+    #[test]
+    fn literal_hex_colors_detected() {
+        // All valid hex lengths.
+        assert!(is_literal_style_value("#f00"),    "#RGB detected");
+        assert!(is_literal_style_value("#ff0000"), "#RRGGBB detected");
+        assert!(is_literal_style_value("#f00f"),   "#RGBA detected");
+        assert!(is_literal_style_value("#ff0000ff"), "#RRGGBBAA detected");
+        // Invalid hex (wrong length) — should not trigger.
+        assert!(!is_literal_style_value("#ff"),    "too short — not a color");
+        assert!(!is_literal_style_value("#fffff"),  "5 chars — not standard");
+    }
+
+    #[test]
+    fn functional_color_notations_detected() {
+        assert!(is_literal_style_value("rgb(255, 0, 0)"));
+        assert!(is_literal_style_value("rgba(255, 0, 0, 0.5)"));
+        assert!(is_literal_style_value("hsl(0, 100%, 50%)"));
+        assert!(is_literal_style_value("hsla(0, 100%, 50%, 1)"));
+        assert!(is_literal_style_value("oklch(0.7 0.15 50)"));
+        assert!(is_literal_style_value("color(display-p3 1 0 0)"));
+        // Case-insensitive.
+        assert!(is_literal_style_value("RGB(0,0,0)"));
+    }
+
+    #[test]
+    fn named_css_colors_detected() {
+        assert!(is_literal_style_value("red"));
+        assert!(is_literal_style_value("blue"));
+        assert!(is_literal_style_value("transparent"));
+        assert!(is_literal_style_value("WHITE"),    "case-insensitive");
+        assert!(is_literal_style_value("currentColor"), "camelCase normalized");
+        // Not a named color.
+        assert!(!is_literal_style_value("bold"),    "font-weight keyword, not a color");
+        assert!(!is_literal_style_value("auto"),    "CSS keyword, not a literal");
+        assert!(!is_literal_style_value("none"));
+    }
+
+    #[test]
+    fn dimensional_literals_detected() {
+        assert!(is_literal_style_value("12px"),   "px unit");
+        assert!(is_literal_style_value("1.5rem"), "rem unit");
+        assert!(is_literal_style_value("50%"),    "percent");
+        assert!(is_literal_style_value("2em"),    "em unit");
+        assert!(is_literal_style_value("100vh"),  "viewport height");
+        assert!(is_literal_style_value("4fr"),    "grid fraction");
+        // Non-dimension bare numbers are not flagged (no suffix).
+        assert!(!is_literal_style_value("0"),     "zero without unit — valid CSS");
+        assert!(!is_literal_style_value("1"),     "bare integer");
+    }
+
+    #[test]
+    fn token_ref_passes_through() {
+        // TokenRef values should not trigger literal_value warning.
+        assert!(!is_literal_style_value("token(\"color.primary\")"),
+            "token() call should not be flagged");
+    }
+
+    #[test]
+    fn literal_value_diag_emitted_for_hex_raw() {
+        use crate::tokens::TokenRegistry;
+        use crate::web_ir::{StyleDeclarationValue, StyleNode, StyleSelector, WebIrModule};
+        let registry =
+            TokenRegistry::load_from_str(r##"{"color":{"primary":"#3a86ff"}}"##).unwrap();
+        let mut m = WebIrModule::default();
+        m.style_nodes.push(StyleNode::Rule {
+            selector: StyleSelector::Class("card".to_string()),
+            declarations: vec![
+                ("color".to_string(), StyleDeclarationValue::Raw("#ff0000".to_string())),
+            ],
+            specificity: (0, 1, 0),
+            span: None,
+        });
+        let diags = validate_web_ir_with_tokens(&m, Some(&registry));
+        let lit_diags: Vec<_> = diags
+            .iter()
+            .filter(|d| d.code == "web_ir_validate.style.literal_value")
+            .collect();
+        assert!(!lit_diags.is_empty(), "expected literal_value diag for #ff0000");
+        // Should be a warning, not an error (no escape hatch yet).
+        assert_eq!(
+            lit_diags[0].severity,
+            WebIrDiagnosticSeverity::Warning,
+            "literal_value should be Warning until raw_css{{}} escape hatch is available"
+        );
+    }
+
+    #[test]
+    fn dimensional_literal_diag_emitted() {
+        use crate::tokens::TokenRegistry;
+        use crate::web_ir::{StyleDeclarationValue, StyleNode, StyleSelector, WebIrModule};
+        let registry =
+            TokenRegistry::load_from_str(r##"{"spacing":{"md":"16px"}}"##).unwrap();
+        let mut m = WebIrModule::default();
+        m.style_nodes.push(StyleNode::Rule {
+            selector: StyleSelector::Class("gap".to_string()),
+            declarations: vec![
+                ("gap".to_string(), StyleDeclarationValue::Raw("16px".to_string())),
+            ],
+            specificity: (0, 1, 0),
+            span: None,
+        });
+        let diags = validate_web_ir_with_tokens(&m, Some(&registry));
+        assert!(
+            diags.iter().any(|d| d.code == "web_ir_validate.style.literal_value"),
+            "expected literal_value diag for 16px"
+        );
+    }
+
+    #[test]
+    fn old_raw_literal_color_code_is_retired() {
+        // Regression: ensure the old code name is not emitted (renamed in TASK-5.1).
+        use crate::tokens::TokenRegistry;
+        use crate::web_ir::{StyleDeclarationValue, StyleNode, StyleSelector, WebIrModule};
+        let registry = TokenRegistry::load_from_str(r##"{"color":{}}"##).unwrap();
+        let mut m = WebIrModule::default();
+        m.style_nodes.push(StyleNode::Rule {
+            selector: StyleSelector::Class("x".to_string()),
+            declarations: vec![
+                ("color".to_string(), StyleDeclarationValue::Raw("red".to_string())),
+            ],
+            specificity: (0, 1, 0),
+            span: None,
+        });
+        let diags = validate_web_ir_with_tokens(&m, Some(&registry));
+        assert!(
+            !diags.iter().any(|d| d.code == "web_ir_validate.style.raw_literal_color"),
+            "old code raw_literal_color must not appear; renamed to literal_value"
+        );
+        assert!(
+            diags.iter().any(|d| d.code == "web_ir_validate.style.literal_value"),
+            "new code literal_value must appear for named color 'red'"
         );
     }
 }
