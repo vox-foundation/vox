@@ -624,6 +624,7 @@ pub fn validate_web_ir_with_metrics(
     validate_styles(module, &mut out, &mut metrics);
     validate_scheduled_jobs(module, &mut out, &mut metrics);
     validate_interop(module, &mut out);
+    super::validate_a11y::validate_a11y(module, &mut out);
 
     (out, metrics)
 }
