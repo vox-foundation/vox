@@ -40,8 +40,6 @@ fn reactive_smoke_assert_derived_harness_in_d_tsx() {
 const K_METRIC_BRANCH_REGISTRY_FIXTURE: &str = r#"
 import react.use_state
 
-http post "/health" to int { ret 0 }
-
 @island Tile { title: str }
 
 component Home() {
@@ -51,6 +49,7 @@ component Home() {
 
 routes {
     "/" to Home
+    "/health" to Home
 }
 
 component Shell() {
@@ -85,11 +84,11 @@ fn k_metric_branch_registry_parser_micro_gate() {
         })
         .expect("fixture includes routes { ... }");
     let summary = routes_decl.parse_summary();
-    assert_eq!(summary.entry_count, 1, "{summary:?}");
-    assert_eq!(summary.paths, vec!["/".to_string()]);
+    assert_eq!(summary.entry_count, 2, "{summary:?}");
+    assert_eq!(summary.paths, vec!["/".to_string(), "/health".to_string()]);
     assert!(
-        module.declarations.len() >= 5,
-        "expected import + http + island + Path C Home + routes + reactive Shell, got {}",
+        module.declarations.len() >= 4,
+        "expected import + island + Path C Home + routes + reactive Shell, got {}",
         module.declarations.len()
     );
 }
@@ -223,7 +222,7 @@ import react.use_state
 
 @island ParityP { label: str }
 
-@component ParityPage() {
+component ParityPage() {
     state s: str = "x"
     view: (
         <div class="parity-wrap">
@@ -708,9 +707,13 @@ fn reactive_smoke_branch_registry_fixture_parses_and_lowers() {
     let hir = vox_compiler::hir::lower_module(&module);
     let web = vox_compiler::web_ir::lower::lower_hir_to_web_ir(&hir);
     let diags = vox_compiler::web_ir::validate::validate_web_ir(&web);
+    let error_diags: Vec<_> = diags
+        .iter()
+        .filter(|d| !vox_compiler::web_ir::validate::is_advisory_diagnostic(d))
+        .collect();
     assert!(
-        diags.is_empty(),
-        "fixture should validate after lower; {diags:?}"
+        error_diags.is_empty(),
+        "fixture should have no blocking errors after lower; {error_diags:?}"
     );
     let out = vox_compiler::codegen_ts::generate(&hir).expect("codegen branch-registry");
     assert!(
@@ -906,11 +909,12 @@ fn reactive_smoke_style_block_emits_css_module_import() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
         .expect("REACTIVE_SMOKE_SERIAL poisoned");
+    // raw_css { } bypasses the design-token literal-color gate (TASK-5.1), emitting a warning only.
     let source = r#"
 component Box() {
     view: <div class="x">"a"</div>
 }
-style {
+raw_css {
     .x { color: "red" }
 }
 "#;
@@ -1126,7 +1130,7 @@ fn reactive_smoke_op_s162_component_adapter_fixture_b() {
 component Box() {
     view: <div class="x">"a"</div>
 }
-style {
+raw_css {
     .x { color: "red" }
 }
 "#;

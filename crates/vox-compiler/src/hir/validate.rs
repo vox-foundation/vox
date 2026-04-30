@@ -82,86 +82,8 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         }
     }
 
-    for w in &module.workflows {
-        if w.name.is_empty() {
-            errors.push(HirValidationError {
-                message: "workflow name is empty".into(),
-                span: w.span,
-                correction_hint: Some(
-                    "Define a name for the workflow, e.g. workflow MyWorkflow() { ... }".into(),
-                ),
-            });
-        }
-        for p in &w.params {
-            if p.name.is_empty() {
-                errors.push(HirValidationError {
-                    message: format!("Empty parameter name in workflow '{}'", w.name),
-                    span: p.span,
-                    correction_hint: Some(
-                        "All parameters must have a name, e.g. workflow W(my_param: str) { ... }"
-                            .into(),
-                    ),
-                });
-            }
-        }
-    }
-    for a in &module.activities {
-        if a.name.is_empty() {
-            errors.push(HirValidationError {
-                message: "activity name is empty".into(),
-                span: a.span,
-                correction_hint: Some(
-                    "Define a name for the activity, e.g. activity MyActivity() { ... }".into(),
-                ),
-            });
-        }
-        for p in &a.params {
-            if p.name.is_empty() {
-                errors.push(HirValidationError {
-                    message: format!("Empty parameter name in activity '{}'", a.name),
-                    span: p.span,
-                    correction_hint: Some(
-                        "All parameters must have a name, e.g. activity A(my_param: str) { ... }"
-                            .into(),
-                    ),
-                });
-            }
-        }
-    }
-
-    for actor in &module.actors {
-        if actor.name.is_empty() {
-            errors.push(HirValidationError {
-                message: "Actor name is empty".into(),
-                span: actor.span,
-                correction_hint: Some(
-                    "Define a name for the actor, e.g. actor MyActor { ... }".into(),
-                ),
-            });
-        }
-        for h in &actor.handlers {
-            if h.event_name.is_empty() {
-                errors.push(HirValidationError {
-                    message: format!("Empty handler event name in actor '{}'", actor.name),
-                    span: h.span,
-                    correction_hint: Some(
-                        "Handlers must respond to an event name, e.g. on MyEvent() { ... }".into(),
-                    ),
-                });
-            }
-            for p in &h.params {
-                if p.name.is_empty() {
-                    errors.push(HirValidationError {
-                        message: format!(
-                            "Empty parameter name in actor '{}' handler '{}'",
-                            actor.name, h.event_name
-                        ),
-                        span: p.span,
-                        correction_hint: Some("All handler parameters must have a name".into()),
-                    });
-                }
-            }
-        }
+    for c in &module.components {
+        validate_name_and_params(&c.name, &c.params, c.span, "reactive component", &mut errors);
     }
 
     for r in &module.routes {

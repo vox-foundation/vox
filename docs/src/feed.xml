@@ -5,8 +5,17 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Thu, 30 Apr 2026 21:12:48 GMT</lastBuildDate>
+  <lastBuildDate>Thu, 30 Apr 2026 21:30:26 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Architecture Index</title>
+    <link>https://vox-lang.org/architecture/architecture-index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
+    <description>Auto-generated architecture index.</description>
+    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>GUI-Native Language Roadmap — Execution Status</title>
@@ -242,16 +251,6 @@
     <link>https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/023-optional-telemetry-remote-upload.html</guid>
     <description>Opt-in local spool and explicit upload; no default transmission; Clavis-backed secrets.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 024 — Dashboard as local Axum-served SPA</title>
-    <link>https://vox-lang.org/adr/024-dashboard-axum-spa.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/024-dashboard-axum-spa.html</guid>
-    <description>Decision record for migrating the Vox dashboard from a VS Code webview to a standalone Axum-served SPA.</description>
     <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>

@@ -1,0 +1,36 @@
+# Optional security-regression corpus for `vox ci exec-policy-contract`.
+#
+# Add adversarial payloads here to exercise the policy enforcement layer
+# without recompiling. Loaded if present; absence is not an error.
+#
+# Schema:
+#   allow: list of { payload: str, label: str } that MUST pass policy
+#   deny:  list of { payload: str, label: str } that MUST be rejected
+#
+# Tested via both the pure-Rust `vox_exec_grammar` path and (when available)
+# the PowerShell AST path. Add new entries here when fixing a security
+# regression so future drift is caught automatically.
+
+allow:
+  - payload: "Get-Location"
+    label: "bare cmdlet baseline"
+  - payload: "git status"
+    label: "allowed binary"
+  - payload: "cargo build --release"
+    label: "long flag with value"
+  - payload: "Write-Output 1 | ConvertTo-Json -Compress"
+    label: "pwsh pipeline of allowed cmdlets"
+
+deny:
+  - payload: "Totally-Fake-Cmdlet"
+    label: "unknown command"
+  - payload: "Get-ChildItem -Recurse"
+    label: "blocked -Recurse parameter"
+  - payload: "cargo build && Totally-Fake-Cmd"
+    label: "compound command (&&) second segment must be checked"
+  - payload: "cargo build; Totally-Fake-Cmd"
+    label: "compound command (;) second segment must be checked"
+  - payload: "cargo build || Totally-Fake-Cmd"
+    label: "compound command (||) second segment must be checked"
+  - payload: "cargo build | Get-ChildItem -Recurse"
+    label: "pipeline second stage with blocked param"

@@ -41,7 +41,7 @@ fn ToggleBtn() -> Element {
 Inside the body of any function that returns `Element`, you can directly emit standard JSX elements. Note that: 
 - Variables are evaluated implicitly within `{braces}`.
 - Handlers (`onClick`, `onChange`) capture inline lambda functions implicitly. 
-- You do not need to call `ret <div/>`; trailing expressions resolve correctly. 
+- You do not need to call `return <div/>`; trailing expressions resolve correctly. 
 
 ## Inline HTTP Layout Mappings 
 

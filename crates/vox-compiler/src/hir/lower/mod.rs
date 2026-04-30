@@ -116,15 +116,6 @@ impl LowerCtx {
                 Decl::HttpRoute(r) => {
                     hir.routes.push(self.lower_route(r));
                 }
-                Decl::Actor(a) => {
-                    hir.actors.push(self.lower_actor(a));
-                }
-                Decl::Workflow(w) => {
-                    hir.workflows.push(self.lower_workflow(w));
-                }
-                Decl::Activity(a) => {
-                    hir.activities.push(self.lower_activity(a));
-                }
                 Decl::McpTool(m) => {
                     let func = self.lower_fn(&m.func, false);
                     hir.mcp_tools.push(HirMcpTool {
@@ -252,8 +243,10 @@ impl LowerCtx {
                 Decl::ReactiveComponent(c) => {
                     hir.components.push(self.lower_reactive_component(c));
                 }
+                Decl::Routes(r) => {
+                    hir.client_routes.push(r.clone());
+                }
                 Decl::V0Component(_)
-                | Decl::Routes(_)
                 | Decl::Layout(_)
                 | Decl::Page(_)
                 | Decl::Context(_)
@@ -268,6 +261,12 @@ impl LowerCtx {
                     hir.islands.push(HirIsland(decl.clone()));
                 }
 
+                Decl::Url(u) => {
+                    hir.url_decls.push(self.lower_url_decl(u));
+                }
+                Decl::StateMachine(s) => {
+                    hir.state_machines.push(self.lower_state_machine(s));
+                }
                 Decl::Agent(a) => {
                     hir.agents.push(self.lower_agent(a));
                 }
@@ -703,5 +702,23 @@ environment staging {
         assert_eq!(env.name, "staging");
         assert_eq!(env.base_image.as_deref(), Some("node:22-alpine"));
         assert_eq!(env.packages, vec!["curl".to_string()]);
+    }
+
+    #[test]
+    fn hir_lowering_url_decl_goes_to_url_decls_not_legacy() {
+        let src = "url Path {\nHome\nTask(id: str)\n}";
+        let hir = lower_str(src);
+        assert!(
+            hir.legacy_ast_nodes.is_empty(),
+            "url decl must not fall into legacy_ast_nodes, got {:?}",
+            hir.legacy_ast_nodes
+        );
+        assert_eq!(hir.url_decls.len(), 1);
+        assert_eq!(hir.url_decls[0].name, "Path");
+        assert_eq!(hir.url_decls[0].variants.len(), 2);
+        assert_eq!(hir.url_decls[0].variants[0].name, "Home");
+        assert_eq!(hir.url_decls[0].variants[1].name, "Task");
+        assert_eq!(hir.url_decls[0].variants[1].args.len(), 1);
+        assert_eq!(hir.url_decls[0].variants[1].args[0].name, "id");
     }
 }

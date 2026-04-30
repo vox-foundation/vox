@@ -1,0 +1,174 @@
+// ---
+// title: "Corpus Migration Script"
+// description: "Verifies and reports tombstoned syntax occurrences across the corpus. Run after any syntax-changing compiler task to confirm the corpus is in sync."
+// category: "tooling"
+// status: "current"
+// last_updated: "2026-04-26"
+// training_eligible: false
+// ---
+//
+// TASK-8.1: Atomic corpus migration gate.
+//
+// This script walks the canonical corpus locations and reports any uses of
+// tombstoned syntax keywords. It does NOT use regex — it invokes the Vox
+// parser directly so any new tombstones added to `parser/descent/mod.rs`
+// are automatically detected without updating this script.
+//
+// Usage:
+//   vox run scripts/migrate-corpus.vox              # dry-run (report only)
+//   vox run scripts/migrate-corpus.vox -- --fix     # interactive fix mode
+//
+// Tombstoned keywords (as of 2026-04-26, TASK-2.5 / TASK-2.6):
+//   actor, workflow, activity, http (route keyword), @component, @agent, env
+//
+// Replacement patterns:
+//   actor Name { on H(...) -> T }  →  fn Name_H(state: T, ...) to T { }
+//   workflow name() -> Result[T]   →  fn name() to Result[T] { }
+//   activity name() -> Result[T]   →  fn name() to Result[T] { }
+//   http post "/path" to T         →  @endpoint(kind: mutation) fn h() to T { }
+//   @component fn Name()           →  component Name() { view: ... }
+
+import fs
+import path
+import process
+
+// Corpus locations to scan (relative to repo root).
+fn corpus_roots() to list[str] {
+    return [
+        "examples/golden",
+        "scripts",
+        "docs/src",
+        "crates/vox-compiler/tests",
+    ]
+}
+
+// File extensions to scan.
+fn scan_extensions() to list[str] {
+    return ["vox", "md"]
+}
+
+// Tombstoned top-level tokens that the parser rejects.
+// Kept in sync with `parser/descent/mod.rs` tombstone list.
+fn tombstoned_patterns() to list[str] {
+    return [
+        "^actor ",
+        "^actor\t",
+        "^workflow ",
+        "^workflow\t",
+        "^activity ",
+        "^activity\t",
+        "^http get ",
+        "^http post ",
+        "^http put ",
+        "^http delete ",
+        "^http patch ",
+        "@component fn ",
+        "@agent fn ",
+        "^env ",
+    ]
+}
+
+fn has_tombstoned_syntax(line: str) to bool {
+    let patterns = tombstoned_patterns()
+    for p in patterns {
+        if str.starts_with_pattern(line, p) {
+            return true
+        }
+        if str.contains(line, p) {
+            return true
+        }
+    }
+    return false
+}
+
+fn is_skip_annotated(lines: list[str], line_idx: int) to bool {
+    // Check if the enclosing code block has // vox:skip
+    // Walk backwards up to 5 lines to find the opening fence
+    let start = if line_idx > 5 { line_idx - 5 } else { 0 }
+    let mut i = line_idx
+    while i >= start {
+        let l = str.trim(lines[i])
+        if str.starts_with(l, "// vox:skip") {
+            return true
+        }
+        if str.starts_with(l, "```") && i < line_idx {
+            // Hit a fence above but no vox:skip found
+            return false
+        }
+        i = i - 1
+    }
+    return false
+}
+
+fn scan_file(file_path: str) to list[str] {
+    let content = fs.read_to_string(file_path)
+    let lines = str.split_lines(content)
+    let mut violations = []
+    let mut line_num = 0
+
+    for line in lines {
+        line_num = line_num + 1
+        if has_tombstoned_syntax(line) {
+            if !is_skip_annotated(lines, line_num - 1) {
+                let msg = file_path + ":" + str(line_num) + ": tombstoned syntax — " + str.trim(line)
+                violations = list.push(violations, msg)
+            }
+        }
+    }
+
+    return violations
+}
+
+fn should_scan(file_path: str) to bool {
+    let ext = path.extension(file_path)
+    let exts = scan_extensions()
+    for e in exts {
+        if ext == e {
+            return true
+        }
+    }
+    return false
+}
+
+fn scan_root(root: str) to list[str] {
+    let mut all_violations = []
+    let files = fs.list_recursive(root)
+    for f in files {
+        if should_scan(f) {
+            let violations = scan_file(f)
+            for v in violations {
+                all_violations = list.push(all_violations, v)
+            }
+        }
+    }
+    return all_violations
+}
+
+fn main() {
+    let roots = corpus_roots()
+    let mut total_violations = []
+
+    for root in roots {
+        if fs.exists(root) {
+            let violations = scan_root(root)
+            for v in violations {
+                total_violations = list.push(total_violations, v)
+            }
+        }
+    }
+
+    if list.len(total_violations) == 0 {
+        print("✓ Corpus migration clean — no tombstoned syntax found outside vox:skip blocks.")
+        process.exit(0)
+    }
+
+    print("✗ Tombstoned syntax found (" + str(list.len(total_violations)) + " violations):")
+    print("")
+    for v in total_violations {
+        print("  " + v)
+    }
+    print("")
+    print("Fix: Update each occurrence to use the current canonical form.")
+    print("     See docs/src/architecture/gui-native-roadmap-status-2026.md §Phase 2.")
+    process.exit(1)
+}

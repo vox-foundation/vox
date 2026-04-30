@@ -3,7 +3,7 @@ title: "Tutorial: Building UI with Islands"
 description: "Learn how to build modern, reactive user interfaces with Vox using islands."
 category: "tutorials"
 status: "current"
-last_updated: "2026-04-06"
+last_updated: "2026-04-26"
 training_eligible: true
 
 schema_type: "HowTo"
@@ -20,13 +20,13 @@ Learn how to build modern, reactive user interfaces with Vox. This tutorial cove
 Vox interactive UI components are defined with the `@island` decorator. They look and feel like React components but are compiled and hydrated for maximum performance.
 
 ```vox
-// vox:skip
-@island
-fn Profile(name: str, bio: str) -> Element {
-    <div class="p-6 bg-white shadow rounded-lg">
-        <h2 class="text-xl font-bold">{name}</h2>
-        <p class="text-gray-600">{bio}</p>
-    </div>
+component Profile(name: str, bio: str) {
+    view: (
+        <div class="p-6 bg-white shadow rounded-lg">
+            <h2 class="text-xl font-bold">{name}</h2>
+            <p class="text-gray-600">{bio}</p>
+        </div>
+    )
 }
 ```
 
@@ -35,16 +35,17 @@ fn Profile(name: str, bio: str) -> Element {
 You can mix lightweight server-rendered HTML routes with rich client-side islands. 
 
 ```vox
-// vox:skip
-http get "/profile" -> Element {
-    // This renders purely on the server
-    <html>
-        <body>
-            <h1>"User Profile"</h1>
-            // The island mounts on the client
+component UserProfile() {
+    view: (
+        <column>
+            <heading level={1}>"User Profile"</heading>
             <Profile name="Alice" bio="Developer" />
-        </body>
-    </html>
+        </column>
+    )
+}
+
+routes {
+    "/profile" to UserProfile
 }
 ```
 
@@ -53,14 +54,14 @@ http get "/profile" -> Element {
 Vox supports a JSX-like syntax directly in `.vox` files. You can embed variables using braces, map over collections, and conditionally render elements.
 
 ```vox
-// vox:skip
-@island
-fn UserList(users: list[str]) -> Element {
-    <ul class="divide-y">
-        {users.map(fn(user) {
-            <li class="py-2">{user}</li>
-        })}
-    </ul>
+component UserList(users: list[str]) {
+    view: (
+        <ul class="divide-y">
+            {users.map(fn(user) {
+                <li class="py-2">{user}</li>
+            })}
+        </ul>
+    )
 }
 ```
 
@@ -77,9 +78,8 @@ The true power of Vox lies in its technical unification. You can call `@mutation
 You map a route to your island or server handler through the global `routes { }` block.
 
 ```vox
-// vox:skip
 routes {
-    "/" -> NewsletterForm
+    "/" to NewsletterForm
 }
 ```
 

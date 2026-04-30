@@ -20,18 +20,19 @@ fn errors(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 
 #[test]
 fn test_db_operations_typecheck() {
+    // Replaced tombstoned `http post` with a plain `fn` (TASK-2.5).
     let src = r#"
 @table type Message {
     text: str
     timestamp: int
 }
 
-http post "/api/msg" to int {
+fn create_message() to int {
     let msg = {text: "hello", timestamp: 123}
     let id = db.Message.insert(msg)
     match id {
-        Ok(_) -> 1
-        Error(_) -> 0
+        Ok(_) => 1
+        Error(_) => 0
     }
 }
 "#;
@@ -46,8 +47,9 @@ http post "/api/msg" to int {
 
 #[test]
 fn test_db_unknown_table() {
+    // Replaced tombstoned `http post` with a plain `fn` (TASK-2.5).
     let src = r#"
-http post "/api/oops" to Unit {
+fn oops() to Unit {
     let x = db.NonExistentTable
 }
 "#;

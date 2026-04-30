@@ -16,7 +16,7 @@ Working code examples demonstrating Vox language features. Each `.vox` file is a
 
 ## Hello World
 
-The smallest valid Vox program: a typed function that returns a string. Demonstrates the `fn` keyword, explicit return type, string concatenation, and `ret`.
+The smallest valid Vox program: a typed function that returns a string. Demonstrates the `fn` keyword, explicit return type, string concatenation, and `return`.
 
 ```vox
 {{#include ../../../examples/golden/hello.vox:display}}

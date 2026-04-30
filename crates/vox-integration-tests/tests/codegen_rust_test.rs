@@ -13,81 +13,58 @@ fn codegen_rust(src: &str) -> String {
     emit_lib(&hir)
 }
 
+/// `activity` keyword is tombstoned (TASK-2.6); parsing source that uses it must fail.
 #[test]
 fn codegen_activity_emits_async_fn() {
     let src = r#"
-type MyRes = | Ok(v: str) | Error
-
 activity send_email(recipient: str, subject: str) to Result[str] {
-    ret Ok(recipient)
+    return Ok(recipient)
 }
 "#;
-    let output = codegen_rust(src);
     assert!(
-        output.contains("pub async fn send_email("),
-        "Activity should emit as async fn, got:\n{}",
-        output
+        parse(lex(src)).is_err(),
+        "tombstoned `activity` keyword should produce a parse error"
     );
-    assert!(
-        output.contains("recipient: "),
-        "Should have recipient param"
-    );
-    assert!(output.contains("subject: "), "Should have subject param");
 }
 
+/// `activity` + `workflow` keywords are both tombstoned (TASK-2.6).
 #[test]
 fn codegen_with_expression_emits_execute_activity() {
-    let src = r#"
-type MyRes = | Ok(v: str) | Error
-
-activity fetch_data() to Result[str] {
-    ret Ok("data")
-}
-
-
-workflow main_flow() to Result[str] {
-    let res = fetch_data() with { retries: 3, timeout: "10s" }
-    ret res
-}
-"#;
-    let output = codegen_rust(src);
+    let activity_src = r#"activity fetch_data() to Result[str] { return Ok("data") }"#;
+    let workflow_src = r#"workflow main_flow() to Result[str] { return Ok("done") }"#;
     assert!(
-        output.contains("execute_activity"),
-        "Should emit execute_activity call, got:\n{}",
-        output
+        parse(lex(activity_src)).is_err(),
+        "tombstoned `activity` keyword should produce a parse error"
     );
     assert!(
-        output.contains("with_retries(3"),
-        "Should emit retries option"
-    );
-    assert!(
-        output.contains("parse_duration(\"10s\")"),
-        "Should emit timeout as duration parse"
+        parse(lex(workflow_src)).is_err(),
+        "tombstoned `workflow` keyword should produce a parse error"
     );
 }
 
+/// `activity` keyword is tombstoned (TASK-2.6); plain `fn` is the canonical form.
 #[test]
 fn codegen_activity_without_with_is_plain_call() {
-    let src = r#"
-type MyRes = | Ok(v: str) | Error
+    let tombstoned_src = r#"activity do_work(input: str) to Result[str] { return Ok(input) }"#;
+    assert!(
+        parse(lex(tombstoned_src)).is_err(),
+        "tombstoned `activity` keyword should produce a parse error"
+    );
 
-activity do_work(input: str) to Result[str] {
-    ret Ok(input)
+    // The canonical equivalent compiles and codegens without error.
+    let canonical_src = r#"
+fn do_work(input: str) to str {
+    return input
 }
-
-fn main() to Result[str] {
+fn main() to str {
     let result = do_work("test")
-    ret result
+    return result
 }
 "#;
-    let output = codegen_rust(src);
+    let output = codegen_rust(canonical_src);
     assert!(
-        output.contains("pub async fn do_work("),
-        "Activity should be emitted"
-    );
-    assert!(
-        output.contains("do_work("),
-        "Should have the call to do_work"
+        output.contains("fn do_work("),
+        "canonical fn form should be emitted"
     );
 }
 
@@ -96,7 +73,7 @@ fn codegen_with_all_options() {
     let src = r#"
 fn f() to int {
     let x = 1 with { retries: 5, timeout: "30s", activity_id: "unique-xyz", backoff_multiplier: 2 }
-    ret x
+    return x
 }
 "#;
     let output = codegen_rust(src);
@@ -218,7 +195,7 @@ fn codegen_index_emits_ddl() {
 fn codegen_mcp_tool_hir_lowering() {
     let src = r#"
 @mcp.tool "Get the weather for a city" fn get_weather(city: str) to str {
-    ret city
+    return city
 }
 "#;
     let tokens = lex(src);
@@ -239,7 +216,7 @@ fn codegen_mcp_tool_hir_lowering() {
 fn codegen_mcp_server_produces_file() {
     let src = r#"
 @mcp.tool "Get the weather for a city" fn get_weather(city: str) to str {
-    ret city
+    return city
 }
 "#;
     let tokens = lex(src);
@@ -279,11 +256,11 @@ fn codegen_mcp_server_produces_file() {
 fn codegen_mcp_server_input_schema() {
     let src = r#"
 @mcp.tool "Add two numbers" fn add(a: int, b: int) to int {
-    ret a
+    return a
 }
 
 @mcp.tool "Greet someone" fn greet(name: str) to str {
-    ret name
+    return name
 }
 "#;
     let tokens = lex(src);
@@ -315,7 +292,7 @@ fn codegen_mcp_server_input_schema() {
 fn codegen_no_mcp_server_when_no_tools() {
     let src = r#"
 fn hello(name: str) to str {
-    ret name
+    return name
 }
 "#;
     let tokens = lex(src);
@@ -333,7 +310,7 @@ fn hello(name: str) to str {
 fn codegen_mcp_resource_emits_resources_handlers() {
     let src = r#"
 @mcp.resource("demo://x", "A demo resource") fn demo_res() to str {
-    ret "ok"
+    return "ok"
 }
 "#;
     let tokens = lex(src);
@@ -364,7 +341,7 @@ fn codegen_mcp_resource_emits_resources_handlers() {
 fn codegen_mcp_tool_list_schema_supports_list_param() {
     let src = r#"
 @mcp.tool "Echo ids" fn echo_ids(items: list[str]) to str {
-    ret "ok"
+    return "ok"
 }
 "#;
     let tokens = lex(src);

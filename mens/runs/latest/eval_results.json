@@ -1,11 +1,11 @@
 {
-  "construct_coverage": 19,
-  "construct_coverage_pct": 42.22222222222222,
+  "construct_coverage": 8,
+  "construct_coverage_pct": 17.77777777777778,
   "construct_total": 45,
   "format_validity": 1.0,
-  "quality_proxy": 0.8065789473684211,
-  "run_id": "eval_20260417T031145Z",
+  "quality_proxy": 0.3125,
+  "run_id": "eval_20260418T121104Z",
   "safety_rejection_rate": 0.0,
-  "total_samples": 760,
-  "vox_parse_rate": 0.8065789473684211
+  "total_samples": 240,
+  "vox_parse_rate": 0.3125
 }

@@ -36,12 +36,6 @@ pub struct HirModule {
     pub types: Vec<HirTypeDef>,
     /// HTTP route handlers.
     pub routes: Vec<HirRoute>,
-    /// Actor definitions.
-    pub actors: Vec<HirActor>,
-    /// Workflow state machines.
-    pub workflows: Vec<HirWorkflow>,
-    /// Workflow activities.
-    pub activities: Vec<HirActivity>,
     /// `@test` functions.
     pub tests: Vec<HirFn>,
     /// `@forall` properties.
@@ -72,10 +66,16 @@ pub struct HirModule {
     pub islands: Vec<HirIsland>,
     /// Reactive components (Path C).
     pub components: Vec<HirReactiveComponent>,
+    /// Client routing blocks (`routes { … }`).
+    pub client_routes: Vec<crate::ast::decl::RoutesDecl>,
+
+    /// Typed URL path declarations (`url Name { … }`).
+    pub url_decls: Vec<HirUrlDecl>,
+
+    /// State machine declarations (`state_machine Name { … }`).
+    pub state_machines: Vec<HirStateMachineDecl>,
 
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
-    /// HTTP routes, tables, activities, and `@server` fns are lowered to [`HirRoute`], [`HirTable`],
-    /// [`HirActivity`], and [`HirServerFn`]; TS codegen reads those directly (Path C).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 
 
@@ -104,6 +104,7 @@ pub struct SemanticHirModule {
     pub agents: Vec<HirAgent>,
     pub environments: Vec<HirEnvironment>,
     pub components: Vec<HirReactiveComponent>,
+    pub url_decls: Vec<HirUrlDecl>,
 }
 
 impl HirModule {
@@ -116,9 +117,6 @@ impl HirModule {
             ("functions", HirFieldOwnership::SemanticCore),
             ("types", HirFieldOwnership::SemanticCore),
             ("routes", HirFieldOwnership::AppContract),
-            ("actors", HirFieldOwnership::MigrationOnly),
-            ("workflows", HirFieldOwnership::MigrationOnly),
-            ("activities", HirFieldOwnership::MigrationOnly),
             ("tests", HirFieldOwnership::SemanticCore),
             ("endpoint_fns", HirFieldOwnership::AppContract),
             ("tables", HirFieldOwnership::SemanticCore),
@@ -134,6 +132,7 @@ impl HirModule {
 
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
             ("components", HirFieldOwnership::SemanticCore),
+            ("url_decls", HirFieldOwnership::SemanticCore),
         ]
     }
 
@@ -158,6 +157,7 @@ impl HirModule {
             agents: self.agents.clone(),
             environments: self.environments.clone(),
             components: self.components.clone(),
+            url_decls: self.url_decls.clone(),
         }
     }
 }
@@ -202,68 +202,6 @@ impl HirHttpMethod {
             Self::Delete => "DELETE",
         }
     }
-}
-
-/// Actor definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActor {
-    /// Actor type id.
-    pub id: DefId,
-    /// Actor name.
-    pub name: String,
-    /// Message handlers.
-    pub handlers: Vec<HirActorHandler>,
-    /// Span covering the actor.
-    pub span: Span,
-}
-
-/// Single actor message handler.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActorHandler {
-    /// Event name.
-    pub event_name: String,
-    /// Parameters.
-    pub params: Vec<HirParam>,
-    /// Return type.
-    pub return_type: Option<HirType>,
-    /// Handler body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the handler.
-    pub span: Span,
-}
-
-/// Workflow definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirWorkflow {
-    /// Workflow id.
-    pub id: DefId,
-    /// Workflow name.
-    pub name: String,
-    /// Input parameters.
-    pub params: Vec<HirParam>,
-    /// Output type.
-    pub return_type: Option<HirType>,
-    /// Workflow body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the workflow.
-    pub span: Span,
-}
-
-/// Activity definition in HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirActivity {
-    /// Activity id.
-    pub id: DefId,
-    /// Activity name.
-    pub name: String,
-    /// Parameters.
-    pub params: Vec<HirParam>,
-    /// Return type.
-    pub return_type: Option<HirType>,
-    /// Activity body.
-    pub body: Vec<HirStmt>,
-    /// Span covering the activity.
-    pub span: Span,
 }
 
 /// Island component lowered to HIR.
@@ -326,6 +264,9 @@ pub struct HirFn {
     /// `@pure` — metadata for pipeline tooling (effect guarantees are not proven in HIR).
     #[serde(default)]
     pub is_pure: bool,
+    /// Capabilities declared via `uses` clause. Empty = unannotated; `[Nothing]` = pure.
+    #[serde(default)]
+    pub capabilities: Vec<HirCapability>,
     /// Whether the function body is implemented via an LLM.
     #[serde(default)]
     pub is_llm: bool,
@@ -628,6 +569,125 @@ pub struct HirOnMount {
 pub struct HirOnCleanup {
     pub body: HirExpr,
     pub span: Span,
+}
+
+/// A capability declared via the `uses` clause: `fn f() uses net, db { … }`.
+///
+/// Distinct from [`HirEffect`] which is a reactive lifecycle effect (`effect { … }` block).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+pub enum HirCapability {
+    Net,
+    Db,
+    Fs,
+    Env,
+    Clock,
+    Random,
+    Spawn,
+    /// `mcp(tool_name)` — parameterized MCP tool call.
+    Mcp(String),
+    /// `uses nothing` — explicitly pure.
+    Nothing,
+}
+
+impl HirCapability {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Net => "net",
+            Self::Db => "db",
+            Self::Fs => "fs",
+            Self::Env => "env",
+            Self::Clock => "clock",
+            Self::Random => "random",
+            Self::Spawn => "spawn",
+            Self::Mcp(_) => "mcp",
+            Self::Nothing => "nothing",
+        }
+    }
+}
+
+impl std::fmt::Display for HirCapability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Mcp(tool) => write!(f, "mcp({tool})"),
+            other => write!(f, "{}", other.as_str()),
+        }
+    }
+}
+
+/// A typed URL path declaration lowered to HIR: `url Path { Home; Task(id: Id[Task]) }`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirUrlDecl {
+    pub id: DefId,
+    pub name: String,
+    pub variants: Vec<HirUrlVariant>,
+    pub is_pub: bool,
+    pub span: Span,
+}
+
+/// A single variant in a [`HirUrlDecl`].
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirUrlVariant {
+    pub name: String,
+    pub args: Vec<HirUrlArg>,
+    pub span: Span,
+}
+
+/// A parameter in a [`HirUrlVariant`].
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirUrlArg {
+    pub name: String,
+    pub optional: bool,
+    pub ty: HirType,
+    pub span: Span,
+}
+
+// ── State machine HIR types (TASK-4.1) ────────────────────────────────────
+
+/// A `state_machine Name { … }` lowered to HIR.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirStateMachineDecl {
+    pub id: DefId,
+    pub name: String,
+    pub states: Vec<HirSmState>,
+    pub transitions: Vec<HirSmTransition>,
+    /// `partial state_machine` — exhaustiveness check is skipped.
+    pub is_partial: bool,
+    pub is_pub: bool,
+    pub span: Span,
+}
+
+/// A state variant inside a state machine.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirSmState {
+    pub name: String,
+    pub fields: Vec<HirSmField>,
+    pub is_terminal: bool,
+    pub span: Span,
+}
+
+/// A payload field on a state variant or event.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirSmField {
+    pub name: String,
+    pub ty: Option<HirType>,
+    pub span: Span,
+}
+
+/// A transition rule: `on Event from State -> Target`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirSmTransition {
+    pub event_name: String,
+    pub event_params: Vec<String>,
+    pub from: HirSmFrom,
+    pub to_state: String,
+    pub span: Span,
+}
+
+/// The `from` clause of a transition.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum HirSmFrom {
+    Named(String),
+    Any,
 }
 
 #[cfg(test)]

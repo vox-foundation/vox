@@ -241,10 +241,15 @@ impl<'a> Checker<'a> {
                 Ty::List(Box::new(elem_ty))
             }
 
-            HirExpr::Binary(HirBinOp::Pipe, left, right, _span) => {
+            HirExpr::Binary(HirBinOp::Pipe, left, right, span) => {
                 let l_ty = self.check_expr(left, None);
                 let raw_right = self.check_expr(right, None);
-                let r_ty = self.uf.resolve(&raw_right);
+                let resolved_right = self.uf.resolve(&raw_right);
+                // Instantiate generics before inspecting — without this, the
+                // RHS function's own type variables are reused across pipe
+                // sites, leaking constraints (and effectively monomorphizing
+                // the binding to whichever site checks first).
+                let r_ty = self.uf.instantiate(&resolved_right);
                 match r_ty {
                     Ty::Fn(params, ret) => {
                         if let Some(first) = params.first() {
@@ -256,7 +261,7 @@ impl<'a> Checker<'a> {
                     _ => {
                         self.diags.push(Diagnostic::error(
                             format!("Not a function: {r_ty:?}"),
-                            *_span,
+                            *span,
                             self.source,
                         ));
                         Ty::Error

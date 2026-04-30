@@ -1,7 +1,7 @@
 //! Walk [`HirExpr`] trees to find every [`HirExpr::DbTableOp`] site (shared by runtime projection).
 
 use crate::hir::{
-    HirArg, HirDbQueryPlan, HirDbTableOp, HirExpr, HirModule, HirStmt,
+    HirArg, HirDbQueryPlan, HirDbTableOp, HirExpr, HirModule, HirReactiveMember, HirStmt,
 };
 
 /// One occurrence of a lowered `db.Table.op(...)` expression.
@@ -37,19 +37,8 @@ pub(crate) fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut
     for r in &module.routes {
         walk_stmts(&r.body, f);
     }
-    for w in &module.workflows {
-        walk_stmts(&w.body, f);
-    }
-    for a in &module.activities {
-        walk_stmts(&a.body, f);
-    }
     for sf in &module.endpoint_fns {
         walk_stmts(&sf.body, f);
-    }
-    for actor in &module.actors {
-        for h in &actor.handlers {
-            walk_stmts(&h.body, f);
-        }
     }
     for tool in &module.mcp_tools {
         walk_stmts(&tool.func.body, f);
@@ -57,7 +46,36 @@ pub(crate) fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut
     for res in &module.mcp_resources {
         walk_stmts(&res.func.body, f);
     }
+    for rc in &module.components {
+        for m in &rc.members {
+            walk_reactive_member(m, f);
+        }
+        if let Some(view) = &rc.view {
+            walk_expr(view, f);
+        }
+    }
+}
 
+fn walk_reactive_member(member: &HirReactiveMember, f: &mut impl FnMut(&HirExpr)) {
+    match member {
+        HirReactiveMember::State(s) => walk_expr(&s.init, f),
+        HirReactiveMember::Derived(d) => walk_expr(&d.expr, f),
+        HirReactiveMember::Effect(e) => walk_expr(&e.body, f),
+        HirReactiveMember::OnMount(m) => walk_expr(&m.body, f),
+        HirReactiveMember::OnCleanup(c) => walk_expr(&c.body, f),
+        HirReactiveMember::Stmt(s) => walk_stmt(s, f),
+    }
+}
+
+fn walk_reactive_member_mut(member: &mut HirReactiveMember, f: &mut impl FnMut(&mut HirExpr)) {
+    match member {
+        HirReactiveMember::State(s) => walk_expr_mut(&mut s.init, f),
+        HirReactiveMember::Derived(d) => walk_expr_mut(&mut d.expr, f),
+        HirReactiveMember::Effect(e) => walk_expr_mut(&mut e.body, f),
+        HirReactiveMember::OnMount(m) => walk_expr_mut(&mut m.body, f),
+        HirReactiveMember::OnCleanup(c) => walk_expr_mut(&mut c.body, f),
+        HirReactiveMember::Stmt(s) => walk_stmt_mut(s, f),
+    }
 }
 
 pub(crate) fn for_each_hir_expr_in_module_mut(
@@ -73,19 +91,8 @@ pub(crate) fn for_each_hir_expr_in_module_mut(
     for r in &mut module.routes {
         walk_stmts_mut(&mut r.body, f);
     }
-    for w in &mut module.workflows {
-        walk_stmts_mut(&mut w.body, f);
-    }
-    for a in &mut module.activities {
-        walk_stmts_mut(&mut a.body, f);
-    }
     for sf in &mut module.endpoint_fns {
         walk_stmts_mut(&mut sf.body, f);
-    }
-    for actor in &mut module.actors {
-        for h in &mut actor.handlers {
-            walk_stmts_mut(&mut h.body, f);
-        }
     }
     for tool in &mut module.mcp_tools {
         walk_stmts_mut(&mut tool.func.body, f);
@@ -93,7 +100,14 @@ pub(crate) fn for_each_hir_expr_in_module_mut(
     for res in &mut module.mcp_resources {
         walk_stmts_mut(&mut res.func.body, f);
     }
-
+    for rc in &mut module.components {
+        for m in &mut rc.members {
+            walk_reactive_member_mut(m, f);
+        }
+        if let Some(view) = &mut rc.view {
+            walk_expr_mut(view, f);
+        }
+    }
 }
 
 fn walk_stmts(stmts: &[HirStmt], f: &mut impl FnMut(&HirExpr)) {

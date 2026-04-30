@@ -36,8 +36,10 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Build and package release artifact
-        run: cargo run --locked -p vox-cli -- ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package both
+      - name: Build and package release artifacts (core + bootstrap + plugins)
+        # `--package all` produces: vox, vox-bootstrap, vox-mens, vox-schola
+        # Each ships as its own archive so users opt into the heavy ML/scientia plugins.
+        run: cargo run --locked -p vox-cli -- ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package all
 
       - name: Smoke test packaged binary (Unix)
         if: runner.os != 'Windows'
@@ -46,7 +48,7 @@ jobs:
           set -euo pipefail
           cd dist
           shopt -s nullglob
-          for f in vox-*.tar.gz; do
+          for f in vox-${{ github.ref_name }}-*.tar.gz; do
             rm -f vox
             tar -xzf "$f"
             ./vox --version
@@ -56,13 +58,23 @@ jobs:
             tar -xzf "$f"
             ./vox-bootstrap --help >/dev/null
           done
+          for f in vox-mens-*.tar.gz; do
+            rm -f vox-mens
+            tar -xzf "$f"
+            ./vox-mens --help >/dev/null
+          done
+          for f in vox-schola-*.tar.gz; do
+            rm -f vox-schola
+            tar -xzf "$f"
+            ./vox-schola --help >/dev/null
+          done
 
       - name: Smoke test packaged binary (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           Set-Location dist
-          Get-ChildItem -Filter 'vox-*.zip' | ForEach-Object {
+          Get-ChildItem -Filter 'vox-${{ github.ref_name }}-*.zip' | ForEach-Object {
             if (Test-Path _smoke) { Remove-Item -Recurse -Force _smoke }
             Expand-Archive -Path $_.FullName -DestinationPath _smoke -Force
             & ".\_smoke\vox.exe" --version
@@ -72,6 +84,16 @@ jobs:
             Expand-Archive -Path $_.FullName -DestinationPath _smoke_boot -Force
             & ".\_smoke_boot\vox-bootstrap.exe" --help | Out-Null
           }
+          Get-ChildItem -Filter 'vox-mens-*.zip' | ForEach-Object {
+            if (Test-Path _smoke_mens) { Remove-Item -Recurse -Force _smoke_mens }
+            Expand-Archive -Path $_.FullName -DestinationPath _smoke_mens -Force
+            & ".\_smoke_mens\vox-mens.exe" --help | Out-Null
+          }
+          Get-ChildItem -Filter 'vox-schola-*.zip' | ForEach-Object {
+            if (Test-Path _smoke_schola) { Remove-Item -Recurse -Force _smoke_schola }
+            Expand-Archive -Path $_.FullName -DestinationPath _smoke_schola -Force
+            & ".\_smoke_schola\vox-schola.exe" --help | Out-Null
+          }
 
       - name: Upload packaged binary
         uses: actions/upload-artifact@v4
@@ -80,6 +102,8 @@ jobs:
           path: |
             dist/vox-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/vox-bootstrap-${{ github.ref_name }}-${{ matrix.target }}.*
+            dist/vox-mens-${{ github.ref_name }}-${{ matrix.target }}.*
+            dist/vox-schola-${{ github.ref_name }}-${{ matrix.target }}.*
           if-no-files-found: error
 
   publish:
