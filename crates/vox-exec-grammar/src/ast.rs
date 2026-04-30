@@ -61,6 +61,9 @@ pub(crate) fn tokenise(raw: &str) -> Result<Vec<String>, super::ParseError> {
     let mut chars = raw.chars().peekable();
     let mut in_single = false;
     let mut in_double = false;
+    // Set when an empty quoted string (`""` or `''`) is closed so the empty
+    // token is preserved even if `current` is still empty at a word boundary.
+    let mut had_quoted_empty = false;
 
     while let Some(ch) = chars.next() {
         match ch {
@@ -74,16 +77,23 @@ pub(crate) fn tokenise(raw: &str) -> Result<Vec<String>, super::ParseError> {
             }
             // Single-quote toggle
             '\'' if !in_double => {
+                if in_single && current.is_empty() {
+                    had_quoted_empty = true;
+                }
                 in_single = !in_single;
             }
             // Double-quote toggle
             '"' if !in_single => {
+                if in_double && current.is_empty() {
+                    had_quoted_empty = true;
+                }
                 in_double = !in_double;
             }
             // Redirect / pipe — only significant outside quotes
             '|' if !in_single && !in_double => {
-                if !current.is_empty() {
+                if !current.is_empty() || had_quoted_empty {
                     tokens.push(std::mem::take(&mut current));
+                    had_quoted_empty = false;
                 }
                 tokens.push("|".to_owned());
             }
@@ -91,8 +101,9 @@ pub(crate) fn tokenise(raw: &str) -> Result<Vec<String>, super::ParseError> {
                 // Peek for `2>`
                 if chars.peek() == Some(&'>') {
                     chars.next();
-                    if !current.is_empty() {
+                    if !current.is_empty() || had_quoted_empty {
                         tokens.push(std::mem::take(&mut current));
+                        had_quoted_empty = false;
                     }
                     tokens.push("2>".to_owned());
                 } else {
@@ -100,8 +111,9 @@ pub(crate) fn tokenise(raw: &str) -> Result<Vec<String>, super::ParseError> {
                 }
             }
             '>' if !in_single && !in_double => {
-                if !current.is_empty() {
+                if !current.is_empty() || had_quoted_empty {
                     tokens.push(std::mem::take(&mut current));
+                    had_quoted_empty = false;
                 }
                 if chars.peek() == Some(&'>') {
                     chars.next();
@@ -112,8 +124,9 @@ pub(crate) fn tokenise(raw: &str) -> Result<Vec<String>, super::ParseError> {
             }
             // Whitespace — word boundary outside quotes
             c if c.is_whitespace() && !in_single && !in_double => {
-                if !current.is_empty() {
+                if !current.is_empty() || had_quoted_empty {
                     tokens.push(std::mem::take(&mut current));
+                    had_quoted_empty = false;
                 }
             }
             c => current.push(c),
@@ -123,7 +136,7 @@ pub(crate) fn tokenise(raw: &str) -> Result<Vec<String>, super::ParseError> {
     if in_single || in_double {
         return Err(super::ParseError::UnmatchedQuote(raw.to_owned()));
     }
-    if !current.is_empty() {
+    if !current.is_empty() || had_quoted_empty {
         tokens.push(current);
     }
     Ok(tokens)
@@ -194,10 +207,13 @@ pub(crate) fn parse_raw(raw: &str) -> Result<ExecAst, super::ParseError> {
                 && tok.len() > 1
                 && !tok.starts_with("--") =>
             {
-                // Short flags: -f or -fVALUE or PowerShell -Parameter
+                // Short flags: -f, -fVALUE (POSIX attached), -abc (bundled), or -Parameter val (PowerShell).
                 let body = &tok[1..];
+                let mut body_chars = body.chars();
+                let first = body_chars.next().unwrap_or_default();
+
                 if body.len() == 1 {
-                    // Single char: peek for value
+                    // Single char: peek for a separate value token.
                     let value = match iter.peek() {
                         Some(next)
                             if !next.starts_with('-')
@@ -208,9 +224,20 @@ pub(crate) fn parse_raw(raw: &str) -> Result<ExecAst, super::ParseError> {
                         _ => None,
                     };
                     flags.push(Flag { name: body.to_owned(), value });
+                } else if first.is_ascii_lowercase() {
+                    let rest: String = body_chars.collect();
+                    if rest.chars().all(|c| c.is_ascii_lowercase()) {
+                        // POSIX bundled lowercase flags: `-rf`, `-abc` → one flag each.
+                        flags.push(Flag { name: first.to_string(), value: None });
+                        for ch in rest.chars() {
+                            flags.push(Flag { name: ch.to_string(), value: None });
+                        }
+                    } else {
+                        // POSIX attached value: `-p22`, `-C/tmp`, `-oout.log` → name="p", value="22".
+                        flags.push(Flag { name: first.to_string(), value: Some(rest) });
+                    }
                 } else {
-                    // Multi-char (PowerShell style: -Recurse, -Path foo).
-                    // Peek: if next token is not a flag/redirect, treat as value.
+                    // PowerShell / GNU long-word style: -Recurse, -Path foo, -J4.
                     let value = match iter.peek() {
                         Some(next)
                             if !next.starts_with('-')
@@ -388,6 +415,39 @@ mod tests {
         assert_eq!(ast.flags[0].name, "Recurse");
         assert_eq!(ast.flags[1].name, "Path");
         assert_eq!(ast.flags[1].value.as_deref(), Some("C:\\foo"));
+    }
+
+    #[test]
+    fn posix_attached_value() {
+        // `-p22` → name="p", value="22"
+        let ast = parse_raw("ssh -p22 host").unwrap();
+        assert_eq!(ast.flags[0].name, "p");
+        assert_eq!(ast.flags[0].value.as_deref(), Some("22"));
+    }
+
+    #[test]
+    fn posix_bundled_flags() {
+        // `-rf` → two flags: r, f (no values)
+        let ast = parse_raw("rm -rf dir").unwrap();
+        assert_eq!(ast.flags.len(), 2);
+        assert_eq!(ast.flags[0].name, "r");
+        assert_eq!(ast.flags[1].name, "f");
+    }
+
+    #[test]
+    fn empty_double_quoted_arg() {
+        // `echo ""` → one empty arg
+        let ast = parse_raw(r#"echo """#).unwrap();
+        assert_eq!(ast.args.len(), 1);
+        assert_eq!(ast.args[0].0, "");
+    }
+
+    #[test]
+    fn empty_single_quoted_arg() {
+        // `echo ''` → one empty arg
+        let ast = parse_raw("echo ''").unwrap();
+        assert_eq!(ast.args.len(), 1);
+        assert_eq!(ast.args[0].0, "");
     }
 
     // ── pipeline tests ───────────────────────────────────────────────────────

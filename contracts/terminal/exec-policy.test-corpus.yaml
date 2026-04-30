@@ -30,5 +30,7 @@ deny:
     label: "compound command (&&) second segment must be checked"
   - payload: "cargo build; Totally-Fake-Cmd"
     label: "compound command (;) second segment must be checked"
+  - payload: "cargo build || Totally-Fake-Cmd"
+    label: "compound command (||) second segment must be checked"
   - payload: "cargo build | Get-ChildItem -Recurse"
     label: "pipeline second stage with blocked param"

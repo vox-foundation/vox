@@ -2,7 +2,8 @@
 title: "Warp Terminal Research Findings (2026)"
 description: "Systematic scan of warpdotdev/warp for high-value primitives, license compatibility, and feature gaps relevant to Vox."
 category: "architecture"
-status: "current"
+status: "research"
+last_updated: "2026-04-29"
 training_eligible: true
 training_rationale: "Competitive ecosystem analysis with license and architecture findings."
 ---

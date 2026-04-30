@@ -73,22 +73,25 @@ impl ExecPolicy {
             }
         }
 
-        // Blocked-parameter check (wildcard `"*"` scope + command-specific scope)
-        for scope in [ast.command.as_str(), "*"] {
-            if let Some(blocked) = self.blocked_parameters.get(scope) {
-                for flag in &ast.flags {
-                    if blocked
-                        .iter()
-                        .any(|b| b.trim().eq_ignore_ascii_case(flag.name.trim()))
-                    {
-                        violations.push(PolicyViolation {
-                            kind: ViolationKind::BlockedParameter,
-                            detail: format!(
-                                "parameter `{}` is blocked for `{}`",
-                                flag.name, ast.command
-                            ),
-                        });
-                    }
+        // Blocked-parameter check (wildcard `"*"` + case-insensitive command scope)
+        for (scope, blocked) in &self.blocked_parameters {
+            let applies =
+                scope == "*" || scope.trim().eq_ignore_ascii_case(ast.command.trim());
+            if !applies {
+                continue;
+            }
+            for flag in &ast.flags {
+                if blocked
+                    .iter()
+                    .any(|b| b.trim().eq_ignore_ascii_case(flag.name.trim()))
+                {
+                    violations.push(PolicyViolation {
+                        kind: ViolationKind::BlockedParameter,
+                        detail: format!(
+                            "parameter `{}` is blocked for `{}`",
+                            flag.name, ast.command
+                        ),
+                    });
                 }
             }
         }
