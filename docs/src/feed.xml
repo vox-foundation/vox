@@ -5,8 +5,26 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 24 Apr 2026 03:12:44 GMT</lastBuildDate>
+  <lastBuildDate>Thu, 30 Apr 2026 21:42:54 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Legacy URL Redirects on GitHub Pages</title>
+    <link>https://vox-lang.org/architecture/github-pages-redirects.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/github-pages-redirects.html</guid>
+    <description>How the Vox docs site handles old mdBook-era URLs via static HTML stubs on GitHub Pages.</description>
+    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>GUI-Native Language Roadmap — Execution Status</title>
+    <link>https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</guid>
+    <description>Live tracking of task completion for the Vox GUI-native language roadmap (April 2026).</description>
+    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>ADR 001 — Burn Backend Selection for vox-tensor</title>
@@ -236,25 +254,6 @@
     <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 024 — Dashboard as local Axum-served SPA</title>
-    <link>https://vox-lang.org/adr/024-dashboard-axum-spa.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/024-dashboard-axum-spa.html</guid>
-    <description>Decision record for migrating the Vox dashboard from a VS Code webview to a standalone Axum-served SPA.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR-024: Formal Intent and Tool Receipt Auditing</title>
-    <link>https://vox-lang.org/adr/024-formal-intent.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/024-formal-intent.html</guid>
-    <description>Architecture Decision Record for formal intent and cryptographic tool receipts in the Vox ecosystem.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>
