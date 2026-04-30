@@ -759,7 +759,7 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_plan_status
-  description: Plan session status via vox-dei-d (ai.plan.status) for a session_id.
+  description: Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.
   product_lane: ai
   http_read_role_eligible: true
   tier: core
@@ -839,7 +839,7 @@ tools:
   http_read_role_eligible: false
   tier: core
 - name: vox_replan
-  description: 'Replan via vox-dei-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.'
+  description: 'Replan via vox-orchestrator-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.'
   product_lane: ai
   http_read_role_eligible: false
   tier: core
