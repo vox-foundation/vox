@@ -1,13 +1,18 @@
-fn Counter_increment(current: int) to int {
-    let count = current + 1
-    print("Count is " + count)
-    return count
+// ANCHOR: basic_actor
+actor Counter {
+    state count: int
+
+    on increment(amount: int) to int {
+        let next = count + amount
+        print("Count is " + next)
+        return next
+    }
 }
 // ANCHOR_END: basic_actor
 
 // ANCHOR: spawn_and_send
 fn run() {
     let c = spawn(Counter)
-    c.increment(0)
+    c.increment(1)
 }
 // ANCHOR_END: spawn_and_send
