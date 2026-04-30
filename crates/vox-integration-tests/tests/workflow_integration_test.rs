@@ -161,9 +161,12 @@ workflow pipeline() to Result[str] {
     let tokens = vox_compiler::lexer::cursor::lex(src);
     let module = vox_compiler::parser::parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
-    assert_eq!(hir.activities.len(), 1, "Should have 1 activity");
-    assert_eq!(hir.activities[0].name, "process_data");
-    assert_eq!(hir.workflows.len(), 1, "Should have 1 workflow");
+    use vox_compiler::hir::nodes::DurabilityKind;
+    let activities: Vec<_> = hir.functions.iter().filter(|f| f.durability == Some(DurabilityKind::Activity)).collect();
+    let workflows: Vec<_> = hir.functions.iter().filter(|f| f.durability == Some(DurabilityKind::Workflow)).collect();
+    assert_eq!(activities.len(), 1, "Should have 1 activity");
+    assert_eq!(activities[0].name, "process_data");
+    assert_eq!(workflows.len(), 1, "Should have 1 workflow");
 }
 
 #[test]
@@ -280,8 +283,11 @@ workflow process_order(customer: str, order_data: str, amount: int) to Result[st
     );
 
     let hir = vox_compiler::hir::lower_module(&module);
-    assert_eq!(hir.activities.len(), 3, "Should have 3 activities");
-    assert_eq!(hir.workflows.len(), 1, "Should have 1 workflow");
+    use vox_compiler::hir::nodes::DurabilityKind;
+    let activities: Vec<_> = hir.functions.iter().filter(|f| f.durability == Some(DurabilityKind::Activity)).collect();
+    let workflows: Vec<_> = hir.functions.iter().filter(|f| f.durability == Some(DurabilityKind::Workflow)).collect();
+    assert_eq!(activities.len(), 3, "Should have 3 activities");
+    assert_eq!(workflows.len(), 1, "Should have 1 workflow");
 
     let rust_output = vox_compiler::codegen_rust::emit::emit_lib(&hir);
     assert!(

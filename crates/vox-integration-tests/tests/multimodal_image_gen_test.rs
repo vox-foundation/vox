@@ -30,9 +30,12 @@ workflow handle_branding(description: str) to Unit {
     let module = parse(tokens).expect("Parse failed");
     let hir = lower_module(&module);
 
-    assert_eq!(hir.activities.len(), 1);
-    assert_eq!(hir.workflows.len(), 1);
-    assert_eq!(hir.activities[0].name, "generate_banner");
+    use vox_compiler::hir::nodes::DurabilityKind;
+    let activities: Vec<_> = hir.functions.iter().filter(|f| f.durability == Some(DurabilityKind::Activity)).collect();
+    let workflows: Vec<_> = hir.functions.iter().filter(|f| f.durability == Some(DurabilityKind::Workflow)).collect();
+    assert_eq!(activities.len(), 1);
+    assert_eq!(workflows.len(), 1);
+    assert_eq!(activities[0].name, "generate_banner");
 
     let diagnostics = typecheck_module(&module, "");
     assert!(

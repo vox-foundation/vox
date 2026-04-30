@@ -24,10 +24,13 @@ workflow welcome_onboarding(user_id: str) to Unit {
     let module = parse(tokens).expect("Parse failed");
     let hir = lower_module(&module);
 
-    assert_eq!(hir.activities.len(), 1);
-    assert_eq!(hir.workflows.len(), 1);
+    use vox_compiler::hir::nodes::DurabilityKind;
+    let activities: Vec<_> = hir.functions.iter().filter(|f| f.durability == Some(DurabilityKind::Activity)).collect();
+    let workflows: Vec<_> = hir.functions.iter().filter(|f| f.durability == Some(DurabilityKind::Workflow)).collect();
+    assert_eq!(activities.len(), 1);
+    assert_eq!(workflows.len(), 1);
 
-    let wf = &hir.workflows[0];
+    let wf = workflows[0];
     assert_eq!(wf.name, "welcome_onboarding");
     assert_eq!(wf.params.len(), 1);
 }
