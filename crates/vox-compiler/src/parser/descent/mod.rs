@@ -472,6 +472,7 @@ impl Parser {
             Token::TypeKw => self.parse_typedef(false),
             Token::AtTable => self.parse_table(),
             Token::Ident(ref name) if name == "url" => self.parse_url_block(),
+            Token::Ident(ref name) if name == "state_machine" => self.parse_state_machine(),
             Token::Ident(ref name) if name == "routes" => self.parse_routes(),
             _ => {
                 self.errors.push(ParseError::classified(

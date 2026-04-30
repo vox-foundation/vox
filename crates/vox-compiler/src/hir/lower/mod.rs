@@ -261,6 +261,46 @@ impl LowerCtx {
                         span: u.span,
                     });
                 }
+                Decl::StateMachine(m) => {
+                    use crate::hir::nodes::state_machine::{
+                        HirEventParam, HirStateDecl, HirStateField, HirStateMachineDecl,
+                        HirTransitionDecl, HirTransitionSource,
+                    };
+                    let hir_states = m.states.iter().map(|s| HirStateDecl {
+                        name: s.name.clone(),
+                        fields: s.fields.iter().map(|f| HirStateField {
+                            name: f.name.clone(),
+                            ty: f.ty.clone(),
+                            span: f.span,
+                        }).collect(),
+                        terminal: s.terminal,
+                        span: s.span,
+                    }).collect();
+                    let hir_transitions = m.transitions.iter().map(|t| HirTransitionDecl {
+                        event: t.event.clone(),
+                        event_params: t.event_params.iter().map(|p| HirEventParam {
+                            name: p.name.clone(),
+                            ty: p.ty.clone(),
+                            span: p.span,
+                        }).collect(),
+                        from: match &t.from {
+                            crate::ast::decl::state_machine::SmTransitionSource::State(s) => {
+                                HirTransitionSource::State(s.clone())
+                            }
+                            crate::ast::decl::state_machine::SmTransitionSource::Any => {
+                                HirTransitionSource::Any
+                            }
+                        },
+                        to: t.to.clone(),
+                        span: t.span,
+                    }).collect();
+                    hir.state_machines.push(HirStateMachineDecl {
+                        name: m.name.clone(),
+                        states: hir_states,
+                        transitions: hir_transitions,
+                        span: m.span,
+                    });
+                }
                 Decl::Actor(_) | Decl::Workflow(_) | Decl::Activity(_) => {
                     // Parser tombstones these — they never reach valid HIR.
                 }

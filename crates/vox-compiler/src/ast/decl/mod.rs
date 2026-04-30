@@ -17,6 +17,8 @@ pub mod logic;
 pub mod typedef;
 /// Client routing, layouts, themes, and SSG page metadata.
 pub mod ui;
+/// State machine first-class block (TASK-4.1).
+pub mod state_machine;
 
 pub use config::*;
 pub use db::*;
@@ -24,6 +26,7 @@ pub use fundecl::*;
 pub use logic::*;
 pub use typedef::*;
 pub use ui::*;
+pub use state_machine::*;
 
 mod callable;
 mod reactive;

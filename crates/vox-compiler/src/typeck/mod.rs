@@ -31,6 +31,7 @@ pub mod env;
 pub mod infer;
 pub mod policy;
 pub mod url_check;
+pub mod state_machine_check;
 /// Logic for registering declarations into the global environment.
 pub mod registration;
 /// Representation of internal types used during inference and checking.
@@ -55,6 +56,7 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
     let builtins = BuiltinTypes::register_all(&mut env);
     let mut diags = typecheck_hir(hir, &mut env, &builtins, source);
     diags.extend(url_check::check_url_decls(&hir.url_decls));
+    diags.extend(state_machine_check::check_state_machines(&hir.state_machines));
     diags
 }
 

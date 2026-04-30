@@ -177,6 +177,8 @@ pub enum Decl {
     ReactiveComponent(ReactiveComponentDecl),
     /// Typed URL algebra declaration (`url Name { ... }`).
     Url(UrlDecl),
+    /// State machine declaration (TASK-4.1).
+    StateMachine(StateMachineDecl),
 }
 impl Decl {
     /// Primary source span for this declaration (used for diagnostics).
@@ -232,6 +234,7 @@ impl Decl {
             Decl::Island(i) => i.span,
             Decl::ReactiveComponent(r) => r.span,
             Decl::Url(u) => u.span,
+            Decl::StateMachine(m) => m.span,
         }
     }
 }

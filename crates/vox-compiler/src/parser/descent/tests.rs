@@ -667,3 +667,42 @@ fn test_parse_script_multiple_stmts_single_main() {
         panic!("expected fn main");
     }
 }
+
+#[test]
+fn test_parse_state_machine_basic() {
+    let src = "state_machine Traffic {\n  state Green\n  state Red\n  terminal state Off\n  on Switch from Green -> Red\n  on Switch from Red -> Green\n}";
+    let m = parse_str(src);
+    let sm = m.declarations.iter().find_map(|d| {
+        if let Decl::StateMachine(s) = d { Some(s) } else { None }
+    });
+    assert!(sm.is_some(), "expected Decl::StateMachine");
+    let sm = sm.unwrap();
+    assert_eq!(sm.name, "Traffic");
+    assert_eq!(sm.states.len(), 3);
+    assert_eq!(sm.transitions.len(), 2);
+    // Third state is terminal
+    assert!(sm.states[2].terminal, "Off should be terminal");
+    assert_eq!(sm.states[2].name, "Off");
+    // First transition
+    assert_eq!(sm.transitions[0].event, "Switch");
+    use crate::ast::decl::state_machine::SmTransitionSource;
+    assert!(matches!(&sm.transitions[0].from, SmTransitionSource::State(s) if s == "Green"));
+    assert_eq!(sm.transitions[0].to, "Red");
+}
+
+#[test]
+fn test_parse_state_machine_with_fields() {
+    let src = "state_machine Job {\n  state Idle\n  state Running(id: str)\n  on Start(id: str) from any -> Running\n}";
+    let m = parse_str(src);
+    let sm = m.declarations.iter().find_map(|d| {
+        if let Decl::StateMachine(s) = d { Some(s) } else { None }
+    });
+    assert!(sm.is_some(), "expected Decl::StateMachine");
+    let sm = sm.unwrap();
+    assert_eq!(sm.states[1].fields.len(), 1);
+    assert_eq!(sm.states[1].fields[0].name, "id");
+    assert_eq!(sm.transitions[0].event_params.len(), 1);
+    assert_eq!(sm.transitions[0].event_params[0].name, "id");
+    use crate::ast::decl::state_machine::SmTransitionSource;
+    assert!(matches!(&sm.transitions[0].from, SmTransitionSource::Any));
+}

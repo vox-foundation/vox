@@ -88,5 +88,6 @@ fn decl_kind_and_name(decl: &Decl) -> (String, String) {
         Decl::ReactiveComponent(r) => ("reactive_component".into(), r.name.clone()),
         Decl::Endpoint(e) => ("endpoint".into(), e.func.name.clone()),
         Decl::Url(u) => ("url".into(), u.name.clone()),
+        Decl::StateMachine(m) => ("state_machine".into(), m.name.clone()),
     }
 }
