@@ -44,12 +44,12 @@ export class VoxTransport {
     if (this.ws || this.isConnecting || this.reconnectAttempts > this.maxReconnectAttempts) return;
     this.isConnecting = true;
 
-    let wsUrl = this.getWsUrl();
+    const wsUrl = this.getWsUrl();
     const token = this.getToken();
-    if (token) {
-      const joiner = wsUrl.includes('?') ? '&' : '?';
-      wsUrl += `${joiner}token=${encodeURIComponent(token)}`;
-    }
+    // Do NOT append the token as a URL query parameter — credentials in URLs leak through
+    // browser history, server access logs, and HTTP Referer headers. Authentication is
+    // handled exclusively via the auth frame sent immediately after the connection opens
+    // (see onopen below). The backend accepts the auth frame as the primary auth path.
 
     this.ws = new WebSocket(wsUrl);
 

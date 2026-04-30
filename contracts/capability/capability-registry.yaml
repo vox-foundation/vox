@@ -2562,6 +2562,82 @@ curated:
   - migrate
   - web
   parameters: null
+- id: cli.model.pricing.check
+  title: Model Pricing Check
+  description_human: null
+  description_model: Check pricing freshness and flag models still on stale bootstrap pricing.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - pricing
+  - check
+  parameters: null
+- id: cli.model.pricing.refresh
+  title: Model Pricing Refresh
+  description_human: null
+  description_model: Fetch live pricing from OpenRouter and LiteLLM and write to the local cache. Safe to run without a daemon.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - pricing
+  - refresh
+  parameters: null
+- id: cli.model.pricing.rollup
+  title: Model Pricing Rollup
+  description_human: null
+  description_model: Batch aggregate telemetry into the pricing catalog.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - pricing
+  - rollup
+  parameters: null
+- id: cli.model.pricing.show
+  title: Model Pricing Show
+  description_human: null
+  description_model: Show the model pricing catalog with observed vs catalog costs, cache pricing, and pricing source.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - pricing
+  - show
+  parameters: null
 - id: cli.openclaw
   title: Openclaw
   description_human: null
