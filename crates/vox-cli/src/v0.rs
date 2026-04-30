@@ -312,6 +312,20 @@ pub async fn generate_island_tsx(
 
     let raw = fetch_v0_tsx(component_name, prompt, image_path).await?;
     let content = crate::v0_tsx_normalize::normalize_v0_tsx_named_export(raw, component_name);
+
+    // TASK-5.4: Run a11y validator on the generated TSX before writing.
+    let a11y_diags = crate::v0_tsx_validate::validate_tsx_a11y(&content);
+    if let Some(report) = crate::v0_tsx_validate::format_diagnostics(&a11y_diags, component_name) {
+        eprintln!("\n{report}\n");
+        if crate::v0_tsx_validate::has_errors(&a11y_diags) {
+            eprintln!(
+                "⚠️  Error-level a11y violations detected. The island will still be written,\n\
+                 but you should fix these before shipping. Re-run with a more specific prompt\n\
+                 or patch the generated TSX manually.\n"
+            );
+        }
+    }
+
     fs::write(&out, &content).context("write island TSX")?;
     if let Ok(cache) = IslandCache::new() {
         let _ = cache.put(component_name, prompt, &content);
