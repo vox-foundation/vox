@@ -61,7 +61,6 @@ training_eligible: false
 - [Scientia × Mesh/Model-Routing Integration Research (2026)](architecture/scientia-mesh-integration-research-2026.md)
 - [Task catalog authoring spec](architecture/planning-meta/07-task-catalog-authoring-spec.md)
 - [Vox Docs Portal: Astro Starlight Strategy 2026](architecture/starlight-site-strategy-2026.md)
-- [Warp Terminal Research Findings (2026)](architecture/warp-research-findings-2026.md)
 - [Weighted deep planning manual](architecture/planning-meta/03-weighted-deep-planning-manual.md)
 - [build-stabilization-findings-2026](architecture/build-stabilization-findings-2026.md)
 - [language-benchmark-2026](architecture/language-benchmark-2026.md)
@@ -79,11 +78,11 @@ training_eligible: false
 
 - [Ludus Identity Federation & GitHub Integration](architecture/ludus-identity-github-integration-research-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](architecture/shiki-mdbook-doc-platform-research-2026.md)
+- [Warp Terminal Research Findings (2026)](architecture/warp-research-findings-2026.md)
 
 ## Status: Roadmap
 
 - [Data Storage Lint & CI Spec (2026)](architecture/data-storage-lint-and-ci-spec-2026.md)
 - [Data Storage Migration Backlog (2026)](architecture/data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](architecture/data-storage-ssot-2026.md)
-- [GUI-Native Language Roadmap — Execution Status](architecture/gui-native-roadmap-status-2026.md)
 
