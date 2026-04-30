@@ -301,8 +301,18 @@ impl LowerCtx {
                         span: m.span,
                     });
                 }
-                Decl::Actor(_) | Decl::Workflow(_) | Decl::Activity(_) => {
-                    // Parser tombstones these — they never reach valid HIR.
+                Decl::Workflow(w) => {
+                    hir.functions.push(self.lower_workflow(w));
+                }
+                Decl::Activity(a) => {
+                    hir.functions.push(self.lower_activity(a));
+                }
+                Decl::Actor(a) => {
+                    // Actor shell + per-handler HirFn entries (Path A, TASK-2.6).
+                    hir.functions.push(self.lower_actor_shell(a));
+                    for handler in &a.handlers {
+                        hir.functions.push(self.lower_actor_handler(&a.name, handler));
+                    }
                 }
                 Decl::V0Component(_)
                 | Decl::Routes(_)

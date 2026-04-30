@@ -105,6 +105,7 @@ mod tests {
             llm_model: None,
             is_deprecated: false,
             schedule_interval: None,
+            durability: None,
             postconditions: vec![],
             span: dummy_span(),
         }

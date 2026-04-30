@@ -282,6 +282,9 @@ pub struct HirFn {
     /// `@scheduled("…")` interval/cron string when this item was lowered from [`crate::ast::decl::Decl::Scheduled`].
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub schedule_interval: Option<String>,
+    /// Durable execution classification (set when lowered from `workflow`/`activity`/`actor` source).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub durability: Option<super::durability::DurabilityKind>,
     /// Postconditions to check at runtime (used for @ai repair/fallback).
     #[serde(default)]
     pub postconditions: Vec<HirPostCondition>,

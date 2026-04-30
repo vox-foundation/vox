@@ -207,7 +207,7 @@ impl Parser {
 
             let is_tombstoned = matches!(
                 self.peek(),
-                Token::Actor | Token::Workflow | Token::Activity | Token::Http | Token::AtComponent | Token::Agent | Token::Env
+                Token::Http | Token::AtComponent | Token::Agent | Token::Env
             );
 
             if is_tombstoned {
@@ -458,7 +458,19 @@ impl Parser {
                 }
             }
             Token::AtIndex => self.parse_index(),
-            Token::Actor | Token::Workflow | Token::Activity | Token::Http | Token::AtComponent | Token::Agent | Token::Env => {
+            Token::Workflow => {
+                self.advance();
+                self.parse_workflow_decl()
+            }
+            Token::Activity => {
+                self.advance();
+                self.parse_activity_decl()
+            }
+            Token::Actor => {
+                self.advance();
+                self.parse_actor_decl()
+            }
+            Token::Http | Token::AtComponent | Token::Agent | Token::Env => {
                 let tok = self.peek().clone();
                 self.errors.push(ParseError::classified(
                     self.span(),

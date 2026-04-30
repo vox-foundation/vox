@@ -46,6 +46,7 @@ impl LowerCtx {
             llm_model: f.llm_model.clone(),
             is_deprecated: f.is_deprecated,
             schedule_interval: None,
+            durability: None,
             postconditions: f
                 .postconditions
                 .iter()
@@ -55,6 +56,134 @@ impl LowerCtx {
                 })
                 .collect(),
             span: f.span,
+        }
+    }
+
+    /// Lower a `workflow fn_name(params) -> T { body }` declaration.
+    pub(crate) fn lower_workflow(&mut self, w: &WorkflowDecl) -> HirFn {
+        let id = self.def_map.define(w.name.clone());
+        self.def_map.push_scope();
+        let params = w.params.iter().map(|p| self.lower_param(p)).collect();
+        let body = w.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+        HirFn {
+            id,
+            name: w.name.clone(),
+            generics: vec![],
+            params,
+            return_type: w.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            is_component: false,
+            is_async: false,
+            is_pub: false,
+            is_mobile_native: false,
+            is_pure: false,
+            effects: vec![],
+            is_llm: false,
+            llm_model: None,
+            is_deprecated: w.is_deprecated,
+            schedule_interval: None,
+            durability: Some(crate::hir::nodes::DurabilityKind::Workflow),
+            postconditions: vec![],
+            span: w.span,
+        }
+    }
+
+    /// Lower an `activity fn_name(params) -> T { body }` declaration.
+    pub(crate) fn lower_activity(&mut self, a: &ActivityDecl) -> HirFn {
+        let id = self.def_map.define(a.name.clone());
+        self.def_map.push_scope();
+        let params = a.params.iter().map(|p| self.lower_param(p)).collect();
+        let body = a.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+        HirFn {
+            id,
+            name: a.name.clone(),
+            generics: vec![],
+            params,
+            return_type: a.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            is_component: false,
+            is_async: false,
+            is_pub: false,
+            is_mobile_native: false,
+            is_pure: false,
+            effects: vec![],
+            is_llm: false,
+            llm_model: None,
+            is_deprecated: a.is_deprecated,
+            schedule_interval: None,
+            durability: Some(crate::hir::nodes::DurabilityKind::Activity),
+            postconditions: vec![],
+            span: a.span,
+        }
+    }
+
+    /// Lower an `actor Name { state …; on event(…) { … } }` declaration.
+    ///
+    /// The actor shell becomes `HirFn { durability: Some(Actor), name: "Name" }` with an
+    /// empty body.  Each handler is lowered as a separate `HirFn` named
+    /// `"Name::on_event"` and pushed to the same output vector by the caller
+    /// ([`crate::hir::lower::LowerCtx::lower_actor_decl`]).
+    pub(crate) fn lower_actor_shell(&mut self, a: &ActorDecl) -> HirFn {
+        let id = self.def_map.define(a.name.clone());
+        HirFn {
+            id,
+            name: a.name.clone(),
+            generics: vec![],
+            params: vec![],
+            return_type: None,
+            body: vec![],
+            is_component: false,
+            is_async: false,
+            is_pub: false,
+            is_mobile_native: false,
+            is_pure: false,
+            effects: vec![],
+            is_llm: false,
+            llm_model: None,
+            is_deprecated: a.is_deprecated,
+            schedule_interval: None,
+            durability: Some(crate::hir::nodes::DurabilityKind::Actor),
+            postconditions: vec![],
+            span: a.span,
+        }
+    }
+
+    /// Lower one handler from an `actor` declaration.
+    ///
+    /// The handler name is `"ActorName::on_event"` to avoid namespace collisions.
+    pub(crate) fn lower_actor_handler(
+        &mut self,
+        actor_name: &str,
+        h: &crate::ast::decl::logic::ActorHandler,
+    ) -> HirFn {
+        let qualified_name = format!("{}::{}", actor_name, h.event_name);
+        let id = self.def_map.define(qualified_name.clone());
+        self.def_map.push_scope();
+        let params = h.params.iter().map(|p| self.lower_param(p)).collect();
+        let body = h.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+        HirFn {
+            id,
+            name: qualified_name,
+            generics: vec![],
+            params,
+            return_type: h.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            is_component: false,
+            is_async: false,
+            is_pub: false,
+            is_mobile_native: false,
+            is_pure: false,
+            effects: vec![],
+            is_llm: false,
+            llm_model: None,
+            is_deprecated: false,
+            schedule_interval: None,
+            durability: Some(crate::hir::nodes::DurabilityKind::Actor),
+            postconditions: vec![],
+            span: h.span,
         }
     }
 

@@ -2,11 +2,11 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    Decl, EffectAnnotation, EffectDecl, EffectKind, EndpointDecl, EndpointKind, FnDecl, ForallDecl,
-    ImportDecl, ImportPath, ImportPathKind, IslandDecl, IslandProp, LoadingDecl, McpResourceDecl,
-    McpToolDecl, MutationDecl, OnCleanupDecl, OnMountDecl, PostCondition, QueryDecl,
-    ReactiveComponentDecl, ReactiveMemberDecl, RustCrateImport, ScheduledDecl, ServerFnDecl,
-    TestDecl,
+    ActivityDecl, ActorDecl, ActorHandler, Decl, EffectAnnotation, EffectDecl, EffectKind,
+    EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind,
+    IslandDecl, IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
+    OnMountDecl, PostCondition, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl,
+    RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl, VariantField, WorkflowDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -934,5 +934,159 @@ impl Parser {
                 Err(())
             }
         }
+    }
+
+    /// Parse `workflow name(params) -> ReturnType { body }`.
+    ///
+    /// The `workflow` keyword has already been consumed by the caller.
+    pub(crate) fn parse_workflow_decl(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
+        // Optional @deprecated before the name.
+        let mut is_deprecated = false;
+        self.skip_newlines();
+        while matches!(self.peek(), Token::AtDeprecated) {
+            self.advance();
+            is_deprecated = true;
+        }
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+        let return_type = if self.eat_return_arrow() {
+            Some(self.parse_type_expr()?)
+        } else {
+            None
+        };
+        self.expect(&Token::LBrace)?;
+        let body = self.parse_block()?;
+        Ok(Decl::Workflow(WorkflowDecl {
+            name,
+            params,
+            return_type,
+            body,
+            is_traced: false,
+            is_deprecated,
+            span: start.merge(self.span()),
+        }))
+    }
+
+    /// Parse `activity name(params) -> ReturnType { body }`.
+    ///
+    /// The `activity` keyword has already been consumed by the caller.
+    pub(crate) fn parse_activity_decl(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
+        let mut is_deprecated = false;
+        self.skip_newlines();
+        while matches!(self.peek(), Token::AtDeprecated) {
+            self.advance();
+            is_deprecated = true;
+        }
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+        let return_type = if self.eat_return_arrow() {
+            Some(self.parse_type_expr()?)
+        } else {
+            None
+        };
+        self.expect(&Token::LBrace)?;
+        let body = self.parse_block()?;
+        Ok(Decl::Activity(ActivityDecl {
+            name,
+            params,
+            return_type,
+            body,
+            options: None,
+            prompt: None,
+            is_traced: false,
+            is_deprecated,
+            span: start.merge(self.span()),
+        }))
+    }
+
+    /// Parse an `actor Name { state field: Type; on event(params) -> T { body } }` declaration.
+    ///
+    /// The `actor` keyword has already been consumed by the caller.
+    pub(crate) fn parse_actor_decl(&mut self) -> Result<Decl, ()> {
+        let start = self.span();
+        let mut is_deprecated = false;
+        self.skip_newlines();
+        while matches!(self.peek(), Token::AtDeprecated) {
+            self.advance();
+            is_deprecated = true;
+        }
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+
+        let mut state_fields: Vec<VariantField> = Vec::new();
+        let mut handlers: Vec<ActorHandler> = Vec::new();
+
+        loop {
+            self.skip_newlines();
+            match self.peek().clone() {
+                Token::RBrace | Token::Eof => break,
+                // `state field_name: Type`
+                Token::State => {
+                    self.advance();
+                    let field_start = self.span();
+                    let field_name = self.parse_ident_name()?;
+                    self.expect(&Token::Colon)?;
+                    let type_ann = self.parse_type_expr()?;
+                    state_fields.push(VariantField {
+                        name: field_name,
+                        type_ann,
+                        span: field_start.merge(self.span()),
+                    });
+                }
+                // `on event_name(params) -> ReturnType { body }`
+                Token::On => {
+                    self.advance();
+                    let handler_start = self.span();
+                    let event_name = self.parse_ident_name()?;
+                    self.expect(&Token::LParen)?;
+                    let params = self.parse_params()?;
+                    self.expect(&Token::RParen)?;
+                    let return_type = if self.eat_return_arrow() {
+                        Some(self.parse_type_expr()?)
+                    } else {
+                        None
+                    };
+                    self.expect(&Token::LBrace)?;
+                    let body = self.parse_block()?;
+                    handlers.push(ActorHandler {
+                        event_name,
+                        params,
+                        return_type,
+                        body,
+                        is_traced: false,
+                        span: handler_start.merge(self.span()),
+                    });
+                }
+                Token::AtDeprecated => {
+                    self.advance();
+                    is_deprecated = true;
+                }
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Expected `state`, `on`, or `}` inside actor body",
+                        vec!["state".into(), "on".into(), "}".into()],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    self.advance();
+                }
+            }
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(Decl::Actor(ActorDecl {
+            name,
+            state_fields,
+            handlers,
+            is_deprecated,
+            span: start.merge(self.span()),
+        }))
     }
 }
