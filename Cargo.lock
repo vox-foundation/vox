@@ -7234,6 +7234,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nucleo"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5262af4c94921c2646c5ac6ff7900c2af9cbb08dc26a797e18130a7019c039d4"
+dependencies = [
+ "nucleo-matcher",
+ "parking_lot",
+ "rayon",
+]
+
+[[package]]
+name = "nucleo-matcher"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf33f538733d1a5a3494b836ba913207f14d9d4a1d3cd67030c5061bdd2cac85"
+dependencies = [
+ "memchr",
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "num"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -11841,6 +11862,7 @@ dependencies = [
  "libc",
  "miette",
  "notify",
+ "nucleo",
  "owo-colors",
  "rand 0.8.5",
  "regex",
@@ -11882,6 +11904,7 @@ dependencies = [
  "vox-doc-inventory",
  "vox-doc-pipeline",
  "vox-eval",
+ "vox-exec-grammar",
  "vox-forge",
  "vox-git",
  "vox-grammar-export",
@@ -12149,6 +12172,17 @@ dependencies = [
  "tempfile",
  "workspace-hack",
  "xxhash-rust",
+]
+
+[[package]]
+name = "vox-exec-grammar"
+version = "0.4.0"
+dependencies = [
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "workspace-hack",
 ]
 
 [[package]]

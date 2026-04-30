@@ -5,8 +5,45 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Wed, 29 Apr 2026 04:43:24 GMT</lastBuildDate>
+  <lastBuildDate>Thu, 30 Apr 2026 18:59:07 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>ADR-026: Third-Party Code Provenance Policy</title>
+    <link>https://vox-lang.org/adr/026-third-party-code-provenance.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/026-third-party-code-provenance.html</guid>
+    <description>Governs how Vox ingests, vendors, or studies external open-source code, with explicit AGPL guardrails.</description>
+    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Architecture Index</title>
+    <link>https://vox-lang.org/architecture/architecture-index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
+    <description>Auto-generated architecture index.</description>
+    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Warp Terminal Research Findings (2026)</title>
+    <link>https://vox-lang.org/architecture/warp-research-findings-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/warp-research-findings-2026.html</guid>
+    <description>Systematic scan of warpdotdev/warp for high-value primitives, license compatibility, and feature gaps relevant to Vox.</description>
+    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>cli</title>
+    <link>https://vox-lang.org/reference/cli.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/cli.html</guid>
+    <description>Documentation for cli.md</description>
+    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
 
   <item>
     <title>Shiki, mdBook &amp; Documentation Platform Evaluation (2026)</title>
@@ -210,46 +247,6 @@
     <link>https://vox-lang.org/adr/006-mens-full-graph-qlora-qlora-rs.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/006-mens-full-graph-qlora-qlora-rs.html</guid>
     <description>Official documentation for ADR 006: Mens full-graph Candle QLoRA with qlora-rs for the Vox language.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 007: qlora-rs multi-layer training API (Phase 2c architecture gate)</title>
-    <link>https://vox-lang.org/adr/007-qlora-rs-multi-layer-training-api.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/007-qlora-rs-multi-layer-training-api.html</guid>
-    <description>Official documentation for ADR 007: qlora-rs multi-layer training API (Phase 2c architecture gate) for the Vox language.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 008: Mens transport</title>
-    <link>https://vox-lang.org/adr/008-populi-transport.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/008-populi-transport.html</guid>
-    <description>Official documentation for ADR 008: Mens transport for the Vox language. Detailed technical reference, architecture guides, and implement</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 009: Hosted mens / BaaS (future scope)</title>
-    <link>https://vox-lang.org/adr/009-populi-hosted-baas.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/009-populi-hosted-baas.html</guid>
-    <description>Official documentation for ADR 009: Hosted mens / BaaS (future scope) for the Vox language. Detailed technical reference, architecture gu</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 010 — TanStack as the Vox web spine</title>
-    <link>https://vox-lang.org/adr/010-tanstack-web-spine.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/010-tanstack-web-spine.html</guid>
-    <description>Official documentation for ADR 010 — TanStack as the Vox web spine for the Vox language. Detailed technical reference, architecture guide</description>
     <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>

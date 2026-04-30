@@ -318,6 +318,13 @@ Why this exists: it is the discoverability source for first-timers, editor integ
 | `--format text\|json` | `text` | Human table output or machine JSON |
 | `--recommended` | `false` | Show only first-time starter commands |
 | `--include-nested` | `false` | Include nested subcommands (`vox ci …`, `vox mens …`) |
+| `--search PATTERN` | — | Fuzzy-search commands by name, alias, or description; implies `--include-nested` |
+
+**Example — search for shell-related commands:**
+```
+vox commands --search shell
+vox commands --search shell --format json
+```
 
 ### `vox dev <file>`
 
