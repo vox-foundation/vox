@@ -461,6 +461,45 @@ fn test_parse_reactive_effect_mount_cleanup_view_is_tombstoned() {
 }
 
 #[test]
+fn test_parse_url_block() {
+    let src = "url Path {\n  Home\n  Task(id: str)\n}";
+    let m = parse_str(src);
+    let url_decl = m.declarations.iter().find_map(|d| {
+        if let Decl::Url(u) = d {
+            Some(u)
+        } else {
+            None
+        }
+    });
+    assert!(url_decl.is_some(), "expected Decl::Url");
+    let url = url_decl.unwrap();
+    assert_eq!(url.name, "Path");
+    assert_eq!(url.variants.len(), 2);
+    assert_eq!(url.variants[0].name, "Home");
+    assert_eq!(url.variants[1].name, "Task");
+    assert_eq!(url.variants[1].args.len(), 1);
+    assert_eq!(url.variants[1].args[0].name, "id");
+}
+
+#[test]
+fn test_parse_url_optional_args() {
+    let src = "url Path {\n  Login(?return_to: str)\n}";
+    let m = parse_str(src);
+    let url = m
+        .declarations
+        .iter()
+        .find_map(|d| {
+            if let Decl::Url(u) = d {
+                Some(u)
+            } else {
+                None
+            }
+        })
+        .expect("expected Decl::Url");
+    assert!(url.variants[0].args[0].optional);
+}
+
+#[test]
 fn test_parse_std_http_dotted_path_and_import() {
     let m = parse_str(
         "import std.http\n\nfn main() {\n  let _ = std.http.get_text(\"https://example.com\")\n}\n",

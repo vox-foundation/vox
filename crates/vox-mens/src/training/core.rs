@@ -85,6 +85,7 @@ pub fn extract_constructs(module: &vox_compiler::ast::decl::Module) -> Vec<Strin
             Decl::Page(_) => "page",
             Decl::ReactiveComponent(_) => "reactive_component",
             Decl::Endpoint(_) => "endpoint",
+            Decl::Url(_) => "url",
         };
         constructs.push(tag.to_string());
     }

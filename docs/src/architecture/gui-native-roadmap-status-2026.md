@@ -97,10 +97,10 @@ Recommend Path A: matches the roadmap, preserves expressivity, and consolidates 
 |------|--------|--------|-------|
 | TASK-4.1 — Add `state_machine` first-class block | 🔲 Not started | — | Preconditions met. 2-3 week effort. |
 | TASK-4.2 — Add effect annotations (`uses net, db, mcp(...)`) | 🔲 Not started | — | Parallel with 4.1. 2-3 week effort. |
-| TASK-4.3 — Add typed URLs primitive | 🔲 Not started | — | Preconditions met. 1-2 week effort. |
+| TASK-4.3 — Add typed URLs primitive | ✅ Done (parser + HIR + typeck) | see below | `url Name { Variant, Variant(args) }` parsed. AST `UrlDecl/Variant/Arg` in `ast/decl/ui.rs`. `Decl::Url` in `ast/decl/types.rs`. `HirUrlDecl/Variant/Arg` in `hir/nodes/url.rs`. `url_decls: Vec<HirUrlDecl>` in `HirModule`/`SemanticHirModule`. Lowering in `hir/lower/mod.rs`. `typeck/url_check.rs` (duplicate variant error). 4 tests pass. TS emission and golden file updates deferred to Phase 5. |
 | TASK-4.4 — Add design-token types | ✅ Done | see below | `crates/vox-compiler/src/tokens/{mod,validate}.rs` created. `pub mod tokens` in `lib.rs`. `validate_web_ir_with_tokens` added (non-breaking). `vox.tokens.json` expanded. `contracts/tokens/tokens.v1.json` schema created. 10 token tests pass. |
 
-**Phase 4 verdict:** 1/4 complete. TASK-4.1, 4.2, 4.3 in progress.
+**Phase 4 verdict:** 2/4 complete. TASK-4.1, 4.2 not started.
 
 ## Phases 5–8
 
@@ -165,6 +165,11 @@ Phase 4 is now fully unblocked.
   `ActorHandlerSig`, `lookup_actor` preserved (live Claude built-in path).
   Phase 2 verdict: 6/6 complete. Commit `6524b3f7`. Phases 4–8 now
   unblocked. (Agent session.)
+- 2026-04-30 — TASK-4.3 ✅ Done (parser + HIR + typeck core): `url Name { Variant }` block
+  parsed; `UrlDecl/Variant/Arg` AST; `Decl::Url`; `HirUrlDecl/Variant/Arg`;
+  `url_decls` in `HirModule`/`SemanticHirModule`; `url_check.rs` typeck;
+  4 tests pass. TS emission and `<link>` checking deferred. Bugfix: variants
+  were `Token::TypeIdent` (PascalCase) — parser match updated to handle both.
 - 2026-04-29 — TASK-4.4 ✅ Done: `crates/vox-compiler/src/tokens/{mod,validate}.rs`
   created. `TokenRegistry` with flattened lookup, Levenshtein suggestions,
   `TokenValidationDiagnostic`. `validate_web_ir_with_tokens` added to

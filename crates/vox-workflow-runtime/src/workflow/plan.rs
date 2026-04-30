@@ -22,26 +22,14 @@ pub fn plan_workflow_activities(
 
 /// Build replay-oriented linear IR from workflow statements.
 pub fn plan_workflow_replay_ir(
-    hir: &HirModule,
+    _hir: &HirModule,
     workflow_name: &str,
 ) -> anyhow::Result<WorkflowReplayIr> {
-    let wf = hir
-        .workflows
-        .iter()
-        .find(|w| w.name == workflow_name)
-        .with_context(|| format!("workflow '{workflow_name}' not found"))?;
-    let mut raw = Vec::new();
-    let mut branch_counter = 0usize;
-    collect_activity_calls_from_stmts(
-        workflow_name,
-        &wf.body,
-        &ActivityWithOpts::default(),
-        &mut raw,
-        &mut branch_counter,
-    )?;
-    Ok(WorkflowReplayIr {
-        nodes: raw.into_iter().map(ReplayNode::Activity).collect(),
-    })
+    // Workflow primitives are retired (TASK-2.6 Path B). The parser tombstones
+    // `workflow`/`activity` source forms. This planner is kept as a stub so the
+    // crate compiles; it returns an empty replay IR. Use `@durable fn` instead.
+    let _ = workflow_name;
+    Ok(WorkflowReplayIr { nodes: vec![] })
 }
 
 #[derive(Clone, Default, Debug)]

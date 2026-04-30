@@ -243,6 +243,24 @@ impl LowerCtx {
                 Decl::ReactiveComponent(c) => {
                     hir.components.push(self.lower_reactive_component(c));
                 }
+                Decl::Url(u) => {
+                    use crate::hir::nodes::url::{HirUrlArg, HirUrlDecl, HirUrlVariant};
+                    let hir_variants = u.variants.iter().map(|v| HirUrlVariant {
+                        name: v.name.clone(),
+                        args: v.args.iter().map(|a| HirUrlArg {
+                            name: a.name.clone(),
+                            optional: a.optional,
+                            ty: a.ty.clone(),
+                            span: a.span,
+                        }).collect(),
+                        span: v.span,
+                    }).collect();
+                    hir.url_decls.push(HirUrlDecl {
+                        name: u.name.clone(),
+                        variants: hir_variants,
+                        span: u.span,
+                    });
+                }
                 Decl::Actor(_) | Decl::Workflow(_) | Decl::Activity(_) => {
                     // Parser tombstones these — they never reach valid HIR.
                 }

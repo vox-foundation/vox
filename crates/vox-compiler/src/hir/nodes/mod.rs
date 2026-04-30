@@ -11,10 +11,12 @@ mod decl;
 mod expr;
 mod stmt;
 mod stmt_expr;
+pub mod url;
 
 pub use decl::*;
 pub use expr::*;
 pub use stmt::*;
+pub use url::*;
 pub use stmt_expr::{
     DefId, HirDbPlanCapabilities, HirDbPredicate, HirDbQueryPlan, HirDbRetrievalMode, HirDbTableOp,
     HirParam, HirType,

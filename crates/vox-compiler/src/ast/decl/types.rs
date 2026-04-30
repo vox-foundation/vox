@@ -175,6 +175,8 @@ pub enum Decl {
     Island(IslandDecl),
     /// Reactive component declaration (Path C).
     ReactiveComponent(ReactiveComponentDecl),
+    /// Typed URL algebra declaration (`url Name { ... }`).
+    Url(UrlDecl),
 }
 impl Decl {
     /// Primary source span for this declaration (used for diagnostics).
@@ -229,6 +231,7 @@ impl Decl {
             Decl::Page(p) => p.span,
             Decl::Island(i) => i.span,
             Decl::ReactiveComponent(r) => r.span,
+            Decl::Url(u) => u.span,
         }
     }
 }

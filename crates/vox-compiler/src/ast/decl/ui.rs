@@ -149,6 +149,33 @@ pub struct IslandProp {
     pub is_optional: bool,
 }
 
+/// Typed URL declaration: `url Name { Variant, Variant(arg: Type), ... }` (TASK-4.3).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct UrlDecl {
+    /// URL type name (PascalCase).
+    pub name: String,
+    pub variants: Vec<UrlVariant>,
+    pub span: crate::ast::span::Span,
+}
+
+/// One variant in a `url { }` block.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct UrlVariant {
+    pub name: String,
+    pub args: Vec<UrlArg>,
+    pub span: crate::ast::span::Span,
+}
+
+/// One argument in a URL variant parameter list.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct UrlArg {
+    pub name: String,
+    /// True when prefixed with `?` (optional URL segment / query param).
+    pub optional: bool,
+    pub ty: crate::ast::types::TypeExpr,
+    pub span: crate::ast::span::Span,
+}
+
 /// Reactive component declaration (Path C reactive model).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ReactiveComponentDecl {

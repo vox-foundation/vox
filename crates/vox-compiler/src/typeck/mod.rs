@@ -30,6 +30,7 @@ pub mod env;
 /// Core logic for unification-based type inference.
 pub mod infer;
 pub mod policy;
+pub mod url_check;
 /// Logic for registering declarations into the global environment.
 pub mod registration;
 /// Representation of internal types used during inference and checking.
@@ -52,7 +53,9 @@ pub use ty::ty_display;
 pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic> {
     let mut env = TypeEnv::new();
     let builtins = BuiltinTypes::register_all(&mut env);
-    typecheck_hir(hir, &mut env, &builtins, source)
+    let mut diags = typecheck_hir(hir, &mut env, &builtins, source);
+    diags.extend(url_check::check_url_decls(&hir.url_decls));
+    diags
 }
 
 /// Lower `module` to HIR and run the type Checker (replacement for the removed AST-only path).

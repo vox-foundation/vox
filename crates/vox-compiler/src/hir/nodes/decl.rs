@@ -6,6 +6,7 @@ use crate::ast::span::Span;
 use super::expr::HirExpr;
 use super::stmt::HirStmt;
 use super::stmt_expr::{DefId, HirParam, HirType};
+use super::url::HirUrlDecl;
 
 /// Ownership buckets used to classify [`HirModule`] fields during the WebIR/AppContract migration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,6 +67,8 @@ pub struct HirModule {
     pub islands: Vec<HirIsland>,
     /// Reactive components (Path C).
     pub components: Vec<HirReactiveComponent>,
+    /// Typed URL type declarations (`url Name { ... }`).
+    pub url_decls: Vec<HirUrlDecl>,
 
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     /// HTTP routes, tables, activities, and `@server` fns are lowered to [`HirRoute`], [`HirTable`],
@@ -98,6 +101,7 @@ pub struct SemanticHirModule {
     pub agents: Vec<HirAgent>,
     pub environments: Vec<HirEnvironment>,
     pub components: Vec<HirReactiveComponent>,
+    pub url_decls: Vec<HirUrlDecl>,
 }
 
 impl HirModule {
@@ -125,6 +129,7 @@ impl HirModule {
 
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
             ("components", HirFieldOwnership::SemanticCore),
+            ("url_decls", HirFieldOwnership::AppContract),
         ]
     }
 
@@ -149,6 +154,7 @@ impl HirModule {
             agents: self.agents.clone(),
             environments: self.environments.clone(),
             components: self.components.clone(),
+            url_decls: self.url_decls.clone(),
         }
     }
 }
