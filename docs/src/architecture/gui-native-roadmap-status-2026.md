@@ -60,26 +60,18 @@ training_eligible: false
 | TASK-2.3 — Collapse `HirExpr::DbTableOp` into `MethodCall` | ✅ Done | per `decl.rs:142` | `HirExpr::DbTableOp` removed entirely; operations lowered into `HirExpr::MethodCall(_, _, _, Option<Box<HirDbQueryPlan>>, _)`. |
 | TASK-2.4 — Resolve `HirExpr::Pipe` vs `Binary(Pipe)` | ✅ Done | per `decl.rs` enum | Standalone `HirExpr::Pipe` variant deleted; pipeline expressions strictly `HirExpr::Binary(HirBinOp::Pipe, ...)`. |
 | TASK-2.5 — Retire `http` bare-keyword routing | ✅ Done (parser) | per `parser/descent/tests.rs:99` | `test_parse_http_route_is_tombstoned` passes. Parser rejects with friendly error. **Caveat:** corpus migration of pre-existing `.vox` files using the form is not separately verified here — TASK-8.1 handles that atomically. |
-| TASK-2.6 — Align `workflow`/`activity`/`actor` | ✅ Done (Path B — retire) | `6524b3f7` | Parser tombstones permanent. Removed `HirActor`, `HirActorHandler`, `HirWorkflow`, `HirActivity` structs and `actors`/`workflows`/`activities` Vec fields from `HirModule`, `SemanticHirModule`, `VoxIrContent`. All lowering, typeck, and codegen paths for these retired. 15 files, −1 150 lines, 0 warnings. `HirRoute`/`AppContract` untouched. `BindingKind::Actor`/`lookup_actor`/`ActorHandlerSig` kept — live path for the `Claude` built-in actor expression checker. |
+| TASK-2.6 — Align `workflow`/`activity`/`actor` | ✅ Done (Path A — collapse) | `080b3f86` | Parser re-enabled for `workflow`/`activity`/`actor` keywords. All three lower to `HirFn { durability: Some(DurabilityKind::_), … }` — no separate HIR structs needed (they were already absent). `DurabilityKind` enum added in `hir/nodes/durability.rs`. `HirFn.durability: Option<DurabilityKind>` field added. `lower_workflow`, `lower_activity`, `lower_actor_shell`, `lower_actor_handler` in `hir/lower/decl.rs`. Actor handlers lowered as `HirFn { name: "ActorName::event_name" }`. `Token::Http`/`Agent`/`Env`/`AtComponent` remain tombstoned. 3 former tombstone parser tests replaced with positive assertions. 202 lib tests pass, 0 fail. |
 
 **Phase 2 verdict:** 6/6 complete. Phase 2 fully done.
 
 ### TASK-2.6 retrospective
 
-The roadmap intended to *unify* four declaration kinds (`fn`, `workflow`, `activity`, `actor`) under one HIR shape (`FnDecl + Option<DurabilityKind>`) while keeping source ergonomics. What actually happened:
+Path A (collapse, original goal) executed at commit `080b3f86`. The roadmap intended to unify `workflow`/`activity`/`actor` declarations under one HIR shape (`HirFn + Option<DurabilityKind>`). This is now done:
 
-1. During TASK-2.1 the AST and HIR types for `workflow`/`activity`/`actor`/`HttpRoute` were over-purged.
-2. Parser tombstoning was added as a band-aid (rejecting the source forms at parse time).
-3. `fa350de8` restored the HIR types so the workspace would compile, but did not restore source-level acceptance.
-
-**Current state at HEAD:** AST types (`ActorDecl`, `WorkflowDecl`, `ActivityDecl`, `HttpRouteDecl`) and HIR types (`HirActor`, `HirWorkflow`, `HirActivity`) exist but are labelled `HirFieldOwnership::MigrationOnly`. Parser tombstones the source forms. Codegen (`codegen_rust/emit/workflow.rs`, `codegen_ts/activity.rs`, `typeck`) still references these types — some in production paths, some in guardrail tests only. `HirRoute` is `HirFieldOwnership::AppContract` and is NOT in scope for removal.
-
-Net state: source forms are rejected, but the HIR can still represent durability primitives. That is a non-goal halfway point. To finish properly, choose ONE:
-
-- **Path A (collapse, original goal):** Re-enable parser acceptance of `workflow`/`activity`/`actor` keywords, lower them as sugar to `FnDecl { durability: Some(_), … }`, delete the standalone `HirActor`/`HirWorkflow`/`HirActivity` structs.
-- **Path B (retire, simpler):** Keep parser tombstones permanent. Delete the orphan HIR types. Migrate any callers expecting them to use the unified `FnDecl + decorator` form. Mark durability as a future feature.
-
-Recommend Path A: matches the roadmap, preserves expressivity, and consolidates four primitives into one. Estimated effort: 1 day after a clear decision.
+- Parser accepts `workflow name(params) to T { body }`, `activity name(params) to T { body }`, and `actor Name { state field: Type; on event(params) { body } }`
+- All three lower to `HirFn` with a `DurabilityKind` discriminant
+- `http`/`agent`/`env`/`@component` remain tombstoned (Path B, separate scope)
+- No standalone `HirActor`/`HirWorkflow`/`HirActivity` structs were needed — they were already absent from the HIR at the time of Path A execution
 
 ---
 
@@ -142,13 +134,12 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in dependency order)
 
-Phases 0–3 are fully complete. TASK-2.6 landed as Path B (commit `6524b3f7`).
-Phase 4 is now fully unblocked.
+Phases 0–5 are fully complete. TASK-2.6 completed as Path A (commit `080b3f86`).
+Phases 6–8 are next.
 
-1. **TASK-4.x — Phase 4: State machines, effect annotations, typed URLs, design-token types.**
-   Start with the canonical roadmap source (`VOX_GUI_NATIVE_ROADMAP_2026.md` at repo root) for the full TASK-4.1–4.x specifications.
-
-2. **Optional cleanup:** `crates/vox-compiler/src/hir/dead_code.rs` references removed types but is not declared in `hir/mod.rs` (not compiled). Can be deleted safely when touching that area.
+1. **Phase 6** — Web IR BehaviorNode::StateMachine + TSX reducer codegen (TASK-4.1 deferred item), `raw_css {}` escape hatch, severity promotion for token validator, AriaNode embedding in DomNode.
+2. **Phase 7** — TS emission for URL types (TASK-4.3 deferred item), call-graph effect propagation (TASK-4.2 deferred item).
+3. **Phase 8** — Corpus migration (`TASK-8.1`): sweep `.vox` files using pre-tombstone `http` bare routing.
 
 ---
 
@@ -182,6 +173,12 @@ Phase 4 is now fully unblocked.
 - 2026-04-30 — TASK-5.1 ✅ Done: `WebIrDiagnosticSeverity` (Warning/Error) added to `WebIrDiagnostic`. Literal style value detector extended from hex+rgb/hsl to also cover named CSS colors (30 common) and dimensional literals (17 suffixes). Code renamed `raw_literal_color` → `literal_value`. `Default` impl on `WebIrDiagnostic`; 29 construction sites updated with `..Default::default()`. 9 tests pass, 0 workspace errors. Severity stays Warning until Phase 6 `raw_css{}` escape hatch. (Agent session.)
 - 2026-04-30 — TASK-4.2 ✅ Done (parser + HIR + typeck): `fn f() uses net, db, mcp(tool) -> T { }` effect annotations implemented. 2 new files (`ast/decl/effect.rs`, `hir/nodes/effect.rs`, `typeck/effect_check.rs`), 6 files modified. `cargo check --workspace` 0 errors. 10 tests pass. Call-graph propagation deferred to Phase 5. Bugfix: `env` and `spawn` are dedicated lexer tokens — matched with `Token::Env` / `Token::Spawn`. (Agent session.)
 - 2026-04-30 — TASK-4.1 ✅ Done (parser + HIR + typeck): `state_machine Name { state S, terminal state T, on E from S -> T }` block implemented. 3 new files (`ast/decl/state_machine.rs`, `hir/nodes/state_machine.rs`, `typeck/state_machine_check.rs`), 11 files modified across compiler/corpus/mens. `cargo check --workspace` 0 errors. 6 tests pass. Web IR / TSX reducer deferred to Phase 5. (Agent session.)
+- 2026-04-30 — TASK-2.6 Path A ✅ Done: parser re-enabled for `workflow`/`activity`/`actor`.
+  `DurabilityKind` enum + `HirFn.durability` field added. `parse_workflow_decl`,
+  `parse_activity_decl`, `parse_actor_decl` added to `parser/descent/decl/head.rs`.
+  Tombstone removed for these three tokens in `parse_decl` and `parse_module_script`.
+  `lower_workflow`/`lower_activity`/`lower_actor_shell`/`lower_actor_handler` wired
+  into HIR lowering. 202 lib tests pass. (Agent session.)
 - 2026-04-30 — TASK-4.3 ✅ Done (parser + HIR + typeck core): `url Name { Variant }` block
   parsed; `UrlDecl/Variant/Arg` AST; `Decl::Url`; `HirUrlDecl/Variant/Arg`;
   `url_decls` in `HirModule`/`SemanticHirModule`; `url_check.rs` typeck;
