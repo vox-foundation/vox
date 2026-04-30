@@ -171,7 +171,7 @@ async fn run_check() -> anyhow::Result<()> {
         }
         println!("{table}");
         println!(
-            "\nRun `vox model pricing rollup` or restart the daemon to trigger a live refresh."
+            "\nRun `vox model pricing refresh` (or `vox model pricing rollup`, or restart the daemon) to trigger a live refresh."
         );
     }
 

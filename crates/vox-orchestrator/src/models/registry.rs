@@ -321,45 +321,19 @@ impl ModelRegistry {
                     )
                     .await;
 
-                // Apply LiteLLM pricing patches (cache costs, Anthropic models, etc.)
-                // to the assembled model list before persisting and returning.
+                // Apply LiteLLM pricing patches via the canonical apply_litellm_pricing()
+                // method so both foreground and background refresh paths share the same
+                // matching logic (exact → litellm_provider+suffix → suffix fallback).
                 if !litellm_entries.is_empty() {
-                    use crate::models::spec::PricingSource;
-                    let suffix_fn = |id: &str| -> String {
-                        id.split('/').last().unwrap_or(id).to_string()
+                    let mut tmp = ModelRegistry {
+                        models: models.into_iter().map(|m| (m.id.clone(), m)).collect(),
+                        agent_overrides: HashMap::new(),
+                        premium_alias: HashMap::new(),
+                        scoreboard: HashMap::new(),
+                        penalty_map: HashMap::new(),
                     };
-                    for m in &mut models {
-                        // Try exact match first, then suffix match.
-                        let entry = litellm_entries.get(&m.id).or_else(|| {
-                            let suffix = suffix_fn(&m.id);
-                            litellm_entries.iter()
-                                .find(|(k, _)| suffix_fn(k) == suffix)
-                                .map(|(_, v)| v)
-                        });
-                        let Some(entry) = entry else { continue };
-                        if m.pricing_source == PricingSource::Telemetry {
-                            continue; // never overwrite telemetry-calibrated prices
-                        }
-                        if let Some(cost_in) = entry.cost_per_1k_input {
-                            if cost_in > 0.0 { m.cost_per_1k_input = cost_in; }
-                        }
-                        if let Some(cost_out) = entry.cost_per_1k_output {
-                            if cost_out > 0.0 {
-                                m.cost_per_1k_output = cost_out;
-                                m.cost_per_1k = cost_out;
-                            }
-                        }
-                        if let Some(cc) = entry.cache_creation_cost_per_1k {
-                            m.cache_creation_cost_per_1k = cc;
-                        }
-                        if let Some(cr) = entry.cache_read_cost_per_1k {
-                            m.cache_read_cost_per_1k = cr;
-                        }
-                        if let Some(caching) = entry.supports_prompt_caching {
-                            m.supports_prompt_caching = caching;
-                        }
-                        m.pricing_source = PricingSource::LiteLLM;
-                    }
+                    tmp.apply_litellm_pricing(&litellm_entries);
+                    models = tmp.list_models();
                     tracing::debug!(
                         target: "vox.orchestrator.models",
                         litellm_entries = litellm_entries.len(),
