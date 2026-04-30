@@ -29,6 +29,30 @@ const LATENCY_POOR_MS: f64 = 8_000.0;
 const THROUGHPUT_FALLBACK_RPM: f64 = 20.0;
 /// Reference RPM for normalizing throughput (full score at this RPM or above).
 const THROUGHPUT_REFERENCE_RPM: f64 = 200.0;
+/// Routing score bonus for DeepSeek V3 during off-peak pricing window.
+/// DeepSeek V3 is 50% cheaper UTC 16:30–00:30; this bonus makes the router prefer it then.
+const DEEPSEEK_OFFPEAK_V3_BONUS: f64 = 0.07;
+/// Routing score bonus for DeepSeek R1 during off-peak pricing window.
+/// DeepSeek R1 is 75% cheaper UTC 16:30–00:30; stronger bonus reflects the larger discount.
+const DEEPSEEK_OFFPEAK_R1_BONUS: f64 = 0.12;
+
+/// Returns `true` when DeepSeek's off-peak pricing discount is active.
+///
+/// Window: **UTC 16:30–00:30** (59_400 s → 86_400 s, then 0 s → 1_800 s).
+/// DeepSeek V3 gets 50% off; R1 gets 75% off during this window.
+///
+/// Exposed as `pub` so callers outside `scoring` can gate cost estimates (e.g. telemetry).
+#[must_use]
+pub fn is_deepseek_off_peak() -> bool {
+    const START_SECS: u64 = 16 * 3_600 + 30 * 60; // 59_400 — 16:30 UTC
+    const END_SECS: u64 = 30 * 60;                  // 1_800  — 00:30 UTC (next day)
+    let sod = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+        % 86_400;
+    sod >= START_SECS || sod < END_SECS
+}
 
 #[must_use]
 pub(super) fn budget_match(limit_model: &str, model: &str) -> bool {
@@ -260,7 +284,20 @@ pub fn auto_score_model(
         }
     }
 
-    (score / total_w) + fim_bias + mens_bonus
+    // Off-peak pricing bonus: DeepSeek cuts prices 50–75% UTC 16:30–00:30.
+    // A small additive bonus tips routing toward DeepSeek when competing models score similarly.
+    let off_peak_bonus =
+        if matches!(m.provider_type, crate::models::ProviderType::DeepSeek) && is_deepseek_off_peak() {
+            if m.id.to_ascii_lowercase().contains("r1") {
+                DEEPSEEK_OFFPEAK_R1_BONUS
+            } else {
+                DEEPSEEK_OFFPEAK_V3_BONUS
+            }
+        } else {
+            0.0
+        };
+
+    (score / total_w) + fim_bias + mens_bonus + off_peak_bonus
 }
 
 #[cfg(test)]
@@ -283,6 +320,10 @@ mod tests {
             observed_cost_per_1k: None,
             strengths: vec![crate::models::StrengthTag::Codegen],
             capabilities: ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         }
     }

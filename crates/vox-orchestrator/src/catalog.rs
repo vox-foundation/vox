@@ -208,6 +208,10 @@ impl ModelCatalog for OpenRouterCatalog {
                 capabilities,
                 supported_parameters: m.supported_parameters,
                 observed_cost_per_1k: None,
+                cache_creation_cost_per_1k: 0.0,
+                cache_read_cost_per_1k: 0.0,
+                supports_prompt_caching: false, // LiteLLM oracle fills this in
+                pricing_source: crate::models::spec::PricingSource::OpenRouter,
             });
         }
 
@@ -346,6 +350,10 @@ impl ModelCatalog for OllamaCatalog {
                 },
                 supported_parameters: vec![],
                 observed_cost_per_1k: None,
+                cache_creation_cost_per_1k: 0.0,
+                cache_read_cost_per_1k: 0.0,
+                supports_prompt_caching: false,
+                pricing_source: crate::models::spec::PricingSource::Bootstrap,
             });
         }
         Ok(specs)
@@ -399,6 +407,10 @@ impl ModelCatalog for HuggingFaceCatalog {
                 },
                 supported_parameters: vec![],
                 observed_cost_per_1k: None,
+                cache_creation_cost_per_1k: 0.0,
+                cache_read_cost_per_1k: 0.0,
+                supports_prompt_caching: false,
+                pricing_source: crate::models::spec::PricingSource::Bootstrap,
             });
         }
         Ok(specs)
@@ -487,6 +499,10 @@ impl ModelCatalog for MensCatalog {
                         },
                         supported_parameters: vec![],
                         observed_cost_per_1k: None,
+                        cache_creation_cost_per_1k: 0.0,
+                        cache_read_cost_per_1k: 0.0,
+                        supports_prompt_caching: false,
+                        pricing_source: crate::models::spec::PricingSource::Bootstrap,
                     });
                 }
             }
@@ -549,14 +565,18 @@ impl ModelCatalog for AnthropicDirectCatalog {
         let resp: AnthropicModelsResponse = res.json().await?;
         let mut specs = Vec::new();
         for m in resp.data {
-            // Static pricing for known Anthropic models (fallback to catalog defaults)
-            let (c_in, c_out) = match m.id.as_str() {
-                id if id.contains("claude-3-5-sonnet") => (3.0, 15.0),
-                id if id.contains("claude-3-5-haiku") => (0.25, 1.25),
-                id if id.contains("claude-3-opus") => (15.0, 75.0),
-                _ => (0.0, 0.0),
-            };
+            // Pricing is intentionally 0.0 here; the LiteLLMCatalog oracle (fetched in the
+            // refresh pipeline) supplies accurate input/output/cache prices for Anthropic
+            // models. Hardcoding values here caused silent drift as Anthropic updated pricing.
+            let (c_in, c_out) = (0.0_f64, 0.0_f64);
 
+            // Classify tier by model name since we no longer hardcode prices here.
+            let is_opus = m.id.contains("opus");
+            let tier = if is_opus {
+                crate::models::ModelTier::Elite
+            } else {
+                crate::models::ModelTier::Pro
+            };
             specs.push(ModelSpec {
                 id: m.id.clone(),
                 canonical_slug: format!("anthropic/{}", m.id),
@@ -566,18 +586,18 @@ impl ModelCatalog for AnthropicDirectCatalog {
                 cost_per_1k: c_out,
                 cost_per_1k_input: c_in,
                 cost_per_1k_output: c_out,
-                is_free: c_in == 0.0 && c_out == 0.0,
+                is_free: false,
                 strengths: infer_strengths(&m.id, Some(&m.display_name), &[]),
                 capabilities: ModelCapabilities {
-                    tier: if c_in > 5.0 {
-                        crate::models::ModelTier::Elite
-                    } else {
-                        crate::models::ModelTier::Pro
-                    },
+                    tier,
                     ..Default::default()
                 },
                 supported_parameters: vec![],
                 observed_cost_per_1k: None,
+                cache_creation_cost_per_1k: 0.0,
+                cache_read_cost_per_1k: 0.0,
+                supports_prompt_caching: false, // LiteLLM will fill this in
+                pricing_source: crate::models::spec::PricingSource::Bootstrap,
             });
         }
         Ok(specs)
@@ -667,8 +687,121 @@ impl ModelCatalog for GoogleDirectCatalog {
                 },
                 supported_parameters: vec![],
                 observed_cost_per_1k: None,
+                cache_creation_cost_per_1k: 0.0,
+                cache_read_cost_per_1k: 0.0,
+                supports_prompt_caching: false,
+                pricing_source: crate::models::spec::PricingSource::Bootstrap,
             });
         }
         Ok(specs)
+    }
+}
+
+// ── LiteLLM pricing oracle ────────────────────────────────────────────────────────────────────
+
+/// Resolved pricing entry from the LiteLLM `model_prices_and_context_window.json` oracle.
+///
+/// All costs are **per 1 000 tokens** (converted from LiteLLM's per-token representation).
+/// Fields are `None` when the upstream JSON does not include them for that model.
+#[derive(Debug, Clone, Default)]
+pub struct LiteLLMPricingEntry {
+    pub cost_per_1k_input: Option<f64>,
+    pub cost_per_1k_output: Option<f64>,
+    /// Cost to *write* a new prompt-cache prefix (e.g. 1.25× on Anthropic). Per 1k tokens.
+    pub cache_creation_cost_per_1k: Option<f64>,
+    /// Cost for a prompt-cache *hit* read (e.g. ~0.10× on Anthropic). Per 1k tokens.
+    pub cache_read_cost_per_1k: Option<f64>,
+    pub supports_prompt_caching: Option<bool>,
+    /// Provider string as given by LiteLLM (e.g. `"deepseek"`, `"anthropic"`).
+    pub litellm_provider: Option<String>,
+}
+
+/// Raw entry from the LiteLLM JSON file (per-token costs; deserialized before conversion).
+#[derive(serde::Deserialize)]
+struct LiteLLMRawEntry {
+    #[serde(default)]
+    input_cost_per_token: Option<f64>,
+    #[serde(default)]
+    output_cost_per_token: Option<f64>,
+    #[serde(default)]
+    cache_creation_input_token_cost: Option<f64>,
+    #[serde(default)]
+    cache_read_input_token_cost: Option<f64>,
+    #[serde(default)]
+    supports_prompt_caching: Option<bool>,
+    #[serde(default)]
+    litellm_provider: Option<String>,
+    /// Absorb all other fields without failing deserialization.
+    #[serde(flatten)]
+    _rest: serde_json::Map<String, serde_json::Value>,
+}
+
+impl LiteLLMRawEntry {
+    fn into_pricing_entry(self) -> LiteLLMPricingEntry {
+        const K: f64 = 1_000.0;
+        LiteLLMPricingEntry {
+            cost_per_1k_input: self.input_cost_per_token.map(|v| v * K),
+            cost_per_1k_output: self.output_cost_per_token.map(|v| v * K),
+            cache_creation_cost_per_1k: self.cache_creation_input_token_cost.map(|v| v * K),
+            cache_read_cost_per_1k: self.cache_read_input_token_cost.map(|v| v * K),
+            supports_prompt_caching: self.supports_prompt_caching,
+            litellm_provider: self.litellm_provider,
+        }
+    }
+}
+
+/// Fetches the LiteLLM `model_prices_and_context_window.json` pricing oracle.
+///
+/// Returns a map of model-ID → [`LiteLLMPricingEntry`] that callers (registry refresh loop)
+/// use to patch `cost_per_1k_input`, `cost_per_1k_output`, cache costs, and
+/// `supports_prompt_caching` on existing [`ModelSpec`] entries.
+///
+/// This catalog does **not** create new model entries; discovery is OpenRouter's responsibility.
+pub struct LiteLLMCatalog {
+    client: reqwest::Client,
+}
+
+const LITELLM_PRICES_URL: &str =
+    "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json";
+
+impl LiteLLMCatalog {
+    pub fn new() -> Self {
+        Self {
+            client: vox_reqwest_defaults::client_builder()
+                .timeout(Duration::from_secs(20))
+                .build()
+                .unwrap_or_else(|_| vox_reqwest_defaults::client()),
+        }
+    }
+
+    /// Fetch the oracle and return a map of model-ID → pricing entry.
+    ///
+    /// Failures are returned as `Err` so callers can log and fall back gracefully —
+    /// the registry keeps whatever pricing it already has.
+    pub async fn fetch(
+        &self,
+    ) -> Result<std::collections::HashMap<String, LiteLLMPricingEntry>, anyhow::Error> {
+        let resp = self.client.get(LITELLM_PRICES_URL).send().await?;
+        if !resp.status().is_success() {
+            return Err(anyhow::anyhow!(
+                "LiteLLM pricing fetch failed: HTTP {}",
+                resp.status()
+            ));
+        }
+
+        // The JSON is a flat object: { "model-id": { ...fields... }, ... }
+        let raw: std::collections::HashMap<String, LiteLLMRawEntry> = resp.json().await?;
+        let entries = raw
+            .into_iter()
+            .map(|(id, entry)| (id, entry.into_pricing_entry()))
+            .collect();
+
+        Ok(entries)
+    }
+}
+
+impl Default for LiteLLMCatalog {
+    fn default() -> Self {
+        Self::new()
     }
 }

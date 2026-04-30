@@ -91,9 +91,79 @@ impl ModelRegistry {
                         if let Some(output) = row.observed_output_per_1k {
                             spec.cost_per_1k_output = output;
                         }
+                        spec.pricing_source = super::spec::PricingSource::Telemetry;
                     }
                 }
             }
+        }
+    }
+
+    /// Apply supplementary pricing from the LiteLLM oracle.
+    ///
+    /// Fills fields that OpenRouter doesn't expose (cache-hit prices, Anthropic models, etc.).
+    /// Will not overwrite an entry whose `pricing_source` is already `Telemetry`.
+    pub fn apply_litellm_pricing(
+        &mut self,
+        entries: &std::collections::HashMap<String, crate::catalog::LiteLLMPricingEntry>,
+    ) {
+        use super::spec::PricingSource;
+
+        for (litellm_id, entry) in entries {
+            // Build a candidate list of IDs to try (exact → prefixed → suffix).
+            let suffix = litellm_id.split('/').last().unwrap_or(litellm_id.as_str());
+            let with_provider = entry
+                .litellm_provider
+                .as_deref()
+                .map(|p| format!("{}/{}", p, suffix));
+
+            let found_key = if self.models.contains_key(litellm_id.as_str()) {
+                Some(litellm_id.clone())
+            } else if let Some(ref wp) = with_provider {
+                if self.models.contains_key(wp.as_str()) {
+                    Some(wp.clone())
+                } else {
+                    // Suffix fallback — find the first model whose ID ends with the bare name.
+                    self.models
+                        .keys()
+                        .find(|k| k.ends_with(suffix))
+                        .cloned()
+                }
+            } else {
+                self.models
+                    .keys()
+                    .find(|k| k.ends_with(suffix))
+                    .cloned()
+            };
+
+            let Some(key) = found_key else { continue };
+            let Some(spec) = self.models.get_mut(&key) else { continue };
+
+            // Telemetry is always the highest-trust source; never downgrade it.
+            if spec.pricing_source == PricingSource::Telemetry {
+                continue;
+            }
+
+            if let Some(cost_in) = entry.cost_per_1k_input {
+                if cost_in > 0.0 {
+                    spec.cost_per_1k_input = cost_in;
+                }
+            }
+            if let Some(cost_out) = entry.cost_per_1k_output {
+                if cost_out > 0.0 {
+                    spec.cost_per_1k_output = cost_out;
+                    spec.cost_per_1k = cost_out; // keep legacy blended field in sync
+                }
+            }
+            if let Some(cache_create) = entry.cache_creation_cost_per_1k {
+                spec.cache_creation_cost_per_1k = cache_create;
+            }
+            if let Some(cache_read) = entry.cache_read_cost_per_1k {
+                spec.cache_read_cost_per_1k = cache_read;
+            }
+            if let Some(caching) = entry.supports_prompt_caching {
+                spec.supports_prompt_caching = caching;
+            }
+            spec.pricing_source = PricingSource::LiteLLM;
         }
     }
 
@@ -174,11 +244,21 @@ impl ModelRegistry {
                 }
 
                 let mut models = OpenRouterCatalog::new().refresh().await.unwrap_or_default();
+                // Mark all OpenRouter-sourced models with the correct pricing source.
+                for m in &mut models {
+                    if m.pricing_source == crate::models::spec::PricingSource::Bootstrap {
+                        m.pricing_source = crate::models::spec::PricingSource::OpenRouter;
+                    }
+                }
                 let repo_root = vox_repository::find_project_manifest_root(&std::env::current_dir().unwrap_or_default()).unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
                 if let Ok(mens_models) = crate::catalog::MensCatalog::new(&repo_root).refresh().await {
                     models.extend(mens_models);
                 }
                 crate::catalog_classifier::classify_models(&mut models).await;
+
+                // Fetch LiteLLM pricing oracle to supplement cache costs and Anthropic pricing.
+                let litellm_entries = crate::catalog::LiteLLMCatalog::new().fetch().await
+                    .unwrap_or_default();
 
                 #[cfg(feature = "populi-transport")]
                 {
@@ -222,6 +302,10 @@ impl ModelRegistry {
                                         },
                                         supported_parameters: vec![],
                                         observed_cost_per_1k: None,
+                                        cache_creation_cost_per_1k: 0.0,
+                                        cache_read_cost_per_1k: 0.0,
+                                        supports_prompt_caching: false,
+                                        pricing_source: super::spec::PricingSource::Bootstrap,
                                     });
                                 }
                             }
@@ -236,6 +320,52 @@ impl ModelRegistry {
                         &now_secs.to_string(),
                     )
                     .await;
+
+                // Apply LiteLLM pricing patches (cache costs, Anthropic models, etc.)
+                // to the assembled model list before persisting and returning.
+                if !litellm_entries.is_empty() {
+                    use crate::models::spec::PricingSource;
+                    let suffix_fn = |id: &str| -> String {
+                        id.split('/').last().unwrap_or(id).to_string()
+                    };
+                    for m in &mut models {
+                        // Try exact match first, then suffix match.
+                        let entry = litellm_entries.get(&m.id).or_else(|| {
+                            let suffix = suffix_fn(&m.id);
+                            litellm_entries.iter()
+                                .find(|(k, _)| suffix_fn(k) == suffix)
+                                .map(|(_, v)| v)
+                        });
+                        let Some(entry) = entry else { continue };
+                        if m.pricing_source == PricingSource::Telemetry {
+                            continue; // never overwrite telemetry-calibrated prices
+                        }
+                        if let Some(cost_in) = entry.cost_per_1k_input {
+                            if cost_in > 0.0 { m.cost_per_1k_input = cost_in; }
+                        }
+                        if let Some(cost_out) = entry.cost_per_1k_output {
+                            if cost_out > 0.0 {
+                                m.cost_per_1k_output = cost_out;
+                                m.cost_per_1k = cost_out;
+                            }
+                        }
+                        if let Some(cc) = entry.cache_creation_cost_per_1k {
+                            m.cache_creation_cost_per_1k = cc;
+                        }
+                        if let Some(cr) = entry.cache_read_cost_per_1k {
+                            m.cache_read_cost_per_1k = cr;
+                        }
+                        if let Some(caching) = entry.supports_prompt_caching {
+                            m.supports_prompt_caching = caching;
+                        }
+                        m.pricing_source = PricingSource::LiteLLM;
+                    }
+                    tracing::debug!(
+                        target: "vox.orchestrator.models",
+                        litellm_entries = litellm_entries.len(),
+                        "applied litellm pricing patches"
+                    );
+                }
 
                 if let Ok(json) = serde_json::to_string(&models) {
                     let cache_file = vox_config::paths::dot_vox_user_dir().join("cache").join("model-catalog.v1.json");
@@ -276,6 +406,59 @@ impl ModelRegistry {
         } else {
             tracing::debug!(target: "vox.orchestrator.models", "catalog refresh skipped (within min refresh interval)");
         }
+    }
+
+    /// Create a registry loaded only from the on-disk cache and local config — **no network call**.
+    ///
+    /// Suitable for fast CLI commands (e.g. `vox model pricing show`) that need current pricing
+    /// without triggering an OpenRouter/LiteLLM refresh.
+    pub fn from_cache() -> Self {
+        let mut registry = Self {
+            models: HashMap::new(),
+            agent_overrides: HashMap::new(),
+            premium_alias: HashMap::new(),
+            scoreboard: HashMap::new(),
+            penalty_map: HashMap::new(),
+        };
+
+        if let Some(mut config_path) = vox_db::paths::config_dir() {
+            config_path.push("models.toml");
+            if config_path.exists() {
+                if let Ok(contents) = vox_bounded_fs::read_utf8_path_capped(&config_path) {
+                    let cfg: super::spec::ModelConfig =
+                        toml::from_str(&contents).unwrap_or_else(|_| super::spec::ModelConfig::default());
+                    registry.premium_alias = if cfg.premium_alias.is_empty() {
+                        built_in_premium_alias()
+                    } else {
+                        cfg.premium_alias.clone()
+                    };
+                    for model in cfg.models {
+                        registry.register(model);
+                    }
+                }
+            }
+        }
+
+        if registry.models.is_empty() {
+            // Seed from bootstrap so the registry is never empty.
+            for model in super::spec::ModelConfig::default().models {
+                registry.register(model);
+            }
+            registry.premium_alias = built_in_premium_alias();
+        }
+
+        let cache_file = vox_config::paths::dot_vox_user_dir()
+            .join("cache")
+            .join("model-catalog.v1.json");
+        if let Ok(contents) = std::fs::read_to_string(&cache_file) {
+            if let Ok(cached_models) = serde_json::from_str::<Vec<super::spec::ModelSpec>>(&contents) {
+                for m in cached_models {
+                    registry.register(m);
+                }
+            }
+        }
+
+        registry
     }
 
     /// Create a new model registry, loading from the configuration file or falling back to defaults.

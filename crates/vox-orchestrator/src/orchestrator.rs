@@ -14,6 +14,7 @@
 
 mod agent;
 mod campaigns;
+pub mod catalog_refresh;
 pub mod core;
 mod lease_watchdog;
 pub mod observer_loop;
