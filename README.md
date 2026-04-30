@@ -115,12 +115,12 @@ A core concept like a `Task` is defined once — not three times across SQL, the
 Hidden exceptions are out; `Result[T]` is in. Unhandled errors become a compile-time failure, so a caller can't quietly ignore a failure branch.
 
 ```vox
-// [ @query ]
+// [ @endpoint(kind: query) ]
 // Read-only endpoint; the compiler enforces that it never mutates data.
 // Becomes GET /api/query/recent_tasks automatically.
-@query
+@endpoint(kind: query)
 fn recent_tasks() to list[Task] {
-    ret db.Task
+    return db.Task
         .where({ done: false })
         .order_by("priority", "desc")
         .limit(10)
@@ -129,7 +129,8 @@ fn recent_tasks() to list[Task] {
 // [ Result[Task] ]
 // Every caller must handle both branches; the compiler will not build
 // code that ignores the error case.
-@server fn get_task(id: Id[Task]) to Result[Task] {
+@endpoint(kind: server)
+fn get_task(id: Id[Task]) to Result[Task] {
     let row = db.Task.find(id)
     match row {
         Some(t) -> Ok(t)
@@ -137,11 +138,11 @@ fn recent_tasks() to list[Task] {
     }
 }
 
-// [ @mutation ]
+// [ @endpoint(kind: mutation) ]
 // Auto-transacted write; rolls back on network or logic failure.
-@mutation
+@endpoint(kind: mutation)
 fn add_task(title: str, owner: str) to Id[Task] {
-    ret db.insert(Task, {
+    return db.insert(Task, {
         title: title,
         done: false,
         priority: 0,
@@ -149,6 +150,8 @@ fn add_task(title: str, owner: str) to Id[Task] {
     })
 }
 ```
+
+> The three `kind:` values were separate decorators (`@query`, `@server`, `@mutation`) until recently; they collapsed into one `@endpoint` primitive in the April 2026 grammar unification.
 
 ### Pillar 3: Islands, Not Hook Soup
 
@@ -182,9 +185,9 @@ routes { "/" to TaskPage }
 
 ### Pillar 4: Durable State & Agent Interoperability
 
-Multi-agent pipelines crash, and external tools fail. A `workflow` checkpoints its state so it survives node death; the actor model lets components crash and restart without taking the system down.<sup>[2](#ref2), [3](#ref3)</sup>
+Multi-agent pipelines crash, and external tools fail. Durable orchestration — checkpointing across node death, retries on transient faults, supervised restart — is provided by the `vox-workflow-runtime` host. The `.vox` surface for declaring durable steps is mid-redesign: the original `workflow` / `activity` / `actor` keywords were tombstoned in the parser as part of the April 2026 primitive collapse, and a unified `@durable(kind: …)` decorator (parallel to `@endpoint(kind: …)`) is queued behind a separate ADR.<sup>[2](#ref2), [3](#ref3)</sup>
 
-The `@mcp.tool` decorator exposes the same hardened function to Anthropic's Model Context Protocol, so external AI clients can call it directly.<sup>[4](#ref4)</sup>
+In the meantime, durable steps are written as ordinary `Result`-returning functions and registered with the runtime programmatically. The `@mcp.tool` decorator (unchanged) exposes any function to Anthropic's Model Context Protocol so external AI clients can call it directly.<sup>[4](#ref4)</sup>
 
 <table width="100%">
 <tr>
@@ -194,33 +197,38 @@ The `@mcp.tool` decorator exposes the same hardened function to Anthropic's Mode
 <td width="33%" valign="top">
 
 ```vox
-// [ activity ]
-// Flaky step; retried automatically on node death or OOM.
-activity charge_card(req: int) to Result[str] {
-    ret Ok("tx_123")
+// [ activity-shaped fn ]
+// Flaky step; the runtime retries on node death or OOM.
+fn charge_card(amount: int) to Result[str] {
+    if amount > 1000 {
+        return Error("Amount too large")
+    }
+    return Ok("tx_123")
 }
 
-// [ workflow ]
-// Durable orchestration; state commits to Arca Vault.
-workflow checkout(req: int) to str {
-    let result = charge_card(req)
+// [ workflow-shaped fn ]
+// Plain Vox today; orchestration is added by the host runtime.
+fn checkout(amount: int) to str {
+    let result = charge_card(amount)
     match result {
-        Ok(tx)   -> "Result: Ok(" + tx + ")"
-        Error(e) -> "Fault: " + e
+        Ok(tx)    -> "Success: " + tx
+        Error(msg) -> "Failed: " + msg
     }
 }
 
 // [ @mcp.tool ]
-// Exposes the workflow to MCP-compatible clients.
+// Exposes the function to MCP-compatible clients.
 @mcp.tool "Process durable checkout"
-fn complete_purchase(req: int) to str {
-    checkout(req)
+fn complete_purchase(amount: int) to str {
+    return checkout(amount)
 }
 ```
 
 </td>
 </tr>
 </table>
+
+> Mirrors [`examples/golden/checkout_workflow.vox`](examples/golden/checkout_workflow.vox) and [`examples/golden/mcp_tools.vox`](examples/golden/mcp_tools.vox). The retired keywords are listed in the [`AGENTS.md` retired-surfaces table](AGENTS.md).
 
 ### Pillar 5: Local Training (MENS)
 
@@ -244,7 +252,7 @@ vox run --isolation wasm scripts/process-untrusted-data.vox
 
 ## Agents, mesh, local training
 
-**Orchestration.** `vox-orchestrator` assigns work to agents by file affinity and role. The control surface is exposed as MCP tools — pause, resume, retire, reorder, queue status, and ~75 others — invokable from the VS Code sidebar or any MCP-compatible client. Source of truth: [`crates/vox-orchestrator/src/mcp_tools/dispatch.rs`](crates/vox-orchestrator/src/mcp_tools/dispatch.rs).
+**Orchestration.** `vox-orchestrator` assigns work to agents by file affinity and role. The control surface — pause, resume, retire, reorder, queue status, and the rest — is exposed as MCP tools, invokable from the VS Code sidebar or any MCP-compatible client.
 
 **Agent-to-agent messaging.** In-process by default; cross-machine relay is opt-in via the `populi-transport` feature. Both sides declare the same Vox type; the compiler catches shape mismatches at build time.
 
@@ -254,16 +262,7 @@ vox run --isolation wasm scripts/process-untrusted-data.vox
 VOX_MESH_ENABLED=1 VOX_MESH_NODE_ID=my-node vox populi serve
 ```
 
-**Provider routing.**
-
-| Provider | Support | Notes |
-|---|---|---|
-| Ollama (local) | First-class | No cost, no disclosure |
-| Google Gemini | First-class | Privacy acknowledgment required |
-| Groq | First-class | Authoritative rate-limit headers |
-| OpenRouter | First-class | Local estimate |
-| OpenAI / Anthropic | Gated | Pro / Enterprise |
-| Together AI | Gated | ML-focused |
+**Provider routing.** Local models (Ollama) and the major cloud providers are routed through a single policy layer with per-provider quotas and disclosure rules. The current list, gating tiers, and configuration knobs live in the [model routing how-to](docs/src/how-to/how-to-model-routing.md).
 
 ```bash
 vox populi status --quotas   # per-provider usage and remaining budget
@@ -284,17 +283,21 @@ Surfaces are tracked by how reproducibly an LLM can target them. Data, logic, an
 
 | Domain | Tier | What it covers |
 |:---|:---|:---|
-| Core syntax & engine | 🟢 Stable | AST, type checking, compiler directives, LSP. |
-| Data & connectivity | 🟢 Stable | `@table` migrations, `@query`/`@server`, wire types. |
-| Agent tooling | 🟢 Stable | `@mcp.tool` exposure, MCP protocol compliance. |
+| Compiler engine | 🟢 Stable | AST, HIR, type checker, LSP, code generation pipeline. |
+| Surface syntax | 🟡 Preview | Primitive set is collapsing toward fewer, more orthogonal forms (`@endpoint(kind: …)` landed April 2026; `@durable(kind: …)` queued). |
+| `@table` & data layer | 🟢 Stable | Schema, migrations, `db.*` query builder, wire types. |
+| Endpoints (`@endpoint`) | 🟡 Preview | Unified shape is new — `query`/`server`/`mutation` recently merged. |
+| Agent tooling | 🟢 Stable | `@mcp.tool` / `@mcp.resource` exposure, MCP protocol compliance. |
 | RAG & knowledge curation | 🟡 Preview | `vox scientia` retrieval, Socrates guards. |
-| Durable execution | 🟡 Preview | `workflow` and `actor` lifecycle. |
+| Durable execution | 🚧 Experimental | Parser keywords (`workflow`/`activity`/`actor`) tombstoned; replacement decorator pending ADR. Runtime works, but the source-language surface is in flux. |
 | Local training (MENS) | 🟡 Preview | Hardware coverage is still expanding. |
 | Web UI & rendering | 🟡 Preview | WebIR and the React bridge will shift. |
 | Distributed node mesh | 🚧 Experimental | Cross-machine routing is pre-1.0 design. |
 
-*As of `v0.5`, April 2026.* **Note:** Vox is currently in a heavy state of continuing development. This is a preview release and should not be considered ready for a 1.0 release. The machine-verified v1.0 criteria, with per-domain verification pipelines, live at [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md).
+Vox is in active pre-1.0 development (workspace version `0.5.0` at the time of writing); treat this as a preview. The core of the language itself is still moving — the April 2026 grammar unification collapsed multiple decorators and tombstoned several keywords, and that work isn't finished. Notable changes land in [`CHANGELOG.md`](CHANGELOG.md), and the machine-verified v1.0 criteria, with per-domain verification pipelines, live at [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md).
 <!-- ANCHOR_END: tier_table -->
+
+Active work tracks against the [GUI-native roadmap](docs/src/architecture/gui-native-roadmap-status-2026.md), which carries the per-task status. Phase 0 (dashboard hardening) and Phase 2 (compiler primitive collapse) are largely complete; Phase 3 (grammar unification policy in `AGENTS.md`) is next, and Phases 4–8 are queued. The retired surfaces — symbols you may still see in older docs but should no longer use — are listed in the [`AGENTS.md` retired-surfaces table](AGENTS.md).
 
 ---
 

@@ -36,15 +36,15 @@ Vox persisted data through `vox-db` (`VoxDb` / **Codex**), with related crates (
 - `VoxDb` remains the stable Rust identifier for ABI/compatibility; prefer **Codex** in user-facing text and new modules.
 - Compatibility aliases **`VOX_TURSO_URL`** / **`VOX_TURSO_TOKEN`** map to the same remote resolution as `VOX_DB_URL` / `VOX_DB_TOKEN` in `vox_db::DbConfig::resolve_standalone` (after canonical env, before legacy Turso names).
 - Legacy env vars `TURSO_URL` / `TURSO_AUTH_TOKEN` are **deprecated**; they remain a last-resort shim in `resolve_standalone` alongside `VOX_TURSO_*`.
-- Direct `turso::` usage outside `vox-db` (and documented exceptions) is discouraged; domain code should call **`VoxDb` / `Codex` APIs** (`store/ops_*.rs`). See [direct Turso allowlist](../architecture/codex-turso-allowlist.md) for the current enforcement story.
+- Direct `turso::` usage outside `vox-db` (and documented exceptions) is discouraged; domain code should call **`VoxDb` / `Codex` APIs** (`store/ops_*.rs`). See [direct Turso allowlist](../archive/research-2026-q1/codex-turso-allowlist.md) for the current enforcement story.
 
 ## References
 
 - [Environment variables (SSOT)](../reference/env-vars.md) — canonical `VOX_DB_*` / Turso alias precedence
-- [Codex / Arca compatibility boundaries](../architecture/codex-arca-compatibility-boundaries.md) — API, env, and migration contract
-- [Codex vNext schema domains](../architecture/codex-vnext-schema.md)
-- [Codex BaaS scaffolding](../architecture/codex-baas.md)
-- [Orphan surface inventory](../architecture/orphan-surface-inventory.md)
+- [Codex / Arca compatibility boundaries](../archive/research-2026-q1/codex-arca-compatibility-boundaries.md) — API, env, and migration contract
+- [Codex vNext schema domains](../archive/research-2026-q1/codex-vnext-schema.md)
+- [Codex BaaS scaffolding](../archive/research-2026-q1/codex-baas.md)
+- [Orphan surface inventory](../archive/research-2026-q1/orphan-surface-inventory.md)
 - Crate: `crates/vox-db`, `crates/vox-pm`
 
 

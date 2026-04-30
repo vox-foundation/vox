@@ -69,7 +69,7 @@ fn builtin_system_prompt() -> String {
 - `import x.y` — imports
 
 ## Core syntax
-- `let x = expr`, `ret expr`, `if cond:`, `for x in xs:`, `match e: Variant(f) ->`
+- `let x = expr`, `return expr`, `if cond:`, `for x in xs:`, `match e: Variant(f) ->`
 - Comments: `#` or `//`
 - Return type ALWAYS uses `->` arrow. Never use `to` or bare expression return.
 - No null, no classes, no mutable globals. Use actors for state.

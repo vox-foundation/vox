@@ -9,7 +9,7 @@ schema_type: "TechArticle"
 ---
 # HF fine-tune gap matrix (SSOT ↔ code)
 
-Maps **remaining** risks and **resolved** items to **modules** and **severity**. See [capability matrix](../architecture/hf-finetune-capability-matrix.md) for the live feature table.
+Maps **remaining** risks and **resolved** items to **modules** and **severity**. See [capability matrix](../archive/research-2026-q1/hf-finetune-capability-matrix.md) for the live feature table.
 
 ## Active gaps / risks
 
@@ -33,7 +33,7 @@ Maps **remaining** risks and **resolved** items to **modules** and **severity**.
 ## Related
 
 - [Mens training SSOT](mens-training.md) — merge table and regression commands.
-- [Mens LLM PR checklist](../architecture/mens-llm-pr-checklist.md) — duplication, flags, layouts, merge, parity tiers.
+- [Mens LLM PR checklist](../archive/research-2026-q1/mens-llm-pr-checklist.md) — duplication, flags, layouts, merge, parity tiers.
 - `crates/vox-populi/src/mens/tensor/finetune_contract.rs` — contract gates.
 
 

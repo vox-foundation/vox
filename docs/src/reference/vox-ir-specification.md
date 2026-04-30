@@ -29,7 +29,7 @@ The **Vox Intermediate Representation (IR)** is the canonical, platform-agnostic
 vox check main.vox --emit-ir
 ```
 
-Authoritative naming table: [IR emission SSOT](../architecture/ir-emission-ssot.md).
+Authoritative naming table: [IR emission SSOT](../archive/research-2026-q1/ir-emission-ssot.md).
 
 ## Schema version 2.0.0
 
@@ -107,9 +107,9 @@ While internal HIR layouts may evolve between compiler versions, **Vox IR** (v2.
 
 **Related**:
 
-- [IR emission SSOT](../architecture/ir-emission-ssot.md)
-- [Compiler IR pipeline](../architecture/compiler-ir-pipeline.md)
-- [Internal Web IR blueprint](../architecture/internal-web-ir-implementation-blueprint.md)
+- [IR emission SSOT](../archive/research-2026-q1/ir-emission-ssot.md)
+- [Compiler IR pipeline](../archive/research-2026-q1/compiler-ir-pipeline.md)
+- [Internal Web IR blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md)
 - [HIR Reference](./hir-legacy-inventory.md)
 - [WebIR Strategy](../adr/012-internal-web-ir-strategy.md)
 

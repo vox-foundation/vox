@@ -8,7 +8,7 @@
 //! # Layout
 //! - [`decl`] — one file becomes a [`decl::Module`] of [`decl::Decl`] items (functions, tables, routes, …).
 //! - [`expr`] — expression tree inside bodies; shares [`span::Span`] with statements and patterns.
-//! - [`stmt`] — `let` / `ret` / expression statements; blocks in `expr` embed statements.
+//! - [`stmt`] — `let` / `return` / expression statements; blocks in `expr` embed statements.
 //! - [`pattern`] — `let` and `match` patterns; must align with [`expr::Expr::Match`] arms.
 //! - [`types`] — type **syntax** only (generics, `fn(…) -> …`); not the internal type algebra.
 //!

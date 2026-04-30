@@ -41,6 +41,6 @@ This page is the **canonical** policy matrix for **first-wave personal-cluster**
 
 ## Related documentation
 
-- [Populi GPU mesh implementation plan 2026](../architecture/populi-gpu-mesh-implementation-plan-2026.md) — phased delivery (roadmap); Phase 5 tasks **`p5-placement-policy`**, **`p5-queued-capacity-rebalance`**, **`p5-gang-nccl-pilot`** cover unified placement, queued replanning on capacity changes, and collective pilot bounds.
-- [Protocol convergence research 2026](../architecture/protocol-convergence-research-2026.md) — transport and delivery-plane context.
+- [Populi GPU mesh implementation plan 2026](../archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md) — phased delivery (roadmap); Phase 5 tasks **`p5-placement-policy`**, **`p5-queued-capacity-rebalance`**, **`p5-gang-nccl-pilot`** cover unified placement, queued replanning on capacity changes, and collective pilot bounds.
+- [Protocol convergence research 2026](../archive/research-2026-q1/protocol-convergence-research-2026.md) — transport and delivery-plane context.
 

@@ -355,7 +355,15 @@ pub fn run() {
         let arch_pages = all_pages
             .iter()
             .filter(|p| p.path.starts_with("architecture/"))
-            .cloned()
+            .map(|p| {
+                let mut rebased = p.clone();
+                rebased.path = rebased
+                    .path
+                    .strip_prefix("architecture/")
+                    .unwrap_or(&rebased.path)
+                    .to_string();
+                rebased
+            })
             .collect::<Vec<_>>();
         push_pages_grouped(&mut arch_output, arch_pages);
         let arch_index_path = docs_src.join("architecture").join("architecture-index.md");

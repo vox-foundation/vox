@@ -195,7 +195,7 @@ mod tests {
     fn lower_module_routes_yields_stable_order() {
         let src = r#"
 @server fn greet(name: str) to str {
-    ret name
+    return name
 }
 "#;
         let tokens = lex(src);
@@ -218,7 +218,7 @@ mod tests {
     fn route_ir_contract_key_matches_hir_contract() {
         let src = r#"
 @server fn ping() to str {
-    ret "pong"
+    return "pong"
 }
 "#;
         let tokens = lex(src);
@@ -238,7 +238,7 @@ mod tests {
     fn route_ir_query_uses_get_contract_key() {
         let src = r#"
 @query fn items() to int {
-    ret 0
+    return 0
 }
 "#;
         let tokens = lex(src);

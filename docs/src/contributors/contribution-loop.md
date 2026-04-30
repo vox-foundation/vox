@@ -107,7 +107,7 @@ cargo run -p vox-cli -- ci ssot-drift
 ## Planned additions (roadmap — Wave 7–9)
 
 > **These are not yet shipped.** They describe the direction from
-> [`vox_agentic_loop_and_mens_plan.md`](../architecture/vox_agentic_loop_and_mens_plan.md).
+> [`vox_agentic_loop_and_mens_plan.md`](../archive/research-2026-q1/vox_agentic_loop_and_mens_plan.md).
 
 **Scientia auto-ingest (Wave 7):** IDE sessions will be observed by
 `ScientiaObserver`. Sessions that produce valid `.vox` with high
@@ -126,7 +126,7 @@ coverage inside `.vox` files a first-class quality signal.
 ## Related
 
 - [TOESTUB contributor guide](toestub-contributor-guide.md) — fix specific CI failures
-- [Vox source → MENS pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md) — authoritative technical crosswalk
+- [Vox source → MENS pipeline SSOT](../archive/research-2026-q1/vox-source-to-mens-pipeline-ssot.md) — authoritative technical crosswalk
 - [Mens native training SSOT](../reference/mens-training.md) — training pipeline reference
-- [AI agent panic and shortcut pathology](../architecture/research-ai-panic-shortcuts-2026.md) — why shortcuts harm the corpus
+- [AI agent panic and shortcut pathology](../archive/research-2026-q1/research-ai-panic-shortcuts-2026.md) — why shortcuts harm the corpus
 

@@ -87,8 +87,8 @@ npm run compile
 
 The extension highlights all Vox language constructs:
 
-- **Keywords**: `fn`, `let`, `mut`, `ret`, `if`, `else`, `for`, `while`, `match`, `type`, `actor`, `workflow`, `activity`, `routes`, `style`, `import`
-- **Decorators**: `@table`, `@server`, `@component`, `@test`, `@query`, `@mutation`, `@action`, `@skill`, `@agent_def`, `@mcp.tool`, `@v0`, `@pure`, `@deprecated`, `@require`, `@index`, `@storage`
+- **Keywords**: `fn`, `let`, `mut`, `return`, `if`, `else`, `for`, `while`, `match`, `type`, `import`
+- **Decorators**: `@table`, `@endpoint`, `@component`, `@test`, `@action`, `@skill`, `@agent_def`, `@mcp.tool`, `@v0`, `@pure`, `@deprecated`, `@require`, `@index`, `@storage`
 - **Types**: `int`, `str`, `bool`, `Unit`, `Element`, `List`, `Map`, `Set`, `Result`, `Option`, `Id`
 - **Comments**: `#` line comments
 - **JSX**: Inline JSX tags within `@component` functions

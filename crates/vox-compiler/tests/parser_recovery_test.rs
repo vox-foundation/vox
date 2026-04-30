@@ -6,11 +6,11 @@ use vox_compiler::parser::{ParseErrorClass, parse};
 #[test]
 fn multiple_top_level_issues_accumulate_errors() {
     let src = r#"
-fn good_a() to int { ret 1 }
+fn good_a() to int { return 1 }
 
 @@@bad@@@
 
-fn good_b() to int { ret 2 }
+fn good_b() to int { return 2 }
 "#;
     let tokens = lex(src);
     let err = parse(tokens).expect_err("expected parse errors");

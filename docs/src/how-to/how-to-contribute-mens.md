@@ -14,7 +14,7 @@ This guide covers how to contribute to the `vox mens train` pipeline and how to 
 ## Read first
 
 - [Mens native training SSOT](../reference/mens-training.md)
-- [HF finetune capability matrix](../architecture/hf-finetune-capability-matrix.md)
+- [HF finetune capability matrix](../archive/research-2026-q1/hf-finetune-capability-matrix.md)
 - [The Vox contribution loop](../contributors/contribution-loop.md)
 
 ## Entrypoints

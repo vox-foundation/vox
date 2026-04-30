@@ -109,7 +109,7 @@ const CORE_SYNTAX: &str = r#"## Core Syntax
 
 ### Variables and Control Flow
 - `let x = expr` — immutable binding
-- `ret expr` — return value
+- `return expr` — return value
 - `if condition: body`
 - `for item in collection: body`
 - `match expr: Variant(field) -> body`
@@ -134,10 +134,10 @@ actor Counter:
 ## Workflows & Activities (Durable Execution)
 ```
 activity name(param: type) to Result[Type]:
-    ret Ok(value)
+    return Ok(value)
 workflow name(param: type) to Result[Type]:
     let result = activity_call(args) with { retries: N, timeout: "Ns" }
-    ret Ok(result)
+    return Ok(result)
 ```
 
 ## Components (JSX Syntax)

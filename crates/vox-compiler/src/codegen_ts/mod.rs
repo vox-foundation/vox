@@ -3,8 +3,6 @@
 //! Submodules map HIR/AST constructs to TS/JSX; this crate re-exports [`emitter::generate`].
 #![allow(clippy::collapsible_if)]
 
-/// Vox activity / durable step TypeScript emission.
-pub mod activity;
 /// Algebraic data types → TypeScript unions and helpers.
 pub mod adt;
 /// `@component` and related React component codegen.

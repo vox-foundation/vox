@@ -1,7 +1,7 @@
 //! Imperative statements inside function, component, and handler bodies.
 //!
 //! Vox uses **expression-oriented** blocks: a [`crate::ast::expr::Expr::Block`] contains statements,
-//! and the block’s value is the last expression (not a separate `return` type in the AST). `ret`
+//! and the block’s value is the last expression (not a separate `return` type in the AST). `return`
 //! is only modeled here as `Stmt::Return`.
 
 use crate::ast::expr::Expr;
@@ -34,11 +34,11 @@ pub enum Stmt {
         /// Span covering the assignment.
         span: Span,
     },
-    /// Return statement: `ret value`
+    /// Return statement: `return value`
     Return {
         /// Returned expression, if any.
         value: Option<Expr>,
-        /// Span covering `ret` / expression.
+        /// Span covering `return` / expression.
         span: Span,
     },
     /// Expression statement (an expression evaluated for its side effects)

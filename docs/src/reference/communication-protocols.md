@@ -20,7 +20,7 @@ Vox uses a **single taxonomy**, not a single wire format.
 - Keep one machine-readable inventory of protocol families, delivery planes, and ownership.
 - Keep one prose reference page per protocol family that points back to its contract artifact.
 - Reuse helpers only where payload shape and lifecycle genuinely match.
-- For **which wire to pick** when adding traffic (SSE vs WebSocket vs HTTP-only, MCP remote vs stdio, mesh vs DB inbox), use the lane matrix and bibliography in [Protocol convergence research 2026](../architecture/protocol-convergence-research-2026.md) as advisory input; this reference page remains the **normative** inventory and reduction policy.
+- For **which wire to pick** when adding traffic (SSE vs WebSocket vs HTTP-only, MCP remote vs stdio, mesh vs DB inbox), use the lane matrix and bibliography in [Protocol convergence research 2026](../archive/research-2026-q1/protocol-convergence-research-2026.md) as advisory input; this reference page remains the **normative** inventory and reduction policy.
 
 ## Delivery planes
 
@@ -70,7 +70,7 @@ Protocol families marked `evaluate` in the catalog should only be merged or remo
 ## Related
 
 - [Documentation governance](../contributors/documentation-governance.md)
-- [Protocol convergence research 2026](../architecture/protocol-convergence-research-2026.md) — advisory: lanes, overlaps, SSOT gaps
+- [Protocol convergence research 2026](../archive/research-2026-q1/protocol-convergence-research-2026.md) — advisory: lanes, overlaps, SSOT gaps
 - [Unified orchestration](orchestration-unified.md)
 - [Mesh / Populi SSOT](populi.md)
 - [Populi work-type placement policy matrix](populi-work-type-placement-matrix.md) — local / LAN / overlay boundaries

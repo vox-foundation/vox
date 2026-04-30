@@ -66,7 +66,7 @@ Current policy:
 - remote entries are adapter metadata first, query backends later
 - cross-repo paths stay per-repository; there is no shared global path namespace
 
-See also: [Cross-repo querying and observability](../architecture/cross-repo-query-observability.md).
+See also: [Cross-repo querying and observability](../archive/research-2026-q1/cross-repo-query-observability.md).
 
 ## Related
 

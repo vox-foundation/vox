@@ -59,6 +59,6 @@ Prove you can **disable remote paths** without redeploying code:
 ## Related documentation
 
 - [Overlay personal cluster runbook](populi-overlay-personal-cluster-runbook.md)
-- [Populi GPU mesh implementation plan 2026](../architecture/populi-gpu-mesh-implementation-plan-2026.md) — roadmap sequencing
+- [Populi GPU mesh implementation plan 2026](../archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md) — roadmap sequencing
 
 

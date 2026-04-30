@@ -21,7 +21,7 @@ The Vox toolchain resolves this tension by providing native hardware-accelerated
 
 You can extract corpus pairs, assemble **`train.jsonl`**, and run training **without a Python training loop**. The operator surface is the **CLI** and corpus commands today; in-language orchestration remains a product direction.
 
-Authoritative pipeline map (sources → compiler → goldens → corpus → Mens): [Vox source → Mens pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md). Dataset contract: [Mens training data contract](../reference/mens-training-data-contract.md).
+Authoritative pipeline map (sources → compiler → goldens → corpus → Mens): [Vox source → Mens pipeline SSOT](../archive/research-2026-q1/vox-source-to-mens-pipeline-ssot.md). Dataset contract: [Mens training data contract](../reference/mens-training-data-contract.md).
 
 ## Illustrative snippet (not the shipped CLI)
 

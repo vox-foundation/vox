@@ -6,7 +6,7 @@ use vox_compiler::parser::parse;
 const CORPUS: &[&str] = &[
     "",
     "fn x(",
-    "fn x() to int { ret 1",
+    "fn x() to int { return 1",
     "{{{{",
     "import \n\n",
     "@component X() { view: <div />",
@@ -14,7 +14,7 @@ const CORPUS: &[&str] = &[
     "http post \"",
     r#" "\ "#,
     "pub pub pub",
-    "fn a() to int { ret 1 }\n\x00garbage",
+    "fn a() to int { return 1 }\n\x00garbage",
 ];
 
 #[test]

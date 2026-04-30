@@ -21,7 +21,7 @@ schema_type: "TechArticle"
 | **Codex API (BaaS template)** | Self-hosted Codex-style HTTP API on Turso (placeholder service name) | [`infra/coolify/docker-compose.yml`](../../../infra/coolify/docker-compose.yml) | **`VOX_CODEX_IMAGE`** (you build/push); not the default `vox` MCP image unless you retag/repurpose | **8080** (template) |
 | **Generated app stack** | `vox deploy` / `vox-container` sample (Node + nginx + optional mens env) | Emitted by [`generate_compose_file`](../../../crates/vox-container/src/generate.rs) | Project `Dockerfile` from `@environment` / package flow | **3000** + **80/443** |
 
-**Do not** assume root `docker-compose.yml` and `infra/coolify/docker-compose.yml` are interchangeable: they target **different workloads** (MCP vs Codex API template). See [Codex BaaS](../architecture/codex-baas.md) and [infra/coolify/README.md](../adr/index.md).
+**Do not** assume root `docker-compose.yml` and `infra/coolify/docker-compose.yml` are interchangeable: they target **different workloads** (MCP vs Codex API template). See [Codex BaaS](../archive/research-2026-q1/codex-baas.md) and [infra/coolify/README.md](../adr/index.md).
 
 Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-mcp` and set `VOX_ORCHESTRATOR_DAEMON_SOCKET` on MCP to the daemon TCP endpoint. Use `VOX_MCP_ORCHESTRATOR_RPC_READS=1` / `VOX_MCP_ORCHESTRATOR_RPC_WRITES=1` only when both services share the same repo/db context and startup probe confirms matching `repository_id`.
 
@@ -57,7 +57,7 @@ Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-mcp` a
 ## Related docs
 
 - [Vox portability SSOT](vox-portability-ssot.md) — normative portability guarantees, SSOT boundaries, and conformance expectations.
-- [Cross-platform Vox — lanes & Docker matrix (SSOT)](../architecture/vox-cross-platform-runbook.md) — script worker vs app vs mobile; feature matrix.
+- [Cross-platform Vox — lanes & Docker matrix (SSOT)](../archive/research-2026-q1/vox-cross-platform-runbook.md) — script worker vs app vs mobile; feature matrix.
 - [How to deploy](../how-to/how-to-deploy.md) — `vox deploy`, `Vox.toml`, registry login.
 - [Zig-inspired deployment](../explanation/zig-inspired-deployment.md) — unified `vox deploy` targets and crates.
 - [Mens SSOT](populi.md), [orchestration unified SSOT](orchestration-unified.md), [Populi overlay personal cluster runbook](../operations/populi-overlay-personal-cluster-runbook.md), [remote execution rollout checklist](../operations/populi-remote-execution-rollout-checklist.md).

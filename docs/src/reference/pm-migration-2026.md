@@ -10,7 +10,7 @@ schema_type: "TechArticle"
 
 # Package management migration (2026)
 
-This note is the **operator-facing mapping** for the packaging redesign (hybrid top-level + **`vox pm`**, strict **`update`** vs **`upgrade`**, **`vox install`** removed as a package verb, and **no supported Python/uv PM path**). Authoritative semantics: [`cli.md`](cli.md) § Package management, [`vox-packaging-implementation-blueprint.md`](../architecture/vox-packaging-implementation-blueprint.md), and `contracts/cli/command-registry.yaml`.
+This note is the **operator-facing mapping** for the packaging redesign (hybrid top-level + **`vox pm`**, strict **`update`** vs **`upgrade`**, **`vox install`** removed as a package verb, and **no supported Python/uv PM path**). Authoritative semantics: [`cli.md`](cli.md) § Package management, [`vox-packaging-implementation-blueprint.md`](../archive/research-2026-q1/vox-packaging-implementation-blueprint.md), and `contracts/cli/command-registry.yaml`.
 
 ## Command substitutions
 

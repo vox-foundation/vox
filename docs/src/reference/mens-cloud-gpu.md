@@ -49,7 +49,7 @@ Important current boundary:
 - `vox mens train --cloud` and Populi mesh are **different execution surfaces** with different trust, networking, and lifecycle assumptions.
 - Remote execution through Populi remains experimental and local-safe unless a future design adds explicit ownership, checkpointing, and recovery semantics.
 
-See [Populi GPU network research 2026](../architecture/populi-gpu-network-research-2026.md) for the gap analysis and external guidance that should inform the later implementation plan.
+See [Populi GPU network research 2026](../archive/research-2026-q1/populi-gpu-network-research-2026.md) for the gap analysis and external guidance that should inform the later implementation plan.
 
 **Placement boundaries:** [work-type placement policy matrix](populi-work-type-placement-matrix.md); **execution ownership (design intent):** [ADR 017](../adr/017-populi-lease-remote-execution.md); **GPU inventory layering:** [ADR 018](../adr/018-populi-gpu-truth-layering.md).
 

@@ -59,7 +59,7 @@ This SSOT does **not** define Vox as a replacement for Kotlin or Swift. The reco
 
 2. The **execution planner** applies **gates**: bounded `seq_len` / `rank` / `batch_size`, no `--qlora-require-full-proxy-stack`, and **`--device cpu`** is **required** so adapters are trained without binding to a desktop-only GPU stack (see planner errors for the exact message).
 
-3. **Artifacts** (`adapter_schema_v3`, `training_manifest.json`) record `training_deployment_target` and an operator **note** pointing here and to [HF finetune capability matrix](../architecture/hf-finetune-capability-matrix.md). **Conversion** to LiteRT / Core ML / TFLite is **out of tree** until a supported exporter exists.
+3. **Artifacts** (`adapter_schema_v3`, `training_manifest.json`) record `training_deployment_target` and an operator **note** pointing here and to [HF finetune capability matrix](../archive/research-2026-q1/hf-finetune-capability-matrix.md). **Conversion** to LiteRT / Core ML / TFLite is **out of tree** until a supported exporter exists.
 
 Canonical trainer documentation remains [mens-training.md](mens-training.md).
 
@@ -84,7 +84,7 @@ Training emits artifacts that are consumed by an **exporter outside this reposit
 - [ ] `training_manifest.json` (or its successor) records exporter version and output checksums (or equivalent integrity fields).
 - [ ] Documented validation step (for example a dry-run load in the target runtime, or a future `vox mens` verify subcommand when one exists).
 
-Further context: [HF finetune capability matrix](../architecture/hf-finetune-capability-matrix.md), [Mens training SSOT](mens-training.md).
+Further context: [HF finetune capability matrix](../archive/research-2026-q1/hf-finetune-capability-matrix.md), [Mens training SSOT](mens-training.md).
 
 ## Inference profiles (no Ollama on loopback for mobile)
 
@@ -119,7 +119,7 @@ See [mens SSOT](populi.md) for the full `VOX_MESH_*` table.
 
 ## Related
 
-- [Cross-platform Vox — lanes & Docker matrix (SSOT)](../architecture/vox-cross-platform-runbook.md) — script worker vs app vs mobile; Docker feature matrix.
+- [Cross-platform Vox — lanes & Docker matrix (SSOT)](../archive/research-2026-q1/vox-cross-platform-runbook.md) — script worker vs app vs mobile; Docker feature matrix.
 - [Deployment compose SSOT](deployment-compose.md) — server/container Compose vs mobile (inference profiles, no phone OCI).
 - [Orchestration unified SSOT](orchestration-unified.md) — capability merge rules.
 - [Environment variables (SSOT)](env-vars.md).

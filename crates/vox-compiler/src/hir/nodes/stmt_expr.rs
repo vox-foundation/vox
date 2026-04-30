@@ -268,11 +268,11 @@ pub enum HirStmt {
         /// Span covering the assignment.
         span: Span,
     },
-    /// `ret` statement.
+    /// `return` statement.
     Return {
         /// Return value, if any.
         value: Option<HirExpr>,
-        /// Span covering `ret` / value.
+        /// Span covering `return` / value.
         span: Span,
     },
     /// Expression statement.

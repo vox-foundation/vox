@@ -35,7 +35,7 @@ Current production behavior (important for migration planning):
 - `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` enables reactive `view:` bridge output via WebIR preview emit only when parity checks pass.
 - The two flags are related but not equivalent; validation can be enabled without switching reactive view emission.
 
-**Operations catalog + gates:** [WebIR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) and [acceptance gates G1–G6](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) (includes supplemental **OP-S049–OP-S220** rustc/doc gates). **Roadmap link pass A (OP-S130, OP-S131, OP-S209–OP-S211):** keep lowering docs aligned when renaming validation stages.
+**Operations catalog + gates:** [WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) and [acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) (includes supplemental **OP-S049–OP-S220** rustc/doc gates). **Roadmap link pass A (OP-S130, OP-S131, OP-S209–OP-S211):** keep lowering docs aligned when renaming validation stages.
 
 Separately, **backend-oriented** lowering remains optimized for Rust emission (database, actors, HTTP). The older “Frontend LIR” label maps to this split: **WebIR** for structured web UI, **HIR emitters** for expedient TS until the printer fully migrates.
 
@@ -55,11 +55,11 @@ The final phase where lowered IR is converted into source files:
 - **`vox-compiler::codegen_ts`**: Produces TS/TSX output (`App.tsx`/route trees, server-fn wrappers, component files, and generated contracts).
 
 For frontend IR layering and migration phases, see [ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md).
-For detailed implementation sequencing, see [Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md).
-For ordered file-by-file migration operations, see [WebIR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
-For exact current-vs-target representation mapping, see [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md).
-For quantified token+grammar+escape-hatch savings on the canonical app, see [WebIR K-complexity quantification](../architecture/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
-For reproducible counting registries and equation trace, see [WebIR K-metric appendix](../architecture/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
+For detailed implementation sequencing, see [Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
+For ordered file-by-file migration operations, see [WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
+For exact current-vs-target representation mapping, see [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md).
+For quantified token+grammar+escape-hatch savings on the canonical app, see [WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
+For reproducible counting registries and equation trace, see [WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
 
 ## 5. Why Lowering Matters?
 
@@ -69,5 +69,5 @@ By having multiple intermediate representations, Vox can perform complex archite
 
 **Related Reference**:
 - [Architecture Index](expl-architecture.md) — High-level map of the current compiler module layout.
-- [API Reference: vox-hir (Archived)](../reference/cli.md) — Details on the HIR data structures.
+- [Archived: vox-hir crate](../archive/vox-hir.md) — Historical reference for the HIR data structures from the pre-monolith compiler split.
 

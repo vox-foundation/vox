@@ -23,7 +23,7 @@ The second-pass implementation-planning work should treat the following document
 
 1. [`reference/mens-laziness-accuracy-audit.md`](mens-laziness-accuracy-audit.md)
 2. [`reference/mens-measurement-gap-analysis.md`](mens-measurement-gap-analysis.md)
-3. [`architecture/mens-lane-segmentation-research.md`](../architecture/mens-lane-segmentation-research.md)
+3. [`architecture/mens-lane-segmentation-research.md`](../archive/research-2026-q1/mens-lane-segmentation-research.md)
 4. [`reference/mens-external-tech-options.md`](mens-external-tech-options.md)
 5. [`reference/mens-training.md`](mens-training.md)
 6. [`reference/mens-qlora-data-strategy.md`](mens-qlora-data-strategy.md)

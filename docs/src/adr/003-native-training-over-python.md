@@ -70,7 +70,7 @@ The original Mens training pipeline used `mens/training/train.py` (Python, Unslo
 
 **Negative / limits (see SSOT, not “use Python”)**
 
-- **Execution kernel gaps:** Full causal NF4 blocks and other limits are documented in [candle-full-graph-feasibility.md](../architecture/candle-full-graph-feasibility.md) and [mens-training.md](../reference/mens-training.md).  
+- **Execution kernel gaps:** Full causal NF4 blocks and other limits are documented in [candle-full-graph-feasibility.md](../archive/research-2026-q1/candle-full-graph-feasibility.md) and [mens-training.md](../reference/mens-training.md).  
 - **Serving:** Merged QLoRA artifacts are aimed at **external** runtimes (vLLM, Ollama, HF, OpenAI-compatible); `vox mens serve` today targets the **Burn** merged-weights lane.  
 - **Burn ecosystem** (where still used): fewer optimizers than PyTorch; cold wgpu builds can be heavy — mitigated by feature flags.  
 - **Optional legacy:** Old Python scripts may still exist in trees or forks for one-off experiments; they are **not** the documented or dispatched path for Mens QLoRA.  

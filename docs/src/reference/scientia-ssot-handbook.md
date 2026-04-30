@@ -10,7 +10,7 @@ schema_type: "TechArticle"
 
 # SCIENTIA SSOT handbook
 
-Companion: [publication readiness audit](../architecture/scientia-publication-readiness-audit.md), [VoxGiantia publication map](../architecture/voxgiantia-publication-architecture.md), [how-to publication](../how-to/how-to-scientia-publication.md).
+Companion: [publication readiness audit](../archive/research-2026-q1/scientia-publication-readiness-audit.md), [VoxGiantia publication map](../archive/research-2026-q1/voxgiantia-publication-architecture.md), [how-to publication](../how-to/how-to-scientia-publication.md).
 
 ## 1. Glossary and canonical lifecycle (T001)
 

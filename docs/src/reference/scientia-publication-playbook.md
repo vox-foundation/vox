@@ -37,7 +37,7 @@ Supported adapters include `local_ledger` (default), `echo_ledger`, `zenodo`, `o
 
 ## Scholarly external jobs: preflight / retry / `error_class`
 
-- **Dual approval:** submit and job ticks require two digest-bound approvers; missing approval yields CLI/MCP errors or tick outcome `preflight_rejected` with message `dual digest-bound approvals…`. See [scholarly-digest-approval-invariants](../architecture/scholarly-digest-approval-invariants.md).
+- **Dual approval:** submit and job ticks require two digest-bound approvers; missing approval yields CLI/MCP errors or tick outcome `preflight_rejected` with message `dual digest-bound approvals…`. See [scholarly-digest-approval-invariants](../archive/research-2026-q1/scholarly-digest-approval-invariants.md).
 - **Digest mismatch:** job `content_sha3_256` must match the live manifest row; otherwise preflight fails (often permanent). Re-create the job or re-run submit from the CLI/MCP after updating the manifest.
 - **`external_submission_attempts` {** `error_class` follows `ScholarlyError` (`disabled`, `config`, `auth`, `rate_limit`, `transient`, `fatal`) or raw HTTP-derived classes on the `Http` variant; `http_status` is populated for auth (401/403), rate limits (429), 5xx-mapped transients, and other `Http` failures. Job-only **`preflight`** is not a `ScholarlyError`.
 - **Operator tick:** `vox db publication-external-jobs-tick` / MCP `vox_scientia_publication_external_jobs_tick` leases due rows and calls `submit_with_adapter`; inspect JSON `results[].outcome` (`succeeded`, `submit_failed`, `preflight_rejected`, `claim_lost`, etc.).

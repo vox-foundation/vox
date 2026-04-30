@@ -4,7 +4,7 @@
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [workflow, activity, http, log, Result, Ok, Error]
+// constructs: [log, Result, Ok, Error]
 // last_validated: 2026-04-13
 // training_eligible: true
 // training_weight: 1.0
