@@ -177,17 +177,29 @@ fn main() {
     }
 
     if background == false {
-        // Post-training verification doubles as the A2A run receipt:
-        // re-running eval-gate against mens/runs/latest validates that
-        // training actually wrote manifest.json, metrics.jsonl, eval_results.json,
-        // AND that the new model meets eval-gate thresholds (parse rate,
-        // construct coverage, supervised ratio, throughput, anti-stub).
-        // The gate's exit code + artifacts ARE the machine-readable receipt
-        // that orchestrator/A2A consumers can register against.
-        // Post-train gate uses eval-gates-post-train.yaml (warn-only for pass_at_k and
-        // review_recurrence — those need explicit eval-local + review pipeline steps
-        // that run separately from training). Blocking gates here cover only what the
-        // trainer writes: training_manifest.json, telemetry.jsonl, eval_results.json.
+        // Step 3.5: Refresh eval_results.json in the run directory.
+        // The QLoRA trainer does NOT write eval_results.json (only the legacy
+        // mens-dei+gpu path does). Without this step, Step 4's eval_local gate
+        // would read a stale file left by the previous pipeline run — or find
+        // nothing at all on a first run. We evaluate the same train.jsonl the
+        // trainer consumed and write fresh results directly into the run dir.
+        // Non-blocking: a corpus eval failure should not abort a successful training run.
+        print("  Refreshing corpus eval metrics for run dir...")
+        let corpus_eval = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "corpus", "eval", "target/dogfood/train.jsonl", "--output", "mens/runs/latest/eval_results.json", "--print-summary"])
+        if corpus_eval isnt null {
+            let res = corpus_eval.unwrap()
+            if res.code == 0 {
+                print("  ✓ eval_results.json refreshed.")
+            } else {
+                print("  ⚠ Corpus eval failed — Step 4 gate will use prior eval_results.json (may be stale).")
+            }
+        }
+
+        // Post-training verification doubles as the A2A run receipt.
+        // Uses eval-gates-post-train.yaml: pass_at_k and review_recurrence are
+        // warn-only because those require explicit eval-local + review pipeline
+        // steps after training. Blocking gates cover trainer-written artifacts:
+        // training_manifest.json, telemetry.jsonl, eval_results.json.
         print("Step 4/4: Post-training verification (run receipt)...")
         let post_gate = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "eval-gate", "--run-dir", "mens/runs/latest", "--policy", "mens/config/eval-gates-post-train.yaml"])
         if post_gate isnt null {
