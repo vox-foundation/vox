@@ -1120,6 +1120,18 @@ operations:
 - surface: vox-cli
   path:
   - db
+  - publication-discovery-publish-rss
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: crates/vox-cli/src/commands/db/publication/discovery.rs::publication_discovery_publish_rss
+- surface: vox-cli
+  path:
+  - db
   - publication-novelty-fetch
   status: active
   latin_ns: codex
@@ -2364,6 +2376,18 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: null
+- surface: vox-cli
+  path:
+  - scientia
+  - publication-discovery-publish-rss
+  status: active
+  latin_ns: codex
+  product_lane: data
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: crates/vox-cli/src/commands/db/publication/discovery.rs::publication_discovery_publish_rss
 - surface: vox-cli
   path:
   - scientia

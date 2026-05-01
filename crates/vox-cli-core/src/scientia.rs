@@ -170,6 +170,19 @@ pub enum ScientiaCmd {
         #[arg(long, default_value_t = 50)]
         limit: i64,
     },
+    /// Auto-publish StrongCandidate findings to the local RSS feed (feed.xml). Idempotent.
+    #[command(name = "publication-discovery-publish-rss")]
+    PublicationDiscoveryPublishRss {
+        /// Override the path to feed.xml (default: docs/src/feed.xml relative to repo root).
+        #[arg(long)]
+        feed_path: Option<std::path::PathBuf>,
+        /// Maximum candidates to scan.
+        #[arg(long, default_value_t = 100)]
+        limit: i64,
+        /// Emit JSON result summary.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
     #[command(name = "publication-discovery-explain")]
     PublicationDiscoveryExplain {
         #[arg(long)]

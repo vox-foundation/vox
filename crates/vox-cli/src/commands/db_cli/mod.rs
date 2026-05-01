@@ -270,6 +270,20 @@ pub async fn run(cmd: DbCli) -> anyhow::Result<()> {
                 db::publication_discovery_scan(content_type.as_deref(), state.as_deref(), limit)
                     .await
             }
+            DbCliPublication::PublicationDiscoveryPublishRss {
+                content_type,
+                feed_path,
+                limit,
+                json,
+            } => {
+                db::publication_discovery_publish_rss(
+                    content_type.as_deref(),
+                    feed_path.as_deref(),
+                    limit,
+                    json,
+                )
+                .await
+            }
             DbCliPublication::PublicationDiscoveryExplain { publication_id } => {
                 db::publication_discovery_explain(&publication_id).await
             }

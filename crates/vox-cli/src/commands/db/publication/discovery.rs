@@ -205,3 +205,153 @@ pub async fn publication_novelty_fetch(
     println!("{}", serde_json::to_string_pretty(&bundle)?);
     Ok(())
 }
+
+/// Auto-publish `auto_draft_eligible` Scientia findings to the local RSS feed.
+///
+/// Scans publication manifests ranked by the Scientia discovery heuristics and
+/// appends each [`DiscoveryIntakeTier::StrongCandidate`] finding as an RSS item in
+/// `feed.xml`.  This is the **owned** channel (a local file), so no gate / dual
+/// approval is required.  The insert is idempotent: items already present in the
+/// feed (matched by GUID) are skipped silently.
+///
+/// # Arguments
+/// - `content_type` — optional filter (e.g. `"scientia"`); default: all
+/// - `feed_path_override` — override the path to `feed.xml`; default:
+///   `<repo_root>/docs/src/feed.xml`
+/// - `limit` — maximum candidates to scan
+/// - `json` — emit a JSON summary of what was published
+pub async fn publication_discovery_publish_rss(
+    content_type: Option<&str>,
+    feed_path_override: Option<&std::path::Path>,
+    limit: i64,
+    json: bool,
+) -> Result<()> {
+    let db = vox_db::VoxDb::connect_default().await?;
+    let rows = db
+        .list_publication_manifests(content_type, None, limit)
+        .await?;
+    let repo_root = vox_repository::resolve_repo_root_for_ci();
+    let scientia_h =
+        vox_publisher::scientia_heuristics::ScientiaHeuristics::load_from_repo_root(&repo_root);
+
+    // Resolve the RSS feed path: CLI override → env override → repo-root default.
+    let site = if let Some(p) = feed_path_override {
+        let mut s = vox_publisher::NewsSiteConfig::from_default_with_operator_env();
+        s.rss_feed_path = p.to_path_buf();
+        s
+    } else {
+        let mut s = vox_publisher::NewsSiteConfig::from_default_with_operator_env();
+        // Resolve relative path against repo root so callers don't need to `cd` first.
+        if s.rss_feed_path.is_relative() {
+            s.rss_feed_path = repo_root.join(&s.rss_feed_path);
+        }
+        s
+    };
+
+    let mut published: Vec<serde_json::Value> = Vec::new();
+    let mut skipped: Vec<serde_json::Value> = Vec::new();
+
+    for row in rows {
+        let evidence =
+            vox_publisher::scientia_evidence::parse_scientia_evidence(row.metadata_json.as_deref())
+                .unwrap_or_default();
+        let rank = vox_publisher::scientia_discovery::rank_candidate_heuristics(
+            row.publication_id.as_str(),
+            row.source_ref.as_deref(),
+            &evidence,
+            &scientia_h,
+            None,
+        );
+
+        if !rank.auto_draft_eligible {
+            skipped.push(serde_json::json!({
+                "publication_id": row.publication_id,
+                "reason": "below_strong_candidate_threshold",
+                "intake_tier": format!("{:?}", rank.intake_tier),
+                "rank_score": rank.rank_score,
+            }));
+            continue;
+        }
+
+        // Build a UnifiedNewsItem from the manifest, forcing RSS syndication on.
+        let item = match publication_item_from_manifest(&row) {
+            Ok(mut it) => {
+                it.syndication.rss = true;
+                it
+            }
+            Err(e) => {
+                tracing::warn!(
+                    publication_id = row.publication_id.as_str(),
+                    error = %e,
+                    "Skipping: could not build UnifiedNewsItem"
+                );
+                skipped.push(serde_json::json!({
+                    "publication_id": row.publication_id,
+                    "reason": "item_build_error",
+                    "error": e.to_string(),
+                }));
+                continue;
+            }
+        };
+
+        match vox_publisher::adapters::rss::update_feed(&item, &site).await {
+            Ok(()) => {
+                tracing::info!(
+                    publication_id = row.publication_id.as_str(),
+                    "Scientia finding published to RSS feed."
+                );
+                published.push(serde_json::json!({
+                    "publication_id": row.publication_id,
+                    "title": item.title,
+                    "intake_tier": format!("{:?}", rank.intake_tier),
+                    "rank_score": rank.rank_score,
+                }));
+            }
+            Err(e) => {
+                tracing::error!(
+                    publication_id = row.publication_id.as_str(),
+                    error = %e,
+                    "RSS feed update failed."
+                );
+                skipped.push(serde_json::json!({
+                    "publication_id": row.publication_id,
+                    "reason": "rss_update_error",
+                    "error": e.to_string(),
+                }));
+            }
+        }
+    }
+
+    let summary = serde_json::json!({
+        "schema_kind": "scientia_discovery_publish_rss",
+        "feed_path": site.rss_feed_path.display().to_string(),
+        "published_count": published.len(),
+        "skipped_count": skipped.len(),
+        "published": published,
+        "skipped": skipped,
+    });
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&summary)?);
+    } else {
+        let published_count = summary["published_count"].as_u64().unwrap_or(0);
+        let skipped_count = summary["skipped_count"].as_u64().unwrap_or(0);
+        println!(
+            "Scientia → RSS: {} finding(s) published, {} skipped (feed: {})",
+            published_count,
+            skipped_count,
+            site.rss_feed_path.display()
+        );
+        if let Some(items) = summary["published"].as_array() {
+            for item in items {
+                println!(
+                    "  + {} — {}",
+                    item["publication_id"].as_str().unwrap_or("?"),
+                    item["title"].as_str().unwrap_or("?")
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
