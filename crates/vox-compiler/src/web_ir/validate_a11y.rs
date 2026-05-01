@@ -50,13 +50,6 @@ fn has_attr(attrs: &[(String, String)], name: &str) -> bool {
     attrs.iter().any(|(k, _)| k.eq_ignore_ascii_case(name))
 }
 
-/// Get the value of a named attribute (case-insensitive key).
-fn get_attr<'a>(attrs: &'a [(String, String)], name: &str) -> Option<&'a str> {
-    attrs
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case(name))
-        .map(|(_, v)| v.as_str())
-}
 
 /// True if the element carries an explicit accessible name via aria attributes.
 fn has_aria_name(attrs: &[(String, String)]) -> bool {
