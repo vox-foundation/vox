@@ -94,7 +94,9 @@ pub async fn run_status(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string())
         .or_else(|| {
-            if base.join("model_final.bin").exists() {
+            if base.join("model_final.bin").exists()
+                || base.join("candle_qlora_adapter.safetensors").exists()
+            {
                 Some("completed".to_string())
             } else if lines.iter().any(|v| v.get("step").is_some()) {
                 Some("running".to_string())
