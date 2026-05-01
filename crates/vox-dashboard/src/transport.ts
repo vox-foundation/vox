@@ -70,6 +70,10 @@ export class VoxTransport {
       if (token && this.ws) {
         this.ws.send(JSON.stringify({ type: 'auth', args: { token } }));
         this._emitAuthStatus('authorized');
+      } else {
+        // No token present at open time — reset auth state so late subscribers
+        // don't replay a stale 'authorized' status from a previous session.
+        this._emitAuthStatus('no_token');
       }
 
       this.emit('connection_status', { status: 'connected' } satisfies ConnectionStatusPayload);

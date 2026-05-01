@@ -290,7 +290,7 @@ fn collect_from_expr(
                 // built-in mesh_* ops. Plain helper/pure functions share the same pool
                 // and must not be recorded as durable steps.
                 let is_mesh = name.starts_with("mesh_");
-                if !is_mesh && !activity_names.is_empty() && !activity_names.contains(name.as_str()) {
+                if !is_mesh && !activity_names.contains(name.as_str()) {
                     return Ok(());
                 }
                 if ctx.mesh_key.is_some() && !is_mesh {

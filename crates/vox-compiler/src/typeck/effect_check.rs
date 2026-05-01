@@ -26,6 +26,7 @@ pub fn check_effect_compliance(module: &HirModule, source: &str) -> Vec<Diagnost
     for f in &module.functions {
         check_fn(f, &cap_map, source, &mut diags);
     }
+    diags.extend(check_endpoint_fn_effects(&module.endpoint_fns));
     diags
 }
 

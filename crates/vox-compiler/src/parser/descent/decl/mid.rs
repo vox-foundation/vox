@@ -516,7 +516,7 @@ impl Parser {
             });
             self.skip_newlines();
         }
-        self.eat(&Token::RBrace);
+        self.expect(&Token::RBrace)?;
         Ok(Decl::Actor(ActorDecl {
             name,
             state_fields: vec![],
