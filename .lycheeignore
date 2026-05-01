@@ -19,6 +19,7 @@ docs/news/templates/.*
 .*storage\.googleapis\.com.*
 .*babel\.dev.*
 .*diva-portal\.org.*
+.*openreview\.net.*
 .*\.gemini/antigravity/.*
 file://.*\.cargo/config\.toml
 # Known planned-but-not-yet-authored architecture stubs (tracked in data-storage-ssot findings F74+)
