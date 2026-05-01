@@ -149,7 +149,7 @@ Use this lightweight review matrix for high-drift surfaces:
 | secret or env handling | [`AGENTS.md`](../../../AGENTS.md), [Clavis SSOT](../reference/clavis-ssot.md) |
 | agent instruction layering or shell-discipline policy | [`AGENTS.md`](../../../AGENTS.md), [Agent instruction architecture](agent-instruction-architecture.md), and relevant tool-specific overlays such as `GEMINI.md` |
 | doc structure, nav, or new pages | this page, [`docs/src/adr/002-diataxis-doc-architecture.md`](../adr/002-diataxis-doc-architecture.md), [`docs/src/SUMMARY.md`](../SUMMARY.md) |
-| architecture claims | [Doc-to-code acceptance checklist](../architecture/doc-to-code-acceptance-checklist.md), relevant explanation/reference pages |
+| architecture claims | [Doc-to-code acceptance checklist](../archive/research-2026-q1/doc-to-code-acceptance-checklist.md), relevant explanation/reference pages |
 | contracts or schema-backed behavior | matching `contracts/` files and the mirrored reference pages |
 | communication protocols, transport routes, or streaming semantics | [`contracts/communication/protocol-catalog.yaml`](../../../contracts/communication/protocol-catalog.yaml), [Communication protocols reference](../reference/communication-protocols.md), and the owning protocol page such as MCP / Populi / runtime docs |
 | Mens training or corpus behavior | [Mens native training SSOT](../reference/mens-training.md), [Mens training data contract](../reference/mens-training-data-contract.md) |
@@ -166,7 +166,7 @@ Use this lightweight review matrix for high-drift surfaces:
 ## Related
 
 - [Contributor hub](contributor-hub.md)
-- [Doc-to-code acceptance checklist](../architecture/doc-to-code-acceptance-checklist.md)
+- [Doc-to-code acceptance checklist](../archive/research-2026-q1/doc-to-code-acceptance-checklist.md)
 - [Architectural governance (TOESTUB)](../../agents/governance.md)
 - [Doc inventory verifier](../reference/doc-inventory.md)
 

@@ -38,9 +38,9 @@ mod tests {
         let source = r#"
 fn greet(name: str) to str {
     if name is "" {
-        ret "Hello, stranger"
+        return "Hello, stranger"
     }
-    ret "Hello, " + name
+    return "Hello, " + name
 }
 "#;
         let once = canonicalize_vox(source).expect("first canonicalization");
@@ -53,16 +53,16 @@ fn greet(name: str) to str {
         let source = r#"
 fn main() {
     let x = 10
-    ret x
+    return x
 }
 "#;
         let out = canonicalize_vox(source).expect("canonicalized output");
-        assert_eq!(out, "fn main(){let x=10 ret x}");
+        assert_eq!(out, "fn main(){let x=10 return x}");
     }
 
     #[test]
     fn canonicalize_vox_rejects_invalid_output() {
-        let invalid = "fn main( { ret 1 }";
+        let invalid = "fn main( { return 1 }";
         let err = canonicalize_vox(invalid).expect_err("invalid source must fail");
         assert!(
             err.to_string().contains("parse validation"),

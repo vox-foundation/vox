@@ -38,7 +38,7 @@ Vox compiles `.vox` UI to **React + Vite** (`vox-codegen-ts`), serves static ass
 
 - **Dependencies**: Generated app `package.json` carries `@tanstack/react-router` instead of `react-router-dom`.
 - **Dev UX**: Until Start is wired, **`vox run`** remains **SPA + Axum**; SSR requires an additional process when enabled (documented in how-to).
-- **Docs**: Roadmap and backlog live under [`docs/src/reference/tanstack-web-roadmap.md`](../architecture/tanstack-web-roadmap.md) and [`tanstack-web-backlog.md`](../architecture/tanstack-web-backlog.md).
+- **Docs**: Roadmap and backlog live under [`docs/src/reference/tanstack-web-roadmap.md`](../archive/research-2026-q1/tanstack-web-roadmap.md) and [`tanstack-web-backlog.md`](../archive/research-2026-q1/tanstack-web-backlog.md).
 
 ---
 

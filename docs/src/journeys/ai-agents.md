@@ -72,5 +72,5 @@ fn get_answer(user_question: str) -> Result[str] {
 To truly scale out this pattern, see how Vox implements AI orchestration under the hood:
 
 - **[How To: Build AI Agents & MCP Tools](../how-to/how-to-ai-agents.md)**: Explore more complex integration loops.
-- **[MCP Exposure from the Vox Language](../architecture/mcp-vox-language-exposure.md)**: SSOT explaining how decorators translate to the MCP JSON-Schema specification.
+- **[MCP Exposure from the Vox Language](../archive/research-2026-q1/mcp-vox-language-exposure.md)**: SSOT explaining how decorators translate to the MCP JSON-Schema specification.
 - **[Socrates Anti-Hallucination Protocol](../adr/005-socrates-anti-hallucination-ssot.md)**: How Vox evaluates and rejects incorrectly formed agent outputs before they hit your execution loop.

@@ -21,9 +21,9 @@ Read order: after `01-master-planning-index.md`, before `02-fast-llm-instruction
 ## Related SSOT documents
 
 - Questioning protocol: [`docs/src/reference/information-theoretic-questioning.md`](../../reference/information-theoretic-questioning.md)
-- Research grounding: [`docs/src/architecture/research-diagnostic-questioning-2026.md`](../research-diagnostic-questioning-2026.md)
-- Plan adequacy / auto-expand: [`docs/src/architecture/plan-adequacy.md`](../plan-adequacy.md)
-- Attention budget design: [`docs/src/architecture/agent-event-kind-ludus-matrix.md`](../agent-event-kind-ludus-matrix.md) (KI)
+- Research grounding: [`docs/src/architecture/research-diagnostic-questioning-2026.md`](../../archive/research-2026-q1/research-diagnostic-questioning-2026.md)
+- Plan adequacy / auto-expand: [`docs/src/architecture/plan-adequacy.md`](../../archive/research-2026-q1/plan-adequacy.md)
+- Attention budget design: [`docs/src/architecture/agent-event-kind-ludus-matrix.md`](../../archive/research-2026-q1/agent-event-kind-ludus-matrix.md) (KI)
 
 ---
 

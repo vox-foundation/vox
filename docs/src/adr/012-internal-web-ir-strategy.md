@@ -22,7 +22,7 @@ schema_type: "TechArticle"
 
 ## Codegen naming (TypeScript / React)
 
-Emitted TS/React identifiers should follow **English-first** naming where practical; stable `data-vox-*` DOM contracts remain until a versioned WebIR migration replaces them. Avoid **duplicate `Vox` tokens** in generated symbol names (`VoxVox*`). Details and side-by-side status: [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md#nomenclature-for-emitted-typescript--react).
+Emitted TS/React identifiers should follow **English-first** naming where practical; stable `data-vox-*` DOM contracts remain until a versioned WebIR migration replaces them. Avoid **duplicate `Vox` tokens** in generated symbol names (`VoxVox*`). Details and side-by-side status: [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#nomenclature-for-emitted-typescript--react).
 
 ## Context
 
@@ -40,13 +40,13 @@ This yields higher maintenance cost, divergence risk, and higher k-complexity fo
 ## Current vs target representation (side-by-side)
 
 Canonical mapping and full legacy registry:
-[Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md).
+[Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md).
 Quantified token+grammar+escape-hatch delta:
-[WebIR K-complexity quantification](../architecture/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
+[WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
 Reproducible counting appendix:
-[K-metric appendix](../architecture/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
+[K-metric appendix](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
 Ordered file-operation roadmap:
-[Operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
+[Operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
 
 ### Current island schema (implemented)
 
@@ -106,7 +106,7 @@ Non-parser forms and speculative grammar are out of scope for this ADR revision.
 
 ## Interop policy (OP-S103, OP-S104, OP-S150, OP-S183, OP-S213)
 
-Raw escape hatches in [`InteropNode::EscapeHatchExpr`](../../../crates/vox-compiler/src/web_ir/mod.rs) require **non-empty** `expr` and **policy `reason` strings** so `validate_web_ir` can fail closed under `VOX_WEBIR_VALIDATE`. Prefer [`InteropNode::ReactComponentRef`](../../../crates/vox-compiler/src/web_ir/mod.rs) with explicit imports over opaque fragments. Gate matrix and numbered operations live in the [implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
+Raw escape hatches in [`InteropNode::EscapeHatchExpr`](../../../crates/vox-compiler/src/web_ir/mod.rs) require **non-empty** `expr` and **policy `reason` strings** so `validate_web_ir` can fail closed under `VOX_WEBIR_VALIDATE`. Prefer [`InteropNode::ReactComponentRef`](../../../crates/vox-compiler/src/web_ir/mod.rs) with explicit imports over opaque fragments. Gate matrix and numbered operations live in the [implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
 
 ### Gate naming alignment (OP-S051)
 
@@ -235,7 +235,7 @@ Confidence tags:
 ### Acceptance gates
 
 - Canonical gate IDs and thresholds for this ADR are maintained in the blueprint table:
-  [Acceptance gates (G1-G6)](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
+  [Acceptance gates (G1-G6)](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds).
 - This ADR intentionally references that single-source table to avoid drift between ADR prose and rollout thresholds.
 
 ---
@@ -340,8 +340,8 @@ flowchart LR
 ## Related decisions and docs
 
 - [ADR 010 — TanStack web spine](010-tanstack-web-spine.md)
-- [Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md)
-- [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md)
+- [Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md)
+- [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md)
 - [Compiler Architecture](../explanation/expl-architecture.md)
 - [Compiler Lowering Phases](../explanation/expl-compiler-lowering.md)
 - [Vox web stack SSOT](../reference/vox-web-stack.md)

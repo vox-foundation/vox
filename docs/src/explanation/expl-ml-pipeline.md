@@ -12,7 +12,7 @@ schema_type: "TechArticle"
 
 Vox "dogfoods" itself: the language, compiler, and documentation all feed a native machine learning loop that trains the **Mens** code assistant model.
 
-End-to-end map from `.vox` sources through goldens and corpus extraction to model inputs: [Vox source → Mens pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md). Training pair contract: [Mens training data contract](../reference/mens-training-data-contract.md).
+End-to-end map from `.vox` sources through goldens and corpus extraction to model inputs: [Vox source → Mens pipeline SSOT](../archive/research-2026-q1/vox-source-to-mens-pipeline-ssot.md). Training pair contract: [Mens training data contract](../reference/mens-training-data-contract.md).
 
 **Canonical operator fine-tuning:** **`vox mens train`** with **Candle + qlora-rs** on **Hugging Face** weights. **`--backend qlora`** and **`--tokenizer hf`** are the **defaults**; no Python training loop. SSOT: [Mens native training](../reference/mens-training.md). **`PopuliTrainBackend::BurnLora` is rejected at runtime** in this dispatch — the supported trainer is **`CandleQlora`**.
 
@@ -94,7 +94,7 @@ All training pairs follow this JSONL schema (must match across all tools):
 
 ## Tokenizer (training vs compile)
 
-**Compile path:** source text is lexed by **`vox-compiler`** (`logos` [`Token`](../../../crates/vox-compiler/src/lexer/token.rs) enum)—this is unrelated to Mens model vocabulary. See [Vox source → Mens pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md).
+**Compile path:** source text is lexed by **`vox-compiler`** (`logos` [`Token`](../../../crates/vox-compiler/src/lexer/token.rs) enum)—this is unrelated to Mens model vocabulary. See [Vox source → Mens pipeline SSOT](../archive/research-2026-q1/vox-source-to-mens-pipeline-ssot.md).
 
 **Mens QLoRA path (default):** supervised strings are tokenized with the **Hugging Face tokenizer** for the chosen `--model` (tens of thousands of BPE tokens). See [Mens native training](../reference/mens-training.md) § Tokenization SSOT.
 

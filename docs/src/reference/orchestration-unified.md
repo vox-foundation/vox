@@ -2,7 +2,7 @@
 title: "Unified orchestration — SSOT"
 description: "Official documentation for Unified orchestration — SSOT for the Vox language. Detailed technical reference, architecture guides, and impl"
 category: "reference"
-last_updated: "2026-03-29"
+last_updated: "2026-04-29"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -16,7 +16,7 @@ This document captures **compatibility rules** and **opt-in migration toggles** 
 
 Repo-backed **`vox-mcp`** and **`vox-orchestrator-d`** open the primary [`VoxDb`](../../../crates/vox-db/src/lib.rs) via [`connect_workspace_journey_optional`](../../../crates/vox-db/src/workspace_journey_store.rs) (default **`.vox/store.db`**). Env: **`VOX_WORKSPACE_JOURNEY_STORE`**, **`VOX_WORKSPACE_JOURNEY_FALLBACK_CANONICAL`** ([env SSOT](env-vars.md)). Daemon diagnostics: JSON-RPC method **`orch.workspace_journey`** (bind `repository_id` vs discovered repo).
 
-**Bridge / routing policy:** Vox-first codegen remains the default MCP path (`vox_generate_code`, local inference server for `vox generate`); non-Vox edits stay bounded behind explicit tools and repository policy — see [completion policy SSOT](../architecture/completion-policy-ssot.md).
+**Bridge / routing policy:** Vox-first codegen remains the default MCP path (`vox_generate_code`, local inference server for `vox generate`); non-Vox edits stay bounded behind explicit tools and repository policy — see [completion policy SSOT](../archive/research-2026-q1/completion-policy-ssot.md).
 
 **Journey envelope (v1):** [`contracts/orchestration/journey-envelope.v1.schema.json`](../../../contracts/orchestration/journey-envelope.v1.schema.json) is the machine SSOT for per-request metadata (`journey_id`, `session_id`, `thread_id`, trace/correlation ids, `repository_id`, `origin_surface`). MCP `vox_chat_message` embeds this shape in structured transcript payloads; CLI and daemon surfaces wire fields incrementally.
 
@@ -37,7 +37,7 @@ Repo-backed **`vox-mcp`** and **`vox-orchestrator-d`** open the primary [`VoxDb`
 
 ## HITL Doubt Flow
 
-The unified orchestrator integrates seamlessly with the `vox-dei` Human-In-The-Loop (HITL) crate. When agents detect ambiguity, they invoke the `vox_doubt_task` MCP tool. This transitions the task to `TaskStatus::Doubted` and emits a `TaskDoubted` event. The `ResolutionAgent` inside `vox-dei` then takes over to resolve the doubt with the user, submitting an audit report that hooks into the gamification system (`vox-ludus`). For structural details, see the canonical [HITL Doubt Loop SSOT](../architecture/hitl-doubt-loop-ssot.md).
+When agents detect ambiguity, they invoke the `vox_doubt_task` MCP tool. This transitions the task to `TaskStatus::Doubted` and emits a `TaskDoubted` event; the resolution agent inside `vox-orchestrator` (see [`crates/vox-orchestrator/src/orchestrator/agent/doubt.rs`](../../../crates/vox-orchestrator/src/orchestrator/agent/doubt.rs)) takes over to resolve the doubt with the user and submits an audit report that hooks into the gamification system (`vox-ludus`). For structural details, see the canonical [HITL & Doubt reference](hitl-and-doubt.md).
 
 ## Contract surfaces
 

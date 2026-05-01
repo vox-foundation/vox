@@ -11,7 +11,7 @@ schema_type: "TechArticle"
 
 # Std Surfaces
 
-Vox script-mode builtins under `std.fs`, `std.path`, `std.process`, and related namespaces are defined in [Automation primitives](../architecture/vox-automation-primitives.md). They lower to Rust `std` APIs and stay host-neutral at the language level.
+Vox script-mode builtins under `std.fs`, `std.path`, `std.process`, and related namespaces are defined in [Automation primitives](../archive/research-2026-q1/vox-automation-primitives.md). They lower to Rust `std` APIs and stay host-neutral at the language level.
 
 ## Lessons from PowerShell-shaped ergonomics mapped to std
 

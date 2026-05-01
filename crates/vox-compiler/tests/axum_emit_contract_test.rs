@@ -14,7 +14,7 @@ use vox_compiler::parser::parse;
 fn emit_main_serve_dispatch_reserves_api_prefix_for_local_handlers() {
     let src = r#"
 http get "/api/ping" to int {
-    ret 1
+    return 1
 }
 "#;
     let m = parse(lex(src)).expect("parse");
@@ -34,7 +34,7 @@ http get "/api/ping" to int {
 #[test]
 fn emit_main_registers_query_get_before_fallback() {
     let src = r#"
-@query fn q_ping() to int { ret 1 }
+@query fn q_ping() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);
@@ -65,7 +65,7 @@ fn emit_main_mutation_with_schema_wraps_transaction_and_emits_json_error_envelop
 @table type T { a: str }
 
 @mutation fn m_save() to int {
-    ret 1
+    return 1
 }
 "#;
     let m = parse(lex(src)).expect("parse");
@@ -84,7 +84,7 @@ fn emit_main_mutation_with_schema_wraps_transaction_and_emits_json_error_envelop
 #[test]
 fn emit_main_query_handler_does_not_emit_transaction_error_envelope() {
     let src = r#"
-@query fn q_only() to int { ret 1 }
+@query fn q_only() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);
@@ -102,7 +102,7 @@ fn emit_main_query_handler_does_not_emit_transaction_error_envelope() {
 #[test]
 fn emit_main_server_fn_without_schema_has_no_transaction_error_envelope() {
     let src = r#"
-@server fn sf_ping() to int { ret 1 }
+@server fn sf_ping() to int { return 1 }
 "#;
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);

@@ -12,7 +12,7 @@ schema_type: "HowTo"
 
 This page is the **SSOT for the current `import rust:…` feature**: what it does in the toolchain, what it does *not* do yet, and how to evolve it with **high leverage and low Kolmogorov complexity** (small mental model, few rules, familiar Cargo concepts).
 
-In the bell-curve interop model, `import rust:...` is a **Tier 3 escape hatch**. See [Interop tier policy](../architecture/interop-tier-policy.md).
+In the bell-curve interop model, `import rust:...` is a **Tier 3 escape hatch**. See [Interop tier policy](../archive/research-2026-q1/interop-tier-policy.md).
 
 ## Syntax (what you can write today)
 
@@ -166,7 +166,7 @@ Those belong behind explicit **feature gates** and product milestones, not on th
 - [Keyword: `import` syntax](../reference/ref-syntax.md)
 - [CLI reference: PM vs generated `Cargo.lock`](../reference/cli.md)
 - [Diagnostic taxonomy](../reference/diagnostic-taxonomy.md)
-- [Vox packaging blueprint](../architecture/vox-packaging-implementation-blueprint.md) (extension boundaries)
+- [Vox packaging blueprint](../archive/research-2026-q1/vox-packaging-implementation-blueprint.md) (extension boundaries)
 
 ---
 

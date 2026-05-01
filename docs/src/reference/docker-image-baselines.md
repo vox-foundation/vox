@@ -26,6 +26,6 @@ Record wall times and image sizes (`docker image ls`) when changing `Dockerfile`
 ## Related
 
 - [Deployment compose SSOT](deployment-compose.md)
-- [Cross-platform runbook](../architecture/vox-cross-platform-runbook.md)
+- [Cross-platform runbook](../archive/research-2026-q1/vox-cross-platform-runbook.md)
 
 

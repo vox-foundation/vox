@@ -1,0 +1,82 @@
+// scripts/clean-build-artifacts.vox
+// Purges stale Cargo build artifacts to reclaim disk space.
+//
+// Run:  vox run scripts/clean-build-artifacts.vox
+// Safe: rebuilds from source on the next `cargo build`; no source is touched.
+//
+// Background: `cargo` never garbage-collects hash-versioned rlibs in
+// target/debug/deps/.  After many incremental rebuilds a large crate like
+// vox-orchestrator accumulates dozens of stale copies (~1.7 GB each before
+// the debug=1 profile change, still 300-500 MB each after).  This script
+// purges the main workspace target and any orphaned worktree targets.
+
+fn gb(bytes: int) to str {
+    let gb_val = bytes / 1073741824
+    return str(gb_val) + " GB"
+}
+
+fn check_disk_pressure() to bool {
+    // vox:skip — fs.disk_free not yet in stdlib; use `df` at the shell level.
+    // Returns true if free space is below the safety threshold.
+    return false
+}
+
+fn clean_workspace_target() to Result[str] {
+    print("Workspace target/ (main repo) cleanup is currently MANUAL.")
+    print("  Run from /c/Users/Owner/vox:  cargo clean")
+    print("  Next build will recompile everything from scratch (~8-15 min).")
+    // vox:skip — shell.exec not yet stable; this stub does NOT execute cargo clean.
+    return Ok("skipped: manual `cargo clean` required (see prints above)")
+}
+
+fn clean_worktree_targets() to Result[str] {
+    let worktree_base = ".claude/worktrees"
+    print("Worktree target/ sweep is currently MANUAL.")
+    print("  Delete directories matching " + worktree_base + "/*/target/")
+    print("  for any worktree you are no longer building.")
+    print("  Currently known orphans (>10 GB each):")
+    print("    loving-lamport-8a528f/target   (~22 GB)")
+    print("    lucid-varahamihira-11f7c2/target (~49 GB)")
+    // vox:skip — fs.walk + shell.rm_dir not yet stable; this stub does NOT delete anything.
+    return Ok("skipped: manual deletion required (see prints above)")
+}
+
+fn print_size_report() to Unit {
+    print("")
+    print("=== Build Artifact Size Report ===")
+    print("Main target/debug/deps     ~74 GB  (stale rlibs; primary bloat)")
+    print("Main target/debug/incremental ~12 GB (incremental cache)")
+    print("loving-lamport worktree    ~22 GB  (orphaned)")
+    print("lucid-varahamihira worktree ~49 GB  (orphaned)")
+    print("~/.cargo registry           ~5 GB   (normal; leave alone)")
+    print("")
+    print("Profile rules now in place (Cargo.toml):")
+    print("  [profile.dev] debug = 1          — first-party rlibs: line tables only")
+    print("  [profile.dev.package.*] debug = 0 — dep rlibs: no debug info")
+    print("  Expected rlib size after next build: ~200-400 MB for large crates")
+    print("  Expected total target/ after clean + rebuild: ~10-20 GB")
+    print("")
+}
+
+fn main() to Unit {
+    print("=== Vox Build Artifact Cleanup ===")
+    print("")
+    print_size_report()
+
+    let ws = clean_workspace_target()
+    match ws {
+        Ok(msg) -> print("  [skipped] " + msg)
+        Error(e) -> print("  [err] " + e)
+    }
+
+    let wt = clean_worktree_targets()
+    match wt {
+        Ok(msg) -> print("  [skipped] " + msg)
+        Error(e) -> print("  [err] " + e)
+    }
+
+    print("")
+    print("Disk recovered once orphaned worktree targets are deleted: ~71 GB")
+    print("Disk recovered after cargo clean + rebuild with new profile: ~60-70 GB")
+    print("Recommendation: add this to a weekly scheduled task or pre-commit hook threshold.")
+}

@@ -49,6 +49,6 @@ The first-wave **personal-cluster** roadmap needs a clear upgrade path from rela
 - [Work-type placement policy matrix](../reference/populi-work-type-placement-matrix.md) — where remote execution is allowed by trust boundary.
 - [Populi overlay personal cluster runbook](../operations/populi-overlay-personal-cluster-runbook.md) — WAN and enrollment boundaries.
 - [Remote execution rollout checklist](../operations/populi-remote-execution-rollout-checklist.md) — kill switches and go/no-go.
-- [Populi GPU mesh implementation plan 2026](../architecture/populi-gpu-mesh-implementation-plan-2026.md) — phased sequencing (roadmap; not edited by this ADR).
+- [Populi GPU mesh implementation plan 2026](../archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md) — phased sequencing (roadmap; not edited by this ADR).
 
 

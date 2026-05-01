@@ -465,7 +465,7 @@ fn is_trivial_placeholder_output(source: &str) -> bool {
         .map(str::trim)
         .filter(|l| !l.is_empty() && !l.starts_with("//"))
         .count();
-    code_lines <= 1 || trimmed.eq_ignore_ascii_case("ret")
+    code_lines <= 1 || trimmed.eq_ignore_ascii_case("return")
 }
 
 fn verify_completion(

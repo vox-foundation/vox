@@ -11,7 +11,7 @@ use crate::lexer::token::Token;
 ///
 /// ```no_run
 /// // use crate::lexer::compact::compact; // module is pub(crate)
-/// // let src = "fn greet(name: str) to str {\n    ret \"Hello, \" + name\n}";
+/// // let src = "fn greet(name: str) to str {\n    return \"Hello, \" + name\n}";
 /// // let out = compact(src);
 /// // assert!(!out.contains('\n'));
 /// ```
@@ -52,7 +52,7 @@ fn needs_space(left: &Token, right: &Token) -> bool {
         return true;
     }
 
-    // Number followed by a word needs space (e.g. "ret 10")
+    // Number followed by a word needs space (e.g. "return 10")
     if matches!(left, Token::IntLit(_) | Token::FloatLit(_)) && right_is_word {
         return true;
     }
@@ -116,7 +116,7 @@ mod tests {
     #[test]
     fn test_compaction_brace_syntax() {
         // Brace syntax: the multi-line form compacts to a single-line form
-        let src = "fn main() {\n    let x = 10\n    ret x\n}";
+        let src = "fn main() {\n    let x = 10\n    return x\n}";
         let compacted = compact(src);
         // No newlines in output — single-line serialization achieved
         assert!(
@@ -129,21 +129,21 @@ mod tests {
         );
         assert!(compacted.contains('{'), "Should preserve LBrace");
         assert!(compacted.contains('}'), "Should preserve RBrace");
-        assert!(compacted.contains("ret x"), "Should preserve ret statement");
+        assert!(compacted.contains("return x"), "Should preserve return statement");
     }
 
     #[test]
     fn test_compaction_preserves_braces() {
-        let src = "fn f(x: int) to int { ret x }";
+        let src = "fn f(x: int) to int { return x }";
         let compacted = compact(src);
         // No space before `{` (Ident→LBrace: needs_space=false)
-        // No space before `ret` (LBrace is not a word, ret is: no space added)
+        // No space before `return` (LBrace is not a word, return is: no space added)
         // No space before `x` or `}`
         assert!(compacted.contains("fn f"), "should have fn f");
         assert!(compacted.contains("to int"), "should have return type");
         assert!(compacted.contains('{'), "should have LBrace");
         assert!(compacted.contains('}'), "should have RBrace");
-        assert!(compacted.contains("ret x"), "should have ret x");
+        assert!(compacted.contains("return x"), "should have return x");
         assert!(!compacted.contains('\n'), "should be single line");
     }
 
@@ -165,9 +165,9 @@ mod tests {
         // (essential for Mens training data minification and LLM token budget use)
         let src = r#"fn greet(name: str) to str {
     if name is "" {
-        ret "Hello, stranger"
+        return "Hello, stranger"
     }
-    ret "Hello, " + name
+    return "Hello, " + name
 }"#;
         let compacted = compact(src);
         assert!(
@@ -181,16 +181,16 @@ mod tests {
 
     #[test]
     fn test_compaction_golden_output() {
-        let src = "fn main() {\n    let x = 10\n    ret x\n}";
+        let src = "fn main() {\n    let x = 10\n    return x\n}";
         let compacted = compact(src);
-        assert_eq!(compacted, "fn main(){let x=10 ret x}");
+        assert_eq!(compacted, "fn main(){let x=10 return x}");
     }
 
     #[test]
     fn test_compaction_roundtrip_parseable() {
         let src = r#"
 fn sum(a: int, b: int) to int {
-    ret a + b
+    return a + b
 }
 "#;
         let compacted = compact(src);

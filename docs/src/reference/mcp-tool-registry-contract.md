@@ -31,4 +31,4 @@ List tools returned to MCP clients include **`_meta.vox_product_lane`** and **`_
 
 Optional **orchestrator daemon IPC pilots** (TCP **`VOX_ORCHESTRATOR_DAEMON_SOCKET`** on MCP as peer): see [Environment variables](env-vars.md) — read umbrella **`VOX_MCP_ORCHESTRATOR_RPC_READS`**, write umbrella **`VOX_MCP_ORCHESTRATOR_RPC_WRITES`**, per-slice overrides (**`*_TASK_*` / `*_AGENT_*`), plus **`VOX_MCP_ORCHESTRATOR_DAEMON_REPOSITORY_ID_STRICT`**.
 
-See also [`contracts/README.md`](../../../contracts/README.md) and [SSOT convergence roadmap](../architecture/ssot-convergence-roadmap.md).
+See also [`contracts/README.md`](../../../contracts/README.md) and [SSOT convergence roadmap](../archive/research-2026-q1/ssot-convergence-roadmap.md).

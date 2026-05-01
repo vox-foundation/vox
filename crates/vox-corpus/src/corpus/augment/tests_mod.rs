@@ -49,7 +49,7 @@ mod tests {
     #[test]
     fn augment_jsonl_lines_expands_rows() {
         let lines = vec![
-            r#"{"prompt":"Write a Vox function called foo","response":"fn foo() to Unit:\n  ret"}"#
+            r#"{"prompt":"Write a Vox function called foo","response":"fn foo() to Unit:\n  return"}"#
                 .to_string(),
         ];
         let cfg = AugmentConfig {

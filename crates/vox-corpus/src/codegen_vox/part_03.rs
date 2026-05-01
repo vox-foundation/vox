@@ -12,15 +12,15 @@ fn gen_full_stack_program(rng: &mut Rng, variant: usize) -> OrganicPair {
     let templates = [
         // Template 0: CRUD API
         format!(
-            "@table type {tn} {{\n    id: int\n    name: str\n    active: bool\n}}\n\n@query\nfn get_{noun}(id: int) to str {{\n    ret db.{tn}.find(id).name\n}}\n\n@mutation\nfn create_{noun}(name: str) to Unit {{\n    db.{tn}.insert(name)\n}}\n\n@get(\"/api/{noun}\")\nfn {noun}_handler(req: str) to str {{\n    ret get_{noun}(1)\n}}\n\n@test\nfn test_{noun}() to Unit {{\n    create_{noun}(\"test\")\n    assert(get_{noun}(1) == \"test\")\n}}"
+            "@table type {tn} {{\n    id: int\n    name: str\n    active: bool\n}}\n\n@query\nfn get_{noun}(id: int) to str {{\n    return db.{tn}.find(id).name\n}}\n\n@mutation\nfn create_{noun}(name: str) to Unit {{\n    db.{tn}.insert(name)\n}}\n\n@get(\"/api/{noun}\")\nfn {noun}_handler(req: str) to str {{\n    return get_{noun}(1)\n}}\n\n@test\nfn test_{noun}() to Unit {{\n    create_{noun}(\"test\")\n    assert(get_{noun}(1) == \"test\")\n}}"
         ),
         // Template 1: Agent pipeline
         format!(
-            "message {tn}Event {{\n    id: int\n    data: str\n}}\n\nactor {tn}Worker {{\n    state count: int = 0\n    on {verb}() to str {{\n        count = count + 1\n        ret \"processed\"\n    }}\n}}\n\nworkflow {noun}_pipeline(input: str) to str {{\n    let worker = spawn({tn}Worker)\n    let result = {verb}(input)\n    ret result\n}}"
+            "message {tn}Event {{\n    id: int\n    data: str\n}}\n\nactor {tn}Worker {{\n    state count: int = 0\n    on {verb}() to str {{\n        count = count + 1\n        return \"processed\"\n    }}\n}}\n\nworkflow {noun}_pipeline(input: str) to str {{\n    let worker = spawn({tn}Worker)\n    let result = {verb}(input)\n    return result\n}}"
         ),
         // Template 2: UI app
         format!(
-            "type {tn}Status = Loading | Ready(data: str) | Error(msg: str)\n\ncomponent {tn}View() {{\n    state status: str = \"ready\"\n    view: <div className=\"{noun}\">\n        <h1>{{\"{tn}\"}}</h1>\n        <p>{{status}}</p>\n    </div>\n}}\n\nlayout fn {tn}Layout(children: Element) to Element {{\n    ret <main>{{children}}</main>\n}}\n\nroutes {{\n    \"/\" to {tn}View\n}}"
+            "type {tn}Status = Loading | Ready(data: str) | Error(msg: str)\n\ncomponent {tn}View() {{\n    state status: str = \"ready\"\n    view: <div className=\"{noun}\">\n        <h1>{{\"{tn}\"}}</h1>\n        <p>{{status}}</p>\n    </div>\n}}\n\nlayout fn {tn}Layout(children: Element) to Element {{\n    return <main>{{children}}</main>\n}}\n\nroutes {{\n    \"/\" to {tn}View\n}}"
         ),
     ];
 

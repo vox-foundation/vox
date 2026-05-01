@@ -21,10 +21,10 @@ const CHATBOT_TEMPLATE: &str = r#"# Vox Chatbot — OpenRouter-powered chat app
     request_id: str
 
 @query fn recent_messages(conversation_id: str) to list[MessageTrace]:
-    ret []
+    return []
 
 @mutation fn log_message(conversation_id: str, role: str, content: str, request_id: str) to Result[bool]:
-    ret Ok(true)
+    return Ok(true)
 
 activity call_provider(prompt: str) to Result[str]:
     Ok("stub-response: " + prompt)
@@ -37,7 +37,7 @@ workflow chat_pipeline(prompt: str) to Result[str]:
     let response = chat_pipeline(prompt) with { retries: 2, timeout: "45s" }
     let _ = log_message("conv-default", "user", prompt, request_id)
     let _ = log_message("conv-default", "assistant", "ok", request_id)
-    ret response
+    return response
 
 component Chat() {
     state messages: list[str] = []
@@ -113,19 +113,19 @@ const API_TEMPLATE: &str = r#"# Vox API — server functions with health + metri
     created_at: str
 
 @health fn health_check() to bool:
-    ret true
+    return true
 
 @metric fn tasks_created() to str:
-    ret "ok"
+    return "ok"
 
 @server fn create_task(title: str) to Result[str]:
-    ret Ok("Created: " + title)
+    return Ok("Created: " + title)
 
 @server fn list_tasks() to Result[list[Task]]:
-    ret Ok([])
+    return Ok([])
 
 @server fn complete_task(id: str) to Result[bool]:
-    ret Ok(true)
+    return Ok(true)
 "#;
 
 const DEFAULT_FULL_STACK: &str = "# My Vox App — a full-stack starter\n#\n# Run with: vox build src/main.vox -o dist && vox run src/main.vox\n\n@table type Note {\n    title: str\n    content: str\n    created_at: str\n}\n\n@server fn add_note(title: str, content: str) -> Result[str] {\n    return Ok(\"Added: {title}\")\n}\n\n@server fn list_notes() -> Result[str] {\n    return Ok(\"[]\")\n}\n\ncomponent App() {\n    state notes: list[Note] = []\n    view: <div class=\"app\">\n        <h1>\"My Vox App\"</h1>\n        <p>\"Edit src/main.vox to get started\"</p>\n    </div>\n}\n\nroutes {\n    \"/\" to App\n}\n";

@@ -131,7 +131,7 @@ mod tests {
             span: Span { start: 0, end: 1 },
             expected_type: None,
             found_type: None,
-            context: Some("ret x".to_string()),
+            context: Some("return x".to_string()),
             suggestions: vec![],
             category: DiagnosticCategory::Typecheck,
             code: None,
@@ -140,7 +140,7 @@ mod tests {
             missing_cases: vec![],
             ast_node_kind: None,
         }];
-        let fixes = fixer.suggest_fixes("ret x", &diags);
+        let fixes = fixer.suggest_fixes("return x", &diags);
         assert_eq!(fixes.len(), 1);
         assert!(fixes[0].diff.contains("No automated fix available"));
     }

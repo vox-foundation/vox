@@ -134,13 +134,13 @@ When **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** (or TOML `[orchestrator].populi_con
 Populi already provides useful **membership**, **visibility**, and **A2A relay** building blocks, but it is **not yet** a seamless local/internet GPU fabric for agent placement or training.
 
 - **Authoritative remote execution is partial:** lease-gated roles can use **single-owner** remote-hold + awaited relay; other tasks still use legacy side-relay. Mesh **lease renew loss** and worker crash semantics remain operator-dependent until fully wired to exec lease APIs.
-- **Hardware-truth GPU inventory is optional:** default builds still rely on operator hints (**`VOX_MESH_ADVERTISE_GPU`**, etc.). Enable **`vox-cli` feature `mesh-nvml-probe`** (pulls `vox-populi/nvml-gpu-probe`) so join/heartbeat `NodeRecord` can populate Layer A **`gpu_*`** fields via NVML when the driver is present — see [GPU truth probe spec](../architecture/populi-gpu-truth-probe-spec.md).
+- **Hardware-truth GPU inventory is optional:** default builds still rely on operator hints (**`VOX_MESH_ADVERTISE_GPU`**, etc.). Enable **`vox-cli` feature `mesh-nvml-probe`** (pulls `vox-populi/nvml-gpu-probe`) so join/heartbeat `NodeRecord` can populate Layer A **`gpu_*`** fields via NVML when the driver is present — see [GPU truth probe spec](../archive/research-2026-q1/populi-gpu-truth-probe-spec.md).
 - **No first-class add/remove lifecycle for GPU workers:** join, heartbeat, and leave exist, but there is no built-in drain mode, no-new-work state, in-flight transfer contract, or scheduler-led rebalance when GPUs are added or removed.
 - **No unified scheduler across inference, training, and agent tasks:** Populi visibility, orchestrator routing hints, local MENS training, and cloud dispatch are still separate surfaces.
 - **No stronger fallback contract than local-first defaults:** Populi falls back cleanly by remaining optional, but it does not yet define authoritative recovery semantics for remote worker loss, partial partitions, or long-running GPU job handoff.
 - **No zero-config internet cluster model:** operators still provide the control URL, bearer/JWT, and scope explicitly; secure overlay networking and user-owned remote clusters remain research and future planning work.
 
-Research and architecture framing for these gaps lives in [Populi GPU network research 2026](../architecture/populi-gpu-network-research-2026.md).
+Research and architecture framing for these gaps lives in [Populi GPU network research 2026](../archive/research-2026-q1/populi-gpu-network-research-2026.md).
 
 ### Roadmap decisions (normative docs)
 
@@ -149,12 +149,12 @@ These documents define **target** behavior for the GPU mesh roadmap; they do **n
 - [ADR 017: lease-based authoritative remote execution](../adr/017-populi-lease-remote-execution.md)
 - [ADR 018: GPU truth layering](../adr/018-populi-gpu-truth-layering.md)
 - [ADR 020: mesh scaling — default transport posture](../adr/020-populi-mesh-scaling-transport-default.md)
-- [GPU truth probe spec (NVML)](../architecture/populi-gpu-truth-probe-spec.md)
-- [Node lifecycle & GPU hotplug](../architecture/populi-node-lifecycle-hotplug.md)
+- [GPU truth probe spec (NVML)](../archive/research-2026-q1/populi-gpu-truth-probe-spec.md)
+- [Node lifecycle & GPU hotplug](../archive/research-2026-q1/populi-node-lifecycle-hotplug.md)
 - [Work-type placement policy matrix](populi-work-type-placement-matrix.md) — canonical local / LAN / overlay matrix
 - [Populi overlay personal cluster runbook](../operations/populi-overlay-personal-cluster-runbook.md) — WAN boundaries and enrollment
 - [Remote execution rollout checklist](../operations/populi-remote-execution-rollout-checklist.md) — go/no-go and kill switches
-- [Populi GPU mesh implementation plan 2026](../architecture/populi-gpu-mesh-implementation-plan-2026.md) — phased sequencing (roadmap)
+- [Populi GPU mesh implementation plan 2026](../archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md) — phased sequencing (roadmap)
 
 ### Skills / agent labels
 
@@ -230,12 +230,12 @@ Mesh/security doc changes must remain **`training_eligible: true`** where approp
 
 ## Related
 
-- [Cross-platform Vox — lanes & Docker matrix (SSOT)](../architecture/vox-cross-platform-runbook.md) — Docker feature matrix vs mobile HTTP mens clients.
+- [Cross-platform Vox — lanes & Docker matrix (SSOT)](../archive/research-2026-q1/vox-cross-platform-runbook.md) — Docker feature matrix vs mobile HTTP mens clients.
 - [Communication protocols](communication-protocols.md) — protocol-family inventory and delivery-plane taxonomy.
 - [Deployment compose SSOT](deployment-compose.md) — Docker / Compose / Coolify / CI entry point.
 - [Orchestration unified SSOT](orchestration-unified.md) — capability probe merge, `VOX_MESH_ADVERTISE_*`.
 - [Mobile / edge AI SSOT](mobile-edge-ai.md) — inference profiles, mens GPU/NPU advertisement, training handoff.
-- [Populi GPU network research 2026](../architecture/populi-gpu-network-research-2026.md) — research-only gap analysis and external guidance for the future GPU mesh.
+- [Populi GPU network research 2026](../archive/research-2026-q1/populi-gpu-network-research-2026.md) — research-only gap analysis and external guidance for the future GPU mesh.
 - [ADR 008: mens transport](../adr/008-populi-transport.md) — HTTP-first control plane, future TLS/quic.
 - [ADR 009: hosted mens BaaS (future)](../adr/009-populi-hosted-baas.md) — trust model vs self-hosted clusters.
 - [ADR 017: lease-based remote execution](../adr/017-populi-lease-remote-execution.md), [ADR 018: GPU truth layering](../adr/018-populi-gpu-truth-layering.md)

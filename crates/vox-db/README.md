@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         token: "my-token".to_string(),
     }).await?;
 
-    let hash = db.store().store("fn", b"fn hello(): ret 42").await?;
+    let hash = db.store().store("fn", b"fn hello(): return 42").await?;
     println!("Stored: {hash}");
     Ok(())
 }

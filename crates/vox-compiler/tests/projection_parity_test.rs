@@ -33,12 +33,12 @@ routes {
     "/" to Home_render
 }
 
-@endpoint(kind: query) fn ping() to int { ret 1 }
-@endpoint(kind: server) fn sf_ping() to int { ret 1 }
-@endpoint(kind: query) fn list_tasks() to int { ret 0 }
+@endpoint(kind: query) fn ping() to int { return 1 }
+@endpoint(kind: server) fn sf_ping() to int { return 1 }
+@endpoint(kind: query) fn list_tasks() to int { return 0 }
 @endpoint(kind: mutation) fn save_task(title: str) to int {
     db.Task.insert({ title: title, done: false })
-    ret 1
+    return 1
 }
 "#;
     let hir = lower_src(src);

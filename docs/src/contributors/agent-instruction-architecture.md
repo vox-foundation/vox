@@ -41,7 +41,7 @@ Decision rule:
 
 Permission matchers in multiple IDEs can fail on compound shell commands. Do not depend on brittle parser behavior for safety.
 
-Long-form evidence, vendor links, and SSOT terminal policy: [Terminal execution policy research findings 2026](../architecture/terminal-exec-policy-research-findings-2026.md), [Terminal AST validation research 2026](../architecture/terminal-ast-validation-research-2026.md). Enforced allowlist: [`contracts/terminal/exec-policy.v1.yaml`](../../../contracts/terminal/exec-policy.v1.yaml) (validated by `vox shell check` and `vox ci exec-policy-contract`).
+Long-form evidence, vendor links, and SSOT terminal policy: [Terminal execution policy research findings 2026](../archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md), [Terminal AST validation research 2026](../archive/research-2026-q1/terminal-ast-validation-research-2026.md). Enforced allowlist: [`contracts/terminal/exec-policy.v1.yaml`](../../../contracts/terminal/exec-policy.v1.yaml) (validated by `vox shell check` and `vox ci exec-policy-contract`).
 
 Prefer:
 
@@ -103,7 +103,7 @@ Do not present undocumented internals as canonical facts.
 Update this page when changing instruction architecture or shell discipline policy. Also review:
 
 - [`AGENTS.md`](../../../AGENTS.md)
-- [`docs/src/architecture/terminal-exec-policy-research-findings-2026.md`](../architecture/terminal-exec-policy-research-findings-2026.md)
+- [`docs/src/architecture/terminal-exec-policy-research-findings-2026.md`](../archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md)
 - [`docs/src/contributors/continuation-prompt-engineering.md`](continuation-prompt-engineering.md)
 - [`docs/src/contributors/documentation-governance.md`](documentation-governance.md)
 

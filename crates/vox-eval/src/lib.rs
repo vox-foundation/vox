@@ -162,8 +162,8 @@ fn get_vox_constructs() -> &'static HashMap<&'static str, Regex> {
             Regex::new(r"(?m)^\s*let\s+").expect("vox-eval static regex: let"), // OnceLock
         );
         m.insert(
-            "ret",
-            Regex::new(r"(?m)^\s*(?:ret|return)\s+").expect("vox-eval static regex: ret"), // OnceLock
+            "return",
+            Regex::new(r"(?m)^\s*return\s+").expect("vox-eval static regex: return"), // OnceLock
         );
         m.insert(
             "while",
@@ -244,7 +244,7 @@ mod scope_tests {
 
     #[test]
     fn scope_compliance_clean_snippet() {
-        assert_eq!(scope_compliance_score("fn hello(): ret 42"), 1.0);
+        assert_eq!(scope_compliance_score("fn hello(): return 42"), 1.0);
     }
 
     #[test]
@@ -565,9 +565,9 @@ mod entropy_tests {
     #[test]
     fn entropy_detects_monoculture() {
         let samples = vec![
-            "fn hello() { ret 1 }".to_string(),
-            "fn hello() { ret 1 }".to_string(),
-            "fn hello() { ret 1 }".to_string(),
+            "fn hello() { return 1 }".to_string(),
+            "fn hello() { return 1 }".to_string(),
+            "fn hello() { return 1 }".to_string(),
         ];
         let report = eval_semantic_entropy(&samples, 0.5);
         assert!(report.ast_diversity < 0.4);
@@ -577,7 +577,7 @@ mod entropy_tests {
     #[test]
     fn entropy_detects_diversity() {
         let samples = vec![
-            "fn hello() { ret 1 }".to_string(),
+            "fn hello() { return 1 }".to_string(),
             "actor World { on msg() { pass } }".to_string(),
             "type Foo = | Bar".to_string(),
         ];

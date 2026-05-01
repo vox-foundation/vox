@@ -36,7 +36,7 @@ Scheduling and routing need **trustworthy** signals: today, many GPU/NPU hints a
 
 - [ADR 017: lease-based remote execution](017-populi-lease-remote-execution.md) — ownership model that should consume truthful capacity signals.
 - [Work-type placement policy matrix](../reference/populi-work-type-placement-matrix.md).
-- [Populi GPU truth probe specification (NVML Layer A)](../architecture/populi-gpu-truth-probe-spec.md) — shipped probe wiring and build features.
-- [Populi GPU network research 2026](../architecture/populi-gpu-network-research-2026.md) — evidence and gaps (research).
+- [Populi GPU truth probe specification (NVML Layer A)](../archive/research-2026-q1/populi-gpu-truth-probe-spec.md) — shipped probe wiring and build features.
+- [Populi GPU network research 2026](../archive/research-2026-q1/populi-gpu-network-research-2026.md) — evidence and gaps (research).
 
 

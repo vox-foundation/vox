@@ -15,7 +15,7 @@ schema_type: "HowTo"
 - [Parser ambiguity inventory](../reference/parser-ambiguity-inventory.md)
 - [HIR legacy inventory](../reference/hir-legacy-inventory.md)
 - [Diagnostic taxonomy](../reference/diagnostic-taxonomy.md)
-- [Compiler diagnostics and Rust codegen ergonomics](../architecture/compiler-diagnostics-ergonomics.md)
+- [Compiler diagnostics and Rust codegen ergonomics](../archive/research-2026-q1/compiler-diagnostics-ergonomics.md)
 
 ## Key crates
 

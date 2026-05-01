@@ -34,6 +34,22 @@ When working under the Vox repository, ALL research findings, architecture docum
 - After writing to `docs/`, update [`docs/src/architecture/research-index.md`](docs/src/architecture/research-index.md)
 - Do not store Vox-specific research in IDE knowledge bases that are only accessible to one tool
 
+## Auto-generated documentation files (do not edit manually)
+
+These files are regenerated from source markdown by `vox-doc-pipeline` and similar tools. **Never edit them by hand** — your changes will be overwritten on the next regeneration, and CI's `--check` mode will fail until you do.
+
+- `docs/src/SUMMARY.md` — mdBook table of contents. Regenerate with `cargo run -p vox-doc-pipeline` after adding/renaming/relocating a doc. CI guard: `cargo run -p vox-doc-pipeline -- --check`.
+- `docs/src/architecture/architecture-index.md` — auto-rolled architecture index. Same regenerator.
+- `docs/src/feed.xml` — RSS feed. Same regenerator.
+- `docs/src/reference/cli-command-surface.generated.md`, `docs/src/reference/mens-train-defaults.generated.md` — generated reference (filename suffix `.generated.md` marks them).
+- `.cursorignore`, `.aiignore`, `.aiexclude` — derived from `.voxignore`; regenerate with `vox ci sync-ignore-files`.
+
+To add an entry to `SUMMARY.md`: add or edit the target markdown's YAML frontmatter (`title`, `category`, `sort_order`) or H1, then rerun `cargo run -p vox-doc-pipeline`. Do not touch `SUMMARY.md` itself.
+
+Manually-maintained adjacent files that **are** safe to edit:
+- `docs/src/adr/index.md`, `docs/src/adr/README.md` — hand-rolled ADR tables, not generated.
+- Individual ADR / architecture / how-to / tutorial / reference markdown files — these are the **sources** the generators read from.
+
 ## AI Context Exclusion (SSOT)
 
 `.voxignore` is the **single source of truth** for what files and directories should be excluded from AI context.

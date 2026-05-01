@@ -201,7 +201,7 @@ fn SupportBot(query: str, session: str) to str {
     let past = db.agent_memory.find(session)
     let response = "Based on " + past.context + " -> " + query
     db.agent_memory.insert(AgentMemory(session, query))
-    ret response
+    return response
 }
 "#;
 

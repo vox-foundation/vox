@@ -11,7 +11,7 @@ schema_type: "TechArticle"
 
 # Human-In-The-Loop (HITL) & Doubt
 
-*For the architectural SSOT on this topic, see [hitl-doubt-loop-ssot.md](../architecture/hitl-doubt-loop-ssot.md).*
+*For the architectural SSOT on this topic, see [hitl-doubt-loop-ssot.md](../archive/research-2026-q1/hitl-doubt-loop-ssot.md).*
 
 Autonomous agents in Vox are designed to be confident when they have necessary context, but to express **doubt** when faced with ambiguity, destructive actions, or low-information environments. The Doubt control mechanism is the cornerstone of this Human-In-The-Loop alignment.
 

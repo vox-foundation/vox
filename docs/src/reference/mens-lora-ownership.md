@@ -21,12 +21,12 @@ schema_type: "TechArticle"
 ## Drift guard
 
 - Any change to **LoRA scaling** (`alpha/rank`), **merge equation**, or **adapter tensor naming** must either touch **one** canonical implementation and call sites, or be documented as an intentional fork with a test linking both behaviors.
-- PRs touching both trees: use [`mens-llm-pr-checklist.md`](../architecture/mens-llm-pr-checklist.md) and add/adjust a **regression test** in the kernel that actually runs the changed path (`cargo test -p vox-populi --features mens-train …`; `vox-tensor` unit tests for primitives).
+- PRs touching both trees: use [`mens-llm-pr-checklist.md`](../archive/research-2026-q1/mens-llm-pr-checklist.md) and add/adjust a **regression test** in the kernel that actually runs the changed path (`cargo test -p vox-populi --features mens-train …`; `vox-tensor` unit tests for primitives).
 
 ## Related
 
 - [`mens-training.md`](mens-training.md) — CLI, kernels, manifests, CI commands.
-- [`hf-finetune-capability-matrix.md`](../architecture/hf-finetune-capability-matrix.md) — supported combos.
-- [Nomenclature migration map](../architecture/nomenclature-migration-map.md) — retired **`vox-mens`** crate name.
+- [`hf-finetune-capability-matrix.md`](../archive/research-2026-q1/hf-finetune-capability-matrix.md) — supported combos.
+- [Nomenclature migration map](../archive/research-2026-q1/nomenclature-migration-map.md) — retired **`vox-mens`** crate name.
 
 

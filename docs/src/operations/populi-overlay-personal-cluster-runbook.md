@@ -52,7 +52,7 @@ schema_type: "TechArticle"
 ## Related documentation
 
 - [Deployment compose SSOT](../reference/deployment-compose.md) — image profiles and env blocks.
-- [Protocol convergence research 2026](../architecture/protocol-convergence-research-2026.md) — broader transport synthesis.
+- [Protocol convergence research 2026](../archive/research-2026-q1/protocol-convergence-research-2026.md) — broader transport synthesis.
 - [Mens SSOT](../reference/populi.md) — current API and env reference.
 
 

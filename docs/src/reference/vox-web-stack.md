@@ -11,7 +11,7 @@ schema_type: "TechArticle"
 # Vox full-stack web UI — single source of truth
 
 > [!NOTE]
-> **Path C (implemented):** reactive UI uses `component Name(...) { state ... view: ... }` or **`@island Name(...) { ... }`** (same body as bare `component`). Classic **`@island fn Name() ...`** remains for backward compatibility; the compiler warns on direct **`use_*`** hook calls in those bodies — prefer reactive members or **`@island`** TS for React-only logic. Suppress warnings in fixtures with **`VOX_SUPPRESS_LEGACY_HOOK_LINTS=1`** ([`env-vars.md`](env-vars.md)). See [Web Architecture Analysis 2026](../architecture/web-architecture-analysis-2026.md).
+> **Path C (implemented):** reactive UI uses `component Name(...) { state ... view: ... }` or **`@island Name(...) { ... }`** (same body as bare `component`). Classic **`@island fn Name() ...`** remains for backward compatibility; the compiler warns on direct **`use_*`** hook calls in those bodies — prefer reactive members or **`@island`** TS for React-only logic. Suppress warnings in fixtures with **`VOX_SUPPRESS_LEGACY_HOOK_LINTS=1`** ([`env-vars.md`](env-vars.md)). See [Web Architecture Analysis 2026](../archive/research-2026-q1/web-architecture-analysis-2026.md).
 
 ## Language boundary
 
@@ -79,7 +79,7 @@ For mobile support, this web stack is the primary delivery surface for Vox appli
 - **TanStack Start scaffold (opt-in)**: `Vox.toml` **`[web] tanstack_start = true`** or **`VOX_WEB_TANSTACK_START=1`** — `crates/vox-cli/src/templates.rs` + `frontend.rs` emit Start file layout + `@tanstack/react-start` (see [vox-fullstack-artifacts.md](vox-fullstack-artifacts.md)).
 - **`@island`**: lexer/parser → `Decl::Island`; codegen emits **`vox-islands-meta.ts`** and rewrites matching JSX tags to **`<div data-vox-island=\"Name\" data-prop-*={...} />`** for `islands/src/island-mount.tsx` hydration (implementations under `islands/`). SSG HTML shells still come from **`vox-ssg`** + `routes {`.
 
-**Web IR gate matrix (OP-S068, OP-S129, OP-S152, OP-S209):** parity and validate thresholds are enumerated under [acceptance gates G1–G6](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) with tests in `web_ir_lower_emit.rs`, `reactive_smoke.rs`, `pipeline.rs`, and `full_stack_minimal_build.rs`.
+**Web IR gate matrix (OP-S068, OP-S129, OP-S152, OP-S209):** parity and validate thresholds are enumerated under [acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) with tests in `web_ir_lower_emit.rs`, `reactive_smoke.rs`, `pipeline.rs`, and `full_stack_minimal_build.rs`.
 
 ## Data grids (TanStack Table)
 
@@ -87,15 +87,15 @@ For **dense, interactive tables** (sorting, filtering, column visibility, virtua
 
 ## Roadmap
 
-- [TanStack web roadmap](../architecture/tanstack-web-roadmap.md) — phases Router → Start, SSR, workspace merge.
-- [TanStack web backlog](../architecture/tanstack-web-backlog.md) — checkbox task decomposition.
+- [TanStack web roadmap](../archive/research-2026-q1/tanstack-web-roadmap.md) — phases Router → Start, SSR, workspace merge.
+- [TanStack web backlog](../archive/research-2026-q1/tanstack-web-backlog.md) — checkbox task decomposition.
 - [ADR 010 — TanStack web spine](../adr/010-tanstack-web-spine.md) — decisions (topology, examples, v0, `vox-codegen-html` retirement).
 - [ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md) — ranked trade-offs and migration plan for compiler-owned frontend IR while keeping React ecosystem interop.
-- [Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md) — weighted execution plan and staged task quotas for compiler migration.
-- [WebIR operations catalog (OP-0001..OP-0320)](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) — ordered, file-by-file operation map with complexity/test/token budgets.
-- [Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md) — parser-grounded current-vs-target full-stack representation mapping.
-- [WebIR K-complexity quantification](../architecture/internal-web-ir-side-by-side-schema.md#k-complexity-quantification) — token+grammar+escape-hatch delta for the canonical worked app.
-- [WebIR K-metric appendix](../architecture/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible) — reproducible class registries, worked counts, and equation trace.
+- [Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md) — weighted execution plan and staged task quotas for compiler migration.
+- [WebIR operations catalog (OP-0001..OP-0320)](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) — ordered, file-by-file operation map with complexity/test/token budgets.
+- [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md) — parser-grounded current-vs-target full-stack representation mapping.
+- [WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-complexity-quantification) — token+grammar+escape-hatch delta for the canonical worked app.
+- [WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible) — reproducible class registries, worked counts, and equation trace.
 
 ## Examples (canonical `.vox` shape)
 

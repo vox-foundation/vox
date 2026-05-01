@@ -16,7 +16,7 @@ Quick-reference for AI agents operating on the Vox codebase. Deep rationale live
 
 ## Stale documentation risk
 
-1. **Check SSOT inventories first** — verify similar features aren't retired. Cross-reference `AGENTS.md` and [legacy-retirement-roadmap.md](../architecture/legacy-retirement-roadmap.md).
+1. **Check SSOT inventories first** — verify similar features aren't retired. Cross-reference `AGENTS.md` and [legacy-retirement-roadmap.md](../archive/research-2026-q1/legacy-retirement-roadmap.md).
 2. **Beware renamed crates** — `vox-dei` is now a small HITL crate, not the orchestrator. See the retired surfaces table in `AGENTS.md`.
 3. **Do not hallucinate surfaces** — if a crate isn't in `architecture-index.md` or `AGENTS.md`, do not assume it exists.
 4. **Search before modifying** — use `grep_search` and `view_file` before touching large modules.
@@ -58,7 +58,7 @@ cargo run -p vox-cli -- ci ssot-drift
 cargo run -p vox-cli -- ci line-endings
 ```
 
-Full 9-tier model: [`vox_agentic_loop_and_mens_plan.md`](../architecture/vox_agentic_loop_and_mens_plan.md) §9-Tier Victory Conditions.
+Full 9-tier model: [`vox_agentic_loop_and_mens_plan.md`](../archive/research-2026-q1/vox_agentic_loop_and_mens_plan.md) §9-Tier Victory Conditions.
 
 ## Corpus quality signal
 
@@ -75,18 +75,18 @@ See [contribution loop](contribution-loop.md) for the full flywheel.
 - Do **not** add `#[allow(...)]` or `// toestub-ignore(...)` without a written reason.
 - Do **not** claim task completion adjacent to `todo!()` or empty bodies.
 
-Research: [AI agent panic and shortcut pathology](../architecture/research-ai-panic-shortcuts-2026.md).
+Research: [AI agent panic and shortcut pathology](../archive/research-2026-q1/research-ai-panic-shortcuts-2026.md).
 
 ## Key SSOTs
 
 | Need | SSOT |
 |---|---|
 | Secrets / credentials | [Clavis SSOT](../reference/clavis-ssot.md) |
-| CLI command additions | [CLI design rules SSOT](../architecture/cli-design-rules-ssot.md) |
+| CLI command additions | [CLI design rules SSOT](../archive/research-2026-q1/cli-design-rules-ssot.md) |
 | Retired symbols / crates | [AGENTS.md §Retired Surfaces](../../../AGENTS.md) |
-| God-object refactor protocol | [God object defactor checklist](../architecture/god-object-defactor-checklist.md) |
+| God-object refactor protocol | [God object defactor checklist](../archive/research-2026-q1/god-object-defactor-checklist.md) |
 | `.vox` code in docs | [Documentation governance](documentation-governance.md) |
-| Testing file conventions | [Testing standard](../architecture/testing-standard.md) |
+| Testing file conventions | [Testing standard](../archive/research-2026-q1/testing-standard.md) |
 | Cryptography | [Cryptography SSOT](../architecture/cryptography-ssot-2026.md) |
 
 ## Enforcement
