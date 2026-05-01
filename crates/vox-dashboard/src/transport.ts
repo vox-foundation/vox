@@ -73,7 +73,9 @@ export class VoxTransport {
       const token = this.getToken();
       if (token && this.ws) {
         this.ws.send(JSON.stringify({ type: 'auth', args: { token } }));
-        this._emitAuthStatus('authorized');
+        // Do NOT emit 'authorized' here — the server may still reject the auth
+        // frame and close with a 4001/4003/4401/1008 code.  'authorized' is
+        // emitted only after the server confirms acceptance (see onmessage below).
       } else {
         // No token present at open time — reset auth state so late subscribers
         // don't replay a stale 'authorized' status from a previous session.
@@ -91,6 +93,11 @@ export class VoxTransport {
     this.ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data as string) as Record<string, unknown>;
+        // Server confirms the auth frame was accepted.
+        if (msg['type'] === 'auth_ok') {
+          this._emitAuthStatus('authorized');
+          return;
+        }
         if (msg['type'] === 'agent_event' && msg['data']) {
           const data = msg['data'] as Record<string, unknown>;
           const evtType = (data['type'] ?? msg['msg_type']) as string | undefined;

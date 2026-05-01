@@ -11,7 +11,7 @@ training_eligible: false
 
 > **Provenance.** Derived from the April 2026 roadmap authored by Bertrand
 > Reyna-Brainerd. This file tracks what has actually been implemented versus
-> what is planned. Updated by AI agent on 2026-04-24.
+> what is planned. Updated by AI agent on 2026-05-01.
 >
 > **Canonical roadmap source.** The full task specifications live in
 > [`docs/src/architecture/vox-gui-native-roadmap-2026.md`](vox-gui-native-roadmap-2026.md).
@@ -77,7 +77,7 @@ Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): P
 
 ## Phase 4 — Compiler Primitive Expansion
 
-Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): Phase 4 is the first phase that primarily advances P0 (structural prevention) — each task encodes a bug class as a type or grammar rule so the bug becomes unrepresentable. Source: [`VOX_GUI_NATIVE_ROADMAP_2026.md`](../../../VOX_GUI_NATIVE_ROADMAP_2026.md) §Phase 4.
+Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): Phase 4 is the first phase that primarily advances P0 (structural prevention) — each task encodes a bug class as a type or grammar rule so the bug becomes unrepresentable. Source: [`vox-gui-native-roadmap-2026.md`](vox-gui-native-roadmap-2026.md) §Phase 4.
 
 | Task | Priority | Status | Notes |
 |------|----------|--------|-------|
@@ -105,7 +105,7 @@ Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): P
 
 ## Phase 6 — GUI Primitive Authoring Surface
 
-Per [`VOX_GUI_NATIVE_ROADMAP_2026.md`](../../../VOX_GUI_NATIVE_ROADMAP_2026.md) §Phase 6.
+Per [`vox-gui-native-roadmap-2026.md`](vox-gui-native-roadmap-2026.md) §Phase 6.
 
 | Task | Priority | Status | Notes |
 |------|----------|--------|-------|

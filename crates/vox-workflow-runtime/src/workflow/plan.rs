@@ -135,7 +135,10 @@ impl ActivityWithOpts {
 
 fn parse_timeout_ms(expr: &HirExpr) -> anyhow::Result<u64> {
     match expr {
-        HirExpr::IntLit(ms, _) => Ok(*ms as u64),
+        HirExpr::IntLit(ms, _) if *ms >= 0 => Ok(*ms as u64),
+        HirExpr::IntLit(_, _) => {
+            anyhow::bail!("workflow `timeout` must be a non-negative integer")
+        }
         HirExpr::StringLit(s, _) => {
             parse_duration_ms_str(s).with_context(|| format!("invalid workflow timeout {:?}", s))
         }
@@ -256,6 +259,20 @@ fn collect_from_expr(
         }
         HirExpr::Call(callee, args, _, _) => {
             if let HirExpr::Ident(name, _) = &**callee {
+                // Always traverse args first so nested activity/mesh calls inside
+                // helper(send_email()) or charge(render_invoice()) are not silently
+                // dropped from the replay plan.
+                for arg in args {
+                    collect_from_expr(
+                        workflow_name,
+                        &arg.value,
+                        ctx,
+                        activity_names,
+                        out,
+                        branch_counter,
+                    )?;
+                }
+
                 if name == "workflow_wait" {
                     let wait_ms = parse_workflow_wait_ms(args)?;
                     out.push(PlannedActivity {
@@ -312,6 +329,16 @@ fn collect_from_expr(
                 });
             } else {
                 collect_from_expr(workflow_name, callee, ctx, activity_names, out, branch_counter)?;
+                for arg in args {
+                    collect_from_expr(
+                        workflow_name,
+                        &arg.value,
+                        ctx,
+                        activity_names,
+                        out,
+                        branch_counter,
+                    )?;
+                }
             }
         }
         HirExpr::If(cond, then_stmts, else_stmts, _) => {
