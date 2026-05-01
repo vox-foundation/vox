@@ -46,7 +46,6 @@ training_eligible: false
 - [Feature growth and boundaries SSOT (2026)](architecture/feature-growth-boundaries.md)
 - [GUI-Native Language Roadmap — Execution Status](architecture/gui-native-roadmap-status-2026.md)
 - [Inference Tuning Resolution Research 2026](architecture/inference-tuning-resolution-research-2026.md)
-- [Legacy URL Redirects on GitHub Pages](architecture/github-pages-redirects.md)
 - [MENS Training — Architecture Pointer](architecture/mens-training-ssot.md)
 - [Master planning index](architecture/planning-meta/01-master-planning-index.md)
 - [Migration of Vox Compiler to AI-Native Architecture](architecture/path-b-decommission-2026.md)
@@ -80,6 +79,7 @@ training_eligible: false
 ## Status: Research
 
 - [Agent Shell Fluency Eval Design (2026)](architecture/agent-shell-fluency-eval-design-2026.md)
+- [Legacy URL Redirects on GitHub Pages](architecture/github-pages-redirects.md)
 - [Ludus Identity Federation & GitHub Integration](architecture/ludus-identity-github-integration-research-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](architecture/shiki-mdbook-doc-platform-research-2026.md)
 - [Warp Terminal Research Findings (2026)](architecture/warp-research-findings-2026.md)
