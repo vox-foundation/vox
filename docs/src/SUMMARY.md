@@ -168,6 +168,7 @@ training_eligible: false
 - [ADR-024: Formal Intent and Tool Receipt Auditing](adr/024-formal-intent.md)
 - [ADR-025: Multi-Agent Lock Coherence and Lease Propagation](adr/025-multi-agent-lock-coherence.md)
 - [ADR-026: Third-Party Code Provenance Policy](adr/026-third-party-code-provenance.md)
+- [ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)](adr/027-dual-track-ui-surfaces.md)
 - [AGENTS.md](AGENTS.md)
 - [Additive schema plan: scholarly external jobs and snapshots](archive/research-2026-q1/scholarly-external-schema-plan.md)
 - [Anti-foot-gun planning standard](architecture/planning-meta/05-anti-foot-gun-planning-standard.md)
