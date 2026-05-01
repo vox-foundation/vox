@@ -1,6 +1,6 @@
 ---
 title: "Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan"
-description: "Full-system audit of crates/vox-orchestrator and surrounding surfaces excluding model-routing (covered by model-orchestration-ssot-audit-2026.md). ~280 numbered improvements across 22 surface clusters. Four-axis tagged: risk/capability/hygiene/perf × P0–P3 × S/M/L effort."
+description: "Full-system audit of crates/vox-orchestrator and surrounding surfaces excluding model-routing (covered by model-orchestration-ssot-audit-2026.md). ~280 numbered improvements across 27 surface clusters (A..AB). Four-axis tagged: risk/capability/hygiene/perf × P0–P3 × S/M/L effort."
 category: "architecture"
 status: "current"
 training_eligible: true
@@ -12,7 +12,7 @@ authored: "2026-05-01"
 
 ## Part 1 — Scope & Boundaries
 
-**What this document covers.** Everything in the `vox-orchestrator` system *except* model selection, model catalog, and Clavis secret distribution — those are covered by [`model-orchestration-ssot-audit-2026.md`](../../src/architecture/model-orchestration-ssot-audit-2026.md) (FIX-01..75) and [`nextgen-orchestrator-research-2026.md`](../../src/architecture/nextgen-orchestrator-research-2026.md) (P0–P3 gaps). Items here that *touch* routing are labelled `Prior audit ref: FIX-NN` and are net-new extensions, not duplicates.
+**What this document covers.** Everything in the `vox-orchestrator` system *except* model selection, model catalog, and Clavis secret distribution — those are covered by [`model-orchestration-ssot-audit-2026.md`](model-orchestration-ssot-audit-2026.md) (FIX-01..75) and [`nextgen-orchestrator-research-2026.md`](nextgen-orchestrator-research-2026.md) (P0–P3 gaps). Items here that *touch* routing are labelled `Prior audit ref: FIX-NN` and are net-new extensions, not duplicates.
 
 **In scope:**
 - `crates/vox-orchestrator/src/` — all modules except `models/` and `catalog.rs`
@@ -1000,9 +1000,9 @@ The following are grep-able or test-verifiable done-conditions for the audit as 
 
 ## Part 7 — Sources & Related Work
 
-- [model-orchestration-ssot-audit-2026.md](../../src/architecture/model-orchestration-ssot-audit-2026.md) — FIX-01..75 covering model routing, catalog, Clavis secret distribution, and telemetry alignment.
-- [nextgen-orchestrator-research-2026.md](../../src/architecture/nextgen-orchestrator-research-2026.md) — Research synthesis with P0–P3 capability gaps that motivated FIX-B-11 (doom-loop), FIX-D-08 (lock propagation), FIX-E-06 (entropy scoring), FIX-F-05 (fleet throttle), FIX-J-07 (schema-aware translation), FIX-J-10 (PII routing).
-- [docs/src/adr/022-orchestrator-bootstrap-and-daemon-boundaries.md](../../src/adr/022-orchestrator-bootstrap-and-daemon-boundaries.md) — ADR governing daemon/MCP boundary and Phase B RPC flag matrix.
+- [model-orchestration-ssot-audit-2026.md](model-orchestration-ssot-audit-2026.md) — FIX-01..75 covering model routing, catalog, Clavis secret distribution, and telemetry alignment.
+- [nextgen-orchestrator-research-2026.md](nextgen-orchestrator-research-2026.md) — Research synthesis with P0–P3 capability gaps that motivated FIX-B-11 (doom-loop), FIX-D-08 (lock propagation), FIX-E-06 (entropy scoring), FIX-F-05 (fleet throttle), FIX-J-07 (schema-aware translation), FIX-J-10 (PII routing).
+- [docs/src/adr/022-orchestrator-bootstrap-and-daemon-boundaries.md](../adr/022-orchestrator-bootstrap-and-daemon-boundaries.md) — ADR governing daemon/MCP boundary and Phase B RPC flag matrix.
 - [docs/agents/orchestrator.md](../../agents/orchestrator.md) — Contributor-facing SSOT for orchestrator boundaries and Socrates policy.
 - OpenTelemetry GenAI semantic conventions v1.37 — Informs FIX-Z-02 span naming.
 - tokio-cancel-safety documentation — Informs FIX-Y-01..Y-04.

@@ -37,7 +37,7 @@ pub(super) async fn http_eval(
     Json(req): Json<EvalRequest>,
 ) -> Response {
     if let Err((status, msg)) = validate_eval_request(&req) {
-        return (status, msg).into_response();
+        return (status, Json(serde_json::json!({ "error": msg }))).into_response();
     }
 
     let identity = request_identity(&state, &connect.0, &headers);
