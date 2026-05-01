@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 01 May 2026 18:57:36 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 01 May 2026 19:13:03 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -15,15 +15,6 @@
     <description>API reference for the vox-codegen-ts crate: HIR-to-TypeScript/TSX code generation pipeline.</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
-  </item>
-
-  <item>
-    <title>Orchestrator Companion Audit — Non-Routing Surface Critique &amp; Improvement Plan</title>
-    <link>https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</guid>
-    <description>Full-system audit of crates/vox-orchestrator and surrounding surfaces excluding model-routing (covered by model-orchestration-ssot-audit-2026.md). ~280…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>
@@ -67,6 +58,15 @@
     <link>https://vox-lang.org/architecture/internal-web-ir-implementation-blueprint.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/internal-web-ir-implementation-blueprint.html</guid>
     <description>Implementation plan, acceptance gates, and parity requirements for the Vox internal Web IR layer.</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Orchestrator Companion Audit — Non-Routing Surface Critique &amp; Improvement Plan</title>
+    <link>https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</guid>
+    <description>Full-system audit of crates/vox-orchestrator and surrounding surfaces excluding model-routing (covered by model-orchestration-ssot-audit-2026.md). ~280…</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
