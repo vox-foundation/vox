@@ -90,6 +90,7 @@ training_eligible: false
 ## Status: Current
 
 - [Known Documentation Gaps & Backlog](api/DOC_GAPS.md)
+- [vox-codegen-ts API](api/vox-codegen-ts.md)
 
 ## Status: Deprecated
 
@@ -203,6 +204,7 @@ training_eligible: false
 - [Hybrid adapter cookbook (SPA + SSR)](archive/research-2026-q1/react-interop-hybrid-adapter-cookbook.md)
 - [IR emission SSOT (HIR, WebIR, VoxIrModule)](archive/research-2026-q1/ir-emission-ssot.md)
 - [Inference Tuning Resolution Research 2026](architecture/inference-tuning-resolution-research-2026.md)
+- [Internal Web IR Implementation Blueprint](architecture/internal-web-ir-implementation-blueprint.md)
 - [Internal Web IR Implementation Blueprint](archive/research-2026-q1/internal-web-ir-implementation-blueprint.md)
 - [Internal Web IR Side-by-Side Schema](archive/research-2026-q1/internal-web-ir-side-by-side-schema.md)
 - [Interop tier policy](archive/research-2026-q1/interop-tier-policy.md)

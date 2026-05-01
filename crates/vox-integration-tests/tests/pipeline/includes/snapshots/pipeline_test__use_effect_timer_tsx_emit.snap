@@ -1,0 +1,17 @@
+---
+source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
+expression: component.1
+---
+import React, { useState, useEffect } from "react";
+
+export function Timer(): React.ReactElement {
+    const [count, set_count] = useState(0);
+    useEffect(((_x) => (count)));
+  return (
+    <div>
+      {(() => {
+        count;
+      })()}
+    </div>
+  );
+}

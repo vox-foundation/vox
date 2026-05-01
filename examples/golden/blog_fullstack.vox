@@ -34,4 +34,7 @@ component PostEditor() {
     view: <span>"editor"</span>
 }
 
-
+routes {
+    "/" to BlogHome
+    "/edit" to PostEditor
+}

@@ -1,0 +1,37 @@
+---
+source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
+expression: chat_tsx.1
+---
+import React, { useState } from "react";
+
+import "./Chat.css";
+
+export function Chat(): React.ReactElement {
+    const [messages, set_messages] = useState([{ role: "bot", text: "" }]);
+    const [input, set_input] = useState("");
+    const send = ((_e) => (set_messages(messages.append({ role: "user", text: input }))));
+  return (
+<div className={"chat_container"}
+>
+  <div className={"messages"}
+>
+  {messages.map((msg) => (<div className={"message"}
+>
+  {(() => {
+    msg.text;
+  })()}
+</div>))}
+</div>
+  <div className={"input_area"}
+>
+  <input className={"chat_input"} value={input} onChange={(e) => set_input(e.target.value)} placeholder={"Type a message..."} />
+  <button className={"send_btn"} onClick={() => {
+    send;
+}}
+>
+  {"Send"}
+</button>
+</div>
+</div>
+  );
+}

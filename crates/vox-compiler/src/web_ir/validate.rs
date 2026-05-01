@@ -503,7 +503,8 @@ fn validate_route_reachability(
         }
         for (key, val) in attrs {
             if key == "href" || key == "to" {
-                let href = val.trim();
+                // Strip surrounding quotes: DOM arena stores string literals as `"/path"`.
+                let href = val.trim().trim_matches('"').trim_matches('\'');
                 if href.starts_with('/') {
                     referenced.insert(href.to_string());
                     if !known_patterns.contains(href) {

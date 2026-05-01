@@ -1,0 +1,10 @@
+---
+source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
+expression: types.1
+---
+export type Message =
+  | { readonly _tag: "User"; readonly text: string }
+  | { readonly _tag: "Bot"; readonly text: string };
+
+export const User = (text: string): Message => ({ _tag: "User", text });
+export const Bot = (text: string): Message => ({ _tag: "Bot", text });

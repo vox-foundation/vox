@@ -147,12 +147,7 @@ state_machine Light {
 }";
     let hir = parse_and_lower(src);
     let out = emit_state_machine_decls(&hir);
-    assert!(out.contains("export type Light ="));
-    assert!(out.contains("export type LightEvent ="));
-    assert!(out.contains("export function lightReducer("));
-    assert!(out.contains("state: Light"));
-    assert!(out.contains("event: LightEvent"));
-    assert!(out.contains(": Light {"));
+    insta::assert_snapshot!("light_state_machine_ts_emit", out);
 }
 
 #[test]
@@ -167,8 +162,8 @@ partial state_machine Door {
     let hir = parse_and_lower(src);
     let out = emit_state_machine_decls(&hir);
     // Locked is terminal — the reducer should not emit a case for it
+    insta::assert_snapshot!("door_terminal_state_machine_emit", out);
     let reducer_start = out.find("switch (state._tag)").unwrap();
     let reducer_body = &out[reducer_start..];
-    assert!(reducer_body.contains("case \"Open\""));
-    assert!(!reducer_body.contains("case \"Locked\""));
+    assert!(!reducer_body.contains("case \"Locked\""), "terminal state must not appear in reducer switch");
 }

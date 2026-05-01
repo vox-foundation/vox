@@ -1,0 +1,10 @@
+---
+source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
+expression: types.1
+---
+export type ChatResult =
+  | { readonly _tag: "Ok"; readonly text: string }
+  | { readonly _tag: "Error"; readonly message: string };
+
+export const Ok = (text: string): ChatResult => ({ _tag: "Ok", text });
+export const Error = (message: string): ChatResult => ({ _tag: "Error", message });
