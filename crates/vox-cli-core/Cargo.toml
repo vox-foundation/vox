@@ -7,7 +7,6 @@ edition.workspace = true
 vox-db = { workspace = true }
 vox-clavis = { workspace = true }
 vox-repository = { workspace = true }
-vox-config = { workspace = true }
 vox-ludus = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 serde = { workspace = true, features = ["derive"] }

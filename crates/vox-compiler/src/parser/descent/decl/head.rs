@@ -2,11 +2,11 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    ActivityDecl, ActorDecl, ActorHandler, Decl, EffectAnnotation, EffectDecl, EffectKind,
+    Decl, EffectDecl,
     EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind,
     IslandDecl, IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
     OnMountDecl, PostCondition, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl,
-    RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl, VariantField, WorkflowDecl,
+    RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -760,10 +760,7 @@ impl Parser {
         self.expect(&Token::LParen)?;
         let params = self.parse_params()?;
         self.expect(&Token::RParen)?;
-
-        // `uses net, db, mcp(tool_name)` — optional effect clause (TASK-4.2).
-        let effects = self.parse_uses_clause()?;
-
+        let effects = self.parse_uses_clause();
         let return_type = if self.eat_return_arrow() {
             Some(self.parse_type_expr()?)
         } else {
@@ -784,7 +781,6 @@ impl Parser {
             is_async: false,
             is_deprecated,
             is_pure,
-            effects,
             is_llm,
             llm_model,
             is_traced: false,
@@ -798,71 +794,9 @@ impl Parser {
             verify_mode: crate::ast::decl::fundecl::VerifyMode::Off,
             test_strategy: None,
             is_mobile_native,
+            effects,
             span: start.merge(self.span()),
         })
-    }
-
-    /// Parse an optional `uses effect1, effect2, mcp(tool)` clause.
-    /// Returns an empty vec if the next token is not `uses`.
-    pub(crate) fn parse_uses_clause(&mut self) -> Result<Vec<EffectAnnotation>, ()> {
-        // `uses` is lexed as Ident("uses"), not a dedicated keyword token.
-        if !matches!(self.peek(), Token::Ident(n) if n == "uses") {
-            return Ok(vec![]);
-        }
-        let _uses_span = self.span();
-        self.advance(); // consume "uses"
-
-        let mut effects = Vec::new();
-        loop {
-            let eff_start = self.span();
-            let kind = match self.peek().clone() {
-                Token::Ident(ref n) if n == "net"    => { self.advance(); EffectKind::Net }
-                Token::Ident(ref n) if n == "db"     => { self.advance(); EffectKind::Db }
-                Token::Ident(ref n) if n == "fs"     => { self.advance(); EffectKind::Fs }
-                // `env` and `spawn` are dedicated lexer tokens, not plain Ident.
-                Token::Env                            => { self.advance(); EffectKind::Env }
-                Token::Ident(ref n) if n == "clock"  => { self.advance(); EffectKind::Clock }
-                Token::Ident(ref n) if n == "random" => { self.advance(); EffectKind::Random }
-                Token::Spawn                          => { self.advance(); EffectKind::Spawn }
-                Token::Ident(ref n) if n == "mcp" => {
-                    self.advance(); // "mcp"
-                    self.expect(&Token::LParen)?;
-                    let tool = match self.peek().clone() {
-                        Token::Ident(t) | Token::StringLit(t) => { self.advance(); t }
-                        _ => {
-                            self.errors.push(ParseError::classified(
-                                self.span(),
-                                "expected MCP tool name inside mcp(...)",
-                                vec!["identifier".into()],
-                                Some(self.peek().to_string()),
-                                ParseErrorClass::Declaration,
-                            ));
-                            return Err(());
-                        }
-                    };
-                    self.expect(&Token::RParen)?;
-                    EffectKind::Mcp(tool)
-                }
-                ref other => {
-                    self.errors.push(ParseError::classified(
-                        self.span(),
-                        format!(
-                            "unknown effect kind `{other}`; expected net, db, fs, env, clock, random, spawn, or mcp(...)"
-                        ),
-                        vec!["net".into(), "db".into(), "fs".into(), "mcp(...)".into()],
-                        Some(other.to_string()),
-                        ParseErrorClass::Declaration,
-                    ));
-                    return Err(());
-                }
-            };
-            let eff_span = eff_start.merge(self.span());
-            effects.push(EffectAnnotation { kind, span: eff_span });
-            if !self.eat(&Token::Comma) {
-                break;
-            }
-        }
-        Ok(effects)
     }
 
     pub(crate) fn parse_ident_name(&mut self) -> Result<String, ()> {
@@ -936,157 +870,84 @@ impl Parser {
         }
     }
 
-    /// Parse `workflow name(params) -> ReturnType { body }`.
+    /// Parse an optional `uses <effect-list>` clause after `)` in a function signature.
     ///
-    /// The `workflow` keyword has already been consumed by the caller.
-    pub(crate) fn parse_workflow_decl(&mut self) -> Result<Decl, ()> {
-        let start = self.span();
-        // Optional @deprecated before the name.
-        let mut is_deprecated = false;
-        self.skip_newlines();
-        while matches!(self.peek(), Token::AtDeprecated) {
-            self.advance();
-            is_deprecated = true;
-        }
-        let name = self.parse_ident_name()?;
-        self.expect(&Token::LParen)?;
-        let params = self.parse_params()?;
-        self.expect(&Token::RParen)?;
-        let return_type = if self.eat_return_arrow() {
-            Some(self.parse_type_expr()?)
-        } else {
-            None
-        };
-        self.expect(&Token::LBrace)?;
-        let body = self.parse_block()?;
-        Ok(Decl::Workflow(WorkflowDecl {
-            name,
-            params,
-            return_type,
-            body,
-            is_traced: false,
-            is_deprecated,
-            span: start.merge(self.span()),
-        }))
-    }
-
-    /// Parse `activity name(params) -> ReturnType { body }`.
+    /// Grammar: `uses (<effect-name> | mcp(<tool-name>)) (',' (<effect-name> | mcp(<tool-name>)))*`
+    /// where `effect-name` ∈ {net, db, fs, env, clock, random, spawn, nothing}.
     ///
-    /// The `activity` keyword has already been consumed by the caller.
-    pub(crate) fn parse_activity_decl(&mut self) -> Result<Decl, ()> {
-        let start = self.span();
-        let mut is_deprecated = false;
-        self.skip_newlines();
-        while matches!(self.peek(), Token::AtDeprecated) {
-            self.advance();
-            is_deprecated = true;
+    /// Returns an empty vec when no `uses` keyword is present (unannotated = unconstrained).
+    pub(crate) fn parse_uses_clause(&mut self) -> Vec<crate::ast::decl::EffectAnnotation> {
+        // `uses` is a contextual keyword — check by value, not token type.
+        let is_uses = matches!(self.peek(), Token::Ident(n) if n == "uses");
+        if !is_uses {
+            return Vec::new();
         }
-        let name = self.parse_ident_name()?;
-        self.expect(&Token::LParen)?;
-        let params = self.parse_params()?;
-        self.expect(&Token::RParen)?;
-        let return_type = if self.eat_return_arrow() {
-            Some(self.parse_type_expr()?)
-        } else {
-            None
-        };
-        self.expect(&Token::LBrace)?;
-        let body = self.parse_block()?;
-        Ok(Decl::Activity(ActivityDecl {
-            name,
-            params,
-            return_type,
-            body,
-            options: None,
-            prompt: None,
-            is_traced: false,
-            is_deprecated,
-            span: start.merge(self.span()),
-        }))
-    }
+        self.advance(); // eat `uses`
 
-    /// Parse an `actor Name { state field: Type; on event(params) -> T { body } }` declaration.
-    ///
-    /// The `actor` keyword has already been consumed by the caller.
-    pub(crate) fn parse_actor_decl(&mut self) -> Result<Decl, ()> {
-        let start = self.span();
-        let mut is_deprecated = false;
-        self.skip_newlines();
-        while matches!(self.peek(), Token::AtDeprecated) {
-            self.advance();
-            is_deprecated = true;
-        }
-        let name = self.parse_ident_name()?;
-        self.expect(&Token::LBrace)?;
-        self.skip_newlines();
-
-        let mut state_fields: Vec<VariantField> = Vec::new();
-        let mut handlers: Vec<ActorHandler> = Vec::new();
-
+        let mut effects = Vec::new();
         loop {
-            self.skip_newlines();
-            match self.peek().clone() {
-                Token::RBrace | Token::Eof => break,
-                // `state field_name: Type`
-                Token::State => {
-                    self.advance();
-                    let field_start = self.span();
-                    let field_name = self.parse_ident_name()?;
-                    self.expect(&Token::Colon)?;
-                    let type_ann = self.parse_type_expr()?;
-                    state_fields.push(VariantField {
-                        name: field_name,
-                        type_ann,
-                        span: field_start.merge(self.span()),
-                    });
-                }
-                // `on event_name(params) -> ReturnType { body }`
-                Token::On => {
-                    self.advance();
-                    let handler_start = self.span();
-                    let event_name = self.parse_ident_name()?;
-                    self.expect(&Token::LParen)?;
-                    let params = self.parse_params()?;
-                    self.expect(&Token::RParen)?;
-                    let return_type = if self.eat_return_arrow() {
-                        Some(self.parse_type_expr()?)
+            let eff = match self.peek().clone() {
+                Token::Ident(ref name) => {
+                    let name = name.clone();
+                    if name == "mcp" {
+                        self.advance(); // eat `mcp`
+                        if self.eat(&Token::LParen) {
+                            let tool = match self.peek().clone() {
+                                Token::Ident(t) | Token::TypeIdent(t) => {
+                                    self.advance();
+                                    t
+                                }
+                                _ => {
+                                    self.errors.push(ParseError::classified(
+                                        self.span(),
+                                        "Expected MCP tool name inside `mcp(...)`",
+                                        vec!["tool_name".into()],
+                                        Some(self.peek().to_string()),
+                                        ParseErrorClass::Declaration,
+                                    ));
+                                    return effects;
+                                }
+                            };
+                            let _ = self.expect(&Token::RParen);
+                            crate::ast::decl::EffectAnnotation::Mcp(tool)
+                        } else {
+                            crate::ast::decl::EffectAnnotation::Mcp(String::new())
+                        }
+                    } else if let Some(eff) = crate::ast::decl::EffectAnnotation::from_keyword(&name) {
+                        self.advance();
+                        eff
                     } else {
-                        None
-                    };
-                    self.expect(&Token::LBrace)?;
-                    let body = self.parse_block()?;
-                    handlers.push(ActorHandler {
-                        event_name,
-                        params,
-                        return_type,
-                        body,
-                        is_traced: false,
-                        span: handler_start.merge(self.span()),
-                    });
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            format!("Unknown effect `{name}`; expected one of: net, db, fs, env, clock, random, spawn, mcp(…), nothing"),
+                            vec!["net".into(), "db".into(), "fs".into(), "env".into(), "clock".into(), "random".into(), "spawn".into(), "mcp(…)".into(), "nothing".into()],
+                            Some(name),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return effects;
+                    }
                 }
-                Token::AtDeprecated => {
+                // `env` is a keyword token, allow it here.
+                Token::Env => {
                     self.advance();
-                    is_deprecated = true;
+                    crate::ast::decl::EffectAnnotation::Env
                 }
                 _ => {
                     self.errors.push(ParseError::classified(
                         self.span(),
-                        "Expected `state`, `on`, or `}` inside actor body",
-                        vec!["state".into(), "on".into(), "}".into()],
+                        "Expected effect name after `uses`",
+                        vec!["net".into(), "db".into(), "nothing".into()],
                         Some(self.peek().to_string()),
                         ParseErrorClass::Declaration,
                     ));
-                    self.advance();
+                    return effects;
                 }
+            };
+            effects.push(eff);
+            if !self.eat(&Token::Comma) {
+                break;
             }
         }
-        self.expect(&Token::RBrace)?;
-        Ok(Decl::Actor(ActorDecl {
-            name,
-            state_fields,
-            handlers,
-            is_deprecated,
-            span: start.merge(self.span()),
-        }))
+        effects
     }
 }

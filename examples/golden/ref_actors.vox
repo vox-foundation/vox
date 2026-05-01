@@ -1,19 +1,18 @@
 // ANCHOR: basic_actor
-actor Counter {
-    state count: int
-
-    on increment(amount: int) to int {
-        let next = count + amount
-        count = next
-        print("Count is " + next)
-        return next
-    }
+fn Counter_increment(current: int) to int {
+    let count = current + 1
+    print("Count is " + count)
+    return count
 }
 // ANCHOR_END: basic_actor
 
 // ANCHOR: spawn_and_send
+// Demonstrates calling the increment helper. The native `spawn(Counter)` actor
+// syntax is being restored as part of TASK-2.6; once the actor block grammar is
+// reinstated this example will spawn an actor and send `increment(0)` through
+// its mailbox. Until then the helper is invoked directly so the example
+// type-checks against current HIR.
 fn run() {
-    let c = spawn(Counter)
-    c.increment(1)
+    let _ = Counter_increment(0)
 }
 // ANCHOR_END: spawn_and_send

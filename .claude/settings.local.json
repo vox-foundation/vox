@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git -C C:/Users/Owner/vox/.claude/worktrees/loving-lamport-8a528f log --oneline -1)",
+      "Bash(wmic logicaldisk *)",
+      "Bash(rm -rf C:/Users/Owner/vox/target/debug/incremental/)",
+      "Bash(rm -rf C:/Users/Owner/vox/.claude/worktrees/competent-elbakyan-a22226/target/)",
+      "Bash(rm -rf C:/Users/Owner/vox/.claude/worktrees/unruffled-goldberg-e37268/target/)",
+      "Bash(wait)",
+      "Bash(rm -rf C:/Users/Owner/vox/.claude/worktrees/zen-bose-8e4313/target/)",
+      "Bash(rm -rf C:/Users/Owner/vox/.claude/worktrees/amazing-matsumoto-c1582c/target/)",
+      "Bash(grep -v \"^$\")",
+      "Read(//c/Users/Owner/vox/**)",
+      "Bash(cargo check *)",
+      "Bash(cargo test *)",
+      "Bash(xargs grep *)",
+      "Bash(CARGO_TARGET_DIR=/c/Users/Owner/vox/target cargo test -p vox-compiler --lib validate_a11y)",
+      "Bash(git -C /c/Users/Owner/vox log --oneline -5)",
+      "Bash(git -C /c/Users/Owner/vox branch --show-current)",
+      "Bash(git merge *)",
+      "Bash(git push *)",
+      "Bash(cargo build *)",
+      "Bash(cargo run *)",
+      "Bash(git stash *)",
+      "Bash(git reset *)",
+      "Bash(gh pr *)",
+      "Bash(gh api *)",
+      "Bash(python3 -c ' *)",
+      "Bash(sed -n '480,520p' crates/vox-compiler/src/web_ir/validate.rs)",
+      "Bash(sed -n '655,680p' crates/vox-compiler/src/web_ir/validate.rs)",
+      "Bash(git fetch *)"
+    ]
+  }
+}

@@ -44,6 +44,7 @@ vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }
 vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
 vox-eval                  = { path = "crates/vox-eval" }
+vox-exec-grammar          = { path = "crates/vox-exec-grammar" }
 vox-forge                 = { path = "crates/vox-forge" }
 vox-crypto                = { path = "crates/vox-crypto" }
 vox-identity              = { path = "crates/vox-identity" }
@@ -56,9 +57,7 @@ vox-integration-tests     = { path = "crates/vox-integration-tests" }
 vox-mcp-meta              = { path = "crates/vox-mcp-meta" }
 vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
 vox-schola                = { path = "crates/vox-schola" }
-vox-scientia-api          = { path = "crates/vox-scientia-api" }
 vox-scientia-core         = { path = "crates/vox-scientia-core" }
-vox-scientia-runtime      = { path = "crates/vox-scientia-runtime" }
 vox-scientia-social       = { path = "crates/vox-scientia-social" }
 vox-scientia-ingest       = { path = "crates/vox-scientia-ingest" }
 vox-test-harness          = { path = "crates/vox-test-harness" }
@@ -108,6 +107,7 @@ serde_yaml         = "0.9"
 toml               = "0.8"
 miette             = { version = "7.6", features = ["fancy"] }
 aho-corasick       = "1"
+nucleo             = { version = "0.5" }
 tokio              = { version = "1", features = ["rt", "macros", "sync", "time", "net", "process", "io-util", "fs", "rt-multi-thread", "signal"] }
 tokio-stream       = { version = "0.1", default-features = false }
 tracing            = "0.1"

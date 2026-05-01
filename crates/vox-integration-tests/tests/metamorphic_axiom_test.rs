@@ -40,6 +40,7 @@ fn prop_sort_idempotent(list: list[int]) {
             durability: None,
             actor_state_fields: vec![],
             postconditions: vec![],
+            capabilities: vec![],
             span: vox_compiler::ast::Span::new(0, 0),
         },
     };

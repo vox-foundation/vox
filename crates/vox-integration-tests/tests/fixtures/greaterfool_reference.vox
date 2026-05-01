@@ -1,5 +1,6 @@
 # greaterFool Reference Target in Vox
 # Goal: express a production-style chatbot architecture with low authored complexity.
+# Updated: activity/workflow tombstoned (TASK-2.6) — now uses plain `fn`.
 
 import react.use_state
 
@@ -31,34 +32,34 @@ type ProcessingStage =
 }
 
 fn list_conversations(user_id: str) to list[Conversation] {
-    ret []
+    return []
 }
 
 fn start_run(request_id: str, conversation_id: str) to Result[bool] {
-    ret Ok(true)
+    return Ok(true)
 }
 
 fn mark_stage(request_id: str, stage: str, status: str) to Result[bool] {
-    ret Ok(true)
+    return Ok(true)
 }
 
 fn record_metric(request_id: str, model: str, latency_ms: int, estimated_cost_usd: str) to Result[bool] {
-    ret Ok(true)
+    return Ok(true)
 }
 
-activity route_message(prompt: str) to Result[str] {
+fn route_message(prompt: str) to Result[str] {
     Ok("ftt")
 }
 
-activity retrieve_context(prompt: str) to Result[str] {
+fn retrieve_context(prompt: str) to Result[str] {
     Ok("retrieved-context")
 }
 
-activity call_llm(prompt: str, context: str) to Result[str] {
+fn call_llm(prompt: str, context: str) to Result[str] {
     Ok("assistant-response")
 }
 
-workflow process_chat(prompt: str, request_id: str, conversation_id: str) to Result[str] {
+fn process_chat(prompt: str, request_id: str, conversation_id: str) to Result[str] {
     let _ = mark_stage(request_id, "routing", "started")
     let route = route_message(prompt) with { retries: 2, timeout: "5s", activity_id: "route-message" }
     let _ = mark_stage(request_id, "routing", "completed")
@@ -79,7 +80,7 @@ workflow process_chat(prompt: str, request_id: str, conversation_id: str) to Res
 
 @server fn chat(prompt: str, request_id: str, conversation_id: str) to Result[str] {
     let _ = start_run(request_id, conversation_id)
-    ret process_chat(prompt, request_id, conversation_id)
+    return process_chat(prompt, request_id, conversation_id)
 }
 
 component ChatApp() {

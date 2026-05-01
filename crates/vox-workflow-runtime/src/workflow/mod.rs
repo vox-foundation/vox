@@ -15,9 +15,15 @@ pub use types::{PlannedActivity, PopuliActivity, PopuliHttpOp, ReplayNode, Workf
 
 #[cfg(test)]
 mod tests {
-    // HirWorkflow / HirActivity types were retired in TASK-2.6 Path B.
-    // The workflow planner is now a stub (plan_workflow_replay_ir returns empty IR).
-    // Tests that constructed HirModule.workflows directly are removed.
-    // Integration tests live in the golden corpus once @durable fn is introduced (TASK-4.1).
+    use super::*;
+    use vox_compiler::hir::HirModule;
 
+    #[test]
+    fn plan_workflow_activities_returns_error_when_hir_is_stubbed() {
+        let hir = HirModule::default();
+        let result = plan_workflow_activities(&hir, "any_workflow");
+        assert!(result.is_err(), "planner should error when workflow HIR is unavailable");
+        let msg = result.unwrap_err().to_string();
+        assert!(msg.contains("not found"), "error should mention workflow not found: {msg}");
+    }
 }

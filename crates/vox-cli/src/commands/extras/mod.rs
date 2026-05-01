@@ -1,8 +1,9 @@
 //! Extras: marketplace snippets, share, optional ARS skill surface, optional Ludus.
 //!
-//! The historical in-tree **dashboard** HTTP handlers depended on the unwired `vox-dei` module tree; the supported
-//! path is `vox-codex-api` / `vox dash` (see `docs/src/reference/cli.md` and `vox-codex-api`). Legacy handler
-//! sources were removed from the tree; do not add `vox-dei` as a `vox-cli` dependency (use `crate::dei_daemon` + `vox-dei-d`).
+//! The historical in-tree **dashboard** HTTP handlers depended on the unwired `vox-dei` module tree
+//! and have been removed. The supported dashboard path is `commands::dashboard` (feature-gated
+//! `dashboard`); see `docs/src/reference/cli.md`. Do not add `vox-dei` as a `vox-cli` dependency
+//! (use `crate::dei_daemon` for the orchestrator daemon RPC boundary).
 
 #[cfg(feature = "ars")]
 pub mod ars;

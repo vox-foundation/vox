@@ -1,17 +1,18 @@
 #![allow(missing_docs)]
 
-use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
 
+/// `activity` and `workflow` keywords are tombstoned (TASK-2.6).
+/// Source using those keywords must produce a parse error, not HIR nodes.
 #[test]
-fn durable_workflow_recovery_logic() {
+fn durable_workflow_recovery_keywords_are_tombstoned() {
     let source = r#"
 activity send_email(recipient: str, body: str) to Result[bool] {
-    ret Ok(true)
+    return Ok(true)
 }
 
-workflow welcome_onboarding(user_id: str) to Unit {
+fn welcome_onboarding(user_id: str) to Unit {
     let email_sent = send_email("user@example.com", "Welcome!")
     match email_sent {
         Ok(s) -> print("Onboarding started for " + user_id)
@@ -21,16 +22,8 @@ workflow welcome_onboarding(user_id: str) to Unit {
 "#;
 
     let tokens = lex(source);
-    let module = parse(tokens).expect("Parse failed");
-    let hir = lower_module(&module);
-
-    use vox_compiler::hir::nodes::DurabilityKind;
-    let activities: Vec<_> = hir.functions.iter().filter(|f| f.durability == Some(DurabilityKind::Activity)).collect();
-    let workflows: Vec<_> = hir.functions.iter().filter(|f| f.durability == Some(DurabilityKind::Workflow)).collect();
-    assert_eq!(activities.len(), 1);
-    assert_eq!(workflows.len(), 1);
-
-    let wf = workflows[0];
-    assert_eq!(wf.name, "welcome_onboarding");
-    assert_eq!(wf.params.len(), 1);
+    assert!(
+        parse(tokens).is_err(),
+        "tombstoned `activity` / `workflow` keywords must produce a parse error"
+    );
 }

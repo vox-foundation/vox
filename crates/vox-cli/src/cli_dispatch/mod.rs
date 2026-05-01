@@ -48,20 +48,55 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
             format,
             recommended,
             include_nested,
+            search,
         } => {
             let catalog = command_catalog::build_catalog();
-            let selected =
-                command_catalog::select_entries(catalog.entries, recommended, include_nested);
+            let generated_from = catalog.generated_from.clone();
+            // `--search` implies --include-nested so results span the full tree.
+            let effective_include_nested = include_nested || search.is_some();
+            let pre_search = command_catalog::select_entries(
+                catalog.entries,
+                recommended,
+                effective_include_nested,
+            );
+            // Compute scored results once so both Text and Json formats see the same data.
+            let scored: Option<Vec<command_catalog::SearchResult>> = search
+                .as_ref()
+                .map(|p| command_catalog::search_entries_scored(pre_search.clone(), p));
+            let selected: Vec<command_catalog::CommandCatalogEntry> = match &scored {
+                Some(s) => s.iter().map(|sr| sr.entry.clone()).collect(),
+                None => pre_search,
+            };
+            if let Some(ref pattern) = search {
+                if selected.is_empty() {
+                    eprintln!("vox commands: no matches for {:?}", pattern);
+                }
+            }
             match format {
                 command_catalog::CatalogFormat::Text => {
-                    println!("{}", command_catalog::render_text(&selected));
+                    let text = if let Some(ref pattern) = search {
+                        command_catalog::render_search_results(&selected, pattern)
+                    } else {
+                        command_catalog::render_text(&selected)
+                    };
+                    println!("{text}");
                 }
                 command_catalog::CatalogFormat::Json => {
-                    let out = command_catalog::CommandCatalog {
-                        generated_from: catalog.generated_from,
-                        entries: selected,
-                    };
-                    println!("{}", serde_json::to_string_pretty(&out)?);
+                    if let (Some(pattern), Some(results)) = (&search, scored) {
+                        let out = command_catalog::SearchOutput {
+                            generated_from,
+                            pattern: pattern.clone(),
+                            match_count: results.len(),
+                            results,
+                        };
+                        println!("{}", serde_json::to_string_pretty(&out)?);
+                    } else {
+                        let out = command_catalog::CommandCatalog {
+                            generated_from,
+                            entries: selected,
+                        };
+                        println!("{}", serde_json::to_string_pretty(&out)?);
+                    }
                 }
             }
         }

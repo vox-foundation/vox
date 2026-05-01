@@ -26,6 +26,9 @@ This file tracks the single source of truth for Vox architecture, research findi
 - [FFScript Mutation API Spec (2026-04-23)](ffscript-mutation-api-spec-2026.md) — Full TypeScript interface for the `FFScriptDoc` wrapper class (T-041–T-045, T-051–T-052, T-054): 15 public methods (panel CRUD, dialogue, choice/branch, scene, placement, bubble, batch), branded ID types, MutationResult/JSON-Patch return shape, typed error hierarchy, Immer integration notes, Convex integration pattern, and corrected effort estimate (L, not M).
 - [FFScript Linter Engine Design (2026-04-23)](ffscript-linter-design-2026.md) — TypeScript interfaces and default rule catalogue for the pluggable FFScript linter (T-046–T-050, T-035–T-039 collapsed). Updated: LintFix uses serializable FixKind descriptor (Vox DiagnosticFix pattern) so fixes can be stored in Convex and replayed from CLI.
 
+## Competitive & Ecosystem Research
+- [Warp Terminal Research Findings (2026-04-29)](warp-research-findings-2026.md) — Systematic scan of warpdotdev/warp (~60 crates). Identifies AGPL-3.0-only license incompatibility blocking direct vendoring, maps Tier-S/A/B/C targets, confirms `deny.toml` already rejects AGPL, establishes clean-room reimplement path for `command-signatures-v2` → `vox-exec-grammar`, and recommends Zed (Apache-2.0) as the preferred upstream for B-tree/text primitives. Produced ADR-026, `crates/vox-exec-grammar` scaffold, `.voxindexingignore`, and `fuzzy-search` feature wire-up.
+
 ## FableForge Implementation Files
 
 Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Verify field names against the real schema before merging.
@@ -37,6 +40,8 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 
 ## Core SSoT
 - [V0.5 Core SSoT](v0.5-core-ssot.md) — Version 0.5 core architecture specifications.
+- [Terminal Exec Policy SSOT (2026)](terminal-exec-policy-ssot.md) — Live SSOT for the PowerShell-first terminal exec policy. Scopes the claim to host-side allowlisting and output parsing, explicitly disclaims any codegen-fluency superiority over Bash, and documents why a separate "PowerShell spoke" in MENS is not justified.
+- [Agent Shell Fluency Eval Design (2026)](agent-shell-fluency-eval-design-2026.md) — Design-only A/B eval (20 tasks × 2 shells × 5 trials) for the codegen-fluency claim. Not run; not required by current policy. On-shelf until a proposal depends on the wider claim.
 
 ## Data Storage
 - [Data Storage SSOT (2026)](data-storage-ssot-2026.md) — Greenfield target state for how Vox persists, represents, and governs data across libSQL/Turso, `contracts/`, JSONL/log spools, and Rust in-memory types; seventy-eight numbered findings (F1–F78).

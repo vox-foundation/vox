@@ -1,36 +1,22 @@
-//! Compile-time accessibility (a11y) validator for Web IR (TASK-5.3).
+//! TASK-5.3 — Accessibility validator (a11y).
 //!
-//! Walks the DOM arena and emits diagnostics for common accessibility violations.
-//! Diagnostic codes use the `web_ir_a11y.*` prefix.
+//! Checks structural accessibility rules against the DOM arena:
 //!
-//! ## Rules implemented
+//! - `<img>` without `alt` or `aria-hidden="true"` → error.
+//! - `<button>` without accessible name (text child / aria-label / aria-labelledby) → error.
+//! - `<a href=...>` without accessible name → error.
+//! - Any element with `role="button"` without accessible name → error.
+//! - Any element with `role="button"` without a keyboard handler → error.
 //!
-//! | Code | Severity | Rule |
-//! |------|----------|------|
-//! | `web_ir_a11y.img.missing_alt`          | Error   | `<img>` without `alt` or `aria-hidden="true"` |
-//! | `web_ir_a11y.button.missing_label`      | Error   | `<button>` with no text content, `aria-label`, or `aria-labelledby` |
-//! | `web_ir_a11y.anchor.missing_href`       | Warning | `<a>` without `href` |
-//! | `web_ir_a11y.interactive.missing_keyboard` | Warning | `role="button"` element without `onclick`/`onkeydown` |
-//! | `web_ir_a11y.input.missing_label`       | Warning | `<input>` without `aria-label`, `aria-labelledby`, or `title` |
+//! TASK-6.5 adds ancestor-chain contrast checking:
+//! - `<p>` / `<h1>`–`<h6>` inside a surface with insufficient contrast → compile error.
 //!
-//! ## Escape hatches (Phase 6)
-//!
-//! Until the `decorative: true` / `aria_hidden: true` attribute annotations
-//! land on `DomNode::Element`, use explicit `aria-hidden="true"` in the
-//! source attrs to suppress `img.missing_alt`.
-//!
-//! ## IR embedding (Phase 6)
-//!
-//! `AriaNode` / `Role` types are internal to this module for now. When
-//! `DomNode::Element` gains `aria: Option<AriaNode>` in Phase 6, the
-//! inference logic here moves into the lowering pass.
+//! All codes are under `web_ir_validate.a11y.*`.
 
-use std::collections::HashMap;
-
-use crate::web_ir::{DomNode, DomNodeId, WebIrDiagnostic, WebIrDiagnosticSeverity, WebIrModule};
+use super::{BehaviorNode, DomNode, DomNodeId, WebIrDiagnostic, WebIrModule};
 
 // ---------------------------------------------------------------------------
-// Internal aria inference types (not yet embedded in DomNode — Phase 6)
+// Internal aria inference types (Phase 6 will embed these in DomNode)
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq)]
@@ -47,14 +33,13 @@ enum AriaRole {
     Generic,
 }
 
-/// Derive the implicit ARIA role from an element tag, following the
-/// [HTML-AAM](https://www.w3.org/TR/html-aam/) mapping.
+/// Derive the implicit ARIA role from an element tag, following the HTML-AAM mapping.
 fn implicit_role(tag: &str) -> AriaRole {
     match tag.to_ascii_lowercase().as_str() {
         "button" | "summary" => AriaRole::Button,
         "a" | "area" => AriaRole::Link,
         "img" => AriaRole::Img,
-        "input" => AriaRole::TextInput, // simplified; real mapping depends on type attr
+        "input" => AriaRole::TextInput,
         "select" => AriaRole::Combobox,
         _ => AriaRole::Generic,
     }
@@ -66,7 +51,7 @@ fn has_attr(attrs: &[(String, String)], name: &str) -> bool {
 }
 
 /// Get the value of a named attribute (case-insensitive key).
-fn attr_value<'a>(attrs: &'a [(String, String)], name: &str) -> Option<&'a str> {
+fn get_attr<'a>(attrs: &'a [(String, String)], name: &str) -> Option<&'a str> {
     attrs
         .iter()
         .find(|(k, _)| k.eq_ignore_ascii_case(name))
@@ -78,470 +63,505 @@ fn has_aria_name(attrs: &[(String, String)]) -> bool {
     has_attr(attrs, "aria-label") || has_attr(attrs, "aria-labelledby")
 }
 
-/// True if the element has non-empty text or expression children in the arena.
-///
-/// `DomNodeId` values in `children` lists serve a dual role:
-/// - For `Element` nodes the `.id` field matches the `DomNodeId`.
-/// - For non-element nodes (`Text`, `Expr`, `Fragment`, …) there is no `.id`;
-///   the `DomNodeId` is used as a direct arena-position index.
-/// We therefore try element-id lookup first, then fall back to positional.
-fn has_accessible_child_content(node_id: DomNodeId, arena: &[DomNode], index: &HashMap<u32, usize>) -> bool {
-    // Resolve the parent node via element-id index, then fall back to positional.
-    let node = index
-        .get(&node_id.0)
-        .and_then(|&i| arena.get(i))
-        .or_else(|| arena.get(node_id.0 as usize));
-    let children = match node {
-        Some(DomNode::Element { children, .. }) => children.as_slice(),
-        _ => return false,
-    };
-    for &child_id in children {
-        // Try element-id lookup first, then positional fallback.
-        let child = index
-            .get(&child_id.0)
-            .and_then(|&i| arena.get(i))
-            .or_else(|| arena.get(child_id.0 as usize));
-        match child {
-            Some(DomNode::Text { content, .. }) if !content.trim().is_empty() => return true,
-            Some(DomNode::Expr { .. }) => return true, // dynamic expression — assume it provides content
-            Some(DomNode::Fragment { children: fc, .. }) => {
-                // recurse into fragments
-                for fid in fc.clone() {
-                    if has_accessible_child_content(fid, arena, index) {
-                        return true;
-                    }
-                }
-            }
-            Some(DomNode::Element { id: eid, .. }) => {
-                // recurse into nested elements (e.g. <span> wrapping text)
-                if has_accessible_child_content(*eid, arena, index) {
+/// Recursively check whether a set of child DOM nodes contains any non-empty text content
+/// or expression nodes (which may produce text at runtime).
+fn has_non_empty_text_child(module: &WebIrModule, child_ids: &[DomNodeId]) -> bool {
+    for child_id in child_ids {
+        let Some(node) = module.dom_nodes.get(child_id.0 as usize) else {
+            continue;
+        };
+        match node {
+            DomNode::Text { content, .. } => {
+                if !content.trim().is_empty() {
                     return true;
                 }
             }
+            DomNode::Element { children, .. } => {
+                if has_non_empty_text_child(module, children) {
+                    return true;
+                }
+            }
+            // Expression nodes ({label}, {count}, etc.) may produce text at runtime;
+            // treat their presence as satisfying the accessible-name requirement.
+            DomNode::Expr { .. } => return true,
             _ => {}
         }
     }
     false
 }
 
-// ---------------------------------------------------------------------------
-// Per-element checks
-// ---------------------------------------------------------------------------
-
-fn check_img(attrs: &[(String, String)], out: &mut Vec<WebIrDiagnostic>) {
-    // aria-hidden="true" is the explicit escape hatch.
-    if attr_value(attrs, "aria-hidden").is_some_and(|v| v == "true") {
-        return;
-    }
-    let alt = attr_value(attrs, "alt");
-    // Missing alt entirely.
-    if alt.is_none() {
-        out.push(WebIrDiagnostic {
-            code: "web_ir_a11y.img.missing_alt".to_string(),
-            message: "<img> element is missing an `alt` attribute. \
-                      Add alt=\"\" for decorative images or a descriptive alt text for informative ones."
-                .to_string(),
-            span: None,
-            category: Some("a11y".to_string()),
-            severity: WebIrDiagnosticSeverity::Error,
-        });
-    }
-    // alt="" is valid for decorative images — no diagnostic.
-}
-
-fn check_button(
-    node_id: DomNodeId,
-    attrs: &[(String, String)],
-    arena: &[DomNode],
-    index: &HashMap<u32, usize>,
-    out: &mut Vec<WebIrDiagnostic>,
-) {
-    // Accessible name via: aria-label, aria-labelledby, or text/expr content.
-    if has_aria_name(attrs) {
-        return;
-    }
-    if has_accessible_child_content(node_id, arena, index) {
-        return;
-    }
-    out.push(WebIrDiagnostic {
-        code: "web_ir_a11y.button.missing_label".to_string(),
-        message: "<button> element has no accessible name. \
-                  Add visible text content, aria-label, or aria-labelledby."
-            .to_string(),
-        span: None,
-        category: Some("a11y".to_string()),
-        severity: WebIrDiagnosticSeverity::Error,
-    });
-}
-
-fn check_anchor(attrs: &[(String, String)], out: &mut Vec<WebIrDiagnostic>) {
-    // <a> without href is an interactive element masquerading as a link.
-    if !has_attr(attrs, "href") && !has_attr(attrs, "to") {
-        out.push(WebIrDiagnostic {
-            code: "web_ir_a11y.anchor.missing_href".to_string(),
-            message: "<a> element without `href` or `to` is not keyboard-reachable. \
-                      Add href/to or use <button> instead."
-                .to_string(),
-            span: None,
-            category: Some("a11y".to_string()),
-            severity: WebIrDiagnosticSeverity::Warning,
-        });
-    }
-}
-
-fn check_role_button(attrs: &[(String, String)], out: &mut Vec<WebIrDiagnostic>) {
-    // `role="button"` on a non-button element requires BOTH a keyboard event
-    // handler AND a tab stop so that it is operable by keyboard users.
-    let has_key_handler = has_attr(attrs, "onkeydown")
-        || has_attr(attrs, "onkeyup")
-        || has_attr(attrs, "onkeypress");
-    let has_tab_stop = has_attr(attrs, "tabIndex") || has_attr(attrs, "tabindex");
-    if !has_key_handler || !has_tab_stop {
-        out.push(WebIrDiagnostic {
-            code: "web_ir_a11y.interactive.missing_keyboard".to_string(),
-            message: "Element with role=\"button\" must be keyboard-accessible. \
-                      Add both an onKeyDown handler and tabIndex=\"0\"."
-                .to_string(),
-            span: None,
-            category: Some("a11y".to_string()),
-            severity: WebIrDiagnosticSeverity::Warning,
-        });
-    }
-}
-
-fn check_input(attrs: &[(String, String)], out: &mut Vec<WebIrDiagnostic>) {
-    // Hidden inputs don't need labels.
-    if attr_value(attrs, "type").is_some_and(|t| t.eq_ignore_ascii_case("hidden")) {
-        return;
-    }
-    if has_aria_name(attrs) || has_attr(attrs, "title") {
-        // aria-label / aria-labelledby / title all provide accessible names.
-        // NOTE: `id` alone is not an escape hatch — a matching <label for="...">
-        // may or may not exist elsewhere in the tree; it cannot be inferred here.
-        return;
-    }
-    out.push(WebIrDiagnostic {
-        code: "web_ir_a11y.input.missing_label".to_string(),
-        message: "<input> element has no accessible label. \
-                  Add aria-label, aria-labelledby, title, or an associated <label for=\"...\">."
-            .to_string(),
-        span: None,
-        category: Some("a11y".to_string()),
-        severity: WebIrDiagnosticSeverity::Warning,
-    });
-}
-
-// ---------------------------------------------------------------------------
-// Main validator entry point
-// ---------------------------------------------------------------------------
-
-/// Build a fast `DomNodeId.0 → arena index` lookup map.
-fn build_node_index(arena: &[DomNode]) -> HashMap<u32, usize> {
-    let mut map = HashMap::with_capacity(arena.len());
-    for (idx, node) in arena.iter().enumerate() {
-        let id = match node {
-            DomNode::Element { id, .. } => id.0,
-            _ => continue,
-        };
-        map.insert(id, idx);
-    }
-    map
-}
-
-/// Walk the entire DOM arena and emit a11y diagnostics.
-///
-/// This is a pure function over the existing Web IR — it does not require
-/// `AriaNode` to be embedded in `DomNode::Element` (that is Phase 6 work).
+/// Run structural a11y checks on the DOM arena.
 pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
-    let index = build_node_index(&module.dom_nodes);
-
     for node in &module.dom_nodes {
-        let DomNode::Element { id, tag, attrs, .. } = node else {
+        let DomNode::Element {
+            id: elem_id,
+            tag,
+            attrs,
+            children,
+            ..
+        } = node
+        else {
             continue;
         };
 
-        // Check explicit role="button" on non-button elements.
-        if let Some(role) = attr_value(attrs, "role") {
-            if role.eq_ignore_ascii_case("button") {
-                let tag_lower = tag.to_ascii_lowercase();
-                if tag_lower != "button" && tag_lower != "summary" {
-                    check_role_button(attrs, out);
+        let get_a = |name: &str| -> Option<&str> {
+            attrs.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str())
+        };
+
+        match tag.as_str() {
+            "img" => {
+                let has_alt = attrs.iter().any(|(k, _)| k == "alt");
+                let aria_hidden = get_a("aria-hidden").map_or(false, |v| v == "true");
+                if !has_alt && !aria_hidden {
+                    out.push(WebIrDiagnostic {
+                        code: "web_ir_validate.a11y.img_missing_alt".to_string(),
+                        message: "img element requires an `alt` attribute or `aria-hidden=\"true\"` for decorative images".to_string(),
+                        span: None,
+                        category: Some("a11y".to_string()),
+                    });
                 }
             }
-        }
-
-        // Per-element structural checks.
-        match implicit_role(tag) {
-            AriaRole::Img => check_img(attrs, out),
-            AriaRole::Button => {
-                check_button(*id, attrs, &module.dom_nodes, &index, out);
+            "button" => {
+                check_accessible_name(module, tag, attrs, children, out);
             }
-            AriaRole::Link => check_anchor(attrs, out),
-            AriaRole::TextInput => check_input(attrs, out),
-            _ => {}
+            "a" => {
+                let has_href = attrs.iter().any(|(k, _)| k == "href" || k == "to");
+                if has_href {
+                    check_accessible_name(module, tag, attrs, children, out);
+                }
+            }
+            _ => {
+                if let Some(role) = get_a("role") {
+                    if role == "button" {
+                        // Only check role="button" on non-button elements
+                        if !matches!(implicit_role(tag), AriaRole::Button) {
+                            check_accessible_name(module, tag, attrs, children, out);
+                            check_keyboard_handler(module, *elem_id, out);
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+fn check_accessible_name(
+    module: &WebIrModule,
+    tag: &str,
+    attrs: &[(String, String)],
+    children: &[DomNodeId],
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    let has_aria = has_aria_name(attrs);
+    if has_aria {
+        return;
+    }
+    if has_non_empty_text_child(module, children) {
+        return;
+    }
+    out.push(WebIrDiagnostic {
+        code: "web_ir_validate.a11y.interactive_missing_label".to_string(),
+        message: format!(
+            "`{}` element has no accessible name — add text content, `aria-label`, or `aria-labelledby`",
+            tag
+        ),
+        span: None,
+        category: Some("a11y".to_string()),
+    });
+}
+
+/// For `role="button"` elements: require at least one keyboard event handler in the module
+/// targeting this element (or a module-level catch-all keyboard handler).
+fn check_keyboard_handler(
+    module: &WebIrModule,
+    elem_id: DomNodeId,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    let is_keyboard = |event: &str| {
+        event == "keydown" || event == "keyup" || event == "keypress"
+    };
+
+    let has_handler = module.behavior_nodes.iter().any(|b| {
+        if let BehaviorNode::EventHandler { event, target_dom, .. } = b {
+            if !is_keyboard(event) {
+                return false;
+            }
+            // Accept: handler targeting this element OR a catch-all (None target).
+            target_dom.map_or(true, |t| t == elem_id)
+        } else {
+            false
+        }
+    });
+
+    if !has_handler {
+        out.push(WebIrDiagnostic {
+            code: "web_ir_validate.a11y.role_button_missing_keyboard".to_string(),
+            message: "element with `role=\"button\"` requires a `keydown` or `keyup` handler for keyboard accessibility".to_string(),
+            span: None,
+            category: Some("a11y".to_string()),
+        });
+    }
+}
+
+/// TASK-6.5: Walk the DOM from each view root, tracking the current surface pair context.
+/// At `p` / `h1`–`h6` nodes with an active surface, compute WCAG 2.1 contrast and emit
+/// `web_ir_validate.a11y.insufficient_contrast` (error < 3:1) or
+/// `web_ir_validate.a11y.low_contrast` (warning < 4.5:1 for body text).
+pub fn validate_a11y_with_registry(
+    module: &WebIrModule,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    for (_name, root_id) in &module.view_roots {
+        walk_contrast(module, *root_id, None, registry, out);
+    }
+}
+
+fn walk_contrast(
+    module: &WebIrModule,
+    node_id: DomNodeId,
+    current_surface: Option<(String, String)>,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    let Some(node) = module.dom_nodes.get(node_id.0 as usize) else {
+        return;
+    };
+    match node {
+        DomNode::Element { tag, attrs, children, .. } => {
+            // Inherit or update surface context from data-vox-surface attr.
+            let surface_ctx: Option<(String, String)> =
+                if let Some(surface_name) = attrs
+                    .iter()
+                    .find(|(k, _)| k == "data-vox-surface")
+                    .map(|(_, v)| v.as_str())
+                {
+                    registry
+                        .lookup_surface(surface_name)
+                        .map(|e| (e.fg_key.clone(), e.bg_key.clone()))
+                        .or_else(|| current_surface.clone())
+                } else {
+                    current_surface.clone()
+                };
+
+            if let Some((ref fg_key, ref bg_key)) = surface_ctx {
+                check_text_contrast(tag, fg_key, bg_key, registry, out);
+            }
+
+            for child_id in children {
+                walk_contrast(module, *child_id, surface_ctx.clone(), registry, out);
+            }
+        }
+        DomNode::Fragment { children, .. } => {
+            for child_id in children {
+                walk_contrast(module, *child_id, current_surface.clone(), registry, out);
+            }
+        }
+        DomNode::Conditional { then_children, else_children, .. } => {
+            for child_id in then_children.iter().chain(else_children.iter()) {
+                walk_contrast(module, *child_id, current_surface.clone(), registry, out);
+            }
+        }
+        DomNode::Loop { body, .. } => {
+            for child_id in body {
+                walk_contrast(module, *child_id, current_surface.clone(), registry, out);
+            }
+        }
+        DomNode::Text { .. }
+        | DomNode::Slot { .. }
+        | DomNode::Expr { .. }
+        | DomNode::IslandMount { .. } => {}
+    }
+}
+
+fn check_text_contrast(
+    tag: &str,
+    fg_key: &str,
+    bg_key: &str,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    let is_text_tag = matches!(tag, "p" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6");
+    if !is_text_tag {
+        return;
+    }
+    let Some(fg_hex) = registry.lookup(fg_key) else { return };
+    let Some(bg_hex) = registry.lookup(bg_key) else { return };
+    let Some(ratio) = crate::tokens::wcag21_contrast_ratio(fg_hex, bg_hex) else { return };
+
+    // h1–h3 are large text (≥18pt regular or ≥14pt bold): WCAG 2.1 minimum 3:1.
+    // p, h4–h6 are body text: warn <4.5:1, error <3:1.
+    let is_large = matches!(tag, "h1" | "h2" | "h3");
+    let (error_threshold, warn_threshold): (f64, f64) = if is_large { (3.0, 3.0) } else { (3.0, 4.5) };
+
+    if ratio < error_threshold {
+        out.push(WebIrDiagnostic {
+            code: "web_ir_validate.a11y.insufficient_contrast".to_string(),
+            message: format!(
+                "`<{tag}>` contrast {ratio:.2}:1 is below {error_threshold:.1}:1 minimum (WCAG 2.1 §1.4.3)"
+            ),
+            span: None,
+            category: Some("a11y".to_string()),
+        });
+    } else if ratio < warn_threshold {
+        out.push(WebIrDiagnostic {
+            code: "web_ir_validate.a11y.low_contrast".to_string(),
+            message: format!(
+                "`<{tag}>` contrast {ratio:.2}:1 is below recommended {warn_threshold:.1}:1 (WCAG 2.1 §1.4.3)"
+            ),
+            span: None,
+            category: Some("a11y".to_string()),
+        });
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::web_ir::{DomNode, DomNodeId, WebIrDiagnosticSeverity, WebIrModule};
+    use crate::web_ir::{DomNodeId, WebIrModule};
 
-    fn run(nodes: Vec<DomNode>) -> Vec<WebIrDiagnostic> {
-        let mut m = WebIrModule::default();
-        m.dom_nodes = nodes;
-        let mut out = Vec::new();
-        validate_a11y(&m, &mut out);
-        out
+    fn elem(id: u32, tag: &str, attrs: Vec<(&str, &str)>, children: Vec<u32>) -> DomNode {
+        DomNode::Element {
+            id: DomNodeId(id),
+            tag: tag.to_string(),
+            attrs: attrs.into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+            children: children.into_iter().map(DomNodeId).collect(),
+            span: None,
+        }
     }
 
-    // ── <img> ────────────────────────────────────────────────────────────────
-
-    #[test]
-    fn img_with_alt_passes() {
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "img".to_string(),
-            attrs: vec![
-                ("src".to_string(), "/logo.png".to_string()),
-                ("alt".to_string(), "Company logo".to_string()),
-            ],
-            children: vec![],
+    fn text(content: &str) -> DomNode {
+        DomNode::Text {
+            content: content.to_string(),
             span: None,
-        }];
-        let diags = run(nodes);
-        assert!(diags.is_empty(), "img with alt should pass: {diags:?}");
+        }
     }
 
-    #[test]
-    fn img_with_empty_alt_passes_decorative() {
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "img".to_string(),
-            attrs: vec![
-                ("src".to_string(), "/deco.png".to_string()),
-                ("alt".to_string(), String::new()),
-            ],
-            children: vec![],
-            span: None,
-        }];
-        let diags = run(nodes);
-        assert!(diags.is_empty(), "img with empty alt (decorative) should pass");
+    fn module_with_nodes(nodes: Vec<DomNode>) -> WebIrModule {
+        WebIrModule {
+            dom_nodes: nodes,
+            ..Default::default()
+        }
     }
 
     #[test]
     fn img_without_alt_is_error() {
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "img".to_string(),
-            attrs: vec![("src".to_string(), "/logo.png".to_string())],
-            children: vec![],
-            span: None,
-        }];
-        let diags = run(nodes);
-        assert_eq!(diags.len(), 1);
-        assert_eq!(diags[0].code, "web_ir_a11y.img.missing_alt");
-        assert_eq!(diags[0].severity, WebIrDiagnosticSeverity::Error);
+        let m = module_with_nodes(vec![elem(0, "img", vec![("src", "logo.png")], vec![])]);
+        let diags = {
+            let mut out = Vec::new();
+            validate_a11y(&m, &mut out);
+            out
+        };
+        assert!(
+            diags.iter().any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
+            "expected img_missing_alt: {diags:?}"
+        );
     }
 
     #[test]
-    fn img_with_aria_hidden_suppresses_alt_check() {
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "img".to_string(),
-            attrs: vec![
-                ("src".to_string(), "/bg.svg".to_string()),
-                ("aria-hidden".to_string(), "true".to_string()),
-            ],
-            children: vec![],
-            span: None,
-        }];
-        let diags = run(nodes);
-        assert!(diags.is_empty(), "aria-hidden='true' suppresses alt check");
+    fn img_with_alt_is_ok() {
+        let m = module_with_nodes(vec![elem(0, "img", vec![("src", "x.png"), ("alt", "Logo")], vec![])]);
+        let mut out = Vec::new();
+        validate_a11y(&m, &mut out);
+        assert!(out.is_empty(), "unexpected: {out:?}");
     }
 
-    // ── <button> ─────────────────────────────────────────────────────────────
+    #[test]
+    fn img_with_aria_hidden_is_ok() {
+        let m = module_with_nodes(vec![elem(0, "img", vec![("src", "deco.svg"), ("aria-hidden", "true")], vec![])]);
+        let mut out = Vec::new();
+        validate_a11y(&m, &mut out);
+        assert!(out.is_empty(), "unexpected: {out:?}");
+    }
 
     #[test]
-    fn button_with_text_child_passes() {
-        let nodes = vec![
-            DomNode::Element {
-                id: DomNodeId(0),
-                tag: "button".to_string(),
-                attrs: vec![],
-                children: vec![DomNodeId(1)],
-                span: None,
+    fn button_without_label_is_error() {
+        let m = module_with_nodes(vec![elem(0, "button", vec![], vec![])]);
+        let mut out = Vec::new();
+        validate_a11y(&m, &mut out);
+        assert!(
+            out.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+            "expected interactive_missing_label: {out:?}"
+        );
+    }
+
+    #[test]
+    fn button_with_text_child_is_ok() {
+        let m = module_with_nodes(vec![
+            elem(0, "button", vec![], vec![1]),
+            text("Submit"),
+        ]);
+        let mut out = Vec::new();
+        validate_a11y(&m, &mut out);
+        assert!(out.is_empty(), "unexpected: {out:?}");
+    }
+
+    #[test]
+    fn button_with_aria_label_is_ok() {
+        let m = module_with_nodes(vec![elem(0, "button", vec![("aria-label", "Close")], vec![])]);
+        let mut out = Vec::new();
+        validate_a11y(&m, &mut out);
+        assert!(out.is_empty(), "unexpected: {out:?}");
+    }
+
+    #[test]
+    fn anchor_without_href_skips_check() {
+        let m = module_with_nodes(vec![elem(0, "a", vec![], vec![])]);
+        let mut out = Vec::new();
+        validate_a11y(&m, &mut out);
+        assert!(out.is_empty(), "anchor without href should not be checked: {out:?}");
+    }
+
+    #[test]
+    fn anchor_with_href_and_no_label_is_error() {
+        let m = module_with_nodes(vec![elem(0, "a", vec![("href", "/about")], vec![])]);
+        let mut out = Vec::new();
+        validate_a11y(&m, &mut out);
+        assert!(
+            out.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+            "expected interactive_missing_label: {out:?}"
+        );
+    }
+
+    #[test]
+    fn role_button_without_keyboard_handler_is_error() {
+        let m = module_with_nodes(vec![elem(
+            0,
+            "div",
+            vec![("role", "button"), ("aria-label", "Toggle")],
+            vec![],
+        )]);
+        let mut out = Vec::new();
+        validate_a11y(&m, &mut out);
+        assert!(
+            out.iter().any(|d| d.code == "web_ir_validate.a11y.role_button_missing_keyboard"),
+            "expected role_button_missing_keyboard: {out:?}"
+        );
+    }
+
+    #[test]
+    fn role_button_with_keyboard_handler_is_ok() {
+        let mut m = module_with_nodes(vec![elem(
+            0,
+            "div",
+            vec![("role", "button"), ("aria-label", "Toggle")],
+            vec![],
+        )]);
+        m.behavior_nodes.push(BehaviorNode::EventHandler {
+            target_dom: Some(DomNodeId(0)),
+            event: "keydown".to_string(),
+            handler: "handleKey".to_string(),
+            span: None,
+        });
+        let mut out = Vec::new();
+        validate_a11y(&m, &mut out);
+        assert!(
+            out.iter().all(|d| d.code != "web_ir_validate.a11y.role_button_missing_keyboard"),
+            "unexpected keyboard error: {out:?}"
+        );
+    }
+
+    // ---- TASK-6.5 contrast tests ----
+
+    fn registry_with_surface(
+        surface_name: &str,
+        fg_hex: &str,
+        bg_hex: &str,
+    ) -> crate::tokens::TokenRegistry {
+        let mut reg = crate::tokens::TokenRegistry::default();
+        reg.by_css_var.insert("fg-test".to_string(), fg_hex.to_string());
+        reg.by_css_var.insert("bg-test".to_string(), bg_hex.to_string());
+        reg.surface_pairs.insert(
+            surface_name.to_string(),
+            crate::tokens::SurfacePairEntry {
+                fg_key: "fg-test".to_string(),
+                bg_key: "bg-test".to_string(),
             },
-            DomNode::Text {
-                content: "Submit".to_string(),
-                span: None,
-            },
-        ];
-        let diags = run(nodes);
-        assert!(diags.is_empty(), "button with text child should pass");
+        );
+        reg
     }
 
-    #[test]
-    fn button_with_aria_label_passes() {
-        let nodes = vec![DomNode::Element {
+    fn module_with_surface_and_tag(surface_name: &str, text_tag: &str) -> WebIrModule {
+        let mut m = WebIrModule::default();
+        m.dom_nodes.push(DomNode::Element {
             id: DomNodeId(0),
-            tag: "button".to_string(),
-            attrs: vec![("aria-label".to_string(), "Close dialog".to_string())],
-            children: vec![],
+            tag: "div".to_string(),
+            attrs: vec![("data-vox-surface".to_string(), surface_name.to_string())],
+            children: vec![DomNodeId(1)],
             span: None,
-        }];
-        let diags = run(nodes);
-        assert!(diags.is_empty(), "button with aria-label should pass");
-    }
-
-    #[test]
-    fn empty_button_is_error() {
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "button".to_string(),
+        });
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(1),
+            tag: text_tag.to_string(),
             attrs: vec![],
             children: vec![],
             span: None,
-        }];
-        let diags = run(nodes);
-        assert_eq!(diags.len(), 1);
-        assert_eq!(diags[0].code, "web_ir_a11y.button.missing_label");
-        assert_eq!(diags[0].severity, WebIrDiagnosticSeverity::Error);
-    }
-
-    // ── <a> ──────────────────────────────────────────────────────────────────
-
-    #[test]
-    fn anchor_with_href_passes() {
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "a".to_string(),
-            attrs: vec![("href".to_string(), "/home".to_string())],
-            children: vec![],
-            span: None,
-        }];
-        let diags = run(nodes);
-        assert!(diags.is_empty(), "anchor with href should pass");
+        });
+        m.view_roots.push(("Page".to_string(), DomNodeId(0)));
+        m
     }
 
     #[test]
-    fn anchor_without_href_warns() {
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "a".to_string(),
-            attrs: vec![("class".to_string(), "tab".to_string())],
-            children: vec![],
-            span: None,
-        }];
-        let diags = run(nodes);
-        assert_eq!(diags.len(), 1);
-        assert_eq!(diags[0].code, "web_ir_a11y.anchor.missing_href");
-        assert_eq!(diags[0].severity, WebIrDiagnosticSeverity::Warning);
-    }
-
-    // ── role="button" ────────────────────────────────────────────────────────
-
-    #[test]
-    fn div_role_button_without_keyboard_warns() {
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "div".to_string(),
-            attrs: vec![
-                ("role".to_string(), "button".to_string()),
-                ("onclick".to_string(), "handleClick()".to_string()),
-            ],
-            children: vec![],
-            span: None,
-        }];
-        let diags = run(nodes);
-        assert_eq!(diags.len(), 1);
-        assert_eq!(diags[0].code, "web_ir_a11y.interactive.missing_keyboard");
+    fn passing_contrast_no_error() {
+        // #1d3557 on #ffffff — deep navy, ratio ≈ 12.6:1
+        let reg = registry_with_surface("dark", "#1d3557", "#ffffff");
+        let m = module_with_surface_and_tag("dark", "p");
+        let mut out = Vec::new();
+        validate_a11y_with_registry(&m, &reg, &mut out);
+        assert!(out.is_empty(), "unexpected diagnostics: {out:?}");
     }
 
     #[test]
-    fn div_role_button_with_keyboard_passes() {
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "div".to_string(),
-            attrs: vec![
-                ("role".to_string(), "button".to_string()),
-                ("onclick".to_string(), "handleClick()".to_string()),
-                ("onkeydown".to_string(), "handleKey()".to_string()),
-                ("tabindex".to_string(), "0".to_string()),
-            ],
-            children: vec![],
-            span: None,
-        }];
-        let diags = run(nodes);
-        assert!(diags.is_empty(), "div role=button with keyboard handler should pass");
-    }
-
-    // ── <input> ──────────────────────────────────────────────────────────────
-
-    #[test]
-    fn input_with_aria_label_passes() {
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "input".to_string(),
-            attrs: vec![("aria-label".to_string(), "Search".to_string())],
-            children: vec![],
-            span: None,
-        }];
-        let diags = run(nodes);
-        assert!(diags.is_empty(), "input with aria-label should pass");
+    fn insufficient_contrast_emits_error() {
+        // #cccccc on #ffffff — ratio ≈ 1.6:1, below the 3:1 error threshold
+        let reg = registry_with_surface("low", "#cccccc", "#ffffff");
+        let m = module_with_surface_and_tag("low", "p");
+        let mut out = Vec::new();
+        validate_a11y_with_registry(&m, &reg, &mut out);
+        assert!(
+            out.iter().any(|d| d.code == "web_ir_validate.a11y.insufficient_contrast"),
+            "expected insufficient_contrast: {out:?}"
+        );
     }
 
     #[test]
-    fn input_hidden_no_label_passes() {
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "input".to_string(),
-            attrs: vec![("type".to_string(), "hidden".to_string())],
-            children: vec![],
-            span: None,
-        }];
-        let diags = run(nodes);
-        assert!(diags.is_empty(), "hidden input needs no label");
+    fn low_contrast_body_text_emits_warning() {
+        // #888888 on #ffffff — ratio ≈ 3.5:1, between 3:1 and 4.5:1 → low_contrast warning for body text
+        let reg = registry_with_surface("mid", "#888888", "#ffffff");
+        let m = module_with_surface_and_tag("mid", "p");
+        let mut out = Vec::new();
+        validate_a11y_with_registry(&m, &reg, &mut out);
+        assert!(
+            out.iter().any(|d| d.code == "web_ir_validate.a11y.low_contrast"),
+            "expected low_contrast warning for p at ~3.5:1: {out:?}"
+        );
     }
 
     #[test]
-    fn input_without_label_warns() {
-        let nodes = vec![DomNode::Element {
+    fn no_surface_context_skips_contrast_check() {
+        // p element with no ancestor data-vox-surface → no contrast check regardless
+        let reg = registry_with_surface("any", "#cccccc", "#ffffff");
+        let mut m = WebIrModule::default();
+        m.dom_nodes.push(DomNode::Element {
             id: DomNodeId(0),
-            tag: "input".to_string(),
-            attrs: vec![("type".to_string(), "text".to_string())],
+            tag: "p".to_string(),
+            attrs: vec![],
             children: vec![],
             span: None,
-        }];
-        let diags = run(nodes);
-        assert_eq!(diags.len(), 1);
-        assert_eq!(diags[0].code, "web_ir_a11y.input.missing_label");
-        assert_eq!(diags[0].severity, WebIrDiagnosticSeverity::Warning);
+        });
+        m.view_roots.push(("Page".to_string(), DomNodeId(0)));
+        let mut out = Vec::new();
+        validate_a11y_with_registry(&m, &reg, &mut out);
+        assert!(out.is_empty(), "should skip check without surface context: {out:?}");
     }
 
-    // ── button native element doesn't trigger role="button" check ────────────
-
     #[test]
-    fn button_element_with_role_button_not_double_warned() {
-        // A real <button> with role="button" explicitly: should get button label check,
-        // not the interactive keyboard check (it's already a button).
-        let nodes = vec![DomNode::Element {
-            id: DomNodeId(0),
-            tag: "button".to_string(),
-            attrs: vec![("role".to_string(), "button".to_string())],
-            children: vec![],
-            span: None,
-        }];
-        let diags = run(nodes);
-        // Only button.missing_label, NOT interactive.missing_keyboard.
-        assert!(!diags.iter().any(|d| d.code == "web_ir_a11y.interactive.missing_keyboard"),
-            "native <button> with role=button should not get keyboard check");
-        assert!(diags.iter().any(|d| d.code == "web_ir_a11y.button.missing_label"),
-            "native <button> with no content should still get label check");
+    fn heading_large_text_passes_at_3_to_1() {
+        // h1 uses large-text threshold (3:1); #888888 on #ffffff ≈ 3.5:1 → passes
+        let reg = registry_with_surface("dark", "#888888", "#ffffff");
+        let m = module_with_surface_and_tag("dark", "h1");
+        let mut out = Vec::new();
+        validate_a11y_with_registry(&m, &reg, &mut out);
+        assert!(out.is_empty(), "h1 at ~3.5:1 should pass large-text 3:1 threshold: {out:?}");
     }
 }

@@ -33,7 +33,8 @@
         "tables",
         "mcp_tools",
         "mcp_resources",
-        "agents"
+        "agents",
+        "url_decls"
       ],
       "additionalProperties": true,
       "properties": {
@@ -47,6 +48,7 @@
         "mcp_tools": { "type": "array" },
         "mcp_resources": { "type": "array" },
         "agents": { "type": "array" },
+        "url_decls": { "type": "array" },
         "web_ir": { "type": ["object", "null"] }
       }
     }

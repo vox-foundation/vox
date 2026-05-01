@@ -9,7 +9,7 @@
 pub mod config;
 /// Relational table, collection, and index declarations.
 pub mod db;
-/// Effect annotations for function declarations (`uses net, db, mcp(...)`) (TASK-4.2).
+/// Effect annotations for the `uses` clause.
 pub mod effect;
 /// Functions, components, server handlers, MCP, hooks, and tests.
 pub mod fundecl;
@@ -19,8 +19,10 @@ pub mod logic;
 pub mod typedef;
 /// Client routing, layouts, themes, and SSG page metadata.
 pub mod ui;
-/// State machine first-class block (TASK-4.1).
+/// State machine declarations (`state_machine Name { … }`).
 pub mod state_machine;
+/// Typed URL path declarations (`url Name { … }`).
+pub mod url;
 
 pub use config::*;
 pub use db::*;
@@ -30,6 +32,7 @@ pub use logic::*;
 pub use typedef::*;
 pub use ui::*;
 pub use state_machine::*;
+pub use url::*;
 
 mod callable;
 mod reactive;

@@ -1,11 +1,10 @@
-//! Effect annotation types for function declarations (`uses net, db, mcp(...)`).
-
-use crate::ast::span::Span;
-
-/// A single effect capability that a function may declare.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum EffectKind {
-    /// Outbound HTTP / WebSocket calls.
+/// Effect annotations for the `uses` clause: `fn f() uses net, db { … }`.
+///
+/// A missing `uses` clause leaves the function unannotated (open/unconstrained).
+/// `uses nothing` declares the function pure; equivalent to `@pure`.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+pub enum EffectAnnotation {
+    /// Outbound HTTP / WebSocket.
     Net,
     /// Database reads or writes.
     Db,
@@ -13,37 +12,53 @@ pub enum EffectKind {
     Fs,
     /// Environment variable reads.
     Env,
-    /// Reads current system time.
+    /// Reads current time.
     Clock,
-    /// Consumes entropy (RNG).
+    /// Consumes entropy.
     Random,
-    /// Spawns subprocesses or background tasks.
+    /// Spawns a subprocess or background task.
     Spawn,
-    /// Calls a specific MCP tool — parameterized by tool name.
+    /// Calls a specific MCP tool: `mcp(tool_name)`.
     Mcp(String),
+    /// Explicit `uses nothing` — equivalent to `@pure`.
+    Nothing,
 }
 
-impl EffectKind {
-    /// Canonical display label (used in diagnostics).
-    pub fn label(&self) -> String {
+impl EffectAnnotation {
+    pub fn from_keyword(s: &str) -> Option<Self> {
+        match s {
+            "net" => Some(Self::Net),
+            "db" => Some(Self::Db),
+            "fs" => Some(Self::Fs),
+            "env" => Some(Self::Env),
+            "clock" => Some(Self::Clock),
+            "random" => Some(Self::Random),
+            "spawn" => Some(Self::Spawn),
+            "nothing" => Some(Self::Nothing),
+            _ => None,
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
         match self {
-            EffectKind::Net => "net".into(),
-            EffectKind::Db => "db".into(),
-            EffectKind::Fs => "fs".into(),
-            EffectKind::Env => "env".into(),
-            EffectKind::Clock => "clock".into(),
-            EffectKind::Random => "random".into(),
-            EffectKind::Spawn => "spawn".into(),
-            EffectKind::Mcp(tool) => format!("mcp({tool})"),
+            Self::Net => "net",
+            Self::Db => "db",
+            Self::Fs => "fs",
+            Self::Env => "env",
+            Self::Clock => "clock",
+            Self::Random => "random",
+            Self::Spawn => "spawn",
+            Self::Mcp(_) => "mcp",
+            Self::Nothing => "nothing",
         }
     }
 }
 
-/// A `uses` clause on a function declaration: an ordered, deduplicated list of effects.
-///
-/// `Vec` rather than `HashSet` so spans are preserved and ordering is deterministic.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct EffectAnnotation {
-    pub kind: EffectKind,
-    pub span: Span,
+impl std::fmt::Display for EffectAnnotation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Mcp(tool) => write!(f, "mcp({tool})"),
+            other => write!(f, "{}", other.as_str()),
+        }
+    }
 }

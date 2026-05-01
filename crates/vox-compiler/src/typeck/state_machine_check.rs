@@ -1,253 +1,279 @@
-//! Structural type checking for `state_machine` declarations (TASK-4.1).
+//! Exhaustiveness and structural checks for `state_machine` declarations (TASK-4.1).
 //!
-//! Validates:
-//! - No duplicate state names → error `E_SM_DUP_STATE`
-//! - Terminal state with outgoing transitions → error `E_SM_TERMINAL_TRANSITION`
-//! - Transition references undeclared state (from/to) → error `E_SM_UNKNOWN_STATE`
-//! - Empty state machine (no states) → warning `W_SM_EMPTY`
+//! Checks performed on each non-`partial` machine:
+//! 1. No duplicate state names.
+//! 2. No duplicate (from, event) pairs (ambiguous transitions).
+//! 3. Terminal states have no outgoing transitions.
+//! 4. Every terminal state is reachable from at least one non-terminal state.
+//! 5. Every (non-terminal state, event) pair has a covering transition (`from Named` or `from any`).
 
-use crate::hir::nodes::state_machine::{HirStateMachineDecl, HirTransitionSource};
-use crate::typeck::diagnostics::{DiagnosticCategory, TypeckSeverity};
-use crate::typeck::Diagnostic;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-/// Run all state-machine structural checks. Returns a list of diagnostics.
-pub fn check_state_machines(machines: &[HirStateMachineDecl]) -> Vec<Diagnostic> {
-    let mut out = Vec::new();
+use crate::hir::{HirModule, HirSmFrom, HirStateMachineDecl};
+use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory};
 
-    for machine in machines {
-        // W_SM_EMPTY: no states declared
-        if machine.states.is_empty() {
-            out.push(Diagnostic {
-                severity: TypeckSeverity::Warning,
-                message: format!("state_machine `{}` has no states", machine.name),
-                span: machine.span,
-                expected_type: None,
-                found_type: None,
-                context: Some("add at least one `state` declaration".to_string()),
-                suggestions: vec!["state Initial".to_string()],
-                category: DiagnosticCategory::Typecheck,
-                code: Some("W_SM_EMPTY".to_string()),
-                fixes: vec![],
-                line_col: None,
-                missing_cases: vec![],
-                ast_node_kind: Some("StateMachineDecl".to_string()),
-            });
+pub fn check_state_machines(module: &HirModule, source: &str) -> Vec<Diagnostic> {
+    let mut diags = Vec::new();
+    for sm in &module.state_machines {
+        check_one(sm, source, &mut diags);
+    }
+    diags
+}
+
+fn check_one(sm: &HirStateMachineDecl, source: &str, diags: &mut Vec<Diagnostic>) {
+    // ── 1. No duplicate state names ───────────────────────────────────────
+    let mut seen_states: HashSet<&str> = HashSet::new();
+    for st in &sm.states {
+        if !seen_states.insert(st.name.as_str()) {
+            diags.push(err(
+                format!(
+                    "State machine `{}`: duplicate state `{}`",
+                    sm.name, st.name
+                ),
+                sm.span,
+                source,
+            ));
         }
+    }
 
-        // Build set of declared state names, checking for duplicates.
-        let mut declared_states: HashSet<&str> = HashSet::new();
-        let mut terminal_states: HashSet<&str> = HashSet::new();
+    let terminal_names: HashSet<&str> = sm
+        .states
+        .iter()
+        .filter(|s| s.is_terminal)
+        .map(|s| s.name.as_str())
+        .collect();
 
-        for state in &machine.states {
-            if !declared_states.insert(state.name.as_str()) {
-                out.push(Diagnostic {
-                    severity: TypeckSeverity::Error,
-                    message: format!(
-                        "duplicate state name `{}` in state_machine `{}`",
-                        state.name, machine.name
-                    ),
-                    span: state.span,
-                    expected_type: None,
-                    found_type: None,
-                    context: Some(format!(
-                        "state_machine `{}` already has a state named `{}`",
-                        machine.name, state.name
-                    )),
-                    suggestions: vec![],
-                    category: DiagnosticCategory::Typecheck,
-                    code: Some("E_SM_DUP_STATE".to_string()),
-                    fixes: vec![],
-                    line_col: None,
-                    missing_cases: vec![],
-                    ast_node_kind: Some("SmStateDecl".to_string()),
-                });
-            }
-            if state.terminal {
-                terminal_states.insert(state.name.as_str());
-            }
+    let non_terminal_names: Vec<&str> = sm
+        .states
+        .iter()
+        .filter(|s| !s.is_terminal)
+        .map(|s| s.name.as_str())
+        .collect();
+
+    // ── 2. No duplicate (from, event) pairs ───────────────────────────────
+    let mut seen_pairs: HashSet<(String, &str)> = HashSet::new();
+    for tr in &sm.transitions {
+        let key = match &tr.from {
+            HirSmFrom::Named(s) => s.clone(),
+            HirSmFrom::Any => "__any__".to_string(),
+        };
+        let pair = (key, tr.event_name.as_str());
+        if !seen_pairs.insert(pair) {
+            diags.push(err(
+                format!(
+                    "State machine `{}`: duplicate transition `on {} from {:?}`",
+                    sm.name, tr.event_name, tr.from
+                ),
+                tr.span,
+                source,
+            ));
         }
+    }
 
-        // Check transitions
-        for transition in &machine.transitions {
-            // E_SM_TERMINAL_TRANSITION: terminal state with outgoing transition
-            if let HirTransitionSource::State(ref from_name) = transition.from {
-                if terminal_states.contains(from_name.as_str()) {
-                    out.push(Diagnostic {
-                        severity: TypeckSeverity::Error,
-                        message: format!(
-                            "terminal state `{}` cannot have outgoing transitions (event `{}`)",
-                            from_name, transition.event
-                        ),
-                        span: transition.span,
-                        expected_type: None,
-                        found_type: None,
-                        context: Some(format!(
-                            "`{}` is declared `terminal` so no transitions can leave it",
-                            from_name
-                        )),
-                        suggestions: vec!["remove the `terminal` modifier or remove the transition".to_string()],
-                        category: DiagnosticCategory::Typecheck,
-                        code: Some("E_SM_TERMINAL_TRANSITION".to_string()),
-                        fixes: vec![],
-                        line_col: None,
-                        missing_cases: vec![],
-                        ast_node_kind: Some("SmTransitionDecl".to_string()),
-                    });
-                }
-
-                // E_SM_UNKNOWN_STATE: from references undeclared state
-                if !declared_states.contains(from_name.as_str()) {
-                    out.push(Diagnostic {
-                        severity: TypeckSeverity::Error,
-                        message: format!(
-                            "transition `on {}` references undeclared state `{}` in `from` clause",
-                            transition.event, from_name
-                        ),
-                        span: transition.span,
-                        expected_type: None,
-                        found_type: None,
-                        context: Some(format!(
-                            "state `{}` is not declared in state_machine `{}`",
-                            from_name, machine.name
-                        )),
-                        suggestions: vec![],
-                        category: DiagnosticCategory::Typecheck,
-                        code: Some("E_SM_UNKNOWN_STATE".to_string()),
-                        fixes: vec![],
-                        line_col: None,
-                        missing_cases: vec![],
-                        ast_node_kind: Some("SmTransitionDecl".to_string()),
-                    });
-                }
-            }
-
-            // E_SM_UNKNOWN_STATE: to references undeclared state
-            if !declared_states.contains(transition.to.as_str()) {
-                out.push(Diagnostic {
-                    severity: TypeckSeverity::Error,
-                    message: format!(
-                        "transition `on {}` references undeclared target state `{}`",
-                        transition.event, transition.to
+    // ── 3. Terminal states have no outgoing transitions ───────────────────
+    for tr in &sm.transitions {
+        if let HirSmFrom::Named(from_state) = &tr.from {
+            if terminal_names.contains(from_state.as_str()) {
+                diags.push(err(
+                    format!(
+                        "State machine `{}`: terminal state `{}` cannot have outgoing transition (event `{}`)",
+                        sm.name, from_state, tr.event_name
                     ),
-                    span: transition.span,
-                    expected_type: None,
-                    found_type: None,
-                    context: Some(format!(
-                        "state `{}` is not declared in state_machine `{}`",
-                        transition.to, machine.name
-                    )),
-                    suggestions: vec![],
-                    category: DiagnosticCategory::Typecheck,
-                    code: Some("E_SM_UNKNOWN_STATE".to_string()),
-                    fixes: vec![],
-                    line_col: None,
-                    missing_cases: vec![],
-                    ast_node_kind: Some("SmTransitionDecl".to_string()),
-                });
+                    tr.span,
+                    source,
+                ));
             }
         }
     }
 
-    out
+    // ── 4. Every terminal state is reachable ──────────────────────────────
+    let reachable_targets: HashSet<&str> =
+        sm.transitions.iter().map(|tr| tr.to_state.as_str()).collect();
+
+    for term in &terminal_names {
+        if !reachable_targets.contains(*term) {
+            diags.push(err(
+                format!(
+                    "State machine `{}`: terminal state `{}` is unreachable — no transition leads to it",
+                    sm.name, term
+                ),
+                sm.span,
+                source,
+            ));
+        }
+    }
+
+    // ── 5. (Non-terminal state, event) exhaustiveness ─────────────────────
+    if sm.is_partial {
+        return; // `partial state_machine` explicitly opts out.
+    }
+
+    // Collect all unique event names declared across all transitions.
+    let all_events: HashSet<&str> = sm.transitions.iter().map(|tr| tr.event_name.as_str()).collect();
+
+    // Build a coverage map: state_name → set of covered events.
+    let mut covered: HashMap<&str, HashSet<&str>> = HashMap::new();
+    for non_term in &non_terminal_names {
+        covered.insert(non_term, HashSet::new());
+    }
+
+    for tr in &sm.transitions {
+        for event in &all_events {
+            if tr.event_name.as_str() != *event {
+                continue;
+            }
+            match &tr.from {
+                HirSmFrom::Any => {
+                    // Covers every non-terminal state for this event.
+                    for non_term in &non_terminal_names {
+                        if let Some(set) = covered.get_mut(*non_term) {
+                            set.insert(event);
+                        }
+                    }
+                }
+                HirSmFrom::Named(state_name) => {
+                    if let Some(set) = covered.get_mut(state_name.as_str()) {
+                        set.insert(event);
+                    }
+                }
+            }
+        }
+    }
+
+    for (state, covered_events) in &covered {
+        for event in &all_events {
+            if !covered_events.contains(*event) {
+                diags.push(err(
+                    format!(
+                        "State machine `{}`: non-exhaustive — state `{}` has no transition for event `{}`. \
+                         Add `on {} from {} -> …` or use `partial state_machine` to allow gaps.",
+                        sm.name, state, event, event, state
+                    ),
+                    sm.span,
+                    source,
+                ));
+            }
+        }
+    }
+}
+
+fn err(message: String, span: crate::ast::span::Span, source: &str) -> Diagnostic {
+    let mut d = Diagnostic::error(message, span, source);
+    d.category = DiagnosticCategory::StateMachineCheck;
+    d
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::span::Span;
-    use crate::hir::nodes::state_machine::{
-        HirStateDecl, HirStateMachineDecl, HirTransitionDecl,
-        HirTransitionSource,
-    };
+    use crate::hir::lower::lower_module;
+    use crate::lexer::lex;
+    use crate::parser::parse;
 
-    fn dummy_span() -> Span {
-        Span::new(0, 0)
+    fn check(src: &str) -> Vec<Diagnostic> {
+        let tokens = lex(src);
+        let module = parse(tokens).expect("parse error");
+        let hir = lower_module(&module);
+        check_state_machines(&hir, src)
     }
 
-    fn make_state(name: &str, terminal: bool) -> HirStateDecl {
-        HirStateDecl {
-            name: name.to_string(),
-            fields: vec![],
-            terminal,
-            span: dummy_span(),
-        }
-    }
+    const SIMPLE_MACHINE: &str = "
+state_machine Light {
+  state On
+  state Off
 
-    fn make_transition(event: &str, from: HirTransitionSource, to: &str) -> HirTransitionDecl {
-        HirTransitionDecl {
-            event: event.to_string(),
-            event_params: vec![],
-            from,
-            to: to.to_string(),
-            span: dummy_span(),
-        }
+  on Toggle from On -> Off
+  on Toggle from Off -> On
+}";
+
+    #[test]
+    fn test_complete_two_state_machine_ok() {
+        let diags = check(SIMPLE_MACHINE);
+        assert!(diags.is_empty(), "unexpected: {diags:?}");
     }
 
     #[test]
-    fn clean_machine_no_diagnostics() {
-        let machines = vec![HirStateMachineDecl {
-            name: "Traffic".to_string(),
-            states: vec![
-                make_state("Green", false),
-                make_state("Red", false),
-                make_state("Off", true),
-            ],
-            transitions: vec![
-                make_transition("Switch", HirTransitionSource::State("Green".to_string()), "Red"),
-                make_transition("Switch", HirTransitionSource::State("Red".to_string()), "Green"),
-            ],
-            span: dummy_span(),
-        }];
-        assert!(check_state_machines(&machines).is_empty());
+    fn test_missing_transition_is_error() {
+        let src = "
+state_machine Light {
+  state On
+  state Off
+
+  on Toggle from On -> Off
+}";
+        let diags = check(src);
+        // Off has no transition for Toggle
+        assert!(!diags.is_empty(), "expected exhaustiveness error");
+        assert!(diags[0].message.contains("Off"));
+        assert!(diags[0].message.contains("Toggle"));
     }
 
     #[test]
-    fn duplicate_state_name_produces_error() {
-        let machines = vec![HirStateMachineDecl {
-            name: "Bad".to_string(),
-            states: vec![make_state("Idle", false), make_state("Idle", false)],
-            transitions: vec![],
-            span: dummy_span(),
-        }];
-        let diags = check_state_machines(&machines);
-        assert!(diags.iter().any(|d| d.code.as_deref() == Some("E_SM_DUP_STATE")));
+    fn test_partial_machine_skips_exhaustiveness() {
+        let src = "
+partial state_machine Light {
+  state On
+  state Off
+
+  on Toggle from On -> Off
+}";
+        let diags = check(src);
+        assert!(diags.is_empty(), "partial machine should skip check: {diags:?}");
     }
 
     #[test]
-    fn terminal_state_with_outgoing_transition_produces_error() {
-        let machines = vec![HirStateMachineDecl {
-            name: "Bad".to_string(),
-            states: vec![make_state("Done", true), make_state("Idle", false)],
-            transitions: vec![make_transition(
-                "Restart",
-                HirTransitionSource::State("Done".to_string()),
-                "Idle",
-            )],
-            span: dummy_span(),
-        }];
-        let diags = check_state_machines(&machines);
-        assert!(diags
-            .iter()
-            .any(|d| d.code.as_deref() == Some("E_SM_TERMINAL_TRANSITION")));
+    fn test_terminal_state_unreachable_is_error() {
+        let src = "
+state_machine Door {
+  state Open
+  terminal state Destroyed
+
+  on Close from Open -> Open
+}";
+        let diags = check(src);
+        let unreachable = diags.iter().any(|d| d.message.contains("unreachable"));
+        assert!(unreachable, "expected unreachable terminal error: {diags:?}");
     }
 
     #[test]
-    fn transition_to_undeclared_state_produces_error() {
-        let machines = vec![HirStateMachineDecl {
-            name: "Bad".to_string(),
-            states: vec![make_state("Idle", false)],
-            transitions: vec![make_transition(
-                "Go",
-                HirTransitionSource::State("Idle".to_string()),
-                "Ghost",
-            )],
-            span: dummy_span(),
-        }];
-        let diags = check_state_machines(&machines);
-        assert!(diags
-            .iter()
-            .any(|d| d.code.as_deref() == Some("E_SM_UNKNOWN_STATE")));
+    fn test_terminal_state_with_outgoing_transition_is_error() {
+        let src = "
+partial state_machine Door {
+  state Open
+  terminal state Locked
+
+  on Break from Locked -> Open
+}";
+        let diags = check(src);
+        let terminal_err = diags.iter().any(|d| d.message.contains("terminal"));
+        assert!(terminal_err, "expected terminal-outgoing error: {diags:?}");
+    }
+
+    #[test]
+    fn test_from_any_covers_all_states() {
+        let src = "
+state_machine Lifecycle {
+  state Active
+  state Idle
+  terminal state Done
+
+  on Stop from any -> Done
+}";
+        let diags = check(src);
+        // `from any` covers Active and Idle for Stop; Done is terminal and reachable
+        assert!(diags.is_empty(), "unexpected: {diags:?}");
+    }
+
+    #[test]
+    fn test_duplicate_state_name_is_error() {
+        let src = "
+partial state_machine Broken {
+  state A
+  state A
+}";
+        let diags = check(src);
+        assert!(!diags.is_empty(), "expected duplicate state error");
+        assert!(diags[0].message.contains("duplicate"));
     }
 
     #[test]

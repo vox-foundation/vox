@@ -88,14 +88,8 @@ pub enum Decl {
     Import(ImportDecl),
     /// Native Python library import (`@py.import module [as alias]`).
     PyImport(PyImportDecl),
-    /// Tokio-style actor with mailbox handlers.
-    Actor(ActorDecl),
     /// Immutable constant (`const` / `@const`).
     Const(ConstDecl),
-    /// Durable workflow state machine.
-    Workflow(WorkflowDecl),
-    /// Durable activity (side-effect step).
-    Activity(ActivityDecl),
     /// HTTP handler bound to a method and path.
     HttpRoute(HttpRouteDecl),
     /// MCP tool exposed to clients.
@@ -175,9 +169,9 @@ pub enum Decl {
     Island(IslandDecl),
     /// Reactive component declaration (Path C).
     ReactiveComponent(ReactiveComponentDecl),
-    /// Typed URL algebra declaration (`url Name { ... }`).
+    /// Typed URL path declaration (`url Name { … }`).
     Url(UrlDecl),
-    /// State machine declaration (TASK-4.1).
+    /// First-class state machine with exhaustiveness enforcement.
     StateMachine(StateMachineDecl),
 }
 impl Decl {
@@ -189,9 +183,6 @@ impl Decl {
             Decl::TypeDef(t) => t.span,
             Decl::Import(i) => i.span,
             Decl::PyImport(p) => p.span,
-            Decl::Actor(a) => a.span,
-            Decl::Workflow(w) => w.span,
-            Decl::Activity(a) => a.span,
             Decl::HttpRoute(h) => h.span,
             Decl::McpTool(m) => m.func.span,
             Decl::Test(t) => t.func.span,
@@ -234,7 +225,7 @@ impl Decl {
             Decl::Island(i) => i.span,
             Decl::ReactiveComponent(r) => r.span,
             Decl::Url(u) => u.span,
-            Decl::StateMachine(m) => m.span,
+            Decl::StateMachine(s) => s.span,
         }
     }
 }

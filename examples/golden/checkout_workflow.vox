@@ -4,12 +4,12 @@
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [activity, workflow, Result, match]
+// constructs: [fn, Result, match]
 // last_validated: 2026-03-26
 // training_eligible: true
 // training_weight: 1.0
 // ---
-// @training_prompt: Write a durable Vox workflow and activity for a checkout process
+// @training_prompt: Write a Vox checkout flow using plain functions and Result/match for error propagation.
 // ANCHOR: display
 fn charge_card(amount: int) to Result[str] {
     if amount > 1000 {

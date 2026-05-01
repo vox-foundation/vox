@@ -23,22 +23,29 @@ jobs:
       uses: Swatinem/rust-cache@v2
       
     - name: Build Vox CLI
-      run: cargo build -p vox-cli --release
-      
+      # `vox visus` is compiled under #[cfg(feature = "dei")] — build with it
+      run: cargo build -p vox-cli --release --features dei
+
     - name: Run Visus Audit
       shell: pwsh
+      # Only runs when VOX_VISUS_STAGING_URL is set (e.g. a deploy-preview URL).
+      # Skipped on PRs that lack a staging environment; no artifacts are produced.
+      # Failures are advisory — they do not block merge.
+      continue-on-error: true
+      if: env.VOX_VISUS_STAGING_URL != ''
       run: |
-        # In a real environment, we'd have a staging URL or use a local file
-        # For this demo, we audit the project documentation site if it's served
-        ./target/release/vox.exe visus audit "https://google.com" --viewport "1280x800" --screenshot "visus_report.png"
+        ./target/release/vox.exe visus audit "$env:VOX_VISUS_STAGING_URL" --viewport "1280x800" --screenshot "visus_report.png"
       env:
         VOX_WORKSPACE_JOURNEY_STORE: "visus_audit_db.sqlite"
         VOX_BROWSER_NO_SANDBOX: "1"
+        VOX_VISUS_STAGING_URL: ${{ vars.VOX_VISUS_STAGING_URL }}
 
     - name: Upload Visus Artifacts
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: visus-audit-results
+        if-no-files-found: ignore
         path: |
           visus_report.png
           visus_audit_db.sqlite

@@ -1,6 +1,4 @@
-use crate::hir::{
-    HirFn, HirForall, HirModule, HirType,
-};
+use crate::hir::{HirFn, HirForall, HirModule, HirType};
 
 use super::stmt_expr::{emit_expr, emit_stmt};
 use super::tables::{collect_table_select_projections, emit_table_struct};
@@ -212,5 +210,4 @@ pub fn emit_fn(func: &HirFn) -> String {
     out.push_str("}\n\n");
     out
 }
-
 

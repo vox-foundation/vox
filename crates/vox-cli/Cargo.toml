@@ -29,6 +29,9 @@ path = "src/bin/vox-compilerd.rs"
 
 [features]
 default = []
+# Fast fuzzy ranking for command catalog, MCP tool picker, dashboard palette.
+# Uses nucleo-matcher (same scorer as Helix/Zed). Adds ~300KB to binary.
+fuzzy-search = ["dep:nucleo"]
 # Corpus paths, `train-uv`, plan (daemon), status, eval-gate, bench-completion, system-prompt-template.
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
@@ -163,6 +166,7 @@ vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
 
 vox-runtime = { workspace = true }
 vox-primitives = { workspace = true }
+vox-exec-grammar = { workspace = true }
 vox-scaling-policy = { workspace = true }
 vox-bounded-fs = { workspace = true, features = ["async"] }
 vox-jsonschema-util = { workspace = true }
@@ -210,6 +214,7 @@ workspace-hack = { workspace = true }
 vox-identity.workspace = true
 vox-crypto.workspace = true
 hex = "0.4.3"
+nucleo = { workspace = true, optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 landlock = { version = "0.4.4", optional = true }

@@ -25,14 +25,15 @@ pub mod builtins;
 pub mod checker;
 /// Diagnostic structures and error reporting for type checking.
 pub mod diagnostics;
+/// Effect propagation check: `caller.capabilities ⊇ callee.capabilities`.
+pub mod effect_check;
+/// State machine exhaustiveness and structural checks.
+pub mod state_machine_check;
 /// Environment management for symbols, types, and scopes.
 pub mod env;
 /// Core logic for unification-based type inference.
 pub mod infer;
 pub mod policy;
-pub mod effect_check;
-pub mod url_check;
-pub mod state_machine_check;
 /// Logic for registering declarations into the global environment.
 pub mod registration;
 /// Representation of internal types used during inference and checking.
@@ -56,9 +57,8 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
     let mut env = TypeEnv::new();
     let builtins = BuiltinTypes::register_all(&mut env);
     let mut diags = typecheck_hir(hir, &mut env, &builtins, source);
-    diags.extend(effect_check::check_fn_effects(&hir.functions));
-    diags.extend(url_check::check_url_decls(&hir.url_decls));
-    diags.extend(state_machine_check::check_state_machines(&hir.state_machines));
+    diags.extend(effect_check::check_effect_compliance(hir, source));
+    diags.extend(state_machine_check::check_state_machines(hir, source));
     diags
 }
 

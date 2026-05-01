@@ -11,7 +11,7 @@ vox-build-meta = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
 vox-capability-registry = { workspace = true }
-vox-oratio = { workspace = true }
+vox-oratio = { workspace = true, features = ["stt-candle"] }
 workspace-hack = { workspace = true }
 
 [lints]

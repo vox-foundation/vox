@@ -19,8 +19,8 @@
 use std::collections::HashSet;
 
 use super::{
-    BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, RouteContract, RouteNode,
-    StyleNode, StyleSelector, WebIrDiagnostic, WebIrDiagnosticSeverity, WebIrModule,
+    BehaviorNode, CssColor, DomNode, DomNodeId, FieldOptionality, InteropNode, RouteContract,
+    RouteNode, StyleDeclarationValue, StyleNode, StyleSelector, WebIrDiagnostic, WebIrModule,
     WebIrValidateMetrics,
 };
 
@@ -38,7 +38,6 @@ fn walk_route_contract_ids(
                 message: format!("duplicate RouteContract.id {:?}", r.id),
                 span: None,
                 category: Some("route".to_string()),
-                ..Default::default()
             });
         }
         if !r.children.is_empty() {
@@ -54,7 +53,6 @@ fn check_dom_id(out: &mut Vec<WebIrDiagnostic>, len: usize, id: DomNodeId, ctx: 
             message: format!("{ctx}: DomNodeId({}) out of range (len {len})", id.0),
             span: None,
             category: Some("dom".to_string()),
-            ..Default::default()
         });
         return false;
     }
@@ -84,7 +82,6 @@ fn walk_dom_edges(
                     message: "IslandMount prop key must not be empty".to_string(),
                     span: None,
                     category: Some("island".to_string()),
-                    ..Default::default()
                 });
             }
         }
@@ -122,7 +119,6 @@ fn validate_dom_roots(
             message: "dom node arena exceeds implementation limit".to_string(),
             span: None,
             category: Some("dom".to_string()),
-                    ..Default::default()
         });
     }
 
@@ -164,7 +160,6 @@ fn validate_route_families(
                         message: format!("duplicate LoaderContract.route_id {:?}", route_id),
                         span: None,
                         category: Some("route".to_string()),
-                        ..Default::default()
                     });
                 }
                 if route_id.is_empty() {
@@ -173,7 +168,6 @@ fn validate_route_families(
                         message: "LoaderContract.route_id must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
-                    ..Default::default()
                     });
                 }
                 if contract.is_empty() {
@@ -182,7 +176,6 @@ fn validate_route_families(
                         message: "LoaderContract.contract must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
-                    ..Default::default()
                     });
                 }
             }
@@ -193,7 +186,6 @@ fn validate_route_families(
                         message: "ServerFnContract.name must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
-                    ..Default::default()
                     });
                 }
                 if s.export_path.is_empty() {
@@ -202,7 +194,6 @@ fn validate_route_families(
                         message: "ServerFnContract.export_path must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
-                    ..Default::default()
                     });
                 }
                 if s.signature.is_empty() {
@@ -211,7 +202,6 @@ fn validate_route_families(
                         message: "ServerFnContract.signature must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
-                    ..Default::default()
                     });
                 }
             }
@@ -222,7 +212,6 @@ fn validate_route_families(
                         message: "MutationContract.name must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
-                    ..Default::default()
                     });
                 }
                 if m.payload_type.is_empty() {
@@ -231,7 +220,6 @@ fn validate_route_families(
                         message: "MutationContract.payload_type must not be empty".to_string(),
                         span: None,
                         category: Some("route".to_string()),
-                    ..Default::default()
                     });
                 }
             }
@@ -264,16 +252,16 @@ fn validate_behaviors(
                 ),
                 span: None,
                 category: Some("behavior".to_string()),
-                ..Default::default()
             });
         }
     }
 }
 
-fn validate_styles(
+fn validate_styles_with_registry(
     module: &WebIrModule,
     out: &mut Vec<WebIrDiagnostic>,
     metrics: &mut WebIrValidateMetrics,
+    registry: Option<&crate::tokens::TokenRegistry>,
 ) {
     let mut seen_selectors: std::collections::HashMap<String, Vec<String>> =
         std::collections::HashMap::new();
@@ -283,9 +271,20 @@ fn validate_styles(
         if let StyleNode::Rule {
             selector,
             declarations,
+            is_raw_css,
             ..
         } = node
         {
+            // raw_css {} escape hatch: emit a single warning per rule instead of errors.
+            if *is_raw_css {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.raw_css_escape".to_string(),
+                    message: "raw_css {{ }} escape hatch used — prefer design tokens for all style values".to_string(),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+                continue;
+            }
             let sel_key = match selector {
                 StyleSelector::Class(c) => format!(".{}", c),
                 StyleSelector::Id(i) => format!("#{}", i),
@@ -301,19 +300,17 @@ fn validate_styles(
                     message: "StyleNode::Rule has no declarations".to_string(),
                     span: None,
                     category: Some("style".to_string()),
-                    ..Default::default()
                 });
             }
 
             let mut props_in_rule = std::collections::HashSet::new();
-            for (prop, _) in declarations {
+            for (prop, decl_val) in declarations {
                 if prop.is_empty() {
                     out.push(WebIrDiagnostic {
                         code: "web_ir_validate.style.empty_property".to_string(),
                         message: "style declaration property name must not be empty".to_string(),
                         span: None,
                         category: Some("style".to_string()),
-                    ..Default::default()
                     });
                 } else {
                     let css_prop = prop.chars().fold(String::new(), |mut acc, c| {
@@ -332,7 +329,6 @@ fn validate_styles(
                             message: format!("Duplicate property '{}' in the same rule", prop),
                             span: None,
                             category: Some("style".to_string()),
-                            ..Default::default()
                         });
                     }
 
@@ -347,9 +343,11 @@ fn validate_styles(
                             ),
                             span: None,
                             category: Some("style".to_string()),
-                            ..Default::default()
                         });
                     }
+
+                    // TASK-5.1: literal CSS value enforcement (fires regardless of registry).
+                    check_literal_value(prop, decl_val, out);
 
                     if let Some(existing_props) = seen_selectors.get(&sel_key) {
                         if existing_props.contains(&css_prop) {
@@ -358,9 +356,13 @@ fn validate_styles(
                                 message: format!("Property '{}' redefined for selector '{}' at same specificity level", prop, sel_key),
                                 span: None,
                                 category: Some("style".to_string()),
-                                ..Default::default()
                             });
                         }
+                    }
+
+                    // Token registry checks (only when a registry is loaded)
+                    if let Some(reg) = registry {
+                        check_declaration_against_registry(prop, decl_val, reg, out);
                     }
                 }
             }
@@ -386,6 +388,285 @@ fn validate_styles(
                 .extend(normalized_props);
         }
     }
+
+    // TASK-6.3: validate data-vox-surface attrs against registered surface pairs.
+    if let Some(reg) = registry {
+        validate_surface_refs(module, reg, out);
+    }
+
+    // Validate WCAG contrast pairs declared in the token file
+    if let Some(reg) = registry {
+        for diag in reg.validate_contrast() {
+            let (code, severity_label) = match diag.severity {
+                crate::tokens::ContrastSeverity::Warning => (
+                    "web_ir_validate.style.token_contrast_warning",
+                    "warning",
+                ),
+                crate::tokens::ContrastSeverity::Error => (
+                    "web_ir_validate.style.token_contrast_error",
+                    "error",
+                ),
+            };
+            out.push(WebIrDiagnostic {
+                code: code.to_string(),
+                message: format!(
+                    "Token contrast {}: '{}' on '{}' is {:.2}:1 (requires ≥{:.1}:1 per WCAG 2.1)",
+                    severity_label,
+                    diag.foreground_key,
+                    diag.background_key,
+                    diag.ratio,
+                    diag.threshold
+                ),
+                span: None,
+                category: Some("style".to_string()),
+            });
+        }
+    }
+}
+
+/// TASK-5.2: route reachability — component existence + broken link detection + unreachable routes.
+fn validate_route_reachability(
+    module: &WebIrModule,
+    out: &mut Vec<WebIrDiagnostic>,
+    _metrics: &mut WebIrValidateMetrics,
+) {
+    // Collect (pattern, Option<component_name>) from all route trees.
+    let mut route_entries: Vec<(String, Option<String>)> = Vec::new();
+    for node in &module.route_nodes {
+        if let RouteNode::RouteTree { routes, .. } = node {
+            collect_route_entries(routes, &mut route_entries);
+        }
+    }
+    if route_entries.is_empty() {
+        return;
+    }
+
+    // Check that component names declared in route meta exist as view roots.
+    let view_root_names: HashSet<&str> =
+        module.view_roots.iter().map(|(n, _)| n.as_str()).collect();
+    for (pattern, component_opt) in &route_entries {
+        if let Some(component) = component_opt {
+            if !component.is_empty() && !view_root_names.contains(component.as_str()) {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.route.missing_component".to_string(),
+                    message: format!(
+                        "Route '{}' declares component '{}' but no matching view root exists",
+                        pattern, component
+                    ),
+                    span: None,
+                    category: Some("route".to_string()),
+                });
+            }
+        }
+    }
+
+    // Collect all literal href/to values from link elements in the DOM arena.
+    let known_patterns: HashSet<&str> =
+        route_entries.iter().map(|(p, _)| p.as_str()).collect();
+    let mut referenced: HashSet<String> = HashSet::new();
+
+    for node in &module.dom_nodes {
+        let DomNode::Element { tag, attrs, .. } = node else {
+            continue;
+        };
+        let is_link = tag == "a" || tag == "link";
+        if !is_link {
+            continue;
+        }
+        for (key, val) in attrs {
+            if key == "href" || key == "to" {
+                let href = val.trim();
+                if href.starts_with('/') {
+                    referenced.insert(href.to_string());
+                    if !known_patterns.contains(href) {
+                        out.push(WebIrDiagnostic {
+                            code: "web_ir_validate.route.broken_link".to_string(),
+                            message: format!(
+                                "Link href '{}' does not match any declared route pattern",
+                                href
+                            ),
+                            span: None,
+                            category: Some("route".to_string()),
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    // Warn on routes with no inbound literal link (unreachable).
+    for (pattern, _) in &route_entries {
+        if pattern == "/" {
+            continue; // root is always reachable
+        }
+        if !referenced.contains(pattern.as_str()) {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.route.unreachable".to_string(),
+                message: format!(
+                    "Route '{}' has no inbound link in the DOM (may be unreachable via dynamic navigation)",
+                    pattern
+                ),
+                span: None,
+                category: Some("route".to_string()),
+            });
+        }
+    }
+}
+
+fn collect_route_entries(contracts: &[RouteContract], out: &mut Vec<(String, Option<String>)>) {
+    for c in contracts {
+        let component = c
+            .meta
+            .get("component")
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+        out.push((c.pattern.clone(), component));
+        if !c.children.is_empty() {
+            collect_route_entries(&c.children, out);
+        }
+    }
+}
+
+/// TASK-5.1: reject literal CSS color and dimension values regardless of token registry.
+/// Fires unconditionally so that raw `#rrggbb` / `rgb(…)` / `42px` values are always
+/// compile errors, not just warnings gated on a loaded registry.
+fn check_literal_value(prop: &str, decl_val: &StyleDeclarationValue, out: &mut Vec<WebIrDiagnostic>) {
+    match decl_val {
+        StyleDeclarationValue::Raw(s) => {
+            let s = s.trim();
+            let is_hex_color = s.starts_with('#') && {
+                let rest = &s[1..];
+                (rest.len() == 3 || rest.len() == 4 || rest.len() == 6 || rest.len() == 8)
+                    && rest.chars().all(|c| c.is_ascii_hexdigit())
+            };
+            let is_functional_color = s.starts_with("rgb(")
+                || s.starts_with("rgba(")
+                || s.starts_with("hsl(")
+                || s.starts_with("hsla(");
+            let is_dimension = {
+                let suffixes = ["px", "rem", "em", "%", "vh", "vw", "vmin", "vmax"];
+                suffixes.iter().any(|suf| {
+                    s.ends_with(suf) && s[..s.len() - suf.len()].trim().parse::<f64>().is_ok()
+                })
+            };
+            if is_hex_color || is_functional_color {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.literal_color_value".to_string(),
+                    message: format!(
+                        "Literal color value on property '{}'. Use a design token (tokens.<name>) instead.",
+                        prop
+                    ),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+            } else if is_dimension {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.literal_dimension_value".to_string(),
+                    message: format!(
+                        "Literal dimension value '{}' on property '{}'. Use a design token instead.",
+                        s, prop
+                    ),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+            }
+        }
+        StyleDeclarationValue::Color(color) => {
+            let is_literal = matches!(
+                color,
+                CssColor::Hex(_)
+                    | CssColor::Rgb(_, _, _)
+                    | CssColor::Rgba(_, _, _, _)
+                    | CssColor::Named(_)
+                    | CssColor::Hsl(_, _, _)
+            );
+            if is_literal {
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.literal_color_value".to_string(),
+                    message: format!(
+                        "Literal color value on property '{}'. Use a design token (tokens.<name>) instead.",
+                        prop
+                    ),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+            }
+        }
+        StyleDeclarationValue::Length(_, _) => {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.style.literal_dimension_value".to_string(),
+                message: format!(
+                    "Literal dimension value on property '{}'. Use a design token instead.",
+                    prop
+                ),
+                span: None,
+                category: Some("style".to_string()),
+            });
+        }
+        StyleDeclarationValue::TokenRef(_)
+        | StyleDeclarationValue::Keyword(_)
+        | StyleDeclarationValue::Number(_) => {}
+    }
+}
+
+fn check_declaration_against_registry(
+    prop: &str,
+    decl_val: &StyleDeclarationValue,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    match decl_val {
+        StyleDeclarationValue::TokenRef(token_ref) => {
+            // token_ref is stored as "vox-color-primary"; strip "vox-" to get registry key
+            let lookup_key = token_ref.strip_prefix("vox-").unwrap_or(token_ref.as_str());
+            if registry.lookup(lookup_key).is_none() {
+                let suggestions = crate::tokens::suggest_tokens(lookup_key, registry);
+                let hint = if suggestions.is_empty() {
+                    String::new()
+                } else {
+                    format!(" Did you mean: {}?", suggestions.join(", "))
+                };
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.style.unknown_token".to_string(),
+                    message: format!(
+                        "Unknown token reference '{}' (not defined in vox.tokens.json).{}",
+                        token_ref, hint
+                    ),
+                    span: None,
+                    category: Some("style".to_string()),
+                });
+            }
+        }
+        StyleDeclarationValue::Color(color) => {
+            let is_color_prop = prop == "color"
+                || prop.ends_with("color")
+                || prop == "background"
+                || prop == "fill"
+                || prop == "stroke";
+            if is_color_prop {
+                let is_literal = matches!(
+                    color,
+                    CssColor::Hex(_)
+                        | CssColor::Rgb(_, _, _)
+                        | CssColor::Rgba(_, _, _, _)
+                        | CssColor::Named(_)
+                        | CssColor::Hsl(_, _, _)
+                );
+                if is_literal {
+                    out.push(WebIrDiagnostic {
+                        code: "web_ir_validate.style.raw_color_value".to_string(),
+                        message: format!(
+                            "Raw color literal on property '{}'. Use a design token (tokens.<name>) for compile-time contrast validation.",
+                            prop
+                        ),
+                        span: None,
+                        category: Some("style".to_string()),
+                    });
+                }
+            }
+        }
+        _ => {}
+    }
 }
 
 fn validate_scheduled_jobs(
@@ -401,7 +682,6 @@ fn validate_scheduled_jobs(
                 message: "ScheduledJobSpec.name must not be empty".to_string(),
                 span: None,
                 category: Some("scheduled".to_string()),
-                    ..Default::default()
             });
         }
         if job.interval.trim().is_empty() {
@@ -410,7 +690,6 @@ fn validate_scheduled_jobs(
                 message: "ScheduledJobSpec.interval must not be empty".to_string(),
                 span: None,
                 category: Some("scheduled".to_string()),
-                    ..Default::default()
             });
         }
     }
@@ -430,7 +709,6 @@ fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                         message: "ReactComponentRef.component must not be empty".to_string(),
                         span: None,
                         category: Some("interop".to_string()),
-                    ..Default::default()
                     });
                 }
                 if import_source.is_empty() {
@@ -439,7 +717,6 @@ fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                         message: "ReactComponentRef.import_source must not be empty".to_string(),
                         span: None,
                         category: Some("interop".to_string()),
-                    ..Default::default()
                     });
                 }
             }
@@ -450,7 +727,6 @@ fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                         message: "ExternalModuleRef.specifier must not be empty".to_string(),
                         span: None,
                         category: Some("interop".to_string()),
-                    ..Default::default()
                     });
                 }
             }
@@ -461,7 +737,6 @@ fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                         message: "EscapeHatchExpr.expr must not be empty".to_string(),
                         span: None,
                         category: Some("interop".to_string()),
-                    ..Default::default()
                     });
                 }
                 if reason.is_empty() {
@@ -470,152 +745,9 @@ fn validate_interop(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                         message: "EscapeHatchExpr.reason must not be empty".to_string(),
                         span: None,
                         category: Some("interop".to_string()),
-                    ..Default::default()
                     });
                 }
             }
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// TASK-5.2 — Route reachability validator
-// ---------------------------------------------------------------------------
-
-/// Collect all `RouteContract.id` values by recursively walking a route tree.
-fn collect_route_ids<'a>(routes: &'a [RouteContract], ids: &mut HashSet<&'a str>) {
-    for r in routes {
-        ids.insert(r.id.as_str());
-        collect_route_ids(&r.children, ids);
-    }
-}
-
-/// Collect all `href` / `to` attribute values from `<link>` / `<a>` elements
-/// that are reachable from the provided `view_roots` — not the whole arena.
-fn collect_link_targets(module: &WebIrModule, targets: &mut HashSet<String>) {
-    let arena = &module.dom_nodes;
-    for (_, root_id) in &module.view_roots {
-        collect_link_targets_from_node(*root_id, arena, targets, &mut HashSet::new());
-    }
-}
-
-fn collect_link_targets_from_node(
-    id: DomNodeId,
-    arena: &[DomNode],
-    targets: &mut HashSet<String>,
-    visited: &mut HashSet<u32>,
-) {
-    if !visited.insert(id.0) {
-        return; // guard against cycles in the arena
-    }
-    let Some(node) = arena.get(id.0 as usize) else {
-        return;
-    };
-    match node {
-        DomNode::Element { tag, attrs, children, .. } => {
-            if tag.eq_ignore_ascii_case("link") || tag.eq_ignore_ascii_case("a") {
-                for (k, v) in attrs {
-                    if k == "href" || k == "to" {
-                        targets.insert(v.clone());
-                    }
-                }
-            }
-            for &child_id in children {
-                collect_link_targets_from_node(child_id, arena, targets, visited);
-            }
-        }
-        DomNode::Fragment { children, .. } => {
-            for &child_id in children {
-                collect_link_targets_from_node(child_id, arena, targets, visited);
-            }
-        }
-        _ => {}
-    }
-}
-
-/// Extract the component name from a `RouteContract.meta` JSON blob.
-///
-/// The lowering pass stores the component name at `meta["component"]`.
-fn route_component_name(r: &RouteContract) -> Option<&str> {
-    r.meta.get("component").and_then(|v| v.as_str())
-}
-
-/// Recursively check all routes in a tree for reachability and component existence.
-fn check_routes_reachability(
-    routes: &[RouteContract],
-    view_root_names: &HashSet<&str>,
-    link_targets: &HashSet<String>,
-    route_ids: &HashSet<&str>,
-    out: &mut Vec<WebIrDiagnostic>,
-) {
-    for r in routes {
-        // W_ROUTE_MISSING_COMPONENT: meta["component"] names a component that has no view_root.
-        if let Some(comp) = route_component_name(r) {
-            if !comp.is_empty() && !view_root_names.contains(comp) {
-                out.push(WebIrDiagnostic {
-                    code: "web_ir_validate.route.missing_component".to_string(),
-                    message: format!(
-                        "RouteContract '{}' references component '{}' but no matching view_root found",
-                        r.id, comp
-                    ),
-                    span: None,
-                    category: Some("route".to_string()),
-                    ..Default::default()
-                });
-            }
-        }
-
-        // W_ROUTE_UNREACHABLE: no inbound <link href|to> points at this route's id or pattern.
-        let reachable = link_targets.contains(&r.id)
-            || link_targets.contains(&r.pattern)
-            // Root / is always reachable (entry point).
-            || r.pattern == "/"
-            || r.pattern.is_empty();
-        if !reachable {
-            out.push(WebIrDiagnostic {
-                code: "web_ir_validate.route.unreachable".to_string(),
-                message: format!(
-                    "RouteContract '{}' (pattern '{}') has no inbound <link> in the DOM arena — \
-                     it may be unreachable",
-                    r.id, r.pattern
-                ),
-                span: None,
-                category: Some("route".to_string()),
-                severity: WebIrDiagnosticSeverity::Warning,
-            });
-        }
-
-        check_routes_reachability(&r.children, view_root_names, link_targets, route_ids, out);
-    }
-}
-
-/// **Stage Route-Reachability (TASK-5.2):** validates that every route's component exists
-/// and that routes are reachable from at least one `<link>` in the DOM arena.
-fn validate_route_reachability(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
-    // Collect view_root names (first element of each tuple).
-    let view_root_names: HashSet<&str> = module
-        .view_roots
-        .iter()
-        .map(|(name, _)| name.as_str())
-        .collect();
-
-    // Collect inbound link targets from the full DOM arena.
-    let mut link_targets = HashSet::new();
-    collect_link_targets(module, &mut link_targets);
-
-    // Collect all route IDs for duplicate-free traversal.
-    let mut route_ids = HashSet::new();
-
-    for node in &module.route_nodes {
-        if let RouteNode::RouteTree { routes, .. } = node {
-            collect_route_ids(routes, &mut route_ids);
-            check_routes_reachability(
-                routes,
-                &view_root_names,
-                &link_targets,
-                &route_ids,
-                out,
-            );
         }
     }
 }
@@ -637,24 +769,57 @@ pub fn format_web_ir_validate_failure(diags: &[WebIrDiagnostic]) -> String {
         .join("; ")
 }
 
+/// TASK-6.3: walk DOM arena checking `data-vox-surface` attrs against registered surface pairs.
+/// Fires `web_ir_validate.surface.unknown_surface` when the name is not in the registry.
+fn validate_surface_refs(
+    module: &WebIrModule,
+    registry: &crate::tokens::TokenRegistry,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
+    for node in &module.dom_nodes {
+        let DomNode::Element { attrs, .. } = node else { continue };
+        for (k, v) in attrs {
+            if k != "data-vox-surface" {
+                continue;
+            }
+            if registry.lookup_surface(v).is_none() {
+                let known: Vec<&str> = registry.surface_pairs.keys().map(|s| s.as_str()).collect();
+                let hint = if known.is_empty() {
+                    String::new()
+                } else {
+                    format!(" Known surfaces: {}.", known.join(", "))
+                };
+                out.push(WebIrDiagnostic {
+                    code: "web_ir_validate.surface.unknown_surface".to_string(),
+                    message: format!(
+                        "Unknown surface pair '{v}' — not declared in vox.tokens.json.{hint}"
+                    ),
+                    span: None,
+                    category: Some("surface".to_string()),
+                });
+            }
+        }
+    }
+}
+
 /// Run structural checks that should hold before any target emitter, with counters for gates (OP-0094).
 #[must_use]
 pub fn validate_web_ir_with_metrics(
     module: &WebIrModule,
 ) -> (Vec<WebIrDiagnostic>, WebIrValidateMetrics) {
-    let mut out = Vec::new();
-    let mut metrics = WebIrValidateMetrics::default();
+    validate_web_ir_full(module, None)
+}
 
-    validate_dom_roots(module, &mut out, &mut metrics);
-    validate_route_families(module, &mut out, &mut metrics);
-    validate_route_reachability(module, &mut out);
-    validate_behaviors(module, &mut out, &mut metrics);
-    validate_styles(module, &mut out, &mut metrics);
-    validate_scheduled_jobs(module, &mut out, &mut metrics);
-    validate_interop(module, &mut out);
-    super::validate_a11y::validate_a11y(module, &mut out);
-
-    (out, metrics)
+/// Run structural checks including token registry validation.
+///
+/// Pass `Some(&registry)` to enable unknown-token errors and raw-color warnings (TASK-4.4).
+/// Callers that have no project root (e.g. unit tests over isolated modules) can pass `None`.
+#[must_use]
+pub fn validate_web_ir_with_registry(
+    module: &WebIrModule,
+    registry: Option<&crate::tokens::TokenRegistry>,
+) -> Vec<WebIrDiagnostic> {
+    validate_web_ir_full(module, registry).0
 }
 
 /// Run structural checks that should hold before any target emitter.
@@ -663,350 +828,49 @@ pub fn validate_web_ir(module: &WebIrModule) -> Vec<WebIrDiagnostic> {
     validate_web_ir_with_metrics(module).0
 }
 
-/// Run structural checks with an optional token registry for TokenRef validation.
+/// Returns true for diagnostics that are advisory (soft warnings, not build blockers).
 ///
-/// Extends [`validate_web_ir`] with:
-/// - `web_ir_validate.style.unknown_token_ref` — a `StyleDeclarationValue::TokenRef` value
-///   is not present in the registry.
-/// - `web_ir_validate.style.raw_literal_color` — a `StyleDeclarationValue::Raw` value that
-///   looks like a literal color (`#rrggbb`, `rgb(…)`, `hsl(…)`) should use a token instead.
-///
-/// When `token_registry` is `None`, this is identical to [`validate_web_ir`].
+/// Advisory diagnostics are informational — callers that gate builds should filter these out;
+/// callers that surface all diagnostics (LSP, dashboards) should still include them.
 #[must_use]
-pub fn validate_web_ir_with_tokens(
+pub fn is_advisory_diagnostic(d: &WebIrDiagnostic) -> bool {
+    matches!(
+        d.code.as_str(),
+        "web_ir_validate.style.raw_css_escape"
+            | "web_ir_validate.overlay.duplicate_z"
+            | "web_ir_validate.overlay.position_conflict"
+            | "web_ir_validate.route.unreachable"
+    ) || d.code.ends_with("_warning")
+}
+
+/// Internal combined validator used by `validate_web_ir_with_metrics` and `validate_web_ir_with_registry`.
+#[must_use]
+fn validate_web_ir_full(
     module: &WebIrModule,
-    token_registry: Option<&crate::tokens::TokenRegistry>,
-) -> Vec<WebIrDiagnostic> {
-    let mut out = validate_web_ir(module);
-    let Some(registry) = token_registry else {
-        return out;
-    };
-    validate_token_refs(module, registry, &mut out);
-    out
-}
+    registry: Option<&crate::tokens::TokenRegistry>,
+) -> (Vec<WebIrDiagnostic>, WebIrValidateMetrics) {
+    let mut out = Vec::new();
+    let mut metrics = WebIrValidateMetrics::default();
 
-/// Common CSS named colors that should use design tokens instead of literals.
-/// Non-exhaustive: covers the most frequent offenders; extend as needed.
-const CSS_NAMED_COLORS: &[&str] = &[
-    "red", "blue", "green", "yellow", "orange", "purple", "pink", "brown",
-    "black", "white", "gray", "grey", "cyan", "magenta", "lime", "indigo",
-    "violet", "gold", "silver", "teal", "navy", "maroon", "olive", "aqua",
-    "transparent", "currentcolor",
-    // NOTE: "inherit", "initial", and "unset" are CSS-wide keywords, not colors —
-    // they have valid non-color uses in declarations and must not be flagged.
-];
-
-/// CSS dimension suffixes that indicate a hard-coded unit value.
-const CSS_DIMENSION_SUFFIXES: &[&str] = &[
-    "px", "rem", "em", "vh", "vw", "vmin", "vmax", "%", "pt", "cm", "mm",
-    "ex", "ch", "fr", "dvh", "dvw", "svh", "svw",
-];
-
-/// Returns `true` if `s` is a literal style value that should use a design token:
-/// - Hex color (`#RGB`, `#RRGGBB`, `#RGBA`, `#RRGGBBAA`)
-/// - Functional color (`rgb(...)`, `rgba(...)`, `hsl(...)`, `hsla(...)`, `oklch(...)`)
-/// - CSS named color (`red`, `transparent`, …)
-/// - Dimensional literal (`12px`, `1.5rem`, `50%`, …)
-///
-/// Note: single bare keywords used as CSS values (e.g., `bold`, `auto`, `none`) are
-/// intentionally *not* flagged — they are not design-token candidates.
-fn is_literal_style_value(s: &str) -> bool {
-    let s = s.trim();
-    if s.is_empty() {
-        return false;
+    validate_dom_roots(module, &mut out, &mut metrics);
+    validate_route_families(module, &mut out, &mut metrics);
+    validate_route_reachability(module, &mut out, &mut metrics);
+    validate_behaviors(module, &mut out, &mut metrics);
+    validate_styles_with_registry(module, &mut out, &mut metrics, registry);
+    validate_scheduled_jobs(module, &mut out, &mut metrics);
+    validate_interop(module, &mut out);
+    super::validate_a11y::validate_a11y(module, &mut out);
+    if let Some(reg) = registry {
+        super::validate_a11y::validate_a11y_with_registry(module, reg, &mut out);
     }
+    super::validate_overlay::validate_overlay(module, &mut out);
 
-    // Hex color: #RGB, #RGBA, #RRGGBB, #RRGGBBAA (3–8 hex digits after #).
-    if s.starts_with('#') {
-        let rest = &s[1..];
-        if matches!(rest.len(), 3 | 4 | 6 | 8)
-            && rest.chars().all(|c| c.is_ascii_hexdigit())
-        {
-            return true;
-        }
-    }
-
-    // Functional color notations.
-    for prefix in &["rgb(", "rgba(", "hsl(", "hsla(", "oklch(", "oklab(", "lch(", "lab(", "color("] {
-        if s.to_ascii_lowercase().starts_with(prefix) {
-            return true;
-        }
-    }
-
-    // Named CSS colors (case-insensitive).
-    let s_lower = s.to_ascii_lowercase();
-    if CSS_NAMED_COLORS.contains(&s_lower.as_str()) {
-        return true;
-    }
-
-    // Dimensional literals: optional sign, digits, optional decimal, then a known suffix.
-    // Strip leading sign if present.
-    let s_num = s.strip_prefix(['+', '-']).unwrap_or(s);
-    // Find where the numeric part ends.
-    let digit_end = s_num
-        .find(|c: char| !c.is_ascii_digit() && c != '.')
-        .unwrap_or(s_num.len());
-    if digit_end > 0 {
-        let suffix = &s_num[digit_end..];
-        let suffix_lower = suffix.to_ascii_lowercase();
-        if CSS_DIMENSION_SUFFIXES.contains(&suffix_lower.as_str()) {
-            return true;
-        }
-    }
-
-    false
-}
-
-fn check_declaration_value(
-    name: &str,
-    value: &super::StyleDeclarationValue,
-    registry: &crate::tokens::TokenRegistry,
-    out: &mut Vec<WebIrDiagnostic>,
-) {
-    use super::StyleDeclarationValue;
-    match value {
-        StyleDeclarationValue::TokenRef(token_name) => {
-            if !registry.contains(token_name) {
-                let suggestions = registry.suggest(token_name);
-                let hint = if suggestions.is_empty() {
-                    String::new()
-                } else {
-                    format!("; did you mean: {}?", suggestions.join(", "))
-                };
-                out.push(WebIrDiagnostic {
-                    code: "web_ir_validate.style.unknown_token_ref".to_string(),
-                    message: format!(
-                        "unknown token '{token_name}' on property '{name}'{hint}"
-                    ),
-                    span: None,
-                    category: Some("style".to_string()),
-                    severity: WebIrDiagnosticSeverity::Warning,
-                });
-            }
-        }
-        StyleDeclarationValue::Raw(raw) => {
-            if is_literal_style_value(raw) {
-                // Phase 5: warning (not yet error) because the `raw_css { }` escape hatch
-                // that would let users opt out is not added until Phase 6. Once that escape
-                // hatch lands, this will be promoted to `Error`.
-                out.push(WebIrDiagnostic {
-                    code: "web_ir_validate.style.literal_value".to_string(),
-                    message: format!(
-                        "literal style value {raw:?} on property '{name}' should use a design token \
-                         (e.g. token(\"color.primary\")). Use `raw_css {{ }}` to suppress once available."
-                    ),
-                    span: None,
-                    category: Some("style".to_string()),
-                    severity: WebIrDiagnosticSeverity::Warning,
-                });
-            }
-        }
-        _ => {}
-    }
-}
-
-fn validate_token_refs(
-    module: &WebIrModule,
-    registry: &crate::tokens::TokenRegistry,
-    out: &mut Vec<WebIrDiagnostic>,
-) {
-    for node in &module.style_nodes {
-        match node {
-            StyleNode::Rule { declarations, .. } => {
-                for (prop, value) in declarations {
-                    check_declaration_value(prop, value, registry, out);
-                }
-            }
-            StyleNode::TokenRef { name, .. } => {
-                // A top-level TokenRef node — validate its name against the registry.
-                if !registry.contains(name) {
-                    let suggestions = registry.suggest(name);
-                    let hint = if suggestions.is_empty() {
-                        String::new()
-                    } else {
-                        format!("; did you mean: {}?", suggestions.join(", "))
-                    };
-                    out.push(WebIrDiagnostic {
-                        code: "web_ir_validate.style.unknown_token_ref".to_string(),
-                        message: format!("unknown token '{name}' in TokenRef node{hint}"),
-                        span: None,
-                        category: Some("style".to_string()),
-                        severity: WebIrDiagnosticSeverity::Warning,
-                    });
-                }
-            }
-            StyleNode::Declaration { property, value, .. } => {
-                check_declaration_value(property, value, registry, out);
-            }
-            _ => {}
-        }
-    }
+    (out, metrics)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn validate_with_tokens_catches_unknown_ref() {
-        use crate::tokens::TokenRegistry;
-        use crate::web_ir::{StyleDeclarationValue, StyleNode, StyleSelector, WebIrModule};
-        let registry =
-            TokenRegistry::load_from_str(r##"{"color":{"primary":"#3a86ff"}}"##).unwrap();
-        let mut m = WebIrModule::default();
-        m.style_nodes.push(StyleNode::Rule {
-            selector: StyleSelector::Class("x".to_string()),
-            declarations: vec![(
-                "color".to_string(),
-                StyleDeclarationValue::TokenRef("color.nonexistent".to_string()),
-            )],
-            specificity: (0, 1, 0),
-            span: None,
-        });
-        let diags = validate_web_ir_with_tokens(&m, Some(&registry));
-        assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.style.unknown_token_ref"),
-            "expected unknown_token_ref diag, got: {diags:?}"
-        );
-    }
-
-    // ── TASK-5.1: is_literal_style_value coverage ────────────────────────────
-
-    #[test]
-    fn literal_hex_colors_detected() {
-        // All valid hex lengths.
-        assert!(is_literal_style_value("#f00"),    "#RGB detected");
-        assert!(is_literal_style_value("#ff0000"), "#RRGGBB detected");
-        assert!(is_literal_style_value("#f00f"),   "#RGBA detected");
-        assert!(is_literal_style_value("#ff0000ff"), "#RRGGBBAA detected");
-        // Invalid hex (wrong length) — should not trigger.
-        assert!(!is_literal_style_value("#ff"),    "too short — not a color");
-        assert!(!is_literal_style_value("#fffff"),  "5 chars — not standard");
-    }
-
-    #[test]
-    fn functional_color_notations_detected() {
-        assert!(is_literal_style_value("rgb(255, 0, 0)"));
-        assert!(is_literal_style_value("rgba(255, 0, 0, 0.5)"));
-        assert!(is_literal_style_value("hsl(0, 100%, 50%)"));
-        assert!(is_literal_style_value("hsla(0, 100%, 50%, 1)"));
-        assert!(is_literal_style_value("oklch(0.7 0.15 50)"));
-        assert!(is_literal_style_value("color(display-p3 1 0 0)"));
-        // Case-insensitive.
-        assert!(is_literal_style_value("RGB(0,0,0)"));
-    }
-
-    #[test]
-    fn named_css_colors_detected() {
-        assert!(is_literal_style_value("red"));
-        assert!(is_literal_style_value("blue"));
-        assert!(is_literal_style_value("transparent"));
-        assert!(is_literal_style_value("WHITE"),    "case-insensitive");
-        assert!(is_literal_style_value("currentColor"), "camelCase normalized");
-        // Not a named color.
-        assert!(!is_literal_style_value("bold"),    "font-weight keyword, not a color");
-        assert!(!is_literal_style_value("auto"),    "CSS keyword, not a literal");
-        assert!(!is_literal_style_value("none"));
-    }
-
-    #[test]
-    fn dimensional_literals_detected() {
-        assert!(is_literal_style_value("12px"),   "px unit");
-        assert!(is_literal_style_value("1.5rem"), "rem unit");
-        assert!(is_literal_style_value("50%"),    "percent");
-        assert!(is_literal_style_value("2em"),    "em unit");
-        assert!(is_literal_style_value("100vh"),  "viewport height");
-        assert!(is_literal_style_value("4fr"),    "grid fraction");
-        // Non-dimension bare numbers are not flagged (no suffix).
-        assert!(!is_literal_style_value("0"),     "zero without unit — valid CSS");
-        assert!(!is_literal_style_value("1"),     "bare integer");
-    }
-
-    #[test]
-    fn token_ref_passes_through() {
-        // TokenRef values should not trigger literal_value warning.
-        assert!(!is_literal_style_value("token(\"color.primary\")"),
-            "token() call should not be flagged");
-    }
-
-    #[test]
-    fn literal_value_diag_emitted_for_hex_raw() {
-        use crate::tokens::TokenRegistry;
-        use crate::web_ir::{StyleDeclarationValue, StyleNode, StyleSelector, WebIrModule};
-        let registry =
-            TokenRegistry::load_from_str(r##"{"color":{"primary":"#3a86ff"}}"##).unwrap();
-        let mut m = WebIrModule::default();
-        m.style_nodes.push(StyleNode::Rule {
-            selector: StyleSelector::Class("card".to_string()),
-            declarations: vec![
-                ("color".to_string(), StyleDeclarationValue::Raw("#ff0000".to_string())),
-            ],
-            specificity: (0, 1, 0),
-            span: None,
-        });
-        let diags = validate_web_ir_with_tokens(&m, Some(&registry));
-        let lit_diags: Vec<_> = diags
-            .iter()
-            .filter(|d| d.code == "web_ir_validate.style.literal_value")
-            .collect();
-        assert!(!lit_diags.is_empty(), "expected literal_value diag for #ff0000");
-        // Should be a warning, not an error (no escape hatch yet).
-        assert_eq!(
-            lit_diags[0].severity,
-            WebIrDiagnosticSeverity::Warning,
-            "literal_value should be Warning until raw_css{{}} escape hatch is available"
-        );
-    }
-
-    #[test]
-    fn dimensional_literal_diag_emitted() {
-        use crate::tokens::TokenRegistry;
-        use crate::web_ir::{StyleDeclarationValue, StyleNode, StyleSelector, WebIrModule};
-        let registry =
-            TokenRegistry::load_from_str(r##"{"spacing":{"md":"16px"}}"##).unwrap();
-        let mut m = WebIrModule::default();
-        m.style_nodes.push(StyleNode::Rule {
-            selector: StyleSelector::Class("gap".to_string()),
-            declarations: vec![
-                ("gap".to_string(), StyleDeclarationValue::Raw("16px".to_string())),
-            ],
-            specificity: (0, 1, 0),
-            span: None,
-        });
-        let diags = validate_web_ir_with_tokens(&m, Some(&registry));
-        assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.style.literal_value"),
-            "expected literal_value diag for 16px"
-        );
-    }
-
-    #[test]
-    fn old_raw_literal_color_code_is_retired() {
-        // Regression: ensure the old code name is not emitted (renamed in TASK-5.1).
-        use crate::tokens::TokenRegistry;
-        use crate::web_ir::{StyleDeclarationValue, StyleNode, StyleSelector, WebIrModule};
-        let registry = TokenRegistry::load_from_str(r##"{"color":{}}"##).unwrap();
-        let mut m = WebIrModule::default();
-        m.style_nodes.push(StyleNode::Rule {
-            selector: StyleSelector::Class("x".to_string()),
-            declarations: vec![
-                ("color".to_string(), StyleDeclarationValue::Raw("red".to_string())),
-            ],
-            specificity: (0, 1, 0),
-            span: None,
-        });
-        let diags = validate_web_ir_with_tokens(&m, Some(&registry));
-        assert!(
-            !diags.iter().any(|d| d.code == "web_ir_validate.style.raw_literal_color"),
-            "old code raw_literal_color must not appear; renamed to literal_value"
-        );
-        assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.style.literal_value"),
-            "new code literal_value must appear for named color 'red'"
-        );
-    }
-
-    // ── TASK-5.2: route reachability validator ────────────────────────────────
 
     fn make_route(id: &str, pattern: &str, component: Option<&str>) -> RouteContract {
         let meta = if let Some(c) = component {

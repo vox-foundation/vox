@@ -1,0 +1,70 @@
+# .voxindexingignore — Controls what the Vox corpus indexer, Scientia ingest,
+# and MENS training pipeline include when crawling the repository.
+#
+# This file is additive on top of .voxignore (which governs AI context exclusion).
+# Files excluded here are NOT sent to the indexer but ARE still visible to human
+# contributors and the compiler.
+#
+# SSOT: edit this file; run `vox ci sync-ignore-files` to propagate.
+# See: docs/src/architecture/multi-repo-context-isolation-research-2026.md
+# Inspired by: warpdotdev/warp .warpindexingignore (design reference, ADR-026)
+
+# === BUILD & GENERATED ARTIFACTS ===
+target/
+dist/
+build/
+node_modules/
+.vox_modules/
+**/*.wasm
+**/*.lock
+Cargo.lock
+
+# === BINARY AND MEDIA ASSETS ===
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.svg
+**/*.ico
+**/*.woff
+**/*.woff2
+**/*.ttf
+**/*.otf
+**/*.mp4
+**/*.mov
+**/*.bin
+**/*.safetensors
+**/*.gguf
+**/*.ggml
+resources/
+
+# === CORPUS & TRAINING DATA (avoid self-indexing) ===
+# These are the *output* of indexing, not inputs to it.
+crates/vox-corpus/data/
+crates/vox-mens/data/
+crates/vox-tensor/data/
+
+# === ARCHIVED / TOMBSTONED CODE ===
+# AGENTS.md §Archival Protocol — never index these.
+archive/
+docs/src/archive/
+
+# === SECRETS AND CREDENTIALS ===
+**/*.pem
+**/*.key
+**/*.p12
+**/.env
+**/.env.*
+crates/vox-clavis/fixtures/
+
+# === LARGE GENERATED DOCS ===
+# Avoid double-indexing rendered output; source markdown is already indexed.
+docs-astro/dist/
+docs/book/
+
+# === THIRD-PARTY VENDORED CODE (index root, not subtrees) ===
+# Vendored crates are indexed at Cargo.toml level only; source trees are
+# redundant with crates.io metadata.
+# (uncomment as vendored crates are added per ADR-026)
+# crates/vox-sum-tree/src/

@@ -2,7 +2,7 @@
 //!
 //! Implementation still lives in [`vox_publisher`] until the split in
 //! `docs/src/architecture/scientia-pipeline-ssot-2026.md` is completed; this crate is a
-//! **facade** so `vox-scientia-api` / `vox-scientia-runtime` can depend on a narrow core surface
+//! **facade** that lets downstream consumers depend on a narrow core surface
 //! without a `vox-publisher` → `vox-scientia-core` dependency cycle.
 
 #![forbid(unsafe_code)]

@@ -3839,7 +3839,7 @@
     {
       "capability_id": "mcp.vox_plan_status",
       "curated": true,
-      "description_model": "Plan session status via vox-dei-d (ai.plan.status) for a session_id.",
+      "description_model": "Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.",
       "implicit": false,
       "mcp_tool": "vox_plan_status",
       "title": "Plan Status"
@@ -3979,7 +3979,7 @@
     {
       "capability_id": "mcp.vox_replan",
       "curated": true,
-      "description_model": "Replan via vox-dei-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.",
+      "description_model": "Replan via vox-orchestrator-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.",
       "implicit": false,
       "mcp_tool": "vox_replan",
       "title": "Replan"

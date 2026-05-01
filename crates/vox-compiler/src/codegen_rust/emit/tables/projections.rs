@@ -74,7 +74,7 @@ mod tests {
     };
 
     #[test]
-    fn collects_select_projections_from_reactive_members() {
+    fn collects_select_projections_from_endpoint_fn_body() {
         let span = Span::new(0, 0);
         let expr = HirExpr::MethodCall(
             Box::new(HirExpr::Ident("db".to_string(), span)),
@@ -111,7 +111,7 @@ mod tests {
         assert_eq!(
             task[0],
             vec!["done".to_string(), "title".to_string()],
-            "reactive member projection should be collected"
+            "endpoint fn body projection should be collected"
         );
     }
 }

@@ -1,5 +1,5 @@
 #![allow(missing_docs)]
-//! Smoke tests for `vox-ars` domain types and runtime harness.
+//! Smoke tests for `vox-skills` domain types and runtime harness.
 //!
 //! Network-gated tests (OpenClaw HTTP) are excluded; only pure-logic
 //! and in-process runtime surfaces are covered here.

@@ -12,11 +12,10 @@ schema_type: "TechArticle"
 # Glossary: Vox Terminology
 
 ### Actor
-A stateful, autonomous unit of computation that communicates via asynchronous messages. In Vox, actors can persist state across restarts using `state_load` and `state_save`.
+A stateful, autonomous unit of computation that communicates via asynchronous messages. In Vox, actors are modeled as plain functions — one per handler. The runtime manages the mailbox and checkpoints state automatically.
 ```vox
-// vox:skip
-actor Counter {
-    on inc(amount: int) -> int { return 1 }
+fn CounterActor_Increment(current: int, amount: int) to int {
+    return current + amount
 }
 ```
 
@@ -40,7 +39,7 @@ The unified data and knowledge store in Vox (the logical database environment), 
 The Vox orchestrator responsible for task dispatch, agent lifecycle management, file affinity, and runtime telemetry.
 
 ### Durable Execution
-The ability of a program (specifically a **Workflow**) -> persist its state and progress so that it can resume exactly where it left off after an interruption or crash using an interpreted journal.
+The ability of a program (specifically a **Workflow**) to persist its state and progress so that it can resume exactly where it left off after an interruption or crash using an interpreted journal.
 
 ### HIR (High-level Intermediate Representation)
 The semantic representation of Vox source code used for type checking and initial lowering phases.
@@ -55,9 +54,8 @@ A reactive UI component (compiled to React) that can be embedded in a server-ren
 ### MCP (Model Context Protocol)
 An open standard that enables AI models to safely interact with local data and tools. Vox provides first-class support for exporting functions as MCP tools via `@mcp.tool`.
 ```vox
-// vox:skip
 @mcp.tool "Search KB"
-fn search_kb(topic: str) -> str { return "ok" }
+fn search_kb(topic: str) to str { return "ok" }
 ```
 
 ### Mens
@@ -78,8 +76,7 @@ The architectural quality enforcement system in Vox that prevents "skeleton code
 The empty type, equivalent to `void` in C/TS or `()` in Rust.
 
 ### Workflow
-A durable, long-running process defined with the bare `workflow` keyword, supporting orchestrated activities, retries, timeouts, and state persistence.
+A durable, long-running process expressed as a plain `fn`, supporting orchestrated activities, retries, timeouts, and state persistence via the interpreted runtime (ADR-019).
 ```vox
-// vox:skip
-workflow onboard(user: str) -> Result[bool] { return Ok(true) }
+fn onboard(user: str) to Result[bool] { return Ok(true) }
 ```

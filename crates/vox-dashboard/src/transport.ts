@@ -50,7 +50,7 @@ export class VoxTransport {
   }
 
   connect() {
-    if (this.ws || this.isConnecting || this.reconnectAttempts >= this.maxReconnectAttempts) return;
+    if (this.ws || this.isConnecting || this.reconnectAttempts > this.maxReconnectAttempts) return;
     this.isConnecting = true;
 
     // Token is NOT sent in the URL (avoids server-log / referrer leakage).

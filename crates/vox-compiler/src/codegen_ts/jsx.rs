@@ -182,8 +182,50 @@ fn emit_jsx_child(expr: &Expr, indent: usize, island_names: &HashSet<String>) ->
             let body_str = emit_jsx_child(body, indent + 1, island_names);
             format!("{pad}{{{iter_str}.map(({binding}, _i) => (\n{body_str}{pad}))}}\n")
         }
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
+            // In JSX children context, emit if-else as a ternary expression.
+            let cond_str = emit_expr(condition);
+            let then_part = jsx_branch_to_ternary_str(then_body, indent + 1, island_names);
+            let else_part = match else_body.as_deref() {
+                Some(stmts) => jsx_branch_to_ternary_str(stmts, indent + 1, island_names),
+                None => "null".to_string(),
+            };
+            format!("{pad}{{{cond_str}\n{pad}  ? {then_part}\n{pad}  : {else_part}}}\n")
+        }
         _ => format!("{pad}{}\n", wrap_jsx_hir_child_expr(emit_expr(unwrapped))),
     }
+}
+
+/// Extract the single JSX expression (or nested ternary) from an if-else branch statement list.
+fn jsx_branch_to_ternary_str(stmts: &[Stmt], indent: usize, island_names: &HashSet<String>) -> String {
+    if let [Stmt::Expr { expr, .. }] = stmts {
+        let u = unwrap_block(expr);
+        return match u {
+            Expr::JsxSelfClosing(_) | Expr::Jsx(_) => {
+                emit_jsx_child(u, indent, island_names).trim().to_string()
+            }
+            Expr::If { condition, then_body, else_body, .. } => {
+                let pad = "  ".repeat(indent);
+                let cond_str = emit_expr(condition);
+                let then_part = jsx_branch_to_ternary_str(then_body, indent + 1, island_names);
+                let else_part = match else_body.as_deref() {
+                    Some(s) => jsx_branch_to_ternary_str(s, indent + 1, island_names),
+                    None => "null".to_string(),
+                };
+                format!("({cond_str}\n{pad}  ? {then_part}\n{pad}  : {else_part})")
+            }
+            _ => {
+                let s = emit_expr(u);
+                if s.trim_start().starts_with('<') { s } else { format!("{{{s}}}") }
+            }
+        };
+    }
+    "null".to_string()
 }
 
 /// Helper to unwrap a single expression block created by { }.

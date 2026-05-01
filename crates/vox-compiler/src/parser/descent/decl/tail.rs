@@ -299,8 +299,10 @@ impl Parser {
     }
 
     /// Parse `url TypeName { Variant, Variant(args), ... }` (TASK-4.3).
+    /// NOTE: This function is superseded by `parse_url_decl` in `mid.rs`. Kept for reference.
+    #[allow(dead_code)]
     pub(crate) fn parse_url_block(&mut self) -> Result<Decl, ()> {
-        use crate::ast::decl::ui::{UrlArg, UrlDecl, UrlVariant};
+        use crate::ast::decl::{UrlArg, UrlDecl, UrlVariant};
         let start = self.span();
         self.advance(); // eat 'url'
         let name = self.parse_ident_name()?;
@@ -337,11 +339,11 @@ impl Parser {
                             };
                             let arg_name = self.parse_ident_name()?;
                             self.expect(&Token::Colon)?;
-                            let ty = self.parse_type_expr()?;
+                            let type_ann = self.parse_type_expr()?;
                             args.push(UrlArg {
                                 name: arg_name,
                                 optional,
-                                ty,
+                                type_ann,
                                 span: arg_start.merge(self.span()),
                             });
                             if matches!(self.peek(), Token::Comma) {
@@ -380,6 +382,7 @@ impl Parser {
         Ok(Decl::Url(UrlDecl {
             name,
             variants,
+            is_pub: false,
             span: start.merge(self.span()),
         }))
     }
@@ -387,8 +390,7 @@ impl Parser {
     /// Parse `state_machine Name { state ..., on ... }` declaration (TASK-4.1).
     pub(crate) fn parse_state_machine(&mut self) -> Result<Decl, ()> {
         use crate::ast::decl::state_machine::{
-            SmEventParam, SmStateDecl, SmTransitionDecl, SmTransitionSource,
-            StateMachineDecl,
+            SmFromPattern, SmState, SmTransition, StateMachineDecl,
         };
         let start = self.span();
         self.advance(); // eat 'state_machine'
@@ -413,8 +415,8 @@ impl Parser {
 
         self.expect(&Token::LBrace)?;
 
-        let mut states: Vec<SmStateDecl> = Vec::new();
-        let mut transitions: Vec<SmTransitionDecl> = Vec::new();
+        let mut states: Vec<SmState> = Vec::new();
+        let mut transitions: Vec<SmTransition> = Vec::new();
 
         loop {
             self.skip_newlines();
@@ -453,10 +455,10 @@ impl Parser {
                         }
                     };
                     let fields = self.parse_sm_state_fields()?;
-                    states.push(SmStateDecl {
+                    states.push(SmState {
                         name: sname,
                         fields,
-                        terminal: true,
+                        is_terminal: true,
                         span: item_start.merge(self.span()),
                     });
                 }
@@ -482,10 +484,10 @@ impl Parser {
                         }
                     };
                     let fields = self.parse_sm_state_fields()?;
-                    states.push(SmStateDecl {
+                    states.push(SmState {
                         name: sname,
                         fields,
-                        terminal: false,
+                        is_terminal: false,
                         span: item_start.merge(self.span()),
                     });
                 }
@@ -496,7 +498,7 @@ impl Parser {
                     self.advance(); // eat 'on'
 
                     // Event name (PascalCase)
-                    let event = match self.peek().clone() {
+                    let event_name = match self.peek().clone() {
                         Token::TypeIdent(n) | Token::Ident(n) => {
                             self.advance();
                             n
@@ -513,10 +515,10 @@ impl Parser {
                         }
                     };
 
-                    // Optional event params: `(name: Type, ...)`
+                    // Optional event params: `(name, ...)` — just names, stored as Vec<String>
                     let event_params = if matches!(self.peek(), Token::LParen) {
                         self.advance(); // eat '('
-                        let mut params: Vec<SmEventParam> = Vec::new();
+                        let mut params: Vec<String> = Vec::new();
                         loop {
                             self.skip_newlines();
                             if matches!(self.peek(), Token::RParen | Token::Eof) {
@@ -526,18 +528,12 @@ impl Parser {
                                 self.advance();
                                 continue;
                             }
-                            let p_start = self.span();
                             let p_name = self.parse_ident_name()?;
-                            let p_ty = if self.eat(&Token::Colon) {
-                                Some(self.parse_type_expr()?)
-                            } else {
-                                None
-                            };
-                            params.push(SmEventParam {
-                                name: p_name,
-                                ty: p_ty,
-                                span: p_start.merge(self.span()),
-                            });
+                            // Consume optional `: Type` annotation (ignored at parse time)
+                            if self.eat(&Token::Colon) {
+                                let _ = self.parse_type_expr()?;
+                            }
+                            params.push(p_name);
                             if matches!(self.peek(), Token::Comma) {
                                 self.advance();
                             }
@@ -569,20 +565,19 @@ impl Parser {
                     let from = match self.peek().clone() {
                         Token::Ident(ref kw) if kw == "any" => {
                             self.advance();
-                            SmTransitionSource::Any
+                            SmFromPattern::Any
                         }
                         Token::TypeIdent(n) | Token::Ident(n) => {
                             self.advance();
                             // Optionally consume `(_)` pattern
                             if matches!(self.peek(), Token::LParen) {
                                 self.advance(); // eat '('
-                                // eat contents until RParen (wildcard pattern)
                                 while !matches!(self.peek(), Token::RParen | Token::Eof) {
                                     self.advance();
                                 }
                                 self.eat(&Token::RParen);
                             }
-                            SmTransitionSource::State(n)
+                            SmFromPattern::Named(n)
                         }
                         _ => {
                             self.errors.push(ParseError::classified(
@@ -610,7 +605,7 @@ impl Parser {
                     self.advance(); // eat '->'
 
                     // Target state name
-                    let to = match self.peek().clone() {
+                    let to_state = match self.peek().clone() {
                         Token::TypeIdent(n) | Token::Ident(n) => {
                             self.advance();
                             n
@@ -636,11 +631,11 @@ impl Parser {
                         self.eat(&Token::RParen);
                     }
 
-                    transitions.push(SmTransitionDecl {
-                        event,
+                    transitions.push(SmTransition {
+                        event_name,
                         event_params,
                         from,
-                        to,
+                        to_state,
                         span: item_start.merge(self.span()),
                     });
                 }
@@ -665,13 +660,15 @@ impl Parser {
             name,
             states,
             transitions,
+            is_partial: false,
+            is_pub: false,
             span: start.merge(self.span()),
         }))
     }
 
     /// Helper: parse optional `(name: Type, ...)` field list for a state declaration.
-    fn parse_sm_state_fields(&mut self) -> Result<Vec<crate::ast::decl::state_machine::SmStateField>, ()> {
-        use crate::ast::decl::state_machine::SmStateField;
+    fn parse_sm_state_fields(&mut self) -> Result<Vec<crate::ast::decl::state_machine::SmField>, ()> {
+        use crate::ast::decl::state_machine::SmField;
         if !matches!(self.peek(), Token::LParen) {
             return Ok(vec![]);
         }
@@ -688,11 +685,14 @@ impl Parser {
             }
             let f_start = self.span();
             let f_name = self.parse_ident_name()?;
-            self.expect(&Token::Colon)?;
-            let f_ty = self.parse_type_expr()?;
-            fields.push(SmStateField {
+            let f_ty = if self.eat(&Token::Colon) {
+                Some(self.parse_type_expr()?)
+            } else {
+                None
+            };
+            fields.push(SmField {
                 name: f_name,
-                ty: f_ty,
+                type_ann: f_ty,
                 span: f_start.merge(self.span()),
             });
             if matches!(self.peek(), Token::Comma) {
