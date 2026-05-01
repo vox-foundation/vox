@@ -262,6 +262,18 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
   - **Train**: `vox run scripts/mens/train_dogfood.vox` or `vox mens train … --background`. Monitor with `Get-Content mens/runs/logs/train_*.log -Wait -Tail 25` (or `tail -f`).
   - **CUDA `cargo` build**: detached build: `vox ci cuda-release-build`. Example train launcher: [`scripts/mens/train_dogfood.vox`](../../../scripts/mens/train_dogfood.vox).
   - **Skip corpus mix** (optional): `VOX_TRAIN_SKIP_CORPUS_MIX=1` skips the pre-train `mix` refresh when you already have the desired `train.jsonl` or need a shorter path under automation.
+  - **Integrated pipeline** (`scripts/mens/full-pipeline.vox`): runs all five stages end-to-end — corpus mix, pre-flight eval gate, QLoRA training, corpus eval refresh, post-train receipt gate. Launch with `vox run scripts/mens/full-pipeline.vox`. Control via env vars:
+
+    | Variable | Default | Effect |
+    |---|---|---|
+    | `VOX_MENS_DOMAIN` | `vox-lang` | Adapter domain (`rust-expert`, `agents`, …) |
+    | `VOX_MENS_EPOCHS` | `3` | Training epoch count |
+    | `VOX_MENS_SKIP_MIX` | unset | `1`/`true` → skip Step 1 corpus mix |
+    | `VOX_MENS_SKIP_EVAL` | unset | `1`/`true` → skip Step 2 pre-flight gate |
+    | `VOX_MENS_FORCE_TRAIN` | unset | `1`/`true` → proceed past a failing gate (dev only) |
+    | `VOX_MENS_BACKGROUND` | unset | `1`/`true` → spawn training detached |
+
+    The post-train gate (Step 5) uses **`mens/config/eval-gates-post-train.yaml`** instead of the full policy: `pass_at_k` and `review_recurrence` are warn-only because their metric files (`benchmark_passatk.json`, `review_metrics.json`) are written by `vox mens eval-local` and the review pipeline, not the trainer. Run the full gate with `vox mens eval-gate --run-dir mens/runs/latest` after those steps complete.
 - **Benchmark telemetry (Codex)**: set **`VOX_BENCHMARK_TELEMETRY=1`** so select CLI paths append unified `benchmark_event` rows (`VoxDb::record_benchmark_event`, session `bench:<repository_id>`): `vox mens bench-completion`, **`vox mens eval-local` only when `vox-cli` is built with feature `gpu`** (CPU-only eval skips telemetry rows), `vox ci build-timings`, optional train gate (`VOX_BENCHMARK` eval-local subprocess), and the ignored `run_benchmark` integration test warm pass. Set **`VOX_REPOSITORY_ROOT`** so subprocess `repository_id` matches MCP when CWD differs. Query via MCP `vox_benchmark_list` when Codex is attached. Syntax-K runs can be routed independently with **`VOX_SYNTAX_K_TELEMETRY=1`** (`metric_type = syntax_k_event`, session `syntaxk:<repository_id>`), with fallback to `VOX_BENCHMARK_TELEMETRY` when unset. Variable SSOT: [env-vars](env-vars.md); trust framing: [telemetry-trust-ssot](../architecture/telemetry-trust-ssot.md).
 - **JSONL rows**: `vox_tensor::data::TrainingPair` accepts **`instruction`** as alias for **`prompt`** and **`output`** for **`response`** so corpus rows are not silently dropped. See **[`mens-training-data-contract.md`](mens-training-data-contract.md)**; set **`VOX_MENS_TRAIN_JSONL_STRICT=1`** to fail on malformed non-empty lines instead of skipping them.
 - **Full-graph forward (current implementation)**: one forward pass per row/micro-batch item over loaded decoder layers, then masked CE on supervised suffix positions.
