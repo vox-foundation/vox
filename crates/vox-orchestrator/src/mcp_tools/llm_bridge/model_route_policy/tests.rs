@@ -390,3 +390,113 @@ fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
         std::env::remove_var("VOX_INFERENCE_PROFILE");
     }
 }
+
+fn registry_with_vox_local_and_openrouter() -> ModelRegistry {
+    let mut r = ModelRegistry::default();
+    r.register(ModelSpec {
+        id: "vox-mens-v1".into(),
+        canonical_slug: "local/vox-mens-v1".into(),
+        provider: "vox".into(),
+        provider_type: ProviderType::VoxLocal,
+        max_tokens: 8192,
+        cost_per_1k: 0.0,
+        cost_per_1k_input: 0.0,
+        cost_per_1k_output: 0.0,
+        is_free: true,
+        observed_cost_per_1k: None,
+        strengths: vec![crate::models::generated::StrengthTag::Codegen],
+        capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
+        supported_parameters: vec![],
+    });
+    r.register(ModelSpec {
+        id: "cloud-model".into(),
+        canonical_slug: "openrouter/cloud-model".into(),
+        provider: "openrouter".into(),
+        provider_type: ProviderType::OpenRouter,
+        max_tokens: 8192,
+        cost_per_1k: 0.001,
+        cost_per_1k_input: 0.001,
+        cost_per_1k_output: 0.001,
+        is_free: false,
+        observed_cost_per_1k: None,
+        strengths: vec![crate::models::generated::StrengthTag::Codegen],
+        capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
+        supported_parameters: vec![],
+    });
+    r
+}
+
+#[test]
+fn vox_local_preferred_for_codegen_when_desktop_ollama_profile() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
+    unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "desktop_ollama") };
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *crate::sync_lock::rw_write(&*orch.models_handle()) = registry_with_vox_local_and_openrouter();
+
+    let (model, _is_free) = resolve_mcp_chat_model_sync(
+        &orch,
+        "generate a parser",
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            task_category: crate::types::TaskCategory::CodeGen,
+            ..Default::default()
+        },
+        None,
+    )
+    .expect("should resolve");
+
+    assert_eq!(
+        model.provider_type,
+        ProviderType::VoxLocal,
+        "CodeGen should prefer VoxLocal; got model '{}' ({})",
+        model.id,
+        model.provider
+    );
+    unsafe {
+        std::env::remove_var("VOX_INFERENCE_PROFILE");
+    }
+}
+
+#[test]
+fn vox_local_not_preferred_for_non_code_tasks() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
+    unsafe { std::env::set_var("VOX_INFERENCE_PROFILE", "desktop_ollama") };
+    let mut config = OrchestratorConfig::for_testing();
+    config.cost_preference = CostPreference::Performance;
+    let orch = Orchestrator::new(config);
+    *crate::sync_lock::rw_write(&*orch.models_handle()) = registry_with_vox_local_and_openrouter();
+
+    let (model, _is_free) = resolve_mcp_chat_model_sync(
+        &orch,
+        "summarize this text",
+        None,
+        McpChatModelResolution {
+            complexity: 5,
+            task_category: crate::types::TaskCategory::Research,
+            ..Default::default()
+        },
+        None,
+    )
+    .expect("should resolve");
+
+    assert_ne!(
+        model.provider_type,
+        ProviderType::VoxLocal,
+        "Research tasks should not prefer VoxLocal; got model '{}'",
+        model.id,
+    );
+    unsafe {
+        std::env::remove_var("VOX_INFERENCE_PROFILE");
+    }
+}

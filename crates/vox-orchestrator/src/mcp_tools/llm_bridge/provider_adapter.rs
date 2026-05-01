@@ -7,7 +7,7 @@ use super::provider_auth::{bearer_for, extra_headers_for};
 use super::provider_endpoints::endpoint_for;
 use super::providers::{
     HttpCallMetadata, http_gemini_with_metadata, http_ollama_with_metadata,
-    http_openai_compatible_with_headers, probe_ollama_tags,
+    http_openai_compatible_with_headers, probe_ollama_tags, probe_vox_local_health,
 };
 
 #[derive(Debug, Clone)]
@@ -257,6 +257,7 @@ impl ProviderAdapter for VoxLocalAdapter {
     ) -> Pin<Box<dyn Future<Output = Result<ProviderInferResult, HttpInferError>> + Send + 'a>>
     {
         Box::pin(async move {
+            probe_vox_local_health(client).await?;
             let endpoint = endpoint_for(model)?;
             let prompt = extract_prompt_text(&req.user_prompt);
             let body = VoxLocalGenerateRequest {
