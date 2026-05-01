@@ -9,15 +9,12 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use tracing::{info, warn};
 
-use crate::{
-    MAX_MAINTENANCE_FOR_MS, NodeRecord, node_maintenance_blocks_new_work,
-    sweep_expired_maintenance_on_nodes,
-};
+use crate::{NodeRecord, node_maintenance_blocks_new_work, sweep_expired_maintenance_on_nodes};
 
 use super::super::auth::{PopuliAuthContext, auth_allows_worker_plane, populi_control_token_from_env};
 #[cfg(feature = "transport")]
 use super::super::dispatch_results_sweep;
-use super::super::store::{persist_exec_lease_store, scope_ok};
+use super::super::store::scope_ok;
 use super::super::{
     A2AStoredMessage, BootstrapExchangeRequest, BootstrapExchangeResponse, LeaveRequest,
     PopuliRegistryFile, PopuliTransportState, RemoteExecLeaseRow, server_stale_prune_ms,
