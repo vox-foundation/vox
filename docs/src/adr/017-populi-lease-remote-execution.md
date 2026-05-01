@@ -2,7 +2,7 @@
 title: "ADR 017: Populi lease-based authoritative remote execution"
 description: "Normative target model for single-owner lease semantics, A2A transport, and local fallback when promoting remote execution beyond best-effort relay."
 category: "reference"
-last_updated: "2026-03-29"
+last_updated: "2026-05-01"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -12,11 +12,11 @@ schema_type: "TechArticle"
 
 ## Status
 
-**Accepted (design intent).** This ADR records the **intended** execution-ownership model for Populi remote work. Until implementation and contract updates land, shipped behavior remains **local-first** with **experimental** best-effort relay only (see [ADR 008 addendum](008-populi-transport.md#addendum-experimental-orchestrator-routing-in-process-only) and [mens SSOT](../reference/populi.md)).
+**Accepted (implemented).** The single-owner lease lifecycle (grant → renew → release / expiry → local fallback + cancel relay) is fully implemented and covered by 13 integration tests in `crates/vox-orchestrator/src/orchestrator/tests/populi_single_owner.rs`. Lease-gated remote execution is off by default behind `VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATING_ENABLED`; see [remote execution rollout checklist](../operations/populi-remote-execution-rollout-checklist.md) for go/no-go gates and kill-switch table.
 
 ## Context
 
-Populi already provides membership, HTTP control plane operations, and A2A inbox semantics including **claimer leases** for mesh-delivered rows ([mens SSOT](../reference/populi.md)). The orchestrator can emit **best-effort** [`RemoteTaskEnvelope`](../../../crates/vox-orchestrator/src/a2a/envelope.rs) traffic when experimental flags are set, but **local queues still own execution** today.
+Populi provides membership, HTTP control plane operations, and A2A inbox semantics including **claimer leases** for mesh-delivered rows ([mens SSOT](../reference/populi.md)). The orchestrator emits [`RemoteTaskEnvelope`](../../../crates/vox-orchestrator/src/a2a/envelope.rs) traffic via A2A when experimental flags are set. With `VOX_ORCHESTRATOR_MESH_REMOTE_LEASE_GATING_ENABLED=1`, relay is **awaited** and successful grant places the task in **remote-hold** (single owner, no local dequeue); lease renew loss or expiry falls back to local enqueue and relays cancel.
 
 The first-wave **personal-cluster** roadmap needs a clear upgrade path from relay-style fan-out to **authoritative** remote ownership so that:
 
