@@ -10,12 +10,15 @@ use super::check_run::check_run;
 pub fn run_eval_gate(run_dir: PathBuf, policy_path: Option<PathBuf>) -> Result<i32> {
     let policy_path = policy_path.unwrap_or_else(|| PathBuf::from("mens/config/eval-gates.yaml"));
     if !policy_path.exists() {
+        // Hard-fail: a missing policy file must never silently pass all gates.
+        // Callers that intentionally want to skip gating should use VOX_MENS_SKIP_EVAL
+        // or VOX_MENS_FORCE_TRAIN, not a non-existent policy path.
         eprintln!(
-            "  {} Policy not found: {}",
-            "⚠".yellow(),
+            "  {} Policy file not found: {} — gate aborted (fix --policy path)",
+            "✗".red(),
             policy_path.display()
         );
-        return Ok(0);
+        return Ok(1);
     }
 
     eprintln!("{}", "╔══════════════════════════════════════════╗".cyan());
