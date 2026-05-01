@@ -259,6 +259,114 @@ pass_at_k:
 }
 
 #[test]
+fn anti_stub_gate_passes_when_eval_local_report_meets_thresholds() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("eval_local_report.json"),
+        r#"{
+            "anti_stub_task_success": 0.95,
+            "placeholder_event_rate": 0.03,
+            "trivial_placeholder_event_rate": 0.02,
+            "construct_richness_mean": 0.45
+        }"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+anti_stub:
+  min_pass_rate: 0.92
+  max_placeholder_event_rate: 0.08
+  max_trivial_placeholder_event_rate: 0.08
+  min_construct_richness_mean: 0.20
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results.iter().find(|r| r.name == "anti_stub").expect("anti_stub gate present");
+    assert!(g.passed, "should pass: all metrics above thresholds. msg={}", g.message);
+    assert!(g.block, "block flag from policy");
+}
+
+#[test]
+fn anti_stub_gate_fails_blocking_when_pass_rate_below_threshold() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        dir.path().join("eval_local_report.json"),
+        r#"{
+            "anti_stub_task_success": 0.80,
+            "placeholder_event_rate": 0.03,
+            "trivial_placeholder_event_rate": 0.02,
+            "construct_richness_mean": 0.45
+        }"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+anti_stub:
+  min_pass_rate: 0.92
+  max_placeholder_event_rate: 0.08
+  max_trivial_placeholder_event_rate: 0.08
+  min_construct_richness_mean: 0.20
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results.iter().find(|r| r.name == "anti_stub").expect("anti_stub gate present");
+    assert!(!g.passed, "0.80 < 0.92 should fail");
+    assert!(g.block, "block: true in policy");
+}
+
+#[test]
+fn anti_stub_gate_warn_only_when_eval_local_report_missing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    // No eval_local_report.json written — simulates post-train pipeline state before eval-local
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+anti_stub:
+  min_pass_rate: 0.92
+  max_placeholder_event_rate: 0.08
+  max_trivial_placeholder_event_rate: 0.08
+  min_construct_richness_mean: 0.20
+  block: false
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results.iter().find(|r| r.name == "anti_stub").expect("anti_stub gate present");
+    assert!(!g.passed, "missing file → gate fails");
+    assert!(!g.block, "block: false → warning, not hard-block");
+}
+
+#[test]
+fn anti_stub_gate_hard_blocks_when_full_policy_and_eval_local_report_missing() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    // No eval_local_report.json — simulates full gate run before eval-local is run by operator
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+anti_stub:
+  min_pass_rate: 0.92
+  block: true
+"#,
+    )
+    .unwrap();
+    let results = check_run(dir.path(), &policy_path).expect("check_run");
+    let g = results.iter().find(|r| r.name == "anti_stub").expect("anti_stub gate present");
+    assert!(!g.passed, "missing file → gate fails");
+    assert!(g.block, "block: true → hard-block");
+    assert!(g.message.contains("eval_local_report.json"), "message should name the expected file");
+}
+
+#[test]
 fn pass_at_k_gate_fails_on_regression_drop() {
     let dir = tempfile::tempdir().expect("tempdir");
     std::fs::write(
