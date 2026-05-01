@@ -261,7 +261,21 @@ jobs:
 
       - name: Run Tests (llvm-cov + nextest, bounded timeouts)
         # Includes vox-compiler integration tests such as rust_ecosystem_support_parity.
+        # INSTA_UPDATE=new: create new insta snapshots on first run (passes + writes .snap files).
+        # Changed snapshots still fail.  Committed snap files live in tests/snapshots/.
+        env:
+          INSTA_UPDATE: new
         run: cargo llvm-cov nextest --workspace --profile ci
+
+      - name: Upload insta snapshots (review and commit after first run)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: insta-snapshots
+          path: |
+            crates/vox-integration-tests/tests/snapshots/
+            crates/vox-compiler/tests/snapshots/
+          if-no-files-found: ignore
 
       - name: vox-db replication feature (compile + embedded sync smoke skips without creds)
         run: cargo test -p vox-db --features replication sync_embedded_replica_smoke
@@ -303,6 +317,17 @@ jobs:
           VOX_EXAMPLES_STRICT_PARSE: "1"
         run: cargo test -p vox-compiler --test golden_examples_strict_parse -- --nocapture 2>&1
         # Gate enforcement: The build fails if any golden example contains syntax errors or unhandled tokens.
+
+      - name: Golden @test function runner (CR-D3 — vox test round-trip)
+        # Runs every @test fn in examples/golden/**/*.vox through the eval layer.
+        # Validates that the `vox test` command surface works end-to-end on golden examples.
+        run: cargo test -p vox-integration-tests --test golden_vox_test_runner -- --nocapture 2>&1
+
+      - name: Compiler pipeline benchmarks compile-smoke (CR-E1 gate)
+        # Verifies benchmark code compiles cleanly; timing baselines are captured
+        # by the separate nightly benchmark job.  `--no-run` prevents wall-clock
+        # variability from inflating CI times.
+        run: cargo bench -p vox-compiler --no-run
 
       - name: Golden examples fmt idempotency gate (A.12)
         shell: bash

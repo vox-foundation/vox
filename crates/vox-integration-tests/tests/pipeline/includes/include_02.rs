@@ -46,18 +46,7 @@ fn pipeline_generics_option_codegen() {
     let hir = vox_compiler::hir::lower_module(&module);
     let output = generate(&hir).unwrap();
     let types = output.files.iter().find(|(n, _)| n == "types.ts").unwrap();
-    assert!(
-        types.1.contains("export type Option"),
-        "Should export Option"
-    );
-    assert!(types.1.contains("_tag: \"Some\""), "Should have Some tag");
-    assert!(types.1.contains("_tag: \"None\""), "Should have None tag");
-    assert!(
-        types.1.contains("export type Result"),
-        "Should export Result"
-    );
-    assert!(types.1.contains("_tag: \"Ok\""), "Should have Ok tag");
-    assert!(types.1.contains("_tag: \"Err\""), "Should have Err tag");
+    insta::assert_snapshot!("generics_option_types_ts_emit", types.1);
 }
 
 // hooks_demo.vox
@@ -106,12 +95,7 @@ fn pipeline_hooks_demo_codegen() {
         .iter()
         .find(|(n, _)| n == "HooksDemo.tsx")
         .unwrap();
-    assert!(tsx.1.contains("useState"), "Should use useState");
-    assert!(tsx.1.contains("useEffect"), "Should use useEffect");
-    assert!(tsx.1.contains("useMemo"), "Should use useMemo");
-    assert!(tsx.1.contains("useRef"), "Should use useRef");
-    assert!(tsx.1.contains("useCallback"), "Should use useCallback");
-    assert!(tsx.1.contains("import React,"), "Should have React import");
+    insta::assert_snapshot!("hooks_demo_tsx_all_hooks", tsx.1);
 }
 
 #[test]
@@ -222,14 +206,7 @@ fn pipeline_island_codegen() {
         .iter()
         .find(|(n, _)| n == "vox-islands-meta.ts")
         .unwrap();
-    assert!(
-        meta.1.contains("InteractiveChart"),
-        "Island meta should list InteractiveChart"
-    );
-    assert!(
-        meta.1.contains("SearchWidget"),
-        "Island meta should list SearchWidget"
-    );
+    insta::assert_snapshot!("islands_meta_ts_interactive_search", meta.1);
 }
 
 // v0_component.vox

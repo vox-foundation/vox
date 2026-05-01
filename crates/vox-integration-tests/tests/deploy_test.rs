@@ -20,22 +20,7 @@ fn deploy_kubernetes_manifests_correctly_use_spec() {
     };
 
     let manifests = generate_kubernetes_manifests("my-app", "my-app:latest", "vox-default", &spec);
-
-    // Verify Deployment YAML
-    assert!(manifests.contains("kind: Deployment"));
-    assert!(manifests.contains("image: my-app:latest"));
-    assert!(manifests.contains("containerPort: 3003"));
-    assert!(manifests.contains("containerPort: 8080"));
-    assert!(manifests.contains("name: NODE_ENV"));
-    assert!(manifests.contains("value: \"production\""));
-    assert!(manifests.contains("name: DATABASE_URL"));
-    assert!(manifests.contains(&format!("value: \"{}\"", sample_db_url)));
-
-    // Verify Service YAML
-    assert!(manifests.contains("kind: Service"));
-    assert!(manifests.contains("name: my-app"));
-    assert!(manifests.contains("port: 3003"));
-    assert!(manifests.contains("targetPort: 3003"));
+    insta::assert_snapshot!("kubernetes_manifests_node22", manifests);
 }
 
 #[test]
@@ -51,21 +36,11 @@ fn deploy_dockerfile_from_spec_smoke_test() {
     };
 
     let dockerfile = generate_dockerfile_from_spec(&spec);
-
-    assert!(dockerfile.contains("FROM rust:1.80-slim"));
-    assert!(dockerfile.contains("apt-get install -y libssl-dev pkg-config"));
-    assert!(dockerfile.contains("ENV RUST_LOG=info"));
-    assert!(dockerfile.contains("EXPOSE 3000"));
-    assert!(dockerfile.contains("RUN cargo build --release"));
-    assert!(dockerfile.contains("CMD [\"./target/release/my-app\"]"));
+    insta::assert_snapshot!("dockerfile_rust_slim", dockerfile);
 }
 
 #[test]
 fn deploy_bare_metal_systemd_template_population() {
-    // This logic currently lives in vox-cli, but we can verify the template logic.
-    // In a real integration test, we'd mock the Command output, but for now
-    // let's verify if the template used in `deploy.rs` is sound.
-
     let app_name = "test-app";
     let user = "vox";
     const HOME_PREFIX: &str = "/home/";
@@ -95,8 +70,5 @@ WantedBy=multi-user.target
 "#
     );
 
-    assert!(service_file.contains("Description=Vox Application: test-app"));
-    assert!(service_file.contains("User=vox"));
-    assert!(service_file.contains("Environment=PORT=3000"));
-    assert!(service_file.contains("ExecStart=./my-binary --port 3000"));
+    insta::assert_snapshot!("systemd_unit_bare_metal", service_file);
 }

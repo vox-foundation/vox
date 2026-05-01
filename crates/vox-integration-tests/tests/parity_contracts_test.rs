@@ -40,18 +40,7 @@ fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
     let out = generate_rust(&hir, "parity_app").expect("rust codegen should succeed");
     let main_rs = out.files.get("src/main.rs").expect("main.rs should exist");
 
-    assert!(
-        main_rs.contains("tracing_subscriber::fmt::init"),
-        "generated server should init tracing"
-    );
-    assert!(
-        main_rs.contains("Router::new") && main_rs.contains("post(handle_sf_chat)"),
-        "generated server should register @server route"
-    );
-    assert!(
-        main_rs.contains("VOX_PORT"),
-        "generated server should configure listen port from env"
-    );
+    insta::assert_snapshot!("parity_app_main_rs_emit", main_rs);
 }
 
 #[test]
@@ -63,18 +52,7 @@ fn parity_contract_api_client_supports_secure_headers_and_streaming() {
 "#;
     let hir = lower(src);
     let api_client = emit_api_client(&hir);
-    assert!(
-        api_client.contains("export async function summarize"),
-        "api client should export summarize()"
-    );
-    assert!(
-        api_client.contains("fetch") && api_client.contains("/api/"),
-        "api client should call generated route"
-    );
-    assert!(
-        api_client.contains("application/json"),
-        "api client should send JSON"
-    );
+    insta::assert_snapshot!("parity_summarize_api_client_emit", api_client);
 }
 
 #[test]

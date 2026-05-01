@@ -72,12 +72,7 @@ fn codegen_types_has_tagged_union() {
     let output = generate(&hir).unwrap();
 
     let types = output.files.iter().find(|(n, _)| n == "types.ts").unwrap();
-    assert!(types.1.contains("_tag: \"Ok\""), "Should have Ok tag");
-    assert!(types.1.contains("_tag: \"Error\""), "Should have Error tag");
-    assert!(
-        types.1.contains("export type ChatResult"),
-        "Should export ChatResult"
-    );
+    insta::assert_snapshot!("chatbot_types_ts_tagged_union", types.1);
 }
 
 #[test]
@@ -88,11 +83,7 @@ fn codegen_component_has_use_state() {
     let output = generate(&hir).unwrap();
 
     let chat = output.files.iter().find(|(n, _)| n == "Chat.tsx").unwrap();
-    assert!(chat.1.contains("useState"), "Should use useState hook");
-    assert!(
-        chat.1.contains("export function Chat"),
-        "Should export Chat component"
-    );
+    insta::assert_snapshot!("chatbot_chat_tsx_usestate", chat.1);
 }
 
 #[test]
@@ -103,19 +94,7 @@ fn codegen_server_has_express_route_with_await() {
     let output = with_express_server_enabled(|| generate(&hir).unwrap());
 
     let server = output.files.iter().find(|(n, _)| n == "server.ts").unwrap();
-    assert!(
-        server.1.contains("app.post(\"/api/chat\""),
-        "Should have POST route"
-    );
-    assert!(server.1.contains("express"), "Should import express");
-    assert!(
-        server.1.contains("ClaudeActor"),
-        "Should have Claude actor class"
-    );
-    assert!(
-        server.1.contains("await new ClaudeActor().send("),
-        "Actor .send() must be awaited"
-    );
+    insta::assert_snapshot!("chatbot_server_ts_express_actor", server.1);
 }
 
 #[test]
@@ -185,18 +164,7 @@ activity fetch_data(url: str) to Result[str] {
         .iter()
         .find(|(n, _)| n == "activities.ts")
         .unwrap();
-    assert!(
-        activities.1.contains("export async function fetch_data("),
-        "Should have async function"
-    );
-    assert!(
-        activities.1.contains("url: string"),
-        "Should have typed parameter"
-    );
-    assert!(
-        activities.1.contains("Promise<"),
-        "Should have Promise return type"
-    );
+    insta::assert_snapshot!("activity_fetch_data_ts_emit", activities.1);
 }
 
 #[test]
@@ -218,18 +186,7 @@ activity do_work() to Result[str] {
         .iter()
         .find(|(n, _)| n == "activities.ts")
         .unwrap();
-    assert!(
-        activities.1.contains("executeActivity"),
-        "Should include executeActivity helper"
-    );
-    assert!(
-        activities.1.contains("ActivityOptions"),
-        "Should include ActivityOptions interface"
-    );
-    assert!(
-        activities.1.contains("parseDuration"),
-        "Should include parseDuration helper"
-    );
+    insta::assert_snapshot!("activity_do_work_ts_runtime_helpers", activities.1);
 }
 
 // --- TS codegen for tables ---
@@ -256,20 +213,7 @@ fn codegen_ts_table_produces_schema_file() {
     );
 
     let schema = output.files.iter().find(|(n, _)| n == "schema.ts").unwrap();
-    assert!(
-        schema.1.contains("export interface Task {"),
-        "Should have Task interface"
-    );
-    assert!(schema.1.contains("_id: number"), "Should have _id field");
-    assert!(
-        schema.1.contains("title: string"),
-        "Should have title field"
-    );
-    assert!(schema.1.contains("done: boolean"), "Should have done field");
-    assert!(
-        schema.1.contains("priority: number"),
-        "Should have priority field"
-    );
+    insta::assert_snapshot!("table_task_schema_ts_emit", schema.1);
 }
 
 // --- @v0 codegen tests ---
@@ -290,18 +234,7 @@ fn codegen_v0_placeholder_from_prompt() {
     );
 
     let stats = output.files.iter().find(|(n, _)| n == "Stats.tsx").unwrap();
-    assert!(
-        stats.1.contains("@v0 generated"),
-        "Should contain @v0 marker"
-    );
-    assert!(
-        stats.1.contains("A stats dashboard with charts"),
-        "Should contain the prompt"
-    );
-    assert!(
-        stats.1.contains("export function Stats()"),
-        "Should export component function"
-    );
+    insta::assert_snapshot!("v0_stats_tsx_placeholder", stats.1);
 }
 
 #[test]
@@ -317,14 +250,7 @@ fn codegen_v0_placeholder_from_image() {
         .iter()
         .find(|(n, _)| n == "Dashboard.tsx")
         .unwrap();
-    assert!(
-        dash.1.contains("From image: design.png"),
-        "Should reference the image path"
-    );
-    assert!(
-        dash.1.contains("export function Dashboard()"),
-        "Should export component function"
-    );
+    insta::assert_snapshot!("v0_dashboard_tsx_from_image", dash.1);
 }
 
 // --- @table / @index end-to-end pipeline tests ---
@@ -383,23 +309,10 @@ fn pipeline_table_rust_codegen_e2e() {
     let output = vox_compiler::codegen_rust::generate(&hir, "test_data").unwrap();
 
     let lib_rs = output.files.get("src/lib.rs").expect("lib.rs");
-    assert!(lib_rs.contains("pub struct Task {"), "struct emitted");
-    assert!(lib_rs.contains("pub _id: Option<i64>,"), "_id field");
-    assert!(lib_rs.contains("pub title: String,"), "title field");
+    insta::assert_snapshot!("table_task_lib_rs_emit", lib_rs);
 
     let main_rs = output.files.get("src/main.rs").expect("main.rs");
-    assert!(
-        main_rs.contains("CREATE TABLE IF NOT EXISTS task"),
-        "DDL in main"
-    );
-    assert!(
-        main_rs.contains("CREATE INDEX IF NOT EXISTS idx_task_by_done"),
-        "index DDL"
-    );
-    assert!(
-        main_rs.contains("let db = Arc::new(codex)"),
-        "Codex should be wrapped in Arc for axum Extension"
-    );
+    insta::assert_snapshot!("table_task_main_rs_emit", main_rs);
 }
 
 // --- routes codegen test ---
@@ -424,16 +337,7 @@ fn codegen_routes_produces_route_manifest_ts() {
         .iter()
         .find(|(n, _)| n == "routes.manifest.ts")
         .unwrap();
-    assert!(m.1.contains("export const voxRoutes"), "manifest exports voxRoutes");
-    assert!(m.1.contains("\"/about\""), "Should keep /about path");
-    assert!(
-        m.1.contains("import { home }"),
-        "Should import home component"
-    );
-    assert!(
-        m.1.contains("import { about }"),
-        "Should import about component"
-    );
+    insta::assert_snapshot!("routes_home_about_manifest_ts", m.1);
 }
 
 #[test]
@@ -453,16 +357,7 @@ routes {
         .iter()
         .find(|(n, _)| n == "routes.manifest.ts")
         .unwrap();
-    assert!(
-        m.1.contains("globalPendingComponent = Spinner"),
-        "route manifest should register @loading as global pending; got:\n{}",
-        m.1
-    );
-    assert!(
-        m.1.contains("Spinner"),
-        "Should import Spinner alongside route targets; got:\n{}",
-        m.1
-    );
+    insta::assert_snapshot!("routes_with_loading_spinner_manifest_ts", m.1);
     assert!(
         output.files.iter().any(|(n, _)| n == "Spinner.tsx"),
         "Should emit Spinner.tsx"
@@ -526,24 +421,14 @@ fn golden_web_routing_fullstack_codegen_emits_manifest_and_client() {
         .find(|(n, _)| n == "vox-client.ts")
         .map(|(_, c)| c.as_str())
         .expect("vox-client.ts");
-    assert!(
-        client.contains("method: \"GET\"") && client.contains("$get"),
-        "vox-client must use GET for @query"
-    );
+    insta::assert_snapshot!("web_routing_fullstack_client_ts", client);
     let manifest = output
         .files
         .iter()
         .find(|(n, _)| n == "routes.manifest.ts")
         .map(|(_, c)| c.as_str())
         .expect("routes.manifest.ts");
-    assert!(
-        manifest.contains("children:") && manifest.contains("load_section"),
-        "nested manifest with loader:\n{manifest}"
-    );
-    assert!(
-        manifest.contains("export const notFoundComponent"),
-        "not_found export:\n{manifest}"
-    );
+    insta::assert_snapshot!("web_routing_fullstack_manifest_ts", manifest);
 }
 
 #[test]
@@ -570,14 +455,7 @@ fn golden_blog_fullstack_codegen_emits_manifest_get_and_post() {
         .find(|(n, _)| n == "vox-client.ts")
         .map(|(_, c)| c.as_str())
         .expect("vox-client.ts");
-    assert!(
-        client.contains("method: \"GET\"") && client.contains("list_posts"),
-        "GET @query:\n{client}"
-    );
-    assert!(
-        client.contains("method: \"POST\"") && client.contains("publish_post"),
-        "@mutation POST:\n{client}"
-    );
+    insta::assert_snapshot!("blog_fullstack_client_ts", client);
 }
 
 #[test]
@@ -614,23 +492,7 @@ fn codegen_bind_expands_to_value_onchange() {
         .iter()
         .find(|(n, _)| n == "LoginForm.tsx")
         .unwrap();
-    assert!(
-        component.1.contains("value={email}"),
-        "bind should expand to value prop, got:\n{}",
-        component.1
-    );
-    assert!(
-        component.1.contains("onChange="),
-        "bind should expand to onChange handler"
-    );
-    assert!(
-        component.1.contains("set_email"),
-        "setter should be derived from ident name (set_email)"
-    );
-    assert!(
-        component.1.contains("e.target.value"),
-        "onChange should use e.target.value"
-    );
+    insta::assert_snapshot!("bind_loginform_tsx_expand", component.1);
 }
 
 // --- use_effect hook mapping test ---
@@ -648,19 +510,7 @@ fn codegen_use_effect_maps_to_react_hook() {
     let output = generate(&hir).unwrap();
 
     let component = output.files.iter().find(|(n, _)| n == "Timer.tsx").unwrap();
-    assert!(
-        component.1.contains("useEffect"),
-        "use_effect should map to useEffect, got:\n{}",
-        component.1
-    );
-    assert!(
-        component.1.contains("import React, {"),
-        "Should import from react"
-    );
-    assert!(
-        component.1.contains("useEffect") && component.1.contains("useState"),
-        "Both hooks should be in imports"
-    );
+    insta::assert_snapshot!("use_effect_timer_tsx_emit", component.1);
 }
 
 // --- Phase 5F: Full-stack dashboard integration test ---
@@ -704,14 +554,7 @@ fn dashboard_full_pipeline_e2e() {
         .iter()
         .find(|(n, _)| n == "Dashboard.tsx")
         .unwrap();
-    assert!(
-        dash.1.contains("@v0 generated component"),
-        "Dashboard should be v0 placeholder"
-    );
-    assert!(
-        dash.1.contains("KPIs"),
-        "Dashboard should contain the prompt text"
-    );
+    insta::assert_snapshot!("dashboard_e2e_dash_tsx", dash.1);
 
     // @component with bind={}
     let chat = output
@@ -719,18 +562,7 @@ fn dashboard_full_pipeline_e2e() {
         .iter()
         .find(|(n, _)| n == "ChatWidget.tsx")
         .unwrap();
-    assert!(
-        chat.1.contains("value={input}"),
-        "bind should expand to value"
-    );
-    assert!(
-        chat.1.contains("onChange="),
-        "bind should expand to onChange"
-    );
-    assert!(
-        chat.1.contains("set_input"),
-        "bind setter should be set_input"
-    );
+    insta::assert_snapshot!("dashboard_e2e_chatwidget_tsx", chat.1);
 
     // routes -> routes.manifest.ts
     let m = output
@@ -738,15 +570,11 @@ fn dashboard_full_pipeline_e2e() {
         .iter()
         .find(|(n, _)| n == "routes.manifest.ts")
         .unwrap();
-    assert!(m.1.contains("\"/\""), "expected root path in manifest:\n{}", m.1);
-    assert!(m.1.contains("\"/chat\""));
+    insta::assert_snapshot!("dashboard_e2e_routes_manifest_ts", m.1);
 
     // types.ts
     let types = output.files.iter().find(|(n, _)| n == "types.ts").unwrap();
-    assert!(
-        types.1.contains("Message"),
-        "types.ts should contain Message type"
-    );
+    insta::assert_snapshot!("dashboard_e2e_types_ts", types.1);
 }
 
 #[test]
@@ -792,20 +620,10 @@ fn chatbot_full_pipeline_e2e() {
     );
 
     let chat_css = output.files.iter().find(|(n, _)| n == "Chat.css").unwrap();
-    assert!(
-        chat_css.1.contains(".chat_container"),
-        "CSS should contain .chat_container"
-    );
+    insta::assert_snapshot!("chatbot_fixture_chat_css", chat_css.1);
 
     let chat_tsx = output.files.iter().find(|(n, _)| n == "Chat.tsx").unwrap();
-    assert!(
-        chat_tsx.1.contains("import \"./Chat.css\""),
-        "Chat.tsx should import CSS"
-    );
-    assert!(
-        chat_tsx.1.contains("set_messages"),
-        "Should use set_messages"
-    );
+    insta::assert_snapshot!("chatbot_fixture_chat_tsx", chat_tsx.1);
 }
 
 /// Island + Path C `component` surfaces + client `routes` + HTTP route
@@ -903,38 +721,28 @@ fn pipeline_mixed_surface_worked_app_web_ir_gate_and_tsx_substrings() {
             .find(|(n, _)| n == "Dash.tsx")
             .map(|(_, c)| c.as_str())
             .expect("Dash.tsx");
-        assert!(
-            dash.contains("dashboard") || dash.contains("Dashboard"),
-            "Dash.tsx:\n{dash}"
-        );
-        assert!(
-            dash.contains("Chart") || dash.contains("chart"),
-            "Dash should mount Chart island, got:\n{dash}"
-        );
+        insta::assert_snapshot!("mixed_surface_dash_tsx", dash);
         let shell = output
             .files
             .iter()
             .find(|(n, _)| n == "Shell.tsx")
             .map(|(_, c)| c.as_str())
             .expect("Shell.tsx");
-        assert!(
-            shell.contains("span") || shell.contains("Span"),
-            "Shell.tsx:\n{shell}"
-        );
+        insta::assert_snapshot!("mixed_surface_shell_tsx", shell);
         let m = output
             .files
             .iter()
             .find(|(n, _)| n == "routes.manifest.ts")
             .map(|(_, c)| c.as_str())
             .expect("routes.manifest.ts");
-        assert!(m.contains("Dash"), "routes.manifest.ts:\n{m}");
+        insta::assert_snapshot!("mixed_surface_routes_manifest_ts", m);
         let meta = output
             .files
             .iter()
             .find(|(n, _)| n == "vox-islands-meta.ts")
             .map(|(_, c)| c.as_str())
             .expect("vox-islands-meta.ts");
-        assert!(meta.contains("Chart"), "meta:\n{meta}");
+        insta::assert_snapshot!("mixed_surface_islands_meta_ts", meta);
     });
 }
 

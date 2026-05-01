@@ -13,6 +13,8 @@ fn codegen_rust(src: &str) -> String {
     emit_lib(&hir)
 }
 
+// ── Tombstone tests (no codegen output, just parse-error assertion) ───────────
+
 /// `activity` keyword is tombstoned (TASK-2.6); parsing source that uses it must fail.
 #[test]
 fn codegen_activity_emits_async_fn() {
@@ -51,7 +53,6 @@ fn codegen_activity_without_with_is_plain_call() {
         "tombstoned `activity` keyword should produce a parse error"
     );
 
-    // The canonical equivalent compiles and codegens without error.
     let canonical_src = r#"
 fn do_work(input: str) to str {
     return input
@@ -62,11 +63,10 @@ fn main() to str {
 }
 "#;
     let output = codegen_rust(canonical_src);
-    assert!(
-        output.contains("fn do_work("),
-        "canonical fn form should be emitted"
-    );
+    insta::assert_snapshot!("activity_canonical_fn_output", output);
 }
+
+// ── with-expression option codegen ────────────────────────────────────────────
 
 #[test]
 fn codegen_with_all_options() {
@@ -77,22 +77,10 @@ fn f() to int {
 }
 "#;
     let output = codegen_rust(src);
-    assert!(output.contains("with_retries(5"), "Should emit retries");
-    assert!(
-        output.contains("parse_duration(\"30s\")"),
-        "Should emit timeout"
-    );
-    assert!(
-        output.contains("with_activity_id(\"unique-xyz\""),
-        "Should emit activity_id"
-    );
-    assert!(
-        output.contains("with_backoff_multiplier(2"),
-        "Should emit backoff_multiplier"
-    );
+    insta::assert_snapshot!("with_all_options_output", output);
 }
 
-// --- Table and Index codegen tests ---
+// ── Table and Index codegen ───────────────────────────────────────────────────
 
 #[test]
 fn codegen_table_emits_struct() {
@@ -104,23 +92,7 @@ fn codegen_table_emits_struct() {
 }
 "#;
     let output = codegen_rust(src);
-    assert!(
-        output.contains("pub struct Task"),
-        "Should emit struct for @table"
-    );
-    assert!(
-        output.contains("pub _id: Option<i64>"),
-        "Should have auto _id field"
-    );
-    assert!(
-        output.contains("pub title: String"),
-        "Should have title field"
-    );
-    assert!(output.contains("pub done: bool"), "Should have done field");
-    assert!(
-        output.contains("pub priority: i64"),
-        "Should have priority field"
-    );
+    insta::assert_snapshot!("table_struct_output", output);
 }
 
 #[test]
@@ -140,26 +112,7 @@ fn codegen_table_emits_ddl() {
     assert_eq!(hir.tables.len(), 1, "Should have 1 table");
 
     let ddl = emit_table_ddl(&hir.tables[0]);
-    assert!(
-        ddl.contains("CREATE TABLE IF NOT EXISTS task"),
-        "DDL should create table 'task'"
-    );
-    assert!(
-        ddl.contains("_id INTEGER PRIMARY KEY AUTOINCREMENT"),
-        "DDL should have _id PK"
-    );
-    assert!(
-        ddl.contains("title TEXT NOT NULL"),
-        "DDL should have title column"
-    );
-    assert!(
-        ddl.contains("done INTEGER NOT NULL"),
-        "DDL: bool maps to INTEGER"
-    );
-    assert!(
-        ddl.contains("priority INTEGER NOT NULL"),
-        "DDL: int maps to INTEGER"
-    );
+    insta::assert_snapshot!("table_ddl_output", ddl);
 }
 
 #[test]
@@ -181,15 +134,10 @@ fn codegen_index_emits_ddl() {
     assert_eq!(hir.indexes.len(), 1, "Should have 1 index");
 
     let ddl = emit_index_ddl(&hir.indexes[0]);
-    assert!(
-        ddl.contains("CREATE INDEX IF NOT EXISTS idx_task_by_done_priority"),
-        "DDL should create index"
-    );
-    assert!(ddl.contains("ON task"), "DDL should reference table");
-    assert!(ddl.contains("(done, priority)"), "DDL should list columns");
+    insta::assert_snapshot!("index_ddl_output", ddl);
 }
 
-// --- MCP server codegen tests ---
+// ── MCP server codegen ────────────────────────────────────────────────────────
 
 #[test]
 fn codegen_mcp_tool_hir_lowering() {
@@ -202,6 +150,7 @@ fn codegen_mcp_tool_hir_lowering() {
     let module = parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
 
+    // Structural assertions — these test HIR semantics, not output format.
     assert_eq!(hir.mcp_tools.len(), 1, "Should have 1 MCP tool");
     assert!(
         hir.functions.is_empty(),
@@ -230,26 +179,7 @@ fn codegen_mcp_server_produces_file() {
     );
 
     let mcp = output.files.get("src/mcp_server.rs").unwrap();
-    assert!(
-        mcp.contains("fn dispatch_tool"),
-        "Should have dispatch function"
-    );
-    assert!(
-        mcp.contains("fn tool_list"),
-        "Should have tool_list function"
-    );
-    assert!(mcp.contains("fn main"), "Should have main entry point");
-    assert!(
-        mcp.contains("\"get_weather\""),
-        "Should reference tool name"
-    );
-    assert!(
-        mcp.contains("Get the weather for a city"),
-        "Should include description"
-    );
-    assert!(mcp.contains("\"initialize\""), "Should handle initialize");
-    assert!(mcp.contains("\"tools/list\""), "Should handle tools/list");
-    assert!(mcp.contains("\"tools/call\""), "Should handle tools/call");
+    insta::assert_snapshot!("mcp_server_single_tool_output", mcp);
 }
 
 #[test]
@@ -270,22 +200,7 @@ fn codegen_mcp_server_input_schema() {
     assert_eq!(hir.mcp_tools.len(), 2, "Should have 2 MCP tools");
 
     let mcp = vox_compiler::codegen_rust::emit::emit_mcp_server(&hir, "my_tools");
-    assert!(
-        mcp.contains("\"integer\""),
-        "int params should map to JSON 'integer' type"
-    );
-    assert!(
-        mcp.contains("\"string\""),
-        "str params should map to JSON 'string' type"
-    );
-    assert!(
-        mcp.contains("as_i64"),
-        "int params should use as_i64 for extraction"
-    );
-    assert!(
-        mcp.contains("as_str"),
-        "str params should use as_str for extraction"
-    );
+    insta::assert_snapshot!("mcp_server_multi_tool_schema_output", mcp);
 }
 
 #[test]
@@ -321,14 +236,9 @@ fn codegen_mcp_resource_emits_resources_handlers() {
 
     let output = vox_compiler::codegen_rust::generate(&hir, "with_res").unwrap();
     assert!(output.files.contains_key("src/mcp_server.rs"));
+
     let mcp = output.files.get("src/mcp_server.rs").unwrap();
-    assert!(mcp.contains("resources/list"), "expected resources/list");
-    assert!(mcp.contains("resources/read"), "expected resources/read");
-    assert!(
-        mcp.contains("dispatch_resource"),
-        "expected resource dispatch"
-    );
-    assert!(mcp.contains("demo://x"), "expected URI in dispatch");
+    insta::assert_snapshot!("mcp_resource_server_output", mcp);
 
     let cargo = output.files.get("Cargo.toml").expect("Cargo.toml");
     assert!(
@@ -348,8 +258,5 @@ fn codegen_mcp_tool_list_schema_supports_list_param() {
     let module = parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
     let mcp = vox_compiler::codegen_rust::emit::emit_mcp_server(&hir, "lst");
-    assert!(
-        mcp.contains("\"type\": \"array\"") && mcp.contains("\"items\""),
-        "list[str] should emit array schema:\n{mcp}"
-    );
+    insta::assert_snapshot!("mcp_list_param_schema_output", mcp);
 }

@@ -66,19 +66,7 @@ fn pipeline_pattern_matching_codegen() {
     let hir = vox_compiler::hir::lower_module(&module);
     let output = generate(&hir).unwrap();
     let types = output.files.iter().find(|(n, _)| n == "types.ts").unwrap();
-    assert!(
-        types.1.contains("export type Shape"),
-        "Should export Shape type"
-    );
-    assert!(types.1.contains("_tag: \"Circle\""), "Should have Circle");
-    assert!(
-        types.1.contains("_tag: \"Rectangle\""),
-        "Should have Rectangle"
-    );
-    assert!(
-        types.1.contains("_tag: \"Triangle\""),
-        "Should have Triangle"
-    );
+    insta::assert_snapshot!("shape_types_ts_tagged_union", types.1);
 }
 
 // multi_route_app.vox
@@ -177,16 +165,7 @@ fn pipeline_multi_route_rust_codegen() {
     let hir = vox_compiler::hir::lower_module(&module);
     let output = vox_compiler::codegen_rust::generate(&hir, "multi_route_app").unwrap();
     let main_rs = output.files.get("src/main.rs").expect("main.rs");
-    // Axum uses .route("/path", get(handler)) syntax
-    assert!(
-        main_rs.contains("\"/api/todos\""),
-        "Should have /api/todos route in main.rs, got:\n{}",
-        &main_rs[..main_rs.len().min(2000)]
-    );
-    assert!(
-        main_rs.contains("handle_sf_get_stats"),
-        "Should have server fn handler for get_stats"
-    );
+    insta::assert_snapshot!("multi_route_rust_main_rs_emit", main_rs);
 }
 
 /// HTTP `routes` surface plus Path C components → Web IR summary (OP-0181).
@@ -329,9 +308,5 @@ fn op_s047_extra_parity_fixture_pipeline_emits_island_mount() {
         .find(|(f, _)| f == "ParityPage.tsx")
         .map(|(_, c)| c.as_str())
         .expect("ParityPage.tsx");
-    assert!(
-        ts.contains("data-vox-island=\"ParityP\""),
-        "expected V1 island attr:\n{ts}"
-    );
-    assert!(ts.contains("data-prop-label="), "expected prop:\n{ts}");
+    insta::assert_snapshot!("parity_page_tsx_island_mount_op_s047", ts);
 }
