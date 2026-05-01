@@ -65,6 +65,9 @@ pub mod workspace_db;
 pub mod v0;
 /// Normalize v0.dev TSX for Vox `routes:` named imports.
 pub(crate) mod v0_tsx_normalize;
+/// Accessibility validator for v0.dev TSX output (TASK-5.4).
+#[cfg(feature = "island")]
+pub(crate) mod v0_tsx_validate;
 /// TASK-5.4: pre-flight validation of v0.dev TSX output (a11y + design-token checks).
 #[cfg(feature = "island")]
 pub(crate) mod v0_validate;

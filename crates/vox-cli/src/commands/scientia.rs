@@ -152,6 +152,17 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                         limit,
                     })
                 }
+                ScientiaCmd::PublicationDiscoveryPublishRss {
+                    feed_path,
+                    limit,
+                    json,
+                } => DbCli::Publication(DbCliPublication::PublicationDiscoveryPublishRss {
+                    // Always scope to `scientia` content type from the `vox scientia` surface.
+                    content_type: Some("scientia".to_string()),
+                    feed_path,
+                    limit,
+                    json,
+                }),
                 ScientiaCmd::PublicationDiscoveryExplain { publication_id } => {
                     DbCli::Publication(DbCliPublication::PublicationDiscoveryExplain {
                         publication_id,

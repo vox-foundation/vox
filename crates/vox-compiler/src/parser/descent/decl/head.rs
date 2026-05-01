@@ -2,8 +2,9 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    Decl, EffectDecl, EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind, IslandDecl,
-    IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
+    Decl, EffectDecl,
+    EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind,
+    IslandDecl, IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
     OnMountDecl, PostCondition, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl,
     RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl,
 };

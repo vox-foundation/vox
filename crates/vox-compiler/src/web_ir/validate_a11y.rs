@@ -15,6 +15,92 @@
 
 use super::{BehaviorNode, DomNode, DomNodeId, WebIrDiagnostic, WebIrModule};
 
+// ---------------------------------------------------------------------------
+// Internal aria inference types (Phase 6 will embed these in DomNode)
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq)]
+enum AriaRole {
+    Button,
+    Link,
+    Img,
+    TextInput,
+    #[allow(dead_code)] // Phase 6: checkbox/radio role checks
+    Checkbox,
+    #[allow(dead_code)] // Phase 6: checkbox/radio role checks
+    Radio,
+    Combobox,
+    Generic,
+}
+
+/// Derive the implicit ARIA role from an element tag, following the HTML-AAM mapping.
+fn implicit_role(tag: &str) -> AriaRole {
+    match tag.to_ascii_lowercase().as_str() {
+        "button" | "summary" => AriaRole::Button,
+        "a" | "area" => AriaRole::Link,
+        "img" => AriaRole::Img,
+        "input" => AriaRole::TextInput,
+        "select" => AriaRole::Combobox,
+        _ => AriaRole::Generic,
+    }
+}
+
+/// Check whether an attrs list contains a specific attribute name (case-insensitive key).
+fn has_attr(attrs: &[(String, String)], name: &str) -> bool {
+    attrs.iter().any(|(k, _)| k.eq_ignore_ascii_case(name))
+}
+
+
+/// True if the element carries an explicit accessible name via aria attributes.
+fn has_aria_name(attrs: &[(String, String)]) -> bool {
+    has_attr(attrs, "aria-label") || has_attr(attrs, "aria-labelledby")
+}
+
+/// Recursively check whether a set of child DOM nodes contains any non-empty text content
+/// or expression nodes (which may produce text at runtime).
+fn has_non_empty_text_child(module: &WebIrModule, child_ids: &[DomNodeId]) -> bool {
+    for child_id in child_ids {
+        let Some(node) = module.dom_nodes.get(child_id.0 as usize) else {
+            continue;
+        };
+        match node {
+            DomNode::Text { content, .. } => {
+                if !content.trim().is_empty() {
+                    return true;
+                }
+            }
+            DomNode::Element { children, .. } => {
+                if has_non_empty_text_child(module, children) {
+                    return true;
+                }
+            }
+            // Expression nodes ({label}, {count}, etc.) may produce text at runtime;
+            // treat their presence as satisfying the accessible-name requirement.
+            DomNode::Expr { .. } => return true,
+            // Fragment, Conditional, Loop may contain text children — recurse.
+            DomNode::Fragment { children, .. } => {
+                if has_non_empty_text_child(module, children) {
+                    return true;
+                }
+            }
+            DomNode::Conditional { then_children, else_children, .. } => {
+                if has_non_empty_text_child(module, then_children)
+                    || has_non_empty_text_child(module, else_children)
+                {
+                    return true;
+                }
+            }
+            DomNode::Loop { body, .. } => {
+                if has_non_empty_text_child(module, body) {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 /// Run structural a11y checks on the DOM arena.
 pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
     for node in &module.dom_nodes {
@@ -29,14 +115,17 @@ pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
             continue;
         };
 
-        let get_attr = |name: &str| -> Option<&str> {
-            attrs.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str())
+        let get_a = |name: &str| -> Option<&str> {
+            attrs
+                .iter()
+                .find(|(k, _)| k.eq_ignore_ascii_case(name))
+                .map(|(_, v)| v.as_str())
         };
 
         match tag.as_str() {
             "img" => {
                 let has_alt = attrs.iter().any(|(k, _)| k == "alt");
-                let aria_hidden = get_attr("aria-hidden").map_or(false, |v| v == "true");
+                let aria_hidden = get_a("aria-hidden").map_or(false, |v| v == "true");
                 if !has_alt && !aria_hidden {
                     out.push(WebIrDiagnostic {
                         code: "web_ir_validate.a11y.img_missing_alt".to_string(),
@@ -50,16 +139,40 @@ pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                 check_accessible_name(module, tag, attrs, children, out);
             }
             "a" => {
-                let has_href = attrs.iter().any(|(k, _)| k == "href" || k == "to");
+                let has_href = attrs.iter().any(|(k, _)| {
+                    k.eq_ignore_ascii_case("href") || k.eq_ignore_ascii_case("to")
+                });
+                if !has_href {
+                    out.push(WebIrDiagnostic {
+                        code: "web_ir_validate.a11y.anchor_missing_href".to_string(),
+                        message: "`a` element has no `href` attribute — navigation links must have a destination or use a `<button>` instead".to_string(),
+                        span: None,
+                        category: Some("a11y".to_string()),
+                    });
+                }
                 if has_href {
                     check_accessible_name(module, tag, attrs, children, out);
                 }
             }
+            "input" => {
+                let has_label = has_aria_name(attrs) || attrs.iter().any(|(k, _)| k.eq_ignore_ascii_case("id"));
+                if !has_label {
+                    out.push(WebIrDiagnostic {
+                        code: "web_ir_validate.a11y.input_missing_label".to_string(),
+                        message: "`input` element requires an `aria-label`, `aria-labelledby`, or associated `<label>` (via `id`)".to_string(),
+                        span: None,
+                        category: Some("a11y".to_string()),
+                    });
+                }
+            }
             _ => {
-                if let Some(role) = get_attr("role") {
+                if let Some(role) = get_a("role") {
                     if role == "button" {
-                        check_accessible_name(module, tag, attrs, children, out);
-                        check_keyboard_handler(module, *elem_id, out);
+                        // Only check role="button" on non-button elements
+                        if !matches!(implicit_role(tag), AriaRole::Button) {
+                            check_accessible_name(module, tag, attrs, children, out);
+                            check_keyboard_handler(module, *elem_id, out);
+                        }
                     }
                 }
             }
@@ -74,9 +187,7 @@ fn check_accessible_name(
     children: &[DomNodeId],
     out: &mut Vec<WebIrDiagnostic>,
 ) {
-    let has_aria = attrs
-        .iter()
-        .any(|(k, _)| k == "aria-label" || k == "aria-labelledby");
+    let has_aria = has_aria_name(attrs);
     if has_aria {
         return;
     }
@@ -239,33 +350,6 @@ fn check_text_contrast(
     }
 }
 
-/// Recursively check whether a set of child DOM nodes contains any non-empty text content
-/// or expression nodes (which may produce text at runtime).
-fn has_non_empty_text_child(module: &WebIrModule, child_ids: &[DomNodeId]) -> bool {
-    for child_id in child_ids {
-        let Some(node) = module.dom_nodes.get(child_id.0 as usize) else {
-            continue;
-        };
-        match node {
-            DomNode::Text { content, .. } => {
-                if !content.trim().is_empty() {
-                    return true;
-                }
-            }
-            DomNode::Element { children, .. } => {
-                if has_non_empty_text_child(module, children) {
-                    return true;
-                }
-            }
-            // Expression nodes ({label}, {count}, etc.) may produce text at runtime;
-            // treat their presence as satisfying the accessible-name requirement.
-            DomNode::Expr { .. } => return true,
-            _ => {}
-        }
-    }
-    false
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -356,11 +440,20 @@ mod tests {
     }
 
     #[test]
-    fn anchor_without_href_skips_check() {
+    fn anchor_without_href_emits_warning_and_skips_label_check() {
         let m = module_with_nodes(vec![elem(0, "a", vec![], vec![])]);
         let mut out = Vec::new();
         validate_a11y(&m, &mut out);
-        assert!(out.is_empty(), "anchor without href should not be checked: {out:?}");
+        // anchor without href gets a warning about the missing href
+        assert!(
+            out.iter().any(|d| d.code == "web_ir_validate.a11y.anchor_missing_href"),
+            "expected anchor_missing_href warning: {out:?}"
+        );
+        // but the accessible-label check is skipped (only runs when href is present)
+        assert!(
+            !out.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+            "label check should be skipped for anchor without href: {out:?}"
+        );
     }
 
     #[test]
@@ -387,6 +480,28 @@ mod tests {
         assert!(
             out.iter().any(|d| d.code == "web_ir_validate.a11y.role_button_missing_keyboard"),
             "expected role_button_missing_keyboard: {out:?}"
+        );
+    }
+
+    #[test]
+    fn role_button_with_keyboard_handler_is_ok() {
+        let mut m = module_with_nodes(vec![elem(
+            0,
+            "div",
+            vec![("role", "button"), ("aria-label", "Toggle")],
+            vec![],
+        )]);
+        m.behavior_nodes.push(BehaviorNode::EventHandler {
+            target_dom: Some(DomNodeId(0)),
+            event: "keydown".to_string(),
+            handler: "handleKey".to_string(),
+            span: None,
+        });
+        let mut out = Vec::new();
+        validate_a11y(&m, &mut out);
+        assert!(
+            out.iter().all(|d| d.code != "web_ir_validate.a11y.role_button_missing_keyboard"),
+            "unexpected keyboard error: {out:?}"
         );
     }
 
@@ -492,27 +607,5 @@ mod tests {
         let mut out = Vec::new();
         validate_a11y_with_registry(&m, &reg, &mut out);
         assert!(out.is_empty(), "h1 at ~3.5:1 should pass large-text 3:1 threshold: {out:?}");
-    }
-
-    #[test]
-    fn role_button_with_keyboard_handler_is_ok() {
-        let mut m = module_with_nodes(vec![elem(
-            0,
-            "div",
-            vec![("role", "button"), ("aria-label", "Toggle")],
-            vec![],
-        )]);
-        m.behavior_nodes.push(BehaviorNode::EventHandler {
-            target_dom: Some(DomNodeId(0)),
-            event: "keydown".to_string(),
-            handler: "handleKey".to_string(),
-            span: None,
-        });
-        let mut out = Vec::new();
-        validate_a11y(&m, &mut out);
-        assert!(
-            out.iter().all(|d| d.code != "web_ir_validate.a11y.role_button_missing_keyboard"),
-            "unexpected keyboard error: {out:?}"
-        );
     }
 }

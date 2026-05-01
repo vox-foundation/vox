@@ -31,6 +31,24 @@ mod lowering_expr;
 #[path = "stmt.rs"]
 mod lowering_stmt;
 
+/// Convert `HirCapability` (used on `HirFn`) to `HirEffectKind` (used on `HirEndpointFn`).
+/// The two enums are parallel; `HirCapability::Nothing` has no `HirEffectKind` counterpart
+/// and is filtered out.
+fn cap_to_effect_kind(cap: &HirCapability) -> Option<crate::hir::nodes::effect::HirEffectKind> {
+    use crate::hir::nodes::effect::HirEffectKind;
+    match cap {
+        HirCapability::Net => Some(HirEffectKind::Net),
+        HirCapability::Db => Some(HirEffectKind::Db),
+        HirCapability::Fs => Some(HirEffectKind::Fs),
+        HirCapability::Env => Some(HirEffectKind::Env),
+        HirCapability::Clock => Some(HirEffectKind::Clock),
+        HirCapability::Random => Some(HirEffectKind::Random),
+        HirCapability::Spawn => Some(HirEffectKind::Spawn),
+        HirCapability::Mcp(t) => Some(HirEffectKind::Mcp(t.clone())),
+        HirCapability::Nothing => None,
+    }
+}
+
 /// Configuration for HIR lowering.
 #[derive(Debug, Clone, Default)]
 pub struct LowerConfig {
@@ -156,6 +174,8 @@ impl LowerCtx {
                         return_type: lowered.return_type.clone(),
                         body: lowered.body.clone(),
                         route_path,
+                        is_pure: lowered.is_pure,
+                        effects: lowered.capabilities.iter().filter_map(cap_to_effect_kind).collect(),
                         span: lowered.span,
                     });
                 }
@@ -171,6 +191,8 @@ impl LowerCtx {
                         return_type: lowered.return_type.clone(),
                         body: lowered.body.clone(),
                         route_path,
+                        is_pure: lowered.is_pure,
+                        effects: lowered.capabilities.iter().filter_map(cap_to_effect_kind).collect(),
                         span: lowered.span,
                     });
                 }
@@ -185,6 +207,8 @@ impl LowerCtx {
                         return_type: lowered.return_type.clone(),
                         body: lowered.body.clone(),
                         route_path,
+                        is_pure: lowered.is_pure,
+                        effects: lowered.capabilities.iter().filter_map(cap_to_effect_kind).collect(),
                         span: lowered.span,
                     });
                 }
@@ -204,6 +228,8 @@ impl LowerCtx {
                         return_type: lowered.return_type.clone(),
                         body: lowered.body.clone(),
                         route_path,
+                        is_pure: lowered.is_pure,
+                        effects: lowered.capabilities.iter().filter_map(cap_to_effect_kind).collect(),
                         span: lowered.span,
                     });
                 }
@@ -260,12 +286,32 @@ impl LowerCtx {
                 Decl::Island(decl) => {
                     hir.islands.push(HirIsland(decl.clone()));
                 }
-
                 Decl::Url(u) => {
                     hir.url_decls.push(self.lower_url_decl(u));
                 }
                 Decl::StateMachine(s) => {
                     hir.state_machines.push(self.lower_state_machine(s));
+                }
+                Decl::Workflow(w) => {
+                    let mut f = self.lower_workflow(w);
+                    f.durability = Some(crate::hir::nodes::DurabilityKind::Workflow);
+                    hir.functions.push(f);
+                }
+                Decl::Activity(a) => {
+                    let mut f = self.lower_activity(a);
+                    f.durability = Some(crate::hir::nodes::DurabilityKind::Activity);
+                    hir.functions.push(f);
+                }
+                Decl::Actor(a) => {
+                    let mut f = self.lower_actor(a);
+                    f.durability = Some(crate::hir::nodes::DurabilityKind::Actor);
+                    hir.functions.push(f);
+                    // Synthesize one HirFn per handler so typecheck/codegen/runtime
+                    // planning can see the handler bodies.
+                    for mut handler_fn in self.lower_actor_handlers(a) {
+                        handler_fn.durability = Some(crate::hir::nodes::DurabilityKind::Actor);
+                        hir.functions.push(handler_fn);
+                    }
                 }
                 Decl::Agent(a) => {
                     hir.agents.push(self.lower_agent(a));

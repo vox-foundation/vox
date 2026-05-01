@@ -298,6 +298,95 @@ impl Parser {
         })
     }
 
+    /// Parse `url TypeName { Variant, Variant(args), ... }` (TASK-4.3).
+    /// NOTE: This function is superseded by `parse_url_decl` in `mid.rs`. Kept for reference.
+    #[allow(dead_code)]
+    pub(crate) fn parse_url_block(&mut self) -> Result<Decl, ()> {
+        use crate::ast::decl::{UrlArg, UrlDecl, UrlVariant};
+        let start = self.span();
+        self.advance(); // eat 'url'
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+        let mut variants = Vec::new();
+        loop {
+            self.skip_newlines();
+            match self.peek().clone() {
+                Token::Ident(ref vname) | Token::TypeIdent(ref vname)
+                    if !vname.is_empty() =>
+                {
+                    let var_start = self.span();
+                    let vname = vname.clone();
+                    self.advance();
+                    let args = if self.peek() == &Token::LParen {
+                        self.advance(); // eat '('
+                        let mut args = Vec::new();
+                        loop {
+                            self.skip_newlines();
+                            if self.peek() == &Token::RParen {
+                                break;
+                            }
+                            if matches!(self.peek(), Token::Comma) {
+                                self.advance();
+                                continue;
+                            }
+                            let arg_start = self.span();
+                            let optional = if matches!(self.peek(), Token::Question) {
+                                self.advance();
+                                true
+                            } else {
+                                false
+                            };
+                            let arg_name = self.parse_ident_name()?;
+                            self.expect(&Token::Colon)?;
+                            let type_ann = self.parse_type_expr()?;
+                            args.push(UrlArg {
+                                name: arg_name,
+                                optional,
+                                type_ann,
+                                span: arg_start.merge(self.span()),
+                            });
+                            if matches!(self.peek(), Token::Comma) {
+                                self.advance();
+                            }
+                        }
+                        self.expect(&Token::RParen)?;
+                        args
+                    } else {
+                        vec![]
+                    };
+                    variants.push(UrlVariant {
+                        name: vname,
+                        args,
+                        span: var_start.merge(self.span()),
+                    });
+                    if matches!(self.peek(), Token::Comma) {
+                        self.advance();
+                    }
+                }
+                Token::RBrace => break,
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Unexpected token in `url` body; expected a variant name or `}`",
+                        vec!["}".into()],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    self.expect(&Token::RBrace)?;
+                    return Err(());
+                }
+            }
+        }
+        self.expect(&Token::RBrace)?;
+        Ok(Decl::Url(UrlDecl {
+            name,
+            variants,
+            is_pub: false,
+            span: start.merge(self.span()),
+        }))
+    }
+
     /// Parse `routes { "path" to ComponentName ... }` declaration.
     ///
     /// Grammar (descent): repeated entries, each `StringLit`, `to`, then component identifier; `K-metric` appendix branch `G04`.

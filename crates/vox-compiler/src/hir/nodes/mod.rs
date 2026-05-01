@@ -11,8 +11,14 @@ mod decl;
 mod expr;
 mod stmt;
 mod stmt_expr;
+pub mod durability;
+pub mod effect;
+pub mod url;
+pub mod state_machine;
 
 pub use decl::*;
+pub use durability::DurabilityKind;
+pub use effect::{HirEffectKind, HirEffectSet};
 pub use expr::*;
 pub use stmt::*;
 pub use stmt_expr::{

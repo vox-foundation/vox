@@ -38,6 +38,8 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         is_llm: false,
         llm_model: None,
         schedule_interval: None,
+        durability: None,
+        actor_state_fields: vec![],
         postconditions: vec![],
         capabilities: vec![],
         span: dummy_span(),

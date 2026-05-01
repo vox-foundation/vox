@@ -133,6 +133,25 @@ pub enum DbCliPublication {
         #[arg(long, default_value_t = 50)]
         limit: i64,
     },
+    /// Auto-publish `auto_draft_eligible` Scientia findings to the local RSS feed (feed.xml).
+    /// Scans candidate publications, filters to those with a StrongCandidate discovery rank,
+    /// and appends each new finding as an RSS item. No gate / dual-approval required — RSS is
+    /// the locally-owned channel. Skips items already present in the feed (idempotent).
+    #[command(name = "publication-discovery-publish-rss")]
+    PublicationDiscoveryPublishRss {
+        /// Only consider publications of this content type (default: all).
+        #[arg(long)]
+        content_type: Option<String>,
+        /// Override the path to feed.xml (default: docs/src/feed.xml relative to repo root).
+        #[arg(long)]
+        feed_path: Option<std::path::PathBuf>,
+        /// Maximum candidates to scan before selecting eligible ones.
+        #[arg(long, default_value_t = 100)]
+        limit: i64,
+        /// Emit JSON result summary instead of human-readable output.
+        #[arg(long, default_value_t = false)]
+        json: bool,
+    },
     /// Explain discovery rank, manifest completion, and transform preview for one id.
     #[command(name = "publication-discovery-explain")]
     PublicationDiscoveryExplain {

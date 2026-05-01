@@ -3,7 +3,7 @@ title: "GUI-Native Language Roadmap — Execution Status"
 description: "Live tracking of task completion for the Vox GUI-native language roadmap (April 2026)."
 category: "architecture"
 status: "current"
-last_updated: "2026-04-28"
+last_updated: "2026-05-01"
 training_eligible: false
 ---
 
@@ -11,10 +11,11 @@ training_eligible: false
 
 > **Provenance.** Derived from the April 2026 roadmap authored by Bertrand
 > Reyna-Brainerd. This file tracks what has actually been implemented versus
-> what is planned. Updated by AI agent on 2026-04-24.
+> what is planned. Updated by AI agent on 2026-05-01.
 >
-> **Canonical roadmap source.** The full task specifications live in the
-> roadmap document provided by the operator. This file is the status overlay.
+> **Canonical roadmap source.** The full task specifications live in
+> [`docs/src/architecture/vox-gui-native-roadmap-2026.md`](vox-gui-native-roadmap-2026.md).
+> This file is the status overlay.
 
 ---
 
@@ -76,7 +77,7 @@ Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): P
 
 ## Phase 4 — Compiler Primitive Expansion
 
-Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): Phase 4 is the first phase that primarily advances P0 (structural prevention) — each task encodes a bug class as a type or grammar rule so the bug becomes unrepresentable. Source: [`VOX_GUI_NATIVE_ROADMAP_2026.md`](../../../VOX_GUI_NATIVE_ROADMAP_2026.md) §Phase 4.
+Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): Phase 4 is the first phase that primarily advances P0 (structural prevention) — each task encodes a bug class as a type or grammar rule so the bug becomes unrepresentable. Source: [`vox-gui-native-roadmap-2026.md`](vox-gui-native-roadmap-2026.md) §Phase 4.
 
 | Task | Priority | Status | Notes |
 |------|----------|--------|-------|
@@ -104,7 +105,7 @@ Per [`LANGUAGE_DESIGN_PRIORITIES.md`](../../../LANGUAGE_DESIGN_PRIORITIES.md): P
 
 ## Phase 6 — GUI Primitive Authoring Surface
 
-Per [`VOX_GUI_NATIVE_ROADMAP_2026.md`](../../../VOX_GUI_NATIVE_ROADMAP_2026.md) §Phase 6.
+Per [`vox-gui-native-roadmap-2026.md`](vox-gui-native-roadmap-2026.md) §Phase 6.
 
 | Task | Priority | Status | Notes |
 |------|----------|--------|-------|
@@ -167,6 +168,53 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 2. **TASK-7.3 (remaining partial)** — Full bundler replacement. Blocked on a vox-integrated bundler; can run in parallel with TASK-8.2.
 3. **`test_agent_mcp_roundtrip` pre-existing failure** — `vox_complete_task` called with integer `task_id = 1` but orchestrator uses `"T-0001"` string format. Fix: parse `vox_submit_task` response to extract the real task ID. Tracked as side-task chip.
 4. **`vox-corpus` synthetic_gen flakiness** — Windows temp file contention in parallel workspace mode. Tests pass in isolation (`cargo test -p vox-corpus`). Pre-existing; not introduced in this session. Fix: serialize temp-file access in synthetic_gen tests.
+
+---
+
+## Audit log
+
+- 2026-04-24 — Initial status tracker created (commit `08c8ad87`).
+- 2026-04-25 — Audit refresh against HEAD `fa350de8`. TASK-0.4, TASK-0.8
+  promoted to ✅ (commit `d152d272`). TASK-2.6 reclassified as half-done with
+  retrospective + re-plan note. Hygiene flags surfaced. (Cowork session.)
+- 2026-04-29 — TASK-0.6 completed: typed transport events, clean backoff,
+  missing `types.ts` exports, broken import paths fixed. TASK-2.1 re-confirmed
+  ✅ Done: `components` field is Path C (`HirFieldOwnership::SemanticCore`),
+  not a Path B residual. 9 stale .py scripts deleted. Stale compiler WIP
+  discarded. `.cargo/config.toml` fixed (`relative = true`). Phase 0 verdict
+  updated to 8/8. (Agent session.)
+- 2026-04-29 — TASK-1.2 N/A confirmed (bin/ empty; binary never created).
+  TASK-1.3 ✅ Done confirmed (ETag + If-None-Match in assets.rs lines 26–76).
+  TASK-3.1 ✅ Done: §"Grammar Unification" section added to AGENTS.md.
+  Phase 1 verdict updated to 5/5 complete. Phase 3 verdict: 1/1 complete.
+  Next-tasks list reduced to TASK-2.6 only. (Agent session.)
+- 2026-04-29 — TASK-2.6 Path B executed: 15 compiler files, −1 150 lines,
+  `cargo check -p vox-compiler` 0 errors 0 warnings. `HirActor`,
+  `HirActorHandler`, `HirWorkflow`, `HirActivity` structs and all
+  lowering/typeck/codegen paths retired. `BindingKind::Actor`,
+  `ActorHandlerSig`, `lookup_actor` preserved (live Claude built-in path).
+  Phase 2 verdict: 6/6 complete. Commit `6524b3f7`. Phases 4–8 now
+  unblocked. (Agent session.)
+- 2026-04-30 — TASK-8.1 ✅ Done: Atomic corpus migration. Golden corpus `.vox`
+  files already clean. 9 training-eligible docs + `vox_system_prompt.txt`
+  migrated to fn-based syntax. `scripts/migrate-corpus.vox` created. All 247
+  compiler tests pass. Commit `135b7591`. (Agent session.)
+- 2026-04-30 — TASK-9.1 ✅ Done: `Decl::Routes` → HIR → WebIR wired. `HirModule::client_routes`
+  added. `lower_client_routes` produces `RouteNode::RouteTree`. `routes.manifest.ts` emitted on build.
+  Commit `240375b0`. (Agent session.)
+- 2026-05-01 — TASK-2.6 Path A audit (PR #47 CodeRabbit round 3). Restored `Decl::Workflow`,
+  `Decl::Activity`, `Decl::Actor` variants (lost in merge), plus parsers in `descent/decl/mid.rs`
+  and lowering arms in `hir/lower/mod.rs`+`hir/lower/decl.rs`. Fixed `HirFn.effects` stale field
+  in `workflow_tracker_tests.rs`; fixed `DefId` import in `effect_check.rs` tests; fixed
+  `state_machine_check.rs` test to use `HirSmFrom::Named` and correct function signature; fixed
+  `contracts/tokens/tokens.v1.json` schema (`"version"` property added to satisfy
+  `"additionalProperties": false`); fixed `validate_a11y.rs` (`DomNode::Loop { body }` field,
+  case-insensitive attr lookup, anchor-href and input-label checks); added `WebIrDiagnosticSeverity`
+  enum + computed method to `web_ir/mod.rs`; updated `v0_tsx_validate.rs` diagnostic codes and
+  `d.severity()` call; added `_emitAuthStatus('authorized')` + moved `getToken()` inside `onopen`
+  in `transport.ts`; populated `BehaviorNode::EventHandler` for keyboard attrs in
+  `tsx_to_web_ir_module`; fixed `validate.rs` route-test fixtures (added `dom_nodes[0]` to
+  `view_roots`-using tests); activity-name filtering in `plan.rs`. (Agent session, PR #47.)
 
 **Resolved (no action needed):**
 - TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).

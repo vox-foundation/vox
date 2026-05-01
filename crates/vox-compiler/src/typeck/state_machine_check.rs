@@ -50,6 +50,25 @@ fn check_one(sm: &HirStateMachineDecl, source: &str, diags: &mut Vec<Diagnostic>
         .map(|s| s.name.as_str())
         .collect();
 
+    // ── 2a. Unknown `from` states ─────────────────────────────────────────────
+    for tr in &sm.transitions {
+        if let HirSmFrom::Named(from_state) = &tr.from {
+            if !seen_states.contains(from_state.as_str()) {
+                let mut d = Diagnostic::error(
+                    format!(
+                        "State machine `{}`: transition references unknown state `{}`",
+                        sm.name, from_state
+                    ),
+                    tr.span,
+                    source,
+                );
+                d.category = DiagnosticCategory::StateMachineCheck;
+                d.code = Some("E_SM_UNKNOWN_STATE".to_string());
+                diags.push(d);
+            }
+        }
+    }
+
     // ── 2. No duplicate (from, event) pairs ───────────────────────────────
     let mut seen_pairs: HashSet<(String, &str)> = HashSet::new();
     for tr in &sm.transitions {
@@ -274,5 +293,54 @@ partial state_machine Broken {
         let diags = check(src);
         assert!(!diags.is_empty(), "expected duplicate state error");
         assert!(diags[0].message.contains("duplicate"));
+    }
+
+    #[test]
+    fn transition_from_undeclared_state_produces_error() {
+        use crate::ast::span::Span;
+        use crate::hir::nodes::{HirSmField, HirSmState, HirSmTransition, HirStateMachineDecl};
+        use crate::hir::{DefId, HirModule, HirSmFrom};
+
+        let sp = Span::new(0, 0);
+
+        let make_state = |name: &str, is_terminal: bool| HirSmState {
+            name: name.to_string(),
+            fields: vec![],
+            is_terminal,
+            span: sp,
+        };
+
+        let make_transition = |event: &str, from: HirSmFrom, to: &str| HirSmTransition {
+            event_name: event.to_string(),
+            event_params: vec![],
+            from,
+            to_state: to.to_string(),
+            span: sp,
+        };
+
+        // The `from` state "Ghost" is not declared — should produce E_SM_UNKNOWN_STATE.
+        let mut module = HirModule::default();
+        module.state_machines.push(HirStateMachineDecl {
+            id: DefId(0),
+            name: "Bad".to_string(),
+            states: vec![make_state("Idle", false), make_state("Done", false)],
+            transitions: vec![make_transition(
+                "Phantom",
+                HirSmFrom::Named("Ghost".to_string()),
+                "Done",
+            )],
+            is_partial: false,
+            is_pub: false,
+            span: sp,
+        });
+        let diags = check_state_machines(&module, "");
+        assert!(
+            diags.iter().any(|d| d.code.as_deref() == Some("E_SM_UNKNOWN_STATE")),
+            "Expected E_SM_UNKNOWN_STATE for unknown `from` state, got: {diags:?}"
+        );
+        assert!(
+            diags.iter().any(|d| d.message.contains("Ghost")),
+            "Diagnostic should name the unknown state 'Ghost'"
+        );
     }
 }

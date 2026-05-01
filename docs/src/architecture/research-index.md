@@ -38,6 +38,10 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 - [cascade-delete.ts](fableforge-impl/cascade-delete.ts) — Convex soft-delete (T-192), hard-delete cascade across 12 child tables (T-191), 30-day purge job, `requireGameOwnerOrAdmin` auth guard (T-193), ESLint rule stub, siloing test suite scaffold (T-205).
 - [generation-orchestrator.ts](fableforge-impl/generation-orchestrator.ts) — `ImageOrchestrator` (Vox `ModelScorer` pattern): `ScoringWeights`-driven provider ranking, circuit breaker in Convex, attempt recording for billing. Implements T-004, T-007, T-129, T-130.
 
+## GUI-Native Language Roadmap
+- [Vox GUI-Native Language Roadmap (2026)](vox-gui-native-roadmap-2026.md) — Full task specifications for Phases 0–9 of the GUI-native language roadmap: dashboard safety, HIR unification, grammar unification policy, compiler primitive expansion (state machines, effects, typed URLs, design tokens), Web IR validators, workflow/activity/actor integration, corpus migration, and route wiring.
+- [GUI-Native Roadmap Execution Status (2026)](gui-native-roadmap-status-2026.md) — Live status overlay tracking what has been implemented versus planned, with per-task commit references and an audit log.
+
 ## Core SSoT
 - [V0.5 Core SSoT](v0.5-core-ssot.md) — Version 0.5 core architecture specifications.
 - [Terminal Exec Policy SSOT (2026)](terminal-exec-policy-ssot.md) — Live SSOT for the PowerShell-first terminal exec policy. Scopes the claim to host-side allowlisting and output parsing, explicitly disclaims any codegen-fluency superiority over Bash, and documents why a separate "PowerShell spoke" in MENS is not justified.

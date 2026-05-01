@@ -158,13 +158,25 @@ fn test_parse_pipe() {
 }
 
 #[test]
-fn test_parse_actor_is_tombstoned() {
-    assert_parse_fails("actor Worker { on receive(msg) to str { return msg } }");
+fn test_parse_actor() {
+    let m = parse_str("actor Worker { on receive(msg: str) to str { return msg } }");
+    assert!(
+        matches!(&m.declarations[0], Decl::Actor(a) if a.name == "Worker"),
+        "Expected Actor declaration"
+    );
+    if let Decl::Actor(a) = &m.declarations[0] {
+        assert_eq!(a.handlers.len(), 1);
+        assert_eq!(a.handlers[0].event_name, "receive");
+    }
 }
 
 #[test]
-fn test_parse_workflow_is_tombstoned() {
-    assert_parse_fails("workflow process(file: str) to str { return file }");
+fn test_parse_workflow() {
+    let m = parse_str("workflow process(file: str) to str { return file }");
+    assert!(
+        matches!(&m.declarations[0], Decl::Workflow(w) if w.name == "process"),
+        "Expected Workflow declaration"
+    );
 }
 
 #[test]
@@ -315,8 +327,12 @@ fn test_parse_multiple_decls() {
 }
 
 #[test]
-fn test_parse_activity_is_tombstoned() {
-    assert_parse_fails("activity send_email(recipient: str) to str { return recipient }");
+fn test_parse_activity() {
+    let m = parse_str("activity send_email(recipient: str) to str { return recipient }");
+    assert!(
+        matches!(&m.declarations[0], Decl::Activity(a) if a.name == "send_email"),
+        "Expected Activity declaration"
+    );
 }
 
 #[test]

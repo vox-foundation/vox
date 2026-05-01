@@ -339,6 +339,8 @@ mod tests {
                 span: sp,
             }],
             route_path: "/api/query/q1".into(),
+            is_pure: false,
+            effects: vec![],
             span: sp,
         });
         module.endpoint_fns.push(HirEndpointFn {
@@ -352,6 +354,8 @@ mod tests {
                 span: sp,
             }],
             route_path: "/api/mutation/m1".into(),
+            is_pure: false,
+            effects: vec![],
             span: sp,
         });
 
@@ -379,6 +383,8 @@ mod tests {
                 span: sp,
             }],
             route_path: "/api/mutation/m1".into(),
+            is_pure: false,
+            effects: vec![],
             span: sp,
         });
 

@@ -7,8 +7,10 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::hir::{HirArg, HirCapability, HirExpr, HirFn, HirModule, HirStmt};
-use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory};
+use crate::hir::nodes::{HirEndpointFn, HirFn};
+use crate::hir::nodes::effect::HirEffectKind;
+use crate::hir::{HirArg, HirCapability, HirExpr, HirModule, HirStmt};
+use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 
 /// Run effect propagation checks across all annotated functions in the module.
 pub fn check_effect_compliance(module: &HirModule, source: &str) -> Vec<Diagnostic> {
@@ -19,12 +21,56 @@ pub fn check_effect_compliance(module: &HirModule, source: &str) -> Vec<Diagnost
             cap_map.insert(f.name.clone(), effective_caps(f));
         }
     }
+    // Endpoint functions with explicit effects also participate in the cap map.
+    for f in &module.endpoint_fns {
+        if f.is_pure || !f.effects.is_empty() {
+            let caps: Vec<HirCapability> = if f.is_pure {
+                vec![]
+            } else {
+                f.effects.iter().map(effect_kind_to_cap).collect()
+            };
+            cap_map.insert(f.name.clone(), caps);
+        }
+    }
 
     let mut diags = Vec::new();
     for f in &module.functions {
         check_fn(f, &cap_map, source, &mut diags);
     }
+    // Walk endpoint bodies through the same propagation checker.
+    for f in &module.endpoint_fns {
+        check_endpoint_fn_body(f, &cap_map, source, &mut diags);
+    }
+    diags.extend(check_endpoint_fn_effects(&module.endpoint_fns));
     diags
+}
+
+/// Run structural effect checks over a slice of endpoint functions.
+///
+/// Endpoint functions carry the same `is_pure`/`effects` contract as regular
+/// functions; this enforces the same `E_EFFECT_PURE_CONFLICT` and
+/// `E_EFFECT_DUPLICATE` rules across the endpoint surface.
+pub fn check_endpoint_fn_effects(fns: &[HirEndpointFn]) -> Vec<Diagnostic> {
+    let mut diags = Vec::new();
+    for f in fns {
+        check_one_endpoint_fn(f, &mut diags);
+    }
+    diags
+}
+
+/// Convert an `HirEffectKind` (endpoint annotation) to its `HirCapability` equivalent.
+/// Used to build the cap_map entry for endpoints and their body propagation check.
+fn effect_kind_to_cap(eff: &HirEffectKind) -> HirCapability {
+    match eff {
+        HirEffectKind::Net => HirCapability::Net,
+        HirEffectKind::Db => HirCapability::Db,
+        HirEffectKind::Fs => HirCapability::Fs,
+        HirEffectKind::Env => HirCapability::Env,
+        HirEffectKind::Clock => HirCapability::Clock,
+        HirEffectKind::Random => HirCapability::Random,
+        HirEffectKind::Spawn => HirCapability::Spawn,
+        HirEffectKind::Mcp(s) => HirCapability::Mcp(s.clone()),
+    }
 }
 
 /// The effective capability set: `@pure` or `uses nothing` → empty (no permitted effects).
@@ -54,13 +100,39 @@ fn check_fn(
     }
     let caller_set: HashSet<HirCapability> = effective_caps(caller).into_iter().collect();
     for stmt in &caller.body {
-        check_stmt(stmt, caller, &caller_set, cap_map, source, diags);
+        check_stmt(stmt, &caller.name, &caller_set, cap_map, source, diags);
+    }
+}
+
+/// Walk the body of an endpoint function through the propagation checker.
+///
+/// Endpoint functions annotated with `uses` clauses or `@pure` participate in
+/// the same effect-propagation rules as regular functions: if an endpoint
+/// declares `uses db`, it must not call functions that require `net` without
+/// also declaring `uses net`.
+fn check_endpoint_fn_body(
+    f: &HirEndpointFn,
+    cap_map: &HashMap<String, Vec<HirCapability>>,
+    source: &str,
+    diags: &mut Vec<Diagnostic>,
+) {
+    // Unannotated endpoints are open-world — skip.
+    if !f.is_pure && f.effects.is_empty() {
+        return;
+    }
+    let caller_set: HashSet<HirCapability> = if f.is_pure {
+        HashSet::new()
+    } else {
+        f.effects.iter().map(effect_kind_to_cap).collect()
+    };
+    for stmt in &f.body {
+        check_stmt(stmt, &f.name, &caller_set, cap_map, source, diags);
     }
 }
 
 fn check_stmt(
     stmt: &HirStmt,
-    caller: &HirFn,
+    caller_name: &str,
     caller_set: &HashSet<HirCapability>,
     cap_map: &HashMap<String, Vec<HirCapability>>,
     source: &str,
@@ -68,24 +140,24 @@ fn check_stmt(
 ) {
     match stmt {
         HirStmt::Let { value, .. } | HirStmt::Expr { expr: value, .. } => {
-            check_expr(value, caller, caller_set, cap_map, source, diags);
+            check_expr(value, caller_name, caller_set, cap_map, source, diags);
         }
         HirStmt::Assign { value, .. } => {
-            check_expr(value, caller, caller_set, cap_map, source, diags);
+            check_expr(value, caller_name, caller_set, cap_map, source, diags);
         }
         HirStmt::Return { value: Some(v), .. } => {
-            check_expr(v, caller, caller_set, cap_map, source, diags);
+            check_expr(v, caller_name, caller_set, cap_map, source, diags);
         }
         HirStmt::Return { value: None, .. } => {}
         HirStmt::While { condition, body, .. } => {
-            check_expr(condition, caller, caller_set, cap_map, source, diags);
+            check_expr(condition, caller_name, caller_set, cap_map, source, diags);
             for s in body {
-                check_stmt(s, caller, caller_set, cap_map, source, diags);
+                check_stmt(s, caller_name, caller_set, cap_map, source, diags);
             }
         }
         HirStmt::Loop { body, .. } => {
             for s in body {
-                check_stmt(s, caller, caller_set, cap_map, source, diags);
+                check_stmt(s, caller_name, caller_set, cap_map, source, diags);
             }
         }
         HirStmt::Break { .. } | HirStmt::Continue { .. } => {}
@@ -94,7 +166,7 @@ fn check_stmt(
 
 fn check_expr(
     expr: &HirExpr,
-    caller: &HirFn,
+    caller_name: &str,
     caller_set: &HashSet<HirCapability>,
     cap_map: &HashMap<String, Vec<HirCapability>>,
     source: &str,
@@ -110,7 +182,7 @@ fn check_expr(
                             let mut d = Diagnostic::error(
                                 format!(
                                     "Function `{}` calls `{}` which requires `{}`, but `{}` does not declare `uses {}`",
-                                    caller.name, callee_name, cap, caller.name, cap
+                                    caller_name, callee_name, cap, caller_name, cap
                                 ),
                                 *span,
                                 source,
@@ -122,9 +194,9 @@ fn check_expr(
                 }
             }
             // Recurse into callee expression and arguments.
-            check_expr(callee_expr, caller, caller_set, cap_map, source, diags);
+            check_expr(callee_expr, caller_name, caller_set, cap_map, source, diags);
             for arg in args {
-                check_arg(arg, caller, caller_set, cap_map, source, diags);
+                check_arg(arg, caller_name, caller_set, cap_map, source, diags);
             }
         }
         HirExpr::MethodCall(obj, method_name, args, _, span) => {
@@ -136,8 +208,8 @@ fn check_expr(
                             format!(
                                 "Function `{}` calls `{}.{}()` which requires `{}`, \
                                  but `{}` does not declare `uses {}`",
-                                caller.name, module_name, method_name, required,
-                                caller.name, required
+                                caller_name, module_name, method_name, required,
+                                caller_name, required
                             ),
                             *span,
                             source,
@@ -147,74 +219,74 @@ fn check_expr(
                     }
                 }
             }
-            check_expr(obj, caller, caller_set, cap_map, source, diags);
+            check_expr(obj, caller_name, caller_set, cap_map, source, diags);
             for arg in args {
-                check_arg(arg, caller, caller_set, cap_map, source, diags);
+                check_arg(arg, caller_name, caller_set, cap_map, source, diags);
             }
         }
         HirExpr::Binary(_, left, right, _) => {
-            check_expr(left, caller, caller_set, cap_map, source, diags);
-            check_expr(right, caller, caller_set, cap_map, source, diags);
+            check_expr(left, caller_name, caller_set, cap_map, source, diags);
+            check_expr(right, caller_name, caller_set, cap_map, source, diags);
         }
         HirExpr::Unary(_, operand, _) => {
-            check_expr(operand, caller, caller_set, cap_map, source, diags);
+            check_expr(operand, caller_name, caller_set, cap_map, source, diags);
         }
         HirExpr::If(cond, then_stmts, else_stmts, _) => {
-            check_expr(cond, caller, caller_set, cap_map, source, diags);
+            check_expr(cond, caller_name, caller_set, cap_map, source, diags);
             for s in then_stmts {
-                check_stmt(s, caller, caller_set, cap_map, source, diags);
+                check_stmt(s, caller_name, caller_set, cap_map, source, diags);
             }
             if let Some(els) = else_stmts {
                 for s in els {
-                    check_stmt(s, caller, caller_set, cap_map, source, diags);
+                    check_stmt(s, caller_name, caller_set, cap_map, source, diags);
                 }
             }
         }
         HirExpr::Block(stmts, _) => {
             for s in stmts {
-                check_stmt(s, caller, caller_set, cap_map, source, diags);
+                check_stmt(s, caller_name, caller_set, cap_map, source, diags);
             }
         }
         HirExpr::For(_, iterable, body, _) => {
-            check_expr(iterable, caller, caller_set, cap_map, source, diags);
-            check_expr(body, caller, caller_set, cap_map, source, diags);
+            check_expr(iterable, caller_name, caller_set, cap_map, source, diags);
+            check_expr(body, caller_name, caller_set, cap_map, source, diags);
         }
         HirExpr::Lambda(_, _, body, _) => {
-            check_expr(body, caller, caller_set, cap_map, source, diags);
+            check_expr(body, caller_name, caller_set, cap_map, source, diags);
         }
         HirExpr::With(lhs, rhs, _) => {
-            check_expr(lhs, caller, caller_set, cap_map, source, diags);
-            check_expr(rhs, caller, caller_set, cap_map, source, diags);
+            check_expr(lhs, caller_name, caller_set, cap_map, source, diags);
+            check_expr(rhs, caller_name, caller_set, cap_map, source, diags);
         }
         HirExpr::Match(subject, arms, _) => {
-            check_expr(subject, caller, caller_set, cap_map, source, diags);
+            check_expr(subject, caller_name, caller_set, cap_map, source, diags);
             for arm in arms {
                 if let Some(g) = &arm.guard {
-                    check_expr(g, caller, caller_set, cap_map, source, diags);
+                    check_expr(g, caller_name, caller_set, cap_map, source, diags);
                 }
-                check_expr(&arm.body, caller, caller_set, cap_map, source, diags);
+                check_expr(&arm.body, caller_name, caller_set, cap_map, source, diags);
             }
         }
         HirExpr::FieldAccess(obj, _, _) => {
-            check_expr(obj, caller, caller_set, cap_map, source, diags);
+            check_expr(obj, caller_name, caller_set, cap_map, source, diags);
         }
         HirExpr::ListLit(elems, _) => {
             for e in elems {
-                check_expr(e, caller, caller_set, cap_map, source, diags);
+                check_expr(e, caller_name, caller_set, cap_map, source, diags);
             }
         }
         HirExpr::TupleLit(elems, _) => {
             for e in elems {
-                check_expr(e, caller, caller_set, cap_map, source, diags);
+                check_expr(e, caller_name, caller_set, cap_map, source, diags);
             }
         }
         HirExpr::ObjectLit(fields, _) => {
             for (_, v) in fields {
-                check_expr(v, caller, caller_set, cap_map, source, diags);
+                check_expr(v, caller_name, caller_set, cap_map, source, diags);
             }
         }
         HirExpr::Spawn(inner, _) => {
-            check_expr(inner, caller, caller_set, cap_map, source, diags);
+            check_expr(inner, caller_name, caller_set, cap_map, source, diags);
         }
         // Leaves.
         HirExpr::IntLit(..)
@@ -245,21 +317,81 @@ fn stdlib_module_capability(module: &str) -> Option<HirCapability> {
 
 fn check_arg(
     arg: &HirArg,
-    caller: &HirFn,
+    caller_name: &str,
     caller_set: &HashSet<HirCapability>,
     cap_map: &HashMap<String, Vec<HirCapability>>,
     source: &str,
     diags: &mut Vec<Diagnostic>,
 ) {
-    check_expr(&arg.value, caller, caller_set, cap_map, source, diags);
+    check_expr(&arg.value, caller_name, caller_set, cap_map, source, diags);
+}
+
+fn check_one_endpoint_fn(f: &HirEndpointFn, diags: &mut Vec<Diagnostic>) {
+    // E_EFFECT_PURE_CONFLICT: @pure + uses clause is contradictory.
+    if f.is_pure && !f.effects.is_empty() {
+        let labels: Vec<String> = f.effects.iter().map(|e: &HirEffectKind| e.label()).collect();
+        diags.push(Diagnostic {
+            severity: TypeckSeverity::Error,
+            message: format!(
+                "endpoint `{}` is marked `@pure` but also declares effects: {}. \
+                 Remove `@pure` or remove the `uses` clause.",
+                f.name,
+                labels.join(", ")
+            ),
+            span: f.span,
+            expected_type: None,
+            found_type: None,
+            context: Some("@pure means no side effects; `uses` declares side effects".to_string()),
+            suggestions: vec![],
+            category: DiagnosticCategory::Typecheck,
+            code: Some("E_EFFECT_PURE_CONFLICT".to_string()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: Some("EndpointFnDecl".to_string()),
+        });
+    }
+
+    // E_EFFECT_DUPLICATE: same effect listed more than once.
+    let mut seen: Vec<&HirEffectKind> = Vec::new();
+    for eff in &f.effects {
+        if seen.iter().any(|s| *s == eff) {
+            diags.push(Diagnostic {
+                severity: TypeckSeverity::Error,
+                message: format!(
+                    "endpoint `{}` declares effect `{}` more than once in its `uses` clause.",
+                    f.name,
+                    eff.label()
+                ),
+                span: f.span,
+                expected_type: None,
+                found_type: None,
+                context: Some("each effect kind should appear at most once".to_string()),
+                suggestions: vec![],
+                category: DiagnosticCategory::Typecheck,
+                code: Some("E_EFFECT_DUPLICATE".to_string()),
+                fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: Some("EndpointFnDecl".to_string()),
+            });
+        } else {
+            seen.push(eff);
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::hir::lower::lower_module;
+    use crate::hir::DefId;
     use crate::lexer::lex;
     use crate::parser::parse;
+
+    fn dummy_span() -> crate::ast::span::Span {
+        crate::ast::span::Span::new(0, 0)
+    }
 
     fn check(src: &str) -> Vec<Diagnostic> {
         let tokens = lex(src);
@@ -368,5 +500,48 @@ fn caller() to str { fetch() }",
         let diags = check(r#"fn f() uses net to str { http.get("url"); db.query("SELECT 1") }"#);
         assert_eq!(diags.len(), 1, "expected exactly one violation: {diags:?}");
         assert!(diags[0].message.contains("db"), "expected db violation: {}", diags[0].message);
+    }
+
+    // ── endpoint fn checks ──────────────────────────────────────────────────
+
+    fn make_endpoint_fn(name: &str, is_pure: bool, effects: Vec<HirEffectKind>) -> HirEndpointFn {
+        use crate::hir::nodes::{HirEndpointKind};
+        HirEndpointFn {
+            kind: HirEndpointKind::Query,
+            id: DefId(0),
+            name: name.to_string(),
+            params: vec![],
+            return_type: None,
+            body: vec![],
+            route_path: format!("/api/query/{name}"),
+            is_pure,
+            effects,
+            span: dummy_span(),
+        }
+    }
+
+    #[test]
+    fn endpoint_pure_conflict_is_caught() {
+        let f = make_endpoint_fn("bad_endpoint", true, vec![HirEffectKind::Db]);
+        let diags = check_endpoint_fn_effects(&[f]);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].code, Some("E_EFFECT_PURE_CONFLICT".to_string()));
+        assert_eq!(diags[0].severity, TypeckSeverity::Error);
+        assert!(diags[0].ast_node_kind.as_deref() == Some("EndpointFnDecl"));
+    }
+
+    #[test]
+    fn endpoint_duplicate_effect_is_caught() {
+        let f = make_endpoint_fn("dup_endpoint", false, vec![HirEffectKind::Net, HirEffectKind::Net]);
+        let diags = check_endpoint_fn_effects(&[f]);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].code, Some("E_EFFECT_DUPLICATE".to_string()));
+    }
+
+    #[test]
+    fn endpoint_clean_effects_pass() {
+        let f = make_endpoint_fn("list_tasks", false, vec![HirEffectKind::Db]);
+        let diags = check_endpoint_fn_effects(&[f]);
+        assert!(diags.is_empty(), "endpoint with single declared effect should pass");
     }
 }

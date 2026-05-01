@@ -32,48 +32,38 @@ pub async fn run(action: WorkflowAction) -> Result<()> {
 }
 
 /// List all workflows and activities defined in a .vox file.
+///
+/// Compiles the file, then reports all functions with `DurabilityKind::Workflow`
+/// or `DurabilityKind::Activity`.
 pub async fn list(file: &Path) -> Result<()> {
-    let result = crate::pipeline::run_frontend(file, false).await?;
-    let hir = &result.hir;
+    use vox_compiler::hir::nodes::DurabilityKind;
 
-    if hir.activities.is_empty() && hir.workflows.is_empty() {
+    let result = crate::pipeline::run_frontend(file, false).await?;
+
+    let workflows: Vec<_> = result
+        .hir
+        .functions
+        .iter()
+        .filter(|f| f.durability == Some(DurabilityKind::Workflow))
+        .map(|f| f.name.as_str())
+        .collect();
+    let activities: Vec<_> = result
+        .hir
+        .functions
+        .iter()
+        .filter(|f| f.durability == Some(DurabilityKind::Activity))
+        .map(|f| f.name.as_str())
+        .collect();
+
+    if workflows.is_empty() && activities.is_empty() {
         println!("No workflows or activities found in {}", file.display());
         println!("  Add an 'activity' or 'workflow' block to your .vox file.");
-        return Ok(());
-    }
-
-    if !hir.activities.is_empty() {
-        println!("Activities ({}):", hir.activities.len());
-        for act in &hir.activities {
-            let params: Vec<String> = act
-                .params
-                .iter()
-                .map(|p| format!("{}: {:?}", p.name, p.type_ann))
-                .collect();
-            let ret = act
-                .return_type
-                .as_ref()
-                .map(|t| format!("{:?}", t))
-                .unwrap_or_else(|| "Unit".to_string());
-            println!("  activity {}({}) to {}", act.name, params.join(", "), ret);
+    } else {
+        for name in &workflows {
+            println!("workflow  {name}");
         }
-        println!();
-    }
-
-    if !hir.workflows.is_empty() {
-        println!("Workflows ({}):", hir.workflows.len());
-        for wf in &hir.workflows {
-            let params: Vec<String> = wf
-                .params
-                .iter()
-                .map(|p| format!("{}: {:?}", p.name, p.type_ann))
-                .collect();
-            let ret = wf
-                .return_type
-                .as_ref()
-                .map(|t| format!("{:?}", t))
-                .unwrap_or_else(|| "Unit".to_string());
-            println!("  workflow {}({}) to {}", wf.name, params.join(", "), ret);
+        for name in &activities {
+            println!("activity  {name}");
         }
     }
 
@@ -82,20 +72,20 @@ pub async fn list(file: &Path) -> Result<()> {
 
 /// Show type-checked info about a specific workflow.
 pub async fn inspect(file: &Path, workflow_name: &str) -> Result<()> {
-    let result = crate::pipeline::run_frontend(file, false).await?;
-    let hir = &result.hir;
+    use vox_compiler::hir::nodes::DurabilityKind;
 
-    let wf = hir
-        .workflows
+    let result = crate::pipeline::run_frontend(file, false).await?;
+    let errors = result.error_count();
+    crate::pipeline::print_diagnostics(&result, file, false);
+    if errors > 0 {
+        anyhow::bail!("{} type error(s) found", errors);
+    }
+    let wf = result
+        .hir
+        .functions
         .iter()
-        .find(|w| w.name == workflow_name)
-        .with_context(|| {
-            format!(
-                "Workflow '{}' not found in {}",
-                workflow_name,
-                file.display()
-            )
-        })?;
+        .find(|f| f.durability == Some(DurabilityKind::Workflow) && f.name == workflow_name)
+        .ok_or_else(|| anyhow::anyhow!("workflow `{workflow_name}` not found in {}", file.display()))?;
 
     let params: Vec<String> = wf
         .params
@@ -108,19 +98,28 @@ pub async fn inspect(file: &Path, workflow_name: &str) -> Result<()> {
         .map(|t| format!("{:?}", t))
         .unwrap_or_else(|| "Unit".to_string());
 
-    println!("Workflow: {}", wf.name);
+    println!("workflow  {}", wf.name);
+    println!("params    {}", wf.params.len());
     println!(
         "  Signature: workflow {}({}) to {}",
         wf.name,
         params.join(", "),
         ret
     );
-    println!("  Activities in this file: {}", hir.activities.len());
+
+    let activities: Vec<_> = result
+        .hir
+        .functions
+        .iter()
+        .filter(|f| f.durability == Some(DurabilityKind::Activity))
+        .collect();
+
+    println!("  Activities in this file: {}", activities.len());
     println!();
 
-    if !hir.activities.is_empty() {
+    if !activities.is_empty() {
         println!("  Available activities:");
-        for act in &hir.activities {
+        for act in &activities {
             let act_params: Vec<String> = act
                 .params
                 .iter()
@@ -166,13 +165,7 @@ pub async fn check(file: &Path) -> Result<()> {
     crate::pipeline::print_diagnostics(&result, file, false);
 
     if errors == 0 {
-        println!(
-            "v {} \u{2014} {} activity(ies), {} workflow(s), {} warning(s)",
-            file.display(),
-            result.hir.activities.len(),
-            result.hir.workflows.len(),
-            warnings,
-        );
+        println!("✓ {} — {} warning(s)", file.display(), warnings);
         Ok(())
     } else {
         anyhow::bail!("{} type error(s) found", errors)
@@ -203,12 +196,18 @@ pub async fn run_workflow(
         }
     }
 
+    use vox_compiler::hir::nodes::DurabilityKind;
     let result = crate::pipeline::run_frontend(file, false).await?;
+    let errors = result.error_count();
+    if errors > 0 {
+        crate::pipeline::print_diagnostics(&result, file, false);
+        anyhow::bail!("{} type error(s) found", errors);
+    }
     let _wf = result
         .hir
-        .workflows
+        .functions
         .iter()
-        .find(|w| w.name == workflow_name)
+        .find(|f| f.durability == Some(DurabilityKind::Workflow) && f.name == workflow_name)
         .with_context(|| {
             format!(
                 "Workflow '{}' not found in {}",

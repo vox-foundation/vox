@@ -1,6 +1,7 @@
 //! Walk HIR to build a linear activity plan from workflow statements.
 
 use anyhow::Context;
+use std::collections::HashSet;
 use vox_compiler::hir::{HirBinOp, HirExpr, HirModule, HirStmt, HirUnOp};
 
 use super::types::{PlannedActivity, PopuliHttpOp, ReplayNode, WorkflowReplayIr};
@@ -21,14 +22,54 @@ pub fn plan_workflow_activities(
 }
 
 /// Build replay-oriented linear IR from workflow statements.
+///
+/// Locates the named workflow in the HIR (by `DurabilityKind::Workflow`),
+/// then walks its statements to extract a linear activity call sequence.
+/// Only calls to functions declared as `activity` (DurabilityKind::Activity)
+/// are planned; helper/pure functions in the same pool are ignored.
+///
+/// Returns `Err` if the workflow is not found or the body contains
+/// unsupported constructs for deterministic replay.
 pub fn plan_workflow_replay_ir(
     hir: &HirModule,
     workflow_name: &str,
 ) -> anyhow::Result<WorkflowReplayIr> {
-    // The `workflow` HIR node was removed; durable workflows are now handled
-    // by vox-orchestrator at runtime. Planning from HIR is a no-op path.
-    let _ = hir;
-    anyhow::bail!("workflow '{workflow_name}' not found: workflow HIR is no longer available — use the vox-orchestrator for durable workflow execution")
+    use vox_compiler::hir::nodes::DurabilityKind;
+
+    // Build a set of declared activity names so the planner skips plain helpers.
+    let activity_names: HashSet<&str> = hir
+        .functions
+        .iter()
+        .filter(|f| f.durability == Some(DurabilityKind::Activity))
+        .map(|f| f.name.as_str())
+        .collect();
+
+    let wf = hir
+        .functions
+        .iter()
+        .find(|f| f.durability == Some(DurabilityKind::Workflow) && f.name == workflow_name)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "workflow `{workflow_name}` not found in HIR; \
+                 declare it with the `workflow` keyword"
+            )
+        })?;
+
+    let mut out = Vec::new();
+    let ctx = ActivityWithOpts::default();
+    let mut branch_counter = 0usize;
+    collect_activity_calls_from_stmts(
+        workflow_name,
+        &wf.body,
+        &ctx,
+        &activity_names,
+        &mut out,
+        &mut branch_counter,
+    )?;
+
+    Ok(WorkflowReplayIr {
+        nodes: out.into_iter().map(ReplayNode::Activity).collect(),
+    })
 }
 
 #[derive(Clone, Default, Debug)]
@@ -94,7 +135,10 @@ impl ActivityWithOpts {
 
 fn parse_timeout_ms(expr: &HirExpr) -> anyhow::Result<u64> {
     match expr {
-        HirExpr::IntLit(ms, _) => Ok(*ms as u64),
+        HirExpr::IntLit(ms, _) if *ms >= 0 => Ok(*ms as u64),
+        HirExpr::IntLit(_, _) => {
+            anyhow::bail!("workflow `timeout` must be a non-negative integer")
+        }
         HirExpr::StringLit(s, _) => {
             parse_duration_ms_str(s).with_context(|| format!("invalid workflow timeout {:?}", s))
         }
@@ -165,24 +209,25 @@ fn collect_activity_calls_from_stmts(
     workflow_name: &str,
     stmts: &[HirStmt],
     ctx: &ActivityWithOpts,
+    activity_names: &HashSet<&str>,
     out: &mut Vec<PlannedActivity>,
     branch_counter: &mut usize,
 ) -> anyhow::Result<()> {
     for s in stmts {
         match s {
             HirStmt::Let { value, .. } => {
-                collect_from_expr(workflow_name, value, ctx, out, branch_counter)?
+                collect_from_expr(workflow_name, value, ctx, activity_names, out, branch_counter)?
             }
             HirStmt::Assign { value, .. } => {
-                collect_from_expr(workflow_name, value, ctx, out, branch_counter)?
+                collect_from_expr(workflow_name, value, ctx, activity_names, out, branch_counter)?
             }
             HirStmt::Return { value, .. } => {
                 if let Some(v) = value {
-                    collect_from_expr(workflow_name, v, ctx, out, branch_counter)?;
+                    collect_from_expr(workflow_name, v, ctx, activity_names, out, branch_counter)?;
                 }
             }
             HirStmt::Expr { expr, .. } => {
-                collect_from_expr(workflow_name, expr, ctx, out, branch_counter)?
+                collect_from_expr(workflow_name, expr, ctx, activity_names, out, branch_counter)?
             }
             HirStmt::While { .. } | HirStmt::Loop { .. } => {
                 anyhow::bail!(
@@ -203,16 +248,31 @@ fn collect_from_expr(
     workflow_name: &str,
     expr: &HirExpr,
     ctx: &ActivityWithOpts,
+    activity_names: &HashSet<&str>,
     out: &mut Vec<PlannedActivity>,
     branch_counter: &mut usize,
 ) -> anyhow::Result<()> {
     match expr {
         HirExpr::With(inner, opts, _) => {
             let merged = ctx.merged_with(opts)?;
-            collect_from_expr(workflow_name, inner, &merged, out, branch_counter)?;
+            collect_from_expr(workflow_name, inner, &merged, activity_names, out, branch_counter)?;
         }
         HirExpr::Call(callee, args, _, _) => {
             if let HirExpr::Ident(name, _) = &**callee {
+                // Always traverse args first so nested activity/mesh calls inside
+                // helper(send_email()) or charge(render_invoice()) are not silently
+                // dropped from the replay plan.
+                for arg in args {
+                    collect_from_expr(
+                        workflow_name,
+                        &arg.value,
+                        ctx,
+                        activity_names,
+                        out,
+                        branch_counter,
+                    )?;
+                }
+
                 if name == "workflow_wait" {
                     let wait_ms = parse_workflow_wait_ms(args)?;
                     out.push(PlannedActivity {
@@ -243,8 +303,14 @@ fn collect_from_expr(
                     });
                     return Ok(());
                 }
-                let mens = name.starts_with("mesh_");
-                if ctx.mesh_key.is_some() && !mens {
+                // Only plan calls to declared activities (DurabilityKind::Activity) or
+                // built-in mesh_* ops. Plain helper/pure functions share the same pool
+                // and must not be recorded as durable steps.
+                let is_mesh = name.starts_with("mesh_");
+                if !is_mesh && !activity_names.contains(name.as_str()) {
+                    return Ok(());
+                }
+                if ctx.mesh_key.is_some() && !is_mesh {
                     anyhow::bail!(
                         "workflow `{workflow_name}`: `mens` in `with {{ … }}` only applies to mesh_* activities (got `{name}`)"
                     );
@@ -252,7 +318,7 @@ fn collect_from_expr(
                 let populi_op = resolve_populi_http_op(name, ctx.mesh_key.as_deref())?;
                 out.push(PlannedActivity {
                     name: name.clone(),
-                    mens,
+                    mens: is_mesh,
                     activity_id: ctx.activity_id.clone(),
                     timeout_ms: ctx.timeout_ms,
                     retries: ctx.retries,
@@ -262,7 +328,17 @@ fn collect_from_expr(
                     is_detached: ctx.is_detached,
                 });
             } else {
-                collect_from_expr(workflow_name, callee, ctx, out, branch_counter)?;
+                collect_from_expr(workflow_name, callee, ctx, activity_names, out, branch_counter)?;
+                for arg in args {
+                    collect_from_expr(
+                        workflow_name,
+                        &arg.value,
+                        ctx,
+                        activity_names,
+                        out,
+                        branch_counter,
+                    )?;
+                }
             }
         }
         HirExpr::If(cond, then_stmts, else_stmts, _) => {
@@ -293,6 +369,7 @@ fn collect_from_expr(
                     workflow_name,
                     then_stmts,
                     ctx,
+                    activity_names,
                     out,
                     branch_counter,
                 )?
@@ -301,33 +378,34 @@ fn collect_from_expr(
                     workflow_name,
                     else_branch,
                     ctx,
+                    activity_names,
                     out,
                     branch_counter,
                 )?;
             }
         }
         HirExpr::Block(stmts, _) => {
-            collect_activity_calls_from_stmts(workflow_name, stmts, ctx, out, branch_counter)?
+            collect_activity_calls_from_stmts(workflow_name, stmts, ctx, activity_names, out, branch_counter)?
         }
         HirExpr::Binary(_, a, b, _) => {
-            collect_from_expr(workflow_name, a, ctx, out, branch_counter)?;
-            collect_from_expr(workflow_name, b, ctx, out, branch_counter)?;
+            collect_from_expr(workflow_name, a, ctx, activity_names, out, branch_counter)?;
+            collect_from_expr(workflow_name, b, ctx, activity_names, out, branch_counter)?;
         }
-        HirExpr::Unary(_, a, _) => collect_from_expr(workflow_name, a, ctx, out, branch_counter)?,
+        HirExpr::Unary(_, a, _) => collect_from_expr(workflow_name, a, ctx, activity_names, out, branch_counter)?,
         HirExpr::Match(_, _, _) => anyhow::bail!(
             "workflow `{workflow_name}`: interpreted durable planning currently supports only linear activity plans; `match` branches are not replay-safe yet"
         ),
         HirExpr::MethodCall(recv, _, args, _, _) => {
-            collect_from_expr(workflow_name, recv, ctx, out, branch_counter)?;
+            collect_from_expr(workflow_name, recv, ctx, activity_names, out, branch_counter)?;
             for a in args {
-                collect_from_expr(workflow_name, &a.value, ctx, out, branch_counter)?;
+                collect_from_expr(workflow_name, &a.value, ctx, activity_names, out, branch_counter)?;
             }
         }
         HirExpr::FieldAccess(recv, _, _) => {
-            collect_from_expr(workflow_name, recv, ctx, out, branch_counter)?
+            collect_from_expr(workflow_name, recv, ctx, activity_names, out, branch_counter)?
         }
         HirExpr::Lambda(_, _, body, _) => {
-            collect_from_expr(workflow_name, body, ctx, out, branch_counter)?
+            collect_from_expr(workflow_name, body, ctx, activity_names, out, branch_counter)?
         }
         HirExpr::For(_, iter, body, _) => {
             // Replay-safe bounded loops: literal lists are deterministic and can be unrolled.
@@ -340,7 +418,7 @@ fn collect_from_expr(
                         );
                     }
                     for _ in items {
-                        collect_from_expr(workflow_name, body, ctx, out, branch_counter)?;
+                        collect_from_expr(workflow_name, body, ctx, activity_names, out, branch_counter)?;
                     }
                 }
                 _ => anyhow::bail!(
@@ -349,16 +427,16 @@ fn collect_from_expr(
             }
         }
         HirExpr::Spawn(inner, _) => {
-            collect_from_expr(workflow_name, inner, ctx, out, branch_counter)?
+            collect_from_expr(workflow_name, inner, ctx, activity_names, out, branch_counter)?
         }
         HirExpr::ListLit(items, _) => {
             for it in items {
-                collect_from_expr(workflow_name, it, ctx, out, branch_counter)?;
+                collect_from_expr(workflow_name, it, ctx, activity_names, out, branch_counter)?;
             }
         }
         HirExpr::ObjectLit(fields, _) => {
             for (_, v) in fields {
-                collect_from_expr(workflow_name, v, ctx, out, branch_counter)?;
+                collect_from_expr(workflow_name, v, ctx, activity_names, out, branch_counter)?;
             }
         }
         _ => {}

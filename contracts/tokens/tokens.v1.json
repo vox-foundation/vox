@@ -6,6 +6,7 @@
   "type": "object",
   "properties": {
     "$schema": { "type": "string" },
+    "version": { "type": "string", "enum": ["1.0"] },
     "color": {
       "type": "object",
       "description": "Color tokens. Values are hex strings or annotated color objects. Keys become CSS custom properties: color.primary → --vox-color-primary.",
@@ -22,6 +23,7 @@
       "additionalProperties": { "type": "string" }
     }
   },
+  "required": ["version"],
   "additionalProperties": false,
   "$defs": {
     "colorGroup": {

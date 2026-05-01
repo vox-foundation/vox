@@ -10,16 +10,25 @@ export class VoxTransport {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private isConnecting = false;
+  /** Last emitted authStatus — replayed to late subscribers. */
+  private lastAuthStatus: AuthStatusEvent | null = null;
 
   /** Maximum reconnect delay in ms. */
   private static readonly MAX_BACKOFF_MS = 30_000;
 
   constructor() {
-    setTimeout(() => {
+    // Defer so the transport instance is fully constructed before emitting.
+    // We store the value in lastAuthStatus so late subscribers don't miss it.
+    queueMicrotask(() => {
       if (!this.getToken()) {
-        this.emit('authStatus', 'no_token' satisfies AuthStatusEvent);
+        this._emitAuthStatus('no_token');
       }
-    }, 0);
+    });
+  }
+
+  private _emitAuthStatus(status: AuthStatusEvent): void {
+    this.lastAuthStatus = status;
+    this.emit('authStatus', status);
   }
 
   private getMetaContent(name: string): string | null {
@@ -44,12 +53,15 @@ export class VoxTransport {
     if (this.ws || this.isConnecting || this.reconnectAttempts > this.maxReconnectAttempts) return;
     this.isConnecting = true;
 
-    const wsUrl = this.getWsUrl();
-    const token = this.getToken();
+    // Token is NOT sent in the URL (avoids server-log / referrer leakage).
+    // It is sent exclusively as the first WebSocket message after connection.
+    // Token is read inside onopen so a token refresh between connect() and
+    // the socket opening always uses the latest value.
     // Do NOT append the token as a URL query parameter — credentials in URLs leak through
     // browser history, server access logs, and HTTP Referer headers. Authentication is
     // handled exclusively via the auth frame sent immediately after the connection opens
     // (see onopen below). The backend accepts the auth frame as the primary auth path.
+    const wsUrl = this.getWsUrl();
 
     this.ws = new WebSocket(wsUrl);
 
@@ -58,8 +70,16 @@ export class VoxTransport {
       this.reconnectAttempts = 0;
       this.isConnecting = false;
 
+      const token = this.getToken();
       if (token && this.ws) {
         this.ws.send(JSON.stringify({ type: 'auth', args: { token } }));
+        // Do NOT emit 'authorized' here — the server may still reject the auth
+        // frame and close with a 4001/4003/4401/1008 code.  'authorized' is
+        // emitted only after the server confirms acceptance (see onmessage below).
+      } else {
+        // No token present at open time — reset auth state so late subscribers
+        // don't replay a stale 'authorized' status from a previous session.
+        this._emitAuthStatus('no_token');
       }
 
       this.emit('connection_status', { status: 'connected' } satisfies ConnectionStatusPayload);
@@ -73,6 +93,11 @@ export class VoxTransport {
     this.ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data as string) as Record<string, unknown>;
+        // Server confirms the auth frame was accepted.
+        if (msg['type'] === 'auth_ok') {
+          this._emitAuthStatus('authorized');
+          return;
+        }
         if (msg['type'] === 'agent_event' && msg['data']) {
           const data = msg['data'] as Record<string, unknown>;
           const evtType = (data['type'] ?? msg['msg_type']) as string | undefined;
@@ -104,7 +129,7 @@ export class VoxTransport {
       // Stop reconnecting on auth failure (1008 Policy Violation or 4xxx custom auth codes).
       if (event.code === 1008 || event.code === 4001 || event.code === 4003 || event.code === 4401) {
         console.error('WS authentication failed. Stopping reconnects.');
-        this.emit('authStatus', 'unauthorized' satisfies AuthStatusEvent);
+        this._emitAuthStatus('unauthorized');
         return;
       }
 
@@ -137,7 +162,7 @@ export class VoxTransport {
       body: JSON.stringify({ name: toolName, args }),
     });
     if (res.status === 401 || res.status === 403) {
-      this.emit('authStatus', 'unauthorized' satisfies AuthStatusEvent);
+      this._emitAuthStatus('unauthorized');
     }
     if (!res.ok) {
       throw new Error(`Tool call failed: ${res.status} ${res.statusText}`);
@@ -154,6 +179,11 @@ export class VoxTransport {
   on(event: string, cb: (data: unknown) => void): () => void {
     if (!this.listeners[event]) this.listeners[event] = [];
     this.listeners[event].push(cb);
+    // Replay the last authStatus to late subscribers so they don't miss the
+    // one-shot emission from the constructor microtask.
+    if (event === 'authStatus' && this.lastAuthStatus !== null) {
+      cb(this.lastAuthStatus);
+    }
     return () => {
       this.listeners[event] = this.listeners[event].filter((l) => l !== cb);
     };

@@ -203,11 +203,11 @@ impl Parser {
                     | Token::AtTable
                     | Token::AtIndex
                     | Token::Async
-            ) || matches!(self.peek(), Token::Ident(n) if n == "routes");
+            ) || matches!(self.peek(), Token::Ident(n) if n == "routes" || n == "url" || n == "state_machine");
 
             let is_tombstoned = matches!(
                 self.peek(),
-                Token::Actor | Token::Workflow | Token::Activity | Token::Http | Token::AtComponent | Token::Agent | Token::Env
+                Token::Http | Token::AtComponent | Token::Agent | Token::Env
             );
 
             if is_tombstoned {
@@ -480,7 +480,10 @@ impl Parser {
                 }
             }
             Token::AtIndex => self.parse_index(),
-            Token::Actor | Token::Workflow | Token::Activity | Token::Http | Token::AtComponent | Token::Agent | Token::Env => {
+            Token::Workflow => self.parse_workflow_decl(),
+            Token::Activity => self.parse_activity_decl(),
+            Token::Actor => self.parse_actor_decl(),
+            Token::Http | Token::AtComponent | Token::Agent | Token::Env => {
                 let tok = self.peek().clone();
                 self.errors.push(ParseError::classified(
                     self.span(),
