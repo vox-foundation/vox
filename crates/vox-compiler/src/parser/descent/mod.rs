@@ -203,7 +203,7 @@ impl Parser {
                     | Token::AtTable
                     | Token::AtIndex
                     | Token::Async
-            ) || matches!(self.peek(), Token::Ident(n) if n == "routes");
+            ) || matches!(self.peek(), Token::Ident(n) if n == "routes" || n == "url" || n == "state_machine");
 
             let is_tombstoned = matches!(
                 self.peek(),

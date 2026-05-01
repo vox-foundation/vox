@@ -5,7 +5,8 @@ use jsonschema::validator_for;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
 use vox_compiler::ast::span::Span;
-use vox_compiler::hir::{DefId, HirExpr, HirMatchArm, HirModule, HirPattern, HirStmt, HirWorkflow};
+use vox_compiler::hir::{DefId, HirExpr, HirMatchArm, HirModule, HirPattern, HirStmt};
+use vox_compiler::hir::nodes::{DurabilityKind, HirFn};
 use vox_db::{DbConfig, VoxDb};
 use vox_workflow_runtime::{
     VoxDbTracker, WORKFLOW_JOURNAL_VERSION, WorkflowTracker, interpret_workflow_durable,
@@ -64,12 +65,26 @@ fn call_stmt_with_string_arg(name: &str, value: &str) -> HirStmt {
 
 fn workflow(name: &str, stmts: Vec<HirStmt>) -> HirModule {
     let mut module = HirModule::default();
-    module.workflows.push(HirWorkflow {
+    module.functions.push(HirFn {
         id: DefId(0),
         name: name.to_string(),
+        generics: vec![],
         params: vec![],
         return_type: None,
         body: stmts,
+        is_component: false,
+        is_async: false,
+        is_pub: false,
+        is_mobile_native: false,
+        is_pure: false,
+        effects: vec![],
+        is_llm: false,
+        llm_model: None,
+        is_deprecated: false,
+        schedule_interval: None,
+        durability: Some(DurabilityKind::Workflow),
+        actor_state_fields: vec![],
+        postconditions: vec![],
         span: sp(),
     });
     module

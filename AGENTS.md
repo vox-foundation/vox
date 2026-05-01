@@ -124,6 +124,7 @@ Vox source follows one rule for top-level declarations:
 Decorators compose with bare-keyword blocks:
 
 ```vox
+// vox:skip
 @table type Task { … }                        // decorator on a type declaration
 @endpoint(kind: query) fn list_tasks() { … }  // decorator on a function
 @durable fn process_order(id: OrderId) { … }  // durability via decorator, not keyword
@@ -134,10 +135,10 @@ that can be expressed as a decorator. New execution semantics (durability,
 tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 
 **Implementation status (Phase 2):** `actor`, `workflow`, and `activity` are
-currently tombstoned at the parser level — source files cannot use these forms.
-Their unification into `@durable fn` / `@actor fn` decorator sugar is tracked
-under **TASK-2.6**. Until TASK-2.6 lands, the compiler rejects these keywords
-with a friendly error pointing to the decorator equivalent.
+fully supported bare keywords as of **TASK-2.6 Path A** (commit `080b3f86`).
+They lower to `HirFn { durability: Some(DurabilityKind::_) }` — no separate
+HIR node types. The tombstone that previously rejected these keywords has been
+removed; source files may freely use `actor`, `workflow`, and `activity` forms.
 
 See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/architecture/gui-native-roadmap-status-2026.md) §Phase 2.
 

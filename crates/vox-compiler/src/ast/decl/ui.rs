@@ -155,7 +155,7 @@ pub struct UrlDecl {
     /// URL type name (PascalCase).
     pub name: String,
     pub variants: Vec<UrlVariant>,
-    pub span: crate::ast::span::Span,
+    pub span: Span,
 }
 
 /// One variant in a `url { }` block.
@@ -163,7 +163,7 @@ pub struct UrlDecl {
 pub struct UrlVariant {
     pub name: String,
     pub args: Vec<UrlArg>,
-    pub span: crate::ast::span::Span,
+    pub span: Span,
 }
 
 /// One argument in a URL variant parameter list.
@@ -172,8 +172,8 @@ pub struct UrlArg {
     pub name: String,
     /// True when prefixed with `?` (optional URL segment / query param).
     pub optional: bool,
-    pub ty: crate::ast::types::TypeExpr,
-    pub span: crate::ast::span::Span,
+    pub ty: TypeExpr,
+    pub span: Span,
 }
 
 /// Reactive component declaration (Path C reactive model).

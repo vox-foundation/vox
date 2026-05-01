@@ -490,10 +490,29 @@ fn collect_route_ids<'a>(routes: &'a [RouteContract], ids: &mut HashSet<&'a str>
     }
 }
 
-/// Collect all `href` / `to` attribute values from `<link>` elements in the DOM arena.
+/// Collect all `href` / `to` attribute values from `<link>` / `<a>` elements
+/// that are reachable from the provided `view_roots` — not the whole arena.
 fn collect_link_targets(module: &WebIrModule, targets: &mut HashSet<String>) {
-    for node in &module.dom_nodes {
-        if let DomNode::Element { tag, attrs, .. } = node {
+    let arena = &module.dom_nodes;
+    for (_, root_id) in &module.view_roots {
+        collect_link_targets_from_node(*root_id, arena, targets, &mut HashSet::new());
+    }
+}
+
+fn collect_link_targets_from_node(
+    id: DomNodeId,
+    arena: &[DomNode],
+    targets: &mut HashSet<String>,
+    visited: &mut HashSet<u32>,
+) {
+    if !visited.insert(id.0) {
+        return; // guard against cycles in the arena
+    }
+    let Some(node) = arena.get(id.0 as usize) else {
+        return;
+    };
+    match node {
+        DomNode::Element { tag, attrs, children, .. } => {
             if tag.eq_ignore_ascii_case("link") || tag.eq_ignore_ascii_case("a") {
                 for (k, v) in attrs {
                     if k == "href" || k == "to" {
@@ -501,7 +520,16 @@ fn collect_link_targets(module: &WebIrModule, targets: &mut HashSet<String>) {
                     }
                 }
             }
+            for &child_id in children {
+                collect_link_targets_from_node(child_id, arena, targets, visited);
+            }
         }
+        DomNode::Fragment { children, .. } => {
+            for &child_id in children {
+                collect_link_targets_from_node(child_id, arena, targets, visited);
+            }
+        }
+        _ => {}
     }
 }
 
@@ -663,7 +691,9 @@ const CSS_NAMED_COLORS: &[&str] = &[
     "red", "blue", "green", "yellow", "orange", "purple", "pink", "brown",
     "black", "white", "gray", "grey", "cyan", "magenta", "lime", "indigo",
     "violet", "gold", "silver", "teal", "navy", "maroon", "olive", "aqua",
-    "transparent", "currentcolor", "inherit", "initial", "unset",
+    "transparent", "currentcolor",
+    // NOTE: "inherit", "initial", and "unset" are CSS-wide keywords, not colors —
+    // they have valid non-color uses in declarations and must not be flagged.
 ];
 
 /// CSS dimension suffixes that indicate a hard-coded unit value.

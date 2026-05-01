@@ -249,4 +249,32 @@ mod tests {
             .iter()
             .any(|d| d.code.as_deref() == Some("E_SM_UNKNOWN_STATE")));
     }
+
+    #[test]
+    fn transition_from_undeclared_state_produces_error() {
+        // The `from` state "Ghost" is not declared — should produce E_SM_UNKNOWN_STATE.
+        let machines = vec![HirStateMachineDecl {
+            name: "Bad".to_string(),
+            states: vec![make_state("Idle", false), make_state("Done", false)],
+            transitions: vec![make_transition(
+                "Phantom",
+                HirTransitionSource::State("Ghost".to_string()),
+                "Done",
+            )],
+            span: dummy_span(),
+        }];
+        let diags = check_state_machines(&machines);
+        assert!(
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some("E_SM_UNKNOWN_STATE")),
+            "Expected E_SM_UNKNOWN_STATE for unknown `from` state, got: {diags:?}"
+        );
+        assert!(
+            diags.iter().any(|d| d
+                .message
+                .contains("Ghost")),
+            "Diagnostic should name the unknown state 'Ghost'"
+        );
+    }
 }

@@ -23,7 +23,7 @@ For the 15 specific legacy routes, `docs-astro/public/` now contains static HTML
 
 Files created under `docs-astro/public/`:
 
-```
+```text
 tutorials/tut-getting-started.html
 tutorials/tut-first-app.html
 tutorials/tut-actor-basics.html
@@ -47,7 +47,7 @@ Astro's build copies everything in `public/` verbatim to `dist/`, so these files
 
 The `_redirects` file also contains:
 
-```
+```text
 /book/*   /:splat   301
 ```
 

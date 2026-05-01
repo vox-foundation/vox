@@ -303,6 +303,21 @@ pub async fn generate_island_tsx(
         if let Ok(cache) = IslandCache::new() {
             if let Some(entry) = cache.get(component_name)? {
                 if entry.prompt == prompt {
+                    // Run a11y validation on the cached content just as we do for
+                    // freshly-generated TSX — caches can contain stale violations.
+                    let a11y_diags =
+                        crate::v0_tsx_validate::validate_tsx_a11y(&entry.tsx);
+                    if let Some(report) =
+                        crate::v0_tsx_validate::format_diagnostics(&a11y_diags, component_name)
+                    {
+                        eprintln!("\n{report}\n");
+                        if crate::v0_tsx_validate::has_errors(&a11y_diags) {
+                            eprintln!(
+                                "⚠️  Error-level a11y violations in cached island. \
+                                 Re-run with --force-refresh to regenerate.\n"
+                            );
+                        }
+                    }
                     fs::write(&out, &entry.tsx).context("write cached island TSX")?;
                     return Ok(out);
                 }

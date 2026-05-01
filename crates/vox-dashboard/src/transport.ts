@@ -10,16 +10,25 @@ export class VoxTransport {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private isConnecting = false;
+  /** Last emitted authStatus — replayed to late subscribers. */
+  private lastAuthStatus: AuthStatusEvent | null = null;
 
   /** Maximum reconnect delay in ms. */
   private static readonly MAX_BACKOFF_MS = 30_000;
 
   constructor() {
-    setTimeout(() => {
+    // Defer so the transport instance is fully constructed before emitting.
+    // We store the value in lastAuthStatus so late subscribers don't miss it.
+    queueMicrotask(() => {
       if (!this.getToken()) {
-        this.emit('authStatus', 'no_token' satisfies AuthStatusEvent);
+        this._emitAuthStatus('no_token');
       }
-    }, 0);
+    });
+  }
+
+  private _emitAuthStatus(status: AuthStatusEvent): void {
+    this.lastAuthStatus = status;
+    this.emit('authStatus', status);
   }
 
   private getMetaContent(name: string): string | null {
@@ -44,12 +53,10 @@ export class VoxTransport {
     if (this.ws || this.isConnecting || this.reconnectAttempts >= this.maxReconnectAttempts) return;
     this.isConnecting = true;
 
-    let wsUrl = this.getWsUrl();
+    // Token is NOT sent in the URL (avoids server-log / referrer leakage).
+    // It is sent exclusively as the first WebSocket message after connection.
+    const wsUrl = this.getWsUrl();
     const token = this.getToken();
-    if (token) {
-      const joiner = wsUrl.includes('?') ? '&' : '?';
-      wsUrl += `${joiner}token=${encodeURIComponent(token)}`;
-    }
 
     this.ws = new WebSocket(wsUrl);
 
@@ -104,7 +111,7 @@ export class VoxTransport {
       // Stop reconnecting on auth failure (1008 Policy Violation or 4xxx custom auth codes).
       if (event.code === 1008 || event.code === 4001 || event.code === 4003 || event.code === 4401) {
         console.error('WS authentication failed. Stopping reconnects.');
-        this.emit('authStatus', 'unauthorized' satisfies AuthStatusEvent);
+        this._emitAuthStatus('unauthorized');
         return;
       }
 
@@ -137,7 +144,7 @@ export class VoxTransport {
       body: JSON.stringify({ name: toolName, args }),
     });
     if (res.status === 401 || res.status === 403) {
-      this.emit('authStatus', 'unauthorized' satisfies AuthStatusEvent);
+      this._emitAuthStatus('unauthorized');
     }
     if (!res.ok) {
       throw new Error(`Tool call failed: ${res.status} ${res.statusText}`);
@@ -154,6 +161,11 @@ export class VoxTransport {
   on(event: string, cb: (data: unknown) => void): () => void {
     if (!this.listeners[event]) this.listeners[event] = [];
     this.listeners[event].push(cb);
+    // Replay the last authStatus to late subscribers so they don't miss the
+    // one-shot emission from the constructor microtask.
+    if (event === 'authStatus' && this.lastAuthStatus !== null) {
+      cb(this.lastAuthStatus);
+    }
     return () => {
       this.listeners[event] = this.listeners[event].filter((l) => l !== cb);
     };

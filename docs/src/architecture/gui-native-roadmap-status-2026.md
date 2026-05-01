@@ -15,8 +15,8 @@ training_eligible: false
 > commit `fa350de8` (HEAD on `main`).
 >
 > **Canonical roadmap source.** The full task specifications live in
-> `VOX_GUI_NATIVE_ROADMAP_2026.md` at the repository root. This file is the
-> status overlay.
+> [`docs/src/architecture/vox-gui-native-roadmap-2026.md`](vox-gui-native-roadmap-2026.md).
+> This file is the status overlay.
 
 ---
 

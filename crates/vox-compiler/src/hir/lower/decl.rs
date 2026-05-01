@@ -47,6 +47,7 @@ impl LowerCtx {
             is_deprecated: f.is_deprecated,
             schedule_interval: None,
             durability: None,
+            actor_state_fields: vec![],
             postconditions: f
                 .postconditions
                 .iter()
@@ -84,6 +85,7 @@ impl LowerCtx {
             is_deprecated: w.is_deprecated,
             schedule_interval: None,
             durability: Some(crate::hir::nodes::DurabilityKind::Workflow),
+            actor_state_fields: vec![],
             postconditions: vec![],
             span: w.span,
         }
@@ -114,6 +116,7 @@ impl LowerCtx {
             is_deprecated: a.is_deprecated,
             schedule_interval: None,
             durability: Some(crate::hir::nodes::DurabilityKind::Activity),
+            actor_state_fields: vec![],
             postconditions: vec![],
             span: a.span,
         }
@@ -127,6 +130,15 @@ impl LowerCtx {
     /// ([`crate::hir::lower::LowerCtx::lower_actor_decl`]).
     pub(crate) fn lower_actor_shell(&mut self, a: &ActorDecl) -> HirFn {
         let id = self.def_map.define(a.name.clone());
+        let actor_state_fields = a
+            .state_fields
+            .iter()
+            .map(|f| HirTableField {
+                name: f.name.clone(),
+                type_ann: self.lower_type(&f.type_ann),
+                span: f.span,
+            })
+            .collect();
         HirFn {
             id,
             name: a.name.clone(),
@@ -145,6 +157,7 @@ impl LowerCtx {
             is_deprecated: a.is_deprecated,
             schedule_interval: None,
             durability: Some(crate::hir::nodes::DurabilityKind::Actor),
+            actor_state_fields,
             postconditions: vec![],
             span: a.span,
         }
@@ -182,6 +195,7 @@ impl LowerCtx {
             is_deprecated: false,
             schedule_interval: None,
             durability: Some(crate::hir::nodes::DurabilityKind::Actor),
+            actor_state_fields: vec![],
             postconditions: vec![],
             span: h.span,
         }

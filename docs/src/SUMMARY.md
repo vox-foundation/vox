@@ -260,6 +260,7 @@ training_eligible: false
 - [Vox Docker-backed portability implementation plan 2026](archive/research-2026-q1/vox-docker-dotvox-portability-implementation-plan-2026.md)
 - [Vox Docker-backed portability research 2026](archive/research-2026-q1/vox-docker-dotvox-portability-research-2026.md)
 - [Vox Docs Portal: Astro Starlight Strategy 2026](architecture/starlight-site-strategy-2026.md)
+- [Vox GUI-Native Language Roadmap (April 2026)](architecture/vox-gui-native-roadmap-2026.md)
 - [Vox Language Focused Training SSOT](archive/research-2026-q1/vox-lang-training-ssot-2026.md)
 - [Vox Ludus integration contract (producers)](archive/research-2026-q1/ludus-integration-contract.md)
 - [Vox Memory System](archive/research-2026-q1/memory_system.md)

@@ -156,6 +156,8 @@ impl LowerCtx {
                         return_type: lowered.return_type.clone(),
                         body: lowered.body.clone(),
                         route_path,
+                        is_pure: lowered.is_pure,
+                        effects: lowered.effects.clone(),
                         span: lowered.span,
                     });
                 }
@@ -171,6 +173,8 @@ impl LowerCtx {
                         return_type: lowered.return_type.clone(),
                         body: lowered.body.clone(),
                         route_path,
+                        is_pure: lowered.is_pure,
+                        effects: lowered.effects.clone(),
                         span: lowered.span,
                     });
                 }
@@ -185,6 +189,8 @@ impl LowerCtx {
                         return_type: lowered.return_type.clone(),
                         body: lowered.body.clone(),
                         route_path,
+                        is_pure: lowered.is_pure,
+                        effects: lowered.effects.clone(),
                         span: lowered.span,
                     });
                 }
@@ -204,6 +210,8 @@ impl LowerCtx {
                         return_type: lowered.return_type.clone(),
                         body: lowered.body.clone(),
                         route_path,
+                        is_pure: lowered.is_pure,
+                        effects: lowered.effects.clone(),
                         span: lowered.span,
                     });
                 }

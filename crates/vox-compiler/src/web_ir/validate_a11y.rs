@@ -112,6 +112,12 @@ fn has_accessible_child_content(node_id: DomNodeId, arena: &[DomNode], index: &H
                     }
                 }
             }
+            Some(DomNode::Element { id: eid, .. }) => {
+                // recurse into nested elements (e.g. <span> wrapping text)
+                if has_accessible_child_content(*eid, arena, index) {
+                    return true;
+                }
+            }
             _ => {}
         }
     }
@@ -184,17 +190,17 @@ fn check_anchor(attrs: &[(String, String)], out: &mut Vec<WebIrDiagnostic>) {
 }
 
 fn check_role_button(attrs: &[(String, String)], out: &mut Vec<WebIrDiagnostic>) {
-    // `role="button"` on a non-button element requires keyboard handlers.
-    let has_keyboard = has_attr(attrs, "onkeydown")
+    // `role="button"` on a non-button element requires BOTH a keyboard event
+    // handler AND a tab stop so that it is operable by keyboard users.
+    let has_key_handler = has_attr(attrs, "onkeydown")
         || has_attr(attrs, "onkeyup")
-        || has_attr(attrs, "onkeypress")
-        || has_attr(attrs, "tabIndex")
-        || has_attr(attrs, "tabindex");
-    if !has_keyboard {
+        || has_attr(attrs, "onkeypress");
+    let has_tab_stop = has_attr(attrs, "tabIndex") || has_attr(attrs, "tabindex");
+    if !has_key_handler || !has_tab_stop {
         out.push(WebIrDiagnostic {
             code: "web_ir_a11y.interactive.missing_keyboard".to_string(),
             message: "Element with role=\"button\" must be keyboard-accessible. \
-                      Add onKeyDown handler and tabIndex=\"0\"."
+                      Add both an onKeyDown handler and tabIndex=\"0\"."
                 .to_string(),
             span: None,
             category: Some("a11y".to_string()),
@@ -208,8 +214,10 @@ fn check_input(attrs: &[(String, String)], out: &mut Vec<WebIrDiagnostic>) {
     if attr_value(attrs, "type").is_some_and(|t| t.eq_ignore_ascii_case("hidden")) {
         return;
     }
-    if has_aria_name(attrs) || has_attr(attrs, "title") || has_attr(attrs, "id") {
-        // `id` may be referenced by a <label for="..."> elsewhere — treat as labelled.
+    if has_aria_name(attrs) || has_attr(attrs, "title") {
+        // aria-label / aria-labelledby / title all provide accessible names.
+        // NOTE: `id` alone is not an escape hatch — a matching <label for="...">
+        // may or may not exist elsewhere in the tree; it cannot be inferred here.
         return;
     }
     out.push(WebIrDiagnostic {

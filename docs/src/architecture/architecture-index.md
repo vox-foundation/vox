@@ -61,6 +61,7 @@ training_eligible: false
 - [Scientia × Mesh/Model-Routing Integration Research (2026)](architecture/scientia-mesh-integration-research-2026.md)
 - [Task catalog authoring spec](architecture/planning-meta/07-task-catalog-authoring-spec.md)
 - [Vox Docs Portal: Astro Starlight Strategy 2026](architecture/starlight-site-strategy-2026.md)
+- [Vox GUI-Native Language Roadmap (April 2026)](architecture/vox-gui-native-roadmap-2026.md)
 - [Weighted deep planning manual](architecture/planning-meta/03-weighted-deep-planning-manual.md)
 - [build-stabilization-findings-2026](architecture/build-stabilization-findings-2026.md)
 - [language-benchmark-2026](architecture/language-benchmark-2026.md)

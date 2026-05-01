@@ -71,25 +71,29 @@ pub fn has_errors(diags: &[WebIrDiagnostic]) -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// TSX → WebIrModule (regex-based, heuristic)
+// TSX -> WebIrModule (tag-stack, heuristic)
 // ---------------------------------------------------------------------------
 
-/// Build a minimal [`WebIrModule`] from TSX source by scanning opening JSX tags.
+/// Build a minimal [`WebIrModule`] from TSX source by processing JSX tags in
+/// document order with a tag stack.
 ///
 /// Only element types relevant to the a11y rules are extracted:
 /// `img`, `button`, `a`, `input`, `div`, `span`, `section`, `article`,
-/// `header`, `footer`, `main`, `nav`, `aside`, `li`, `td`, `th`.
+/// `header`, `footer`, `main`, `nav`, `aside`, `li`, `td`, `th`, `summary`.
 ///
-/// Text content is approximated: if the raw TSX between the opening tag and the
-/// matching close tag contains non-whitespace characters other than JSX
-/// expressions, a `DomNode::Text` child is injected.
+/// A tag stack tracks open/close pairs so that:
+/// - Self-closing tags (`<button />`) never get spurious text children from
+///   following siblings.
+/// - Text content is attributed only to the element that actually encloses it,
+///   not to a preceding sibling that happens to be within the 120-char lookahead
+///   window.
+/// - Nested relevant elements (e.g. `<button><span>text</span></button>`) are
+///   linked as parent -> child in the arena so the a11y recursive walk finds
+///   the accessible content through the child chain.
 fn tsx_to_web_ir_module(tsx: &str) -> WebIrModule {
-    // Match self-closing or open tags: <tagName ... /> or <tagName ...>
-    // We capture: group 1 = tag name, group 2 = attrs string
-    // Matches opening JSX tags and their attribute strings.
-    // Group 1 = tag name, group 2 = raw attrs text.
-    // Uses r#"..."# so literal double-quotes can appear in the pattern.
-    let re_tag = Regex::new(
+    // Opening / self-closing tag scanner.
+    // Group 1 = tag name, Group 2 = raw attrs block, Group 3 = "/>" or ">".
+    let re_open = Regex::new(
         r#"(?x)
         <                       # open bracket
         ([A-Za-z][A-Za-z0-9]*)  # 1: tag name
@@ -101,17 +105,20 @@ fn tsx_to_web_ir_module(tsx: &str) -> WebIrModule {
               (?:\s*=\s*(?:
                 "[^"]*"          # double-quoted value
                 |'[^']*'         # single-quoted value
-                |\{[^}]*\}       # JSX expression
+                |\{[^}]*\}       # JSX expression value
                 |[^\s/>"'{]+     # bare value
               ))?
             )
           )*
         )
         \s*
-        (?:/>|>)
+        (/>|>)                  # 3: self-closing or open
         "#,
     )
-    .expect("static JSX tag regex");
+    .expect("static JSX open-tag regex");
+
+    // Closing tag scanner.
+    let re_close = Regex::new(r"</([A-Za-z][A-Za-z0-9]*)>").expect("static JSX close-tag regex");
 
     // Attr extractor: key="val", key={'val'}, key={expr}, key (boolean).
     // Group 1 = name, 2 = double-quoted, 3 = single-quoted, 4 = JSX expr, 5 = bare.
@@ -131,25 +138,39 @@ fn tsx_to_web_ir_module(tsx: &str) -> WebIrModule {
     )
     .expect("static attr regex");
 
-    let mut module = WebIrModule::default();
-    let mut id_counter: u32 = 0;
-
-    // Inline tags we actually care about for a11y checks.
+    // Elements checked for a11y; all others are tracked on the stack for
+    // correct balancing but do not produce DomNodes.
     const RELEVANT: &[&str] = &[
         "img", "button", "a", "input", "div", "span", "section", "article", "header", "footer",
         "main", "nav", "aside", "li", "td", "th", "summary",
     ];
 
-    for cap in re_tag.captures_iter(tsx) {
-        let tag_raw = cap.get(1).map(|m| m.as_str()).unwrap_or("");
-        let tag = tag_raw.to_ascii_lowercase();
-        if !RELEVANT.contains(&tag.as_str()) {
-            continue;
-        }
+    // --- Collect parse events sorted by byte offset ---
 
+    enum TagEvent {
+        /// An opening (or self-closing) tag.
+        Open {
+            pos: usize,
+            /// Byte offset immediately after the closing `>`.
+            end: usize,
+            tag: String,
+            attrs: Vec<(String, String)>,
+            self_closing: bool,
+        },
+        /// A closing tag.
+        Close { pos: usize, tag: String },
+    }
+
+    let mut events: Vec<TagEvent> = Vec::new();
+
+    for cap in re_open.captures_iter(tsx) {
+        let pos = cap.get(0).unwrap().start();
+        let end = cap.get(0).unwrap().end();
+        let tag = cap.get(1).unwrap().as_str().to_ascii_lowercase();
         let attrs_str = cap.get(2).map(|m| m.as_str()).unwrap_or("");
-        let mut attrs: Vec<(String, String)> = Vec::new();
+        let self_closing = cap.get(3).map(|m| m.as_str()) == Some("/>");
 
+        let mut attrs: Vec<(String, String)> = Vec::new();
         for a in re_attr.captures_iter(attrs_str) {
             let key = a.get(1).map(|m| m.as_str()).unwrap_or("").to_string();
             // Pick the first non-None value group (2,3,4,5); boolean attrs get empty string.
@@ -165,41 +186,94 @@ fn tsx_to_web_ir_module(tsx: &str) -> WebIrModule {
                 attrs.push((key, val));
             }
         }
+        events.push(TagEvent::Open { pos, end, tag, attrs, self_closing });
+    }
 
-        let elem_id = DomNodeId(id_counter);
-        id_counter += 1;
+    for cap in re_close.captures_iter(tsx) {
+        let pos = cap.get(0).unwrap().start();
+        let tag = cap.get(1).unwrap().as_str().to_ascii_lowercase();
+        events.push(TagEvent::Close { pos, tag });
+    }
 
-        // Heuristic: look for text content after the opening tag close (>)
-        // up to ~120 chars; if non-trivially non-empty, inject a Text child.
-        let after_open = cap.get(0).map(|m| m.end()).unwrap_or(0);
-        let snippet_end = (after_open + 120).min(tsx.len());
-        let snippet = tsx.get(after_open..snippet_end).unwrap_or("");
-        let text_content = extract_apparent_text_content(snippet);
+    // Sort by byte position so we process tags in document order.
+    events.sort_by_key(|e| match e {
+        TagEvent::Open { pos, .. } | TagEvent::Close { pos, .. } => *pos,
+    });
 
-        // Push element FIRST so its arena position matches elem_id.0 for
-        // the positional fallback in has_accessible_child_content.  We set
-        // children to a placeholder vec and will patch it below if text is found.
-        let elem_arena_idx = module.dom_nodes.len();
-        module.dom_nodes.push(DomNode::Element {
-            id: elem_id,
-            tag,
-            attrs,
-            children: vec![], // filled in below
-            span: None,
-        });
+    // --- Process events with a tag stack ---
 
-        // Push text child AFTER the element; its arena position = elem_arena_idx + 1
-        // which equals id_counter (since we haven't incremented yet).
-        if !text_content.trim().is_empty() {
-            let text_arena_pos = module.dom_nodes.len() as u32; // == id_counter
-            id_counter += 1;
-            module.dom_nodes.push(DomNode::Text {
-                content: text_content,
-                span: None,
-            });
-            // Patch the element's children list.
-            if let Some(DomNode::Element { children, .. }) = module.dom_nodes.get_mut(elem_arena_idx) {
-                children.push(DomNodeId(text_arena_pos));
+    let mut module = WebIrModule::default();
+    let mut id_counter: u32 = 0;
+
+    // Stack entry: (Option<arena_idx>, tag_name, open_end_byte)
+    //   arena_idx = Some(i) when the element was added to the arena.
+    //   arena_idx = None for non-relevant elements (tracked only for balancing).
+    let mut stack: Vec<(Option<usize>, String, usize)> = Vec::new();
+
+    for ev in events {
+        match ev {
+            TagEvent::Open { tag, attrs, self_closing, end, .. } => {
+                let is_relevant = RELEVANT.contains(&tag.as_str());
+                let arena_idx: Option<usize> = if is_relevant {
+                    let elem_id = DomNodeId(id_counter);
+                    id_counter += 1;
+                    let idx = module.dom_nodes.len();
+                    module.dom_nodes.push(DomNode::Element {
+                        id: elem_id,
+                        tag: tag.clone(),
+                        attrs,
+                        children: vec![],
+                        span: None,
+                    });
+                    // Link to the nearest relevant ancestor already on the stack.
+                    let parent_arena_idx: Option<usize> = stack
+                        .iter()
+                        .rev()
+                        .find(|(i, _, _)| i.is_some())
+                        .and_then(|(i, _, _)| *i);
+                    if let Some(par) = parent_arena_idx {
+                        if let Some(DomNode::Element { children, .. }) =
+                            module.dom_nodes.get_mut(par)
+                        {
+                            children.push(elem_id);
+                        }
+                    }
+                    Some(idx)
+                } else {
+                    None
+                };
+
+                if !self_closing {
+                    stack.push((arena_idx, tag, end));
+                }
+            }
+
+            TagEvent::Close { tag, pos: close_pos } => {
+                // Find the innermost matching open tag and pop it.
+                if let Some(stack_pos) =
+                    stack.iter().rposition(|(_, name, _)| *name == tag)
+                {
+                    let (arena_idx, _, open_end) = stack.remove(stack_pos);
+                    if let Some(arena_idx) = arena_idx {
+                        // Extract text content that belongs to this element's body
+                        // (strips child element tags, counts JSX expressions as content).
+                        let inner = tsx.get(open_end..close_pos).unwrap_or("");
+                        let text = extract_element_text_content(inner);
+                        if !text.is_empty() {
+                            let text_pos = module.dom_nodes.len() as u32;
+                            id_counter += 1;
+                            module.dom_nodes.push(DomNode::Text {
+                                content: text,
+                                span: None,
+                            });
+                            if let Some(DomNode::Element { children, .. }) =
+                                module.dom_nodes.get_mut(arena_idx)
+                            {
+                                children.push(DomNodeId(text_pos));
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -207,24 +281,22 @@ fn tsx_to_web_ir_module(tsx: &str) -> WebIrModule {
     module
 }
 
-/// Pull apparent text from a short snippet following a JSX opening tag.
+/// Extract visible text / expression content from the inner body of a JSX element.
 ///
-/// Strips JSX expressions (`{…}`) and child element tags (`<…>`); if the
-/// remaining text has more than 2 non-whitespace characters we treat it as
-/// real text content.
-fn extract_apparent_text_content(snippet: &str) -> String {
-    // Remove JSX expressions
+/// Strips child element tags (`<...>` and `</...>`) and replaces JSX expression
+/// blocks (`{...}`) with a sentinel so expressions count as accessible content.
+/// Returns the condensed result if it contains any non-whitespace characters,
+/// otherwise an empty string.
+fn extract_element_text_content(inner: &str) -> String {
+    // Replace JSX expression blocks with a sentinel so they count as content.
     let re_expr = Regex::new(r"\{[^}]*\}").expect("static expr regex");
-    let cleaned = re_expr.replace_all(snippet, " EXPR ");
-    // Remove nested tags
+    let s = re_expr.replace_all(inner, " EXPR ");
+    // Strip all JSX tags (opening, closing, self-closing).
     let re_tag = Regex::new(r"<[^>]*>").expect("static tag regex");
-    let cleaned = re_tag.replace_all(&cleaned, " ");
-    // Take up to the first '<' boundary as a heuristic sentence
-    let up_to_next = cleaned.split('<').next().unwrap_or("").trim().to_string();
-    // If the result contains JSX expression placeholder or non-whitespace content treat as content
-    if up_to_next.contains("EXPR") || up_to_next.chars().filter(|c| !c.is_whitespace()).count() > 2
-    {
-        up_to_next
+    let s = re_tag.replace_all(&s, " ");
+    let trimmed = s.trim().to_string();
+    if trimmed.chars().any(|c| !c.is_whitespace()) {
+        trimmed
     } else {
         String::new()
     }
@@ -375,5 +447,37 @@ export function Form() {
         let msg = format_diagnostics(&diags, "MyWidget").unwrap();
         assert!(msg.contains("MyWidget"), "should mention component name");
         assert!(msg.contains("web_ir_a11y.img.missing_alt"));
+    }
+
+    #[test]
+    fn self_closing_button_not_given_sibling_text() {
+        // A self-closing <button /> should NOT absorb text from a following sibling.
+        let tsx = r#"
+<div>
+  <button />
+  <span>This text belongs to the div, not the button</span>
+</div>
+"#;
+        let diags = validate_tsx_a11y(tsx);
+        // The button has no accessible label — it's self-closing with no content.
+        assert!(
+            diags.iter().any(|d| d.code == "web_ir_a11y.button.missing_label"),
+            "self-closing button with no label should fail; got: {diags:?}"
+        );
+    }
+
+    #[test]
+    fn button_with_nested_span_text_passes() {
+        // Text inside a nested <span> counts as the button's accessible content.
+        let tsx = r#"
+<button>
+  <span>Click me</span>
+</button>
+"#;
+        let diags = validate_tsx_a11y(tsx);
+        assert!(
+            !diags.iter().any(|d| d.code == "web_ir_a11y.button.missing_label"),
+            "button with nested span text should pass; got: {diags:?}"
+        );
     }
 }

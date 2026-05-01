@@ -4,6 +4,7 @@ actor Counter {
 
     on increment(amount: int) to int {
         let next = count + amount
+        count = next
         print("Count is " + next)
         return next
     }

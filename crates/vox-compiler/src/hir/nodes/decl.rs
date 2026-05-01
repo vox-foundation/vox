@@ -285,6 +285,10 @@ pub struct HirFn {
     /// Durable execution classification (set when lowered from `workflow`/`activity`/`actor` source).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub durability: Option<super::durability::DurabilityKind>,
+    /// State fields declared in an `actor` body (`state name: Type`).
+    /// Empty for non-actor functions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub actor_state_fields: Vec<HirTableField>,
     /// Postconditions to check at runtime (used for @ai repair/fallback).
     #[serde(default)]
     pub postconditions: Vec<HirPostCondition>,
@@ -351,6 +355,12 @@ pub struct HirEndpointFn {
     pub body: Vec<HirStmt>,
     /// HTTP path bound to this endpoint fn.
     pub route_path: String,
+    /// `@pure` — endpoint is side-effect-free (informational; not enforced at call-graph level yet).
+    #[serde(default)]
+    pub is_pure: bool,
+    /// Declared capability effects from `uses net, db, mcp(...)` (TASK-4.2).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub effects: super::effect::HirEffectSet,
     /// Span covering the declaration.
     pub span: Span,
 }

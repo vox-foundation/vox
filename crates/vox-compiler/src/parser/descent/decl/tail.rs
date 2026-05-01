@@ -363,10 +363,20 @@ impl Parser {
                     }
                 }
                 Token::RBrace => break,
-                _ => break,
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Unexpected token in `url` body; expected a variant name or `}`",
+                        vec!["}".into()],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    self.expect(&Token::RBrace)?;
+                    return Err(());
+                }
             }
         }
-        self.eat(&Token::RBrace);
+        self.expect(&Token::RBrace)?;
         Ok(Decl::Url(UrlDecl {
             name,
             variants,
@@ -635,11 +645,21 @@ impl Parser {
                     });
                 }
 
-                _ => break,
+                _ => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Unexpected token in `state_machine` body; expected `state`, `on`, or `}`",
+                        vec!["state".into(), "on".into(), "}".into()],
+                        Some(self.peek().to_string()),
+                        ParseErrorClass::Declaration,
+                    ));
+                    self.expect(&Token::RBrace)?;
+                    return Err(());
+                }
             }
         }
 
-        self.eat(&Token::RBrace);
+        self.expect(&Token::RBrace)?;
 
         Ok(Decl::StateMachine(StateMachineDecl {
             name,

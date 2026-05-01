@@ -1,3 +1,12 @@
+---
+title: "Vox GUI-Native Language Roadmap (April 2026)"
+description: "Executable roadmap for turning Vox into a GUI-native language whose compiler catches correctness invariants that React + TypeScript structurally cannot."
+category: "architecture"
+status: "current"
+last_updated: "2026-04-30"
+training_eligible: false
+---
+
 # Vox GUI-Native Language Roadmap (April 2026)
 
 > **Document purpose.** This is an executable roadmap for turning Vox from a
@@ -1202,6 +1211,7 @@ different constraints. Unification reduces the decorator surface from 14 to
 **Target syntax**:
 
 ```vox
+// vox:skip
 @endpoint(kind: query)    fn recent_tasks() to list[Task] { ... }
 @endpoint(kind: mutation) fn add_task(t: NewTask) to Id[Task] { ... }
 @endpoint(kind: server)   fn privileged_action() to Result[Unit] { ... }
@@ -1519,6 +1529,7 @@ with exhaustiveness enforcement kills an entire bug class.
 **Target syntax**:
 
 ```vox
+// vox:skip
 state_machine AgentLifecycle {
   state Idle
   state Working(task: Task)
@@ -1613,6 +1624,7 @@ effect system lets the compiler build a capability graph and catch the
 **Target syntax**:
 
 ```vox
+// vox:skip — illustrative; uses deprecated `->` return syntax and `...` placeholders
 // No `uses` clause = pure.
 fn total(xs: list[int]) -> int { ... }
 
@@ -1693,6 +1705,7 @@ graph and compile-time link verification.
 **Target syntax**:
 
 ```vox
+// vox:skip
 url Path {
   Home
   Task(id: Id[Task])
@@ -2119,6 +2132,7 @@ guaranteed by construction.
 **Target syntax**:
 
 ```vox
+// vox:skip
 panel(surface: primary) {
   text(size: body) "Hello"
 }
@@ -2149,6 +2163,7 @@ rudimentary AABB non-overlap check at declared breakpoints.
 **Target syntax**:
 
 ```vox
+// vox:skip
 overlay {
   toast(z: 100, position: top_right) { ... }
   drawer(z: 90, position: left) { ... }

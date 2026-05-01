@@ -21,15 +21,43 @@ pub fn plan_workflow_activities(
 }
 
 /// Build replay-oriented linear IR from workflow statements.
+///
+/// Locates the named workflow in the HIR (by `DurabilityKind::Workflow`),
+/// then walks its statements to extract a linear activity call sequence.
+///
+/// Returns `Err` if the workflow is not found or the body contains
+/// unsupported constructs for deterministic replay.
 pub fn plan_workflow_replay_ir(
-    _hir: &HirModule,
+    hir: &HirModule,
     workflow_name: &str,
 ) -> anyhow::Result<WorkflowReplayIr> {
-    // Workflow primitives are retired (TASK-2.6 Path B). The parser tombstones
-    // `workflow`/`activity` source forms. This planner is kept as a stub so the
-    // crate compiles; it returns an empty replay IR. Use `@durable fn` instead.
-    let _ = workflow_name;
-    Ok(WorkflowReplayIr { nodes: vec![] })
+    use vox_compiler::hir::nodes::DurabilityKind;
+
+    let wf = hir
+        .functions
+        .iter()
+        .find(|f| f.durability == Some(DurabilityKind::Workflow) && f.name == workflow_name)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "workflow `{workflow_name}` not found in HIR; \
+                 declare it with the `workflow` keyword"
+            )
+        })?;
+
+    let mut out = Vec::new();
+    let ctx = ActivityWithOpts::default();
+    let mut branch_counter = 0usize;
+    collect_activity_calls_from_stmts(
+        workflow_name,
+        &wf.body,
+        &ctx,
+        &mut out,
+        &mut branch_counter,
+    )?;
+
+    Ok(WorkflowReplayIr {
+        nodes: out.into_iter().map(ReplayNode::Activity).collect(),
+    })
 }
 
 #[derive(Clone, Default, Debug)]

@@ -31,27 +31,70 @@ pub async fn run(action: WorkflowAction) -> Result<()> {
     }
 }
 
-const RETIRED_MSG: &str = "The `workflow` and `activity` primitives are retired (TASK-2.6). \
-Use `@durable fn` decorator on a standard `fn` declaration instead. \
-See AGENTS.md §Grammar Unification for details.";
-
 /// List all workflows and activities defined in a .vox file.
+///
+/// Compiles the file, then reports all functions with `DurabilityKind::Workflow`
+/// or `DurabilityKind::Activity`.
 pub async fn list(file: &Path) -> Result<()> {
-    // Workflows and activities are retired; parser rejects source-level use.
-    // This command now performs a type-check and reports the retirement notice.
+    use vox_compiler::hir::nodes::DurabilityKind;
+
     let result = crate::pipeline::run_frontend(file, false).await?;
     let errors = result.error_count();
     crate::pipeline::print_diagnostics(&result, file, false);
     if errors > 0 {
         anyhow::bail!("{} type error(s) found", errors);
     }
-    println!("No workflows or activities found in {} — {RETIRED_MSG}", file.display());
+
+    let workflows: Vec<_> = result
+        .hir
+        .functions
+        .iter()
+        .filter(|f| f.durability == Some(DurabilityKind::Workflow))
+        .map(|f| f.name.as_str())
+        .collect();
+    let activities: Vec<_> = result
+        .hir
+        .functions
+        .iter()
+        .filter(|f| f.durability == Some(DurabilityKind::Activity))
+        .map(|f| f.name.as_str())
+        .collect();
+
+    if workflows.is_empty() && activities.is_empty() {
+        println!("No workflows or activities found in {}", file.display());
+    } else {
+        for name in &workflows {
+            println!("workflow  {name}");
+        }
+        for name in &activities {
+            println!("activity  {name}");
+        }
+    }
     Ok(())
 }
 
-/// Show type-checked info about a specific workflow (retired).
-pub async fn inspect(_file: &Path, _workflow_name: &str) -> Result<()> {
-    anyhow::bail!("{RETIRED_MSG}");
+/// Show type-checked info about a specific workflow.
+pub async fn inspect(file: &Path, workflow_name: &str) -> Result<()> {
+    use vox_compiler::hir::nodes::DurabilityKind;
+
+    let result = crate::pipeline::run_frontend(file, false).await?;
+    let errors = result.error_count();
+    crate::pipeline::print_diagnostics(&result, file, false);
+    if errors > 0 {
+        anyhow::bail!("{} type error(s) found", errors);
+    }
+    let wf = result
+        .hir
+        .functions
+        .iter()
+        .find(|f| f.durability == Some(DurabilityKind::Workflow) && f.name == workflow_name)
+        .ok_or_else(|| anyhow::anyhow!("workflow `{workflow_name}` not found in {}", file.display()))?;
+    println!("workflow  {}", wf.name);
+    println!("params    {}", wf.params.len());
+    if let Some(ref rt) = wf.return_type {
+        println!("returns   {:?}", rt);
+    }
+    Ok(())
 }
 
 /// Type-check a workflow file through the full Vox compiler pipeline.
@@ -66,26 +109,45 @@ pub async fn check(file: &Path) -> Result<()> {
     crate::pipeline::print_diagnostics(&result, file, false);
 
     if errors == 0 {
-        println!(
-            "✓ {} — {} warning(s). Note: {RETIRED_MSG}",
-            file.display(),
-            warnings,
-        );
+        println!("✓ {} — {} warning(s)", file.display(), warnings);
         Ok(())
     } else {
         anyhow::bail!("{} type error(s) found", errors)
     }
 }
 
-/// Execute a workflow (retired — workflows are no longer a source-level primitive).
+/// Execute a workflow by name from a .vox source file.
 pub async fn run_workflow(
-    _file: &Path,
-    _workflow_name: &str,
+    file: &Path,
+    workflow_name: &str,
     _args_json: &str,
     _requested_run_id: Option<&str>,
     _mesh: bool,
 ) -> Result<()> {
-    anyhow::bail!("{RETIRED_MSG}");
+    // Full durable execution requires the workflow-runtime feature and a
+    // running Vox scheduler. For now, validate that the workflow exists and
+    // bail with a clear message rather than silently returning success.
+    let result = crate::pipeline::run_frontend(file, false).await?;
+    let errors = result.error_count();
+    if errors > 0 {
+        anyhow::bail!("{} type error(s) found", errors);
+    }
+    use vox_compiler::hir::nodes::DurabilityKind;
+    let found = result
+        .hir
+        .functions
+        .iter()
+        .any(|f| f.durability == Some(DurabilityKind::Workflow) && f.name == workflow_name);
+    if !found {
+        anyhow::bail!(
+            "workflow `{workflow_name}` not found in {}",
+            file.display()
+        );
+    }
+    anyhow::bail!(
+        "workflow execution requires the `workflow-runtime` feature and a running Vox scheduler; \
+         found workflow `{workflow_name}` — compile with `--features workflow-runtime` to enable execution"
+    );
 }
 
 #[cfg(feature = "workflow-runtime")]

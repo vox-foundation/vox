@@ -99,8 +99,9 @@ mod tests {
             return_type: None,
             body: vec![crate::hir::HirStmt::Expr { expr, span }],
             kind: crate::hir::HirEndpointKind::Query,
-            
             route_path: "/test".to_string(),
+            is_pure: false,
+            effects: vec![],
             span,
         });
 

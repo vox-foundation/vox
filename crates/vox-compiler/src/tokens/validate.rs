@@ -84,4 +84,19 @@ mod tests {
         let diags = validate_token_registry(&reg);
         assert!(diags.is_empty(), "unexpected diags: {diags:?}");
     }
+
+    #[test]
+    fn whitespace_key_emits_invalid_key() {
+        let reg =
+            TokenRegistry::load_from_str(r##"{"color":{"bad key":"#fff"}}"##).unwrap();
+        let diags = validate_token_registry(&reg);
+        assert!(
+            diags.iter().any(|d| d.code == "token.registry.invalid_key"),
+            "expected invalid_key diagnostic, got: {diags:?}"
+        );
+        assert!(
+            diags.iter().any(|d| d.message.contains("bad key")),
+            "diagnostic should name the offending key"
+        );
+    }
 }
