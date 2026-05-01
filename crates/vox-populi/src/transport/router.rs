@@ -226,7 +226,9 @@ pub fn populi_http_app(state: PopuliTransportState) -> Router {
 /// Bind and serve until error (Ctrl+C stops the process).
 pub async fn serve(addr: SocketAddr, state: PopuliTransportState) -> Result<(), std::io::Error> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    info!(%addr, "vox-populi HTTP control plane listening");
+    let bound = listener.local_addr()?;
+    info!(%bound, "vox-populi HTTP control plane listening");
+    println!("vox populi: listening on http://{bound}");
 
     // Start federation gossip if any bootstrap peers are configured
     state.start_federation_gossip();

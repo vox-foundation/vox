@@ -12406,6 +12406,7 @@ dependencies = [
  "vox-clavis",
  "vox-cli-core",
  "vox-compiler",
+ "vox-config",
  "vox-constrained-gen",
  "vox-corpus",
  "vox-crypto",

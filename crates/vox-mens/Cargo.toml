@@ -41,6 +41,7 @@ axum = ["dep:axum"]
 
 [dependencies]
 vox-cli-core = { workspace = true }
+vox-config = { workspace = true }
 vox-mesh-types = { workspace = true }
 vox-compiler = { workspace = true }
 vox-db = { workspace = true }
