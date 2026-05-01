@@ -152,6 +152,7 @@ impl ProbePipeline {
     /// On Linux: DRM → wgpu → NVML (feature-gated).
     /// On macOS: Metal → wgpu.
     pub fn default_for_platform() -> Self {
+        #[allow(unused_mut)]
         let mut pipeline = Self::empty();
 
         #[cfg(all(target_os = "windows", feature = "mens-gpu"))]
