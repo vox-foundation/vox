@@ -1,6 +1,7 @@
-//! Axum sub-router: GET /dashboard/* → SPA shell
+//! Axum sub-router: GET /dashboard/* → SPA shell + dashboard API routes
 use axum::{Router, routing::get};
 use crate::assets::serve_asset;
+use crate::api::settings_router;
 
 pub fn dashboard_router<S>(token: Option<String>) -> Router<S>
 where
@@ -9,5 +10,6 @@ where
     Router::new()
         .route("/dashboard", get(serve_asset))
         .route("/dashboard/{*path}", get(serve_asset))
+        .merge(settings_router::<S>())
         .layer(axum::extract::Extension(token))
 }
