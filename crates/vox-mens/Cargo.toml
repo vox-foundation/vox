@@ -43,12 +43,10 @@ axum = ["dep:axum"]
 vox-cli-core = { workspace = true }
 vox-mesh-types = { workspace = true }
 vox-compiler = { workspace = true }
-vox-config = { workspace = true }
 vox-db = { workspace = true }
 vox-orchestrator = { workspace = true, optional = true }
 vox-primitives = { workspace = true }
 vox-eval = { workspace = true }
-vox-search = { workspace = true }
 vox-populi = { workspace = true, optional = true }
 vox-tensor = { workspace = true, optional = true }
 vox-oratio = { workspace = true, optional = true, features = ["stt-candle", "compiler-rerank"] }
@@ -79,10 +77,8 @@ vox-runtime.workspace = true
 vox-scaling-policy.workspace = true
 vox-repository.workspace = true
 vox-jsonschema-util.workspace = true
-vox-identity.workspace = true
 vox-crypto.workspace = true
 vox-protocol.workspace = true
-vox-publisher.workspace = true
 vox-reqwest-defaults.workspace = true
 sysinfo = { workspace = true }
 which = { workspace = true }

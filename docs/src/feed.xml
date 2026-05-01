@@ -5,8 +5,18 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Thu, 30 Apr 2026 22:40:18 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 01 May 2026 01:39:25 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>ADR 022 — Orchestrator bootstrap factory and daemon boundaries</title>
+    <link>https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</guid>
+    <description>Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-dei-d, and optional future orchestrator daemon.</description>
+    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
 
   <item>
     <title>ADR-026: Third-Party Code Provenance Policy</title>
@@ -237,16 +247,6 @@
     <link>https://vox-lang.org/adr/005-socrates-anti-hallucination-ssot.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/005-socrates-anti-hallucination-ssot.html</guid>
     <description>Official documentation for ADR 005: Socrates anti-hallucination SSOT for the Vox language. Detailed technical reference, architecture gui</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 006: Mens full-graph Candle QLoRA with qlora-rs</title>
-    <link>https://vox-lang.org/adr/006-mens-full-graph-qlora-qlora-rs.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/006-mens-full-graph-qlora-qlora-rs.html</guid>
-    <description>Official documentation for ADR 006: Mens full-graph Candle QLoRA with qlora-rs for the Vox language.</description>
     <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>

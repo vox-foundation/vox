@@ -60,6 +60,7 @@ training_eligible: false
 - [Research baseline and source-of-truth map](architecture/planning-meta/00-research-baseline-source-map.md)
 - [Scientia × Mesh/Model-Routing Integration Research (2026)](architecture/scientia-mesh-integration-research-2026.md)
 - [Task catalog authoring spec](architecture/planning-meta/07-task-catalog-authoring-spec.md)
+- [Terminal Exec Policy SSOT (2026)](architecture/terminal-exec-policy-ssot.md)
 - [Vox Docs Portal: Astro Starlight Strategy 2026](architecture/starlight-site-strategy-2026.md)
 - [Weighted deep planning manual](architecture/planning-meta/03-weighted-deep-planning-manual.md)
 - [build-stabilization-findings-2026](architecture/build-stabilization-findings-2026.md)
@@ -76,6 +77,7 @@ training_eligible: false
 
 ## Status: Research
 
+- [Agent Shell Fluency Eval Design (2026)](architecture/agent-shell-fluency-eval-design-2026.md)
 - [Ludus Identity Federation & GitHub Integration](architecture/ludus-identity-github-integration-research-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](architecture/shiki-mdbook-doc-platform-research-2026.md)
 - [Warp Terminal Research Findings (2026)](architecture/warp-research-findings-2026.md)

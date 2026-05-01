@@ -11757,7 +11757,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
- "vox-build-meta",
  "vox-oratio",
  "workspace-hack",
 ]
@@ -11957,18 +11956,9 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "vox-clavis",
- "vox-config",
  "vox-db",
  "vox-ludus",
  "vox-repository",
-]
-
-[[package]]
-name = "vox-codex-api"
-version = "0.4.0"
-dependencies = [
- "futures-core",
- "tokio-stream",
 ]
 
 [[package]]
@@ -12143,7 +12133,6 @@ dependencies = [
  "serde",
  "serde_json",
  "vox-bounded-fs",
- "vox-build-meta",
  "vox-repository",
  "walkdir",
  "workspace-hack",
@@ -12156,7 +12145,6 @@ dependencies = [
  "anyhow",
  "serde_json",
  "vox-bounded-fs",
- "vox-build-meta",
  "vox-compiler",
  "workspace-hack",
 ]
@@ -12397,13 +12385,11 @@ dependencies = [
  "vox-clavis",
  "vox-cli-core",
  "vox-compiler",
- "vox-config",
  "vox-constrained-gen",
  "vox-corpus",
  "vox-crypto",
  "vox-db",
  "vox-eval",
- "vox-identity",
  "vox-jsonschema-util",
  "vox-mesh-types",
  "vox-oratio",
@@ -12411,12 +12397,10 @@ dependencies = [
  "vox-populi",
  "vox-primitives",
  "vox-protocol",
- "vox-publisher",
  "vox-repository",
  "vox-reqwest-defaults",
  "vox-runtime",
  "vox-scaling-policy",
- "vox-search",
  "vox-tensor",
  "vox-workflow-runtime",
  "walkdir",
@@ -12783,7 +12767,6 @@ dependencies = [
  "vox-primitives",
  "vox-reqwest-defaults",
  "vox-skills",
- "vox-socrates-policy",
  "which 8.0.2",
  "workspace-hack",
  "xxhash-rust",
@@ -12812,15 +12795,6 @@ dependencies = [
  "tracing-subscriber",
  "vox-cli-core",
  "which 8.0.2",
-]
-
-[[package]]
-name = "vox-scientia-api"
-version = "0.4.0"
-dependencies = [
- "vox-publisher",
- "vox-scientia-core",
- "workspace-hack",
 ]
 
 [[package]]
@@ -12861,15 +12835,6 @@ dependencies = [
  "tracing",
  "vox-db",
  "vox-search",
-]
-
-[[package]]
-name = "vox-scientia-runtime"
-version = "0.4.0"
-dependencies = [
- "vox-scientia-core",
- "vox-scientia-social",
- "workspace-hack",
 ]
 
 [[package]]

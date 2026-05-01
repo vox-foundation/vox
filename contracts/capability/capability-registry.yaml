@@ -6656,7 +6656,7 @@ curated:
 - id: mcp.vox_plan_status
   title: Plan Status
   description_human: null
-  description_model: Plan session status via vox-dei-d (ai.plan.status) for a session_id.
+  description_model: Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -6915,7 +6915,7 @@ curated:
 - id: mcp.vox_replan
   title: Replan
   description_human: null
-  description_model: 'Replan via vox-dei-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.'
+  description_model: 'Replan via vox-orchestrator-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.'
   intent_tags: []
   side_effect_class: null
   scope_kind: null
