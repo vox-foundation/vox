@@ -345,19 +345,18 @@ In `runtime.rs`, locate or create a `#[cfg(test)]` block. Add:
 
 ```rust
 #[test]
-fn short_id_never_panics_on_uuid_without_hyphens() {
-    // If uuid format changes and hyphens are absent, unwrap would panic.
-    // The safe version must handle this gracefully.
-    let hyphen_free = "1234567890abcdef1234567890abcdef"; // no hyphens
-    let result = short_id_from_str(hyphen_free);
-    assert_eq!(result.len(), 8, "must return first 8 chars when no hyphens");
-}
-
-#[test]
 fn short_id_from_standard_uuid() {
     let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
     let result = short_id_from_str(uuid_str);
     assert_eq!(result, "550e8400");
+}
+
+#[test]
+fn short_id_from_hyphen_free_string() {
+    // If format ever lacks hyphens, must not panic — returns first 8 chars
+    let s = "1234567890abcdef1234567890abcdef";
+    let result = short_id_from_str(s);
+    assert_eq!(result, "12345678");
 }
 ```
 
@@ -375,7 +374,11 @@ Add a private helper near the top of the runtime module (or in a nearby `util` s
 
 ```rust
 fn short_id_from_str(s: &str) -> &str {
-    s.split('-').next().unwrap_or(&s[..s.len().min(8)])
+    if let Some(pos) = s.find('-') {
+        &s[..pos]
+    } else {
+        &s[..s.len().min(8)]
+    }
 }
 ```
 
