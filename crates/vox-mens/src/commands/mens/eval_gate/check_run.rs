@@ -229,53 +229,84 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
         });
     }
 
-    if (policy.anti_stub.block
-        || policy.anti_stub.min_pass_rate > 0.0
-        || policy.anti_stub.max_placeholder_event_rate > 0.0
-        || policy.anti_stub.max_trivial_placeholder_event_rate > 0.0
-        || policy.anti_stub.min_construct_richness_mean > 0.0)
-        && let Some(ref eval) = eval_json
+    // anti_stub metrics (anti_stub_task_success, placeholder_event_rate,
+    // trivial_placeholder_event_rate, construct_richness_mean) are written by
+    // `vox mens eval-local` into eval_local_report.json — NOT by the corpus
+    // evaluator (eval_results.json) or the QLoRA trainer.  Read from the
+    // canonical eval-local output file so the gate can actually be satisfied.
+    // Mirrors the pass_at_k pattern: missing file → failing GateResult whose
+    // block flag is taken from the policy (block: true in full policy, false in
+    // the post-train bootstrap policy).
     {
-        let anti_stub_pass = eval
-            .get("anti_stub_task_success")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0);
-        let placeholder_rate = eval
-            .get("placeholder_event_rate")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0);
-        let trivial_placeholder_rate = eval
-            .get("trivial_placeholder_event_rate")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0);
-        let construct_richness_mean = eval
-            .get("construct_richness_mean")
-            .and_then(|v| v.as_f64())
-            .unwrap_or(0.0);
-        let pass_rate_ok = anti_stub_pass >= policy.anti_stub.min_pass_rate;
-        let placeholder_ok = policy.anti_stub.max_placeholder_event_rate <= 0.0
-            || placeholder_rate <= policy.anti_stub.max_placeholder_event_rate;
-        let trivial_ok = policy.anti_stub.max_trivial_placeholder_event_rate <= 0.0
-            || trivial_placeholder_rate <= policy.anti_stub.max_trivial_placeholder_event_rate;
-        let richness_ok = policy.anti_stub.min_construct_richness_mean <= 0.0
-            || construct_richness_mean >= policy.anti_stub.min_construct_richness_mean;
-        let passed = pass_rate_ok && placeholder_ok && trivial_ok && richness_ok;
-        results.push(GateResult {
-            name: "anti_stub".to_string(),
-            passed,
-            message: format!(
-                "anti_stub_pass={:.3} (min={:.3}) placeholder_rate={:.3} (max={:.3}) trivial_rate={:.3} (max={:.3}) richness_mean={:.3} (min={:.3})",
-                anti_stub_pass,
-                policy.anti_stub.min_pass_rate,
-                placeholder_rate,
-                policy.anti_stub.max_placeholder_event_rate,
-                trivial_placeholder_rate,
-                policy.anti_stub.max_trivial_placeholder_event_rate,
-                construct_richness_mean,
-                policy.anti_stub.min_construct_richness_mean
-            ),
-            block: policy.anti_stub.block,
-        });
+        let anti_stub_cfg = &policy.anti_stub;
+        let anti_stub_active = anti_stub_cfg.block
+            || anti_stub_cfg.min_pass_rate > 0.0
+            || anti_stub_cfg.max_placeholder_event_rate > 0.0
+            || anti_stub_cfg.max_trivial_placeholder_event_rate > 0.0
+            || anti_stub_cfg.min_construct_richness_mean > 0.0;
+        if anti_stub_active {
+            let eval_local_report_path = run_dir.join("eval_local_report.json");
+            if !eval_local_report_path.exists() {
+                results.push(GateResult {
+                    name: "anti_stub".to_string(),
+                    passed: false,
+                    message: format!(
+                        "eval_local_report.json missing — run `vox mens eval-local \
+                         --model <run_dir> --bench <bench_dir> \
+                         -o {}/eval_local_report.json` first",
+                        run_dir.display()
+                    ),
+                    block: anti_stub_cfg.block,
+                });
+            } else {
+                let content = read_utf8_path_capped(&eval_local_report_path)?;
+                if let Ok(el) = serde_json::from_str::<serde_json::Value>(&content) {
+                    let anti_stub_pass = el
+                        .get("anti_stub_task_success")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0);
+                    let placeholder_rate = el
+                        .get("placeholder_event_rate")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0);
+                    let trivial_placeholder_rate = el
+                        .get("trivial_placeholder_event_rate")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0);
+                    let construct_richness_mean = el
+                        .get("construct_richness_mean")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0);
+                    let pass_rate_ok = anti_stub_pass >= anti_stub_cfg.min_pass_rate;
+                    let placeholder_ok = anti_stub_cfg.max_placeholder_event_rate <= 0.0
+                        || placeholder_rate <= anti_stub_cfg.max_placeholder_event_rate;
+                    let trivial_ok = anti_stub_cfg.max_trivial_placeholder_event_rate <= 0.0
+                        || trivial_placeholder_rate
+                            <= anti_stub_cfg.max_trivial_placeholder_event_rate;
+                    let richness_ok = anti_stub_cfg.min_construct_richness_mean <= 0.0
+                        || construct_richness_mean >= anti_stub_cfg.min_construct_richness_mean;
+                    let passed = pass_rate_ok && placeholder_ok && trivial_ok && richness_ok;
+                    results.push(GateResult {
+                        name: "anti_stub".to_string(),
+                        passed,
+                        message: format!(
+                            "anti_stub_pass={:.3} (min={:.3}) placeholder_rate={:.3} \
+                             (max={:.3}) trivial_rate={:.3} (max={:.3}) \
+                             richness_mean={:.3} (min={:.3})",
+                            anti_stub_pass,
+                            anti_stub_cfg.min_pass_rate,
+                            placeholder_rate,
+                            anti_stub_cfg.max_placeholder_event_rate,
+                            trivial_placeholder_rate,
+                            anti_stub_cfg.max_trivial_placeholder_event_rate,
+                            construct_richness_mean,
+                            anti_stub_cfg.min_construct_richness_mean
+                        ),
+                        block: anti_stub_cfg.block,
+                    });
+                }
+            }
+        }
     }
 
     // --- per_context gates ------------------------------------------------------

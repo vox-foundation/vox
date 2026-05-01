@@ -1,15 +1,17 @@
 version: "1"
-# Post-training eval gate — used by Step 4 of full-pipeline.vox immediately after training.
+# Post-training eval gate — used by Step 5 of full-pipeline.vox immediately after training.
 #
-# Only gates on artifacts the QLoRA trainer itself writes:
-#   training_manifest.json (truncation, device_profile)
-#   telemetry.jsonl        (supervised_ratio, throughput)
-#   eval_results.json      (eval_local: vox_parse_rate, construct_coverage_pct)
+# Blocking gates cover only artifacts the QLoRA trainer or Step 4 corpus eval writes:
+#   training_manifest.json  → truncation, device_profile              (trainer)
+#   telemetry.jsonl         → supervised_ratio, throughput            (trainer)
+#   eval_results.json       → vox_parse_rate, construct_coverage_pct (Step 4 corpus eval)
 #
-# pass_at_k and review_recurrence require explicit follow-up steps:
-#   vox mens eval-local --model mens/runs/latest --bench <bench_dir>
-#   vox mens corpus eval  (or review pipeline)
-# Those gates are warn-only here so the pipeline can complete without them.
+# The following gates are WARN-ONLY because their source files require explicit
+# operator steps that run AFTER full-pipeline.vox completes:
+#   pass_at_k         → benchmark_passatk.json    written by `vox mens eval-local`
+#   anti_stub         → eval_local_report.json    written by `vox mens eval-local`
+#   review_recurrence → review_metrics.json       written by the review pipeline
+#
 # Run `vox mens eval-gate --run-dir mens/runs/latest` with eval-gates.yaml
 # (the full policy) once those steps are complete before promoting/serving.
 
@@ -52,11 +54,10 @@ mcp_tool_schema:
   block: false
   metrics_file: mcp_tool_schema_kpi.json
 
-# Warn-only: anti_stub_task_success, placeholder_event_rate, trivial_placeholder_event_rate,
-# and construct_richness_mean are written by `vox mens eval-local`, not by corpus eval
-# (Step 4) or the QLoRA trainer.  Missing fields default to 0.0 in check_run.rs; with
-# block: true and min_pass_rate: 0.92, Step 5 would always hard-block on fresh runs.
-# Matches the pass_at_k / review_recurrence warn-only pattern.
+# Warn-only: check_run.rs reads anti_stub metrics from eval_local_report.json,
+# written by `vox mens eval-local`.  That file does not exist until the operator
+# runs eval-local after training.  Missing file → warn (not block) here so Step 5
+# can complete on a fresh run.  Matches the pass_at_k / review_recurrence pattern.
 anti_stub:
   min_pass_rate: 0.92
   max_placeholder_event_rate: 0.08
