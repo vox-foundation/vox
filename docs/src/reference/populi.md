@@ -241,3 +241,101 @@ Mesh/security doc changes must remain **`training_eligible: true`** where approp
 - [ADR 017: lease-based remote execution](../adr/017-populi-lease-remote-execution.md), [ADR 018: GPU truth layering](../adr/018-populi-gpu-truth-layering.md)
 - [Work-type placement matrix](populi-work-type-placement-matrix.md)
 
+---
+
+## Appendix A — Hardware probe pipeline
+
+The hardware probe pipeline (`vox-populi::mens::hardware::pipeline`) provides structured, testable, observable hardware detection for Populi nodes. This appendix is the authoritative reference for probe names, attribute names, and operator override knobs.
+
+### Architecture
+
+```
+  operator Clavis override
+     │  (VoxGpuModel + VoxGpuVramMb)
+     │  preempts all probing → skip pipeline
+     ▼
+  ProbePipeline::default_for_platform()
+     │
+     ├── WinDxgiProbe   (Windows + mens-gpu feature)
+     ├── LinuxDrmProbe  (Linux)
+     ├── MacosMetalProbe (macOS)
+     ├── WgpuProbe      (cross-platform, mens-gpu feature)
+     └── NvmlProbe      (nvml-gpu-probe feature)
+     │
+     ▼
+  ProbeReport { summary, attempts }
+     │
+     └── HardwareRegistryV2 (TTL cache, default 5 min)
+```
+
+### Probe names
+
+| Name | Platform | Feature | Source |
+|------|----------|---------|--------|
+| `win_dxgi` | Windows | `mens-gpu` | DXGI `EnumAdapters` |
+| `linux_drm` | Linux | — | `/sys/class/drm` + `/proc/driver/nvidia` |
+| `macos_metal` | macOS | — | Static Apple Silicon stub |
+| `wgpu` | All | `mens-gpu` | wgpu adapter enumeration |
+| `nvml` | All | `nvml-gpu-probe` | NVML `device_by_index(0)` |
+
+### Probe outcomes
+
+| `ProbeOutcome` variant | Meaning |
+|------------------------|---------|
+| `NotApplicable` | `applicable()` returned `false`; probe skipped. `duration_ms == 0`. |
+| `NoDevice` | Probe ran; no matching device found on this machine. |
+| `Found(Box<HardwareSummary>)` | Probe succeeded. First `Found` wins as `ProbeReport::summary`. |
+| `Failed(String)` | Probe returned an error. Name added to `summary.probe_failures`. |
+
+### `vox.mesh.probe.*` span attributes
+
+Emitted as `tracing::debug!` events on every probe attempt.
+
+| Attribute | Type | Notes |
+|-----------|------|-------|
+| `vox.mesh.probe.name` | `&str` | Probe name (see table above). |
+| `vox.mesh.probe.outcome` | `&str` | One of: `found`, `no_device`, `not_applicable`, `failed`. |
+| `vox.mesh.probe.duration_ms` | `u64` | Wall-clock ms; `0` for `not_applicable`. |
+| `vox.mesh.probe.error` | `String` | Only on `failed`; the `ProbeError` display string. |
+
+### Operator override (Clavis)
+
+Set both secrets to bypass all probing:
+
+| Secret | Type | Example |
+|--------|------|---------|
+| `VoxGpuModel` | `String` | `"NVIDIA RTX 4090"` |
+| `VoxGpuVramMb` | `u64` as string | `"24576"` |
+
+When both are set, `probe_internal()` returns immediately with `probe_failures: None` and zero attempts.
+
+### Operator probe reorder
+
+To change the probe order without recompiling, call `ProbePipeline::reorder()`:
+
+```rust
+// vox:skip
+let pipeline = ProbePipeline::default_for_platform()
+    .reorder(&["nvml", "linux_drm", "wgpu"]);
+let report = pipeline.run().await;
+```
+
+Probes not listed are appended in their original relative order.
+
+### Cache TTL
+
+`HardwareRegistryV2` caches the last `ProbeReport::summary` for `DEFAULT_CACHE_TTL` (5 minutes). To force a re-probe:
+
+```rust
+// vox:skip
+vox_populi::mens::hardware::HardwareRegistry::invalidate_cache();
+```
+
+### Live-hardware tests
+
+Live tests require a real GPU. They are gated behind the `hw-probe-live-test` Cargo feature and must **not** be enabled on CI:
+
+```sh
+cargo test -p vox-populi --test probe_pipeline_live --features hw-probe-live-test
+```
+
