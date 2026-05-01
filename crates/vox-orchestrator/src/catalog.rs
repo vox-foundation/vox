@@ -486,7 +486,7 @@ impl ModelCatalog for MensCatalog {
                         id: format!("mens/{}", name),
                         canonical_slug: format!("mens/{}", name),
                         provider: "populi_local".to_string(),
-                        provider_type: ProviderType::Ollama, // Serves as Ollama-compatible
+                        provider_type: ProviderType::VoxLocal,
                         max_tokens: 8192,
                         cost_per_1k: 0.0,
                         cost_per_1k_input: 0.0,

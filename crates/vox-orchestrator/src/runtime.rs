@@ -174,6 +174,7 @@ impl TaskProcessor for AiTaskProcessor {
                         crate::models::ProviderType::PopuliMesh => "populimesh",
                         crate::models::ProviderType::HuggingFaceRouter => "huggingface",
                         crate::models::ProviderType::Custom(_) => "custom",
+                        crate::models::ProviderType::VoxLocal => "voxlocal",
                     };
                     allowed_providers.contains(provider_str)
                 })
@@ -209,6 +210,7 @@ impl TaskProcessor for AiTaskProcessor {
                 },
                 ModelRouteBackend::CascadeFallback => vox_ludus::StreamRoute::Cascade,
                 ModelRouteBackend::PopuliMesh => vox_ludus::StreamRoute::Cascade,
+                ModelRouteBackend::VoxLocal => vox_ludus::StreamRoute::Cascade,
             }
         } else {
             vox_ludus::StreamRoute::Cascade

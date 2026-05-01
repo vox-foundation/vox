@@ -26,7 +26,7 @@ pub(super) fn enforce_free_tier_if_needed(
 pub(super) fn mcp_local_model_allowed(m: &ModelSpec) -> bool {
     let is_local = matches!(
         m.provider_type,
-        ProviderType::Ollama | ProviderType::PopuliMesh
+        ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal
     );
     !is_local || inference_profile_allows_local_ollama_http()
 }

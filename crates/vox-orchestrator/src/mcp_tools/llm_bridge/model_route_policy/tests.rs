@@ -239,6 +239,7 @@ fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
             ModelRouteBackend::Ollama => ChatRouteBackend::Ollama,
             ModelRouteBackend::PopuliMesh => ChatRouteBackend::PopuliMesh,
             ModelRouteBackend::CascadeFallback => ChatRouteBackend::CascadeFallback,
+            ModelRouteBackend::VoxLocal => ChatRouteBackend::VoxLocal,
         }
     }
 

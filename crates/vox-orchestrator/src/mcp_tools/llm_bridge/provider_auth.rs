@@ -43,7 +43,10 @@ pub(crate) fn bearer_for(model: &ModelSpec) -> Result<String, HttpInferError> {
         ProviderType::HuggingFaceRouter => {
             required_secret(vox_clavis::SecretId::HuggingFaceToken, "HuggingFace")
         }
-        ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => {
+        ProviderType::GoogleDirect
+        | ProviderType::Ollama
+        | ProviderType::PopuliMesh
+        | ProviderType::VoxLocal => {
             Err(HttpInferError {
                 status: 0,
                 message: format!(

@@ -31,6 +31,8 @@ pub enum ChatRouteBackend {
     PopuliMesh,
     /// Aggregators, dedicated endpoints, BYOK OpenAI-compatible, and other non-native lanes.
     CascadeFallback,
+    /// Vox-trained MENS checkpoint at 127.0.0.1:7863 (custom wire protocol).
+    VoxLocal,
 }
 
 /// Resolved high-level route before HTTP client configuration.
@@ -84,5 +86,6 @@ pub fn backend_telemetry_labels(backend: ChatRouteBackend) -> (&'static str, &'s
         ChatRouteBackend::Ollama => ("mens", "populi_local"),
         ChatRouteBackend::PopuliMesh => ("mens", "populi_mesh"),
         ChatRouteBackend::CascadeFallback => ("custom", "cascade"),
+        ChatRouteBackend::VoxLocal => ("vox", "local"),
     }
 }
