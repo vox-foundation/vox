@@ -4,47 +4,13 @@
 // Replaces crates/vox-dashboard/src/App.tsx once the build pipeline is verified
 // and visual parity confirmed (smoke test against live orchestrator).
 //
-// TASK-7.2 will fill in each tab component with the ported panel content.
+// Tab components live in tabs/ and are compiled to generated/ alongside this file.
+// Edit tabs/speak.vox, tabs/command.vox, tabs/network.vox, tabs/forge.vox — not here.
 
-component SpeakTab() {
-    // TASK-7.2: port ComposerPanel + chat session logic here.
-    view: (
-        <column class="flex-1 p-4 gap-4">
-            <heading level="2">"LOQUELA"</heading>
-            <panel><text>"Speak tab content — pending TASK-7.2 port."</text></panel>
-        </column>
-    )
-}
-
-component CommandTab() {
-    // TASK-7.2: port EngineeringDiagnostics + task dispatch logic here.
-    view: (
-        <column class="flex-1 p-4 gap-4">
-            <heading level="2">"IMPERIUM"</heading>
-            <panel><text>"Command tab content — pending TASK-7.2 port."</text></panel>
-        </column>
-    )
-}
-
-component NetworkTab() {
-    // TASK-7.2: port MeshTopology + agent graph here.
-    view: (
-        <column class="flex-1 p-4 gap-4">
-            <heading level="2">"RETE"</heading>
-            <panel><text>"Network tab content — pending TASK-7.2 port."</text></panel>
-        </column>
-    )
-}
-
-component ForgeTab() {
-    // TASK-7.2: port PipelineView + WorkflowScrubber + AgentFlow using state_machine here.
-    view: (
-        <column class="flex-1 p-4 gap-4">
-            <heading level="2">"FABRICA"</heading>
-            <panel><text>"Forge tab content — pending TASK-7.2 port."</text></panel>
-        </column>
-    )
-}
+use tabs::speak::SpeakTab
+use tabs::command::CommandTab
+use tabs::network::NetworkTab
+use tabs::forge::ForgeTab
 
 component AppShell() {
     state tab: str = "speak"
