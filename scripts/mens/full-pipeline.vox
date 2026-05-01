@@ -219,7 +219,7 @@ fn main() {
         }
         print("  Pipeline complete.")
         print("  Next steps (required before serving):")
-        print("    vox mens eval-local --model mens/runs/latest --bench <bench_dir>")
+        print("    vox mens eval-local --model mens/runs/latest/candle_qlora_adapter.safetensors --bench mens/data/heldout_bench -o mens/runs/latest/eval_local_report.json")
         print("    vox mens eval-gate --run-dir mens/runs/latest  (full policy, promotes run)")
     }
 }
