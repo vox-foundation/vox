@@ -250,6 +250,13 @@ pub fn run() {
                 LintKind::DocTestFailed { msg } => {
                     eprintln!("{}", msg);
                 }
+                LintKind::UnlabeledCodeFence { at_line } => {
+                    eprintln!(
+                        "  WARN   {}:{} — code fence has no language tag; add one (e.g. ```bash, ```rust, ```toml)",
+                        rel.display(),
+                        at_line,
+                    );
+                }
             }
         }
 

@@ -34,4 +34,5 @@ pub enum LintKind {
     BrokenIncludeAnchor { file: String, anchor: String },
     WholeFileIncludeHasTrainingHeader { file: String },
     DocTestFailed { msg: String },
+    UnlabeledCodeFence { at_line: usize },
 }
