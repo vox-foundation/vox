@@ -5,8 +5,26 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 01 May 2026 06:01:26 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 01 May 2026 22:22:32 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Architecture Index</title>
+    <link>https://vox-lang.org/architecture/architecture-index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
+    <description>Auto-generated architecture index.</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Legacy URL Redirects on GitHub Pages</title>
+    <link>https://vox-lang.org/architecture/github-pages-redirects.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/github-pages-redirects.html</guid>
+    <description>How the Vox docs site handles old mdBook-era URLs via static HTML stubs on GitHub Pages.</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>GUI-Native Language Roadmap — Execution Status</title>
@@ -15,6 +33,55 @@
     <description>Live tracking of task completion for the Vox GUI-native language roadmap (April 2026).</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Vox GUI-Native Language Roadmap (April 2026)</title>
+    <link>https://vox-lang.org/architecture/vox-gui-native-roadmap-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-gui-native-roadmap-2026.html</guid>
+    <description>Executable roadmap for turning Vox into a GUI-native language whose compiler catches correctness invariants that React + TypeScript structurally cannot.</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Native ML Training Pipeline</title>
+    <link>https://vox-lang.org/explanation/expl-ml-pipeline.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-ml-pipeline.html</guid>
+    <description>End-to-end Mens ML pipeline: corpus → native Candle+qlora-rs QLoRA via vox mens train; Burn scratch path legacy.</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Explanation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>How To: Train Mens on RTX 4080 Super</title>
+    <link>https://vox-lang.org/how-to/how-to-train-mens-4080.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-train-mens-4080.html</guid>
+    <description>Official documentation for How To: Train Mens on RTX 4080 Super for the Vox language. Detailed technical reference, architecture guides</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
+    <category domain="https://schema.org">HowTo</category>
+  </item>
+
+  <item>
+    <title>Environment variables (SSOT)</title>
+    <link>https://vox-lang.org/reference/env-vars.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/env-vars.html</guid>
+    <description>Official documentation for Environment variables (SSOT) for the Vox language. Detailed technical reference, architecture guides, and impl</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Mens native training SSOT (Candle QLoRA–first; Burn LoRA deprecated in dispatch)</title>
+    <link>https://vox-lang.org/reference/mens-training.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/mens-training.html</guid>
+    <description>Official documentation for Mens native fine-tuning: contract-first Candle QLoRA, legacy Burn paths, merge/serve matrix.</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>
@@ -156,24 +223,6 @@
   </item>
 
   <item>
-    <title>Architecture Index</title>
-    <link>https://vox-lang.org/architecture/architecture-index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
-    <description>Auto-generated architecture index.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Legacy URL Redirects on GitHub Pages</title>
-    <link>https://vox-lang.org/architecture/github-pages-redirects.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/github-pages-redirects.html</guid>
-    <description>How the Vox docs site handles old mdBook-era URLs via static HTML stubs on GitHub Pages.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
     <title>Terminal Exec Policy SSOT (2026)</title>
     <link>https://vox-lang.org/architecture/terminal-exec-policy-ssot.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/terminal-exec-policy-ssot.html</guid>
@@ -181,15 +230,6 @@
     <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Vox GUI-Native Language Roadmap (April 2026)</title>
-    <link>https://vox-lang.org/architecture/vox-gui-native-roadmap-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-gui-native-roadmap-2026.html</guid>
-    <description>Executable roadmap for turning Vox into a GUI-native language whose compiler catches correctness invariants that React + TypeScript structurally cannot.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>
@@ -206,46 +246,6 @@
     <link>https://vox-lang.org/contributors/agent-instruction-architecture.html</link>
     <guid isPermaLink="true">https://vox-lang.org/contributors/agent-instruction-architecture.html</guid>
     <description>How Vox layers AGENTS, tool-specific overlays, continuation prompts, and CI gates for durable agent behavior.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Coding Agent Instructions</title>
-    <link>https://vox-lang.org/contributors/coding-agents.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/coding-agents.html</guid>
-    <description>Quick-reference heuristics, TOESTUB rule table, and pre-commit checklist for AI coding agents operating on Vox.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Continuation Prompt Engineering</title>
-    <link>https://vox-lang.org/contributors/continuation-prompt-engineering.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/continuation-prompt-engineering.html</guid>
-    <description>SSOT for the Vox continuation prompt, its design rationale, and the layered anti-skeleton defense model.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>The Vox Contribution Loop</title>
-    <link>https://vox-lang.org/contributors/contribution-loop.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/contribution-loop.html</guid>
-    <description>How Vox contributions feed the MENS training pipeline, why quality gates matter doubly, and what makes code training-eligible.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Contributor hub</title>
-    <link>https://vox-lang.org/contributors/contributor-hub.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/contributor-hub.html</guid>
-    <description>Start here for contributor-facing Vox documentation, governance, inventories, and review checklists.</description>
     <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
