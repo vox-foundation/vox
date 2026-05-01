@@ -1,4 +1,21 @@
 version: "1"
+# Full eval gate policy — used by:
+#   Step 2 of full-pipeline.vox (pre-flight, before training)
+#   `vox mens eval-gate --run-dir <run>` after eval-local + review pipeline
+#   Cycle 2 gate in scripts/mens/run_4080_cycles.vox
+#
+# All blocking gates require their source files to exist in the run directory.
+# On a first-ever run (no benchmark_passatk.json / eval_local_report.json /
+# review_metrics.json), use VOX_MENS_FORCE_TRAIN=1 to bypass Step 2.
+# After training run eval-local and the review pipeline to satisfy those gates.
+#
+# Source file map:
+#   training_manifest.json  → truncation, device_profile              (trainer)
+#   telemetry.jsonl         → supervised_ratio, throughput            (trainer)
+#   eval_results.json       → vox_parse_rate, construct_coverage_pct (corpus eval, Step 4)
+#   benchmark_passatk.json  → pass_at_k                              (`vox mens eval-local`)
+#   eval_local_report.json  → anti_stub                              (`vox mens eval-local`)
+#   review_metrics.json     → review_recurrence                      (review pipeline)
 
 supervised_ratio:
   min_pct: 10.0
