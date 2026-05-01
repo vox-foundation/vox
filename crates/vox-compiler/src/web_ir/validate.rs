@@ -460,12 +460,40 @@ fn validate_route_reachability(
         }
     }
 
-    // Collect all literal href/to values from link elements in the DOM arena.
+    // Collect all literal href/to values from link elements in the DOM arena,
+    // but only from nodes that are reachable from a declared view root.
+    // Orphan / detached nodes must not count as route references — they could
+    // hide `web_ir_validate.route.unreachable` diagnostics.
     let known_patterns: HashSet<&str> =
         route_entries.iter().map(|(p, _)| p.as_str()).collect();
     let mut referenced: HashSet<String> = HashSet::new();
 
-    for node in &module.dom_nodes {
+    // BFS/DFS from every view root to collect the reachable node set.
+    let mut reachable: HashSet<DomNodeId> = HashSet::new();
+    let mut work: Vec<DomNodeId> = module.view_roots.iter().map(|(_, id)| *id).collect();
+    while let Some(id) = work.pop() {
+        if !reachable.insert(id) {
+            continue;
+        }
+        let Some(node) = module.dom_nodes.get(id.0 as usize) else {
+            continue;
+        };
+        match node {
+            DomNode::Element { children, .. } => work.extend(children.iter().copied()),
+            DomNode::Fragment { children, .. } => work.extend(children.iter().copied()),
+            DomNode::Conditional { then_children, else_children, .. } => {
+                work.extend(then_children.iter().copied());
+                work.extend(else_children.iter().copied());
+            }
+            DomNode::Loop { body, .. } => work.extend(body.iter().copied()),
+            _ => {}
+        }
+    }
+
+    for id in &reachable {
+        let Some(node) = module.dom_nodes.get(id.0 as usize) else {
+            continue;
+        };
         let DomNode::Element { tag, attrs, .. } = node else {
             continue;
         };
@@ -993,6 +1021,40 @@ mod tests {
         assert!(
             diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
             "/about without any <link> should warn as potentially unreachable"
+        );
+    }
+
+    #[test]
+    fn orphan_link_does_not_suppress_unreachable_warning() {
+        // An <a href="/about"> that is NOT reachable from any view root (orphan)
+        // must not prevent the route.unreachable warning.
+        use crate::web_ir::{DomNode, DomNodeId, WebIrModule};
+        let mut m = WebIrModule::default();
+        // DomNodeId(0) = root div for "About" component (linked to view_root).
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "div".to_string(),
+            attrs: vec![],
+            children: vec![], // no children — the link node is NOT a child
+            span: None,
+        });
+        // DomNodeId(1) = detached <a href="/about"> — NOT reachable from root.
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(1),
+            tag: "a".to_string(),
+            attrs: vec![("href".to_string(), "/about".to_string())],
+            children: vec![],
+            span: None,
+        });
+        m.view_roots.push(("About".to_string(), DomNodeId(0)));
+        m.route_nodes.push(RouteNode::RouteTree {
+            routes: vec![make_route("route_about", "/about", Some("About"))],
+            span: None,
+        });
+        let diags = validate_web_ir(&m);
+        assert!(
+            diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
+            "orphan <a href='/about'> should not suppress unreachable warning: {diags:?}"
         );
     }
 }
