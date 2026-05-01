@@ -293,8 +293,11 @@ mod tests {
     #[test]
     fn qwen2_middle_key_matches_hf_naming() {
         let layout = qwen_layout_one_layer();
+        // middle_projection_key_for_layout uses layout.namespace_prefix, which is
+        // "model.layers" for qwen2 (no nested text_config) vs
+        // "model.language_model.layers" for qwen3.5 (text_config-wrapped).
         assert_eq!(
-            middle_block_projection_key(layout.architecture, 0),
+            middle_projection_key_for_layout(&layout, 0),
             "model.layers.0.self_attn.o_proj.weight"
         );
     }

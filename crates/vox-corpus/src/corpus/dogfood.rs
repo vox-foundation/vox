@@ -1,5 +1,8 @@
+#[cfg(feature = "database")]
 use anyhow::Result;
+#[cfg(feature = "database")]
 use serde_json::json;
+#[cfg(feature = "database")]
 use std::io::Write;
 #[cfg(feature = "database")]
 use vox_db::VoxDb;

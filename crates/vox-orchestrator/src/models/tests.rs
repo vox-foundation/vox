@@ -226,7 +226,7 @@ mod registry_filter_tests {
             .best_for_with_filter(
                 TaskCategory::CodeGen,
                 2,
-                CostPreference::Performance,
+                CostPreference::Economy,
                 |m| m.is_free && !matches!(m.provider_type, ProviderType::Ollama),
                 None,
             )

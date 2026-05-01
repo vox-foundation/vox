@@ -45,17 +45,15 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
     let name = super::tool_aliases::canonical_tool_name(name);
     match name {
         // ── Oratio (already strict) ─────────────────────────────────────────
-        #[cfg(feature = "oratio-rerank")]
+        // Schemas are pure JSON — no oratio-rerank types referenced; always available
+        // so that TOOL_REGISTRY coverage test passes in all feature configurations.
         "vox_oratio_transcribe" => parse_obj(
             r#"{"type":"object","properties":{"path":{"type":"string","description":"Workspace-relative or absolute path to an audio or transcript file"},"language_hint":{"type":"string"},"profile":{"type":"string","enum":["conservative","balanced","aggressive"]},"debug_parser_payload":{"type":"boolean"}},"required":["path"],"additionalProperties":false}"#,
         ),
-        #[cfg(feature = "oratio-rerank")]
         "vox_oratio_listen" => parse_obj(
             r#"{"type":"object","properties":{"path":{"type":"string"},"session_id":{"type":"string"},"timeout_ms":{"type":"integer","minimum":1},"max_duration_ms":{"type":"integer","minimum":1},"inference_deadline_ms":{"type":"integer","minimum":1},"heartbeat_ms":{"type":"integer","minimum":1},"language_hint":{"type":"string"},"profile":{"type":"string","enum":["conservative","balanced","aggressive"]},"route_mode":{"type":"string","enum":["none","tool","chat","orchestrator"]},"debug_parser_payload":{"type":"boolean"},"emit_asr_refine_path":{"type":"string"},"llm_refinement":{"type":"boolean"},"llm_min_det_confidence":{"type":"number"},"llm_max_output_tokens":{"type":"integer","minimum":1}},"required":["path"],"additionalProperties":false}"#,
         ),
-        #[cfg(feature = "oratio-rerank")]
         "vox_oratio_status" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        #[cfg(feature = "oratio-rerank")]
         "vox_speech_to_code" => parse_obj(
             r#"{"type":"object","description":"Exactly one of `path` (audio/transcript file under workspace) or `prompt` (text only). Chains Oratio STT when path is set, then vox_generate_code.","properties":{"path":{"type":"string","description":"Workspace-relative audio file for Candle Whisper + refine"},"prompt":{"type":"string","description":"Skip STT; use as codegen prompt"},"language_hint":{"type":"string"},"profile":{"type":"string","enum":["conservative","balanced","aggressive"]},"debug_parser_payload":{"type":"boolean"},"route_mode":{"type":"string","enum":["none","tool","chat","orchestrator"]},"include_route":{"type":"boolean","description":"When true (default), run deterministic intent routing on refined transcript (path mode only)"},"validate":{"type":"boolean"},"max_retries":{"type":"integer","minimum":0,"maximum":5},"session_id":{"type":"string","description":"Shared with generate; defaults to new correlation if omitted"},"output_surface_mode":{"type":"string"},"emit_trace_path":{"type":"string","description":"Append one JSON line (speech_trace.schema.json fields) under this workspace-relative path"}},"additionalProperties":false}"#,
         ),

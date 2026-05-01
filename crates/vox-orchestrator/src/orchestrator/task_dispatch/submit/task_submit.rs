@@ -406,6 +406,9 @@ impl Orchestrator {
         let mut held_remote = false;
         #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
         let mut placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueDefault;
+        // Populated inside #[cfg(feature = "populi-transport")] when a lease is granted.
+        #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
+        let mut routing_lease_id: Option<String> = None;
         #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
         let mut retrieval_context_attached = false;
 
@@ -684,6 +687,7 @@ impl Orchestrator {
                             crate::populi_remote::PlacementReasonCode::LocalQueueFallbackAfterRemoteRelayError;
                     }
                 }
+                routing_lease_id = lease_id.clone();
             }
         }
 
@@ -706,6 +710,7 @@ impl Orchestrator {
                     placement_reason = placement_reason.as_str(),
                     task_id = task_id.0,
                     agent_id = agent_id.0,
+                    lease_id = routing_lease_id.as_deref().unwrap_or(""),
                     "Task {} routed to agent {} (queue len: {})",
                     task_id,
                     agent_id,
