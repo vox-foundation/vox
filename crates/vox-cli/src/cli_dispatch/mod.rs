@@ -338,6 +338,17 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Llm { cmd } => {
             crate::commands::llm::run(cmd).await?;
         }
+        Cli::Generate { args } => {
+            crate::commands::generate::run(
+                &args.prompt,
+                args.output,
+                args.no_validate,
+                args.server_url.as_deref(),
+                args.max_retries,
+                args.legacy_direct,
+            )
+            .await?;
+        }
         #[cfg(feature = "dei")]
         Cli::Visus { cmd } => {
             crate::commands::visus::dispatch(cmd)

@@ -1,17 +1,12 @@
-//! `vox generate` — generate validated Vox code using the QWEN fine-tuned model.
+//! `vox generate` — generate validated Vox code using the MENS fine-tuned model.
 //!
-//! **Product scope:** this command uses **HTTP → localhost** only (`/generate`). It does **not**
-//! attach the workspace journey DB, emit `contracts/orchestration/journey-envelope.v1.schema.json`,
-//! or share MCP `vox_generate_code` routing — see `docs/src/reference/cli.md`
-//! (“`vox generate` (HTTP inference) vs MCP codegen”).
+//! By default this routes through the orchestrator's VoxLocal path, which gives:
+//!   - TTL-cached health probes (no redundant /health calls per invocation)
+//!   - Consistent endpoint resolution from `VOX_LOCAL_ENDPOINT`
+//!   - Aligned telemetry with MCP codegen calls
 //!
-//! Calls the inference server at localhost:7863 (started by `python scripts/vox_inference.py --serve`)
-//! or starts it automatically if not running.
-//!
-//! Usage:
-//!     vox generate "Create a counter actor with increment and decrement"
-//!     vox generate "Write a todo app" --output todo.vox
-//!     vox generate "Write unit tests for the factorial function" --no-validate
+//! Use `--legacy-direct` to bypass the orchestrator and call the inference server
+//! directly (the original behavior before Task 1.9).
 
 use anyhow::{Context, Result};
 use std::io::Write;
@@ -26,17 +21,103 @@ pub async fn run(
     no_validate: bool,
     server_url: Option<&str>,
     max_retries: Option<u32>,
+    legacy_direct: bool,
 ) -> Result<()> {
-    let url = server_url.unwrap_or(DEFAULT_SERVER_URL);
-    let endpoint = format!("{}/generate", url);
+    let retries = max_retries.unwrap_or(3);
+    let validate = !no_validate;
 
-    // Check if server is running
     let client = vox_reqwest_defaults::client_builder()
         .timeout(std::time::Duration::from_secs(120))
         .build()
         .context("Failed to build HTTP client")?;
 
-    // Health check
+    let (code, valid, errors, warnings, attempts) = if legacy_direct {
+        run_legacy_direct(&client, prompt, server_url, validate, retries).await?
+    } else {
+        run_via_orchestrator(&client, prompt, validate, retries).await?
+    };
+
+    // Print status line
+    eprintln!();
+    match valid {
+        Some(true) => {
+            eprintln!("✅ Valid Vox code generated (attempts: {})", attempts);
+        }
+        Some(false) => {
+            eprintln!(
+                "⚠️  Generated code may have issues (attempts: {})",
+                attempts
+            );
+            for e in &errors {
+                eprintln!("   ❌ {}", e);
+            }
+        }
+        None => {
+            eprintln!("ℹ️  Validation skipped");
+        }
+    }
+    for w in &warnings {
+        eprintln!("   ⚠ {}", w);
+    }
+    eprintln!();
+
+    if let Some(output_path) = output {
+        std::fs::write(&output_path, &code)
+            .with_context(|| format!("Failed to write to {}", output_path.display()))?;
+        eprintln!("📄 Wrote {} bytes to {}", code.len(), output_path.display());
+    }
+
+    let stdout = std::io::stdout();
+    let mut handle = stdout.lock();
+    handle.write_all(code.as_bytes())?;
+    handle.write_all(b"\n")?;
+
+    if valid == Some(false) && !errors.is_empty() {
+        std::process::exit(1);
+    }
+
+    Ok(())
+}
+
+type GenerateOutput = (String, Option<bool>, Vec<String>, Vec<String>, u64);
+
+async fn run_via_orchestrator(
+    client: &reqwest::Client,
+    prompt: &str,
+    validate: bool,
+    max_retries: u32,
+) -> Result<GenerateOutput> {
+    eprintln!("🔮 Generating Vox code via orchestrator...");
+    eprintln!("   Prompt: {}", prompt);
+
+    let result =
+        vox_orchestrator::mcp_tools::llm_bridge::vox_local_generate(client, prompt, validate, max_retries)
+            .await
+            .map_err(|e| {
+                eprintln!("⚠️  VoxLocal inference unavailable: {e}");
+                eprintln!("   Start it with: python scripts/vox_inference.py --serve");
+                anyhow::anyhow!(e)
+            })?;
+
+    Ok((
+        result.code,
+        result.valid,
+        result.errors,
+        result.warnings,
+        result.attempts,
+    ))
+}
+
+async fn run_legacy_direct(
+    client: &reqwest::Client,
+    prompt: &str,
+    server_url: Option<&str>,
+    validate: bool,
+    max_retries: u32,
+) -> Result<GenerateOutput> {
+    let url = server_url.unwrap_or(DEFAULT_SERVER_URL);
+    let endpoint = format!("{}/generate", url);
+
     match client.get(format!("{}/health", url)).send().await {
         Ok(resp) if resp.status().is_success() => {
             eprintln!("📡 Connected to inference server at {}", url);
@@ -58,8 +139,8 @@ pub async fn run(
 
     let body = serde_json::json!({
         "prompt": prompt,
-        "validate": !no_validate,
-        "max_retries": max_retries.unwrap_or(3),
+        "validate": validate,
+        "max_retries": max_retries,
     });
 
     let resp = client
@@ -99,47 +180,5 @@ pub async fn run(
         })
         .unwrap_or_default();
 
-    // Print status line
-    eprintln!();
-    match valid {
-        Some(true) => {
-            eprintln!("✅ Valid Vox code generated (attempts: {})", attempts);
-        }
-        Some(false) => {
-            eprintln!(
-                "⚠️  Generated code may have issues (attempts: {})",
-                attempts
-            );
-            for e in &errors {
-                eprintln!("   ❌ {}", e);
-            }
-        }
-        None => {
-            eprintln!("ℹ️  Validation skipped");
-        }
-    }
-    for w in &warnings {
-        eprintln!("   ⚠ {}", w);
-    }
-    eprintln!();
-
-    // Output the code
-    if let Some(output_path) = output {
-        std::fs::write(&output_path, &code)
-            .with_context(|| format!("Failed to write to {}", output_path.display()))?;
-        eprintln!("📄 Wrote {} bytes to {}", code.len(), output_path.display());
-    }
-
-    // Always print the code to stdout
-    let stdout = std::io::stdout();
-    let mut handle = stdout.lock();
-    handle.write_all(code.as_bytes())?;
-    handle.write_all(b"\n")?;
-
-    // Exit non-zero if validation failed
-    if valid == Some(false) && !errors.is_empty() {
-        std::process::exit(1);
-    }
-
-    Ok(())
+    Ok((code, valid, errors, warnings, attempts))
 }

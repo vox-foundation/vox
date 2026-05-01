@@ -343,6 +343,11 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::llm::LlmCmd,
     },
+    /// Generate Vox code from a natural-language prompt using the MENS inference model.
+    Generate {
+        #[command(flatten)]
+        args: cli_args::GenerateArgs,
+    },
     /// Vox Visus: Voice of Vision. Agentic GUI visual intelligence and bug detection.
     #[cfg(feature = "dei")]
     Visus {
