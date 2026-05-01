@@ -104,6 +104,7 @@ fn a2a_from_row(row: &turso::Row) -> Result<A2AStoredMessage, MeshStoreError> {
         task_kind: col_opt(15)?,
         model_id: col_opt(16)?,
         sender_node_id: col_opt(17)?,
+        traceparent: col_opt(18)?,
     })
 }
 
@@ -130,14 +131,15 @@ impl MeshStore for VoxDbMeshStore {
                 id, sender_agent_id, receiver_agent_id, message_type, payload,
                 idempotency_key, idempotency_dedupe_key, privacy_class, payload_blake3_hex,
                 worker_ed25519_sig_b64, jwe_payload, priority, task_kind, model_id,
-                sender_node_id, created_at, acknowledged, lease_holder_node_id,
-                lease_expires_unix_ms
+                sender_node_id, traceparent, created_at, acknowledged,
+                lease_holder_node_id, lease_expires_unix_ms
             ) VALUES (
-                ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19
+                ?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16,?17,?18,?19,?20
             ) ON CONFLICT(id) DO UPDATE SET
                 acknowledged          = excluded.acknowledged,
                 lease_holder_node_id  = excluded.lease_holder_node_id,
                 lease_expires_unix_ms = excluded.lease_expires_unix_ms,
+                traceparent           = excluded.traceparent,
                 acked_at              = CASE WHEN excluded.acknowledged = 1
                                              THEN COALESCE(acked_at, excluded.created_at)
                                              ELSE NULL END"#,
@@ -157,6 +159,7 @@ impl MeshStore for VoxDbMeshStore {
                 msg.task_kind.as_deref(),
                 msg.model_id.as_deref(),
                 msg.sender_node_id.as_deref(),
+                msg.traceparent.as_deref(),
                 msg.created_unix_ms as i64,
                 if msg.acknowledged { 1i64 } else { 0i64 },
                 msg.lease_holder_node_id.as_deref(),
@@ -183,7 +186,7 @@ impl MeshStore for VoxDbMeshStore {
                       created_at, acknowledged, lease_holder_node_id, lease_expires_unix_ms,
                       privacy_class, idempotency_dedupe_key, payload_blake3_hex,
                       worker_ed25519_sig_b64, jwe_payload, priority, task_kind, model_id,
-                      sender_node_id
+                      sender_node_id, traceparent
                FROM mesh_a2a_messages WHERE 1=1"#,
         );
         let mut args: Vec<turso::Value> = Vec::new();

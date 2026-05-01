@@ -750,6 +750,19 @@ pub(super) async fn deliver_a2a(
             "populi: submitter/mesh/admin token required for a2a/deliver".into(),
         ));
     }
+    // Emit vox.mesh.* span attributes (S1 local observability).
+    let trace_id_for_span = req
+        .traceparent
+        .as_deref()
+        .and_then(|tp| vox_mesh_types::MeshTraceContext::from_traceparent(tp).ok())
+        .map(|ctx| ctx.trace_id_hex());
+    tracing::debug!(
+        "vox.mesh.message_type" = req.message_type.as_str(),
+        "vox.mesh.privacy_class" = req.privacy_class.as_deref().unwrap_or("public"),
+        "vox.mesh.trace_id" = trace_id_for_span.as_deref().unwrap_or(""),
+        "vox.mesh.dispatch_kind" = "local",
+    );
+
     let sender_agent_id = parse_a2a_mesh_agent_id("sender_agent_id", &req.sender_agent_id)?;
     let receiver_agent_id = parse_a2a_mesh_agent_id("receiver_agent_id", &req.receiver_agent_id)?;
     let sender_node_id = if let PopuliAuthContext::NodeSignature { node_id, .. } = &ctx {
@@ -831,6 +844,7 @@ pub(super) async fn deliver_a2a(
             task_kind: req.task_kind.clone(),
             model_id: req.model_id.clone(),
             sender_node_id: sender_node_id.clone(),
+            traceparent: req.traceparent.clone(),
         };
         let mut g = st.a2a_messages.write().await;
         a2a_sweep_expired_leases(&mut g, crate::now_ms());
@@ -872,6 +886,7 @@ pub(super) async fn deliver_a2a(
         task_kind: req.task_kind.clone(),
         model_id: req.model_id.clone(),
         sender_node_id,
+        traceparent: req.traceparent.clone(),
     };
     let mut g = st.a2a_messages.write().await;
     a2a_sweep_expired_leases(&mut g, crate::now_ms());
@@ -1147,6 +1162,17 @@ pub(super) async fn a2a_inbox(
     m.lease_holder_node_id = Some(claimer.to_string());
     m.lease_expires_unix_ms = Some(now.saturating_add(lease_ms));
     let claimed = m.clone();
+    tracing::debug!(
+        "vox.mesh.message_id" = claimed.id,
+        "vox.mesh.message_type" = claimed.message_type.as_str(),
+        "vox.mesh.trace_id" = claimed
+            .traceparent
+            .as_deref()
+            .and_then(|tp| vox_mesh_types::MeshTraceContext::from_traceparent(tp).ok())
+            .map(|ctx| ctx.trace_id_hex())
+            .as_deref()
+            .unwrap_or(""),
+    );
     let one = vec![claimed.clone()];
     if let Some(path) = st.a2a_store_path.as_ref() {
         let _ = persist_a2a_store(path, &g);
@@ -1176,6 +1202,17 @@ pub(super) async fn a2a_ack(
         msg.acknowledged = true;
         msg.lease_holder_node_id = None;
         msg.lease_expires_unix_ms = None;
+        tracing::debug!(
+            "vox.mesh.message_id" = msg.id,
+            "vox.mesh.message_type" = msg.message_type.as_str(),
+            "vox.mesh.trace_id" = msg
+                .traceparent
+                .as_deref()
+                .and_then(|tp| vox_mesh_types::MeshTraceContext::from_traceparent(tp).ok())
+                .map(|ctx| ctx.trace_id_hex())
+                .as_deref()
+                .unwrap_or(""),
+        );
 
         // Wave 2: Kudos crediting for job results.
         if msg.message_type == "job_result" {

@@ -791,6 +791,7 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
                 priority: 255,
                 task_kind: Some("clavis_sync".to_string()),
                 model_id: None,
+                traceparent: None,
             };
 
             match client.relay_a2a(&deliver_req).await {

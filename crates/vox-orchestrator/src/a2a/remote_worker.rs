@@ -289,6 +289,7 @@ async fn run_remote_worker_tick(
                 jwe_payload: None,
                 task_kind: None,
                 model_id: None,
+                traceparent: None,
                 priority: 128,
             })
             .await;

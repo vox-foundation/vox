@@ -5,6 +5,7 @@ pub mod model_registry;
 pub mod quorum;
 pub mod secret_sync;
 pub mod task;
+pub mod trace;
 
 pub use donation_policy::*;
 pub use federation::*;
@@ -13,3 +14,4 @@ pub use model_registry::*;
 pub use quorum::*;
 pub use secret_sync::*;
 pub use task::*;
+pub use trace::{MeshTraceContext, ParseTraceparentError, SpanId, TraceId};

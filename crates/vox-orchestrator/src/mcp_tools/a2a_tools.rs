@@ -516,6 +516,7 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
                         jwe_payload: None,
                         task_kind: None,
                         model_id: None,
+                        traceparent: None,
                         priority: 128,
                     })
                     .await

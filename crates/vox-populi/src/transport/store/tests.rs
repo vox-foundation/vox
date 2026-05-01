@@ -23,6 +23,7 @@ mod unit {
             task_kind: None,
             model_id: None,
             sender_node_id: None,
+            traceparent: None,
         }
     }
 

@@ -85,6 +85,12 @@ pub struct A2ADeliverRequest {
     /// Optional target model id.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_id: Option<String>,
+    /// W3C `traceparent` (e.g. `"00-{32hex}-{16hex}-01"`).
+    ///
+    /// When present the receiver SHOULD continue the trace (S2).
+    /// S1 attaches it to the handler span as `vox.mesh.trace_id` only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub traceparent: Option<String>,
 }
 
 /// Persisted A2A delivery envelope in the control plane.
@@ -137,6 +143,9 @@ pub struct A2AStoredMessage {
     /// Node id that sent this message (if authenticated via node signature).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sender_node_id: Option<String>,
+    /// W3C `traceparent` copied from the deliver request (for cross-node propagation in S2).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub traceparent: Option<String>,
 }
 
 fn default_priority() -> u8 {

@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS mesh_a2a_messages (
     task_kind               TEXT,
     model_id                TEXT,
     sender_node_id          TEXT,
+    traceparent             TEXT,
     created_at              INTEGER NOT NULL,
     acked_at                INTEGER,
     acknowledged            INTEGER NOT NULL DEFAULT 0,

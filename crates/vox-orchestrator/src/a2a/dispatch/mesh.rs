@@ -53,6 +53,7 @@ pub async fn relay_to_mesh(
             jwe_payload: None,
             task_kind: None,
             model_id: None,
+            traceparent: None,
             priority: 128,
         })
         .await
@@ -115,6 +116,7 @@ pub async fn relay_remote_task_envelope(
             jwe_payload,
             task_kind: Some("vox_script".to_string()),
             model_id: None,
+            traceparent: None,
             priority: 128,
         })
         .await
@@ -147,6 +149,7 @@ pub async fn relay_remote_task_cancel(
             jwe_payload: None,
             task_kind: None,
             model_id: None,
+            traceparent: None,
             priority: 255,
         })
         .await
