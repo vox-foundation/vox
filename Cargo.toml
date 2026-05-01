@@ -121,6 +121,7 @@ tokio              = { version = "1", features = ["rt", "macros", "sync", "time"
 tokio-stream       = { version = "0.1", default-features = false }
 tracing            = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-test       = "0.2"
 anyhow             = "1"
 reqwest            = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
 bsky-sdk = { version = "0.1", default-features = false, features = ["atrium-xrpc-client", "rich-text", "default-client"] }

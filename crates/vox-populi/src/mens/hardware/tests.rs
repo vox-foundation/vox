@@ -147,4 +147,62 @@ mod tests {
         assert_eq!(report.attempts[0].duration_ms, 0);
         assert!(matches!(report.attempts[1].outcome, ProbeOutcome::Found(_)));
     }
+
+    #[tokio::test]
+    #[tracing_test::traced_test]
+    async fn pipeline_emits_event_per_attempt() {
+        let pipeline = ProbePipeline::empty()
+            .with_probe(Box::new(MockProbe {
+                name: "found",
+                applicable: true,
+                result: Ok(Some(dummy_summary())),
+            }))
+            .with_probe(Box::new(MockProbe {
+                name: "broken",
+                applicable: true,
+                result: Err(ProbeError::Other("x".into())),
+            }));
+        let _ = pipeline.run().await;
+        assert!(logs_contain("vox.mesh.probe.name=\"found\""));
+        assert!(logs_contain("vox.mesh.probe.outcome=\"found\""));
+        assert!(logs_contain("vox.mesh.probe.name=\"broken\""));
+        assert!(logs_contain("vox.mesh.probe.outcome=\"failed\""));
+    }
+
+    #[tokio::test]
+    async fn pipeline_reorder_changes_probe_sequence() {
+        let pipeline = ProbePipeline::empty()
+            .with_probe(Box::new(MockProbe {
+                name: "alpha",
+                applicable: true,
+                result: Ok(Some(dummy_summary())),
+            }))
+            .with_probe(Box::new(MockProbe {
+                name: "beta",
+                applicable: true,
+                result: Ok(Some(dummy_summary())),
+            }))
+            .reorder(&["beta", "alpha"]);
+        assert_eq!(pipeline.probes[0].name(), "beta");
+        assert_eq!(pipeline.probes[1].name(), "alpha");
+    }
+
+    #[tokio::test]
+    async fn pipeline_reorder_unknown_names_appended() {
+        let pipeline = ProbePipeline::empty()
+            .with_probe(Box::new(MockProbe {
+                name: "a",
+                applicable: true,
+                result: Ok(Some(dummy_summary())),
+            }))
+            .with_probe(Box::new(MockProbe {
+                name: "b",
+                applicable: true,
+                result: Ok(Some(dummy_summary())),
+            }))
+            .reorder(&["b"]);
+        // "b" is first, "a" is appended after
+        assert_eq!(pipeline.probes[0].name(), "b");
+        assert_eq!(pipeline.probes[1].name(), "a");
+    }
 }

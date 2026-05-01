@@ -1,6 +1,7 @@
 use crate::mens::hardware::probe::{HardwareProbe, ProbeAttempt, ProbeOutcome, ProbeReport};
 use crate::mens::hardware::types::{ComputeBackend, GpuVendor, HardwareSummary};
 use std::time::Instant;
+use tracing::debug;
 
 /// Runs a sequence of [`HardwareProbe`]s in order, collecting an attempt log.
 ///
@@ -35,6 +36,11 @@ impl ProbePipeline {
         for probe in &self.probes {
             let name = probe.name();
             if !probe.applicable() {
+                debug!(
+                    "vox.mesh.probe.name" = name,
+                    "vox.mesh.probe.outcome" = "not_applicable",
+                    "vox.mesh.probe.duration_ms" = 0u64,
+                );
                 attempts.push(ProbeAttempt {
                     probe_name: name,
                     outcome: ProbeOutcome::NotApplicable,
@@ -47,6 +53,11 @@ impl ProbePipeline {
             let duration_ms = start.elapsed().as_millis() as u64;
             match res {
                 Ok(Some(s)) => {
+                    debug!(
+                        "vox.mesh.probe.name" = name,
+                        "vox.mesh.probe.outcome" = "found",
+                        "vox.mesh.probe.duration_ms" = duration_ms,
+                    );
                     let s_clone = s.clone();
                     attempts.push(ProbeAttempt {
                         probe_name: name,
@@ -58,6 +69,11 @@ impl ProbePipeline {
                     }
                 }
                 Ok(None) => {
+                    debug!(
+                        "vox.mesh.probe.name" = name,
+                        "vox.mesh.probe.outcome" = "no_device",
+                        "vox.mesh.probe.duration_ms" = duration_ms,
+                    );
                     attempts.push(ProbeAttempt {
                         probe_name: name,
                         outcome: ProbeOutcome::NoDevice,
@@ -65,6 +81,12 @@ impl ProbePipeline {
                     });
                 }
                 Err(e) => {
+                    debug!(
+                        "vox.mesh.probe.name" = name,
+                        "vox.mesh.probe.outcome" = "failed",
+                        "vox.mesh.probe.duration_ms" = duration_ms,
+                        "vox.mesh.probe.error" = %e,
+                    );
                     failures.push(name.to_string());
                     attempts.push(ProbeAttempt {
                         probe_name: name,
@@ -84,6 +106,24 @@ impl ProbePipeline {
 }
 
 impl ProbePipeline {
+    /// Returns a new pipeline with probes reordered according to `order`.
+    ///
+    /// Probes named in `order` appear first in the given sequence; any probes
+    /// not listed are appended in their original relative order. Unknown names
+    /// in `order` are silently ignored.
+    pub fn reorder(self, order: &[&str]) -> Self {
+        let mut remaining: Vec<Box<dyn HardwareProbe>> = self.probes;
+        let mut reordered: Vec<Box<dyn HardwareProbe>> = Vec::with_capacity(remaining.len());
+
+        for &name in order {
+            if let Some(pos) = remaining.iter().position(|p| p.name() == name) {
+                reordered.push(remaining.remove(pos));
+            }
+        }
+        reordered.extend(remaining);
+        Self { probes: reordered }
+    }
+
     /// Returns the platform-default probe order.
     ///
     /// On Windows: DXGI → wgpu → NVML (feature-gated).

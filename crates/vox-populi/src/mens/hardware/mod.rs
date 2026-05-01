@@ -1,6 +1,6 @@
-use crate::mens::hardware::types::{ComputeBackend, HardwareSummary, vendor_from_model};
-use std::sync::Arc;
-use tokio::sync::OnceCell;
+use crate::mens::hardware::types::HardwareSummary;
+use std::sync::{Arc, OnceLock};
+use std::time::Duration;
 
 pub mod linux_drm;
 pub mod macos_metal;
@@ -8,6 +8,7 @@ pub mod macos_metal;
 pub mod nvml;
 pub mod pipeline;
 pub mod probe;
+pub mod registry;
 pub mod types;
 #[cfg(test)]
 mod mock;
@@ -18,18 +19,22 @@ pub mod wgpu_probe;
 #[cfg(all(target_os = "windows", feature = "mens-gpu"))]
 pub mod win_dxgi;
 
-static REGISTRY: OnceCell<Arc<HardwareSummary>> = OnceCell::const_new();
+/// Default probe cache TTL. Re-probes after 5 minutes by default.
+const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(300);
+
+static REGISTRY_V2: OnceLock<registry::HardwareRegistryV2> = OnceLock::new();
+
+fn global_registry() -> &'static registry::HardwareRegistryV2 {
+    REGISTRY_V2.get_or_init(|| registry::HardwareRegistryV2::new(DEFAULT_CACHE_TTL))
+}
 
 /// Global hardware registry for the Mens subsystem.
 pub struct HardwareRegistry;
 
 impl HardwareRegistry {
-    /// Probes the hardware and caches the result for the lifetime of the process.
+    /// Returns a cached hardware summary, re-probing if the cache has expired (default TTL: 5 min).
     pub async fn probe() -> Arc<HardwareSummary> {
-        REGISTRY
-            .get_or_init(|| async { Arc::new(probe_internal().await) })
-            .await
-            .clone()
+        global_registry().probe().await
     }
 
     /// Monitors real-time telemetry (not cached).
@@ -43,43 +48,19 @@ impl HardwareRegistry {
             None
         }
     }
+
+    /// Invalidates the cache, forcing the next [`Self::probe`] call to re-probe.
+    pub fn invalidate_cache() {
+        global_registry().invalidate();
+    }
 }
 
-/// Compatibility wrapper for the new registry.
+/// Compatibility wrapper — returns a cached hardware summary.
 pub async fn probe() -> Arc<HardwareSummary> {
     HardwareRegistry::probe().await
 }
 
-/// Probes with the full attempt log. Used by `vox doctor mesh` and diagnostics.
+/// Probes with the full attempt log, bypassing the cache.
 pub async fn probe_with_report() -> crate::mens::hardware::probe::ProbeReport {
-    crate::mens::hardware::pipeline::ProbePipeline::default_for_platform()
-        .run()
-        .await
-}
-
-async fn probe_internal() -> HardwareSummary {
-    // 1. Check for operator overrides in vox-clavis (preempts probing entirely).
-    if let (Some(model), Some(vram_s)) = (
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGpuModel).expose(),
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGpuVramMb).expose(),
-    ) {
-        if let Ok(vram_mb) = vram_s.parse::<u64>() {
-            return HardwareSummary {
-                vendor: vendor_from_model(&model),
-                model_name: model.to_string(),
-                vram_mb,
-                gpu_count: 1,
-                backend: ComputeBackend::Unknown,
-                driver_version: None,
-                pci_bus_id: None,
-                probe_failures: None,
-            };
-        }
-    }
-
-    // 2. Run the platform-default pipeline.
-    crate::mens::hardware::pipeline::ProbePipeline::default_for_platform()
-        .run()
-        .await
-        .summary
+    global_registry().probe_with_report().await
 }
