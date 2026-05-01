@@ -1,3 +1,10 @@
+---
+title: "Internal Web IR Implementation Blueprint"
+description: "Implementation plan, acceptance gates, and parity requirements for the Vox internal Web IR layer."
+category: architecture
+status: current
+---
+
 # Internal Web IR Implementation Blueprint
 
 This document describes the implementation plan and acceptance gates for the Vox internal Web IR layer.

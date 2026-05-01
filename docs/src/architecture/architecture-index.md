@@ -46,6 +46,7 @@ training_eligible: false
 - [Feature growth and boundaries SSOT (2026)](feature-growth-boundaries.md)
 - [GUI-Native Language Roadmap — Execution Status](gui-native-roadmap-status-2026.md)
 - [Inference Tuning Resolution Research 2026](inference-tuning-resolution-research-2026.md)
+- [Internal Web IR Implementation Blueprint](internal-web-ir-implementation-blueprint.md)
 - [MENS Training — Architecture Pointer](mens-training-ssot.md)
 - [Master planning index](planning-meta/01-master-planning-index.md)
 - [Migration of Vox Compiler to AI-Native Architecture](path-b-decommission-2026.md)

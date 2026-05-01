@@ -1,3 +1,10 @@
+---
+title: "vox-codegen-ts API"
+description: "API reference for the vox-codegen-ts crate: HIR-to-TypeScript/TSX code generation pipeline."
+category: "api-crate"
+status: current
+---
+
 # vox-codegen-ts API
 
 The `vox-codegen-ts` crate translates Vox HIR into TypeScript/TSX output files.
