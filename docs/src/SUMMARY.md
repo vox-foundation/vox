@@ -226,6 +226,8 @@ training_eligible: false
 - [Operations catalog SSOT](archive/research-2026-q1/operations-catalog-ssot.md)
 - [Oratio IDE Protocol (SSOT)](archive/research-2026-q1/oratio-ide-protocol-ssot.md)
 - [Orchestrator AgentEventKind → Ludus matrix](archive/research-2026-q1/agent-event-kind-ludus-matrix.md)
+- [Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan](architecture/2026-05-01-orchestrator-companion-audit-design.md)
+- [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](architecture/2026-05-01-orchestrator-stage1-stage2.md)
 - [Orchestrator multi-agent groundwork (2026)](archive/research-2026-q1/orchestrator-multi-agent-groundwork-2026.md)
 - [Plan adequacy — thin plans, external limits, and Vox mitigation](archive/research-2026-q1/plan-adequacy.md)
 - [Planning critique and gap analysis](architecture/planning-meta/04-planning-critique-gap-analysis.md)

@@ -1,3 +1,12 @@
+---
+title: "Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan"
+description: "Implementation plan for 7 P0/P1 fixes across the orchestrator gateway, runtime, grounding, and daemon surfaces. Covers FIX-K-03, FIX-K-05, FIX-K-06, FIX-B-02, FIX-E-01, FIX-H-03, FIX-O-03."
+category: "architecture"
+status: "current"
+training_eligible: false
+authored: "2026-05-01"
+---
+
 # Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
