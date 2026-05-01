@@ -22,26 +22,23 @@ fn check_disk_pressure() to bool {
 }
 
 fn clean_workspace_target() to Result[str] {
-    print("Cleaning workspace target/ (main repo)...")
-    print("  Next build will recompile everything from scratch.")
-    print("  Estimated time: 8-15 min on this machine.")
-    // vox:skip — shell.exec not yet stable; run the equivalent manually:
-    //   cargo clean
-    // from /c/Users/Owner/vox
-    return Ok("workspace target cleaned")
+    print("Workspace target/ (main repo) cleanup is currently MANUAL.")
+    print("  Run from /c/Users/Owner/vox:  cargo clean")
+    print("  Next build will recompile everything from scratch (~8-15 min).")
+    // vox:skip — shell.exec not yet stable; this stub does NOT execute cargo clean.
+    return Ok("skipped: manual `cargo clean` required (see prints above)")
 }
 
 fn clean_worktree_targets() to Result[str] {
     let worktree_base = ".claude/worktrees"
-    print("Scanning for orphaned worktree target directories under " + worktree_base + "...")
-    // vox:skip — fs.walk + shell.rm_dir not yet stable.
-    // Manual equivalent: delete any directory matching
-    //   C:\Users\Owner\vox\.claude\worktrees\*\target\
-    // that belongs to a worktree you are no longer actively building.
-    // Currently known orphans (>10 GB each):
-    //   loving-lamport-8a528f/target   (~22 GB)
-    //   lucid-varahamihira-11f7c2/target (~49 GB)
-    return Ok("worktree sweep complete (manual step required — see above)")
+    print("Worktree target/ sweep is currently MANUAL.")
+    print("  Delete directories matching " + worktree_base + "/*/target/")
+    print("  for any worktree you are no longer building.")
+    print("  Currently known orphans (>10 GB each):")
+    print("    loving-lamport-8a528f/target   (~22 GB)")
+    print("    lucid-varahamihira-11f7c2/target (~49 GB)")
+    // vox:skip — fs.walk + shell.rm_dir not yet stable; this stub does NOT delete anything.
+    return Ok("skipped: manual deletion required (see prints above)")
 }
 
 fn print_size_report() to Unit {
@@ -68,13 +65,13 @@ fn main() to Unit {
 
     let ws = clean_workspace_target()
     match ws {
-        Ok(msg) -> print("  [ok] " + msg)
+        Ok(msg) -> print("  [skipped] " + msg)
         Error(e) -> print("  [err] " + e)
     }
 
     let wt = clean_worktree_targets()
     match wt {
-        Ok(msg) -> print("  [ok] " + msg)
+        Ok(msg) -> print("  [skipped] " + msg)
         Error(e) -> print("  [err] " + e)
     }
 

@@ -333,8 +333,8 @@ pub enum Expr {
     },
     /// Braced sequence of statements in an expression position (e.g. after `=>`).
     ///
-    /// How the block’s value is determined is enforced in `vox-typeck` (typically the tail must be
-    /// an expression or `return`).
+    /// How the block’s value is determined is enforced during typechecking in `vox-compiler`
+    /// (typically the tail must be an expression or `return`).
     Block {
         /// Statements executed in order.
         stmts: Vec<crate::ast::stmt::Stmt>,

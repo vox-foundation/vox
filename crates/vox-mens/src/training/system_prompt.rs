@@ -118,38 +118,39 @@ const CORE_SYNTAX: &str = r#"## Core Syntax
 - `# single line comment` or `// single line comment`
 - `import module.name` — import external dependency
 
-## Actors (Message-Passing Concurrency)
+## Durable Execution (April 2026 surface)
+The `actor`, `workflow`, and `activity` keywords are **tombstoned** at the parser
+level. Durable steps are written as ordinary `Result`-returning `fn`s and
+registered with the runtime; a unified `@durable(kind: workflow|activity|actor)`
+decorator (parallel to `@endpoint(kind: …)`) is queued behind a separate ADR.
 ```
-actor Counter:
+fn charge_card(amount: int) to Result[str] {
+    if amount > 1000 {
+        return Error("Amount too large")
+    }
+    return Ok("tx_123")
+}
+
+fn checkout(amount: int) to Result[str] {
+    let result = charge_card(amount)
+    return result
+}
+```
+
+## Components (Vox-native reactivity, default for greenfield)
+Per ADR 027, greenfield UI uses `component` / `state_machine` / `routes`. The
+classic `@component fn` and `@island` are reserved for explicit React/TanStack
+interop and require a `// @track: react-interop` file header.
+```
+component Counter() {
     state count: int = 0
-    on increment() to int:
-        count = count + 1
-        count
-    on reset() to Unit:
-        count = 0
-```
-- `spawn(ActorName)` — creates a new actor instance
-- `handle.send(method(args))` — sends a message to the actor
-
-## Workflows & Activities (Durable Execution)
-```
-activity name(param: type) to Result[Type]:
-    return Ok(value)
-workflow name(param: type) to Result[Type]:
-    let result = activity_call(args) with { retries: N, timeout: "Ns" }
-    return Ok(result)
-```
-
-## Components (JSX Syntax)
-```
-@component fn Name() to Element:
-    let (state, set_state) = use_state(initial_value)
-    <div class="container">
-        <h1>"Title"</h1>
-        <input bind={state} placeholder="..." />
-        for item in items:
-            <div class="item">{item.text}</div>
-    </div>
+    derived label: str = "Count: " + str(count)
+    view:
+        <div class="counter">
+            <h1>{label}</h1>
+            <button onClick={count = count + 1}>"Increment"</button>
+        </div>
+}
 ```
 
 ## Best Practices

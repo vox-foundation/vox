@@ -147,7 +147,7 @@
             display: flex; align-items: center; gap: 0.5cqw;
         }
 
-        /* 0-10% (0-2s) */
+        /* 0-10% (0-4s) */
         #pkt-commit { animation: p-cmt 40s infinite linear; background: var(--violet); color: white; box-shadow: 0 0 2% var(--violet); }
         @keyframes p-cmt {
             0%, 1% { left: 30%; top: 50%; opacity: 0; }
@@ -155,7 +155,7 @@
             9%, 100% { left: 30%; top: 85%; opacity: 0; }
         }
 
-        /* 10-20% (2-4s) */
+        /* 10-20% (4-8s) */
         #pkt-exec1 { animation: p-ex1 40s infinite linear; background: var(--amber); color: black; box-shadow: 0 0 2% var(--amber); }
         @keyframes p-ex1 {
             0%, 11% { left: 30%; top: 50%; opacity: 0; }
@@ -163,7 +163,7 @@
             19%, 100% { left: 75%; top: 30%; opacity: 0; }
         }
 
-        /* 20-30% (4-6s) FALLING OOM ERROR */
+        /* 20-30% (8-12s) FALLING OOM ERROR */
         #pkt-err { animation: p-err 40s infinite ease-out; background: var(--err); color: white; box-shadow: 0 0 4% var(--err); }
         @keyframes p-err {
             0%, 21% { left: 75%; top: 30%; opacity: 0; transform: translate(-50%,-50%) scale(0.5); }
@@ -173,7 +173,7 @@
             31%, 100% { opacity: 0; }
         }
 
-        /* 30-40% (6-8s) QUERYING */
+        /* 30-40% (12-16s) QUERYING */
         #pkt-fetch { animation: p-fch 40s infinite linear; background: var(--amber); color: black; box-shadow: 0 0 1% var(--amber); }
         @keyframes p-fch {
             0%, 31% { left: 30%; top: 50%; opacity: 0; }
@@ -181,7 +181,7 @@
             39%, 100% { left: 30%; top: 85%; opacity: 0; }
         }
 
-        /* 40-50% (8-10s) MASSING BLOB REHYDRATE */
+        /* 40-50% (16-20s) MASSING BLOB REHYDRATE */
         #pkt-rehyd { animation: p-reh 40s infinite ease-out; background: rgba(0,240,255,0.1); color: var(--cyan); border: 0.3cqw solid var(--cyan); box-shadow: 0 0 3% var(--cyan) inset, 0 0 5% var(--cyan); font-size: 1.8cqw; border-radius: 5px; }
         @keyframes p-reh {
             0%, 41% { left: 30%; top: 85%; opacity: 0; }
@@ -190,7 +190,7 @@
             49%, 100% { left: 30%; top: 50%; opacity: 0; }
         }
 
-        /* 60-70% (12-14s) SECOND DISPATCH */
+        /* 60-70% (24-28s) SECOND DISPATCH */
         #pkt-exec2 { animation: p-ex2 40s infinite linear; background: var(--amber); color: black; box-shadow: 0 0 2% var(--amber); }
         @keyframes p-ex2 {
             0%, 61% { left: 30%; top: 50%; opacity: 0; }
@@ -198,7 +198,7 @@
             69%, 100% { left: 75%; top: 70%; opacity: 0; }
         }
 
-        /* 80-90% (16-18s) RETURN OK */
+        /* 80-90% (32-36s) RETURN OK */
         #pkt-res { animation: p-res 40s infinite linear; background: var(--emerald); color: black; box-shadow: 0 0 2% var(--emerald); }
         @keyframes p-res {
             0%, 81% { left: 75%; top: 70%; opacity: 0; }
@@ -206,7 +206,7 @@
             89%, 100% { left: 30%; top: 50%; opacity: 0; }
         }
 
-        /* 90-100% (18-20s) MCP BROADCAST */
+        /* 90-100% (36-40s) MCP BROADCAST */
         #pkt-out { animation: p-out 40s infinite linear; background: white; color: black; box-shadow: 0 0 3% white; }
         @keyframes p-out {
             0%, 91% { left: 30%; top: 50%; opacity: 0; }

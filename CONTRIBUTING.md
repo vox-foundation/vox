@@ -34,7 +34,7 @@ Welcome. This file is the **short golden path**; deeper policy lives in [AGENTS.
 - [ ] `cargo fmt`, `cargo clippy` (as appropriate)
 - [ ] Targeted `cargo test -p <crate>` for crates you changed
 - [ ] `vox ci line-endings` (or CI will flag)
-- [ ] Docs SSOT if you changed user-visible behavior (see [`doc-to-code-acceptance-checklist.md`](docs/src/archive/research-2026-q1/doc-to-code-acceptance-checklist.md))
+- [ ] Docs SSOT if you changed user-visible behavior (see [`documentation-governance.md`](docs/src/contributors/documentation-governance.md))
 
 ## Deep onboarding
 

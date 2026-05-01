@@ -14,7 +14,7 @@ training_rationale: "Provides documentation for the VS Code extension, including
 
 ## Features
 
-- **Syntax Highlighting** — Full TextMate grammar for `.vox` files covering keywords, decorators (`@table`, `@server`, `@component`, `@agent_def`, `@skill`, `@mcp.tool`, etc.), types, JSX tags, strings, and comments.
+- **Syntax Highlighting** — Full TextMate grammar for `.vox` files covering keywords, decorators (`@table`, `@endpoint`, `@component`, `@agent_def`, `@skill`, `@mcp.tool`, etc.), types, JSX tags, strings, and comments.
 - **Language Server Protocol** — Real-time diagnostics, hover information, and completions via `vox-lsp`.
 - **Build Commands** — "Vox: Build Current File" and "Vox: Run Current Project" from the command palette.
 - **Visual Editor** — "Vox: Open Visual Editor" opens a webview preview (`dist/index.html` when present, otherwise a localhost dev iframe).
