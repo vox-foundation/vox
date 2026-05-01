@@ -9,6 +9,10 @@ version: "1"
 # review_metrics.json), use VOX_MENS_FORCE_TRAIN=1 to bypass Step 2.
 # After training run eval-local and the review pipeline to satisfy those gates.
 #
+# After every gate run (pass or fail) gate_receipt.json is written to run_dir:
+#   {"schema":"vox_mens_gate_receipt_v1","overall_passed":true,"gates":[...]}
+# Orchestrators and A2A consumers read this instead of re-running the gate.
+#
 # Source file map:
 #   training_manifest.json  → truncation, device_profile              (trainer)
 #   telemetry.jsonl         → supervised_ratio, throughput            (trainer)

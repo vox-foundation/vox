@@ -367,6 +367,74 @@ anti_stub:
 }
 
 #[test]
+fn run_eval_gate_writes_gate_receipt_json_on_pass() {
+    use super::run_gate::run_eval_gate;
+    let dir = tempfile::tempdir().expect("tempdir");
+
+    // Write enough artifacts for a clean pass (no trainer artifacts → trainer gates skip)
+    // Write eval_local_report.json so anti_stub gate can read fields
+    std::fs::write(
+        dir.path().join("eval_local_report.json"),
+        r#"{"anti_stub_task_success":0.95,"placeholder_event_rate":0.02,"trivial_placeholder_event_rate":0.01,"construct_richness_mean":0.40}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+anti_stub:
+  min_pass_rate: 0.92
+  max_placeholder_event_rate: 0.08
+  max_trivial_placeholder_event_rate: 0.08
+  min_construct_richness_mean: 0.20
+  block: true
+"#,
+    )
+    .unwrap();
+
+    let code = run_eval_gate(dir.path().to_path_buf(), Some(policy_path)).expect("run");
+    assert_eq!(code, 0, "gate should pass");
+
+    let receipt_path = dir.path().join("gate_receipt.json");
+    assert!(receipt_path.exists(), "gate_receipt.json must be written");
+    let text = std::fs::read_to_string(&receipt_path).unwrap();
+    let v: serde_json::Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(v["schema"], "vox_mens_gate_receipt_v1");
+    assert!(v["overall_passed"].as_bool().unwrap_or(false), "overall_passed should be true");
+    let gates = v["gates"].as_array().expect("gates array");
+    assert!(!gates.is_empty(), "gates list should not be empty");
+}
+
+#[test]
+fn run_eval_gate_writes_gate_receipt_json_on_fail() {
+    use super::run_gate::run_eval_gate;
+    let dir = tempfile::tempdir().expect("tempdir");
+    // eval_local_report.json with bad metrics → anti_stub fails blocking
+    std::fs::write(
+        dir.path().join("eval_local_report.json"),
+        r#"{"anti_stub_task_success":0.50}"#,
+    )
+    .unwrap();
+    let policy_path = dir.path().join("policy.yaml");
+    std::fs::write(
+        &policy_path,
+        r#"version: "1"
+anti_stub:
+  min_pass_rate: 0.92
+  block: true
+"#,
+    )
+    .unwrap();
+    let code = run_eval_gate(dir.path().to_path_buf(), Some(policy_path)).expect("run");
+    assert_eq!(code, 1, "gate should fail");
+    let v: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(dir.path().join("gate_receipt.json")).unwrap(),
+    )
+    .unwrap();
+    assert!(!v["overall_passed"].as_bool().unwrap_or(true), "overall_passed false on fail");
+}
+
+#[test]
 fn pass_at_k_gate_fails_on_regression_drop() {
     let dir = tempfile::tempdir().expect("tempdir");
     std::fs::write(
