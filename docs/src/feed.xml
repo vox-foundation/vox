@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 01 May 2026 00:41:55 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 01 May 2026 00:58:16 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -31,6 +31,15 @@
     <link>https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</guid>
     <description>Live tracking of task completion for the Vox GUI-native language roadmap (April 2026).</description>
+    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Vox GUI-Native Language Roadmap (April 2026)</title>
+    <link>https://vox-lang.org/architecture/vox-gui-native-roadmap-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-gui-native-roadmap-2026.html</guid>
+    <description>Executable roadmap for turning Vox into a GUI-native language whose compiler catches correctness invariants that React + TypeScript structurally cannot.</description>
     <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -240,16 +249,6 @@
     <link>https://vox-lang.org/adr/021-generated-workflow-durability-parity.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/021-generated-workflow-durability-parity.html</guid>
     <description>Defines the compatibility contract for bringing generated Rust workflows to durable replay parity.</description>
-    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Orchestrator bootstrap factory and daemon boundaries</title>
-    <link>https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</guid>
-    <description>Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-dei-d, and optional future orchestrator daemon.</description>
     <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>

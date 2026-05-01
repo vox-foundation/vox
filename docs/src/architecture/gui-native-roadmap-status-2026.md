@@ -68,7 +68,7 @@ training_eligible: false
 
 Path A (collapse, original goal) executed at commit `080b3f86`. The roadmap intended to unify `workflow`/`activity`/`actor` declarations under one HIR shape (`HirFn + Option<DurabilityKind>`). This is now done:
 
-- Parser accepts `workflow name(params) to T { body }`, `activity name(params) to T { body }`, and `actor Name { state field: Type; on event(params) { body } }`
+- Parser accepts `workflow name(params) -> T { body }`, `activity name(params) -> T { body }`, and `actor Name { state field: Type; on event(params) { body } }`
 - All three lower to `HirFn` with a `DurabilityKind` discriminant
 - `http`/`agent`/`env`/`@component` remain tombstoned (Path B, separate scope)
 - No standalone `HirActor`/`HirWorkflow`/`HirActivity` structs were needed — they were already absent from the HIR at the time of Path A execution
