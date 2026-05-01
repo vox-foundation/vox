@@ -61,9 +61,9 @@ fn main() {
     
     // Step 1: Corpus Mix
     if skip_mix {
-        print("Step 1/4: Skipping corpus mix (VOX_MENS_SKIP_MIX set).")
+        print("Step 1/5: Skipping corpus mix (VOX_MENS_SKIP_MIX set).")
     } else {
-        print("Step 1/4: Running corpus mix for domain '" + domain + "'...")
+        print("Step 1/5: Running corpus mix for domain '" + domain + "'...")
         
         print("  Running primary mix (mix.yaml → target/dogfood/train_mixed.jsonl)...")
         let primary_mix = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "corpus", "mix", "--config", "mens/config/mix.yaml"])
@@ -112,9 +112,9 @@ fn main() {
     // that resolves as a non-existent path and the gate silently no-ops (Ok(0)).
     // Set VOX_MENS_FORCE_TRAIN=1 to proceed past a failing gate (dev iteration only).
     if skip_eval {
-        print("Step 2/4: Skipping pre-flight eval (VOX_MENS_SKIP_EVAL set).")
+        print("Step 2/5: Skipping pre-flight eval (VOX_MENS_SKIP_EVAL set).")
     } else {
-        print("Step 2/4: Running pre-flight eval gate (mens/config/eval-gates.yaml)...")
+        print("Step 2/5: Running pre-flight eval gate (mens/config/eval-gates.yaml)...")
         let eval_run = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "eval-gate", "--run-dir", "mens/runs/latest"])
         if eval_run isnt null {
             let res = eval_run.unwrap()
@@ -133,7 +133,7 @@ fn main() {
     }
 
     // Step 3: Training
-    print("Step 3/4: Launching training...")
+    print("Step 3/5: Launching training...")
     let mut train_args = [
         "run", "-p", "vox-cli", "--",
         "mens", "train",
@@ -177,14 +177,14 @@ fn main() {
     }
 
     if background == false {
-        // Step 3.5: Refresh eval_results.json in the run directory.
+        // Step 4: Refresh eval_results.json in the run directory.
         // The QLoRA trainer does NOT write eval_results.json (only the legacy
-        // mens-dei+gpu path does). Without this step, Step 4's eval_local gate
+        // mens-dei+gpu path does). Without this step, Step 5's eval_local gate
         // would read a stale file left by the previous pipeline run — or find
         // nothing at all on a first run. We evaluate the same train.jsonl the
         // trainer consumed and write fresh results directly into the run dir.
         // Non-blocking: a corpus eval failure should not abort a successful training run.
-        print("  Refreshing corpus eval metrics for run dir...")
+        print("Step 4/5: Refreshing corpus eval metrics...")
         let corpus_eval = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "corpus", "eval", "target/dogfood/train.jsonl", "--output", "mens/runs/latest/eval_results.json", "--print-summary"])
         if corpus_eval isnt null {
             let res = corpus_eval.unwrap()
@@ -200,7 +200,7 @@ fn main() {
         // warn-only because those require explicit eval-local + review pipeline
         // steps after training. Blocking gates cover trainer-written artifacts:
         // training_manifest.json, telemetry.jsonl, eval_results.json.
-        print("Step 4/4: Post-training verification (run receipt)...")
+        print("Step 5/5: Post-training verification (run receipt)...")
         let post_gate = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "eval-gate", "--run-dir", "mens/runs/latest", "--policy", "mens/config/eval-gates-post-train.yaml"])
         if post_gate isnt null {
             let res = post_gate.unwrap()
