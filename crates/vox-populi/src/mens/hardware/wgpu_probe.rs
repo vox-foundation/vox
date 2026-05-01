@@ -1,4 +1,22 @@
+use crate::mens::hardware::probe::{HardwareProbe, ProbeError};
 use crate::mens::hardware::types::{ComputeBackend, GpuVendor, HardwareSummary};
+use async_trait::async_trait;
+
+/// Hardware probe backend using wgpu for cross-platform GPU detection.
+pub struct WgpuProbe;
+
+#[async_trait]
+impl HardwareProbe for WgpuProbe {
+    fn name(&self) -> &'static str {
+        "wgpu"
+    }
+    fn applicable(&self) -> bool {
+        true
+    }
+    async fn probe(&self) -> Result<Option<HardwareSummary>, ProbeError> {
+        Ok(probe_wgpu().await)
+    }
+}
 
 pub async fn probe_wgpu() -> Option<HardwareSummary> {
     use wgpu::{Backends, Instance, InstanceDescriptor};

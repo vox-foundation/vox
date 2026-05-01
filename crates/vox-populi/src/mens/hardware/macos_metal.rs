@@ -1,4 +1,22 @@
+use crate::mens::hardware::probe::{HardwareProbe, ProbeError};
 use crate::mens::hardware::types::HardwareSummary;
+use async_trait::async_trait;
+
+/// Hardware probe backend using the macOS Metal framework.
+pub struct MacosMetalProbe;
+
+#[async_trait]
+impl HardwareProbe for MacosMetalProbe {
+    fn name(&self) -> &'static str {
+        "macos_metal"
+    }
+    fn applicable(&self) -> bool {
+        cfg!(target_os = "macos")
+    }
+    async fn probe(&self) -> Result<Option<HardwareSummary>, ProbeError> {
+        Ok(probe_metal())
+    }
+}
 
 #[cfg(target_os = "macos")]
 pub fn probe_metal() -> Option<HardwareSummary> {
