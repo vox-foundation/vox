@@ -232,7 +232,14 @@ pub(crate) fn split_summary_into_claim_segments(summary: &str) -> Vec<&str> {
     let mut start = 0usize;
     let mut i = 0usize;
     while i < summary.len() {
-        let c = summary[i..].chars().next().expect("char boundary");
+        let c = summary[i..].chars().next().unwrap_or_else(|| {
+            panic!(
+                "BUG: byte index {i} is not on a UTF-8 char boundary \
+                 in summary of {} bytes — this indicates a logic error in \
+                 the summarization loop",
+                summary.len()
+            )
+        });
         let clen = c.len_utf8();
         let split_here = match c {
             '\n' | ';' | '!' | '?' => true,
@@ -601,6 +608,27 @@ mod tests {
         let s = "Büro Müllerstraße. Der Port ist 443.";
         let p = split_summary_into_claim_segments(s);
         assert_eq!(p, vec!["Büro Müllerstraße. Der Port ist 443"]);
+    }
+
+    #[test]
+    fn char_iteration_handles_multibyte_unicode() {
+        // '中' is 3 bytes in UTF-8. This test verifies the summarization
+        // loop iterates correctly over multibyte characters without panicking.
+        let s = "Hello 中文 world".to_string();
+        let mut i = 0;
+        let mut chars_seen = 0usize;
+        while i < s.len() {
+            let c = s[i..].chars().next().unwrap_or_else(|| {
+                panic!(
+                    "BUG: byte index {i} is not on a UTF-8 char boundary \
+                     in string of {} bytes",
+                    s.len()
+                )
+            });
+            i += c.len_utf8();
+            chars_seen += 1;
+        }
+        assert_eq!(chars_seen, s.chars().count());
     }
 
     #[test]
