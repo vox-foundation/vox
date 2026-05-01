@@ -6,6 +6,7 @@
 //! [`crate::usage::UsageTracker`] / budget paths). **Unset + no DB** ⇒ **emit** so operators still see cost signals.
 //! Truthy `1`/`true` forces emits even with DB; `0`/`false` disables. Full semantics: `docs/src/reference/env-vars.md`.
 
+use crate::models::scoring::is_deepseek_off_peak;
 use crate::models::{ModelSpec, ProviderType};
 use crate::usage::UsageTracker;
 use crate::{AgentEventKind, BudgetGate, GateResult};
@@ -54,14 +55,45 @@ fn should_emit_llm_cost_events(state: &ServerState) -> bool {
     }
 }
 
-fn estimated_cost_usd(model: &ModelSpec, prompt_tokens: u32, completion_tokens: u32) -> f64 {
-    let in_cost = model.cost_per_1k_input;
-    let out_cost = model.cost_per_1k_output;
-    if in_cost > 0.0 || out_cost > 0.0 {
-        ((prompt_tokens as f64 / 1000.0) * in_cost)
-            + ((completion_tokens as f64 / 1000.0) * out_cost)
+/// DeepSeek off-peak discount factors applied to both input and output token pricing.
+/// Window: UTC 16:30–00:30. V3 = 50% off (factor 0.5); R1 = 75% off (factor 0.25).
+fn deepseek_off_peak_discount(model: &ModelSpec) -> f64 {
+    if matches!(model.provider_type, ProviderType::DeepSeek) && is_deepseek_off_peak() {
+        if model.id.to_ascii_lowercase().contains("r1") {
+            0.25 // 75% discount
+        } else {
+            0.50 // 50% discount
+        }
     } else {
-        (((prompt_tokens + completion_tokens) as f64) / 1000.0) * model.cost_per_1k
+        1.0 // no discount
+    }
+}
+
+fn estimated_cost_usd(
+    model: &ModelSpec,
+    prompt_tokens: u32,
+    completion_tokens: u32,
+    cached_tokens: Option<u32>,
+) -> f64 {
+    let discount = deepseek_off_peak_discount(model);
+    let in_cost = model.cost_per_1k_input * discount;
+    let out_cost = model.cost_per_1k_output * discount;
+    if in_cost > 0.0 || out_cost > 0.0 {
+        let cached = cached_tokens.unwrap_or(0).min(prompt_tokens);
+        let non_cached = prompt_tokens - cached;
+        // When the model supports prompt caching and the provider reported hits,
+        // use cache_read_cost_per_1k for those tokens (typically 10% of input price).
+        // Cache-hit pricing is also discounted during off-peak.
+        let cache_read_cost = model.cache_read_cost_per_1k * discount;
+        let input_cost = if cached > 0 && cache_read_cost > 0.0 {
+            (non_cached as f64 / 1000.0) * in_cost
+                + (cached as f64 / 1000.0) * cache_read_cost
+        } else {
+            (prompt_tokens as f64 / 1000.0) * in_cost
+        };
+        input_cost + (completion_tokens as f64 / 1000.0) * out_cost
+    } else {
+        (((prompt_tokens + completion_tokens) as f64) / 1000.0) * model.cost_per_1k * discount
     }
 }
 
@@ -424,13 +456,27 @@ pub async fn mcp_infer_tool_completion(
                 completion_tokens: ct,
                 provider_request_id,
                 provider_reported_cost_usd,
+                cached_input_tokens,
             }) => {
                 let total_tok = (pt + ct) as u64;
-                let estimated_usd = estimated_cost_usd(&model, pt, ct);
+                let estimated_usd = estimated_cost_usd(&model, pt, ct, cached_input_tokens);
                 let (reconciled_usd, cost_source) = match provider_reported_cost_usd {
                     Some(provider_usd) => (provider_usd, "provider_reported"),
                     None => (estimated_usd, "estimated"),
                 };
+
+                if let Some(cached) = cached_input_tokens {
+                    tracing::debug!(
+                        target: "vox.mcp.llm.cache",
+                        model_id = %model.id,
+                        tool = %tool,
+                        cached_tokens = cached,
+                        prompt_tokens = pt,
+                        cache_pct = %format!("{:.1}%", (cached as f64 / pt.max(1) as f64) * 100.0),
+                        "prompt cache hit"
+                    );
+                }
+
                 if let Some(db) = state.db.as_ref() {
                     let tracker = if let Some(user_id) = routing.user_id {
                         UsageTracker::with_user(db.as_ref(), user_id)
@@ -472,6 +518,7 @@ pub async fn mcp_infer_tool_completion(
                             "provider_request_id": provider_request_id,
                             "user_id": routing.user_id,
                             "cost_source": cost_source,
+                            "cached_input_tokens": cached_input_tokens,
                         })),
                     });
                 }

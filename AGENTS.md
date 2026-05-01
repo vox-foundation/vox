@@ -134,10 +134,12 @@ that can be expressed as a decorator. New execution semantics (durability,
 tracing, sandboxing, rate-limiting) belong as decorators on `fn`.
 
 **Implementation status (Phase 2):** `actor`, `workflow`, and `activity` are
-currently tombstoned at the parser level — source files cannot use these forms.
-Their unification into `@durable fn` / `@actor fn` decorator sugar is tracked
-under **TASK-2.6**. Until TASK-2.6 lands, the compiler rejects these keywords
-with a friendly error pointing to the decorator equivalent.
+tombstoned at the parser level — source files cannot use these forms.
+TASK-2.6 has landed (commit `e7f3e884`): `ActorDecl`/`WorkflowDecl`/`ActivityDecl`
+AST types, all corresponding HIR types, codegen emit paths, and typeck/walker
+registrations were removed. The compiler now rejects these keywords with a
+tombstone error. The decorator-equivalent forms (`@durable fn`, `@actor fn`) are
+**not yet implemented** and are future work beyond TASK-2.6.
 
 See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/architecture/gui-native-roadmap-status-2026.md) §Phase 2.
 

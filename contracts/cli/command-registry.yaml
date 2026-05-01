@@ -276,18 +276,6 @@ operations:
 - surface: vox-cli
   path:
   - ci
-  - doctest-md
-  status: active
-  latin_ns: null
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: false
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
   - coverage-gates
   status: active
   latin_ns: null
@@ -1748,6 +1736,58 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::migrate
+- surface: vox-cli
+  path:
+  - model
+  - pricing
+  - check
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::pricing
+- surface: vox-cli
+  path:
+  - model
+  - pricing
+  - refresh
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::pricing
+- surface: vox-cli
+  path:
+  - model
+  - pricing
+  - rollup
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::pricing
+- surface: vox-cli
+  path:
+  - model
+  - pricing
+  - show
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::pricing
 - surface: vox-cli
   path:
   - openclaw

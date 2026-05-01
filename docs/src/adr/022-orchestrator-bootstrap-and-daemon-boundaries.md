@@ -1,5 +1,5 @@
 ---
-title: "Orchestrator bootstrap factory and daemon boundaries"
+title: "ADR 022 — Orchestrator bootstrap factory and daemon boundaries"
 description: "Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-dei-d, and optional future orchestrator daemon."
 category: "reference"
 last_updated: "2026-04-01"

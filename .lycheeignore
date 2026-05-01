@@ -1,4 +1,5 @@
 # Ignored dynamically for rate limit / anti-bot
+.*opentelemetry\.io.*
 .*linkedin\.com.*
 .*cursor\.com/.*
 .*sigstore\.dev/.*

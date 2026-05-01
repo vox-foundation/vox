@@ -136,6 +136,10 @@ mod tests {
             observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         }
     }
@@ -171,6 +175,10 @@ mod tests {
             observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: ModelCapabilities::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         };
         let headers = extra_headers_for(&model);
