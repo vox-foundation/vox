@@ -606,6 +606,17 @@ impl PopuliTransportState {
         s
     }
 
+    /// Set a one-time bootstrap token, overriding the `VoxMeshBootstrapToken` env value.
+    ///
+    /// When set, `POST /v1/populi/bootstrap/exchange` accepts this token exactly once and
+    /// returns the long-lived mesh bearer token to the caller.  The token is consumed on
+    /// first use; subsequent calls receive 410 Gone.
+    pub fn with_bootstrap_token(mut self, token: impl Into<Arc<str>>) -> Self {
+        self.bootstrap_token = Some(token.into());
+        self.bootstrap_used = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        self
+    }
+
     /// Load initial snapshot from disk (best-effort) and apply scope from **`VOX_MESH_SCOPE_ID`**.
     pub async fn load_from_path(path: &std::path::Path) -> Result<Self, PopuliRegistryError> {
         let reg = if path.is_file() {

@@ -110,6 +110,44 @@ async fn process_one_envelope(
         "populi remote worker: processing envelope"
     );
 
+    // Decrypt JWE-wrapped secrets forwarded by the orchestrator and inject them
+    // into the process environment so Clavis can find them when the task runs.
+    // Key derivation mirrors the sender in dispatch/mesh.rs: BLAKE3(VoxMeshJwtHmacSecret).
+    if let Some(jwe) = msg.jwe_payload.as_deref() {
+        let mesh_secret = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshJwtHmacSecret);
+        if let Some(mesh_val) = mesh_secret.expose() {
+            let derived = blake3::hash(mesh_val.as_bytes());
+            match super::jwe::decrypt_jwe_compact(jwe, derived.as_bytes()) {
+                Ok(plain) => {
+                    if let Ok(secrets) =
+                        serde_json::from_slice::<std::collections::HashMap<String, String>>(&plain)
+                    {
+                        for (k, v) in &secrets {
+                            #[allow(unsafe_code)]
+                            unsafe {
+                                std::env::set_var(k, v);
+                            }
+                        }
+                        tracing::info!(
+                            task_id = envelope.task_id,
+                            message_id = msg.id,
+                            secret_count = secrets.len(),
+                            "populi remote worker: JWE secrets injected into environment"
+                        );
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        task_id = envelope.task_id,
+                        message_id = msg.id,
+                        error = %e,
+                        "populi remote worker: JWE decrypt failed; proceeding without forwarded secrets"
+                    );
+                }
+            }
+        }
+    }
+
     let payload_context = parse_remote_payload_context(&envelope.payload);
     let envelope_session_id = envelope
         .session_id

@@ -138,6 +138,11 @@ pub enum PopuliCli {
         /// Known peer mesh URLs to gossip federation status with (comma-separated).
         #[arg(long, value_delimiter = ',')]
         bootstrap_peers: Vec<String>,
+        /// One-time bootstrap token for `vox populi pair` exchanges.
+        /// When set, `POST /v1/populi/bootstrap/exchange` accepts this token once
+        /// and returns the long-lived mesh token to the caller.
+        #[arg(long)]
+        bootstrap_token: Option<String>,
     },
     /// Inspect or validate the resolved mesh configuration.
     Config {
@@ -208,6 +213,18 @@ pub enum PopuliCli {
         /// Emit JSON (also implied by global `--json`).
         #[arg(long, default_value_t = false)]
         json: bool,
+    },
+    /// Exchange a one-time bootstrap token for the long-lived mesh bearer token.
+    ///
+    /// The server operator enables bootstrap with `--bootstrap-token <TOKEN>` on `vox populi serve`.
+    /// Run this on the client node to obtain and save the mesh token without sharing it out-of-band.
+    Pair {
+        /// Control plane base URL (e.g. `http://192.168.1.10:9847`).
+        #[arg(long)]
+        control_url: String,
+        /// One-time bootstrap token provided by the server operator.
+        #[arg(long)]
+        bootstrap_token: String,
     },
     /// Mesh federation queries.
     Federation {
@@ -611,6 +628,42 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 Ok(())
             }
         },
+        PopuliCli::Pair {
+            control_url,
+            bootstrap_token,
+        } => {
+            let base = vox_populi::normalize_http_control_base(control_url.trim())
+                .ok_or_else(|| anyhow::anyhow!("invalid control URL: {}", control_url))?;
+            let client = vox_populi::http_client::PopuliHttpClient::new(&base);
+            let resp = client
+                .bootstrap_exchange(&bootstrap_token)
+                .await
+                .map_err(|e| anyhow::anyhow!("bootstrap exchange failed: {}", e))?;
+
+            const MESH_TOKEN_KEY: &str = "mesh.token";
+            const MESH_SCOPE_KEY: &str = "mesh.scope_id";
+
+            if let Err(e) =
+                vox_config::toml_config::set_user_config_value(MESH_TOKEN_KEY, &resp.mesh_token)
+            {
+                anyhow::bail!("failed to save mesh token: {}", e);
+            }
+            println!("vox populi pair: mesh token saved to ~/.vox/config.toml");
+            println!("  Set VOX_MESH_TOKEN={} in your environment to use it now.", resp.mesh_token);
+
+            if let Some(scope) = &resp.scope_id {
+                if !scope.is_empty() {
+                    if let Err(e) =
+                        vox_config::toml_config::set_user_config_value(MESH_SCOPE_KEY, scope)
+                    {
+                        tracing::warn!(error = %e, "failed to save mesh scope_id");
+                    } else {
+                        println!("  Scope ID: {}", scope);
+                    }
+                }
+            }
+            Ok(())
+        }
         PopuliCli::Federation { cmd } => match cmd {
             PopuliFederationCmd::List { control_url, json } => {
                 let base = resolve_populi_control_base(control_url)?;
@@ -783,6 +836,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             bind,
             registry,
             bootstrap_peers,
+            bootstrap_token,
         } => {
             if !enable {
                 anyhow::bail!(
@@ -842,6 +896,10 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 state.bootstrap_peers = bootstrap_peers;
             } else if let Ok(peers) = std::env::var("VOX_MESH_FEDERATION_BOOTSTRAP_PEERS") {
                 state.bootstrap_peers = peers.split(',').map(|s| s.to_string()).collect();
+            }
+
+            if let Some(token) = bootstrap_token {
+                state = state.with_bootstrap_token(token);
             }
 
             // Optional: DB-backed mesh store + trust verifier + reputation decay
