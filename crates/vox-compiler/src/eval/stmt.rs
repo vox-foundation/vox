@@ -34,6 +34,17 @@ pub fn eval_pattern(
             }
         }
         HirPattern::Constructor(name, args, _) => match value {
+            VoxValue::Tagged { name: tag_name, fields } => {
+                if tag_name != *name {
+                    return Err(EvalError::AssertionFailed(
+                        format!("Variant mismatch: expected {name}, got {tag_name}"),
+                    ));
+                }
+                for (pat, val) in args.iter().zip(fields) {
+                    eval_pattern(interp, pat, val)?;
+                }
+                Ok(())
+            }
             VoxValue::Option(opt) => {
                 if name == "Some" && args.len() == 1 {
                     if let Some(val) = opt {

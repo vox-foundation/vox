@@ -140,17 +140,12 @@ component Chat() {
     )
 }
 
-actor Claude {
-    on send(msg: str) to ChatResult {
-        Ok("ok")
-    }
+@endpoint(kind: server) fn claude_send(msg: str) to ChatResult {
+    Ok("ok")
 }
 
-http post "/api/chat" to ChatResult {
-    let body = request.json()
-    let prompt = body.message
-    let response = spawn(Claude).send(prompt)
-    return response
+@endpoint(kind: mutation) fn api_chat(prompt: str) to ChatResult {
+    return Ok("ok")
 }
 "#;
 

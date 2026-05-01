@@ -17,6 +17,10 @@ pub enum VoxValue {
     },
     Option(core::option::Option<Box<VoxValue>>),
     Result(core::result::Result<Box<VoxValue>, String>),
+    /// An ADT variant constructor callable (not yet applied). Created by `run_module`.
+    Constructor(String),
+    /// An applied ADT variant value, e.g. `Applied(10, 0)`.
+    Tagged { name: String, fields: Vec<VoxValue> },
     // Sentinel for control flow
     _Return(Box<VoxValue>),
     _Break,
@@ -36,6 +40,11 @@ impl PartialEq for VoxValue {
             (Self::Null, Self::Null) => true,
             (Self::Option(a), Self::Option(b)) => a == b,
             (Self::Result(a), Self::Result(b)) => a == b,
+            (Self::Constructor(a), Self::Constructor(b)) => a == b,
+            (
+                Self::Tagged { name: na, fields: fa },
+                Self::Tagged { name: nb, fields: fb },
+            ) => na == nb && fa == fb,
             _ => false,
         }
     }

@@ -1,0 +1,38 @@
+---
+source: crates/vox-integration-tests/tests/pipeline/includes/include_02.rs
+expression: tsx.1
+---
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+
+export function HooksDemo(): React.ReactElement {
+    const [count, set_count] = useState(0);
+    const doubled = useMemo(((_x) => (count * 2)));
+    const input_ref = useRef(0);
+    const increment = useCallback(((_e) => (set_count(count + 1))));
+    useEffect(((_x) => (count)));
+  return (
+<div className={"hooks_demo"}
+>
+  <p 
+>
+  {"Count: "}
+  {(() => {
+    count;
+  })()}
+</p>
+  <p 
+>
+  {"Doubled: "}
+  {(() => {
+    doubled;
+  })()}
+</p>
+  <button onClick={() => {
+    increment;
+}}
+>
+  {"+"}
+</button>
+</div>
+  );
+}

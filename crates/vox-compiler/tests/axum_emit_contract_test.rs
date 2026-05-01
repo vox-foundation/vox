@@ -71,14 +71,7 @@ fn emit_main_mutation_with_schema_wraps_transaction_and_emits_json_error_envelop
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);
     let main_rs = emit_main(&hir, "demo");
-    assert!(
-        main_rs.contains(r#"Json(serde_json::json!({"error": e.to_string()}))"#),
-        "transactional @mutation should map errors to a stable {{\"error\": ...}} JSON body; got:\n{main_rs}"
-    );
-    assert!(
-        main_rs.contains("db.transaction(async move {"),
-        "expected db.transaction wrapper for mutation when schema is present:\n{main_rs}"
-    );
+    insta::assert_snapshot!("mutation_with_schema_main_rs_emit", main_rs);
 }
 
 #[test]

@@ -1,0 +1,17 @@
+---
+source: crates/vox-integration-tests/tests/pipeline/includes/include_02.rs
+expression: types.1
+---
+export type Option =
+  | { readonly _tag: "Some"; readonly value: string }
+  | { readonly _tag: "None" };
+
+export const Some = (value: string): Option => ({ _tag: "Some", value });
+export const None: Option = { _tag: "None" };
+
+export type Result =
+  | { readonly _tag: "Ok"; readonly value: string }
+  | { readonly _tag: "Err"; readonly message: string };
+
+export const Ok = (value: string): Result => ({ _tag: "Ok", value });
+export const Err = (message: string): Result => ({ _tag: "Err", message });

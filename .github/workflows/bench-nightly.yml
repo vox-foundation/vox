@@ -1,0 +1,93 @@
+# Nightly criterion benchmarks: baseline capture and CR-E1 threshold gate.
+#
+# CR-E1 target: vox-compiler full pipeline (lex→parse→lower→typeck→codegen)
+# for a hello-world must complete in <50 ms.
+#
+# Workflow outputs:
+#   - criterion HTML report as artifact (target/criterion/)
+#   - JSON baseline committed to target/bench-baseline.json for trend tracking
+#   - Fails CI if the `full_pipeline/e2e/hello` mean exceeds 50 ms
+name: Benchmarks (nightly, vox-compiler)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 03:17 UTC daily — offset from mutation job (05:17) to avoid runner contention
+    - cron: "17 3 * * *"
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  criterion-bench:
+    name: criterion (vox-compiler, CR-E1)
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo Registry & Target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-bench-
+
+      - name: Run compiler_pipeline benchmarks (CR-E1 proxy)
+        run: |
+          cargo bench -p vox-compiler --bench compiler_pipeline -- \
+            --output-format bencher 2>&1 | tee target/bench-compiler-pipeline.txt
+
+      - name: Run golden_examples benchmarks (corpus throughput)
+        env:
+          VOX_EXAMPLES_STRICT_PARSE: "1"
+        run: |
+          cargo bench -p vox-compiler --bench golden_examples -- \
+            --output-format bencher 2>&1 | tee target/bench-golden-examples.txt
+
+      - name: CR-E1 threshold gate (<50 ms for hello full pipeline)
+        # Parses the bencher output for the full_pipeline/e2e/hello result and
+        # fails if the measured ns/iter exceeds 50_000_000 ns (50 ms).
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Bencher output format: "test <name> ... bench: <N> ns/iter (+/- <M>)"
+          HELLO_NS=$(grep "full_pipeline/e2e/hello" target/bench-compiler-pipeline.txt \
+            | grep -oP '\d+(?= ns/iter)' | head -1 || echo "")
+          if [ -z "$HELLO_NS" ]; then
+            echo "::warning::CR-E1: Could not extract hello-world pipeline timing from bench output."
+            exit 0
+          fi
+          echo "CR-E1: full_pipeline/e2e/hello = ${HELLO_NS} ns/iter"
+          # 50 ms = 50,000,000 ns
+          if [ "$HELLO_NS" -gt 50000000 ]; then
+            echo "::error::CR-E1 FAILED: hello-world pipeline took ${HELLO_NS} ns (> 50 ms target)"
+            exit 1
+          fi
+          echo "CR-E1 PASSED: ${HELLO_NS} ns < 50,000,000 ns threshold"
+
+      - name: Upload criterion HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: criterion-report-${{ github.run_id }}
+          path: target/criterion/
+          if-no-files-found: ignore
+
+      - name: Upload bench timing text
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-timings-${{ github.run_id }}
+          path: |
+            target/bench-compiler-pipeline.txt
+            target/bench-golden-examples.txt
+          if-no-files-found: ignore

@@ -1,0 +1,5 @@
+---
+source: crates/vox-integration-tests/tests/codegen_rust_test.rs
+expression: ddl
+---
+CREATE INDEX IF NOT EXISTS idx_task_by_done_priority ON task (done, priority);

@@ -1,0 +1,7 @@
+---
+source: crates/vox-integration-tests/tests/pipeline/includes/include_02.rs
+expression: meta.1
+---
+// Declared @island names (implementations live under islands/src/<Name>/).
+export const VOX_ISLAND_NAMES = ["InteractiveChart", "SearchWidget"] as const;
+export type VoxIslandName = (typeof VOX_ISLAND_NAMES)[number];

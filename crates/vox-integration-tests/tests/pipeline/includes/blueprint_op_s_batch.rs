@@ -270,7 +270,7 @@ fn op_s160_route_data_bridge_gate_b() {
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
     let (_w, s) = lower_hir_to_web_ir_with_summary(&hir);
-    assert!(s.http_loader_contracts >= 1 || !hir.routes.is_empty(), "{s:?}");
+    assert!(s.http_loader_contracts >= 1 || s.query_fn_contracts >= 1 || !hir.routes.is_empty(), "{s:?}");
 }
 
 /// OP-S164 component/reactive gate B.

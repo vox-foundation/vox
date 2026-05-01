@@ -6,6 +6,8 @@ edition.workspace = true
 [dev-dependencies]
 serial_test = { workspace = true }
 tempfile = { workspace = true }
+insta = { workspace = true }
+vox-test-harness = { path = "../vox-test-harness" }
 tokio = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

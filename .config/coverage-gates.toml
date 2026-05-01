@@ -3,9 +3,24 @@
 #
 # Omit `workspace_min_lines_percent` to skip workspace-wide enforcement.
 # Map crate package names (Cargo `name`) to minimum line % for files under `crates/<name>/`.
+#
+# Core-10 crates (crates/_frozen.md) have individual floors.
+# Floors are intentionally conservative initial values — raise them as coverage improves.
+# Baseline: workspace-wide ~51.4% from `cargo llvm-cov nextest --workspace --profile ci`.
 
-# Baseline from `cargo llvm-cov nextest --workspace --profile ci` (≈51.4% lines); enforce floor keeps accidental regressions visible.
+# Workspace-wide floor: catch accidental regressions visible across all crates.
 workspace_min_lines_percent = 50.0
 
 [crates]
-# vox-compiler = 45.0
+# Core-10 crates (v1.0 frozen set — see crates/_frozen.md)
+# These must not silently regress even when the workspace average stays above the floor.
+vox-compiler      = 48.0  # Lexer+parser+HIR+typeck+codegen — most tested core crate
+vox-cli           = 40.0  # CLI command surface; many integration-only paths
+vox-db            = 35.0  # SQLite/Turso; some paths require live DB creds
+vox-clavis        = 35.0  # Secret resolution; env-gated paths reduce coverage
+vox-runtime       = 38.0  # OOPAV execution engine; many async/actor paths
+vox-orchestrator  = 40.0  # A2A/agent routing; well-tested orchestrator layer
+vox-populi        = 28.0  # ML control plane; CUDA/GPU paths excluded from coverage
+vox-tensor        = 25.0  # Native ML pipeline; mostly GPU-gated, CPU paths only
+vox-search        = 30.0  # RAG/BM25/FTS5; DB-backed paths skip without creds
+vox-toestub       = 35.0  # Architecture validation; many env-gated guard paths
