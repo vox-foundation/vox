@@ -14,6 +14,10 @@ version: "1"
 #
 # Run `vox mens eval-gate --run-dir mens/runs/latest` with eval-gates.yaml
 # (the full policy) once those steps are complete before promoting/serving.
+#
+# After every gate run (pass or fail) gate_receipt.json is written to run_dir:
+#   {"schema":"vox_mens_gate_receipt_v1","overall_passed":true,"gates":[...]}
+# Orchestrators and A2A consumers read this instead of re-running the gate.
 
 supervised_ratio:
   min_pct: 10.0
