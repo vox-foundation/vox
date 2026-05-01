@@ -18,7 +18,7 @@ mod handlers;
 mod mesh_replay;
 mod result_attestation;
 mod router;
-mod store;
+pub mod store;
 
 pub use auth::{PopuliAuthContext, PopuliBearerRole, PopuliMeshAuthRuntime};
 pub use router::{PopuliHttpAuth, populi_http_app, populi_http_app_with_auth, router, serve};
@@ -408,6 +408,9 @@ pub struct PopuliTransportState {
     exec_lease_id_gen: Arc<AtomicU64>,
     /// JWT `jti` replay + A2A idempotency keys; optionally persisted (`mesh-replay-state.json`).
     pub(crate) mesh_replay: Arc<mesh_replay::MeshReplayState>,
+    /// Durable mesh store (Turso via VoxDb). When `Some`, all A2A / lease / dispatch mutations
+    /// are written through here in addition to the in-memory cache.
+    pub(crate) mesh_store: Option<Arc<dyn store::MeshStore>>,
     a2a_store_path: Option<PathBuf>,
     exec_lease_store_path: Option<PathBuf>,
     pub(crate) federated_meshes: Arc<RwLock<Vec<vox_mesh_types::federation::MeshDirectoryEntry>>>,
@@ -459,6 +462,45 @@ impl PopuliTransportState {
         self
     }
 
+    /// Attach a durable [`store::MeshStore`] for write-through persistence.
+    #[must_use]
+    pub fn with_mesh_store(mut self, store: Arc<dyn store::MeshStore>) -> Self {
+        self.mesh_store = Some(store);
+        self
+    }
+
+    /// Warm in-memory caches from the durable store (called once at serve startup).
+    ///
+    /// No-op when `mesh_store` is `None`.
+    pub async fn init_from_mesh_store(&mut self) -> Result<(), store::MeshStoreError> {
+        use std::sync::atomic::Ordering;
+        let Some(ms) = self.mesh_store.clone() else { return Ok(()); };
+
+        let a2a = ms.load_all_a2a().await?;
+        let next_id = a2a.iter().map(|m| m.id).max().unwrap_or(0).saturating_add(1);
+        *self.a2a_messages.write().await = a2a;
+        self.a2a_id_gen.store(next_id, Ordering::SeqCst);
+
+        let leases = ms.list_exec_leases().await?;
+        let next_lease_id = leases
+            .iter()
+            .filter_map(|r| r.lease_id.parse::<u64>().ok())
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1);
+        *self.exec_leases.write().await = leases;
+        self.exec_lease_id_gen.store(next_lease_id, Ordering::SeqCst);
+
+        #[cfg(feature = "transport")]
+        {
+            let dispatch = ms.load_all_dispatch_results().await?;
+            self.dispatch_results =
+                Arc::new(dashmap::DashMap::from_iter(dispatch.into_iter()));
+        }
+
+        Ok(())
+    }
+
     /// New empty registry and optional required scope (trimmed; empty string becomes `None`).
     #[must_use]
     pub fn with_required_scope(scope: Option<String>) -> Self {
@@ -477,6 +519,7 @@ impl PopuliTransportState {
             exec_leases: Arc::new(RwLock::new(Vec::new())),
             exec_lease_id_gen: Arc::new(AtomicU64::new(1)),
             mesh_replay: mesh_replay::MeshReplayState::in_memory(),
+            mesh_store: None,
             a2a_store_path: None,
             exec_lease_store_path: None,
             federated_meshes: Arc::new(RwLock::new(Vec::new())),
@@ -624,6 +667,7 @@ impl PopuliTransportState {
             node_trust_verifier: None,
             db: None,
             bootstrap_peers: Vec::new(),
+            mesh_store: None,
         })
     }
 

@@ -27,6 +27,7 @@ transport = [
     "dep:base64",
     "dep:dashmap",
     "dep:vox-db",
+    "dep:turso",
 ]
 # Mens ML — core deps (absorbed former `vox-mens` crate).
 mens = [
@@ -89,6 +90,7 @@ reqwest = { workspace = true, optional = true, default-features = false, feature
 vox-reqwest-defaults = { workspace = true, optional = true }
 tower-http = { workspace = true, optional = true, features = ["trace", "request-id"] }
 vox-db = { workspace = true, optional = true }
+turso = { workspace = true, optional = true }
 subtle = { workspace = true, optional = true }
 jsonwebtoken = { workspace = true, optional = true }
 ed25519-dalek = { workspace = true, optional = true }

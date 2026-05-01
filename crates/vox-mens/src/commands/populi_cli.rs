@@ -782,8 +782,17 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 state.bootstrap_peers = peers.split(',').map(|s| s.to_string()).collect();
             }
 
-            // Optional: DB-backed trust verifier and reputation decay (hardens mesh from Sybil/poisoning)
+            // Optional: DB-backed mesh store + trust verifier + reputation decay
             if let Ok(db) = vox_db::VoxDb::connect_canonical().await {
+                // Durable mesh store (write-through; warms in-memory caches from DB)
+                let mesh_db = db.clone();
+                state = state.with_mesh_store(Arc::new(
+                    vox_populi::transport::store::VoxDbMeshStore::new(mesh_db),
+                ));
+                if let Err(e) = state.init_from_mesh_store().await {
+                    tracing::warn!(error = %e, "mesh store warm-up failed; continuing with empty cache");
+                }
+
                 if let Some(self_id) = vox_populi::populi_env().node_id {
                     let db_for_verifier = Arc::new(db);
                     let db_for_decay = Arc::clone(&db_for_verifier);
