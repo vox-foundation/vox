@@ -114,6 +114,13 @@ docs/book/
 mens/runs/latest/training_manifest.json
 mens/runs/latest/checkpoint_state.json
 mens/runs/qwen35_qlora_smoke35_v4/checkpoint_state.json
+# Pipeline-generated run artifacts (written fresh by each pipeline run)
+mens/runs/latest/eval_results.json
+mens/runs/latest/training-preflight.json
+mens/runs/latest/gate_receipt.json
+mens/runs/latest/eval_local_report.json
+mens/runs/latest/benchmark_passatk.json
+mens/runs/latest/review_metrics.json
 
 # Repo-root only: renamed `target` trees when deletes fail on locked binaries (e.g. Windows).
 /target*.stale-*/

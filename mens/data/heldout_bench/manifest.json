@@ -1,0 +1,66 @@
+{
+  "schema": "vox_mens_bench_manifest_v1",
+  "description": "Heldout benchmark for vox-lang adapter — covers core Vox constructs. Tasks are description-based (no starter file required). Extend with additional tasks as corpus coverage grows.",
+  "benchmarks": [
+    {
+      "id": "fn_add",
+      "category": "function",
+      "description": "define a function named `add` that takes two integer parameters `a` and `b` and returns their sum",
+      "semantic_expected_contains": ["fn add", "return"]
+    },
+    {
+      "id": "fn_greet",
+      "category": "function",
+      "description": "define a function named `greet` that takes a string parameter `name` and returns the string 'Hello, ' concatenated with name",
+      "semantic_expected_contains": ["fn greet", "Hello"]
+    },
+    {
+      "id": "workflow_fetch_save",
+      "category": "workflow",
+      "description": "define a workflow named `fetch_and_save` that fetches data from a URL stored in a variable `url` and saves the result to a variable `data`",
+      "semantic_expected_contains": ["workflow fetch_and_save"]
+    },
+    {
+      "id": "action_create_item",
+      "category": "action",
+      "description": "define an action named `create_item` that takes a string parameter `title` and returns a new record with an `id` and the given `title`",
+      "semantic_expected_contains": ["action create_item"]
+    },
+    {
+      "id": "action_delete",
+      "category": "action",
+      "description": "define an action named `delete_item` that takes an integer parameter `id` and returns a boolean indicating success",
+      "semantic_expected_contains": ["action delete_item"]
+    },
+    {
+      "id": "test_smoke",
+      "category": "test",
+      "description": "write a test named `smoke` that calls `add(1, 2)` and asserts the result equals 3",
+      "semantic_expected_contains": ["test smoke", "assert"]
+    },
+    {
+      "id": "query_list_items",
+      "category": "query",
+      "description": "define a query named `list_items` that returns a list of items, each with an `id` integer and a `name` string",
+      "semantic_expected_contains": ["query list_items"]
+    },
+    {
+      "id": "mutation_update",
+      "category": "mutation",
+      "description": "define a mutation named `update_item` that takes an integer `id` and a string `title` and updates the item with the matching id",
+      "semantic_expected_contains": ["mutation update_item"]
+    },
+    {
+      "id": "component_button",
+      "category": "component",
+      "description": "define a component named `Button` that accepts a string prop `label` and renders a clickable element displaying the label",
+      "semantic_expected_contains": ["component Button"]
+    },
+    {
+      "id": "page_index",
+      "category": "page",
+      "description": "define a page named `IndexPage` with a title 'Home' that displays a heading with the text 'Welcome'",
+      "semantic_expected_contains": ["page IndexPage"]
+    }
+  ]
+}
