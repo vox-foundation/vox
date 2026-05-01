@@ -53,7 +53,7 @@ training_eligible: false
 - [Milestone and gate definition spec](planning-meta/08-milestone-gate-definition-spec.md)
 - [Model Orchestration SSOT — Audit & Convergence Plan (2026-04-20)](model-orchestration-ssot-audit-2026.md)
 - [Next-Generation AI Orchestrator: Systemic Flaws, Power User Demands, and Production Design Patterns](nextgen-orchestrator-research-2026.md)
-- [Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan](2026-05-01-orchestrator-companion-audit-design.md)
+- [Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan](orchestrator-companion-audit-findings-2026.md)
 - [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](2026-05-01-orchestrator-stage1-stage2.md)
 - [Planning critique and gap analysis](planning-meta/04-planning-critique-gap-analysis.md)
 - [Planning meta exception register](planning-meta/exception-register.md)

@@ -2,7 +2,8 @@
 title: "Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan"
 description: "Implementation plan for 7 P0/P1 fixes across the orchestrator gateway, runtime, grounding, and daemon surfaces. Covers FIX-K-03, FIX-K-05, FIX-K-06, FIX-B-02, FIX-E-01, FIX-H-03, FIX-O-03."
 category: "architecture"
-status: "current"
+status: "roadmap"
+last_updated: "2026-05-01"
 training_eligible: false
 authored: "2026-05-01"
 ---
@@ -65,7 +66,7 @@ fn constant_time_eq_length_256_multiple_not_equal() {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-```
+```bash
 cargo test -p vox-orchestrator constant_time_eq_length_256_multiple_not_equal -- --nocapture
 ```
 
@@ -89,7 +90,7 @@ No other lines change. The `for` loop and `diff |= ai ^ bi` pattern remain ident
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-```
+```bash
 cargo test -p vox-orchestrator constant_time_eq -- --nocapture
 ```
 
@@ -97,7 +98,7 @@ Expected: all `constant_time_eq` tests PASS (including the new one and any pre-e
 
 - [ ] **Step 5: Compile check**
 
-```
+```bash
 cargo check -p vox-orchestrator
 ```
 
@@ -151,7 +152,7 @@ mod tests {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-```
+```bash
 cargo test -p vox-orchestrator eval_request -- --nocapture
 ```
 
@@ -202,7 +203,7 @@ pub async fn eval_handler(
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-```
+```bash
 cargo test -p vox-orchestrator eval_request -- --nocapture
 ```
 
@@ -210,7 +211,7 @@ Expected: both tests PASS.
 
 - [ ] **Step 5: Compile check**
 
-```
+```bash
 cargo check -p vox-orchestrator
 ```
 
@@ -259,7 +260,7 @@ Because this is a structural change (removing code), the primary verification is
 
 - [ ] **Step 2: Run cargo check to establish baseline**
 
-```
+```bash
 cargo check -p vox-orchestrator
 ```
 
@@ -305,7 +306,7 @@ pub async fn http_ws(
 
 - [ ] **Step 4: Compile check**
 
-```
+```bash
 cargo check -p vox-orchestrator
 ```
 
@@ -313,7 +314,7 @@ Expected: no errors. If `Query` is used elsewhere in the file, keep the import.
 
 - [ ] **Step 5: Run the full http_gateway test suite**
 
-```
+```bash
 cargo test -p vox-orchestrator http_gateway -- --nocapture
 ```
 
@@ -362,7 +363,7 @@ fn short_id_from_standard_uuid() {
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-```
+```bash
 cargo test -p vox-orchestrator short_id -- --nocapture
 ```
 
@@ -393,7 +394,7 @@ Note: `short_id_from_str` borrows from `uuid_str`, so `uuid_str` must be bound t
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-```
+```bash
 cargo test -p vox-orchestrator short_id -- --nocapture
 ```
 
@@ -401,7 +402,7 @@ Expected: both tests PASS.
 
 - [ ] **Step 5: Compile check**
 
-```
+```bash
 cargo check -p vox-orchestrator
 ```
 
@@ -450,7 +451,7 @@ fn char_iteration_handles_multibyte() {
 
 - [ ] **Step 2: Run the test to verify it passes at baseline**
 
-```
+```bash
 cargo test -p vox-orchestrator char_iteration_handles_multibyte -- --nocapture
 ```
 
@@ -477,7 +478,7 @@ let c = summary[i..].chars().next().unwrap_or_else(|| {
 
 - [ ] **Step 4: Run the tests**
 
-```
+```bash
 cargo test -p vox-orchestrator char_iteration -- --nocapture
 ```
 
@@ -485,7 +486,7 @@ Expected: PASS.
 
 - [ ] **Step 5: Compile check**
 
-```
+```bash
 cargo check -p vox-orchestrator
 ```
 
@@ -512,7 +513,7 @@ byte index and summary length so post-mortem analysis is tractable."
 
 - [ ] **Step 1: This is a one-line mechanical change — verify the current state**
 
-```
+```bash
 cargo test -p vox-orchestrator mentions -- --nocapture
 ```
 
@@ -535,7 +536,7 @@ static MENTION_RE: LazyLock<Regex> =
 
 - [ ] **Step 3: Compile check**
 
-```
+```bash
 cargo check -p vox-orchestrator
 ```
 
@@ -543,7 +544,7 @@ Expected: no errors.
 
 - [ ] **Step 4: Run mentions tests**
 
-```
+```bash
 cargo test -p vox-orchestrator mentions -- --nocapture
 ```
 
@@ -572,7 +573,7 @@ follows project convention and aids post-mortem debugging."
 
 Verify that `main` is declared as `async fn main() -> anyhow::Result<()>` (or equivalent). If it is, `?` propagation is already wired up.
 
-```
+```bash
 cargo check -p vox-orchestrator --bin vox_orchestrator_d
 ```
 
@@ -606,7 +607,7 @@ If `SessionConfig::default()` produces a valid config, adjust the test to use a 
 
 - [ ] **Step 3: Run the test**
 
-```
+```bash
 cargo test -p vox-orchestrator session_manager_new_returns_result -- --nocapture
 ```
 
@@ -634,7 +635,7 @@ use anyhow::Context;
 
 - [ ] **Step 5: Compile check**
 
-```
+```bash
 cargo check -p vox-orchestrator --bin vox_orchestrator_d
 ```
 
@@ -642,7 +643,7 @@ Expected: no errors.
 
 - [ ] **Step 6: Run full orchestrator test suite**
 
-```
+```bash
 cargo test -p vox-orchestrator -- --nocapture 2>&1 | tail -20
 ```
 
@@ -665,7 +666,7 @@ through the standard Result chain."
 
 After all 7 tasks are committed, run the full suite one final time:
 
-```
+```bash
 cargo test -p vox-orchestrator -- --nocapture 2>&1 | tail -30
 cargo clippy -p vox-orchestrator -- -D warnings
 ```

@@ -19,8 +19,8 @@
 
   <item>
     <title>Orchestrator Companion Audit — Non-Routing Surface Critique &amp; Improvement Plan</title>
-    <link>https://vox-lang.org/architecture/2026-05-01-orchestrator-companion-audit-design.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/2026-05-01-orchestrator-companion-audit-design.html</guid>
+    <link>https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</guid>
     <description>Full-system audit of crates/vox-orchestrator and surrounding surfaces excluding model-routing (covered by model-orchestration-ssot-audit-2026.md). ~280…</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
