@@ -49,59 +49,52 @@
         #img-portal { transform: translateX(2%) translateY(12%); }
 
         /* NODE ANIMATIONS (SYNCED STRICTLY TO TIMELINE) */
-        /* Loop-seam policy: every keyframe ends (100%) at its 0% state.
-           The final 95-100% segment is a "settle" tail so the 20s loop
-           reads as continuous instead of snapping back. */
 
-        #node-workflow .asset { animation: nx-wf 20s infinite; }
+        /* Workflow node triggers when dispatching */
+        #node-workflow .asset { animation: nx-wf 40s infinite; }
         @keyframes nx-wf {
             0%, 9%, 18%, 38%, 48%, 68%, 88%, 100% { filter: brightness(1); }
-            10%, 15%, 40%, 45%, 60%, 65%, 90%, 93% { filter: brightness(2) drop-shadow(0 0 2% var(--violet)); }
+            10%, 15%, 40%, 45%, 60%, 65%, 90%, 95% { filter: brightness(2) drop-shadow(0 0 2% var(--violet)); }
         }
 
-        #node-vault .asset { animation: nx-va 20s infinite; }
+        #node-vault .asset { animation: nx-va 40s infinite; }
         @keyframes nx-va {
             0%, 7%, 38%, 48%, 100% { filter: brightness(1); }
-            8%, 12% { filter: brightness(2) drop-shadow(0 0 2% var(--cyan)); }
-            40%, 45% { filter: brightness(3) drop-shadow(0 0 5% var(--cyan)); }
+            8%, 12% { filter: brightness(2) drop-shadow(0 0 2% var(--cyan)); } /* Ack Commit */
+            40%, 45% { filter: brightness(3) drop-shadow(0 0 5% var(--cyan)); } /* Fire Rehydration */
         }
 
-        #node-worker1 .asset { animation: nx-w1 20s infinite; }
+        #node-worker1 .asset { animation: nx-w1 40s infinite; }
         @keyframes nx-w1 {
             0%, 18% { filter: brightness(1); }
-            19%, 20% { filter: brightness(2) drop-shadow(0 0 2% var(--amber)); }
-            21%, 23% { filter: brightness(3) sepia(1) hue-rotate(330deg) drop-shadow(0 0 3% var(--err)); }
-            24%, 95% { filter: brightness(0.1) grayscale(1); }
-            100% { filter: brightness(1); }
+            19%, 20% { filter: brightness(2) drop-shadow(0 0 2% var(--amber)); } /* Receive task */
+            21%, 23% { filter: brightness(3) sepia(1) hue-rotate(330deg) drop-shadow(0 0 3% var(--err)); } /* OOM Crash */
+            24%, 100% { filter: brightness(0.1) grayscale(1); } /* Dead */
         }
-        #node-worker1 .label { animation: nx-w1l 20s infinite; }
+        #node-worker1 .label { animation: nx-w1l 40s infinite; }
         @keyframes nx-w1l {
-            0%, 18% { border-color: #444; color: white; text-decoration: none; }
-            19%, 23% { border-color: var(--amber); color: var(--amber); text-decoration: none; }
-            24%, 95% { border-color: var(--err); color: var(--err); text-decoration: line-through; }
-            100% { border-color: #444; color: white; text-decoration: none; }
+            0%, 18% { border-color: #444; color: white; content: "COMPUTE NODE A"; }
+            19%, 23% { border-color: var(--amber); color: var(--amber); content: "EXEC: charge_card"; }
+            24%, 100% { border-color: var(--err); color: var(--err); text-decoration: line-through; content: "CONNECTION LOST"; }
         }
 
-        #node-worker2 .asset { animation: nx-w2 20s infinite; filter: brightness(0.1) grayscale(1); }
+        #node-worker2 .asset { animation: nx-w2 40s infinite; filter: brightness(0.1) grayscale(1); } /* Offline initially */
         @keyframes nx-w2 {
             0%, 68% { filter: brightness(0.1) grayscale(1); }
-            69%, 78% { filter: brightness(2) drop-shadow(0 0 2% var(--emerald)); }
-            79%, 95% { filter: brightness(0.5); }
-            100% { filter: brightness(0.1) grayscale(1); }
+            69%, 78% { filter: brightness(2) drop-shadow(0 0 2% var(--emerald)); } /* Process normally */
+            79%, 100% { filter: brightness(0.5); }
         }
-        #node-worker2 .label { animation: nx-w2l 20s infinite; }
+        #node-worker2 .label { animation: nx-w2l 40s infinite; }
         @keyframes nx-w2l {
-            0%, 68% { border-color: #444; color: #555; }
-            69%, 78% { border-color: var(--emerald); color: var(--emerald); }
-            79%, 95% { border-color: #444; color: white; }
-            100% { border-color: #444; color: #555; }
+            0%, 68% { border-color: #444; color: #555; content: "COMPUTE NODE B"; }
+            69%, 78% { border-color: var(--emerald); color: var(--emerald); content: "EXEC: charge_card"; }
+            79%, 100% { border-color: #444; color: white; content: "COMPUTE NODE B"; }
         }
 
-        #node-portal .asset { animation: nx-po 20s infinite; }
+        #node-portal .asset { animation: nx-po 40s infinite; }
         @keyframes nx-po {
-            0%, 89% { filter: brightness(1); }
-            91%, 93% { filter: brightness(4) drop-shadow(0 0 5% white); }
-            95%, 100% { filter: brightness(1); }
+            0%, 97% { filter: brightness(1); }
+            98%, 100% { filter: brightness(4) drop-shadow(0 0 5% white); }
         }
 
 
@@ -109,41 +102,40 @@
         svg.routing { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 4; }
         .base-line { fill: none; stroke: var(--dim); stroke-width: 0.5%; stroke-linecap: round; }
 
-        .trk-spine { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-sp 20s infinite; }
+        /* The Spine Route (WF to Vault and back) */
+        .trk-spine { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-sp 40s infinite; }
         @keyframes tk-sp {
-            0%, 9% { stroke: var(--violet); }
+            0%, 100% { stroke: var(--dim); }
+            0%, 9% { stroke: var(--violet); } /* 0-10%: Msg down */
             10%, 29% { stroke: var(--dim); }
-            30%, 39% { stroke: var(--amber); }
-            40%, 49% { stroke: var(--cyan); stroke-width: 0.8%; }
-            50%, 95% { stroke: var(--dim); }
-            100% { stroke: var(--violet); }
+            30%, 39% { stroke: var(--amber); } /* 30-40%: Query down */
+            40%, 49% { stroke: var(--cyan); stroke-width: 0.8%; } /* 40-50%: Massive blob up */
+            50%, 100% { stroke: var(--dim); }
         }
 
-        .trk-w1 { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-w1 20s infinite; }
+        .trk-w1 { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-w1 40s infinite; }
         @keyframes tk-w1 {
             0%, 9% { stroke: var(--dim); stroke-dasharray: none; }
-            10%, 19% { stroke: var(--amber); stroke-dasharray: none; }
-            20%, 23% { stroke: var(--err); stroke-width: 0.8%; }
-            24%, 95% { stroke: rgba(255,0,0,0.2); stroke-dasharray: 2 10; }
-            100% { stroke: var(--dim); stroke-dasharray: none; }
+            10%, 19% { stroke: var(--amber); stroke-dasharray: none; } /* Msg to W1 */
+            20%, 23% { stroke: var(--err); stroke-width: 0.8%; } /* Snaps */
+            24%, 100% { stroke: rgba(255,0,0,0.2); stroke-dasharray: 2 10; } /* Remains dead */
         }
 
-        .trk-w2 { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-w2 20s infinite; }
+        .trk-w2 { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-w2 40s infinite; }
         @keyframes tk-w2 {
-            0%, 49% { stroke: transparent; }
-            50%, 59% { stroke: white; stroke-dasharray: 5 15; stroke-dashoffset: 100; }
+            0%, 49% { stroke: transparent; } /* Doesn't exist initially */
+            50%, 59% { stroke: white; stroke-dasharray: 5 15; stroke-dashoffset: 100; } /* Connecting... drawing itself! */
             60%, 69% { stroke: var(--dim); stroke-dasharray: none; }
-            70%, 79% { stroke: var(--amber); stroke-dasharray: none; }
-            80%, 89% { stroke: var(--emerald); stroke-dasharray: none; }
-            90%, 95% { stroke: var(--dim); }
-            100% { stroke: transparent; }
+            70%, 79% { stroke: var(--amber); stroke-dasharray: none; } /* Msg to W2 */
+            80%, 89% { stroke: var(--emerald); stroke-dasharray: none; } /* Results from W2 */
+            90%, 100% { stroke: var(--dim); } /* Remains open */
         }
 
-        .trk-po { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-po 20s infinite; }
+        .trk-po { fill: none; stroke-width: 0.5%; stroke-linecap: round; animation: tk-po 40s infinite; }
         @keyframes tk-po {
-            0%, 88% { stroke: var(--dim); }
-            90%, 93% { stroke: white; }
-            95%, 100% { stroke: var(--dim); }
+            0%, 89% { stroke: var(--dim); }
+            90%, 99% { stroke: white; } /* Broadcast up */
+            100% { stroke: var(--dim); }
         }
 
 
@@ -156,7 +148,7 @@
         }
 
         /* 0-10% (0-2s) */
-        #pkt-commit { animation: p-cmt 20s infinite linear; background: var(--violet); color: white; box-shadow: 0 0 2% var(--violet); }
+        #pkt-commit { animation: p-cmt 40s infinite linear; background: var(--violet); color: white; box-shadow: 0 0 2% var(--violet); }
         @keyframes p-cmt {
             0%, 1% { left: 30%; top: 50%; opacity: 0; }
             2%, 8% { opacity: 1; }
@@ -164,7 +156,7 @@
         }
 
         /* 10-20% (2-4s) */
-        #pkt-exec1 { animation: p-ex1 20s infinite linear; background: var(--amber); color: black; box-shadow: 0 0 2% var(--amber); }
+        #pkt-exec1 { animation: p-ex1 40s infinite linear; background: var(--amber); color: black; box-shadow: 0 0 2% var(--amber); }
         @keyframes p-ex1 {
             0%, 11% { left: 30%; top: 50%; opacity: 0; }
             12%, 18% { opacity: 1; }
@@ -172,7 +164,7 @@
         }
 
         /* 20-30% (4-6s) FALLING OOM ERROR */
-        #pkt-err { animation: p-err 20s infinite ease-out; background: var(--err); color: white; box-shadow: 0 0 4% var(--err); }
+        #pkt-err { animation: p-err 40s infinite ease-out; background: var(--err); color: white; box-shadow: 0 0 4% var(--err); }
         @keyframes p-err {
             0%, 21% { left: 75%; top: 30%; opacity: 0; transform: translate(-50%,-50%) scale(0.5); }
             22% { opacity: 1; transform: translate(-50%,-50%) scale(1.2); } /* Sudden violent pop */
@@ -182,7 +174,7 @@
         }
 
         /* 30-40% (6-8s) QUERYING */
-        #pkt-fetch { animation: p-fch 20s infinite linear; background: var(--amber); color: black; box-shadow: 0 0 1% var(--amber); }
+        #pkt-fetch { animation: p-fch 40s infinite linear; background: var(--amber); color: black; box-shadow: 0 0 1% var(--amber); }
         @keyframes p-fch {
             0%, 31% { left: 30%; top: 50%; opacity: 0; }
             32%, 38% { opacity: 1; }
@@ -190,7 +182,7 @@
         }
 
         /* 40-50% (8-10s) MASSING BLOB REHYDRATE */
-        #pkt-rehyd { animation: p-reh 20s infinite ease-out; background: rgba(0,240,255,0.1); color: var(--cyan); border: 0.3cqw solid var(--cyan); box-shadow: 0 0 3% var(--cyan) inset, 0 0 5% var(--cyan); font-size: 1.8cqw; border-radius: 5px; }
+        #pkt-rehyd { animation: p-reh 40s infinite ease-out; background: rgba(0,240,255,0.1); color: var(--cyan); border: 0.3cqw solid var(--cyan); box-shadow: 0 0 3% var(--cyan) inset, 0 0 5% var(--cyan); font-size: 1.8cqw; border-radius: 5px; }
         @keyframes p-reh {
             0%, 41% { left: 30%; top: 85%; opacity: 0; }
             42% { opacity: 1; transform: translate(-50%, -50%) scale(1.4); } /* Heavy scale up */
@@ -199,7 +191,7 @@
         }
 
         /* 60-70% (12-14s) SECOND DISPATCH */
-        #pkt-exec2 { animation: p-ex2 20s infinite linear; background: var(--amber); color: black; box-shadow: 0 0 2% var(--amber); }
+        #pkt-exec2 { animation: p-ex2 40s infinite linear; background: var(--amber); color: black; box-shadow: 0 0 2% var(--amber); }
         @keyframes p-ex2 {
             0%, 61% { left: 30%; top: 50%; opacity: 0; }
             62%, 68% { opacity: 1; }
@@ -207,7 +199,7 @@
         }
 
         /* 80-90% (16-18s) RETURN OK */
-        #pkt-res { animation: p-res 20s infinite linear; background: var(--emerald); color: black; box-shadow: 0 0 2% var(--emerald); }
+        #pkt-res { animation: p-res 40s infinite linear; background: var(--emerald); color: black; box-shadow: 0 0 2% var(--emerald); }
         @keyframes p-res {
             0%, 81% { left: 75%; top: 70%; opacity: 0; }
             82%, 88% { opacity: 1; }
@@ -215,11 +207,11 @@
         }
 
         /* 90-100% (18-20s) MCP BROADCAST */
-        #pkt-out { animation: p-out 20s infinite linear; background: white; color: black; box-shadow: 0 0 3% white; }
+        #pkt-out { animation: p-out 40s infinite linear; background: white; color: black; box-shadow: 0 0 3% white; }
         @keyframes p-out {
-            0%, 88% { left: 30%; top: 50%; opacity: 0; }
-            89%, 93% { opacity: 1; }
-            94%, 100% { left: 30%; top: 25%; opacity: 0; }
+            0%, 91% { left: 30%; top: 50%; opacity: 0; }
+            92%, 98% { opacity: 1; }
+            99%, 100% { left: 30%; top: 25%; opacity: 0; }
         }
 
     </style>

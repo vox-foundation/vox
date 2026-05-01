@@ -191,10 +191,10 @@ In the meantime, durable steps are written as ordinary `Result`-returning functi
 
 <table width="100%">
 <tr>
-<td width="66%" align="center" valign="middle">
+<td width="50%" align="center" valign="middle">
   <img src="docs/src/assets/durable_essentialist_loop.webp" width="100%">
 </td>
-<td width="33%" valign="top">
+<td width="50%" valign="top">
 
 ```vox
 // [ activity-shaped fn ]
@@ -288,10 +288,11 @@ Surfaces are tracked by how reproducibly an LLM can target them. Data, logic, an
 | `@table` & data layer | 🟢 Stable | Schema, migrations, `db.*` query builder, wire types. |
 | Endpoints (`@endpoint`) | 🟡 Preview | Unified shape is new — `query`/`server`/`mutation` recently merged. |
 | Agent tooling | 🟢 Stable | `@mcp.tool` / `@mcp.resource` exposure, MCP protocol compliance. |
+| Stub detection / AI-laziness gates | 🟡 Preview | `vox stub-check` catches `todo!()` / `unimplemented!()` / hollow returns / "Done!" claims today; placeholder-string returns, "implement later" comments, mock-named functions, conditional stubs, and assertion-only bodies are queued. |
 | RAG & knowledge curation | 🟡 Preview | `vox scientia` retrieval, Socrates guards. |
 | Durable execution | 🚧 Experimental | Parser keywords (`workflow`/`activity`/`actor`) tombstoned; replacement decorator pending ADR. Runtime works, but the source-language surface is in flux. |
 | Local training (MENS) | 🟡 Preview | Hardware coverage is still expanding. |
-| Web UI & rendering | 🟡 Preview | WebIR and the React bridge will shift. |
+| Web UI & rendering | 🟡 Preview | Dual-track: Vox-native reactivity (`component` + `state_machine` + WebIR) for greenfield, `@island` / `@v0` / TSX emit reserved for explicit React/TanStack interop. Boundary docs in flight. |
 | Distributed node mesh | 🚧 Experimental | Cross-machine routing is pre-1.0 design. |
 
 Vox is in active pre-1.0 development (workspace version `0.5.0` at the time of writing); treat this as a preview. The core of the language itself is still moving — the April 2026 grammar unification collapsed multiple decorators and tombstoned several keywords, and that work isn't finished. Notable changes land in [`CHANGELOG.md`](CHANGELOG.md), and the machine-verified v1.0 criteria, with per-domain verification pipelines, live at [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md).
