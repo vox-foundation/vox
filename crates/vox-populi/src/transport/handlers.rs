@@ -47,6 +47,53 @@ pub(super) async fn health() -> impl IntoResponse {
     (StatusCode::OK, "ok\n")
 }
 
+// ── write-through helpers ─────────────────────────────────────────────────────
+// Each spawns a best-effort durable write; failures are logged but never returned
+// to callers (matching the existing JSON persist semantics).
+
+fn store_put_a2a(st: &PopuliTransportState, msg: A2AStoredMessage) {
+    if let Some(ms) = st.mesh_store.clone() {
+        tokio::spawn(async move {
+            if let Err(e) = ms.put_a2a(&msg).await {
+                tracing::warn!(error = %e, msg_id = msg.id, "mesh_store put_a2a failed");
+            }
+        });
+    }
+}
+
+fn store_ack_a2a(st: &PopuliTransportState, message_id: u64, acked_unix_ms: u64) {
+    if let Some(ms) = st.mesh_store.clone() {
+        tokio::spawn(async move {
+            if let Err(e) = ms
+                .ack_a2a(message_id, super::store::A2AAck { acknowledged: true, acked_unix_ms })
+                .await
+            {
+                tracing::warn!(error = %e, message_id, "mesh_store ack_a2a failed");
+            }
+        });
+    }
+}
+
+fn store_put_exec_lease(st: &PopuliTransportState, row: RemoteExecLeaseRow) {
+    if let Some(ms) = st.mesh_store.clone() {
+        tokio::spawn(async move {
+            if let Err(e) = ms.put_exec_lease(&row).await {
+                tracing::warn!(error = %e, lease_id = %row.lease_id, "mesh_store put_exec_lease failed");
+            }
+        });
+    }
+}
+
+fn store_revoke_exec_lease(st: &PopuliTransportState, lease_id: String) {
+    if let Some(ms) = st.mesh_store.clone() {
+        tokio::spawn(async move {
+            if let Err(e) = ms.revoke_exec_lease(&lease_id).await {
+                tracing::warn!(error = %e, lease_id, "mesh_store revoke_exec_lease failed");
+            }
+        });
+    }
+}
+
 async fn registry_sweep_maintenance(st: &PopuliTransportState) {
     let now = crate::now_ms();
     let mut inner = st.inner.write().await;
@@ -410,15 +457,18 @@ pub(super) async fn exec_lease_grant(
         let existing = &rows[idx];
         if existing.holder_node_id == claimer {
             rows[idx].expires_unix_ms = now.saturating_add(lease_ms);
+            let updated_row = rows[idx].clone();
             if let Some(path) = st.exec_lease_store_path.as_ref() {
                 let _ = persist_exec_lease_store(path, &rows);
             }
             let out = RemoteExecLeaseGrantResponse {
-                lease_id: rows[idx].lease_id.clone(),
+                lease_id: updated_row.lease_id.clone(),
                 scope_key: scope_key.clone(),
                 holder_node_id: claimer.to_string(),
-                expires_unix_ms: rows[idx].expires_unix_ms,
+                expires_unix_ms: updated_row.expires_unix_ms,
             };
+            drop(rows);
+            store_put_exec_lease(&st, updated_row);
             return Ok(Json(out));
         }
         return Err(ResponseErr(
@@ -429,15 +479,18 @@ pub(super) async fn exec_lease_grant(
     let id = st.exec_lease_id_gen.fetch_add(1, Ordering::Relaxed);
     let lease_id = id.to_string();
     let expires_unix_ms = now.saturating_add(lease_ms);
-    rows.push(RemoteExecLeaseRow {
+    let new_row = RemoteExecLeaseRow {
         lease_id: lease_id.clone(),
         scope_key: scope_key.clone(),
         holder_node_id: claimer.to_string(),
         expires_unix_ms,
-    });
+    };
+    rows.push(new_row.clone());
     if let Some(path) = st.exec_lease_store_path.as_ref() {
         let _ = persist_exec_lease_store(path, &rows);
     }
+    drop(rows);
+    store_put_exec_lease(&st, new_row);
     Ok(Json(RemoteExecLeaseGrantResponse {
         lease_id,
         scope_key,
@@ -480,9 +533,12 @@ pub(super) async fn exec_lease_renew(
         ));
     }
     rows[pos].expires_unix_ms = now.saturating_add(lease_ms);
+    let renewed_row = rows[pos].clone();
     if let Some(path) = st.exec_lease_store_path.as_ref() {
         let _ = persist_exec_lease_store(path, &rows);
     }
+    drop(rows);
+    store_put_exec_lease(&st, renewed_row);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -522,6 +578,8 @@ pub(super) async fn exec_lease_release(
     if let Some(path) = st.exec_lease_store_path.as_ref() {
         let _ = persist_exec_lease_store(path, &rows);
     }
+    drop(rows);
+    store_revoke_exec_lease(&st, lease_id.to_string());
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -581,6 +639,8 @@ pub(super) async fn admin_exec_lease_revoke(
     if let Some(path) = st.exec_lease_store_path.as_ref() {
         let _ = persist_exec_lease_store(path, &rows);
     }
+    drop(rows);
+    store_revoke_exec_lease(&st, lease_id.to_string());
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -779,10 +839,13 @@ pub(super) async fn deliver_a2a(
             let drop_n = g.len() - cap + 1;
             g.drain(0..drop_n);
         }
+        let msg_copy = msg.clone();
         g.push(msg);
         if let Some(path) = st.a2a_store_path.as_ref() {
             let _ = persist_a2a_store(path, &g);
         }
+        drop(g);
+        store_put_a2a(&st, msg_copy);
         return Ok(Json(A2ADeliverResponse {
             accepted: true,
             message_id: id,
@@ -817,10 +880,13 @@ pub(super) async fn deliver_a2a(
         let drop_n = g.len() - cap + 1;
         g.drain(0..drop_n);
     }
+    let msg_copy = msg.clone();
     g.push(msg);
     if let Some(path) = st.a2a_store_path.as_ref() {
         let _ = persist_a2a_store(path, &g);
     }
+    drop(g);
+    store_put_a2a(&st, msg_copy);
     Ok(Json(A2ADeliverResponse {
         accepted: true,
         message_id: id,
@@ -956,9 +1022,12 @@ pub(super) async fn a2a_lease_renew(
         ));
     }
     msg.lease_expires_unix_ms = Some(now.saturating_add(lease_ms));
+    let renewed_msg = msg.clone();
     if let Some(path) = st.a2a_store_path.as_ref() {
         let _ = persist_a2a_store(path, &g);
     }
+    drop(g);
+    store_put_a2a(&st, renewed_msg);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -1077,10 +1146,13 @@ pub(super) async fn a2a_inbox(
     let m = &mut g[i];
     m.lease_holder_node_id = Some(claimer.to_string());
     m.lease_expires_unix_ms = Some(now.saturating_add(lease_ms));
-    let one = vec![m.clone()];
+    let claimed = m.clone();
+    let one = vec![claimed.clone()];
     if let Some(path) = st.a2a_store_path.as_ref() {
         let _ = persist_a2a_store(path, &g);
     }
+    drop(g);
+    store_put_a2a(&st, claimed);
     Ok(Json(A2AInboxResponse { messages: one }))
 }
 
@@ -1146,10 +1218,13 @@ pub(super) async fn a2a_ack(
             maps.idempotency.remove(&key);
         }
         msg.idempotency_dedupe_key = None;
+        let acked_id = msg.id;
         if let Some(path) = st.a2a_store_path.as_ref() {
             let _ = persist_a2a_store(path, &g);
         }
+        drop(g);
         st.mesh_replay.persist_if_configured().await;
+        store_ack_a2a(&st, acked_id, crate::now_ms());
         Ok(StatusCode::NO_CONTENT)
     } else {
         Ok(StatusCode::NOT_FOUND)
@@ -1197,6 +1272,7 @@ pub(super) async fn dispatch_script(
         let dispatch_id = simple_hex_id();
         let st_cl = st.clone();
         let dispatch_id_cl = dispatch_id.clone();
+        let dispatch_id_for_store = dispatch_id.clone();
         let target_node_id = target.id.clone();
 
         tokio::spawn(async move {
@@ -1227,6 +1303,17 @@ pub(super) async fn dispatch_script(
             }
             if let Some(path) = &st_cl.dispatch_results_store_path {
                 let _ = super::store::persist_dispatch_results_store(path, &st_cl.dispatch_results);
+            }
+            if let Some(ms) = st_cl.mesh_store.clone() {
+                if let Some(val) = st_cl.dispatch_results.get(&dispatch_id_for_store) {
+                    let key = dispatch_id_for_store.clone();
+                    let result = val.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = ms.put_dispatch_result(&key, &result).await {
+                            tracing::warn!(error = %e, key, "mesh_store put_dispatch_result failed");
+                        }
+                    });
+                }
             }
         });
 

@@ -234,7 +234,7 @@ pub struct RemoteExecLeaseReleaseRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(super) struct RemoteExecLeaseRow {
+pub struct RemoteExecLeaseRow {
     pub(super) lease_id: String,
     pub(super) scope_key: String,
     pub(super) holder_node_id: String,
