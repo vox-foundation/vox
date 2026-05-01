@@ -33,35 +33,45 @@ fn run_step(name: str, args: list[str]) -> bool {
 
 fn main() {
     let run_dir = "mens/runs/latest"
-    let policy_path = "mens/config/eval-gates.yaml"
+    // Cycle 1 uses the post-train policy: only gates on trainer-written artifacts
+    // (training_manifest.json, telemetry.jsonl, eval_results.json).  pass_at_k and
+    // review_recurrence are warn-only here because benchmark_passatk.json doesn't
+    // exist until Cycle 2's eval-local step writes it.
+    let post_train_policy = "mens/config/eval-gates-post-train.yaml"
+    // Cycle 2 gate uses the full policy after eval-local has produced benchmark_passatk.json.
+    let full_policy = "mens/config/eval-gates.yaml"
     let model_path = "mens/runs/latest/candle_qlora_adapter.safetensors"
     let bench_path = "mens/data/heldout_bench"
 
     print("Running 4080 experiment cycle pipeline")
-    print("  run_dir: " + run_dir)
-    print("  policy:  " + policy_path)
-    
-    // Cycle 1: stability-first checks
-    if run_step("Cycle1/checkpoint-integrity", ["mens", "eval-gate", "--run-dir", run_dir, "--policy", policy_path]) == false {
+    print("  run_dir:         " + run_dir)
+    print("  cycle1 policy:   " + post_train_policy)
+    print("  cycle2 policy:   " + full_policy)
+
+    // Cycle 1: stability-first checks — gates on trainer artifacts only.
+    // benchmark_passatk.json is not available yet; pass_at_k is warn-only
+    // in eval-gates-post-train.yaml so this step doesn't false-block.
+    if run_step("Cycle1/checkpoint-integrity", ["mens", "eval-gate", "--run-dir", run_dir, "--policy", post_train_policy]) == false {
         print("Cycle pipeline aborted at Cycle 1.")
         return null
     }
 
-    // Cycle 2: quality measurement
+    // Cycle 2: quality measurement — eval-local writes benchmark_passatk.json,
+    // then the full policy gate (pass_at_k.block: true) validates it.
     let eval_local_args = [
-        "mens", "eval-local", 
-        "--model", model_path, 
-        "--bench", bench_path, 
-        "--samples", "4", 
-        "--seed-base", "1337", 
+        "mens", "eval-local",
+        "--model", model_path,
+        "--bench", bench_path,
+        "--samples", "4",
+        "--seed-base", "1337",
         "-o", run_dir + "/eval_local_report.json"
     ]
     if run_step("Cycle2/eval-local-passk", eval_local_args) == false {
         print("Cycle pipeline aborted at Cycle 2 (eval).")
         return null
     }
-    
-    if run_step("Cycle2/gate-passk", ["mens", "eval-gate", "--run-dir", run_dir, "--policy", policy_path]) == false {
+
+    if run_step("Cycle2/gate-passk", ["mens", "eval-gate", "--run-dir", run_dir, "--policy", full_policy]) == false {
         print("Cycle pipeline aborted at Cycle 2 (gate).")
         return null
     }
