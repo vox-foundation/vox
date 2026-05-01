@@ -7237,7 +7237,7 @@ operations:
   cli: null
 - id: plan.status
   title: Plan Status
-  description: Plan session status via vox-dei-d (ai.plan.status) for a session_id.
+  description: Plan session status via vox-orchestrator-d (ai.plan.status) for a session_id.
   description_human: null
   product_lane: ai
   intent_tags: []
@@ -8071,7 +8071,7 @@ operations:
   cli: null
 - id: replan
   title: Replan
-  description: 'Replan via vox-dei-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.'
+  description: 'Replan via vox-orchestrator-d (ai.plan.replan): session_id + delta_hint; optional write_to_disk and mode.'
   description_human: null
   product_lane: ai
   intent_tags: []
