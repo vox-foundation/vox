@@ -42,6 +42,7 @@ pub fn probe_dxgi() -> Option<HardwareSummary> {
                         backend,
                         driver_version: None,
                         pci_bus_id: None,
+                        probe_failures: None,
                     });
                 }
             }

@@ -40,6 +40,11 @@ pub struct HardwareSummary {
     pub backend: ComputeBackend,
     pub driver_version: Option<String>,
     pub pci_bus_id: Option<String>,
+    /// Names of probes that failed during the run that produced this summary.
+    /// `None` (or absent in serialized form) means "no failures or not produced
+    /// by a pipeline run". Empty `Some(vec![])` is reserved.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub probe_failures: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

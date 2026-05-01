@@ -11,6 +11,7 @@ pub fn probe_metal() -> Option<HardwareSummary> {
         backend: ComputeBackend::Metal,
         driver_version: None,
         pci_bus_id: None,
+        probe_failures: None,
     })
 }
 

@@ -24,6 +24,7 @@ pub fn probe_drm() -> Option<HardwareSummary> {
             backend: ComputeBackend::Cuda,
             driver_version: None,
             pci_bus_id: Some("0000:01:00.0".into()),
+            probe_failures: None,
         });
     }
 
@@ -43,6 +44,7 @@ pub fn probe_drm() -> Option<HardwareSummary> {
                     backend: ComputeBackend::Wgpu,
                     driver_version: None,
                     pci_bus_id: None,
+                    probe_failures: None,
                 });
             }
         }

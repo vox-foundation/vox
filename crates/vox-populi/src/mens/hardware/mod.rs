@@ -8,6 +8,10 @@ pub mod macos_metal;
 pub mod nvml;
 pub mod probe;
 pub mod types;
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
 #[cfg(feature = "mens-gpu")]
 pub mod wgpu_probe;
 #[cfg(all(target_os = "windows", feature = "mens-gpu"))]
@@ -60,6 +64,7 @@ async fn probe_internal() -> HardwareSummary {
                 backend: ComputeBackend::Unknown,
                 driver_version: None,
                 pci_bus_id: None,
+                probe_failures: None,
             };
         }
     }
@@ -93,6 +98,7 @@ async fn probe_internal() -> HardwareSummary {
             backend: ComputeBackend::Cuda,
             driver_version: None,
             pci_bus_id: None,
+            probe_failures: None,
         };
     }
 
@@ -104,5 +110,6 @@ async fn probe_internal() -> HardwareSummary {
         backend: ComputeBackend::Cpu,
         driver_version: None,
         pci_bus_id: None,
+        probe_failures: None,
     }
 }

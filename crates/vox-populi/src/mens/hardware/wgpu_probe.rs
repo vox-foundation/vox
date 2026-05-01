@@ -38,6 +38,7 @@ pub async fn probe_wgpu() -> Option<HardwareSummary> {
                 },
                 driver_version: Some(info.driver),
                 pci_bus_id: None,
+                probe_failures: None,
             });
         }
     }
