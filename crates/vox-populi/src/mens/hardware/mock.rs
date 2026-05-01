@@ -19,14 +19,6 @@ impl HardwareProbe for MockProbe {
         self.applicable
     }
     async fn probe(&self) -> Result<Option<HardwareSummary>, ProbeError> {
-        match &self.result {
-            Ok(opt) => Ok(opt.clone()),
-            Err(e) => Err(match e {
-                ProbeError::LibraryUnavailable(s) => ProbeError::LibraryUnavailable(s.clone()),
-                ProbeError::PermissionDenied(s) => ProbeError::PermissionDenied(s.clone()),
-                ProbeError::DeviceError(s) => ProbeError::DeviceError(s.clone()),
-                ProbeError::Other(s) => ProbeError::Other(s.clone()),
-            }),
-        }
+        self.result.clone()
     }
 }

@@ -2,7 +2,7 @@ use crate::mens::hardware::types::HardwareSummary;
 use async_trait::async_trait;
 
 /// Errors returned by a [`HardwareProbe`] implementation.
-#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+#[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
 pub enum ProbeError {
     /// The underlying native library (NVML, wgpu, DRM, etc.) could not be loaded.
     #[error("library unavailable: {0}")]
