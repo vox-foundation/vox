@@ -13,6 +13,9 @@ schema_type: "TechArticle"
 **Status**: Accepted  
 **Date**: 2026-03-21
 
+> [!NOTE]
+> **Scope clarification (2026-05-01):** This ADR governs the web stack for **Vox-compiled user applications** (output of `vox build`). It does **not** apply to `crates/vox-dashboard/` which is the Vox team's own operational UI — the dashboard is a Vox application compiled from `.vox` sources and its reactive state is governed by the `state_machine` primitive (see [ADR 030](030-state-machine-ssot.md)).
+
 ---
 
 ## Context

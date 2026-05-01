@@ -11,6 +11,9 @@ training_eligible: false
 ## Status
 Accepted (2026-04-30)
 
+> [!NOTE]
+> **Amendment (2026-05-01):** `vox-dashboard` is now the **primary user surface** for the Vox orchestrator; `vox-vscode/` is deprecated and retained for LSP only. New capability UX, MCP behavior, and visualization ship in `crates/vox-dashboard/`. See [ADR 031](031-deprecate-vox-vscode.md).
+
 ## Context
 
 Vox today carries **two parallel UI surfaces** that have grown in sync but were never delineated:
