@@ -92,6 +92,21 @@ async fn reorder_is_stable_on_default_pipeline() {
     assert!(!report.summary.model_name.is_empty());
 }
 
+/// Unknown probe names in an operator-supplied order list must be rejected.
+#[test]
+fn operator_override_rejects_unknown_probe_name() {
+    let pipeline = ProbePipeline::default_for_platform();
+    let known_names = pipeline.probe_names();
+    // All known names should pass validation.
+    let known_refs: Vec<&str> = known_names.iter().copied().collect();
+    assert_eq!(pipeline.validate_probe_names(&known_refs), Ok(()));
+
+    // Inject a typo — validation must reject it.
+    let bad = pipeline.validate_probe_names(&["nvvml_typo"]);
+    assert!(bad.is_err(), "expected Err for unknown probe name 'nvvml_typo'");
+    assert_eq!(bad.unwrap_err(), vec!["nvvml_typo".to_string()]);
+}
+
 /// Verify that `NotApplicable` attempts have `duration_ms == 0`.
 #[tokio::test]
 async fn not_applicable_attempts_have_zero_duration() {

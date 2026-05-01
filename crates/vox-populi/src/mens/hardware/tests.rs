@@ -187,6 +187,26 @@ mod tests {
         assert_eq!(pipeline.probes[1].name(), "alpha");
     }
 
+    #[test]
+    fn validate_probe_names_rejects_unknown() {
+        let pipeline = ProbePipeline::empty()
+            .with_probe(Box::new(MockProbe {
+                name: "nvml",
+                applicable: true,
+                result: Ok(None),
+            }))
+            .with_probe(Box::new(MockProbe {
+                name: "wgpu",
+                applicable: true,
+                result: Ok(None),
+            }));
+        assert_eq!(pipeline.validate_probe_names(&["nvml", "wgpu"]), Ok(()));
+        assert_eq!(
+            pipeline.validate_probe_names(&["nvml", "typo_name"]),
+            Err(vec!["typo_name".to_string()])
+        );
+    }
+
     #[tokio::test]
     async fn pipeline_reorder_unknown_names_appended() {
         let pipeline = ProbePipeline::empty()

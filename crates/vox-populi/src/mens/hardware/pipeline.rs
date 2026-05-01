@@ -106,11 +106,33 @@ impl ProbePipeline {
 }
 
 impl ProbePipeline {
+    /// Returns the names of all probes in this pipeline, in order.
+    pub fn probe_names(&self) -> Vec<&str> {
+        self.probes.iter().map(|p| p.name()).collect()
+    }
+
+    /// Validates that every name in `order` refers to an existing probe in this pipeline.
+    ///
+    /// Returns `Ok(())` if all names are known, or `Err(unknown_names)` listing the
+    /// unrecognised entries. Called by `vox populi config check` before applying
+    /// `[mesh.probe.order]` from the workspace config.
+    pub fn validate_probe_names(&self, order: &[&str]) -> Result<(), Vec<String>> {
+        let known: std::collections::HashSet<&str> =
+            self.probes.iter().map(|p| p.name()).collect();
+        let unknown: Vec<String> = order
+            .iter()
+            .filter(|&&name| !known.contains(name))
+            .map(|&name| name.to_string())
+            .collect();
+        if unknown.is_empty() { Ok(()) } else { Err(unknown) }
+    }
+
     /// Returns a new pipeline with probes reordered according to `order`.
     ///
     /// Probes named in `order` appear first in the given sequence; any probes
     /// not listed are appended in their original relative order. Unknown names
-    /// in `order` are silently ignored.
+    /// in `order` are silently ignored (use [`Self::validate_probe_names`] before
+    /// calling this if operator-supplied input should be rejected on unknown names).
     pub fn reorder(self, order: &[&str]) -> Self {
         let mut remaining: Vec<Box<dyn HardwareProbe>> = self.probes;
         let mut reordered: Vec<Box<dyn HardwareProbe>> = Vec::with_capacity(remaining.len());

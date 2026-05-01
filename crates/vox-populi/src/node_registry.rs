@@ -104,6 +104,10 @@ pub struct NodeRecord {
     /// Ed25519 public key used to verify attestation signatures.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ed25519_pub_key_b64: Option<String>,
+    /// Names of hardware probes that returned an error during the last probe pipeline run.
+    /// `None` means no failures occurred, or the summary was not produced by a pipeline run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub probe_failures: Option<Vec<String>>,
 }
 
 /// Serializable registry file (`.vox/cache/populi/local-registry.json`).
