@@ -514,7 +514,7 @@ pub enum PopuliAction {
     #[cfg(feature = "gpu")]
     #[command(name = "eval-local")]
     EvalLocal {
-        /// Path to model checkpoint (.bin from `vox mens train`)
+        /// Path to model checkpoint (.safetensors from `vox mens train`)
         #[arg(long, required = true)]
         model: PathBuf,
         /// Path to heldout benchmark directory (default: mens/data/heldout_bench)

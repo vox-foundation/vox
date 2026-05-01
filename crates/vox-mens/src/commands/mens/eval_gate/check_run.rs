@@ -252,8 +252,10 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                     passed: false,
                     message: format!(
                         "eval_local_report.json missing — run `vox mens eval-local \
-                         --model <run_dir> --bench <bench_dir> \
+                         --model {}/candle_qlora_adapter.safetensors \
+                         --bench mens/data/heldout_bench \
                          -o {}/eval_local_report.json` first",
+                        run_dir.display(),
                         run_dir.display()
                     ),
                     block: anti_stub_cfg.block,
@@ -519,8 +521,13 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
                 name: "pass_at_k".to_string(),
                 passed: false,
                 message: format!(
-                    "metrics file missing: {} — run `vox mens eval-local --samples <k> -o <run>/eval_local_report.json` first",
-                    metrics_path.display()
+                    "metrics file missing: {} — run `vox mens eval-local \
+                     --model {}/candle_qlora_adapter.safetensors \
+                     --bench mens/data/heldout_bench \
+                     --samples <k> -o {}/eval_local_report.json` first",
+                    metrics_path.display(),
+                    run_dir.display(),
+                    run_dir.display()
                 ),
                 block: passk_cfg.block,
             });
