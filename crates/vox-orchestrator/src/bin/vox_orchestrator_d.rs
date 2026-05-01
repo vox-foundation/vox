@@ -2,6 +2,7 @@
 //!
 //! Requires **`VOX_ORCHESTRATOR_DAEMON_SOCKET`**: TCP bind (`127.0.0.1:9745`) or **`stdio`** / **`-`** for line JSON on stdin/stdout.
 
+use anyhow::Context as _;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -117,7 +118,7 @@ async fn main() -> anyhow::Result<()> {
         ..vox_orchestrator::SessionConfig::default()
     };
     let session_manager = vox_orchestrator::SessionManager::new(session_cfg)
-        .unwrap_or_else(|e| panic!("Session manager initialization failed: {}", e));
+        .context("session manager initialization failed")?;
     
     let registry = vox_skills::new_registry_arc();
     let registry_for_builtins = registry.clone();
