@@ -11898,7 +11898,7 @@ checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
 name = "vox-audio-ingress"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -11915,7 +11915,7 @@ dependencies = [
 
 [[package]]
 name = "vox-bounded-fs"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "tempfile",
@@ -11926,7 +11926,7 @@ dependencies = [
 
 [[package]]
 name = "vox-browser"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "chromiumoxide",
  "chromiumoxide_cdp",
@@ -11941,7 +11941,7 @@ dependencies = [
 
 [[package]]
 name = "vox-build-meta"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -11951,7 +11951,7 @@ dependencies = [
 
 [[package]]
 name = "vox-capability-registry"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -11962,7 +11962,7 @@ dependencies = [
 
 [[package]]
 name = "vox-checksum-manifest"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "sha2",
  "workspace-hack",
@@ -11970,7 +11970,7 @@ dependencies = [
 
 [[package]]
 name = "vox-clavis"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "aes-gcm",
  "aho-corasick",
@@ -11991,7 +11991,7 @@ dependencies = [
 
 [[package]]
 name = "vox-cli"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -12097,7 +12097,7 @@ dependencies = [
 
 [[package]]
 name = "vox-cli-core"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -12115,7 +12115,7 @@ dependencies = [
 
 [[package]]
 name = "vox-compiler"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "bzip2 0.6.1",
@@ -12150,7 +12150,7 @@ dependencies = [
 
 [[package]]
 name = "vox-config"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -12163,7 +12163,7 @@ dependencies = [
 
 [[package]]
 name = "vox-constrained-gen"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -12176,7 +12176,7 @@ dependencies = [
 
 [[package]]
 name = "vox-container"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -12188,7 +12188,7 @@ dependencies = [
 
 [[package]]
 name = "vox-corpus"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -12214,7 +12214,7 @@ dependencies = [
 
 [[package]]
 name = "vox-crypto"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "aead",
  "blake3",
@@ -12230,7 +12230,7 @@ dependencies = [
 
 [[package]]
 name = "vox-dashboard"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -12250,7 +12250,7 @@ dependencies = [
 
 [[package]]
 name = "vox-db"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bincode",
  "blake3",
@@ -12280,7 +12280,7 @@ dependencies = [
 
 [[package]]
 name = "vox-doc-inventory"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -12295,7 +12295,7 @@ dependencies = [
 
 [[package]]
 name = "vox-doc-pipeline"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -12306,7 +12306,7 @@ dependencies = [
 
 [[package]]
 name = "vox-eval"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "log",
  "regex",
@@ -12330,7 +12330,7 @@ dependencies = [
 
 [[package]]
 name = "vox-forge"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -12346,7 +12346,7 @@ dependencies = [
 
 [[package]]
 name = "vox-git"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "gix",
@@ -12363,7 +12363,7 @@ dependencies = [
 
 [[package]]
 name = "vox-grammar-export"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "semver",
@@ -12375,7 +12375,7 @@ dependencies = [
 
 [[package]]
 name = "vox-identity"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "argon2",
@@ -12391,14 +12391,14 @@ dependencies = [
 
 [[package]]
 name = "vox-install-policy"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "workspace-hack",
 ]
 
 [[package]]
 name = "vox-integration-tests"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "insta",
  "jsonschema",
@@ -12430,7 +12430,7 @@ dependencies = [
 
 [[package]]
 name = "vox-jsonschema-util"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "jsonschema",
@@ -12444,7 +12444,7 @@ dependencies = [
 
 [[package]]
 name = "vox-lsp"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -12464,7 +12464,7 @@ dependencies = [
 
 [[package]]
 name = "vox-ludus"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -12496,7 +12496,7 @@ dependencies = [
 
 [[package]]
 name = "vox-mcp-meta"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "strum 0.26.3",
  "vox-mcp-registry",
@@ -12505,7 +12505,7 @@ dependencies = [
 
 [[package]]
 name = "vox-mcp-registry"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_yaml",
@@ -12514,7 +12514,7 @@ dependencies = [
 
 [[package]]
 name = "vox-mens"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -12567,7 +12567,7 @@ dependencies = [
 
 [[package]]
 name = "vox-mesh-types"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -12575,7 +12575,7 @@ dependencies = [
 
 [[package]]
 name = "vox-openai-sse"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde_json",
  "workspace-hack",
@@ -12583,7 +12583,7 @@ dependencies = [
 
 [[package]]
 name = "vox-openai-wire"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -12592,7 +12592,7 @@ dependencies = [
 
 [[package]]
 name = "vox-oratio"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -12624,7 +12624,7 @@ dependencies = [
 
 [[package]]
 name = "vox-orchestrator"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -12711,7 +12711,7 @@ dependencies = [
 
 [[package]]
 name = "vox-orchestrator-types"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_yaml",
@@ -12719,7 +12719,7 @@ dependencies = [
 
 [[package]]
 name = "vox-pm"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bincode",
  "data-encoding",
@@ -12740,7 +12740,7 @@ dependencies = [
 
 [[package]]
 name = "vox-populi"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -12803,14 +12803,14 @@ dependencies = [
 
 [[package]]
 name = "vox-primitives"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "workspace-hack",
 ]
 
 [[package]]
 name = "vox-project-scaffold"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -12822,7 +12822,7 @@ dependencies = [
 
 [[package]]
 name = "vox-protocol"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -12831,7 +12831,7 @@ dependencies = [
 
 [[package]]
 name = "vox-publisher"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -12869,7 +12869,7 @@ dependencies = [
 
 [[package]]
 name = "vox-repository"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "blake3",
  "glob",
@@ -12890,7 +12890,7 @@ dependencies = [
 
 [[package]]
 name = "vox-reqwest-defaults"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "reqwest 0.12.28",
  "workspace-hack",
@@ -12898,7 +12898,7 @@ dependencies = [
 
 [[package]]
 name = "vox-runtime"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "async-stream",
  "blake3",
@@ -12931,7 +12931,7 @@ dependencies = [
 
 [[package]]
 name = "vox-scaling-policy"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -12942,7 +12942,7 @@ dependencies = [
 
 [[package]]
 name = "vox-schola"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -12956,7 +12956,7 @@ dependencies = [
 
 [[package]]
 name = "vox-scientia-core"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -12980,7 +12980,7 @@ dependencies = [
 
 [[package]]
 name = "vox-scientia-ingest"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "feed-rs",
@@ -12996,7 +12996,7 @@ dependencies = [
 
 [[package]]
 name = "vox-scientia-social"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "vox-publisher",
  "workspace-hack",
@@ -13004,7 +13004,7 @@ dependencies = [
 
 [[package]]
 name = "vox-search"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "blake3",
@@ -13032,7 +13032,7 @@ dependencies = [
 
 [[package]]
 name = "vox-skills"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -13060,7 +13060,7 @@ dependencies = [
 
 [[package]]
 name = "vox-socrates-policy"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "serde",
  "workspace-hack",
@@ -13068,7 +13068,7 @@ dependencies = [
 
 [[package]]
 name = "vox-spool"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "reqwest 0.12.28",
@@ -13082,7 +13082,7 @@ dependencies = [
 
 [[package]]
 name = "vox-ssg"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "vox-compiler",
  "workspace-hack",
@@ -13090,7 +13090,7 @@ dependencies = [
 
 [[package]]
 name = "vox-tensor"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "burn",
@@ -13104,7 +13104,7 @@ dependencies = [
 
 [[package]]
 name = "vox-test-harness"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -13116,7 +13116,7 @@ dependencies = [
 
 [[package]]
 name = "vox-toestub"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -13145,7 +13145,7 @@ dependencies = [
 
 [[package]]
 name = "vox-tools"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -13157,7 +13157,7 @@ dependencies = [
 
 [[package]]
 name = "vox-webhook"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -13180,7 +13180,7 @@ dependencies = [
 
 [[package]]
 name = "vox-workflow-runtime"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -14835,7 +14835,7 @@ dependencies = [
 
 [[package]]
 name = "workspace-hack"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "ahash 0.8.12",
  "aho-corasick",
