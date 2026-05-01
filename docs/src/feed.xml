@@ -5,8 +5,17 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 01 May 2026 22:56:05 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 01 May 2026 23:02:51 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>vox-codegen-ts API</title>
+    <link>https://vox-lang.org/api/vox-codegen-ts.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/api/vox-codegen-ts.html</guid>
+    <description>API reference for the vox-codegen-ts crate: HIR-to-TypeScript/TSX code generation pipeline.</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
 
   <item>
     <title>Architecture Index</title>
@@ -31,6 +40,15 @@
     <link>https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</guid>
     <description>Live tracking of task completion for the Vox GUI-native language roadmap (April 2026).</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Internal Web IR Implementation Blueprint</title>
+    <link>https://vox-lang.org/architecture/internal-web-ir-implementation-blueprint.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/internal-web-ir-implementation-blueprint.html</guid>
+    <description>Implementation plan, acceptance gates, and parity requirements for the Vox internal Web IR layer.</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -227,25 +245,6 @@
     <link>https://vox-lang.org/architecture/terminal-exec-policy-ssot.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/terminal-exec-policy-ssot.html</guid>
     <description>Live SSOT for the PowerShell-first terminal execution policy: what the claim actually is, what evidence supports it, and what it does NOT claim.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Warp Terminal Research Findings (2026)</title>
-    <link>https://vox-lang.org/architecture/warp-research-findings-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/warp-research-findings-2026.html</guid>
-    <description>Systematic scan of warpdotdev/warp for high-value primitives, license compatibility, and feature gaps relevant to Vox.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Agent instruction architecture</title>
-    <link>https://vox-lang.org/contributors/agent-instruction-architecture.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/agent-instruction-architecture.html</guid>
-    <description>How Vox layers AGENTS, tool-specific overlays, continuation prompts, and CI gates for durable agent behavior.</description>
     <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
