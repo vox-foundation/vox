@@ -109,7 +109,7 @@ fn main() {
 
     // Step 2: Pre-flight eval gate
     // Default policy file is mens/config/eval-gates.yaml — DO NOT pass `--policy warn`,
-    // that resolves as a non-existent path and the gate silently no-ops (Ok(0)).
+    // that resolves as a non-existent path and run_gate.rs hard-fails with Ok(1).
     // Set VOX_MENS_FORCE_TRAIN=1 to proceed past a failing gate (dev iteration only).
     if skip_eval {
         print("Step 2/5: Skipping pre-flight eval (VOX_MENS_SKIP_EVAL set).")

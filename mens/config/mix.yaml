@@ -37,10 +37,14 @@ sources:
     sample_rate: 0.1
     optional: true
 
-  # Real tool traces go here once generated.
+  # Real tool traces go here once harvested from orchestrator session captures.
   # Schema: ToolTraceRecord (task_prompt, tool_name, arguments_json, result_json,
   #   success, optional followup_text) — see mix.example.yaml and vox-corpus ToolTraceRecord.
-  # Generate with: vox mens corpus generate --output mens/data/tool_traces.jsonl
+  #
+  # Source: orchestrator session captures under target/dogfood/ (real tool
+  # invocations from `vox-orchestrator-d` runs).  Promote into the mix with
+  # `vox populi corpus extract` — NOT `vox mens corpus generate`, which only
+  # produces synthetic pairs to mens/data/synthetic.jsonl.
   # DO NOT reference tool_traces.example.jsonl — that file is a 1-row stub ({}).
   - path: mens/data/tool_traces.jsonl
     weight: 4.0                   # High-value tool trajectories with vox output

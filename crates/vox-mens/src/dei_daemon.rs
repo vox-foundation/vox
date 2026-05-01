@@ -5,18 +5,11 @@ use serde_json::Value;
 
 pub const BINARY: &str = "vox-orchestrator-d";
 
-pub mod method {
-    pub const AI_CHECK: &str = "ai.check";
-    pub const AI_FIX: &str = "ai.fix";
-    pub const AI_REVIEW: &str = "ai.review";
-    pub const AI_GENERATE: &str = "ai.generate";
-    pub const CONFIG_GET: &str = "config.get";
-    // Planning methods added to contracts/dei/rpc-methods.schema.json
-    pub const AI_PLAN_NEW: &str = "ai.plan.new";
-    pub const AI_PLAN_REPLAN: &str = "ai.plan.replan";
-    pub const AI_PLAN_STATUS: &str = "ai.plan.status";
-    pub const AI_PLAN_EXECUTE: &str = "ai.plan.execute";
-}
+// Method constants are owned by `vox-protocol` (single source of truth shared
+// with vox-cli, vox-orchestrator, etc.).  Re-exported here so existing call
+// sites (`crate::dei_daemon::method::*`) continue to resolve without a second
+// definition that can drift.
+pub use vox_protocol::dei_method as method;
 
 #[derive(serde::Serialize)]
 struct DispatchRequest {

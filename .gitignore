@@ -116,19 +116,12 @@ docs/book/
 mens/data/*.mix_report.json
 
 # All training run directories are machine-local artifacts — never commit run artifacts.
-# Named runs (agent_*, bg_*, v1, qwen35_*, etc.), logs, and latest/ are all ephemeral.
+# Named runs (agent_*, bg_*, v1, qwen35_*, etc.), logs, latest/, and all
+# pipeline-generated artifacts (training_manifest.json, telemetry.jsonl,
+# eval_results.json, gate_receipt.json, eval_local_report.json,
+# benchmark_passatk.json, review_metrics.json, benchmark_gate_eval.json,
+# training-preflight.json, checkpoint_state.json, etc.) are covered by this rule.
 mens/runs/
-mens/runs/latest/training_manifest.json
-mens/runs/latest/checkpoint_state.json
-mens/runs/qwen35_qlora_smoke35_v4/checkpoint_state.json
-# Pipeline-generated run artifacts (written fresh by each pipeline run)
-mens/runs/latest/eval_results.json
-mens/runs/latest/training-preflight.json
-mens/runs/latest/gate_receipt.json
-mens/runs/latest/eval_local_report.json
-mens/runs/latest/benchmark_passatk.json
-mens/runs/latest/review_metrics.json
-mens/runs/latest/benchmark_gate_eval.json
 
 # Repo-root only: renamed `target` trees when deletes fail on locked binaries (e.g. Windows).
 /target*.stale-*/
