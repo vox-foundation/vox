@@ -150,7 +150,7 @@ Expected outputs:
   - `VOX_BENCHMARK_DIR` — held-out bench directory (default `mens/data/heldout_bench`)
 
 ```powershell
-.\target\release\vox.exe mens corpus eval target/dogfood/train.jsonl -o mens/runs/v1/eval_results.json
+.\target\release\vox.exe mens corpus eval target/dogfood/validated_mixed.jsonl -o mens/runs/latest/eval_results.json
 ```
 
 ## Runtime Profiles
