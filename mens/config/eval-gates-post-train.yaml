@@ -52,12 +52,17 @@ mcp_tool_schema:
   block: false
   metrics_file: mcp_tool_schema_kpi.json
 
+# Warn-only: anti_stub_task_success, placeholder_event_rate, trivial_placeholder_event_rate,
+# and construct_richness_mean are written by `vox mens eval-local`, not by corpus eval
+# (Step 4) or the QLoRA trainer.  Missing fields default to 0.0 in check_run.rs; with
+# block: true and min_pass_rate: 0.92, Step 5 would always hard-block on fresh runs.
+# Matches the pass_at_k / review_recurrence warn-only pattern.
 anti_stub:
   min_pass_rate: 0.92
   max_placeholder_event_rate: 0.08
   max_trivial_placeholder_event_rate: 0.08
   min_construct_richness_mean: 0.20
-  block: true
+  block: false
 
 # Warn-only: review_metrics.json is written by the review pipeline, not the trainer.
 review_recurrence:
