@@ -61,12 +61,12 @@ mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub"
 mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
-    "dep:async-trait",
     "dep:reqwest",
     "dep:vox-reqwest-defaults",
 ]
 
 [dependencies]
+async-trait = { workspace = true }
 owo-colors = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -114,7 +114,6 @@ safetensors = { workspace = true, optional = true }
 tokenizers = { workspace = true, optional = true }
 qlora-rs = { workspace = true, optional = true }
 peft-rs = { workspace = true, optional = true }
-async-trait = { workspace = true, optional = true }
 futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
 vox-compiler = { workspace = true, optional = true }

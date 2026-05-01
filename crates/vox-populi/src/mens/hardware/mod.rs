@@ -6,6 +6,7 @@ pub mod linux_drm;
 pub mod macos_metal;
 #[cfg(feature = "nvml-gpu-probe")]
 pub mod nvml;
+pub mod probe;
 pub mod types;
 #[cfg(feature = "mens-gpu")]
 pub mod wgpu_probe;
