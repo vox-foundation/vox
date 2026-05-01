@@ -14,7 +14,7 @@ training_rationale: "Provides documentation for the VS Code extension, including
 
 ## Features
 
-- **Syntax Highlighting** — Full TextMate grammar for `.vox` files covering keywords, decorators (`@table`, `@endpoint`, `@component`, `@agent_def`, `@skill`, `@mcp.tool`, etc.), types, JSX tags, strings, and comments.
+- **Syntax Highlighting** — Full TextMate grammar for `.vox` files covering keywords, decorators (`@table`, `@endpoint`, `@agent_def`, `@skill`, `@mcp.tool`, etc.), bare declarations (`component Name() {}`, `state_machine Name {}`), types, JSX tags, strings, and comments.
 - **Language Server Protocol** — Real-time diagnostics, hover information, and completions via `vox-lsp`.
 - **Build Commands** — "Vox: Build Current File" and "Vox: Run Current Project" from the command palette.
 - **Visual Editor** — "Vox: Open Visual Editor" opens a webview preview (`dist/index.html` when present, otherwise a localhost dev iframe).
@@ -88,9 +88,10 @@ npm run compile
 The extension highlights all Vox language constructs:
 
 - **Keywords**: `fn`, `let`, `mut`, `return`, `if`, `else`, `for`, `while`, `match`, `type`, `import`
-- **Decorators**: `@table`, `@endpoint`, `@component`, `@test`, `@action`, `@skill`, `@agent_def`, `@mcp.tool`, `@v0`, `@pure`, `@deprecated`, `@require`, `@index`, `@storage`
+- **Decorators**: `@table`, `@endpoint`, `@test`, `@action`, `@skill`, `@agent_def`, `@mcp.tool`, `@v0`, `@pure`, `@deprecated`, `@require`, `@index`, `@storage`
+- **Bare declarations**: `component Name() {}`, `state_machine Name {}`, `routes {}`
 - **Types**: `int`, `str`, `bool`, `Unit`, `Element`, `List`, `Map`, `Set`, `Result`, `Option`, `Id`
 - **Comments**: `#` line comments
-- **JSX**: Inline JSX tags within `@component` functions
+- **JSX**: Inline JSX tags within `component` blocks
 
 

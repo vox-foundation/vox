@@ -699,7 +699,7 @@ training_eligible: true
 
 # CLI design rules
 
-Single source for **shipped `vox` CLI** conventions (see also [`reference/cli.md`](cli.md), [`cli-scope-policy.md`](../archive/research-2026-q1/cli-scope-policy.md), [`cli-reachability.md`](cli.md)).
+Single source for **shipped `vox` CLI** conventions (see also [`reference/cli.md`](cli.md), [`cli-scope-policy.md`](../archive/research-2026-q1/cli-scope-policy.md), [`cli-reachability.md`](../archive/research-2026-q1/cli-reachability.md)).
 
 ## Hierarchy and naming
 

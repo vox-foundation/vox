@@ -69,9 +69,9 @@ impl AiLazinessDetector {
             )
             .expect("custom_type_default_return regex"),
             // `if cond { return Ok(()) } else { ... }` / `if cond { ... } else { return Ok(()) }`
-            // Match a stub Ok(()) or Err(()) inside an if-else; the OTHER branch is what triggers concern.
+            // Both orderings: stub in the if-branch OR stub in the else-branch.
             conditional_stub: Regex::new(
-                r"if\s+[^{]+\{\s*return\s+(?:Ok\(\(\)\)|Err\(\(\)\)|None|Default::default\(\))\s*;?\s*\}\s*else\s*\{",
+                r"(?:if\s+[^{]+\{\s*return\s+(?:Ok\(\(\)\)|Err\(\(\)\)|None|Default::default\(\))\s*;?\s*\}\s*else\s*\{|\belse\s*\{\s*return\s+(?:Ok\(\(\)\)|Err\(\(\)\)|None|Default::default\(\))\s*;?\s*\})",
             )
             .expect("conditional_stub regex"),
             // `assert!(...)` / `debug_assert!(...)` / `dbg!(...)` / `log::*!(...)` / `tracing::*!(...)`
@@ -95,7 +95,8 @@ impl AiLazinessDetector {
 
     fn is_test_gated(file: &SourceFile) -> bool {
         // Path-based: under a `tests/` directory, or filename ends in `_test.rs` / `_tests.rs`.
-        // Also accept a file-level `#![cfg(test)]` near the top.
+        // Also accept a file-level `#![cfg(test)]` near the top, or module-level `#[cfg(test)]`
+        // followed by a `mod` declaration anywhere in the file (the common inline test pattern).
         let path = file.path.to_string_lossy().replace('\\', "/");
         let in_tests_dir = path.contains("/tests/") || path.starts_with("tests/");
         let test_suffix = path.ends_with("_test.rs")
@@ -108,7 +109,31 @@ impl AiLazinessDetector {
             .iter()
             .take(5)
             .any(|l| l.trim_start().starts_with("#![cfg(test)]"));
-        in_tests_dir || test_suffix || inner_attr
+        // Detect `#[cfg(test)] mod <name> {` anywhere in file (inline unit-test modules).
+        let has_cfg_test_mod = {
+            let mut found = false;
+            let lines = &file.lines;
+            for i in 0..lines.len() {
+                let trimmed = lines[i].trim_start();
+                if trimmed.starts_with("#[cfg(test)]") {
+                    // Check the same line or the next non-blank line for a `mod` declaration.
+                    let rest = trimmed.trim_start_matches("#[cfg(test)]").trim_start();
+                    if rest.starts_with("mod ") || rest.starts_with("pub mod ") {
+                        found = true;
+                        break;
+                    }
+                    if let Some(next) = lines.get(i + 1) {
+                        let n = next.trim_start();
+                        if n.starts_with("mod ") || n.starts_with("pub mod ") {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            found
+        };
+        in_tests_dir || test_suffix || inner_attr || has_cfg_test_mod
     }
 }
 
@@ -152,7 +177,7 @@ impl DetectionRule for AiLazinessDetector {
         // Multiline patterns: scan the joined content once.
         for caps in self.conditional_stub.captures_iter(&file.content) {
             let m = caps.get(0).expect("regex match has group 0");
-            let line = file.content[..m.start()].lines().count();
+            let line = file.content[..m.start()].lines().count() + 1;
             findings.push(Finding {
                 rule_id: "ai-laziness/conditional-stub".into(),
                 rule_name: "Conditional stub branch".into(),

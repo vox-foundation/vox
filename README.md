@@ -288,7 +288,7 @@ Surfaces are tracked by how reproducibly an LLM can target them. Data, logic, an
 | `@table` & data layer | 🟢 Stable | Schema, migrations, `db.*` query builder, wire types. |
 | Endpoints (`@endpoint`) | 🟡 Preview | Unified shape is new — `query`/`server`/`mutation` recently merged. |
 | Agent tooling | 🟢 Stable | `@mcp.tool` / `@mcp.resource` exposure, MCP protocol compliance. |
-| Stub detection / AI-laziness gates | 🟡 Preview | `vox stub-check` catches `todo!()` / `unimplemented!()` / hollow returns / "Done!" claims today; placeholder-string returns, "implement later" comments, mock-named functions, conditional stubs, and assertion-only bodies are queued. |
+| Stub detection / AI-laziness gates | 🟡 Preview | `vox stub-check` catches `todo!()` / `unimplemented!()` / hollow returns / "Done!" claims. The `ai_laziness` detector (rule 21) adds placeholder-string returns, "implement later" comments, mock-named functions, conditional stubs, and assertion-only bodies. |
 | RAG & knowledge curation | 🟡 Preview | `vox scientia` retrieval, Socrates guards. |
 | Durable execution | 🚧 Experimental | Parser keywords (`workflow`/`activity`/`actor`) tombstoned; replacement decorator pending ADR. Runtime works, but the source-language surface is in flux. |
 | Local training (MENS) | 🟡 Preview | Hardware coverage is still expanding. |

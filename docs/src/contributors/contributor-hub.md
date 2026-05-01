@@ -34,13 +34,13 @@ Quick routing by goal. All links resolve from this directory.
 | Goal | Start here |
 |---|---|
 | Fix a TOESTUB / stub-check CI failure | [TOESTUB contributor guide](toestub-contributor-guide.md) |
-| Fix a `god_object` or `sprawl` violation | [God object defactor checklist](../archive/research-2026-q1/god-object-defactor-checklist.md) |
+| Fix a `god_object` or `sprawl` violation | [TOESTUB contributor guide](toestub-contributor-guide.md) (god-object rules) |
 | Understand why my code affects model quality | [Contribution loop](contribution-loop.md) |
 | Add a golden `.vox` example | [Examples corpus how-to](../how-to/examples-corpus.md) |
-| Write or update documentation | [Documentation governance](documentation-governance.md) + [Doc-to-code checklist](../archive/research-2026-q1/doc-to-code-acceptance-checklist.md) |
+| Write or update documentation | [Documentation governance](documentation-governance.md) |
 | Contribute to the compiler / parser | [How-To: parser and HIR](../how-to/how-to-contribute-parser-hir.md) |
 | Contribute to MENS training pipeline | [How-To: Mens native training](../how-to/how-to-contribute-mens.md) |
-| Add a CLI command | [CLI design rules SSOT](../archive/research-2026-q1/cli-design-rules-ssot.md) |
+| Add a CLI command | [CLI reference](../reference/cli.md) + [Command compliance](../reference/command-compliance.md) |
 | Work with secrets or credentials | [Clavis SSOT](../reference/clavis-ssot.md) |
 | Understand the agentic quality model | [Coding agent instructions](coding-agents.md) + [Governance (TOESTUB)](../../agents/governance.md) |
 | Read architecture or research context | [Architecture index](../architecture/architecture-index.md) → contributor-relevant section |
@@ -55,10 +55,10 @@ Use these surfaces intentionally:
 | Secrets, credentials, env parity | [AGENTS.md](../../../AGENTS.md), [Clavis SSOT](../reference/clavis-ssot.md) |
 | Agent behavior consistency across long sessions and IDEs | [Agent instruction architecture](agent-instruction-architecture.md), [Continuation prompt engineering](continuation-prompt-engineering.md) |
 | Antigravity-specific overrides | [GEMINI.md](../../../GEMINI.md), [Agent instruction architecture](agent-instruction-architecture.md) |
-| Terminal shell discipline, exec-policy, `vox shell check` | [AGENTS.md](../../../AGENTS.md), [CLI reference](../reference/cli.md) (`vox shell`), [Terminal AST validation research 2026](../archive/research-2026-q1/terminal-ast-validation-research-2026.md), [`contracts/terminal/exec-policy.v1.yaml`](../../../contracts/terminal/exec-policy.v1.yaml) |
-| CLI or command-surface changes | [CLI reference](../reference/cli.md), [CLI design rules SSOT](../archive/research-2026-q1/cli-design-rules-ssot.md), [Capability registry SSOT](../archive/research-2026-q1/capability-registry-ssot.md), [Command compliance](../reference/command-compliance.md) |
-| Documentation updates or new docs | [Documentation governance](documentation-governance.md), [Doc-to-code acceptance checklist](../archive/research-2026-q1/doc-to-code-acceptance-checklist.md) |
-| Telemetry, metrics, privacy boundaries | [Telemetry trust SSOT](../architecture/telemetry-trust-ssot.md), [research findings 2026](../archive/research-2026-q1/telemetry-unification-research-findings-2026.md), [implementation blueprint 2026](../archive/research-2026-q1/telemetry-implementation-blueprint-2026.md), [implementation backlog 2026](../archive/research-2026-q1/telemetry-implementation-backlog-2026.md) |
+| Terminal shell discipline, exec-policy, `vox shell check` | [AGENTS.md](../../../AGENTS.md), [CLI reference](../reference/cli.md) (`vox shell`), [`contracts/terminal/exec-policy.v1.yaml`](../../../contracts/terminal/exec-policy.v1.yaml) |
+| CLI or command-surface changes | [CLI reference](../reference/cli.md), [Command compliance](../reference/command-compliance.md) |
+| Documentation updates or new docs | [Documentation governance](documentation-governance.md) |
+| Telemetry, metrics, privacy boundaries | [Telemetry trust SSOT](../architecture/telemetry-trust-ssot.md), [Telemetry metric contract](../reference/telemetry-metric-contract.md) |
 | Architecture or roadmap context | [Architecture index](../architecture/architecture-index.md), [Research index](../architecture/research-index.md) |
 | Contracts and schema-backed behavior | [contracts/README.md](../../../contracts/README.md), related reference pages under `docs/src/reference/` |
 | MCP, HTTP, Populi mesh, SSE, WebSockets | [Communication protocols](../reference/communication-protocols.md), [protocol catalog](../../../contracts/communication/protocol-catalog.yaml); research [Protocol convergence research 2026](../archive/research-2026-q1/protocol-convergence-research-2026.md) |

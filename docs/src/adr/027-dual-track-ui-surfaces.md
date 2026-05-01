@@ -4,7 +4,7 @@ description: "Splits Vox's UI primitives into a Vox-native reactivity track and 
 category: "architecture"
 status: "current"
 last_updated: "2026-04-30"
-training_eligible: true
+training_eligible: false
 ---
 # ADR 027: Dual-Track UI Surfaces
 
