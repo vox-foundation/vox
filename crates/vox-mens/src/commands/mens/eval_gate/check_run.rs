@@ -20,7 +20,13 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
     let policy = load_policy(policy_path)?;
     let mut results = Vec::new();
 
-    let manifest_path = run_dir.join("manifest.json");
+    // Trainer writes `training_manifest.json`; `manifest.json` is legacy/hand-written.
+    // Prefer the canonical trainer output; fall back to the legacy name for older runs.
+    let manifest_path = {
+        let canonical = run_dir.join("training_manifest.json");
+        let legacy = run_dir.join("manifest.json");
+        if canonical.exists() { canonical } else { legacy }
+    };
     let manifest: Option<serde_json::Value> = if manifest_path.exists() {
         let content = read_utf8_path_capped(&manifest_path)?;
         serde_json::from_str(&content).ok()
@@ -28,7 +34,13 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
         None
     };
 
-    let metrics_path = run_dir.join("metrics.jsonl");
+    // Trainer writes `telemetry.jsonl`; `metrics.jsonl` is the legacy alias.
+    // Mirror the fallback used in `vox mens status` (status.rs).
+    let metrics_path = {
+        let legacy = run_dir.join("metrics.jsonl");
+        let canonical = run_dir.join("telemetry.jsonl");
+        if legacy.exists() { legacy } else { canonical }
+    };
     let metrics_lines: Vec<String> = if metrics_path.exists() {
         read_jsonl_nonempty_lines(&metrics_path)?
     } else {

@@ -46,6 +46,14 @@ fn main() {
         if val == "true" { background = true }
     }
 
+    let force_env = env.get("VOX_MENS_FORCE_TRAIN")
+    let mut force_train = false
+    if force_env isnt null {
+        let val = force_env.unwrap()
+        if val == "1" { force_train = true }
+        if val == "true" { force_train = true }
+    }
+
     print("  Domain:   " + domain)
     print("  Epochs:   " + epochs)
     print("  Device:   " + device)
@@ -100,17 +108,26 @@ fn main() {
     }
 
     // Step 2: Pre-flight eval gate
+    // Default policy file is mens/config/eval-gates.yaml — DO NOT pass `--policy warn`,
+    // that resolves as a non-existent path and the gate silently no-ops (Ok(0)).
+    // Set VOX_MENS_FORCE_TRAIN=1 to proceed past a failing gate (dev iteration only).
     if skip_eval {
         print("Step 2/4: Skipping pre-flight eval (VOX_MENS_SKIP_EVAL set).")
     } else {
-        print("Step 2/4: Running pre-flight eval gate...")
-        let eval_run = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "eval-gate", "--run-dir", "mens/runs/latest", "--policy", "warn"])
+        print("Step 2/4: Running pre-flight eval gate (mens/config/eval-gates.yaml)...")
+        let eval_run = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "eval-gate", "--run-dir", "mens/runs/latest"])
         if eval_run isnt null {
             let res = eval_run.unwrap()
             if res.code == 0 {
                 print("  ✓ Eval gate passed.")
             } else {
-                print("  ⚠ Eval gate warning (non-blocking).")
+                if force_train {
+                    print("  ⚠ Eval gate FAILED but VOX_MENS_FORCE_TRAIN=1 — proceeding anyway.")
+                } else {
+                    print("  ✗ Eval gate FAILED (blocking). Inspect mens/runs/latest/eval_results.json.")
+                    print("    Override for dev iteration: VOX_MENS_FORCE_TRAIN=1")
+                    return null
+                }
             }
         }
     }
@@ -151,17 +168,46 @@ fn main() {
                 print("  ✓ Training complete.")
             } else {
                 print("  ✗ Training failed with exit code: " + str(res.code))
+                return null
             }
         } else {
             print("  ✗ Failed to run training process.")
+            return null
         }
     }
 
     if background == false {
-        print("Step 4/4: Post-training verification...")
+        // Post-training verification doubles as the A2A run receipt:
+        // re-running eval-gate against mens/runs/latest validates that
+        // training actually wrote manifest.json, metrics.jsonl, eval_results.json,
+        // AND that the new model meets eval-gate thresholds (parse rate,
+        // construct coverage, supervised ratio, throughput, anti-stub).
+        // The gate's exit code + artifacts ARE the machine-readable receipt
+        // that orchestrator/A2A consumers can register against.
+        // Post-train gate uses eval-gates-post-train.yaml (warn-only for pass_at_k and
+        // review_recurrence — those need explicit eval-local + review pipeline steps
+        // that run separately from training). Blocking gates here cover only what the
+        // trainer writes: training_manifest.json, telemetry.jsonl, eval_results.json.
+        print("Step 4/4: Post-training verification (run receipt)...")
+        let post_gate = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "eval-gate", "--run-dir", "mens/runs/latest", "--policy", "mens/config/eval-gates-post-train.yaml"])
+        if post_gate isnt null {
+            let res = post_gate.unwrap()
+            if res.code == 0 {
+                print("  ✓ Post-training gate passed — run artifacts are valid.")
+            } else {
+                if force_train {
+                    print("  ⚠ Post-training gate FAILED but VOX_MENS_FORCE_TRAIN=1 — receipt marked degraded.")
+                } else {
+                    print("  ✗ Post-training gate FAILED — run is NOT servable.")
+                    print("    Inspect: mens/runs/latest/eval_results.json")
+                    print("    Override for dev iteration: VOX_MENS_FORCE_TRAIN=1")
+                    return null
+                }
+            }
+        }
         print("  Pipeline complete.")
-        print("  Next steps:")
-        print("    vox mens status --run-dir mens/runs/latest")
-        print("    vox mens eval-gate --run-dir mens/runs/latest")
+        print("  Next steps (required before serving):")
+        print("    vox mens eval-local --model mens/runs/latest --bench <bench_dir>")
+        print("    vox mens eval-gate --run-dir mens/runs/latest  (full policy, promotes run)")
     }
 }
