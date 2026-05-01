@@ -181,11 +181,20 @@ fn main() {
         // The QLoRA trainer does NOT write eval_results.json (only the legacy
         // mens-dei+gpu path does). Without this step, Step 5's eval_local gate
         // would read a stale file left by the previous pipeline run — or find
-        // nothing at all on a first run. We evaluate the same train.jsonl the
-        // trainer consumed and write fresh results directly into the run dir.
+        // nothing at all on a first run.
+        //
+        // IMPORTANT: We evaluate the contract-resolved training corpus, NOT
+        // the full mix output. training_contract.yaml sets:
+        //   train_path: target/dogfood/validated_mixed.jsonl
+        // preflight.rs resolves contract > data_dir/train.jsonl > fallback,
+        // so the trainer consumed validated_mixed.jsonl (the golden source,
+        // weight-6 input to mix.yaml). Evaluating train.jsonl (the full mix
+        // output, which includes docs lanes with ~0.31 parse rate) would
+        // misrepresent what the model actually learned from.
+        //
         // Non-blocking: a corpus eval failure should not abort a successful training run.
         print("Step 4/5: Refreshing corpus eval metrics...")
-        let corpus_eval = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "corpus", "eval", "target/dogfood/train.jsonl", "--output", "mens/runs/latest/eval_results.json", "--print-summary"])
+        let corpus_eval = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "corpus", "eval", "target/dogfood/validated_mixed.jsonl", "--output", "mens/runs/latest/eval_results.json", "--print-summary"])
         if corpus_eval isnt null {
             let res = corpus_eval.unwrap()
             if res.code == 0 {
