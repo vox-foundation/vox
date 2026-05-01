@@ -3,6 +3,8 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use tracing::Instrument as _;
+
 use super::envelope::{
     REMOTE_TASK_ENVELOPE_TYPE, REMOTE_TASK_RESULT_TYPE, RemoteTaskEnvelope, RemoteTaskResult,
 };
@@ -67,6 +69,271 @@ fn parse_remote_payload_context(payload: &str) -> RemotePayloadContext {
     }
 }
 
+/// Process a single `remote_task_envelope` inbox row inside a tracing span.
+///
+/// The span records `vox.mesh.trace_id` from the W3C `traceparent` carried on
+/// the inbox message (S1 level: field attachment only; full context propagation
+/// is S2).
+async fn process_one_envelope(
+    orchestrator: &crate::orchestrator::Orchestrator,
+    client: &vox_populi::http_client::PopuliHttpClient,
+    sender_agent: u64,
+    receiver_agent: u64,
+    msg: vox_populi::transport::A2AStoredMessage,
+    node_id: &str,
+) {
+    let envelope = match serde_json::from_str::<RemoteTaskEnvelope>(&msg.payload) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::debug!(
+                message_id = msg.id,
+                error = %e,
+                "populi remote worker: invalid envelope JSON"
+            );
+            return;
+        }
+    };
+
+    // Extract trace_id from the W3C traceparent on the inbox row (S1: field recording only).
+    let trace_id = msg
+        .traceparent
+        .as_deref()
+        .and_then(|tp| tp.split('-').nth(1))
+        .filter(|s| s.len() == 32)
+        .unwrap_or("");
+    let exec_lease_id = envelope.exec_lease_id.as_deref().unwrap_or("");
+    tracing::info!(
+        task_id = envelope.task_id,
+        message_id = msg.id,
+        exec_lease_id,
+        "vox.mesh.trace_id" = trace_id,
+        "populi remote worker: processing envelope"
+    );
+
+    let payload_context = parse_remote_payload_context(&envelope.payload);
+    let envelope_session_id = envelope
+        .session_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(std::string::ToString::to_string);
+    let envelope_context_json = envelope
+        .context_envelope_json
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(std::string::ToString::to_string);
+    let effective_session_id = payload_context.session_id.or(envelope_session_id);
+    let effective_context_json = payload_context
+        .context_envelope_json
+        .or(envelope_context_json);
+    let effective_thread_id = payload_context.thread_id.or_else(|| {
+        envelope
+            .thread_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(std::string::ToString::to_string)
+    });
+    let effective_harness_json = payload_context.harness_spec_json.or_else(|| {
+        envelope
+            .harness_spec_json
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(std::string::ToString::to_string)
+    });
+    if let (Some(session_id), Some(context_envelope_json)) = (
+        effective_session_id.as_deref(),
+        effective_context_json.as_deref(),
+    ) {
+        match serde_json::from_str::<crate::ContextEnvelope>(context_envelope_json) {
+            Ok(_) => {
+                let key = crate::socrates::session_context_envelope_key(session_id);
+                crate::sync_lock::rw_write(&*orchestrator.context_store).set(
+                    crate::types::AgentId(0),
+                    key,
+                    context_envelope_json,
+                    3600,
+                );
+                let seeded = orchestrator.attach_session_retrieval_envelope_if_present(
+                    crate::types::TaskId(envelope.task_id),
+                    &Some(session_id.to_string()),
+                );
+                tracing::debug!(
+                    message_id = msg.id,
+                    task_id = envelope.task_id,
+                    session_id,
+                    thread_id = effective_thread_id.as_deref(),
+                    seeded,
+                    "populi remote worker: seeded context store and attempted Socrates attach"
+                );
+            }
+            Err(err) => {
+                tracing::debug!(
+                    message_id = msg.id,
+                    error = %err,
+                    payload = %envelope.payload,
+                    "populi remote worker: context_envelope_json parse failed"
+                );
+            }
+        }
+    }
+    if let Some(harness_spec_json) = effective_harness_json.as_deref() {
+        match serde_json::from_str::<crate::AgentHarnessSpec>(harness_spec_json) {
+            Ok(harness) => {
+                let expectations = crate::HarnessIngestExpectations {
+                    repository_id: envelope.repository_id.as_str(),
+                    session_id: effective_session_id.as_deref(),
+                    thread_id: effective_thread_id.as_deref(),
+                };
+                if let Err(errs) = crate::validate_agent_harness_ingest(&harness, expectations) {
+                    tracing::warn!(
+                        message_id = msg.id,
+                        task_id = envelope.task_id,
+                        errors = %errs.join("; "),
+                        "populi remote worker: harness_spec_json failed validation"
+                    );
+                } else {
+                    tracing::debug!(
+                        message_id = msg.id,
+                        task_id = envelope.task_id,
+                        harness_id = %harness.harness_id,
+                        thread_id = effective_thread_id.as_deref(),
+                        "populi remote worker: accepted portable harness contract"
+                    );
+                }
+            }
+            Err(err) => tracing::warn!(
+                message_id = msg.id,
+                task_id = envelope.task_id,
+                error = %err,
+                "populi remote worker: harness_spec_json parse failed"
+            ),
+        }
+    }
+    // Lease-gated submit: orchestrator holds `task:{task_id}` and passes `exec_lease_id` in the envelope.
+    // The worker must not grant a second lease (would conflict on scope) or renew/release as the wrong claimer.
+    let orchestrator_holds_lease = !exec_lease_id.is_empty();
+
+    let mut worker_owned_lease_id: Option<String> = None;
+    if orchestrator_holds_lease {
+        // No worker-side exec lease RPCs; orchestrator renews/releases.
+    } else {
+        // Legacy / demo: worker acquires a lease keyed like the orchestrator (`task:{task_id}`), not idempotency.
+        let scope_key = format!("task:{}", envelope.task_id);
+        let lease = match client
+            .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+                claimer_node_id: node_id.to_string(),
+                scope_key,
+            })
+            .await
+        {
+            Ok(l) => l,
+            Err(e) => {
+                tracing::debug!(
+                    message_id = msg.id,
+                    error = %e,
+                    "populi remote worker: lease grant failed; leave inbox row for retry"
+                );
+                return;
+            }
+        };
+        worker_owned_lease_id = Some(lease.lease_id.clone());
+        let _ = client
+            .exec_lease_renew(&vox_populi::transport::RemoteExecLeaseRenewRequest {
+                lease_id: lease.lease_id,
+                claimer_node_id: node_id.to_string(),
+            })
+            .await;
+    }
+
+    let result_payload = RemoteTaskResult {
+        idempotency_key: envelope.idempotency_key.clone(),
+        task_id: Some(envelope.task_id),
+        success: true,
+        result: Some(format!(
+            "remote worker accepted payload ({} bytes)",
+            envelope.payload.len()
+        )),
+        error: None,
+    };
+    let result_json = match serde_json::to_string(&result_payload) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::debug!(
+                message_id = msg.id,
+                error = %e,
+                "populi remote worker: result serialization failed"
+            );
+            if let Some(ref lid) = worker_owned_lease_id {
+                let _ = client
+                    .exec_lease_release(&vox_populi::transport::RemoteExecLeaseReleaseRequest {
+                        lease_id: lid.clone(),
+                        claimer_node_id: node_id.to_string(),
+                    })
+                    .await;
+            }
+            return;
+        }
+    };
+
+    let deliver_res = client
+        .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+            sender_agent_id: receiver_agent.to_string(),
+            receiver_agent_id: sender_agent.to_string(),
+            message_type: REMOTE_TASK_RESULT_TYPE.to_string(),
+            payload: result_json,
+            idempotency_key: Some(format!(
+                "remote-result-{}-{}",
+                envelope.task_id, envelope.idempotency_key
+            )),
+            privacy_class: envelope.privacy_class.clone(),
+            payload_blake3_hex: None,
+            worker_ed25519_sig_b64: None,
+            jwe_payload: None,
+            task_kind: None,
+            model_id: None,
+            traceparent: None,
+            priority: 128,
+        })
+        .await;
+    if deliver_res.is_err() {
+        tracing::debug!(
+            message_id = msg.id,
+            "vox.mesh.trace_id" = trace_id,
+            "populi remote worker: result delivery failed; leave source row for retry"
+        );
+        if let Some(ref lid) = worker_owned_lease_id {
+            let _ = client
+                .exec_lease_release(&vox_populi::transport::RemoteExecLeaseReleaseRequest {
+                    lease_id: lid.clone(),
+                    claimer_node_id: node_id.to_string(),
+                })
+                .await;
+        }
+        return;
+    }
+
+    tracing::info!(
+        task_id = envelope.task_id,
+        message_id = msg.id,
+        "vox.mesh.trace_id" = trace_id,
+        "populi remote worker: envelope processed and acked"
+    );
+    let _ = client
+        .relay_a2a_ack(&receiver_agent.to_string(), msg.id)
+        .await;
+    if let Some(ref lid) = worker_owned_lease_id {
+        let _ = client
+            .exec_lease_release(&vox_populi::transport::RemoteExecLeaseReleaseRequest {
+                lease_id: lid.clone(),
+                claimer_node_id: node_id.to_string(),
+            })
+            .await;
+    }
+}
+
 async fn run_remote_worker_tick(
     orchestrator: &crate::orchestrator::Orchestrator,
     client: &vox_populi::http_client::PopuliHttpClient,
@@ -89,237 +356,20 @@ async fn run_remote_worker_tick(
         if msg.message_type != REMOTE_TASK_ENVELOPE_TYPE {
             continue;
         }
-        let envelope = match serde_json::from_str::<RemoteTaskEnvelope>(&msg.payload) {
-            Ok(v) => v,
-            Err(e) => {
-                tracing::debug!(
-                    message_id = msg.id,
-                    error = %e,
-                    "populi remote worker: invalid envelope JSON"
-                );
-                continue;
-            }
-        };
-        let payload_context = parse_remote_payload_context(&envelope.payload);
-        let envelope_session_id = envelope
-            .session_id
+        let trace_id = msg
+            .traceparent
             .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(std::string::ToString::to_string);
-        let envelope_context_json = envelope
-            .context_envelope_json
-            .as_deref()
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(std::string::ToString::to_string);
-        let effective_session_id = payload_context.session_id.or(envelope_session_id);
-        let effective_context_json = payload_context
-            .context_envelope_json
-            .or(envelope_context_json);
-        let effective_thread_id = payload_context.thread_id.or_else(|| {
-            envelope
-                .thread_id
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-                .map(std::string::ToString::to_string)
-        });
-        let effective_harness_json = payload_context.harness_spec_json.or_else(|| {
-            envelope
-                .harness_spec_json
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-                .map(std::string::ToString::to_string)
-        });
-        if let (Some(session_id), Some(context_envelope_json)) = (
-            effective_session_id.as_deref(),
-            effective_context_json.as_deref(),
-        ) {
-            match serde_json::from_str::<crate::ContextEnvelope>(context_envelope_json) {
-                Ok(_) => {
-                    let key = crate::socrates::session_context_envelope_key(session_id);
-                    crate::sync_lock::rw_write(&*orchestrator.context_store).set(
-                        crate::types::AgentId(0),
-                        key,
-                        context_envelope_json,
-                        3600,
-                    );
-                    let seeded = orchestrator.attach_session_retrieval_envelope_if_present(
-                        crate::types::TaskId(envelope.task_id),
-                        &Some(session_id.to_string()),
-                    );
-                    tracing::debug!(
-                        message_id = msg.id,
-                        task_id = envelope.task_id,
-                        session_id,
-                        thread_id = effective_thread_id.as_deref(),
-                        seeded,
-                        "populi remote worker: seeded context store and attempted Socrates attach"
-                    );
-                }
-                Err(err) => {
-                    tracing::debug!(
-                        message_id = msg.id,
-                        error = %err,
-                        payload = %envelope.payload,
-                        "populi remote worker: context_envelope_json parse failed"
-                    );
-                }
-            }
-        }
-        if let Some(harness_spec_json) = effective_harness_json.as_deref() {
-            match serde_json::from_str::<crate::AgentHarnessSpec>(harness_spec_json) {
-                Ok(harness) => {
-                    let expectations = crate::HarnessIngestExpectations {
-                        repository_id: envelope.repository_id.as_str(),
-                        session_id: effective_session_id.as_deref(),
-                        thread_id: effective_thread_id.as_deref(),
-                    };
-                    if let Err(errs) = crate::validate_agent_harness_ingest(&harness, expectations)
-                    {
-                        tracing::warn!(
-                            message_id = msg.id,
-                            task_id = envelope.task_id,
-                            errors = %errs.join("; "),
-                            "populi remote worker: harness_spec_json failed validation"
-                        );
-                    } else {
-                        tracing::debug!(
-                            message_id = msg.id,
-                            task_id = envelope.task_id,
-                            harness_id = %harness.harness_id,
-                            thread_id = effective_thread_id.as_deref(),
-                            "populi remote worker: accepted portable harness contract"
-                        );
-                    }
-                }
-                Err(err) => tracing::warn!(
-                    message_id = msg.id,
-                    task_id = envelope.task_id,
-                    error = %err,
-                    "populi remote worker: harness_spec_json parse failed"
-                ),
-            }
-        }
-        // Lease-gated submit: orchestrator holds `task:{task_id}` and passes `exec_lease_id` in the envelope.
-        // The worker must not grant a second lease (would conflict on scope) or renew/release as the wrong claimer.
-        let orchestrator_holds_lease = envelope
-            .exec_lease_id
-            .as_deref()
-            .map(str::trim)
-            .is_some_and(|s| !s.is_empty());
-
-        let mut worker_owned_lease_id: Option<String> = None;
-        if orchestrator_holds_lease {
-            // No worker-side exec lease RPCs; orchestrator renews/releases.
-        } else {
-            // Legacy / demo: worker acquires a lease keyed like the orchestrator (`task:{task_id}`), not idempotency.
-            let scope_key = format!("task:{}", envelope.task_id);
-            let lease = match client
-                .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
-                    claimer_node_id: node_id.clone(),
-                    scope_key,
-                })
-                .await
-            {
-                Ok(l) => l,
-                Err(e) => {
-                    tracing::debug!(
-                        message_id = msg.id,
-                        error = %e,
-                        "populi remote worker: lease grant failed; leave inbox row for retry"
-                    );
-                    continue;
-                }
-            };
-            worker_owned_lease_id = Some(lease.lease_id.clone());
-            let _ = client
-                .exec_lease_renew(&vox_populi::transport::RemoteExecLeaseRenewRequest {
-                    lease_id: lease.lease_id,
-                    claimer_node_id: node_id.clone(),
-                })
-                .await;
-        }
-
-        let result_payload = RemoteTaskResult {
-            idempotency_key: envelope.idempotency_key.clone(),
-            task_id: Some(envelope.task_id),
-            success: true,
-            result: Some(format!(
-                "remote worker accepted payload ({} bytes)",
-                envelope.payload.len()
-            )),
-            error: None,
-        };
-        let result_json = match serde_json::to_string(&result_payload) {
-            Ok(s) => s,
-            Err(e) => {
-                tracing::debug!(
-                    message_id = msg.id,
-                    error = %e,
-                    "populi remote worker: result serialization failed"
-                );
-                if let Some(ref lid) = worker_owned_lease_id {
-                    let _ = client
-                        .exec_lease_release(&vox_populi::transport::RemoteExecLeaseReleaseRequest {
-                            lease_id: lid.clone(),
-                            claimer_node_id: node_id.clone(),
-                        })
-                        .await;
-                }
-                continue;
-            }
-        };
-
-        let deliver_res = client
-            .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
-                sender_agent_id: receiver_agent.to_string(),
-                receiver_agent_id: sender_agent.to_string(),
-                message_type: REMOTE_TASK_RESULT_TYPE.to_string(),
-                payload: result_json,
-                idempotency_key: Some(format!(
-                    "remote-result-{}-{}",
-                    envelope.task_id, envelope.idempotency_key
-                )),
-                privacy_class: envelope.privacy_class.clone(),
-                payload_blake3_hex: None,
-                worker_ed25519_sig_b64: None,
-                jwe_payload: None,
-                task_kind: None,
-                model_id: None,
-                traceparent: None,
-                priority: 128,
-            })
+            .and_then(|tp| tp.split('-').nth(1))
+            .filter(|s| s.len() == 32)
+            .map(str::to_string);
+        let span = tracing::info_span!(
+            "populi.remote_worker.process_envelope",
+            message_id = msg.id,
+            "vox.mesh.trace_id" = trace_id.as_deref().unwrap_or(""),
+        );
+        process_one_envelope(orchestrator, client, sender_agent, receiver_agent, msg, &node_id)
+            .instrument(span)
             .await;
-        if deliver_res.is_err() {
-            tracing::debug!(
-                message_id = msg.id,
-                "populi remote worker: result delivery failed; leave source row for retry"
-            );
-            if let Some(ref lid) = worker_owned_lease_id {
-                let _ = client
-                    .exec_lease_release(&vox_populi::transport::RemoteExecLeaseReleaseRequest {
-                        lease_id: lid.clone(),
-                        claimer_node_id: node_id.clone(),
-                    })
-                    .await;
-            }
-            continue;
-        }
-
-        let _ = client
-            .relay_a2a_ack(&receiver_agent.to_string(), msg.id)
-            .await;
-        if let Some(ref lid) = worker_owned_lease_id {
-            let _ = client
-                .exec_lease_release(&vox_populi::transport::RemoteExecLeaseReleaseRequest {
-                    lease_id: lid.clone(),
-                    claimer_node_id: node_id.clone(),
-                })
-                .await;
-        }
     }
 }
 
