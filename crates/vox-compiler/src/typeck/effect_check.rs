@@ -328,6 +328,7 @@ fn check_one_endpoint_fn(f: &HirEndpointFn, diags: &mut Vec<Diagnostic>) {
 mod tests {
     use super::*;
     use crate::hir::lower::lower_module;
+    use crate::hir::DefId;
     use crate::lexer::lex;
     use crate::parser::parse;
 

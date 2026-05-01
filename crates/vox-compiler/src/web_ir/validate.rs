@@ -888,8 +888,15 @@ mod tests {
 
     #[test]
     fn route_with_known_component_passes() {
-        use crate::web_ir::{DomNodeId, WebIrModule};
+        use crate::web_ir::{DomNode, DomNodeId, WebIrModule};
         let mut m = WebIrModule::default();
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "div".to_string(),
+            attrs: vec![],
+            children: vec![],
+            span: None,
+        });
         m.view_roots.push(("HomePage".to_string(), DomNodeId(0)));
         m.route_nodes.push(RouteNode::RouteTree {
             routes: vec![make_route("route_0", "/", Some("HomePage"))],
@@ -920,8 +927,15 @@ mod tests {
 
     #[test]
     fn root_route_not_flagged_as_unreachable() {
-        use crate::web_ir::{DomNodeId, WebIrModule};
+        use crate::web_ir::{DomNode, DomNodeId, WebIrModule};
         let mut m = WebIrModule::default();
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "div".to_string(),
+            attrs: vec![],
+            children: vec![],
+            span: None,
+        });
         m.view_roots.push(("App".to_string(), DomNodeId(0)));
         m.route_nodes.push(RouteNode::RouteTree {
             routes: vec![make_route("route_0", "/", Some("App"))],
@@ -960,10 +974,17 @@ mod tests {
 
     #[test]
     fn non_root_route_without_link_is_warned() {
-        use crate::web_ir::{DomNodeId, WebIrModule};
+        use crate::web_ir::{DomNode, DomNodeId, WebIrModule};
         let mut m = WebIrModule::default();
+        m.dom_nodes.push(DomNode::Element {
+            id: DomNodeId(0),
+            tag: "div".to_string(),
+            attrs: vec![],
+            children: vec![],
+            span: None,
+        });
         m.view_roots.push(("About".to_string(), DomNodeId(0)));
-        // No DOM nodes at all.
+        // No <link> nodes — route is reachable only by direct URL.
         m.route_nodes.push(RouteNode::RouteTree {
             routes: vec![make_route("route_about", "/about", Some("About"))],
             span: None,

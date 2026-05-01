@@ -200,6 +200,7 @@ pub async fn run_workflow(
     let result = crate::pipeline::run_frontend(file, false).await?;
     let errors = result.error_count();
     if errors > 0 {
+        crate::pipeline::print_diagnostics(&result, file, false);
         anyhow::bail!("{} type error(s) found", errors);
     }
     let _wf = result

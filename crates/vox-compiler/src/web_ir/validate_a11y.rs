@@ -77,6 +77,24 @@ fn has_non_empty_text_child(module: &WebIrModule, child_ids: &[DomNodeId]) -> bo
             // Expression nodes ({label}, {count}, etc.) may produce text at runtime;
             // treat their presence as satisfying the accessible-name requirement.
             DomNode::Expr { .. } => return true,
+            // Fragment, Conditional, Loop may contain text children — recurse.
+            DomNode::Fragment { children, .. } => {
+                if has_non_empty_text_child(module, children) {
+                    return true;
+                }
+            }
+            DomNode::Conditional { then_children, else_children, .. } => {
+                if has_non_empty_text_child(module, then_children)
+                    || has_non_empty_text_child(module, else_children)
+                {
+                    return true;
+                }
+            }
+            DomNode::Loop { body, .. } => {
+                if has_non_empty_text_child(module, body) {
+                    return true;
+                }
+            }
             _ => {}
         }
     }
@@ -98,7 +116,10 @@ pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
         };
 
         let get_a = |name: &str| -> Option<&str> {
-            attrs.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str())
+            attrs
+                .iter()
+                .find(|(k, _)| k.eq_ignore_ascii_case(name))
+                .map(|(_, v)| v.as_str())
         };
 
         match tag.as_str() {
@@ -118,9 +139,30 @@ pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                 check_accessible_name(module, tag, attrs, children, out);
             }
             "a" => {
-                let has_href = attrs.iter().any(|(k, _)| k == "href" || k == "to");
+                let has_href = attrs.iter().any(|(k, _)| {
+                    k.eq_ignore_ascii_case("href") || k.eq_ignore_ascii_case("to")
+                });
+                if !has_href {
+                    out.push(WebIrDiagnostic {
+                        code: "web_ir_validate.a11y.anchor_missing_href".to_string(),
+                        message: "`a` element has no `href` attribute — navigation links must have a destination or use a `<button>` instead".to_string(),
+                        span: None,
+                        category: Some("a11y".to_string()),
+                    });
+                }
                 if has_href {
                     check_accessible_name(module, tag, attrs, children, out);
+                }
+            }
+            "input" => {
+                let has_label = has_aria_name(attrs) || attrs.iter().any(|(k, _)| k.eq_ignore_ascii_case("id"));
+                if !has_label {
+                    out.push(WebIrDiagnostic {
+                        code: "web_ir_validate.a11y.input_missing_label".to_string(),
+                        message: "`input` element requires an `aria-label`, `aria-labelledby`, or associated `<label>` (via `id`)".to_string(),
+                        span: None,
+                        category: Some("a11y".to_string()),
+                    });
                 }
             }
             _ => {
@@ -398,11 +440,20 @@ mod tests {
     }
 
     #[test]
-    fn anchor_without_href_skips_check() {
+    fn anchor_without_href_emits_warning_and_skips_label_check() {
         let m = module_with_nodes(vec![elem(0, "a", vec![], vec![])]);
         let mut out = Vec::new();
         validate_a11y(&m, &mut out);
-        assert!(out.is_empty(), "anchor without href should not be checked: {out:?}");
+        // anchor without href gets a warning about the missing href
+        assert!(
+            out.iter().any(|d| d.code == "web_ir_validate.a11y.anchor_missing_href"),
+            "expected anchor_missing_href warning: {out:?}"
+        );
+        // but the accessible-label check is skipped (only runs when href is present)
+        assert!(
+            !out.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+            "label check should be skipped for anchor without href: {out:?}"
+        );
     }
 
     #[test]

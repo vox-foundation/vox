@@ -274,6 +274,21 @@ impl LowerCtx {
                 Decl::StateMachine(s) => {
                     hir.state_machines.push(self.lower_state_machine(s));
                 }
+                Decl::Workflow(w) => {
+                    let mut f = self.lower_workflow(w);
+                    f.durability = Some(crate::hir::nodes::DurabilityKind::Workflow);
+                    hir.functions.push(f);
+                }
+                Decl::Activity(a) => {
+                    let mut f = self.lower_activity(a);
+                    f.durability = Some(crate::hir::nodes::DurabilityKind::Activity);
+                    hir.functions.push(f);
+                }
+                Decl::Actor(a) => {
+                    let mut f = self.lower_actor(a);
+                    f.durability = Some(crate::hir::nodes::DurabilityKind::Actor);
+                    hir.functions.push(f);
+                }
                 Decl::Agent(a) => {
                     hir.agents.push(self.lower_agent(a));
                 }

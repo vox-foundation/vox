@@ -3,7 +3,7 @@ title: "GUI-Native Language Roadmap — Execution Status"
 description: "Live tracking of task completion for the Vox GUI-native language roadmap (April 2026)."
 category: "architecture"
 status: "current"
-last_updated: "2026-04-28"
+last_updated: "2026-05-01"
 training_eligible: false
 ---
 
@@ -203,6 +203,19 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 - 2026-04-30 — TASK-9.1 ✅ Done: `Decl::Routes` → HIR → WebIR wired. `HirModule::client_routes`
   added. `lower_client_routes` produces `RouteNode::RouteTree`. `routes.manifest.ts` emitted on build.
   Commit `240375b0`. (Agent session.)
+- 2026-05-01 — TASK-2.6 Path A audit (PR #47 CodeRabbit round 3). Restored `Decl::Workflow`,
+  `Decl::Activity`, `Decl::Actor` variants (lost in merge), plus parsers in `descent/decl/mid.rs`
+  and lowering arms in `hir/lower/mod.rs`+`hir/lower/decl.rs`. Fixed `HirFn.effects` stale field
+  in `workflow_tracker_tests.rs`; fixed `DefId` import in `effect_check.rs` tests; fixed
+  `state_machine_check.rs` test to use `HirSmFrom::Named` and correct function signature; fixed
+  `contracts/tokens/tokens.v1.json` schema (`"version"` property added to satisfy
+  `"additionalProperties": false`); fixed `validate_a11y.rs` (`DomNode::Loop { body }` field,
+  case-insensitive attr lookup, anchor-href and input-label checks); added `WebIrDiagnosticSeverity`
+  enum + computed method to `web_ir/mod.rs`; updated `v0_tsx_validate.rs` diagnostic codes and
+  `d.severity()` call; added `_emitAuthStatus('authorized')` + moved `getToken()` inside `onopen`
+  in `transport.ts`; populated `BehaviorNode::EventHandler` for keyboard attrs in
+  `tsx_to_web_ir_module`; fixed `validate.rs` route-test fixtures (added `dom_nodes[0]` to
+  `view_roots`-using tests); activity-name filtering in `plan.rs`. (Agent session, PR #47.)
 
 **Resolved (no action needed):**
 - TASK-0.6: `transport.ts` backoff and `authStatus` already correct — exponential cap at 30s, `authStatus` emitted on init (`no_token`), WS close codes 1008/4001/4003/4401 (`unauthorized`), and HTTP 401/403 from `callTool` (`unauthorized`).

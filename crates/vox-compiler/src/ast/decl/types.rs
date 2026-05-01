@@ -173,6 +173,12 @@ pub enum Decl {
     Url(UrlDecl),
     /// First-class state machine with exhaustiveness enforcement.
     StateMachine(StateMachineDecl),
+    /// Durable workflow declaration (TASK-2.6 Path A).
+    Workflow(WorkflowDecl),
+    /// Durable activity declaration (TASK-2.6 Path A).
+    Activity(ActivityDecl),
+    /// Actor-model handler declaration (TASK-2.6 Path A).
+    Actor(ActorDecl),
 }
 impl Decl {
     /// Primary source span for this declaration (used for diagnostics).
@@ -226,6 +232,9 @@ impl Decl {
             Decl::ReactiveComponent(r) => r.span,
             Decl::Url(u) => u.span,
             Decl::StateMachine(s) => s.span,
+            Decl::Workflow(w) => w.span,
+            Decl::Activity(a) => a.span,
+            Decl::Actor(a) => a.span,
         }
     }
 }

@@ -55,8 +55,9 @@ export class VoxTransport {
 
     // Token is NOT sent in the URL (avoids server-log / referrer leakage).
     // It is sent exclusively as the first WebSocket message after connection.
+    // Token is read inside onopen so a token refresh between connect() and
+    // the socket opening always uses the latest value.
     const wsUrl = this.getWsUrl();
-    const token = this.getToken();
 
     this.ws = new WebSocket(wsUrl);
 
@@ -65,8 +66,10 @@ export class VoxTransport {
       this.reconnectAttempts = 0;
       this.isConnecting = false;
 
+      const token = this.getToken();
       if (token && this.ws) {
         this.ws.send(JSON.stringify({ type: 'auth', args: { token } }));
+        this._emitAuthStatus('authorized');
       }
 
       this.emit('connection_status', { status: 'connected' } satisfies ConnectionStatusPayload);

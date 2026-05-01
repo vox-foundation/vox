@@ -409,4 +409,120 @@ impl Parser {
             span: start.merge(self.span()),
         })
     }
+
+    // ── TASK-2.6 Path A: workflow / activity / actor ──────────────────────────
+
+    /// Parse `workflow Name(params) [uses ...] [to ReturnType] { body }`.
+    pub(crate) fn parse_workflow_decl(&mut self) -> Result<Decl, ()> {
+        use crate::ast::decl::WorkflowDecl;
+        let start = self.span();
+        self.advance(); // eat `workflow`
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+        let return_type = if self.eat_return_arrow() {
+            Some(self.parse_type_expr()?)
+        } else {
+            None
+        };
+        self.expect(&Token::LBrace)?;
+        let body = self.parse_block()?;
+        Ok(Decl::Workflow(WorkflowDecl {
+            name,
+            params,
+            return_type,
+            body,
+            is_traced: false,
+            is_deprecated: false,
+            span: start.merge(self.span()),
+        }))
+    }
+
+    /// Parse `activity Name(params) [uses ...] [to ReturnType] { body }`.
+    pub(crate) fn parse_activity_decl(&mut self) -> Result<Decl, ()> {
+        use crate::ast::decl::ActivityDecl;
+        let start = self.span();
+        self.advance(); // eat `activity`
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+        let return_type = if self.eat_return_arrow() {
+            Some(self.parse_type_expr()?)
+        } else {
+            None
+        };
+        self.expect(&Token::LBrace)?;
+        let body = self.parse_block()?;
+        Ok(Decl::Activity(ActivityDecl {
+            name,
+            params,
+            return_type,
+            body,
+            options: None,
+            prompt: None,
+            is_traced: false,
+            is_deprecated: false,
+            span: start.merge(self.span()),
+        }))
+    }
+
+    /// Parse `actor Name { on event(params) [to ReturnType] { body } … }`.
+    pub(crate) fn parse_actor_decl(&mut self) -> Result<Decl, ()> {
+        use crate::ast::decl::logic::{ActorDecl, ActorHandler};
+        use crate::parser::error::{ParseError, ParseErrorClass};
+        let start = self.span();
+        self.advance(); // eat `actor`
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+        let mut handlers = Vec::new();
+        loop {
+            self.skip_newlines();
+            if matches!(self.peek(), Token::RBrace | Token::Eof) {
+                break;
+            }
+            if !matches!(self.peek(), Token::On) {
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "Expected `on` handler inside actor block",
+                    vec!["on".into()],
+                    Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
+                ));
+                return Err(());
+            }
+            let h_start = self.span();
+            self.advance(); // eat `on`
+            let event_name = self.parse_ident_name()?;
+            self.expect(&Token::LParen)?;
+            let params = self.parse_params()?;
+            self.expect(&Token::RParen)?;
+            let return_type = if self.eat_return_arrow() {
+                Some(self.parse_type_expr()?)
+            } else {
+                None
+            };
+            self.expect(&Token::LBrace)?;
+            let body = self.parse_block()?;
+            handlers.push(ActorHandler {
+                event_name,
+                params,
+                return_type,
+                body,
+                is_traced: false,
+                span: h_start.merge(self.span()),
+            });
+            self.skip_newlines();
+        }
+        self.eat(&Token::RBrace);
+        Ok(Decl::Actor(ActorDecl {
+            name,
+            state_fields: vec![],
+            handlers,
+            is_deprecated: false,
+            span: start.merge(self.span()),
+        }))
+    }
 }

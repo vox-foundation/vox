@@ -442,6 +442,18 @@ pub enum InteropNode {
 // Diagnostics
 // ---------------------------------------------------------------------------
 
+/// Severity level for a [`WebIrDiagnostic`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WebIrDiagnosticSeverity {
+    /// Hard compile-time error; the output is unusable.
+    Error,
+    /// Advisory violation that should be fixed but does not break output.
+    Warning,
+    /// Informational hint only.
+    Info,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebIrDiagnostic {
     pub code: String,
@@ -450,6 +462,24 @@ pub struct WebIrDiagnostic {
     /// Dashboard facet, e.g. `dom`, `route`, `behavior`, `style`, `island`, `lower`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
+}
+
+impl WebIrDiagnostic {
+    /// Derive severity from the code: advisory-only codes are `Warning`,
+    /// everything else is `Error`.
+    pub fn severity(&self) -> WebIrDiagnosticSeverity {
+        // Codes explicitly designated as warnings (advisory violations).
+        if matches!(
+            self.code.as_str(),
+            "web_ir_validate.a11y.anchor_missing_href"
+                | "web_ir_validate.a11y.input_missing_label"
+                | "web_ir_validate.a11y.low_contrast"
+        ) {
+            WebIrDiagnosticSeverity::Warning
+        } else {
+            WebIrDiagnosticSeverity::Error
+        }
+    }
 }
 
 // Lifecycle: bump [`WebIrVersion`] when breaking serialized layout; keep [`validate_web_ir`] in sync

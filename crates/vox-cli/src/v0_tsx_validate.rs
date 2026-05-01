@@ -26,7 +26,7 @@
 //! mandatory user decision; `Warning` items are printed but auto-accepted).
 
 use regex::Regex;
-use vox_compiler::web_ir::{DomNode, DomNodeId, WebIrDiagnostic, WebIrDiagnosticSeverity, WebIrModule};
+use vox_compiler::web_ir::{BehaviorNode, DomNode, DomNodeId, WebIrDiagnostic, WebIrDiagnosticSeverity, WebIrModule};
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -55,9 +55,10 @@ pub fn format_diagnostics(diags: &[WebIrDiagnostic], component_name: &str) -> Op
         n = diags.len(),
     );
     for d in diags {
-        let icon = match d.severity {
+        let icon = match d.severity() {
             WebIrDiagnosticSeverity::Error => "❌",
             WebIrDiagnosticSeverity::Warning => "⚠️ ",
+            WebIrDiagnosticSeverity::Info => "ℹ️ ",
         };
         buf.push_str(&format!("  {icon} [{}] {}\n", d.code, d.message));
     }
@@ -67,7 +68,7 @@ pub fn format_diagnostics(diags: &[WebIrDiagnostic], component_name: &str) -> Op
 
 /// True if any diagnostic has [`WebIrDiagnosticSeverity::Error`] severity.
 pub fn has_errors(diags: &[WebIrDiagnostic]) -> bool {
-    diags.iter().any(|d| d.severity == WebIrDiagnosticSeverity::Error)
+    diags.iter().any(|d| d.severity() == WebIrDiagnosticSeverity::Error)
 }
 
 // ---------------------------------------------------------------------------
@@ -221,7 +222,7 @@ fn tsx_to_web_ir_module(tsx: &str) -> WebIrModule {
                     module.dom_nodes.push(DomNode::Element {
                         id: elem_id,
                         tag: tag.clone(),
-                        attrs,
+                        attrs: attrs.clone(),
                         children: vec![],
                         span: None,
                     });
@@ -237,6 +238,25 @@ fn tsx_to_web_ir_module(tsx: &str) -> WebIrModule {
                         {
                             children.push(elem_id);
                         }
+                    }
+                    // Emit BehaviorNode::EventHandler for keyboard event attrs so
+                    // check_keyboard_handler can validate them.
+                    for (key, val) in &attrs {
+                        let event = if key.eq_ignore_ascii_case("onKeyDown") {
+                            "keydown"
+                        } else if key.eq_ignore_ascii_case("onKeyUp") {
+                            "keyup"
+                        } else if key.eq_ignore_ascii_case("onKeyPress") {
+                            "keypress"
+                        } else {
+                            continue;
+                        };
+                        module.behavior_nodes.push(BehaviorNode::EventHandler {
+                            target_dom: Some(elem_id),
+                            event: event.to_string(),
+                            handler: val.clone(),
+                            span: None,
+                        });
                     }
                     Some(idx)
                 } else {
@@ -320,7 +340,7 @@ export function Card() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_a11y.img.missing_alt"),
+            diags.iter().any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
             "expected img.missing_alt, got: {diags:?}"
         );
     }
@@ -334,7 +354,7 @@ export function Card() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_a11y.img.missing_alt"),
+            !diags.iter().any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
             "img with alt should pass"
         );
     }
@@ -348,7 +368,7 @@ export function Btn() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_a11y.button.missing_label"),
+            diags.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
             "expected button.missing_label, got: {diags:?}"
         );
     }
@@ -362,7 +382,7 @@ export function Btn() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_a11y.button.missing_label"),
+            !diags.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
             "button with text should pass, got: {diags:?}"
         );
     }
@@ -376,7 +396,7 @@ export function Nav() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_a11y.anchor.missing_href"),
+            diags.iter().any(|d| d.code == "web_ir_validate.a11y.anchor_missing_href"),
             "expected anchor.missing_href, got: {diags:?}"
         );
     }
@@ -390,7 +410,7 @@ export function Nav() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_a11y.anchor.missing_href"),
+            !diags.iter().any(|d| d.code == "web_ir_validate.a11y.anchor_missing_href"),
             "anchor with href should pass"
         );
     }
@@ -404,7 +424,7 @@ export function Form() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_a11y.input.missing_label"),
+            diags.iter().any(|d| d.code == "web_ir_validate.a11y.input_missing_label"),
             "expected input.missing_label, got: {diags:?}"
         );
     }
@@ -418,7 +438,7 @@ export function Form() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_a11y.input.missing_label"),
+            !diags.iter().any(|d| d.code == "web_ir_validate.a11y.input_missing_label"),
             "input with aria-label should pass"
         );
     }
@@ -429,7 +449,7 @@ export function Form() {
         let diags = validate_tsx_a11y(tsx);
         let errors: Vec<_> = diags
             .iter()
-            .filter(|d| d.severity == WebIrDiagnosticSeverity::Error)
+            .filter(|d| d.severity() == WebIrDiagnosticSeverity::Error)
             .collect();
         // Only anchor.missing_href which is Warning
         assert!(errors.is_empty(), "anchor.missing_href is Warning not Error");
@@ -446,7 +466,7 @@ export function Form() {
         let diags = validate_tsx_a11y(tsx);
         let msg = format_diagnostics(&diags, "MyWidget").unwrap();
         assert!(msg.contains("MyWidget"), "should mention component name");
-        assert!(msg.contains("web_ir_a11y.img.missing_alt"));
+        assert!(msg.contains("web_ir_validate.a11y.img_missing_alt"));
     }
 
     #[test]
@@ -461,7 +481,7 @@ export function Form() {
         let diags = validate_tsx_a11y(tsx);
         // The button has no accessible label — it's self-closing with no content.
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_a11y.button.missing_label"),
+            diags.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
             "self-closing button with no label should fail; got: {diags:?}"
         );
     }
@@ -476,7 +496,7 @@ export function Form() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_a11y.button.missing_label"),
+            !diags.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
             "button with nested span text should pass; got: {diags:?}"
         );
     }

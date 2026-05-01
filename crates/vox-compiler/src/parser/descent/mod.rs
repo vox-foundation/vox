@@ -480,7 +480,10 @@ impl Parser {
                 }
             }
             Token::AtIndex => self.parse_index(),
-            Token::Workflow | Token::Activity | Token::Actor | Token::Http | Token::AtComponent | Token::Agent | Token::Env => {
+            Token::Workflow => self.parse_workflow_decl(),
+            Token::Activity => self.parse_activity_decl(),
+            Token::Actor => self.parse_actor_decl(),
+            Token::Http | Token::AtComponent | Token::Agent | Token::Env => {
                 let tok = self.peek().clone();
                 self.errors.push(ParseError::classified(
                     self.span(),

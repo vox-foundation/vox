@@ -1,6 +1,7 @@
 #![allow(missing_docs)]
 //! External integration tests for `interpret_workflow_durable` and WorkflowTracker.
 
+use jsonschema::validator_for;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
 use vox_compiler::ast::span::Span;
@@ -76,7 +77,6 @@ fn workflow(name: &str, stmts: Vec<HirStmt>) -> HirModule {
         is_pub: false,
         is_mobile_native: false,
         is_pure: false,
-        effects: vec![],
         is_llm: false,
         llm_model: None,
         is_deprecated: false,

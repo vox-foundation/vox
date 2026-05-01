@@ -328,6 +328,106 @@ impl LowerCtx {
         }
     }
 
+    /// Lower a `workflow` declaration to `HirFn` (durability set by caller).
+    pub(crate) fn lower_workflow(&mut self, w: &crate::ast::decl::WorkflowDecl) -> HirFn {
+        let id = self.def_map.define(w.name.clone());
+        self.def_map.push_scope();
+        let params = w.params.iter().map(|p| self.lower_param(p)).collect();
+        let body = w.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+        HirFn {
+            id,
+            name: w.name.clone(),
+            generics: vec![],
+            params,
+            return_type: w.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            is_component: false,
+            is_async: false,
+            is_pub: false,
+            is_mobile_native: false,
+            is_pure: false,
+            is_llm: false,
+            llm_model: None,
+            is_deprecated: w.is_deprecated,
+            schedule_interval: None,
+            durability: None, // overwritten by caller
+            actor_state_fields: vec![],
+            capabilities: vec![],
+            postconditions: vec![],
+            span: w.span,
+        }
+    }
+
+    /// Lower an `activity` declaration to `HirFn` (durability set by caller).
+    pub(crate) fn lower_activity(&mut self, a: &crate::ast::decl::ActivityDecl) -> HirFn {
+        let id = self.def_map.define(a.name.clone());
+        self.def_map.push_scope();
+        let params = a.params.iter().map(|p| self.lower_param(p)).collect();
+        let body = a.body.iter().map(|s| self.lower_stmt(s)).collect();
+        self.def_map.pop_scope();
+        HirFn {
+            id,
+            name: a.name.clone(),
+            generics: vec![],
+            params,
+            return_type: a.return_type.as_ref().map(|t| self.lower_type(t)),
+            body,
+            is_component: false,
+            is_async: false,
+            is_pub: false,
+            is_mobile_native: false,
+            is_pure: false,
+            is_llm: false,
+            llm_model: None,
+            is_deprecated: a.is_deprecated,
+            schedule_interval: None,
+            durability: None, // overwritten by caller
+            actor_state_fields: vec![],
+            capabilities: vec![],
+            postconditions: vec![],
+            span: a.span,
+        }
+    }
+
+    /// Lower an `actor` declaration to `HirFn` (durability set by caller).
+    /// Handlers are flattened; actor state fields are preserved.
+    pub(crate) fn lower_actor(&mut self, a: &crate::ast::decl::logic::ActorDecl) -> HirFn {
+        use crate::hir::HirTableField;
+        let id = self.def_map.define(a.name.clone());
+        let actor_state_fields = a
+            .state_fields
+            .iter()
+            .map(|f| HirTableField {
+                name: f.name.clone(),
+                type_ann: self.lower_type(&f.type_ann),
+                span: f.span,
+            })
+            .collect();
+        HirFn {
+            id,
+            name: a.name.clone(),
+            generics: vec![],
+            params: vec![],
+            return_type: None,
+            body: vec![],
+            is_component: false,
+            is_async: false,
+            is_pub: false,
+            is_mobile_native: false,
+            is_pure: false,
+            is_llm: false,
+            llm_model: None,
+            is_deprecated: a.is_deprecated,
+            schedule_interval: None,
+            durability: None, // overwritten by caller
+            actor_state_fields,
+            capabilities: vec![],
+            postconditions: vec![],
+            span: a.span,
+        }
+    }
+
     pub(crate) fn lower_state_machine(&mut self, s: &StateMachineDecl) -> HirStateMachineDecl {
         let id = self.def_map.define(s.name.clone());
         HirStateMachineDecl {
