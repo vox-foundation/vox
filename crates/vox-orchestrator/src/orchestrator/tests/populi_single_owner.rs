@@ -213,6 +213,7 @@ async fn lease_gated_submit_holds_then_completes_via_populi_result_poll() {
         jwe_payload: None,
         task_kind: None,
         model_id: None,
+        traceparent: None,
         priority: 128,
     })
     .await
@@ -485,6 +486,7 @@ async fn remote_worker_tick_once_seeds_context_and_attaches_socrates_when_task_a
         jwe_payload: None,
         task_kind: None,
         model_id: None,
+        traceparent: None,
         priority: 128,
     })
     .await
@@ -601,6 +603,7 @@ async fn remote_worker_tick_once_accepts_object_context_envelope_payload() {
         jwe_payload: None,
         task_kind: None,
         model_id: None,
+        traceparent: None,
         priority: 128,
     })
     .await
@@ -849,6 +852,7 @@ async fn remote_result_poll_respects_max_messages_per_poll() {
             jwe_payload: None,
             task_kind: None,
             model_id: None,
+            traceparent: None,
             priority: 128,
         })
         .await
