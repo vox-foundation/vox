@@ -149,11 +149,18 @@ impl crate::orchestrator::Orchestrator {
         }
     }
 
-    /// Spawns background tasks (observer loop, telemetry, etc.) into the current Tokio runtime.
+    /// Spawns background tasks (observer loop, telemetry, catalog refresh) into the current Tokio runtime.
     pub fn spawn_background_tasks(self: Arc<Self>) {
+        // Observer loop
         let orch = self.clone();
         tokio::spawn(async move {
             crate::orchestrator::observer_loop::run_observer_loop(orch).await;
+        });
+
+        // Catalog refresh loop — fetches OpenRouter + LiteLLM every 6 h (±20 min jitter).
+        let orch2 = self.clone();
+        tokio::spawn(async move {
+            crate::orchestrator::catalog_refresh::run_catalog_refresh_loop(orch2).await;
         });
     }
 }

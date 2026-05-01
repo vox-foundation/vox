@@ -30,7 +30,7 @@ The shipped **`vox run`** path builds a **client** Vite bundle into `target/gene
 | `VOX_SSR_DEV_URL` | When set, generated Axum **GET** handlers fall back to proxying non-`/api` document requests to this origin (e.g. `http://127.0.0.1:3001`) before `rust_embed` |
 | `VOX_ORCHESTRATE_VITE` | If `1`, `vox run` spawns **`pnpm run dev:ssr-upstream`** in `dist/app` (Vite on **3001**) and passes `VOX_SSR_DEV_URL` to the generated **`cargo run`** child unless you already exported it |
 
-TanStack **Start**-specific `vite.config` and route files are still tracked in [tanstack-web-backlog.md](../architecture/tanstack-web-backlog.md).
+TanStack **Start**-specific `vite.config` and route files are still tracked in [tanstack-web-backlog.md](../archive/research-2026-q1/tanstack-web-backlog.md).
 
 ## Scaffold matrix (Vite app under `dist/.../app`)
 
@@ -53,7 +53,7 @@ For **full-document SSR** in production, ADR 010’s **Node SSR upstream** may r
 
 ## See also
 
-- [TanStack web roadmap](../architecture/tanstack-web-roadmap.md)
+- [TanStack web roadmap](../archive/research-2026-q1/tanstack-web-roadmap.md)
 - [vox-web-stack.md](../reference/vox-web-stack.md)
 
 

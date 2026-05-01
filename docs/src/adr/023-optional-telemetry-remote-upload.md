@@ -12,7 +12,7 @@ schema_type: "TechArticle"
 
 ## Status
 
-Accepted — implementation ships as **`vox telemetry`** with a local file spool and explicit **`upload`** (see [`telemetry-remote-sink-spec`](../architecture/telemetry-remote-sink-spec.md)).
+Accepted — implementation ships as **`vox telemetry`** with a local file spool and explicit **`upload`** (see [`telemetry-remote-sink-spec`](../archive/research-2026-q1/telemetry-remote-sink-spec.md)).
 
 ## Context
 
@@ -23,7 +23,7 @@ Vox records many **operator-controlled** diagnostics and research metrics locall
 1. **No default remote upload.** The product does not phone home. Transmission requires an explicit CLI invocation (`vox telemetry upload`) and configured ingest URL.
 2. **Local spool first.** Pending payloads live as one JSON file per event under a configurable directory (default under the current working tree’s `.vox/telemetry-upload-queue/pending/`, overridable via `VOX_TELEMETRY_SPOOL_DIR`). Operators enqueue with **`vox telemetry enqueue`** or out-of-band file drops consistent with the spool layout.
 3. **Secrets via Clavis only.** Ingest URL and bearer token are [`SecretId::VoxTelemetryUploadUrl`](../../../crates/vox-clavis/src/lib.rs) and [`SecretId::VoxTelemetryUploadToken`](../../../crates/vox-clavis/src/lib.rs) (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). CLI code uses `vox_clavis::resolve_secret`; do not add parallel `std::env::var` reads for those values.
-4. **Normative wire behavior** (rate limits, signing roadmap, headers) lives in [telemetry-remote-sink-spec](../architecture/telemetry-remote-sink-spec.md), not in this ADR.
+4. **Normative wire behavior** (rate limits, signing roadmap, headers) lives in [telemetry-remote-sink-spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md), not in this ADR.
 5. **Legal / security sign-off** for any *organization-wide* or *end-user* upload policy is recorded in that organization’s process; this ADR defines the **technical** guardrails (opt-in, explicit command, Clavis, delete-after-ack on success).
 
 ## Consequences
@@ -35,6 +35,6 @@ Vox records many **operator-controlled** diagnostics and research metrics locall
 ## See also
 
 - [Telemetry trust SSOT](../architecture/telemetry-trust-ssot.md)
-- [Telemetry implementation backlog 2026](../architecture/telemetry-implementation-backlog-2026.md) — Phase 7
+- [Telemetry implementation backlog 2026](../archive/research-2026-q1/telemetry-implementation-backlog-2026.md) — Phase 7
 - [Environment variables (SSOT)](../reference/env-vars.md)
 

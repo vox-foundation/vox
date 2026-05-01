@@ -470,7 +470,7 @@ mod tests {
             let mut f = std::fs::File::create(&path).unwrap();
             writeln!(
                 f,
-                r#"{{"prompt":"write a fn","response":"fn foo() to int: ret 1"}}"#
+                r#"{{"prompt":"write a fn","response":"fn foo() to int: return 1"}}"#
             )
             .unwrap();
             writeln!(f, r#"{{"prompt":"another","response":"actor Foo:"}}"#).unwrap();
@@ -485,10 +485,10 @@ mod tests {
     #[test]
     fn training_pair_accepts_instruction_and_output_aliases() {
         let p: TrainingPair =
-            serde_json::from_str(r#"{"instruction":"fix this","output":"fn ok() to int: ret 0"}"#)
+            serde_json::from_str(r#"{"instruction":"fix this","output":"fn ok() to int: return 0"}"#)
                 .expect("instruction/output aliases");
         assert_eq!(p.prompt.as_deref(), Some("fix this"));
-        assert_eq!(p.response.as_deref(), Some("fn ok() to int: ret 0"));
+        assert_eq!(p.response.as_deref(), Some("fn ok() to int: return 0"));
     }
 
     #[test]

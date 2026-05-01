@@ -39,7 +39,7 @@ The extension is **not** `onStartupFinished`. It activates when:
 
 ## Client disclosure (telemetry / debug surfaces)
 
-User-visible copy and debug-style logging for the extension should stay aligned with **[`architecture/telemetry-client-disclosure-ssot.md`](../architecture/telemetry-client-disclosure-ssot.md)** (orchestrator/MCP budget views, optional MCP payload logging).
+User-visible copy and debug-style logging for the extension should stay aligned with **[`architecture/telemetry-client-disclosure-ssot.md`](../archive/research-2026-q1/telemetry-client-disclosure-ssot.md)** (orchestrator/MCP budget views, optional MCP payload logging).
 
 ## Extension settings
 

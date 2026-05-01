@@ -50,5 +50,9 @@ pub fn stub_plan_model_spec() -> ModelSpec {
         capabilities: ModelCapabilities::default(),
         supported_parameters: Vec::new(),
         observed_cost_per_1k: None,
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
     }
 }

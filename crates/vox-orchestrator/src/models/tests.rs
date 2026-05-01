@@ -18,6 +18,10 @@ mod llm_usage_key_tests {
             observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         };
         assert_eq!(
@@ -44,6 +48,10 @@ mod llm_usage_key_tests {
             observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         };
         assert_eq!(
@@ -70,6 +78,10 @@ mod llm_usage_key_tests {
             observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         };
         assert_eq!(
@@ -96,6 +108,10 @@ mod llm_usage_key_tests {
             observed_cost_per_1k: None,
             strengths: vec![],
             capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         };
         assert_eq!(
@@ -181,6 +197,10 @@ mod registry_filter_tests {
             observed_cost_per_1k: None,
             strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         });
         r.register(ModelSpec {
@@ -196,6 +216,10 @@ mod registry_filter_tests {
             observed_cost_per_1k: None,
             strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         });
         let picked = r
@@ -226,6 +250,10 @@ mod registry_filter_tests {
             observed_cost_per_1k: None,
             strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         });
         r.register(ModelSpec {
@@ -241,6 +269,10 @@ mod registry_filter_tests {
             observed_cost_per_1k: None,
             strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         });
         let picked = r.cheapest_free_with_filter(|_| true).expect("free model");
@@ -263,6 +295,10 @@ mod registry_filter_tests {
             observed_cost_per_1k: None,
             strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         });
         r.register(ModelSpec {
@@ -278,6 +314,10 @@ mod registry_filter_tests {
             observed_cost_per_1k: None,
             strengths: vec![crate::models::generated::StrengthTag::Codegen],
             capabilities: Default::default(),
+            cache_creation_cost_per_1k: 0.0,
+            cache_read_cost_per_1k: 0.0,
+            supports_prompt_caching: false,
+            pricing_source: crate::models::spec::PricingSource::Bootstrap,
             supported_parameters: vec![],
         });
         let picked = r.cheapest_with_filter(|_| true).expect("paid model");

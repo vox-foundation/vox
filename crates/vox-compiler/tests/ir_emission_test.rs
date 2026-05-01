@@ -63,7 +63,7 @@ fn test_ir_emission_includes_scheduled_jobs_in_web_ir() {
     let source = r#"
 @scheduled("1h")
 fn tick() -> Unit {
-    ret Unit
+    return Unit
 }
 "#;
     let res =

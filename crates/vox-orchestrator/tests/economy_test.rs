@@ -30,6 +30,10 @@ async fn test_economy_preference_rebalancing() {
         observed_cost_per_1k: None,
         strengths: vec![vox_orchestrator::models::StrengthTag::Parsing],
         capabilities: vox_orchestrator::models::ModelCapabilities::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: vox_orchestrator::models::PricingSource::Bootstrap,
         supported_parameters: vec![],
     });
 
@@ -102,6 +106,10 @@ async fn test_model_selection_preference() {
         observed_cost_per_1k: None,
         strengths: vec![vox_orchestrator::models::StrengthTag::Codegen],
         capabilities: vox_orchestrator::models::ModelCapabilities::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: vox_orchestrator::models::PricingSource::Bootstrap,
         supported_parameters: vec![],
     });
     mh.write().unwrap().register(ModelSpec {
@@ -117,6 +125,10 @@ async fn test_model_selection_preference() {
         observed_cost_per_1k: None,
         strengths: vec![vox_orchestrator::models::StrengthTag::Codegen],
         capabilities: vox_orchestrator::models::ModelCapabilities::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: vox_orchestrator::models::PricingSource::Bootstrap,
         supported_parameters: vec![],
     });
 

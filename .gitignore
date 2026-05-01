@@ -29,6 +29,12 @@ bundle_*.txt
 *.log
 
 
+# Per-user Claude Code allowlist; contains machine-specific paths.
+# Use `.claude/settings.json` (committed) for shared policy.
+.claude/settings.local.json
+.claude/settings.local.json.bak
+.claude/worktrees/
+
 # Editor / IDE artifacts (keep shared `settings.json` for terminal PATH / CUDA)
 .vscode/*
 !.vscode/settings.json

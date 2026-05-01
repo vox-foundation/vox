@@ -13,8 +13,8 @@ This page defines the normative portability contract for deployed `.vox` applica
 For background and rationale, see:
 
 - [ADR 015](../adr/015-vox-docker-oci-portability-ssot.md)
-- [Vox Docker-backed portability research 2026](../architecture/vox-docker-dotvox-portability-research-2026.md)
-- [Vox Docker-backed portability implementation plan 2026](../architecture/vox-docker-dotvox-portability-implementation-plan-2026.md)
+- [Vox Docker-backed portability research 2026](../archive/research-2026-q1/vox-docker-dotvox-portability-research-2026.md)
+- [Vox Docker-backed portability implementation plan 2026](../archive/research-2026-q1/vox-docker-dotvox-portability-implementation-plan-2026.md)
 
 ## Portability contract
 
@@ -108,7 +108,7 @@ Use this checklist when defining or validating portability-sensitive lanes:
 ## Related operational references
 
 - [Deployment: Docker, Compose, Coolify, CI (SSOT)](deployment-compose.md)
-- [Cross-platform Vox — runbook](../architecture/vox-cross-platform-runbook.md)
+- [Cross-platform Vox — runbook](../archive/research-2026-q1/vox-cross-platform-runbook.md)
 - [Environment variables (SSOT)](env-vars.md)
 - [Clavis SSOT](clavis-ssot.md)
 - [Command compliance](command-compliance.md)

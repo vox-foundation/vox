@@ -34,8 +34,8 @@ OpenAPI paths **`GET /api/audio/status`**, **`POST /api/audio/transcribe`**, **`
 ## Related
 
 - [Environment variables (SSOT)](env-vars.md) — `VOX_DASH_*`, Codex DB envs
-- [Codex BaaS scaffolding](../architecture/codex-baas.md)
-- [Codex vNext schema](../architecture/codex-vnext-schema.md)
-- [Nomenclature migration map](../architecture/nomenclature-migration-map.md) — retired `vox-codex-api` name
+- [Codex BaaS scaffolding](../archive/research-2026-q1/codex-baas.md)
+- [Codex vNext schema](../archive/research-2026-q1/codex-vnext-schema.md)
+- [Nomenclature migration map](../archive/research-2026-q1/nomenclature-migration-map.md) — retired `vox-codex-api` name
 
 

@@ -10,6 +10,6 @@ mod tests;
 pub use generated::{ModelTier, StrengthTag, TaskCategory};
 pub use registry::{ModelRegistry, ModelScore};
 pub use spec::{
-    ModelCapabilities, ModelConfig, ModelRouteBackend, ModelSpec, ProviderType,
+    ModelCapabilities, ModelConfig, ModelRouteBackend, ModelSpec, PricingSource, ProviderType,
     route_backend_for_model, task_category_premium_key, task_category_strength,
 };

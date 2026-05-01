@@ -123,8 +123,8 @@ pub fn gen_multiturn_vox(
                  @traced\n\
                  fn {name}(x: int) -> Result[str]:\n\
                      if x < 0:\n\
-                         ret Err(\"invalid: x must be non-negative\")\n\
-                     ret Ok(\"done\")"
+                         return Err(\"invalid: x must be non-negative\")\n\
+                     return Ok(\"done\")"
                 ),
             },
             Turn {
@@ -166,8 +166,8 @@ pub fn gen_multiturn_vox(
                     "// Refactored: inlined hot path, removed intermediate allocations\n\
                  @inline\n\
                  fn {name}(x: int) -> Result[str]:\n\
-                     if x < 0: ret Err(\"invalid\")\n\
-                     ret Ok(\"done\")"
+                     if x < 0: return Err(\"invalid\")\n\
+                     return Ok(\"done\")"
                 ),
             },
         ],
@@ -189,8 +189,8 @@ pub fn gen_multiturn_vox(
                 content: format!(
                     "// Option[T] exhaustive match\n\
                  fn {name}(id: int) -> Option[str]:\n\
-                     if id == 0: ret None\n\
-                     ret Some(\"found\")"
+                     if id == 0: return None\n\
+                     return Some(\"found\")"
                 ),
             },
         ],
@@ -308,8 +308,8 @@ pub fn break_vox(src: &str, kind: BrokenKind) -> (String, String) {
             (broken, explanation)
         }
         BrokenKind::MissingRet => {
-            let broken = src.replace("    ret ", "    ");
-            let explanation = "Missing `ret` keyword. Vox uses explicit `ret` for returns, \
+            let broken = src.replace("    return ", "    ");
+            let explanation = "Missing `return` keyword. Vox uses explicit `return` for returns, \
                                not bare expressions."
                 .to_string();
             (broken, explanation)
@@ -360,7 +360,7 @@ pub fn break_vox(src: &str, kind: BrokenKind) -> (String, String) {
         }
         BrokenKind::InferenceAmbiguity => {
             // Create a branch where types differ — int vs str
-            let broken = src.replace("ret 0", "ret if true { 0 } else { \"zero\" }");
+            let broken = src.replace("return 0", "return if true { 0 } else { \"zero\" }");
             let explanation = "Inference ambiguity: `if` branches return `int` and `str`. \
                                Both arms of an `if` expression must return the same type."
                 .to_string();

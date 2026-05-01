@@ -11249,6 +11249,122 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: model.pricing.show
+  title: Model Pricing Show
+  description: Show the model pricing catalog with observed vs catalog costs, cache pricing, and pricing source.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - pricing
+    - show
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::pricing
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.pricing.rollup
+  title: Model Pricing Rollup
+  description: Batch aggregate telemetry into the pricing catalog.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - pricing
+    - rollup
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::pricing
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.pricing.check
+  title: Model Pricing Check
+  description: Check pricing freshness and flag models still on stale bootstrap pricing.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - pricing
+    - check
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::pricing
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.pricing.refresh
+  title: Model Pricing Refresh
+  description: Fetch live pricing from OpenRouter and LiteLLM and write to the local cache. Safe to run without a daemon.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - pricing
+    - refresh
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::pricing
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
 exemptions:
   mcp_tools: []
-  cli_paths: []
+  cli_paths:
+  # Pre-existing: ci doctest-md exists as a real command but was never enrolled in
+  # the catalog; exempt until a catalog entry is added in a dedicated docs-ci PR.
+  - - ci
+    - doctest-md

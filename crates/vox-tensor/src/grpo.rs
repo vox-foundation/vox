@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn gated_reward_nonzero_on_valid_code() {
-        let good_code = "fn hello() to str { ret \"hi\" }";
+        let good_code = "fn hello() to str { return \"hi\" }";
         let tests = TestResults {
             total: 1,
             passed: 1,
@@ -334,8 +334,8 @@ mod tests {
 
     #[test]
     fn gated_reward_conciseness_rewards_shorter_code() {
-        let short = "fn a() to int { ret 1 }";
-        let long = &"fn a() to int { ret 1 }".to_string().repeat(20);
+        let short = "fn a() to int { return 1 }";
+        let long = &"fn a() to int { return 1 }".to_string().repeat(20);
         let tests = TestResults {
             total: 0,
             passed: 0,
@@ -348,7 +348,7 @@ mod tests {
 
     #[test]
     fn gated_reward_routing_efficiency_rewards_dense_topology() {
-        let code = "fn a() -> int { ret 1 }";
+        let code = "fn a() -> int { return 1 }";
         let tests = TestResults {
             total: 0,
             passed: 0,

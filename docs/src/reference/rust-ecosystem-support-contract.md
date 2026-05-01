@@ -45,9 +45,9 @@ Executable SSOT wiring:
 
 Architecture rationale and scoring policy:
 
-- [`docs/src/architecture/rust-ecosystem-support-ssot.md`](../architecture/rust-ecosystem-support-ssot.md)
-- [`docs/src/architecture/interop-tier-policy.md`](../architecture/interop-tier-policy.md)
-- [`docs/src/architecture/vox-bell-curve-strategy.md`](../architecture/vox-bell-curve-strategy.md)
+- [`docs/src/architecture/rust-ecosystem-support-ssot.md`](../archive/research-2026-q1/rust-ecosystem-support-ssot.md)
+- [`docs/src/architecture/interop-tier-policy.md`](../archive/research-2026-q1/interop-tier-policy.md)
+- [`docs/src/architecture/vox-bell-curve-strategy.md`](../archive/research-2026-q1/vox-bell-curve-strategy.md)
 
 Local verification:
 

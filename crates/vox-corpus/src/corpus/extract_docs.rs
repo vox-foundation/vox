@@ -555,7 +555,7 @@ actor Counter {
 
     on Increment() to int {
         count = count + 1
-        ret count
+        return count
     }
 }
 ```

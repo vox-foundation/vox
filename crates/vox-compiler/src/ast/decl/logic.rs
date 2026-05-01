@@ -3,7 +3,7 @@ use crate::ast::span::Span;
 use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
 
-/// Actor declaration.
+/// Actor declaration (TASK-2.6 Path A — bare keyword supported).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ActorDecl {
     pub name: String,
@@ -21,6 +21,32 @@ pub struct ActorHandler {
     pub return_type: Option<TypeExpr>,
     pub body: Vec<Stmt>,
     pub is_traced: bool,
+    pub span: Span,
+}
+
+/// Workflow declaration (durable execution, TASK-2.6 Path A).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct WorkflowDecl {
+    pub name: String,
+    pub params: Vec<Param>,
+    pub return_type: Option<TypeExpr>,
+    pub body: Vec<Stmt>,
+    pub is_traced: bool,
+    pub is_deprecated: bool,
+    pub span: Span,
+}
+
+/// Activity declaration (durable execution side-effect, TASK-2.6 Path A).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ActivityDecl {
+    pub name: String,
+    pub params: Vec<Param>,
+    pub return_type: Option<TypeExpr>,
+    pub body: Vec<Stmt>,
+    pub options: Option<crate::ast::expr::Expr>,
+    pub prompt: Option<String>,
+    pub is_traced: bool,
+    pub is_deprecated: bool,
     pub span: Span,
 }
 
@@ -60,32 +86,6 @@ pub struct MigrationRule {
 pub struct MessageDecl {
     pub name: String,
     pub fields: Vec<crate::ast::decl::typedef::VariantField>,
-    pub is_deprecated: bool,
-    pub span: Span,
-}
-
-/// Workflow declaration (durable execution).
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct WorkflowDecl {
-    pub name: String,
-    pub params: Vec<Param>,
-    pub return_type: Option<TypeExpr>,
-    pub body: Vec<Stmt>,
-    pub is_traced: bool,
-    pub is_deprecated: bool,
-    pub span: Span,
-}
-
-/// Activity declaration (durable execution side-effect).
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ActivityDecl {
-    pub name: String,
-    pub params: Vec<Param>,
-    pub return_type: Option<TypeExpr>,
-    pub body: Vec<Stmt>,
-    pub options: Option<crate::ast::expr::Expr>,
-    pub prompt: Option<String>,
-    pub is_traced: bool,
     pub is_deprecated: bool,
     pub span: Span,
 }

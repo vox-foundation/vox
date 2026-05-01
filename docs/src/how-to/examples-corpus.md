@@ -12,7 +12,7 @@ schema_type: "HowTo"
 
 The Vox documentation utilizes a "Golden Example" architecture to prevent documentation drift and ensure that all documented code actually compiles against the latest compiler version.
 
-How goldens and docs feed **Mens** training (lexer vs HF tokenizer, corpus roots): [Vox source → Mens pipeline SSOT](../architecture/vox-source-to-mens-pipeline-ssot.md). Pair layout and hygiene: [Mens training data contract](../reference/mens-training-data-contract.md).
+How goldens and docs feed **Mens** training (lexer vs HF tokenizer, corpus roots): [Vox source → Mens pipeline SSOT](../archive/research-2026-q1/vox-source-to-mens-pipeline-ssot.md). Pair layout and hygiene: [Mens training data contract](../reference/mens-training-data-contract.md).
 
 ## How Golden Examples Work
 

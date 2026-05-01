@@ -215,7 +215,7 @@ fn web_ir_validate_duplicate_route_contract_id() {
 #[ignore = "Path B removed"]
 fn codegen_nested_route_manifest_includes_children_loader_pending_and_boundary_exports() {
     let source = r#"
-@query fn load_child() to int { ret 1 }
+@query fn load_child() to int { return 1 }
 
 component Home() {
     state n: int = 0
@@ -317,9 +317,9 @@ routes {
     "/" to Home
 }
 http get "/api/x" to int {
-    ret 1
+    return 1
 }
-@query fn q_list() to int { ret 0 }
+@query fn q_list() to int { return 0 }
 "#;
     let module = parse(lex(source)).expect("parse");
     let hir = lower_module(&module);
@@ -688,13 +688,13 @@ style {
 #[ignore = "Path B removed"]
 fn web_ir_lowering_summary_counts_http_and_rpc() {
     let src = r#"
-http post "/api/ping" to int { ret 1 }
+http post "/api/ping" to int { return 1 }
 
-@server fn do_work() to int { ret 0 }
+@server fn do_work() to int { return 0 }
 
-@query fn read_q() to int { ret 0 }
+@query fn read_q() to int { return 0 }
 
-@mutation fn write_m(x: int) to int { ret x }
+@mutation fn write_m(x: int) to int { return x }
 "#;
     let module = parse(lex(src)).expect("parse rpc fixture");
     let hir = lower_module(&module);

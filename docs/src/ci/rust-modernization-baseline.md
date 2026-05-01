@@ -55,7 +55,7 @@ Use [crate hardening matrix](crate-hardening-matrix.md) for per-crate feature fl
 
 ## Related
 
-- [Forward migration charter](../architecture/forward-migration-charter.md)
+- [Forward migration charter](../archive/research-2026-q1/forward-migration-charter.md)
 - [Workflow enumeration](workflow-enumeration.md)
 - [Crate hardening matrix](crate-hardening-matrix.md)
 

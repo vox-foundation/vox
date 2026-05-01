@@ -7,6 +7,29 @@ use crate::usage::LlmUsageKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Records which data source last set the pricing fields on a [`ModelSpec`].
+///
+/// Priority (highest → lowest): `Telemetry` > `LiteLLM` > `OpenRouter` | `AnthropicDirect` > `UserConfig` > `Bootstrap`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum PricingSource {
+    /// Compile-time bootstrap JSON (may be stale). Used only as a cold-start fallback.
+    #[default]
+    Bootstrap,
+    /// Fetched from OpenRouter `/api/v1/models` at runtime.
+    OpenRouter,
+    /// Fetched directly from the Anthropic `/v1/models` API (key-gated).
+    /// Model discovery only; pricing is still filled in by the LiteLLM oracle.
+    AnthropicDirect,
+    /// Supplemented from the LiteLLM `model_prices_and_context_window.json` oracle.
+    /// Fills gaps OpenRouter doesn't expose (cache-hit pricing, Anthropic, Google).
+    LiteLLM,
+    /// User's local `models.toml` override.
+    UserConfig,
+    /// Calibrated from observed telemetry rollup (highest trust — observed > catalog).
+    Telemetry,
+}
+
 fn default_true() -> bool {
     true
 }
@@ -60,6 +83,20 @@ pub struct ModelSpec {
     /// Optional ground-truth cost observed from provider telemetry (blended).
     #[serde(default)]
     pub observed_cost_per_1k: Option<f64>,
+    /// Per-1k-token cost for writing a new prompt-cache prefix (e.g. 1.25× normal on Anthropic).
+    /// Zero means caching is not supported or the cost is not known.
+    #[serde(default)]
+    pub cache_creation_cost_per_1k: f64,
+    /// Per-1k-token cost for a prompt-cache hit read (typically ~10% of input cost).
+    /// Zero means caching is not supported or the cost is not known.
+    #[serde(default)]
+    pub cache_read_cost_per_1k: f64,
+    /// Whether the provider supports prompt-prefix caching for this model.
+    #[serde(default)]
+    pub supports_prompt_caching: bool,
+    /// Which data source last set the pricing fields on this spec.
+    #[serde(default)]
+    pub pricing_source: PricingSource,
     /// Whether this model is free (no per-token cost).
     pub is_free: bool,
     /// Tags describing fit (speed, reasoning, codegen) for heuristic routing.

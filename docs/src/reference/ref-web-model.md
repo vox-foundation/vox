@@ -61,7 +61,7 @@ Vox emits a **`routes.manifest.ts`** (`VoxRoute[]`) for adapters; the **normativ
 - **Nesting:** child routes inside `{ ... }` after the parent entry (path strings only inside nested blocks).
 - **Global screens:** `not_found: NotFoundPage` and `error: ErrorPage` in the `routes { }` body.
 
-**Deferred (not in the parser yet):** `"/path" as layout Shell { }`, `under LayoutName`, redirect-only entries, wildcard segments, and populating `RouteEntry.redirect` / `is_wildcard` from source — see [`react-interop-implementation-plan-2026.md`](../architecture/react-interop-implementation-plan-2026.md) and [`tanstack-start-codegen-spec.md`](../architecture/tanstack-start-codegen-spec.md) (historical examples may overshoot grammar).
+**Deferred (not in the parser yet):** `"/path" as layout Shell { }`, `under LayoutName`, redirect-only entries, wildcard segments, and populating `RouteEntry.redirect` / `is_wildcard` from source — see [`react-interop-implementation-plan-2026.md`](../archive/research-2026-q1/react-interop-implementation-plan-2026.md) and [`tanstack-start-codegen-spec.md`](../archive/research-2026-q1/tanstack-start-codegen-spec.md) (historical examples may overshoot grammar).
 
 ## Route table (legacy arrow sketch)
 

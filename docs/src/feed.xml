@@ -9,6 +9,16 @@
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
+    <title>ADR 022 — Orchestrator bootstrap factory and daemon boundaries</title>
+    <link>https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/022-orchestrator-bootstrap-and-daemon-boundaries.html</guid>
+    <description>Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-dei-d, and optional future orchestrator daemon.</description>
+    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
     <title>ADR-026: Third-Party Code Provenance Policy</title>
     <link>https://vox-lang.org/adr/026-third-party-code-provenance.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/026-third-party-code-provenance.html</guid>
@@ -96,7 +106,7 @@
     <title>Shiki, mdBook &amp; Documentation Platform Evaluation (2026)</title>
     <link>https://vox-lang.org/architecture/shiki-mdbook-doc-platform-research-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/shiki-mdbook-doc-platform-research-2026.html</guid>
-    <description>Comprehensive research and quantified feature comparison of documentation site generators and syntax highlighting strategies for an AI-native, Rust-first codebase in 2026.</description>
+    <description>Comprehensive research and quantified feature comparison of documentation site generators and syntax highlighting strategies for an AI-native, Rust-first…</description>
     <pubDate>Wed, 29 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -245,6 +255,36 @@
     <link>https://vox-lang.org/adr/002-diataxis-doc-architecture.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/002-diataxis-doc-architecture.html</guid>
     <description>Grounded documentation architecture for Vox: mdBook front door, contributor surfaces, contracts, and status vocabulary.</description>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>ADR 003 — Native Rust Training Over Python</title>
+    <link>https://vox-lang.org/adr/003-native-training-over-python.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/003-native-training-over-python.html</guid>
+    <description>Historical move off Python/Unsloth; current Mens training is native Candle + qlora-rs QLoRA via vox mens train (see mens-training SSOT).</description>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>ADR 004: Codex over Arca over Turso</title>
+    <link>https://vox-lang.org/adr/004-codex-arca-turso-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/004-codex-arca-turso-ssot.html</guid>
+    <description>Official documentation for ADR 004: Codex over Arca over Turso for the Vox language. Detailed technical reference, architecture guides, a</description>
+    <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>ADR 005: Socrates anti-hallucination SSOT</title>
+    <link>https://vox-lang.org/adr/005-socrates-anti-hallucination-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/005-socrates-anti-hallucination-ssot.html</guid>
+    <description>Official documentation for ADR 005: Socrates anti-hallucination SSOT for the Vox language. Detailed technical reference, architecture gui</description>
     <pubDate>Thu, 23 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>

@@ -12,7 +12,7 @@ schema_type: "TechArticle"
 
 ## Status
 
-**Accepted.** Narrows product/engineering choices for scaling personal and lab clusters described in [Populi GPU mesh implementation plan 2026](../architecture/populi-gpu-mesh-implementation-plan-2026.md).
+**Accepted.** Narrows product/engineering choices for scaling personal and lab clusters described in [Populi GPU mesh implementation plan 2026](../archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md).
 
 ## Context
 
@@ -34,7 +34,7 @@ Populi today is a **hub-and-spoke HTTP control plane** (join, heartbeat, A2A, ex
 
 ## Related
 
-- [Protocol convergence research 2026](../architecture/protocol-convergence-research-2026.md)
+- [Protocol convergence research 2026](../archive/research-2026-q1/protocol-convergence-research-2026.md)
 - [Populi work-type placement matrix](../reference/populi-work-type-placement-matrix.md)
 
 

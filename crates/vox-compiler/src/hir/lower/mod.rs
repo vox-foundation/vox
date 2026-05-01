@@ -371,9 +371,9 @@ import react.use_state
 
 @table type Task { title: str done: bool }
 
-http post "/chat" to Result { ret Ok(0) }
+http post "/chat" to Result { return Ok(0) }
 
-@server fn doThing(x: int) to int { ret x }
+@server fn doThing(x: int) to int { return x }
 
 @component TaskView() {
   state done: bool = false
@@ -464,7 +464,7 @@ routes {
         let src = r#"
 @table type User { name: str active: bool }
 fn f() to int {
-    ret len(db.User.filter({ active: true }))
+    return len(db.User.filter({ active: true }))
 }
 "#;
         let hir = lower_str(src);
@@ -496,7 +496,7 @@ fn f() to int {
         let src = r#"
 @table type User { name: str active: bool }
 fn f() to int {
-    ret db.User.filter({ active: true }).count()
+    return db.User.filter({ active: true }).count()
 }
 "#;
         let hir = lower_str(src);
@@ -550,7 +550,7 @@ fn f() to Unit {
         let src = r#"
 @table type User { name: str active: bool }
 fn f() to int {
-    ret len(db.User.all().select("name", "active"))
+    return len(db.User.all().select("name", "active"))
 }
 "#;
         let hir = lower_str(src);
@@ -582,7 +582,7 @@ fn f() to int {
         let src = r#"
 @table type User { name: str age: int active: bool }
 fn f() to int {
-    ret len(db.User.where({ age: { gte: 18 }, active: { eq: true } }))
+    return len(db.User.where({ age: { gte: 18 }, active: { eq: true } }))
 }
 "#;
         let hir = lower_str(src);
@@ -639,7 +639,7 @@ fn f() to Unit {
     fn hir_lowering_maps_query_and_mutation_decls() {
         let src = r#"
 @table type User { name: str active: bool }
-@query fn q1() to int { ret 0 }
+@query fn q1() to int { return 0 }
 @mutation fn m1() to Unit {
     db.User.insert({ name: "a", active: true })
 }

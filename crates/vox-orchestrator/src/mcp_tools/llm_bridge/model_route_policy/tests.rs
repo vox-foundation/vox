@@ -27,6 +27,10 @@ fn tiny_registry_with_free_and_paid() -> ModelRegistry {
         observed_cost_per_1k: None,
         strengths: vec![crate::models::generated::StrengthTag::Codegen],
         capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
         supported_parameters: vec![],
     });
     r.register(ModelSpec {
@@ -42,6 +46,10 @@ fn tiny_registry_with_free_and_paid() -> ModelRegistry {
         observed_cost_per_1k: None,
         strengths: vec![crate::models::generated::StrengthTag::Codegen],
         capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
         supported_parameters: vec![],
     });
     r
@@ -94,6 +102,10 @@ fn registry_ollama_only() -> ModelRegistry {
         observed_cost_per_1k: None,
         strengths: vec![crate::models::generated::StrengthTag::Codegen],
         capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
         supported_parameters: vec![],
     });
     r
@@ -114,6 +126,10 @@ fn registry_paid_plus_ollama_free() -> ModelRegistry {
         observed_cost_per_1k: None,
         strengths: vec![crate::models::generated::StrengthTag::Codegen],
         capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
         supported_parameters: vec![],
     });
     r
@@ -239,6 +255,10 @@ fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
         observed_cost_per_1k: None,
         strengths: vec![],
         capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
         supported_parameters: vec![],
     };
     let gemini_route = ChatProviderRouteKind::ManualOpenAiCompatible {
@@ -266,6 +286,10 @@ fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
         observed_cost_per_1k: None,
         strengths: vec![],
         capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
         supported_parameters: vec![],
     };
     let or_route = ChatProviderRouteKind::OpenRouter {
@@ -289,6 +313,10 @@ fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
         observed_cost_per_1k: None,
         strengths: vec![],
         capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
         supported_parameters: vec![],
     };
     let ollama_route = ChatProviderRouteKind::PopuliLocal {
@@ -314,6 +342,10 @@ fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
         observed_cost_per_1k: None,
         strengths: vec![],
         capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
         supported_parameters: vec![],
     };
     let cascade_route = ChatProviderRouteKind::ManualOpenAiCompatible {

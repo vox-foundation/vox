@@ -23,7 +23,7 @@ Some behaviors exist in more than one place by design:
 | **`vox mens train`** vs **`vox train`** | Canonical native training is **`vox mens train`**. **`vox train --provider local`** bails with the exact **`vox mens train --backend qlora …`** command (no `train_qlora.vox`). **`vox train --native`** remains a legacy Burn scratch path when built with **`mens-dei`**. |
 | **`vox mens train-uv`** vs **`vox mens train --backend qlora`** | **`train-uv`** is **retired** (bails). Canonical QLoRA is **`vox mens train`**. |
 | **`vox fabrica` / `vox mens` / `vox ars` / `vox recensio`** vs flat **`build`**, **`doctor`**, **`snippet`**, **`review`**, … | Same dispatch as the legacy top-level verbs; Latin names are **discoverability aliases** (see [`cli.md`](../reference/cli.md)). |
-| **`vox doctor`** vs **`vox diag doctor`** | **Canon:** `vox doctor` (English). **Latin lane:** `vox diag doctor` — same code path; registry tags both under `latin_ns: diag` for the top-level `doctor` command (see [nomenclature migration map](../architecture/nomenclature-migration-map.md)). |
+| **`vox doctor`** vs **`vox diag doctor`** | **Canon:** `vox doctor` (English). **Latin lane:** `vox diag doctor` — same code path; registry tags both under `latin_ns: diag` for the top-level `doctor` command (see [nomenclature migration map](../archive/research-2026-q1/nomenclature-migration-map.md)). |
 | **`vox completions <shell>`** | Shell completion output (bash/zsh/fish/powershell/elvish); no script dual required. |
 
 There is **no** `vox clean` subcommand; benchmarks and docs must not assume one — clear caches by deleting the relevant dirs (e.g. `~/.vox/script-cache*`) or use feature-specific tooling.

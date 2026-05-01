@@ -12,7 +12,7 @@ schema_type: "HowTo"
 
 This workflow uses a single publication manifest in Codex (`publication_manifests`) with digest-bound approvals and scholarly submission tracking.
 
-> Note: scholarly submit defaults to `local_ledger` (`VOX_SCHOLARLY_ADAPTER`). For architecture and lingo, see [VoxGiantia publication architecture](../architecture/voxgiantia-publication-architecture.md). For operator inputs vs derived fields, see [operator inputs](scientia-publication-operator-inputs.md). For remediation, see [publication playbook](../reference/scientia-publication-playbook.md). Policy SSOT: [scientia-publication-automation-ssot](../architecture/scientia-publication-automation-ssot.md), [worthiness rules](../reference/scientia-publication-worthiness-rules.md), [readiness audit](../architecture/scientia-publication-readiness-audit.md).
+> Note: scholarly submit defaults to `local_ledger` (`VOX_SCHOLARLY_ADAPTER`). For architecture and lingo, see [VoxGiantia publication architecture](../archive/research-2026-q1/voxgiantia-publication-architecture.md). For operator inputs vs derived fields, see [operator inputs](scientia-publication-operator-inputs.md). For remediation, see [publication playbook](../reference/scientia-publication-playbook.md). Policy SSOT: [scientia-publication-automation-ssot](../archive/research-2026-q1/scientia-publication-automation-ssot.md), [worthiness rules](../reference/scientia-publication-worthiness-rules.md), [readiness audit](../archive/research-2026-q1/scientia-publication-readiness-audit.md).
 
 ## Fastest safe path
 
@@ -34,7 +34,7 @@ Use `vox scientia publication-status --publication-id <id> --with-worthiness` as
 - `vox scientia publication-discovery-refresh-evidence --publication-id <id>` — merges live Socrates telemetry + JSON sidecars, rebuilds `scientia_evidence` (headings, signals), upserts digest; emits `discovery_evidence_refreshed`. MCP: `vox_scientia_publication_discovery_refresh_evidence`.
 - Preflight JSON now includes `destination_readiness` (credential **presence** checks; no secret values).
 
-**Anti-slop:** LLM assists (`vox_scientia_assist_suggestions` in MCP) must output JSON checklists grounded on provided evidence; they do **not** establish novelty or scientific truth. See `contracts/scientia/machine-suggestion-block.schema.json` and [scientia-a2a-evidence-tasks](../architecture/scientia-a2a-evidence-tasks.md).
+**Anti-slop:** LLM assists (`vox_scientia_assist_suggestions` in MCP) must output JSON checklists grounded on provided evidence; they do **not** establish novelty or scientific truth. See `contracts/scientia/machine-suggestion-block.schema.json` and [scientia-a2a-evidence-tasks](../archive/research-2026-q1/scientia-a2a-evidence-tasks.md).
 
 ## 1) Prepare a manifest
 

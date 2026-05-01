@@ -4,7 +4,7 @@ members = ["crates/*","crates/workspace-hack"]
 default-members = ["crates/vox-cli"]
 
 [workspace.package]
-version = "0.4.0"
+version = "0.5.0"
 edition = "2024"
 license = "Apache-2.0"
 authors = ["Bert Brainerd"]
@@ -22,9 +22,18 @@ all = "warn"
 [profile.dev]
 incremental = true
 split-debuginfo = "unpacked"
+# Line tables only (vs full DWARF at debug=2). Backtraces and breakpoints still
+# work. Cuts rlib size for first-party crates by ~70-80%; the 1.7 GB
+# libvox_orchestrator rlib was the largest single contributor to the 86 GB
+# target/ before this change.
+debug = 1
 
 [profile.dev.package."*"]
+# Keep opt-level=1 for deps: parsing and serde noticeably faster at dev time.
+# But strip their debug info — you almost never step into dep source in a
+# debugger, and the savings compound across 40+ stale rlib copies in deps/.
 opt-level = 1
+debug = 0
 
 [workspace.dependencies]
 workspace-hack            = { path = "crates/workspace-hack" }

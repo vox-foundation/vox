@@ -45,7 +45,7 @@ If `vox` is explicitly omitted from terminal `$PATH`, use the dev scripts:
 | `persist_fact()` | `sync_to_db()` |
 
 ## Entry Points
-- Full cross-agent definitions: [`AGENTS.md`](../../AGENTS.md)
+- Full cross-agent definitions: [`AGENTS.md`](../../../AGENTS.md)
 - Governance strict rules: [`docs/agents/governance.md`](../../agents/governance.md)
 - Contributor entry hub: [`docs/src/contributors/contributor-hub.md`](../contributors/contributor-hub.md)
 

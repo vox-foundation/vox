@@ -554,7 +554,7 @@ impl Parser {
                     self.errors.push(ParseError::classified(
                         self.span(),
                         "Expected string literal schedule in @scheduled(\"...\")",
-                        vec!["@scheduled(\"1h\") fn tick() -> Unit { ret Unit }".into()],
+                        vec!["@scheduled(\"1h\") fn tick() -> Unit { return Unit }".into()],
                         Some(self.peek().to_string()),
                         ParseErrorClass::Declaration,
                     ));
@@ -567,7 +567,7 @@ impl Parser {
             self.errors.push(ParseError::classified(
                 self.span(),
                 "Expected `(` after @scheduled",
-                vec!["@scheduled(\"1h\") fn tick() -> Unit { ret Unit }".into()],
+                vec!["@scheduled(\"1h\") fn tick() -> Unit { return Unit }".into()],
                 Some(self.peek().to_string()),
                 ParseErrorClass::Declaration,
             ));

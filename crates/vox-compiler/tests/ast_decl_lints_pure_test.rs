@@ -25,7 +25,7 @@ fn impure_print() -> Unit {
 fn pure_lint_clean_when_no_obvious_impurity() {
     let src = r#"@pure
 fn ok() -> Unit {
-    ret Unit
+    return Unit
 }
 "#;
     let module = parse(lex(src)).expect("parse");

@@ -57,6 +57,10 @@ export class VoxTransport {
     // It is sent exclusively as the first WebSocket message after connection.
     // Token is read inside onopen so a token refresh between connect() and
     // the socket opening always uses the latest value.
+    // Do NOT append the token as a URL query parameter — credentials in URLs leak through
+    // browser history, server access logs, and HTTP Referer headers. Authentication is
+    // handled exclusively via the auth frame sent immediately after the connection opens
+    // (see onopen below). The backend accepts the auth frame as the primary auth path.
     const wsUrl = this.getWsUrl();
 
     this.ws = new WebSocket(wsUrl);

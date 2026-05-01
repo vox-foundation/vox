@@ -11,11 +11,11 @@ schema_type: "TechArticle"
 ## Related SSOT
 
 - [Telemetry trust boundary and SSOT map](../architecture/telemetry-trust-ssot.md)
-- [Telemetry taxonomy and contracts SSOT](../architecture/telemetry-taxonomy-contracts-ssot.md) (roadmap)
-- [Telemetry retention and sensitivity SSOT](../architecture/telemetry-retention-sensitivity-ssot.md) (roadmap)
-- [Telemetry client disclosure SSOT](../architecture/telemetry-client-disclosure-ssot.md)
-- [Telemetry implementation blueprint 2026](../architecture/telemetry-implementation-blueprint-2026.md) and [backlog](../architecture/telemetry-implementation-backlog-2026.md)
-- Optional **explicit** remote upload (local JSON spool, not `research_metrics`): [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [Telemetry remote sink specification](../architecture/telemetry-remote-sink-spec.md), CLI **`vox telemetry`**
+- [Telemetry taxonomy and contracts SSOT](../archive/research-2026-q1/telemetry-taxonomy-contracts-ssot.md) (roadmap)
+- [Telemetry retention and sensitivity SSOT](../archive/research-2026-q1/telemetry-retention-sensitivity-ssot.md) (roadmap)
+- [Telemetry client disclosure SSOT](../archive/research-2026-q1/telemetry-client-disclosure-ssot.md)
+- [Telemetry implementation blueprint 2026](../archive/research-2026-q1/telemetry-implementation-blueprint-2026.md) and [backlog](../archive/research-2026-q1/telemetry-implementation-backlog-2026.md)
+- Optional **explicit** remote upload (local JSON spool, not `research_metrics`): [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [Telemetry remote sink specification](../archive/research-2026-q1/telemetry-remote-sink-spec.md), CLI **`vox telemetry`**
 
 Code enforcement for row validation: [`validate_research_metric_row`](../../../crates/vox-db/src/research_metrics_contract.rs) (called from `append_research_metric`). Repository-scoped producers should use [`TelemetryWriteOptions`](../../../crates/vox-db/src/research_metrics_contract.rs) plus the `METRIC_TYPE_*` / `SESSION_PREFIX_*` / `SESSION_ID_*` constants in [`vox_db::research_metrics_contract`](../../../crates/vox-db/src/research_metrics_contract.rs).
 

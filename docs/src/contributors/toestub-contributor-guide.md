@@ -44,7 +44,7 @@ more than 12 methods. Thresholds: 300 lines = Info, 400 = Warning, 500 = Error.
 
 **Fix:** Split using `mod.rs` + `pub use`. Preserve public API surfaces exactly
 via `pub use` re-exports so callers don't break. Follow the
-[god object defactor checklist](../architecture/god-object-defactor-checklist.md)
+[god object defactor checklist](../archive/research-2026-q1/god-object-defactor-checklist.md)
 step by step — it has a PowerShell inventory script and a per-crate cargo test
 matrix.
 
@@ -252,7 +252,7 @@ suppress with a short reason:
 let config = std::fs::read_to_string(path)?;
 ```
 
-See [TOESTUB scaling rules SSOT](../architecture/scaling-toestub-rules.md) for
+See [TOESTUB scaling rules SSOT](../archive/research-2026-q1/scaling-toestub-rules.md) for
 all 14 sub-rule IDs.
 
 ---
@@ -286,8 +286,8 @@ genuine waivers, not for avoiding the work.
 ## Related
 
 - [Architectural governance (TOESTUB)](../../agents/governance.md) — policy SSOT, run commands
-- [God object defactor checklist](../architecture/god-object-defactor-checklist.md) — split protocol
-- [TOESTUB scaling rules SSOT](../architecture/scaling-toestub-rules.md) — all 14 scaling sub-rules
-- [TOESTUB self-healing architecture](../architecture/toestub-self-healing-architecture-2026.md) — research on where TOESTUB is going
+- [God object defactor checklist](../archive/research-2026-q1/god-object-defactor-checklist.md) — split protocol
+- [TOESTUB scaling rules SSOT](../archive/research-2026-q1/scaling-toestub-rules.md) — all 14 scaling sub-rules
+- [TOESTUB self-healing architecture](../archive/research-2026-q1/toestub-self-healing-architecture-2026.md) — research on where TOESTUB is going
 - [Contribution loop](contribution-loop.md) — why these rules also protect the training corpus
 

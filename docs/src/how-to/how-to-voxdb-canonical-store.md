@@ -35,11 +35,11 @@ If `vox codex verify` or normal `connect` reports a non-baseline schema:
 3. `vox codex verify` (applies current baseline).
 4. `vox codex import-legacy backup.jsonl`
 
-Details: [codex-legacy-migration](../architecture/codex-legacy-migration.md).
+Details: [codex-legacy-migration](../archive/research-2026-q1/codex-legacy-migration.md).
 
 ## Historical `vox_training_telemetry.db`
 
-Mens training uses [`VoxDb::connect_default`](../../../crates/vox-db/src/facade/connect.rs) on the **canonical** store. If `vox.db` is still on a legacy `schema_version` chain, connect fails with `LegacySchemaChain` until you complete export / fresh baseline / import (see [codex-legacy-migration](../architecture/codex-legacy-migration.md)). A leftover `vox_training_telemetry.db` from older releases can be archived after primary cutover.
+Mens training uses [`VoxDb::connect_default`](../../../crates/vox-db/src/facade/connect.rs) on the **canonical** store. If `vox.db` is still on a legacy `schema_version` chain, connect fails with `LegacySchemaChain` until you complete export / fresh baseline / import (see [codex-legacy-migration](../archive/research-2026-q1/codex-legacy-migration.md)). A leftover `vox_training_telemetry.db` from older releases can be archived after primary cutover.
 
 ## Deprecation stance
 
@@ -48,7 +48,7 @@ Mens training uses [`VoxDb::connect_default`](../../../crates/vox-db/src/facade/
 
 ## Related
 
-- [Codex / Arca compatibility boundaries](../architecture/codex-arca-compatibility-boundaries.md)
-- [Forward migration charter](../architecture/forward-migration-charter.md)
+- [Codex / Arca compatibility boundaries](../archive/research-2026-q1/codex-arca-compatibility-boundaries.md)
+- [Forward migration charter](../archive/research-2026-q1/forward-migration-charter.md)
 - [Mens training](../reference/mens-training.md)
 

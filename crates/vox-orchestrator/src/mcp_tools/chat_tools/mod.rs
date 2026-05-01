@@ -103,15 +103,15 @@ pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<
 
     let ts = now_ts();
     let date_str = ts_to_date_str(ts);
-    let last_call = state.orchestrator.last_activity_ms() / 1000;
-    let server_idle_secs = ts.saturating_sub(last_call);
 
     let bm = state.orchestrator.budget_manager_handle();
     let attention_budget = crate::sync_lock::rw_read(&*bm).attention_signal(0.7);
 
+    // NOTE: Keep this section day-stable to preserve DeepSeek/Anthropic prompt-prefix caching.
+    // Do NOT embed per-second Unix timestamps or server-idle counters here — they bust the
+    // prefix cache on every call. Per-request volatile data belongs in the user prompt.
     prompt.push_str(&format!(
-        "\n\n## Temporal Context\nCurrent date: {date_str}.\nUnix timestamp: {ts}s.\n\
-         Server last active: {server_idle_secs}s ago.\n\
+        "\n\n## Temporal Context\nCurrent date: {date_str}.\n\
          **Enforcement**: Before triggering any compilation, re-reindexing, or full file walk, \
          check if things are fresh (< 30s since last run).\n"
     ));

@@ -170,15 +170,15 @@ Emits TypeScript/TSX in modular files:
 Normative strategy for reducing frontend emitter complexity while preserving React interop:
 [ADR 012 — Internal web IR strategy](../adr/012-internal-web-ir-strategy.md).
 Detailed implementation sequencing and weighted task quotas:
-[Internal Web IR implementation blueprint](../architecture/internal-web-ir-implementation-blueprint.md).
+[Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md).
 Ordered file-by-file execution map:
-[WebIR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
+[WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320).
 Canonical current-vs-target representation mapping:
-[Internal Web IR side-by-side schema](../architecture/internal-web-ir-side-by-side-schema.md).
+[Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md).
 Quantified K-complexity delta for the canonical worked app:
-[WebIR K-complexity quantification](../architecture/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
+[WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-complexity-quantification).
 Reproducible per-token-class computation:
-[WebIR K-metric appendix](../architecture/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
+[WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible).
 
 ---
 
@@ -223,7 +223,7 @@ The full checklist for adding a new language construct:
 - [Language Reference](../reference/ref-syntax.md) — Full syntax and feature reference
 - [Actors & Workflows](expl-actors-workflows.md) — Workflow durability and actor persistence
 - [Ecosystem & Tooling](../how-to/how-to-cli-ecosystem.md) — CLI commands, package manager, LSP
-- [Web IR operations catalog](../architecture/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) — numbered compiler/emitter tasks **OP-0001–OP-0320** + supplemental **OP-S049–OP-S220** batch map
-- [Web IR acceptance gates G1–G6](../architecture/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) — parser, K-metric, parity, and rollout thresholds
+- [Web IR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) — numbered compiler/emitter tasks **OP-0001–OP-0320** + supplemental **OP-S049–OP-S220** batch map
+- [Web IR acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) — parser, K-metric, parity, and rollout thresholds
 
 

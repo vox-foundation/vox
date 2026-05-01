@@ -20,7 +20,7 @@ fn gen_body(rng: &mut Rng, ret_type: &str, complexity: u8, tags: &mut Vec<String
         let cond = gen_binary(rng, 0);
         lines.push(format!("    if {cond} {{"));
         lines.push(format!(
-            "        ret {}",
+            "        return {}",
             gen_literal_for_type(rng, ret_type)
         ));
         lines.push("    }".to_string());
@@ -28,7 +28,7 @@ fn gen_body(rng: &mut Rng, ret_type: &str, complexity: u8, tags: &mut Vec<String
     }
 
     if ret_type != "Unit" {
-        lines.push(format!("    ret {}", gen_literal_for_type(rng, ret_type)));
+        lines.push(format!("    return {}", gen_literal_for_type(rng, ret_type)));
         tags.push("stmt:return".into());
     }
 
@@ -158,7 +158,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
                 let ev = &VERBS[(rng.usize(VERBS.len()) + i) % VERBS.len()];
                 let hr = gen_prim_type(rng);
                 handlers.push(format!(
-                    "    on {ev}() to {hr} {{\n        {sf} = {sf} + 1\n        ret {}\n    }}",
+                    "    on {ev}() to {hr} {{\n        {sf} = {sf} + 1\n        return {}\n    }}",
                     gen_literal_for_type(rng, &hr)
                 ));
             }
@@ -199,33 +199,33 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             let methods = ["get", "post", "put", "delete"];
             let m = methods[variant % methods.len()];
             (
-                format!("@{m}(\"/api/{noun}\")\nfn {name}(req: str) to str {{\n    ret \"ok\"\n}}"),
+                format!("@{m}(\"/api/{noun}\")\nfn {name}(req: str) to str {{\n    return \"ok\"\n}}"),
                 format!("Create a Vox HTTP {m} handler at `/api/{noun}`"),
             )
         }
         "mcp_tool" => (
             format!(
-                "@mcp.tool \"{name}: {verb} data\"\nfn {name}({params}) to str {{\n    ret \"done\"\n}}"
+                "@mcp.tool \"{name}: {verb} data\"\nfn {name}({params}) to str {{\n    return \"done\"\n}}"
             ),
             format!("Define a Vox MCP tool called `{name}`"),
         ),
         "mcp_resource" => (
             format!(
-                "@mcp.resource \"{noun}://{{path}}\"\nfn read_{noun}(path: str) to str {{\n    ret path\n}}"
+                "@mcp.resource \"{noun}://{{path}}\"\nfn read_{noun}(path: str) to str {{\n    return path\n}}"
             ),
             format!("Define a Vox MCP resource for `{noun}`"),
         ),
         "query" => (
             format!(
-                "@query\nfn get_{noun}(id: int) to str {{\n    let result = db.{type_name}.find(id)\n    ret result\n}}"
+                "@endpoint(kind: query)\nfn get_{noun}(id: int) to str {{\n    let result = db.{type_name}.find(id)\n    return result\n}}"
             ),
-            format!("Write a Vox @query to read from `{type_name}`"),
+            format!("Write a Vox @endpoint(kind: query) to read from `{type_name}`"),
         ),
         "mutation" => (
             format!(
-                "@mutation\nfn update_{noun}(id: int, value: str) to Unit {{\n    db.{type_name}.update(id, value)\n}}"
+                "@endpoint(kind: mutation)\nfn update_{noun}(id: int, value: str) to Unit {{\n    db.{type_name}.update(id, value)\n}}"
             ),
-            format!("Write a Vox @mutation to write to `{type_name}`"),
+            format!("Write a Vox @endpoint(kind: mutation) to write to `{type_name}`"),
         ),
         "action" => {
             let body = gen_body(rng, &ret_type, complexity, &mut tags);
@@ -275,8 +275,8 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         "server_fn" => {
             let body = gen_body(rng, &ret_type, complexity, &mut tags);
             (
-                format!("@server\nfn {name}({params}) to {ret_type} {{\n{body}\n}}"),
-                format!("Write a Vox @server function `{name}`"),
+                format!("@endpoint(kind: server)\nfn {name}({params}) to {ret_type} {{\n{body}\n}}"),
+                format!("Write a Vox @endpoint(kind: server) function `{name}`"),
             )
         }
         "const" => {
@@ -324,17 +324,17 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         ),
         "impl" => (
             format!(
-                "impl Serializable for {type_name} {{\n    fn serialize(self) to str {{\n        ret \"{noun}\"\n    }}\n}}"
+                "impl Serializable for {type_name} {{\n    fn serialize(self) to str {{\n        return \"{noun}\"\n    }}\n}}"
             ),
             format!("Implement a trait for `{type_name}`"),
         ),
         "skill" => (
-            format!("@skill\nfn {name}_skill({params}) to str {{\n    ret \"analyzed\"\n}}"),
+            format!("@skill\nfn {name}_skill({params}) to str {{\n    return \"analyzed\"\n}}"),
             format!("Define a Vox @skill called `{name}_skill`"),
         ),
         "agent_def" => (
             format!(
-                "@agent_def\nfn {name}_agent() to str {{\n    tools: [{verb}]\n    memory: long_term\n    ret \"ready\"\n}}"
+                "@agent_def\nfn {name}_agent() to str {{\n    tools: [{verb}]\n    memory: long_term\n    return \"ready\"\n}}"
             ),
             format!("Define a Vox @agent_def `{name}_agent`"),
         ),
@@ -342,7 +342,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             let (sf, st) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
             (
                 format!(
-                    "agent {type_name}Agent {{\n    state {sf}: {st} = {}\n    on {verb}() to str {{\n        ret \"processed\"\n    }}\n}}",
+                    "agent {type_name}Agent {{\n    state {sf}: {st} = {}\n    on {verb}() to str {{\n        return \"processed\"\n    }}\n}}",
                     gen_literal_for_type(rng, st)
                 ),
                 format!("Define a Vox agent `{type_name}Agent`"),
@@ -363,41 +363,41 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         ),
         "hook" => (
             format!(
-                "hook fn use_{noun}(initial: int) to (int, fn() -> Unit) {{\n    let state = initial\n    ret (state, fn() to state + 1)\n}}"
+                "hook fn use_{noun}(initial: int) to (int, fn() -> Unit) {{\n    let state = initial\n    return (state, fn() to state + 1)\n}}"
             ),
             format!("Define a Vox hook `use_{noun}`"),
         ),
         "provider" => (
             format!(
-                "provider fn {type_name}Provider(children: Element) to Element {{\n    ret <div>{{children}}</div>\n}}"
+                "provider fn {type_name}Provider(children: Element) to Element {{\n    return <div>{{children}}</div>\n}}"
             ),
             format!("Define a Vox provider `{type_name}Provider`"),
         ),
         "fixture" => (
-            format!("@fixture\nfn setup_{noun}() to str {{\n    ret \"test_fixture\"\n}}"),
+            format!("@fixture\nfn setup_{noun}() to str {{\n    return \"test_fixture\"\n}}"),
             format!("Define a Vox @fixture for `{noun}`"),
         ),
         "layout" => (
             format!(
-                "layout fn {type_name}Layout(children: Element) to Element {{\n    ret <main>{{children}}</main>\n}}"
+                "layout fn {type_name}Layout(children: Element) to Element {{\n    return <main>{{children}}</main>\n}}"
             ),
             format!("Define a Vox layout `{type_name}Layout`"),
         ),
         "loading" => (
             format!(
-                "loading fn {type_name}Loading() to Element {{\n    ret <div>{{\"Loading...\"}}</div>\n}}"
+                "loading fn {type_name}Loading() to Element {{\n    return <div>{{\"Loading...\"}}</div>\n}}"
             ),
             format!("Define a Vox loading component for `{type_name}`"),
         ),
         "not_found" => (
             format!(
-                "not_found fn {type_name}NotFound() to Element {{\n    ret <h1>{{\"404 - Not Found\"}}</h1>\n}}"
+                "not_found fn {type_name}NotFound() to Element {{\n    return <h1>{{\"404 - Not Found\"}}</h1>\n}}"
             ),
             format!("Define a Vox 404 handler for `{type_name}`"),
         ),
         "error_boundary" => (
             format!(
-                "error_boundary fn {type_name}Error(error: str) to Element {{\n    ret <div class=\"error\">{{error}}</div>\n}}"
+                "error_boundary fn {type_name}Error(error: str) to Element {{\n    return <div class=\"error\">{{error}}</div>\n}}"
             ),
             format!("Define a Vox error boundary for `{type_name}`"),
         ),
@@ -414,7 +414,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             format!("Define a Vox dark theme for `{noun}`"),
         ),
         "mock" => (
-            format!("@mock\nfn mock_{noun}() to str {{\n    ret \"mock_data\"\n}}"),
+            format!("@mock\nfn mock_{noun}() to str {{\n    return \"mock_data\"\n}}"),
             format!("Define a Vox @mock for `{noun}`"),
         ),
         "environment" => (
@@ -425,7 +425,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         ),
         "page" => (
             format!(
-                "page fn {type_name}Page() to Element {{\n    ret <section>\n        <h1>{{\"{type_name}\"}}</h1>\n    </section>\n}}"
+                "page fn {type_name}Page() to Element {{\n    return <section>\n        <h1>{{\"{type_name}\"}}</h1>\n    </section>\n}}"
             ),
             format!("Define a Vox static page `{type_name}Page`"),
         ),

@@ -194,7 +194,7 @@ pub fn gen_refactor_pairs(
     let refactor_goals = [
         (
             "more idiomatic Vox",
-            "Use explicit return types, `ret` keyword, and `Option[T]` / `Result[T]` \
+            "Use explicit return types, `return` keyword, and `Option[T]` / `Result[T]` \
              wrappers. Prefer `match` over nested `if`-`else`. \
              Remove any bare `null` — use `None` from `Option[T]` instead.",
         ),

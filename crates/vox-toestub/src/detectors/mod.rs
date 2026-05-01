@@ -1,5 +1,10 @@
 //! Registry of all built-in detection rules.
 
+/// Subtle AI cop-out patterns: placeholder-string returns, "implement later" comments,
+/// mock-named functions in non-test code, custom-type default returns, conditional stub
+/// branches, assertion-only / early-return-only function bodies. Complements `stub`,
+/// `empty_body`, `hollow_fn`, and `victory_claim`.
+pub mod ai_laziness;
 /// Flags use of APIs or patterns marked deprecated in project policy.
 pub mod deprecated_usage;
 /// Heuristic duplicate / near-duplicate logic across files.
@@ -69,12 +74,13 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(hollow_fn::HollowFnDetector::new()),
         Box::new(reachability::ReachabilityDetector::new()),
         Box::new(workspace_drift::WorkspaceDriftDetector::new()),
+        Box::new(ai_laziness::AiLazinessDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    20
+    21
 }
 
 #[cfg(test)]

@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn valid_function_parses() {
-        let report = ast_eval("fn greet(name: str) to str { ret \"hello\" }");
+        let report = ast_eval("fn greet(name: str) to str { return \"hello\" }");
         assert!(report.parse_success);
         assert!(report.construct_histogram.contains_key("fn"));
         assert!(report.coverage_score() > 0.0);
@@ -150,7 +150,7 @@ mod tests {
 
     #[test]
     fn multiple_constructs_counted() {
-        let code = "fn hello() to str { ret \"hi\" }\n\ntype Color = | Red | Blue\n\n@test fn check() to Unit { assert(true) }";
+        let code = "fn hello() to str { return \"hi\" }\n\ntype Color = | Red | Blue\n\n@test fn check() to Unit { assert(true) }";
         let report = ast_eval(code);
         assert!(report.parse_success);
         assert!(report.construct_histogram.contains_key("fn"));

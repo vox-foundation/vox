@@ -1,5 +1,5 @@
 ---
-title: "Orchestrator bootstrap factory and daemon boundaries"
+title: "ADR 022 — Orchestrator bootstrap factory and daemon boundaries"
 description: "Single factory for repo-scoped Orchestrator construction; relationship to vox-mcp, vox-dei-d, and optional future orchestrator daemon."
 category: "reference"
 last_updated: "2026-04-01"
@@ -53,5 +53,5 @@ When product requirements justify fixing **cold-start** and **gravity** (one RAM
 - [`crates/vox-orchestrator/src/clarification_db_inbox_poll.rs`](../../../crates/vox-orchestrator/src/clarification_db_inbox_poll.rs) — Codex clarification inbox drain
 - [`crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs`](../../../crates/vox-orchestrator/src/bin/vox_orchestrator_d.rs) — `vox-orchestrator-d` binary
 - [`crates/vox-cli/src/dei_daemon.rs`](../../../crates/vox-cli/src/dei_daemon.rs)
-- [Orphan surface inventory](../architecture/orphan-surface-inventory.md) — `vox-orchestrator` staging crate vs `vox-orchestrator` SSOT
+- [Orphan surface inventory](../archive/research-2026-q1/orphan-surface-inventory.md) — `vox-orchestrator` staging crate vs `vox-orchestrator` SSOT
 
