@@ -38,35 +38,8 @@ fn greaterfool_reference_emits_secure_runtime_defaults() {
         .expect("main.rs should exist");
     let api_client = emit_api_client(&hir);
 
-    assert!(
-        main_rs.contains("tracing_subscriber::fmt::init"),
-        "main should init tracing"
-    );
-    assert!(
-        main_rs.contains("Router::new"),
-        "main should build axum router"
-    );
-    assert!(
-        main_rs.contains("handle_sf_chat") && main_rs.contains("/api/chat"),
-        "main should wire @server fn chat at /api/chat, got subset of main.rs"
-    );
-    assert!(
-        main_rs.contains("VOX_PORT"),
-        "main should read VOX_PORT for listen address"
-    );
-
-    assert!(
-        api_client.contains("export async function chat"),
-        "api client should export chat()"
-    );
-    assert!(
-        api_client.contains("fetch(`${API_BASE}/api/chat`") || api_client.contains("/api/chat"),
-        "api client should target server route"
-    );
-    assert!(
-        api_client.contains("application/json"),
-        "api client should set JSON content type"
-    );
+    insta::assert_snapshot!("greaterfool_ref_main_rs_emit", main_rs);
+    insta::assert_snapshot!("greaterfool_ref_api_client_emit", api_client);
 }
 
 #[test]

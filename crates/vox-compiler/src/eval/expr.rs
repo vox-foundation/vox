@@ -226,6 +226,9 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     interp.scope = old_scope;
                     Ok(val)
                 }
+                VoxValue::Constructor(name) => {
+                    Ok(VoxValue::Tagged { name, fields: eval_args })
+                }
                 _ => Err(EvalError::TypeError {
                     expected: "function",
                     found: "other".into(),

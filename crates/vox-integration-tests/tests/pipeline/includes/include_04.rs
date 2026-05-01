@@ -80,14 +80,14 @@ fn pipeline_integration_chatbot_fixture_classic_css_module_import() {
 }
 
 #[test]
-fn pipeline_mixed_surface_http_route_emit_contains_api_x() {
+fn pipeline_mixed_surface_endpoint_fn_emit_contains_api_x() {
     let tokens = lex(MIXED_SURFACE_SRC);
     let module = parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
     let server_ts = vox_compiler::codegen_ts::routes::generate_routes(&hir);
     assert!(
-        server_ts.contains("/api/x") && server_ts.contains(".post("),
-        "expected POST /api/x in Express emit, got:\n{server_ts}"
+        server_ts.contains("api_x") && server_ts.contains(".post("),
+        "expected mutation endpoint api_x as POST in Express emit, got:\n{server_ts}"
     );
 }
 

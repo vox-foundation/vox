@@ -1,0 +1,7 @@
+---
+source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
+expression: meta
+---
+// Declared @island names (implementations live under islands/src/<Name>/).
+export const VOX_ISLAND_NAMES = ["Chart"] as const;
+export type VoxIslandName = (typeof VOX_ISLAND_NAMES)[number];

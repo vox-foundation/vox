@@ -51,8 +51,7 @@ component Counter(initial: int) {
     let diags = validate_web_ir(&web);
     assert!(diags.is_empty(), "{diags:?}");
     let tsx = emit_component_view_tsx(&web, "Counter").expect("view");
-    assert!(tsx.contains("className="), "{tsx}");
-    assert!(tsx.contains("<div"));
+    insta::assert_snapshot!("counter_view_tsx_webir_emit", tsx);
 }
 
 /// OP-S006 / OP-S008: `lower_module` places imports, `routes { }`, and Path C components in the expected HIR vectors.
@@ -259,30 +258,7 @@ routes {
         .find(|(n, _)| n == "routes.manifest.ts")
         .map(|(_, c)| c.as_str())
         .expect("routes.manifest.ts");
-    assert!(
-        manifest.contains("children:"),
-        "expected nested child routes in manifest:\n{manifest}"
-    );
-    assert!(
-        manifest.contains("pendingComponent: PendingSpin"),
-        "expected route-level pending:\n{manifest}"
-    );
-    assert!(
-        manifest.contains("loader: async () => load_child({})"),
-        "expected loader wrapper for static path:\n{manifest}"
-    );
-    assert!(
-        manifest.contains("export const notFoundComponent = NotFoundPage"),
-        "expected not_found export:\n{manifest}"
-    );
-    assert!(
-        manifest.contains("export const errorComponent = ErrorPage"),
-        "expected error export:\n{manifest}"
-    );
-    assert!(
-        manifest.contains("useVoxServerQuery") && manifest.contains("vox-tanstack-query"),
-        "manifest should document TanStack Query hook for component-level caching:\n{manifest}"
-    );
+    insta::assert_snapshot!("nested_route_manifest_with_pending_loader_notfound_error", manifest);
 }
 
 /// Emitter contract: `maybe_web_ir_validate` is invoked before the `route_manifest` match block so a failing
@@ -337,18 +313,7 @@ http get "/api/x" to int {
         .find(|(n, _)| n == "vox-client.ts")
         .map(|(_, c)| c.as_str())
         .expect("vox-client.ts when @query exists");
-    assert!(
-        vox_client.contains("method: \"GET\"") && vox_client.contains("$get"),
-        "vox-client must use GET for @query to match Axum query routes"
-    );
-    assert!(
-        vox_client.contains("method: \"POST\"") && vox_client.contains("$post"),
-        "vox-client must use POST for @mutation/@server"
-    );
-    assert!(
-        vox_client.contains("Object.keys(query).sort()"),
-        "vox-client must sort query keys for deterministic transport"
-    );
+    insta::assert_snapshot!("vox_client_query_mutation_transport", vox_client);
     let forbidden_substrings = [
         "createServerFn",
         "createServerFn(",
@@ -1249,7 +1214,7 @@ component T() {
     let web = lower_hir_to_web_ir(&hir);
     assert!(validate_web_ir(&web).is_empty());
     let tsx = emit_component_view_tsx(&web, "T").expect("emit");
-    assert!(tsx.contains("className"));
+    insta::assert_snapshot!("op_s126_t_component_view_tsx", tsx);
 }
 
 /// OP-S134 / S136: interop hatches — empty React import source fails.
@@ -1387,7 +1352,7 @@ component Hi() {
     let hir = lower_module(&parse(lex(source)).expect("parse"));
     let web = lower_hir_to_web_ir(&hir);
     let tsx = emit_component_view_tsx(&web, "Hi").expect("tsx");
-    assert!(tsx.contains("hello"));
+    insta::assert_snapshot!("op_s219_hi_literal_view_tsx", tsx);
 }
 
 fn syntax_k_output_root() -> PathBuf {

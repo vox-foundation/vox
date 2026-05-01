@@ -160,10 +160,9 @@ fn island_mount_format_island_emit_ssot() {
         "\"hi\""
     ));
     let ast = format_island_mount_ast("Z", &parts, 0, 0);
-    assert!(ast.contains("data-vox-island=\"Z\""), "{ast}");
-    assert!(ast.contains("data-prop-title="), "{ast}");
+    insta::assert_snapshot!("island_mount_ast_z", ast);
     let hir = island_mount_hir_fragment("Z", &parts, 0);
-    assert!(hir.contains("data-vox-island=\"Z\""), "{hir}");
+    insta::assert_snapshot!("island_mount_hir_fragment_z", hir);
 }
 
 /// `hir_emit::compat` is the single matrix for AST JSX re-exports (OP-0131).
@@ -253,11 +252,7 @@ fn op_s045_extra_parity_fixture_island_mount_in_classic_route_page() {
         .find(|(f, _)| f == "ParityPage.tsx")
         .map(|(_, c)| c.as_str())
         .expect("ParityPage.tsx");
-    assert!(
-        ts.contains("data-vox-island=\"ParityP\""),
-        "expected V1 island name attr:\n{ts}"
-    );
-    assert!(ts.contains("data-prop-label="), "expected prop attr:\n{ts}");
+    insta::assert_snapshot!("parity_page_tsx_island_mount_classic_route", ts);
 }
 
 /// OP-S038: behavior adapter — with `VOX_WEBIR_EMIT_REACTIVE_VIEWS=0`, pathway tallies `LegacyEnvDisabled`.
@@ -365,11 +360,7 @@ component Counter(initial: int) {
         .expect("Counter.tsx not found");
     println!("Generated TSX:\n{}", ts);
 
-    assert!(ts.contains("function Counter"));
-    assert!(ts.contains("useMemo(() => count * 2, [count])"));
-    assert!(ts.contains("useEffect(() => {"));
-    assert!(ts.contains("onClick={() => {"));
-    assert!(ts.contains("set_count(count + 1);"));
+    insta::assert_snapshot!("counter_tsx_reactive_smoke", ts);
 }
 
 /// WebIR / codegen parity: V1 island mount attrs (`data-vox-island`, `data-prop-*`) — blueprint OP-0058.
@@ -404,11 +395,7 @@ component Panel() {
         .map(|(_, c)| c)
         .expect("Panel.tsx not found");
 
-    assert!(
-        ts.contains("data-vox-island=\"DataChart\""),
-        "expected island mount attr, got:\n{ts}"
-    );
-    assert!(ts.contains("data-prop-title="));
+    insta::assert_snapshot!("panel_tsx_island_mount_attrs", ts);
 
     let meta = output
         .files
@@ -416,7 +403,7 @@ component Panel() {
         .find(|(f, _)| f == "vox-islands-meta.ts")
         .map(|(_, c)| c)
         .expect("vox-islands-meta.ts");
-    assert!(meta.contains("DataChart"));
+    insta::assert_snapshot!("vox_islands_meta_datachart", meta);
 }
 
 /// Web IR preview path still emits the same island mount contract (OP-0133).
@@ -443,11 +430,7 @@ component Panel() {
     let hir = vox_compiler::hir::lower_module(&module);
     let web = lower_hir_to_web_ir(&hir);
     let tsx = emit_component_view_tsx(&web, "Panel").expect("preview emit");
-    assert!(
-        tsx.contains("data-vox-island=\"DataChart\""),
-        "expected Web IR TSX to preserve island mount, got:\n{tsx}"
-    );
-    assert!(tsx.contains("data-prop-title="), "{tsx}");
+    insta::assert_snapshot!("panel_tsx_web_ir_datachartisland", tsx);
 }
 
 #[serial_test::serial]
@@ -595,8 +578,7 @@ component Counter(initial: int) {
         .find(|(f, _)| f == "Counter.tsx")
         .map(|(_, c)| c)
         .expect("Counter.tsx");
-    assert!(ts.contains("function Counter"), "{ts}");
-    assert!(ts.contains("useMemo"), "{ts}");
+    insta::assert_snapshot!("counter_tsx_with_web_ir_view_on", ts);
 }
 
 #[serial_test::serial]
@@ -935,10 +917,7 @@ raw_css {
         .find(|(n, _)| n == "Box.tsx")
         .map(|(_, c)| c.as_str())
         .expect("Box.tsx");
-    assert!(
-        tsx.contains("Box.css") && tsx.contains("import"),
-        "expected css import, got:\n{tsx}"
-    );
+    insta::assert_snapshot!("box_tsx_css_import", tsx);
 }
 
 /// OP-0264: non-empty JSX children under `@island` → Web IR `ignored_child_count` + preview comment (OP-0100).
@@ -1030,7 +1009,7 @@ component V() {
         .unwrap()
         .1
         .as_str();
-    assert!(f.contains("useState") && f.contains('k'), "{f}");
+    insta::assert_snapshot!("v_tsx_usestate_k_op_s074", f);
 }
 
 /// OP-S078 / S077: wrapper inventory — event attr maps in Path C emit.
@@ -1056,7 +1035,7 @@ component Clicky() {
         .find(|(n, _)| n == "Clicky.tsx")
         .map(|(_, c)| c.as_str())
         .expect("Clicky.tsx");
-    assert!(ts.contains("className") && ts.contains("onClick"), "{ts}");
+    insta::assert_snapshot!("clicky_tsx_classname_onclick", ts);
 }
 
 /// OP-S097: optionality extension A — optional island prop in meta.
@@ -1116,7 +1095,7 @@ fn reactive_smoke_op_s145_fixture_pack_e1() {
         .find(|(f, _)| f == "ParityPage.tsx")
         .map(|(_, c)| c.as_str())
         .expect("ParityPage.tsx");
-    assert!(ts.contains("data-vox-island=\"ParityP\""), "{ts}");
+    insta::assert_snapshot!("parity_page_tsx_island_mount_op_s161", ts);
 }
 
 /// OP-S162 component adapter B.
@@ -1158,7 +1137,7 @@ fn reactive_smoke_op_s166_island_adapter_fixture_b() {
         .find(|(f, _)| f == "ParityPage.tsx")
         .map(|(_, c)| c.as_str())
         .expect("ParityPage.tsx");
-    assert!(ts.contains("data-prop-label="), "{ts}");
+    insta::assert_snapshot!("parity_page_tsx_data_prop_label_op_s166", ts);
 }
 
 /// OP-S170 hir wrapper B.
@@ -1252,7 +1231,7 @@ component Counter(initial: int) {
         .find(|(f, _)| f == "Counter.tsx")
         .map(|(_, c)| c.as_str())
         .expect("Counter.tsx not found");
-    assert!(ts.contains("function Counter") && ts.contains("useMemo"));
+    insta::assert_snapshot!("counter_tsx_function_and_usememo_op_s205", ts);
 }
 
 /// OP-S218 final reactive parity.

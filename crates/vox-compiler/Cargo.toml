@@ -37,6 +37,17 @@ serde_yaml = { workspace = true }
 jsonschema = { workspace = true }
 serial_test = { workspace = true }
 vox-jsonschema-util = { path = "../vox-jsonschema-util" }
+vox-test-harness = { path = "../vox-test-harness" }
+insta = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "compiler_pipeline"
+harness = false
+
+[[bench]]
+name = "golden_examples"
+harness = false
 
 [lints]
 workspace = true
