@@ -415,7 +415,7 @@ fn push_pages_grouped(output: &mut String, mut pages: Vec<Page>) {
     // Remaining statuses (if any)
     for (status, mut status_pages) in by_status {
         output.push_str(&format!("## Status: {}\n\n", status));
-        status_pages.sort_by_key(|p| (p.sort_order, p.title.clone()));
+        status_pages.sort_by_key(|p| (p.sort_order, p.title.clone(), p.path.clone()));
         for page in status_pages {
             output.push_str(&format!("- [{}]({})\n", page.title, page.path));
         }
