@@ -108,6 +108,7 @@ fn parity_contract_retry_policy_defaults_are_production_like() {
 }
 
 #[test]
+#[ignore = "activity/workflow constructs tombstoned; orchestration uses @endpoint(kind: mutation) fn"]
 fn parity_contract_generated_linear_activity_identity_matches_interpreted_plan() {
     let src = r#"
 type MyRes = | Ok(v: str) | Error
@@ -162,6 +163,7 @@ workflow main_flow() to Result[str] {
 }
 
 #[test]
+#[ignore = "activity/workflow constructs tombstoned; orchestration uses @endpoint(kind: mutation) fn"]
 fn parity_contract_generated_with_id_alias_matches_interpreted_activity_id() {
     let src = r#"
 type MyRes = | Ok(v: str) | Error

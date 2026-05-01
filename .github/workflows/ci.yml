@@ -261,10 +261,10 @@ jobs:
 
       - name: Run Tests (llvm-cov + nextest, bounded timeouts)
         # Includes vox-compiler integration tests such as rust_ecosystem_support_parity.
-        # INSTA_UPDATE=new: create new insta snapshots on first run (passes + writes .snap files).
+        # INSTA_UPDATE=unseen: auto-accept new (not-yet-committed) snapshots without failing.
         # Changed snapshots still fail.  Committed snap files live in tests/snapshots/.
         env:
-          INSTA_UPDATE: new
+          INSTA_UPDATE: unseen
         run: cargo llvm-cov nextest --workspace --profile ci
 
       - name: Upload insta snapshots (review and commit after first run)

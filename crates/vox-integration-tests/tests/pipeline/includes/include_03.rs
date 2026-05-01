@@ -32,9 +32,9 @@ const PATTERN_MATCHING_SRC: &str = r#"type Shape =
 
 fn area(s: Shape) to int {
     match s {
-        Circle(radius) -> radius * radius
-        Rectangle(width, height) -> width * height
-        Triangle(base, height) -> base * height
+        Circle(radius) => radius * radius
+        Rectangle(width, height) => width * height
+        Triangle(base, height) => base * height
     }
 }
 
@@ -81,6 +81,8 @@ component Dashboard() {
     view: (
         <div class="dashboard">
             <h1>"Dashboard"</h1>
+            <a href="/todos">"Todos"</a>
+            <a href="/about">"About"</a>
             <button on_click={fn(_e) set_visits(visits + 1)}>"Track"</button>
         </div>
     )
@@ -111,11 +113,11 @@ routes {
     "/about" to About
 }
 
-http get "/api/todos" to str {
+@endpoint(kind: query) fn api_todos() to str {
     return "[]"
 }
 
-http post "/api/todos" to str {
+@endpoint(kind: mutation) fn create_todo() to str {
     return "created"
 }
 
@@ -128,7 +130,7 @@ http post "/api/todos" to str {
 fn pipeline_multi_route_parse() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).expect("multi_route_app should parse");
-    // 1 import + 1 type + 3 components + 1 routes + 2 http + 1 server fn = 9
+    // 1 import + 1 type + 3 components + 1 routes + 2 @endpoint fns + 1 @server fn = 9
     assert_eq!(module.declarations.len(), 9);
 }
 
@@ -168,7 +170,7 @@ fn pipeline_multi_route_rust_codegen() {
     insta::assert_snapshot!("multi_route_rust_main_rs_emit", main_rs);
 }
 
-/// HTTP `routes` surface plus Path C components → Web IR summary (OP-0181).
+/// `@endpoint(kind: query)` plus Path C components → Web IR summary (OP-0181).
 #[test]
 fn pipeline_web_ir_lower_summary_counts_http_and_classic() {
     use vox_compiler::web_ir::lower::lower_hir_to_web_ir_with_summary;
@@ -178,8 +180,8 @@ fn pipeline_web_ir_lower_summary_counts_http_and_classic() {
     let hir = vox_compiler::hir::lower_module(&module);
     let (_web, summary) = lower_hir_to_web_ir_with_summary(&hir);
     assert!(
-        summary.http_loader_contracts >= 1,
-        "expected HTTP loader contracts, got {summary:?}"
+        summary.query_fn_contracts >= 1,
+        "expected query endpoint contracts, got {summary:?}"
     );
     assert!(
         summary.components >= 1,
@@ -243,11 +245,11 @@ fn pipeline_express_contract_mapper_fixture_validates_multi_route_hir() {
     vox_compiler::codegen_ts::routes::validate_express_route_emit_input(&hir)
         .expect("MULTI_ROUTE_SRC express validation");
     assert!(
-        hir.routes
+        hir.endpoint_fns
             .iter()
-            .any(|r| r.route_contract.starts_with("GET ") || r.route_contract.starts_with("POST ")),
-        "expected HTTP route_contract on hir.routes: {:?}",
-        hir.routes.iter().map(|r| &r.route_contract).collect::<Vec<_>>()
+            .any(|e| e.route_path.contains("api_todos") || e.route_path.contains("create_todo") || e.route_path.contains("get_stats")),
+        "expected endpoint fns in hir.endpoint_fns: {:?}",
+        hir.endpoint_fns.iter().map(|e| &e.route_path).collect::<Vec<_>>()
     );
 }
 
@@ -282,7 +284,7 @@ import react.use_state
 
 @island ParityP { label: str }
 
-@component ParityPage() {
+component ParityPage() {
     state s: str = "x"
     view: (
         <div class="parity-wrap">

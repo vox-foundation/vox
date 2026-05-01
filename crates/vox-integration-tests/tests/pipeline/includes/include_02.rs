@@ -11,8 +11,8 @@ type Result =
 
 fn unwrap_or(opt: Option, default: str) to str {
     match opt {
-        Some(value) -> value
-        None -> default
+        Some(value) => value
+        None => default
     }
 }
 
@@ -25,8 +25,8 @@ fn unwrap_or(opt: Option, default: str) to str {
 @test fn test_ok_result() to Unit {
     let r = Ok("success")
     match r {
-        Ok(value) -> assert(value is "success")
-        Err(msg) -> assert(false)
+        Ok(value) => assert(value is "success")
+        Err(msg) => assert(false)
     }
 }
 "#;
@@ -210,9 +210,9 @@ fn pipeline_island_codegen() {
 }
 
 // v0_component.vox
-const V0_COMPONENT_SRC: &str = r#"@v0 "A modern analytics dashboard with KPI cards" fn Analytics() to Element
+const V0_COMPONENT_SRC: &str = r#"@v0 "A modern analytics dashboard with KPI cards" Analytics {}
 
-@v0 from "design/landing-mockup.png" fn LandingPage() to Element
+@v0 from "design/landing-mockup.png" LandingPage {}
 
 routes {
     "/" to Analytics
@@ -229,6 +229,7 @@ fn pipeline_v0_parse() {
 }
 
 #[test]
+#[ignore = "@v0 components dropped from HIR (Path B removed); no TSX generated"]
 fn pipeline_v0_codegen() {
     let tokens = lex(V0_COMPONENT_SRC);
     let module = parse(tokens).unwrap();

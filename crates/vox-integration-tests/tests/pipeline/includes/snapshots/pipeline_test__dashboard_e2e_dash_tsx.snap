@@ -1,0 +1,15 @@
+---
+source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
+expression: dash.1
+---
+import React, { useState } from "react";
+
+export function Dashboard(): React.ReactElement {
+  const [n, set_n] = useState(0);
+  return (
+<div 
+>
+  {"Dashboard"}
+</div>
+  );
+}

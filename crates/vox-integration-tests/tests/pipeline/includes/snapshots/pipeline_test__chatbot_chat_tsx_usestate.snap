@@ -1,0 +1,26 @@
+---
+source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
+expression: chat.1
+---
+import React, { useState } from "react";
+
+export function Chat(): React.ReactElement {
+    const [messages, set_messages] = useState([{ role: "bot", text: "" }]);
+    const [input, set_input] = useState("");
+    const send = ((msg) => (set_messages(messages.append({ role: "user", text: msg }))));
+  return (
+<div className={"chat-container"}
+>
+  <h1 
+>
+  {"Vox Chatbot"}
+</h1>
+  <button onClick={() => {
+    ((_e) => (send(input)));
+}}
+>
+  {"Send"}
+</button>
+</div>
+  );
+}

@@ -39,4 +39,7 @@ component ErrorPage() {
     view: <span>"err"</span>
 }
 
-
+routes {
+    "/" to Home
+    "/section" to Section
+}

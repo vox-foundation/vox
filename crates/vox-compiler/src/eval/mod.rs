@@ -130,6 +130,13 @@ impl Interpreter {
     }
 
     pub fn run_module(&mut self, module: &HirModule) -> Result<(), EvalError> {
+        // Register ADT variant constructors so `Applied(x, y)` etc. work in tests.
+        for ty in &module.types {
+            for variant in &ty.variants {
+                self.scope.set(variant.name.clone(), VoxValue::Constructor(variant.name.clone()));
+            }
+        }
+
         for f in &module.functions {
             let val = VoxValue::Fn {
                 params: f.params.iter().map(|p| p.name.clone()).collect(),

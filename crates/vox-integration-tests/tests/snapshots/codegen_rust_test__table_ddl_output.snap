@@ -1,0 +1,10 @@
+---
+source: crates/vox-integration-tests/tests/codegen_rust_test.rs
+expression: ddl
+---
+CREATE TABLE IF NOT EXISTS task (
+_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    done INTEGER NOT NULL,
+    priority INTEGER NOT NULL
+);

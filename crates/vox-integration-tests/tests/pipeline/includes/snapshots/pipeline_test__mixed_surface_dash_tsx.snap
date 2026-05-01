@@ -1,0 +1,17 @@
+---
+source: crates/vox-integration-tests/tests/pipeline/includes/include_01.rs
+expression: dash
+---
+import React, { useState } from "react";
+
+export function Dash(): React.ReactElement {
+  const [n, set_n] = useState(0);
+  return (
+    <div className={"dashboard"}>
+      <div data-vox-island="Chart" data-prop-data={"d"} data-prop-title={"t"} />
+      {(() => {
+        n;
+      })()}
+    </div>
+  );
+}
