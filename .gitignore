@@ -121,6 +121,7 @@ mens/runs/latest/gate_receipt.json
 mens/runs/latest/eval_local_report.json
 mens/runs/latest/benchmark_passatk.json
 mens/runs/latest/review_metrics.json
+mens/runs/latest/benchmark_gate_eval.json
 
 # Repo-root only: renamed `target` trees when deletes fail on locked binaries (e.g. Windows).
 /target*.stale-*/
