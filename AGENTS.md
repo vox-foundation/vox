@@ -143,6 +143,8 @@ See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/archit
 
 ## Cross-Platform Shell Discipline (Stable Rules)
 
+> **Scope of the PowerShell preference.** The PS-first stance below is a **host-side allowlisting and output-parsing** preference, not a claim that agents produce better code in PowerShell than Bash. Project automation is **Vox** (see §VoxScript-First Glue Code). See [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md) for what this policy does and does not claim.
+
 - **PowerShell 7 (`pwsh`) when available:** On any host where `pwsh` is installed, prefer it for the **two retained launcher files** and for interactive terminal work, so behavior matches [`contracts/terminal/exec-policy.v1.yaml`](contracts/terminal/exec-policy.v1.yaml) and [`vox shell check`](docs/src/reference/cli.md). On Windows, PowerShell is the default expectation even when only Windows PowerShell 5.1 (`powershell.exe`) is present.
 - **CI vs local:** Repository CI jobs often run under **bash** on Linux self-hosted runners ([`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)); that does not override the **local/agent** preference for `pwsh` when you have it.
 - Prefer structured tooling and project CLIs (`vox`, `cargo`, `pnpm`, `rg`) over ad hoc shell pipelines. **`uv` and Python are no longer preferred** for project automation — use `vox run` instead.
@@ -153,7 +155,7 @@ See: [`docs/src/architecture/gui-native-roadmap-status-2026.md`](docs/src/archit
 Environment-specific overlays (for example Antigravity on Windows) add stricter command-shape rules on top of this base; see [`GEMINI.md`](GEMINI.md). If Claude Code is in use, also see [`CLAUDE.md`](CLAUDE.md) for Claude-specific additions.
 For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — four `.mdc` rule files control build environment, CI runner conventions, CLI registry, and source hygiene.
 
-Research synthesis (IDE matchers, PowerShell-first, SSOT terminal policy): [`docs/src/architecture/terminal-exec-policy-research-findings-2026.md`](docs/src/architecture/terminal-exec-policy-research-findings-2026.md). Machine-checked policy entrypoint: [`docs/src/architecture/terminal-ast-validation-research-2026.md`](docs/src/architecture/terminal-ast-validation-research-2026.md).
+Live SSOT (scoped claim + evidence): [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md). Optional A/B eval design (not run, not required): [`docs/src/architecture/agent-shell-fluency-eval-design-2026.md`](docs/src/architecture/agent-shell-fluency-eval-design-2026.md). Archived 2026-Q1 background research is under `docs/src/archive/research-2026-q1/` — do not ingest autonomously per §Archival Protocol.
 
 ## Markdown Hygiene and Code Snippets (Doctest Policy)
 

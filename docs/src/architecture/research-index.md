@@ -40,6 +40,8 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 
 ## Core SSoT
 - [V0.5 Core SSoT](v0.5-core-ssot.md) — Version 0.5 core architecture specifications.
+- [Terminal Exec Policy SSOT (2026)](terminal-exec-policy-ssot.md) — Live SSOT for the PowerShell-first terminal exec policy. Scopes the claim to host-side allowlisting and output parsing, explicitly disclaims any codegen-fluency superiority over Bash, and documents why a separate "PowerShell spoke" in MENS is not justified.
+- [Agent Shell Fluency Eval Design (2026)](agent-shell-fluency-eval-design-2026.md) — Design-only A/B eval (20 tasks × 2 shells × 5 trials) for the codegen-fluency claim. Not run; not required by current policy. On-shelf until a proposal depends on the wider claim.
 
 ## Data Storage
 - [Data Storage SSOT (2026)](data-storage-ssot-2026.md) — Greenfield target state for how Vox persists, represents, and governs data across libSQL/Turso, `contracts/`, JSONL/log spools, and Rust in-memory types; seventy-eight numbered findings (F1–F78).

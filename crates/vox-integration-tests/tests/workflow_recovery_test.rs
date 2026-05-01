@@ -12,7 +12,7 @@ activity send_email(recipient: str, body: str) to Result[bool] {
     return Ok(true)
 }
 
-workflow welcome_onboarding(user_id: str) to Unit {
+fn welcome_onboarding(user_id: str) to Unit {
     let email_sent = send_email("user@example.com", "Welcome!")
     match email_sent {
         Ok(s) -> print("Onboarding started for " + user_id)
