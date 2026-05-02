@@ -43,8 +43,11 @@ pub(crate) fn unwrap_inline_hir_block_expr(expr: &HirExpr) -> &HirExpr {
     expr
 }
 
-/// If `stmts` is a single JSX expression statement (or a nested `HirExpr::If` ternary), return
-/// its emitted string so the caller can use it directly in an inline ternary instead of a void IIFE.
+/// If `stmts` is a single pure expression statement, return its emitted string so the caller can
+/// use it directly (as an inline ternary branch or JSX child) instead of a void IIFE.
+///
+/// A single-expression block is always safe to inline: it produces a value, never void.
+/// Multi-statement blocks still fall back to IIFEs.
 fn extract_single_jsx_expr(
     stmts: &[HirStmt],
     state_names: &HashSet<String>,
@@ -56,16 +59,7 @@ fn extract_single_jsx_expr(
     if let HirStmt::Expr { expr, .. } = &stmts[0] {
         // Unwrap a single-expression block `{...}` that JSX expression children produce.
         let inner = unwrap_inline_hir_block_expr(expr);
-        match inner {
-            HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) => {
-                return Some(emit_hir_expr(inner, state_names, island_names));
-            }
-            HirExpr::If(_, _, _, _) => {
-                // Nested if — recurse via the main emit path which will itself apply this logic.
-                return Some(emit_hir_expr(inner, state_names, island_names));
-            }
-            _ => {}
-        }
+        return Some(emit_hir_expr(inner, state_names, island_names));
     }
     None
 }

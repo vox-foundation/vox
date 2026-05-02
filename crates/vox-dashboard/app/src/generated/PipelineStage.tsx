@@ -15,9 +15,7 @@ export function PipelineStage({ name, desc }: PipelineStageProps): React.ReactEl
 >
   <text className={"text-zinc-500 text-xs font-mono"}
 >
-  {(() => {
-    name;
-  })()}
+  {name}
 </text>
 </panel>
   <text className={"text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20"}
@@ -27,15 +25,11 @@ export function PipelineStage({ name, desc }: PipelineStageProps): React.ReactEl
 </row>
   <text className={"text-2xl font-bold text-white/90"}
 >
-  {(() => {
-    name;
-  })()}
+  {name}
 </text>
   <text className={"text-zinc-500 text-sm leading-relaxed"}
 >
-  {(() => {
-    desc;
-  })()}
+  {desc}
 </text>
   <panel className={"flex-1 rounded-2xl border border-white/5 p-5 font-mono"}
 >

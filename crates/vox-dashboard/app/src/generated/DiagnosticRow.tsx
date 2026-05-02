@@ -10,9 +10,7 @@ export function DiagnosticRow({ severity, message, location }: DiagnosticRowProp
   return (
 <row className={"px-4 py-3 border-b border-white/5 gap-4 items-start hover:bg-white/5"}
 >
-  <panel className={((severity === "error") ? (() => { "w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0";
- })() : (() => { "w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0";
- })())}
+  <panel className={(severity === "error" ? "w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0" : "w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0")}
 >
   
 </panel>
@@ -20,24 +18,16 @@ export function DiagnosticRow({ severity, message, location }: DiagnosticRowProp
 >
   <text className={"text-sm text-white/80 font-mono leading-snug"}
 >
-  {(() => {
-    message;
-  })()}
+  {message}
 </text>
   <text className={"text-xs text-zinc-500 font-mono"}
 >
-  {(() => {
-    location;
-  })()}
+  {location}
 </text>
 </column>
-  <text className={((severity === "error") ? (() => { "text-xs font-bold text-rose-400 uppercase shrink-0";
- })() : (() => { "text-xs font-bold text-amber-400 uppercase shrink-0";
- })())}
+  <text className={(severity === "error" ? "text-xs font-bold text-rose-400 uppercase shrink-0" : "text-xs font-bold text-amber-400 uppercase shrink-0")}
 >
-  {(() => {
-    severity;
-  })()}
+  {severity}
 </text>
 </row>
   );

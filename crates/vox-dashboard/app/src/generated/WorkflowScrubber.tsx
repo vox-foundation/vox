@@ -28,9 +28,7 @@ export function WorkflowScrubber(): React.ReactElement {
     set_is_playing(!is_playing);
 }}
 >
-  {((is_playing) ? (() => { "PAUSE";
- })() : (() => { "PLAY";
- })())}
+  {(is_playing ? "PAUSE" : "PLAY")}
 </button>
   <button className={"w-10 h-10 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center"}
 >

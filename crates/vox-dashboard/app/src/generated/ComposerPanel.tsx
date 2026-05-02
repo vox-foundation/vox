@@ -14,15 +14,11 @@ export function ComposerPanel(): React.ReactElement {
   {"Type a message…"}
 </text>
 </panel>
-  <button className={((is_submitting) ? (() => { "w-12 h-12 rounded-xl bg-blue-600/50 text-white/50 flex items-center justify-center";
- })() : (() => { "w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center";
- })())} onClick={() => {
+  <button className={(is_submitting ? "w-12 h-12 rounded-xl bg-blue-600/50 text-white/50 flex items-center justify-center" : "w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center")} onClick={() => {
     set_is_submitting(!is_submitting);
 }}
 >
-  {((is_submitting) ? (() => { "…";
- })() : (() => { "→";
- })())}
+  {(is_submitting ? "…" : "→")}
 </button>
 </row>
   <row className={"justify-between items-center px-1"}

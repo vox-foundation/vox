@@ -53,6 +53,8 @@ crates/vox-py/.venv/
 
 # Dist / JS Islands
 islands/
+# Hand-written React island wrappers in the dashboard are source, not build output
+!crates/vox-dashboard/src/components/islands/
 crates/*/pkg/
 dist/app/node_modules/
 
