@@ -18,12 +18,28 @@ pub(super) struct EvalResponse {
     pub error: Option<String>,
 }
 
+const MAX_EVAL_CODE_BYTES: usize = 65_536;
+
+fn validate_eval_request(req: &EvalRequest) -> Result<(), (axum::http::StatusCode, String)> {
+    if req.code.len() > MAX_EVAL_CODE_BYTES {
+        return Err((
+            axum::http::StatusCode::PAYLOAD_TOO_LARGE,
+            format!("code payload exceeds {} byte limit", MAX_EVAL_CODE_BYTES),
+        ));
+    }
+    Ok(())
+}
+
 pub(super) async fn http_eval(
     State(state): State<GatewayState>,
     connect: ConnectInfo<SocketAddr>,
     headers: HeaderMap,
     Json(req): Json<EvalRequest>,
 ) -> Response {
+    if let Err((status, msg)) = validate_eval_request(&req) {
+        return (status, Json(serde_json::json!({ "error": msg }))).into_response();
+    }
+
     let identity = request_identity(&state, &connect.0, &headers);
 
     if state.public_eval_enabled {
@@ -115,5 +131,25 @@ pub(super) async fn http_eval(
                 error: Some("Execution timed out after 5 seconds.".to_string()),
             }).into_response()
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eval_request_rejects_oversized_code() {
+        let big_code = "x".repeat(65_537);
+        let req = EvalRequest { code: big_code };
+        let result = validate_eval_request(&req);
+        assert!(result.is_err(), "oversized code must be rejected");
+    }
+
+    #[test]
+    fn eval_request_accepts_normal_code() {
+        let req = EvalRequest { code: "println!(\"hello\")".to_string() };
+        let result = validate_eval_request(&req);
+        assert!(result.is_ok(), "normal code must be accepted");
     }
 }

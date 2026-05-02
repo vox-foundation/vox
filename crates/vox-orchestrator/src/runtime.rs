@@ -20,6 +20,16 @@ use crate::types::TaskId;
 use futures_util::StreamExt;
 use std::time::Instant;
 
+/// Returns the first hyphen-delimited segment of `s`, or the first 8 bytes if
+/// there are no hyphens.  Never panics.
+fn short_id_from_str(s: &str) -> &str {
+    if let Some(pos) = s.find('-') {
+        &s[..pos]
+    } else {
+        &s[..s.len().min(8)]
+    }
+}
+
 /// Message type sent to the ActorAgent to trigger task processing.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum AgentCommand {
@@ -727,10 +737,11 @@ impl AgentFleet {
                 if spawns < max_per_tick && cooldown_ok {
                     let limit = std::cmp::min(count, max_per_tick - spawns);
                     for _ in 0..limit {
+                        let uuid_str = uuid::Uuid::new_v4().to_string();
                         let name = format!(
                             "{}-{}",
                             name_prefix,
-                            uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
+                            short_id_from_str(&uuid_str)
                         );
                         let _ = self.orchestrator.spawn_dynamic_agent_with_parent(
                             &name,
@@ -831,4 +842,24 @@ pub fn spawn_agent_fleet_if_enabled(orchestrator: Arc<Orchestrator>) {
         );
         fleet.run().await;
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn short_id_from_standard_uuid() {
+        let uuid_str = "550e8400-e29b-41d4-a716-446655440000";
+        let result = short_id_from_str(uuid_str);
+        assert_eq!(result, "550e8400");
+    }
+
+    #[test]
+    fn short_id_from_hyphen_free_string() {
+        // If format ever lacks hyphens, must not panic — returns first 8 chars
+        let s = "1234567890abcdef1234567890abcdef";
+        let result = short_id_from_str(s);
+        assert_eq!(result, "12345678");
+    }
 }

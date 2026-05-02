@@ -30,7 +30,18 @@
       "Bash(python3 -c ' *)",
       "Bash(sed -n '480,520p' crates/vox-compiler/src/web_ir/validate.rs)",
       "Bash(sed -n '655,680p' crates/vox-compiler/src/web_ir/validate.rs)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Bash(curl -sS -o /tmp/vox.html -w \"HTTP %{http_code} | final-url=%{url_effective} | redirects=%{num_redirects}\\\\n\" -L https://vox-lang.org/)",
+      "Read(//tmp/**)",
+      "WebFetch(domain:vox-lang.org)",
+      "WebFetch(domain:vox-foundation.github.io)",
+      "WebFetch(domain:dns.google)",
+      "Bash(find docs-astro/node_modules/@astrojs/starlight/loaders.* -maxdepth 0)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm build *)",
+      "Bash(node scripts/setup-content.mjs)",
+      "Bash(git -C /c/Users/Owner/vox/.claude/worktrees/gallant-shockley-587a69 log --oneline -1)",
+      "Bash(git -C /c/Users/Owner/vox/.claude/worktrees/gallant-shockley-587a69 ls-remote --exit-code origin claude/gallant-shockley-587a69)"
     ]
   }
 }

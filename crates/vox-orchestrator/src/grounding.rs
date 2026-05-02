@@ -232,7 +232,14 @@ pub(crate) fn split_summary_into_claim_segments(summary: &str) -> Vec<&str> {
     let mut start = 0usize;
     let mut i = 0usize;
     while i < summary.len() {
-        let c = summary[i..].chars().next().expect("char boundary");
+        let c = summary[i..].chars().next().unwrap_or_else(|| {
+            panic!(
+                "BUG: byte index {i} is not on a UTF-8 char boundary \
+                 in summary of {} bytes — this indicates a logic error in \
+                 the summarization loop",
+                summary.len()
+            )
+        });
         let clen = c.len_utf8();
         let split_here = match c {
             '\n' | ';' | '!' | '?' => true,
@@ -601,6 +608,15 @@ mod tests {
         let s = "Büro Müllerstraße. Der Port ist 443.";
         let p = split_summary_into_claim_segments(s);
         assert_eq!(p, vec!["Büro Müllerstraße. Der Port ist 443"]);
+    }
+
+    #[test]
+    fn split_summary_handles_multibyte_unicode() {
+        // Exercises the production splitter end-to-end with multibyte (CJK)
+        // characters, catching any char-boundary panic in the real code path.
+        let s = "Hello 中文 world. Next clause.";
+        let parts = split_summary_into_claim_segments(s);
+        assert_eq!(parts, vec!["Hello 中文 world", "Next clause"]);
     }
 
     #[test]

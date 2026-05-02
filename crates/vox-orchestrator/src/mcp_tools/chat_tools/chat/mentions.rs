@@ -6,7 +6,8 @@ use std::sync::LazyLock;
 use super::super::params::ChatMessageParams;
 
 static MENTION_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"@([A-Za-z0-9_.:/\\-]+)").unwrap());
+    LazyLock::new(|| Regex::new(r"@([A-Za-z0-9_.:/\\-]+)")
+        .expect("BUG: @mention regex is invalid — check the pattern literal"));
 
 pub fn chat_grounding_score(params: &ChatMessageParams, mention_count: usize) -> f64 {
     let mut n = 0u32;
