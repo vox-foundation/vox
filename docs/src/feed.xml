@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 01 May 2026 08:54:51 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 01 May 2026 20:05:24 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -15,6 +15,15 @@
     <description>API reference for the vox-codegen-ts crate: HIR-to-TypeScript/TSX code generation pipeline.</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Orchestrator Stage 1 &amp; 2: Security + Crash-Prevention Implementation Plan</title>
+    <link>https://vox-lang.org/architecture/2026-05-01-orchestrator-stage1-stage2.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/2026-05-01-orchestrator-stage1-stage2.html</guid>
+    <description>Implementation plan for 7 P0/P1 fixes across the orchestrator gateway, runtime, grounding, and daemon surfaces. Covers FIX-K-03, FIX-K-05, FIX-K-06, FIX-B-02…</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
@@ -49,6 +58,15 @@
     <link>https://vox-lang.org/architecture/internal-web-ir-implementation-blueprint.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/internal-web-ir-implementation-blueprint.html</guid>
     <description>Implementation plan, acceptance gates, and parity requirements for the Vox internal Web IR layer.</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Orchestrator Companion Audit — Non-Routing Surface Critique &amp; Improvement Plan</title>
+    <link>https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</guid>
+    <description>Full-system audit of crates/vox-orchestrator and surrounding surfaces excluding model-routing (covered by model-orchestration-ssot-audit-2026.md). ~280…</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -224,26 +242,6 @@
     <link>https://vox-lang.org/contributors/agent-instruction-architecture.html</link>
     <guid isPermaLink="true">https://vox-lang.org/contributors/agent-instruction-architecture.html</guid>
     <description>How Vox layers AGENTS, tool-specific overlays, continuation prompts, and CI gates for durable agent behavior.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Coding Agent Instructions</title>
-    <link>https://vox-lang.org/contributors/coding-agents.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/coding-agents.html</guid>
-    <description>Quick-reference heuristics, TOESTUB rule table, and pre-commit checklist for AI coding agents operating on Vox.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Continuation Prompt Engineering</title>
-    <link>https://vox-lang.org/contributors/continuation-prompt-engineering.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/continuation-prompt-engineering.html</guid>
-    <description>SSOT for the Vox continuation prompt, its design rationale, and the layered anti-skeleton defense model.</description>
     <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>

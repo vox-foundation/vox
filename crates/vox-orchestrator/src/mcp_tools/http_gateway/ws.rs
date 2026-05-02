@@ -4,28 +4,13 @@ pub(super) async fn http_ws(
     ws: WebSocketUpgrade,
     connect: ConnectInfo<SocketAddr>,
     headers: HeaderMap,
-    axum::extract::Query(query): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Response {
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
         return resp;
     }
-    
-    let mut role_res = resolve_access_role(&state, &headers, Some(&connect.0));
-    
-    if role_res.is_err() && connect.0.ip().is_loopback() {
-        if let Some(t) = query.get("token").or_else(|| query.get("bearer")) {
-            if let Some(dt) = state.dashboard_token.as_ref() {
-                if constant_time_eq(t.as_bytes(), dt.0.as_bytes()) {
-                    role_res = Ok(AccessRole::Write);
-                }
-            } else if let Some(bt) = state.bearer_token.as_ref() {
-                if constant_time_eq(t.as_bytes(), bt.as_bytes()) {
-                    role_res = Ok(AccessRole::Write);
-                }
-            }
-        }
-    }
-    
+
+    let role_res = resolve_access_role(&state, &headers, Some(&connect.0));
+
     let role_opt = role_res.ok();
     let identity = request_identity(&state, &connect.0, &headers);
     ws.on_upgrade(move |socket| async move {
