@@ -31,12 +31,24 @@ schema_type: "TechArticle"
 
 ## Canonical Frontend
 
-The **VS Code extension** (`vox-vscode/`) is the **Single Source of Truth** for the Vox user-facing frontend experience. It integrates chat, planning (MCP), language support (LSP), and real-time visualization.
+> [!IMPORTANT]
+> **`vox-dashboard` is the Single Source of Truth** for the Vox user-facing frontend experience (see [ADR 030](../adr/030-state-machine-ssot.md) and [ADR 031](../adr/031-deprecate-vox-vscode.md)).
+> `vox-vscode/` is **deprecated** and retained only for its LSP client. Ship new MCP behavior, capability UX, and visualization in `crates/vox-dashboard/` — not in the VS Code extension.
 
-- **Extension ↔ MCP compatibility matrix and rollout checklist:** [vscode-mcp-compat.md](vscode-mcp-compat.md)
-- **HTTP dashboard** (`tools/dashboard/`): optional standalone visualization; **not** the maintained control plane. Ship MCP-driven behavior, parity checks, and capability UX in **`vox-vscode/`** first; keep the HTTP dashboard aligned only if you rely on it for demos or CI smoke.
+The **orchestration dashboard** (`crates/vox-dashboard/`) is the primary Vox user surface. It is served by the Axum backend (`vox dashboard` command) and communicates with the orchestrator over a local MCP WebSocket proxy. All reactive UI state within the dashboard uses the Vox `state_machine` compiler primitive as the single source of truth (see below).
+
+- **Dashboard entry point:** `crates/vox-dashboard/app/src/app.vox` — lowered to `app/src/generated/` by `vox build`
+- **Backend:** `crates/vox-dashboard/src/` — Axum routes, MCP proxy, settings API
 - **Unified Grammar**: Vocabulary is synchronized via **`tree-sitter-vox/GRAMMAR_SSOT.md`**.
-- **Retired**: Legacy `frontend/` (Next.js) and `packages/vox-ui/` have been removed.
+- **Retired**: Legacy `frontend/` (Next.js), `packages/vox-ui/`, and VS Code as primary surface have been removed/deprecated.
+
+## `state_machine` as SSoT for reactive UI state
+
+Within the dashboard (and any Vox-generated application), reactive state **must** be expressed using the Vox `state_machine` compiler primitive. This primitive is defined in `crates/vox-compiler/src/hir/nodes/state_machine.rs`, type-checked at `src/typeck/state_machine_check.rs`, and lowered to TypeScript+React by `src/codegen_ts/state_machine_emit.ts`.
+
+Do **not** hand-write reactive `.tsx` files in `app/src/generated/` — they must be compiler outputs from `.vox` sources. The CI gate at `scripts/check_dashboard_ssot.vox` enforces this rule.
+
+Hand-written React source is explicitly allowed under `src/components/islands/` (e.g. `AppShellLive.tsx`, `SpeakIsland.tsx`). Only the `app/src/generated/` subtree is compiler-owned.
 
 ## Not part of Vox
 

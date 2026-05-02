@@ -116,6 +116,7 @@ pub use vox_orchestrator_types::ChatRouteBackend as ModelRouteBackend;
 pub fn route_backend_for_model(spec: &ModelSpec) -> ModelRouteBackend {
     match spec.provider_type {
         ProviderType::Ollama => ModelRouteBackend::Ollama,
+        ProviderType::VoxLocal => ModelRouteBackend::VoxLocal,
         ProviderType::PopuliMesh => ModelRouteBackend::PopuliMesh,
         ProviderType::GoogleDirect => ModelRouteBackend::GeminiDirect,
         ProviderType::OpenRouter => ModelRouteBackend::OpenRouter,
@@ -156,6 +157,10 @@ impl ModelSpec {
             }
             ProviderType::Ollama => LlmUsageKey {
                 provider: "ollama".to_string(),
+                model: "*".to_string(),
+            },
+            ProviderType::VoxLocal => LlmUsageKey {
+                provider: "vox_local".to_string(),
                 model: "*".to_string(),
             },
             ProviderType::PopuliMesh => LlmUsageKey {

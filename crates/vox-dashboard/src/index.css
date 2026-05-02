@@ -78,6 +78,14 @@ body {
 
 
 
+.tab-btn {
+  @apply px-3 py-1 rounded-md text-xs font-bold tracking-widest text-zinc-500 hover:text-zinc-200 hover:bg-white/5 transition-colors;
+}
+
+.tab-btn-active {
+  @apply text-zinc-100 bg-white/10;
+}
+
 .chat-markdown p {
   margin: 0 0 0.6rem;
 }

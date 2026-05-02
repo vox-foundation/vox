@@ -166,6 +166,8 @@ training_eligible: false
 - [Classification Taxonomy SSoT](architecture/classification-ssot-2026.md)
 - [Cryptography Policy SSoT](architecture/cryptography-ssot-2026.md)
 - [MCP exposure from the Vox language (SSOT)](archive/research-2026-q1/mcp-vox-language-exposure.md)
+- [ADR 030 — state_machine as SSoT for reactive UI state](adr/030-state-machine-ssot.md)
+- [ADR 031 — Deprecate vox-vscode; dashboard is the primary surface](adr/031-deprecate-vox-vscode.md)
 - [ADR-024: Formal Intent and Tool Receipt Auditing](adr/024-formal-intent.md)
 - [ADR-025: Multi-Agent Lock Coherence and Lease Propagation](adr/025-multi-agent-lock-coherence.md)
 - [ADR-026: Third-Party Code Provenance Policy](adr/026-third-party-code-provenance.md)

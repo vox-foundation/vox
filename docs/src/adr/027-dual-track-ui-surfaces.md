@@ -3,13 +3,16 @@ title: "ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)"
 description: "Splits Vox's UI primitives into a Vox-native reactivity track and an explicit React/TanStack interop track, with a sharp boundary so each track stays coherent and the training corpus stays clean."
 category: "architecture"
 status: "current"
-last_updated: "2026-04-30"
+last_updated: "2026-05-01"
 training_eligible: false
 ---
 # ADR 027: Dual-Track UI Surfaces
 
 ## Status
 Accepted (2026-04-30)
+
+> [!NOTE]
+> **Amendment (2026-05-01):** `vox-dashboard` is now the **primary user surface** for the Vox orchestrator; `vox-vscode/` is deprecated and retained for LSP only. New capability UX, MCP behavior, and visualization ship in `crates/vox-dashboard/`. See [ADR 031](031-deprecate-vox-vscode.md).
 
 ## Context
 

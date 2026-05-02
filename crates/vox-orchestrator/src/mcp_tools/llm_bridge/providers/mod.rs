@@ -14,3 +14,4 @@ pub(crate) use metadata::HttpCallMetadata;
 pub(crate) use ollama_chat::http_ollama_with_metadata;
 pub(crate) use openai::http_openai_compatible_with_headers;
 pub(crate) use probe::probe_ollama_tags;
+pub(crate) use probe::probe_vox_local_health;

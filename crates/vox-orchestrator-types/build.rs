@@ -64,6 +64,7 @@ fn main() {
             "OpenRouter" => "crate::ChatRouteBackend::OpenRouter",
             "Ollama" => "crate::ChatRouteBackend::Ollama",
             "PopuliMesh" => "crate::ChatRouteBackend::PopuliMesh",
+            "VoxLocal" => "crate::ChatRouteBackend::VoxLocal",
             _ => "crate::ChatRouteBackend::CascadeFallback",
         };
         if prov.is_tuple.unwrap_or(false) {

@@ -946,6 +946,17 @@ impl ModelRegistry {
                             Some(task_category_strength(task_type).to_string());
                         cfg
                     }
+                    ProviderType::VoxLocal => {
+                        // VoxLocal (7863) is not reachable via vox_runtime LlmConfig;
+                        // route through OpenRouter as an unreachable fallback so the task
+                        // doesn't silently drop. MCP path (infer_via_provider_adapter) handles
+                        // VoxLocal directly and doesn't go through this registry→LlmConfig path.
+                        let mut cfg = vox_runtime::llm::LlmConfig::openrouter(spec.id.clone());
+                        cfg.telemetry_task_category = Some(task_type.to_string());
+                        cfg.telemetry_strength_tag =
+                            Some(task_category_strength(task_type).to_string());
+                        cfg
+                    }
                     ProviderType::Custom(_)
                     | ProviderType::PopuliMesh
                     | ProviderType::Anthropic

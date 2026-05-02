@@ -87,3 +87,10 @@ providers:
     default_route_kind: "HuggingFace"
     fallback_kind: "OpenRouter"
 
+  - name: VoxLocal
+    description: "Vox-trained MENS checkpoint served at 127.0.0.1:7863 (started by `python scripts/vox_inference.py --serve`)"
+    secret_id: null
+    supports_openai_compat: false
+    default_route_kind: "VoxLocal"
+    fallback_kind: "Ollama"
+

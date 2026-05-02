@@ -75,6 +75,11 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
         ProviderType::HuggingFaceRouter => {
             Ok("https://api-inference.huggingface.co/v1/chat/completions".to_string())
         }
+        ProviderType::VoxLocal => {
+            let url = std::env::var("VOX_LOCAL_ENDPOINT")
+                .unwrap_or_else(|_| "http://127.0.0.1:7863".to_string());
+            Ok(format!("{}/generate", url.trim_end_matches('/')))
+        }
         ProviderType::GoogleDirect | ProviderType::Ollama | ProviderType::PopuliMesh => {
             Err(HttpInferError {
                 status: 0,

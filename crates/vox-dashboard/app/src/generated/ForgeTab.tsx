@@ -1,19 +1,31 @@
-import React from "react";
+import React, { useState } from "react";
+
+import { PipelineView } from "./PipelineView";
+import { WorkflowScrubber } from "./WorkflowScrubber";
 
 export function ForgeTab(): React.ReactElement {
+  const [active_panel, set_active_panel] = useState("pipeline");
   return (
-<column className={"flex-1 p-4 gap-4"}
+<column className={"flex-1 overflow-hidden"}
 >
-  <heading level={"2"}
+  <row className={"h-10 border-b border-zinc-800 px-4 items-center gap-2 shrink-0"}
 >
-  {"FABRICA"}
-</heading>
-  <panel 
+  <button className={"tab-btn"} onClick={() => {
+    set_active_panel("pipeline");
+}}
 >
-  <text 
+  {"PIPELINE"}
+</button>
+  <button className={"tab-btn"} onClick={() => {
+    set_active_panel("scrubber");
+}}
 >
-  {"Forge tab content — pending TASK-7.2 port."}
-</text>
+  {"SCRUBBER"}
+</button>
+</row>
+  <panel className={"flex-1 overflow-hidden"}
+>
+  {(active_panel === "pipeline" ? <PipelineView  /> : <WorkflowScrubber  />)}
 </panel>
 </column>
   );

@@ -420,3 +420,27 @@ pub struct UpgradeToolchainArgs {
     #[arg(long)]
     pub allow_prerelease: bool,
 }
+
+/// `vox generate` — generate Vox code from a natural-language prompt.
+#[derive(Args, Clone, Debug)]
+pub struct GenerateArgs {
+    /// Natural-language description of the Vox code to generate.
+    #[arg(required = true)]
+    pub prompt: String,
+    /// Write the generated code to this file (always printed to stdout).
+    #[arg(short, long)]
+    pub output: Option<std::path::PathBuf>,
+    /// Skip server-side validation of the generated code.
+    #[arg(long, default_value_t = false)]
+    pub no_validate: bool,
+    /// Maximum validation/retry attempts on the server.
+    #[arg(long)]
+    pub max_retries: Option<u32>,
+    /// Bypass the orchestrator and call the inference server directly.
+    /// Use this if the orchestrator is unavailable or for debugging.
+    #[arg(long, default_value_t = false)]
+    pub legacy_direct: bool,
+    /// Inference server base URL (only used with `--legacy-direct`; default: http://127.0.0.1:7863).
+    #[arg(long, value_name = "URL", requires = "legacy_direct")]
+    pub server_url: Option<String>,
+}

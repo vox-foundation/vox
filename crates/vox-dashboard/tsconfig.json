@@ -20,5 +20,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "app/src/generated"],
+  "exclude": ["app/src/generated/vox-tanstack-query.tsx"]
 }

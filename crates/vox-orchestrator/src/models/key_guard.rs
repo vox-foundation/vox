@@ -17,7 +17,7 @@ pub fn provider_secret_is_available(ptype: &ProviderType) -> bool {
         ProviderType::Anthropic => SecretId::AnthropicApiKey,
         ProviderType::HuggingFaceRouter => SecretId::HuggingFaceToken,
         ProviderType::Custom(_) => SecretId::CustomOpenaiApiKey,
-        ProviderType::Ollama | ProviderType::PopuliMesh => {
+        ProviderType::Ollama | ProviderType::PopuliMesh | ProviderType::VoxLocal => {
             // Local endpoints don't strictly require a clavis secret in the same way,
             // or use environment variables instead.
             return true;

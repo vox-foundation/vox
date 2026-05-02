@@ -131,6 +131,9 @@ pub mod plan;
 /// LLM-native context and prompt generation tools
 pub mod llm;
 
+/// Generate Vox code from a prompt using the MENS inference model (`vox generate`).
+pub mod generate;
+
 /// Vox Visus: Voice of Vision. Agentic GUI visual intelligence and bug detection.
 #[cfg(feature = "dei")]
 pub mod visus;

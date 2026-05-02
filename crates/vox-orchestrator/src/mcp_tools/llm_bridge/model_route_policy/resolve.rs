@@ -2,6 +2,7 @@
 
 use crate::Orchestrator;
 use crate::models::{ModelSpec, ProviderType};
+use crate::types::TaskCategory;
 use crate::usage::{RemainingBudget, UsageTracker};
 use vox_runtime::model_resolution::{ChatRouteBackend, backend_telemetry_labels};
 
@@ -10,6 +11,14 @@ use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_local_
 use super::types::McpChatModelResolution;
 use crate::mcp_tools::server_state::ServerState;
 use crate::models::scoring::auto_score_model;
+
+/// Task categories where the Vox-trained local model is preferred when available.
+const VOX_LOCAL_PREFERRED_TASKS: &[TaskCategory] = &[
+    TaskCategory::CodeGen,
+    TaskCategory::Testing,
+    TaskCategory::Parsing,
+    TaskCategory::TypeChecking,
+];
 
 /// Token fill ratio for the global MCP LLM budget agent (`AgentId(0)`), if tracked.
 #[must_use]
@@ -68,6 +77,19 @@ pub fn resolve_mcp_chat_model_sync(
                 let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
                 return Ok((m.clone(), m.is_free));
             }
+        }
+    }
+
+    // Prefer the Vox-trained local model for code-oriented tasks when available and permitted.
+    if VOX_LOCAL_PREFERRED_TASKS.contains(&task) && !res.enforce_free_tier_only {
+        if let Some(m) = registry
+            .list_models()
+            .into_iter()
+            .filter(|m| matches!(m.provider_type, ProviderType::VoxLocal))
+            .filter(|m| mcp_local_model_allowed(m))
+            .max_by(|a, b| a.max_tokens.cmp(&b.max_tokens))
+        {
+            return Ok((m.clone(), m.is_free));
         }
     }
 
@@ -155,6 +177,7 @@ pub fn mcp_provider_telemetry_labels(provider: &ProviderType) -> (&'static str, 
         ProviderType::OpenRouter => ChatRouteBackend::OpenRouter,
         ProviderType::Ollama => ChatRouteBackend::Ollama,
         ProviderType::PopuliMesh => ChatRouteBackend::PopuliMesh,
+        ProviderType::VoxLocal => ChatRouteBackend::VoxLocal,
         ProviderType::Groq
         | ProviderType::Cerebras
         | ProviderType::Mistral
