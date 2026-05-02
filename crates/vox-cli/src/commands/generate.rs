@@ -31,8 +31,8 @@ pub async fn run(
         .build()
         .context("Failed to build HTTP client")?;
 
-    if !legacy_direct && server_url.is_some() {
-        eprintln!("⚠️  --server-url has no effect without --legacy-direct; ignoring.");
+    if server_url.is_some() && !legacy_direct {
+        anyhow::bail!("--server-url only applies with --legacy-direct; use VOX_LOCAL_ENDPOINT for orchestrator mode");
     }
 
     let (code, valid, errors, warnings, attempts) = if legacy_direct {

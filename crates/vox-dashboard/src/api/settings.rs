@@ -61,11 +61,14 @@ async fn put_settings(
     State(s): State<SettingsState>,
     Json(body): Json<Map<String, Value>>,
 ) -> Result<Json<Value>, StatusCode> {
-    let mut map = s.inner.write().await;
-    for (k, v) in &body {
-        map.insert(k.clone(), v.clone());
-    }
-    let serialized = serde_json::to_string_pretty(&*map)
+    let updated = {
+        let mut map = s.inner.write().await;
+        for (k, v) in &body {
+            map.insert(k.clone(), v.clone());
+        }
+        map.clone()
+    }; // write lock released before async I/O
+    let serialized = serde_json::to_string_pretty(&updated)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     if let Some(parent) = s.path.parent() {
         tokio::fs::create_dir_all(parent).await.ok();
@@ -73,7 +76,7 @@ async fn put_settings(
     tokio::fs::write(&*s.path, serialized)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Json(Value::Object(map.clone())))
+    Ok(Json(Value::Object(updated)))
 }
 
 pub fn settings_router<S>() -> Router<S>
