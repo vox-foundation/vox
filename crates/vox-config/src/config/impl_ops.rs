@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use super::gamify_web::{BuildTarget, GamifyMode, WebRunMode};
+use super::gamify_web::{GamifyMode, WebRunMode};
 use super::persist::{global_config_path, save_merged_global_config};
 use super::toml_schema::VoxToml;
 use super::vox_config::VoxConfig;
@@ -295,6 +295,7 @@ fn merge_vox_toml_path_for_test(cfg: &mut VoxConfig, path: &Path) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::gamify_web::BuildTarget;
     use std::path::PathBuf;
 
     #[test]
