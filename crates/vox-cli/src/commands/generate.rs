@@ -31,6 +31,10 @@ pub async fn run(
         .build()
         .context("Failed to build HTTP client")?;
 
+    if !legacy_direct && server_url.is_some() {
+        eprintln!("⚠️  --server-url has no effect without --legacy-direct; ignoring.");
+    }
+
     let (code, valid, errors, warnings, attempts) = if legacy_direct {
         run_legacy_direct(&client, prompt, server_url, validate, retries).await?
     } else {
@@ -72,7 +76,7 @@ pub async fn run(
     handle.write_all(code.as_bytes())?;
     handle.write_all(b"\n")?;
 
-    if valid == Some(false) && !errors.is_empty() {
+    if valid == Some(false) {
         std::process::exit(1);
     }
 
@@ -95,7 +99,7 @@ async fn run_via_orchestrator(
             .await
             .map_err(|e| {
                 eprintln!("⚠️  VoxLocal inference unavailable: {e}");
-                eprintln!("   Start it with: python scripts/vox_inference.py --serve");
+                eprintln!("   Start it with: vox run scripts/vox_inference.vox --serve");
                 anyhow::anyhow!(e)
             })?;
 
@@ -124,10 +128,10 @@ async fn run_legacy_direct(
         }
         _ => {
             eprintln!("⚠️  Inference server not running at {}", url);
-            eprintln!("   Start it with: python scripts/vox_inference.py --serve");
+            eprintln!("   Start it with: vox run scripts/vox_inference.vox --serve");
             eprintln!();
             eprintln!(
-                "   Or generate directly: python scripts/vox_inference.py --prompt \"{}\"",
+                "   Or generate directly: vox run scripts/vox_inference.vox --prompt \"{}\"",
                 prompt
             );
             anyhow::bail!("Inference server not available");

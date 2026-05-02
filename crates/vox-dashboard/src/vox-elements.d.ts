@@ -1,21 +1,5 @@
-import type React from 'react';
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      column: React.HTMLAttributes<HTMLDivElement>;
-      row: React.HTMLAttributes<HTMLDivElement>;
-      panel: React.HTMLAttributes<HTMLDivElement>;
-      text: React.HTMLAttributes<HTMLSpanElement>;
-      heading: React.HTMLAttributes<HTMLHeadingElement> & { level?: string | number };
-      badge: React.HTMLAttributes<HTMLSpanElement>;
-      icon: React.HTMLAttributes<HTMLSpanElement> & { name?: string };
-      spacer: React.HTMLAttributes<HTMLDivElement>;
-      divider: React.HTMLAttributes<HTMLHRElement>;
-      scrollview: React.HTMLAttributes<HTMLDivElement>;
-      stack: React.HTMLAttributes<HTMLDivElement>;
-    }
-  }
-}
-
+// Vox custom element JSX types are declared once in
+// app/src/generated/vox-intrinsic-elements.d.ts (module augmentation of 'react').
+// That file is included via tsconfig.json `include: ["app/src/generated"]`
+// and applies to both app/src/ and src/ consumers.
 export {};

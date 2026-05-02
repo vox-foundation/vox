@@ -217,8 +217,8 @@ impl ProviderAdapter for OpenAiCompatAdapter {
 struct VoxLocalAdapter;
 
 #[derive(serde::Serialize)]
-struct VoxLocalGenerateRequest<'a> {
-    prompt: &'a str,
+struct VoxLocalGenerateRequest {
+    prompt: String,
     validate: bool,
     max_retries: u32,
 }
@@ -231,16 +231,17 @@ struct VoxLocalGenerateResponse {
     errors: Vec<String>,
 }
 
-fn extract_prompt_text<'a>(content: &'a vox_openai_wire::ChatMessageContent<'a>) -> &'a str {
+fn extract_prompt_text(content: &vox_openai_wire::ChatMessageContent<'_>) -> String {
     match content {
-        vox_openai_wire::ChatMessageContent::Text(t) => t,
+        vox_openai_wire::ChatMessageContent::Text(t) => t.to_string(),
         vox_openai_wire::ChatMessageContent::Parts(parts) => parts
             .iter()
-            .find_map(|p| match p {
+            .filter_map(|p| match p {
                 vox_openai_wire::ChatMessagePart::Text { text } => Some(*text),
                 _ => None,
             })
-            .unwrap_or(""),
+            .collect::<Vec<_>>()
+            .join(""),
     }
 }
 

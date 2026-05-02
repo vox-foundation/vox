@@ -33,10 +33,10 @@ export function AppShellLive() {
         </div>
       </div>
       <div className="flex-1 overflow-hidden flex flex-col">
-        {tab === 'speak'   && <SpeakIsland />}
-        {tab === 'command' && <CommandTab />}
-        {tab === 'network' && <NetworkTab />}
-        {tab === 'forge'   && <ForgeTab />}
+        <div className={tab === 'speak'   ? 'contents' : 'hidden'}><SpeakIsland /></div>
+        <div className={tab === 'command' ? 'contents' : 'hidden'}><CommandTab /></div>
+        <div className={tab === 'network' ? 'contents' : 'hidden'}><NetworkTab /></div>
+        <div className={tab === 'forge'   ? 'contents' : 'hidden'}><ForgeTab /></div>
       </div>
     </div>
   );

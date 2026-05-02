@@ -3799,3 +3799,63 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_LOCAL_ENDPOINT"
+    owner_crate: "vox-orchestrator"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Base URL for the VoxLocal (MENS) inference server. Defaults to http://127.0.0.1:7863."
+  - name: "VOX_CONFIG_DIR"
+    owner_crate: "vox-dashboard"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Directory for dashboard persistent config (dashboard-settings.json). Defaults to the platform config dir."
+  - name: "VOX_DASHBOARD_PORT"
+    owner_crate: "vox-cli"
+    kind: "integer"
+    required: false
+    introduced_in: "0.5.0"
+    description: "TCP port for the dashboard HTTP server. Overrides the default port selected by the CLI."
+  - name: "VOX_DASHBOARD_ASSET_DIR"
+    owner_crate: "vox-dashboard"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Directory from which the dashboard serves static frontend assets. Used for dev overrides."
+  - name: "VOX_DASHBOARD_ENABLED"
+    owner_crate: "vox-cli"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Set to '1' by the dashboard CLI launcher to signal to child processes that the dashboard is running."
+  - name: "VOX_DASHBOARD_AUTO_OPEN"
+    owner_crate: "vox-cli"
+    kind: "bool"
+    required: false
+    introduced_in: "0.5.0"
+    description: "When '1', the dashboard CLI automatically opens a browser tab after the server starts."
+  - name: "VOX_LOCAL_PROBE_TIMEOUT_SECS"
+    owner_crate: "vox-orchestrator"
+    kind: "integer"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Timeout in seconds for VoxLocal availability probes. Internal constant; not read from the process environment."
+  - name: "VOX_LOCAL_PROBE_CACHE_TTL_SECS"
+    owner_crate: "vox-orchestrator"
+    kind: "integer"
+    required: false
+    introduced_in: "0.5.0"
+    description: "TTL in seconds for caching VoxLocal probe results. Internal constant; not read from the process environment."
+  - name: "VOX_LOCAL_PREFERRED_TASKS"
+    owner_crate: "vox-orchestrator"
+    kind: "string"
+    required: false
+    introduced_in: "0.5.0"
+    description: "Internal constant listing task categories preferring VoxLocal routing. Not read from the process environment."
+  - name: "VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED"
+    owner_crate: "vox-orchestrator"
+    kind: "bool"
+    required: false
+    introduced_in: "0.4.0"
+    description: "Enables the public eval sandbox endpoint on the MCP HTTP server when set to '1'."

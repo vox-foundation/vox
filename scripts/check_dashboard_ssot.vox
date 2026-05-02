@@ -90,13 +90,18 @@ fn check_ssot() -> Result<(), String> {
             .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
             .unwrap_or_default();
 
+        // Require the .vox change to be in the dashboard source directory,
+        // not just any .vox file in the repo (tighter false-positive guard).
         let touched_vox = files_in_commit
             .lines()
-            .any(|line| line.trim().ends_with(".vox"));
+            .any(|line| {
+                let t = line.trim();
+                t.starts_with("crates/vox-dashboard/app/src/") && t.ends_with(".vox")
+            });
 
         if !touched_vox {
             violations.push(format!(
-                "  {} (last commit {} did not touch any .vox source)",
+                "  {} (last commit {} did not touch a crates/vox-dashboard/app/src/*.vox source)",
                 tsx_path, &last_commit[..8]
             ));
         }

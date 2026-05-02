@@ -68,9 +68,10 @@ async fn put_settings(
     let serialized = serde_json::to_string_pretty(&*map)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     if let Some(parent) = s.path.parent() {
-        std::fs::create_dir_all(parent).ok();
+        tokio::fs::create_dir_all(parent).await.ok();
     }
-    std::fs::write(&*s.path, serialized)
+    tokio::fs::write(&*s.path, serialized)
+        .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(Value::Object(map.clone())))
 }

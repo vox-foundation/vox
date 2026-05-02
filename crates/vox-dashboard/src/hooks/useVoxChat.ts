@@ -50,6 +50,13 @@ export function useVoxChat() {
         ...(sessionId ? { session_id: sessionId } : {}),
       }) as ToolCallResult;
 
+      if (raw?.is_error) {
+        const errMsg = raw.result?.error ?? 'Tool call returned an error.';
+        setError(errMsg);
+        setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${errMsg}` }]);
+        return;
+      }
+
       const result = raw?.result;
       const replyText = extractReplyText(result);
       const nextSession = result?.data?.session_id;

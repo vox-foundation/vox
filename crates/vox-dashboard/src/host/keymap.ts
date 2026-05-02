@@ -15,16 +15,21 @@ export interface KeyBinding {
 
 const _bindings: Map<string, KeyBinding[]> = new Map();
 
+const MOD_ORDER = ['ctrl', 'alt', 'shift', 'cmd'] as const;
+
 function normalise(key: string): string {
-  return key.toLowerCase().replace(/\s+/g, '').replace('meta', 'cmd');
+  const parts = key.toLowerCase().replace(/\s+/g, '').replace(/\bmeta\b/g, 'cmd').split('+');
+  const mods = MOD_ORDER.filter(m => parts.includes(m));
+  const k = parts.filter(p => !(MOD_ORDER as readonly string[]).includes(p));
+  return [...mods, ...k].join('+');
 }
 
 function fromEvent(e: KeyboardEvent): string {
   const parts: string[] = [];
-  if (e.ctrlKey) parts.push('ctrl');
-  if (e.metaKey) parts.push('cmd');
-  if (e.altKey) parts.push('alt');
+  if (e.ctrlKey)  parts.push('ctrl');
+  if (e.altKey)   parts.push('alt');
   if (e.shiftKey) parts.push('shift');
+  if (e.metaKey)  parts.push('cmd');
   parts.push(e.key.toLowerCase());
   return parts.join('+');
 }

@@ -48,6 +48,8 @@ Within the dashboard (and any Vox-generated application), reactive state **must*
 
 Do **not** hand-write reactive `.tsx` files in `app/src/generated/` — they must be compiler outputs from `.vox` sources. The CI gate at `scripts/check_dashboard_ssot.vox` enforces this rule.
 
+Hand-written React source is explicitly allowed under `src/components/islands/` (e.g. `AppShellLive.tsx`, `SpeakIsland.tsx`). Only the `app/src/generated/` subtree is compiler-owned.
+
 ## Not part of Vox
 
 Vox does **not** ship HTML-fragment UIs or classless CSS microframeworks as first-class product paths. Use **React + Vite + Tailwind/ShadCN + TanStack Router** (→ TanStack Start per [ADR 010](../adr/010-tanstack-web-spine.md)) for all interactive web UI.

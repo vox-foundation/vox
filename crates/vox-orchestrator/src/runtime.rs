@@ -174,7 +174,7 @@ impl TaskProcessor for AiTaskProcessor {
                         crate::models::ProviderType::PopuliMesh => "populimesh",
                         crate::models::ProviderType::HuggingFaceRouter => "huggingface",
                         crate::models::ProviderType::Custom(_) => "custom",
-                        crate::models::ProviderType::VoxLocal => "voxlocal",
+                        crate::models::ProviderType::VoxLocal => "vox_local",
                     };
                     allowed_providers.contains(provider_str)
                 })
