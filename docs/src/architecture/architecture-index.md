@@ -96,6 +96,7 @@ training_eligible: false
 
 ## Status: Roadmap
 
+- [Codebase Cleanup & Signal Improvement Plan (2026-05-02)](2026-05-02-codebase-cleanup-and-signal-improvement.md)
 - [Data Storage Lint & CI Spec (2026)](data-storage-lint-and-ci-spec-2026.md)
 - [Data Storage Migration Backlog (2026)](data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](data-storage-ssot-2026.md)

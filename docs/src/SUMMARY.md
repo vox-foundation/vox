@@ -443,6 +443,7 @@ training_eligible: false
 - [MENS Corpus: Full Implementation Plan (2026)](archive/research-2026-q1/mens-corpus-implementation-plan-2026.md)
 - [Clavis Cloudless Implementation Catalog](archive/research-2026-q1/clavis-cloudless-implementation-catalog.md)
 - [Clavis Cloudless Threat Model V1](archive/research-2026-q1/clavis-cloudless-threat-model-v1.md)
+- [Codebase Cleanup & Signal Improvement Plan (2026-05-02)](architecture/2026-05-02-codebase-cleanup-and-signal-improvement.md)
 - [Context management implementation blueprint](archive/research-2026-q1/context-management-implementation-blueprint.md)
 - [Context management phase 1 backlog](archive/research-2026-q1/context-management-phase1-backlog.md)
 - [Data Storage Lint & CI Spec (2026)](architecture/data-storage-lint-and-ci-spec-2026.md)
