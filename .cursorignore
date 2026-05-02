@@ -1,6 +1,6 @@
 # .cursorignore — DERIVED from .voxignore (SSOT)
 # DO NOT EDIT DIRECTLY. Run `vox ci sync-ignore-files` to regenerate.
-# See: docs/src/architecture/multi-repo-context-isolation-research-2026.md §3
+# See: docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md §3
 
 #
 # .aiexclude directly. Edit this file, then run:
