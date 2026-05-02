@@ -168,6 +168,7 @@ db/publication-approve
 db/publication-arxiv-handoff-record
 db/publication-decision-explain
 db/publication-discovery-explain
+db/publication-discovery-publish-rss
 db/publication-discovery-refresh-evidence
 db/publication-discovery-scan
 db/publication-external-jobs-dead-letter
@@ -260,6 +261,8 @@ model/costs
 model/discover
 model/explain
 model/pricing
+model/pricing/check
+model/pricing/refresh
 model/pricing/rollup
 model/pricing/show
 model/rollup
@@ -317,6 +320,7 @@ scientia/publication-approve
 scientia/publication-arxiv-handoff-record
 scientia/publication-decision-explain
 scientia/publication-discovery-explain
+scientia/publication-discovery-publish-rss
 scientia/publication-discovery-scan
 scientia/publication-external-jobs-dead-letter
 scientia/publication-external-jobs-due

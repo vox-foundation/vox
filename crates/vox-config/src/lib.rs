@@ -18,7 +18,7 @@ pub use bootstrap_inference::{
     NLI_FALLBACK, OPENROUTER_AUTO, OPENROUTER_FREE, RESEARCH_FLASH_FALLBACK,
     REVIEW_PREMIUM_FALLBACK,
 };
-pub use config::{GamifyMode, VoxConfig, WebRunMode};
+pub use config::{BuildTarget, GamifyMode, VoxConfig, WebRunMode};
 pub use inference::{
     InferenceProfile, LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT, OPENAI_CHAT_COMPLETIONS_URL,
     OPENAI_EMBEDDINGS_URL, OPENROUTER_CHAT_COMPLETIONS_URL, OPENROUTER_EMBEDDINGS_URL,

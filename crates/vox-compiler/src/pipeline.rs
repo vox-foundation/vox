@@ -8,8 +8,51 @@ use crate::ast::decl::Module;
 use crate::hir::HirModule;
 use crate::hir::lower::LowerConfig;
 use crate::typeck::Diagnostic;
-use crate::typeck::diagnostics::{TypeckSeverity, VoxCompilerDiagnosticPayload};
+use crate::typeck::diagnostics::{DiagnosticCategory, TypeckSeverity, VoxCompilerDiagnosticPayload};
 use anyhow::Result;
+
+/// ADR-028: emit an error diagnostic for each reserved durability keyword found in `source`.
+///
+/// `@scheduled`, `@durable`, `workflow`, and `activity` have been removed from the public
+/// grammar.  They are detected at the source-text level (before full parsing) so that the
+/// error is reported even when the token stream is otherwise broken.
+fn check_adr028_reserved_keywords(source: &str) -> Vec<Diagnostic> {
+    // (pattern, keyword_label, error_code)
+    const RESERVED: &[(&str, &str, &str)] = &[
+        ("@scheduled", "@scheduled", "E028"),
+        ("@durable",   "@durable",   "E028"),
+        ("workflow ",  "workflow",   "E028"),
+        ("activity ",  "activity",   "E028"),
+    ];
+
+    let mut diags = Vec::new();
+    for (pattern, label, code) in RESERVED {
+        if let Some(offset) = source.find(pattern) {
+            diags.push(Diagnostic {
+                severity: TypeckSeverity::Error,
+                message: format!(
+                    "{} is not yet implemented and has been reserved for a future release (ADR-028). \
+                     Remove this declaration or replace it with a plain `fn`.",
+                    label
+                ),
+                span: crate::ast::span::Span::new(offset, offset + pattern.len()),
+                expected_type: None,
+                found_type: None,
+                context: None,
+                suggestions: vec![
+                    format!("Replace `{}` with a plain `fn` declaration.", label),
+                ],
+                category: DiagnosticCategory::Parse,
+                code: Some(code.to_string()),
+                fixes: vec![],
+                line_col: None,
+                missing_cases: vec![],
+                ast_node_kind: None,
+            });
+        }
+    }
+    diags
+}
 
 /// Options for the unified compiler pipeline.
 #[derive(Debug, Clone, Default)]
@@ -88,6 +131,22 @@ pub fn run_frontend_str_with_options(
                     source: source.to_owned(),
                 });
             }
+        }
+    }
+
+    // 1.6. ADR-028: reject reserved durability grammar keywords early.
+    {
+        let reserved_diags = check_adr028_reserved_keywords(source);
+        if !reserved_diags.is_empty() {
+            return Ok(FrontendResult {
+                module: crate::ast::decl::Module {
+                    declarations: vec![],
+                    span: crate::ast::span::Span::new(0, 0),
+                },
+                hir: crate::hir::HirModule::default(),
+                diagnostics: reserved_diags,
+                source: source.to_owned(),
+            });
         }
     }
 
@@ -221,6 +280,17 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
         }
     }
 
+    // 1.6. ADR-028: reject reserved durability grammar keywords early.
+    {
+        let reserved_diags = check_adr028_reserved_keywords(source);
+        if !reserved_diags.is_empty() {
+            return reserved_diags
+                .iter()
+                .map(|d| VoxCompilerDiagnosticPayload::from_diagnostic(d, file_path, source))
+                .collect();
+        }
+    }
+
     match crate::parser::parse(tokens) {
         Ok(module) => {
             let mut hir = crate::hir::lower_module(&module);
@@ -344,5 +414,97 @@ mod tests {
         let frontend_res = run_frontend_str(source, "test.vox").unwrap();
         assert_eq!(frontend_res.diagnostics.len(), 1);
         assert_eq!(frontend_res.diagnostics[0].code, Some("E091".to_string()));
+    }
+
+    // ADR-028: @scheduled, @durable, workflow, activity are reserved/removed from public grammar.
+    // actor is retained and must compile cleanly.
+
+    #[test]
+    fn test_reject_scheduled_adr028() {
+        // @scheduled parses successfully but must be rejected with a diagnostic.
+        let source = r#"@scheduled("1h") fn tick() {}"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert!(
+            !diagnostics.is_empty(),
+            "@scheduled should produce a compile error (ADR-028)"
+        );
+        assert!(
+            diagnostics.iter().any(|d| d.message.contains("@scheduled")),
+            "diagnostic message should mention @scheduled; got: {:?}",
+            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
+        );
+        assert!(
+            diagnostics.iter().any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
+            "severity should be error"
+        );
+    }
+
+    #[test]
+    fn test_reject_durable_adr028() {
+        // @durable is not a recognised token — currently a parse error.
+        // ADR-028 requires a clear diagnostic mentioning @durable.
+        let source = r#"@durable fn process() {}"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert!(
+            !diagnostics.is_empty(),
+            "@durable should produce a compile error (ADR-028)"
+        );
+        assert!(
+            diagnostics.iter().any(|d| d.message.contains("@durable")),
+            "diagnostic message should mention @durable; got: {:?}",
+            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn test_reject_workflow_adr028() {
+        // workflow parses successfully but must be rejected with a diagnostic.
+        let source = r#"workflow order() {}"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert!(
+            !diagnostics.is_empty(),
+            "workflow keyword should produce a compile error (ADR-028)"
+        );
+        assert!(
+            diagnostics.iter().any(|d| d.message.contains("workflow")),
+            "diagnostic message should mention workflow; got: {:?}",
+            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
+        );
+        assert!(
+            diagnostics.iter().any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
+            "severity should be error"
+        );
+    }
+
+    #[test]
+    fn test_reject_activity_adr028() {
+        // activity parses successfully but must be rejected with a diagnostic.
+        let source = r#"activity charge() {}"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert!(
+            !diagnostics.is_empty(),
+            "activity keyword should produce a compile error (ADR-028)"
+        );
+        assert!(
+            diagnostics.iter().any(|d| d.message.contains("activity")),
+            "diagnostic message should mention activity; got: {:?}",
+            diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
+        );
+        assert!(
+            diagnostics.iter().any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
+            "severity should be error"
+        );
+    }
+
+    #[test]
+    fn test_actor_still_compiles_adr028() {
+        // actor is retained per ADR-028 — must produce zero errors.
+        let source = r#"actor Counter { on increment(n: int) to int { return n } }"#;
+        let diagnostics = check_file(source, "test.vox");
+        assert!(
+            diagnostics.iter().all(|d| d.severity != crate::typeck::diagnostics::TypeckSeverity::Error),
+            "actor should still compile successfully (ADR-028 retains actor); errors: {:?}",
+            diagnostics.iter().filter(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error).collect::<Vec<_>>()
+        );
     }
 }

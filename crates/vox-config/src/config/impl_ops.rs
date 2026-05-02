@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use super::gamify_web::{GamifyMode, WebRunMode};
+use super::gamify_web::{BuildTarget, GamifyMode, WebRunMode};
 use super::persist::{global_config_path, save_merged_global_config};
 use super::toml_schema::VoxToml;
 use super::vox_config::VoxConfig;
@@ -217,6 +217,12 @@ impl VoxConfig {
             }
             if let Some(v) = web.tanstack_start {
                 self.web_tanstack_start = v;
+            }
+        }
+
+        if let Some(build) = parsed.build {
+            if let Some(v) = build.target {
+                self.build_target = v;
             }
         }
     }
@@ -440,6 +446,60 @@ db_extra = "de"
     fn set_unknown_key_returns_false() {
         let mut cfg = VoxConfig::default();
         assert!(!cfg.set_key("nonexistent", "value"));
+    }
+
+    // ── BuildTarget tests ────────────────────────────────────────────────────
+
+    #[test]
+    fn build_target_from_str_parses_all_variants() {
+        assert_eq!(BuildTarget::from_str("fullstack"), Some(BuildTarget::Fullstack));
+        assert_eq!(BuildTarget::from_str("server"), Some(BuildTarget::Server));
+        assert_eq!(BuildTarget::from_str("client"), Some(BuildTarget::Client));
+        // case-insensitive
+        assert_eq!(BuildTarget::from_str("SERVER"), Some(BuildTarget::Server));
+        assert_eq!(BuildTarget::from_str("  Fullstack "), Some(BuildTarget::Fullstack));
+    }
+
+    #[test]
+    fn build_target_from_str_unknown_is_none() {
+        assert_eq!(BuildTarget::from_str(""), None);
+        assert_eq!(BuildTarget::from_str("ios"), None);
+        assert_eq!(BuildTarget::from_str("backend"), None);
+    }
+
+    #[test]
+    fn build_target_default_is_fullstack() {
+        assert_eq!(BuildTarget::default(), BuildTarget::Fullstack);
+    }
+
+    #[test]
+    fn reads_build_target_server_from_vox_toml() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let p = dir.path().join("Vox.toml");
+        std::fs::write(&p, "[build]\ntarget = \"server\"\n").expect("write");
+        let mut cfg = VoxConfig::default();
+        merge_vox_toml_path_for_test(&mut cfg, &p);
+        assert_eq!(cfg.build_target, BuildTarget::Server);
+    }
+
+    #[test]
+    fn reads_build_target_fullstack_from_vox_toml() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let p = dir.path().join("Vox.toml");
+        std::fs::write(&p, "[build]\ntarget = \"fullstack\"\n").expect("write");
+        let mut cfg = VoxConfig::default();
+        merge_vox_toml_path_for_test(&mut cfg, &p);
+        assert_eq!(cfg.build_target, BuildTarget::Fullstack);
+    }
+
+    #[test]
+    fn build_target_defaults_to_fullstack_when_build_section_absent() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let p = dir.path().join("Vox.toml");
+        std::fs::write(&p, "[web]\nrun_mode = \"app\"\n").expect("write");
+        let mut cfg = VoxConfig::default();
+        merge_vox_toml_path_for_test(&mut cfg, &p);
+        assert_eq!(cfg.build_target, BuildTarget::Fullstack);
     }
 
     #[test]

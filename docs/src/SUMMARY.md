@@ -188,6 +188,7 @@ training_eligible: false
 - [Document boundary matrix](architecture/planning-meta/11-document-boundary-matrix.md)
 - [Document maintenance protocol](architecture/planning-meta/10-document-maintenance-protocol.md)
 - [Documentation hygiene and AI-agent guidelines 2026](archive/research-2026-q1/doc-hygiene-agent-guidelines-2026.md)
+- [Durability & Scheduling Runtime Audit (2026)](architecture/durability-runtime-audit-2026.md)
 - [Exception and deferral policy](architecture/planning-meta/09-exception-deferral-policy.md)
 - [FFScript Linter Engine Design (T-046)](architecture/ffscript-linter-design-2026.md)
 - [FFScript Mutation API Spec (T-041)](architecture/ffscript-mutation-api-spec-2026.md)
@@ -288,12 +289,14 @@ training_eligible: false
 - [VoxDB connection policy (SSOT)](archive/research-2026-q1/voxdb-connect-policy.md)
 - [VoxGiantia publication architecture (beginner map)](archive/research-2026-q1/voxgiantia-publication-architecture.md)
 - [Weighted deep planning manual](architecture/planning-meta/03-weighted-deep-planning-manual.md)
+- [Wire Format v1 SSOT](architecture/wire-format-v1-ssot.md)
 - [agent-planning-multimodal-ssot.md](archive/research-2026-q1/agent-planning-multimodal-ssot.md)
 - [visus-audit-grounding.v1.md](architecture/prompts/visus-audit-grounding.v1.md)
 - [vox-library-mode-ssot.md](archive/research-2026-q1/vox-library-mode-ssot.md)
 
 ## Status: Experimental
 
+- [ADR-028: Remove Stub Durability/Scheduling Grammar from Public API](adr/028-deprecate-stub-durability-grammar.md)
 - [Clavis V2: Full Implementation Plan (2026)](archive/research-2026-q1/clavis-implementation-plan-2026.md)
 - [Vox Publication and Orchestration Hardening: Implementation Plan 2026](archive/research-2026-q1/scientia-publisher-hardening-implementation-plan-2026.md)
 
@@ -436,8 +439,12 @@ training_eligible: false
 - [Data Storage Lint & CI Spec (2026)](architecture/data-storage-lint-and-ci-spec-2026.md)
 - [Data Storage Migration Backlog (2026)](architecture/data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](architecture/data-storage-ssot-2026.md)
+- [External Frontend Interop Plan (2026)](architecture/external-frontend-interop-plan-2026.md)
 - [MENS Research Track Blueprint 2026](archive/research-2026-q1/mens-research-track-blueprint-2026.md)
 - [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](architecture/2026-05-01-orchestrator-stage1-stage2.md)
+- [Phase 1: Build Target Split Spec (2026)](architecture/phase1-build-targets-spec-2026.md)
+- [Phase 3: HTTP Ergonomics Decorators Spec (2026)](architecture/phase3-http-ergonomics-spec-2026.md)
+- [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](architecture/phase5-react-interop-spec-2026.md)
 - [Populi GPU mesh implementation plan 2026](archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md)
 - [Scientia Publication Pipeline — Full Implementation Plan v2 (2026)](archive/research-2026-q1/scientia-publication-pipeline-implementation-plan-2026.md)
 - [Telemetry implementation backlog 2026](archive/research-2026-q1/telemetry-implementation-backlog-2026.md)
