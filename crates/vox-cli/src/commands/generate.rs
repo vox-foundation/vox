@@ -5,8 +5,8 @@
 //!   - Consistent endpoint resolution from `VOX_LOCAL_ENDPOINT`
 //!   - Aligned telemetry with MCP codegen calls
 //!
-//! Use `--legacy-direct` to bypass the orchestrator and call the inference server
-//! directly (the original behavior before Task 1.9).
+//! `--legacy-direct` (deprecated): bypasses the orchestrator and calls the inference server
+//! directly. Pre-Task 1.9 behavior. Prefer orchestrator mode; this flag is an escape hatch.
 
 use anyhow::{Context, Result};
 use std::io::Write;

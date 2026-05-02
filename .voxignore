@@ -7,7 +7,7 @@
 #   vox ci sync-ignore-files
 #
 # to regenerate all derived ignore files. CI will fail if derived files drift.
-# See: docs/src/architecture/multi-repo-context-isolation-research-2026.md §3
+# See: docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md §3
 #
 # GitHub Copilot content exclusion CANNOT be file-based; configure it in
 # GitHub Settings → Copilot → Content exclusion. See docs/agents/copilot-exclusions.md

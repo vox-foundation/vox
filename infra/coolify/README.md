@@ -1,5 +1,7 @@
 # Coolify / Docker (Codex BaaS template)
 
+> **Note:** Architecture references in this file point to archived research docs. Verify against current deployment state before using this template.
+
 Template for self-hosting **Codex**-style HTTP API workloads on **Turso** via Coolify. This is **not** the same stack as the repo-root [`docker-compose.yml`](../../docker-compose.yml) (which builds the **`vox` MCP** image from the root [`Dockerfile`](../../Dockerfile)).
 
 ## Which image?
@@ -9,7 +11,7 @@ Template for self-hosting **Codex**-style HTTP API workloads on **Turso** via Co
 | **MCP HTTP** (this repo’s `Dockerfile`) | Build from repo root; optional `VOX_CLI_FEATURES` for mens | `CMD ["vox","mcp"]` — **3000** |
 | **Codex API** (this template) | Set **`VOX_CODEX_IMAGE`** to your CI-built service image | Your service must listen on the port Coolify maps (template uses **8080**) |
 
-If you point `VOX_CODEX_IMAGE` at the **`vox` MCP** image without changing `command`/`ports`, health checks and routing will not match. Either supply a dedicated Codex API image or replace this compose with the MCP-focused file from [`deployment-compose-ssot.md`](../../docs/src/architecture/deployment-compose-ssot.md).
+If you point `VOX_CODEX_IMAGE` at the **`vox` MCP** image without changing `command`/`ports`, health checks and routing will not match. Either supply a dedicated Codex API image or replace this compose with the MCP-focused file from [`deployment-compose-ssot.md`](../../docs/src/archive/research-2026-q1/deployment-compose-ssot.md).
 
 ## Environment
 
@@ -22,7 +24,7 @@ Set in Coolify or `.env` (never commit tokens). Coolify distinguishes **build-ti
 | `VOX_DB_PATH` | Optional local path (dev or embedded replica local file) |
 | `VOX_CODEX_IMAGE` | Image reference for the `codex-api` service (your build) |
 
-Optional object storage (future R2 adapter): `R2_*` variables as in [Codex BaaS doc](../../docs/src/architecture/codex-baas.md).
+Optional object storage (R2 adapter — archived research): `R2_*` variables as in [Codex BaaS doc](../../docs/src/archive/research-2026-q1/codex-baas.md) (archived).
 
 ## Compose
 
@@ -30,5 +32,5 @@ See [`docker-compose.yml`](docker-compose.yml). For **mens** alongside other ser
 
 ## Related
 
-- [Deployment compose SSOT](../../docs/src/architecture/deployment-compose-ssot.md)
+- [Deployment compose SSOT](../../docs/src/archive/research-2026-q1/deployment-compose-ssot.md)
 - [ADR 004: Codex / Turso](../../docs/src/adr/004-codex-arca-turso-ssot.md)

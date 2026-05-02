@@ -6,15 +6,15 @@ use std::path::Path;
 const DERIVED_FILES: &[(&str, &str)] = &[
     (
         ".cursorignore",
-        "# .cursorignore \u{2014} DERIVED from .voxignore (SSOT)\n# DO NOT EDIT DIRECTLY. Run `vox ci sync-ignore-files` to regenerate.\n# See: docs/src/architecture/multi-repo-context-isolation-research-2026.md \u{A7}3\n\n",
+        "# .cursorignore \u{2014} DERIVED from .voxignore (SSOT)\n# DO NOT EDIT DIRECTLY. Run `vox ci sync-ignore-files` to regenerate.\n# See: docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md \u{A7}3\n\n",
     ),
     (
         ".aiignore",
-        "# .aiignore \u{2014} DERIVED from .voxignore (SSOT)\n# Consumed by JetBrains AI Assistant (must be enabled in Settings | Tools | AI Assistant)\n# DO NOT EDIT DIRECTLY. Run `vox ci sync-ignore-files` to regenerate.\n# See: docs/src/architecture/multi-repo-context-isolation-research-2026.md \u{A7}3\n\n",
+        "# .aiignore \u{2014} DERIVED from .voxignore (SSOT)\n# Consumed by JetBrains AI Assistant (must be enabled in Settings | Tools | AI Assistant)\n# DO NOT EDIT DIRECTLY. Run `vox ci sync-ignore-files` to regenerate.\n# See: docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md \u{A7}3\n\n",
     ),
     (
         ".aiexclude",
-        "# .aiexclude \u{2014} DERIVED from .voxignore (SSOT)\n# Consumed by Gemini/Android Studio Code Assist\n# DO NOT EDIT DIRECTLY. Run `vox ci sync-ignore-files` to regenerate.\n# See: docs/src/architecture/multi-repo-context-isolation-research-2026.md \u{A7}3\n\n",
+        "# .aiexclude \u{2014} DERIVED from .voxignore (SSOT)\n# Consumed by Gemini/Android Studio Code Assist\n# DO NOT EDIT DIRECTLY. Run `vox ci sync-ignore-files` to regenerate.\n# See: docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md \u{A7}3\n\n",
     ),
 ];
 
@@ -29,6 +29,8 @@ fn extract_ignore_patterns(voxignore_content: &str) -> String {
             || line.starts_with("# GitHub Copilot content exclusion")
             || line.starts_with("# See: docs/")
             || line.starts_with("#   vox ci sync-ignore-files")
+            || line.starts_with("# .aiexclude directly.")
+            || line.starts_with("# GitHub Settings")
             || line.is_empty() && out.is_empty()
         {
             continue;

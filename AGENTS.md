@@ -57,13 +57,13 @@ Manually-maintained adjacent files that **are** safe to edit:
 - Edit `.voxignore`; derive `.cursorignore`, `.aiignore`, `.aiexclude` via `vox ci sync-ignore-files`
 - Do **not** edit derived ignore files directly — they are regenerated and tracked for drift
 - GitHub Copilot exclusions must be configured separately in GitHub Settings → Copilot → Content exclusion; see [`docs/agents/copilot-exclusions.md`](docs/agents/copilot-exclusions.md)
-- Research: [`docs/src/architecture/multi-repo-context-isolation-research-2026.md`](docs/src/architecture/multi-repo-context-isolation-research-2026.md)
+- Research: [`docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md`](docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md) (archived)
 
 ## Telemetry trust (SSOT)
 
-- Map and boundaries: [`docs/src/architecture/telemetry-trust-ssot.md`](docs/src/architecture/telemetry-trust-ssot.md); optional explicit remote upload: [`docs/src/adr/023-optional-telemetry-remote-upload.md`](docs/src/adr/023-optional-telemetry-remote-upload.md), [`docs/src/architecture/telemetry-remote-sink-spec.md`](docs/src/architecture/telemetry-remote-sink-spec.md), **`vox telemetry`**
-- Research: [`docs/src/architecture/telemetry-unification-research-findings-2026.md`](docs/src/architecture/telemetry-unification-research-findings-2026.md)
-- Implementation plan + checklist: [`docs/src/architecture/telemetry-implementation-blueprint-2026.md`](docs/src/architecture/telemetry-implementation-blueprint-2026.md), [`docs/src/architecture/telemetry-implementation-backlog-2026.md`](docs/src/architecture/telemetry-implementation-backlog-2026.md)
+- Map and boundaries: [`docs/src/architecture/telemetry-trust-ssot.md`](docs/src/architecture/telemetry-trust-ssot.md); optional explicit remote upload: [`docs/src/adr/023-optional-telemetry-remote-upload.md`](docs/src/adr/023-optional-telemetry-remote-upload.md), [`docs/src/archive/research-2026-q1/telemetry-remote-sink-spec.md`](docs/src/archive/research-2026-q1/telemetry-remote-sink-spec.md) (archived), **`vox telemetry`**
+- Research: [`docs/src/archive/research-2026-q1/telemetry-unification-research-findings-2026.md`](docs/src/archive/research-2026-q1/telemetry-unification-research-findings-2026.md) (archived)
+- Implementation plan + checklist: [`docs/src/archive/research-2026-q1/telemetry-implementation-blueprint-2026.md`](docs/src/archive/research-2026-q1/telemetry-implementation-blueprint-2026.md) (archived), [`docs/src/archive/research-2026-q1/telemetry-implementation-backlog-2026.md`](docs/src/archive/research-2026-q1/telemetry-implementation-backlog-2026.md) (archived)
 
 ## Secret Management (Required, SSOT)
 
@@ -121,7 +121,7 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 
 **Do NOT use Python or shell for glue.** Vox is the glue language. Python and shell are retired glue surfaces in this repository.
 
-Full rationale, execution tier map, security model, and migration plan: [`docs/src/architecture/vox-as-glue-research-2026.md`](docs/src/architecture/vox-as-glue-research-2026.md)
+Full rationale, execution tier map, security model, and migration plan: [`docs/src/archive/research-2026-q1/vox-as-glue-research-2026.md`](docs/src/archive/research-2026-q1/vox-as-glue-research-2026.md) (archived)
 
 ## Grammar Unification (Vox Source Syntax)
 

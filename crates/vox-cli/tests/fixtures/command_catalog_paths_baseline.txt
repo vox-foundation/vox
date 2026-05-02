@@ -244,6 +244,7 @@ fabrica/fmt
 fabrica/run
 fabrica/test
 fmt
+generate
 grammar
 init
 llm

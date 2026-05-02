@@ -168,18 +168,18 @@
                         "notes":  "First-run installer; not replaceable by vox cli alone"
                     },
                     {
-                        "path":  "docker/vox-entrypoint.sh",
+                        "path":  "infra/containers/entrypoints/vox-entrypoint.vox",
                         "invoked_by_ci":  false,
                         "replacement":  null,
                         "status":  "essential",
-                        "notes":  "PID1 sidecar + exec; container boundary"
+                        "notes":  "PID1 sidecar + exec; container boundary (ported from .sh)"
                     },
                     {
-                        "path":  "docker/populi-entrypoint.sh",
+                        "path":  "infra/containers/entrypoints/populi-entrypoint.vox",
                         "invoked_by_ci":  false,
                         "replacement":  "vox mens train | vox mens serve (train/serve); agent TBD",
                         "status":  "essential",
-                        "notes":  "Cloud/HF/curl self-terminate; see script-surface-audit.md"
+                        "notes":  "Cloud/HF/curl self-terminate; see script-surface-audit.md (ported from .sh)"
                     },
                     {
                         "path":  "scripts/mens_release_gate.sh",
