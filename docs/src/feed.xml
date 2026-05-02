@@ -5,8 +5,47 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 01 May 2026 08:54:51 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 02 May 2026 02:20:38 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>ADR 010 — TanStack as the Vox web spine</title>
+    <link>https://vox-lang.org/adr/010-tanstack-web-spine.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/010-tanstack-web-spine.html</guid>
+    <description>Official documentation for ADR 010 — TanStack as the Vox web spine for the Vox language. Detailed technical reference, architecture guide</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)</title>
+    <link>https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</guid>
+    <description>Splits Vox&apos;s UI primitives into a Vox-native reactivity track and an explicit React/TanStack interop track, with a sharp boundary so each track stays coherent…</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>ADR 030 — state_machine as SSoT for reactive UI state</title>
+    <link>https://vox-lang.org/adr/030-state-machine-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/030-state-machine-ssot.html</guid>
+    <description>Formally adopts the Vox state_machine compiler primitive as the single source of truth for all reactive browser UI state in vox-dashboard and Vox-generated…</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>ADR 031 — Deprecate vox-vscode; dashboard is the primary surface</title>
+    <link>https://vox-lang.org/adr/031-deprecate-vox-vscode.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/031-deprecate-vox-vscode.html</guid>
+    <description>Formally deprecates the vox-vscode VS Code extension as the primary Vox user surface. The Axum-served vox-dashboard is the replacement. vox-vscode is retained…</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
 
   <item>
     <title>vox-codegen-ts API</title>
@@ -63,6 +102,16 @@
   </item>
 
   <item>
+    <title>Vox full-stack web UI — single source of truth</title>
+    <link>https://vox-lang.org/reference/vox-web-stack.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/vox-web-stack.html</guid>
+    <description>Official documentation for Vox full-stack web UI — single source of truth for the Vox language. Detailed technical reference, architectur</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
     <title>ADR 003 — Native Rust Training Over Python</title>
     <link>https://vox-lang.org/adr/003-native-training-over-python.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/003-native-training-over-python.html</guid>
@@ -77,16 +126,6 @@
     <link>https://vox-lang.org/adr/004-codex-arca-turso-ssot.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/004-codex-arca-turso-ssot.html</guid>
     <description>Official documentation for ADR 004: Codex over Arca over Turso for the Vox language. Detailed technical reference, architecture guides, a</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 010 — TanStack as the Vox web spine</title>
-    <link>https://vox-lang.org/adr/010-tanstack-web-spine.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/010-tanstack-web-spine.html</guid>
-    <description>Official documentation for ADR 010 — TanStack as the Vox web spine for the Vox language. Detailed technical reference, architecture guide</description>
     <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
@@ -162,15 +201,6 @@
   </item>
 
   <item>
-    <title>ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)</title>
-    <link>https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</guid>
-    <description>Splits Vox&apos;s UI primitives into a Vox-native reactivity track and an explicit React/TanStack interop track, with a sharp boundary so each track stays coherent…</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
     <title>Architecture Decision Records (ADR)</title>
     <link>https://vox-lang.org/adr/index.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/index.html</guid>
@@ -217,36 +247,6 @@
     <description>Systematic scan of warpdotdev/warp for high-value primitives, license compatibility, and feature gaps relevant to Vox.</description>
     <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Agent instruction architecture</title>
-    <link>https://vox-lang.org/contributors/agent-instruction-architecture.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/agent-instruction-architecture.html</guid>
-    <description>How Vox layers AGENTS, tool-specific overlays, continuation prompts, and CI gates for durable agent behavior.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Coding Agent Instructions</title>
-    <link>https://vox-lang.org/contributors/coding-agents.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/coding-agents.html</guid>
-    <description>Quick-reference heuristics, TOESTUB rule table, and pre-commit checklist for AI coding agents operating on Vox.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Continuation Prompt Engineering</title>
-    <link>https://vox-lang.org/contributors/continuation-prompt-engineering.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/continuation-prompt-engineering.html</guid>
-    <description>SSOT for the Vox continuation prompt, its design rationale, and the layered anti-skeleton defense model.</description>
-    <pubDate>Thu, 30 Apr 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>
