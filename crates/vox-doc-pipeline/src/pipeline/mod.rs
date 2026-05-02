@@ -349,37 +349,6 @@ pub fn run() {
             eprintln!(
                 "SUMMARY.md is out of sync with docs/src. Run `cargo run -p vox-doc-pipeline` to update."
             );
-            // DEBUG: dump first divergence point for CI diagnosis (revert after fix).
-            let cur = current.trim().replace("\r\n", "\n");
-            let generated = output.trim().replace("\r\n", "\n");
-            let cur_lines: Vec<&str> = cur.lines().collect();
-            let generated_lines: Vec<&str> = generated.lines().collect();
-            eprintln!("DEBUG: current={} lines, generated={} lines", cur_lines.len(), generated_lines.len());
-            for (i, (c, g)) in cur_lines.iter().zip(generated_lines.iter()).enumerate() {
-                if c != g {
-                    eprintln!("DEBUG: first diff at line {}:\n  current : {:?}\n  generated: {:?}", i + 1, c, g);
-                    let start = i.saturating_sub(2);
-                    let end = (i + 5).min(generated_lines.len());
-                    eprintln!("DEBUG: generated context lines {}..{}:", start, end);
-                    for (j, gl) in generated_lines[start..end].iter().enumerate() {
-                        eprintln!("  gen[{}]: {:?}", start + j, gl);
-                    }
-                    break;
-                }
-            }
-            if cur_lines.len() != generated_lines.len() {
-                let extra_start = cur_lines.len().min(generated_lines.len());
-                eprintln!("DEBUG: length diff — extra side starting at line {}:", extra_start + 1);
-                if generated_lines.len() > cur_lines.len() {
-                    for (j, l) in generated_lines[extra_start..].iter().take(10).enumerate() {
-                        eprintln!("  gen[{}] EXTRA: {:?}", extra_start + j, l);
-                    }
-                } else {
-                    for (j, l) in cur_lines[extra_start..].iter().take(10).enumerate() {
-                        eprintln!("  cur[{}] EXTRA: {:?}", extra_start + j, l);
-                    }
-                }
-            }
             std::process::exit(1);
         }
         println!("vox-doc-pipeline check passed.");
