@@ -19,6 +19,8 @@ use std::sync::Arc;
 use serde_json::Value;
 use turso::{Connection, params};
 
+use crate::sql_util::validate_identifier;
+
 use crate::DbCircuitBreaker;
 
 /// A handle to a schemaless document collection.
@@ -346,13 +348,6 @@ pub fn collection_index_ddl(
          ON {collection_name}(json_extract(_data, '$.{field_name}'))"
     ))
 }
-
-/// SQLite-safe identifier validator.
-///
-/// Used by every callsite that interpolates a name into a SQL string (table
-/// names, JSON-path keys, index columns). Accepts `[A-Za-z_][A-Za-z0-9_]{0,63}`
-/// and rejects everything else, which is strictly stricter than SQLite's own
-use crate::sql_util::validate_identifier;
 
 #[cfg(test)]
 mod tests {

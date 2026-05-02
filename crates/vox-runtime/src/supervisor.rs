@@ -8,9 +8,11 @@ use tracing;
 
 /// Spawn a background task and log an error if it panics or returns an `Err`.
 ///
-/// Equivalent to `tokio::spawn` but wraps the join handle in a monitor task so
-/// that silent panics and unexpected errors surface in the tracing log rather
-/// than being silently discarded.
+/// The returned `JoinHandle` controls the **monitor** task, not the inner `fut`.
+/// Aborting the returned handle stops the monitor but does **not** cancel `fut`,
+/// which continues running independently (Tokio has no structured concurrency).
+/// If you need cancellation to propagate into `fut`, pass a `CancellationToken`
+/// explicitly.
 ///
 /// Use this instead of bare `tokio::spawn` for all non-actor background work.
 pub fn spawn_supervised<F, E>(name: &'static str, fut: F) -> JoinHandle<()>

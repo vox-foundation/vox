@@ -6,9 +6,9 @@ use crate::selection::{RegistryModelResolutionParams, resolve_model_with_registr
 use crate::types::TaskCategory;
 
 // Re-export from the single source of truth in vox-config.
-pub use vox_config::RESEARCH_FLASH_FALLBACK as FALLBACK_RESEARCH_FLASH_MODEL_ID;
-pub use vox_config::REVIEW_PREMIUM_FALLBACK as FALLBACK_REVIEW_PREMIUM_MODEL_ID;
-pub use vox_config::NLI_FALLBACK as FALLBACK_NLI_MODEL_ID;
+pub(crate) use vox_config::RESEARCH_FLASH_FALLBACK as FALLBACK_RESEARCH_FLASH_MODEL_ID;
+pub(crate) use vox_config::REVIEW_PREMIUM_FALLBACK as FALLBACK_REVIEW_PREMIUM_MODEL_ID;
+pub(crate) use vox_config::NLI_FALLBACK as FALLBACK_NLI_MODEL_ID;
 
 /// Registry-selected model IDs for each research LLM stage.
 #[derive(Debug, Clone)]

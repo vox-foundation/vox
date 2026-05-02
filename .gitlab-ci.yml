@@ -46,7 +46,7 @@ variables:
 # Keep this image tag in sync with the FROM line in `Dockerfile` so local,
 # docker-compose, and CI builds all resolve to the same toolchain.
 .base:
-  image: rust:1.92-slim-bookworm
+  image: rust:1.92.0-slim-bookworm
   <<: *cargo-cache
   <<: *rust-setup
 
