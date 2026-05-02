@@ -1,16 +1,259 @@
-// TASK-7.1: Dashboard shell — outer rail + tab switcher using Phase 6 primitives.
+// Dashboard shell + all tab components.
 //
-// Source of truth for the Vox orchestration dashboard.
-// Replaces crates/vox-dashboard/src/App.tsx once the build pipeline is verified
-// and visual parity confirmed (smoke test against live orchestrator).
+// Single-file compilation unit: vox build compiles this file and splits each
+// component into its own generated/*.tsx file (AppShell.tsx, SpeakTab.tsx, …).
+// Edit here and re-run `vox build app/src/app.vox --out-dir app/src/generated`.
 //
-// Tab components live in tabs/ and are compiled to generated/ alongside this file.
-// Edit tabs/speak.vox, tabs/command.vox, tabs/network.vox, tabs/forge.vox — not here.
+// State-machine semantics for each tab are documented in app/src/tabs/*.vox
+// (design specs for the state_machine compiler primitive — not yet hoisted here
+// because the top-level state_machine block is scheduled for Phase 7 of the
+// compiler roadmap).
 
-use tabs::speak::SpeakTab
-use tabs::command::CommandTab
-use tabs::network::NetworkTab
-use tabs::forge::ForgeTab
+// ── LOQUELA / SPEAK ──────────────────────────────────────────────────────────
+
+component ChatMessage(role: str, content: str) {
+    view: (
+        <row class={if role is "user" { "justify-end px-4 py-2" } else { "justify-start px-4 py-2" }}>
+            <panel class={if role is "user" { "max-w-xl bg-blue-600/20 border border-blue-500/30 rounded-2xl rounded-br-sm px-4 py-3" } else { "max-w-2xl bg-white/5 border border-white/10 rounded-2xl rounded-bl-sm px-4 py-3" }}>
+                <text class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">{role}</text>
+                <text class="text-sm text-white/80 leading-relaxed">{content}</text>
+            </panel>
+        </row>
+    )
+}
+
+component ComposerPanel() {
+    state is_submitting: bool = false
+
+    view: (
+        <column class="border-t border-white/10 p-4 gap-3 bg-zinc-950/80">
+            <row class="gap-3 items-end">
+                <panel class="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-4 py-3 min-h-16">
+                    <text class="text-sm text-white/50 italic">"Type a message…"</text>
+                </panel>
+                <button class={if is_submitting { "w-12 h-12 rounded-xl bg-blue-600/50 text-white/50 flex items-center justify-center" } else { "w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center" }} on:click={is_submitting = not is_submitting}>{if is_submitting { "…" } else { "→" }}</button>
+            </row>
+            <row class="justify-between items-center px-1">
+                <text class="text-xs text-zinc-500">"Shift+Enter for new line"</text>
+                <text class="text-xs text-zinc-600">"Transport bridge: Phase 2"</text>
+            </row>
+        </column>
+    )
+}
+
+component SpeakTab() {
+    view: (
+        <column class="flex-1 overflow-hidden bg-zinc-950">
+            <row class="h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0">
+                <column class="gap-0">
+                    <text class="text-sm font-black tracking-tighter text-white">"LOQUELA"</text>
+                    <text class="text-xs text-zinc-500 tracking-widest">"VOICE INTERFACE"</text>
+                </column>
+                <row class="gap-2 items-center">
+                    <panel class="w-2 h-2 rounded-full bg-zinc-600"></panel>
+                    <text class="text-xs text-zinc-500">"NO ACTIVE SESSION"</text>
+                </row>
+            </row>
+            <panel class="flex-1 overflow-y-auto py-4">
+                <column class="items-center justify-center h-full gap-4 text-zinc-500">
+                    <text class="text-sm font-bold uppercase tracking-widest">"START A CONVERSATION"</text>
+                    <text class="text-xs">"Messages will appear here once a session is active."</text>
+                </column>
+            </panel>
+            <ComposerPanel />
+        </column>
+    )
+}
+
+// ── IMPERIUM / COMMAND ───────────────────────────────────────────────────────
+
+component DiagnosticRow(severity: str, message: str, location: str) {
+    view: (
+        <row class="px-4 py-3 border-b border-white/5 gap-4 items-start hover:bg-white/5">
+            <panel class={if severity is "error" { "w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0" } else { "w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" }}></panel>
+            <column class="flex-1 gap-1 min-w-0">
+                <text class="text-sm text-white/80 font-mono leading-snug">{message}</text>
+                <text class="text-xs text-zinc-500 font-mono">{location}</text>
+            </column>
+            <text class={if severity is "error" { "text-xs font-bold text-rose-400 uppercase shrink-0" } else { "text-xs font-bold text-amber-400 uppercase shrink-0" }}>{severity}</text>
+        </row>
+    )
+}
+
+component DiagnosticsPanel() {
+    view: (
+        <column class="flex-1 overflow-y-auto">
+            <row class="px-4 py-2 border-b border-white/10 justify-between items-center shrink-0 bg-zinc-900/50">
+                <text class="text-xs font-bold text-zinc-400 uppercase tracking-widest">"DIAGNOSTICS"</text>
+                <text class="text-xs text-zinc-600">"0 errors · 0 warnings"</text>
+            </row>
+            <column class="flex-1 items-center justify-center gap-3 text-zinc-500">
+                <text class="text-sm font-bold uppercase tracking-widest">"NO DIAGNOSTICS"</text>
+                <text class="text-xs">"Run a build to see compiler output here."</text>
+            </column>
+        </column>
+    )
+}
+
+component TaskDispatch() {
+    state is_running: bool = false
+
+    view: (
+        <column class="border-t border-white/10 p-4 gap-3 shrink-0">
+            <row class="gap-3 items-center">
+                <button class={if is_running { "px-4 py-2 rounded-xl bg-rose-600/80 text-white text-sm font-bold" } else { "px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-500" }} on:click={is_running = not is_running}>{if is_running { "STOP" } else { "RUN BUILD" }}</button>
+                <button class="px-4 py-2 rounded-xl bg-white/5 text-zinc-400 text-sm font-bold border border-white/10">"CLEAR"</button>
+                <panel class="flex-1"></panel>
+                <text class={if is_running { "text-xs text-blue-400 font-bold uppercase" } else { "text-xs text-zinc-600 uppercase" }}>{if is_running { "BUILDING…" } else { "IDLE" }}</text>
+            </row>
+            <text class="text-xs text-zinc-600">"Transport bridge: Phase 2 — output streams via @island"</text>
+        </column>
+    )
+}
+
+component CommandTab() {
+    state active_panel: str = "diagnostics"
+
+    view: (
+        <column class="flex-1 overflow-hidden bg-zinc-950">
+            <row class="h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0">
+                <text class="text-sm font-black tracking-tighter text-white">"COMMAND"</text>
+                <row class="gap-2">
+                    <button class="tab-btn" on:click={active_panel = "diagnostics"}>"DIAGNOSTICS"</button>
+                    <button class="tab-btn" on:click={active_panel = "context"}>"CONTEXT"</button>
+                </row>
+            </row>
+            <panel class="flex-1 overflow-hidden">
+                {if active_panel is "diagnostics" { <DiagnosticsPanel /> } else { <column class="flex-1 items-center justify-center gap-3 text-zinc-500"><text class="text-sm font-bold uppercase tracking-widest">"CONTEXT EXPLORER"</text><text class="text-xs">"Context window analysis — Phase 2."</text></column> }}
+            </panel>
+            <TaskDispatch />
+        </column>
+    )
+}
+
+// ── RETE / NETWORK ───────────────────────────────────────────────────────────
+
+component NodeBadge(agent_id: str, status: str) {
+    view: (
+        <row class="px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl gap-3 items-center">
+            <panel class={if status is "active" { "w-2 h-2 rounded-full bg-emerald-400" } else { "w-2 h-2 rounded-full bg-zinc-600" }}></panel>
+            <column class="gap-0">
+                <text class="text-xs font-mono text-white/80">{agent_id}</text>
+                <text class="text-xs text-zinc-500">{status}</text>
+            </column>
+        </row>
+    )
+}
+
+component MeshLegend() {
+    view: (
+        <column class="absolute bottom-4 left-4 gap-2 bg-zinc-900/90 backdrop-blur border border-white/10 rounded-2xl p-4">
+            <text class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">"LEGEND"</text>
+            <row class="gap-2 items-center"><panel class="w-3 h-0.5 bg-emerald-400 rounded"></panel><text class="text-xs text-zinc-400">"Active channel"</text></row>
+            <row class="gap-2 items-center"><panel class="w-3 h-0.5 bg-zinc-600 rounded"></panel><text class="text-xs text-zinc-400">"Idle channel"</text></row>
+            <row class="gap-2 items-center"><panel class="w-2 h-2 rounded-full bg-rose-500"></panel><text class="text-xs text-zinc-400">"Error node"</text></row>
+        </column>
+    )
+}
+
+component NetworkTab() {
+    view: (
+        <column class="flex-1 overflow-hidden bg-zinc-950">
+            <row class="h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0">
+                <column class="gap-0">
+                    <text class="text-sm font-black tracking-tighter text-white">"NETWORK"</text>
+                    <text class="text-xs text-zinc-500 tracking-widest">"AGENT MESH TOPOLOGY"</text>
+                </column>
+                <row class="gap-3 items-center">
+                    <text class="text-xs text-zinc-500">"0 nodes · 0 edges"</text>
+                    <button class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-zinc-400">"REFRESH"</button>
+                </row>
+            </row>
+            <panel class="flex-1 relative overflow-hidden">
+                <column class="flex-1 items-center justify-center gap-4 text-zinc-500">
+                    <panel class="w-16 h-16 rounded-2xl border border-white/10 bg-zinc-900 items-center justify-center"><text class="text-2xl">"⬡"</text></panel>
+                    <column class="items-center gap-1">
+                        <text class="text-sm font-bold uppercase tracking-widest">"NO MESH DATA"</text>
+                        <text class="text-xs">"Agent graph renders here via @island NetworkGraph (Phase 2)."</text>
+                    </column>
+                </column>
+                <MeshLegend />
+            </panel>
+        </column>
+    )
+}
+
+// ── FABRICA / FORGE ──────────────────────────────────────────────────────────
+
+component PipelineStage(name: str, desc: str) {
+    view: (
+        <column class="p-8 flex-1 border-r border-white/5 gap-4">
+            <row class="justify-between mb-6">
+                <panel class="w-10 h-10 rounded-xl bg-zinc-900 border border-white/5 items-center justify-center"><text class="text-zinc-500 text-xs font-mono">{name}</text></panel>
+                <text class="text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20">"IDLE"</text>
+            </row>
+            <text class="text-2xl font-bold text-white/90">{name}</text>
+            <text class="text-zinc-500 text-sm leading-relaxed">{desc}</text>
+            <panel class="flex-1 rounded-2xl border border-white/5 p-5 font-mono"><text class="text-xs text-zinc-500 italic">"No output yet."</text></panel>
+        </column>
+    )
+}
+
+component PipelineView() {
+    view: (
+        <row class="h-full bg-zinc-950">
+            <PipelineStage name="Lexer" desc="Logos-based tokenization" />
+            <PipelineStage name="Parser" desc="Rowan GreenTree CST generation" />
+            <PipelineStage name="HIR" desc="High-level IR with name resolution" />
+            <PipelineStage name="TypeCheck" desc="Bidirectional unification logic" />
+            <PipelineStage name="CodeGen" desc="Rust and TypeScript emission" />
+        </row>
+    )
+}
+
+component WorkflowScrubber() {
+    state is_playing: bool = false
+
+    view: (
+        <column class="p-10 bg-zinc-950 h-full gap-8 text-white">
+            <row class="justify-between items-center">
+                <column class="gap-2">
+                    <text class="text-3xl font-black tracking-tighter text-white">"TIME TRAVEL"</text>
+                    <text class="text-xs text-zinc-400 font-bold tracking-widest">"DURABLE WORKFLOW STATE INSPECTOR"</text>
+                </column>
+                <row class="gap-4 bg-white/5 p-2 rounded-2xl border border-white/5 items-center">
+                    <button class="w-10 h-10 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center">"<<"</button>
+                    <button class="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center" on:click={is_playing = not is_playing}>{if is_playing { "PAUSE" } else { "PLAY" }}</button>
+                    <button class="w-10 h-10 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center">">>"</button>
+                </row>
+            </row>
+            <panel class="flex-1 flex items-center justify-center">
+                <column class="items-center gap-4 text-zinc-500">
+                    <text class="text-sm font-bold uppercase tracking-widest">"NO ACTIVE WORKFLOW"</text>
+                    <text class="text-xs">"Durable state execution will appear here when orchestrated."</text>
+                </column>
+            </panel>
+        </column>
+    )
+}
+
+component ForgeTab() {
+    state active_panel: str = "pipeline"
+
+    view: (
+        <column class="flex-1 overflow-hidden">
+            <row class="h-10 border-b border-zinc-800 px-4 items-center gap-2 shrink-0">
+                <button class="tab-btn" on:click={active_panel = "pipeline"}>"PIPELINE"</button>
+                <button class="tab-btn" on:click={active_panel = "scrubber"}>"SCRUBBER"</button>
+            </row>
+            <panel class="flex-1 overflow-hidden">
+                {if active_panel is "pipeline" { <PipelineView /> } else { <WorkflowScrubber /> }}
+            </panel>
+        </column>
+    )
+}
+
+// ── APP SHELL ────────────────────────────────────────────────────────────────
 
 component AppShell() {
     state tab: str = "speak"
@@ -27,19 +270,7 @@ component AppShell() {
                 </row>
             </row>
             <panel class="flex-1 overflow-hidden">
-                {if tab is "speak" {
-                    <SpeakTab />
-                } else {
-                    {if tab is "command" {
-                        <CommandTab />
-                    } else {
-                        {if tab is "network" {
-                            <NetworkTab />
-                        } else {
-                            <ForgeTab />
-                        }}
-                    }}
-                }}
+                {if tab is "speak" { <SpeakTab /> } else { {if tab is "command" { <CommandTab /> } else { {if tab is "network" { <NetworkTab /> } else { <ForgeTab /> }} }} }}
             </panel>
         </column>
     )
