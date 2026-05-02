@@ -169,7 +169,7 @@ $env:VOX_BACKEND="cpu"; .\target\release\vox.exe train --data-dir target/dogfood
 ### 4. Check eval gate
 
 ```powershell
-.\target\release\vox.exe mens corpus eval target/dogfood/train.jsonl -o mens/runs/v1/eval_results.json
+.\target\release\vox.exe mens corpus eval target/dogfood/validated_mixed.jsonl -o mens/runs/latest/eval_results.json
 ```
 
 ---

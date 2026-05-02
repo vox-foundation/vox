@@ -262,6 +262,33 @@ Use this as an ordered gate; skip steps that do not apply to your target backend
   - **Train**: `vox run scripts/mens/train_dogfood.vox` or `vox mens train … --background`. Monitor with `Get-Content mens/runs/logs/train_*.log -Wait -Tail 25` (or `tail -f`).
   - **CUDA `cargo` build**: detached build: `vox ci cuda-release-build`. Example train launcher: [`scripts/mens/train_dogfood.vox`](../../../scripts/mens/train_dogfood.vox).
   - **Skip corpus mix** (optional): `VOX_TRAIN_SKIP_CORPUS_MIX=1` skips the pre-train `mix` refresh when you already have the desired `train.jsonl` or need a shorter path under automation.
+  - **Integrated pipeline** (`scripts/mens/full-pipeline.vox`): runs all five stages end-to-end — corpus mix, pre-flight eval gate, QLoRA training, corpus eval refresh, post-train receipt gate. Launch with `vox run scripts/mens/full-pipeline.vox`. Control via env vars:
+
+    | Variable | Default | Effect |
+    |---|---|---|
+    | `VOX_MENS_DOMAIN` | `vox-lang` | Adapter domain (`rust-expert`, `agents`, …) |
+    | `VOX_MENS_EPOCHS` | `3` | Training epoch count |
+    | `VOX_MENS_SKIP_MIX` | unset | `1`/`true` → skip Step 1 corpus mix |
+    | `VOX_MENS_SKIP_EVAL` | unset | `1`/`true` → skip Step 2 pre-flight gate |
+    | `VOX_MENS_FORCE_TRAIN` | unset | `1`/`true` → proceed past a failing gate (dev only) |
+    | `VOX_MENS_BACKGROUND` | unset | `1`/`true` → spawn training detached |
+
+    The post-train gate (Step 5) uses **`mens/config/eval-gates-post-train.yaml`** (bootstrap policy). Three gates are warn-only because their source files require explicit operator steps after `full-pipeline.vox` completes:
+
+    | Gate | Source file | Produced by |
+    |---|---|---|
+    | `pass_at_k` | `benchmark_passatk.json` | `vox mens eval-local` |
+    | `anti_stub` | `eval_local_report.json` | `vox mens eval-local` |
+    | `review_recurrence` | `review_metrics.json` | review pipeline |
+
+    **First-run bootstrap:** on a fresh system with no prior `mens/runs/latest/`, the Step 2 pre-flight gate (full policy) will block because `benchmark_passatk.json`, `eval_local_report.json`, and `review_metrics.json` do not exist yet. Use `VOX_MENS_FORCE_TRAIN=1` to bypass for the initial run. After training, run `vox mens eval-local` to produce the passatk and anti_stub files, then run the review pipeline. Subsequent runs will pass the pre-flight gate against those artifacts.
+
+    Run the full gate once those steps complete: `vox mens eval-gate --run-dir mens/runs/latest` (uses `eval-gates.yaml` — all gates blocking).
+
+    After every gate run (pass or fail) `gate_receipt.json` is written to the run directory with schema `vox_mens_gate_receipt_v1`. Orchestrators and A2A consumers read this file to inspect gate state without re-running the gate:
+    ```json
+    {"schema":"vox_mens_gate_receipt_v1","overall_passed":true,"gates":[...]}
+    ```
 - **Benchmark telemetry (Codex)**: set **`VOX_BENCHMARK_TELEMETRY=1`** so select CLI paths append unified `benchmark_event` rows (`VoxDb::record_benchmark_event`, session `bench:<repository_id>`): `vox mens bench-completion`, **`vox mens eval-local` only when `vox-cli` is built with feature `gpu`** (CPU-only eval skips telemetry rows), `vox ci build-timings`, optional train gate (`VOX_BENCHMARK` eval-local subprocess), and the ignored `run_benchmark` integration test warm pass. Set **`VOX_REPOSITORY_ROOT`** so subprocess `repository_id` matches MCP when CWD differs. Query via MCP `vox_benchmark_list` when Codex is attached. Syntax-K runs can be routed independently with **`VOX_SYNTAX_K_TELEMETRY=1`** (`metric_type = syntax_k_event`, session `syntaxk:<repository_id>`), with fallback to `VOX_BENCHMARK_TELEMETRY` when unset. Variable SSOT: [env-vars](env-vars.md); trust framing: [telemetry-trust-ssot](../architecture/telemetry-trust-ssot.md).
 - **JSONL rows**: `vox_tensor::data::TrainingPair` accepts **`instruction`** as alias for **`prompt`** and **`output`** for **`response`** so corpus rows are not silently dropped. See **[`mens-training-data-contract.md`](mens-training-data-contract.md)**; set **`VOX_MENS_TRAIN_JSONL_STRICT=1`** to fail on malformed non-empty lines instead of skipping them.
 - **Full-graph forward (current implementation)**: one forward pass per row/micro-batch item over loaded decoder layers, then masked CE on supervised suffix positions.

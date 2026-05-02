@@ -7,10 +7,13 @@
 # Sources should all carry meaningful vox-lang signal.
 
 sources:
-  # PRIMARY: Validated mixed dataset — broadest, highest-quality vox source
+  # PRIMARY: Validated mixed dataset — broadest, highest-quality vox source.
+  # NOT optional: if this is missing the entire vox-lang adapter has no signal.
+  # Strict-mix guarantee: if validated_mixed.jsonl is missing OR emits zero rows,
+  # the corpus mix step fails closed instead of silently producing an empty corpus.
   - path: target/dogfood/validated_mixed.jsonl
     weight: 6.0                   # Validated mixed (GOLDEN / Wave 0–4 combined)
-    optional: true
+    optional: false
 
   - path: target/dogfood/vox_corpus_extract_pkg.jsonl
     weight: 2.0                   # Human-mined vox workspace code (GOLDEN / Wave 0)
@@ -34,7 +37,16 @@ sources:
     sample_rate: 0.1
     optional: true
 
-  - path: mens/data/tool_traces.example.jsonl
+  # Real tool traces go here once harvested from orchestrator session captures.
+  # Schema: ToolTraceRecord (task_prompt, tool_name, arguments_json, result_json,
+  #   success, optional followup_text) — see mix.example.yaml and vox-corpus ToolTraceRecord.
+  #
+  # Source: orchestrator session captures under target/dogfood/ (real tool
+  # invocations from `vox-orchestrator-d` runs).  Promote into the mix with
+  # `vox populi corpus extract` — NOT `vox mens corpus generate`, which only
+  # produces synthetic pairs to mens/data/synthetic.jsonl.
+  # DO NOT reference tool_traces.example.jsonl — that file is a 1-row stub ({}).
+  - path: mens/data/tool_traces.jsonl
     weight: 4.0                   # High-value tool trajectories with vox output
     record_format: tool_trace
     optional: true

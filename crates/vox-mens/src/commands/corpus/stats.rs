@@ -141,10 +141,17 @@ pub(crate) async fn run_benchmark_gate(data_dir: &Path, output_dir: Option<&Path
             .ok()
             .map(PathBuf::from)
             .or_else(|| {
-                ["model.bin", "adapter.bin", "populi_adapter.bin"]
-                    .iter()
-                    .map(|name| base.join(name))
-                    .find(|p| p.is_file())
+                // Candle QLoRA adapter (.safetensors) checked first — primary backend.
+                // Burn LoRA fallbacks (.bin) kept for legacy runs.
+                [
+                    "candle_qlora_adapter.safetensors",
+                    "model.bin",
+                    "adapter.bin",
+                    "populi_adapter.bin",
+                ]
+                .iter()
+                .map(|name| base.join(name))
+                .find(|p| p.is_file())
             });
 
         let Some(model) = model else {
