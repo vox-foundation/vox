@@ -4,6 +4,30 @@ use clap::{Args, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// Build target for `vox build` / `vox dev`. See `vox_config::BuildTarget` for semantics.
+///
+/// `fullstack` is the default — existing projects are unaffected.
+#[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BuildTargetArg {
+    /// Emit TypeScript/React frontend **and** Axum Rust backend (default).
+    #[default]
+    Fullstack,
+    /// Emit only the Axum Rust backend; skip all TypeScript codegen.
+    Server,
+    /// Emit a zero-runtime TypeScript SDK package only; skip Rust codegen.
+    Client,
+}
+
+impl From<BuildTargetArg> for vox_config::BuildTarget {
+    fn from(arg: BuildTargetArg) -> Self {
+        match arg {
+            BuildTargetArg::Fullstack => vox_config::BuildTarget::Fullstack,
+            BuildTargetArg::Server => vox_config::BuildTarget::Server,
+            BuildTargetArg::Client => vox_config::BuildTarget::Client,
+        }
+    }
+}
+
 /// Build mode (`app` or `library`).
 #[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize, PartialEq)]
 pub enum BuildMode {
@@ -26,9 +50,13 @@ pub struct BuildArgs {
     /// Output directory for generated TypeScript
     #[arg(short, long, default_value = "dist")]
     pub out_dir: PathBuf,
-    /// Native mobile build target (e.g., ios, android, native)
-    #[arg(long)]
-    pub target: Option<String>,
+    /// Build target: `fullstack` (default), `server` (backend-only), or `client` (TS SDK).
+    /// Overrides `[build] target` in `Vox.toml`.
+    #[arg(long = "target", value_enum)]
+    pub build_target: Option<BuildTargetArg>,
+    /// Native mobile build target (e.g., ios, android, native). Distinct from `--target`.
+    #[arg(long = "mobile-target")]
+    pub mobile_target: Option<String>,
     /// Write one-shot user scaffold (`app/App.tsx`, Vite, Tailwind v4) next to output if files are missing.
     /// Same as `VOX_WEB_EMIT_SCAFFOLD=1` (flag takes precedence when either is set).
     #[arg(long)]

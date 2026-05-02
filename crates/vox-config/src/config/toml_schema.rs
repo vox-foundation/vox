@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use super::gamify_web::{GamifyMode, WebRunMode};
+use super::gamify_web::{BuildTarget, GamifyMode, WebRunMode};
 
 #[derive(Debug, Deserialize, Default)]
 #[serde(default)]
@@ -13,6 +13,13 @@ pub(super) struct VoxToml {
     pub(super) train: Option<TrainTomlSection>,
     pub(super) db: Option<DbTomlSection>,
     pub(super) web: Option<WebTomlSection>,
+    pub(super) build: Option<BuildTomlSection>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+#[serde(default)]
+pub(super) struct BuildTomlSection {
+    pub(super) target: Option<BuildTarget>,
 }
 
 #[derive(Debug, Deserialize, Default)]

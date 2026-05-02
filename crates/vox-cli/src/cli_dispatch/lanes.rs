@@ -118,7 +118,7 @@ pub(crate) async fn run_fabrica_cmd(cmd: latin_cmd::FabricaCmd) -> anyhow::Resul
             commands::build::run(
                 &a.file,
                 &a.out_dir,
-                a.target.clone(),
+                a.mobile_target.clone(),
                 a.scaffold,
                 a.emit_ir,
                 a.mode,

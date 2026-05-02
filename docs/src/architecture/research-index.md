@@ -42,6 +42,14 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 - [Vox GUI-Native Language Roadmap (2026)](vox-gui-native-roadmap-2026.md) — Full task specifications for Phases 0–9 of the GUI-native language roadmap: dashboard safety, HIR unification, grammar unification policy, compiler primitive expansion (state machines, effects, typed URLs, design tokens), Web IR validators, workflow/activity/actor integration, corpus migration, and route wiring.
 - [GUI-Native Roadmap Execution Status (2026)](gui-native-roadmap-status-2026.md) — Live status overlay tracking what has been implemented versus planned, with per-task commit references and an audit log.
 
+## External Frontend Interop (Two-Way React Ecosystem Bridge)
+- [External Frontend Interop Plan (2026)](external-frontend-interop-plan-2026.md) — Five-phase plan: build-target split, wire-format SSOT + OpenAPI, HTTP ergonomics decorators, auth/ops stdlib + durability resolution, bidirectional Vox↔React component interop. `@island` retired; `component`/`routes` kept.
+- [Wire Format v1 SSOT](wire-format-v1-ssot.md) — Versioned specification for how every Vox primitive and composite type encodes over HTTP: transport conventions, type-encoding table (Decimal/BigInt/Date as strings, `_tag` discriminants, absent-key for Option), error envelope, and versioning policy.
+- [Phase 1: Build Target Split Spec (2026)](phase1-build-targets-spec-2026.md) — Design spec for `vox build --target=server|fullstack|client`, `vox emit client`, `vox init --kind=backend`. ~330 LOC across ~6 files; `fullstack` remains default.
+- [Phase 3: HTTP Ergonomics Decorators Spec (2026)](phase3-http-ergonomics-spec-2026.md) — Design spec for explicit `method`/`path` on `@endpoint`, `@cors`, `@auth(scheme: bearer)`, `@role`, and `@rate_limit` decorators. Emits Tower middleware layers in generated Axum crate; OpenAPI 3.1 reflects all.
+- [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](phase5-react-interop-spec-2026.md) — Design spec for `import react Name from "path"` in Vox source, emitted Vox components as npm-publishable React packages, `@island` retirement, and `vox migrate drop-island` migration helper.
+- [Durability & Scheduling Runtime Audit (2026)](durability-runtime-audit-2026.md) — Confirms `@scheduled`, `@durable`, `workflow`, `activity` are parse-only with zero runtime implementation. Recommends grammar removal; `actor` retained with documented limitations. See ADR-028.
+
 ## Core SSoT
 - [V0.5 Core SSoT](v0.5-core-ssot.md) — Version 0.5 core architecture specifications.
 - [Terminal Exec Policy SSOT (2026)](terminal-exec-policy-ssot.md) — Live SSOT for the PowerShell-first terminal exec policy. Scopes the claim to host-side allowlisting and output parsing, explicitly disclaims any codegen-fluency superiority over Bash, and documents why a separate "PowerShell spoke" in MENS is not justified.
