@@ -213,6 +213,7 @@ async fn lease_gated_submit_holds_then_completes_via_populi_result_poll() {
         jwe_payload: None,
         task_kind: None,
         model_id: None,
+        traceparent: None,
         priority: 128,
     })
     .await
@@ -485,6 +486,7 @@ async fn remote_worker_tick_once_seeds_context_and_attaches_socrates_when_task_a
         jwe_payload: None,
         task_kind: None,
         model_id: None,
+        traceparent: None,
         priority: 128,
     })
     .await
@@ -601,6 +603,7 @@ async fn remote_worker_tick_once_accepts_object_context_envelope_payload() {
         jwe_payload: None,
         task_kind: None,
         model_id: None,
+        traceparent: None,
         priority: 128,
     })
     .await
@@ -849,6 +852,7 @@ async fn remote_result_poll_respects_max_messages_per_poll() {
             jwe_payload: None,
             task_kind: None,
             model_id: None,
+            traceparent: None,
             priority: 128,
         })
         .await
@@ -1139,4 +1143,255 @@ mod route_replay_tests {
             "task stays pending on heavy"
         );
     }
+}
+
+// ── W2 admission control tests ────────────────────────────────────────────────
+
+/// A task requiring 12 GB VRAM must fall back to local queue when the only
+/// registered node advertises only 8 GB (S2 DoD: planner refuses to dispatch
+/// a 12 GB job to a box with 8 GB free).
+#[cfg(feature = "populi-transport")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn vram_admission_rejects_oversized_task_and_falls_back_to_local_queue() {
+    let state = vox_populi::transport::PopuliTransportState::new();
+    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+        .await
+        .expect("bind seed");
+    let bound = seed.local_addr().expect("local addr");
+    drop(seed);
+    let server = tokio::spawn(async move {
+        vox_populi::transport::serve(bound, state)
+            .await
+            .expect("serve");
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let base = format!("http://{bound}");
+    let http = vox_populi::http_client::PopuliHttpClient::new(&base);
+
+    // Register a node that only has 8 GB VRAM.
+    let mut node = vox_populi::NodeRecord {
+        id: "worker-8gb".to_string(),
+        capabilities: vox_repository::TaskCapabilityHints {
+            gpu_cuda: true,
+            min_vram_mb: Some(8192),
+            ..Default::default()
+        },
+        listen_addr: None,
+        version: "test".to_string(),
+        last_seen_unix_ms: 0,
+        scope_id: None,
+        pool_id: None,
+        trust_tier: None,
+        workload_classes: None,
+        privacy_class: None,
+        loaded_llm_models: None,
+        maintenance: None,
+        maintenance_until_unix_ms: None,
+        provider: None,
+        gpu_total_count: None,
+        gpu_healthy_count: None,
+        gpu_allocatable_count: None,
+        gpu_inventory_source: None,
+        gpu_truth_layer: None,
+        nvidia_driver_version: None,
+        cuda_driver_version: None,
+        gpu_readiness_ok: Some(true),
+        gpu_readiness_reason: None,
+        gpu_readiness_checked_unix_ms: None,
+        quarantined: None,
+        host_triple: None,
+        cpu_usage_pct: None,
+        memory_free_bytes: None,
+        owner_vox_user_id: None,
+        advertised_models: None,
+        donation_policy: None,
+        ed25519_pub_key_b64: None,
+        probe_failures: None,
+        visibility: None,
+    };
+    node.last_seen_unix_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    http.join(&node).await.expect("join 8gb node");
+
+    let mut cfg = OrchestratorConfig::for_testing();
+    cfg.populi_remote_execute_experimental = true;
+    cfg.populi_control_url = Some(base.clone());
+    cfg.populi_remote_execute_receiver_agent = Some("2".to_string());
+    cfg.populi_remote_execute_sender_agent = Some("1".to_string());
+    cfg.populi_remote_lease_gating_enabled = true;
+    cfg.populi_remote_lease_gated_roles = vec![AgentExecutionRole::Builder];
+
+    let orch = Orchestrator::new(cfg);
+    orch.spawn_agent("worker").expect("spawn");
+
+    // Submit a task that requires 12 GB VRAM — more than the 8 GB node offers.
+    let cap = crate::contract::TaskCapabilityHints {
+        gpu_cuda: true,
+        min_vram_mb: Some(12288),
+        ..Default::default()
+    };
+    let hints = TaskEnqueueHints {
+        execution_role: Some(AgentExecutionRole::Builder),
+        ..Default::default()
+    };
+    let tid = orch
+        .submit_task_with_agent(
+            "12gb-task",
+            vec![],
+            None,
+            None,
+            Some(cap),
+            Some(hints),
+            None,
+        )
+        .await
+        .expect("submit");
+
+    let aid = *orch
+        .task_assignments
+        .read()
+        .unwrap()
+        .get(&tid)
+        .expect("assignment");
+    let ql = orch.agent_queue(aid).expect("queue");
+    let q = ql.read().unwrap();
+
+    assert!(
+        !q.has_in_progress(),
+        "insufficient VRAM must not hold task in remote-progress"
+    );
+    assert_eq!(
+        q.len(),
+        1,
+        "insufficient VRAM: task must fall back to local queue"
+    );
+    let t = q.tasks().iter().find(|t| t.id == tid).expect("task");
+    assert!(
+        t.populi_remote_delegate.is_none(),
+        "fallback task must not carry remote delegate"
+    );
+
+    server.abort();
+}
+
+/// A task requiring 12 GB VRAM dispatches to remote hold when a node with
+/// 16 GB is registered (positive path for W2 admission control).
+#[cfg(feature = "populi-transport")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn vram_admission_allows_task_when_node_meets_requirement() {
+    let state = vox_populi::transport::PopuliTransportState::new();
+    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+        .await
+        .expect("bind seed");
+    let bound = seed.local_addr().expect("local addr");
+    drop(seed);
+    let server = tokio::spawn(async move {
+        vox_populi::transport::serve(bound, state)
+            .await
+            .expect("serve");
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let base = format!("http://{bound}");
+    let http = vox_populi::http_client::PopuliHttpClient::new(&base);
+
+    // Register a node that has 16 GB VRAM — sufficient for the 12 GB task.
+    let mut node = vox_populi::NodeRecord {
+        id: "worker-16gb".to_string(),
+        capabilities: vox_repository::TaskCapabilityHints {
+            gpu_cuda: true,
+            min_vram_mb: Some(16384),
+            ..Default::default()
+        },
+        listen_addr: None,
+        version: "test".to_string(),
+        last_seen_unix_ms: 0,
+        scope_id: None,
+        pool_id: None,
+        trust_tier: None,
+        workload_classes: None,
+        privacy_class: None,
+        loaded_llm_models: None,
+        maintenance: None,
+        maintenance_until_unix_ms: None,
+        provider: None,
+        gpu_total_count: None,
+        gpu_healthy_count: None,
+        gpu_allocatable_count: None,
+        gpu_inventory_source: None,
+        gpu_truth_layer: None,
+        nvidia_driver_version: None,
+        cuda_driver_version: None,
+        gpu_readiness_ok: Some(true),
+        gpu_readiness_reason: None,
+        gpu_readiness_checked_unix_ms: None,
+        quarantined: None,
+        host_triple: None,
+        cpu_usage_pct: None,
+        memory_free_bytes: None,
+        owner_vox_user_id: None,
+        advertised_models: None,
+        donation_policy: None,
+        ed25519_pub_key_b64: None,
+        probe_failures: None,
+        visibility: None,
+    };
+    node.last_seen_unix_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    http.join(&node).await.expect("join 16gb node");
+
+    let mut cfg = OrchestratorConfig::for_testing();
+    cfg.populi_remote_execute_experimental = true;
+    cfg.populi_control_url = Some(base.clone());
+    cfg.populi_remote_execute_receiver_agent = Some("2".to_string());
+    cfg.populi_remote_execute_sender_agent = Some("1".to_string());
+    cfg.populi_remote_lease_gating_enabled = true;
+    cfg.populi_remote_lease_gated_roles = vec![AgentExecutionRole::Builder];
+
+    let orch = Orchestrator::new(cfg);
+    orch.spawn_agent("worker").expect("spawn");
+
+    let cap = crate::contract::TaskCapabilityHints {
+        gpu_cuda: true,
+        min_vram_mb: Some(12288),
+        ..Default::default()
+    };
+    let hints = TaskEnqueueHints {
+        execution_role: Some(AgentExecutionRole::Builder),
+        ..Default::default()
+    };
+    let tid = orch
+        .submit_task_with_agent(
+            "12gb-task-fits",
+            vec![],
+            None,
+            None,
+            Some(cap),
+            Some(hints),
+            None,
+        )
+        .await
+        .expect("submit");
+
+    let aid = *orch
+        .task_assignments
+        .read()
+        .unwrap()
+        .get(&tid)
+        .expect("assignment");
+    let ql = orch.agent_queue(aid).expect("queue");
+    let q = ql.read().unwrap();
+
+    assert!(
+        q.has_in_progress(),
+        "16gb node satisfies 12gb requirement: task must be held remote"
+    );
+    assert_eq!(q.len(), 0, "no local copy when remote hold is active");
+
+    server.abort();
 }

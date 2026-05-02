@@ -1,4 +1,22 @@
+use crate::mens::hardware::probe::{HardwareProbe, ProbeError};
 use crate::mens::hardware::types::HardwareSummary;
+use async_trait::async_trait;
+
+/// Hardware probe backend using the Linux DRM subsystem.
+pub struct LinuxDrmProbe;
+
+#[async_trait]
+impl HardwareProbe for LinuxDrmProbe {
+    fn name(&self) -> &'static str {
+        "linux_drm"
+    }
+    fn applicable(&self) -> bool {
+        cfg!(target_os = "linux")
+    }
+    async fn probe(&self) -> Result<Option<HardwareSummary>, ProbeError> {
+        Ok(probe_drm())
+    }
+}
 
 #[cfg(target_os = "linux")]
 pub fn probe_drm() -> Option<HardwareSummary> {
@@ -24,6 +42,7 @@ pub fn probe_drm() -> Option<HardwareSummary> {
             backend: ComputeBackend::Cuda,
             driver_version: None,
             pci_bus_id: Some("0000:01:00.0".into()),
+            probe_failures: None,
         });
     }
 
@@ -43,6 +62,7 @@ pub fn probe_drm() -> Option<HardwareSummary> {
                     backend: ComputeBackend::Wgpu,
                     driver_version: None,
                     pci_bus_id: None,
+                    probe_failures: None,
                 });
             }
         }

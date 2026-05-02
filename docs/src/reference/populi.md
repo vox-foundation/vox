@@ -133,12 +133,12 @@ When **`VOX_ORCHESTRATOR_MESH_CONTROL_URL`** (or TOML `[orchestrator].populi_con
 
 Populi already provides useful **membership**, **visibility**, and **A2A relay** building blocks, but it is **not yet** a seamless local/internet GPU fabric for agent placement or training.
 
-- **Authoritative remote execution is partial:** lease-gated roles can use **single-owner** remote-hold + awaited relay; other tasks still use legacy side-relay. Mesh **lease renew loss** and worker crash semantics remain operator-dependent until fully wired to exec lease APIs.
+- **Authoritative remote execution is partial:** lease-gated roles can use **single-owner** remote-hold + awaited relay; other tasks still use legacy side-relay. Lease renew loss triggers **local fallback + cancel relay** automatically (verified by `lease_renew_loss_requeues_locally_and_relays_cancel` and related tests); worker crash recovery within a lease TTL window follows the same path. **VRAM admission is enforced at submit time:** tasks with `min_vram_mb` > 0 fall back to local queue (placement reason `LocalQueueFallbackInsufficientVram`) when no healthy registered node meets the requirement; covered by `vram_admission_rejects_oversized_task_and_falls_back_to_local_queue` and `vram_admission_allows_task_when_node_meets_requirement`.
 - **Hardware-truth GPU inventory is optional:** default builds still rely on operator hints (**`VOX_MESH_ADVERTISE_GPU`**, etc.). Enable **`vox-cli` feature `mesh-nvml-probe`** (pulls `vox-populi/nvml-gpu-probe`) so join/heartbeat `NodeRecord` can populate Layer A **`gpu_*`** fields via NVML when the driver is present — see [GPU truth probe spec](../archive/research-2026-q1/populi-gpu-truth-probe-spec.md).
 - **No first-class add/remove lifecycle for GPU workers:** join, heartbeat, and leave exist, but there is no built-in drain mode, no-new-work state, in-flight transfer contract, or scheduler-led rebalance when GPUs are added or removed.
 - **No unified scheduler across inference, training, and agent tasks:** Populi visibility, orchestrator routing hints, local MENS training, and cloud dispatch are still separate surfaces.
 - **No stronger fallback contract than local-first defaults:** Populi falls back cleanly by remaining optional, but it does not yet define authoritative recovery semantics for remote worker loss, partial partitions, or long-running GPU job handoff.
-- **No zero-config internet cluster model:** operators still provide the control URL, bearer/JWT, and scope explicitly; secure overlay networking and user-owned remote clusters remain research and future planning work.
+- **No zero-config internet cluster model:** operators still provide the control URL, bearer/JWT, and scope explicitly; secure overlay networking and user-owned remote clusters remain research and future planning work. **Bootstrap enrollment is implemented:** `vox populi serve --bootstrap-token <TOKEN>` enables a one-time exchange; client nodes run `vox populi pair --control-url <URL> --bootstrap-token <TOKEN>` to obtain and persist the long-lived mesh token without sharing it out-of-band.
 
 Research and architecture framing for these gaps lives in [Populi GPU network research 2026](../archive/research-2026-q1/populi-gpu-network-research-2026.md).
 
@@ -240,4 +240,102 @@ Mesh/security doc changes must remain **`training_eligible: true`** where approp
 - [ADR 009: hosted mens BaaS (future)](../adr/009-populi-hosted-baas.md) — trust model vs self-hosted clusters.
 - [ADR 017: lease-based remote execution](../adr/017-populi-lease-remote-execution.md), [ADR 018: GPU truth layering](../adr/018-populi-gpu-truth-layering.md)
 - [Work-type placement matrix](populi-work-type-placement-matrix.md)
+
+---
+
+## Appendix A — Hardware probe pipeline
+
+The hardware probe pipeline (`vox-populi::mens::hardware::pipeline`) provides structured, testable, observable hardware detection for Populi nodes. This appendix is the authoritative reference for probe names, attribute names, and operator override knobs.
+
+### Architecture
+
+```
+  operator Clavis override
+     │  (VoxGpuModel + VoxGpuVramMb)
+     │  preempts all probing → skip pipeline
+     ▼
+  ProbePipeline::default_for_platform()
+     │
+     ├── WinDxgiProbe   (Windows + mens-gpu feature)
+     ├── LinuxDrmProbe  (Linux)
+     ├── MacosMetalProbe (macOS)
+     ├── WgpuProbe      (cross-platform, mens-gpu feature)
+     └── NvmlProbe      (nvml-gpu-probe feature)
+     │
+     ▼
+  ProbeReport { summary, attempts }
+     │
+     └── HardwareRegistryV2 (TTL cache, default 5 min)
+```
+
+### Probe names
+
+| Name | Platform | Feature | Source |
+|------|----------|---------|--------|
+| `win_dxgi` | Windows | `mens-gpu` | DXGI `EnumAdapters` |
+| `linux_drm` | Linux | — | `/sys/class/drm` + `/proc/driver/nvidia` |
+| `macos_metal` | macOS | — | Static Apple Silicon stub |
+| `wgpu` | All | `mens-gpu` | wgpu adapter enumeration |
+| `nvml` | All | `nvml-gpu-probe` | NVML `device_by_index(0)` |
+
+### Probe outcomes
+
+| `ProbeOutcome` variant | Meaning |
+|------------------------|---------|
+| `NotApplicable` | `applicable()` returned `false`; probe skipped. `duration_ms == 0`. |
+| `NoDevice` | Probe ran; no matching device found on this machine. |
+| `Found(Box<HardwareSummary>)` | Probe succeeded. First `Found` wins as `ProbeReport::summary`. |
+| `Failed(String)` | Probe returned an error. Name added to `summary.probe_failures`. |
+
+### `vox.mesh.probe.*` span attributes
+
+Emitted as `tracing::debug!` events on every probe attempt.
+
+| Attribute | Type | Notes |
+|-----------|------|-------|
+| `vox.mesh.probe.name` | `&str` | Probe name (see table above). |
+| `vox.mesh.probe.outcome` | `&str` | One of: `found`, `no_device`, `not_applicable`, `failed`. |
+| `vox.mesh.probe.duration_ms` | `u64` | Wall-clock ms; `0` for `not_applicable`. |
+| `vox.mesh.probe.error` | `String` | Only on `failed`; the `ProbeError` display string. |
+
+### Operator override (Clavis)
+
+Set both secrets to bypass all probing:
+
+| Secret | Type | Example |
+|--------|------|---------|
+| `VoxGpuModel` | `String` | `"NVIDIA RTX 4090"` |
+| `VoxGpuVramMb` | `u64` as string | `"24576"` |
+
+When both are set, `probe_internal()` returns immediately with `probe_failures: None` and zero attempts.
+
+### Operator probe reorder
+
+To change the probe order without recompiling, call `ProbePipeline::reorder()`:
+
+```rust
+// vox:skip
+let pipeline = ProbePipeline::default_for_platform()
+    .reorder(&["nvml", "linux_drm", "wgpu"]);
+let report = pipeline.run().await;
+```
+
+Probes not listed are appended in their original relative order.
+
+### Cache TTL
+
+`HardwareRegistryV2` caches the last `ProbeReport::summary` for `DEFAULT_CACHE_TTL` (5 minutes). To force a re-probe:
+
+```rust
+// vox:skip
+vox_populi::mens::hardware::HardwareRegistry::invalidate_cache();
+```
+
+### Live-hardware tests
+
+Live tests require a real GPU. They are gated behind the `hw-probe-live-test` Cargo feature and must **not** be enabled on CI:
+
+```sh
+cargo test -p vox-populi --test probe_pipeline_live --features hw-probe-live-test
+```
 

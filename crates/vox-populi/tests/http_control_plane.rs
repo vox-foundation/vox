@@ -483,6 +483,7 @@ async fn quarantine_blocks_claim_until_cleared() {
         priority: 128,
         task_kind: None,
         model_id: None,
+        traceparent: None,
     })
     .await
     .unwrap();
@@ -557,6 +558,7 @@ async fn maintenance_blocks_claim_and_lease_renew() {
         priority: 128,
         task_kind: None,
         model_id: None,
+        traceparent: None,
     })
     .await
     .unwrap();
@@ -660,6 +662,7 @@ async fn maintenance_deadline_expires_and_claims_resume() {
         priority: 128,
         task_kind: None,
         model_id: None,
+        traceparent: None,
     })
     .await
     .unwrap();
@@ -726,6 +729,7 @@ async fn a2a_lease_renew_requires_holder() {
         priority: 128,
         task_kind: None,
         model_id: None,
+        traceparent: None,
     })
     .await
     .unwrap();
@@ -1106,6 +1110,7 @@ async fn a2a_inbox_non_claimer_honors_max_messages() {
             priority: 128,
             task_kind: None,
             model_id: None,
+            traceparent: None,
         })
         .await
         .unwrap();
@@ -1160,6 +1165,7 @@ async fn a2a_inbox_non_claimer_honors_before_message_cursor() {
             priority: 128,
             task_kind: None,
             model_id: None,
+            traceparent: None,
         })
         .await
         .unwrap();
@@ -1209,6 +1215,7 @@ async fn a2a_inbox_all_paged_collects_full_inbox() {
             priority: 128,
             task_kind: None,
             model_id: None,
+            traceparent: None,
         })
         .await
         .unwrap();
@@ -1250,6 +1257,7 @@ async fn a2a_inbox_pager_next_page_walks_until_empty() {
             priority: 128,
             task_kind: None,
             model_id: None,
+            traceparent: None,
         })
         .await
         .unwrap();
@@ -1439,6 +1447,7 @@ async fn job_result_attestation_requires_full_key_when_fields_present() {
             priority: 128,
             task_kind: None,
             model_id: None,
+            traceparent: None,
         })
         .await
         .unwrap_err();
@@ -1492,6 +1501,7 @@ async fn job_result_attestation_accepts_valid_signature() {
         priority: 128,
         task_kind: None,
         model_id: None,
+        traceparent: None,
     })
     .await
     .unwrap();

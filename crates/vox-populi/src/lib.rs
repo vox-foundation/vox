@@ -295,6 +295,7 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
         host_triple: Some(current_target_triple().to_string()),
         cpu_usage_pct: None,
         memory_free_bytes: None,
+        probe_failures: None,
     };
     // Layer A: Hardware Registry (DXGI/DRM Native + NVML fallback/precision)
     #[cfg(feature = "mens")]
@@ -312,6 +313,7 @@ pub fn node_record_for_current_process(node_id: String, listen_addr: Option<Stri
             rec.nvidia_driver_version = summary.driver_version.clone();
             // TODO: cuda_driver_version from precision layer if needed.
         }
+        rec.probe_failures = summary.probe_failures.clone();
     }
     rec
 }

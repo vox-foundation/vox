@@ -1,4 +1,22 @@
+use crate::mens::hardware::probe::{HardwareProbe, ProbeError};
 use crate::mens::hardware::types::{ComputeBackend, GpuVendor, HardwareSummary};
+use async_trait::async_trait;
+
+/// Hardware probe backend using the Windows DXGI API.
+pub struct WinDxgiProbe;
+
+#[async_trait]
+impl HardwareProbe for WinDxgiProbe {
+    fn name(&self) -> &'static str {
+        "win_dxgi"
+    }
+    fn applicable(&self) -> bool {
+        true
+    }
+    async fn probe(&self) -> Result<Option<HardwareSummary>, ProbeError> {
+        Ok(probe_dxgi())
+    }
+}
 
 #[cfg(target_os = "windows")]
 pub fn probe_dxgi() -> Option<HardwareSummary> {
@@ -42,6 +60,7 @@ pub fn probe_dxgi() -> Option<HardwareSummary> {
                         backend,
                         driver_version: None,
                         pci_bus_id: None,
+                        probe_failures: None,
                     });
                 }
             }

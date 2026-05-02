@@ -406,6 +406,9 @@ impl Orchestrator {
         let mut held_remote = false;
         #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
         let mut placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueDefault;
+        // Populated inside #[cfg(feature = "populi-transport")] when a lease is granted.
+        #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
+        let mut routing_lease_id: Option<String> = None;
         #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
         let mut retrieval_context_attached = false;
 
@@ -434,24 +437,72 @@ impl Orchestrator {
                 let lease_node =
                     vox_populi::node_record_for_current_process(claimer_node_id.clone(), None);
                 let _ = client.join(&lease_node).await;
-                let mut lease_id = match client
-                    .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
-                        claimer_node_id: claimer_node_id.clone(),
-                        scope_key: scope_key.clone(),
-                    })
-                    .await
-                {
-                    Ok(grant) => Some(grant.lease_id),
-                    Err(err) => {
-                        tracing::info!(
-                            error = %err,
-                            task_id = task_id.0,
-                            scope_key,
-                            placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueFallbackAfterRemoteRelayError.as_str(),
-                            "populi lease-gated exec lease grant failed; falling back to local queue"
-                        );
-                        placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueFallbackAfterRemoteRelayError;
-                        None
+
+                // W2 admission control: if the task declares a minimum VRAM requirement,
+                // verify at least one healthy registered node can satisfy it before
+                // granting a lease. Fall back to local queue rather than dispatch a job
+                // the mesh cannot run.
+                let vram_admission_ok =
+                    if let Some(required_vram) = capability_requirements
+                        .as_ref()
+                        .and_then(|c| c.min_vram_mb)
+                        .filter(|&v| v > 0)
+                    {
+                        match client.list_nodes().await {
+                            Ok(registry) => {
+                                let fits = registry.nodes.iter().any(|n| {
+                                    n.maintenance != Some(true)
+                                        && n.quarantined != Some(true)
+                                        && n.capabilities
+                                            .min_vram_mb
+                                            .map_or(false, |v| v >= required_vram)
+                                });
+                                if !fits {
+                                    tracing::info!(
+                                        task_id = task_id.0,
+                                        required_vram_mb = required_vram,
+                                        placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueFallbackInsufficientVram.as_str(),
+                                        "populi admission: no node meets min_vram_mb; falling back to local queue"
+                                    );
+                                    placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueFallbackInsufficientVram;
+                                }
+                                fits
+                            }
+                            Err(err) => {
+                                tracing::debug!(
+                                    task_id = task_id.0,
+                                    error = %err,
+                                    "populi admission: list_nodes failed; skipping vram check"
+                                );
+                                true // optimistic: let lease grant decide
+                            }
+                        }
+                    } else {
+                        true // no VRAM requirement; skip check
+                    };
+
+                let mut lease_id = if !vram_admission_ok {
+                    None
+                } else {
+                    match client
+                        .exec_lease_grant(&vox_populi::transport::RemoteExecLeaseGrantRequest {
+                            claimer_node_id: claimer_node_id.clone(),
+                            scope_key: scope_key.clone(),
+                        })
+                        .await
+                    {
+                        Ok(grant) => Some(grant.lease_id),
+                        Err(err) => {
+                            tracing::info!(
+                                error = %err,
+                                task_id = task_id.0,
+                                scope_key,
+                                placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueFallbackAfterRemoteRelayError.as_str(),
+                                "populi lease-gated exec lease grant failed; falling back to local queue"
+                            );
+                            placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueFallbackAfterRemoteRelayError;
+                            None
+                        }
                     }
                 };
                 if lease_id.is_none() {
@@ -636,6 +687,7 @@ impl Orchestrator {
                             crate::populi_remote::PlacementReasonCode::LocalQueueFallbackAfterRemoteRelayError;
                     }
                 }
+                routing_lease_id = lease_id.clone();
             }
         }
 
@@ -658,6 +710,7 @@ impl Orchestrator {
                     placement_reason = placement_reason.as_str(),
                     task_id = task_id.0,
                     agent_id = agent_id.0,
+                    lease_id = routing_lease_id.as_deref().unwrap_or(""),
                     "Task {} routed to agent {} (queue len: {})",
                     task_id,
                     agent_id,

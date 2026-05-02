@@ -295,6 +295,33 @@ impl PopuliHttpClient {
         Ok(v)
     }
 
+    /// `POST /v1/populi/bootstrap/exchange` — exchange a one-time bootstrap token for the mesh bearer token.
+    ///
+    /// The endpoint is unauthenticated (no `Authorization` header); the bootstrap token itself is the credential.
+    /// Returns the long-lived mesh bearer token and optional scope id.
+    pub async fn bootstrap_exchange(
+        &self,
+        bootstrap_token: &str,
+    ) -> Result<crate::transport::BootstrapExchangeResponse, PopuliRegistryError> {
+        let url = format!("{}/v1/populi/bootstrap/exchange", self.base);
+        let req = crate::transport::BootstrapExchangeRequest {
+            bootstrap_token: bootstrap_token.to_string(),
+        };
+        let resp = self
+            .client
+            .post(url)
+            .json(&req)
+            .send()
+            .await
+            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
+        let v = Self::ensure_success_with_context(resp, "bootstrap_exchange")
+            .await?
+            .json()
+            .await
+            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
+        Ok(v)
+    }
+
     /// `POST /v1/populi/leave` — returns `true` if the node was present and removed.
     pub async fn leave(&self, node_id: &str) -> Result<bool, PopuliRegistryError> {
         let url = format!("{}/v1/populi/leave", self.base);

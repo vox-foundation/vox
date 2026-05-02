@@ -133,24 +133,23 @@ Boolean fields use Rust `bool` parsing (`true` / `false` only). Invalid values l
 
 Populi client helpers now expose typed HTTP status errors (`PopuliRegistryError::HttpStatus`) and non-claimer inbox cursor paging (`before_message_id`, plus `A2AInboxPager`), so orchestrator fallback logic can branch on status codes (`403/404/409`) without brittle string matching.
 
-### Placement and lease observability (roadmap contract)
+### Placement and lease observability
 
-**Phase 5 (scheduler unification)** targets **decision reason codes** and structured fields so operators can audit **why** a task ran locally, on a lease-held remote worker, or on a **cloud dispatch** surface. Until code catches up, rely on the experimental toggles in the table above and on [mens SSOT](populi.md).
-
-**Documentation contract** for eventual stable instrumentation (field names may differ slightly in Rust, but the concepts are stable):
+**Implemented:** `task_id`, `agent_id`, and `placement_reason` are emitted as structured fields on the terminal `tracing::info!` event in `task_dispatch/submit/task_submit.rs` for every task routing decision. `lease_id` is carried in `PopuliRemoteDelegate` on the task record and forwarded in the A2A envelope when a lease is active.
 
 | Field / concept | Purpose |
 | --- | --- |
 | `task_id` | Correlate orchestrator task lifecycle across logs and traces. |
-| `lease_id` | Correlate remote execution with Populi lease records when [ADR 017](../adr/017-populi-lease-remote-execution.md) semantics are implemented. |
-| `placement_reason` | Machine-readable code for the selected execution surface (local vs lease-remote vs cloud dispatch). |
+| `lease_id` | Carried in `PopuliRemoteDelegate.exec_lease_id` on lease-held tasks; propagated in `RemoteTaskEnvelope` and `ExecLeaseGrantResponse`. |
+| `placement_reason` | Machine-readable code for the selected execution surface (local vs lease-remote); emitted on every routing decision. |
 | `populi_node_id` / `claimer_node_id` | Mesh identity for inbox claims and execution attribution where applicable. |
 
-Current stable `placement_reason` codes:
+Stable `placement_reason` codes:
 
 - `local_queue_default`
 - `populi_remote_lease_hold`
 - `local_queue_fallback_after_remote_relay_error`
+- `local_queue_fallback_insufficient_vram` — no registered node meets the task's `min_vram_mb` requirement
 
 Rollout and kill switches: [Populi remote execution rollout checklist](../operations/populi-remote-execution-rollout-checklist.md). Work-type boundaries: [placement policy matrix](populi-work-type-placement-matrix.md).
 

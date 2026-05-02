@@ -250,7 +250,9 @@ mod tests {
         let kw = v["keywords"].as_array().expect("keywords array");
         assert!(kw.iter().any(|x| x.as_str() == Some("fn")));
         let dec = v["decorators"].as_array().expect("decorators array");
-        assert!(dec.iter().any(|x| x.as_str() == Some("@mcp.tool")));
-        assert!(dec.iter().any(|x| x.as_str() == Some("@mcp.resource")));
+        // @mcp.tool / @mcp.resource were retired to LEXER_DEPRECATED_DECORATORS;
+        // assert the current canonical replacements instead.
+        assert!(dec.iter().any(|x| x.as_str() == Some("@tool")));
+        assert!(dec.iter().any(|x| x.as_str() == Some("@resource")));
     }
 }

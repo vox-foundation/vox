@@ -124,8 +124,13 @@ pub enum PopuliCli {
     },
     /// Run the HTTP populi control plane (`GET /v1/populi/nodes`, `POST` join/heartbeat).
     Serve {
+        /// Explicitly opt-in to running a mesh control plane (required).
+        /// On first run, a bearer token is auto-generated and saved to `~/.vox/config.toml`.
+        #[arg(long, default_value_t = false)]
+        enable: bool,
         /// Listen address (e.g. `127.0.0.1:9847` or `0.0.0.0:9847`).
-        #[arg(long, default_value = "127.0.0.1:9847")]
+        /// Defaults to `127.0.0.1:0` (OS-assigned free port).
+        #[arg(long, default_value = "127.0.0.1:0")]
         bind: String,
         /// Seed in-memory state from this registry file on startup (optional).
         #[arg(long)]
@@ -133,6 +138,16 @@ pub enum PopuliCli {
         /// Known peer mesh URLs to gossip federation status with (comma-separated).
         #[arg(long, value_delimiter = ',')]
         bootstrap_peers: Vec<String>,
+        /// One-time bootstrap token for `vox populi pair` exchanges.
+        /// When set, `POST /v1/populi/bootstrap/exchange` accepts this token once
+        /// and returns the long-lived mesh token to the caller.
+        #[arg(long)]
+        bootstrap_token: Option<String>,
+    },
+    /// Inspect or validate the resolved mesh configuration.
+    Config {
+        #[command(subcommand)]
+        cmd: PopuliConfigCmd,
     },
     /// Maintenance and quarantine toggles on a running control plane.
     Admin {
@@ -199,6 +214,18 @@ pub enum PopuliCli {
         #[arg(long, default_value_t = false)]
         json: bool,
     },
+    /// Exchange a one-time bootstrap token for the long-lived mesh bearer token.
+    ///
+    /// The server operator enables bootstrap with `--bootstrap-token <TOKEN>` on `vox populi serve`.
+    /// Run this on the client node to obtain and save the mesh token without sharing it out-of-band.
+    Pair {
+        /// Control plane base URL (e.g. `http://192.168.1.10:9847`).
+        #[arg(long)]
+        control_url: String,
+        /// One-time bootstrap token provided by the server operator.
+        #[arg(long)]
+        bootstrap_token: String,
+    },
     /// Mesh federation queries.
     Federation {
         #[command(subcommand)]
@@ -242,6 +269,14 @@ pub enum PopuliIdentityCmd {
     Reputation,
     /// Rotate the identity key pair. A new key pair will be generated and saved, overriding the old one.
     Rotate,
+}
+
+#[derive(Subcommand)]
+pub enum PopuliConfigCmd {
+    /// Print the resolved mesh configuration and the source of each value.
+    Show,
+    /// Validate the resolved config and report any conflicts or missing required values.
+    Check,
 }
 
 #[derive(Subcommand)]
@@ -593,6 +628,42 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 Ok(())
             }
         },
+        PopuliCli::Pair {
+            control_url,
+            bootstrap_token,
+        } => {
+            let base = vox_populi::normalize_http_control_base(control_url.trim())
+                .ok_or_else(|| anyhow::anyhow!("invalid control URL: {}", control_url))?;
+            let client = vox_populi::http_client::PopuliHttpClient::new(&base);
+            let resp = client
+                .bootstrap_exchange(&bootstrap_token)
+                .await
+                .map_err(|e| anyhow::anyhow!("bootstrap exchange failed: {}", e))?;
+
+            const MESH_TOKEN_KEY: &str = "mesh.token";
+            const MESH_SCOPE_KEY: &str = "mesh.scope_id";
+
+            if let Err(e) =
+                vox_config::toml_config::set_user_config_value(MESH_TOKEN_KEY, &resp.mesh_token)
+            {
+                anyhow::bail!("failed to save mesh token: {}", e);
+            }
+            println!("vox populi pair: mesh token saved to ~/.vox/config.toml");
+            println!("  Set VOX_MESH_TOKEN={} in your environment to use it now.", resp.mesh_token);
+
+            if let Some(scope) = &resp.scope_id {
+                if !scope.is_empty() {
+                    if let Err(e) =
+                        vox_config::toml_config::set_user_config_value(MESH_SCOPE_KEY, scope)
+                    {
+                        tracing::warn!(error = %e, "failed to save mesh scope_id");
+                    } else {
+                        println!("  Scope ID: {}", scope);
+                    }
+                }
+            }
+            Ok(())
+        }
         PopuliCli::Federation { cmd } => match cmd {
             PopuliFederationCmd::List { control_url, json } => {
                 let base = resolve_populi_control_base(control_url)?;
@@ -761,10 +832,55 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             Ok(())
         }
         PopuliCli::Serve {
+            enable,
             bind,
             registry,
             bootstrap_peers,
+            bootstrap_token,
         } => {
+            if !enable {
+                anyhow::bail!(
+                    "Pass `--enable` to start the mesh control plane.\n\
+                     On first run a bearer token is auto-generated and saved to ~/.vox/config.toml.\n\
+                     See `vox populi config show` to view the resolved configuration.\n\
+                     See docs/src/how-to/populi-quickstart.md for a step-by-step guide."
+                );
+            }
+
+            // Token resolution: env → config file → auto-generate.
+            // If we auto-generate, persist to config.toml and print once so the user can copy it.
+            const MESH_TOKEN_KEY: &str = "mesh.token";
+            if std::env::var("VOX_MESH_TOKEN").is_err() {
+                let cfg = vox_config::toml_config::load_user_config();
+                let saved = cfg
+                    .values
+                    .get(MESH_TOKEN_KEY)
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let token = if let Some(t) = saved {
+                    t
+                } else {
+                    // Generate a 32-byte hex token via uuid v4 (available in vox-mens already).
+                    let raw = uuid::Uuid::new_v4().simple().to_string()
+                        + &uuid::Uuid::new_v4().simple().to_string();
+                    let token = raw[..48].to_string(); // 48 hex chars = 192 bits
+                    if let Err(e) = vox_config::toml_config::set_user_config_value(MESH_TOKEN_KEY, &token) {
+                        tracing::warn!(error = %e, "failed to persist mesh.token to config");
+                    }
+                    println!("vox populi: generated mesh bearer token (saved to ~/.vox/config.toml):");
+                    println!("  VOX_MESH_TOKEN={token}");
+                    println!("  Keep this secret — it authenticates all control-plane requests.");
+                    token
+                };
+                // Inject into this process so Clavis picks it up for auth middleware.
+                // SAFETY: called before the tokio runtime starts accepting connections;
+                // no other threads are reading the environment concurrently at this point.
+                #[allow(unsafe_code)]
+                unsafe {
+                    std::env::set_var("VOX_MESH_TOKEN", &token);
+                }
+            }
+
             let addr: SocketAddr = bind
                 .parse()
                 .with_context(|| format!("invalid --bind address: {bind}"))?;
@@ -782,8 +898,21 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 state.bootstrap_peers = peers.split(',').map(|s| s.to_string()).collect();
             }
 
-            // Optional: DB-backed trust verifier and reputation decay (hardens mesh from Sybil/poisoning)
+            if let Some(token) = bootstrap_token {
+                state = state.with_bootstrap_token(token);
+            }
+
+            // Optional: DB-backed mesh store + trust verifier + reputation decay
             if let Ok(db) = vox_db::VoxDb::connect_canonical().await {
+                // Durable mesh store (write-through; warms in-memory caches from DB)
+                let mesh_db = db.clone();
+                state = state.with_mesh_store(Arc::new(
+                    vox_populi::transport::store::VoxDbMeshStore::new(mesh_db),
+                ));
+                if let Err(e) = state.init_from_mesh_store().await {
+                    tracing::warn!(error = %e, "mesh store warm-up failed; continuing with empty cache");
+                }
+
                 if let Some(self_id) = vox_populi::populi_env().node_id {
                     let db_for_verifier = Arc::new(db);
                     let db_for_decay = Arc::clone(&db_for_verifier);
@@ -826,6 +955,77 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             vox_populi::transport::serve(addr, state)
                 .await
                 .with_context(|| format!("populi HTTP serve on {addr}"))?;
+            Ok(())
+        }
+        PopuliCli::Config { cmd } => {
+            const MESH_TOKEN_KEY: &str = "mesh.token";
+            let cfg = vox_config::toml_config::load_user_config();
+            match cmd {
+                PopuliConfigCmd::Show => {
+                    println!("Resolved mesh configuration:");
+                    println!();
+
+                    // Bind address
+                    println!("  bind           : 127.0.0.1:0 (default; override with --bind)");
+
+                    // Token source
+                    let token_source = if std::env::var("VOX_MESH_TOKEN").is_ok() {
+                        "env: VOX_MESH_TOKEN"
+                    } else if cfg.values.contains_key(MESH_TOKEN_KEY) {
+                        "file: ~/.vox/config.toml (mesh.token)"
+                    } else {
+                        "unset (will be auto-generated on first `vox populi serve --enable`)"
+                    };
+                    println!("  mesh.token     : {token_source}");
+
+                    // Bootstrap peers
+                    let peers_source = if std::env::var("VOX_MESH_FEDERATION_BOOTSTRAP_PEERS")
+                        .map(|v| !v.is_empty())
+                        .unwrap_or(false)
+                    {
+                        "env: VOX_MESH_FEDERATION_BOOTSTRAP_PEERS"
+                    } else {
+                        "unset"
+                    };
+                    println!("  bootstrap_peers: {peers_source}");
+
+                    // Config file path
+                    if let Some(dir) = vox_config::dot_vox_user_dir().to_str() {
+                        println!();
+                        println!("  Config file: {dir}/config.toml");
+                    }
+                }
+                PopuliConfigCmd::Check => {
+                    let ok = true;
+                    println!("Checking mesh configuration...");
+
+                    let has_token = std::env::var("VOX_MESH_TOKEN").is_ok()
+                        || cfg.values.contains_key(MESH_TOKEN_KEY);
+                    if !has_token {
+                        println!("  WARN  mesh.token not set — a token will be auto-generated on first serve");
+                    } else {
+                        println!("  OK    mesh.token is set");
+                    }
+
+                    // Check that the config file is writable
+                    let config_path = vox_config::dot_vox_user_dir().join("config.toml");
+                    let parent = config_path.parent().unwrap_or(&config_path);
+                    if !parent.exists() {
+                        println!("  WARN  config dir does not yet exist: {}", parent.display());
+                    } else {
+                        println!("  OK    config dir exists: {}", parent.display());
+                    }
+
+                    if ok {
+                        println!();
+                        println!("Configuration OK — ready to run `vox populi serve --enable`");
+                    } else {
+                        println!();
+                        println!("Configuration has issues — see above");
+                    }
+                    let _ = ok; // suppress unused warning; kept for future hard-failure checks
+                }
+            }
             Ok(())
         }
         PopuliCli::Admin { control_url, cmd } => {

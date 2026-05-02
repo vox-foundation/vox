@@ -11278,6 +11278,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "tracing-test"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "19a4c448db514d4f24c5ddb9f73f2ee71bfb24c526cf0c570ba142d1119e0051"
+dependencies = [
+ "tracing-core",
+ "tracing-subscriber",
+ "tracing-test-macro",
+]
+
+[[package]]
+name = "tracing-test-macro"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad06847b7afb65c7866a36664b75c40b895e318cea4f71299f013fb22965329d"
+dependencies = [
+ "quote",
+ "syn 2.0.117",
+]
+
+[[package]]
 name = "trait-variant"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12542,6 +12563,7 @@ dependencies = [
  "vox-clavis",
  "vox-cli-core",
  "vox-compiler",
+ "vox-config",
  "vox-constrained-gen",
  "vox-corpus",
  "vox-crypto",
@@ -12569,6 +12591,7 @@ dependencies = [
 name = "vox-mesh-types"
 version = "0.5.0"
 dependencies = [
+ "rand 0.8.5",
  "serde",
  "serde_json",
 ]
@@ -12782,6 +12805,8 @@ dependencies = [
  "tokio",
  "tower-http",
  "tracing",
+ "tracing-test",
+ "turso",
  "vox-bounded-fs",
  "vox-clavis",
  "vox-compiler",

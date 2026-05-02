@@ -226,7 +226,9 @@ pub fn populi_http_app(state: PopuliTransportState) -> Router {
 /// Bind and serve until error (Ctrl+C stops the process).
 pub async fn serve(addr: SocketAddr, state: PopuliTransportState) -> Result<(), std::io::Error> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    info!(%addr, "vox-populi HTTP control plane listening");
+    let bound = listener.local_addr()?;
+    info!(%bound, "vox-populi HTTP control plane listening");
+    println!("vox populi: listening on http://{bound}");
 
     // Start federation gossip if any bootstrap peers are configured
     state.start_federation_gossip();
@@ -269,6 +271,126 @@ mod tests {
             .await
             .expect("GET legacy mens nodes");
         assert_eq!(missing.status(), StatusCode::NOT_FOUND);
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn bootstrap_exchange_round_trip() {
+        const TOKEN: &str = "test-bootstrap-abc123";
+        const MESH_TOKEN: &str = "mesh-bearer-xyz789";
+
+        // Inject a known mesh token so the handler can return it.
+        // SAFETY: single-threaded tokio test; no concurrent env readers.
+        #[allow(unsafe_code)]
+        unsafe {
+            std::env::set_var("VOX_MESH_TOKEN", MESH_TOKEN);
+        }
+
+        let state = PopuliTransportState::new().with_bootstrap_token(TOKEN);
+        let app = populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("local addr");
+        let server = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .await
+            .expect("serve");
+        });
+
+        let client = reqwest::Client::new();
+
+        // Happy path: correct token returns mesh_token.
+        let resp = client
+            .post(format!("http://{addr}/v1/populi/bootstrap/exchange"))
+            .json(&crate::transport::BootstrapExchangeRequest {
+                bootstrap_token: TOKEN.to_string(),
+            })
+            .send()
+            .await
+            .expect("POST bootstrap/exchange");
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body: crate::transport::BootstrapExchangeResponse =
+            resp.json().await.expect("parse response");
+        assert_eq!(body.mesh_token, MESH_TOKEN);
+
+        // One-time: second use is rejected with 410 Gone.
+        let resp2 = client
+            .post(format!("http://{addr}/v1/populi/bootstrap/exchange"))
+            .json(&crate::transport::BootstrapExchangeRequest {
+                bootstrap_token: TOKEN.to_string(),
+            })
+            .send()
+            .await
+            .expect("POST bootstrap/exchange 2nd");
+        assert_eq!(resp2.status(), StatusCode::GONE);
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn bootstrap_exchange_wrong_token_is_401() {
+        // Does not touch VOX_MESH_TOKEN — wrong token is rejected before mesh token lookup.
+        let state = PopuliTransportState::new().with_bootstrap_token("correct-token");
+        let app = populi_http_app_with_auth(state, PopuliHttpAuth::Open);
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("local addr");
+        let server = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .await
+            .expect("serve");
+        });
+
+        let client = reqwest::Client::new();
+        let resp = client
+            .post(format!("http://{addr}/v1/populi/bootstrap/exchange"))
+            .json(&crate::transport::BootstrapExchangeRequest {
+                bootstrap_token: "wrong-token".to_string(),
+            })
+            .send()
+            .await
+            .expect("POST bootstrap/exchange");
+        assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+
+        server.abort();
+    }
+
+    #[tokio::test]
+    async fn bootstrap_exchange_disabled_returns_404() {
+        // State without bootstrap token → 404.
+        let app = populi_http_app_with_auth(PopuliTransportState::new(), PopuliHttpAuth::Open);
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .expect("bind");
+        let addr = listener.local_addr().expect("local addr");
+        let server = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .await
+            .expect("serve");
+        });
+
+        let client = reqwest::Client::new();
+        let resp = client
+            .post(format!("http://{addr}/v1/populi/bootstrap/exchange"))
+            .json(&crate::transport::BootstrapExchangeRequest {
+                bootstrap_token: "any-token".to_string(),
+            })
+            .send()
+            .await
+            .expect("POST bootstrap/exchange");
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
 
         server.abort();
     }

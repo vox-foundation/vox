@@ -58,6 +58,12 @@ training_eligible: false
 - [Planning meta exception register](planning-meta/exception-register.md)
 - [Planning meta maintenance log](planning-meta/maintenance-log.md)
 - [Planning taxonomy and glossary](planning-meta/06-planning-taxonomy-glossary.md)
+- [Populi Mesh Improvement Backlog (2026-05-01)](populi-mesh-improvement-backlog-2026.md)
+- [Populi Mesh North-Star (2026-05-01)](populi-mesh-north-star-2026.md)
+- [Populi Mesh — Config Baseline Spec (S1, 2026-05-01)](populi-mesh-config-baseline-spec-2026.md)
+- [Populi Mesh — Local Observability Spec (S1, 2026-05-01)](populi-mesh-local-observability-spec-2026.md)
+- [Populi Mesh — Probe Correctness Implementation Plan (S1, 2026-05-01)](populi-mesh-probe-correctness-plan-2026.md)
+- [Populi Mesh — Probe Correctness Spec (S1, 2026-05-01)](populi-mesh-probe-correctness-spec-2026.md)
 - [Question gate standard for planning](planning-meta/12-question-gate-standard.md)
 - [Research baseline and source-of-truth map](planning-meta/00-research-baseline-source-map.md)
 - [Scientia × Mesh/Model-Routing Integration Research (2026)](scientia-mesh-integration-research-2026.md)
@@ -98,4 +104,8 @@ training_eligible: false
 - [Phase 1: Build Target Split Spec (2026)](phase1-build-targets-spec-2026.md)
 - [Phase 3: HTTP Ergonomics Decorators Spec (2026)](phase3-http-ergonomics-spec-2026.md)
 - [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](phase5-react-interop-spec-2026.md)
+
+## Status: Deprecated
+
+- [Populi Mesh — A2A Durability Spec (S1, 2026-05-01)](populi-mesh-a2a-durability-spec-2026.md)
 

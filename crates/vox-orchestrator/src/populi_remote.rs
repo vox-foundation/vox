@@ -12,6 +12,8 @@ pub enum PlacementReasonCode {
     PopuliRemoteLeaseHold,
     /// Remote relay/lease path failed and task is requeued locally.
     LocalQueueFallbackAfterRemoteRelayError,
+    /// No registered node meets the task's `min_vram_mb` requirement (W2 admission control).
+    LocalQueueFallbackInsufficientVram,
 }
 
 impl PlacementReasonCode {
@@ -23,6 +25,9 @@ impl PlacementReasonCode {
             Self::PopuliRemoteLeaseHold => "populi_remote_lease_hold",
             Self::LocalQueueFallbackAfterRemoteRelayError => {
                 "local_queue_fallback_after_remote_relay_error"
+            }
+            Self::LocalQueueFallbackInsufficientVram => {
+                "local_queue_fallback_insufficient_vram"
             }
         }
     }
