@@ -141,7 +141,9 @@ Compile a `.vox` source file.
 
 ### `vox generate` (HTTP inference) vs MCP codegen
 
-Top-level **`vox generate`** (`crates/vox-cli/src/commands/generate.rs`) posts to a **local HTTP** inference server (default **`http://127.0.0.1:7863/generate`**). It is intentionally narrow: QLoRA / playground style validation loops without requiring MCP.
+Top-level **`vox generate`** (`crates/vox-cli/src/commands/generate.rs`) posts to a **local HTTP** inference server via the orchestrator (default endpoint from `VOX_LOCAL_ENDPOINT`). It is intentionally narrow: QLoRA / playground style validation loops without requiring MCP.
+
+**`--legacy-direct` flag (deprecated escape hatch):** bypasses the orchestrator and calls the inference server directly at `--server-url` (default `http://127.0.0.1:7863`). This was the pre-orchestrator behavior (pre-Task 1.9). Avoid unless debugging direct inference — it skips TTL-cached health probes, consistent endpoint resolution, and aligned telemetry.
 
 **`vox_generate_code`** (and related MCP chat tools) use the **workspace orchestrator + Codex** path: model registry / Ludus routing, optional workspace journey DB, structured transcripts with [`journey-envelope.v1`](../../../contracts/orchestration/journey-envelope.v1.schema.json), and `routing_decisions` rows. The CLI HTTP path does **not** silently provide the same joins — use MCP when you need that unified telemetry story. A later optional bridge (for example an explicit MCP-backed codegen flag) would make the difference obvious in UX.
 
