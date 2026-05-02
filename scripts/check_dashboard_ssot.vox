@@ -90,19 +90,18 @@ fn check_ssot() -> Result<(), String> {
             .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
             .unwrap_or_default();
 
-        // Require the .vox change to be in the dashboard source directory,
-        // not just any .vox file in the repo (tighter false-positive guard).
+        // All files in app/src/generated/ are produced by `vox build app/src/app.vox`.
+        // Require that specific source to be present in the commit — co-occurrence with
+        // any unrelated .vox elsewhere in the repo does not satisfy the SSOT invariant.
+        let vox_source = "crates/vox-dashboard/app/src/app.vox";
         let touched_vox = files_in_commit
             .lines()
-            .any(|line| {
-                let t = line.trim();
-                t.starts_with("crates/vox-dashboard/app/src/") && t.ends_with(".vox")
-            });
+            .any(|line| line.trim() == vox_source);
 
         if !touched_vox {
             violations.push(format!(
-                "  {} (last commit {} did not touch a crates/vox-dashboard/app/src/*.vox source)",
-                tsx_path, &last_commit[..8]
+                "  {} (last commit {} did not touch {})",
+                tsx_path, &last_commit[..8], vox_source
             ));
         }
     }
