@@ -407,7 +407,6 @@ training_eligible: false
 - [The Risks of Agent-Generated Prose (Schola & Scientia)](archive/research-2026-q1/research-cl-slop-typicality-bias-2026.md)
 - [Utilizing Parse Failures as Negative Examples](archive/research-2026-q1/research-cl-nat-dpo-2026.md)
 - [Vox A2A Orchestration Hardening Findings 2026](archive/research-2026-q1/a2a-orchestration-hardening-findings-2026.md)
-- [Vox Codebase Improvement Plan — 2026 Spring Audit](architecture/codebase-improvement-plan-2026.md)
 - [Vox Developer User Journeys: Intent vs. Actualization](archive/research-2026-q1/agentic-user-journeys.md)
 - [Vox Language Testing Pipeline](archive/research-2026-q1/vox-language-testing-pipeline.md)
 - [Vox Scientia Gap Analysis (April 2026)](archive/research-2026-q1/scientia-gap-analysis-2026.md)

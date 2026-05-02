@@ -92,7 +92,6 @@ training_eligible: false
 - [Ludus Identity Federation & GitHub Integration](ludus-identity-github-integration-research-2026.md)
 - [Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan](orchestrator-companion-audit-findings-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](shiki-mdbook-doc-platform-research-2026.md)
-- [Vox Codebase Improvement Plan — 2026 Spring Audit](codebase-improvement-plan-2026.md)
 - [Warp Terminal Research Findings (2026)](warp-research-findings-2026.md)
 
 ## Status: Roadmap
