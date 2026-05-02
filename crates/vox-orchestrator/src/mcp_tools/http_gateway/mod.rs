@@ -524,13 +524,34 @@ pub(super) fn request_identity(
 }
 
 pub(super) fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    let mut diff = (a.len() ^ b.len()) as u8;
+    let mut diff = (a.len() != b.len()) as u8;
     for i in 0..a.len().max(b.len()) {
         let ai = *a.get(i).unwrap_or(&0);
         let bi = *b.get(i).unwrap_or(&0);
         diff |= ai ^ bi;
     }
     diff == 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn constant_time_eq_length_256_multiple_not_equal() {
+        // Lengths differ by 256 — before the fix, `(256 ^ 0) as u8 == 0` produces a false positive.
+        let a = vec![0u8; 256];
+        let b: &[u8] = &[];
+        assert!(
+            !constant_time_eq(&a, b),
+            "empty slice must not equal 256-byte slice"
+        );
+        let c = vec![0u8; 512];
+        assert!(
+            !constant_time_eq(&a, &c),
+            "256-byte slice must not equal 512-byte slice"
+        );
+    }
 }
 
 pub(super) fn read_bool_env(id: vox_clavis::SecretId) -> Option<bool> {

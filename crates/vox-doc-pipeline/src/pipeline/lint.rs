@@ -147,6 +147,13 @@ pub(crate) fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>)
                     fence_start_line = line_no;
                     let lang = trimmed[backtick_count..].trim();
                     fence_is_vox = lang == "vox" || lang == "tsx";
+                    if lang.is_empty() {
+                        errors.push(LintError {
+                            file: path.to_owned(),
+                            line: line_no,
+                            kind: LintKind::UnlabeledCodeFence { at_line: line_no },
+                        });
+                    }
                 }
             }
         } else if fence_open && fence_is_vox {

@@ -199,7 +199,8 @@ pub struct ModalMixGate {
 
 #[derive(Debug, Clone, Deserialize, Default)]
 pub struct AntiStubGate {
-    /// Minimum anti-stub pass rate expected in `eval_results.json`.
+    /// Minimum anti-stub task success rate from `eval_local_report.json`
+    /// (written by `vox mens eval-local`; checked by check_run.rs).
     #[serde(default)]
     pub min_pass_rate: f64,
     /// Maximum placeholder marker event rate tolerated.

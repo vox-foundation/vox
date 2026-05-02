@@ -46,6 +46,14 @@ fn main() {
         if val == "true" { background = true }
     }
 
+    let force_env = env.get("VOX_MENS_FORCE_TRAIN")
+    let mut force_train = false
+    if force_env isnt null {
+        let val = force_env.unwrap()
+        if val == "1" { force_train = true }
+        if val == "true" { force_train = true }
+    }
+
     print("  Domain:   " + domain)
     print("  Epochs:   " + epochs)
     print("  Device:   " + device)
@@ -53,9 +61,9 @@ fn main() {
     
     // Step 1: Corpus Mix
     if skip_mix {
-        print("Step 1/4: Skipping corpus mix (VOX_MENS_SKIP_MIX set).")
+        print("Step 1/5: Skipping corpus mix (VOX_MENS_SKIP_MIX set).")
     } else {
-        print("Step 1/4: Running corpus mix for domain '" + domain + "'...")
+        print("Step 1/5: Running corpus mix for domain '" + domain + "'...")
         
         print("  Running primary mix (mix.yaml → target/dogfood/train_mixed.jsonl)...")
         let primary_mix = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "corpus", "mix", "--config", "mens/config/mix.yaml"])
@@ -100,23 +108,32 @@ fn main() {
     }
 
     // Step 2: Pre-flight eval gate
+    // Default policy file is mens/config/eval-gates.yaml — DO NOT pass `--policy warn`,
+    // that resolves as a non-existent path and run_gate.rs hard-fails with Ok(1).
+    // Set VOX_MENS_FORCE_TRAIN=1 to proceed past a failing gate (dev iteration only).
     if skip_eval {
-        print("Step 2/4: Skipping pre-flight eval (VOX_MENS_SKIP_EVAL set).")
+        print("Step 2/5: Skipping pre-flight eval (VOX_MENS_SKIP_EVAL set).")
     } else {
-        print("Step 2/4: Running pre-flight eval gate...")
-        let eval_run = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "eval-gate", "--run-dir", "mens/runs/latest", "--policy", "warn"])
+        print("Step 2/5: Running pre-flight eval gate (mens/config/eval-gates.yaml)...")
+        let eval_run = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "eval-gate", "--run-dir", "mens/runs/latest"])
         if eval_run isnt null {
             let res = eval_run.unwrap()
             if res.code == 0 {
                 print("  ✓ Eval gate passed.")
             } else {
-                print("  ⚠ Eval gate warning (non-blocking).")
+                if force_train {
+                    print("  ⚠ Eval gate FAILED but VOX_MENS_FORCE_TRAIN=1 — proceeding anyway.")
+                } else {
+                    print("  ✗ Eval gate FAILED (blocking). Inspect mens/runs/latest/eval_results.json.")
+                    print("    Override for dev iteration: VOX_MENS_FORCE_TRAIN=1")
+                    return null
+                }
             }
         }
     }
 
     // Step 3: Training
-    print("Step 3/4: Launching training...")
+    print("Step 3/5: Launching training...")
     let mut train_args = [
         "run", "-p", "vox-cli", "--",
         "mens", "train",
@@ -151,17 +168,67 @@ fn main() {
                 print("  ✓ Training complete.")
             } else {
                 print("  ✗ Training failed with exit code: " + str(res.code))
+                return null
             }
         } else {
             print("  ✗ Failed to run training process.")
+            return null
         }
     }
 
     if background == false {
-        print("Step 4/4: Post-training verification...")
+        // Step 4: Refresh eval_results.json in the run directory.
+        // The QLoRA trainer does NOT write eval_results.json (only the legacy
+        // mens-dei+gpu path does). Without this step, Step 5's eval_local gate
+        // would read a stale file left by the previous pipeline run — or find
+        // nothing at all on a first run.
+        //
+        // IMPORTANT: We evaluate the contract-resolved training corpus, NOT
+        // the full mix output. training_contract.yaml sets:
+        //   train_path: target/dogfood/validated_mixed.jsonl
+        // preflight.rs resolves contract > data_dir/train.jsonl > fallback,
+        // so the trainer consumed validated_mixed.jsonl (the golden source,
+        // weight-6 input to mix.yaml). Evaluating train.jsonl (the full mix
+        // output, which includes docs lanes with ~0.31 parse rate) would
+        // misrepresent what the model actually learned from.
+        //
+        // Non-blocking: a corpus eval failure should not abort a successful training run.
+        print("Step 4/5: Refreshing corpus eval metrics...")
+        let corpus_eval = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "corpus", "eval", "target/dogfood/validated_mixed.jsonl", "--output", "mens/runs/latest/eval_results.json", "--print-summary"])
+        if corpus_eval isnt null {
+            let res = corpus_eval.unwrap()
+            if res.code == 0 {
+                print("  ✓ eval_results.json refreshed.")
+            } else {
+                print("  ⚠ Corpus eval failed — Step 4 gate will use prior eval_results.json (may be stale).")
+            }
+        }
+
+        // Post-training verification doubles as the A2A run receipt.
+        // Uses eval-gates-post-train.yaml: pass_at_k and review_recurrence are
+        // warn-only because those require explicit eval-local + review pipeline
+        // steps after training. Blocking gates cover trainer-written artifacts:
+        // training_manifest.json, telemetry.jsonl, eval_results.json.
+        print("Step 5/5: Post-training verification (run receipt)...")
+        let post_gate = process.run("cargo", ["run", "-p", "vox-cli", "--", "mens", "eval-gate", "--run-dir", "mens/runs/latest", "--policy", "mens/config/eval-gates-post-train.yaml"])
+        if post_gate isnt null {
+            let res = post_gate.unwrap()
+            if res.code == 0 {
+                print("  ✓ Post-training gate passed — run artifacts are valid.")
+            } else {
+                if force_train {
+                    print("  ⚠ Post-training gate FAILED but VOX_MENS_FORCE_TRAIN=1 — receipt marked degraded.")
+                } else {
+                    print("  ✗ Post-training gate FAILED — run is NOT servable.")
+                    print("    Inspect: mens/runs/latest/eval_results.json")
+                    print("    Override for dev iteration: VOX_MENS_FORCE_TRAIN=1")
+                    return null
+                }
+            }
+        }
         print("  Pipeline complete.")
-        print("  Next steps:")
-        print("    vox mens status --run-dir mens/runs/latest")
-        print("    vox mens eval-gate --run-dir mens/runs/latest")
+        print("  Next steps (required before serving):")
+        print("    vox mens eval-local --model mens/runs/latest/candle_qlora_adapter.safetensors --bench mens/data/heldout_bench -o mens/runs/latest/eval_local_report.json")
+        print("    vox mens eval-gate --run-dir mens/runs/latest  (full policy, promotes run)")
     }
 }

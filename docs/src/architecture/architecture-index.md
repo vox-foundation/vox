@@ -82,6 +82,7 @@ training_eligible: false
 - [Agent Shell Fluency Eval Design (2026)](agent-shell-fluency-eval-design-2026.md)
 - [Legacy URL Redirects on GitHub Pages](github-pages-redirects.md)
 - [Ludus Identity Federation & GitHub Integration](ludus-identity-github-integration-research-2026.md)
+- [Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan](orchestrator-companion-audit-findings-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](shiki-mdbook-doc-platform-research-2026.md)
 - [Warp Terminal Research Findings (2026)](warp-research-findings-2026.md)
 
@@ -90,4 +91,5 @@ training_eligible: false
 - [Data Storage Lint & CI Spec (2026)](data-storage-lint-and-ci-spec-2026.md)
 - [Data Storage Migration Backlog (2026)](data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](data-storage-ssot-2026.md)
+- [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](2026-05-01-orchestrator-stage1-stage2.md)
 
