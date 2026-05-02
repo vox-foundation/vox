@@ -1,6 +1,6 @@
 ---
 title: "Codebase Cleanup & Signal Improvement Plan (2026-05-02)"
-status: proposed
+status: current
 audience: contributors
 ---
 
