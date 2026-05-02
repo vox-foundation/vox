@@ -325,7 +325,10 @@ mod tests {
             )
             .await;
         });
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("test http client");
         let tools_resp = client
             .get(format!("http://{addr}/v1/tools"))
             .header("authorization", "Bearer read-token")
