@@ -64,6 +64,11 @@ pub(crate) async fn federation_announce(
                 "populi: invalid signature length (expected 64 bytes)".into(),
             ));
         }
+    } else if req.entry.signature.is_some() || req.entry.public_key.is_some() {
+        return Err(ResponseErr(
+            StatusCode::BAD_REQUEST,
+            "populi: signature and public_key must be provided together".into(),
+        ));
     } else if req.entry.public {
         // Policy: Public meshes MUST sign their announcements in production
         // For now, we log a warning but allow it for backward compatibility or simple LAN use.

@@ -235,7 +235,6 @@ training_eligible: false
 - [Planning taxonomy and glossary](architecture/planning-meta/06-planning-taxonomy-glossary.md)
 - [Populi Mesh Improvement Backlog (2026-05-01)](architecture/populi-mesh-improvement-backlog-2026.md)
 - [Populi Mesh North-Star (2026-05-01)](architecture/populi-mesh-north-star-2026.md)
-- [Populi Mesh — A2A Durability Spec (S1, 2026-05-01)](architecture/populi-mesh-a2a-durability-spec-2026.md)
 - [Populi Mesh — Config Baseline Spec (S1, 2026-05-01)](architecture/populi-mesh-config-baseline-spec-2026.md)
 - [Populi Mesh — Local Observability Spec (S1, 2026-05-01)](architecture/populi-mesh-local-observability-spec-2026.md)
 - [Populi Mesh — Probe Correctness Implementation Plan (S1, 2026-05-01)](architecture/populi-mesh-probe-correctness-plan-2026.md)
@@ -464,6 +463,7 @@ training_eligible: false
 ## Status: Deprecated
 
 - [HITL Doubt Flow and Resolution (Redirect)](archive/research-2026-q1/vox-dei-hitl-ssot.md)
+- [Populi Mesh — A2A Durability Spec (S1, 2026-05-01)](architecture/populi-mesh-a2a-durability-spec-2026.md)
 
 
 # Contributors

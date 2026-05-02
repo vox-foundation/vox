@@ -1,13 +1,16 @@
 ---
 title: "Populi Mesh — A2A Durability Spec (S1, 2026-05-01)"
-description: "Slice S1 child spec for workstream W6 partial. Replaces three separate JSON-file stores (a2a, exec-lease, dispatch-results) with a single sqlite-backed store behind a trait, with versioned envelopes, fsync discipline, and concurrent-writer correctness. Migration tool included."
+description: "SUPERSEDED design spec for the SQLite/rusqlite mesh store. The shipped implementation uses VoxDb instead. Retained for historical context only."
 category: "architecture"
-status: "current"
-training_eligible: true
-training_rationale: "Defines the storage contract used by all subsequent mesh persistence work."
+status: "deprecated"
+training_eligible: false
 ---
 
 # Populi Mesh — A2A Durability (S1 child spec)
+
+> **⚠️ SUPERSEDED.** This document describes the original SQLite/rusqlite `mesh.db` design that was considered during S1 planning. The shipped implementation uses **VoxDb** as the durable backing store for the A2A inbox, exec leases, and dispatch results. See [`populi-mesh-north-star-2026.md`](populi-mesh-north-star-2026.md) and the `MeshStore` trait in `crates/vox-populi/src/transport/store/` for the canonical contract. The `store migrate/check/repair` commands described below were never implemented.
+>
+> This page is retained for historical context. Do not use it as implementation guidance.
 
 **Parent.** [`populi-mesh-north-star-2026.md`](populi-mesh-north-star-2026.md), Slice S1, Workstream W6 partial (also feeds W1 lease persistence in S2).
 

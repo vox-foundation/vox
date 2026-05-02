@@ -88,8 +88,9 @@ async fn process_one_envelope(
             tracing::debug!(
                 message_id = msg.id,
                 error = %e,
-                "populi remote worker: invalid envelope JSON"
+                "populi remote worker: invalid envelope JSON; acking to drain poison-pill"
             );
+            let _ = client.relay_a2a_ack(&receiver_agent.to_string(), msg.id).await;
             return;
         }
     };
@@ -110,8 +111,9 @@ async fn process_one_envelope(
         "populi remote worker: processing envelope"
     );
 
-    // Decrypt JWE-wrapped secrets forwarded by the orchestrator and inject them
-    // into the process environment so Clavis can find them when the task runs.
+    // Decrypt JWE-wrapped secrets forwarded by the orchestrator.
+    // S1: secrets are validated (JWE must be well-formed) but not injected into the process
+    // environment; task-scoped propagation to the execution path is an S2 concern.
     // Key derivation mirrors the sender in dispatch/mesh.rs: BLAKE3(VoxMeshJwtHmacSecret).
     if let Some(jwe) = msg.jwe_payload.as_deref() {
         let mesh_secret = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshJwtHmacSecret);
@@ -119,22 +121,15 @@ async fn process_one_envelope(
             let derived = blake3::hash(mesh_val.as_bytes());
             match super::jwe::decrypt_jwe_compact(jwe, derived.as_bytes()) {
                 Ok(plain) => {
-                    if let Ok(secrets) =
+                    let secret_count =
                         serde_json::from_slice::<std::collections::HashMap<String, String>>(&plain)
-                    {
-                        for (k, v) in &secrets {
-                            #[allow(unsafe_code)]
-                            unsafe {
-                                std::env::set_var(k, v);
-                            }
-                        }
-                        tracing::info!(
-                            task_id = envelope.task_id,
-                            message_id = msg.id,
-                            secret_count = secrets.len(),
-                            "populi remote worker: JWE secrets injected into environment"
-                        );
-                    }
+                            .map_or(0, |m| m.len());
+                    tracing::info!(
+                        task_id = envelope.task_id,
+                        message_id = msg.id,
+                        secret_count,
+                        "populi remote worker: JWE secrets decoded; task-scoped injection is S2"
+                    );
                 }
                 Err(e) => {
                     tracing::warn!(
@@ -211,7 +206,7 @@ async fn process_one_envelope(
                 tracing::debug!(
                     message_id = msg.id,
                     error = %err,
-                    payload = %envelope.payload,
+                    payload_len = envelope.payload.len(),
                     "populi remote worker: context_envelope_json parse failed"
                 );
             }
@@ -332,7 +327,7 @@ async fn process_one_envelope(
             jwe_payload: None,
             task_kind: None,
             model_id: None,
-            traceparent: None,
+            traceparent: msg.traceparent.clone(),
             priority: 128,
         })
         .await;

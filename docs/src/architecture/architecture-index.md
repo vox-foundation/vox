@@ -58,7 +58,6 @@ training_eligible: false
 - [Planning taxonomy and glossary](planning-meta/06-planning-taxonomy-glossary.md)
 - [Populi Mesh Improvement Backlog (2026-05-01)](populi-mesh-improvement-backlog-2026.md)
 - [Populi Mesh North-Star (2026-05-01)](populi-mesh-north-star-2026.md)
-- [Populi Mesh — A2A Durability Spec (S1, 2026-05-01)](populi-mesh-a2a-durability-spec-2026.md)
 - [Populi Mesh — Config Baseline Spec (S1, 2026-05-01)](populi-mesh-config-baseline-spec-2026.md)
 - [Populi Mesh — Local Observability Spec (S1, 2026-05-01)](populi-mesh-local-observability-spec-2026.md)
 - [Populi Mesh — Probe Correctness Implementation Plan (S1, 2026-05-01)](populi-mesh-probe-correctness-plan-2026.md)
@@ -94,4 +93,8 @@ training_eligible: false
 - [Data Storage Lint & CI Spec (2026)](data-storage-lint-and-ci-spec-2026.md)
 - [Data Storage Migration Backlog (2026)](data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](data-storage-ssot-2026.md)
+
+## Status: Deprecated
+
+- [Populi Mesh — A2A Durability Spec (S1, 2026-05-01)](populi-mesh-a2a-durability-spec-2026.md)
 
