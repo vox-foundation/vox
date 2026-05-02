@@ -1,6 +1,10 @@
 ---
 title: "Codebase Cleanup & Signal Improvement Plan (2026-05-02)"
-status: current
+description: "Six-phase plan to retire stale code, fix broken references, and converge on single sources of truth."
+category: "architecture"
+status: roadmap
+last_updated: "2026-05-02"
+training_eligible: false
 audience: contributors
 ---
 

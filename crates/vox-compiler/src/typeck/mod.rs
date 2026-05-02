@@ -19,7 +19,8 @@ pub use ast_decl_lints::lint_ast_declarations;
 pub mod autofix;
 /// Logic for registering and accessing builtin types and functions.
 pub mod builtins;
-// All type checking flows through typecheck_hir in Checker.rs.
+// All type checking flows through `typecheck_hir` in the `checker` module
+// (implemented in `checker/mod.rs`).
 /// Central state machine for the type checking process.
 pub mod checker;
 /// Diagnostic structures and error reporting for type checking.

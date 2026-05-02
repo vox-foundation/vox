@@ -29,6 +29,8 @@ fn extract_ignore_patterns(voxignore_content: &str) -> String {
             || line.starts_with("# GitHub Copilot content exclusion")
             || line.starts_with("# See: docs/")
             || line.starts_with("#   vox ci sync-ignore-files")
+            || line.starts_with("# .aiexclude directly.")
+            || line.starts_with("# GitHub Settings")
             || line.is_empty() && out.is_empty()
         {
             continue;

@@ -24,7 +24,7 @@ Set in Coolify or `.env` (never commit tokens). Coolify distinguishes **build-ti
 | `VOX_DB_PATH` | Optional local path (dev or embedded replica local file) |
 | `VOX_CODEX_IMAGE` | Image reference for the `codex-api` service (your build) |
 
-Optional object storage (future R2 adapter): `R2_*` variables as in [Codex BaaS doc](../../docs/src/archive/research-2026-q1/codex-baas.md) (archived).
+Optional object storage (R2 adapter — archived research): `R2_*` variables as in [Codex BaaS doc](../../docs/src/archive/research-2026-q1/codex-baas.md) (archived).
 
 ## Compose
 
