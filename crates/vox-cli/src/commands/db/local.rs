@@ -200,6 +200,8 @@ pub async fn schema(file: Option<&PathBuf>) -> Result<()> {
 
 /// Print sample data from a table or collection.
 pub async fn sample(table: &str, limit: i64) -> Result<()> {
+    vox_db::sql_util::validate_identifier(table)
+        .map_err(|e| anyhow::anyhow!("invalid table name {:?}: {}", table, e))?;
     let db = vox_db::VoxDb::connect_default().await?;
     println!("Sample data from '{}' (limit {}):", table, limit);
 

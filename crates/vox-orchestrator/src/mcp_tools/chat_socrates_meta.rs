@@ -6,6 +6,7 @@
 
 use serde::Deserialize;
 use serde_json::Value;
+use vox_runtime::supervisor::spawn_supervised_infallible;
 use vox_socrates_policy::{
     ClarificationStopReason, ConfidencePolicy, QuestionCandidate, QuestionKind, QuestioningPolicy,
     RiskDecision,
@@ -109,7 +110,7 @@ pub(crate) fn spawn_socrates_telemetry_with_meta(
         return;
     };
     let repository_id = state.repository.repository_id.clone();
-    tokio::spawn(async move {
+    spawn_supervised_infallible("socrates_telemetry", async move {
         let meta = match serde_json::from_value::<SocratesJsonMeta>(socrates_value.clone()) {
             Ok(m) => m,
             Err(e) => {
@@ -168,7 +169,7 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
     };
     let spend_state = state.clone();
     let repository_id = state.repository.repository_id.clone();
-    tokio::spawn(async move {
+    spawn_supervised_infallible("questioning_trace", async move {
         let meta = match serde_json::from_value::<SocratesJsonMeta>(socrates_value.clone()) {
             Ok(m) => m,
             Err(e) => {

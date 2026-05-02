@@ -12,7 +12,7 @@ use turso::Value as SqlValue;
 use turso::params;
 
 use crate::schema::CODEX_REACTIVITY_TABLES;
-
+use crate::sql_util::validate_identifier;
 use crate::StoreError;
 
 /// Result of [`verify_legacy_store`].
@@ -87,7 +87,12 @@ impl LegacyImportSource {
 
 /// Tables never exported: Turso/Arca owns `schema_version` via [`crate::VoxDb::migrate`].
 /// A fresh target DB must already hold [`crate::schema::BASELINE_VERSION`] before [`import_legacy_jsonl`].
-pub const LEGACY_EXPORT_SKIP_TABLES: &[&str] = &["schema_version"];
+pub const LEGACY_EXPORT_SKIP_TABLES: &[&str] = &[
+    "mesh_a2a_messages",   // transient mesh execution state
+    "mesh_dispatch_results", // transient mesh execution state
+    "mesh_exec_leases",    // transient mesh execution state
+    "schema_version",
+];
 
 /// User tables included in [`export_legacy_jsonl`] / accepted by [`import_legacy_jsonl`].
 ///
@@ -437,6 +442,12 @@ pub async fn import_legacy_jsonl<R: BufRead>(
             if columns.is_empty() {
                 continue;
             }
+            // Validate column names before interpolating into SQL — they come from user JSONL.
+            for col in &columns {
+                validate_identifier(col).map_err(|e| {
+                    StoreError::Db(format!("legacy import invalid column name {col:?}: {e}"))
+                })?;
+            }
             let placeholders: Vec<String> = (1..=columns.len()).map(|i| format!("?{i}")).collect();
             let sql = format!(
                 "INSERT INTO {} ({}) VALUES ({})",
@@ -477,9 +488,12 @@ pub async fn import_legacy_jsonl<R: BufRead>(
 
     match body.await {
         Ok(n) => {
-            conn.execute("COMMIT", ())
-                .await
-                .map_err(|e| StoreError::Db(format!("legacy import commit: {e}")))?;
+            if let Err(e) = conn.execute("COMMIT", ()).await {
+                // COMMIT failed — roll back to prevent partial-state leak.
+                let _ = conn.execute("ROLLBACK", ()).await;
+                let _ = restore_fk.await;
+                return Err(StoreError::Db(format!("legacy import commit: {e}")));
+            }
             restore_fk.await?;
             Ok(n)
         }

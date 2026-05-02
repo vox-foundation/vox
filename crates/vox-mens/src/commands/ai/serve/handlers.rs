@@ -225,7 +225,7 @@ pub async fn do_completions_stream(
                     "finish_reason": null
                 }]
             });
-            Ok(Event::default().data(serde_json::to_string(&json).unwrap()))
+            Ok(Event::default().data(serde_json::to_string(&json).unwrap_or_else(|_| "{}".to_string())))
         }
         Err(e) => Ok(Event::default().data(format!("{{\"error\": \"{}\"}}", e))),
     });

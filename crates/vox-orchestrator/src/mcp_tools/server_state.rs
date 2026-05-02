@@ -3,6 +3,7 @@ use crate::{
     BudgetManager, Observer, Orchestrator, OrchestratorConfig, RemotePopuliSnapshot, SessionConfig,
     SessionManager,
 };
+use vox_runtime::supervisor::spawn_supervised_infallible;
 use parking_lot::Mutex as PrMutex;
 use parking_lot::RwLock as PrRwLock;
 use std::collections::HashMap;
@@ -105,7 +106,7 @@ impl ServerState {
         // Skill Registry
         let registry = new_registry_arc();
         let registry_for_builtins = registry.clone();
-        tokio::spawn(async move {
+        spawn_supervised_infallible("install_builtins", async move {
             let _ = install_builtins(&registry_for_builtins).await;
         });
 
@@ -242,7 +243,7 @@ impl ServerState {
         let Some(db) = self.db.as_ref().cloned() else {
             return;
         };
-        tokio::spawn(async move {
+        spawn_supervised_infallible("attention_tracker_persist", async move {
             let tracker = crate::attention_tracker::AttentionTracker::new(&db);
             if let Err(e) = tracker.record_event(&event).await {
                 tracing::debug!(error = %e, "attention tracker persistence failed");

@@ -6,6 +6,7 @@
 use crate::mcp_tools::params::ToolResult;
 use crate::mcp_tools::server_state::ServerState;
 use vox_db::TrustObservationInput;
+use vox_runtime::supervisor::spawn_supervised_infallible;
 
 const REM_REPO_CATALOG: &str = "Add `.vox/repositories.yaml` under the current workspace root and keep local repo paths explicit.";
 const REM_REPO_QUERY: &str = "Ensure the repo catalog resolves local repositories successfully before running cross-repo queries.";
@@ -40,7 +41,7 @@ fn record_query_metric(
         "result_count": result_count,
         "skipped_count": skipped_count,
     });
-    tokio::spawn(async move {
+    spawn_supervised_infallible("repo_catalog_metric", async move {
         let _ = db
             .record_benchmark_event(
                 &repository_id,
@@ -65,7 +66,7 @@ fn record_catalog_refresh_observation(
     let repository_id = state.repository.repository_id.clone();
     let artifact_ref = artifact_ref.map(str::to_string);
     let metadata_text = metadata_json.to_string();
-    tokio::spawn(async move {
+    spawn_supervised_infallible("repo_catalog_metric", async move {
         let _ = db
             .record_trust_observation(TrustObservationInput {
                 entity_type: "repository",

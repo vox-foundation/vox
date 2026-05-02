@@ -558,8 +558,12 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                     }
                 }
                 let val: serde_json::Value = serde_json::from_str(line)?;
-                let path = val["path"].as_str().unwrap();
-                let expected = val["expected"].as_str().unwrap();
+                let path = val["path"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("JSONL record missing 'path' string field"))?;
+                let expected = val["expected"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("JSONL record missing 'expected' string field"))?;
                 let lang = val.get("language").and_then(|v| v.as_str());
 
                 let p = std::path::Path::new(path);

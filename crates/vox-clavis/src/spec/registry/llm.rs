@@ -204,7 +204,8 @@ pub const SPECS_LLM: &[SecretSpec] = &[
     SecretSpec {
         id: SecretId::V0ApiKey,
         canonical_env: "V0_API_KEY",
-        aliases: &[],
+        // VOX_V0_API_KEY alias preserved from the deduplicated platform.rs entry.
+        aliases: &["VOX_V0_API_KEY"],
         deprecated_aliases: &[],
         backend_key: None,
         auth_registry: None,
@@ -215,7 +216,9 @@ pub const SPECS_LLM: &[SecretSpec] = &[
     SecretSpec {
         id: SecretId::OpenClawToken,
         canonical_env: "OPENCLAW_TOKEN",
-        aliases: &[],
+        // VOX_OPENCLAW_TOKEN alias preserved from the deduplicated platform.rs
+        // entry; both spellings now resolve to the same secret.
+        aliases: &["VOX_OPENCLAW_TOKEN"],
         deprecated_aliases: &[],
         backend_key: None,
         auth_registry: None,

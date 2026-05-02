@@ -250,3 +250,37 @@ pub const fn secret_reads_populi_env_file(id: SecretId) -> bool {
             | SecretId::VoxMeshAdminToken
     )
 }
+
+#[cfg(test)]
+mod uniqueness_tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    /// `SecretId::spec()` (see `spec/ids.rs`) does a linear scan over
+    /// `ALL_REGISTRIES` and returns the first match. Any duplicate
+    /// `SecretId` registration is therefore unreachable dead code at best
+    /// and a silent resolution-divergence bug at worst (the second entry's
+    /// canonical_env / aliases / policy are simply ignored). Five such
+    /// duplicates were removed on 2026-05-02 (`TavilyProject`,
+    /// `VoxGithubSha`, `SkipCudaFeatureCheck`, `VoxCargoBin`,
+    /// `VoxCliGlobalJson`); this test stops them from coming back.
+    #[test]
+    fn every_secret_id_is_registered_at_most_once() {
+        let mut counts: BTreeMap<SecretId, Vec<&'static str>> = BTreeMap::new();
+        for reg in ALL_REGISTRIES {
+            for spec in *reg {
+                counts.entry(spec.id).or_default().push(spec.canonical_env);
+            }
+        }
+        let dups: Vec<_> = counts
+            .iter()
+            .filter(|(_, v)| v.len() > 1)
+            .map(|(id, envs)| format!("{id:?} appears {} times: {envs:?}", envs.len()))
+            .collect();
+        assert!(
+            dups.is_empty(),
+            "duplicate SecretId registrations (only the first wins at runtime):\n  {}",
+            dups.join("\n  ")
+        );
+    }
+}

@@ -66,9 +66,28 @@ pub fn decrypt(key: &SymKey, ciphertext: &[u8]) -> Result<Vec<u8>, String> {
     decrypt_with_nonce(key, nonce_bytes, payload)
 }
 
+/// Required ChaCha20Poly1305 nonce length, in bytes (96-bit IETF nonce).
+pub const CHACHA20POLY1305_NONCE_LEN: usize = 12;
+
+/// Validate a nonce slice has the exact length required by ChaCha20Poly1305.
+///
+/// `Nonce::from_slice` panics on a length mismatch, which turns any
+/// attacker- or caller-controlled byte slice into a denial-of-service vector.
+/// Callers must validate first; encrypt/decrypt helpers below do this for you.
+fn checked_nonce(nonce: &[u8]) -> Result<&Nonce, String> {
+    if nonce.len() != CHACHA20POLY1305_NONCE_LEN {
+        return Err(format!(
+            "Invalid nonce length: expected {} bytes, got {}",
+            CHACHA20POLY1305_NONCE_LEN,
+            nonce.len()
+        ));
+    }
+    Ok(Nonce::from_slice(nonce))
+}
+
 pub fn encrypt_with_nonce(key: &SymKey, nonce: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
     let cipher = ChaCha20Poly1305::new(&key.0.into());
-    let nonce = Nonce::from_slice(nonce);
+    let nonce = checked_nonce(nonce)?;
 
     cipher
         .encrypt(nonce, plaintext)
@@ -81,7 +100,7 @@ pub fn decrypt_with_nonce(
     ciphertext: &[u8],
 ) -> Result<Vec<u8>, String> {
     let cipher = ChaCha20Poly1305::new(&key.0.into());
-    let nonce = Nonce::from_slice(nonce);
+    let nonce = checked_nonce(nonce)?;
 
     cipher
         .decrypt(nonce, ciphertext)
@@ -247,7 +266,7 @@ pub fn unseal(secret_key: &EncryptionSecretKey, ciphertext: &[u8]) -> Result<Vec
 
     let key = chacha20poly1305::Key::from_slice(shared_secret.as_bytes());
     let cipher = ChaCha20Poly1305::new(key);
-    let nonce = Nonce::from_slice(nonce_bytes);
+    let nonce = checked_nonce(nonce_bytes)?;
 
     cipher
         .decrypt(nonce, encrypted_payload)
@@ -264,4 +283,57 @@ pub fn encryption_public_key_from_bytes(bytes: [u8; 32]) -> EncryptionPublicKey 
 
 pub fn encryption_public_key_to_bytes(key: &EncryptionPublicKey) -> [u8; 32] {
     *key.0.as_bytes()
+}
+
+#[cfg(test)]
+mod nonce_length_tests {
+    use super::*;
+
+    #[test]
+    fn encrypt_with_nonce_rejects_short_nonce() {
+        let key = generate_sym_key();
+        let res = encrypt_with_nonce(&key, &[0u8; 11], b"hello");
+        let err = res.expect_err("11-byte nonce must not be accepted");
+        assert!(err.contains("Invalid nonce length"), "got: {err}");
+    }
+
+    #[test]
+    fn encrypt_with_nonce_rejects_long_nonce() {
+        let key = generate_sym_key();
+        let res = encrypt_with_nonce(&key, &[0u8; 13], b"hello");
+        assert!(res.is_err(), "13-byte nonce must not be accepted");
+    }
+
+    #[test]
+    fn encrypt_with_nonce_rejects_empty_nonce() {
+        let key = generate_sym_key();
+        let res = encrypt_with_nonce(&key, &[], b"hello");
+        assert!(res.is_err(), "empty nonce must not be accepted");
+    }
+
+    #[test]
+    fn decrypt_with_nonce_rejects_short_nonce() {
+        let key = generate_sym_key();
+        let res = decrypt_with_nonce(&key, &[0u8; 11], b"\x00\x00\x00\x00");
+        assert!(res.is_err(), "11-byte nonce must not panic or accept");
+    }
+
+    #[test]
+    fn checked_nonce_round_trip() {
+        // 12 bytes is the only acceptable length.
+        for len in [0, 1, 8, 11, 13, 16, 24, 32] {
+            let buf = vec![0u8; len];
+            assert!(checked_nonce(&buf).is_err(), "len {len} should reject");
+        }
+        let buf = vec![0u8; 12];
+        assert!(checked_nonce(&buf).is_ok());
+    }
+
+    #[test]
+    fn encrypt_then_decrypt_round_trip_still_works() {
+        let key = generate_sym_key();
+        let ct = encrypt(&key, b"plaintext").unwrap();
+        let pt = decrypt(&key, &ct).unwrap();
+        assert_eq!(pt, b"plaintext");
+    }
 }
