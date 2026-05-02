@@ -50,6 +50,47 @@ impl GamifyMode {
     }
 }
 
+/// Build target for `vox build` / `vox dev`: controls which codegen paths are enabled.
+///
+/// Override order (highest to lowest): CLI `--target` flag > `VOX_BUILD_TARGET` env var >
+/// `[build] target` in `Vox.toml` > implicit default (`Fullstack`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum BuildTarget {
+    /// Emit TypeScript/React frontend files **and** Axum Rust backend (existing default).
+    #[default]
+    Fullstack,
+    /// Emit only the Axum Rust backend; skip all TypeScript codegen and Vite scaffolding.
+    Server,
+    /// Emit a zero-runtime TypeScript SDK package only; skip Rust codegen.
+    Client,
+}
+
+impl BuildTarget {
+    /// Parse from a lower-case string as found in `Vox.toml` or `VOX_BUILD_TARGET`.
+    ///
+    /// Returns `None` for unknown strings — callers should surface an error.
+    #[must_use]
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "fullstack" => Some(Self::Fullstack),
+            "server" => Some(Self::Server),
+            "client" => Some(Self::Client),
+            _ => None,
+        }
+    }
+
+    /// Lower-case slug persisted in `Vox.toml` `[build] target`.
+    #[must_use]
+    pub fn as_config_str(self) -> &'static str {
+        match self {
+            Self::Fullstack => "fullstack",
+            Self::Server => "server",
+            Self::Client => "client",
+        }
+    }
+}
+
 /// How `vox run` (and compilerd) choose the **script** lane vs **web app** lane when the CLI mode is `auto`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]

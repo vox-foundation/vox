@@ -137,8 +137,10 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
     )
     .await?;
 
-    // 2. Check if we have frontend components to bundle
-    let has_frontend = fs::read_dir(&out_dir)
+    // 2. Check if we have frontend components to bundle.
+    // BuildTarget::Server forces has_frontend = false regardless of what's in dist/.
+    let resolved_target = vox_config::VoxConfig::load().build_target;
+    let heuristic = fs::read_dir(&out_dir)
         .ok()
         .map(|entries| {
             entries
@@ -146,6 +148,7 @@ pub async fn run(file: &Path, args: &[String], mode: RunMode) -> Result<()> {
                 .any(|e| e.path().extension().is_some_and(|ext| ext == "tsx"))
         })
         .unwrap_or(false);
+    let has_frontend = resolve_has_frontend(resolved_target, heuristic);
 
     if has_frontend {
         println!("\nBundling frontend...");
@@ -265,6 +268,18 @@ fn copy_dir_recursive(from: &Path, to: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Determine `has_frontend` given a `BuildTarget` and an optional existing `dist/` scan.
+///
+/// - `BuildTarget::Server` always returns `false` (no frontend regardless of what's in dist/).
+/// - `BuildTarget::Fullstack` falls through to the heuristic.
+/// - `BuildTarget::Client` is not expected in `vox run`; falls through to heuristic.
+pub fn resolve_has_frontend(target: vox_config::BuildTarget, heuristic: bool) -> bool {
+    match target {
+        vox_config::BuildTarget::Server => false,
+        vox_config::BuildTarget::Fullstack | vox_config::BuildTarget::Client => heuristic,
+    }
+}
+
 #[cfg(test)]
 mod parse_mode_tests {
     use super::{RunMode, parse_run_mode_from_str};
@@ -275,5 +290,29 @@ mod parse_mode_tests {
         assert_eq!(parse_run_mode_from_str("App "), RunMode::App);
         assert_eq!(parse_run_mode_from_str("auto"), RunMode::Auto);
         assert_eq!(parse_run_mode_from_str("unknown"), RunMode::Auto);
+    }
+}
+
+#[cfg(test)]
+mod build_target_gate_tests {
+    use super::resolve_has_frontend;
+    use vox_config::BuildTarget;
+
+    #[test]
+    fn server_target_forces_has_frontend_false_regardless_of_heuristic() {
+        assert!(!resolve_has_frontend(BuildTarget::Server, true));
+        assert!(!resolve_has_frontend(BuildTarget::Server, false));
+    }
+
+    #[test]
+    fn fullstack_target_preserves_heuristic_result() {
+        assert!(resolve_has_frontend(BuildTarget::Fullstack, true));
+        assert!(!resolve_has_frontend(BuildTarget::Fullstack, false));
+    }
+
+    #[test]
+    fn client_target_preserves_heuristic_result() {
+        assert!(resolve_has_frontend(BuildTarget::Client, true));
+        assert!(!resolve_has_frontend(BuildTarget::Client, false));
     }
 }
