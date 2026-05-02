@@ -29,7 +29,7 @@ Optional split-plane sidecar: run **`vox-orchestrator-d`** alongside `vox-mcp` a
 
 - **Binary:** `vox` (release), optional features via `VOX_CLI_FEATURES` (e.g. `mens,script-execution`).
 - **Data:** volume **`/root/.vox`**; align with `VOX_DB_*` / local SQLite layout per [ADR 004](../adr/004-codex-arca-turso-ssot.md).
-- **Mens sidecar (single container):** `VOX_MESH_MESH_SIDECAR=1` + entrypoint [`infra/containers/entrypoints/vox-entrypoint.sh`](../../../infra/containers/entrypoints/vox-entrypoint.sh); exposes **9847** when used.
+- **Mens sidecar (single container):** `VOX_MESH_MESH_SIDECAR=1` + entrypoint [`infra/containers/entrypoints/vox-entrypoint.vox`](../../../infra/containers/entrypoints/vox-entrypoint.vox); exposes **9847** when used.
 - **Health:** `vox doctor --probe` (see root `Dockerfile` and [`infra/containers/Dockerfile.populi`](../../../infra/containers/Dockerfile.populi) `HEALTHCHECK`).
 
 ## Environment SSOT (Compose-friendly)
