@@ -246,6 +246,19 @@ This codemod:
 
 The codemod is non-destructive: it creates new files and rewrites `.vox` source, but does not delete the old island stubs until the developer runs `vox migrate drop-island --apply`. A dry-run mode is the default.
 
+### 4.4 Retirement deletion checklist
+
+Once `vox migrate drop-island` is stable and all known usages have been migrated, delete these surfaces. Do **not** delete before that — they are active code on a known decommission timeline.
+
+| Surface | Path | Blocked on |
+|---|---|---|
+| CLI `vox island` command suite | `crates/vox-cli/src/commands/island/` (entire dir: `generate`, `upgrade`, `list`, `cache`, `build`) | `drop-island` codemod stable |
+| Island TS emitter | `crates/vox-compiler/src/codegen_ts/island_emit.rs` | See §5.1 — mark `#[deprecated]` first, remove after codemod stable |
+| CLI island templates | `crates/vox-cli/src/templates/islands.rs` | After `vox island` commands removed |
+| Island golden example | `examples/golden/v0_shadcn_island.vox` | After `island_emit.rs` removed |
+| Islands how-to guide | `docs/src/how-to/how-to-islands-and-pages.md` | Replace with migration guide pointing at `vox migrate drop-island` |
+| Islands Vite app | `islands/` (repo root) | After all `@island` usages migrated in codebase |
+
 ---
 
 ## 5. Implementation Notes

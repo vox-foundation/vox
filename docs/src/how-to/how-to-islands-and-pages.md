@@ -11,9 +11,9 @@ schema_type: "HowTo"
 
 # How-To: Build UI with Islands and Pages
 
-Vox relies on a server-first web architecture. Rather than building massive client-side bundles, Vox generates raw HTML routes and uses targeted interactive "islands" for dynamic functionality. 
+> **`@island` is scheduled for retirement in Phase 5 of the frontend interop plan.** It is currently supported but will be replaced by `import react` (bidirectional Vox↔React interop). Migration path: `vox migrate drop-island`. See [`phase5-react-interop-spec-2026.md`](../architecture/phase5-react-interop-spec-2026.md) §4 for the full retirement timeline and checklist.
 
-*(Note: The legacy `@island` decorator has been removed in v0.3. Use `@island` and `http get` instead).*
+Vox relies on a server-first web architecture. Rather than building massive client-side bundles, Vox generates raw HTML routes and uses targeted interactive "islands" for dynamic functionality.
 
 ## When to use `@island` vs `http get`
 
