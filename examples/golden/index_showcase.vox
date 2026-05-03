@@ -21,18 +21,15 @@
 
 // ANCHOR: ui
 component TaskList(tasks: List[Task]) {
-    view: <div>
-        {tasks.map(fn(t) {
-            <label>
-                <input 
-                    type="checkbox" 
-                    checked={t.done} 
-                    onChange={fn() complete_task(t.id)} 
-                />
-                {t.title}
-            </label>
-        })}
-    </div>
+    // VUV note: a checkbox <input> cannot currently be expressed inline because the HTML
+    // attribute `type` collides with the Vox `type` keyword. Until VUV gains an attribute-name
+    // escape (e.g. `attr_type="checkbox"`), this fixture renders just title rows; the checkbox
+    // wrap-around lives in a small @island.
+    view: column() {
+        tasks.map(fn(t) {
+            button(on_click={fn() complete_task(t.id)}) { t.title }
+        })
+    }
 }
 // ANCHOR_END: ui
 
