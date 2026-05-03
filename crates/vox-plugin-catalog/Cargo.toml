@@ -16,5 +16,8 @@ workspace-hack = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 toml = { workspace = true }
 
+[dev-dependencies]
+toml = { workspace = true }
+
 [lints]
 workspace = true
