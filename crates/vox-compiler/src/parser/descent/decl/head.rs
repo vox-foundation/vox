@@ -668,6 +668,7 @@ impl Parser {
         let mut invariants = Vec::new();
         let mut is_mobile_native = false;
         let mut is_pure = false;
+        let mut is_reactive = false;
         let mut is_deprecated = false;
         let mut is_llm = false;
         let mut llm_model = None;
@@ -710,6 +711,10 @@ impl Parser {
                 Token::AtPure => {
                     self.advance();
                     is_pure = true;
+                }
+                Token::AtReactive => {
+                    self.advance();
+                    is_reactive = true;
                 }
                 Token::AtDeprecated => {
                     self.advance();
@@ -781,6 +786,7 @@ impl Parser {
             is_async: false,
             is_deprecated,
             is_pure,
+            is_reactive,
             is_llm,
             llm_model,
             is_traced: false,

@@ -142,6 +142,11 @@ pub enum Token {
     AtFuzz,
     #[token("@pure")]
     AtPure,
+    /// `@reactive` — opt-in marker on a free `fn` declaring that its body's
+    /// reactive-binding reads should be tracked across calls by the auto-dep
+    /// inference pass (Phase E of the Svelte-mineable features plan).
+    #[token("@reactive")]
+    AtReactive,
     #[token("@scheduled")]
     AtScheduled,
     #[token("@deprecated")]
@@ -383,6 +388,7 @@ impl std::fmt::Display for Token {
             Token::AtForall => write!(f, "@forall"),
             Token::AtFuzz => write!(f, "@fuzz"),
             Token::AtPure => write!(f, "@pure"),
+            Token::AtReactive => write!(f, "@reactive"),
             Token::AtScheduled => write!(f, "@scheduled"),
             Token::AtDeprecated => write!(f, "@deprecated"),
             Token::AtV0 => write!(f, "@v0"),
