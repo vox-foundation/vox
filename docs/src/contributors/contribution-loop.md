@@ -104,6 +104,35 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo run -p vox-cli -- ci ssot-drift
 ```
 
+## After merging a snapshot-touching PR
+
+The test suite uses [insta](https://insta.rs/) for snapshot assertions. CI runs with
+`INSTA_UPDATE=unseen` ([`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)) so
+**new** snapshots auto-accept in CI without failing the build, and the resulting
+`tests/snapshots/` directories are uploaded as the `insta-snapshots` artifact. **Changed**
+snapshots still fail.
+
+If your PR added or moved snapshots, baselines do not commit themselves. Either:
+
+1. **Run the suite locally before merging** so the new `.snap` files appear in your working
+   tree, then `git add` them alongside your code changes. (Preferred — keeps the PR
+   self-contained.)
+2. **After merge**, download the `insta-snapshots` artifact from the merged CI run, drop
+   the new `.snap` files into `crates/<crate>/tests/snapshots/`, commit, and push as a
+   follow-up.
+
+Without one of the two, every later contributor sees the snapshot tests fail locally with
+"snapshot assertion failed" on tests they didn't touch — exactly because the baseline only
+ever existed in the CI artifact, not in the repo. Three separate cleanup commits in
+2026-05 (`reactive_smoke_test`, `state_machine_integration_test`, `web_ir_lower_emit_test`)
+were needed to drain orphans accumulated from this gap; do not let it recur.
+
+The orphan signal is a `tests/snapshots/*.snap.new` file with no matching `.snap` next to
+it. To clear: spot-check the `.snap.new` content (does the recorded output match what your
+test should produce?), then accept via `cargo insta accept` (or rename `.snap.new` →
+`.snap` if `cargo-insta` isn't installed). Run the suite again and repeat — each accepted
+baseline can unblock previously-skipped tests that produce their own first-run snapshots.
+
 ## Planned additions (roadmap — Wave 7–9)
 
 > **These are not yet shipped.** They describe the direction from
