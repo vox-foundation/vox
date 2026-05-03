@@ -90,6 +90,62 @@ exposes-tools = ["vox_validate_file", "vox_run_tests", "vox_check_workspace"]
 default-source = "github:vox-foundation/vox-plugin-skill-compiler"
 bundled-in = ["vox-fullstack", "vox-ml", "vox-dev"]
 
+[[plugin]]
+id = "skill-git"
+payload-kind = "skill"
+description = "Agent-facing skill describing Vox git integration tools."
+exposes-tools = ["vox_git_status", "vox_git_diff", "vox_git_resolve_conflict"]
+default-source = "github:vox-foundation/vox-plugin-skill-git"
+bundled-in = ["vox-fullstack", "vox-dev"]
+
+[[plugin]]
+id = "skill-memory"
+payload-kind = "skill"
+description = "Agent-facing skill for memory and context management."
+exposes-tools = ["vox_memory_get", "vox_memory_set", "vox_memory_search"]
+default-source = "github:vox-foundation/vox-plugin-skill-memory"
+bundled-in = ["vox-fullstack", "vox-edge", "vox-cloud-only", "vox-server", "vox-dev"]
+
+[[plugin]]
+id = "skill-orchestrator"
+payload-kind = "skill"
+description = "Agent-facing skill for task submission, status, budget, multi-agent coordination."
+exposes-tools = ["vox_orchestrator_submit", "vox_orchestrator_status", "vox_orchestrator_budget"]
+default-source = "github:vox-foundation/vox-plugin-skill-orchestrator"
+bundled-in = ["vox-fullstack", "vox-cloud-only", "vox-server", "vox-mesh", "vox-dev"]
+
+[[plugin]]
+id = "skill-rag"
+payload-kind = "skill"
+description = "Agent-facing skill for retrieval-augmented generation."
+exposes-tools = ["vox_rag_query", "vox_rag_index"]
+default-source = "github:vox-foundation/vox-plugin-skill-rag"
+bundled-in = ["vox-fullstack", "vox-dev"]
+
+[[plugin]]
+id = "skill-testing"
+payload-kind = "skill"
+description = "Agent-facing skill for test-runner integration."
+exposes-tools = ["vox_test_run", "vox_test_select"]
+default-source = "github:vox-foundation/vox-plugin-skill-testing"
+bundled-in = ["vox-fullstack", "vox-dev"]
+
+[[plugin]]
+id = "skill-testing-validate"
+payload-kind = "skill"
+description = "Agent-facing skill for test validation diagnostics."
+exposes-tools = ["vox_test_validate"]
+default-source = "github:vox-foundation/vox-plugin-skill-testing-validate"
+bundled-in = ["vox-fullstack", "vox-dev"]
+
+[[plugin]]
+id = "skill-v0"
+payload-kind = "skill"
+description = "Agent-facing skill providing legacy v0 compatibility surface."
+exposes-tools = ["vox_v0_compat"]
+default-source = "github:vox-foundation/vox-plugin-skill-v0"
+bundled-in = ["vox-fullstack", "vox-edge"]
+
 [[bundle]]
 id = "vox-base"
 description = "Bare host binary, no plugins."

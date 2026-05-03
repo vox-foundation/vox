@@ -30,3 +30,20 @@ fn catalog_has_all_nine_code_plugins() {
         assert!(code_ids.contains(&id), "missing code/composite plugin: {id}");
     }
 }
+
+#[test]
+fn catalog_has_all_skill_plugins() {
+    let plugins = all_plugins();
+    let skill_ids: Vec<&str> = plugins
+        .iter()
+        .filter(|p| matches!(p.payload_kind, vox_plugin_catalog::schema::PayloadKind::Skill))
+        .map(|p| p.id.as_str())
+        .collect();
+    let expected = [
+        "skill-compiler", "skill-git", "skill-memory", "skill-orchestrator",
+        "skill-rag", "skill-testing", "skill-testing-validate", "skill-v0",
+    ];
+    for id in expected {
+        assert!(skill_ids.contains(&id), "missing skill plugin: {id}");
+    }
+}
