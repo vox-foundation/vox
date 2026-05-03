@@ -317,6 +317,7 @@ impl Parser {
 
     pub(crate) fn parse_args(&mut self) -> Result<Vec<Arg>, ()> {
         let mut args = Vec::new();
+        self.skip_newlines();
         while !matches!(self.peek(), Token::RParen | Token::Eof) {
             // Check for named arg: name=value
             if let Token::Ident(name) = self.peek().clone() {
@@ -328,18 +329,22 @@ impl Parser {
                         name: Some(name),
                         value,
                     });
+                    self.skip_newlines();
                     if !self.eat(&Token::Comma) {
                         break;
                     }
+                    self.skip_newlines();
                     continue;
                 }
                 self.pos = saved; // backtrack
             }
             let value = self.parse_expr()?;
             args.push(Arg { name: None, value });
+            self.skip_newlines();
             if !self.eat(&Token::Comma) {
                 break;
             }
+            self.skip_newlines();
         }
         Ok(args)
     }
