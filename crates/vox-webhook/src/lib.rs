@@ -33,6 +33,12 @@ pub enum WebhookError {
     /// HMAC or signature header mismatch.
     #[error("Signature verification failed")]
     InvalidSignature,
+    /// Timestamp missing on a source that requires it (e.g. Slack, Discord).
+    #[error("Missing or empty timestamp header")]
+    MissingTimestamp,
+    /// Timestamp is outside the configured replay window.
+    #[error("Timestamp {0} is outside the allowed replay window")]
+    TimestampOutOfWindow(String),
     /// Source or event rejected by policy.
     #[error("Unknown event type: {0}")]
     UnknownEvent(String),

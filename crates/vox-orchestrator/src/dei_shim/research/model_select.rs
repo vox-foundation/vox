@@ -5,23 +5,10 @@ use crate::models::ModelRegistry;
 use crate::selection::{RegistryModelResolutionParams, resolve_model_with_registry_fallbacks};
 use crate::types::TaskCategory;
 
-/// Last-resort planner / claim / synthesis id when the catalog/registry yields no candidate.
-///
-/// **SSOT (workspace):** keep this literal identical to `RESEARCH_FLASH_FALLBACK` in
-/// `crates/vox-config/src/bootstrap_inference.rs` until `vox-dei` is a workspace member and
-/// can depend on `vox-config` directly.
-pub const FALLBACK_RESEARCH_FLASH_MODEL_ID: &str = "gpt-4o-mini";
-/// Last-resort judge (`TaskCategory::Review`) when the registry cannot select a candidate.
-///
-/// **SSOT:** mirror `REVIEW_PREMIUM_FALLBACK` in `crates/vox-config/src/bootstrap_inference.rs`.
-pub const FALLBACK_REVIEW_PREMIUM_MODEL_ID: &str = "gpt-4o";
-/// Default NLI model id in [`super::config::VerifierConfig`] before research run resolution.
-///
-/// The research pipeline replaces this sentinel with the resolved claim-stage model when
-/// `VerifierConfig.nli_model_id` still equals this constant (see `verifier_config_for_research_run` in `orchestrator/helpers.rs`).
-///
-/// **SSOT:** mirror `NLI_FALLBACK` in `crates/vox-config/src/bootstrap_inference.rs`.
-pub const FALLBACK_NLI_MODEL_ID: &str = "gpt-4o-mini";
+// Re-export from the single source of truth in vox-config.
+pub(crate) use vox_config::RESEARCH_FLASH_FALLBACK as FALLBACK_RESEARCH_FLASH_MODEL_ID;
+pub(crate) use vox_config::REVIEW_PREMIUM_FALLBACK as FALLBACK_REVIEW_PREMIUM_MODEL_ID;
+pub(crate) use vox_config::NLI_FALLBACK as FALLBACK_NLI_MODEL_ID;
 
 /// Registry-selected model IDs for each research LLM stage.
 #[derive(Debug, Clone)]

@@ -1,8 +1,63 @@
 use crate::process::ProcessHandle;
 use crate::registry::RegistryError;
+use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
+use tokio::task::JoinHandle;
 use tracing;
+
+/// Spawn a background task and log an error if it panics or returns an `Err`.
+///
+/// The returned `JoinHandle` controls the **monitor** task, not the inner `fut`.
+/// Aborting the returned handle stops the monitor but does **not** cancel `fut`,
+/// which continues running independently (Tokio has no structured concurrency).
+/// If you need cancellation to propagate into `fut`, pass a `CancellationToken`
+/// explicitly.
+///
+/// Use this instead of bare `tokio::spawn` for all non-actor background work.
+pub fn spawn_supervised<F, E>(name: &'static str, fut: F) -> JoinHandle<()>
+where
+    F: Future<Output = Result<(), E>> + Send + 'static,
+    E: std::fmt::Display + Send + 'static,
+{
+    tokio::spawn(async move {
+        match tokio::spawn(fut).await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                tracing::error!(task = name, error = %e, "supervised task failed");
+            }
+            Err(join_err) => {
+                if join_err.is_panic() {
+                    tracing::error!(task = name, "supervised task panicked");
+                } else {
+                    tracing::error!(task = name, "supervised task cancelled unexpectedly");
+                }
+            }
+        }
+    })
+}
+
+/// Spawn a fire-and-forget background task with panic logging.
+///
+/// For tasks that return `()` (no error channel). Panics surface as
+/// `tracing::error!` rather than being silently discarded.
+pub fn spawn_supervised_infallible<F>(name: &'static str, fut: F) -> JoinHandle<()>
+where
+    F: Future<Output = ()> + Send + 'static,
+{
+    tokio::spawn(async move {
+        match tokio::spawn(fut).await {
+            Ok(()) => {}
+            Err(join_err) => {
+                if join_err.is_panic() {
+                    tracing::error!(task = name, "supervised task panicked");
+                } else {
+                    tracing::error!(task = name, "supervised task cancelled unexpectedly");
+                }
+            }
+        }
+    })
+}
 
 /// Events emitted by the supervisor for graceful degradation or orchestrator reaction.
 #[derive(Debug, Clone)]

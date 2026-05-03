@@ -117,7 +117,7 @@ impl PopuliHttpClient {
         let client = vox_reqwest_defaults::client_builder()
             .timeout(timeout)
             .build()
-            .expect("reqwest client for populi HTTP");
+            .expect("reqwest TLS stack must be available (platform TLS missing or misconfigured)");
         Self {
             client,
             base,

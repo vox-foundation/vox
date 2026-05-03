@@ -31,7 +31,7 @@ impl Default for FatigueMonitor {
     fn default() -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_millis() as u64;
         Self {
             recent_context_switches: 0,
@@ -62,7 +62,7 @@ impl FatigueMonitor {
     pub fn evaluate_fatigue(&self, attention_spent_ratio: f64) -> Option<FatigueEvent> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_millis() as u64;
         let session_duration_ms = now.saturating_sub(self.session_start_ms);
 

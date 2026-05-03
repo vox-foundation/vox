@@ -109,8 +109,9 @@ pub fn download_model_blocking(repo_id: &str) -> anyhow::Result<DownloadedModelF
     let repo_id = repo_id.to_string();
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().expect("tokio Runtime::new for hf download");
-        let result = rt.block_on(download_model(&repo_id));
+        let result = tokio::runtime::Runtime::new()
+            .map_err(|e| anyhow::anyhow!("tokio runtime init failed: {e}"))
+            .and_then(|rt| rt.block_on(download_model(&repo_id)));
         let _ = tx.send(result);
     });
     rx.recv()

@@ -973,6 +973,10 @@ impl ModelRegistry {
                     }
                 };
                 cfg.max_tokens = Some(spec.max_tokens);
+                // Propagate catalog cost so chat.rs can estimate spend without a DB lookup.
+                if spec.cost_per_1k > 0.0 {
+                    cfg.cost_per_1k = Some(spec.cost_per_1k);
+                }
                 cfg
             })
     }

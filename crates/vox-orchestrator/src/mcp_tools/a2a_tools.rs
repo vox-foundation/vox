@@ -6,6 +6,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use vox_runtime::supervisor::spawn_supervised_infallible;
 
 use crate::a2a::{A2ADeliveryPlane, A2AInboxPlane};
 use crate::mcp_tools::attention_policy::{
@@ -884,7 +885,7 @@ pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> S
             "category": "a2a_trace",
             "schema_version": "vox_dogfood_v1",
         });
-        tokio::spawn(async move {
+        spawn_supervised_infallible("a2a_dogfood_trace", async move {
             if let Some(parent) = path.parent() {
                 let _ = std::fs::create_dir_all(parent);
             }

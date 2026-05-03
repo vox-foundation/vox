@@ -98,7 +98,7 @@ impl RunPodClient {
         let http = vox_reqwest_defaults::client_builder()
             .timeout(Duration::from_secs(30))
             .build()
-            .expect("reqwest build");
+            .expect("reqwest TLS stack must be available");
         Self {
             http,
             api_key,

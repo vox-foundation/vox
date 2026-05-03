@@ -322,7 +322,9 @@ mod tests {
             std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
         }
         let strict = LlmConfig::from_registry("fast", &registry).expect("strict resolution");
-        assert!(strict.api_key.is_none());
+        // OpenRouterApiKey has allow_env_in_strict=true in its SecretMetadata, so the canonical
+        // env var remains readable in hard_cut profile (only deprecated aliases are blocked).
+        assert_eq!(strict.api_key.as_deref(), Some("runtime-env-token"));
 
         unsafe {
             match prev_key {

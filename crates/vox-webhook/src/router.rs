@@ -236,6 +236,17 @@ async fn receive_webhook(
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({ "error": "invalid signature" })),
         ),
+        Err(WebhookError::MissingTimestamp) => (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": "missing timestamp" })),
+        ),
+        Err(WebhookError::TimestampOutOfWindow(ts)) => {
+            warn!(source, ts, "Webhook rejected: timestamp outside replay window");
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({ "error": "timestamp outside replay window" })),
+            )
+        }
         Err(e) => {
             warn!(source, "Webhook rejected: {e}");
             (

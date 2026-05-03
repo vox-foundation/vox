@@ -1,10 +1,12 @@
 ---
-title: "ADR-024: Formal Intent and Tool Receipt Auditing"
+title: "ADR-029: Formal Intent and Tool Receipt Auditing"
 description: "Architecture Decision Record for formal intent and cryptographic tool receipts in the Vox ecosystem."
 category: "architecture"
 status: "current"
 ---
-# ADR 024: Formal Intent and Tool Receipt Auditing
+# ADR 029: Formal Intent and Tool Receipt Auditing
+
+> Renumbered from ADR-024 on 2026-05-02 to resolve a duplicate-number collision with [`024-dashboard-axum-spa`](024-dashboard-axum-spa.md).
 
 ## Status
 Proposed (2026-04-23)
