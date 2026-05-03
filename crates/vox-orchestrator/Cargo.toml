@@ -52,6 +52,8 @@ toml = { workspace = true }
 vox-pm.workspace = true
 vox-ludus = { workspace = true }
 vox-skills = { workspace = true }
+vox-plugin-host = { workspace = true }
+dirs = { workspace = true }
 parking_lot = "0.12"
 futures-util = { workspace = true }
 sysinfo = { version = "0.38.2", optional = true }

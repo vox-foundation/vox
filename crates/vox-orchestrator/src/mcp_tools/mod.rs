@@ -117,6 +117,7 @@ pub use dispatch::handle_tool_call;
 pub use registry::tool_registry;
 pub use tool_aliases::canonical_tool_name;
 pub mod lifecycle;
+pub mod plugin_skills_bridge;
 pub mod server;
 
 pub use lifecycle::{load_config, mcp_agent_fleet_env_enabled, run_stdio_server_blocking};

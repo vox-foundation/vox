@@ -126,6 +126,23 @@ async fn main() -> anyhow::Result<()> {
         let _ = vox_skills::install_builtins(&registry_for_builtins).await;
     });
 
+    // Bridge plugin-host discovered skills into the vox-skills registry.
+    let install_dir = std::env::var("VOX_PLUGINS_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| {
+            dirs::data_local_dir()
+                .map(|p| p.join("vox").join("plugins"))
+                .unwrap_or_else(|| std::path::PathBuf::from("./vox-plugins"))
+        });
+    {
+        let registry_for_plugins = registry.clone();
+        vox_orchestrator::mcp_tools::plugin_skills_bridge::install_discovered_skills(
+            &registry_for_plugins,
+            &install_dir,
+        )
+        .await;
+    }
+
     let mut state = vox_orchestrator::mcp_tools::server_state::ServerState::new_for_daemon(
         orch.clone(),
         orch_config.clone(),
