@@ -7,8 +7,8 @@ use vox_plugin_api::extensions::ml_backend::{
 };
 
 #[test]
-fn revision_constant_is_one() {
-    assert_eq!(ML_BACKEND_REVISION, 1);
+fn revision_constant_is_two() {
+    assert_eq!(ML_BACKEND_REVISION, 2);
 }
 
 struct DummyBackend;
@@ -37,6 +37,9 @@ impl MlBackend for DummyBackend {
         _dest: RStr<'_>,
     ) -> RResult<(), RBoxError> {
         RResult::ROk(())
+    }
+    fn run_full_training(&self, _config_json: RStr<'_>) -> RResult<RString, RBoxError> {
+        RResult::ROk(RString::from("{}"))
     }
 }
 
