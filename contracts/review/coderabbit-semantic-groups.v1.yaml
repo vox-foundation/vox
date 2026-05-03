@@ -50,7 +50,7 @@ prefix_rules:
     any_prefix: ["docs/"]
   - order: 40
     name: "08_frontend"
-    any_prefix: ["frontend/", "islands/", "packages/"]
+    any_prefix: ["frontend/", "packages/"]
   - order: 45
     name: "09_examples"
     any_prefix: ["examples/"]

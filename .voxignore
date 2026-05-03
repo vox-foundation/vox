@@ -32,7 +32,6 @@ __pycache__/
 .cache/
 .cargo-targets/
 crates/*/pkg/
-islands/
 .vox_modules/
 docs-astro/node_modules/
 docs-astro/dist/

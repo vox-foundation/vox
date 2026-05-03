@@ -11,28 +11,20 @@ schema_type: "TechArticle"
 
 # Reference: Web Model
 
-Vox embraces a server-first web architecture. In Vox v0.3+, the v0.2 `@island` decorator (colon-syntax) has been modernized to the v0.3 brace-syntax system alongside raw programmatic HTTP routing. 
+Vox embraces a server-first web architecture. UI is declared with `component`; the
+codegen emits plain React/TSX components that an external React/TanStack/mobile app
+imports. (Historical: the `@island` decorator was retired 2026-05-03; see
+[architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).)
 
-## Interactive Islands
+## Interactive Components
 
-Client-side interactive user interfaces are modeled using hydrated React components known as islands. 
+Client-side interactive UI is modeled with `component` declarations.
 
-- `@island ComponentName { props: ModelType }`  
-  *Compiles into a TypeScript/React TSX artifact injected via hydration into static HTML generated server-side.* 
-
-### Using Functional State Hooks (`react.use_state`)
-
-Because Islands are fully bridged React outputs, you can instantiate frontend React state mapping hooks seamlessly. 
 ```vox
 // vox:skip
-import react.use_state
-
-@island
-fn ToggleBtn() -> Element {
-    let (on, set_on) = use_state(false)
-    <button onClick={fn() set_on(!on)}>
-        {if on { "Active" } else { "Inactive" }}
-    </button>
+component ToggleBtn() {
+    let on = false
+    view: <button>{if on { "Active" } else { "Inactive" }}</button>
 }
 ```
 
@@ -75,9 +67,9 @@ routes {
 }
 ```
 
-## Compilation and Hydration (Behind the scenes)
+## Compilation and React Interop (Behind the scenes)
 
-When generating code, the `@island` component operates as follows: 
-1. Vox generates standard server-side HTML representations containing unique ID markers matching `data-vox-island="ComponentName"`.
-2. A separate module bundle named `island-mount.js` is automatically resolved and built during compilation. 
-3. When the user loads the page, `island-mount.js` detects the presence of the DOM attributes and runs automatic progressive hydration locally over that explicit piece of DOM tree.
+The compiler lowers each `component` to a plain TSX file under the generated `app/`
+directory. An external React frontend imports the components directly, and calls server
+endpoints declared with `@endpoint` through the generated `vox-client.ts`. There is no
+island-mount harness. See [architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).

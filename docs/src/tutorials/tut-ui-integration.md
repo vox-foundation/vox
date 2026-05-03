@@ -1,90 +1,67 @@
 ---
-title: "Tutorial: Building UI with Islands"
-description: "Learn how to build modern, reactive user interfaces with Vox using islands."
+title: "Tutorial: UI Integration via React Interop"
+description: "Build user interfaces in Vox by emitting plain React components and calling them from an external React frontend."
 category: "tutorials"
 status: "current"
-last_updated: "2026-04-26"
+last_updated: "2026-05-03"
 training_eligible: true
-
-schema_type: "HowTo"
----
-# Tutorial: Building UI with Islands
-
-Learn how to build modern, reactive user interfaces with Vox. This tutorial covers the `@island` decorator, JSX-like syntax, and binding UI state to backend logic.
-
-> [!NOTE]
-> The `@island` decorator was updated in v0.3 to use standard brace syntax and return arrows (`->`). 
-
-## 1. The `@island` Decorator
-
-Vox interactive UI components are defined with the `@island` decorator. They look and feel like React components but are compiled and hydrated for maximum performance.
-
-```vox
-component Profile(name: str, bio: str) {
-    view: (
-        <div class="p-6 bg-white shadow rounded-lg">
-            <h2 class="text-xl font-bold">{name}</h2>
-            <p class="text-gray-600">{bio}</p>
-        </div>
-    )
-}
-```
-
-## 2. Server vs. Client
-
-You can mix lightweight server-rendered HTML routes with rich client-side islands. 
-
-```vox
-component UserProfile() {
-    view: (
-        <column>
-            <heading level={1}>"User Profile"</heading>
-            <Profile name="Alice" bio="Developer" />
-        </column>
-    )
-}
-
-routes {
-    "/profile" to UserProfile
-}
-```
-
-## 3. JSX in Vox
-
-Vox supports a JSX-like syntax directly in `.vox` files. You can embed variables using braces, map over collections, and conditionally render elements.
-
-```vox
-component UserList(users: list[str]) {
-    view: (
-        <ul class="divide-y">
-            {users.map(fn(user) {
-                <li class="py-2">{user}</li>
-            })}
-        </ul>
-    )
-}
-```
-
-## 4. Binding to Backend Logic
-
-The true power of Vox lies in its technical unification. You can call `@mutation` or `@server fn` functions directly from your UI event handlers. Use standard React-like `onChange` or `onClick` attributes.
-
-```vox
-{{#include ../../../examples/golden/getting_started.vox:ui}}
-```
-
-## 5. Routing
-
-You map a route to your island or server handler through the global `routes { }` block.
-
-```vox
-routes {
-    "/" to NewsletterForm
-}
-```
-
+schema_type: "TechArticle"
 ---
 
-**Next Steps**:
-- [Language Syntax](../reference/ref-syntax.md) — Detailed JSX specification.
-- [First App](tut-first-app.md) — Apply these UI patterns to a collaborative task list.
+# Tutorial: UI Integration via React Interop
+
+> **Note (2026-05-03).** The `@island` decorator was retired. Vox now compiles `component`
+> declarations to plain React/TSX components and `@endpoint` declarations to a generated
+> `vox-client.ts`. An external React, TanStack, or mobile app imports the components or
+> calls the endpoints over RPC. There is no island-mount harness.
+>
+> The full bidirectional React interop story (server-only and fullstack build modes,
+> Phase 5 React adapter) lives in
+> [`architecture/external-frontend-interop-plan-2026.md`](../architecture/external-frontend-interop-plan-2026.md).
+
+## 1. The `component` declaration
+
+Define interactive UI with `component`. The codegen emits a plain React component to the
+generated `app/` directory.
+
+```vox
+component Counter(initial: int) {
+    let count = initial
+    view: <div class="counter">
+        <p>"Count: " {count}</p>
+    </div>
+}
+```
+
+## 2. Wiring routes
+
+Map a path to a `component` through the global `routes { }` block.
+
+```vox
+component HomePage() {
+    view: <Counter initial=0 />
+}
+
+routes { "/" to HomePage }
+```
+
+## 3. Calling endpoints from the frontend
+
+Declare server logic with `@endpoint`. The codegen emits a typed RPC stub into
+`vox-client.ts` that the React frontend imports directly.
+
+```vox
+@endpoint(kind: query)
+fn get_count() to int { return 42 }
+```
+
+```ts
+import { getCount } from "./vox-client";
+const n = await getCount();
+```
+
+## See also
+
+- [Reference: Decorators](../reference/ref-decorators.md)
+- [Reference: Vox Web Stack](../reference/vox-web-stack.md)
+- [Architecture: External Frontend Interop Plan](../architecture/external-frontend-interop-plan-2026.md)

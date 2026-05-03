@@ -46,8 +46,7 @@
     "@mutation",
     "@table",
     "@index",
-    "@v0",
-    "@island"
+    "@v0"
   ],
   "punctuators": [
     "(",

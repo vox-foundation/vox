@@ -1,13 +1,19 @@
 ---
-title: "How-To: Islands and Pages"
-description: "How to build and route full-stack web UIs using islands in Vox."
-category: "how-to"
-status: "current"
-last_updated: "2026-04-06"
-training_eligible: true
+title: "How-To: Islands and Pages (ARCHIVED)"
+description: "Archived: islands retired 2026-05-03. See external-frontend-interop-plan-2026.md."
+category: "archive"
+status: "archived"
+last_updated: "2026-05-03"
+training_eligible: false
 
 schema_type: "HowTo"
 ---
+
+> **Superseded** — islands retired 2026-05-03. The current React-interop story is in
+> [`docs/src/architecture/external-frontend-interop-plan-2026.md`](../architecture/external-frontend-interop-plan-2026.md).
+> Vox now compiles `component` declarations to plain React/TSX components and
+> `@endpoint` declarations to a generated `vox-client.ts`; an external React app
+> imports them or calls the endpoints over RPC. There is no island-mount harness.
 
 # How-To: Build UI with Islands and Pages
 

@@ -10,7 +10,7 @@ schema_type: "TechArticle"
 
 # ADR 012 — Internal Web IR strategy for Vox
 
-**Status**: Accepted  
+**Status**: **Superseded** (2026-05-03) — islands retired; see [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). Originally Accepted.  
 **Date**: 2026-03-26  
 **Revised**: 2026-03-26
 

@@ -42,10 +42,10 @@ This document names **every major output** of `vox build` / `vox run` / `vox bun
 - **`@mutation` with a schema (`@table` present):** the generated handler wraps the body in **`db.transaction(...)`** when applicable; a failed transaction maps to **`Json(serde_json::json!({"error": e.to_string()}))`**.
 - **`@query`**, **`@server`**, and mutations **without** that transactional wrapper emit a straight-line handler body; they do **not** automatically wrap every failure in the same `{"error": ...}` object. Use application logic inside the handler (or Axum layers) if you need a uniform error shape for those paths.
 
-## Optional: islands and v0
+## Optional: v0 and external frontends
 
-- **`islands/`** — separate Vite app; built by `vox run` / bundle when `islands/package.json` exists ([`frontend.rs`](../../../crates/vox-cli/src/frontend.rs)).
 - **`@v0`** — TSX on disk under `out_dir`; named `export function` required for `routes {` imports ([`v0_tsx_normalize.rs`](../../../crates/vox-cli/src/v0_tsx_normalize.rs)).
+- **External React frontend** — see [architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). Vox emits plain React components from `component` declarations and a typed `vox-client.ts` from `@endpoint` declarations; an external React/TanStack/mobile app imports them directly. Islands were retired 2026-05-03.
 
 ## Related
 
