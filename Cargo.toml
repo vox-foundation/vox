@@ -86,6 +86,7 @@ vox-orchestrator          = { path = "crates/vox-orchestrator" }
 vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
 vox-openai-sse            = { path = "crates/vox-openai-sse" }
 vox-openai-wire           = { path = "crates/vox-openai-wire" }
+vox-plugin-catalog        = { path = "crates/vox-plugin-catalog" }
 vox-pm                    = { path = "crates/vox-pm" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }

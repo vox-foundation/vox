@@ -12087,6 +12087,7 @@ dependencies = [
  "vox-mcp-registry",
  "vox-mesh-types",
  "vox-orchestrator",
+ "vox-plugin-catalog",
  "vox-pm",
  "vox-populi",
  "vox-primitives",
