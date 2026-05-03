@@ -7,6 +7,8 @@ training_eligible: true
 training_rationale: "Implementation spec for two-way Vox↔React component interop; required reading before touching component codegen or the @island removal."
 ---
 
+**ARCHIVED & SUPERSEDED (2026-05-03):** Islands have been retired. See [`docs/src/architecture/external-frontend-interop-plan-2026.md`](../architecture/external-frontend-interop-plan-2026.md) for the current React interop story. This document is preserved for historical context.
+
 # Phase 5: Bidirectional Vox↔React Interop Spec (2026)
 
 Parent plan: [External Frontend Interop Plan (2026)](external-frontend-interop-plan-2026.md)
