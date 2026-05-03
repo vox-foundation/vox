@@ -104,7 +104,7 @@ where
         HirExpr::Binary(crate::hir::HirBinOp::Pipe, left, right, _) => {
             format!("({})({})", emit(right), emit(left))
         }
-        HirExpr::For(name, iter, body, _) => {
+        HirExpr::For(name, _, iter, body, _) => {
             let mut s = format!("for {} in {} {{\n", name, emit(iter));
             if let HirExpr::Block(stmts, _) = &**body {
                 for stmt in stmts {

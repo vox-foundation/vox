@@ -185,7 +185,7 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
                 walk_stmts(else_stmts, f);
             }
         }
-        HirExpr::For(_, it, body, _) => {
+        HirExpr::For(_, _, it, body, _) => {
             walk_expr(it.as_ref(), f);
             walk_expr(body.as_ref(), f);
         }
@@ -298,7 +298,7 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
                 walk_stmts_mut(else_stmts, f);
             }
         }
-        HirExpr::For(_, it, body, _) => {
+        HirExpr::For(_, _, it, body, _) => {
             walk_expr_mut(it.as_mut(), f);
             walk_expr_mut(body.as_mut(), f);
         }

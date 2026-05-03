@@ -469,11 +469,18 @@ impl Parser {
         let start = self.span();
         self.advance(); // eat 'for'
         let binding = self.parse_ident_name()?;
+        // Optional index variable: `for x, i in ...`
+        let index = if self.eat(&Token::Comma) {
+            Some(self.parse_ident_name()?)
+        } else {
+            None
+        };
         self.expect(&Token::In)?;
         let iterable = self.parse_expr()?;
         let body = self.parse_expr()?;
         Ok(Expr::For {
             binding,
+            index,
             iterable: Box::new(iterable),
             body: Box::new(body),
             span: start.merge(self.span()),

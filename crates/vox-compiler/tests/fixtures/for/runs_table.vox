@@ -1,0 +1,12 @@
+component RunsTable(rows: Array) {
+    view: (
+        <div class="table">
+            for r, i in rows {
+                <div class="row" key={r.id}>
+                    <span>{r.id}</span>
+                    <span>{r.duration}</span>
+                </div>
+            }
+        </div>
+    )
+}

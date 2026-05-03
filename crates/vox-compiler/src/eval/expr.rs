@@ -275,7 +275,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
             Err(EvalError::AssertionFailed("No match arm found".into()))
         }
-        HirExpr::For(binding, iterable, body, _) => {
+        HirExpr::For(binding, _, iterable, body, _) => {
             let c = eval_expr(interp, iterable)?;
             let mut results = Vec::new();
             if let VoxValue::List(ls) = c {

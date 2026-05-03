@@ -88,7 +88,7 @@ fn collect_deps(expr: &HirExpr, state_names: &HashSet<String>, deps: &mut HashSe
                 }
             }
         }
-        HirExpr::For(_, iterable, body, _) => {
+        HirExpr::For(_, _, iterable, body, _) => {
             collect_deps(iterable, state_names, deps);
             collect_deps(body, state_names, deps);
         }

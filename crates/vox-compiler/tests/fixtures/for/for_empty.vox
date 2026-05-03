@@ -1,0 +1,9 @@
+component Empty(rows: Array) {
+    view: (
+        <div class="list">
+            for r in rows {
+                <span></span>
+            }
+        </div>
+    )
+}

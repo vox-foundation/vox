@@ -1,0 +1,13 @@
+component Matrix(matrix: Array) {
+    view: (
+        <div class="matrix">
+            for row, i in matrix {
+                <div class="row">
+                    for cell, j in row {
+                        <span>{cell}</span>
+                    }
+                </div>
+            }
+        </div>
+    )
+}

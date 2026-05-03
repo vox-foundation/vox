@@ -191,7 +191,7 @@ fn visit_expr(expr: &HirExpr, used: &mut HashSet<String>) {
                 }
             }
         }
-        HirExpr::For(_, iter, body, _) => {
+        HirExpr::For(_, _, iter, body, _) => {
             visit_expr(iter, used);
             visit_expr(body, used);
         }

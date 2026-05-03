@@ -87,7 +87,7 @@ fn collect_query_plans_expr(
                 }
             }
         }
-        HirExpr::For(_, it, body, _) => {
+        HirExpr::For(_, _, it, body, _) => {
             collect_query_plans_expr(it, out);
             collect_query_plans_expr(body, out);
         }

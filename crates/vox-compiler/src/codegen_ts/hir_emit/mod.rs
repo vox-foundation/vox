@@ -320,10 +320,11 @@ pub fn emit_hir_expr(
             }
             format!("(({c}) ? (() => {{ {then_out} }})() : (() => {{ {else_out} }})())")
         }
-        HirExpr::For(name, iterable, body, _) => {
+        HirExpr::For(name, index, iterable, body, _) => {
             let iter = emit_hir_expr(iterable, state_names, island_names);
             let b = emit_hir_expr(body, state_names, island_names);
-            format!("{iter}.map(({name}) => ({b}))")
+            let idx = index.as_deref().unwrap_or("_i");
+            format!("{iter}.map(({name}, {idx}) => ({b}))")
         }
         HirExpr::Lambda(params, _, body, _) => {
             let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();

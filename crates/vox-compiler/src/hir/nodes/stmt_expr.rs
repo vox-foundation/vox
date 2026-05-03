@@ -146,8 +146,8 @@ pub enum HirExpr {
     Match(Box<HirExpr>, Vec<HirMatchArm>, Span),
     /// `if` with optional else.
     If(Box<HirExpr>, Vec<HirStmt>, Option<Vec<HirStmt>>, Span),
-    /// `for` loop expression (often JSX).
-    For(String, Box<HirExpr>, Box<HirExpr>, Span),
+    /// `for` loop expression (often JSX). The second field is the optional index variable name.
+    For(String, Option<String>, Box<HirExpr>, Box<HirExpr>, Span),
     /// Lambda / closure.
     Lambda(Vec<HirParam>, Option<HirType>, Box<HirExpr>, Span),
     /// `spawn` actor constructor.

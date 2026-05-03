@@ -273,10 +273,12 @@ pub enum Expr {
         /// Span covering `?`.
         span: Span,
     },
-    /// For expression (used in JSX): `for x in list: <elem>`
+    /// For expression (used in JSX): `for x in list: <elem>` or `for x, i in list: <elem>`
     For {
         /// Loop binding name.
         binding: String,
+        /// Optional index variable (the `, i` in `for x, i in list`).
+        index: Option<String>,
         /// Iterable expression.
         iterable: Box<Expr>,
         /// Body expression (often JSX).

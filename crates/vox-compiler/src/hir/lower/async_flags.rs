@@ -57,7 +57,7 @@ fn has_async_expr(e: &HirExpr) -> bool {
                 || has_async_stmts(then_b)
                 || else_b.as_ref().is_some_and(|b| has_async_stmts(b))
         }
-        HirExpr::For(_, iter, body, _) => has_async_expr(iter) || has_async_expr(body),
+        HirExpr::For(_, _, iter, body, _) => has_async_expr(iter) || has_async_expr(body),
         HirExpr::Lambda(..) => false,
 
         HirExpr::With(l, r, _) => has_async_expr(l) || has_async_expr(r),

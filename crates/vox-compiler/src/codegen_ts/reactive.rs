@@ -360,7 +360,7 @@ fn scan_hir_expr_for_react_imports(
                 );
             }
         }
-        HirExpr::For(_, it, body, _) => {
+        HirExpr::For(_, _, it, body, _) => {
             scan_hir_expr_for_react_imports(
                 it,
                 need_state,
@@ -656,7 +656,7 @@ fn collect_jsx_component_refs(
                 collect_jsx_component_refs_stmt(s, known, out);
             }
         }
-        HirExpr::For(_, iter, body, _) => {
+        HirExpr::For(_, _, iter, body, _) => {
             collect_jsx_component_refs(iter, known, out);
             collect_jsx_component_refs(body, known, out);
         }

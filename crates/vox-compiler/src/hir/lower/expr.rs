@@ -197,11 +197,13 @@ impl LowerCtx {
             }),
             Expr::For {
                 binding,
+                index,
                 iterable,
                 body,
                 span,
             } => HirExpr::For(
                 binding.clone(),
+                index.clone(),
                 Box::new(self.lower_expr(iterable)),
                 Box::new(self.lower_expr(body)),
                 *span,

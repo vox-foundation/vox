@@ -174,13 +174,15 @@ fn emit_jsx_child(expr: &Expr, indent: usize, island_names: &HashSet<String>) ->
         Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, indent, island_names),
         Expr::For {
             binding,
+            index,
             iterable,
             body,
             ..
         } => {
             let iter_str = emit_expr(iterable);
             let body_str = emit_jsx_child(body, indent + 1, island_names);
-            format!("{pad}{{{iter_str}.map(({binding}, _i) => (\n{body_str}{pad}))}}\n")
+            let idx = index.as_deref().unwrap_or("_i");
+            format!("{pad}{{{iter_str}.map(({binding}, {idx}) => (\n{body_str}{pad}))}}\n")
         }
         Expr::If {
             condition,
@@ -405,12 +407,14 @@ pub fn emit_expr(expr: &Expr) -> String {
         Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, 0, empty_island_set()),
         Expr::For {
             binding,
+            index,
             iterable,
             body,
             ..
         } => {
+            let idx = index.as_deref().unwrap_or("_i");
             format!(
-                "{}.map(({binding}) => {})",
+                "{}.map(({binding}, {idx}) => {})",
                 emit_expr(iterable),
                 emit_expr(body)
             )
