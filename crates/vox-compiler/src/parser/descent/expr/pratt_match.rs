@@ -194,7 +194,10 @@ impl Parser {
                     span: start.merge(self.span()),
                 }
             }
-            Token::Lt => self.parse_jsx()?,
+            // VUV: angle-bracket JSX (`<tag attr=...>`) was retired as a parser entry point.
+            // View calls are now `Ident(kwargs) { children }`. Hitting `<` here is a real
+            // less-than usage in expression context — fall through to the error path so we
+            // don't silently consume HTML-shaped source.
             Token::Ident(name) | Token::TypeIdent(name) => {
                 self.advance();
                 if self.eat(&Token::FatArrow) {

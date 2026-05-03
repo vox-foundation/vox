@@ -83,7 +83,7 @@ fn classic_component_fn_is_parse_error() {
 
 #[test]
 fn test_parse_loading_decl() {
-    let m = parse_str("@loading fn RouteSpinner() to Element { return <div/> }");
+    let m = parse_str("@loading fn RouteSpinner() to Element { return column() }");
     assert!(matches!(
         &m.declarations[0],
         Decl::Loading(l) if l.func.name == "RouteSpinner"
@@ -248,33 +248,9 @@ fn test_parse_method_chain() {
     }
 }
 
-#[test]
-fn test_parse_jsx_self_closing() {
-    let m = parse_str("component App() { view: <input value=\"test\" /> }");
-    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
-        match &r.view {
-            Some(Expr::JsxSelfClosing(_)) => {}
-            other => panic!("Expected self-closing JSX in view, got {other:?}"),
-        }
-    } else {
-        panic!("Expected reactive component");
-    }
-}
-
-#[test]
-fn test_parse_jsx_with_children() {
-    let m = parse_str("component A() { view: <div><span>hello</span></div> }");
-    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
-        if let Some(Expr::Jsx(el)) = &r.view {
-            assert_eq!(el.tag, "div");
-            assert_eq!(el.children.len(), 1);
-        } else {
-            panic!("Expected JSX element in view");
-        }
-    } else {
-        panic!("Expected reactive component");
-    }
-}
+// JSX angle-bracket parser path retired (VUV). View calls now use the trailing-block form
+// (`Ident(kwargs) { children }` and `Capitalized()` / `primitive_name()`). See the
+// `test_parse_view_call_*` tests below for the canonical coverage.
 
 #[test]
 fn test_parse_view_call_form_lowers_to_jsx() {
