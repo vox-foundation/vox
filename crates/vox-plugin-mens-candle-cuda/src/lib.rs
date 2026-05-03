@@ -22,6 +22,7 @@
 
 mod backend;
 mod checkpoint;
+pub mod checkpoint_state;
 pub mod config;
 mod model;
 mod training;
