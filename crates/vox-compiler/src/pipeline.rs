@@ -27,7 +27,7 @@ fn check_adr028_reserved_keywords(source: &str) -> Vec<Diagnostic> {
 
     let mut diags = Vec::new();
     for (pattern, label, code) in RESERVED {
-        if let Some(offset) = source.find(pattern) {
+        if let Some(offset) = find_outside_comments_and_strings(source, pattern) {
             diags.push(Diagnostic {
                 severity: TypeckSeverity::Error,
                 message: format!(
@@ -52,6 +52,99 @@ fn check_adr028_reserved_keywords(source: &str) -> Vec<Diagnostic> {
         }
     }
     diags
+}
+
+/// Find the first occurrence of `pattern` in `source` that is NOT inside a `//` line comment,
+/// `/* */` block comment, or a `"…"` string literal. Returns the byte offset of the match.
+///
+/// Needed because ADR-028's reserved-keyword scan runs at the source-text level (before parsing)
+/// and would otherwise flag the word "workflow" appearing in a doc comment as a real declaration.
+fn find_outside_comments_and_strings(source: &str, pattern: &str) -> Option<usize> {
+    let bytes = source.as_bytes();
+    let mut i = 0usize;
+    let plen = pattern.len();
+    while i + plen <= bytes.len() {
+        // Skip over `// …\n` line comments.
+        if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'/' {
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+        // Skip over `/* … */` block comments.
+        if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i = (i + 2).min(bytes.len());
+            continue;
+        }
+        // Skip over `"…"` string literals (handle simple backslash escapes).
+        if bytes[i] == b'"' {
+            i += 1;
+            while i < bytes.len() && bytes[i] != b'"' {
+                if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                    i += 2;
+                } else {
+                    i += 1;
+                }
+            }
+            i = (i + 1).min(bytes.len());
+            continue;
+        }
+        if &bytes[i..i + plen] == pattern.as_bytes() {
+            return Some(i);
+        }
+        i += 1;
+    }
+    None
+}
+
+#[cfg(test)]
+mod adr028_comment_skip_tests {
+    use super::find_outside_comments_and_strings;
+
+    #[test]
+    fn finds_keyword_outside_comment() {
+        assert_eq!(
+            find_outside_comments_and_strings("workflow Foo {}", "workflow "),
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn skips_keyword_in_line_comment() {
+        // The bare word "workflow" inside a `//` comment must NOT be matched.
+        assert_eq!(
+            find_outside_comments_and_strings("// workflow time-travel scrubber\nfn foo() {}", "workflow "),
+            None
+        );
+    }
+
+    #[test]
+    fn skips_keyword_in_block_comment() {
+        assert_eq!(
+            find_outside_comments_and_strings("/* see workflow doc */\nfn foo() {}", "workflow "),
+            None
+        );
+    }
+
+    #[test]
+    fn skips_keyword_in_string_literal() {
+        assert_eq!(
+            find_outside_comments_and_strings(r#"let s = "workflow demo";"#, "workflow "),
+            None
+        );
+    }
+
+    #[test]
+    fn finds_after_passing_comment() {
+        let src = "// pre-amble mentioning workflow\nworkflow Real {}";
+        let offset = find_outside_comments_and_strings(src, "workflow ").unwrap();
+        // Must be the second occurrence (start of the `workflow Real` line), not the comment.
+        assert!(offset > 30, "expected match past the comment, got offset {offset}");
+    }
 }
 
 /// Options for the unified compiler pipeline.

@@ -47,7 +47,8 @@
       "Bash(tasklist)",
       "Bash(grep -rnE '^\\\\s+\\(panel|row|column|text|button|stack|wrap|heading|link|image|list|list_item|card|overlay|toast|drawer|modal\\)\\\\\\([^\\)]*\\\\\\)$' crates/vox-dashboard/app/src/)",
       "Bash(VOX_WEBIR_EMIT_REACTIVE_VIEWS=1 VOX_WEBIR_REACTIVE_TRACE=1 cargo run -q -p vox-cli -- build crates/vox-dashboard/app/src/app.vox --out-dir /tmp/vox-vuv-smoke2)",
-      "Bash(grep -n \"^fn \\\\|^pub fn \\\\|^pub\\(crate\\) fn \\\\|^}$\" crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs)"
+      "Bash(grep -n \"^fn \\\\|^pub fn \\\\|^pub\\(crate\\) fn \\\\|^}$\" crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs)",
+      "Bash(grep -rn 'fn tokenize\\\\|fn lex\\\\|\"//\"\\\\|line_comment\\\\|^\\\\s*\"//\"' crates/vox-compiler/src/lexer/token.rs crates/vox-compiler/src/lexer/mod.rs)"
     ]
   }
 }

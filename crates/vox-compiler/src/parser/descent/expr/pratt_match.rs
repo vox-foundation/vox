@@ -295,13 +295,18 @@ impl Parser {
                             });
                             continue;
                         } else if (starts_uppercase
-                            || crate::web_ir::primitives::is_primitive(tag))
+                            || crate::web_ir::primitives::is_primitive(tag)
+                            || (!args.is_empty() && args.iter().all(|a| a.name.is_some())))
                             && args.iter().all(|a| a.name.is_some())
                         {
-                            // Capitalized-Ident or recognized UI primitive + all-named-args (or
-                            // no args) + no trailing block = view-call self-closing form.
-                            // `panel(w=2)` ≡ `panel(w=2) {}`; `Component()` ≡ `Component() {}`.
-                            // Positional args (enum/type constructors like `Some(x)`) fall
+                            // Three view-call self-closing triggers, all requiring all-named args:
+                            //   1. Capitalized callee (`Component(...)`) — React component shape.
+                            //   2. Recognized UI primitive (`row(...)`, `panel(...)`).
+                            //   3. Lowercase callee with at least one named arg — covers raw HTML
+                            //      elements like `input(attr_type="checkbox")` that aren't in the
+                            //      primitive set. A pure-kwargs call shape is the JSX idiom; bare
+                            //      `foo()` (zero args) is still a regular function call.
+                            // Positional args (enum/type constructors like `Some(x)`) always fall
                             // through to a regular Expr::Call below.
                             let tag = tag.clone();
                             let attributes = self.view_args_to_attrs(args)?;
@@ -567,6 +572,12 @@ impl Parser {
 
     /// VUV: convert positional/named call args into JSX attributes. Positional args are rejected
     /// because view calls are keyword-only by design (props need names like HTML attributes).
+    ///
+    /// Reserved-keyword escape: kwarg names beginning with `attr_` have the prefix stripped so
+    /// HTML attributes whose names collide with Vox keywords can still be expressed. Example:
+    /// `attr_type="checkbox"` → JSX `type="checkbox"`. The escape is needed because `type`,
+    /// `for`, and similar HTML attribute names are reserved Vox identifiers and cannot appear
+    /// as bare kwarg names without a parse error.
     pub(crate) fn view_args_to_attrs(
         &mut self,
         args: Vec<Arg>,
@@ -574,10 +585,15 @@ impl Parser {
         let mut attrs = Vec::with_capacity(args.len());
         for arg in args {
             match arg.name {
-                Some(name) => attrs.push(JsxAttribute {
-                    name,
-                    value: arg.value,
-                }),
+                Some(mut name) => {
+                    if let Some(rest) = name.strip_prefix("attr_") {
+                        name = rest.to_string();
+                    }
+                    attrs.push(JsxAttribute {
+                        name,
+                        value: arg.value,
+                    });
+                }
                 None => {
                     self.errors.push(ParseError::classified(
                         self.span(),

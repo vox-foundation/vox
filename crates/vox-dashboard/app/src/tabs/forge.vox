@@ -1,4 +1,4 @@
-// TASK-7.2 / VUV-6: ForgeTab — pipeline visualization + orchestration time-travel scrubber.
+// TASK-7.2 / VUV-6: ForgeTab — pipeline visualization + workflow time-travel scrubber.
 //
 // Components ported from src/components/:
 //   - PipelineView.tsx      — static 5-stage pipeline display (data via props later)

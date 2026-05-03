@@ -284,6 +284,20 @@ fn test_parse_view_call_form_lowers_to_jsx() {
 }
 
 #[test]
+fn test_attr_prefix_strips_to_reserved_keyword_attribute_name() {
+    // VUV: `attr_type="checkbox"` parses and lowers to JsxAttribute name "type" so HTML
+    // attributes whose names are Vox keywords can still be expressed.
+    let m = parse_str(r#"component A() { view: input(attr_type="checkbox") }"#);
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else { panic!(); };
+    let Some(Expr::JsxSelfClosing(el)) = &r.view else {
+        panic!("expected self-closing JSX, got {:?}", r.view);
+    };
+    assert_eq!(el.tag, "input");
+    assert_eq!(el.attributes.len(), 1);
+    assert_eq!(el.attributes[0].name, "type", "attr_ prefix should be stripped");
+}
+
+#[test]
 fn test_capitalized_call_no_block_lowers_to_self_closing_jsx() {
     // VUV: `ComposerPanel()` (no trailing block, capitalized callee, no args or all-named)
     // sugars to Expr::JsxSelfClosing. Lowercase callees and positional-arg calls do not.
