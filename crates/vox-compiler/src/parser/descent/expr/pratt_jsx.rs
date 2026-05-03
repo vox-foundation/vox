@@ -11,7 +11,7 @@ impl Parser {
         let start = self.span();
         self.errors.push(ParseError::warning(
             start,
-            "Raw JSX in .vox source is deprecated and will be rejected. Use the appropriate view macro or @island instead.",
+            "Raw JSX in .vox source is deprecated and will be rejected. Use the appropriate view macro instead.",
             ParseErrorClass::Expression,
         ));
         self.advance(); // eat '<'

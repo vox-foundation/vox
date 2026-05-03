@@ -17,42 +17,16 @@
 //! **Wrapper inventory B/C (OP-S077 / S167):** [`emit_jsx_element`] / [`emit_jsx_self_closing`] are the only
 //! supported AST JSX emit entry points; extend [`crate::web_ir`] for new view semantics.
 
-use crate::ast::expr::{BinOp, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, UnOp};
+use crate::ast::expr::{BinOp, Expr, JsxElement, JsxSelfClosingElement, UnOp};
 use crate::ast::stmt::Stmt;
 use crate::codegen_ts::hir_emit::wrap_jsx_hir_child_expr;
-use crate::codegen_ts::island_emit::{
-    empty_island_set, format_island_mount_ast, island_data_prop_attr, island_mount_opening_part,
-};
-use std::collections::HashSet;
 
 pub use crate::codegen_ts::hir_emit::compat::map_jsx_attr_name;
-
-fn emit_ast_island_mount(
-    tag: &str,
-    attributes: &[JsxAttribute],
-    indent: usize,
-    child_count: usize,
-) -> String {
-    let mut parts = vec![island_mount_opening_part(tag)];
-    for attr in attributes {
-        if attr.name == "bind" {
-            continue;
-        }
-        let dname = island_data_prop_attr(&attr.name);
-        let val = emit_jsx_attr_value(&attr.value);
-        parts.push(format!("{dname}={{{val}}}"));
-    }
-    crate::codegen_ts::island_emit::sort_island_mount_data_prop_parts(&mut parts);
-    format_island_mount_ast(tag, &parts, indent, child_count)
-}
 
 /// Emit a JSX element with children to TypeScript.
 ///
 /// **Phase:** compat-legacy (OP-0150); prefer Web IR preview for structural parity work.
-pub fn emit_jsx_element(el: &JsxElement, indent: usize, island_names: &HashSet<String>) -> String {
-    if island_names.contains(&el.tag) {
-        return emit_ast_island_mount(&el.tag, &el.attributes, indent, el.children.len());
-    }
+pub fn emit_jsx_element(el: &JsxElement, indent: usize) -> String {
     let pad = "  ".repeat(indent);
     let mut out = String::new();
 
@@ -75,7 +49,7 @@ pub fn emit_jsx_element(el: &JsxElement, indent: usize, island_names: &HashSet<S
 
     // Children
     for child in &el.children {
-        out.push_str(&emit_jsx_child(child, indent + 1, island_names));
+        out.push_str(&emit_jsx_child(child, indent + 1));
     }
 
     out.push_str(&format!("{pad}</{}>\n", el.tag));
@@ -88,11 +62,7 @@ pub fn emit_jsx_element(el: &JsxElement, indent: usize, island_names: &HashSet<S
 pub fn emit_jsx_self_closing(
     el: &JsxSelfClosingElement,
     indent: usize,
-    island_names: &HashSet<String>,
 ) -> String {
-    if island_names.contains(&el.tag) {
-        return emit_ast_island_mount(&el.tag, &el.attributes, indent, 0);
-    }
     let pad = "  ".repeat(indent);
     let mut out = format!("{pad}<{}", el.tag);
 
@@ -166,12 +136,12 @@ fn expand_bind_attribute(expr: &Expr) -> (String, String) {
 }
 
 /// Emit a JSX child expression.
-fn emit_jsx_child(expr: &Expr, indent: usize, island_names: &HashSet<String>) -> String {
+fn emit_jsx_child(expr: &Expr, indent: usize) -> String {
     let pad = "  ".repeat(indent);
     let unwrapped = unwrap_block(expr);
     match unwrapped {
-        Expr::Jsx(el) => emit_jsx_element(el, indent, island_names),
-        Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, indent, island_names),
+        Expr::Jsx(el) => emit_jsx_element(el, indent),
+        Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, indent),
         Expr::For {
             binding,
             iterable,
@@ -179,7 +149,7 @@ fn emit_jsx_child(expr: &Expr, indent: usize, island_names: &HashSet<String>) ->
             ..
         } => {
             let iter_str = emit_expr(iterable);
-            let body_str = emit_jsx_child(body, indent + 1, island_names);
+            let body_str = emit_jsx_child(body, indent + 1);
             format!("{pad}{{{iter_str}.map(({binding}, _i) => (\n{body_str}{pad}))}}\n")
         }
         Expr::If {
@@ -190,9 +160,9 @@ fn emit_jsx_child(expr: &Expr, indent: usize, island_names: &HashSet<String>) ->
         } => {
             // In JSX children context, emit if-else as a ternary expression.
             let cond_str = emit_expr(condition);
-            let then_part = jsx_branch_to_ternary_str(then_body, indent + 1, island_names);
+            let then_part = jsx_branch_to_ternary_str(then_body, indent + 1);
             let else_part = match else_body.as_deref() {
-                Some(stmts) => jsx_branch_to_ternary_str(stmts, indent + 1, island_names),
+                Some(stmts) => jsx_branch_to_ternary_str(stmts, indent + 1),
                 None => "null".to_string(),
             };
             format!("{pad}{{{cond_str}\n{pad}  ? {then_part}\n{pad}  : {else_part}}}\n")
@@ -202,19 +172,19 @@ fn emit_jsx_child(expr: &Expr, indent: usize, island_names: &HashSet<String>) ->
 }
 
 /// Extract the single JSX expression (or nested ternary) from an if-else branch statement list.
-fn jsx_branch_to_ternary_str(stmts: &[Stmt], indent: usize, island_names: &HashSet<String>) -> String {
+fn jsx_branch_to_ternary_str(stmts: &[Stmt], indent: usize) -> String {
     if let [Stmt::Expr { expr, .. }] = stmts {
         let u = unwrap_block(expr);
         return match u {
             Expr::JsxSelfClosing(_) | Expr::Jsx(_) => {
-                emit_jsx_child(u, indent, island_names).trim().to_string()
+                emit_jsx_child(u, indent).trim().to_string()
             }
             Expr::If { condition, then_body, else_body, .. } => {
                 let pad = "  ".repeat(indent);
                 let cond_str = emit_expr(condition);
-                let then_part = jsx_branch_to_ternary_str(then_body, indent + 1, island_names);
+                let then_part = jsx_branch_to_ternary_str(then_body, indent + 1);
                 let else_part = match else_body.as_deref() {
-                    Some(s) => jsx_branch_to_ternary_str(s, indent + 1, island_names),
+                    Some(s) => jsx_branch_to_ternary_str(s, indent + 1),
                     None => "null".to_string(),
                 };
                 format!("({cond_str}\n{pad}  ? {then_part}\n{pad}  : {else_part})")
@@ -401,8 +371,8 @@ pub fn emit_expr(expr: &Expr) -> String {
         Expr::Spawn { target, .. } => {
             format!("new {}Actor()", emit_expr(target))
         }
-        Expr::Jsx(el) => emit_jsx_element(el, 0, empty_island_set()),
-        Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, 0, empty_island_set()),
+        Expr::Jsx(el) => emit_jsx_element(el, 0),
+        Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, 0),
         Expr::For {
             binding,
             iterable,

@@ -28,7 +28,6 @@ pub struct AppContractModule {
     pub server_fns: Vec<AppServerFnContract>,
     pub query_fns: Vec<AppServerFnContract>,
     pub mutation_fns: Vec<AppMutationContract>,
-    pub islands: Vec<AppIslandContract>,
     /// MCP tools from `@mcp.tool` (names, descriptions, signatures) — machine-readable SSOT for tooling.
     #[serde(default)]
     pub mcp_tools: Vec<AppMcpToolContract>,
@@ -76,19 +75,6 @@ pub struct AppMutationContract {
     pub signature: String,
     pub wraps_db_transaction: bool,
 }
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AppIslandPropContract {
-    pub name: String,
-    pub ty: String,
-    pub is_optional: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AppIslandContract {
-    pub name: String,
-    pub props: Vec<AppIslandPropContract>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppServerConfigContract {
     pub bind_host: String,
@@ -201,24 +187,6 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
         .collect();
 
 
-    let islands = module
-        .islands
-        .iter()
-        .map(|i| AppIslandContract {
-            name: i.0.name.clone(),
-            props: i
-                .0
-                .props
-                .iter()
-                .map(|p| AppIslandPropContract {
-                    name: p.name.clone(),
-                    ty: type_expr_signature(&p.ty),
-                    is_optional: p.is_optional,
-                })
-                .collect(),
-        })
-        .collect();
-
     let mcp_tools = module
         .mcp_tools
         .iter()
@@ -245,7 +213,6 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
         server_fns,
         query_fns,
         mutation_fns,
-        islands,
         mcp_tools,
         mcp_resources,
         server_config: AppServerConfigContract {

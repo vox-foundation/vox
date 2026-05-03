@@ -86,7 +86,7 @@ impl Parser {
             if matches!(self.peek(), Token::RBrace | Token::Eof) {
                 break;
             }
-            props.push(self.parse_island_prop_line()?);
+            props.push(self.parse_v0_prop_line()?);
             self.skip_newlines();
         }
         self.eat(&Token::RBrace);

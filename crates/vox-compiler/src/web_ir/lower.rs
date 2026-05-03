@@ -12,8 +12,6 @@
 //! **JSX attributes (OP-0068):** element attributes use [`crate::codegen_ts::hir_emit::map_jsx_attr_name`]
 //! so Vox spellings (`on_click`, `on:click`, `class`) match TS emit (`onClick`, `className`).
 //!
-//! **Islands (OP-0066):** [`DomArena::lower_island`] follows the same `data-prop-*` naming as
-//! [`crate::codegen_ts::island_emit`] / `hir_emit` so mounts stay consistent across TS and WebIR.
 //!
 //! **AST `HirComponent` (OP-0179):** JSX-shaped classic `@component fn` bodies lower into
 //! [`WebIrModule::view_roots`] using [`crate::hir::lower_classic_component_view`]. Components that
@@ -33,7 +31,6 @@ use crate::codegen_ts::hir_emit::{
     emit_hir_expr, emit_hir_expr_attr_value, expand_bind_hir_attribute, map_hir_type_to_ts,
     map_jsx_attr_name,
 };
-use crate::codegen_ts::island_emit::island_data_prop_attr;
 use crate::hir::{
     HirPattern, HirReactiveMember, HirEndpointFn, HirEndpointKind, HirStmt, HirModule, HirExpr,
     HirJsxElement, HirJsxSelfClosing, HirJsxAttr, HirParam,
@@ -131,18 +128,17 @@ impl DomArena {
         &mut self,
         expr: &HirExpr,
         state_names: &HashSet<String>,
-        island_names: &HashSet<String>,
     ) -> DomNodeId {
         match expr {
-            HirExpr::Jsx(el) => self.lower_jsx_el(el, state_names, island_names),
-            HirExpr::JsxSelfClosing(el) => self.lower_jsx_self(el, state_names, island_names),
+            HirExpr::Jsx(el) => self.lower_jsx_el(el, state_names),
+            HirExpr::JsxSelfClosing(el) => self.lower_jsx_self(el, state_names),
             HirExpr::StringLit(s, _) => self.push(DomNode::Text {
                 content: s.clone(),
                 span: None,
             }),
             _ => {
                 self.expr_fallback_count += 1;
-                let ts = emit_hir_expr(expr, state_names, island_names);
+                let ts = emit_hir_expr(expr, state_names);
                 self.push(DomNode::Expr { ts, span: None })
             }
         }
@@ -152,27 +148,17 @@ impl DomArena {
         &mut self,
         el: &HirJsxElement,
         state_names: &HashSet<String>,
-        island_names: &HashSet<String>,
     ) -> DomNodeId {
-        if island_names.contains(&el.tag) {
-            return self.lower_island(
-                &el.tag,
-                &el.attributes,
-                el.children.len(),
-                state_names,
-                island_names,
-            );
-        }
         let mut attrs: Vec<(String, String)> = Vec::new();
         for attr in &el.attributes {
-            attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
+            attrs.extend(lower_jsx_attr_pair(attr, state_names));
         }
         // TASK-6.1: resolve primitive tags → canonical HTML tag + Tailwind class list.
         let (tag, attrs) = apply_primitive_emission(&el.tag, attrs);
         let child_ids: Vec<DomNodeId> = el
             .children
             .iter()
-            .map(|c| self.lower_expr(c, state_names, island_names))
+            .map(|c| self.lower_expr(c, state_names))
             .collect();
         self.push(DomNode::Element {
             id: DomNodeId(0),
@@ -187,14 +173,10 @@ impl DomArena {
         &mut self,
         el: &HirJsxSelfClosing,
         state_names: &HashSet<String>,
-        island_names: &HashSet<String>,
     ) -> DomNodeId {
-        if island_names.contains(&el.tag) {
-            return self.lower_island(&el.tag, &el.attributes, 0, state_names, island_names);
-        }
         let mut attrs: Vec<(String, String)> = Vec::new();
         for attr in &el.attributes {
-            attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
+            attrs.extend(lower_jsx_attr_pair(attr, state_names));
         }
         // TASK-6.1: resolve primitive tags.
         let (tag, attrs) = apply_primitive_emission(&el.tag, attrs);
@@ -203,34 +185,6 @@ impl DomArena {
             tag,
             attrs,
             children: vec![],
-            span: None,
-        })
-    }
-
-    /// **Island branch (OP-S013):** when JSX `tag` is in `island_names`, skip normal [`DomNode::Element`]
-    /// emission and produce [`DomNode::IslandMount`]. Non-`bind` attrs map through [`island_data_prop_attr`]
-    /// so lowered keys match runtime `data-prop-*`; `ignored_child_count` records stripped children for hydration parity.
-    fn lower_island(
-        &mut self,
-        tag: &str,
-        attributes: &[HirJsxAttr],
-        child_count: usize,
-        state_names: &HashSet<String>,
-        island_names: &HashSet<String>,
-    ) -> DomNodeId {
-        let mut props = Vec::new();
-        for attr in attributes {
-            if attr.name == "bind" {
-                continue;
-            }
-            let dname = island_data_prop_attr(&attr.name);
-            let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, &dname);
-            props.push((dname, val));
-        }
-        self.push(DomNode::IslandMount {
-            island_name: tag.to_string(),
-            props,
-            ignored_child_count: child_count as u32,
             span: None,
         })
     }
@@ -321,18 +275,17 @@ fn apply_primitive_emission(
 fn lower_jsx_attr_pair(
     attr: &HirJsxAttr,
     state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
 ) -> Vec<(String, String)> {
     if attr.name == "bind" {
         let (value_str, onchange_str) =
-            expand_bind_hir_attribute(&attr.value, state_names, island_names);
+            expand_bind_hir_attribute(&attr.value, state_names);
         return vec![
             ("value".to_string(), value_str),
             ("onChange".to_string(), onchange_str),
         ];
     }
     let name = map_jsx_attr_name(&attr.name).to_string();
-    let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, &name);
+    let val = emit_hir_expr_attr_value(&attr.value, state_names, &name);
     vec![(name, val)]
 }
 
@@ -665,8 +618,6 @@ fn note_lowering_gaps(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrL
 /// and return structural counts for gates (OP-0078).
 #[must_use]
 pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrLowerSummary) {
-    let island_names = crate::codegen_ts::island_emit::collect_island_names(hir);
-
     let mut m = WebIrModule {
         version: WebIrVersion::V0_1,
         ..Default::default()
@@ -695,7 +646,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
         for mem in &rc.members {
             match mem {
                 HirReactiveMember::State(s) => {
-                    let initial = emit_hir_expr(&s.init, &state_names, &island_names);
+                    let initial = emit_hir_expr(&s.init, &state_names);
                     m.behavior_nodes.push(BehaviorNode::StateDecl {
                         name: qualify(&rc.name, &s.name),
                         initial: Some(initial),
@@ -704,7 +655,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
                     });
                 }
                 HirReactiveMember::Derived(d) => {
-                    let expr = emit_hir_expr(&d.expr, &state_names, &island_names);
+                    let expr = emit_hir_expr(&d.expr, &state_names);
                     m.behavior_nodes.push(BehaviorNode::DerivedDecl {
                         name: qualify(&rc.name, &d.name),
                         expr,
@@ -712,7 +663,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
                     });
                 }
                 HirReactiveMember::Effect(e) => {
-                    let body = emit_hir_expr(&e.body, &state_names, &island_names);
+                    let body = emit_hir_expr(&e.body, &state_names);
                     m.behavior_nodes.push(BehaviorNode::EffectDecl {
                         deps: vec![],
                         body,
@@ -720,7 +671,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
                     });
                 }
                 HirReactiveMember::OnMount(om) => {
-                    let body = emit_hir_expr(&om.body, &state_names, &island_names);
+                    let body = emit_hir_expr(&om.body, &state_names);
                     m.behavior_nodes.push(BehaviorNode::EffectDecl {
                         deps: vec![qualify(&rc.name, "mount")],
                         body,
@@ -728,7 +679,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
                     });
                 }
                 HirReactiveMember::OnCleanup(oc) => {
-                    let body = emit_hir_expr(&oc.body, &state_names, &island_names);
+                    let body = emit_hir_expr(&oc.body, &state_names);
                     m.behavior_nodes.push(BehaviorNode::EffectDecl {
                         deps: vec![qualify(&rc.name, "cleanup")],
                         body,
@@ -740,7 +691,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
         }
 
         if let Some(view) = &rc.view {
-            let root = arena.lower_expr(view, &state_names, &island_names);
+            let root = arena.lower_expr(view, &state_names);
             m.view_roots.push((rc.name.clone(), root));
         }
     }
@@ -793,9 +744,8 @@ pub fn project_web_from_core(hir: &crate::hir::TypedCoreIR_v2) -> super::WebProj
 pub fn lower_hir_view_expr(
     expr: &HirExpr,
     state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
 ) -> (Vec<DomNode>, DomNodeId) {
     let mut arena = DomArena::new();
-    let root = arena.lower_expr(expr, state_names, island_names);
+    let root = arena.lower_expr(expr, state_names);
     (arena.nodes, root)
 }

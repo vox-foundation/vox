@@ -11,7 +11,6 @@
 //! | Type definitions & ADTs | `type`, `pub type` |
 //! | Imports | `import` (`react.use_state`, `rust:serde_json`) |
 //! | Components | `@component` |
-//! | Islands | `@island` |
 //! | Database tables & indices | `@table`, `@index` |
 //! | MCP tools / resources | `@mcp.tool`, `@mcp.resource` |
 //! | Tests | `@test` |
@@ -27,7 +26,7 @@
 //!
 //! Declarations named in older roadmaps (`@page`, `@layout`, `@theme`, …) appear in the AST type
 //! definitions for future work but are **not** produced by this parser. Use `routes:`, `@component`,
-//! `@server`, and `@island` for the supported web stack (see `docs/src/reference/vox-web-stack.md`).
+//! `@server` for the supported web stack (see `docs/src/reference/vox-web-stack.md`).
 //!
 //! ## Error strategy
 //!
@@ -50,7 +49,6 @@ pub use error::{ParseError, ParseErrorClass};
 
 /// Brace-first web declaration forms the descent parser accepts (doc extraction / inventory; OP-0015).
 pub const WEB_SURFACE_SYNTAX_INVENTORY: &[&str] = &[
-    "`@island Name { prop: Type }` / `prop?: Type` — `{` is required immediately after the island name",
     "`@component fn Name(...) to Type { ... }` — classic component; only `fn` may follow `@component` for this form",
     "`@component Name(...) { ... }` or `component Name(...) { ... }` — Path C reactive body: `state`, `derived`, `effect`, `mount`, `cleanup`, `view:`",
     "`routes { \"/path\" to Component ... }` — string literal path, keyword `to`, then component identifier; `{` right after `routes`",

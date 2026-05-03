@@ -14,7 +14,6 @@
 use crate::app_contract::project_app_contract;
 use crate::codegen_ts::adt::generate_types;
 
-use crate::codegen_ts::island_emit::collect_island_names;
 use crate::codegen_ts::reactive::generate_reactive_component;
 use crate::codegen_ts::routes::generate_routes;
 use crate::codegen_ts::tanstack_query_emit::vox_tanstack_query_tsx;
@@ -79,7 +78,6 @@ pub fn generate_with_options(
 ) -> Result<CodegenOutput, String> {
     let mut files = Vec::new();
     let mut reactive_stats = crate::codegen_ts::reactive::ReactiveViewBridgeStats::default();
-    let island_names = collect_island_names(hir);
     let app_contract = project_app_contract(hir);
 
     if options.mode != BuildMode::Library && !hir.components.is_empty() {
@@ -88,7 +86,6 @@ pub fn generate_with_options(
             let (filename, content) = generate_reactive_component(
                 hir,
                 rc,
-                &island_names,
                 Some(&web_projection),
                 &mut reactive_stats,
             );
@@ -216,24 +213,6 @@ pub fn generate_with_options(
     };
     if let Some(manifest) = route_manifest {
         files.push((manifest_filename.to_string(), manifest));
-    }
-
-    let island_names: Vec<&str> = hir.islands.iter().map(|i| i.0.name.as_str()).collect();
-    if !island_names.is_empty() {
-        let mut meta = String::from(
-            "// Declared @island names (implementations live under islands/src/<Name>/).\n",
-        );
-        meta.push_str("export const VOX_ISLAND_NAMES = [");
-        meta.push_str(
-            &island_names
-                .iter()
-                .map(|n| format!("{n:?}"))
-                .collect::<Vec<_>>()
-                .join(", "),
-        );
-        meta.push_str("] as const;\n");
-        meta.push_str("export type VoxIslandName = (typeof VOX_ISLAND_NAMES)[number];\n");
-        files.push(("vox-islands-meta.ts".to_string(), meta));
     }
 
     if options.mode != BuildMode::Library {

@@ -282,10 +282,6 @@ impl LowerCtx {
                 | Decl::NotFound(_) => {
                     // Path B UI surfaces deleted
                 }
-                // Island prop optionality (`prop?: T`) is preserved on AST `IslandDecl` for mount codegen + WebIR mounts.
-                Decl::Island(decl) => {
-                    hir.islands.push(HirIsland(decl.clone()));
-                }
                 Decl::Url(u) => {
                     hir.url_decls.push(self.lower_url_decl(u));
                 }
@@ -394,48 +390,6 @@ http post "/chat" to Result { return Ok(0) }
             hir.endpoint_fns[0].route_path,
             format!("{SERVER_FN_API_PREFIX}{}", "doThing")
         );
-    }
-
-    /// Islands, `routes { ... }`, and reactive components populate `HirModule`; full module must
-    /// [`crate::web_ir::lower::lower_hir_to_web_ir`] + validate without diagnostics (blueprint OP-0035, OP-0039).
-    #[test]
-    #[ignore = "Path B removed"]
-    fn hir_island_routes_reactive_surface_validates_as_web_ir() {
-        let src = r#"
-import react.use_state
-
-@island Chart {
-    title: str
-    data: str
-    width?: int
-}
-
-@component Dash() {
-    state n: int = 0
-    view: <div class="dashboard">{n}</div>
-}
-
-routes {
-    "/" to Dash
-}
-"#;
-        let hir = lower_str(src);
-        assert!(
-            hir.legacy_ast_nodes.is_empty(),
-            "unexpected legacy: {:?}",
-            hir.legacy_ast_nodes
-        );
-        assert_eq!(hir.islands.len(), 1);
-        assert_eq!(hir.islands[0].0.name, "Chart");
-        assert_eq!(hir.islands[0].0.props.len(), 3);
-        assert!(hir.islands[0].0.props[2].is_optional);
-        assert_eq!(hir.islands[0].0.props[2].name, "width");
-
-
-
-        let web = crate::web_ir::lower::lower_hir_to_web_ir(&hir);
-        let diags = crate::web_ir::validate::validate_web_ir(&web);
-        assert!(diags.is_empty(), "{diags:?}");
     }
 
     #[test]

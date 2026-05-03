@@ -405,22 +405,7 @@ fn test_parse_v0_component_from_image() {
     }
 }
 
-// WebIR blueprint G1: parser-truth coverage for islands, server fns, routes, reactive surface.
-
-#[test]
-fn test_parse_island_optional_prop() {
-    let m = parse_str("@island DataChart {\n    title: str\n    data: str\n    width?: int\n}");
-    if let Decl::Island(island) = &m.declarations[0] {
-        assert_eq!(island.name, "DataChart");
-        assert_eq!(island.props.len(), 3);
-        assert!(!island.props[0].is_optional);
-        assert!(!island.props[1].is_optional);
-        assert!(island.props[2].is_optional);
-        assert_eq!(island.props[2].name, "width");
-    } else {
-        panic!("Expected Decl::Island, got {:?}", m.declarations[0]);
-    }
-}
+// WebIR blueprint G1: parser-truth coverage for server fns, routes, reactive surface.
 
 #[test]
 fn test_parse_server_fn_brace_shape() {
@@ -494,28 +479,8 @@ fn test_parse_std_http_dotted_path_and_import() {
 }
 
 #[test]
-fn test_parse_island_prop_requires_colon() {
-    assert_parse_fails("@island X {\n    title str\n}");
-}
-
-#[test]
 fn test_parse_reactive_rejects_misplaced_view_without_colon() {
     assert_parse_fails("@component Bad() {\n  view <div />\n}");
-}
-
-/// OP-0014: lexer token stream around optional island prop includes `?` and `:` markers.
-#[test]
-fn test_island_optional_prop_token_shape() {
-    let src = "@island X {\n    title: str\n    width?: int\n}";
-    let dbg = lex(src)
-        .into_iter()
-        .map(|s| format!("{:?}", s.token))
-        .collect::<Vec<_>>()
-        .join(" ");
-    assert!(
-        dbg.contains("Question") && dbg.contains("Colon"),
-        "unexpected token dbg: {dbg}"
-    );
 }
 
 /// OP-0028: [`RoutesDecl::parse_summary`] is stable for multi-entry blocks.
@@ -542,7 +507,7 @@ fn test_web_surface_syntax_inventory_non_empty() {
     use crate::parser::WEB_SURFACE_SYNTAX_INVENTORY;
     let joined = WEB_SURFACE_SYNTAX_INVENTORY.join("\n");
     assert!(
-        joined.contains("@island") && joined.contains("routes {"),
+        joined.contains("routes {"),
         "{joined}"
     );
 }

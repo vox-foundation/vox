@@ -21,9 +21,6 @@
 pub mod compat;
 mod state_deps;
 
-use super::island_emit::{
-    island_data_prop_attr, island_mount_hir_fragment, island_mount_opening_part,
-};
 use crate::hir::*;
 use std::collections::HashSet;
 
@@ -51,7 +48,6 @@ pub(crate) fn unwrap_inline_hir_block_expr(expr: &HirExpr) -> &HirExpr {
 fn extract_single_jsx_expr(
     stmts: &[HirStmt],
     state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
 ) -> Option<String> {
     if stmts.len() != 1 {
         return None;
@@ -59,7 +55,7 @@ fn extract_single_jsx_expr(
     if let HirStmt::Expr { expr, .. } = &stmts[0] {
         // Unwrap a single-expression block `{...}` that JSX expression children produce.
         let inner = unwrap_inline_hir_block_expr(expr);
-        return Some(emit_hir_expr(inner, state_names, island_names));
+        return Some(emit_hir_expr(inner, state_names));
     }
     None
 }
@@ -70,27 +66,26 @@ fn extract_single_jsx_expr(
 pub(crate) fn expand_bind_hir_attribute(
     expr: &HirExpr,
     state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
 ) -> (String, String) {
     let e = unwrap_inline_hir_block_expr(expr);
     match e {
         HirExpr::Ident(name, _) => {
             let setter = format!("set_{name}");
-            let value = emit_hir_expr(e, state_names, island_names);
+            let value = emit_hir_expr(e, state_names);
             (value, format!("(e) => {setter}(e.target.value)"))
         }
         HirExpr::FieldAccess(obj, field, _) => {
-            let value_str = emit_hir_expr(e, state_names, island_names);
-            let obj_str = emit_hir_expr(obj, state_names, island_names);
+            let value_str = emit_hir_expr(e, state_names);
+            let obj_str = emit_hir_expr(obj, state_names);
             let setter = match obj.as_ref() {
                 HirExpr::Ident(obj_name, _) => format!("set_{obj_name}"),
-                _ => format!("set_{}", emit_hir_expr(obj, state_names, island_names)),
+                _ => format!("set_{}", emit_hir_expr(obj, state_names)),
             };
             let onchange = format!("(e) => {setter}({{...{obj_str}, {field}: e.target.value}})");
             (value_str, onchange)
         }
         _ => {
-            let val = emit_hir_expr(e, state_names, island_names);
+            let val = emit_hir_expr(e, state_names);
             (val, "(e) => {}".to_string())
         }
     }
@@ -128,7 +123,6 @@ pub(crate) fn wrap_jsx_hir_child_expr(emit: String) -> String {
 pub fn emit_hir_expr(
     expr: &HirExpr,
     state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
 ) -> String {
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
@@ -137,8 +131,8 @@ pub fn emit_hir_expr(
         HirExpr::BoolLit(v, _) => v.to_string(),
         HirExpr::Ident(name, _) => name.clone(),
         HirExpr::Binary(op, left, right, _) => {
-            let l = emit_hir_expr(left, state_names, island_names);
-            let r = emit_hir_expr(right, state_names, island_names);
+            let l = emit_hir_expr(left, state_names);
+            let r = emit_hir_expr(right, state_names);
             let op_str = match op {
                 HirBinOp::Add => "+",
                 HirBinOp::Sub => "-",
@@ -162,7 +156,7 @@ pub fn emit_hir_expr(
             }
         }
         HirExpr::Unary(op, expr, _) => {
-            let e = emit_hir_expr(expr, state_names, island_names);
+            let e = emit_hir_expr(expr, state_names);
             match op {
                 HirUnOp::Not => format!("!{e}"),
                 HirUnOp::Neg => format!("-{e}"),
@@ -170,43 +164,34 @@ pub fn emit_hir_expr(
         }
         HirExpr::Block(stmts, _) => {
             // Inline single-JSX/if blocks so JSX child `{if ...}` emits as a ternary, not an IIFE.
-            if let Some(inline) = extract_single_jsx_expr(stmts, state_names, island_names) {
+            if let Some(inline) = extract_single_jsx_expr(stmts, state_names) {
                 return inline;
             }
             let mut out = String::new();
             out.push_str("(() => {\n");
             for stmt in stmts {
-                out.push_str(&emit_hir_stmt(stmt, state_names, island_names, 2));
+                out.push_str(&emit_hir_stmt(stmt, state_names, 2));
             }
             out.push_str("  })()");
             out
         }
         HirExpr::Jsx(el) => {
-            if let Some(mount) = emit_hir_island_mount_el(
-                &el.tag,
-                &el.attributes,
-                el.children.len(),
-                state_names,
-                island_names,
-            ) {
-                return mount;
-            }
             let mut attrs = Vec::new();
             for attr in &el.attributes {
                 if attr.name == "bind" {
                     let (value_str, onchange_str) =
-                        expand_bind_hir_attribute(&attr.value, state_names, island_names);
+                        expand_bind_hir_attribute(&attr.value, state_names);
                     attrs.push(format!("value={{{value_str}}}"));
                     attrs.push(format!("onChange={{{onchange_str}}}"));
                     continue;
                 }
                 let name = map_jsx_attr_name(&attr.name);
-                let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, name);
+                let val = emit_hir_expr_attr_value(&attr.value, state_names, name);
                 attrs.push(format!("{name}={{{val}}}"));
             }
             let mut children = Vec::new();
             for child in &el.children {
-                let c = emit_hir_expr(child, state_names, island_names);
+                let c = emit_hir_expr(child, state_names);
                 children.push(wrap_jsx_hir_child_expr(c));
             }
             format!(
@@ -218,22 +203,17 @@ pub fn emit_hir_expr(
             )
         }
         HirExpr::JsxSelfClosing(el) => {
-            if let Some(mount) =
-                emit_hir_island_mount_el(&el.tag, &el.attributes, 0, state_names, island_names)
-            {
-                return mount;
-            }
             let mut attrs = Vec::new();
             for attr in &el.attributes {
                 if attr.name == "bind" {
                     let (value_str, onchange_str) =
-                        expand_bind_hir_attribute(&attr.value, state_names, island_names);
+                        expand_bind_hir_attribute(&attr.value, state_names);
                     attrs.push(format!("value={{{value_str}}}"));
                     attrs.push(format!("onChange={{{onchange_str}}}"));
                     continue;
                 }
                 let name = map_jsx_attr_name(&attr.name);
-                let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, name);
+                let val = emit_hir_expr_attr_value(&attr.value, state_names, name);
                 attrs.push(format!("{name}={{{val}}}"));
             }
             format!("<{} {} />", el.tag, attrs.join(" "))
@@ -241,33 +221,33 @@ pub fn emit_hir_expr(
         HirExpr::ObjectLit(fields, _) => {
             let pairs: Vec<String> = fields
                 .iter()
-                .map(|(k, v)| format!("{k}: {}", emit_hir_expr(v, state_names, island_names)))
+                .map(|(k, v)| format!("{k}: {}", emit_hir_expr(v, state_names)))
                 .collect();
             format!("{{ {} }}", pairs.join(", "))
         }
         HirExpr::ListLit(elems, _) | HirExpr::TupleLit(elems, _) => {
             let items: Vec<String> = elems
                 .iter()
-                .map(|e| emit_hir_expr(e, state_names, island_names))
+                .map(|e| emit_hir_expr(e, state_names))
                 .collect();
             format!("[{}]", items.join(", "))
         }
         HirExpr::Call(callee, args, _, _) => {
             let callee_str = match callee.as_ref() {
                 HirExpr::Ident(name, _) => map_vox_react_hook_callee(name).to_string(),
-                _ => emit_hir_expr(callee, state_names, island_names),
+                _ => emit_hir_expr(callee, state_names),
             };
             let args_str: Vec<String> = args
                 .iter()
-                .map(|a| emit_hir_expr(&a.value, state_names, island_names))
+                .map(|a| emit_hir_expr(&a.value, state_names))
                 .collect();
             format!("{callee_str}({})", args_str.join(", "))
         }
         HirExpr::MethodCall(obj, method, args, plan, _) => {
-            let obj_str = emit_hir_expr(obj, state_names, island_names);
+            let obj_str = emit_hir_expr(obj, state_names);
             let args_str: Vec<String> = args
                 .iter()
-                .map(|a| emit_hir_expr(&a.value, state_names, island_names))
+                .map(|a| emit_hir_expr(&a.value, state_names))
                 .collect();
             let mut base = format!("{obj_str}.{method}({})", args_str.join(", "));
             if let Some(p) = plan {
@@ -292,50 +272,50 @@ pub fn emit_hir_expr(
             base
         }
         HirExpr::FieldAccess(obj, field, _) => {
-            let obj_str = emit_hir_expr(obj, state_names, island_names);
+            let obj_str = emit_hir_expr(obj, state_names);
             format!("{obj_str}.{field}")
         }
         HirExpr::If(cond, then_stmts, else_stmts, _) => {
-            let c = emit_hir_expr(cond, state_names, island_names);
+            let c = emit_hir_expr(cond, state_names);
 
             // Fast path: single JSX expression in both branches → emit as inline ternary.
             // This avoids void IIFEs like `(() => { <Comp />; })()` which render nothing.
-            if let Some(then_jsx) = extract_single_jsx_expr(then_stmts, state_names, island_names) {
+            if let Some(then_jsx) = extract_single_jsx_expr(then_stmts, state_names) {
                 let else_jsx = else_stmts
                     .as_ref()
-                    .and_then(|s| extract_single_jsx_expr(s, state_names, island_names))
+                    .and_then(|s| extract_single_jsx_expr(s, state_names))
                     .unwrap_or_else(|| "null".to_string());
                 return format!("({c} ? {then_jsx} : {else_jsx})");
             }
 
             let mut then_out = String::new();
             for s in then_stmts {
-                then_out.push_str(&emit_hir_stmt(s, state_names, island_names, 0));
+                then_out.push_str(&emit_hir_stmt(s, state_names, 0));
             }
             let mut else_out = String::new();
             if let Some(estmts) = else_stmts {
                 for s in estmts {
-                    else_out.push_str(&emit_hir_stmt(s, state_names, island_names, 0));
+                    else_out.push_str(&emit_hir_stmt(s, state_names, 0));
                 }
             }
             format!("(({c}) ? (() => {{ {then_out} }})() : (() => {{ {else_out} }})())")
         }
         HirExpr::For(name, iterable, body, _) => {
-            let iter = emit_hir_expr(iterable, state_names, island_names);
-            let b = emit_hir_expr(body, state_names, island_names);
+            let iter = emit_hir_expr(iterable, state_names);
+            let b = emit_hir_expr(body, state_names);
             format!("{iter}.map(({name}) => ({b}))")
         }
         HirExpr::Lambda(params, _, body, _) => {
             let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-            let b = emit_hir_expr(body, state_names, island_names);
+            let b = emit_hir_expr(body, state_names);
             format!("(({}) => ({}))", param_names.join(", "), b)
         }
         HirExpr::Match(subject, arms, _) => {
-            let s = emit_hir_expr(subject, state_names, island_names);
+            let s = emit_hir_expr(subject, state_names);
             let mut arms_out = Vec::new();
             for arm in arms {
                 let pat = emit_hir_pattern(&arm.pattern);
-                let body = emit_hir_expr(&arm.body, state_names, island_names);
+                let body = emit_hir_expr(&arm.body, state_names);
                 arms_out.push(format!("case {pat}: return {body};"));
             }
             format!(
@@ -346,52 +326,16 @@ pub fn emit_hir_expr(
         HirExpr::Try(h) => {
             // No direct equivalent of `?` in TS unless it's a specific pattern, but we'll try to emulate or just emit `await`/direct expression for now since it's just TS generation.
             // A common TS code pattern is to just emit the target since actual error bubbling requires explicit branching. For basic TS compat we'll emit the unwrapped expression.
-            emit_hir_expr(h.target.as_ref(), state_names, island_names)
+            emit_hir_expr(h.target.as_ref(), state_names)
         }
         HirExpr::DecimalLit(v, _) => format!("\"{v}\""),
 
         HirExpr::Spawn(target, _) => {
-            let t = emit_hir_expr(target, state_names, island_names);
+            let t = emit_hir_expr(target, state_names);
             format!("new {t}()")
         }
-        HirExpr::With(base, _, _) => emit_hir_expr(base, state_names, island_names),
+        HirExpr::With(base, _, _) => emit_hir_expr(base, state_names),
     }
-}
-
-/// When the JSX tag matches an `@island` name, emit a `div` mount point for `island-mount.js`
-/// (`data-vox-island` + `data-prop-*`), not a React component reference.
-///
-/// # Deprecation / migration (OP-0132)
-///
-/// **Do not extend** this string path for new features. Add island behavior through
-/// [`crate::web_ir`] (`lower`, `validate`, `emit_tsx`) and keep this emitter aligned with that
-/// shape until Path C dual-run is finished.
-///
-/// Kept for production Path C / routes until dual-run diff vs [`crate::web_ir`] is complete; string
-/// shape must match [`super::island_emit`] and [`crate::web_ir::lower::lower_jsx_attr_pair`].
-///
-/// **Phase:** compat-legacy (OP-0138).
-fn emit_hir_island_mount_el(
-    tag: &str,
-    attributes: &[HirJsxAttr],
-    child_count: usize,
-    state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
-) -> Option<String> {
-    if !island_names.contains(tag) {
-        return None;
-    }
-    let mut parts = vec![island_mount_opening_part(tag)];
-    for attr in attributes {
-        if attr.name == "bind" {
-            continue;
-        }
-        let dname = island_data_prop_attr(&attr.name);
-        let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, &dname);
-        parts.push(format!("{dname}={{{val}}}"));
-    }
-    crate::codegen_ts::island_emit::sort_island_mount_data_prop_parts(&mut parts);
-    Some(island_mount_hir_fragment(tag, &parts, child_count))
 }
 
 /// **Phase:** compat-legacy (OP-0138).
@@ -399,7 +343,6 @@ fn emit_hir_island_mount_el(
 pub(crate) fn emit_hir_expr_attr_value(
     expr: &HirExpr,
     state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
     attr_name: &str,
 ) -> String {
     let is_event_handler = attr_name.starts_with("on")
@@ -413,12 +356,12 @@ pub(crate) fn emit_hir_expr_attr_value(
         if let HirExpr::Block(stmts, _) = expr {
             let stmts_str = stmts
                 .iter()
-                .map(|s| emit_hir_stmt(s, state_names, island_names, 2))
+                .map(|s| emit_hir_stmt(s, state_names, 2))
                 .collect::<String>();
             return format!("() => {{\n{}}}", stmts_str);
         }
     }
-    emit_hir_expr(expr, state_names, island_names)
+    emit_hir_expr(expr, state_names)
 }
 
 /// **Phase:** compat-legacy (OP-0138).
@@ -426,16 +369,15 @@ pub(crate) fn emit_hir_expr_attr_value(
 pub(crate) fn emit_block_stmts(
     expr: &HirExpr,
     state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
     indent: usize,
 ) -> String {
     match expr {
         HirExpr::Block(stmts, _) => stmts
             .iter()
-            .map(|s| emit_hir_stmt(s, state_names, island_names, indent))
+            .map(|s| emit_hir_stmt(s, state_names, indent))
             .collect(),
         _ => {
-            let e = emit_hir_expr(expr, state_names, island_names);
+            let e = emit_hir_expr(expr, state_names);
             let pad = "  ".repeat(indent);
             format!("{pad}{e};\n")
         }
@@ -447,7 +389,6 @@ pub(crate) fn emit_block_stmts(
 pub(crate) fn emit_hir_stmt(
     stmt: &HirStmt,
     state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
     indent: usize,
 ) -> String {
     let pad = "  ".repeat(indent);
@@ -460,20 +401,20 @@ pub(crate) fn emit_hir_stmt(
         } => {
             let keyword = if *mutable { "let" } else { "const" };
             let pat = emit_hir_pattern(pattern);
-            let val = emit_hir_expr(value, state_names, island_names);
+            let val = emit_hir_expr(value, state_names);
             format!("{pad}{keyword} {pat} = {val};\n")
         }
         HirStmt::Assign { target, value, .. } => {
             if let HirExpr::Ident(name, _) = target {
                 if state_names.contains(name) {
-                    let val = emit_hir_expr(value, state_names, island_names);
+                    let val = emit_hir_expr(value, state_names);
                     return format!("{pad}set_{name}({val});\n");
                 }
             }
             format!(
                 "{pad}{} = {};\n",
-                emit_hir_expr(target, state_names, island_names),
-                emit_hir_expr(value, state_names, island_names)
+                emit_hir_expr(target, state_names),
+                emit_hir_expr(value, state_names)
             )
         }
         HirStmt::Expr { expr, .. } => {
@@ -485,13 +426,13 @@ pub(crate) fn emit_hir_stmt(
                     // unless we pass the module or a set of native fn names.
                 }
             }
-            format!("{pad}{};\n", emit_hir_expr(expr, state_names, island_names))
+            format!("{pad}{};\n", emit_hir_expr(expr, state_names))
         }
         HirStmt::Return { value, .. } => {
             if let Some(v) = value {
                 format!(
                     "{pad}return {};\n",
-                    emit_hir_expr(v, state_names, island_names)
+                    emit_hir_expr(v, state_names)
                 )
             } else {
                 format!("{pad}return;\n")
@@ -500,10 +441,10 @@ pub(crate) fn emit_hir_stmt(
         HirStmt::While {
             condition, body, ..
         } => {
-            let cond = emit_hir_expr(condition, state_names, island_names);
+            let cond = emit_hir_expr(condition, state_names);
             let mut out = format!("{pad}while ({cond}) {{\n");
             for s in body {
-                out.push_str(&emit_hir_stmt(s, state_names, island_names, indent + 2));
+                out.push_str(&emit_hir_stmt(s, state_names, indent + 2));
             }
             out.push_str(&format!("{pad}}}\n"));
             out
@@ -511,7 +452,7 @@ pub(crate) fn emit_hir_stmt(
         HirStmt::Loop { body, .. } => {
             let mut out = format!("{pad}while (true) {{\n");
             for s in body {
-                out.push_str(&emit_hir_stmt(s, state_names, island_names, indent + 2));
+                out.push_str(&emit_hir_stmt(s, state_names, indent + 2));
             }
             out.push_str(&format!("{pad}}}\n"));
             out
@@ -885,7 +826,7 @@ mod hir_emit_if_tests {
             span(),
         );
 
-        let out = emit_hir_expr(&if_expr, &HashSet::new(), &HashSet::new());
+        let out = emit_hir_expr(&if_expr, &HashSet::new());
 
         assert!(
             out.contains("? <SpeakTab") || out.contains("?<SpeakTab"),
@@ -909,7 +850,7 @@ mod hir_emit_if_tests {
         let outer_else = vec![expr_stmt(nested_if)];
         let outer_if = HirExpr::If(Box::new(outer_cond), outer_then, Some(outer_else), span());
 
-        let out = emit_hir_expr(&outer_if, &HashSet::new(), &HashSet::new());
+        let out = emit_hir_expr(&outer_if, &HashSet::new());
 
         assert!(
             out.contains("<SpeakTab") && out.contains("<NetworkTab") && out.contains("<ForgeTab"),

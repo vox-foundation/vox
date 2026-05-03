@@ -5,7 +5,6 @@
 //! - **Routes** — duplicate contract ids, loader / RPC shape (OP-0084, OP-0086).
 //! - **Behavior** — [`crate::web_ir::FieldOptionality`] vs initial value (OP-0082).
 //! - **Style** — empty rules and declarations (OP-0088).
-//! - **Islands** — prop key sanity on [`crate::web_ir::DomNode::IslandMount`] (OP-0090).
 //! - **Interop** — non-empty fields on [`crate::web_ir::InteropNode`] (ADR 012).
 //!
 //! Diagnostic **codes** use dotted prefixes (`web_ir_validate.dom.*`, `web_ir_validate.route.*`, …)
@@ -73,19 +72,6 @@ fn walk_dom_edges(
     let Some(node) = module.dom_nodes.get(id.0 as usize) else {
         return;
     };
-    if let DomNode::IslandMount { props, .. } = node {
-        metrics.island_mounts_checked += 1;
-        for (k, _) in props {
-            if k.is_empty() {
-                out.push(WebIrDiagnostic {
-                    code: "web_ir_validate.island.empty_prop_key".to_string(),
-                    message: "IslandMount prop key must not be empty".to_string(),
-                    span: None,
-                    category: Some("island".to_string()),
-                });
-            }
-        }
-    }
     let child_ids: Vec<DomNodeId> = match node {
         DomNode::Element { children, .. } | DomNode::Fragment { children, .. } => children.clone(),
         DomNode::Conditional {
@@ -98,8 +84,7 @@ fn walk_dom_edges(
             v
         }
         DomNode::Loop { body, .. } => body.clone(),
-        DomNode::IslandMount { .. }
-        | DomNode::Text { .. }
+        DomNode::Text { .. }
         | DomNode::Slot { .. }
         | DomNode::Expr { .. } => vec![],
     };
@@ -228,7 +213,7 @@ fn validate_route_families(
 }
 
 /// **Behavior / optionality (OP-S017):** currently guards `StateDecl` — [`FieldOptionality::Required`] must
-/// ship a lowered `initial`; extend here for `Optional`/`Defaulted` invariants on islands and props.
+/// ship a lowered `initial`; extend here for `Optional`/`Defaulted` invariants on props.
 fn validate_behaviors(
     module: &WebIrModule,
     out: &mut Vec<WebIrDiagnostic>,
