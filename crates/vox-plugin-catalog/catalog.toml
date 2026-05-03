@@ -18,6 +18,71 @@ default-source = "github:vox-foundation/vox-plugin-mens-candle-cuda"
 bundled-in = ["vox-ml", "vox-dev"]
 
 [[plugin]]
+id = "tensor-burn-wgpu"
+payload-kind = "code"
+description = "Tensor backend on Burn + wgpu (cross-vendor GPU)."
+extension-points = ["TensorBackend"]
+default-source = "github:vox-foundation/vox-plugin-tensor-burn-wgpu"
+bundled-in = ["vox-ml", "vox-dev"]
+
+[[plugin]]
+id = "oratio"
+payload-kind = "code"
+description = "Audio capture and pipeline integration (Oratio)."
+extension-points = ["AudioCapture"]
+default-source = "github:vox-foundation/vox-plugin-oratio"
+bundled-in = ["vox-dev"]
+
+[[plugin]]
+id = "oratio-mic"
+payload-kind = "code"
+description = "Microphone input adapter for Oratio."
+extension-points = ["AudioCapture"]
+default-source = "github:vox-foundation/vox-plugin-oratio-mic"
+bundled-in = ["vox-dev"]
+
+[[plugin]]
+id = "cloud"
+payload-kind = "code"
+description = "Cloud sync provider (Mens cloud + Populi cloud)."
+extension-points = ["CloudSync"]
+default-source = "github:vox-foundation/vox-plugin-cloud"
+bundled-in = ["vox-mesh", "vox-cloud-only", "vox-dev"]
+
+[[plugin]]
+id = "populi-mesh"
+payload-kind = "composite"
+description = "Populi mesh transport + the agent skill that documents it."
+extension-points = ["MeshDriver"]
+exposes-tools = ["vox_populi_join", "vox_populi_dispatch"]
+default-source = "github:vox-foundation/vox-plugin-populi-mesh"
+bundled-in = ["vox-mesh", "vox-server", "vox-dev"]
+
+[[plugin]]
+id = "script-execution"
+payload-kind = "code"
+description = "Script execution sandbox for `.vox run` and similar."
+extension-points = ["ScriptExecutor"]
+default-source = "github:vox-foundation/vox-plugin-script-execution"
+bundled-in = ["vox-dev"]
+
+[[plugin]]
+id = "execution-api"
+payload-kind = "code"
+description = "Programmatic execution API surface for embedders."
+extension-points = ["ScriptExecutor"]
+default-source = "github:vox-foundation/vox-plugin-execution-api"
+bundled-in = []
+
+[[plugin]]
+id = "stub-check"
+payload-kind = "code"
+description = "Stub-validation diagnostics for the executor."
+extension-points = ["ScriptExecutor"]
+default-source = "github:vox-foundation/vox-plugin-stub-check"
+bundled-in = []
+
+[[plugin]]
 id = "skill-compiler"
 payload-kind = "skill"
 description = "Agent-facing skill describing the Vox compiler tools."
