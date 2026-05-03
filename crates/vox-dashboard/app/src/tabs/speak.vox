@@ -88,7 +88,7 @@ component SpeakTab() {
                 text(size="xs", color="zinc.500", tracking="widest") { "VOICE INTERFACE" }
             }
             row(items="center", raw_class="gap-2") {
-                panel(w=2, h=2, radius="full", bg="zinc.600") {}
+                panel(w=2, h=2, radius="full", bg="zinc.600")
                 text(size="xs", color="zinc.500") { "NO ACTIVE SESSION" }
             }
         }
@@ -98,6 +98,6 @@ component SpeakTab() {
                 text(size="xs") { "Messages will appear here once a session is active." }
             }
         }
-        ComposerPanel() {}
+        ComposerPanel()
     }
 }

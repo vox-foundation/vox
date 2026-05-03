@@ -58,11 +58,11 @@ component PipelineStage(name: str, desc: str) {
 
 component PipelineView() {
     view: row(h="full", bg="zinc.950") {
-        PipelineStage(name="Lexer", desc="Logos-based tokenization") {}
-        PipelineStage(name="Parser", desc="Rowan GreenTree CST generation") {}
-        PipelineStage(name="HIR", desc="High-level IR with name resolution") {}
-        PipelineStage(name="TypeCheck", desc="Bidirectional unification logic") {}
-        PipelineStage(name="CodeGen", desc="Rust and TypeScript emission") {}
+        PipelineStage(name="Lexer", desc="Logos-based tokenization")
+        PipelineStage(name="Parser", desc="Rowan GreenTree CST generation")
+        PipelineStage(name="HIR", desc="High-level IR with name resolution")
+        PipelineStage(name="TypeCheck", desc="Bidirectional unification logic")
+        PipelineStage(name="CodeGen", desc="Rust and TypeScript emission")
     }
 }
 
@@ -113,9 +113,9 @@ component ForgeTab() {
         }
         panel(flex=1, overflow="hidden") {
             if active_panel is "pipeline" {
-                PipelineView() {}
+                PipelineView()
             } else {
-                WorkflowScrubber() {}
+                WorkflowScrubber()
             }
         }
     }

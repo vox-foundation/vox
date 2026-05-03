@@ -308,6 +308,46 @@ fn test_parse_view_call_form_lowers_to_jsx() {
 }
 
 #[test]
+fn test_capitalized_call_no_block_lowers_to_self_closing_jsx() {
+    // VUV: `ComposerPanel()` (no trailing block, capitalized callee, no args or all-named)
+    // sugars to Expr::JsxSelfClosing. Lowercase callees and positional-arg calls do not.
+    let m = parse_str("component A() { view: ComposerPanel() }");
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else {
+        panic!("expected reactive component, got {:?}", m.declarations[0]);
+    };
+    let Some(Expr::JsxSelfClosing(el)) = &r.view else {
+        panic!("expected self-closing JSX, got {:?}", r.view);
+    };
+    assert_eq!(el.tag, "ComposerPanel");
+    assert!(el.attributes.is_empty());
+}
+
+#[test]
+fn test_capitalized_call_with_named_args_lowers_to_self_closing() {
+    let m = parse_str(r#"component A() { view: PipelineStage(name="Lexer", desc="tok") }"#);
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else { panic!(); };
+    let Some(Expr::JsxSelfClosing(el)) = &r.view else {
+        panic!("expected self-closing JSX, got {:?}", r.view);
+    };
+    assert_eq!(el.tag, "PipelineStage");
+    assert_eq!(el.attributes.len(), 2);
+}
+
+#[test]
+fn test_capitalized_call_with_positional_arg_stays_call() {
+    // Enum constructors (Some, Ok, Err) use positional args — must NOT be sugared to JSX.
+    let m = parse_str("fn f() -> int { let x = Some(42); return 1 }");
+    let Decl::Function(func) = &m.declarations[0] else { panic!(); };
+    if let Stmt::Let { value: Expr::Call { callee, .. }, .. } = &func.body[0] {
+        if let Expr::Ident { name, .. } = callee.as_ref() {
+            assert_eq!(name, "Some");
+            return;
+        }
+    }
+    panic!("expected Some(42) to remain Expr::Call, got {:?}", func.body[0]);
+}
+
+#[test]
 fn test_view_call_positional_arg_rejected() {
     // VUV view calls are keyword-only — positional arg should produce a parser error.
     let result = std::panic::catch_unwind(|| {

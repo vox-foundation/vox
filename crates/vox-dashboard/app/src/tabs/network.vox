@@ -28,7 +28,7 @@ component NodeBadge(agent_id: str, status: str) {
         panel(
             w=2, h=2, radius="full",
             bg=if status is "active" { "emerald.400" } else { "zinc.600" }
-        ) {}
+        )
         column(raw_class="gap-0") {
             text(size="xs", font_family="mono", color="white/80") { agent_id }
             text(size="xs", color="zinc.500") { status }
@@ -45,15 +45,15 @@ component MeshLegend() {
     ) {
         text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest", mb=1) { "LEGEND" }
         row(items="center", raw_class="gap-2") {
-            panel(w=3, bg="emerald.400", radius="DEFAULT", raw_class="h-0.5") {}
+            panel(w=3, bg="emerald.400", radius="DEFAULT", raw_class="h-0.5")
             text(size="xs", color="zinc.400") { "Active channel" }
         }
         row(items="center", raw_class="gap-2") {
-            panel(w=3, bg="zinc.600", radius="DEFAULT", raw_class="h-0.5") {}
+            panel(w=3, bg="zinc.600", radius="DEFAULT", raw_class="h-0.5")
             text(size="xs", color="zinc.400") { "Idle channel" }
         }
         row(items="center", raw_class="gap-2") {
-            panel(w=2, h=2, radius="full", bg="rose.500") {}
+            panel(w=2, h=2, radius="full", bg="rose.500")
             text(size="xs", color="zinc.400") { "Error node" }
         }
     }
@@ -93,7 +93,7 @@ component NetworkTab() {
                     text(size="xs") { "Agent graph renders here via @island NetworkGraph (Phase 2)." }
                 }
             }
-            MeshLegend() {}
+            MeshLegend()
         }
     }
 }

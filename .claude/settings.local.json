@@ -44,7 +44,8 @@
       "Bash(git -C /c/Users/Owner/vox/.claude/worktrees/gallant-shockley-587a69 ls-remote --exit-code origin claude/gallant-shockley-587a69)",
       "Bash(xargs wc *)",
       "Bash(grep -E \"\\\\.rs$\")",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "Bash(grep -rnE '^\\\\s+\\(panel|row|column|text|button|stack|wrap|heading|link|image|list|list_item|card|overlay|toast|drawer|modal\\)\\\\\\([^\\)]*\\\\\\)$' crates/vox-dashboard/app/src/)"
     ]
   }
 }

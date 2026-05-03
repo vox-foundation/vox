@@ -29,7 +29,7 @@ component DiagnosticRow(severity: str, message: str, location: str) {
             w=2, h=2, radius="full",
             bg=if severity is "error" { "rose.500" } else { "amber.400" },
             mt=1.5, shrink=0
-        ) {}
+        )
         column(flex=1, min_w=0, raw_class="gap-1") {
             text(size="sm", color="white/80", font_family="mono", leading="snug") { message }
             text(size="xs", color="zinc.500", font_family="mono") { location }
@@ -75,7 +75,7 @@ component TaskDispatch() {
                 pad_x=4, pad_y=2, radius="xl", bg="white/5", color="zinc.400",
                 size="sm", weight="bold", border=true, border_color="white/10"
             ) { "CLEAR" }
-            panel(flex=1) {}
+            panel(flex=1)
             text(
                 size="xs", weight="bold", case="upper",
                 color=if is_running { "blue.400" } else { "zinc.600" }
@@ -103,7 +103,7 @@ component CommandTab() {
         }
         panel(flex=1, overflow="hidden") {
             if active_panel is "diagnostics" {
-                DiagnosticsPanel() {}
+                DiagnosticsPanel()
             } else {
                 column(flex=1, items="center", justify="center", color="zinc.500", raw_class="gap-3") {
                     text(size="sm", weight="bold", case="upper", tracking="widest") { "CONTEXT EXPLORER" }
@@ -111,6 +111,6 @@ component CommandTab() {
                 }
             }
         }
-        TaskDispatch() {}
+        TaskDispatch()
     }
 }

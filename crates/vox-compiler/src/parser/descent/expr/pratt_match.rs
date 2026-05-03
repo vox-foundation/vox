@@ -1,7 +1,7 @@
 // Primary expressions, postfix, control/lambda forms.
 
 use super::super::Parser;
-use crate::ast::expr::{Arg, Expr, JsxAttribute, JsxElement, MatchArm, UnOp};
+use crate::ast::expr::{Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, UnOp};
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
 
@@ -257,6 +257,11 @@ impl Parser {
                     // Trigger requires (a) callee is a bare Ident (no method chains, no field access)
                     // and (b) next non-newline token is `{`. Sugars to Expr::Jsx so HIR / web_ir /
                     // codegen are untouched. Positional args are rejected — view calls are kw-only.
+                    //
+                    // Capitalized-Ident calls without a trailing block are also sugared into
+                    // Expr::JsxSelfClosing — `Component()` ≡ `Component() {}` ≡ `<Component/>`.
+                    // This matches React's tag-naming convention and avoids forcing every
+                    // self-closing component invocation to write `() {}`.
                     if let Expr::Ident { name: tag, .. } = &expr {
                         let mut peek_pos = self.pos;
                         while peek_pos < self.tokens.len()
@@ -264,10 +269,15 @@ impl Parser {
                         {
                             peek_pos += 1;
                         }
-                        if matches!(
+                        let is_brace_next = matches!(
                             self.tokens.get(peek_pos).map(|t| &t.token),
                             Some(Token::LBrace)
-                        ) {
+                        );
+                        let starts_uppercase = tag
+                            .chars()
+                            .next()
+                            .map_or(false, |c| c.is_ascii_uppercase());
+                        if is_brace_next {
                             let tag = tag.clone();
                             let attributes = self.view_args_to_attrs(args)?;
                             self.skip_newlines();
@@ -278,6 +288,23 @@ impl Parser {
                                 tag,
                                 attributes,
                                 children,
+                                span: start.merge(self.span()),
+                            });
+                            continue;
+                        } else if (starts_uppercase
+                            || crate::web_ir::primitives::is_primitive(tag))
+                            && args.iter().all(|a| a.name.is_some())
+                        {
+                            // Capitalized-Ident or recognized UI primitive + all-named-args (or
+                            // no args) + no trailing block = view-call self-closing form.
+                            // `panel(w=2)` ≡ `panel(w=2) {}`; `Component()` ≡ `Component() {}`.
+                            // Positional args (enum/type constructors like `Some(x)`) fall
+                            // through to a regular Expr::Call below.
+                            let tag = tag.clone();
+                            let attributes = self.view_args_to_attrs(args)?;
+                            expr = Expr::JsxSelfClosing(JsxSelfClosingElement {
+                                tag,
+                                attributes,
                                 span: start.merge(self.span()),
                             });
                             continue;

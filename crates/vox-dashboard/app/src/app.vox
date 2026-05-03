@@ -74,7 +74,7 @@ component SpeakTab() {
                 text(size="xs", color="zinc.500", tracking="widest") { "VOICE INTERFACE" }
             }
             row(items="center", raw_class="gap-2") {
-                panel(w=2, h=2, radius="full", bg="zinc.600") {}
+                panel(w=2, h=2, radius="full", bg="zinc.600")
                 text(size="xs", color="zinc.500") { "NO ACTIVE SESSION" }
             }
         }
@@ -84,7 +84,7 @@ component SpeakTab() {
                 text(size="xs") { "Messages will appear here once a session is active." }
             }
         }
-        ComposerPanel() {}
+        ComposerPanel()
     }
 }
 
@@ -99,7 +99,7 @@ component DiagnosticRow(severity: str, message: str, location: str) {
             w=2, h=2, radius="full",
             bg=if severity is "error" { "rose.500" } else { "amber.400" },
             mt=1.5, shrink=0
-        ) {}
+        )
         column(flex=1, min_w=0, raw_class="gap-1") {
             text(size="sm", color="white/80", font_family="mono", leading="snug") { message }
             text(size="xs", color="zinc.500", font_family="mono") { location }
@@ -145,7 +145,7 @@ component TaskDispatch() {
                 pad_x=4, pad_y=2, radius="xl", bg="white/5", color="zinc.400",
                 size="sm", weight="bold", border=true, border_color="white/10"
             ) { "CLEAR" }
-            panel(flex=1) {}
+            panel(flex=1)
             text(
                 size="xs", weight="bold", case="upper",
                 color=if is_running { "blue.400" } else { "zinc.600" }
@@ -173,7 +173,7 @@ component CommandTab() {
         }
         panel(flex=1, overflow="hidden") {
             if active_panel is "diagnostics" {
-                DiagnosticsPanel() {}
+                DiagnosticsPanel()
             } else {
                 column(flex=1, items="center", justify="center", color="zinc.500", raw_class="gap-3") {
                     text(size="sm", weight="bold", case="upper", tracking="widest") { "CONTEXT EXPLORER" }
@@ -181,7 +181,7 @@ component CommandTab() {
                 }
             }
         }
-        TaskDispatch() {}
+        TaskDispatch()
     }
 }
 
@@ -195,7 +195,7 @@ component NodeBadge(agent_id: str, status: str) {
         panel(
             w=2, h=2, radius="full",
             bg=if status is "active" { "emerald.400" } else { "zinc.600" }
-        ) {}
+        )
         column(raw_class="gap-0") {
             text(size="xs", font_family="mono", color="white/80") { agent_id }
             text(size="xs", color="zinc.500") { status }
@@ -212,15 +212,15 @@ component MeshLegend() {
     ) {
         text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest", mb=1) { "LEGEND" }
         row(items="center", raw_class="gap-2") {
-            panel(w=3, bg="emerald.400", radius="DEFAULT", raw_class="h-0.5") {}
+            panel(w=3, bg="emerald.400", radius="DEFAULT", raw_class="h-0.5")
             text(size="xs", color="zinc.400") { "Active channel" }
         }
         row(items="center", raw_class="gap-2") {
-            panel(w=3, bg="zinc.600", radius="DEFAULT", raw_class="h-0.5") {}
+            panel(w=3, bg="zinc.600", radius="DEFAULT", raw_class="h-0.5")
             text(size="xs", color="zinc.400") { "Idle channel" }
         }
         row(items="center", raw_class="gap-2") {
-            panel(w=2, h=2, radius="full", bg="rose.500") {}
+            panel(w=2, h=2, radius="full", bg="rose.500")
             text(size="xs", color="zinc.400") { "Error node" }
         }
     }
@@ -260,7 +260,7 @@ component NetworkTab() {
                     text(size="xs") { "Agent graph renders here via @island NetworkGraph (Phase 2)." }
                 }
             }
-            MeshLegend() {}
+            MeshLegend()
         }
     }
 }
@@ -293,11 +293,11 @@ component PipelineStage(name: str, desc: str) {
 
 component PipelineView() {
     view: row(h="full", bg="zinc.950") {
-        PipelineStage(name="Lexer", desc="Logos-based tokenization") {}
-        PipelineStage(name="Parser", desc="Rowan GreenTree CST generation") {}
-        PipelineStage(name="HIR", desc="High-level IR with name resolution") {}
-        PipelineStage(name="TypeCheck", desc="Bidirectional unification logic") {}
-        PipelineStage(name="CodeGen", desc="Rust and TypeScript emission") {}
+        PipelineStage(name="Lexer", desc="Logos-based tokenization")
+        PipelineStage(name="Parser", desc="Rowan GreenTree CST generation")
+        PipelineStage(name="HIR", desc="High-level IR with name resolution")
+        PipelineStage(name="TypeCheck", desc="Bidirectional unification logic")
+        PipelineStage(name="CodeGen", desc="Rust and TypeScript emission")
     }
 }
 
@@ -348,9 +348,9 @@ component ForgeTab() {
         }
         panel(flex=1, overflow="hidden") {
             if active_panel is "pipeline" {
-                PipelineView() {}
+                PipelineView()
             } else {
-                WorkflowScrubber() {}
+                WorkflowScrubber()
             }
         }
     }
@@ -376,15 +376,15 @@ component AppShell() {
         }
         panel(flex=1, overflow="hidden") {
             if tab is "speak" {
-                SpeakTab() {}
+                SpeakTab()
             } else {
                 if tab is "command" {
-                    CommandTab() {}
+                    CommandTab()
                 } else {
                     if tab is "network" {
-                        NetworkTab() {}
+                        NetworkTab()
                     } else {
-                        ForgeTab() {}
+                        ForgeTab()
                     }
                 }
             }
