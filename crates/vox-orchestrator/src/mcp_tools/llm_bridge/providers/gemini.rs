@@ -102,6 +102,7 @@ pub(crate) async fn http_gemini_with_metadata(
         .map_err(|e| HttpInferError {
             status: 0,
             message: format!("Gemini HTTP: {e}"),
+            is_capability_gap: false,
         })?;
     let status = res.status();
     let code = status.as_u16();
@@ -116,12 +117,14 @@ pub(crate) async fn http_gemini_with_metadata(
         return Err(HttpInferError {
             status: code,
             message: t,
+            is_capability_gap: false,
         });
     }
 
     let parsed: GeminiResponse = res.json().await.map_err(|e| HttpInferError {
         status: code,
         message: format!("Gemini JSON: {e}"),
+        is_capability_gap: false,
     })?;
 
     let text = parsed

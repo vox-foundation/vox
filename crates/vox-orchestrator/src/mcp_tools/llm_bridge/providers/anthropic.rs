@@ -91,6 +91,7 @@ pub(crate) async fn http_anthropic_direct(
         .map_err(|e| HttpInferError {
             status: 0,
             message: format!("LLM HTTP: {e}"),
+            is_capability_gap: false,
         })?;
 
     let status = res.status();
@@ -107,12 +108,14 @@ pub(crate) async fn http_anthropic_direct(
         return Err(HttpInferError {
             status: code,
             message: t,
+            is_capability_gap: false,
         });
     }
 
     let parsed: AnthropicResponse = res.json().await.map_err(|e| HttpInferError {
         status: code,
         message: format!("LLM JSON: {e}"),
+        is_capability_gap: false,
     })?;
 
     let mut text = String::new();
