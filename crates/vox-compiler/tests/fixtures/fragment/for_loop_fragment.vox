@@ -1,0 +1,12 @@
+component Rows(rows: Array) {
+    view: (
+        <div class="rows">
+            for r, i in rows {
+                <>
+                    <span>{r.name}</span>
+                    <span>{r.value}</span>
+                </>
+            }
+        </div>
+    )
+}

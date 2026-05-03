@@ -106,3 +106,26 @@ fn fragment_nested_emits_nested_fragments() {
         "Nested.tsx: nested fragments did not match golden snapshot\nACTUAL:\n{actual}"
     );
 }
+
+#[test]
+fn fragment_inside_for_loop_compiles() {
+    let src = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/fragment/for_loop_fragment.vox"
+    ))
+    .unwrap();
+    let expected = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/fragment/for_loop_fragment.expected.tsx"
+    ))
+    .unwrap();
+
+    let files = compile_components(&src);
+    let actual = get_component(&files, "Rows");
+
+    assert_eq!(
+        normalize_ws(&actual).trim().to_string(),
+        normalize_ws(&expected).trim().to_string(),
+        "Rows.tsx: fragment inside for-loop did not match golden snapshot\nACTUAL:\n{actual}"
+    );
+}
