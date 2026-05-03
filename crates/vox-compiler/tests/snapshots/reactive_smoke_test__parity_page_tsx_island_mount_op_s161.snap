@@ -1,0 +1,16 @@
+---
+source: crates/vox-compiler/tests/reactive_smoke_test.rs
+assertion_line: 1078
+expression: ts
+---
+import React, { useState } from "react";
+
+export function ParityPage(): React.ReactElement {
+  const [s, set_s] = useState("x");
+  return (
+<div className={["flex", "flex-col", "parity-wrap"].filter(Boolean).join(" ")}
+>
+  <div data-vox-island="ParityP" data-prop-label={s} />
+</div>
+  );
+}

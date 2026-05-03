@@ -58,7 +58,15 @@
       "Bash(sed -n '50,75p' examples/golden/inventory_rosetta_platform.vox)",
       "Bash(grep \"FAILED$\")",
       "Bash(awk -F'::' '{print $1}' /tmp/failing.txt)",
-      "Bash(awk '{print $2}')"
+      "Bash(awk '{print $2}')",
+      "Bash(grep -E \"^test result|FAILED$\")",
+      "Bash(perl -i -pe 's|<span>\\\\{\\(\\\\w+\\)\\\\}</span>|text\\(\\) { $1 }|g' crates/vox-compiler/tests/web_ir_lower_emit_test.rs)",
+      "Bash(perl -i -pe 's|<span>\"\\([^\"]*\\)\"</span>|text\\(\\) { \"$1\" }|g' crates/vox-compiler/tests/web_ir_lower_emit_test.rs)",
+      "Bash(perl -i -pe 's|<span /\\\\s*>|text\\(\\)|g' crates/vox-compiler/tests/web_ir_lower_emit_test.rs)",
+      "Bash(perl -i -pe 's|<button class=\"\\([^\"]+\\)\" on:click=\\\\{\\([^}]+\\)\\\\}>\\\\{\\(\\\\w+\\)\\\\}</button>|button\\(raw_class=\"$1\", on_click={$2}\\) { $3 }|g' crates/vox-compiler/tests/web_ir_lower_emit_test.rs)",
+      "Bash(perl -i -pe 's|<button on:click=\\\\{\\([^}]+\\)\\\\}>\"\\([^\"]*\\)\"</button>|button\\(on_click={$1}\\) { \"$2\" }|g' crates/vox-compiler/tests/web_ir_lower_emit_test.rs)",
+      "Bash(grep -v \"^.*//\")",
+      "Bash(awk '{p+=$4; f+=$6; i+=$8} END{print \"passed=\"p\" failed=\"f\" ignored=\"i}')"
     ]
   }
 }
