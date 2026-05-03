@@ -23,3 +23,6 @@
 - [Contributor Hub](https://vox-lang.org/contributors/contributor-hub/): Entry point for contributors
 - [Documentation Governance](https://vox-lang.org/contributors/documentation-governance/): Doc authority map
 - [Agent Instruction Architecture](https://vox-lang.org/contributors/agent-instruction-architecture/): How AI agents should navigate this repo
+
+## AI Coding-Assistant Integration
+- [How-to: wire AI assistants to vox_validate_source MCP](https://vox-lang.org/how-to/how-to-mcp-vox-validate/): Configure Claude Desktop / Cursor to validate AI-generated Vox source against the real compiler with structured autofix suggestions; documents the diagnostic shape (`code` + `fixes`), the iterate-against-the-compiler loop, and the most useful diagnostic-code namespaces.

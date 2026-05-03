@@ -411,6 +411,25 @@ pub struct ValidateFileParams {
     pub path: String,
 }
 
+/// Validate `.vox` source code passed as a string (no filesystem read).
+///
+/// Companion to [`ValidateFileParams`] for the iterative AI-assistant loop:
+/// agent proposes source, calls `vox_validate_source`, gets structured
+/// diagnostics + autofixes back, applies a fix, re-validates — without
+/// writing intermediate files to disk.
+#[derive(Debug, Deserialize, JsonSchema)]
+#[schemars(deny_unknown_fields)]
+pub struct ValidateSourceParams {
+    /// Vox source code to validate. Capped at 131_072 bytes (128 KiB) so a runaway
+    /// or adversarial AI agent cannot submit an arbitrarily large payload that the
+    /// compiler pipeline would happily allocate and process.
+    #[schemars(length(min = 1, max = 131_072))]
+    pub source: String,
+    /// Optional virtual path used for diagnostic provenance only (not opened).
+    #[serde(default)]
+    pub virtual_path: Option<String>,
+}
+
 /// Run `cargo test` for one crate with an optional name filter.
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(deny_unknown_fields)]
@@ -808,6 +827,31 @@ pub struct DiagnosticInfo {
     /// Tool or compiler source label.
     pub source: String,
     /// Start line (0-based).
+    pub start_line: u32,
+    /// Start column (0-based).
+    pub start_col: u32,
+    /// End line (0-based).
+    pub end_line: u32,
+    /// End column (0-based).
+    pub end_col: u32,
+    /// Stable diagnostic code from the typeck/HIR pipeline (e.g., `web_ir_validate.a11y.img.missing_alt`),
+    /// when one is set. Useful for AI clients that classify or filter by code.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+    /// Structured autofix suggestions extracted from `vox-lsp`'s `Diagnostic.data` payload.
+    /// Empty when the underlying diagnostic carries none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fixes: Vec<FixInfo>,
+}
+
+/// One machine-applicable autofix suggestion attached to a [`DiagnosticInfo`].
+#[derive(Debug, Serialize)]
+pub struct FixInfo {
+    /// Short label describing the fix (e.g. `"Add alt=\"\" attribute"`).
+    pub label: String,
+    /// Replacement text to substitute over [`Self::start_line`]..[`Self::end_line`].
+    pub replacement: String,
+    /// Start line (0-based) of the range to replace.
     pub start_line: u32,
     /// Start column (0-based).
     pub start_col: u32,

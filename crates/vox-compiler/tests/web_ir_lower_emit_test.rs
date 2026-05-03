@@ -1555,9 +1555,15 @@ fn route_contract(id: &str, pattern: &str, component: Option<&str>) -> RouteCont
     RouteContract { id: id.to_string(), pattern: pattern.to_string(), meta, children: vec![] }
 }
 
-fn link_element(href: &str) -> DomNode {
+/// Build an `<a href="…">` element pinned to `DomNodeId(0)` so it can be addressed by
+/// `WebIrModule::view_roots` directly (the validator's reachability BFS uses the id field
+/// as the index into `dom_nodes`). Tests that need the broken-link / route-reference
+/// detection to actually run must register the link as a view root, otherwise the
+/// detached link is invisible to the validator (per the "orphan nodes must not count as
+/// route references" comment in `validate.rs`).
+fn link_element(id: u32, href: &str) -> DomNode {
     DomNode::Element {
-        id: DomNodeId(99),
+        id: DomNodeId(id),
         tag: "a".to_string(),
         attrs: vec![("href".to_string(), href.to_string())],
         children: vec![],
@@ -1594,7 +1600,10 @@ fn web_ir_validate_route_component_exists_is_ok() {
 fn web_ir_validate_route_broken_link_is_error() {
     let mut m = WebIrModule::default();
     m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", None)]));
-    m.dom_nodes.push(link_element("/nonexistent"));
+    m.dom_nodes.push(link_element(0, "/nonexistent"));
+    // The broken-link check only fires for links reachable from a declared view root —
+    // see the "orphan nodes must not count as route references" comment in validate.rs.
+    m.view_roots.push(("Home".to_string(), DomNodeId(0)));
     let diags = validate_web_ir(&m);
     assert!(
         diags.iter().any(|d| d.code == "web_ir_validate.route.broken_link"),
@@ -1606,7 +1615,8 @@ fn web_ir_validate_route_broken_link_is_error() {
 fn web_ir_validate_route_matching_link_is_ok() {
     let mut m = WebIrModule::default();
     m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", None)]));
-    m.dom_nodes.push(link_element("/home"));
+    m.dom_nodes.push(link_element(0, "/home"));
+    m.view_roots.push(("Home".to_string(), DomNodeId(0)));
     let diags = validate_web_ir(&m);
     assert!(
         diags.iter().all(|d| d.code != "web_ir_validate.route.broken_link"),

@@ -123,6 +123,24 @@ pub fn generate_with_options(
     if !sm_content.is_empty() {
         files.push(("state_machines.ts".to_string(), sm_content));
     }
+
+    // Phase F: emit `fragments.tsx` for any `fragment Name(args) { … }` decls
+    // (per ADR-033). Skipped when the module has no fragments.
+    let frag_content = crate::codegen_ts::fragment_emit::emit_fragment_decls(hir);
+    if !frag_content.is_empty() {
+        files.push((
+            crate::codegen_ts::fragment_emit::FRAGMENTS_FILENAME.to_string(),
+            frag_content,
+        ));
+    }
+
+    // Phase D: emit `<Name>Provider.tsx` per `.vox.ui` reactive module
+    // (per ADR-032). Skipped when the module has none.
+    for (filename, content) in
+        crate::codegen_ts::reactive_module_emit::emit_reactive_modules(hir)
+    {
+        files.push((filename, content));
+    }
     if let Ok(contract_json) = serde_json::to_string_pretty(&app_contract) {
         files.push(("vox-app-contract.json".to_string(), contract_json));
     }

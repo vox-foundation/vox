@@ -92,6 +92,7 @@ training_eligible: false
 - [Ludus Identity Federation & GitHub Integration](ludus-identity-github-integration-research-2026.md)
 - [Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan](orchestrator-companion-audit-findings-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](shiki-mdbook-doc-platform-research-2026.md)
+- [Svelte 5/6 vs React Meta-Frameworks — Comparative Research and Mineable Ideas for Vox (2026)](svelte-vs-react-frameworks-research-2026.md)
 - [Warp Terminal Research Findings (2026)](warp-research-findings-2026.md)
 - [Web App Archetype Coverage Map (2026)](web-app-archetype-coverage-2026.md)
 
@@ -106,6 +107,7 @@ training_eligible: false
 - [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](2026-05-01-orchestrator-stage1-stage2.md)
 - [Phase 1: Build Target Split Spec (2026)](phase1-build-targets-spec-2026.md)
 - [Phase 3: HTTP Ergonomics Decorators Spec (2026)](phase3-http-ergonomics-spec-2026.md)
+- [Svelte-Mineable Features Implementation Plan (2026)](svelte-mineable-features-implementation-plan-2026.md)
 
 ## Status: Deprecated
 

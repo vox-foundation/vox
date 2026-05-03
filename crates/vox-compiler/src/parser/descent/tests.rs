@@ -805,3 +805,83 @@ fn test_parse_no_uses_clause_is_empty() {
         other => panic!("Expected Decl::Function, got {other:?}"),
     }
 }
+
+// ── ADR-032: .vox.ui module-scope reactive members ──────────────────────────
+
+/// Source classification: regular `.vox` file rejects module-scope `state`.
+#[test]
+fn module_scope_state_in_source_file_is_a_parse_error() {
+    let tokens = lex("state count: int = 0");
+    assert!(
+        super::parse_with_kind(tokens, crate::module::FileKind::Source).is_err(),
+        "module-scope `state` must not parse in a regular .vox file"
+    );
+}
+
+/// `.vox.ui` classification: module-scope `state` parses cleanly into a
+/// ReactiveModuleDecl.
+#[test]
+fn module_scope_state_in_reactive_module_parses_into_reactive_module_decl() {
+    let tokens = lex("state count: int = 0\nstate flag: bool = true");
+    let module = super::parse_with_kind(tokens, crate::module::FileKind::ReactiveModule)
+        .expect("`.vox.ui` source should parse");
+    assert_eq!(module.declarations.len(), 1);
+    match &module.declarations[0] {
+        Decl::ReactiveModule(r) => {
+            assert_eq!(r.members.len(), 2);
+            assert!(matches!(
+                r.members[0],
+                crate::ast::decl::ReactiveMemberDecl::State(_)
+            ));
+        }
+        other => panic!("expected ReactiveModule, got {other:?}"),
+    }
+}
+
+/// `.vox.ui` files allow `derived` and `effect` at module scope alongside `state`.
+#[test]
+fn module_scope_derived_and_effect_in_reactive_module_parse() {
+    let tokens = lex(
+        "state count: int = 0\nderived doubled = count * 2\neffect: { print(count) }",
+    );
+    let module = super::parse_with_kind(tokens, crate::module::FileKind::ReactiveModule)
+        .expect("`.vox.ui` derived+effect should parse");
+    match &module.declarations[0] {
+        Decl::ReactiveModule(r) => {
+            assert_eq!(r.members.len(), 3);
+        }
+        other => panic!("expected ReactiveModule, got {other:?}"),
+    }
+}
+
+// ── ADR-033: typed parametric fragment primitive ────────────────────────────
+
+/// Fragment with no parameters — body is parsed as a Phase-6 primitive markup
+/// expression (raw JSX is removed from the parser as of TASK-6.1).
+#[test]
+fn fragment_decl_with_no_params_parses() {
+    let m = parse_str("fragment Greeting() { text() { \"hi\" } }");
+    assert_eq!(m.declarations.len(), 1);
+    match &m.declarations[0] {
+        Decl::Fragment(f) => {
+            assert_eq!(f.name, "Greeting");
+            assert!(f.params.is_empty());
+        }
+        other => panic!("expected Fragment, got {other:?}"),
+    }
+}
+
+/// Fragment with typed parameters parses; param names and types preserved.
+#[test]
+fn fragment_decl_with_params_parses() {
+    let m = parse_str("fragment Row(item: str, idx: int) { text() { \"row\" } }");
+    match &m.declarations[0] {
+        Decl::Fragment(f) => {
+            assert_eq!(f.name, "Row");
+            assert_eq!(f.params.len(), 2);
+            assert_eq!(f.params[0].name, "item");
+            assert_eq!(f.params[1].name, "idx");
+        }
+        other => panic!("expected Fragment, got {other:?}"),
+    }
+}

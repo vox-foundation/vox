@@ -288,6 +288,79 @@ impl LowerCtx {
                 Decl::StateMachine(s) => {
                     hir.state_machines.push(self.lower_state_machine(s));
                 }
+                Decl::Fragment(f) => {
+                    let params = f
+                        .params
+                        .iter()
+                        .map(|p| self.lower_param(p))
+                        .collect::<Vec<_>>();
+                    let body = self.lower_expr(&f.body);
+                    hir.fragments.push(crate::hir::nodes::HirFragmentDecl {
+                        name: f.name.clone(),
+                        params,
+                        body,
+                        span: f.span,
+                    });
+                }
+                Decl::ReactiveModule(rm) => {
+                    // ADR-032: lower module-scope reactive members the same way
+                    // `lower_reactive_component` lowers in-component members. The
+                    // module name is filled in by codegen from the source basename
+                    // (parser leaves it empty); preserve whatever the AST has.
+                    use crate::ast::decl::ReactiveMemberDecl;
+                    use crate::hir::nodes::{
+                        HirDerived, HirEffect, HirOnCleanup, HirOnMount, HirReactiveMember,
+                        HirReactiveModule, HirState,
+                    };
+                    self.def_map.push_scope();
+                    let members: Vec<HirReactiveMember> = rm
+                        .members
+                        .iter()
+                        .map(|m| match m {
+                            ReactiveMemberDecl::State(s) => HirReactiveMember::State(HirState {
+                                id: self.def_map.define(s.name.clone()),
+                                name: s.name.clone(),
+                                ty: s.ty.as_ref().map(|t| self.lower_type(t)),
+                                init: self.lower_expr(&s.init),
+                                span: s.span,
+                            }),
+                            ReactiveMemberDecl::Derived(d) => {
+                                HirReactiveMember::Derived(HirDerived {
+                                    id: self.def_map.define(d.name.clone()),
+                                    name: d.name.clone(),
+                                    ty: d.ty.as_ref().map(|t| self.lower_type(t)),
+                                    expr: self.lower_expr(&d.expr),
+                                    span: d.span,
+                                })
+                            }
+                            ReactiveMemberDecl::Effect(e) => HirReactiveMember::Effect(HirEffect {
+                                body: self.lower_expr(&e.body),
+                                span: e.span,
+                            }),
+                            ReactiveMemberDecl::OnMount(m) => {
+                                HirReactiveMember::OnMount(HirOnMount {
+                                    body: self.lower_expr(&m.body),
+                                    span: m.span,
+                                })
+                            }
+                            ReactiveMemberDecl::OnCleanup(c) => {
+                                HirReactiveMember::OnCleanup(HirOnCleanup {
+                                    body: self.lower_expr(&c.body),
+                                    span: c.span,
+                                })
+                            }
+                            ReactiveMemberDecl::Stmt(s) => {
+                                HirReactiveMember::Stmt(self.lower_stmt(s))
+                            }
+                        })
+                        .collect();
+                    self.def_map.pop_scope();
+                    hir.reactive_modules.push(HirReactiveModule {
+                        name: rm.name.clone(),
+                        members,
+                        span: rm.span,
+                    });
+                }
                 Decl::Workflow(w) => {
                     let mut f = self.lower_workflow(w);
                     f.durability = Some(crate::hir::nodes::DurabilityKind::Workflow);

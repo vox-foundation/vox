@@ -17,6 +17,9 @@ pub mod jsx;
 pub mod reactive;
 /// `routes.manifest.ts` (framework-agnostic `VoxRoute[]`).
 pub mod route_manifest;
+/// Segment-aware route-pattern parser and overlap detection (Phase C of the
+/// Svelte-mineable features plan; not yet wired into [`routes`]).
+pub mod route_pattern;
 /// File-based routes → TS route tables.
 pub mod routes;
 /// One-time SPA / shadcn / Tailwind scaffold (user-owned files).
@@ -33,6 +36,12 @@ pub mod tokens_emit;
 pub mod url_emit;
 /// `state_machine` TypeScript discriminated union + reducer emit.
 pub mod state_machine_emit;
+/// `fragment` declaration → typed React function components in `fragments.tsx`
+/// (Phase F of the Svelte-mineable features plan; per ADR-033).
+pub mod fragment_emit;
+/// `.vox.ui` reactive module → React context + provider + hook (Phase D of the
+/// Svelte-mineable features plan; per ADR-032).
+pub mod reactive_module_emit;
 /// Zod schema emission.
 pub mod zod_emit;
 

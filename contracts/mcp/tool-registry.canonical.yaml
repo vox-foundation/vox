@@ -1213,6 +1213,11 @@ tools:
   product_lane: app
   http_read_role_eligible: false
   tier: core
+- name: vox_validate_source
+  description: Validate Vox source code passed as a string (no filesystem read). Returns LSP-style diagnostics with stable codes and structured autofix suggestions for the iterative AI-assistant repair loop.
+  product_lane: app
+  http_read_role_eligible: false
+  tier: core
 - name: vox_vcs_status
   description: Get unified VCS status.
   product_lane: ai
