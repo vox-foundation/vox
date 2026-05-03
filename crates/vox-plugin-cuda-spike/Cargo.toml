@@ -1,0 +1,18 @@
+[package]
+name = "vox-plugin-cuda-spike"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Spike: prove candle-cuda links inside a cdylib for the plugin system redesign (SP3 gating spike)."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+candle-core = { workspace = true, features = ["cuda"] }
+
+[dev-dependencies]
+libloading = "0.8"
+
+[lints]
+workspace = true
