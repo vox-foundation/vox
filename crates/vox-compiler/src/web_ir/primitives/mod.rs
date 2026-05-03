@@ -477,14 +477,18 @@ fn apply_z_index(z: Option<&str>, classes: &mut Vec<String>) {
 #[must_use]
 pub fn primitive_base_class_overridden(base_class: &str, author_kwargs: &[&str]) -> bool {
     let has = |k: &str| author_kwargs.contains(&k);
-    if has("bg") && base_class.starts_with("bg-") { return true; }
+    // Strip Tailwind state-variant modifier prefixes (`hover:`, `focus:`, `md:`, …) so an
+    // author kwarg like `bg=` correctly overrides primitives' `hover:bg-…` defaults too.
+    // Modifiers are colon-separated; the actual utility is whatever follows the last `:`.
+    let utility = base_class.rsplit(':').next().unwrap_or(base_class);
+    if has("bg") && utility.starts_with("bg-") { return true; }
     if has("color") {
         const SIZE_OR_NON_COLOR: &[&str] = &[
             "xs", "sm", "base", "lg", "xl", "2xl", "3xl", "4xl", "5xl", "6xl", "7xl", "8xl", "9xl",
             "left", "right", "center", "justify", "start", "end",
             "balance", "pretty", "wrap", "nowrap", "ellipsis", "clip",
         ];
-        if let Some(rest) = base_class.strip_prefix("text-") {
+        if let Some(rest) = utility.strip_prefix("text-") {
             if !SIZE_OR_NON_COLOR.contains(&rest) {
                 return true;
             }
@@ -492,34 +496,39 @@ pub fn primitive_base_class_overridden(base_class: &str, author_kwargs: &[&str])
     }
     let radius_like = ["radius", "radius_t", "radius_b", "radius_l", "radius_r",
                        "radius_tl", "radius_tr", "radius_bl", "radius_br"];
-    if radius_like.iter().any(|k| has(k)) && base_class.starts_with("rounded") { return true; }
-    let any_border_kwarg = has("border") || has("border_color")
+    if radius_like.iter().any(|k| has(k)) && utility.starts_with("rounded") { return true; }
+    // Border kwargs split by intent: width vs color. Width kwargs own `border` and the
+    // directional variants; color kwarg owns everything that ISN'T the bare width.
+    let any_border_width_kwarg = has("border")
         || has("border_x") || has("border_y") || has("border_t")
         || has("border_b") || has("border_l") || has("border_r");
-    if any_border_kwarg && (base_class == "border" || base_class.starts_with("border-")) {
+    if any_border_width_kwarg && (utility == "border" || utility.starts_with("border-")) {
+        return true;
+    }
+    if has("border_color") && utility.starts_with("border-") && utility != "border" {
         return true;
     }
     let any_pad_kwarg = has("pad") || has("pad_x") || has("pad_y")
         || has("pad_t") || has("pad_b") || has("pad_l") || has("pad_r");
     if any_pad_kwarg && (
-        base_class.starts_with("p-")
-        || base_class.starts_with("px-") || base_class.starts_with("py-")
-        || base_class.starts_with("pt-") || base_class.starts_with("pb-")
-        || base_class.starts_with("pl-") || base_class.starts_with("pr-")
+        utility.starts_with("p-")
+        || utility.starts_with("px-") || utility.starts_with("py-")
+        || utility.starts_with("pt-") || utility.starts_with("pb-")
+        || utility.starts_with("pl-") || utility.starts_with("pr-")
     ) {
         return true;
     }
-    if has("w") && base_class.starts_with("w-") { return true; }
-    if has("h") && base_class.starts_with("h-") { return true; }
-    if has("max_w") && base_class.starts_with("max-w-") { return true; }
-    if has("max_h") && base_class.starts_with("max-h-") { return true; }
-    if has("font_family") && base_class.starts_with("font-") {
+    if has("w") && utility.starts_with("w-") { return true; }
+    if has("h") && utility.starts_with("h-") { return true; }
+    if has("max_w") && utility.starts_with("max-w-") { return true; }
+    if has("max_h") && utility.starts_with("max-h-") { return true; }
+    if has("font_family") && utility.starts_with("font-") {
         // Don't filter font-bold/font-medium/etc. (those are weight, owned by `weight` kwarg)
         const WEIGHTS: &[&str] = &[
             "font-thin", "font-extralight", "font-light", "font-normal", "font-medium",
             "font-semibold", "font-bold", "font-extrabold", "font-black",
         ];
-        if !WEIGHTS.contains(&base_class) { return true; }
+        if !WEIGHTS.contains(&utility) { return true; }
     }
     false
 }

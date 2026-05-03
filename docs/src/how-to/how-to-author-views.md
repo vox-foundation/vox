@@ -3,6 +3,7 @@ title: "How to author Vox views (VUV)"
 description: "Practical guide to writing UI in Vox using the view-call (VUV) authoring syntax. Covers primitives, typed style kwargs, conditionals, components, and escape hatches."
 category: "how-to"
 status: "current"
+last_updated: "2026-05-03"
 training_eligible: true
 training_rationale: "Canonical authoring guide for VUV — what MENS should learn to emit."
 ---
@@ -132,7 +133,7 @@ button(on_click={count = count + 1}) { "Increment" }
 input(on_change={fn(e) handle(e)}, attr_type="text")
 ```
 
-Supported events: `on_click`, `on_change`, `on_input`, `on_submit`, `on_keydown`, `on_keyup`, `on_mouseenter`, `on_mouseleave`. Add more in [`crates/vox-compiler/src/codegen_ts/hir_emit/compat.rs`](../../../crates/vox-compiler/src/codegen_ts/hir_emit/compat.rs:27).
+Supported events: `on_click`, `on_change`, `on_input`, `on_submit`, `on_keydown`, `on_keyup`, `on_mouseenter`, `on_mouseleave`. Add more in [`crates/vox-compiler/src/codegen_ts/hir_emit/compat.rs`](../../../crates/vox-compiler/src/codegen_ts/hir_emit/compat.rs).
 
 ## Reserved-keyword attribute names
 

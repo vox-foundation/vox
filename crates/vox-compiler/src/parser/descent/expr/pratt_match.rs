@@ -304,16 +304,16 @@ impl Parser {
                             continue;
                         } else if (starts_uppercase
                             || crate::web_ir::primitives::is_primitive(tag)
-                            || (!args.is_empty() && args.iter().all(|a| a.name.is_some())))
+                            || is_known_html_view_tag(tag))
                             && args.iter().all(|a| a.name.is_some())
                         {
                             // Three view-call self-closing triggers, all requiring all-named args:
                             //   1. Capitalized callee (`Component(...)`) — React component shape.
                             //   2. Recognized UI primitive (`row(...)`, `panel(...)`).
-                            //   3. Lowercase callee with at least one named arg — covers raw HTML
-                            //      elements like `input(attr_type="checkbox")` that aren't in the
-                            //      primitive set. A pure-kwargs call shape is the JSX idiom; bare
-                            //      `foo()` (zero args) is still a regular function call.
+                            //   3. Recognized raw HTML element from a curated allowlist
+                            //      (`input(attr_type="checkbox")`, `select(...)`, etc.). The
+                            //      allowlist guards against ordinary lowercase function calls
+                            //      like `fetch(timeout=5)` accidentally lowering to JSX.
                             // Positional args (enum/type constructors like `Some(x)`) always fall
                             // through to a regular Expr::Call below.
                             let tag = tag.clone();
@@ -578,6 +578,35 @@ impl Parser {
         })
     }
 
+    // Curated allowlist of raw HTML elements that may appear as view-calls outside the primitive
+    // set. Only tags that genuinely belong in a view tree are listed; ordinary function names
+    // like `fetch`, `query`, `request` — even when called with named args only — must NOT be
+    // sugared into JSX, because that breaks them at the type-check layer.
+}
+
+#[must_use]
+fn is_known_html_view_tag(tag: &str) -> bool {
+    matches!(
+        tag,
+        // Form / interactive
+        "input" | "label" | "textarea" | "select" | "option" | "form" | "fieldset" | "legend"
+        // Tabular
+        | "table" | "thead" | "tbody" | "tfoot" | "tr" | "th" | "td" | "caption"
+        // Media
+        | "audio" | "video" | "source" | "track" | "canvas" | "svg" | "img"
+        // Inline structural
+        | "span" | "br" | "hr" | "i" | "b" | "em" | "strong" | "small" | "code" | "pre"
+        | "kbd" | "abbr" | "cite" | "blockquote" | "q"
+        // Document
+        | "head" | "meta" | "title" | "link" | "script" | "style" | "noscript" | "main" | "section"
+        | "article" | "aside" | "header" | "footer" | "nav" | "details" | "summary" | "dialog"
+        | "figure" | "figcaption"
+        // Embedded
+        | "iframe" | "embed" | "object" | "param"
+    )
+}
+
+impl super::super::Parser {
     /// VUV: convert positional/named call args into JSX attributes. Positional args are rejected
     /// because view calls are keyword-only by design (props need names like HTML attributes).
     ///

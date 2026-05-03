@@ -338,21 +338,20 @@ fn test_capitalized_call_with_positional_arg_stays_call() {
 }
 
 #[test]
-fn test_view_call_positional_arg_rejected() {
-    // VUV view calls are keyword-only — positional arg should produce a parser error.
-    let result = std::panic::catch_unwind(|| {
-        parse_str("component A() { view: row(2) { text(\"x\") {} } }")
-    });
-    // parse_str panics on parse errors via unwrap(); either a panic or non-Jsx output is acceptable.
-    if let Ok(m) = result {
-        if let Decl::ReactiveComponent(r) = &m.declarations[0] {
-            // If parsing somehow succeeded, the positional-arg branch must NOT have produced a Jsx
-            // node — view-call form requires named args.
-            if let Some(Expr::Jsx(_)) = &r.view {
-                panic!("View call with positional arg should not lower to Jsx");
-            }
-        }
-    }
+fn test_view_call_positional_arg_does_not_sugar_to_jsx() {
+    // VUV view calls are keyword-only. A positional arg disqualifies the call from view-call
+    // sugar — it stays a regular `Expr::Call` so it can be evaluated as an ordinary function.
+    // Critically, this means `row(2)` (a hypothetical row constructor) does NOT silently
+    // become `<row 2 />`. The parser's view-call path must require all-named args.
+    let m = parse_str("fn build() -> int { return row(2) }");
+    let Decl::Function(func) = &m.declarations[0] else { panic!("expected fn"); };
+    let Stmt::Return { value: Some(Expr::Call { callee, args, .. }), .. } = &func.body[0] else {
+        panic!("expected return Expr::Call, got {:?}", func.body[0]);
+    };
+    let Expr::Ident { name, .. } = callee.as_ref() else { panic!("callee not Ident"); };
+    assert_eq!(name, "row");
+    assert_eq!(args.len(), 1);
+    assert!(args[0].name.is_none(), "positional arg name should be None");
 }
 
 #[test]

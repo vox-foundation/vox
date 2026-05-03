@@ -25,7 +25,7 @@ export function NetworkTab(): React.ReactElement {
 >
   {"0 nodes · 0 edges"}
 </p>
-  <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "hover:bg-primary/90", "h-10", "px-3", "rounded-lg", "bg-white/5", "border", "border-white/10", "text-zinc-400", "py-1.5"].filter(Boolean).join(" ")}
+  <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "h-10", "px-3", "rounded-lg", "bg-white/5", "border", "border-white/10", "text-zinc-400", "py-1.5"].filter(Boolean).join(" ")}
 >
   {"REFRESH"}
 </button>

@@ -117,7 +117,26 @@ const PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
 /// If the tag is a known UI primitive, prepend its base classes. Any author-supplied
 /// `class`/`className` attribute is concatenated last so it overrides defaults.
 fn transform_view_kwargs(tag: &str, attrs: &[JsxAttribute]) -> ViewCallEmission {
-    let primitive_emission = crate::web_ir::primitives::resolve(tag, &[]);
+    // Mirror the HIR-emit path: pass static-literal per-primitive kwargs (size/weight/align/wrap/
+    // variant/level/surface) into primitives::resolve so per-primitive logic runs.
+    // `text(size="xs")` → `text-xs`; `heading(level=1)` → `<h1>`. Without this, those classes
+    // were silently dropped from the AST emit path.
+    let mut static_per_primitive: Vec<(String, String)> = Vec::new();
+    for attr in attrs {
+        if !PRIMITIVE_CONSUMED_PROPS.contains(&attr.name.as_str()) {
+            continue;
+        }
+        let v = match unwrap_block(&attr.value) {
+            Expr::StringLit { value, .. } => Some(value.clone()),
+            Expr::BoolLit { value, .. } => Some(value.to_string()),
+            Expr::IntLit { value, .. } => Some(value.to_string()),
+            _ => None,
+        };
+        if let Some(v) = v {
+            static_per_primitive.push((attr.name.clone(), v));
+        }
+    }
+    let primitive_emission = crate::web_ir::primitives::resolve(tag, &static_per_primitive);
     let html_tag = primitive_emission
         .as_ref()
         .map(|e| e.html_tag.to_string())

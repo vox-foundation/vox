@@ -14,7 +14,7 @@ export function ComposerPanel(): React.ReactElement {
   {"Type a message…"}
 </p>
 </div>
-  <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "hover:bg-primary/90", "px-4", "py-2", "w-12", "h-12", "rounded-xl", (is_submitting ? "bg-blue-600/50" : "bg-blue-600"), (is_submitting ? "text-white/50" : "text-white"), "flex items-center justify-center"].filter(Boolean).join(" ")} onClick={() => {
+  <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "px-4", "py-2", "w-12", "h-12", "rounded-xl", (is_submitting ? "bg-blue-600/50" : "bg-blue-600"), (is_submitting ? "text-white/50" : "text-white"), "flex items-center justify-center"].filter(Boolean).join(" ")} onClick={() => {
     set_is_submitting(!is_submitting);
 }}
 >

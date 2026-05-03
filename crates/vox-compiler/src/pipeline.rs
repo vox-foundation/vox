@@ -17,18 +17,24 @@ use anyhow::Result;
 /// grammar.  They are detected at the source-text level (before full parsing) so that the
 /// error is reported even when the token stream is otherwise broken.
 fn check_adr028_reserved_keywords(source: &str) -> Vec<Diagnostic> {
-    // (pattern, keyword_label, error_code)
-    const RESERVED: &[(&str, &str, &str)] = &[
-        ("@scheduled", "@scheduled", "E028"),
-        ("@durable",   "@durable",   "E028"),
-        ("workflow ",  "workflow",   "E028"),
-        ("activity ",  "activity",   "E028"),
+    // (pattern, keyword_label, error_code, identifier_boundary)
+    // `identifier_boundary` is true when the pattern is a bare keyword that could appear inside
+    // a longer identifier (e.g. `workflow_handle`); for those we additionally require the byte
+    // immediately after the match to NOT continue the identifier (alpha/digit/underscore).
+    // Decorator forms like `@scheduled` use `@` as a leading sentinel and don't need it.
+    const RESERVED: &[(&str, &str, &str, bool)] = &[
+        ("@scheduled", "@scheduled", "E028", false),
+        ("@durable",   "@durable",   "E028", false),
+        ("workflow",   "workflow",   "E028", true),
+        ("activity",   "activity",   "E028", true),
     ];
 
     let mut diags = Vec::new();
-    for (pattern, label, code) in RESERVED {
-        if let Some(offset) = find_outside_comments_and_strings(source, pattern) {
-            diags.push(Diagnostic {
+    for (pattern, label, code, ident_boundary) in RESERVED {
+        let Some(offset) = find_keyword_outside_comments_and_strings(source, pattern, *ident_boundary) else {
+            continue;
+        };
+        diags.push(Diagnostic {
                 severity: TypeckSeverity::Error,
                 message: format!(
                     "{} is not yet implemented and has been reserved for a future release (ADR-028). \
@@ -49,7 +55,6 @@ fn check_adr028_reserved_keywords(source: &str) -> Vec<Diagnostic> {
                 missing_cases: vec![],
                 ast_node_kind: None,
             });
-        }
     }
     diags
 }
@@ -60,6 +65,14 @@ fn check_adr028_reserved_keywords(source: &str) -> Vec<Diagnostic> {
 /// Needed because ADR-028's reserved-keyword scan runs at the source-text level (before parsing)
 /// and would otherwise flag the word "workflow" appearing in a doc comment as a real declaration.
 fn find_outside_comments_and_strings(source: &str, pattern: &str) -> Option<usize> {
+    find_keyword_outside_comments_and_strings(source, pattern, false)
+}
+
+/// Same as `find_outside_comments_and_strings` but with optional identifier-boundary enforcement
+/// for bare keyword matches. When `ident_boundary` is true, the byte immediately following the
+/// match must NOT be an identifier-continuing character (alpha/digit/underscore), so substrings
+/// inside longer identifiers (e.g. `workflow_handle`) don't trigger.
+fn find_keyword_outside_comments_and_strings(source: &str, pattern: &str, ident_boundary: bool) -> Option<usize> {
     let bytes = source.as_bytes();
     let mut i = 0usize;
     let plen = pattern.len();
@@ -94,6 +107,14 @@ fn find_outside_comments_and_strings(source: &str, pattern: &str) -> Option<usiz
             continue;
         }
         if &bytes[i..i + plen] == pattern.as_bytes() {
+            if ident_boundary {
+                let next = bytes.get(i + plen).copied().unwrap_or(0);
+                let continues_ident = next.is_ascii_alphanumeric() || next == b'_';
+                if continues_ident {
+                    i += 1;
+                    continue;
+                }
+            }
             return Some(i);
         }
         i += 1;

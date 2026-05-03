@@ -85,12 +85,10 @@ fn process_chat(prompt: str, request_id: str, conversation_id: str) to Result[st
 
 component ChatApp() {
     let (input, set_input) = use_state("")
-    view: (
-        <div class="chat-app">
-            <h1>"Vox greaterFool Reference"</h1>
-            <input bind={input} />
-        </div>
-    )
+    view: column(raw_class="chat-app") {
+        heading(level=1) { "Vox greaterFool Reference" }
+        input(bind=input)
+    }
 }
 
 routes {

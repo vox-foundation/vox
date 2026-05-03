@@ -3,6 +3,7 @@ title: "GUI Authoring Syntax (2026): Vox UI as Values (VUV)"
 description: "Replaces JSX-shaped view bodies and Tailwind class strings with typed function-call views. No tags, no class strings, no CSS files in user code. Lowers to React/TSX/Tailwind unchanged."
 category: "architecture"
 status: "roadmap"
+last_updated: "2026-05-02"
 training_eligible: true
 training_rationale: "Records the canonical GUI authoring shape MENS should learn to emit. Replaces all JSX + Tailwind-string idioms in the corpus."
 ---
