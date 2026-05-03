@@ -453,86 +453,12 @@ pub fn inject_island_mount_script_into_index_file(
 /// `islands/dist/*` into `target/generated/<static_dir>/islands/` for `rust_embed`
 /// (alongside the main Vite app under `public/`).
 pub fn build_islands_if_present(
-    generated_dir: &Path,
-    static_dir: &str,
+    _generated_dir: &Path,
+    _static_dir: &str,
 ) -> Result<IslandsBuildSummary> {
-    let mut summary = IslandsBuildSummary::default();
-    let cwd = std::env::current_dir().context("cwd for islands build")?;
-    let ctx = vox_repository::discover_repository_or_fallback(&cwd);
-    let islands_dir = crate::island_paths::island_package_root(&ctx.root);
-    let package_json = islands_dir.join("package.json");
-    if !package_json.exists() {
-        return Ok(summary);
-    }
-    summary.islands_package_present = true;
-
-    let island_src = islands_dir.join("src");
-    std::fs::create_dir_all(&island_src).context("Failed to create islands/src")?;
-    std::fs::write(
-        island_src.join("island-mount.tsx"),
-        templates::islands_island_mount_tsx(),
-    )
-    .context("Failed to write islands/src/island-mount.tsx")?;
-
-    let vite_path = islands_dir.join("vite.config.ts");
-    if let Ok(existing) = read_utf8_path_capped(&vite_path) {
-        if !existing.contains("island-mount") {
-            std::fs::write(&vite_path, templates::islands_vite_config())
-                .context("Failed to upgrade islands/vite.config.ts for island-mount entry")?;
-        }
-    }
-
-    let pnpm = pnpm_executable();
-
-    if !islands_dir.join("node_modules").exists() {
-        println!("  Installing island dependencies...");
-        let status = std::process::Command::new(pnpm)
-            .args(["install", "--prefer-offline"])
-            .current_dir(&islands_dir)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::inherit())
-            .status()
-            .context("Failed to run pnpm install in islands/. Is Node.js and pnpm installed?")?;
-        if !status.success() {
-            bail!("pnpm install failed in islands/");
-        }
-    }
-
-    println!("  Building islands...");
-    let build_status = std::process::Command::new(pnpm)
-        .args(["run", "build"])
-        .current_dir(&islands_dir)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::inherit())
-        .status()
-        .context("Failed to build islands")?;
-    if !build_status.success() {
-        bail!("Island build failed");
-    }
-
-    let source = islands_dir.join("dist");
-    let dest = generated_dir.join(static_dir).join("islands");
-    if source.exists() {
-        summary.vite_dist_copied = true;
-        std::fs::create_dir_all(&dest).context("Failed to create islands output dir")?;
-        fs_utils::copy_dir_recursive(&source, &dest).with_context(|| {
-            format!("Failed to copy {} to {}", source.display(), dest.display())
-        })?;
-        println!("  Island bundles copied to {}", dest.display());
-
-        let index_html = generated_dir.join(static_dir).join("index.html");
-        if index_html.is_file() {
-            summary.index_injection = inject_island_mount_script_into_index_file(&index_html)
-                .with_context(|| {
-                    format!(
-                        "Failed to inject island-mount script into {}",
-                        index_html.display()
-                    )
-                })?;
-        }
-    }
-
-    Ok(summary)
+    // Islands have been retired; the build pipeline no longer produces island bundles.
+    // This stub remains for callers that still invoke it; it is a no-op.
+    Ok(IslandsBuildSummary::default())
 }
 
 /// Copy built static assets from Vite output to the backend's public directory.

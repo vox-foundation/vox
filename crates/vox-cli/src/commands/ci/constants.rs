@@ -48,7 +48,6 @@ pub(crate) const FEATURE_SETS: &[&str] = &[
     "ars",
     "extras-ludus",
     "ludus-hud",
-    "island",
     "script-execution",
     "script-execution,stub-check",
     "mcp-server",
