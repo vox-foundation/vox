@@ -55,7 +55,10 @@
       "Bash(perl -i -0pe 's/\\(\"card\" => \\\\{\\\\n\\\\s+\\)let mut classes/$1let classes/' crates/vox-compiler/src/web_ir/primitives/mod.rs)",
       "Bash(perl -i -0pe 's/\\\\nfn apply_gap\\\\\\(gap: Option<&str>, classes: &mut Vec<String>\\\\\\) \\\\{\\\\n    if let Some\\\\\\(g\\\\\\) = gap \\\\{\\\\n        classes\\\\.push\\\\\\(format!\\\\\\(\"gap-\\\\{g\\\\}\"\\\\\\)\\\\\\);\\\\n    \\\\}\\\\n\\\\}\\\\n//' crates/vox-compiler/src/web_ir/primitives/mod.rs)",
       "Bash(awk -v BYTE=2433 'BEGIN{c=0} {if\\(c+length\\($0\\)+1 >= BYTE\\){print NR\": \"$0; for\\(i=NR-3;i<NR+5;i++\\) ;exit} c+=length\\($0\\)+1}' examples/golden/inventory_rosetta_platform.vox)",
-      "Bash(sed -n '50,75p' examples/golden/inventory_rosetta_platform.vox)"
+      "Bash(sed -n '50,75p' examples/golden/inventory_rosetta_platform.vox)",
+      "Bash(grep \"FAILED$\")",
+      "Bash(awk -F'::' '{print $1}' /tmp/failing.txt)",
+      "Bash(awk '{print $2}')"
     ]
   }
 }
