@@ -47,7 +47,7 @@ training_eligible: false
 
 ## Status: Current
 
-- [Tutorial: Building UI with Islands](tutorials/tut-ui-integration.md)
+- [Tutorial: Building UI with VUV view-calls](tutorials/tut-ui-integration.md)
 - [Tutorial: Building a Collaborative Task List](tutorials/tut-first-app.md)
 - [Tutorial: Persistent Actors & State](tutorials/tut-actor-basics.md)
 - [Tutorial: Workflow Durability](tutorials/tut-workflow-durability.md)
@@ -67,6 +67,7 @@ training_eligible: false
 - [First Full Stack App](how-to/first-full-stack-app.md)
 - [Golden Examples Corpus](how-to/examples-corpus.md)
 - [How To: Train Mens on RTX 4080 Super](how-to/how-to-train-mens-4080.md)
+- [How to author Vox views (VUV)](how-to/how-to-author-views.md)
 - [How to use the canonical VoxDB / Codex store](how-to/how-to-voxdb-canonical-store.md)
 - [How-To: Build AI Agents and MCP Tools](how-to/how-to-ai-agents.md)
 - [How-To: Deploy to Production](how-to/how-to-deploy.md)

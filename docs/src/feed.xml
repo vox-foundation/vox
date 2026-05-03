@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 03 May 2026 01:21:50 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 03 May 2026 03:39:58 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -22,6 +22,15 @@
     <link>https://vox-lang.org/architecture/architecture-index.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
     <description>Auto-generated architecture index.</description>
+    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>GUI Authoring Syntax (2026): Vox UI as Values (VUV)</title>
+    <link>https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</guid>
+    <description>Replaces JSX-shaped view bodies and Tailwind class strings with typed function-call views. No tags, no class strings, no CSS files in user code. Lowers to…</description>
     <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -229,15 +238,6 @@
     <link>https://vox-lang.org/architecture/phase3-http-ergonomics-spec-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/phase3-http-ergonomics-spec-2026.html</guid>
     <description>Design spec for explicit method/path, @cors, @auth, and @rate_limit decorators on Vox endpoints.</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Populi Mesh — Config Baseline Spec (S1, 2026-05-01)</title>
-    <link>https://vox-lang.org/architecture/populi-mesh-config-baseline-spec-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/populi-mesh-config-baseline-spec-2026.html</guid>
-    <description>Slice S1 child spec for workstream W7 partial. Designs the Vox.toml [mesh] schema, sensible defaults, an env-var precedence policy, and the populi-quickstart…</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
