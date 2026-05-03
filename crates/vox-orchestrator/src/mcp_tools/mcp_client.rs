@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
+use vox_runtime::supervisor::spawn_supervised;
 
 /// A native function type that can process a fast-path MCP tool execution.
 pub type NativeToolFn = Box<
@@ -63,34 +64,28 @@ impl McpClient {
                     .to_string();
 
                 use tokio::io::AsyncReadExt;
-                let (tx, _rx) = tokio::sync::mpsc::channel(32);
+                let (tx, _rx) = tokio::sync::mpsc::channel::<anyhow::Result<String>>(32);
 
-                tokio::spawn(async move {
-                    let res = async {
-                        let mut file = tokio::fs::File::open(&path).await?;
-                        let mut buffer = [0; 64 * 1024]; // 64KB chunks
-                        loop {
-                            let n = file.read(&mut buffer).await?;
-                            if n == 0 {
-                                break;
-                            }
-                            // Convert the raw chunk into a streaming JSON text result
-                            let chunk_str = String::from_utf8_lossy(&buffer[..n]).to_string();
-                            let payload = serde_json::json!({
-                                "content": chunk_str,
-                                "stream": true
-                            }).to_string();
-
-                            if tx.send(Ok(payload)).await.is_err() {
-                                break; // Receiver dropped, stop streaming
-                            }
+                spawn_supervised("mcp_file_stream_read", async move {
+                    let mut file = tokio::fs::File::open(&path).await?;
+                    let mut buffer = [0; 64 * 1024]; // 64KB chunks
+                    loop {
+                        let n = file.read(&mut buffer).await?;
+                        if n == 0 {
+                            break;
                         }
-                        anyhow::Result::<()>::Ok(())
-                    }.await;
+                        // Convert the raw chunk into a streaming JSON text result
+                        let chunk_str = String::from_utf8_lossy(&buffer[..n]).to_string();
+                        let payload = serde_json::json!({
+                            "content": chunk_str,
+                            "stream": true
+                        }).to_string();
 
-                    if let Err(e) = res {
-                        let _ = tx.send(Err(anyhow::anyhow!("File read failed: {e}"))).await;
+                        if tx.send(Ok(payload)).await.is_err() {
+                            break; // Receiver dropped, stop streaming
+                        }
                     }
+                    anyhow::Result::<()>::Ok(())
                 });
 
                 // Return the stream abstraction which the overall tool interface will wrap.

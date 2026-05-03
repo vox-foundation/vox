@@ -37,11 +37,13 @@ This directory contains ADRs for the Vox project.
 | [022](022-orchestrator-bootstrap-and-daemon-boundaries.md) | **Orchestrator bootstrap factory + daemon boundaries** |
 | [023](023-optional-telemetry-remote-upload.md) | **Optional telemetry remote upload (explicit CLI, Clavis, local spool)** |
 | [024](024-dashboard-axum-spa.md) | **Dashboard as local Axum-served SPA** |
-| [024](024-formal-intent.md) | **Formal Intent and Tool Receipt Auditing** |
 | [025](025-multi-agent-lock-coherence.md) | **Multi-Agent Lock Coherence and Lease Propagation** |
 | [026](026-third-party-code-provenance.md) | **Third-Party Code Provenance Policy** |
 | [027](027-dual-track-ui-surfaces.md) | **Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)** |
 | [028](028-deprecate-stub-durability-grammar.md) | **Remove stub durability/scheduling grammar (`@scheduled`, `@durable`, `workflow`, `activity`)** |
+| [029](029-formal-intent.md) | **Formal Intent and Tool Receipt Auditing** (renumbered from 024 on 2026-05-02) |
+| [030](030-state-machine-ssot.md) | **State machine SSOT** |
+| [031](031-deprecate-vox-vscode.md) | **Deprecate vox-vscode** |
 
 See also: [Internal Web IR implementation blueprint](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md), [WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320), [WebIR supplemental execution map](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#supplemental-execution-map-op-s050-op-s103-op-s149-op-s182), [Acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds), [Internal Web IR side-by-side schema](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md), [WebIR appendix — tooling registry](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#appendix--tooling-registry-and-offline-gates-op-s049-op-s101-op-s102-op-s181), [WebIR K-complexity quantification](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-complexity-quantification), [WebIR K-metric appendix](../archive/research-2026-q1/internal-web-ir-side-by-side-schema.md#k-metric-appendix-reproducible), [Codex vNext schema](../archive/research-2026-q1/codex-vnext-schema.md), [Codex BaaS](../archive/research-2026-q1/codex-baas.md).
 

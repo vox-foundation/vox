@@ -66,6 +66,7 @@ pub(crate) async fn http_ollama_with_metadata(
         .map_err(|e| HttpInferError {
             status: 0,
             message: format!("Ollama HTTP: {e}"),
+            is_capability_gap: false,
         })?;
     let status = res.status();
     let code = status.as_u16();
@@ -80,12 +81,14 @@ pub(crate) async fn http_ollama_with_metadata(
         return Err(HttpInferError {
             status: code,
             message: t,
+            is_capability_gap: false,
         });
     }
 
     let parsed: OllamaChatResponse = res.json().await.map_err(|e| HttpInferError {
         status: code,
         message: format!("Ollama JSON: {e}"),
+        is_capability_gap: false,
     })?;
 
     let text = parsed

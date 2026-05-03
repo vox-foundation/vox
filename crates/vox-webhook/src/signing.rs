@@ -91,7 +91,60 @@ pub fn sign_hmac_sha256(secret: &str, payload: &[u8]) -> WebhookSignature {
     WebhookSignature(HEXLOWER.encode(&result))
 }
 
+/// Maximum allowed age (seconds) for a webhook timestamp before it is rejected
+/// as a potential replay. Override at runtime via the
+/// `VOX_WEBHOOK_REPLAY_WINDOW_SECS` env var (parsed as `u64`); defaults to
+/// 300 (5 minutes), matching Slack's published guidance.
+pub const DEFAULT_REPLAY_WINDOW_SECS: u64 = 300;
+
+fn replay_window_secs() -> u64 {
+    std::env::var("VOX_WEBHOOK_REPLAY_WINDOW_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(DEFAULT_REPLAY_WINDOW_SECS)
+}
+
+/// Validate that `timestamp` is present, non-empty, parses as a Unix-epoch
+/// integer, and is within the configured replay window relative to `now_unix`.
+/// Returns the trimmed timestamp string on success.
+fn require_fresh_timestamp<'a>(
+    timestamp: &'a Option<String>,
+    now_unix: u64,
+) -> Result<&'a str, WebhookError> {
+    let ts = timestamp
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .ok_or(WebhookError::MissingTimestamp)?;
+    let parsed = ts
+        .parse::<u64>()
+        .map_err(|_| WebhookError::TimestampOutOfWindow(ts.to_string()))?;
+    let window = replay_window_secs();
+    let abs_skew = if parsed > now_unix {
+        parsed - now_unix
+    } else {
+        now_unix - parsed
+    };
+    if abs_skew > window {
+        return Err(WebhookError::TimestampOutOfWindow(ts.to_string()));
+    }
+    Ok(ts)
+}
+
+fn now_unix() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
 /// Verify a payload against a generic or source-specific signature scheme.
+///
+/// Sources that bind a timestamp into the signed message (`discord`, `slack`)
+/// also enforce a replay window via [`require_fresh_timestamp`]; an empty,
+/// non-numeric, or stale timestamp is now a hard rejection rather than being
+/// silently coerced to the empty string. This closes a replay/signature-bypass
+/// hole where attackers could resubmit captured webhooks indefinitely.
 pub fn verify_payload(
     secret: &str,
     payload: &[u8],
@@ -103,7 +156,7 @@ pub fn verify_payload(
         "discord" => {
             // Discord signature is a hex-encoded Ed25519 signature
             // payload for Ed25519 verification is (timestamp + body).
-            let ts = timestamp.as_deref().unwrap_or("");
+            let ts = require_fresh_timestamp(timestamp, now_unix())?;
             let mut message = ts.as_bytes().to_vec();
             message.extend_from_slice(payload);
 
@@ -136,8 +189,8 @@ pub fn verify_payload(
         }
         "slack" => {
             // Slack HMACS (v0:timestamp:payload)
-            let ts = timestamp.as_deref().unwrap_or("");
-            let ts_prefix = format!("v0:{}:", ts);
+            let ts = require_fresh_timestamp(timestamp, now_unix())?;
+            let ts_prefix = format!("v0:{ts}:");
             let mut message = ts_prefix.as_bytes().to_vec();
             message.extend_from_slice(payload);
 
@@ -214,5 +267,69 @@ mod tests {
         let sig1 = sign_payload("s", b"p");
         let sig2 = sign_payload("s", b"p");
         assert_eq!(sig1, sig2);
+    }
+
+    #[test]
+    fn slack_verify_rejects_missing_timestamp() {
+        // Even a "valid" HMAC must not pass when the timestamp header is
+        // absent — without it there is no replay defense at all.
+        let payload = b"hello";
+        let secret = "s";
+        let result = verify_payload(secret, payload, "v0=anything", &None, "slack");
+        assert!(matches!(result, Err(WebhookError::MissingTimestamp)));
+    }
+
+    #[test]
+    fn slack_verify_rejects_empty_timestamp() {
+        let result = verify_payload("s", b"hello", "v0=anything", &Some(String::new()), "slack");
+        assert!(matches!(result, Err(WebhookError::MissingTimestamp)));
+    }
+
+    #[test]
+    fn slack_verify_rejects_non_numeric_timestamp() {
+        let result = verify_payload(
+            "s",
+            b"hello",
+            "v0=anything",
+            &Some("not-a-number".to_string()),
+            "slack",
+        );
+        assert!(matches!(result, Err(WebhookError::TimestampOutOfWindow(_))));
+    }
+
+    #[test]
+    fn slack_verify_rejects_stale_timestamp() {
+        // 1970-01-01 — well outside any sane replay window.
+        let result = verify_payload(
+            "s",
+            b"hello",
+            "v0=anything",
+            &Some("0".to_string()),
+            "slack",
+        );
+        assert!(matches!(result, Err(WebhookError::TimestampOutOfWindow(_))));
+    }
+
+    #[test]
+    fn discord_verify_rejects_missing_timestamp() {
+        let result = verify_payload("aa", b"hello", "bb", &None, "discord");
+        assert!(matches!(result, Err(WebhookError::MissingTimestamp)));
+    }
+
+    #[test]
+    fn require_fresh_timestamp_accepts_within_window() {
+        let now: u64 = 1_700_000_000;
+        let ts = (now - 60).to_string();
+        let arg = Some(ts.clone());
+        let res = require_fresh_timestamp(&arg, now).unwrap();
+        assert_eq!(res, ts);
+    }
+
+    #[test]
+    fn require_fresh_timestamp_rejects_future_skew_outside_window() {
+        let now: u64 = 1_700_000_000;
+        let ts = (now + DEFAULT_REPLAY_WINDOW_SECS + 1).to_string();
+        let err = require_fresh_timestamp(&Some(ts), now).unwrap_err();
+        assert!(matches!(err, WebhookError::TimestampOutOfWindow(_)));
     }
 }

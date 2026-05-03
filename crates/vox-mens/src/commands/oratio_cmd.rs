@@ -1,6 +1,6 @@
 //! CLI surface for **`vox oratio`** (speech-to-text).
 
-use anyhow::Result;
+use anyhow::{Context as _, Result};
 use clap::Parser;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -551,15 +551,22 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 let _ = rt.block_on(async { db.record_oratio_eval_run_start(&params).await });
             }
 
+            let mut rec_idx = 0usize;
             for line in file.lines().filter(|l| !l.trim().is_empty()) {
+                rec_idx += 1;
                 if let Some(l) = limit {
                     if count >= l {
                         break;
                     }
                 }
-                let val: serde_json::Value = serde_json::from_str(line)?;
-                let path = val["path"].as_str().unwrap();
-                let expected = val["expected"].as_str().unwrap();
+                let val: serde_json::Value = serde_json::from_str(line)
+                    .with_context(|| format!("JSONL parse error at record {rec_idx}"))?;
+                let path = val["path"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("JSONL record {rec_idx} missing 'path' string field"))?;
+                let expected = val["expected"]
+                    .as_str()
+                    .ok_or_else(|| anyhow::anyhow!("JSONL record {rec_idx} missing 'expected' string field"))?;
                 let lang = val.get("language").and_then(|v| v.as_str());
 
                 let p = std::path::Path::new(path);

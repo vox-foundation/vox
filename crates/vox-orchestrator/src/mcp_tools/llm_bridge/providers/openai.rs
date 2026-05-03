@@ -64,6 +64,7 @@ pub(crate) async fn http_openai_compatible_with_headers(
     let res = req.send().await.map_err(|e| HttpInferError {
         status: 0,
         message: format!("LLM HTTP: {e}"),
+        is_capability_gap: false,
     })?;
     let status = res.status();
     let code = status.as_u16();
@@ -78,12 +79,14 @@ pub(crate) async fn http_openai_compatible_with_headers(
         return Err(HttpInferError {
             status: code,
             message: t,
+            is_capability_gap: false,
         });
     }
 
     let parsed: OpenAiChatResponse = res.json().await.map_err(|e| HttpInferError {
         status: code,
         message: format!("LLM JSON: {e}"),
+        is_capability_gap: false,
     })?;
 
     let message = parsed.choices.into_iter().next().and_then(|c| c.message);

@@ -199,7 +199,8 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
         String::new()
     };
 
-    let (endpoint, api_key) = (params.endpoint.unwrap(), params.api_key.unwrap());
+    let endpoint = params.endpoint.ok_or_else(|| anyhow::anyhow!("no endpoint configured"))?;
+    let api_key = params.api_key.ok_or_else(|| anyhow::anyhow!("no api_key configured"))?;
 
     let system = format!(
         "You are a precise research synthesizer. Using ONLY the provided evidence \

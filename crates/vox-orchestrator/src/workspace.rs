@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "jj-backend")]
+use vox_runtime::supervisor::spawn_supervised_infallible;
 
 use crate::snapshot::SnapshotId;
 use crate::types::AgentId;
@@ -266,14 +268,14 @@ impl WorkspaceManager {
                 let desc = change.description.clone();
 
                 if status == ChangeStatus::Merged {
-                    tokio::spawn(async move {
+                    spawn_supervised_infallible("jj_flush_snapshot_commit", async move {
                         let _ = crate::jj_backend::JjBridge::flush_snapshot_commit(
                             task_id, agent_id, &desc, None,
                         )
                         .await;
                     });
                 } else if status == ChangeStatus::Abandoned {
-                    tokio::spawn(async move {
+                    spawn_supervised_infallible("jj_revert_agent_snapshot", async move {
                         let _ = crate::jj_backend::JjBridge::revert_agent_snapshot(None).await;
                     });
                 }

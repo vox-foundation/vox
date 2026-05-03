@@ -34,14 +34,19 @@ variables:
       - target/
 
 # ── Rust setup ─────────────────────────────────────────────────────────────
+# Toolchain version is pinned via the `image:` tag below; do not run
+# `rustup update`/`rustup default` here, otherwise the pinned image is
+# silently overridden with whatever rustup considers stable today, which
+# diverges from the Dockerfile pin (currently `rust:1.92-slim-bookworm`).
 .rust-setup: &rust-setup
   before_script:
-    - rustup update stable && rustup default stable
     - rustup component add rustfmt clippy llvm-tools-preview
 
 # ── Base template ──────────────────────────────────────────────────────────
+# Keep this image tag in sync with the FROM line in `Dockerfile` so local,
+# docker-compose, and CI builds all resolve to the same toolchain.
 .base:
-  image: rust:latest
+  image: rust:1.92.0-slim-bookworm
   <<: *cargo-cache
   <<: *rust-setup
 
@@ -119,7 +124,6 @@ cranelift-parity:
   stage: test
   allow_failure: true  # Soft failure for 2 weeks, then promote to required
   before_script:
-    - rustup update stable && rustup default stable
     - rustup component add rustfmt clippy rustc-codegen-cranelift-preview
   variables:
     RUSTFLAGS: "-Zcodegen-backend=cranelift"
@@ -278,7 +282,6 @@ ml-train:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
     - if: '$CI_PIPELINE_SOURCE == "web"'
   script:
-    - rustup update stable && rustup default stable
     - cargo build -p vox-cli --release --quiet
     - |
       COUNT=$(wc -l < target/dogfood/train.jsonl 2>/dev/null || echo 0)

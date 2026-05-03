@@ -175,6 +175,41 @@ impl Orchestrator {
             (t, cfg.scope_enforcement)
         };
 
+        // Cheap budget gates — run before any expensive work (Socrates research,
+        // gate evaluation, persistence). Per CodeRabbit review on PR #61: an agent
+        // already in a doom loop or already over budget should be rejected before
+        // it can incur additional Socrates / autonomous-research cost.
+        let gate_result = {
+            let bm = crate::sync_lock::rw_read(&*self.budget_manager);
+            crate::gate::BudgetGate::check_doom_loop(&bm, agent_id)
+        };
+        if let crate::gate::GateResult::DoomLoop { message } = gate_result {
+            tracing::error!(agent_id = ?agent_id, %message, "blocking submission: doom-loop");
+            return Err(crate::orchestrator::OrchestratorError::DoomLoop(message));
+        }
+
+        // Pre-dispatch token estimation (M7).
+        // Note: this read-only check is racy under concurrent submission for the
+        // same agent (two callers can both pass against the same snapshot). A
+        // future atomic check-and-reserve API on `BudgetManager` will close the
+        // race; tracked as PR #61 review followup.
+        {
+            let estimated_tokens =
+                task.description.len() / 4 + file_manifest.len().saturating_mul(200);
+            let bm = crate::sync_lock::rw_read(&*self.budget_manager);
+            if bm.would_exceed_token_budget(agent_id, estimated_tokens) {
+                tracing::warn!(
+                    agent_id = ?agent_id,
+                    estimated_tokens,
+                    "blocking task submission: estimated tokens would exceed budget"
+                );
+                return Err(crate::orchestrator::OrchestratorError::BudgetExceeded(format!(
+                    "Pre-dispatch estimate of {} tokens would exceed remaining budget",
+                    estimated_tokens
+                )));
+            }
+        }
+
         // Phase 2: Socratic execution limits (Risk-based policies)
         let socrates_gate_enforce = {
             let cfg = crate::sync_lock::rw_read(&*self.config);

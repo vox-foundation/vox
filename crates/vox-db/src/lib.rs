@@ -94,6 +94,7 @@ mod config;
 pub mod data_flow;
 pub mod ddl;
 pub mod error_enrichment;
+pub mod sql_util;
 /// Parameters for [`VoxDb::record_eval_run`].
 mod eval_params;
 pub mod exec_time_telemetry;

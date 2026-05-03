@@ -383,11 +383,11 @@ pub async fn run(action: CorpusAction) -> Result<()> {
             {
                 let db = vox_db::VoxDb::connect_default()
                     .await
-                    .expect("Replay requires a database connection (set VOX_DB_URL)");
+                    .context("Replay requires a database connection (set VOX_DB_URL)")?;
                 let rows =
                     vox_corpus::arca_replay::extract_arca_pairs(&db, _limit, _chatml, _min_score)
                         .await
-                        .expect("Failed to extract Arca replay pairs");
+                        .context("Failed to extract Arca replay pairs")?;
                 let parent = _output.parent().unwrap_or(std::path::Path::new("."));
                 tokio::fs::create_dir_all(parent).await?;
                 let mut body = String::new();

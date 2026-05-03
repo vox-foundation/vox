@@ -43,6 +43,16 @@ trait ProviderAdapter: Send + Sync {
     ) -> Pin<Box<dyn Future<Output = Result<ProviderInferResult, HttpInferError>> + Send + 'a>>;
 }
 
+fn anthropic_tools_guard(req: &InferRequest<'_>) -> Result<(), HttpInferError> {
+    if req.tools.is_some() || req.tool_choice.is_some() {
+        return Err(HttpInferError::capability_gap(
+            "AnthropicNative does not support tool calls; \
+             retrying via OpenAI-compat adapter",
+        ));
+    }
+    Ok(())
+}
+
 struct GoogleDirectAdapter;
 struct OllamaAdapter;
 struct AnthropicNativeAdapter;
@@ -81,6 +91,7 @@ impl ProviderAdapter for GoogleDirectAdapter {
             let key = resolved.expose().ok_or_else(|| HttpInferError {
                 status: 0,
                 message: "GEMINI_API_KEY is not set (required for Google-direct models)".into(),
+                is_capability_gap: false,
             })?;
             let (text, prompt_tokens, completion_tokens, meta) = http_gemini_with_metadata(
                 client,
@@ -146,6 +157,7 @@ impl ProviderAdapter for AnthropicNativeAdapter {
     ) -> Pin<Box<dyn Future<Output = Result<ProviderInferResult, HttpInferError>> + Send + 'a>>
     {
         Box::pin(async move {
+            anthropic_tools_guard(&req)?;
             use super::providers::http_anthropic_direct;
             let url = endpoint_for(model)?;
             let bearer = super::provider_auth::bearer_for(model)?;
@@ -274,6 +286,7 @@ impl ProviderAdapter for VoxLocalAdapter {
                 .map_err(|e| HttpInferError {
                     status: 0,
                     message: format!("VoxLocal /generate request failed: {e}"),
+                    is_capability_gap: false,
                 })?;
 
             let status = resp.status().as_u16();
@@ -282,6 +295,7 @@ impl ProviderAdapter for VoxLocalAdapter {
                 return Err(HttpInferError {
                     status,
                     message: format!("VoxLocal server error {status}: {body}"),
+                    is_capability_gap: false,
                 });
             }
 
@@ -289,6 +303,7 @@ impl ProviderAdapter for VoxLocalAdapter {
                 resp.json().await.map_err(|e| HttpInferError {
                     status: 0,
                     message: format!("VoxLocal response parse error: {e}"),
+                    is_capability_gap: false,
                 })?;
 
             if parsed.valid == Some(false) && !parsed.errors.is_empty() {
@@ -345,13 +360,71 @@ pub(crate) async fn infer_via_provider_adapter(
         tools,
         tool_choice,
     };
+    let mut last_err: Option<HttpInferError> = None;
     for adapter in adapters() {
         if adapter.supports(&model.provider_type) {
-            return adapter.infer(client, model, req.clone()).await;
+            match adapter.infer(client, model, req.clone()).await {
+                Ok(result) => return Ok(result),
+                Err(e) if e.is_capability_gap => {
+                    tracing::debug!(
+                        target: "vox.mcp.llm.adapter",
+                        message = %e.message,
+                        "adapter skipped (capability gap); trying next"
+                    );
+                    last_err = Some(e);
+                    continue;
+                }
+                Err(e) => return Err(e),
+            }
         }
     }
-    Err(HttpInferError {
-        status: 0,
-        message: format!("No provider adapter found for {:?}", model.provider_type),
-    })
+    Err(last_err.unwrap_or_else(|| HttpInferError::new(
+        0,
+        format!("No provider adapter found for {:?}", model.provider_type),
+    )))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_infer_request<'a>(
+        tools: Option<serde_json::Value>,
+        tool_choice: Option<serde_json::Value>,
+    ) -> InferRequest<'a> {
+        InferRequest {
+            system_prompt: "",
+            user_prompt: vox_openai_wire::ChatMessageContent::Text("hello"),
+            max_t: 256,
+            temperature: None,
+            top_p: None,
+            json_mode: false,
+            tools,
+            tool_choice,
+        }
+    }
+
+    #[test]
+    fn anthropic_tools_guard_rejects_tools() {
+        let req = make_infer_request(
+            Some(serde_json::json!([{"type": "function", "function": {"name": "foo"}}])),
+            None,
+        );
+        let err = anthropic_tools_guard(&req).expect_err("should be a capability gap");
+        assert!(err.is_capability_gap);
+        assert!(err.message.contains("AnthropicNative does not support tool calls"));
+    }
+
+    #[test]
+    fn anthropic_tools_guard_rejects_tool_choice() {
+        let req = make_infer_request(None, Some(serde_json::json!("auto")));
+        let err = anthropic_tools_guard(&req).expect_err("should be a capability gap");
+        assert!(err.is_capability_gap);
+    }
+
+    #[test]
+    fn anthropic_tools_guard_passes_without_tools() {
+        let req = make_infer_request(None, None);
+        assert!(anthropic_tools_guard(&req).is_ok());
+    }
 }

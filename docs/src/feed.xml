@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 03 May 2026 03:39:58 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 03 May 2026 07:10:16 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -42,6 +42,15 @@
     <description>Design spec for importing React components into Vox source, making emitted Vox components consumable by external React apps, and retiring @island.</description>
     <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>How to author Vox views (VUV)</title>
+    <link>https://vox-lang.org/how-to/how-to-author-views.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-author-views.html</guid>
+    <description>Practical guide to writing UI in Vox using the view-call (VUV) authoring syntax. Covers primitives, typed style kwargs, conditionals, components, and escape…</description>
+    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
   </item>
 
   <item>
@@ -82,6 +91,16 @@
     <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
     <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Tutorial: Building UI with VUV view-calls</title>
+    <link>https://vox-lang.org/tutorials/tut-ui-integration.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/tutorials/tut-ui-integration.html</guid>
+    <description>Learn how to build modern, reactive UIs in Vox using the view-call (VUV) authoring syntax — function calls + trailing-block children + typed style kwargs.</description>
+    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
+    <category>Tutorial</category>
+    <category domain="https://schema.org">HowTo</category>
   </item>
 
   <item>
@@ -220,24 +239,6 @@
     <link>https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</guid>
     <description>Full-system audit of crates/vox-orchestrator and surrounding surfaces excluding model-routing (covered by model-orchestration-ssot-audit-2026.md). ~280…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Phase 1: Build Target Split Spec (2026)</title>
-    <link>https://vox-lang.org/architecture/phase1-build-targets-spec-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/phase1-build-targets-spec-2026.html</guid>
-    <description>Design spec for vox build --target=server|fullstack|client, vox emit client, and vox init --kind=backend.</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Phase 3: HTTP Ergonomics Decorators Spec (2026)</title>
-    <link>https://vox-lang.org/architecture/phase3-http-ergonomics-spec-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/phase3-http-ergonomics-spec-2026.html</guid>
-    <description>Design spec for explicit method/path, @cors, @auth, and @rate_limit decorators on Vox endpoints.</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>

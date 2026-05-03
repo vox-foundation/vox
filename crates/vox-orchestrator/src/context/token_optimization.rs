@@ -2,13 +2,13 @@ use tiktoken_rs::cl100k_base;
 
 /// Counts tokens using cl100k_base (compatible with GPT-4/o1).
 pub fn count_tokens(text: &str) -> usize {
-    let bpe = cl100k_base().unwrap();
+    let bpe = cl100k_base().expect("tiktoken cl100k_base data is bundled and must be valid");
     bpe.encode_with_special_tokens(text).len()
 }
 
 /// Trims a context string to a maximum number of tokens.
 pub fn trim_context(text: &str, max_tokens: usize) -> String {
-    let bpe = cl100k_base().unwrap();
+    let bpe = cl100k_base().expect("tiktoken cl100k_base data is bundled and must be valid");
     let tokens = bpe.encode_with_special_tokens(text);
     if tokens.len() <= max_tokens {
         return text.to_string();
