@@ -59,6 +59,7 @@ fn test_ir_emission_with_hashing_and_inference() {
 }
 
 #[test]
+#[ignore = "ADR-028 reserves @scheduled; restore when the keyword returns to public grammar"]
 fn test_ir_emission_includes_scheduled_jobs_in_web_ir() {
     let source = r#"
 @scheduled("1h")
