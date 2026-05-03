@@ -22,8 +22,11 @@ use crate::hir::*;
 use std::collections::{HashMap, HashSet};
 
 /// Backward-compatible entry point: walk `expr` collecting reads of `state_names` without
-/// following any function calls.
+/// following any function calls. Retained for callers that don't need the cross-call
+/// analysis or diagnostic surface; the active codegen path uses
+/// [`extract_state_deps_with_diagnostics`] directly.
 #[must_use]
+#[allow(dead_code)] // back-compat shim; tests below exercise it
 pub fn extract_state_deps(expr: &HirExpr, state_names: &HashSet<String>) -> Vec<String> {
     extract_state_deps_with_callees(expr, state_names, &HashMap::new())
 }
@@ -33,6 +36,7 @@ pub fn extract_state_deps(expr: &HirExpr, state_names: &HashSet<String>) -> Vec<
 /// `@reactive`-annotated free functions visible to the caller). See module docs for the
 /// bounding policy.
 #[must_use]
+#[allow(dead_code)] // back-compat shim; tests below exercise it
 pub fn extract_state_deps_with_callees(
     expr: &HirExpr,
     state_names: &HashSet<String>,

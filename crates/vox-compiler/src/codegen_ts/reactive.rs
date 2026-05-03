@@ -18,8 +18,8 @@
 //! [`crate::web_ir::WebIrModule::view_roots`] lowering.
 
 use crate::codegen_ts::hir_emit::{
-    emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps,
-    extract_state_deps_with_callees, extract_state_deps_with_diagnostics, map_hir_type_to_ts,
+    emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps_with_diagnostics,
+    map_hir_type_to_ts,
 };
 use crate::hir::*;
 use crate::react_bridge::react_exports::{USE_CALLBACK, USE_EFFECT, USE_MEMO, USE_REF, USE_STATE};
