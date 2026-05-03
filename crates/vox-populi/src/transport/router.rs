@@ -226,6 +226,18 @@ pub fn populi_http_app(state: PopuliTransportState) -> Router {
 /// Bind and serve until error (Ctrl+C stops the process).
 pub async fn serve(addr: SocketAddr, state: PopuliTransportState) -> Result<(), std::io::Error> {
     let listener = tokio::net::TcpListener::bind(addr).await?;
+    serve_with_listener(listener, state).await
+}
+
+/// Serve on a pre-bound [`tokio::net::TcpListener`].
+///
+/// Useful for tests that need a fixed-port-zero listener — bind first, read the
+/// OS-assigned address, then pass the listener here so the port is never reused
+/// between the bind and the accept loop.
+pub async fn serve_with_listener(
+    listener: tokio::net::TcpListener,
+    state: PopuliTransportState,
+) -> Result<(), std::io::Error> {
     let bound = listener.local_addr()?;
     info!(%bound, "vox-populi HTTP control plane listening");
     println!("vox populi: listening on http://{bound}");

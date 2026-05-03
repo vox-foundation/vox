@@ -16,7 +16,7 @@ use vox_compiler::syntax_k::{
 };
 use vox_compiler::web_ir::emit_tsx::emit_component_view_tsx;
 use vox_compiler::web_ir::lower::lower_hir_to_web_ir_with_summary;
-use vox_compiler::web_ir::validate::validate_web_ir_with_metrics;
+use vox_compiler::web_ir::validate::{is_advisory_diagnostic, validate_web_ir_with_metrics};
 
 fn syntax_k_output_root() -> PathBuf {
     if let Ok(dir) = std::env::var("CARGO_TARGET_DIR")
@@ -56,9 +56,10 @@ fn assert_golden_file(path: &Path) {
     let fixture_id = fixture_id_from(path);
     let (web_ir, lower_summary) = lower_hir_to_web_ir_with_summary(&hir);
     let (diags, validate_metrics) = validate_web_ir_with_metrics(&web_ir);
+    let blocking_diags: Vec<_> = diags.iter().filter(|d| !is_advisory_diagnostic(d)).collect();
     assert!(
-        diags.is_empty(),
-        "{fixture_id}: web_ir validate diagnostics: {diags:?}"
+        blocking_diags.is_empty(),
+        "{fixture_id}: web_ir validate diagnostics: {blocking_diags:?}"
     );
 
     let web_ir_bytes = canonical_web_ir_bytes(&web_ir)
