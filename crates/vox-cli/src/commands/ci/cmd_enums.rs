@@ -480,6 +480,9 @@ pub enum CiCmd {
         #[arg(long)]
         check: bool,
     },
+    /// Verify every in-tree `Plugin.toml` has a matching entry in the plugin catalog. Passes trivially when no Plugin.toml files exist (SP1).
+    #[command(name = "plugin-catalog-parity")]
+    PluginCatalogParity,
     /// Poll GitHub Actions checks for the current HEAD (or a specific SHA) and print failures.
     #[command(name = "watch-run")]
     WatchRun {

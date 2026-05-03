@@ -30,6 +30,7 @@ mod mens_scorecard;
 pub(crate) mod nomenclature_guard;
 mod openclaw_contract;
 mod operations_catalog;
+mod plugin_catalog_parity;
 mod pm_provenance;
 mod release_build;
 pub(crate) mod retired_symbol_check;
