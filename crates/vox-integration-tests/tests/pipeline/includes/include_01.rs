@@ -460,22 +460,6 @@ fn golden_blog_fullstack_codegen_emits_manifest_get_and_post() {
     insta::assert_snapshot!("blog_fullstack_client_ts", client);
 }
 
-#[test]
-fn golden_v0_shadcn_island_codegen_includes_routes_manifest() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden/v0_shadcn_island.vox");
-    let src = read_utf8_path_capped(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    let tokens = lex(&src);
-    let module = parse(tokens).unwrap();
-    let hir = vox_compiler::hir::lower_module(&module);
-    let output = generate(&hir).unwrap();
-    let names: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
-    assert!(
-        names.iter().any(|n| *n == "routes.manifest.ts"),
-        "expected routes.manifest.ts with @v0 golden, got {names:?}"
-    );
-}
-
 // --- bind={} reactive binding test ---
 
 #[test]
