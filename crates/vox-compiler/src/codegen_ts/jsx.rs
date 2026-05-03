@@ -25,7 +25,7 @@ use crate::codegen_ts::island_emit::{
 };
 use std::collections::HashSet;
 
-pub use crate::codegen_ts::hir_emit::compat::map_jsx_attr_name;
+pub use crate::codegen_ts::hir_emit::compat::{map_jsx_attr_name, map_jsx_tag};
 
 fn emit_ast_island_mount(
     tag: &str,
@@ -56,7 +56,7 @@ pub fn emit_jsx_element(el: &JsxElement, indent: usize, island_names: &HashSet<S
     let pad = "  ".repeat(indent);
     let mut out = String::new();
 
-    out.push_str(&format!("{pad}<{}", el.tag));
+    out.push_str(&format!("{pad}<{}", map_jsx_tag(&el.tag)));
 
     // Attributes
     for attr in &el.attributes {
@@ -78,7 +78,7 @@ pub fn emit_jsx_element(el: &JsxElement, indent: usize, island_names: &HashSet<S
         out.push_str(&emit_jsx_child(child, indent + 1, island_names));
     }
 
-    out.push_str(&format!("{pad}</{}>\n", el.tag));
+    out.push_str(&format!("{pad}</{}>\n", map_jsx_tag(&el.tag)));
     out
 }
 
@@ -94,7 +94,7 @@ pub fn emit_jsx_self_closing(
         return emit_ast_island_mount(&el.tag, &el.attributes, indent, 0);
     }
     let pad = "  ".repeat(indent);
-    let mut out = format!("{pad}<{}", el.tag);
+    let mut out = format!("{pad}<{}", map_jsx_tag(&el.tag));
 
     for attr in &el.attributes {
         if attr.name == "bind" {

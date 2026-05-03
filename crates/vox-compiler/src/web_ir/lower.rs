@@ -31,7 +31,7 @@ use serde_json::json;
 
 use crate::codegen_ts::hir_emit::{
     emit_hir_expr, emit_hir_expr_attr_value, expand_bind_hir_attribute, map_hir_type_to_ts,
-    map_jsx_attr_name,
+    map_jsx_attr_name, map_jsx_tag,
 };
 use crate::codegen_ts::island_emit::island_data_prop_attr;
 use crate::hir::{
@@ -168,7 +168,8 @@ impl DomArena {
             attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
         }
         // TASK-6.1: resolve primitive tags → canonical HTML tag + Tailwind class list.
-        let (tag, attrs) = apply_primitive_emission(&el.tag, attrs);
+        let mapped_tag = map_jsx_tag(&el.tag);
+        let (tag, attrs) = apply_primitive_emission(mapped_tag, attrs);
         let child_ids: Vec<DomNodeId> = el
             .children
             .iter()
@@ -197,7 +198,8 @@ impl DomArena {
             attrs.extend(lower_jsx_attr_pair(attr, state_names, island_names));
         }
         // TASK-6.1: resolve primitive tags.
-        let (tag, attrs) = apply_primitive_emission(&el.tag, attrs);
+        let mapped_tag = map_jsx_tag(&el.tag);
+        let (tag, attrs) = apply_primitive_emission(mapped_tag, attrs);
         self.push(DomNode::Element {
             id: DomNodeId(0),
             tag,

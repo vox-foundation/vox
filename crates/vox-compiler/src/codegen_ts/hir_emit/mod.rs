@@ -27,7 +27,7 @@ use super::island_emit::{
 use crate::hir::*;
 use std::collections::HashSet;
 
-pub use compat::{map_hir_type_to_ts, map_jsx_attr_name};
+pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag};
 pub(crate) use state_deps::extract_state_deps;
 
 /// Unwrap a single-expression block used as a JSX / attribute value (matches AST `unwrap_block`).
@@ -211,10 +211,10 @@ pub fn emit_hir_expr(
             }
             format!(
                 "<{} {}\n>\n  {}\n</{}>",
-                el.tag,
+                map_jsx_tag(&el.tag),
                 attrs.join(" "),
                 children.join("\n  "),
-                el.tag
+                map_jsx_tag(&el.tag)
             )
         }
         HirExpr::JsxSelfClosing(el) => {
@@ -236,7 +236,7 @@ pub fn emit_hir_expr(
                 let val = emit_hir_expr_attr_value(&attr.value, state_names, island_names, name);
                 attrs.push(format!("{name}={{{val}}}"));
             }
-            format!("<{} {} />", el.tag, attrs.join(" "))
+            format!("<{} {} />", map_jsx_tag(&el.tag), attrs.join(" "))
         }
         HirExpr::ObjectLit(fields, _) => {
             let pairs: Vec<String> = fields

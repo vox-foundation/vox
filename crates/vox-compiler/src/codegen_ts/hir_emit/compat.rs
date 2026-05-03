@@ -37,6 +37,48 @@ pub fn map_jsx_attr_name(name: &str) -> &str {
         "on:mouseleave" | "on_mouseleave" => "onMouseLeave",
         "for" => "htmlFor",
         "tab_index" | "tabIndex" => "tabIndex",
+        // SVG snake_case → camelCase aliases (mirrors class/on:click pattern)
+        "view_box" => "viewBox",
+        "stroke_width" => "strokeWidth",
+        "stroke_linecap" => "strokeLinecap",
+        "stroke_linejoin" => "strokeLinejoin",
+        "stroke_dasharray" => "strokeDasharray",
+        "stroke_dashoffset" => "strokeDashoffset",
+        "stroke_opacity" => "strokeOpacity",
+        "fill_opacity" => "fillOpacity",
+        "fill_rule" => "fillRule",
+        "clip_path" => "clipPath",
+        "clip_rule" => "clipRule",
+        "gradient_units" => "gradientUnits",
+        "gradient_transform" => "gradientTransform",
+        "pattern_units" => "patternUnits",
+        "pattern_content_units" => "patternContentUnits",
+        "preserve_aspect_ratio" => "preserveAspectRatio",
+        "text_anchor" => "textAnchor",
+        "stop_color" => "stopColor",
+        "stop_opacity" => "stopOpacity",
+        "vector_effect" => "vectorEffect",
+        "font_family" => "fontFamily",
+        "font_size" => "fontSize",
+        "font_weight" => "fontWeight",
+        "letter_spacing" => "letterSpacing",
+        "xmlns_xlink" => "xmlnsXlink",
         _ => name,
+    }
+}
+
+/// Map SVG snake_case tag names to their React-required camelCase equivalents.
+///
+/// Mirrors the allowlist pattern of [`map_jsx_attr_name`] for tag names.
+/// Back-compat: camelCase inputs pass through unchanged.
+#[must_use]
+pub fn map_jsx_tag(tag: &str) -> &str {
+    match tag {
+        "radial_gradient" => "radialGradient",
+        "linear_gradient" => "linearGradient",
+        "clip_path" => "clipPath",
+        "foreign_object" => "foreignObject",
+        "fe_gaussian_blur" => "feGaussianBlur",
+        _ => tag,
     }
 }
