@@ -1,80 +1,74 @@
-//! Training-loop body. Sub-batches B-D will fill this in by porting code
-//! from vox-populi/src/mens/tensor/candle_qlora_train/. For now, the entry
-//! points return "not yet implemented" errors so the trait impl compiles.
+//! Training-loop entry points.
 //!
-//! # SP3 stub
-//!
-//! The real implementation lives in `vox-populi`'s `candle_qlora_train` module
-//! (training_loop/mod.rs, training_loop/forward.rs, training_loop/validation.rs).
-//! These functions are deeply tangled with vox-populi types:
-//!
-//! - `LoraTrainingConfig` (vox-populi's config type)
-//! - `QloraEmbedBundle` (preflight result with safetensors paths, vocab, d_model, etc.)
-//! - `TrainingPair` from `vox-tensor`
-//! - `CheckpointState` from vox-populi
-//! - `VoxDB` async channel (`tokio::sync::mpsc::UnboundedSender<TrainingDbEvent>`)
-//! - `train_log`, `telemetry`, `vox_clavis` secrets
-//!
-//! Extracting these cleanly requires either:
-//! (A) Copying all the above types into the plugin crate (large scope for SP3), or
-//! (B) Accepting a JSON-serialized batch that encodes all per-step inputs, and having
-//!     the plugin parse the batch internally (the intended long-term design per the
-//!     MlBackend wire format spec in vox-plugin-api/src/extensions/ml_backend.rs).
-//!
-//! Option B is the right design (already modeled by the `batch_json` argument on
-//! `train_step`), but the batch schema needs to be agreed between vox-populi (caller)
-//! and the plugin (callee) and is deferred to batch 3/4 when vox-populi is rewired to
-//! call through the plugin host.
+//! SP3 sub-batch C: `run_full_training` is now wired through to
+//! `candle_qlora_train::run_candle_qlora_train` via the `TrainRequest` JSON envelope.
+//! The coarse-grained step wrappers (`run_train_step`, `run_eval_step`) remain stubs
+//! since the plugin-host streaming protocol is deferred to SP3-D.
 
 use std::io;
 
 use crate::model::CandleModel;
 
-/// Run one QLoRA training step.
-///
-/// `batch_json`: JSON-encoded batch from vox-populi. Schema TBD (batch 3/4).
-/// Returns JSON-encoded training stats on success.
+/// Run one QLoRA training step (streaming protocol — SP3-D).
 pub fn run_train_step(
     _model: &mut CandleModel,
     _batch_json: &str,
 ) -> anyhow::Result<String> {
-    // TODO(batch 3/4): implement by:
-    // 1. Parsing batch_json into a BatchInput struct (schema agreed with vox-populi)
-    // 2. Calling forward_masked_ce (from training_loop/forward.rs) with the decoded
-    //    ids, prefix_len, trunc_offset, sample_weight, token_weights
-    // 3. Calling trainer.backward_step / optimizer step
-    // 4. Returning JSON-encoded {loss, supervised_tokens, step} stats
     anyhow::bail!(
-        "vox-plugin-mens-candle-cuda: run_train_step not yet wired (SP3 stub). \
-         Batch 3 will implement the JSON batch protocol. See training.rs for details."
+        "vox-plugin-mens-candle-cuda: run_train_step not yet wired (SP3-D). \
+         Use run_full_training for a complete session."
     )
 }
 
-/// Run one evaluation step (forward only, no gradient).
-///
-/// `batch_json`: JSON-encoded batch from vox-populi. Schema TBD (batch 3/4).
-/// Returns JSON-encoded eval stats on success.
+/// Run one evaluation step — SP3-D.
 pub fn run_eval_step(
     _model: &CandleModel,
     _batch_json: &str,
 ) -> anyhow::Result<String> {
-    // TODO(batch 3/4): implement by:
-    // 1. Parsing batch_json into a BatchInput struct
-    // 2. Calling forward_masked_ce with sample_weight=1.0 (eval mode, no gradient)
-    // 3. Returning JSON-encoded {loss, supervised_tokens} stats
     anyhow::bail!(
-        "vox-plugin-mens-candle-cuda: run_eval_step not yet wired (SP3 stub). \
-         Batch 3 will implement the JSON batch protocol. See training.rs for details."
+        "vox-plugin-mens-candle-cuda: run_eval_step not yet wired (SP3-D). \
+         Use run_full_training for a complete session."
     )
 }
 
-/// Run a complete training session described by a JSON-encoded [`crate::config::LoraTrainingConfig`].
+/// Run a complete QLoRA training session.
 ///
-/// This is the coarse-grained entry point called by `MlBackend::run_full_training`.
-/// Sub-batches B-D will fill in the real loop body; for now it returns a
-/// `not yet implemented` error so the trait impl compiles.
-pub fn run_full_training(_config_json: &str) -> io::Result<String> {
-    Err(io::Error::other(
-        "run_full_training: not yet implemented (SP3 sub-batches B-D pending)",
-    ))
+/// `config_json` is a JSON-encoded [`crate::candle_qlora_train::TrainRequest`].
+/// Returns a JSON-encoded [`crate::training_summary::TrainingSummary`] on success.
+pub fn run_full_training(config_json: &str) -> io::Result<String> {
+    let req: crate::candle_qlora_train::TrainRequest = serde_json::from_str(config_json)
+        .map_err(|e| io::Error::other(format!("invalid TrainRequest json: {e}")))?;
+
+    let data_dir_buf;
+    let data_dir = match &req.data_dir {
+        Some(p) => {
+            data_dir_buf = std::path::PathBuf::from(p);
+            data_dir_buf.as_path()
+        }
+        None => {
+            data_dir_buf = std::path::PathBuf::from(".");
+            data_dir_buf.as_path()
+        }
+    };
+
+    let output_dir_buf;
+    let output_dir: Option<&std::path::Path> = match &req.output_dir {
+        Some(p) => {
+            output_dir_buf = std::path::PathBuf::from(p);
+            Some(output_dir_buf.as_path())
+        }
+        None => None,
+    };
+
+    let summary = crate::candle_qlora_train::run_candle_qlora_train(
+        data_dir,
+        output_dir,
+        &req.config,
+        req.device_kind,
+        &req.system_prompt,
+    )
+    .map_err(|e| io::Error::other(format!("training failed: {e}")))?;
+
+    serde_json::to_string(&summary)
+        .map_err(|e| io::Error::other(format!("serialize TrainingSummary: {e}")))
 }

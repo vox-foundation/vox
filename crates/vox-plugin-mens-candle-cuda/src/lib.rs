@@ -3,27 +3,21 @@
 //! Implements `MlBackend` from vox-plugin-api. The model handle stores
 //! a Box<CandleModel>; methods recover it via the opaque pointer field.
 //!
-//! # Extraction status (SP3)
+//! # SP3 sub-batch C — QLoRA training fully ported from vox-populi
 //!
-//! `model.rs` contains the full Qwen3.5 transformer block implementation copied
-//! verbatim from `vox-populi/src/mens/tensor/candle_model_qwen.rs` (pure candle/qlora,
-//! no vox-populi type dependencies).
-//!
-//! `training.rs` and `checkpoint.rs` are stubs. The actual training loop in vox-populi
-//! (`candle_qlora_train/mod.rs`, `training_loop/`) is deeply tangled with:
-//!   - `LoraTrainingConfig` and `QloraEmbedBundle` (vox-populi types)
-//!   - `vox-tensor::data::TrainingPair` and `CheckpointState`
-//!   - `vox_clavis` secret resolution, `VoxDB` async channel, `vox_corpus` data loader
-//!
-//! These stubs will be filled in during batch 3 (vox-populi rewire) when the JSON
-//! batch wire format between caller and plugin is defined.
+//! `candle_qlora_train/` contains the full training loop extracted from
+//! `vox-populi/src/mens/tensor/candle_qlora_train/`.  `training.rs` now wires
+//! through to `candle_qlora_train::run_candle_qlora_train` via a `TrainRequest`
+//! JSON envelope.
 //!
 //! See: docs/src/architecture/plugin-system-redesign-2026.md
 
 mod backend;
 mod checkpoint;
+pub mod candle_qlora_train;
 pub mod checkpoint_state;
 pub mod config;
+pub mod device;
 pub mod hf_keymap;
 pub mod hf_layout;
 mod model;
@@ -31,6 +25,18 @@ pub mod operator_messages;
 pub mod qlora_preflight;
 pub(crate) mod qlora_weights;
 mod training;
+pub mod adapter_schema_v3;
+pub mod external_serving_handoff;
+pub mod finetune_contract;
+pub mod manifest;
+pub mod model_card;
+pub mod qlora_adapter_meta;
+pub mod telemetry;
+pub mod telemetry_schema;
+pub mod train_jsonl_preflight;
+pub mod train_log;
+pub mod training_summary;
+pub mod training_text;
 
 use abi_stable::{
     erased_types::TD_Opaque, export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn,
