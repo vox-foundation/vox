@@ -92,7 +92,7 @@ impl Default for ChatmlConfig {
 }
 
 /// Full configuration for one LoRA / QLoRA training run.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LoraTrainingConfig {
     pub base_model: Option<String>,
     /// Provenance: coarse family label for the upstream/base model lineage.
