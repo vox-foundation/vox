@@ -168,10 +168,18 @@
 
   ```rust
   cost_progress: Arc::new(std::sync::RwLock::new(HashMap::new())),
+  // Encoded as f64::to_bits to match the sibling `drift_cost_threshold_usd`.
+  // Read with f64::from_bits in doom_loop_cost_check.
   doom_loop_threshold_usd: Arc::new(std::sync::atomic::AtomicU64::new(
-      2_000_000u64, // $2.00 expressed as micro-dollars
+      2.00f64.to_bits(),
   )),
   ```
+
+  Note: an earlier draft of this plan used micro-dollars (`2_000_000u64`). That
+  was changed during implementation review to match the encoding of the
+  adjacent `drift_cost_threshold_usd` field. Do NOT use the literal
+  `2_000_000u64` here — `f64::from_bits(2_000_000)` decodes to ≈ 2.83×10⁻³¹⁸
+  USD, which would silently disable the doom-loop check.
 
 - [ ] **Step 5: Add the three methods**
 

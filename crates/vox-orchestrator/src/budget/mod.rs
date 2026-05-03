@@ -710,6 +710,20 @@ mod tests {
         assert!(bm.doom_loop_cost_check(AgentId(999)).is_none());
     }
 
+    /// Documents the strict-`>` contract: at exactly the threshold, the
+    /// check does NOT fire. Counterpart to the above-threshold test.
+    #[test]
+    fn test_doom_loop_cost_check_does_not_fire_at_exact_threshold() {
+        let bm = BudgetManager::new(None);
+        let agent = AgentId(43);
+        bm.set_doom_loop_cost_threshold(0.10);
+        bm.record_cost_progress(agent, 0.10);
+        assert!(
+            bm.doom_loop_cost_check(agent).is_none(),
+            "strict > contract: cost == threshold should NOT fire"
+        );
+    }
+
     #[test]
     fn test_would_exceed_budget_true_when_tight() {
         let bm = BudgetManager::new(None);
