@@ -10,6 +10,11 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 vox-plugin-api = { workspace = true }
+vox-tensor = { workspace = true }
+vox-db = { workspace = true }
+vox-clavis = { workspace = true }
+vox-eval = { workspace = true }
+vox-compiler = { workspace = true }
 abi_stable = { workspace = true }
 candle-core = { workspace = true, features = ["cuda"] }
 candle-nn = { workspace = true, features = ["cuda"] }
@@ -23,6 +28,11 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+chrono = { workspace = true }
+ctrlc = { workspace = true }
+owo-colors = { workspace = true }
+rand = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }
