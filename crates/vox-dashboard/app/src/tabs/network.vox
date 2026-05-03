@@ -1,4 +1,4 @@
-// TASK-7.2: NetworkTab — agent mesh topology display.
+// TASK-7.2 / VUV-6: NetworkTab — agent mesh topology display.
 //
 // Components:
 //   - NodeBadge      — single agent node summary (id + status)
@@ -21,64 +21,79 @@ partial state_machine MeshViewState {
 }
 
 component NodeBadge(agent_id: str, status: str) {
-    view: (
-        <row class="px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl gap-3 items-center">
-            <panel class={if status is "active" { "w-2 h-2 rounded-full bg-emerald-400" } else { "w-2 h-2 rounded-full bg-zinc-600" }}></panel>
-            <column class="gap-0">
-                <text class="text-xs font-mono text-white/80">{agent_id}</text>
-                <text class="text-xs text-zinc-500">{status}</text>
-            </column>
-        </row>
-    )
+    view: row(
+        pad_x=3, pad_y=2, bg="zinc.900", border=true, border_color="white/10",
+        radius="xl", items="center", raw_class="gap-3"
+    ) {
+        panel(
+            w=2, h=2, radius="full",
+            bg=if status is "active" { "emerald.400" } else { "zinc.600" }
+        ) {}
+        column(raw_class="gap-0") {
+            text(size="xs", font_family="mono", color="white/80") { agent_id }
+            text(size="xs", color="zinc.500") { status }
+        }
+    }
 }
 
 component MeshLegend() {
-    view: (
-        <column class="absolute bottom-4 left-4 gap-2 bg-zinc-900/90 backdrop-blur border border-white/10 rounded-2xl p-4">
-            <text class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">"LEGEND"</text>
-            <row class="gap-2 items-center">
-                <panel class="w-3 h-0.5 bg-emerald-400 rounded"></panel>
-                <text class="text-xs text-zinc-400">"Active channel"</text>
-            </row>
-            <row class="gap-2 items-center">
-                <panel class="w-3 h-0.5 bg-zinc-600 rounded"></panel>
-                <text class="text-xs text-zinc-400">"Idle channel"</text>
-            </row>
-            <row class="gap-2 items-center">
-                <panel class="w-2 h-2 rounded-full bg-rose-500"></panel>
-                <text class="text-xs text-zinc-400">"Error node"</text>
-            </row>
-        </column>
-    )
+    view: column(
+        position="absolute", bottom=4, left=4,
+        bg="zinc.900/90", border=true, border_color="white/10",
+        radius="2xl", pad=4,
+        raw_class="gap-2 backdrop-blur"
+    ) {
+        text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest", mb=1) { "LEGEND" }
+        row(items="center", raw_class="gap-2") {
+            panel(w=3, bg="emerald.400", radius="DEFAULT", raw_class="h-0.5") {}
+            text(size="xs", color="zinc.400") { "Active channel" }
+        }
+        row(items="center", raw_class="gap-2") {
+            panel(w=3, bg="zinc.600", radius="DEFAULT", raw_class="h-0.5") {}
+            text(size="xs", color="zinc.400") { "Idle channel" }
+        }
+        row(items="center", raw_class="gap-2") {
+            panel(w=2, h=2, radius="full", bg="rose.500") {}
+            text(size="xs", color="zinc.400") { "Error node" }
+        }
+    }
 }
 
 component NetworkTab() {
-    view: (
-        <column class="flex-1 overflow-hidden bg-zinc-950">
-            <row class="h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0">
-                <column class="gap-0">
-                    <text class="text-sm font-black tracking-tighter text-white">"NETWORK"</text>
-                    <text class="text-xs text-zinc-500 tracking-widest">"AGENT MESH TOPOLOGY"</text>
-                </column>
-                <row class="gap-3 items-center">
-                    <text class="text-xs text-zinc-500">"0 nodes · 0 edges"</text>
-                    <button class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-zinc-400">
-                        "REFRESH"
-                    </button>
-                </row>
-            </row>
-            <panel class="flex-1 relative overflow-hidden">
-                <column class="flex-1 items-center justify-center gap-4 text-zinc-500">
-                    <panel class="w-16 h-16 rounded-2xl border border-white/10 bg-zinc-900 items-center justify-center">
-                        <text class="text-2xl">"⬡"</text>
-                    </panel>
-                    <column class="items-center gap-1">
-                        <text class="text-sm font-bold uppercase tracking-widest">"NO MESH DATA"</text>
-                        <text class="text-xs">"Agent graph renders here via @island NetworkGraph (Phase 2)."</text>
-                    </column>
-                </column>
-                <MeshLegend />
-            </panel>
-        </column>
-    )
+    view: column(flex=1, overflow="hidden", bg="zinc.950") {
+        row(
+            h=12, border_b=true, border_color="zinc.800",
+            pad_x=6, items="center", justify="between", shrink=0
+        ) {
+            column(raw_class="gap-0") {
+                text(size="sm", weight="black", color="white", tracking="tighter") { "NETWORK" }
+                text(size="xs", color="zinc.500", tracking="widest") { "AGENT MESH TOPOLOGY" }
+            }
+            row(items="center", raw_class="gap-3") {
+                text(size="xs", color="zinc.500") { "0 nodes · 0 edges" }
+                button(
+                    pad_x=3, radius="lg", bg="white/5",
+                    border=true, border_color="white/10",
+                    size="xs", color="zinc.400",
+                    raw_class="py-1.5"
+                ) { "REFRESH" }
+            }
+        }
+        panel(flex=1, position="relative", overflow="hidden") {
+            column(flex=1, items="center", justify="center", color="zinc.500", raw_class="gap-4") {
+                panel(
+                    w=16, h=16, radius="2xl",
+                    border=true, border_color="white/10", bg="zinc.900",
+                    items="center", justify="center"
+                ) {
+                    text(size="2xl") { "⬡" }
+                }
+                column(items="center", raw_class="gap-1") {
+                    text(size="sm", weight="bold", case="upper", tracking="widest") { "NO MESH DATA" }
+                    text(size="xs") { "Agent graph renders here via @island NetworkGraph (Phase 2)." }
+                }
+            }
+            MeshLegend() {}
+        }
+    }
 }
