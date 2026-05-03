@@ -23,14 +23,14 @@ partial state_machine DiagnosticViewState {
 component DiagnosticRow(severity: str, message: str, location: str) {
     view: row(
         pad_x=4, pad_y=3, border_b=true, border_color="white/5",
-        items="start", raw_class="gap-4 hover:bg-white/5"
+        items="start", gap=4, raw_class="hover:bg-white/5"
     ) {
         panel(
             w=2, h=2, radius="full",
             bg=if severity is "error" { "rose.500" } else { "amber.400" },
             mt=1.5, shrink=0
         )
-        column(flex=1, min_w=0, raw_class="gap-1") {
+        column(flex=1, min_w=0, gap=1) {
             text(size="sm", color="white/80", font_family="mono", leading="snug") { message }
             text(size="xs", color="zinc.500", font_family="mono") { location }
         }
@@ -50,7 +50,7 @@ component DiagnosticsPanel() {
             text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest") { "DIAGNOSTICS" }
             text(size="xs", color="zinc.600") { "0 errors · 0 warnings" }
         }
-        column(flex=1, items="center", justify="center", color="zinc.500", raw_class="gap-3") {
+        column(flex=1, items="center", justify="center", color="zinc.500", gap=3) {
             text(size="sm", weight="bold", case="upper", tracking="widest") { "NO DIAGNOSTICS" }
             text(size="xs") { "Run a build to see compiler output here." }
         }
@@ -60,8 +60,8 @@ component DiagnosticsPanel() {
 component TaskDispatch() {
     state is_running: bool = false
 
-    view: column(border_t=true, border_color="white/10", pad=4, shrink=0, raw_class="gap-3") {
-        row(items="center", raw_class="gap-3") {
+    view: column(border_t=true, border_color="white/10", pad=4, shrink=0, gap=3) {
+        row(items="center", gap=3) {
             button(
                 pad_x=4, pad_y=2, radius="xl",
                 bg=if is_running { "rose.600/80" } else { "blue.600" },
@@ -96,7 +96,7 @@ component CommandTab() {
             pad_x=6, items="center", justify="between", shrink=0
         ) {
             text(size="sm", weight="black", color="white", tracking="tighter") { "COMMAND" }
-            row(raw_class="gap-2") {
+            row(gap=2) {
                 button(raw_class="tab-btn", on_click={active_panel = "diagnostics"}) { "DIAGNOSTICS" }
                 button(raw_class="tab-btn", on_click={active_panel = "context"}) { "CONTEXT" }
             }
@@ -105,7 +105,7 @@ component CommandTab() {
             if active_panel is "diagnostics" {
                 DiagnosticsPanel()
             } else {
-                column(flex=1, items="center", justify="center", color="zinc.500", raw_class="gap-3") {
+                column(flex=1, items="center", justify="center", color="zinc.500", gap=3) {
                     text(size="sm", weight="bold", case="upper", tracking="widest") { "CONTEXT EXPLORER" }
                     text(size="xs") { "Context window analysis — Phase 2." }
                 }

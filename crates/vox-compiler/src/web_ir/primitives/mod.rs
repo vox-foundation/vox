@@ -56,6 +56,7 @@ impl PrimitiveEmission {
 /// listed here MUST also appear in `PRIMITIVE_CONSUMED_PROPS` in `web_ir/lower.rs` so it doesn't
 /// leak through as a raw HTML attribute.
 pub const UNIVERSAL_STYLE_KWARGS: &[&str] = &[
+    "gap", "gap_x", "gap_y",
     "pad", "pad_x", "pad_y", "pad_t", "pad_b", "pad_l", "pad_r",
     "mb", "mt", "ml", "mr", "mx", "my",
     "w", "h", "min_w", "min_h", "max_w", "max_h",
@@ -83,7 +84,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
         // ── Layout ────────────────────────────────────────────────────────
         "stack" | "column" => {
             let mut classes = vec!["flex".to_string(), "flex-col".to_string()];
-            apply_gap(get_attr("gap"), &mut classes);
+
             apply_align(get_attr("align"), &mut classes, false);
             Some(PrimitiveEmission {
                 html_tag: "div",
@@ -94,7 +95,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
         }
         "row" => {
             let mut classes = vec!["flex".to_string(), "flex-row".to_string()];
-            apply_gap(get_attr("gap"), &mut classes);
+
             apply_align(get_attr("align"), &mut classes, true);
             if get_attr("wrap").map_or(false, |v| v == "true") {
                 classes.push("flex-wrap".to_string());
@@ -112,7 +113,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 "flex-row".to_string(),
                 "flex-wrap".to_string(),
             ];
-            apply_gap(get_attr("gap"), &mut classes);
+
             Some(PrimitiveEmission {
                 html_tag: "div",
                 base_classes: classes,
@@ -239,7 +240,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 "border-border".to_string(),
                 "p-4".to_string(),
             ];
-            apply_gap(get_attr("gap"), &mut classes);
+
             Some(PrimitiveEmission {
                 html_tag: "div",
                 base_classes: classes,
@@ -256,7 +257,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 "shadow-sm".to_string(),
                 "p-6".to_string(),
             ];
-            apply_gap(get_attr("gap"), &mut classes);
+
             Some(PrimitiveEmission {
                 html_tag: "div",
                 base_classes: classes,
@@ -482,6 +483,9 @@ fn apply_universal_kwargs(attrs: &[(String, String)], classes: &mut Vec<String>)
         // purposes; the kwargs that take token paths don't accept dotted CSS selectors.
         let v_dashed = v.replace('.', "-");
         let classes_to_push: Vec<String> = match k.as_str() {
+            "gap"   => vec![format!("gap-{v}")],
+            "gap_x" => vec![format!("gap-x-{v}")],
+            "gap_y" => vec![format!("gap-y-{v}")],
             "pad"   => vec![format!("p-{v}")],
             "pad_x" => vec![format!("px-{v}")],
             "pad_y" => vec![format!("py-{v}")],

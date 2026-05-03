@@ -37,9 +37,9 @@ component ComposerPanel() {
 
     view: column(
         border_t=true, border_color="white/10",
-        pad=4, raw_class="gap-3 bg-zinc-950/80"
+        pad=4, gap=3, raw_class="bg-zinc-950/80"
     ) {
-        row(raw_class="gap-3 items-end") {
+        row(gap=3, items="end") {
             panel(
                 flex=1, bg="zinc.900", border=true, border_color="white/10",
                 radius="2xl", pad_x=4, pad_y=3, min_h=16
@@ -69,17 +69,17 @@ component SpeakTab() {
             h=12, border_b=true, border_color="zinc.800",
             pad_x=6, items="center", justify="between", shrink=0
         ) {
-            column(raw_class="gap-0") {
+            column(gap=0) {
                 text(size="sm", weight="black", color="white", tracking="tighter") { "LOQUELA" }
                 text(size="xs", color="zinc.500", tracking="widest") { "VOICE INTERFACE" }
             }
-            row(items="center", raw_class="gap-2") {
+            row(items="center", gap=2) {
                 panel(w=2, h=2, radius="full", bg="zinc.600")
                 text(size="xs", color="zinc.500") { "NO ACTIVE SESSION" }
             }
         }
         panel(flex=1, overflow_y="auto", pad_y=4) {
-            column(items="center", justify="center", h="full", color="zinc.500", raw_class="gap-4") {
+            column(items="center", justify="center", h="full", color="zinc.500", gap=4) {
                 text(size="sm", weight="bold", case="upper", tracking="widest") { "START A CONVERSATION" }
                 text(size="xs") { "Messages will appear here once a session is active." }
             }
@@ -93,14 +93,14 @@ component SpeakTab() {
 component DiagnosticRow(severity: str, message: str, location: str) {
     view: row(
         pad_x=4, pad_y=3, border_b=true, border_color="white/5",
-        items="start", raw_class="gap-4 hover:bg-white/5"
+        items="start", gap=4, raw_class="hover:bg-white/5"
     ) {
         panel(
             w=2, h=2, radius="full",
             bg=if severity is "error" { "rose.500" } else { "amber.400" },
             mt=1.5, shrink=0
         )
-        column(flex=1, min_w=0, raw_class="gap-1") {
+        column(flex=1, min_w=0, gap=1) {
             text(size="sm", color="white/80", font_family="mono", leading="snug") { message }
             text(size="xs", color="zinc.500", font_family="mono") { location }
         }
@@ -120,7 +120,7 @@ component DiagnosticsPanel() {
             text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest") { "DIAGNOSTICS" }
             text(size="xs", color="zinc.600") { "0 errors · 0 warnings" }
         }
-        column(flex=1, items="center", justify="center", color="zinc.500", raw_class="gap-3") {
+        column(flex=1, items="center", justify="center", color="zinc.500", gap=3) {
             text(size="sm", weight="bold", case="upper", tracking="widest") { "NO DIAGNOSTICS" }
             text(size="xs") { "Run a build to see compiler output here." }
         }
@@ -130,8 +130,8 @@ component DiagnosticsPanel() {
 component TaskDispatch() {
     state is_running: bool = false
 
-    view: column(border_t=true, border_color="white/10", pad=4, shrink=0, raw_class="gap-3") {
-        row(items="center", raw_class="gap-3") {
+    view: column(border_t=true, border_color="white/10", pad=4, shrink=0, gap=3) {
+        row(items="center", gap=3) {
             button(
                 pad_x=4, pad_y=2, radius="xl",
                 bg=if is_running { "rose.600/80" } else { "blue.600" },
@@ -166,7 +166,7 @@ component CommandTab() {
             pad_x=6, items="center", justify="between", shrink=0
         ) {
             text(size="sm", weight="black", color="white", tracking="tighter") { "COMMAND" }
-            row(raw_class="gap-2") {
+            row(gap=2) {
                 button(raw_class="tab-btn", on_click={active_panel = "diagnostics"}) { "DIAGNOSTICS" }
                 button(raw_class="tab-btn", on_click={active_panel = "context"}) { "CONTEXT" }
             }
@@ -175,7 +175,7 @@ component CommandTab() {
             if active_panel is "diagnostics" {
                 DiagnosticsPanel()
             } else {
-                column(flex=1, items="center", justify="center", color="zinc.500", raw_class="gap-3") {
+                column(flex=1, items="center", justify="center", color="zinc.500", gap=3) {
                     text(size="sm", weight="bold", case="upper", tracking="widest") { "CONTEXT EXPLORER" }
                     text(size="xs") { "Context window analysis — Phase 2." }
                 }
@@ -190,13 +190,13 @@ component CommandTab() {
 component NodeBadge(agent_id: str, status: str) {
     view: row(
         pad_x=3, pad_y=2, bg="zinc.900", border=true, border_color="white/10",
-        radius="xl", items="center", raw_class="gap-3"
+        radius="xl", items="center", gap=3
     ) {
         panel(
             w=2, h=2, radius="full",
             bg=if status is "active" { "emerald.400" } else { "zinc.600" }
         )
-        column(raw_class="gap-0") {
+        column(gap=0) {
             text(size="xs", font_family="mono", color="white/80") { agent_id }
             text(size="xs", color="zinc.500") { status }
         }
@@ -208,18 +208,18 @@ component MeshLegend() {
         position="absolute", bottom=4, left=4,
         bg="zinc.900/90", border=true, border_color="white/10",
         radius="2xl", pad=4,
-        raw_class="gap-2 backdrop-blur"
+        gap=2, raw_class="backdrop-blur"
     ) {
         text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest", mb=1) { "LEGEND" }
-        row(items="center", raw_class="gap-2") {
+        row(items="center", gap=2) {
             panel(w=3, bg="emerald.400", radius="DEFAULT", raw_class="h-0.5")
             text(size="xs", color="zinc.400") { "Active channel" }
         }
-        row(items="center", raw_class="gap-2") {
+        row(items="center", gap=2) {
             panel(w=3, bg="zinc.600", radius="DEFAULT", raw_class="h-0.5")
             text(size="xs", color="zinc.400") { "Idle channel" }
         }
-        row(items="center", raw_class="gap-2") {
+        row(items="center", gap=2) {
             panel(w=2, h=2, radius="full", bg="rose.500")
             text(size="xs", color="zinc.400") { "Error node" }
         }
@@ -232,11 +232,11 @@ component NetworkTab() {
             h=12, border_b=true, border_color="zinc.800",
             pad_x=6, items="center", justify="between", shrink=0
         ) {
-            column(raw_class="gap-0") {
+            column(gap=0) {
                 text(size="sm", weight="black", color="white", tracking="tighter") { "NETWORK" }
                 text(size="xs", color="zinc.500", tracking="widest") { "AGENT MESH TOPOLOGY" }
             }
-            row(items="center", raw_class="gap-3") {
+            row(items="center", gap=3) {
                 text(size="xs", color="zinc.500") { "0 nodes · 0 edges" }
                 button(
                     pad_x=3, radius="lg", bg="white/5",
@@ -247,7 +247,7 @@ component NetworkTab() {
             }
         }
         panel(flex=1, position="relative", overflow="hidden") {
-            column(flex=1, items="center", justify="center", color="zinc.500", raw_class="gap-4") {
+            column(flex=1, items="center", justify="center", color="zinc.500", gap=4) {
                 panel(
                     w=16, h=16, radius="2xl",
                     border=true, border_color="white/10", bg="zinc.900",
@@ -255,7 +255,7 @@ component NetworkTab() {
                 ) {
                     text(size="2xl") { "⬡" }
                 }
-                column(items="center", raw_class="gap-1") {
+                column(items="center", gap=1) {
                     text(size="sm", weight="bold", case="upper", tracking="widest") { "NO MESH DATA" }
                     text(size="xs") { "Agent graph renders here via @island NetworkGraph (Phase 2)." }
                 }
@@ -268,7 +268,7 @@ component NetworkTab() {
 // ── FABRICA / FORGE ──────────────────────────────────────────────────────────
 
 component PipelineStage(name: str, desc: str) {
-    view: column(pad=8, flex=1, border_r=true, border_color="white/5", raw_class="gap-4") {
+    view: column(pad=8, flex=1, border_r=true, border_color="white/5", gap=4) {
         row(justify="between", mb=6) {
             panel(
                 w=10, h=10, radius="xl", bg="zinc.900",
@@ -304,18 +304,18 @@ component PipelineView() {
 component WorkflowScrubber() {
     state is_playing: bool = false
 
-    view: column(pad=10, bg="zinc.950", h="full", color="white", raw_class="gap-8") {
+    view: column(pad=10, bg="zinc.950", h="full", color="white", gap=8) {
         row(justify="between", items="center") {
-            column(raw_class="gap-2") {
+            column(gap=2) {
                 text(size="3xl", weight="black", color="white", tracking="tighter") { "TIME TRAVEL" }
                 text(size="xs", color="zinc.400", weight="bold", tracking="widest") { "DURABLE WORKFLOW STATE INSPECTOR" }
             }
             row(
                 bg="white/5", pad=2, radius="2xl",
                 border=true, border_color="white/5", items="center",
-                raw_class="gap-4"
+                gap=4
             ) {
-                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400", raw_class="flex items-center justify-center") { "<<" }
+                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400") { "<<" }
                 button(
                     w=12, h=12, radius="xl", bg="blue.600", color="white",
                     raw_class="flex items-center justify-center",
@@ -323,11 +323,11 @@ component WorkflowScrubber() {
                 ) {
                     if is_playing { "PAUSE" } else { "PLAY" }
                 }
-                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400", raw_class="flex items-center justify-center") { ">>" }
+                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400") { ">>" }
             }
         }
-        panel(flex=1, raw_class="flex items-center justify-center") {
-            column(items="center", color="zinc.500", raw_class="gap-4") {
+        panel(flex=1) {
+            column(items="center", color="zinc.500", gap=4) {
                 text(size="sm", weight="bold", case="upper", tracking="widest") { "NO ACTIVE WORKFLOW" }
                 text(size="xs") { "Durable state execution will appear here when orchestrated." }
             }
@@ -341,7 +341,7 @@ component ForgeTab() {
     view: column(flex=1, overflow="hidden") {
         row(
             h=10, border_b=true, border_color="zinc.800",
-            pad_x=4, items="center", shrink=0, raw_class="gap-2"
+            pad_x=4, items="center", shrink=0, gap=2
         ) {
             button(raw_class="tab-btn", on_click={active_panel = "pipeline"}) { "PIPELINE" }
             button(raw_class="tab-btn", on_click={active_panel = "scrubber"}) { "SCRUBBER" }
@@ -367,7 +367,7 @@ component AppShell() {
             pad_x=4, items="center", justify="between", shrink=0
         ) {
             text(size="xs", tracking="widest", color="zinc.500") { "VOX ORCHESTRATOR" }
-            row(raw_class="gap-1") {
+            row(gap=1) {
                 button(raw_class="tab-btn", on_click={tab = "speak"})   { "LOQUELA" }
                 button(raw_class="tab-btn", on_click={tab = "command"}) { "IMPERIUM" }
                 button(raw_class="tab-btn", on_click={tab = "network"}) { "RETE" }

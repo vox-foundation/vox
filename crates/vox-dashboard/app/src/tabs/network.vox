@@ -23,13 +23,13 @@ partial state_machine MeshViewState {
 component NodeBadge(agent_id: str, status: str) {
     view: row(
         pad_x=3, pad_y=2, bg="zinc.900", border=true, border_color="white/10",
-        radius="xl", items="center", raw_class="gap-3"
+        radius="xl", items="center", gap=3
     ) {
         panel(
             w=2, h=2, radius="full",
             bg=if status is "active" { "emerald.400" } else { "zinc.600" }
         )
-        column(raw_class="gap-0") {
+        column(gap=0) {
             text(size="xs", font_family="mono", color="white/80") { agent_id }
             text(size="xs", color="zinc.500") { status }
         }
@@ -41,18 +41,18 @@ component MeshLegend() {
         position="absolute", bottom=4, left=4,
         bg="zinc.900/90", border=true, border_color="white/10",
         radius="2xl", pad=4,
-        raw_class="gap-2 backdrop-blur"
+        gap=2, raw_class="backdrop-blur"
     ) {
         text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest", mb=1) { "LEGEND" }
-        row(items="center", raw_class="gap-2") {
+        row(items="center", gap=2) {
             panel(w=3, bg="emerald.400", radius="DEFAULT", raw_class="h-0.5")
             text(size="xs", color="zinc.400") { "Active channel" }
         }
-        row(items="center", raw_class="gap-2") {
+        row(items="center", gap=2) {
             panel(w=3, bg="zinc.600", radius="DEFAULT", raw_class="h-0.5")
             text(size="xs", color="zinc.400") { "Idle channel" }
         }
-        row(items="center", raw_class="gap-2") {
+        row(items="center", gap=2) {
             panel(w=2, h=2, radius="full", bg="rose.500")
             text(size="xs", color="zinc.400") { "Error node" }
         }
@@ -65,11 +65,11 @@ component NetworkTab() {
             h=12, border_b=true, border_color="zinc.800",
             pad_x=6, items="center", justify="between", shrink=0
         ) {
-            column(raw_class="gap-0") {
+            column(gap=0) {
                 text(size="sm", weight="black", color="white", tracking="tighter") { "NETWORK" }
                 text(size="xs", color="zinc.500", tracking="widest") { "AGENT MESH TOPOLOGY" }
             }
-            row(items="center", raw_class="gap-3") {
+            row(items="center", gap=3) {
                 text(size="xs", color="zinc.500") { "0 nodes · 0 edges" }
                 button(
                     pad_x=3, radius="lg", bg="white/5",
@@ -80,7 +80,7 @@ component NetworkTab() {
             }
         }
         panel(flex=1, position="relative", overflow="hidden") {
-            column(flex=1, items="center", justify="center", color="zinc.500", raw_class="gap-4") {
+            column(flex=1, items="center", justify="center", color="zinc.500", gap=4) {
                 panel(
                     w=16, h=16, radius="2xl",
                     border=true, border_color="white/10", bg="zinc.900",
@@ -88,7 +88,7 @@ component NetworkTab() {
                 ) {
                     text(size="2xl") { "⬡" }
                 }
-                column(items="center", raw_class="gap-1") {
+                column(items="center", gap=1) {
                     text(size="sm", weight="bold", case="upper", tracking="widest") { "NO MESH DATA" }
                     text(size="xs") { "Agent graph renders here via @island NetworkGraph (Phase 2)." }
                 }

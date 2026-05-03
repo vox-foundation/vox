@@ -51,9 +51,9 @@ component ComposerPanel() {
 
     view: column(
         border_t=true, border_color="white/10",
-        pad=4, raw_class="gap-3 bg-zinc-950/80"
+        pad=4, gap=3, raw_class="bg-zinc-950/80"
     ) {
-        row(raw_class="gap-3 items-end") {
+        row(gap=3, items="end") {
             panel(
                 flex=1, bg="zinc.900", border=true, border_color="white/10",
                 radius="2xl", pad_x=4, pad_y=3, min_h=16
@@ -83,17 +83,17 @@ component SpeakTab() {
             h=12, border_b=true, border_color="zinc.800",
             pad_x=6, items="center", justify="between", shrink=0
         ) {
-            column(raw_class="gap-0") {
+            column(gap=0) {
                 text(size="sm", weight="black", color="white", tracking="tighter") { "LOQUELA" }
                 text(size="xs", color="zinc.500", tracking="widest") { "VOICE INTERFACE" }
             }
-            row(items="center", raw_class="gap-2") {
+            row(items="center", gap=2) {
                 panel(w=2, h=2, radius="full", bg="zinc.600")
                 text(size="xs", color="zinc.500") { "NO ACTIVE SESSION" }
             }
         }
         panel(flex=1, overflow_y="auto", pad_y=4) {
-            column(items="center", justify="center", h="full", color="zinc.500", raw_class="gap-4") {
+            column(items="center", justify="center", h="full", color="zinc.500", gap=4) {
                 text(size="sm", weight="bold", case="upper", tracking="widest") { "START A CONVERSATION" }
                 text(size="xs") { "Messages will appear here once a session is active." }
             }

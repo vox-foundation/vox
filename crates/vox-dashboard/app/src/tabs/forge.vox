@@ -33,7 +33,7 @@ partial state_machine PipelinePhase {
 }
 
 component PipelineStage(name: str, desc: str) {
-    view: column(pad=8, flex=1, border_r=true, border_color="white/5", raw_class="gap-4") {
+    view: column(pad=8, flex=1, border_r=true, border_color="white/5", gap=4) {
         row(justify="between", mb=6) {
             panel(
                 w=10, h=10, radius="xl", bg="zinc.900",
@@ -69,18 +69,18 @@ component PipelineView() {
 component WorkflowScrubber() {
     state is_playing: bool = false
 
-    view: column(pad=10, bg="zinc.950", h="full", color="white", raw_class="gap-8") {
+    view: column(pad=10, bg="zinc.950", h="full", color="white", gap=8) {
         row(justify="between", items="center") {
-            column(raw_class="gap-2") {
+            column(gap=2) {
                 text(size="3xl", weight="black", color="white", tracking="tighter") { "TIME TRAVEL" }
                 text(size="xs", color="zinc.400", weight="bold", tracking="widest") { "DURABLE WORKFLOW STATE INSPECTOR" }
             }
             row(
                 bg="white/5", pad=2, radius="2xl",
                 border=true, border_color="white/5", items="center",
-                raw_class="gap-4"
+                gap=4
             ) {
-                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400", raw_class="flex items-center justify-center") { "<<" }
+                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400") { "<<" }
                 button(
                     w=12, h=12, radius="xl", bg="blue.600", color="white",
                     raw_class="flex items-center justify-center",
@@ -88,11 +88,11 @@ component WorkflowScrubber() {
                 ) {
                     if is_playing { "PAUSE" } else { "PLAY" }
                 }
-                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400", raw_class="flex items-center justify-center") { ">>" }
+                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400") { ">>" }
             }
         }
-        panel(flex=1, raw_class="flex items-center justify-center") {
-            column(items="center", color="zinc.500", raw_class="gap-4") {
+        panel(flex=1) {
+            column(items="center", color="zinc.500", gap=4) {
                 text(size="sm", weight="bold", case="upper", tracking="widest") { "NO ACTIVE WORKFLOW" }
                 text(size="xs") { "Durable state execution will appear here when orchestrated." }
             }
@@ -106,7 +106,7 @@ component ForgeTab() {
     view: column(flex=1, overflow="hidden") {
         row(
             h=10, border_b=true, border_color="zinc.800",
-            pad_x=4, items="center", shrink=0, raw_class="gap-2"
+            pad_x=4, items="center", shrink=0, gap=2
         ) {
             button(raw_class="tab-btn", on_click={active_panel = "pipeline"}) { "PIPELINE" }
             button(raw_class="tab-btn", on_click={active_panel = "scrubber"}) { "SCRUBBER" }

@@ -243,8 +243,9 @@ impl DomArena {
 /// VUV-4 universal style kwargs (see `primitives::UNIVERSAL_STYLE_KWARGS`) are appended below.
 const PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
     // Pre-VUV per-primitive props
-    "gap", "size", "weight", "align", "wrap", "variant", "level", "surface", "z",
+    "size", "weight", "align", "wrap", "variant", "level", "surface", "z",
     // VUV-4 universal kwargs — must mirror `web_ir::primitives::UNIVERSAL_STYLE_KWARGS`
+    "gap", "gap_x", "gap_y",
     "pad", "pad_x", "pad_y", "pad_t", "pad_b", "pad_l", "pad_r",
     "mb", "mt", "ml", "mr", "mx", "my",
     "w", "h", "min_w", "min_h", "max_w", "max_h",
