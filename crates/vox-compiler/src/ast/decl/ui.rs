@@ -149,6 +149,23 @@ pub struct IslandProp {
     pub is_optional: bool,
 }
 
+/// `.vox.ui` reactive module declaration (ADR-032).
+///
+/// A top-level container for reactive members shared across components in the same file.
+/// Lowers to a generated React context provider + `use<Name>()` hook in TSX emit; the
+/// module's name is derived from the file basename (e.g. `counter.vox.ui` → `Counter`).
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ReactiveModuleDecl {
+    /// Module name, derived from the source file's basename. Used to name the generated
+    /// React context, provider component, and hook.
+    pub name: String,
+    /// Reactive members declared at module scope: `state`, `derived`, `effect`,
+    /// `on mount`, `on cleanup`. Same shape as inside a [`ReactiveComponentDecl`].
+    pub members: Vec<ReactiveMemberDecl>,
+    /// Source span.
+    pub span: Span,
+}
+
 /// Reactive component declaration (Path C reactive model).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ReactiveComponentDecl {

@@ -333,6 +333,86 @@ impl Parser {
         })
     }
 
+    /// ADR-032: parse module-scope reactive members in a `.vox.ui` file into a single
+    /// synthetic [`ReactiveModuleDecl`]. Consumes consecutive `state` / `derived` /
+    /// `effect` / `on mount` / `on cleanup` declarations until it hits a token that
+    /// isn't one of those, then returns. Subsequent module-scope reactive members in
+    /// the same file would be picked up by another `parse_decl` call and produce a
+    /// second `ReactiveModuleDecl` — that's intentional; per-module name disambiguation
+    /// is the file's responsibility.
+    ///
+    /// Caller (`parse_decl`) only invokes this when `self.file_kind ==
+    /// FileKind::ReactiveModule` and the next token is a reactive member.
+    pub(crate) fn parse_reactive_module_decl(&mut self) -> Result<crate::ast::decl::Decl, ()> {
+        use crate::ast::decl::{
+            EffectDecl, OnCleanupDecl, OnMountDecl, ReactiveMemberDecl, ReactiveModuleDecl,
+        };
+        use crate::lexer::token::Token;
+        use crate::parser::error::{ParseError, ParseErrorClass};
+
+        let start = self.span();
+        let mut members: Vec<ReactiveMemberDecl> = Vec::new();
+
+        loop {
+            self.skip_newlines();
+            match self.peek().clone() {
+                Token::State => {
+                    members.push(ReactiveMemberDecl::State(self.parse_state_decl()?))
+                }
+                Token::Derived => {
+                    members.push(ReactiveMemberDecl::Derived(self.parse_derived_decl()?))
+                }
+                Token::Effect => {
+                    let eff_start = self.span();
+                    let body = self.parse_reactive_block()?;
+                    members.push(ReactiveMemberDecl::Effect(EffectDecl {
+                        body,
+                        span: eff_start.merge(self.span()),
+                    }));
+                }
+                Token::On => {
+                    let on_start = self.span();
+                    self.advance();
+                    match self.peek().clone() {
+                        Token::Mount => {
+                            let body = self.parse_reactive_block()?;
+                            members.push(ReactiveMemberDecl::OnMount(OnMountDecl {
+                                body,
+                                span: on_start.merge(self.span()),
+                            }));
+                        }
+                        Token::Cleanup => {
+                            let body = self.parse_reactive_block()?;
+                            members.push(ReactiveMemberDecl::OnCleanup(OnCleanupDecl {
+                                body,
+                                span: on_start.merge(self.span()),
+                            }));
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected `mount` or `cleanup` after `on` at module scope in a `.vox.ui` file.",
+                                vec!["mount".into(), "cleanup".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                }
+                _ => break,
+            }
+        }
+
+        Ok(crate::ast::decl::Decl::ReactiveModule(ReactiveModuleDecl {
+            // Module name is filled in later by codegen from the source file basename;
+            // the parser doesn't know the path. Empty for now.
+            name: String::new(),
+            members,
+            span: start.merge(self.span()),
+        }))
+    }
+
     /// `@island Name { prop: Type, prop?: Type }` — brace-delimited prop block.
     /// `@loading fn Name() to Element { ... }` — TanStack Router `pendingComponent` / suspense UI.
     pub(crate) fn parse_loading(&mut self) -> Result<Decl, ()> {
