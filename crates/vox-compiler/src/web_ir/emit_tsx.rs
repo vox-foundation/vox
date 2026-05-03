@@ -16,6 +16,9 @@
 //! `onClick`) — they must match the same matrix as [`crate::codegen_ts::hir_emit::map_jsx_attr_name`].
 //! The preview emitter treats the lowered `(name, value)` list as an unordered map edge: **never** rely on
 //! source insertion order in TSX snapshots — only on the sort step below.
+//! Tag names in `DomNode::Element` are likewise pre-lowered to React-form
+//! camelCase (e.g. `radialGradient`, `clipPath`) by `web_ir/lower.rs`;
+//! callers must not re-apply `map_jsx_tag` here.
 //!
 //! ## Escape hatches (OP-0106)
 //! [`crate::web_ir::DomNode::Expr`] prints raw TypeScript fragments from lowering; do not feed user

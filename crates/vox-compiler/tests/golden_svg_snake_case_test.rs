@@ -75,6 +75,28 @@ fn svg_snake_case_attrs_lower_to_camel() {
 }
 
 #[test]
+fn svg_remaining_tag_aliases_lower() {
+    let src = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/svg/uncovered_tags.vox"
+    ))
+    .unwrap();
+    let expected = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/svg/uncovered_tags.expected.tsx"
+    ))
+    .unwrap();
+
+    let files = compile_components(&src);
+    let actual = get_component(&files, "Filtered");
+    assert_eq!(
+        normalize_ws(&actual).trim().to_string(),
+        normalize_ws(&expected).trim().to_string(),
+        "Filtered.tsx: linearGradient/feGaussianBlur/foreignObject tags did not lower to camelCase"
+    );
+}
+
+#[test]
 fn svg_camel_case_still_works() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
