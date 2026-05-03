@@ -234,6 +234,16 @@ impl Orchestrator {
             }
         }
 
+        // Doom-loop check: block if agent is spending cost without making progress.
+        let gate_result = {
+            let bm = crate::sync_lock::rw_read(&*self.budget_manager);
+            crate::gate::BudgetGate::check_doom_loop(&bm, agent_id)
+        };
+        if let crate::gate::GateResult::DoomLoop { message } = gate_result {
+            tracing::error!(agent_id = ?agent_id, %message, "blocking submission: doom-loop");
+            return Err(crate::orchestrator::OrchestratorError::DoomLoop(message));
+        }
+
         // Budget evaluation for autonomous self-correction
         let budget_signal =
             crate::sync_lock::rw_read(&*self.budget_manager).agent_budget_signal(agent_id);

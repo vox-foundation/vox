@@ -52,6 +52,7 @@ impl Orchestrator {
 
         self.record_activity();
         crate::sync_lock::rw_write(&self.monitor).record_progress(agent_id);
+        crate::sync_lock::rw_read(&*self.budget_manager).record_task_completion(agent_id);
 
         let (task_clone_opt, phase_label, write_files) = {
             let agents = crate::sync_lock::rw_read(&*self.agents);

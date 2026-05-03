@@ -357,6 +357,9 @@ pub async fn mcp_infer_tool_completion(
                 GateResult::BehavioralTestFailed { message } => {
                     return Err(message);
                 }
+                GateResult::DoomLoop { message } => {
+                    return Err(message);
+                }
             }
         }
 
