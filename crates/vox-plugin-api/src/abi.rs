@@ -6,6 +6,7 @@
 //! SP2 ships only the `VoxPlugin` root with `id` + `shutdown`. Per-extension
 //! `as_*` accessors are added in SP3+ as their respective traits land.
 
+use crate::extensions::hardware_probe::HardwareProbe_TO;
 use crate::extensions::ml_backend::MlBackend_TO;
 use crate::host::VoxHost_TO;
 use abi_stable::{
@@ -44,6 +45,13 @@ pub trait VoxPlugin: Send + Sync {
     /// return Some(trait object). Default impl returns None — plugins that
     /// don't provide MlBackend simply inherit the default.
     fn as_ml_backend(&self) -> ROption<MlBackend_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
+
+    /// Optional accessor: if this plugin provides a HardwareProbe implementation,
+    /// return Some(trait object). Default impl returns None — plugins that
+    /// don't provide HardwareProbe simply inherit the default.
+    fn as_hardware_probe(&self) -> ROption<HardwareProbe_TO<'static, RBox<()>>> {
         ROption::RNone
     }
 }
