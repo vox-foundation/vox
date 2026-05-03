@@ -88,6 +88,7 @@ vox-openai-sse            = { path = "crates/vox-openai-sse" }
 vox-openai-wire           = { path = "crates/vox-openai-wire" }
 vox-plugin-api            = { path = "crates/vox-plugin-api" }
 vox-plugin-catalog        = { path = "crates/vox-plugin-catalog" }
+vox-plugin-host           = { path = "crates/vox-plugin-host" }
 vox-pm                    = { path = "crates/vox-pm" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }
@@ -124,7 +125,7 @@ tokio              = { version = "1", features = ["rt", "macros", "sync", "time"
 tokio-stream       = { version = "0.1", default-features = false }
 tracing            = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-tracing-test       = "0.2"
+tracing-test       = { version = "0.2", features = ["no-env-filter"] }
 anyhow             = "1"
 reqwest            = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
 bsky-sdk = { version = "0.1", default-features = false, features = ["atrium-xrpc-client", "rich-text", "default-client"] }

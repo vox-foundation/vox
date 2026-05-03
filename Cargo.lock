@@ -12905,6 +12905,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-plugin-host"
+version = "0.5.0"
+dependencies = [
+ "abi_stable",
+ "dirs",
+ "libloading 0.8.9",
+ "serde",
+ "tempfile",
+ "thiserror 1.0.69",
+ "toml 0.8.23",
+ "tracing",
+ "tracing-test",
+ "vox-plugin-api",
+ "walkdir",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-pm"
 version = "0.5.0"
 dependencies = [

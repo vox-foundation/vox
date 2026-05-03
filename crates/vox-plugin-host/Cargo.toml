@@ -1,0 +1,26 @@
+[package]
+name = "vox-plugin-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Vox host-side plugin discovery, loading, and registry."
+
+[dependencies]
+vox-plugin-api = { workspace = true }
+abi_stable = { workspace = true }
+libloading = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+toml = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+walkdir = { workspace = true }
+dirs = { workspace = true }
+workspace-hack = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tracing-test = { workspace = true }
+
+[lints]
+workspace = true
