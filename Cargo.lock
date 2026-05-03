@@ -12923,6 +12923,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-plugin-noop-code"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "vox-plugin-api",
+]
+
+[[package]]
+name = "vox-plugin-noop-code-bad-abi"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "vox-plugin-api",
+]
+
+[[package]]
 name = "vox-pm"
 version = "0.5.0"
 dependencies = [

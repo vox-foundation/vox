@@ -1,0 +1,13 @@
+[package]
+name = "vox-plugin-noop-code"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+description = "Test fixture: a no-op code plugin used by vox-plugin-host loader tests."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+vox-plugin-api = { workspace = true }
+abi_stable = { workspace = true }

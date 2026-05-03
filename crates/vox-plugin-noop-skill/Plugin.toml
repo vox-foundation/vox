@@ -1,0 +1,16 @@
+[plugin]
+id = "noop-skill"
+name = "Noop Skill"
+version = "0.1.0"
+description = "Test fixture: a no-op skill plugin for SP2 discover tests."
+
+[plugin.host]
+min-vox-version = "0.5.0"
+
+[plugin.payload]
+kind = "skill"
+format-version = 1
+skill-md = "noop.skill.md"
+
+[plugin.payload.tools]
+exposes = ["noop_tool"]
