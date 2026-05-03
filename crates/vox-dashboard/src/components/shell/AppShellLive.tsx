@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SpeakIsland } from './SpeakIsland';
+import { SpeakPanel } from './SpeakPanel';
 import { CommandTab } from '../../../app/src/generated/CommandTab';
 import { NetworkTab } from '../../../app/src/generated/NetworkTab';
 import { ForgeTab } from '../../../app/src/generated/ForgeTab';
@@ -33,7 +33,7 @@ export function AppShellLive() {
         </div>
       </div>
       <div className="flex-1 overflow-hidden flex flex-col">
-        <div className={tab === 'speak'   ? 'contents' : 'hidden'}><SpeakIsland /></div>
+        <div className={tab === 'speak'   ? 'contents' : 'hidden'}><SpeakPanel /></div>
         <div className={tab === 'command' ? 'contents' : 'hidden'}><CommandTab /></div>
         <div className={tab === 'network' ? 'contents' : 'hidden'}><NetworkTab /></div>
         <div className={tab === 'forge'   ? 'contents' : 'hidden'}><ForgeTab /></div>

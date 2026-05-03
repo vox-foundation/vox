@@ -2,12 +2,12 @@
 //
 // Components:
 //   - ChatMessage     — single message bubble (role + content)
-//   - ComposerPanel   — text input + send button (local state; transport via @island Phase 2)
+//   - ComposerPanel   — text input + send button (local state; transport via Vox transport hook in Phase 2)
 //   - SpeakTab        — root tab with session header + composer
 //
 // State machines:
 //   - ChatSessionState: Idle -> Composing -> Submitting -> Idle
-//     Streaming state deferred to @island bridge (requires useVoxTransport).
+//     Streaming state deferred to Vox transport bridge (requires useVoxTransport).
 
 partial state_machine ChatSessionState {
     state Idle

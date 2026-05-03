@@ -28,7 +28,7 @@ export function TaskDispatch(): React.ReactElement {
 </row>
   <text className={"text-xs text-zinc-600"}
 >
-  {"Transport bridge: Phase 2 — output streams via @island"}
+  {"Transport bridge: Phase 2 — output streams via Vox transport hook"}
 </text>
 </column>
   );

@@ -8,7 +8,7 @@
 //   - ScrubberState: Paused -> Playing -> Scrubbing -> Paused
 //   - PipelinePhase: Idle -> Running -> Completed | Failed
 //
-// Transport calls (vox_plan_resume) are deferred to @island or Phase 2 bridge.
+// Transport calls (vox_plan_resume) are deferred to the Vox transport bridge (Phase 2).
 
 partial state_machine ScrubberState {
     state Paused

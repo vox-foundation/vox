@@ -50,7 +50,7 @@ export function NetworkTab(): React.ReactElement {
 </text>
   <text className={"text-xs"}
 >
-  {"Agent graph renders here via @island NetworkGraph (Phase 2)."}
+  {"Agent graph renders here via NetworkGraph React component (Phase 2)."}
 </text>
 </column>
 </column>

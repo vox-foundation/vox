@@ -106,7 +106,7 @@ component TaskDispatch() {
                 <panel class="flex-1"></panel>
                 <text class={if is_running { "text-xs text-blue-400 font-bold uppercase" } else { "text-xs text-zinc-600 uppercase" }}>{if is_running { "BUILDING…" } else { "IDLE" }}</text>
             </row>
-            <text class="text-xs text-zinc-600">"Transport bridge: Phase 2 — output streams via @island"</text>
+            <text class="text-xs text-zinc-600">"Transport bridge: Phase 2 — output streams via Vox transport hook"</text>
         </column>
     )
 }
@@ -174,7 +174,7 @@ component NetworkTab() {
                     <panel class="w-16 h-16 rounded-2xl border border-white/10 bg-zinc-900 items-center justify-center"><text class="text-2xl">"⬡"</text></panel>
                     <column class="items-center gap-1">
                         <text class="text-sm font-bold uppercase tracking-widest">"NO MESH DATA"</text>
-                        <text class="text-xs">"Agent graph renders here via @island NetworkGraph (Phase 2)."</text>
+                        <text class="text-xs">"Agent graph renders here via NetworkGraph React component (Phase 2)."</text>
                     </column>
                 </column>
                 <MeshLegend />
