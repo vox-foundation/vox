@@ -47,3 +47,16 @@ fn catalog_has_all_skill_plugins() {
         assert!(skill_ids.contains(&id), "missing skill plugin: {id}");
     }
 }
+
+#[test]
+fn catalog_has_all_eight_bundles() {
+    let bundles = all_bundles();
+    let ids: Vec<&str> = bundles.iter().map(|b| b.id.as_str()).collect();
+    let expected = [
+        "vox-base", "vox-fullstack", "vox-ml", "vox-mesh", "vox-server",
+        "vox-edge", "vox-cloud-only", "vox-dev",
+    ];
+    for id in expected {
+        assert!(ids.contains(&id), "missing bundle: {id}");
+    }
+}

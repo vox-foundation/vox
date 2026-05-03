@@ -150,3 +150,50 @@ bundled-in = ["vox-fullstack", "vox-edge"]
 id = "vox-base"
 description = "Bare host binary, no plugins."
 plugins = []
+
+[[bundle]]
+id = "vox-fullstack"
+description = "Default developer experience with all built-in skill plugins."
+plugins = [
+    "skill-compiler", "skill-testing", "skill-testing-validate", "skill-memory",
+    "skill-git", "skill-orchestrator", "skill-rag", "skill-v0",
+]
+
+[[bundle]]
+id = "vox-ml"
+description = "Fullstack plus ML/GPU code plugins (NVIDIA CUDA stack)."
+extends = "vox-fullstack"
+plugins = ["tensor-burn-wgpu", "mens-candle-cuda"]
+
+[[bundle]]
+id = "vox-mesh"
+description = "Server-side mesh deployment with cloud sync."
+extends = "vox-base"
+plugins = ["populi-mesh", "cloud", "skill-orchestrator"]
+
+[[bundle]]
+id = "vox-server"
+description = "Headless backend deployment: orchestrator + mesh, no GUI/ML."
+extends = "vox-base"
+plugins = ["populi-mesh", "cloud", "skill-orchestrator", "skill-memory"]
+
+[[bundle]]
+id = "vox-edge"
+description = "Edge / on-device deployment: lightweight runtime + local skills, no cloud or mesh."
+extends = "vox-base"
+plugins = ["skill-compiler", "skill-memory", "skill-v0"]
+
+[[bundle]]
+id = "vox-cloud-only"
+description = "Cloud-managed deployment: cloud sync only, no local ML or mesh transport."
+extends = "vox-base"
+plugins = ["cloud", "skill-orchestrator", "skill-memory"]
+
+[[bundle]]
+id = "vox-dev"
+description = "Contributor / power-user development environment: fullstack + ML + mesh + audio."
+extends = "vox-fullstack"
+plugins = [
+    "tensor-burn-wgpu", "mens-candle-cuda",
+    "populi-mesh", "cloud", "oratio", "oratio-mic",
+]
