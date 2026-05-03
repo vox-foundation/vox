@@ -4,6 +4,7 @@ description: "Introduces a `.vox.ui` file-suffix convention that allows module-s
 category: "architecture"
 status: "current"
 last_updated: "2026-05-03"
+training_eligible: true
 schema_type: "TechArticle"
 ---
 # ADR 032: `.vox.ui` reactive modules

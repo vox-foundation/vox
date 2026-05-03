@@ -463,7 +463,7 @@ impl LowerCtx {
                     is_pub: false,
                     is_mobile_native: false,
                     is_pure: false,
-            is_reactive: false,
+                    is_reactive: false,
                     is_llm: false,
                     llm_model: None,
                     is_deprecated: a.is_deprecated,

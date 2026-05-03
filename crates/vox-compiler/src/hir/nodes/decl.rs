@@ -144,6 +144,8 @@ impl HirModule {
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
             ("components", HirFieldOwnership::SemanticCore),
             ("url_decls", HirFieldOwnership::SemanticCore),
+            ("fragments", HirFieldOwnership::SemanticCore),
+            ("reactive_modules", HirFieldOwnership::SemanticCore),
         ]
     }
 

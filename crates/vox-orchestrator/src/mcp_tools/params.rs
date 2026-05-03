@@ -420,8 +420,10 @@ pub struct ValidateFileParams {
 #[derive(Debug, Deserialize, JsonSchema)]
 #[schemars(deny_unknown_fields)]
 pub struct ValidateSourceParams {
-    /// Vox source code to validate.
-    #[schemars(length(min = 1))]
+    /// Vox source code to validate. Capped at 131_072 bytes (128 KiB) so a runaway
+    /// or adversarial AI agent cannot submit an arbitrarily large payload that the
+    /// compiler pipeline would happily allocate and process.
+    #[schemars(length(min = 1, max = 131_072))]
     pub source: String,
     /// Optional virtual path used for diagnostic provenance only (not opened).
     #[serde(default)]

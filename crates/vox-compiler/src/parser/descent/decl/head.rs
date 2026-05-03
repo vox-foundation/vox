@@ -376,8 +376,6 @@ impl Parser {
         use crate::ast::decl::{
             EffectDecl, OnCleanupDecl, OnMountDecl, ReactiveMemberDecl, ReactiveModuleDecl,
         };
-        use crate::lexer::token::Token;
-        use crate::parser::error::{ParseError, ParseErrorClass};
 
         let start = self.span();
         let mut members: Vec<ReactiveMemberDecl> = Vec::new();

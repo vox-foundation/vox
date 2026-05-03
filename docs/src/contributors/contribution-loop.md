@@ -107,7 +107,7 @@ cargo run -p vox-cli -- ci ssot-drift
 ## After merging a snapshot-touching PR
 
 The test suite uses [insta](https://insta.rs/) for snapshot assertions. CI runs with
-`INSTA_UPDATE=unseen` ([`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)) so
+`INSTA_UPDATE=unseen` ([`.github/workflows/ci.yml`](https://github.com/vox-foundation/vox/blob/main/.github/workflows/ci.yml)) so
 **new** snapshots auto-accept in CI without failing the build, and the resulting
 `tests/snapshots/` directories are uploaded as the `insta-snapshots` artifact. **Changed**
 snapshots still fail.

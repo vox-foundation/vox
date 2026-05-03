@@ -4,6 +4,7 @@ description: "Introduces a `fragment` bare-keyword scope for typed parametric ma
 category: "architecture"
 status: "current"
 last_updated: "2026-05-03"
+training_eligible: true
 schema_type: "TechArticle"
 ---
 # ADR 033: Typed parametric fragment primitive

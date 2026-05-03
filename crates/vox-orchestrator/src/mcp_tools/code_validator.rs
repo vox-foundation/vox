@@ -55,29 +55,50 @@ fn parse_fix(value: &serde_json::Value) -> Option<FixInfo> {
     let range = value.get("range")?;
     let start = range.get("start")?;
     let end = range.get("end")?;
+    // Defensive conversion: out-of-range u64 → drop the fix instead of silently
+    // truncating with `as u32`. LSP line numbers > u32::MAX are physically
+    // impossible, but corrupt fix ranges should fail safe.
     Some(FixInfo {
         label,
         replacement,
-        start_line: start.get("line")?.as_u64()? as u32,
-        start_col: start.get("character")?.as_u64()? as u32,
-        end_line: end.get("line")?.as_u64()? as u32,
-        end_col: end.get("character")?.as_u64()? as u32,
+        start_line: u32::try_from(start.get("line")?.as_u64()?).ok()?,
+        start_col: u32::try_from(start.get("character")?.as_u64()?).ok()?,
+        end_line: u32::try_from(end.get("line")?.as_u64()?).ok()?,
+        end_col: u32::try_from(end.get("character")?.as_u64()?).ok()?,
     })
 }
 
 /// Pre-validation heuristics that short-circuit before HIR validation.
 /// Returns `Some(error_json)` if a hard fail-fast pattern is found, else `None`.
+///
+/// Patterns are checked carefully to avoid false positives in comments / string
+/// literals: `todo!()` / `unimplemented!()` are specific enough as substrings; the
+/// macro/operator keyword guards anchor on the start of a trimmed line so a comment
+/// like `// the macro expansion approach…` or `// addition operator returns u32`
+/// does not trigger. The `// TODO` substring check (formerly part of the TOESTUB
+/// pattern) was dropped — `// TODO` markers in human-maintained code are routine
+/// and are not skeleton-code indicators.
 fn pre_validation_guard<R: serde::Serialize>(text: &str) -> Option<String> {
-    if text.contains("todo!()") || text.contains("unimplemented!()") || text.contains("// TODO") {
+    if text.contains("todo!()") || text.contains("unimplemented!()") {
         return Some(
             ToolResult::<R>::err_with_remediation(
-                "LAZY_GENERATION_DETECTED: Found a TOESTUB pattern (e.g. todo!(), unimplemented!(), or // TODO) in your code output. You must emit the complete, fully-implemented code. Re-run your action with the actual logic.".to_string(),
+                "LAZY_GENERATION_DETECTED: Found a TOESTUB pattern (e.g. todo!() or unimplemented!()) in your code output. You must emit the complete, fully-implemented code. Re-run your action with the actual logic.".to_string(),
                 "Complete the skeleton code before validating or submitting.".to_string(),
             )
             .to_json(),
         );
     }
-    if text.contains("macro_rules!") || text.contains("macro ") || text.contains("operator ") {
+    // Line-anchored keyword checks: only flag when these tokens appear at the
+    // start of a (trimmed) line, so substrings inside comments / string literals
+    // don't false-positive. `macro_rules!` is a Rust-specific token that has no
+    // legitimate use in Vox source even inside comments, so it stays as a global
+    // substring.
+    if text.contains("macro_rules!")
+        || text.lines().any(|l| {
+            let t = l.trim_start();
+            t.starts_with("macro ") || t.starts_with("operator ")
+        })
+    {
         return Some(
             ToolResult::<R>::err_with_remediation(
                 "UNSUPPORTED_SYNTAX: Vox is strictly constrained. Do not use macros or custom syntactic configurability. Use vox-skills for extended actions.".to_string(),

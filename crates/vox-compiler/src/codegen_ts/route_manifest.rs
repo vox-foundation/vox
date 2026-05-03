@@ -193,12 +193,8 @@ fn emit_route_path_builder(top: &[&RouteContract]) -> String {
     let mut deduped = all_paths.clone();
     deduped.sort();
     deduped.dedup();
-    for (i, p) in deduped.iter().enumerate() {
-        if i == 0 {
-            s.push_str(&format!("\n  | \"{p}\""));
-        } else {
-            s.push_str(&format!("\n  | \"{p}\""));
-        }
+    for p in &deduped {
+        s.push_str(&format!("\n  | \"{p}\""));
     }
     s.push_str(";\n\n");
 

@@ -1634,9 +1634,9 @@ fn route_contract(id: &str, pattern: &str, component: Option<&str>) -> RouteCont
 /// detection to actually run must register the link as a view root, otherwise the
 /// detached link is invisible to the validator (per the "orphan nodes must not count as
 /// route references" comment in `validate.rs`).
-fn link_element(href: &str) -> DomNode {
+fn link_element(id: u32, href: &str) -> DomNode {
     DomNode::Element {
-        id: DomNodeId(0),
+        id: DomNodeId(id),
         tag: "a".to_string(),
         attrs: vec![("href".to_string(), href.to_string())],
         children: vec![],
@@ -1673,7 +1673,7 @@ fn web_ir_validate_route_component_exists_is_ok() {
 fn web_ir_validate_route_broken_link_is_error() {
     let mut m = WebIrModule::default();
     m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", None)]));
-    m.dom_nodes.push(link_element("/nonexistent"));
+    m.dom_nodes.push(link_element(0, "/nonexistent"));
     // The broken-link check only fires for links reachable from a declared view root —
     // see the "orphan nodes must not count as route references" comment in validate.rs.
     m.view_roots.push(("Home".to_string(), DomNodeId(0)));
@@ -1688,7 +1688,7 @@ fn web_ir_validate_route_broken_link_is_error() {
 fn web_ir_validate_route_matching_link_is_ok() {
     let mut m = WebIrModule::default();
     m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", None)]));
-    m.dom_nodes.push(link_element("/home"));
+    m.dom_nodes.push(link_element(0, "/home"));
     m.view_roots.push(("Home".to_string(), DomNodeId(0)));
     let diags = validate_web_ir(&m);
     assert!(
