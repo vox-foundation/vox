@@ -483,6 +483,12 @@ pub enum CiCmd {
     /// Verify every in-tree `Plugin.toml` has a matching entry in the plugin catalog. Passes trivially when no Plugin.toml files exist (SP1).
     #[command(name = "plugin-catalog-parity")]
     PluginCatalogParity,
+    /// Walk crates/ for code/composite Plugin.toml files and assert ABI matches the host. Skips intentionally-broken `noop-bad-*` fixtures.
+    #[command(name = "plugin-abi-parity")]
+    PluginAbiParity,
+    /// Walk crates/ for skill/composite Plugin.toml files and assert skill-md exists, is non-empty, and tools.exposes is non-empty.
+    #[command(name = "plugin-skill-parity")]
+    PluginSkillParity,
     /// Poll GitHub Actions checks for the current HEAD (or a specific SHA) and print failures.
     #[command(name = "watch-run")]
     WatchRun {

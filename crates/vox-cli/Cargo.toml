@@ -147,6 +147,7 @@ vox-build-meta = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
 vox-orchestrator = { workspace = true }
 vox-plugin-catalog = { workspace = true }
+vox-plugin-host = { workspace = true }
 vox-populi = { workspace = true, features = ["transport"] }
 vox-mesh-types = { workspace = true }
 vox-workflow-runtime = { workspace = true, optional = true }

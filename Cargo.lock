@@ -12221,6 +12221,7 @@ dependencies = [
  "vox-mesh-types",
  "vox-orchestrator",
  "vox-plugin-catalog",
+ "vox-plugin-host",
  "vox-pm",
  "vox-populi",
  "vox-primitives",

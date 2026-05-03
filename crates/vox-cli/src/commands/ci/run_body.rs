@@ -345,6 +345,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             super::generate_plugin_catalog_docs::run(catalog_out, bundles_out, check)
         }
         CiCmd::PluginCatalogParity => super::plugin_catalog_parity::run(),
+        CiCmd::PluginAbiParity => super::plugin_abi_parity::run(),
+        CiCmd::PluginSkillParity => super::plugin_skill_parity::run(),
         CiCmd::WatchRun { sha, timeout_secs, advisory, failures_only } => super::watch_run::run(super::watch_run::WatchRunArgs {
             sha,
             timeout_secs,
