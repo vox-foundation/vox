@@ -467,6 +467,19 @@ pub enum CiCmd {
         #[arg(long)]
         write_to: Option<PathBuf>,
     },
+    /// Regenerate plugin catalog and distribution bundles reference docs from `catalog.toml`.
+    #[command(name = "generate-plugin-catalog-docs")]
+    GeneratePluginCatalogDocs {
+        /// Output path for the plugin catalog Markdown (default: `docs/src/reference/plugin-catalog.generated.md`).
+        #[arg(long)]
+        catalog_out: Option<PathBuf>,
+        /// Output path for the distribution bundles Markdown (default: `docs/src/reference/distribution-bundles.generated.md`).
+        #[arg(long)]
+        bundles_out: Option<PathBuf>,
+        /// Fail if either file is out of date instead of regenerating.
+        #[arg(long)]
+        check: bool,
+    },
     /// Poll GitHub Actions checks for the current HEAD (or a specific SHA) and print failures.
     #[command(name = "watch-run")]
     WatchRun {

@@ -20,6 +20,7 @@ mod doctest_md;
 mod eval_matrix;
 mod exec_policy_contract;
 mod frozen_crates;
+mod generate_plugin_catalog_docs;
 mod grammar_ssot_parity;
 mod gui_smoke;
 mod install_hooks;
