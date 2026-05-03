@@ -10,7 +10,6 @@ use crate::registry::SkillRegistry;
 
 /// All built-in skill SKILL.md contents.
 const BUILTIN_SKILLS: &[(&str, &str)] = &[
-    ("vox.compiler", include_str!("../skills/compiler.skill.md")),
     ("vox.testing", include_str!("../skills/testing.skill.md")),
     ("vox.memory", include_str!("../skills/memory.skill.md")),
     ("vox.git", include_str!("../skills/git.skill.md")),
@@ -55,9 +54,10 @@ mod tests {
     #[test]
     fn all_builtins_parse() {
         let bundles = builtin_bundles().expect("parse all built-ins");
-        assert_eq!(bundles.len(), 8);
+        assert_eq!(bundles.len(), 7);
         let ids: Vec<_> = bundles.iter().map(|b| b.manifest.id.as_str()).collect();
-        assert!(ids.contains(&"vox.compiler"));
+        // vox.compiler extracted to crates/vox-plugin-skill-compiler (SP4)
+        assert!(!ids.contains(&"vox.compiler"));
         assert!(ids.contains(&"vox.testing"));
         assert!(ids.contains(&"vox.memory"));
         assert!(ids.contains(&"vox.git"));
@@ -71,8 +71,9 @@ mod tests {
     async fn install_builtins_into_empty_registry() {
         let reg = SkillRegistry::new();
         let count = install_builtins(&reg).await.expect("install");
-        assert_eq!(count, 8);
-        assert!(reg.get("vox.compiler").is_some());
+        assert_eq!(count, 7);
+        // vox.compiler extracted to crates/vox-plugin-skill-compiler (SP4)
+        assert!(reg.get("vox.compiler").is_none());
         assert!(reg.get("vox.memory").is_some());
         assert!(reg.get("vox.populi").is_some());
         assert!(reg.get("vox.mens").is_some()); // legacy id alias → vox.populi
