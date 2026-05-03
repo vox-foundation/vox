@@ -7,15 +7,10 @@ repository.workspace = true
 description = "Build-time metadata generator for feature capability manifest."
 
 [features]
-gpu = []
-oratio = []
-oratio-mic = []
-script-execution = []
-mens-candle-cuda = []
-cloud = []
-execution-api = []
-stub-check = []
-populi = []
+# vox-build-meta's feature stubs have been retired. Optional capabilities are
+# now installable plugins managed by `vox plugin install <id>`. See
+# crates/vox-plugin-catalog/catalog.toml and
+# docs/src/architecture/plugin-system-redesign-2026.md.
 
 [dependencies]
 serde_json = { workspace = true }
