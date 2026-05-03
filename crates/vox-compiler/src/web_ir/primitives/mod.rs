@@ -51,6 +51,27 @@ impl PrimitiveEmission {
 ///
 /// `attrs` are the raw `(name, value)` pairs from the JSX element, allowing
 /// prop-driven class augmentation (e.g. `gap="4"` → `gap-4`).
+/// VUV-4 universal style kwargs supported on every primitive. The set is intentionally aimed at
+/// what the dashboard uses today; new kwargs are added as the migration surfaces them. Any kwarg
+/// listed here MUST also appear in `PRIMITIVE_CONSUMED_PROPS` in `web_ir/lower.rs` so it doesn't
+/// leak through as a raw HTML attribute.
+pub const UNIVERSAL_STYLE_KWARGS: &[&str] = &[
+    "pad", "pad_x", "pad_y", "pad_t", "pad_b", "pad_l", "pad_r",
+    "mb", "mt", "ml", "mr", "mx", "my",
+    "w", "h", "min_w", "min_h", "max_w", "max_h",
+    "bg", "color",
+    "border", "border_x", "border_y", "border_t", "border_b", "border_l", "border_r", "border_color",
+    "radius", "radius_t", "radius_b", "radius_l", "radius_r",
+    "radius_tl", "radius_tr", "radius_bl", "radius_br",
+    "overflow", "overflow_x", "overflow_y",
+    "flex", "shrink", "grow",
+    "justify", "items",
+    "tracking", "leading", "case", "italic", "font_family",
+    "position", "inset", "top", "bottom", "left", "right",
+    "shadow", "opacity",
+    "raw_class",
+];
+
 #[must_use]
 pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmission> {
     let get_attr = |name: &str| -> Option<&str> {
@@ -308,6 +329,10 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
         }
         _ => None,
     }
+    .map(|mut e| {
+        apply_universal_kwargs(attrs, &mut e.base_classes);
+        e
+    })
 }
 
 /// Returns `true` if the tag is in the known primitive set.
@@ -444,6 +469,119 @@ fn apply_z_index(z: Option<&str>, classes: &mut Vec<String>) {
     }
 }
 
+/// VUV-4: apply the universal style kwargs to the class list. Each kwarg maps to a Tailwind utility
+/// using a small lookup table. Token-shaped values (e.g. `zinc.400`) are converted to dash-form
+/// (`zinc-400`) so authors can write `bg: zinc.400` and the lowering produces `bg-zinc-400`.
+///
+/// `raw_class` is special: its value is added verbatim, intended as a transitional escape hatch
+/// during the JSX-to-VUV cutover. It will be retired in favour of full typed-kwarg coverage.
+fn apply_universal_kwargs(attrs: &[(String, String)], classes: &mut Vec<String>) {
+    for (k, v) in attrs {
+        let v = v.trim_matches('"').trim_matches('\'');
+        // Token-shaped values: `zinc.400` → `zinc-400`. Whole-string conversion is fine for our
+        // purposes; the kwargs that take token paths don't accept dotted CSS selectors.
+        let v_dashed = v.replace('.', "-");
+        let classes_to_push: Vec<String> = match k.as_str() {
+            "pad"   => vec![format!("p-{v}")],
+            "pad_x" => vec![format!("px-{v}")],
+            "pad_y" => vec![format!("py-{v}")],
+            "pad_t" => vec![format!("pt-{v}")],
+            "pad_b" => vec![format!("pb-{v}")],
+            "pad_l" => vec![format!("pl-{v}")],
+            "pad_r" => vec![format!("pr-{v}")],
+            "mb"    => vec![format!("mb-{v}")],
+            "mt"    => vec![format!("mt-{v}")],
+            "ml"    => vec![format!("ml-{v}")],
+            "mr"    => vec![format!("mr-{v}")],
+            "mx"    => vec![format!("mx-{v}")],
+            "my"    => vec![format!("my-{v}")],
+            "w"     => vec![format!("w-{v}")],
+            "h"     => vec![format!("h-{v}")],
+            "min_w" => vec![format!("min-w-{v}")],
+            "min_h" => vec![format!("min-h-{v}")],
+            "max_w" => vec![format!("max-w-{v}")],
+            "max_h" => vec![format!("max-h-{v}")],
+            "bg"    => vec![format!("bg-{}", v_dashed)],
+            "color" => vec![format!("text-{}", v_dashed)],
+            "border" => match v {
+                "" | "true" | "1" => vec!["border".to_string()],
+                _ => vec![format!("border-{v}")],
+            },
+            "border_x" => vec![format!("border-x-{v}")],
+            "border_y" => vec![format!("border-y-{v}")],
+            "border_t" => vec![format!("border-t-{v}")],
+            "border_b" => vec![format!("border-b-{v}")],
+            "border_l" => vec![format!("border-l-{v}")],
+            "border_r" => vec![format!("border-r-{v}")],
+            "border_color" => vec![format!("border-{}", v_dashed)],
+            "radius"    => vec![format!("rounded-{v}")],
+            "radius_t"  => vec![format!("rounded-t-{v}")],
+            "radius_b"  => vec![format!("rounded-b-{v}")],
+            "radius_l"  => vec![format!("rounded-l-{v}")],
+            "radius_r"  => vec![format!("rounded-r-{v}")],
+            "radius_tl" => vec![format!("rounded-tl-{v}")],
+            "radius_tr" => vec![format!("rounded-tr-{v}")],
+            "radius_bl" => vec![format!("rounded-bl-{v}")],
+            "radius_br" => vec![format!("rounded-br-{v}")],
+            "overflow"   => vec![format!("overflow-{v}")],
+            "overflow_x" => vec![format!("overflow-x-{v}")],
+            "overflow_y" => vec![format!("overflow-y-{v}")],
+            "flex" => match v {
+                "1" | "true" => vec!["flex-1".to_string()],
+                _ => vec![format!("flex-{v}")],
+            },
+            "shrink" => match v {
+                "0" => vec!["shrink-0".to_string()],
+                _ => vec![format!("shrink-{v}")],
+            },
+            "grow" => match v {
+                "0" => vec!["grow-0".to_string()],
+                _ => vec![format!("grow-{v}")],
+            },
+            "justify" => vec![format!("justify-{v}")],
+            "items"   => vec![format!("items-{v}")],
+            "tracking" => vec![format!("tracking-{v}")],
+            "leading"  => vec![format!("leading-{v}")],
+            "case" => match v {
+                "upper" | "uppercase" => vec!["uppercase".to_string()],
+                "lower" | "lowercase" => vec!["lowercase".to_string()],
+                "normal" => vec!["normal-case".to_string()],
+                _ => vec![],
+            },
+            "italic" => match v {
+                "true" | "" => vec!["italic".to_string()],
+                "false" => vec!["not-italic".to_string()],
+                _ => vec![],
+            },
+            "font_family" => match v {
+                "mono" => vec!["font-mono".to_string()],
+                "sans" => vec!["font-sans".to_string()],
+                "serif" => vec!["font-serif".to_string()],
+                _ => vec![],
+            },
+            "position" => vec![v.to_string()],
+            "inset"    => vec![format!("inset-{v}")],
+            "top"      => vec![format!("top-{v}")],
+            "bottom"   => vec![format!("bottom-{v}")],
+            "left"     => vec![format!("left-{v}")],
+            "right"    => vec![format!("right-{v}")],
+            "shadow"   => match v {
+                "" | "true" => vec!["shadow".to_string()],
+                _ => vec![format!("shadow-{v}")],
+            },
+            "opacity"  => vec![format!("opacity-{v}")],
+            "raw_class" => v
+                .split_whitespace()
+                .map(std::string::ToString::to_string)
+                .collect(),
+            _ => continue,
+        };
+        for c in classes_to_push {
+            classes.push(c);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -574,5 +712,91 @@ mod tests {
         let s = e.class_string();
         assert!(s.contains("flex"), "{s}");
         assert!(s.contains("flex-col"), "{s}");
+    }
+
+    // VUV-4: typed universal style kwargs.
+
+    #[test]
+    fn vuv_padding_kwargs_emit_tailwind() {
+        let e = resolve("row", &attrs(&[("pad_x", "4"), ("pad_y", "2")])).unwrap();
+        assert!(e.base_classes.contains(&"px-4".to_string()), "{:?}", e.base_classes);
+        assert!(e.base_classes.contains(&"py-2".to_string()), "{:?}", e.base_classes);
+    }
+
+    #[test]
+    fn vuv_margin_kwargs_emit_tailwind() {
+        let e = resolve("text", &attrs(&[("mb", "2"), ("mt", "4")])).unwrap();
+        assert!(e.base_classes.contains(&"mb-2".to_string()));
+        assert!(e.base_classes.contains(&"mt-4".to_string()));
+    }
+
+    #[test]
+    fn vuv_color_token_value_dashes_to_tailwind() {
+        // Token-shaped value `zinc.400` is converted to `zinc-400` and prefixed with `text-`.
+        let e = resolve("text", &attrs(&[("color", "zinc.400")])).unwrap();
+        assert!(e.base_classes.contains(&"text-zinc-400".to_string()), "{:?}", e.base_classes);
+    }
+
+    #[test]
+    fn vuv_bg_token_value_emits_bg_class() {
+        let e = resolve("panel", &attrs(&[("bg", "blue.600")])).unwrap();
+        assert!(e.base_classes.contains(&"bg-blue-600".to_string()), "{:?}", e.base_classes);
+    }
+
+    #[test]
+    fn vuv_radius_kwargs_emit_rounded_classes() {
+        let e = resolve("panel", &attrs(&[("radius", "2xl"), ("radius_br", "sm")])).unwrap();
+        assert!(e.base_classes.contains(&"rounded-2xl".to_string()), "{:?}", e.base_classes);
+        assert!(e.base_classes.contains(&"rounded-br-sm".to_string()));
+    }
+
+    #[test]
+    fn vuv_max_w_min_h_emit_size_classes() {
+        let e = resolve("panel", &attrs(&[("max_w", "xl"), ("min_h", "16")])).unwrap();
+        assert!(e.base_classes.contains(&"max-w-xl".to_string()));
+        assert!(e.base_classes.contains(&"min-h-16".to_string()));
+    }
+
+    #[test]
+    fn vuv_flex_1_and_shrink_0() {
+        let e = resolve("row", &attrs(&[("flex", "1"), ("shrink", "0")])).unwrap();
+        assert!(e.base_classes.contains(&"flex-1".to_string()));
+        assert!(e.base_classes.contains(&"shrink-0".to_string()));
+    }
+
+    #[test]
+    fn vuv_case_upper_emits_uppercase() {
+        let e = resolve("text", &attrs(&[("case", "upper")])).unwrap();
+        assert!(e.base_classes.contains(&"uppercase".to_string()));
+    }
+
+    #[test]
+    fn vuv_tracking_and_leading() {
+        let e = resolve("text", &attrs(&[("tracking", "widest"), ("leading", "snug")])).unwrap();
+        assert!(e.base_classes.contains(&"tracking-widest".to_string()));
+        assert!(e.base_classes.contains(&"leading-snug".to_string()));
+    }
+
+    #[test]
+    fn vuv_justify_and_items_emit_flex_classes() {
+        let e = resolve("row", &attrs(&[("justify", "between"), ("items", "center")])).unwrap();
+        assert!(e.base_classes.contains(&"justify-between".to_string()));
+        assert!(e.base_classes.contains(&"items-center".to_string()));
+    }
+
+    #[test]
+    fn vuv_raw_class_passes_value_verbatim() {
+        let e = resolve("panel", &attrs(&[("raw_class", "border-white/10 backdrop-blur-md")])).unwrap();
+        assert!(e.base_classes.contains(&"border-white/10".to_string()));
+        assert!(e.base_classes.contains(&"backdrop-blur-md".to_string()));
+    }
+
+    #[test]
+    fn vuv_unknown_kwarg_passes_through_to_attrs() {
+        // An unknown kwarg should NOT be consumed here; it stays in attrs and (if not in
+        // PRIMITIVE_CONSUMED_PROPS) leaks through as an HTML attribute. This is the desired
+        // failure mode — typos surface as visible HTML rather than silently disappear.
+        let e = resolve("row", &attrs(&[("padd", "4")])).unwrap();
+        assert!(!e.base_classes.iter().any(|c| c.contains("padd")), "{:?}", e.base_classes);
     }
 }

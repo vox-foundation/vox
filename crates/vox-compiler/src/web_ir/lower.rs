@@ -240,9 +240,25 @@ impl DomArena {
 ///
 /// Event spellings (`on_click`, `on:click`) become React-style `onClick` names on [`DomNode::Element`];
 /// Props that are consumed by the primitive resolver and must not appear on the final HTML element.
+/// VUV-4 universal style kwargs (see `primitives::UNIVERSAL_STYLE_KWARGS`) are appended below.
 const PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
-    "gap", "size", "weight", "align", "wrap", "variant", "level", "surface",
-    "z", "position",
+    // Pre-VUV per-primitive props
+    "gap", "size", "weight", "align", "wrap", "variant", "level", "surface", "z",
+    // VUV-4 universal kwargs — must mirror `web_ir::primitives::UNIVERSAL_STYLE_KWARGS`
+    "pad", "pad_x", "pad_y", "pad_t", "pad_b", "pad_l", "pad_r",
+    "mb", "mt", "ml", "mr", "mx", "my",
+    "w", "h", "min_w", "min_h", "max_w", "max_h",
+    "bg", "color",
+    "border", "border_x", "border_y", "border_t", "border_b", "border_l", "border_r", "border_color",
+    "radius", "radius_t", "radius_b", "radius_l", "radius_r",
+    "radius_tl", "radius_tr", "radius_bl", "radius_br",
+    "overflow", "overflow_x", "overflow_y",
+    "flex", "shrink", "grow",
+    "justify", "items",
+    "tracking", "leading", "case", "italic", "font_family",
+    "position", "inset", "top", "bottom", "left", "right",
+    "shadow", "opacity",
+    "raw_class",
 ];
 
 /// TASK-6.1: if `tag` is a known primitive, replace it with the canonical HTML tag and inject
