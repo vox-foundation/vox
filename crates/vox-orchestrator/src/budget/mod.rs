@@ -662,6 +662,21 @@ impl BudgetManager {
         self.doom_loop_threshold_usd
             .store(threshold_usd.to_bits(), std::sync::atomic::Ordering::Relaxed);
     }
+
+    /// Returns `true` if dispatching `estimated_tokens` more to `agent_id` would
+    /// push the agent over its effective token cap. Returns `false` when no budget
+    /// entry exists (i.e. the agent is uncapped).
+    pub fn would_exceed_token_budget(&self, agent_id: AgentId, estimated_tokens: usize) -> bool {
+        let map = sync_lock::rw_read(&*self.inner);
+        let Some(budget) = map.get(&agent_id) else {
+            return false; // no budget → do not block
+        };
+        let cap = budget.effective_max_tokens();
+        if cap == 0 {
+            return false;
+        }
+        budget.tokens_used.saturating_add(estimated_tokens) > cap
+    }
 }
 
 mod persistence;
@@ -693,6 +708,30 @@ mod tests {
     fn test_doom_loop_cost_check_unknown_agent_returns_none() {
         let bm = BudgetManager::new(None);
         assert!(bm.doom_loop_cost_check(AgentId(999)).is_none());
+    }
+
+    #[test]
+    fn test_would_exceed_budget_true_when_tight() {
+        let bm = BudgetManager::new(None);
+        let agent = AgentId(7);
+        bm.reset(agent, 1000);
+        bm.record_usage(agent, 900);
+        assert!(bm.would_exceed_token_budget(agent, 200));
+    }
+
+    #[test]
+    fn test_would_exceed_budget_false_when_room() {
+        let bm = BudgetManager::new(None);
+        let agent = AgentId(8);
+        bm.reset(agent, 1000);
+        bm.record_usage(agent, 700);
+        assert!(!bm.would_exceed_token_budget(agent, 200));
+    }
+
+    #[test]
+    fn test_would_exceed_budget_false_when_no_budget_set() {
+        let bm = BudgetManager::new(None);
+        assert!(!bm.would_exceed_token_budget(AgentId(99), 5000));
     }
 
     #[test]

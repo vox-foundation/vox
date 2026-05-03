@@ -244,6 +244,24 @@ impl Orchestrator {
             return Err(crate::orchestrator::OrchestratorError::DoomLoop(message));
         }
 
+        // Pre-dispatch token estimation (M7)
+        {
+            let estimated_tokens =
+                task.description.len() / 4 + file_manifest.len().saturating_mul(200);
+            let bm = crate::sync_lock::rw_read(&*self.budget_manager);
+            if bm.would_exceed_token_budget(agent_id, estimated_tokens) {
+                tracing::warn!(
+                    agent_id = ?agent_id,
+                    estimated_tokens,
+                    "blocking task submission: estimated tokens would exceed budget"
+                );
+                return Err(crate::orchestrator::OrchestratorError::BudgetExceeded(format!(
+                    "Pre-dispatch estimate of {} tokens would exceed remaining budget",
+                    estimated_tokens
+                )));
+            }
+        }
+
         // Budget evaluation for autonomous self-correction
         let budget_signal =
             crate::sync_lock::rw_read(&*self.budget_manager).agent_budget_signal(agent_id);
