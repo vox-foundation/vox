@@ -1,0 +1,10 @@
+---
+source: crates/vox-compiler/tests/web_ir_lower_emit_test.rs
+assertion_line: 54
+expression: tsx
+---
+<div className={"p-4"}>
+  <h1>
+    {"Count: {count}"}
+  </h1>
+</div>
