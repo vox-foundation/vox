@@ -2,7 +2,7 @@
 title: "Web App Archetype Coverage Map (2026)"
 description: "Coverage map of 21 web-app archetypes against Vox's current substrate. Every blocker traced to a named language, runtime, codegen, or DevEx gap. Prioritization input for the next slate of high-value, low-debt improvements."
 category: "architecture"
-status: "draft"
+status: "research"
 training_eligible: true
 training_rationale: "Strategic prioritization input; canonical archetype-to-blocker mapping. Anchors the next slate of language, runtime, and orchestrator improvements to concrete user-journey friction."
 ---

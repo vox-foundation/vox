@@ -5,8 +5,27 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 03 May 2026 01:59:23 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 03 May 2026 02:16:19 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>ADR-029: Formal Intent and Tool Receipt Auditing</title>
+    <link>https://vox-lang.org/adr/029-formal-intent.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/029-formal-intent.html</guid>
+    <description>Architecture Decision Record for formal intent and cryptographic tool receipts in the Vox ecosystem.</description>
+    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Architecture Decision Records (ADR)</title>
+    <link>https://vox-lang.org/adr/index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/index.html</guid>
+    <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
+    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
 
   <item>
     <title>Codebase Cleanup &amp; Signal Improvement Plan (2026-05-02)</title>
@@ -143,16 +162,6 @@
   </item>
 
   <item>
-    <title>Architecture Decision Records (ADR)</title>
-    <link>https://vox-lang.org/adr/index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/index.html</guid>
-    <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
     <title>vox-codegen-ts API</title>
     <link>https://vox-lang.org/api/vox-codegen-ts.html</link>
     <guid isPermaLink="true">https://vox-lang.org/api/vox-codegen-ts.html</guid>
@@ -229,15 +238,6 @@
     <link>https://vox-lang.org/architecture/phase1-build-targets-spec-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/phase1-build-targets-spec-2026.html</guid>
     <description>Design spec for vox build --target=server|fullstack|client, vox emit client, and vox init --kind=backend.</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Phase 3: HTTP Ergonomics Decorators Spec (2026)</title>
-    <link>https://vox-lang.org/architecture/phase3-http-ergonomics-spec-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/phase3-http-ergonomics-spec-2026.html</guid>
-    <description>Design spec for explicit method/path, @cors, @auth, and @rate_limit decorators on Vox endpoints.</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
