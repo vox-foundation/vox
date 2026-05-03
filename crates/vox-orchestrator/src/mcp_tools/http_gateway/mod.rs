@@ -91,7 +91,7 @@ pub(super) enum AccessRole {
 }
 
 #[derive(Clone)]
-pub(super) struct GatewayState {
+pub struct GatewayState {
     server_state: ServerState,
     bearer_token: Option<String>,
     read_bearer_token: Option<String>,
@@ -105,8 +105,32 @@ pub(super) struct GatewayState {
     read_role_tools_override: Option<Arc<HashSet<String>>>,
     calls_per_minute: u32,
     rate_limiter: Arc<IdentityRateLimiter>,
-    pub(super) public_eval_enabled: bool,
-    pub(super) public_eval_rate_limiter: Arc<IdentityRateLimiter>,
+    pub public_eval_enabled: bool,
+    pub public_eval_rate_limiter: Arc<IdentityRateLimiter>,
+}
+
+impl GatewayState {
+    /// Minimal stub for tests — unauthenticated, no tools, no rate-limiting.
+    #[cfg(test)]
+    pub(crate) async fn for_test() -> Self {
+        Self {
+            server_state: ServerState::new_test().await,
+            bearer_token: None,
+            read_bearer_token: None,
+            dashboard_token: None,
+            allow_unauthenticated: true,
+            health_auth_required: false,
+            require_forwarded_https: false,
+            trust_forwarded_for: false,
+            allowed_tools: Arc::new(HashSet::new()),
+            read_role_eligible_tools: Arc::new(HashSet::new()),
+            read_role_tools_override: None,
+            calls_per_minute: DEFAULT_RATE_LIMIT_PER_MINUTE,
+            rate_limiter: new_identity_rate_limiter(DEFAULT_RATE_LIMIT_PER_MINUTE),
+            public_eval_enabled: false,
+            public_eval_rate_limiter: new_identity_rate_limiter(10),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -183,6 +207,43 @@ pub fn http_gateway_enabled() -> bool {
         "http gateway enablement resolved"
     );
     result
+}
+
+/// Build the production Axum [`Router`] for the HTTP gateway.
+///
+/// Extracted from [`spawn_http_gateway_if_enabled`] so tests can construct the same
+/// router the production code uses without needing to bind a real TCP port.
+pub fn build_app(state: GatewayState) -> Router {
+    let app = Router::<GatewayState>::new()
+        // /api/v2/* — versioned dashboard REST surface (envelope: { v, data } / { v, error })
+        .merge(crate::services::routes::router())
+        .route("/health", get(http_health))
+        .route("/v1/info", get(http_info))
+        .route("/v1/tools", get(http_tools))
+        .route("/v1/tools/call", post(http_call_tool))
+        .route("/v1/eval", post(http_eval))
+        .route("/v1/ws", get(http_ws))
+        .route("/v1/mobile", get(http_mobile_workspace))
+        .route("/v1/mobile/status", get(http_mobile_status));
+
+    #[cfg(feature = "dashboard")]
+    let app = app.merge(vox_dashboard::dashboard_router(
+        state.dashboard_token.as_ref().map(|t| t.0.clone()),
+    ));
+
+    let cors = tower_http::cors::CorsLayer::new()
+        .allow_origin(tower_http::cors::Any)
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any)
+        .expose_headers(tower_http::cors::Any);
+
+    app.layer(cors)
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            origin_guard::check_origin_allowlist,
+        ))
+        .layer(DefaultBodyLimit::max(256 * 1024))
+        .with_state(state)
 }
 
 /// Start the optional HTTP+WebSocket gateway in a background task.
@@ -280,32 +341,7 @@ pub fn spawn_http_gateway_if_enabled(
         public_eval_rate_limiter,
     };
 
-    let app = Router::<GatewayState>::new()
-        // /api/v2/* — versioned dashboard REST surface (envelope: { v, data } / { v, error })
-        .merge(crate::services::routes::router())
-        .route("/health", get(http_health))
-        .route("/v1/info", get(http_info))
-        .route("/v1/tools", get(http_tools))
-        .route("/v1/tools/call", post(http_call_tool))
-        .route("/v1/eval", post(http_eval))
-        .route("/v1/ws", get(http_ws))
-        .route("/v1/mobile", get(http_mobile_workspace))
-        .route("/v1/mobile/status", get(http_mobile_status));
-
-    #[cfg(feature = "dashboard")]
-    let app = app.merge(vox_dashboard::dashboard_router(dashboard_token.as_ref().map(|t| t.0.clone())));
-
-    let cors = tower_http::cors::CorsLayer::new()
-        .allow_origin(tower_http::cors::Any)
-        .allow_methods(tower_http::cors::Any)
-        .allow_headers(tower_http::cors::Any)
-        .expose_headers(tower_http::cors::Any);
-
-    let app = app
-        .layer(cors)
-        .layer(axum::middleware::from_fn_with_state(gateway_state.clone(), origin_guard::check_origin_allowlist))
-        .layer(DefaultBodyLimit::max(256 * 1024))
-        .with_state(gateway_state.clone());
+    let app = build_app(gateway_state.clone());
 
     let addr: SocketAddr = format!("{bind_host}:{bind_port}")
         .parse()
@@ -553,6 +589,24 @@ mod tests {
             !constant_time_eq(&a, &c),
             "256-byte slice must not equal 512-byte slice"
         );
+    }
+
+    /// Exercises `build_app` end-to-end: proves the production router factory
+    /// wires `crate::services::routes::router()` correctly by hitting the
+    /// `/api/v2/health` endpoint (which has no `ConnectInfo` dependency).
+    #[tokio::test]
+    async fn build_app_wires_api_v2_routes() {
+        use axum::body::Body;
+        use axum::http::{Request, StatusCode};
+        use tower::ServiceExt;
+        let state = GatewayState::for_test().await;
+        let app = build_app(state);
+        let req = Request::builder()
+            .uri("/api/v2/health")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
     }
 }
 

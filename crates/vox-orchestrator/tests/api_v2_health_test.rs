@@ -22,3 +22,18 @@ async fn api_v2_health_returns_envelope() {
     assert_eq!(body["v"], 1);
     assert_eq!(body["data"]["status"], "ok");
 }
+
+#[test]
+fn ok_page_envelope_includes_cursor() {
+    use vox_orchestrator::services::routes::ok_page;
+    let resp = ok_page(serde_json::json!([{"id": "a"}, {"id": "b"}]), Some("cur-xyz"));
+    let body = resp.0;
+    assert_eq!(body["v"], 1);
+    assert_eq!(body["data"][0]["id"], "a");
+    assert_eq!(body["cursor"], "cur-xyz");
+
+    let resp2 = ok_page::<Vec<serde_json::Value>>(vec![], None);
+    let body2 = resp2.0;
+    assert!(body2["cursor"].is_null());
+}
+
