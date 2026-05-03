@@ -19,6 +19,9 @@ pub mod jsx;
 pub mod reactive;
 /// `routes.manifest.ts` (framework-agnostic `VoxRoute[]`).
 pub mod route_manifest;
+/// Segment-aware route-pattern parser and overlap detection (Phase C of the
+/// Svelte-mineable features plan; not yet wired into [`routes`]).
+pub mod route_pattern;
 /// File-based routes → TS route tables.
 pub mod routes;
 /// One-time SPA / shadcn / Tailwind scaffold (user-owned files).
