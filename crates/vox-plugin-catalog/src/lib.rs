@@ -2,6 +2,7 @@
 //!
 //! See `docs/src/architecture/plugin-system-redesign-2026.md`.
 
+pub mod docs;
 pub mod schema;
 
 use schema::{BundleEntry, PluginCatalogEntry};
