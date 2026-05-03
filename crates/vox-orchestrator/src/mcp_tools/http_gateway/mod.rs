@@ -280,7 +280,9 @@ pub fn spawn_http_gateway_if_enabled(
         public_eval_rate_limiter,
     };
 
-    let app = Router::new()
+    let app = Router::<GatewayState>::new()
+        // /api/v2/* — versioned dashboard REST surface (envelope: { v, data } / { v, error })
+        .merge(crate::services::routes::router())
         .route("/health", get(http_health))
         .route("/v1/info", get(http_info))
         .route("/v1/tools", get(http_tools))

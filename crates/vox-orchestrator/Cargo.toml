@@ -136,6 +136,7 @@ tempfile = { workspace = true }
 vox-runtime = { workspace = true }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
+tower = { version = "0.5", features = ["util"] }
 
 [lints]
 workspace = true
