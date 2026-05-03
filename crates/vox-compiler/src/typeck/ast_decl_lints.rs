@@ -372,7 +372,7 @@ fn lint_component_react_hooks(comp: &ComponentDecl) -> Vec<Diagnostic> {
                 context: None,
                 suggestions: vec![
                     "Use `state x = ...`, `derived`, `effect`, `mount`, `cleanup`, and `view:` instead of hooks where possible.".into(),
-                    "Keep advanced React-only logic in TypeScript under islands/.".into(),
+                    "Keep advanced React-only logic in TypeScript under your React project.".into(),
                 ],
                 category: DiagnosticCategory::Lint,
                 code: Some("lint.component_react_hook".into()),
@@ -449,7 +449,7 @@ pub fn lint_ast_declarations(module: &Module, source: &str) -> Vec<Diagnostic> {
                 "lint.retired_context",
             )),
             Decl::Hook(h) => Some((
-                "`@hook fn` is retired. Prefer Path C `component` or plain TS under `islands/`.",
+                "`@hook fn` is retired. Prefer Path C `component` or plain TS in your React project.",
                 h.func.span,
                 "lint.retired_hook_fn",
             )),

@@ -165,13 +165,6 @@ const CONSTRUCT_PROMPTS: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "island",
-        &[
-            "Define a Vox `@island` named `{name}` for React interop",
-            "Write an `@island` component `{name}` in Vox",
-        ],
-    ),
-    (
         "http_route",
         &[
             "Write a Vox HTTP route for `{name}`",

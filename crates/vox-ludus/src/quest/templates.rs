@@ -45,14 +45,6 @@ pub const QUEST_TEMPLATES: &[QuestTemplate] = &[
     },
     QuestTemplate {
         quest_type: QuestType::Create,
-        description_template: "Create a new {ISLAND_COMPONENT} island component in your web project",
-        target: 1,
-        base_xp: 80,
-        base_crystals: 25,
-        hint_template: "Declare `@island` in a .vox file, then mount it with `[island]` in a @page",
-    },
-    QuestTemplate {
-        quest_type: QuestType::Create,
         description_template: "Create 3 new companions with distinct code languages",
         target: 3,
         base_xp: 55,

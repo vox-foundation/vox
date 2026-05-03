@@ -72,7 +72,6 @@ pub(super) fn for_counter(counter: &str) -> Vec<(&'static str, u32)> {
         "adrs_written" => vec![("adr_written", 1), ("first_adr", 1)],
         // Language Explorer
         "vox_web_pages_compiled" => vec![("first_vox_web_page", 1)],
-        "islands_built" => vec![("first_island", 1), ("five_islands", 5)],
         "migrations_applied" => vec![("first_migration", 1)],
         "seeds_run" => vec![("first_seed", 1)],
         "workflows_completed" => vec![("first_workflow", 1)],

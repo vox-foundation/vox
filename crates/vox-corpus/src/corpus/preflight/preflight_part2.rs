@@ -27,7 +27,6 @@ pub fn write_architectural_pairs(out: &mut impl std::io::Write) -> anyhow::Resul
         let question1 = format!("What is a `{tag}` in Vox?");
         let answer1 = match *tag {
             "component" => "A component is a server-side rendered UI construct in Vox. It has no client-side JavaScript by default.",
-            "island" => "An island is a client-side rendered UI construct in Vox, allowing interactivity and state.",
             "workflow" => "A workflow is a durable, retryable multi-step process in Vox. It checkpoints state automatically.",
             "actor" => "An actor is a stateful entity that can receive and process messages asynchronously in memory.",
             "table" => "A table defines a database schema entity with compile-time safety.",

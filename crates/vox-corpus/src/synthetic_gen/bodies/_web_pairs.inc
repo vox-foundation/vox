@@ -7,11 +7,6 @@ const WEB_CONSTRUCTS: &[(&str, &str, &str)] = &[
         "component Navbar() {\n  view: <nav><ul><li>Home</li></ul></nav>\n}",
     ),
     (
-        "island",
-        "Counter",
-        "component Counter() {\n  state count: int = 0\n  view: <button on:click={|| count = count + 1}>{count}</button>\n}",
-    ),
-    (
         "page",
         "Dashboard",
         "@route(\"/dash\")\ncomponent Dashboard() {\n  view: <main><h1>Dashboard</h1><Counter /></main>\n}",

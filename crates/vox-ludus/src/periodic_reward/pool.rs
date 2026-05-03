@@ -228,14 +228,6 @@ pub(super) static REWARD_POOL: &[RewardDef] = &[
         description: "Awarded for completing all daily quests every day this week.",
     },
     RewardDef {
-        id: "island_builder",
-        name: "Island Builder",
-        icon: "🏝️",
-        xp_bonus: 300,
-        crystal_bonus: 0,
-        description: "Awarded for building 3 islands this week.",
-    },
-    RewardDef {
         id: "open_source_spirit",
         name: "Open Source Spirit",
         icon: "🌐",

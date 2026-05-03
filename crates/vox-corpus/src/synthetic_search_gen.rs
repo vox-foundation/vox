@@ -161,7 +161,7 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
         ),
         (
             "How does Vox handle component rendering?",
-            "component JSX React island SSR",
+            "component JSX React SSR",
             "crates/vox-compiler/src/web_ir/",
             "UI constructs lower to `web_ir` and emit TS/TSX via `vox-compiler` (`emit_tsx`, React interop). Routing and client data patterns follow the current web stack docs (`docs/src/reference/vox-web-stack.md`).",
         ),

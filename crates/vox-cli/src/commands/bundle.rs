@@ -153,7 +153,6 @@ async fn run_app_bundle(
     let generated_dir = PathBuf::from("target").join("generated");
     let public_dir = generated_dir.join("public");
     copy_built_assets(&app_dir.join("dist"), &public_dir).await?;
-    crate::frontend::build_islands_if_present(&generated_dir, "public")?;
 
     // Step 5: Build the single binary
     println!("=== Step 5/5: Building single binary ===");

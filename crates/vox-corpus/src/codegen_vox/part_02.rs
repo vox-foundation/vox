@@ -429,12 +429,6 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             ),
             format!("Define a Vox static page `{type_name}Page`"),
         ),
-        "island" => (
-            format!(
-                "component {type_name}Island(data: list[int]) {{\n    view: <div>{{\"Interactive\"}}</div>\n}}"
-            ),
-            format!("Define a Vox island component `{type_name}Island`"),
-        ),
         "routes" => (
             format!(
                 "routes {{\n    \"/\" to {type_name}Page\n    \"/{noun}\" to {type_name}View\n    \"/{noun}/:id\" to {type_name}Detail\n}}"

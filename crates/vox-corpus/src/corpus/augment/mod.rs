@@ -136,7 +136,6 @@ static SYNONYMS: &[(&str, &[&str])] = &[
     ("spawn", &["create", "launch", "start"]),
     ("trait", &["interface", "protocol", "contract"]),
     ("layout", &["shell", "wrapper", "frame"]),
-    ("island", &["interactive component", "client component"]),
     ("pipeline", &["chain", "sequence", "flow"]),
     ("schema", &["table", "model", "structure"]),
     ("endpoint", &["route", "handler", "API"]),
