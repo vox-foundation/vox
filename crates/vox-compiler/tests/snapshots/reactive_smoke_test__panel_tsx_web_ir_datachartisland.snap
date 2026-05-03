@@ -1,0 +1,8 @@
+---
+source: crates/vox-compiler/tests/reactive_smoke_test.rs
+assertion_line: 433
+expression: tsx
+---
+<div className={"wrap"}>
+  <div data-vox-island="DataChart" data-prop-title={label} />
+</div>

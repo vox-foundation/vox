@@ -1,0 +1,15 @@
+---
+source: crates/vox-compiler/tests/reactive_smoke_test.rs
+assertion_line: 398
+expression: ts
+---
+import React, { useState } from "react";
+
+export function Panel(): React.ReactElement {
+  const [label, set_label] = useState("Hello");
+  return (
+    <div className={"wrap"}>
+      <div data-vox-island="DataChart" data-prop-title={label} />
+    </div>
+  );
+}

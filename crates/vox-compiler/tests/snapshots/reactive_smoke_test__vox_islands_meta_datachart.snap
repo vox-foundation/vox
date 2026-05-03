@@ -1,0 +1,8 @@
+---
+source: crates/vox-compiler/tests/reactive_smoke_test.rs
+assertion_line: 406
+expression: meta
+---
+// Declared @island names (implementations live under islands/src/<Name>/).
+export const VOX_ISLAND_NAMES = ["DataChart"] as const;
+export type VoxIslandName = (typeof VOX_ISLAND_NAMES)[number];

@@ -1,0 +1,37 @@
+---
+source: crates/vox-compiler/tests/reactive_smoke_test.rs
+assertion_line: 1234
+expression: ts
+---
+import React, { useState, useEffect, useMemo } from "react";
+
+export interface CounterProps {
+  initial: number;
+}
+
+export function Counter({ initial }: CounterProps): React.ReactElement {
+  const [count, set_count] = useState(initial);
+  const double = useMemo(() => count * 2, [count]);
+  useEffect(() => {
+    log("mounted");
+  }, []);
+  return (
+<div className={"p-4"}
+>
+  <h1 
+>
+  {"Count: {count}"}
+</h1>
+  <p 
+>
+  {"Double: {double}"}
+</p>
+  <button onClick={() => {
+    set_count(count + 1);
+}}
+>
+  {"Increment"}
+</button>
+</div>
+  );
+}

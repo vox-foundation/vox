@@ -1,0 +1,18 @@
+---
+source: crates/vox-compiler/tests/reactive_smoke_test.rs
+assertion_line: 1038
+expression: ts
+---
+import React, { useState } from "react";
+
+export function Clicky(): React.ReactElement {
+  const [n, set_n] = useState(0);
+  return (
+<button className={"btn"} onClick={() => {
+    set_n(n + 1);
+}}
+>
+  {n}
+</button>
+  );
+}

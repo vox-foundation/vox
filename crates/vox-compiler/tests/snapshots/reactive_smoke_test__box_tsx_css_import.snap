@@ -1,0 +1,17 @@
+---
+source: crates/vox-compiler/tests/reactive_smoke_test.rs
+assertion_line: 920
+expression: tsx
+---
+import React from "react";
+
+import "./Box.css";
+
+export function Box(): React.ReactElement {
+  return (
+<div className={"x"}
+>
+  {"a"}
+</div>
+  );
+}
