@@ -2,7 +2,7 @@
 title: "ADR 033 — Typed parametric fragment primitive"
 description: "Introduces a `fragment` bare-keyword scope for typed parametric markup blocks that are passable as props, callable multiple times with different arguments, and validated against consumer prop interfaces at compile time. Drafted ahead of Phase F implementation; deferred until the Phase 6 (TASK-6.1) typed semantic primitives stabilize."
 category: "architecture"
-status: "roadmap"
+status: "current"
 last_updated: "2026-05-03"
 schema_type: "TechArticle"
 ---
@@ -10,7 +10,7 @@ schema_type: "TechArticle"
 
 ## Status
 
-Roadmap (drafted 2026-05-03). Gates Phase F of the [Svelte-Mineable Features Implementation Plan](../architecture/svelte-mineable-features-implementation-plan-2026.md). Implementation explicitly deferred until the Phase 6 (TASK-6.1) typed semantic primitives stabilize — fragments need to compose with `stack` / `text` / `button` / `field`, and designing them against the deprecated raw-JSX surface would create a second migration.
+Accepted (2026-05-03). Phase F code work begins with a foundation slice: lexer token, AST/HIR node, parser production. **Codegen is gated on Phase 6 (TASK-6.1) typed semantic primitives stabilizing** — emit a parse-only declaration that compiles to a documented stub until Phase 6 lands per-primitive files in [crates/vox-compiler/src/web_ir/primitives/](../../../crates/vox-compiler/src/web_ir/primitives/), then layer on the React function-component lowering. This avoids a double migration if fragments first emit against raw JSX and then have to be rewritten against primitives.
 
 ## Context
 

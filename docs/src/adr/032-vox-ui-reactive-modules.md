@@ -2,15 +2,15 @@
 title: "ADR 032 — `.vox.ui` reactive modules"
 description: "Introduces a `.vox.ui` file-suffix convention that allows module-scope `state` / `derived` / `effect` / `on mount` / `on cleanup` reactive members. Lowers to a generated React context+provider+hook in TSX emit. Addresses the gap that today's reactive members live only inside `component { }` blocks, with no story for shared state across components."
 category: "architecture"
-status: "roadmap"
-last_updated: "2026-05-02"
+status: "current"
+last_updated: "2026-05-03"
 schema_type: "TechArticle"
 ---
 # ADR 032: `.vox.ui` reactive modules
 
 ## Status
 
-Proposed (2026-05-02). Gates Phase D of the [Svelte-Mineable Features Implementation Plan](../architecture/svelte-mineable-features-implementation-plan-2026.md).
+Accepted (2026-05-03). Phase D code work begins immediately; first slice ships the `FileKind::from_path` helper, parser allowance for module-scope reactive members in `.vox.ui` files, and a minimal context+provider+hook emit. Subsequent slices wire cross-module reactive imports into the Phase E dep analyzer per the §"Read-tracking interaction" note.
 
 ## Context
 

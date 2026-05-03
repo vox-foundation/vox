@@ -21,6 +21,7 @@ pub mod hir;
 pub mod language_surface;
 pub mod lexer;
 pub mod llm_prompt;
+pub mod module;
 pub mod parser;
 pub mod pipeline;
 pub mod react_bridge;
