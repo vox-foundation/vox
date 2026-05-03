@@ -11,7 +11,16 @@ schema_type: "TechArticle"
 
 ## Status
 
-Accepted (2026-05-03). Phase D code work begins immediately; first slice ships the `FileKind::from_path` helper, parser allowance for module-scope reactive members in `.vox.ui` files, and a minimal context+provider+hook emit. Subsequent slices wire cross-module reactive imports into the Phase E dep analyzer per the §"Read-tracking interaction" note.
+Accepted (2026-05-03). Phase D shipped end-to-end across four commits in the same session:
+
+- `FileKind::from_path` helper at [crates/vox-compiler/src/module.rs](../../../crates/vox-compiler/src/module.rs) (commit `954ad8775`).
+- `parse_with_kind` parser entry, `Parser.file_kind` field, `Decl::ReactiveModule(ReactiveModuleDecl)` AST variant, and the parser dispatch that absorbs module-scope `state` / `derived` / `effect` / `on mount` / `on cleanup` into a synthetic `ReactiveModuleDecl` (commit `26c90f9be`).
+- `HirReactiveModule` HIR node + AST→HIR lowering in [hir/lower/mod.rs](../../../crates/vox-compiler/src/hir/lower/mod.rs) and emit at [codegen_ts/reactive_module_emit.rs](../../../crates/vox-compiler/src/codegen_ts/reactive_module_emit.rs) producing one `<Name>Provider.tsx` per module (typed `Value` interface + Context + Provider + `use<Name>()` hook), wired into `emitter::generate` (commit `a16417db0`).
+
+**Remaining sub-slices for a future cycle:**
+
+- CLI build entry points should pass the source-file basename through `parse_with_kind` so the parser fills `ReactiveModuleDecl.name` (today the codegen falls back to a `ReactiveModule<index>` default per the §"Module name" note).
+- Cross-module reactive imports — recognizing imports from `.vox.ui` modules as reactive bindings inside the Phase E dep analyzer (§"Read-tracking interaction"). The analyzer already supports per-module `state_names`; the wiring is "include `.vox.ui` exports in the visible-bindings set."
 
 ## Context
 

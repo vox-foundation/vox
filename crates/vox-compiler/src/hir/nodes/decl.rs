@@ -114,6 +114,8 @@ pub struct SemanticHirModule {
     pub environments: Vec<HirEnvironment>,
     pub components: Vec<HirReactiveComponent>,
     pub url_decls: Vec<HirUrlDecl>,
+    pub fragments: Vec<HirFragmentDecl>,
+    pub reactive_modules: Vec<HirReactiveModule>,
 }
 
 impl HirModule {
@@ -167,6 +169,8 @@ impl HirModule {
             environments: self.environments.clone(),
             components: self.components.clone(),
             url_decls: self.url_decls.clone(),
+            fragments: self.fragments.clone(),
+            reactive_modules: self.reactive_modules.clone(),
         }
     }
 }

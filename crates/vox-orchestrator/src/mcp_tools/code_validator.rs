@@ -165,7 +165,25 @@ pub async fn validate_file(state: &ServerState, params: ValidateFileParams) -> S
 
 /// Validate Vox source passed as a string — no filesystem read. Returns the same shape as
 /// [`validate_file`], populating `code` and `fixes` from the underlying `vox-lsp` diagnostics.
+/// Hard cap on accepted source bytes. Mirrors the schemars `length(max = 131_072)`
+/// constraint on [`ValidateSourceParams::source`], but enforced at the byte level
+/// (schemars / JSON Schema `maxLength` counts Unicode code points, not bytes — a
+/// 131_072-character string of multi-byte UTF-8 can exceed 128 KiB of payload).
+const MAX_VALIDATE_SOURCE_BYTES: usize = 131_072;
+
 pub async fn validate_source(_state: &ServerState, params: ValidateSourceParams) -> String {
+    if params.source.len() > MAX_VALIDATE_SOURCE_BYTES {
+        return ToolResult::<ValidateResponse>::err_with_remediation(
+            format!(
+                "SOURCE_TOO_LARGE: vox_validate_source rejects payloads larger than {} bytes (got {} bytes). Split the input or call vox_validate_file with the file on disk.",
+                MAX_VALIDATE_SOURCE_BYTES,
+                params.source.len()
+            ),
+            "Trim the source to under 128 KiB or write it to a file and call vox_validate_file."
+                .to_string(),
+        )
+        .to_json();
+    }
     if let Some(early) = pre_validation_guard::<ValidateResponse>(&params.source) {
         return early;
     }

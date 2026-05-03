@@ -11,7 +11,12 @@ schema_type: "TechArticle"
 
 ## Status
 
-Accepted (2026-05-03). Phase F code work begins with a foundation slice: lexer token, AST/HIR node, parser production. **Codegen is gated on Phase 6 (TASK-6.1) typed semantic primitives stabilizing** — emit a parse-only declaration that compiles to a documented stub until Phase 6 lands per-primitive files in [crates/vox-compiler/src/web_ir/primitives/](../../../crates/vox-compiler/src/web_ir/primitives/), then layer on the React function-component lowering. This avoids a double migration if fragments first emit against raw JSX and then have to be rewritten against primitives.
+Accepted (2026-05-03). Phase F shipped end-to-end across two commits in the same session:
+
+- Lexer `Token::Fragment` + `Display` arm, AST `FragmentDecl` and `Decl::Fragment` variant, parser dispatch in [parser/descent/mod.rs](../../../crates/vox-compiler/src/parser/descent/mod.rs) and `parse_fragment_decl` in [parser/descent/decl/head.rs](../../../crates/vox-compiler/src/parser/descent/decl/head.rs) (commit `6f01b8ae1`).
+- HIR `HirFragmentDecl` node + AST→HIR lowering in [hir/lower/mod.rs](../../../crates/vox-compiler/src/hir/lower/mod.rs) and `emit_fragment_decls` in [codegen_ts/fragment_emit.rs](../../../crates/vox-compiler/src/codegen_ts/fragment_emit.rs) producing typed React function components in `fragments.tsx` with `<Name>Args` prop interfaces, wired into `emitter::generate` (commit `2227e3026`).
+
+The Phase 6 (TASK-6.1) typed semantic primitive surface landed on `main` during the same session merge cycle, so the codegen gate originally noted here cleared without a second migration. Open questions in §"Open questions" remain follow-up sub-slices, not blockers.
 
 ## Context
 
@@ -160,6 +165,6 @@ When Phase F code work starts, the touch surface is:
 - [Svelte vs React Frameworks Research (2026)](../architecture/svelte-vs-react-frameworks-research-2026.md) — competitive analysis identifying snippets as the highest-leverage markup primitive to mine.
 - [Svelte-Mineable Features Implementation Plan (2026)](../architecture/svelte-mineable-features-implementation-plan-2026.md) — Phase F entry; sequencing notes on the Phase 6 dependency.
 - [Vox GUI-Native Language Roadmap (2026)](../architecture/vox-gui-native-roadmap-2026.md) — TASK-6.1 (Phase 6 primitives) is the unblock dependency.
-- [ADR 032: `.vox.ui` reactive modules](032-vox-ui-reactive-modules.md) — sibling ADR for the other major Phase D/E surface; same status (drafted, awaiting acceptance).
+- [ADR 032: `.vox.ui` reactive modules](032-vox-ui-reactive-modules.md) — sibling ADR for the other major Phase D/E surface; same status (accepted + shipped end-to-end in the same session).
 - [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](../architecture/phase5-react-interop-spec-2026.md) — confirms no `slot`/`fragment` keyword reservation; Phase F is unconstrained.
 - [AGENTS.md §Grammar Unification](../../../AGENTS.md) — policy that `fragment` qualifies as a new bare-keyword scope.
