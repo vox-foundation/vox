@@ -64,15 +64,10 @@ pub mod backend;
 mod backend_candle_qlora;
 #[cfg(feature = "mens-train")]
 pub mod checkpoint_state;
-// QLoRA stack needs `LoraTrainingConfig` / preflight; `train` implies `candle-qlora` in this crate.
-#[cfg(feature = "mens-train")]
-mod candle_qlora_graph;
+// SP3-D: candle_qlora_train, candle_qlora_weights, qlora_preflight, candle_qlora_graph extracted
+// to vox-plugin-mens-candle-cuda. candle_qlora_merge and candle_inference_serve remain (inference/merge paths).
 #[cfg(feature = "mens-train")]
 pub mod candle_qlora_merge;
-#[cfg(feature = "mens-train")]
-mod candle_qlora_train;
-#[cfg(feature = "mens-train")]
-mod candle_qlora_weights;
 #[cfg(feature = "mens-train")]
 pub mod domain_profiles;
 pub mod domain_router;
@@ -93,21 +88,16 @@ pub mod preflight_train;
 #[cfg(any(feature = "mens-train", feature = "mens-cloud"))]
 pub mod preset_schema;
 #[cfg(feature = "mens-train")]
-mod qlora_preflight;
-#[cfg(feature = "mens-train")]
 pub mod train_backend;
 #[cfg(feature = "mens-train")]
 pub mod train_jsonl_preflight;
 #[cfg(feature = "mens-train")]
 pub mod training_config;
 
-// Private QLoRA modules are referenced from sibling `.rs` files; anchor for unwired-module scans.
+// Private backend dispatch; anchor for unwired-module scans.
 #[cfg(feature = "mens-train")]
 #[allow(unused_imports)]
-use self::{
-    backend_candle_qlora as _, candle_qlora_graph as _, candle_qlora_train as _,
-    candle_qlora_weights as _, qlora_preflight as _,
-};
+use self::backend_candle_qlora as _;
 
 #[cfg(feature = "mens-train")]
 pub use execution_planner::{ExecutionPlan, ExecutionPlanner};

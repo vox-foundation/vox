@@ -92,13 +92,6 @@ impl ExecutionPlanner {
             }
         }
 
-        #[cfg(not(feature = "mens-candle-qlora"))]
-        if c.adapter.method == AdapterMethod::Qlora {
-            anyhow::bail!(
-                "This build does not include the Candle QLoRA kernel (`mens-candle-qlora`). Rebuild `vox-populi` with `mens-train` (or `vox-cli` with `gpu`)."
-            );
-        }
-
         if c.artifact.deployment_target == TrainingDeploymentTarget::MobileEdge {
             if c.exec.qlora_require_full_proxy_stack {
                 anyhow::bail!(super::operator_messages::MOBILE_EDGE_REJECTS_FULL_PROXY_STACK);
@@ -165,43 +158,12 @@ fn candle_proxy_stack_status(
         return Ok((false, None, None, None));
     }
 
-    #[cfg(feature = "mens-candle-qlora")]
-    {
-        let layout = super::hf_load::HfTransformerLayout::from_config_path(config_path)?;
-        if layout.architecture == HfArchitecture::Qwen35 {
-            if layout.layer_types.len() != layout.num_hidden_layers {
-                anyhow::bail!(
-                    "qwen3_5 planner preflight: layer_types length {} does not match num_hidden_layers {} in {}",
-                    layout.layer_types.len(),
-                    layout.num_hidden_layers,
-                    config_path.display()
-                );
-            }
-            for (idx, ty) in layout.layer_types.iter().enumerate() {
-                if ty != "full_attention" && ty != "linear_attention" {
-                    anyhow::bail!(
-                        "qwen3_5 planner preflight: unsupported layer_types[{idx}]={ty:?}; expected `full_attention` or `linear_attention`."
-                    );
-                }
-            }
-        }
-        let present = super::candle_qlora_weights::tensor_keys_union(shards)?;
-        let cov = super::candle_qlora_weights::middle_projection_coverage(&layout, &present);
-        if cov.expected == 0 {
-            return Ok((true, None, Some(0), Some(0)));
-        }
-        Ok((
-            true,
-            Some(cov.complete),
-            Some(cov.matched),
-            Some(cov.expected),
-        ))
-    }
-    #[cfg(not(feature = "mens-candle-qlora"))]
-    {
-        let _ = (config_path, shards);
-        Ok((true, None, None, None))
-    }
+    // SP3-D: proxy-stack key coverage was previously checked here using
+    // `candle_qlora_weights::tensor_keys_union` (removed along with the extracted
+    // training code). The plugin now performs its own preflight internally. Report
+    // eligible=true so callers proceed to dispatch.
+    let _ = (config_path, shards);
+    Ok((true, None, None, None))
 }
 
 /// Shared entry: tokenizer + weights presence checks keyed by kernel.
@@ -368,49 +330,6 @@ mod tests {
         assert!(p.candle_proxy_stack_complete.is_none());
         assert!(p.candle_proxy_stack_keys_matched.is_none());
         assert!(p.candle_proxy_stack_keys_expected.is_none());
-    }
-
-    #[cfg(feature = "mens-candle-qlora")]
-    #[test]
-    fn planner_candle_proxy_incomplete_when_middle_keys_absent() {
-        use std::fs;
-        use tempfile::tempdir;
-
-        let dir = tempdir().expect("tempdir");
-        let cfg_path = dir.path().join("config.json");
-        fs::write(
-            &cfg_path,
-            "{\"model_type\":\"qwen2\",\"hidden_size\":8,\"num_attention_heads\":2,\"num_hidden_layers\":1,\"vocab_size\":10}",
-        )
-        .expect("config");
-        let st = dir.path().join("w.safetensors");
-        let n = 10usize * 8usize * 4;
-        let raw = vec![0u8; n];
-        let tv = safetensors::tensor::TensorView::new(
-            safetensors::tensor::Dtype::F32,
-            vec![10, 8],
-            raw.as_slice(),
-        )
-        .expect("tv");
-        safetensors::serialize_to_file([("model.embed_tokens.weight", tv)], &None, &st)
-            .expect("st");
-
-        let mut c = minimal_contract_lora_vox();
-        c.adapter.method = super::super::finetune_contract::AdapterMethod::Qlora;
-        c.quant.base = BaseQuantMode::Nf4;
-        c.data.tokenizer_mode = MensTokenizerMode::Hf;
-        c.model.config_json = Some(cfg_path);
-        c.model.weight_shards = Some(vec![st]);
-
-        let p = ExecutionPlanner {
-            force_kernel: Some(PopuliTrainBackend::CandleQlora),
-        }
-        .plan(&c)
-        .expect("plan");
-        assert!(p.candle_proxy_stack_eligible);
-        assert_eq!(p.candle_proxy_stack_complete, Some(false));
-        assert_eq!(p.candle_proxy_stack_keys_matched, Some(0));
-        assert_eq!(p.candle_proxy_stack_keys_expected, Some(1));
     }
 
     #[test]
