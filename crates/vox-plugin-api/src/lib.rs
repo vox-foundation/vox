@@ -3,7 +3,7 @@
 //!
 //! See: docs/src/architecture/plugin-system-redesign-2026.md
 
-pub const VOX_PLUGIN_ABI_VERSION: u32 = 1;
+pub const VOX_PLUGIN_ABI_VERSION: u32 = 2;
 
 pub mod abi;
 pub mod errors;

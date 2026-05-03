@@ -6,6 +6,7 @@
 //! SP2 ships only the `VoxPlugin` root with `id` + `shutdown`. Per-extension
 //! `as_*` accessors are added in SP3+ as their respective traits land.
 
+use crate::extensions::ml_backend::MlBackend_TO;
 use crate::host::VoxHost_TO;
 use abi_stable::{
     StableAbi,
@@ -38,6 +39,13 @@ impl RootModule for VoxPluginRootRef {
 pub trait VoxPlugin: Send + Sync {
     fn id(&self) -> RString;
     fn shutdown(&self) -> RResult<(), RBoxError>;
+
+    /// Optional accessor: if this plugin provides an MlBackend implementation,
+    /// return Some(trait object). Default impl returns None — plugins that
+    /// don't provide MlBackend simply inherit the default.
+    fn as_ml_backend(&self) -> ROption<MlBackend_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
 }
 
 pub type VoxPluginRef = VoxPlugin_TO<'static, RBox<()>>;
