@@ -64,5 +64,6 @@ fn has_async_expr(e: &HirExpr) -> bool {
         HirExpr::With(l, r, _) => has_async_expr(l) || has_async_expr(r),
         HirExpr::Block(stmts, _) => has_async_stmts(stmts),
         HirExpr::Try(t) => has_async_expr(t.target.as_ref()),
+        HirExpr::Index(obj, idx, _) => has_async_expr(obj) || has_async_expr(idx),
     }
 }

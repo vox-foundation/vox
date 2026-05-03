@@ -329,6 +329,8 @@ fn first_shallow_pure_violation_in_expr(e: &Expr) -> Option<crate::ast::span::Sp
         Expr::JsxFragment { children, .. } => children
             .iter()
             .find_map(first_shallow_pure_violation_in_expr),
+        Expr::Index { object, index, .. } => first_shallow_pure_violation_in_expr(object)
+            .or_else(|| first_shallow_pure_violation_in_expr(index)),
         Expr::IntLit { .. }
         | Expr::FloatLit { .. }
         | Expr::StringLit { .. }

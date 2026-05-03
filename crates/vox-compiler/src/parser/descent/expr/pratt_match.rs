@@ -280,6 +280,16 @@ impl Parser {
                         };
                     }
                 }
+                Token::LBracket => {
+                    self.advance();
+                    let index = self.parse_expr()?;
+                    self.expect(&Token::RBracket)?;
+                    expr = Expr::Index {
+                        object: Box::new(expr),
+                        index: Box::new(index),
+                        span: start.merge(self.span()),
+                    };
+                }
                 _ => break,
             }
         }

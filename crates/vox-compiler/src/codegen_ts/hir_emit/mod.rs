@@ -367,6 +367,11 @@ pub fn emit_hir_expr(
             format!("new {t}()")
         }
         HirExpr::With(base, _, _) => emit_hir_expr(base, state_names, island_names),
+        HirExpr::Index(object, index, _) => {
+            let obj_str = emit_hir_expr(object, state_names, island_names);
+            let idx_str = emit_hir_expr(index, state_names, island_names);
+            format!("{obj_str}[{idx_str}]")
+        }
     }
 }
 

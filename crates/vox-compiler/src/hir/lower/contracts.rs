@@ -277,6 +277,10 @@ impl LowerCtx {
                 }
             }
 
+            HirExpr::Index(obj, idx, _) => {
+                self.inject_postconditions_into_expr(obj, post_stmts);
+                self.inject_postconditions_into_expr(idx, post_stmts);
+            }
             // Lambdas create a new return context, so we do NOT inject postconditions into them.
             HirExpr::Lambda(..) => {}
             HirExpr::IntLit(..)

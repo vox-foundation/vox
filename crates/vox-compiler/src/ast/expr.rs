@@ -333,6 +333,15 @@ pub enum Expr {
         /// Span covering `<>` through `</>`.
         span: Span,
     },
+    /// Subscript / index expression: `obj[index]`
+    Index {
+        /// Base expression being indexed.
+        object: Box<Expr>,
+        /// Index expression.
+        index: Box<Expr>,
+        /// Span covering `object[index]`.
+        span: Span,
+    },
     /// String interpolation: `"text {expr} more"`
     StringInterp {
         /// Alternating literal and interpolation segments.
@@ -379,7 +388,8 @@ impl Expr {
             | Expr::With { span, .. }
             | Expr::Try { span, .. }
             | Expr::StringInterp { span, .. }
-            | Expr::Block { span, .. } => *span,
+            | Expr::Block { span, .. }
+            | Expr::Index { span, .. } => *span,
             Expr::Jsx(el) => el.span,
             Expr::JsxSelfClosing(el) => el.span,
             Expr::JsxFragment { span, .. } => *span,

@@ -293,6 +293,10 @@ fn check_expr(
                 check_expr(child, caller_name, caller_set, cap_map, source, diags);
             }
         }
+        HirExpr::Index(obj, idx, _) => {
+            check_expr(obj, caller_name, caller_set, cap_map, source, diags);
+            check_expr(idx, caller_name, caller_set, cap_map, source, diags);
+        }
         // Leaves.
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)

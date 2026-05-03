@@ -380,6 +380,9 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
                 format!("{}({})", c, a.join(", "))
             }
         }
+        HirExpr::Index(obj, idx, _) => {
+            format!("{}[{} as usize]", emit(obj), emit(idx))
+        }
         _ => unreachable!(
             "HIR expr variants not handled in stmt_expr::emit_expr_with must be handled by stmt_expr_tail (delegate order bug)"
         ),

@@ -1,0 +1,15 @@
+component MemberAccess(items: Array) {
+    view: (<span>{items.length}</span>)
+}
+
+component Negation(active: bool) {
+    view: (<span data-disabled={not active}>"label"</span>)
+}
+
+component Conditional(ok: bool, a: str, b: str) {
+    view: (<span>{if ok { a } else { b }}</span>)
+}
+
+component FunctionRef(handler: any) {
+    view: (<button on:click={handler}>"click"</button>)
+}

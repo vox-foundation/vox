@@ -300,6 +300,15 @@ impl LowerCtx {
             Expr::Block { stmts, span } => {
                 HirExpr::Block(stmts.iter().map(|s| self.lower_stmt(s)).collect(), *span)
             }
+            Expr::Index {
+                object,
+                index,
+                span,
+            } => HirExpr::Index(
+                Box::new(self.lower_expr(object)),
+                Box::new(self.lower_expr(index)),
+                *span,
+            ),
         }
     }
 }

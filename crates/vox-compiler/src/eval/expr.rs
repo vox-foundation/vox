@@ -313,6 +313,21 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 })
             }
         }
+        HirExpr::Index(object, index, _) => {
+            let obj_val = eval_expr(interp, object)?;
+            let idx_val = eval_expr(interp, index)?;
+            match (obj_val, idx_val) {
+                (VoxValue::List(items), VoxValue::Int(i)) => {
+                    let idx = if i < 0 {
+                        items.len().saturating_sub((-i) as usize)
+                    } else {
+                        i as usize
+                    };
+                    Ok(items.into_iter().nth(idx).unwrap_or(VoxValue::Null))
+                }
+                _ => Ok(VoxValue::Null),
+            }
+        }
         _ => Ok(VoxValue::Null),
     }
 }

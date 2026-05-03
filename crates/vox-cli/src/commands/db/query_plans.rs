@@ -121,6 +121,10 @@ fn collect_query_plans_expr(
                 collect_query_plans_expr(c, out);
             }
         }
+        HirExpr::Index(obj, idx, _) => {
+            collect_query_plans_expr(obj, out);
+            collect_query_plans_expr(idx, out);
+        }
         HirExpr::IntLit(_, _)
         | HirExpr::FloatLit(_, _)
         | HirExpr::DecimalLit(_, _)

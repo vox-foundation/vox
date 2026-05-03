@@ -634,6 +634,12 @@ impl<'a> Checker<'a> {
                 Ty::Element
             }
 
+            HirExpr::Index(object, index, _) => {
+                let _ = self.check_expr(object.as_ref(), None);
+                let _ = self.check_expr(index.as_ref(), None);
+                self.uf.fresh_var()
+            }
+
             HirExpr::Try(hir_try) => {
                 let inner_ty = self.check_expr(hir_try.target.as_ref(), None);
                 let resolved = self.uf.resolve(&inner_ty);

@@ -203,6 +203,10 @@ pub fn for_each_vox_hook_call_in_expr(expr: &Expr, f: &mut impl FnMut(&str, Span
                 for_each_vox_hook_call_in_expr(ch, f);
             }
         }
+        Expr::Index { object, index, .. } => {
+            for_each_vox_hook_call_in_expr(object, f);
+            for_each_vox_hook_call_in_expr(index, f);
+        }
         Expr::IntLit { .. }
         | Expr::FloatLit { .. }
         | Expr::BoolLit { .. }

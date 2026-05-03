@@ -230,6 +230,10 @@ fn visit_expr(expr: &HirExpr, used: &mut HashSet<String>) {
                 visit_expr(item, used);
             }
         }
+        HirExpr::Index(obj, idx, _) => {
+            visit_expr(obj, used);
+            visit_expr(idx, used);
+        }
         _ => {}
     }
 }

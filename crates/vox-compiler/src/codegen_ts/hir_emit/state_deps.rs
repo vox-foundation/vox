@@ -113,6 +113,10 @@ fn collect_deps(expr: &HirExpr, state_names: &HashSet<String>, deps: &mut HashSe
         HirExpr::Spawn(expr, _) => {
             collect_deps(expr, state_names, deps);
         }
+        HirExpr::Index(obj, idx, _) => {
+            collect_deps(obj, state_names, deps);
+            collect_deps(idx, state_names, deps);
+        }
         _ => {}
     }
 }

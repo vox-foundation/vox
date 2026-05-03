@@ -382,6 +382,11 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
             op_ty
         }
         Expr::DecimalLit { .. } => Ty::Decimal,
+        Expr::Index { object, index, .. } => {
+            let _ = infer_expr(object, ctx, builtins);
+            let _ = infer_expr(index, ctx, builtins);
+            ctx.fresh_var()
+        }
     }
 }
 

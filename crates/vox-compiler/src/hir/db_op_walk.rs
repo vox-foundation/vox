@@ -215,6 +215,10 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
         }
         HirExpr::Block(stmts, _) => walk_stmts(stmts, f),
         HirExpr::Try(t) => walk_expr(t.target.as_ref(), f),
+        HirExpr::Index(obj, idx, _) => {
+            walk_expr(obj.as_ref(), f);
+            walk_expr(idx.as_ref(), f);
+        }
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
         | HirExpr::StringLit(..)
@@ -334,6 +338,10 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
         }
         HirExpr::Block(stmts, _) => walk_stmts_mut(stmts, f),
         HirExpr::Try(t) => walk_expr_mut(t.target.as_mut(), f),
+        HirExpr::Index(obj, idx, _) => {
+            walk_expr_mut(obj.as_mut(), f);
+            walk_expr_mut(idx.as_mut(), f);
+        }
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
         | HirExpr::StringLit(..)

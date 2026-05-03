@@ -477,6 +477,9 @@ pub fn emit_expr(expr: &Expr) -> String {
                 "(() => {{ const _v = {inner}; if (_v._tag === \"Ok\") return _v.value; throw _v; }})()"
             )
         }
+        Expr::Index { object, index, .. } => {
+            format!("{}[{}]", emit_expr(object), emit_expr(index))
+        }
     }
 }
 

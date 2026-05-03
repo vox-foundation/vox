@@ -164,6 +164,8 @@ pub enum HirExpr {
     Block(Vec<HirStmt>, Span),
     /// Error propagation (`?`).
     Try(HirTry),
+    /// Subscript / index expression: `object[index]`.
+    Index(Box<HirExpr>, Box<HirExpr>, Span),
 }
 
 /// Named or positional call argument.

@@ -429,6 +429,24 @@ fn scan_hir_expr_for_react_imports(
                 );
             }
         }
+        HirExpr::Index(obj, idx, _) => {
+            scan_hir_expr_for_react_imports(
+                obj,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
+            scan_hir_expr_for_react_imports(
+                idx,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
+        }
         HirExpr::JsxSelfClosing(_)
         | HirExpr::Jsx(_)
         | HirExpr::IntLit(_, _)
