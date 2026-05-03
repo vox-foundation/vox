@@ -1,7 +1,7 @@
 // Primary expressions, postfix, control/lambda forms.
 
 use super::super::Parser;
-use crate::ast::expr::{Arg, Expr, MatchArm, UnOp};
+use crate::ast::expr::{Arg, Expr, JsxAttribute, JsxElement, MatchArm, UnOp};
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
 
@@ -253,6 +253,36 @@ impl Parser {
                     self.advance();
                     let args = self.parse_args()?;
                     self.expect(&Token::RParen)?;
+                    // VUV view-call form: `Ident(args) { children }` parses as JSX.
+                    // Trigger requires (a) callee is a bare Ident (no method chains, no field access)
+                    // and (b) next non-newline token is `{`. Sugars to Expr::Jsx so HIR / web_ir /
+                    // codegen are untouched. Positional args are rejected — view calls are kw-only.
+                    if let Expr::Ident { name: tag, .. } = &expr {
+                        let mut peek_pos = self.pos;
+                        while peek_pos < self.tokens.len()
+                            && matches!(self.tokens[peek_pos].token, Token::Newline)
+                        {
+                            peek_pos += 1;
+                        }
+                        if matches!(
+                            self.tokens.get(peek_pos).map(|t| &t.token),
+                            Some(Token::LBrace)
+                        ) {
+                            let tag = tag.clone();
+                            let attributes = self.view_args_to_attrs(args)?;
+                            self.skip_newlines();
+                            self.expect(&Token::LBrace)?;
+                            let children = self.parse_view_children()?;
+                            self.expect(&Token::RBrace)?;
+                            expr = Expr::Jsx(JsxElement {
+                                tag,
+                                attributes,
+                                children,
+                                span: start.merge(self.span()),
+                            });
+                            continue;
+                        }
+                    }
                     expr = Expr::Call {
                         callee: Box::new(expr),
                         args,
@@ -498,5 +528,49 @@ impl Parser {
             body: Box::new(body),
             span: start.merge(self.span()),
         })
+    }
+
+    /// VUV: convert positional/named call args into JSX attributes. Positional args are rejected
+    /// because view calls are keyword-only by design (props need names like HTML attributes).
+    pub(crate) fn view_args_to_attrs(
+        &mut self,
+        args: Vec<Arg>,
+    ) -> Result<Vec<JsxAttribute>, ()> {
+        let mut attrs = Vec::with_capacity(args.len());
+        for arg in args {
+            match arg.name {
+                Some(name) => attrs.push(JsxAttribute {
+                    name,
+                    value: arg.value,
+                }),
+                None => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Positional argument in view-call form. View calls are keyword-only — give every argument a name.",
+                        vec![],
+                        None,
+                        ParseErrorClass::Expression,
+                    ));
+                    return Err(());
+                }
+            }
+        }
+        Ok(attrs)
+    }
+
+    /// VUV: parse the trailing `{ … }` children block of a view call. Each statement-position
+    /// expression is one child; separators (newline, comma, semicolon) are all accepted.
+    /// Caller has already consumed the opening `{`; this stops at (but does not consume) `}`.
+    pub(crate) fn parse_view_children(&mut self) -> Result<Vec<Expr>, ()> {
+        let mut children = Vec::new();
+        self.skip_newlines();
+        while !matches!(self.peek(), Token::RBrace | Token::Eof) {
+            let child = self.parse_expr()?;
+            children.push(child);
+            self.skip_newlines();
+            self.eat(&Token::Comma);
+            self.skip_newlines();
+        }
+        Ok(children)
     }
 }

@@ -277,6 +277,55 @@ fn test_parse_jsx_with_children() {
 }
 
 #[test]
+fn test_parse_view_call_form_lowers_to_jsx() {
+    // VUV: view-call form `Ident(kwargs) { children }` parses as Expr::Jsx so HIR / web_ir / codegen
+    // are untouched. This test asserts the parser sugars the new shape into the existing JSX AST.
+    let m = parse_str(
+        r#"component A() {
+            view: row(gap=2) {
+                text(size="xs") { "hello" }
+            }
+        }"#,
+    );
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else {
+        panic!("Expected reactive component, got {:?}", m.declarations[0]);
+    };
+    let Some(Expr::Jsx(outer)) = &r.view else {
+        panic!("Expected outer view-call to lower to Expr::Jsx, got {:?}", r.view);
+    };
+    assert_eq!(outer.tag, "row");
+    assert_eq!(outer.attributes.len(), 1);
+    assert_eq!(outer.attributes[0].name, "gap");
+    assert_eq!(outer.children.len(), 1);
+    let Expr::Jsx(inner) = &outer.children[0] else {
+        panic!("Expected inner child to be Expr::Jsx, got {:?}", outer.children[0]);
+    };
+    assert_eq!(inner.tag, "text");
+    assert_eq!(inner.attributes.len(), 1);
+    assert_eq!(inner.attributes[0].name, "size");
+    assert_eq!(inner.children.len(), 1);
+    assert!(matches!(inner.children[0], Expr::StringLit { .. }));
+}
+
+#[test]
+fn test_view_call_positional_arg_rejected() {
+    // VUV view calls are keyword-only — positional arg should produce a parser error.
+    let result = std::panic::catch_unwind(|| {
+        parse_str("component A() { view: row(2) { text(\"x\") {} } }")
+    });
+    // parse_str panics on parse errors via unwrap(); either a panic or non-Jsx output is acceptable.
+    if let Ok(m) = result {
+        if let Decl::ReactiveComponent(r) = &m.declarations[0] {
+            // If parsing somehow succeeded, the positional-arg branch must NOT have produced a Jsx
+            // node — view-call form requires named args.
+            if let Some(Expr::Jsx(_)) = &r.view {
+                panic!("View call with positional arg should not lower to Jsx");
+            }
+        }
+    }
+}
+
+#[test]
 fn test_parse_spawn() {
     let m = parse_str("fn f() { return spawn(Worker) }");
     if let Decl::Function(f) = &m.declarations[0] {
