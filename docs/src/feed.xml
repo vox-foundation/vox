@@ -5,8 +5,27 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 03 May 2026 03:35:38 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 03 May 2026 06:02:23 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Svelte-Mineable Features Implementation Plan (2026)</title>
+    <link>https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</guid>
+    <description>Phased implementation plan for the Svelte 5/6-inspired Vox compiler and MCP improvements identified in the comparative research. Concrete file changes, scope…</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>The Vox Contribution Loop</title>
+    <link>https://vox-lang.org/contributors/contribution-loop.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/contributors/contribution-loop.html</guid>
+    <description>How Vox contributions feed the MENS training pipeline, why quality gates matter doubly, and what makes code training-eligible.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
 
   <item>
     <title>ADR-029: Formal Intent and Tool Receipt Auditing</title>
@@ -15,6 +34,16 @@
     <description>Architecture Decision Record for formal intent and cryptographic tool receipts in the Vox ecosystem.</description>
     <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>ADR 032 — `.vox.ui` reactive modules</title>
+    <link>https://vox-lang.org/adr/032-vox-ui-reactive-modules.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/032-vox-ui-reactive-modules.html</guid>
+    <description>Introduces a `.vox.ui` file-suffix convention that allows module-scope `state` / `derived` / `effect` / `on mount` / `on cleanup` reactive members. Lowers to a…</description>
+    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>
@@ -50,6 +79,15 @@
     <link>https://vox-lang.org/architecture/phase5-react-interop-spec-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/phase5-react-interop-spec-2026.html</guid>
     <description>Design spec for importing React components into Vox source, making emitted Vox components consumable by external React apps, and retiring @island.</description>
+    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Svelte 5/6 vs React Meta-Frameworks — Comparative Research and Mineable Ideas for Vox (2026)</title>
+    <link>https://vox-lang.org/architecture/svelte-vs-react-frameworks-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/svelte-vs-react-frameworks-research-2026.html</guid>
+    <description>Comparative analysis of Svelte 5/6, Next.js 15/16, and TanStack Start as competitors and idea sources for Vox&apos;s GUI authoring layer. Frames Vox&apos;s React-emit…</description>
     <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -202,42 +240,6 @@
     <link>https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</guid>
     <description>Live tracking of task completion for the Vox GUI-native language roadmap (April 2026).</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Internal Web IR Implementation Blueprint</title>
-    <link>https://vox-lang.org/architecture/internal-web-ir-implementation-blueprint.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/internal-web-ir-implementation-blueprint.html</guid>
-    <description>Implementation plan, acceptance gates, and parity requirements for the Vox internal Web IR layer.</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Orchestrator Companion Audit — Non-Routing Surface Critique &amp; Improvement Plan</title>
-    <link>https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</guid>
-    <description>Full-system audit of crates/vox-orchestrator and surrounding surfaces excluding model-routing (covered by model-orchestration-ssot-audit-2026.md). ~280…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Phase 1: Build Target Split Spec (2026)</title>
-    <link>https://vox-lang.org/architecture/phase1-build-targets-spec-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/phase1-build-targets-spec-2026.html</guid>
-    <description>Design spec for vox build --target=server|fullstack|client, vox emit client, and vox init --kind=backend.</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Phase 3: HTTP Ergonomics Decorators Spec (2026)</title>
-    <link>https://vox-lang.org/architecture/phase3-http-ergonomics-spec-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/phase3-http-ergonomics-spec-2026.html</guid>
-    <description>Design spec for explicit method/path, @cors, @auth, and @rate_limit decorators on Vox endpoints.</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
