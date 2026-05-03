@@ -333,6 +333,7 @@ impl Parser {
                 | Token::AtInvariant
                 | Token::AtFuzz
                 | Token::AtPure
+                | Token::AtReactive
                 | Token::AtAi
                 | Token::AtDeprecated
                 | Token::AtLoading
@@ -424,6 +425,7 @@ impl Parser {
             | Token::AtInvariant
             | Token::AtFuzz
             | Token::AtPure
+            | Token::AtReactive
             | Token::AtAi
             | Token::AtDeprecated
             | Token::AtNative => {

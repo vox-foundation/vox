@@ -28,7 +28,7 @@ use crate::hir::*;
 use std::collections::HashSet;
 
 pub use compat::{map_hir_type_to_ts, map_jsx_attr_name};
-pub(crate) use state_deps::extract_state_deps;
+pub(crate) use state_deps::{extract_state_deps, extract_state_deps_with_callees};
 
 /// Unwrap a single-expression block used as a JSX / attribute value (matches AST `unwrap_block`).
 #[must_use]
