@@ -12924,6 +12924,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-plugin-mens-candle-cuda"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "anyhow",
+ "candle-core",
+ "candle-nn",
+ "memmap2",
+ "peft-rs",
+ "qlora-rs",
+ "safetensors 0.4.5",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokenizers",
+ "tracing",
+ "vox-plugin-api",
+]
+
+[[package]]
 name = "vox-plugin-noop-code"
 version = "0.1.0"
 dependencies = [
