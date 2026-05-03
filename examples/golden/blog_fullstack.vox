@@ -26,7 +26,7 @@
 
 component BlogHome() {
     state n: int = 0
-    view: <span>"blog"</span>
+    view: (<span>"blog" <a href="/edit">"new post"</a></span>)
 }
 
 component PostEditor() {
