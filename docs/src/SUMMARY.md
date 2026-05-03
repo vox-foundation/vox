@@ -47,7 +47,7 @@ training_eligible: false
 
 ## Status: Current
 
-- [Tutorial: Building UI with Islands](tutorials/tut-ui-integration.md)
+- [Tutorial: Building UI with VUV view-calls](tutorials/tut-ui-integration.md)
 - [Tutorial: Building a Collaborative Task List](tutorials/tut-first-app.md)
 - [Tutorial: Persistent Actors & State](tutorials/tut-actor-basics.md)
 - [Tutorial: Workflow Durability](tutorials/tut-workflow-durability.md)
@@ -67,6 +67,7 @@ training_eligible: false
 - [First Full Stack App](how-to/first-full-stack-app.md)
 - [Golden Examples Corpus](how-to/examples-corpus.md)
 - [How To: Train Mens on RTX 4080 Super](how-to/how-to-train-mens-4080.md)
+- [How to author Vox views (VUV)](how-to/how-to-author-views.md)
 - [How to use the canonical VoxDB / Codex store](how-to/how-to-voxdb-canonical-store.md)
 - [How-To: Build AI Agents and MCP Tools](how-to/how-to-ai-agents.md)
 - [How-To: Deploy to Production](how-to/how-to-deploy.md)
@@ -455,6 +456,7 @@ training_eligible: false
 - [Data Storage Migration Backlog (2026)](architecture/data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](architecture/data-storage-ssot-2026.md)
 - [External Frontend Interop Plan (2026)](architecture/external-frontend-interop-plan-2026.md)
+- [GUI Authoring Syntax (2026): Vox UI as Values (VUV)](architecture/gui-authoring-syntax-2026.md)
 - [MENS Research Track Blueprint 2026](archive/research-2026-q1/mens-research-track-blueprint-2026.md)
 - [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](architecture/2026-05-01-orchestrator-stage1-stage2.md)
 - [Phase 1: Build Target Split Spec (2026)](architecture/phase1-build-targets-spec-2026.md)

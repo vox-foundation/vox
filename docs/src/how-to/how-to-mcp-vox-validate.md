@@ -109,17 +109,17 @@ This is the loop that makes `vox_validate_source` pull its weight.
 ```vox
 // vox:skip — illustrative; deliberately buggy
 component Avatar(url: str) {
-  view: <img src={url} />
+  view: image(src=url)
 }
 ```
 
-**Step 2 — Assistant calls `vox_validate_source` with the proposed source.** It receives back the diagnostic above (`web_ir_validate.a11y.img.missing_alt`) plus the autofix suggestion to add an `alt` attribute.
+**Step 2 — Assistant calls `vox_validate_source` with the proposed source.** It receives back the diagnostic above (`web_ir_validate.a11y.img.missing_alt`) plus the autofix suggestion to add an `alt` argument.
 
 **Step 3 — Assistant applies the fix and re-validates:**
 
 ```vox
 component Avatar(url: str, alt: str) {
-  view: <img src={url} alt={alt} />
+  view: image(src=url, alt=alt)
 }
 ```
 

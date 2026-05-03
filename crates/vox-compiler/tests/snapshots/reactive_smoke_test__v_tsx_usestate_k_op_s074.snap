@@ -1,6 +1,5 @@
 ---
 source: crates/vox-compiler/tests/reactive_smoke_test.rs
-assertion_line: 1012
 expression: f
 ---
 import React, { useState } from "react";
@@ -8,8 +7,9 @@ import React, { useState } from "react";
 export function V(): React.ReactElement {
   const [k, set_k] = useState(2);
   return (
-    <span>
-      {k}
-    </span>
+<p className={"text-base"}
+>
+  {k}
+</p>
   );
 }

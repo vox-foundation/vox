@@ -20,14 +20,12 @@ component Counter(initial: int) {
         print("Counter unmounted")
     }
 
-    view: (
-        <div class="counter">
-            <h2>"Count: {count}"</h2>
-            <p>"Doubled: {double}"</p>
-            <p>"Label: {label}"</p>
-            <button on:click={count = count + 1}>"Increment"</button>
-            <button on:click={count = count - 1}>"Decrement"</button>
-            <button on:click={count = 0}>"Reset"</button>
-        </div>
-    )
+    view: column(raw_class="counter") {
+        heading(level=2) { "Count: {count}" }
+        text() { "Doubled: {double}" }
+        text() { "Label: {label}" }
+        button(on_click={count = count + 1}) { "Increment" }
+        button(on_click={count = count - 1}) { "Decrement" }
+        button(on_click={count = 0}) { "Reset" }
+    }
 }

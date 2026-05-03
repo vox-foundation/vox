@@ -26,12 +26,15 @@
 
 component BlogHome() {
     state n: int = 0
-    view: (<span>"blog" <a href="/edit">"new post"</a></span>)
+    view: column() {
+        text() { "blog" }
+        link(href="/edit") { "Edit posts" }
+    }
 }
 
 component PostEditor() {
     state n: int = 0
-    view: <span>"editor"</span>
+    view: text() { "editor" }
 }
 
 routes {

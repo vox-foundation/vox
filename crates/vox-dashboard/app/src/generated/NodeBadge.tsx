@@ -7,23 +7,20 @@ export interface NodeBadgeProps {
 
 export function NodeBadge({ agent_id, status }: NodeBadgeProps): React.ReactElement {
   return (
-<row className={"px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl gap-3 items-center"}
+<div className={["flex", "flex-row", "px-3", "py-2", "bg-zinc-900", "border", "border-white/10", "rounded-xl", "flex items-center", "gap-3"].filter(Boolean).join(" ")}
 >
-  <panel className={(status === "active" ? "w-2 h-2 rounded-full bg-emerald-400" : "w-2 h-2 rounded-full bg-zinc-600")}
+  <div className={["border", "border-border", "p-4", "w-2", "h-2", "rounded-full", (status === "active" ? "bg-emerald-400" : "bg-zinc-600")].filter(Boolean).join(" ")} />
+  <div className={["flex", "flex-col", "gap-0"].filter(Boolean).join(" ")}
 >
-  
-</panel>
-  <column className={"gap-0"}
->
-  <text className={"text-xs font-mono text-white/80"}
+  <p className={["text-xs", "font-mono", "text-white/80"].filter(Boolean).join(" ")}
 >
   {agent_id}
-</text>
-  <text className={"text-xs text-zinc-500"}
+</p>
+  <p className={["text-xs", "text-zinc-500"].filter(Boolean).join(" ")}
 >
   {status}
-</text>
-</column>
-</row>
+</p>
+</div>
+</div>
   );
 }

@@ -1,6 +1,6 @@
 ---
 source: crates/vox-compiler/tests/reactive_smoke_test.rs
-assertion_line: 398
+assertion_line: 390
 expression: ts
 ---
 import React, { useState } from "react";
@@ -8,8 +8,9 @@ import React, { useState } from "react";
 export function Panel(): React.ReactElement {
   const [label, set_label] = useState("Hello");
   return (
-    <div className={"wrap"}>
-      <div data-vox-island="DataChart" data-prop-title={label} />
-    </div>
+<div className={["flex", "flex-col", "wrap"].filter(Boolean).join(" ")}
+>
+  <div data-vox-island="DataChart" data-prop-title={label} />
+</div>
   );
 }

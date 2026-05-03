@@ -1,6 +1,6 @@
 ---
 source: crates/vox-compiler/tests/reactive_smoke_test.rs
-assertion_line: 920
+assertion_line: 906
 expression: tsx
 ---
 import React from "react";
@@ -9,7 +9,7 @@ import "./Box.css";
 
 export function Box(): React.ReactElement {
   return (
-<div className={"x"}
+<div className={["flex", "flex-col", "x"].filter(Boolean).join(" ")}
 >
   {"a"}
 </div>

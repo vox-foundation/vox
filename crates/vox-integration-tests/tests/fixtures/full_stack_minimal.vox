@@ -2,7 +2,7 @@
 # Used as a golden input for `vox build` integration tests.
 
 component Home() {
-    view: <div>"home"</div>
+    view: text() { "home" }
 }
 
 routes {

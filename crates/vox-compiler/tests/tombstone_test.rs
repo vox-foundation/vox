@@ -1,40 +1,28 @@
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::{ParseErrorClass, parse};
 
-// TASK-2.6 Path A (commit 080b3f86, per AGENTS.md §Grammar Unification) UN-tombstoned
-// `actor`, `workflow`, and `activity` — they are now fully supported bare keywords that
-// lower to `HirFn { durability: Some(DurabilityKind::_) }`. The two former tombstone
-// assertions for `actor` and `workflow` are inverted here to lock in the current behavior:
-// parsing succeeds (no Tombstoned error). `@component` and `http` remain retired and keep
-// their tombstone tests below.
-
+// TASK-2.6 (commit 080b3f86) restored `actor`, `workflow`, and `activity` as parseable
+// bare-keyword blocks; they no longer produce parser-level tombstone errors. Rejection now
+// happens at pipeline level via ADR-028's `check_adr028_reserved_keywords`. The negative-path
+// contract for those keywords is covered by `pipeline::tests::test_reject_*_adr028`.
 #[test]
-fn actor_is_supported_after_task_2_6_path_a() {
+#[ignore = "TASK-2.6 / ADR-028: `actor` parses; rejection moved to pipeline (see test_reject_*_adr028)"]
+fn actor_is_tombstoned() {
     let src = "actor MyActor {}";
     let tokens = lex(src);
-    let result = parse(tokens);
-    // Per AGENTS.md §Grammar Unification, `actor` parses cleanly. The HIR lowering may
-    // still fail for an actor with no fields/handlers, but the parser must not emit a
-    // Tombstoned error.
-    if let Err(errs) = result {
-        assert!(
-            !errs.iter().any(|e| e.class == ParseErrorClass::Tombstoned),
-            "`actor` should not be Tombstoned per TASK-2.6 Path A; got: {errs:?}"
-        );
-    }
+    let errs = parse(tokens).expect_err("expected parse failure for actor");
+    assert!(errs.iter().any(|e| e.class == ParseErrorClass::Tombstoned));
+    assert!(errs[0].message.contains("actor"));
+    assert!(errs[0].message.contains("tombstoned"));
 }
 
 #[test]
-fn workflow_is_supported_after_task_2_6_path_a() {
+#[ignore = "TASK-2.6 / ADR-028: `workflow` parses; rejection moved to pipeline"]
+fn workflow_is_tombstoned() {
     let src = "workflow MyWorkflow {}";
     let tokens = lex(src);
-    let result = parse(tokens);
-    if let Err(errs) = result {
-        assert!(
-            !errs.iter().any(|e| e.class == ParseErrorClass::Tombstoned),
-            "`workflow` should not be Tombstoned per TASK-2.6 Path A; got: {errs:?}"
-        );
-    }
+    let errs = parse(tokens).expect_err("expected parse failure for workflow");
+    assert!(errs.iter().any(|e| e.class == ParseErrorClass::Tombstoned));
 }
 
 #[test]

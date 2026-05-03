@@ -9,29 +9,31 @@ component PhotoUploader(on_image: fn(str) to unit) {
     state status = "idle"
     state last_photo: Option[str] = None
 
-    view:
-        <div class="uploader">
-            <div class="status">"Status: " {status}</div>
-            <button onclick={fn() {
-                status = "capturing"
-                match mobile.take_photo() {
-                    Ok(uri) => {
-                        last_photo = Some(uri)
-                        status = "done"
-                        on_image(uri)
-                    }
-                    Error(msg) => {
-                        status = "error: " + msg
-                        mobile.notify("Camera Error", msg)
-                    }
+    view: column(raw_class="uploader") {
+        text(raw_class="status") { "Status: " }
+        text() { status }
+        button(on_click={fn() {
+            status = "capturing"
+            match mobile.take_photo() {
+                Ok(uri) => {
+                    last_photo = Some(uri)
+                    status = "done"
+                    on_image(uri)
                 }
-            }}>"Take Photo"</button>
-            <button onclick={fn() { mobile.vibrate() }}>"Vibrate"</button>
-            
-            {match last_photo {
-                Some(uri) => <img src={uri} alt="captured" />
-                None => <div class="placeholder">"No photo captured"</div>
-            }}
-        </div>
+                Error(msg) => {
+                    status = "error: " + msg
+                    mobile.notify("Camera Error", msg)
+                }
+            }
+        }}) {
+            "Take Photo"
+        }
+        button(on_click={fn() { mobile.vibrate() }}) { "Vibrate" }
+
+        match last_photo {
+            Some(uri) => image(src=uri, alt="captured")
+            None => column(raw_class="placeholder") { "No photo captured" }
+        }
+    }
 }
 // [END:display]

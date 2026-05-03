@@ -16,27 +16,30 @@
 }
 
 @loading fn RoutePending() to Element {
-    return <div>"wait"</div>
+    return text() { "wait" }
 }
 
 component Home() {
     state n: int = 0
-    view: (<span>"home" <a href="/section">"section"</a></span>)
+    view: column() {
+        text() { "home" }
+        link(href="/section") { "Go to section" }
+    }
 }
 
 component Section() {
     state n: int = 0
-    view: <span>"section"</span>
+    view: text() { "section" }
 }
 
 component NotFoundPage() {
     state n: int = 0
-    view: <span>"nf"</span>
+    view: text() { "nf" }
 }
 
 component ErrorPage() {
     state n: int = 0
-    view: <span>"err"</span>
+    view: text() { "err" }
 }
 
 routes {
