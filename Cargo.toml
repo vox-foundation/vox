@@ -92,6 +92,7 @@ vox-plugin-catalog        = { path = "crates/vox-plugin-catalog" }
 vox-plugin-host           = { path = "crates/vox-plugin-host" }
 vox-plugin-noop-code      = { path = "crates/vox-plugin-noop-code" }
 vox-plugin-noop-code-bad-abi = { path = "crates/vox-plugin-noop-code-bad-abi" }
+vox-plugin-nvml-probe     = { path = "crates/vox-plugin-nvml-probe" }
 vox-pm                    = { path = "crates/vox-pm" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }

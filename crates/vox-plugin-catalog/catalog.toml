@@ -9,6 +9,15 @@
 # See: docs/src/reference/plugin-catalog.md
 
 [[plugin]]
+id = "nvml-probe"
+payload-kind = "code"
+description = "NVIDIA GPU hardware probe via NVML (device count, VRAM, utilization, temperature)."
+extension-points = ["HardwareProbe"]
+requires-tag = "nvidia-gpu"
+default-source = "local:crates/vox-plugin-nvml-probe"
+bundled-in = ["vox-ml", "vox-dev"]
+
+[[plugin]]
 id = "mens-candle-cuda"
 payload-kind = "code"
 description = "ML training backend using Candle with CUDA acceleration."

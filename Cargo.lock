@@ -12933,17 +12933,27 @@ dependencies = [
  "anyhow",
  "candle-core",
  "candle-nn",
+ "chrono",
+ "ctrlc",
  "memmap2",
+ "owo-colors",
  "peft-rs",
  "qlora-rs",
+ "rand 0.8.5",
  "safetensors 0.4.5",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 1.0.69",
  "tokenizers",
+ "tokio",
  "tracing",
+ "vox-clavis",
+ "vox-compiler",
+ "vox-db",
+ "vox-eval",
  "vox-plugin-api",
+ "vox-tensor",
 ]
 
 [[package]]
@@ -12960,6 +12970,20 @@ version = "0.1.0"
 dependencies = [
  "abi_stable",
  "vox-plugin-api",
+]
+
+[[package]]
+name = "vox-plugin-nvml-probe"
+version = "0.5.0"
+dependencies = [
+ "abi_stable",
+ "nvml-wrapper",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tracing",
+ "vox-plugin-api",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -13006,11 +13030,9 @@ dependencies = [
  "hf-hub",
  "jsonschema",
  "jsonwebtoken",
- "memmap2",
  "nvml-wrapper",
  "openapiv3",
  "owo-colors",
- "peft-rs",
  "qlora-rs",
  "rand 0.8.5",
  "reqwest 0.12.28",
@@ -13039,6 +13061,7 @@ dependencies = [
  "vox-eval",
  "vox-grammar-export",
  "vox-mesh-types",
+ "vox-plugin-host",
  "vox-primitives",
  "vox-repository",
  "vox-reqwest-defaults",
