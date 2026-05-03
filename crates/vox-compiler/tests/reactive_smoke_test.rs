@@ -577,10 +577,19 @@ fn reactive_view_bridge_stats_legacy_when_web_ir_env_off() {
         .expect("REACTIVE_SMOKE_SERIAL poisoned");
 
     const KEY: &str = "VOX_WEBIR_EMIT_REACTIVE_VIEWS";
-    let prev = std::env::var_os(KEY);
-    unsafe {
-        std::env::set_var(KEY, "0");
+    struct Guard {
+        prev: Option<OsString>,
     }
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            match &self.prev {
+                Some(v) => unsafe { std::env::set_var(KEY, v) },
+                None => unsafe { std::env::remove_var(KEY) },
+            }
+        }
+    }
+    let _guard = Guard { prev: std::env::var_os(KEY) };
+    unsafe { std::env::set_var(KEY, "0") };
 
     let source = r#"
 component C() {
@@ -593,10 +602,6 @@ component C() {
     let hir = vox_compiler::hir::lower_module(&module);
     let out = vox_compiler::codegen_ts::generate(&hir).expect("codegen");
     let after = out.reactive_stats;
-    match &prev {
-        Some(v) => unsafe { std::env::set_var(KEY, v) },
-        None => unsafe { std::env::remove_var(KEY) },
-    }
     assert!(
         after.legacy_env_disabled >= 1,
         "expected LegacyEnvDisabled tally after view emit, after={after:?}"
@@ -611,7 +616,18 @@ fn reactive_view_bridge_stats_env_on_uses_non_legacy_pathways() {
         .expect("REACTIVE_SMOKE_SERIAL poisoned");
 
     const KEY: &str = "VOX_WEBIR_EMIT_REACTIVE_VIEWS";
-    let prev = std::env::var_os(KEY);
+    struct Guard {
+        prev: Option<OsString>,
+    }
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            match &self.prev {
+                Some(v) => unsafe { std::env::set_var(KEY, v) },
+                None => unsafe { std::env::remove_var(KEY) },
+            }
+        }
+    }
+    let _guard = Guard { prev: std::env::var_os(KEY) };
     unsafe { std::env::set_var(KEY, "1") };
 
     let source = r#"
@@ -635,10 +651,6 @@ component Counter(initial: int) {
     let hir = vox_compiler::hir::lower_module(&module);
     let out = vox_compiler::codegen_ts::generate(&hir).expect("codegen");
     let after = out.reactive_stats;
-    match &prev {
-        Some(v) => unsafe { std::env::set_var(KEY, v) },
-        None => unsafe { std::env::remove_var(KEY) },
-    }
     assert_eq!(
         after.legacy_env_disabled, 0,
         "env on must not tally LegacyEnvDisabled; after={after:?}"

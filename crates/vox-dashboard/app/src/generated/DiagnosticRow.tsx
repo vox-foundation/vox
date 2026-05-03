@@ -8,7 +8,7 @@ export interface DiagnosticRowProps {
 
 export function DiagnosticRow({ severity, message, location }: DiagnosticRowProps): React.ReactElement {
   return (
-<div className={["flex", "flex-row", "px-4", "py-3", "border-b-true", "border-white/5", "items-start", "gap-4", "hover:bg-white/5"].filter(Boolean).join(" ")}
+<div className={["flex", "flex-row", "px-4", "py-3", "border-b-true", "border-white/5", "flex items-start", "gap-4", "hover:bg-white/5"].filter(Boolean).join(" ")}
 >
   <div className={["border", "border-border", "p-4", "w-2", "h-2", "rounded-full", (severity === "error" ? "bg-rose-500" : "bg-amber-400"), "mt-1.5", "shrink-0"].filter(Boolean).join(" ")} />
   <div className={["flex", "flex-col", "flex-1", "min-w-0", "gap-1"].filter(Boolean).join(" ")}

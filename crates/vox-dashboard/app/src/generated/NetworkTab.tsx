@@ -6,7 +6,7 @@ export function NetworkTab(): React.ReactElement {
   return (
 <div className={["flex", "flex-col", "flex-1", "overflow-hidden", "bg-zinc-950"].filter(Boolean).join(" ")}
 >
-  <div className={["flex", "flex-row", "h-12", "border-b-true", "border-zinc-800", "px-6", "items-center", "justify-between", "shrink-0"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "h-12", "border-b-true", "border-zinc-800", "px-6", "flex items-center", "flex justify-between", "shrink-0"].filter(Boolean).join(" ")}
 >
   <div className={["flex", "flex-col", "gap-0"].filter(Boolean).join(" ")}
 >
@@ -19,7 +19,7 @@ export function NetworkTab(): React.ReactElement {
   {"AGENT MESH TOPOLOGY"}
 </p>
 </div>
-  <div className={["flex", "flex-row", "items-center", "gap-3"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "flex items-center", "gap-3"].filter(Boolean).join(" ")}
 >
   <p className={["text-xs", "text-zinc-500"].filter(Boolean).join(" ")}
 >
@@ -33,16 +33,16 @@ export function NetworkTab(): React.ReactElement {
 </div>
   <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "flex-1", "relative", "overflow-hidden"].filter(Boolean).join(" ")}
 >
-  <div className={["flex", "flex-col", "flex-1", "items-center", "justify-center", "text-zinc-500", "gap-4"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-col", "flex-1", "flex items-center", "flex justify-center", "text-zinc-500", "gap-4"].filter(Boolean).join(" ")}
 >
-  <div className={["p-4", "w-16", "h-16", "rounded-2xl", "border", "border-white/10", "bg-zinc-900", "items-center", "justify-center"].filter(Boolean).join(" ")}
+  <div className={["p-4", "w-16", "h-16", "rounded-2xl", "border", "border-white/10", "bg-zinc-900", "flex items-center", "flex justify-center"].filter(Boolean).join(" ")}
 >
   <p className={"text-2xl"}
 >
   {"⬡"}
 </p>
 </div>
-  <div className={["flex", "flex-col", "items-center", "gap-1"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-col", "flex items-center", "gap-1"].filter(Boolean).join(" ")}
 >
   <p className={["text-sm", "font-bold", "uppercase", "tracking-widest"].filter(Boolean).join(" ")}
 >

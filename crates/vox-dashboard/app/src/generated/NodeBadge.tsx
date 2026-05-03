@@ -7,7 +7,7 @@ export interface NodeBadgeProps {
 
 export function NodeBadge({ agent_id, status }: NodeBadgeProps): React.ReactElement {
   return (
-<div className={["flex", "flex-row", "px-3", "py-2", "bg-zinc-900", "border", "border-white/10", "rounded-xl", "items-center", "gap-3"].filter(Boolean).join(" ")}
+<div className={["flex", "flex-row", "px-3", "py-2", "bg-zinc-900", "border", "border-white/10", "rounded-xl", "flex items-center", "gap-3"].filter(Boolean).join(" ")}
 >
   <div className={["border", "border-border", "p-4", "w-2", "h-2", "rounded-full", (status === "active" ? "bg-emerald-400" : "bg-zinc-600")].filter(Boolean).join(" ")} />
   <div className={["flex", "flex-col", "gap-0"].filter(Boolean).join(" ")}

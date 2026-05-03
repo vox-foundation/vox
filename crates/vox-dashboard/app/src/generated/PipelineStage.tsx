@@ -9,9 +9,9 @@ export function PipelineStage({ name, desc }: PipelineStageProps): React.ReactEl
   return (
 <div className={["flex", "flex-col", "p-8", "flex-1", "border-r-true", "border-white/5", "gap-4"].filter(Boolean).join(" ")}
 >
-  <div className={["flex", "flex-row", "justify-between", "mb-6"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "flex justify-between", "mb-6"].filter(Boolean).join(" ")}
 >
-  <div className={["p-4", "w-10", "h-10", "rounded-xl", "bg-zinc-900", "border", "border-white/5", "items-center", "justify-center"].filter(Boolean).join(" ")}
+  <div className={["p-4", "w-10", "h-10", "rounded-xl", "bg-zinc-900", "border", "border-white/5", "flex items-center", "flex justify-center"].filter(Boolean).join(" ")}
 >
   <p className={["text-xs", "text-zinc-500", "font-mono"].filter(Boolean).join(" ")}
 >

@@ -10,7 +10,7 @@ export function AppShell(): React.ReactElement {
   return (
 <div className={["flex", "flex-col", "min-h-screen", "bg-zinc-950", "text-zinc-100", "font-mono"].filter(Boolean).join(" ")}
 >
-  <div className={["flex", "flex-row", "h-10", "border-b-true", "border-zinc-800", "px-4", "items-center", "justify-between", "shrink-0"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "h-10", "border-b-true", "border-zinc-800", "px-4", "flex items-center", "flex justify-between", "shrink-0"].filter(Boolean).join(" ")}
 >
   <p className={["text-xs", "tracking-widest", "text-zinc-500"].filter(Boolean).join(" ")}
 >

@@ -8,7 +8,7 @@ export function CommandTab(): React.ReactElement {
   return (
 <div className={["flex", "flex-col", "flex-1", "overflow-hidden", "bg-zinc-950"].filter(Boolean).join(" ")}
 >
-  <div className={["flex", "flex-row", "h-12", "border-b-true", "border-zinc-800", "px-6", "items-center", "justify-between", "shrink-0"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "h-12", "border-b-true", "border-zinc-800", "px-6", "flex items-center", "flex justify-between", "shrink-0"].filter(Boolean).join(" ")}
 >
   <p className={["text-sm", "text-white", "tracking-tighter"].filter(Boolean).join(" ")}
 >
@@ -32,7 +32,7 @@ export function CommandTab(): React.ReactElement {
 </div>
   <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "flex-1", "overflow-hidden"].filter(Boolean).join(" ")}
 >
-  {(active_panel === "diagnostics" ? <DiagnosticsPanel  /> : <div className={["flex", "flex-col", "flex-1", "items-center", "justify-center", "text-zinc-500", "gap-3"].filter(Boolean).join(" ")}
+  {(active_panel === "diagnostics" ? <DiagnosticsPanel  /> : <div className={["flex", "flex-col", "flex-1", "flex items-center", "flex justify-center", "text-zinc-500", "gap-3"].filter(Boolean).join(" ")}
 >
   <p className={["text-sm", "font-bold", "uppercase", "tracking-widest"].filter(Boolean).join(" ")}
 >

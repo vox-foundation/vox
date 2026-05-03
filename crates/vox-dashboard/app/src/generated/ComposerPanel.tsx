@@ -5,7 +5,7 @@ export function ComposerPanel(): React.ReactElement {
   return (
 <div className={["flex", "flex-col", "border-t-true", "border-white/10", "p-4", "gap-3", "bg-zinc-950/80"].filter(Boolean).join(" ")}
 >
-  <div className={["flex", "flex-row", "gap-3", "items-end"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "gap-3", "flex items-end"].filter(Boolean).join(" ")}
 >
   <div className={["flex-1", "bg-zinc-900", "border", "border-white/10", "rounded-2xl", "px-4", "py-3", "min-h-16"].filter(Boolean).join(" ")}
 >
@@ -21,7 +21,7 @@ export function ComposerPanel(): React.ReactElement {
   {(is_submitting ? "…" : "→")}
 </button>
 </div>
-  <div className={["flex", "flex-row", "justify-between", "items-center", "px-1"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "flex justify-between", "flex items-center", "px-1"].filter(Boolean).join(" ")}
 >
   <p className={["text-xs", "text-zinc-500"].filter(Boolean).join(" ")}
 >

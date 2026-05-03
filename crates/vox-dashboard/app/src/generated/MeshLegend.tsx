@@ -8,7 +8,7 @@ export function MeshLegend(): React.ReactElement {
 >
   {"LEGEND"}
 </p>
-  <div className={["flex", "flex-row", "items-center", "gap-2"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "flex items-center", "gap-2"].filter(Boolean).join(" ")}
 >
   <div className={["border", "border-border", "p-4", "w-3", "bg-emerald-400", "rounded-DEFAULT", "h-0.5"].filter(Boolean).join(" ")} />
   <p className={["text-xs", "text-zinc-400"].filter(Boolean).join(" ")}
@@ -16,7 +16,7 @@ export function MeshLegend(): React.ReactElement {
   {"Active channel"}
 </p>
 </div>
-  <div className={["flex", "flex-row", "items-center", "gap-2"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "flex items-center", "gap-2"].filter(Boolean).join(" ")}
 >
   <div className={["border", "border-border", "p-4", "w-3", "bg-zinc-600", "rounded-DEFAULT", "h-0.5"].filter(Boolean).join(" ")} />
   <p className={["text-xs", "text-zinc-400"].filter(Boolean).join(" ")}
@@ -24,7 +24,7 @@ export function MeshLegend(): React.ReactElement {
   {"Idle channel"}
 </p>
 </div>
-  <div className={["flex", "flex-row", "items-center", "gap-2"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "flex items-center", "gap-2"].filter(Boolean).join(" ")}
 >
   <div className={["border", "border-border", "p-4", "w-2", "h-2", "rounded-full", "bg-rose-500"].filter(Boolean).join(" ")} />
   <p className={["text-xs", "text-zinc-400"].filter(Boolean).join(" ")}

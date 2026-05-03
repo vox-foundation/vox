@@ -601,8 +601,13 @@ pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> 
             "0" => vec!["grow-0".to_string()],
             _ => vec![format!("grow-{v}")],
         },
-        "justify" => vec![format!("justify-{v}")],
-        "items"   => vec![format!("items-{v}")],
+        // `justify`/`items` only have an effect on flex containers. Auto-include `flex` so
+        // the kwarg works on any primitive (`panel(items="center")`, `card(justify="end")`,
+        // …), not just row/column. Tailwind happily ignores duplicate `flex` if the
+        // primitive's base classes already include it; on non-flex primitives this turns the
+        // class into the intended layout instead of a silent no-op.
+        "justify" => vec!["flex".to_string(), format!("justify-{v}")],
+        "items"   => vec!["flex".to_string(), format!("items-{v}")],
         "tracking" => vec![format!("tracking-{v}")],
         "leading"  => vec![format!("leading-{v}")],
         "case" => match v {

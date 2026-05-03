@@ -5,7 +5,7 @@ export function WorkflowScrubber(): React.ReactElement {
   return (
 <div className={["flex", "flex-col", "p-10", "bg-zinc-950", "h-full", "text-white", "gap-8"].filter(Boolean).join(" ")}
 >
-  <div className={["flex", "flex-row", "justify-between", "items-center"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "flex justify-between", "flex items-center"].filter(Boolean).join(" ")}
 >
   <div className={["flex", "flex-col", "gap-2"].filter(Boolean).join(" ")}
 >
@@ -18,7 +18,7 @@ export function WorkflowScrubber(): React.ReactElement {
   {"DURABLE WORKFLOW STATE INSPECTOR"}
 </p>
 </div>
-  <div className={["flex", "flex-row", "bg-white/5", "p-2", "rounded-2xl", "border", "border-white/5", "items-center", "gap-4"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-row", "bg-white/5", "p-2", "rounded-2xl", "border", "border-white/5", "flex items-center", "gap-4"].filter(Boolean).join(" ")}
 >
   <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "px-4", "py-2", "w-10", "h-10", "rounded-xl", "bg-white/5", "text-zinc-400"].filter(Boolean).join(" ")}
 >
@@ -38,7 +38,7 @@ export function WorkflowScrubber(): React.ReactElement {
 </div>
   <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "flex-1"].filter(Boolean).join(" ")}
 >
-  <div className={["flex", "flex-col", "items-center", "text-zinc-500", "gap-4"].filter(Boolean).join(" ")}
+  <div className={["flex", "flex-col", "flex items-center", "text-zinc-500", "gap-4"].filter(Boolean).join(" ")}
 >
   <p className={["text-sm", "font-bold", "uppercase", "tracking-widest"].filter(Boolean).join(" ")}
 >
