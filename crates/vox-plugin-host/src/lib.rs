@@ -10,7 +10,9 @@ pub mod registry;
 pub mod skill_registry;
 pub mod telemetry;
 
+pub use discover::discover;
 pub use errors::{AbiMismatchError, LoadError, PluginMissingError, SkillNotInstalledError};
 pub use host_impl::DefaultVoxHost;
+pub use loader::{LoadedCodePlugin, Loader};
 pub use registry::{PluginEntry, Registry};
 pub use skill_registry::SkillRegistry;
