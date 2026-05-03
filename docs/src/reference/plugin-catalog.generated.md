@@ -26,6 +26,8 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 | `script-execution` | `ScriptExecutor` | `github:vox-foundation/vox-plugin-script-execution` | `vox-dev` |
 | `execution-api` | `ScriptExecutor` | `github:vox-foundation/vox-plugin-execution-api` | — |
 | `stub-check` | `ScriptExecutor` | `github:vox-foundation/vox-plugin-stub-check` | — |
+| `noop-code` | `__noop__` | `local:crates/vox-plugin-noop-code` | — |
+| `noop-bad-abi` | `__noop__` | `local:crates/vox-plugin-noop-code-bad-abi` | — |
 
 ## Skill-payload plugins
 
@@ -39,6 +41,7 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 | `skill-testing` | `vox_test_run`, `vox_test_select` | `github:vox-foundation/vox-plugin-skill-testing` | `vox-fullstack`, `vox-dev` |
 | `skill-testing-validate` | `vox_test_validate` | `github:vox-foundation/vox-plugin-skill-testing-validate` | `vox-fullstack`, `vox-dev` |
 | `skill-v0` | `vox_v0_compat` | `github:vox-foundation/vox-plugin-skill-v0` | `vox-fullstack`, `vox-edge` |
+| `noop-skill` | `noop_tool` | `local:crates/vox-plugin-noop-skill` | — |
 
 ## Composite plugins
 
