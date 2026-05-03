@@ -41,6 +41,9 @@ pub mod state_machine_emit;
 /// `fragment` declaration → typed React function components in `fragments.tsx`
 /// (Phase F of the Svelte-mineable features plan; per ADR-033).
 pub mod fragment_emit;
+/// `.vox.ui` reactive module → React context + provider + hook (Phase D of the
+/// Svelte-mineable features plan; per ADR-032).
+pub mod reactive_module_emit;
 /// Zod schema emission.
 pub mod zod_emit;
 

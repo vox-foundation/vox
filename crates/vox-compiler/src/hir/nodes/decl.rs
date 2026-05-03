@@ -81,6 +81,11 @@ pub struct HirModule {
     #[serde(default)]
     pub fragments: Vec<HirFragmentDecl>,
 
+    /// `.vox.ui` reactive modules (ADR-032). Each lowers to a generated React
+    /// context + provider + `use<Name>()` hook in TSX emit.
+    #[serde(default)]
+    pub reactive_modules: Vec<HirReactiveModule>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 
@@ -666,6 +671,22 @@ pub struct HirUrlArg {
 }
 
 // ── State machine HIR types (TASK-4.1) ────────────────────────────────────
+
+/// A `.vox.ui` reactive module lowered to HIR (ADR-032).
+///
+/// Members re-use the existing [`HirReactiveMember`] enum from reactive
+/// component lowering, so the inner shape (state / derived / effect / on-mount /
+/// on-cleanup) is identical to what a `component { }` body produces.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirReactiveModule {
+    /// Module name. Filled in by codegen from the source file basename
+    /// (the parser leaves it empty).
+    pub name: String,
+    /// Reactive members declared at module scope.
+    pub members: Vec<HirReactiveMember>,
+    /// Source span.
+    pub span: Span,
+}
 
 /// A `fragment Name(args) { … }` declaration lowered to HIR (ADR-033).
 ///
