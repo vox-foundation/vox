@@ -93,6 +93,9 @@ async fn test_model_selection_preference() {
     let orch = Orchestrator::new(config);
 
     let mh = orch.models_handle();
+    // Clear any models seeded from the on-disk catalog cache so this test is
+    // self-contained and not affected by the user's local model-catalog.v1.json.
+    mh.write().unwrap().clear();
     mh.write().unwrap().register(ModelSpec {
         id: "anthropic/claude-sonnet-4.5".to_string(),
         canonical_slug: "anthropic/claude-sonnet-4.5".to_string(),
