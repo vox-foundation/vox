@@ -1,0 +1,14 @@
+component Box(width: int, label: str) {
+    view: (
+        <div style={{ width: width, padding: 8 }} class="card">
+            <span>{label}</span>
+        </div>
+    )
+}
+
+component Page() {
+    state count: int = 12
+    view: (
+        <Box width={count * 16} label="hi"/>
+    )
+}
