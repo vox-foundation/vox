@@ -108,6 +108,7 @@ vox-search                = { path = "crates/vox-search" }
 vox-dashboard             = { path = "crates/vox-dashboard" }
 
 # External dependencies (centralized versions)
+abi_stable         = "0.11"
 logos              = "0.16"
 clap               = { version = "4.5", features = ["derive"] }
 clap_complete      = { version = "4.5" }
@@ -219,6 +220,7 @@ semver             = "1"
 secrecy            = "0.10"
 rmcp               = "0.16"
 rmp-serde          = "1"
+libloading         = "0.8"
 lru                = "0.13"
 futures-core       = "0.3"
 quote              = "1"
