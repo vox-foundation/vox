@@ -5,7 +5,9 @@
 
 pub const VOX_PLUGIN_ABI_VERSION: u32 = 1;
 
+pub mod abi;
 pub mod errors;
 pub mod extensions;
+pub mod host;
 pub mod manifest;
 pub mod skill;
