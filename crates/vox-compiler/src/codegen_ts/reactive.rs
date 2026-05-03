@@ -19,7 +19,7 @@
 
 use crate::codegen_ts::hir_emit::{
     emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps,
-    extract_state_deps_with_callees, map_hir_type_to_ts,
+    extract_state_deps_with_callees, extract_state_deps_with_diagnostics, map_hir_type_to_ts,
 };
 use crate::hir::*;
 use crate::react_bridge::react_exports::{USE_CALLBACK, USE_EFFECT, USE_MEMO, USE_REF, USE_STATE};
@@ -526,6 +526,27 @@ fn scan_hir_stmt_for_react_imports(
     }
 }
 
+/// Phase E tier-2: emit a `// dep_inference.over_track` hint comment above a `useMemo` /
+/// `useEffect` line whenever its body calls visible in-module functions that aren't
+/// `@reactive`-annotated. Surfaces the conservative under-tracking gap to humans and AI
+/// readers of the generated TSX. Stripped by minifiers; harmless to runtime.
+fn emit_dep_inference_hints(out: &mut String, owner: &str, unannotated: &[String]) {
+    if unannotated.is_empty() {
+        return;
+    }
+    out.push_str(&format!(
+        "  // dep_inference.over_track: `{}` calls [{}] which lack `@reactive` — \
+         reactive reads inside those bodies will not trigger re-runs. Add `@reactive` \
+         to the callee(s) to opt in to cross-call dep tracking.\n",
+        owner,
+        unannotated
+            .iter()
+            .map(|n| format!("`{n}`"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    ));
+}
+
 fn collect_reactive_binding_names(members: &[HirReactiveMember]) -> HashSet<String> {
     fn pat_names(pat: &HirPattern, out: &mut HashSet<String>) {
         match pat {
@@ -712,6 +733,11 @@ pub fn generate_reactive_component(
         .filter(|f| f.is_reactive)
         .map(|f| (f.name.clone(), f.body.clone()))
         .collect();
+    // Phase E tier-2: full set of in-module fn names — used by the dep walker to
+    // distinguish "in-module fn missing @reactive" (worth a hint) from "method call /
+    // stdlib call / unknown identifier" (silent).
+    let visible_fn_names: HashSet<String> =
+        hir.functions.iter().map(|f| f.name.clone()).collect();
 
     out.push_str(&react_import_line(&rc.members));
 
@@ -776,9 +802,14 @@ pub fn generate_reactive_component(
             }
             HirReactiveMember::Derived(d) => {
                 let expr = emit_hir_expr(&d.expr, &state_names, island_names);
-                let deps =
-                    extract_state_deps_with_callees(&d.expr, &state_names, &reactive_callees);
-                let dep_str = deps.join(", ");
+                let analysis = extract_state_deps_with_diagnostics(
+                    &d.expr,
+                    &state_names,
+                    &reactive_callees,
+                    &visible_fn_names,
+                );
+                emit_dep_inference_hints(&mut out, &d.name, &analysis.unannotated_calls);
+                let dep_str = analysis.deps.join(", ");
                 out.push_str(&format!(
                     "  const {} = useMemo(() => {}, [{}]);\n",
                     d.name, expr, dep_str
@@ -786,9 +817,14 @@ pub fn generate_reactive_component(
             }
             HirReactiveMember::Effect(e) => {
                 let stmts_str = emit_block_stmts(&e.body, &state_names, island_names, 2);
-                let deps =
-                    extract_state_deps_with_callees(&e.body, &state_names, &reactive_callees);
-                let dep_str = deps.join(", ");
+                let analysis = extract_state_deps_with_diagnostics(
+                    &e.body,
+                    &state_names,
+                    &reactive_callees,
+                    &visible_fn_names,
+                );
+                emit_dep_inference_hints(&mut out, "effect", &analysis.unannotated_calls);
+                let dep_str = analysis.deps.join(", ");
                 out.push_str(&format!(
                     "  useEffect(() => {{\n{}  }}, [{}]);\n",
                     stmts_str, dep_str
@@ -901,6 +937,50 @@ mod tests {
         assert!(
             counter.contains("useMemo(() => double_it(count), [count])"),
             "expected useMemo dep array to include `count` traced through @reactive callee:\n{counter}"
+        );
+    }
+
+    #[test]
+    fn derived_calling_non_reactive_callee_emits_dep_inference_over_track_hint() {
+        // Phase E tier-2: when `derived` calls a visible in-module fn that is not
+        // `@reactive`, emit a `// dep_inference.over_track` hint comment above the
+        // useMemo line so downstream readers (humans + AI) see why the dep array might
+        // miss reactive reads through the call.
+        let files = compile(
+            "fn opaque(x: int) to int { x + 1 }\n\
+             component Counter() {\n\
+               state count: int = 0\n\
+               derived doubled = opaque(count)\n\
+               view: (<text>\"v\"</text>)\n\
+             }",
+        );
+        let counter = get(&files, "Counter.tsx");
+        assert!(
+            counter.contains("// dep_inference.over_track"),
+            "expected over_track hint comment:\n{counter}"
+        );
+        assert!(
+            counter.contains("`opaque`"),
+            "expected hint to name the offending callee:\n{counter}"
+        );
+    }
+
+    #[test]
+    fn derived_with_only_reactive_callees_omits_dep_inference_hint() {
+        // Counterpart: when every called in-module fn is `@reactive`, no hint comment
+        // appears (the analyzer can fully descend, no over-tracking risk).
+        let files = compile(
+            "@reactive fn double_it(c: int) to int { c * 2 }\n\
+             component Counter() {\n\
+               state count: int = 0\n\
+               derived doubled = double_it(count)\n\
+               view: (<text>\"v\"</text>)\n\
+             }",
+        );
+        let counter = get(&files, "Counter.tsx");
+        assert!(
+            !counter.contains("dep_inference.over_track"),
+            "did not expect over_track hint:\n{counter}"
         );
     }
 
