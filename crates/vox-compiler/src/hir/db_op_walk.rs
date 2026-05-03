@@ -208,6 +208,11 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
                 walk_expr(&a.value, f);
             }
         }
+        HirExpr::JsxFragment(children, _) => {
+            for c in children {
+                walk_expr(c, f);
+            }
+        }
         HirExpr::Block(stmts, _) => walk_stmts(stmts, f),
         HirExpr::Try(t) => walk_expr(t.target.as_ref(), f),
         HirExpr::IntLit(..)
@@ -320,6 +325,11 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
         HirExpr::JsxSelfClosing(el) => {
             for a in &mut el.attributes {
                 walk_expr_mut(&mut a.value, f);
+            }
+        }
+        HirExpr::JsxFragment(children, _) => {
+            for c in children {
+                walk_expr_mut(c, f);
             }
         }
         HirExpr::Block(stmts, _) => walk_stmts_mut(stmts, f),

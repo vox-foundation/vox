@@ -359,7 +359,7 @@ pub fn infer_expr(expr: &Expr, ctx: &mut InferenceContext, builtins: &BuiltinTyp
             infer_expr(right, ctx, builtins)
         }
         Expr::Spawn { .. } => ctx.fresh_var(),
-        Expr::Jsx(_) | Expr::JsxSelfClosing(_) => Ty::Element,
+        Expr::Jsx(_) | Expr::JsxSelfClosing(_) | Expr::JsxFragment { .. } => Ty::Element,
         Expr::StringInterp { .. } => Ty::Str,
         Expr::Block { stmts, .. } => {
             let mut last_ty = Ty::Unit;

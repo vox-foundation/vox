@@ -166,12 +166,23 @@ fn expand_bind_attribute(expr: &Expr) -> (String, String) {
 }
 
 /// Emit a JSX child expression.
+pub fn emit_jsx_fragment(children: &[Expr], indent: usize, island_names: &HashSet<String>) -> String {
+    let pad = "  ".repeat(indent);
+    let mut out = format!("{pad}<>\n");
+    for child in children {
+        out.push_str(&emit_jsx_child(child, indent + 1, island_names));
+    }
+    out.push_str(&format!("{pad}</>\n"));
+    out
+}
+
 fn emit_jsx_child(expr: &Expr, indent: usize, island_names: &HashSet<String>) -> String {
     let pad = "  ".repeat(indent);
     let unwrapped = unwrap_block(expr);
     match unwrapped {
         Expr::Jsx(el) => emit_jsx_element(el, indent, island_names),
         Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, indent, island_names),
+        Expr::JsxFragment { children, .. } => emit_jsx_fragment(children, indent, island_names),
         Expr::For {
             binding,
             index,
@@ -211,7 +222,7 @@ fn jsx_branch_to_ternary_str(stmts: &[Stmt], indent: usize, island_names: &HashS
     if let [Stmt::Expr { expr, .. }] = stmts {
         let u = unwrap_block(expr);
         return match u {
-            Expr::JsxSelfClosing(_) | Expr::Jsx(_) => {
+            Expr::JsxSelfClosing(_) | Expr::Jsx(_) | Expr::JsxFragment { .. } => {
                 emit_jsx_child(u, indent, island_names).trim().to_string()
             }
             Expr::If { condition, then_body, else_body, .. } => {
@@ -408,6 +419,7 @@ pub fn emit_expr(expr: &Expr) -> String {
         }
         Expr::Jsx(el) => emit_jsx_element(el, 0, empty_island_set()),
         Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, 0, empty_island_set()),
+        Expr::JsxFragment { children, .. } => emit_jsx_fragment(children, 0, empty_island_set()),
         Expr::For {
             binding,
             index,

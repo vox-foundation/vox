@@ -195,6 +195,7 @@ impl Parser {
                 }
             }
             Token::Lt => self.parse_jsx()?,
+            Token::JsxFragmentOpen => self.parse_jsx_fragment()?,
             Token::Ident(name) | Token::TypeIdent(name) => {
                 self.advance();
                 if self.eat(&Token::FatArrow) {

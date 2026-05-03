@@ -47,6 +47,11 @@ fn collect_deps(expr: &HirExpr, state_names: &HashSet<String>, deps: &mut HashSe
                 collect_deps(&attr.value, state_names, deps);
             }
         }
+        HirExpr::JsxFragment(children, _) => {
+            for child in children {
+                collect_deps(child, state_names, deps);
+            }
+        }
         HirExpr::ObjectLit(fields, _) => {
             for (_, val) in fields {
                 collect_deps(val, state_names, deps);

@@ -7,6 +7,44 @@ use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
 
 impl Parser {
+    /// Parse a JSX fragment `<>children</>`.
+    pub(crate) fn parse_jsx_fragment(&mut self) -> Result<Expr, ()> {
+        let start = self.span();
+        self.advance(); // eat `<>`
+        let mut children = Vec::new();
+        loop {
+            self.skip_newlines();
+            match self.peek().clone() {
+                Token::JsxFragmentClose | Token::Eof => break,
+                Token::JsxFragmentOpen => {
+                    children.push(self.parse_jsx_fragment()?);
+                }
+                Token::Lt => {
+                    children.push(self.parse_jsx()?);
+                }
+                Token::LBrace => {
+                    children.push(self.parse_brace_expr()?);
+                }
+                Token::For => {
+                    children.push(self.parse_for()?);
+                }
+                Token::StringLit(s) => {
+                    let sp = self.span();
+                    self.advance();
+                    children.push(Expr::StringLit { value: s, span: sp });
+                }
+                _ => {
+                    children.push(self.parse_expr()?);
+                }
+            }
+        }
+        self.expect(&Token::JsxFragmentClose)?;
+        Ok(Expr::JsxFragment {
+            children,
+            span: start.merge(self.span()),
+        })
+    }
+
     pub(crate) fn parse_jsx(&mut self) -> Result<Expr, ()> {
         let start = self.span();
         self.errors.push(ParseError::warning(
@@ -69,6 +107,9 @@ impl Parser {
             match self.peek().clone() {
                 Token::Lt => {
                     children.push(self.parse_jsx()?);
+                }
+                Token::JsxFragmentOpen => {
+                    children.push(self.parse_jsx_fragment()?);
                 }
                 Token::LBrace => {
                     children.push(self.parse_brace_expr()?);

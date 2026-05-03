@@ -222,6 +222,12 @@ pub enum Token {
     JsxCloseStart,
     #[token("/>")]
     JsxSelfClose,
+    /// Fragment open `<>` — shorthand for `<React.Fragment>`.
+    #[token("<>")]
+    JsxFragmentOpen,
+    /// Fragment close `</>` — shorthand for `</React.Fragment>`.
+    #[token("</>")]
+    JsxFragmentClose,
 
     // ── Literals ──────────────────────────────────────────────
     #[regex(r"[0-9]+\.[0-9]+(dec)?", |lex| {
@@ -420,6 +426,8 @@ impl std::fmt::Display for Token {
             Token::Underscore => write!(f, "_"),
             Token::JsxCloseStart => write!(f, "</"),
             Token::JsxSelfClose => write!(f, "/>"),
+            Token::JsxFragmentOpen => write!(f, "<>"),
+            Token::JsxFragmentClose => write!(f, "</>"),
             Token::IntLit(v) => write!(f, "{v}"),
             Token::FloatLit(v) => write!(f, "{v}"),
             Token::StringLit(s) => write!(f, "\"{s}\""),

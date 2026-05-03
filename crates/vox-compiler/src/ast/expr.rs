@@ -326,6 +326,13 @@ pub enum Expr {
     Jsx(JsxElement),
     /// Self-closing JSX element: `<input .../>`
     JsxSelfClosing(JsxSelfClosingElement),
+    /// JSX fragment: `<>children</>`
+    JsxFragment {
+        /// Child expressions / nested elements.
+        children: Vec<Expr>,
+        /// Span covering `<>` through `</>`.
+        span: Span,
+    },
     /// String interpolation: `"text {expr} more"`
     StringInterp {
         /// Alternating literal and interpolation segments.
@@ -375,6 +382,7 @@ impl Expr {
             | Expr::Block { span, .. } => *span,
             Expr::Jsx(el) => el.span,
             Expr::JsxSelfClosing(el) => el.span,
+            Expr::JsxFragment { span, .. } => *span,
         }
     }
 }

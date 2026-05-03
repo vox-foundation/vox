@@ -198,6 +198,11 @@ pub fn for_each_vox_hook_call_in_expr(expr: &Expr, f: &mut impl FnMut(&str, Span
                 for_each_vox_hook_call_in_expr(&attr.value, f);
             }
         }
+        Expr::JsxFragment { children, .. } => {
+            for ch in children {
+                for_each_vox_hook_call_in_expr(ch, f);
+            }
+        }
         Expr::IntLit { .. }
         | Expr::FloatLit { .. }
         | Expr::BoolLit { .. }

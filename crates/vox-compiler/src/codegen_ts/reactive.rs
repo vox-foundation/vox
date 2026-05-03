@@ -417,6 +417,18 @@ fn scan_hir_expr_for_react_imports(
                 need_callback,
             );
         }
+        HirExpr::JsxFragment(children, _) => {
+            for child in children {
+                scan_hir_expr_for_react_imports(
+                    child,
+                    need_state,
+                    need_effect,
+                    need_memo,
+                    need_ref,
+                    need_callback,
+                );
+            }
+        }
         HirExpr::JsxSelfClosing(_)
         | HirExpr::Jsx(_)
         | HirExpr::IntLit(_, _)
@@ -659,6 +671,11 @@ fn collect_jsx_component_refs(
         HirExpr::For(_, _, iter, body, _) => {
             collect_jsx_component_refs(iter, known, out);
             collect_jsx_component_refs(body, known, out);
+        }
+        HirExpr::JsxFragment(children, _) => {
+            for child in children {
+                collect_jsx_component_refs(child, known, out);
+            }
         }
         _ => {}
     }

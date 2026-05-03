@@ -136,6 +136,16 @@ impl DomArena {
         match expr {
             HirExpr::Jsx(el) => self.lower_jsx_el(el, state_names, island_names),
             HirExpr::JsxSelfClosing(el) => self.lower_jsx_self(el, state_names, island_names),
+            HirExpr::JsxFragment(children, _) => {
+                let child_ids: Vec<DomNodeId> = children
+                    .iter()
+                    .map(|c| self.lower_expr(c, state_names, island_names))
+                    .collect();
+                self.push(DomNode::Fragment {
+                    children: child_ids,
+                    span: None,
+                })
+            }
             HirExpr::StringLit(s, _) => self.push(DomNode::Text {
                 content: s.clone(),
                 span: None,

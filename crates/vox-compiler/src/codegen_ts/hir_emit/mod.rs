@@ -238,6 +238,14 @@ pub fn emit_hir_expr(
             }
             format!("<{} {} />", map_jsx_tag(&el.tag), attrs.join(" "))
         }
+        HirExpr::JsxFragment(children, _) => {
+            let mut child_strs = Vec::new();
+            for child in children {
+                let c = emit_hir_expr(child, state_names, island_names);
+                child_strs.push(wrap_jsx_hir_child_expr(c));
+            }
+            format!("<>\n  {}\n</>", child_strs.join("\n  "))
+        }
         HirExpr::ObjectLit(fields, _) => {
             let pairs: Vec<String> = fields
                 .iter()

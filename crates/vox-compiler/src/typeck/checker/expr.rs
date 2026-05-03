@@ -627,6 +627,12 @@ impl<'a> Checker<'a> {
                 }
                 Ty::Element
             }
+            HirExpr::JsxFragment(children, _) => {
+                for child in children {
+                    let _ = self.check_expr(child, None);
+                }
+                Ty::Element
+            }
 
             HirExpr::Try(hir_try) => {
                 let inner_ty = self.check_expr(hir_try.target.as_ref(), None);

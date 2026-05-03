@@ -271,6 +271,11 @@ impl LowerCtx {
                     self.inject_postconditions_into_expr(&mut attr.value, post_stmts);
                 }
             }
+            HirExpr::JsxFragment(children, _) => {
+                for child in children {
+                    self.inject_postconditions_into_expr(child, post_stmts);
+                }
+            }
 
             // Lambdas create a new return context, so we do NOT inject postconditions into them.
             HirExpr::Lambda(..) => {}

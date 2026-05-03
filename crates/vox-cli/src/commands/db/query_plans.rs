@@ -116,6 +116,11 @@ fn collect_query_plans_expr(
             }
         }
         HirExpr::Try(t) => collect_query_plans_expr(t.target.as_ref(), out),
+        HirExpr::JsxFragment(children, _) => {
+            for c in children {
+                collect_query_plans_expr(c, out);
+            }
+        }
         HirExpr::IntLit(_, _)
         | HirExpr::FloatLit(_, _)
         | HirExpr::DecimalLit(_, _)

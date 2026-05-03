@@ -122,7 +122,7 @@ where
             s.push_str("}\n");
             s
         }
-        HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) => {
+        HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) | HirExpr::JsxFragment(_, _) => {
             "panic!(\"JSX cannot be rendered via the Rust backend yet\")".into()
         }
 

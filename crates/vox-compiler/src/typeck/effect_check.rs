@@ -288,6 +288,11 @@ fn check_expr(
         HirExpr::Spawn(inner, _) => {
             check_expr(inner, caller_name, caller_set, cap_map, source, diags);
         }
+        HirExpr::JsxFragment(children, _) => {
+            for child in children {
+                check_expr(child, caller_name, caller_set, cap_map, source, diags);
+            }
+        }
         // Leaves.
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)

@@ -29,6 +29,7 @@ fn has_async_expr(e: &HirExpr) -> bool {
         | HirExpr::DecimalLit(..)
         | HirExpr::Jsx(..)
         | HirExpr::JsxSelfClosing(..) => false,
+        HirExpr::JsxFragment(children, _) => children.iter().any(has_async_expr),
         HirExpr::ListLit(elements, _) | HirExpr::TupleLit(elements, _) => {
             elements.iter().any(has_async_expr)
         }

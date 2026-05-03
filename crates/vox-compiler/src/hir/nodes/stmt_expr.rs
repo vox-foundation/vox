@@ -158,6 +158,8 @@ pub enum HirExpr {
     Jsx(HirJsxElement),
     /// Self-closing JSX.
     JsxSelfClosing(HirJsxSelfClosing),
+    /// JSX fragment: `<>children</>`.
+    JsxFragment(Vec<HirExpr>, Span),
     /// Statement block used as expression.
     Block(Vec<HirStmt>, Span),
     /// Error propagation (`?`).
