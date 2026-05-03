@@ -97,6 +97,8 @@ training_eligible: false
 
 ## Status: Roadmap
 
+- [Acta — App Architecture (2026)](vox-acta-app-architecture-2026.md)
+- [Acta — User Journey (2026)](vox-acta-user-journey-2026.md)
 - [Codebase Cleanup & Signal Improvement Plan (2026-05-02)](2026-05-02-codebase-cleanup-and-signal-improvement.md)
 - [Data Storage Lint & CI Spec (2026)](data-storage-lint-and-ci-spec-2026.md)
 - [Data Storage Migration Backlog (2026)](data-storage-migration-backlog-2026.md)
@@ -106,6 +108,7 @@ training_eligible: false
 - [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](2026-05-01-orchestrator-stage1-stage2.md)
 - [Phase 1: Build Target Split Spec (2026)](phase1-build-targets-spec-2026.md)
 - [Phase 3: HTTP Ergonomics Decorators Spec (2026)](phase3-http-ergonomics-spec-2026.md)
+- [Vox Mobile Plugin Spec (2026)](vox-mobile-plugin-spec-2026.md)
 
 ## Status: Deprecated
 
