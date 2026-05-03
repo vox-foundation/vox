@@ -129,17 +129,15 @@ async fn cancel_populi_remote_delegated_clears_assignment() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn lease_gated_submit_holds_then_completes_via_populi_result_poll() {
     let state = vox_populi::transport::PopuliTransportState::new();
-    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("bind seed");
-    let bound = seed.local_addr().expect("local addr");
-    drop(seed);
+    let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve(bound, state)
+        vox_populi::transport::serve_with_listener(listener, state)
             .await
             .expect("serve");
     });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let base = format!("http://{bound}");
     let http = vox_populi::http_client::PopuliHttpClient::new(&base);
@@ -256,17 +254,15 @@ async fn lease_gated_submit_holds_then_completes_via_populi_result_poll() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn lease_gated_submit_relays_context_envelope_in_payload() {
     let state = vox_populi::transport::PopuliTransportState::new();
-    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("bind seed");
-    let bound = seed.local_addr().expect("local addr");
-    drop(seed);
+    let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve(bound, state)
+        vox_populi::transport::serve_with_listener(listener, state)
             .await
             .expect("serve");
     });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let base = format!("http://{bound}");
     let http = vox_populi::http_client::PopuliHttpClient::new(&base);
@@ -373,17 +369,15 @@ async fn lease_gated_submit_relays_context_envelope_in_payload() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn remote_worker_tick_once_seeds_context_and_attaches_socrates_when_task_assigned() {
     let state = vox_populi::transport::PopuliTransportState::new();
-    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("bind seed");
-    let bound = seed.local_addr().expect("local addr");
-    drop(seed);
+    let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve(bound, state)
+        vox_populi::transport::serve_with_listener(listener, state)
             .await
             .expect("serve");
     });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let base = format!("http://{bound}");
     let http = vox_populi::http_client::PopuliHttpClient::new(&base);
@@ -514,17 +508,15 @@ async fn remote_worker_tick_once_seeds_context_and_attaches_socrates_when_task_a
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn remote_worker_tick_once_accepts_object_context_envelope_payload() {
     let state = vox_populi::transport::PopuliTransportState::new();
-    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("bind seed");
-    let bound = seed.local_addr().expect("local addr");
-    drop(seed);
+    let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve(bound, state)
+        vox_populi::transport::serve_with_listener(listener, state)
             .await
             .expect("serve");
     });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let base = format!("http://{bound}");
     let http = vox_populi::http_client::PopuliHttpClient::new(&base);
@@ -628,17 +620,15 @@ async fn remote_worker_tick_once_accepts_object_context_envelope_payload() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn cancel_populi_remote_delegated_relays_remote_cancel_message() {
     let state = vox_populi::transport::PopuliTransportState::new();
-    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("bind seed");
-    let bound = seed.local_addr().expect("local addr");
-    drop(seed);
+    let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve(bound, state)
+        vox_populi::transport::serve_with_listener(listener, state)
             .await
             .expect("serve");
     });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let base = format!("http://{bound}");
     let http = vox_populi::http_client::PopuliHttpClient::new(&base);
@@ -696,17 +686,15 @@ async fn cancel_populi_remote_delegated_relays_remote_cancel_message() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn lease_renew_loss_requeues_locally_and_relays_cancel() {
     let state = vox_populi::transport::PopuliTransportState::new();
-    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("bind seed");
-    let bound = seed.local_addr().expect("local addr");
-    drop(seed);
+    let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve(bound, state)
+        vox_populi::transport::serve_with_listener(listener, state)
             .await
             .expect("serve");
     });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let base = format!("http://{bound}");
     let http = vox_populi::http_client::PopuliHttpClient::new(&base);
@@ -796,17 +784,15 @@ async fn lease_renew_loss_requeues_locally_and_relays_cancel() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn remote_result_poll_respects_max_messages_per_poll() {
     let state = vox_populi::transport::PopuliTransportState::new();
-    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("bind seed");
-    let bound = seed.local_addr().expect("local addr");
-    drop(seed);
+    let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve(bound, state)
+        vox_populi::transport::serve_with_listener(listener, state)
             .await
             .expect("serve");
     });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let base = format!("http://{bound}");
     let http = vox_populi::http_client::PopuliHttpClient::new(&base);
@@ -909,17 +895,15 @@ async fn remote_result_poll_respects_max_messages_per_poll() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn non_lease_remote_relay_includes_session_and_context_payload() {
     let state = vox_populi::transport::PopuliTransportState::new();
-    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("bind seed");
-    let bound = seed.local_addr().expect("local addr");
-    drop(seed);
+    let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve(bound, state)
+        vox_populi::transport::serve_with_listener(listener, state)
             .await
             .expect("serve");
     });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let base = format!("http://{bound}");
     let http = vox_populi::http_client::PopuliHttpClient::new(&base);
@@ -1154,17 +1138,15 @@ mod route_replay_tests {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn vram_admission_rejects_oversized_task_and_falls_back_to_local_queue() {
     let state = vox_populi::transport::PopuliTransportState::new();
-    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("bind seed");
-    let bound = seed.local_addr().expect("local addr");
-    drop(seed);
+    let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve(bound, state)
+        vox_populi::transport::serve_with_listener(listener, state)
             .await
             .expect("serve");
     });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let base = format!("http://{bound}");
     let http = vox_populi::http_client::PopuliHttpClient::new(&base);
@@ -1283,17 +1265,15 @@ async fn vram_admission_rejects_oversized_task_and_falls_back_to_local_queue() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn vram_admission_allows_task_when_node_meets_requirement() {
     let state = vox_populi::transport::PopuliTransportState::new();
-    let seed = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+    let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
         .await
         .expect("bind seed");
-    let bound = seed.local_addr().expect("local addr");
-    drop(seed);
+    let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve(bound, state)
+        vox_populi::transport::serve_with_listener(listener, state)
             .await
             .expect("serve");
     });
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let base = format!("http://{bound}");
     let http = vox_populi::http_client::PopuliHttpClient::new(&base);
