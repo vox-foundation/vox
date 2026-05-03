@@ -474,7 +474,7 @@ impl<'a> Checker<'a> {
                 last_ty
             }
 
-            HirExpr::For(binding, _, iterable, body, _span) => {
+            HirExpr::For(binding, index, iterable, body, _span) => {
                 let iter_ty = self.check_expr(iterable, None);
                 let element_ty = self.extract_iterable_element(&iter_ty);
                 self.env.push_scope();
@@ -483,6 +483,15 @@ impl<'a> Checker<'a> {
                     &element_ty,
                     false,
                 );
+                if let Some(idx_name) = index {
+                    // Bind the index variable to Int — same type as `len` and
+                    // range returns in this checker.
+                    self.bind_pattern(
+                        &HirPattern::Ident(idx_name.clone(), Span::new(0, 0)),
+                        &Ty::Int,
+                        false,
+                    );
+                }
                 let _ = self.check_expr(body, None);
                 self.env.pop_scope();
                 Ty::Unit

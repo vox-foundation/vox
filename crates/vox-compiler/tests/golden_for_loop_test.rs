@@ -108,19 +108,24 @@ fn for_loop_nested_emits_nested_maps() {
 }
 
 #[test]
-fn for_loop_empty_body_compiles() {
+fn for_loop_minimal_body_compiles() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/for/for_empty.vox"
+        "/tests/fixtures/for/for_minimal_body.vox"
+    ))
+    .unwrap();
+    let expected = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/fixtures/for/for_minimal_body.expected.tsx"
     ))
     .unwrap();
 
-    // Empty body test: just verifying it parses and compiles without panicking.
-    // The exact output is validated by checking the .map call appears in the output.
     let files = compile_components(&src);
     let actual = get_component(&files, "Empty");
-    assert!(
-        actual.contains(".map("),
-        "Empty body for-loop should still emit .map(): {actual}"
+
+    assert_eq!(
+        normalize_ws(&actual).trim().to_string(),
+        normalize_ws(&expected).trim().to_string(),
+        "Empty.tsx: minimal-body for-loop did not match golden snapshot\nACTUAL:\n{actual}"
     );
 }

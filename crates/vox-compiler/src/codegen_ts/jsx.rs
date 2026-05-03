@@ -181,6 +181,9 @@ fn emit_jsx_child(expr: &Expr, indent: usize, island_names: &HashSet<String>) ->
         } => {
             let iter_str = emit_expr(iterable);
             let body_str = emit_jsx_child(body, indent + 1, island_names);
+            // Default index name when the user wrote `for x in arr` (no index binding).
+            // The leading underscore signals "unused" by JS convention and avoids clashing
+            // with a user-named `i` in an outer scope.
             let idx = index.as_deref().unwrap_or("_i");
             format!("{pad}{{{iter_str}.map(({binding}, {idx}) => (\n{body_str}{pad}))}}\n")
         }
@@ -412,6 +415,9 @@ pub fn emit_expr(expr: &Expr) -> String {
             body,
             ..
         } => {
+            // Default index name when the user wrote `for x in arr` (no index binding).
+            // The leading underscore signals "unused" by JS convention and avoids clashing
+            // with a user-named `i` in an outer scope.
             let idx = index.as_deref().unwrap_or("_i");
             format!(
                 "{}.map(({binding}, {idx}) => {})",

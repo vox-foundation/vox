@@ -323,6 +323,9 @@ pub fn emit_hir_expr(
         HirExpr::For(name, index, iterable, body, _) => {
             let iter = emit_hir_expr(iterable, state_names, island_names);
             let b = emit_hir_expr(body, state_names, island_names);
+            // Default index name when the user wrote `for x in arr` (no index binding).
+            // The leading underscore signals "unused" by JS convention and avoids clashing
+            // with a user-named `i` in an outer scope.
             let idx = index.as_deref().unwrap_or("_i");
             format!("{iter}.map(({name}, {idx}) => ({b}))")
         }
