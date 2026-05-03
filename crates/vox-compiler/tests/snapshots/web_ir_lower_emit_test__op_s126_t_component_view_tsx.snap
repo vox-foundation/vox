@@ -1,0 +1,8 @@
+---
+source: crates/vox-compiler/tests/web_ir_lower_emit_test.rs
+assertion_line: 1211
+expression: tsx
+---
+<div className={flex flex-col a}>
+  {n}
+</div>

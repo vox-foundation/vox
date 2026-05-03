@@ -169,8 +169,13 @@ pub fn emit_hir_expr(
             out
         }
         HirExpr::Jsx(el) => {
+            // VUV: resolve UI primitives + universal style kwargs into a single className expr.
+            let view = transform_hir_view_kwargs(&el.tag, &el.attributes, state_names);
             let mut attrs = Vec::new();
-            for attr in &el.attributes {
+            if let Some(class_expr) = &view.class_expr {
+                attrs.push(format!("className={{{class_expr}}}"));
+            }
+            for attr in &view.passthrough {
                 if attr.name == "bind" {
                     let (value_str, onchange_str) =
                         expand_bind_hir_attribute(&attr.value, state_names);
@@ -189,15 +194,19 @@ pub fn emit_hir_expr(
             }
             format!(
                 "<{} {}\n>\n  {}\n</{}>",
-                el.tag,
+                view.html_tag,
                 attrs.join(" "),
                 children.join("\n  "),
-                el.tag
+                view.html_tag
             )
         }
         HirExpr::JsxSelfClosing(el) => {
+            let view = transform_hir_view_kwargs(&el.tag, &el.attributes, state_names);
             let mut attrs = Vec::new();
-            for attr in &el.attributes {
+            if let Some(class_expr) = &view.class_expr {
+                attrs.push(format!("className={{{class_expr}}}"));
+            }
+            for attr in &view.passthrough {
                 if attr.name == "bind" {
                     let (value_str, onchange_str) =
                         expand_bind_hir_attribute(&attr.value, state_names);
@@ -209,7 +218,7 @@ pub fn emit_hir_expr(
                 let val = emit_hir_expr_attr_value(&attr.value, state_names, name);
                 attrs.push(format!("{name}={{{val}}}"));
             }
-            format!("<{} {} />", el.tag, attrs.join(" "))
+            format!("<{} {} />", view.html_tag, attrs.join(" "))
         }
         HirExpr::ObjectLit(fields, _) => {
             let pairs: Vec<String> = fields
@@ -853,5 +862,142 @@ mod hir_emit_if_tests {
             !out.contains("(() => {"),
             "no void IIFEs in nested ternary: {out}"
         );
+    }
+}
+
+// ── VUV view-call lowering at HIR emit time ─────────────────────────────────
+//
+// The legacy reactive emit path (used when web_ir bridge falls back to parity-mismatch) sends
+// HirExpr::Jsx through emit_hir_expr. Without primitive resolution here, view-call kwargs leak
+// as raw JSX attributes (`<row pad_x={4}>`) instead of Tailwind classes. This module mirrors
+// `web_ir::primitives::apply_primitive_emission` for HIR.
+
+struct ViewCallHir {
+    html_tag: String,
+    class_expr: Option<String>,
+    passthrough: Vec<HirJsxAttr>,
+}
+
+const HIR_PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
+    "size", "weight", "align", "wrap", "variant", "level", "surface", "z",
+];
+
+fn transform_hir_view_kwargs(
+    tag: &str,
+    attrs: &[HirJsxAttr],
+    state_names: &HashSet<String>,
+) -> ViewCallHir {
+    // Collect static-literal per-primitive kwargs (size/weight/align/wrap/variant/level/surface)
+    // so primitives::resolve can apply their per-primitive logic (e.g. size="xs" → text-xs).
+    // Dynamic per-primitive kwargs (rare) are dropped — they'd require a runtime helper.
+    let mut static_per_primitive: Vec<(String, String)> = Vec::new();
+    for attr in attrs {
+        if HIR_PRIMITIVE_CONSUMED_PROPS.contains(&attr.name.as_str()) {
+            if let HirExpr::StringLit(v, _) = unwrap_inline_hir_block_expr(&attr.value) {
+                static_per_primitive.push((attr.name.clone(), v.clone()));
+            } else if let HirExpr::BoolLit(v, _) = unwrap_inline_hir_block_expr(&attr.value) {
+                static_per_primitive.push((attr.name.clone(), v.to_string()));
+            } else if let HirExpr::IntLit(v, _) = unwrap_inline_hir_block_expr(&attr.value) {
+                static_per_primitive.push((attr.name.clone(), v.to_string()));
+            }
+        }
+    }
+    let primitive_emission = crate::web_ir::primitives::resolve(tag, &static_per_primitive);
+    let html_tag = primitive_emission
+        .as_ref()
+        .map(|e| e.html_tag.to_string())
+        .unwrap_or_else(|| tag.to_string());
+    // Author kwarg names — used to suppress primitive base classes on the same Tailwind axis.
+    let author_kwargs: Vec<&str> = attrs.iter().map(|a| a.name.as_str()).collect();
+    let mut class_pieces: Vec<String> = primitive_emission
+        .as_ref()
+        .map(|e| {
+            e.base_classes
+                .iter()
+                .filter(|c| {
+                    !crate::web_ir::primitives::primitive_base_class_overridden(c, &author_kwargs)
+                })
+                .map(|c| format!("\"{c}\""))
+                .collect()
+        })
+        .unwrap_or_default();
+    let mut passthrough: Vec<HirJsxAttr> = Vec::with_capacity(attrs.len());
+
+    for attr in attrs {
+        let name = attr.name.as_str();
+        if name == "class" || name == "className" {
+            let val = emit_hir_expr_attr_value(&attr.value, state_names, name);
+            class_pieces.push(val);
+            continue;
+        }
+        if HIR_PRIMITIVE_CONSUMED_PROPS.contains(&name) {
+            // Already folded into primitive_emission above.
+            continue;
+        }
+        if let Some(piece) = hir_kwarg_to_class_expr(name, &attr.value, state_names) {
+            class_pieces.push(piece);
+            continue;
+        }
+        passthrough.push(attr.clone());
+    }
+
+    let class_expr = if class_pieces.is_empty() {
+        None
+    } else if class_pieces.len() == 1 {
+        Some(class_pieces.into_iter().next().unwrap())
+    } else {
+        Some(format!("[{}].filter(Boolean).join(\" \")", class_pieces.join(", ")))
+    };
+
+    ViewCallHir { html_tag, class_expr, passthrough }
+}
+
+fn hir_kwarg_to_class_expr(
+    kwarg: &str,
+    expr: &HirExpr,
+    state_names: &HashSet<String>,
+) -> Option<String> {
+    match unwrap_inline_hir_block_expr(expr) {
+        HirExpr::StringLit(value, _) => {
+            let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, value)?;
+            Some(format!("\"{}\"", classes.join(" ")))
+        }
+        HirExpr::BoolLit(value, _) => {
+            let v = value.to_string();
+            let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            Some(format!("\"{}\"", classes.join(" ")))
+        }
+        HirExpr::IntLit(value, _) => {
+            let v = value.to_string();
+            let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            Some(format!("\"{}\"", classes.join(" ")))
+        }
+        HirExpr::FloatLit(value, _) => {
+            let v = value.to_string();
+            let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            Some(format!("\"{}\"", classes.join(" ")))
+        }
+        HirExpr::If(cond, then_stmts, else_stmts, _) => {
+            let then_expr = single_trailing_hir_expr(then_stmts)?;
+            let else_stmts = else_stmts.as_ref()?;
+            let else_expr = single_trailing_hir_expr(else_stmts)?;
+            let then_class = hir_kwarg_to_class_expr(kwarg, then_expr, state_names)?;
+            let else_class = hir_kwarg_to_class_expr(kwarg, else_expr, state_names)?;
+            let cond_str = emit_hir_expr(cond, state_names);
+            Some(format!("({cond_str} ? {then_class} : {else_class})"))
+        }
+        _ if crate::web_ir::primitives::UNIVERSAL_STYLE_KWARGS.contains(&kwarg) => None,
+        _ => None,
+    }
+}
+
+fn single_trailing_hir_expr(body: &[HirStmt]) -> Option<&HirExpr> {
+    if body.len() != 1 {
+        return None;
+    }
+    if let HirStmt::Expr { expr, .. } = &body[0] {
+        Some(expr)
+    } else {
+        None
     }
 }

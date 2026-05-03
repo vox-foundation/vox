@@ -3,53 +3,53 @@ import React, { useState } from "react";
 export function WorkflowScrubber(): React.ReactElement {
   const [is_playing, set_is_playing] = useState(false);
   return (
-<column className={"p-10 bg-zinc-950 h-full gap-8 text-white"}
+<div className={["flex", "flex-col", "p-10", "bg-zinc-950", "h-full", "text-white", "gap-8"].filter(Boolean).join(" ")}
 >
-  <row className={"justify-between items-center"}
+  <div className={["flex", "flex-row", "flex justify-between", "flex items-center"].filter(Boolean).join(" ")}
 >
-  <column className={"gap-2"}
+  <div className={["flex", "flex-col", "gap-2"].filter(Boolean).join(" ")}
 >
-  <text className={"text-3xl font-black tracking-tighter text-white"}
+  <p className={["text-3xl", "text-white", "tracking-tighter"].filter(Boolean).join(" ")}
 >
   {"TIME TRAVEL"}
-</text>
-  <text className={"text-xs text-zinc-400 font-bold tracking-widest"}
+</p>
+  <p className={["text-xs", "font-bold", "text-zinc-400", "tracking-widest"].filter(Boolean).join(" ")}
 >
   {"DURABLE WORKFLOW STATE INSPECTOR"}
-</text>
-</column>
-  <row className={"gap-4 bg-white/5 p-2 rounded-2xl border border-white/5 items-center"}
+</p>
+</div>
+  <div className={["flex", "flex-row", "bg-white/5", "p-2", "rounded-2xl", "border", "border-white/5", "flex items-center", "gap-4"].filter(Boolean).join(" ")}
 >
-  <button className={"w-10 h-10 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center"}
+  <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "px-4", "py-2", "w-10", "h-10", "rounded-xl", "bg-white/5", "text-zinc-400"].filter(Boolean).join(" ")}
 >
   {"<<"}
 </button>
-  <button className={"w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center"} onClick={() => {
+  <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "px-4", "py-2", "w-12", "h-12", "rounded-xl", "bg-blue-600", "text-white", "flex items-center justify-center"].filter(Boolean).join(" ")} onClick={() => {
     set_is_playing(!is_playing);
 }}
 >
   {(is_playing ? "PAUSE" : "PLAY")}
 </button>
-  <button className={"w-10 h-10 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center"}
+  <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "px-4", "py-2", "w-10", "h-10", "rounded-xl", "bg-white/5", "text-zinc-400"].filter(Boolean).join(" ")}
 >
   {">>"}
 </button>
-</row>
-</row>
-  <panel className={"flex-1 flex items-center justify-center"}
+</div>
+</div>
+  <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "flex-1"].filter(Boolean).join(" ")}
 >
-  <column className={"items-center gap-4 text-zinc-500"}
+  <div className={["flex", "flex-col", "flex items-center", "text-zinc-500", "gap-4"].filter(Boolean).join(" ")}
 >
-  <text className={"text-sm font-bold uppercase tracking-widest"}
+  <p className={["text-sm", "font-bold", "uppercase", "tracking-widest"].filter(Boolean).join(" ")}
 >
   {"NO ACTIVE WORKFLOW"}
-</text>
-  <text className={"text-xs"}
+</p>
+  <p className={"text-xs"}
 >
   {"Durable state execution will appear here when orchestrated."}
-</text>
-</column>
-</panel>
-</column>
+</p>
+</div>
+</div>
+</div>
   );
 }

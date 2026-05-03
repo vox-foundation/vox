@@ -3,8 +3,7 @@
 import std.mobile
 
 component App() {
-    view:
-        <button onclick={fn() {
-            mobile.notify("Hello", "From Vox!")
-        }}>"Notify Me"</button>
+    view: button(on_click={fn() { mobile.notify("Hello", "From Vox!") }}) {
+        "Notify Me"
+    }
 }

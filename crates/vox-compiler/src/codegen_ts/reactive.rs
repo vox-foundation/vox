@@ -838,8 +838,8 @@ mod tests {
     #[test]
     fn test_cross_component_import_emitted() {
         let files = compile(
-            "component Inner() { view: (<panel><text>\"hi\"</text></panel>) }\n\
-             component Outer() { view: (<column><Inner /></column>) }",
+            "component Inner() { view: panel() { text() { \"hi\" } } }\n\
+             component Outer() { view: column() { Inner() } }",
         );
         let outer = get(&files, "Outer.tsx");
         assert!(
@@ -850,7 +850,7 @@ mod tests {
 
     #[test]
     fn test_no_import_for_html_primitives() {
-        let files = compile("component Card() { view: (<panel><text>\"x\"</text></panel>) }");
+        let files = compile("component Card() { view: panel() { text() { \"x\" } } }");
         let card = get(&files, "Card.tsx");
         // 'panel' and 'text' are primitives, must not generate import lines
         assert!(
@@ -866,10 +866,10 @@ mod tests {
     #[test]
     fn test_import_inside_if_branch() {
         let files = compile(
-            "component Badge() { view: (<text>\"x\"</text>) }\n\
+            "component Badge() { view: text() { \"x\" } }\n\
              component Host(show: bool) {\n\
                state s: bool = false\n\
-               view: ({if s { <Badge /> } else { <text>\"no\"</text> }})\n\
+               view: if s { Badge() } else { text() { \"no\" } }\n\
              }",
         );
         let host = get(&files, "Host.tsx");

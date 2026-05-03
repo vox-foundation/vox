@@ -1,4 +1,4 @@
-// Dashboard shell + all tab components.
+// Dashboard shell + all tab components — VUV-form (GUI Authoring Syntax 2026).
 //
 // Single-file compilation unit: vox build compiles this file and splits each
 // component into its own generated/*.tsx file (AppShell.tsx, SpeakTab.tsx, …).
@@ -12,245 +12,348 @@
 // ── LOQUELA / SPEAK ──────────────────────────────────────────────────────────
 
 component ChatMessage(role: str, content: str) {
-    view: (
-        <row class={if role is "user" { "justify-end px-4 py-2" } else { "justify-start px-4 py-2" }}>
-            <panel class={if role is "user" { "max-w-xl bg-blue-600/20 border border-blue-500/30 rounded-2xl rounded-br-sm px-4 py-3" } else { "max-w-2xl bg-white/5 border border-white/10 rounded-2xl rounded-bl-sm px-4 py-3" }}>
-                <text class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">{role}</text>
-                <text class="text-sm text-white/80 leading-relaxed">{content}</text>
-            </panel>
-        </row>
-    )
+    view: row(
+        pad_x=4, pad_y=2,
+        justify=if role is "user" { "end" } else { "start" }
+    ) {
+        panel(
+            max_w=if role is "user" { "xl" } else { "2xl" },
+            bg=if role is "user" { "blue.600/20" } else { "white/5" },
+            border=true,
+            border_color=if role is "user" { "blue.500/30" } else { "white/10" },
+            radius="2xl",
+            radius_br=if role is "user" { "sm" } else { "2xl" },
+            radius_bl=if role is "user" { "2xl" } else { "sm" },
+            pad_x=4, pad_y=3
+        ) {
+            text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest", mb=2) { role }
+            text(size="sm", color="white/80", leading="relaxed") { content }
+        }
+    }
 }
 
 component ComposerPanel() {
     state is_submitting: bool = false
 
-    view: (
-        <column class="border-t border-white/10 p-4 gap-3 bg-zinc-950/80">
-            <row class="gap-3 items-end">
-                <panel class="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-4 py-3 min-h-16">
-                    <text class="text-sm text-white/50 italic">"Type a message…"</text>
-                </panel>
-                <button class={if is_submitting { "w-12 h-12 rounded-xl bg-blue-600/50 text-white/50 flex items-center justify-center" } else { "w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center" }} on:click={is_submitting = not is_submitting}>{if is_submitting { "…" } else { "→" }}</button>
-            </row>
-            <row class="justify-between items-center px-1">
-                <text class="text-xs text-zinc-500">"Shift+Enter for new line"</text>
-                <text class="text-xs text-zinc-600">"Transport bridge: Phase 2"</text>
-            </row>
-        </column>
-    )
+    view: column(
+        border_t=true, border_color="white/10",
+        pad=4, gap=3, raw_class="bg-zinc-950/80"
+    ) {
+        row(gap=3, items="end") {
+            panel(
+                flex=1, bg="zinc.900", border=true, border_color="white/10",
+                radius="2xl", pad_x=4, pad_y=3, min_h=16
+            ) {
+                text(size="sm", color="white/50", italic=true) { "Type a message…" }
+            }
+            button(
+                w=12, h=12, radius="xl",
+                bg=if is_submitting { "blue.600/50" } else { "blue.600" },
+                color=if is_submitting { "white/50" } else { "white" },
+                raw_class="flex items-center justify-center",
+                on_click={is_submitting = not is_submitting}
+            ) {
+                if is_submitting { "…" } else { "→" }
+            }
+        }
+        row(justify="between", items="center", pad_x=1) {
+            text(size="xs", color="zinc.500") { "Shift+Enter for new line" }
+            text(size="xs", color="zinc.600") { "Transport bridge: Phase 2" }
+        }
+    }
 }
 
 component SpeakTab() {
-    view: (
-        <column class="flex-1 overflow-hidden bg-zinc-950">
-            <row class="h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0">
-                <column class="gap-0">
-                    <text class="text-sm font-black tracking-tighter text-white">"LOQUELA"</text>
-                    <text class="text-xs text-zinc-500 tracking-widest">"VOICE INTERFACE"</text>
-                </column>
-                <row class="gap-2 items-center">
-                    <panel class="w-2 h-2 rounded-full bg-zinc-600"></panel>
-                    <text class="text-xs text-zinc-500">"NO ACTIVE SESSION"</text>
-                </row>
-            </row>
-            <panel class="flex-1 overflow-y-auto py-4">
-                <column class="items-center justify-center h-full gap-4 text-zinc-500">
-                    <text class="text-sm font-bold uppercase tracking-widest">"START A CONVERSATION"</text>
-                    <text class="text-xs">"Messages will appear here once a session is active."</text>
-                </column>
-            </panel>
-            <ComposerPanel />
-        </column>
-    )
+    view: column(flex=1, overflow="hidden", bg="zinc.950") {
+        row(
+            h=12, border_b=true, border_color="zinc.800",
+            pad_x=6, items="center", justify="between", shrink=0
+        ) {
+            column(gap=0) {
+                text(size="sm", weight="black", color="white", tracking="tighter") { "LOQUELA" }
+                text(size="xs", color="zinc.500", tracking="widest") { "VOICE INTERFACE" }
+            }
+            row(items="center", gap=2) {
+                panel(w=2, h=2, radius="full", bg="zinc.600")
+                text(size="xs", color="zinc.500") { "NO ACTIVE SESSION" }
+            }
+        }
+        panel(flex=1, overflow_y="auto", pad_y=4) {
+            column(items="center", justify="center", h="full", color="zinc.500", gap=4) {
+                text(size="sm", weight="bold", case="upper", tracking="widest") { "START A CONVERSATION" }
+                text(size="xs") { "Messages will appear here once a session is active." }
+            }
+        }
+        ComposerPanel()
+    }
 }
 
 // ── IMPERIUM / COMMAND ───────────────────────────────────────────────────────
 
 component DiagnosticRow(severity: str, message: str, location: str) {
-    view: (
-        <row class="px-4 py-3 border-b border-white/5 gap-4 items-start hover:bg-white/5">
-            <panel class={if severity is "error" { "w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0" } else { "w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" }}></panel>
-            <column class="flex-1 gap-1 min-w-0">
-                <text class="text-sm text-white/80 font-mono leading-snug">{message}</text>
-                <text class="text-xs text-zinc-500 font-mono">{location}</text>
-            </column>
-            <text class={if severity is "error" { "text-xs font-bold text-rose-400 uppercase shrink-0" } else { "text-xs font-bold text-amber-400 uppercase shrink-0" }}>{severity}</text>
-        </row>
-    )
+    view: row(
+        pad_x=4, pad_y=3, border_b=true, border_color="white/5",
+        items="start", gap=4, raw_class="hover:bg-white/5"
+    ) {
+        panel(
+            w=2, h=2, radius="full",
+            bg=if severity is "error" { "rose.500" } else { "amber.400" },
+            mt=1.5, shrink=0
+        )
+        column(flex=1, min_w=0, gap=1) {
+            text(size="sm", color="white/80", font_family="mono", leading="snug") { message }
+            text(size="xs", color="zinc.500", font_family="mono") { location }
+        }
+        text(
+            size="xs", weight="bold", case="upper", shrink=0,
+            color=if severity is "error" { "rose.400" } else { "amber.400" }
+        ) { severity }
+    }
 }
 
 component DiagnosticsPanel() {
-    view: (
-        <column class="flex-1 overflow-y-auto">
-            <row class="px-4 py-2 border-b border-white/10 justify-between items-center shrink-0 bg-zinc-900/50">
-                <text class="text-xs font-bold text-zinc-400 uppercase tracking-widest">"DIAGNOSTICS"</text>
-                <text class="text-xs text-zinc-600">"0 errors · 0 warnings"</text>
-            </row>
-            <column class="flex-1 items-center justify-center gap-3 text-zinc-500">
-                <text class="text-sm font-bold uppercase tracking-widest">"NO DIAGNOSTICS"</text>
-                <text class="text-xs">"Run a build to see compiler output here."</text>
-            </column>
-        </column>
-    )
+    view: column(flex=1, overflow_y="auto") {
+        row(
+            pad_x=4, pad_y=2, border_b=true, border_color="white/10",
+            justify="between", items="center", shrink=0, bg="zinc.900/50"
+        ) {
+            text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest") { "DIAGNOSTICS" }
+            text(size="xs", color="zinc.600") { "0 errors · 0 warnings" }
+        }
+        column(flex=1, items="center", justify="center", color="zinc.500", gap=3) {
+            text(size="sm", weight="bold", case="upper", tracking="widest") { "NO DIAGNOSTICS" }
+            text(size="xs") { "Run a build to see compiler output here." }
+        }
+    }
 }
 
 component TaskDispatch() {
     state is_running: bool = false
 
-    view: (
-        <column class="border-t border-white/10 p-4 gap-3 shrink-0">
-            <row class="gap-3 items-center">
-                <button class={if is_running { "px-4 py-2 rounded-xl bg-rose-600/80 text-white text-sm font-bold" } else { "px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-500" }} on:click={is_running = not is_running}>{if is_running { "STOP" } else { "RUN BUILD" }}</button>
-                <button class="px-4 py-2 rounded-xl bg-white/5 text-zinc-400 text-sm font-bold border border-white/10">"CLEAR"</button>
-                <panel class="flex-1"></panel>
-                <text class={if is_running { "text-xs text-blue-400 font-bold uppercase" } else { "text-xs text-zinc-600 uppercase" }}>{if is_running { "BUILDING…" } else { "IDLE" }}</text>
-            </row>
-            <text class="text-xs text-zinc-600">"Transport bridge: Phase 2 — output streams via Vox transport hook"</text>
-        </column>
-    )
+    view: column(border_t=true, border_color="white/10", pad=4, shrink=0, gap=3) {
+        row(items="center", gap=3) {
+            button(
+                pad_x=4, pad_y=2, radius="xl",
+                bg=if is_running { "rose.600/80" } else { "blue.600" },
+                color="white", size="sm", weight="bold",
+                raw_class=if is_running { "" } else { "hover:bg-blue-500" },
+                on_click={is_running = not is_running}
+            ) {
+                if is_running { "STOP" } else { "RUN BUILD" }
+            }
+            button(
+                pad_x=4, pad_y=2, radius="xl", bg="white/5", color="zinc.400",
+                size="sm", weight="bold", border=true, border_color="white/10"
+            ) { "CLEAR" }
+            panel(flex=1)
+            text(
+                size="xs", weight="bold", case="upper",
+                color=if is_running { "blue.400" } else { "zinc.600" }
+            ) {
+                if is_running { "BUILDING…" } else { "IDLE" }
+            }
+        }
+        text(size="xs", color="zinc.600") { "Transport bridge: Phase 2 — output streams via React interop" }
+    }
 }
 
 component CommandTab() {
     state active_panel: str = "diagnostics"
 
-    view: (
-        <column class="flex-1 overflow-hidden bg-zinc-950">
-            <row class="h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0">
-                <text class="text-sm font-black tracking-tighter text-white">"COMMAND"</text>
-                <row class="gap-2">
-                    <button class="tab-btn" on:click={active_panel = "diagnostics"}>"DIAGNOSTICS"</button>
-                    <button class="tab-btn" on:click={active_panel = "context"}>"CONTEXT"</button>
-                </row>
-            </row>
-            <panel class="flex-1 overflow-hidden">
-                {if active_panel is "diagnostics" { <DiagnosticsPanel /> } else { <column class="flex-1 items-center justify-center gap-3 text-zinc-500"><text class="text-sm font-bold uppercase tracking-widest">"CONTEXT EXPLORER"</text><text class="text-xs">"Context window analysis — Phase 2."</text></column> }}
-            </panel>
-            <TaskDispatch />
-        </column>
-    )
+    view: column(flex=1, overflow="hidden", bg="zinc.950") {
+        row(
+            h=12, border_b=true, border_color="zinc.800",
+            pad_x=6, items="center", justify="between", shrink=0
+        ) {
+            text(size="sm", weight="black", color="white", tracking="tighter") { "COMMAND" }
+            row(gap=2) {
+                button(raw_class="tab-btn", on_click={active_panel = "diagnostics"}) { "DIAGNOSTICS" }
+                button(raw_class="tab-btn", on_click={active_panel = "context"}) { "CONTEXT" }
+            }
+        }
+        panel(flex=1, overflow="hidden") {
+            if active_panel is "diagnostics" {
+                DiagnosticsPanel()
+            } else {
+                column(flex=1, items="center", justify="center", color="zinc.500", gap=3) {
+                    text(size="sm", weight="bold", case="upper", tracking="widest") { "CONTEXT EXPLORER" }
+                    text(size="xs") { "Context window analysis — Phase 2." }
+                }
+            }
+        }
+        TaskDispatch()
+    }
 }
 
 // ── RETE / NETWORK ───────────────────────────────────────────────────────────
 
 component NodeBadge(agent_id: str, status: str) {
-    view: (
-        <row class="px-3 py-2 bg-zinc-900 border border-white/10 rounded-xl gap-3 items-center">
-            <panel class={if status is "active" { "w-2 h-2 rounded-full bg-emerald-400" } else { "w-2 h-2 rounded-full bg-zinc-600" }}></panel>
-            <column class="gap-0">
-                <text class="text-xs font-mono text-white/80">{agent_id}</text>
-                <text class="text-xs text-zinc-500">{status}</text>
-            </column>
-        </row>
-    )
+    view: row(
+        pad_x=3, pad_y=2, bg="zinc.900", border=true, border_color="white/10",
+        radius="xl", items="center", gap=3
+    ) {
+        panel(
+            w=2, h=2, radius="full",
+            bg=if status is "active" { "emerald.400" } else { "zinc.600" }
+        )
+        column(gap=0) {
+            text(size="xs", font_family="mono", color="white/80") { agent_id }
+            text(size="xs", color="zinc.500") { status }
+        }
+    }
 }
 
 component MeshLegend() {
-    view: (
-        <column class="absolute bottom-4 left-4 gap-2 bg-zinc-900/90 backdrop-blur border border-white/10 rounded-2xl p-4">
-            <text class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">"LEGEND"</text>
-            <row class="gap-2 items-center"><panel class="w-3 h-0.5 bg-emerald-400 rounded"></panel><text class="text-xs text-zinc-400">"Active channel"</text></row>
-            <row class="gap-2 items-center"><panel class="w-3 h-0.5 bg-zinc-600 rounded"></panel><text class="text-xs text-zinc-400">"Idle channel"</text></row>
-            <row class="gap-2 items-center"><panel class="w-2 h-2 rounded-full bg-rose-500"></panel><text class="text-xs text-zinc-400">"Error node"</text></row>
-        </column>
-    )
+    view: column(
+        position="absolute", bottom=4, left=4,
+        bg="zinc.900/90", border=true, border_color="white/10",
+        radius="2xl", pad=4,
+        gap=2, raw_class="backdrop-blur"
+    ) {
+        text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest", mb=1) { "LEGEND" }
+        row(items="center", gap=2) {
+            panel(w=3, bg="emerald.400", radius="DEFAULT", raw_class="h-0.5")
+            text(size="xs", color="zinc.400") { "Active channel" }
+        }
+        row(items="center", gap=2) {
+            panel(w=3, bg="zinc.600", radius="DEFAULT", raw_class="h-0.5")
+            text(size="xs", color="zinc.400") { "Idle channel" }
+        }
+        row(items="center", gap=2) {
+            panel(w=2, h=2, radius="full", bg="rose.500")
+            text(size="xs", color="zinc.400") { "Error node" }
+        }
+    }
 }
 
 component NetworkTab() {
-    view: (
-        <column class="flex-1 overflow-hidden bg-zinc-950">
-            <row class="h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0">
-                <column class="gap-0">
-                    <text class="text-sm font-black tracking-tighter text-white">"NETWORK"</text>
-                    <text class="text-xs text-zinc-500 tracking-widest">"AGENT MESH TOPOLOGY"</text>
-                </column>
-                <row class="gap-3 items-center">
-                    <text class="text-xs text-zinc-500">"0 nodes · 0 edges"</text>
-                    <button class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-zinc-400">"REFRESH"</button>
-                </row>
-            </row>
-            <panel class="flex-1 relative overflow-hidden">
-                <column class="flex-1 items-center justify-center gap-4 text-zinc-500">
-                    <panel class="w-16 h-16 rounded-2xl border border-white/10 bg-zinc-900 items-center justify-center"><text class="text-2xl">"⬡"</text></panel>
-                    <column class="items-center gap-1">
-                        <text class="text-sm font-bold uppercase tracking-widest">"NO MESH DATA"</text>
-                        <text class="text-xs">"Agent graph renders here via NetworkGraph React component (Phase 2)."</text>
-                    </column>
-                </column>
-                <MeshLegend />
-            </panel>
-        </column>
-    )
+    view: column(flex=1, overflow="hidden", bg="zinc.950") {
+        row(
+            h=12, border_b=true, border_color="zinc.800",
+            pad_x=6, items="center", justify="between", shrink=0
+        ) {
+            column(gap=0) {
+                text(size="sm", weight="black", color="white", tracking="tighter") { "NETWORK" }
+                text(size="xs", color="zinc.500", tracking="widest") { "AGENT MESH TOPOLOGY" }
+            }
+            row(items="center", gap=3) {
+                text(size="xs", color="zinc.500") { "0 nodes · 0 edges" }
+                button(
+                    pad_x=3, radius="lg", bg="white/5",
+                    border=true, border_color="white/10",
+                    size="xs", color="zinc.400",
+                    raw_class="py-1.5"
+                ) { "REFRESH" }
+            }
+        }
+        panel(flex=1, position="relative", overflow="hidden") {
+            column(flex=1, items="center", justify="center", color="zinc.500", gap=4) {
+                panel(
+                    w=16, h=16, radius="2xl",
+                    border=true, border_color="white/10", bg="zinc.900",
+                    items="center", justify="center"
+                ) {
+                    text(size="2xl") { "⬡" }
+                }
+                column(items="center", gap=1) {
+                    text(size="sm", weight="bold", case="upper", tracking="widest") { "NO MESH DATA" }
+                    text(size="xs") { "Agent graph renders here via React interop NetworkGraph (Phase 2)." }
+                }
+            }
+            MeshLegend()
+        }
+    }
 }
 
 // ── FABRICA / FORGE ──────────────────────────────────────────────────────────
 
 component PipelineStage(name: str, desc: str) {
-    view: (
-        <column class="p-8 flex-1 border-r border-white/5 gap-4">
-            <row class="justify-between mb-6">
-                <panel class="w-10 h-10 rounded-xl bg-zinc-900 border border-white/5 items-center justify-center"><text class="text-zinc-500 text-xs font-mono">{name}</text></panel>
-                <text class="text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20">"IDLE"</text>
-            </row>
-            <text class="text-2xl font-bold text-white/90">{name}</text>
-            <text class="text-zinc-500 text-sm leading-relaxed">{desc}</text>
-            <panel class="flex-1 rounded-2xl border border-white/5 p-5 font-mono"><text class="text-xs text-zinc-500 italic">"No output yet."</text></panel>
-        </column>
-    )
+    view: column(pad=8, flex=1, border_r=true, border_color="white/5", gap=4) {
+        row(justify="between", mb=6) {
+            panel(
+                w=10, h=10, radius="xl", bg="zinc.900",
+                border=true, border_color="white/5",
+                items="center", justify="center"
+            ) {
+                text(color="zinc.500", size="xs", font_family="mono") { name }
+            }
+            text(
+                size="xs", weight="bold", color="rose.500",
+                bg="rose.500/10", pad_x=2, pad_y=1, radius="DEFAULT",
+                border=true, border_color="rose.500/20"
+            ) { "IDLE" }
+        }
+        text(size="2xl", weight="bold", color="white/90") { name }
+        text(color="zinc.500", size="sm", leading="relaxed") { desc }
+        panel(flex=1, radius="2xl", border=true, border_color="white/5", pad=5, font_family="mono") {
+            text(size="xs", color="zinc.500", italic=true) { "No output yet." }
+        }
+    }
 }
 
 component PipelineView() {
-    view: (
-        <row class="h-full bg-zinc-950">
-            <PipelineStage name="Lexer" desc="Logos-based tokenization" />
-            <PipelineStage name="Parser" desc="Rowan GreenTree CST generation" />
-            <PipelineStage name="HIR" desc="High-level IR with name resolution" />
-            <PipelineStage name="TypeCheck" desc="Bidirectional unification logic" />
-            <PipelineStage name="CodeGen" desc="Rust and TypeScript emission" />
-        </row>
-    )
+    view: row(h="full", bg="zinc.950") {
+        PipelineStage(name="Lexer", desc="Logos-based tokenization")
+        PipelineStage(name="Parser", desc="Rowan GreenTree CST generation")
+        PipelineStage(name="HIR", desc="High-level IR with name resolution")
+        PipelineStage(name="TypeCheck", desc="Bidirectional unification logic")
+        PipelineStage(name="CodeGen", desc="Rust and TypeScript emission")
+    }
 }
 
 component WorkflowScrubber() {
     state is_playing: bool = false
 
-    view: (
-        <column class="p-10 bg-zinc-950 h-full gap-8 text-white">
-            <row class="justify-between items-center">
-                <column class="gap-2">
-                    <text class="text-3xl font-black tracking-tighter text-white">"TIME TRAVEL"</text>
-                    <text class="text-xs text-zinc-400 font-bold tracking-widest">"DURABLE WORKFLOW STATE INSPECTOR"</text>
-                </column>
-                <row class="gap-4 bg-white/5 p-2 rounded-2xl border border-white/5 items-center">
-                    <button class="w-10 h-10 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center">"<<"</button>
-                    <button class="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center" on:click={is_playing = not is_playing}>{if is_playing { "PAUSE" } else { "PLAY" }}</button>
-                    <button class="w-10 h-10 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center">">>"</button>
-                </row>
-            </row>
-            <panel class="flex-1 flex items-center justify-center">
-                <column class="items-center gap-4 text-zinc-500">
-                    <text class="text-sm font-bold uppercase tracking-widest">"NO ACTIVE WORKFLOW"</text>
-                    <text class="text-xs">"Durable state execution will appear here when orchestrated."</text>
-                </column>
-            </panel>
-        </column>
-    )
+    view: column(pad=10, bg="zinc.950", h="full", color="white", gap=8) {
+        row(justify="between", items="center") {
+            column(gap=2) {
+                text(size="3xl", weight="black", color="white", tracking="tighter") { "TIME TRAVEL" }
+                text(size="xs", color="zinc.400", weight="bold", tracking="widest") { "DURABLE WORKFLOW STATE INSPECTOR" }
+            }
+            row(
+                bg="white/5", pad=2, radius="2xl",
+                border=true, border_color="white/5", items="center",
+                gap=4
+            ) {
+                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400") { "<<" }
+                button(
+                    w=12, h=12, radius="xl", bg="blue.600", color="white",
+                    raw_class="flex items-center justify-center",
+                    on_click={is_playing = not is_playing}
+                ) {
+                    if is_playing { "PAUSE" } else { "PLAY" }
+                }
+                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400") { ">>" }
+            }
+        }
+        panel(flex=1) {
+            column(items="center", color="zinc.500", gap=4) {
+                text(size="sm", weight="bold", case="upper", tracking="widest") { "NO ACTIVE WORKFLOW" }
+                text(size="xs") { "Durable state execution will appear here when orchestrated." }
+            }
+        }
+    }
 }
 
 component ForgeTab() {
     state active_panel: str = "pipeline"
 
-    view: (
-        <column class="flex-1 overflow-hidden">
-            <row class="h-10 border-b border-zinc-800 px-4 items-center gap-2 shrink-0">
-                <button class="tab-btn" on:click={active_panel = "pipeline"}>"PIPELINE"</button>
-                <button class="tab-btn" on:click={active_panel = "scrubber"}>"SCRUBBER"</button>
-            </row>
-            <panel class="flex-1 overflow-hidden">
-                {if active_panel is "pipeline" { <PipelineView /> } else { <WorkflowScrubber /> }}
-            </panel>
-        </column>
-    )
+    view: column(flex=1, overflow="hidden") {
+        row(
+            h=10, border_b=true, border_color="zinc.800",
+            pad_x=4, items="center", shrink=0, gap=2
+        ) {
+            button(raw_class="tab-btn", on_click={active_panel = "pipeline"}) { "PIPELINE" }
+            button(raw_class="tab-btn", on_click={active_panel = "scrubber"}) { "SCRUBBER" }
+        }
+        panel(flex=1, overflow="hidden") {
+            if active_panel is "pipeline" {
+                PipelineView()
+            } else {
+                WorkflowScrubber()
+            }
+        }
+    }
 }
 
 // ── APP SHELL ────────────────────────────────────────────────────────────────
@@ -258,22 +361,35 @@ component ForgeTab() {
 component AppShell() {
     state tab: str = "speak"
 
-    view: (
-        <column class="min-h-screen bg-zinc-950 text-zinc-100 font-mono">
-            <row class="h-10 border-b border-zinc-800 px-4 items-center justify-between shrink-0">
-                <text class="text-xs tracking-widest text-zinc-500">"VOX ORCHESTRATOR"</text>
-                <row class="gap-1">
-                    <button class="tab-btn" on:click={tab = "speak"}>"LOQUELA"</button>
-                    <button class="tab-btn" on:click={tab = "command"}>"IMPERIUM"</button>
-                    <button class="tab-btn" on:click={tab = "network"}>"RETE"</button>
-                    <button class="tab-btn" on:click={tab = "forge"}>"FABRICA"</button>
-                </row>
-            </row>
-            <panel class="flex-1 overflow-hidden">
-                {if tab is "speak" { <SpeakTab /> } else { {if tab is "command" { <CommandTab /> } else { {if tab is "network" { <NetworkTab /> } else { <ForgeTab /> }} }} }}
-            </panel>
-        </column>
-    )
+    view: column(min_h="screen", bg="zinc.950", color="zinc.100", font_family="mono") {
+        row(
+            h=10, border_b=true, border_color="zinc.800",
+            pad_x=4, items="center", justify="between", shrink=0
+        ) {
+            text(size="xs", tracking="widest", color="zinc.500") { "VOX ORCHESTRATOR" }
+            row(gap=1) {
+                button(raw_class="tab-btn", on_click={tab = "speak"})   { "LOQUELA" }
+                button(raw_class="tab-btn", on_click={tab = "command"}) { "IMPERIUM" }
+                button(raw_class="tab-btn", on_click={tab = "network"}) { "RETE" }
+                button(raw_class="tab-btn", on_click={tab = "forge"})   { "FABRICA" }
+            }
+        }
+        panel(flex=1, overflow="hidden") {
+            if tab is "speak" {
+                SpeakTab()
+            } else {
+                if tab is "command" {
+                    CommandTab()
+                } else {
+                    if tab is "network" {
+                        NetworkTab()
+                    } else {
+                        ForgeTab()
+                    }
+                }
+            }
+        }
+    }
 }
 
 routes {

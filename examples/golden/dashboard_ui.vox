@@ -1,11 +1,11 @@
 // ---
 // title: "Dashboard Ui Example"
-// description: "UI component props, @component view, and routes { path to Name } (use `to`, not `->`)."
+// description: "UI props, @component view, and routes { path to Name } (use `to`, not `->`)."
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [component, routes, type, jsx]
-// last_validated: 2026-05-03
+// constructs: [component, routes, type, vuv-view-call]
+// last_validated: 2026-05-02
 // training_eligible: true
 // training_weight: 1.0
 // ---
@@ -16,14 +16,16 @@ type DashboardStatus =
     | Ready(data: str)
 
 component DataChart(data: list[int]) {
-    view: <div class="chart">"chart"</div>
+    view: column(raw_class="chart") {
+        text() { "Chart placeholder" }
+    }
 }
 
 component DashboardView() {
-    view: <div class="dashboard">
-        <h1>"Dashboard"</h1>
-        <DataChart data=[1, 2, 3] />
-    </div>
+    view: column(raw_class="dashboard") {
+        heading(level=1) { "Dashboard" }
+        DataChart(data=[1, 2, 3])
+    }
 }
 
 

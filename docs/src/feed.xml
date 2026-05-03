@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 03 May 2026 17:06:18 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 03 May 2026 17:52:52 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -54,6 +54,15 @@
     <description>API reference for the vox-codegen-ts crate: HIR-to-TypeScript/TSX code generation pipeline.</description>
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Architecture Index</title>
+    <link>https://vox-lang.org/architecture/architecture-index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
+    <description>Auto-generated architecture index.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
   </item>
 
   <item>
@@ -242,16 +251,6 @@
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Tutorial: Building a Collaborative Task List</title>
-    <link>https://vox-lang.org/tutorials/tut-first-app.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/tutorials/tut-first-app.html</guid>
-    <description>Build a full-stack Task app end to end with Vox.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Tutorial</category>
-    <category domain="https://schema.org">HowTo</category>
   </item>
 
   <item>
