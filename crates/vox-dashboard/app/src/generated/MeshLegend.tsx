@@ -2,45 +2,36 @@ import React from "react";
 
 export function MeshLegend(): React.ReactElement {
   return (
-<column className={"absolute bottom-4 left-4 gap-2 bg-zinc-900/90 backdrop-blur border border-white/10 rounded-2xl p-4"}
+<div className={["flex", "flex-col", "absolute", "bottom-4", "left-4", "bg-zinc-900/90", "border", "border-white/10", "rounded-2xl", "p-4", "gap-2", "backdrop-blur"].filter(Boolean).join(" ")}
 >
-  <text className={"text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1"}
+  <p className={["text-xs", "font-bold", "text-zinc-400", "uppercase", "tracking-widest", "mb-1"].filter(Boolean).join(" ")}
 >
   {"LEGEND"}
-</text>
-  <row className={"gap-2 items-center"}
+</p>
+  <div className={["flex", "flex-row", "items-center", "gap-2"].filter(Boolean).join(" ")}
 >
-  <panel className={"w-3 h-0.5 bg-emerald-400 rounded"}
->
-  
-</panel>
-  <text className={"text-xs text-zinc-400"}
+  <div className={["border", "border-border", "p-4", "w-3", "bg-emerald-400", "rounded-DEFAULT", "h-0.5"].filter(Boolean).join(" ")} />
+  <p className={["text-xs", "text-zinc-400"].filter(Boolean).join(" ")}
 >
   {"Active channel"}
-</text>
-</row>
-  <row className={"gap-2 items-center"}
+</p>
+</div>
+  <div className={["flex", "flex-row", "items-center", "gap-2"].filter(Boolean).join(" ")}
 >
-  <panel className={"w-3 h-0.5 bg-zinc-600 rounded"}
->
-  
-</panel>
-  <text className={"text-xs text-zinc-400"}
+  <div className={["border", "border-border", "p-4", "w-3", "bg-zinc-600", "rounded-DEFAULT", "h-0.5"].filter(Boolean).join(" ")} />
+  <p className={["text-xs", "text-zinc-400"].filter(Boolean).join(" ")}
 >
   {"Idle channel"}
-</text>
-</row>
-  <row className={"gap-2 items-center"}
+</p>
+</div>
+  <div className={["flex", "flex-row", "items-center", "gap-2"].filter(Boolean).join(" ")}
 >
-  <panel className={"w-2 h-2 rounded-full bg-rose-500"}
->
-  
-</panel>
-  <text className={"text-xs text-zinc-400"}
+  <div className={["border", "border-border", "p-4", "w-2", "h-2", "rounded-full", "bg-rose-500"].filter(Boolean).join(" ")} />
+  <p className={["text-xs", "text-zinc-400"].filter(Boolean).join(" ")}
 >
   {"Error node"}
-</text>
-</row>
-</column>
+</p>
+</div>
+</div>
   );
 }

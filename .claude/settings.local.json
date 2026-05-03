@@ -49,7 +49,13 @@
       "Bash(VOX_WEBIR_EMIT_REACTIVE_VIEWS=1 VOX_WEBIR_REACTIVE_TRACE=1 cargo run -q -p vox-cli -- build crates/vox-dashboard/app/src/app.vox --out-dir /tmp/vox-vuv-smoke2)",
       "Bash(grep -n \"^fn \\\\|^pub fn \\\\|^pub\\(crate\\) fn \\\\|^}$\" crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs)",
       "Bash(grep -rn 'fn tokenize\\\\|fn lex\\\\|\"//\"\\\\|line_comment\\\\|^\\\\s*\"//\"' crates/vox-compiler/src/lexer/token.rs crates/vox-compiler/src/lexer/mod.rs)",
-      "Bash(grep -n '```vox\\\\|<[a-z]\\\\|<[A-Z]\\\\|view:' docs/src/tutorials/tut-ui-integration.md)"
+      "Bash(grep -n '```vox\\\\|<[a-z]\\\\|<[A-Z]\\\\|view:' docs/src/tutorials/tut-ui-integration.md)",
+      "Bash(perl -i -0pe 's/\\(\"wrap\" => \\\\{\\\\n\\\\s+\\)let mut classes/$1let classes/' crates/vox-compiler/src/web_ir/primitives/mod.rs)",
+      "Bash(perl -i -0pe 's/\\(\"panel\" => \\\\{\\\\n\\\\s+\\)let mut classes/$1let classes/' crates/vox-compiler/src/web_ir/primitives/mod.rs)",
+      "Bash(perl -i -0pe 's/\\(\"card\" => \\\\{\\\\n\\\\s+\\)let mut classes/$1let classes/' crates/vox-compiler/src/web_ir/primitives/mod.rs)",
+      "Bash(perl -i -0pe 's/\\\\nfn apply_gap\\\\\\(gap: Option<&str>, classes: &mut Vec<String>\\\\\\) \\\\{\\\\n    if let Some\\\\\\(g\\\\\\) = gap \\\\{\\\\n        classes\\\\.push\\\\\\(format!\\\\\\(\"gap-\\\\{g\\\\}\"\\\\\\)\\\\\\);\\\\n    \\\\}\\\\n\\\\}\\\\n//' crates/vox-compiler/src/web_ir/primitives/mod.rs)",
+      "Bash(awk -v BYTE=2433 'BEGIN{c=0} {if\\(c+length\\($0\\)+1 >= BYTE\\){print NR\": \"$0; for\\(i=NR-3;i<NR+5;i++\\) ;exit} c+=length\\($0\\)+1}' examples/golden/inventory_rosetta_platform.vox)",
+      "Bash(sed -n '50,75p' examples/golden/inventory_rosetta_platform.vox)"
     ]
   }
 }

@@ -280,7 +280,15 @@ impl Parser {
                             .chars()
                             .next()
                             .map_or(false, |c| c.is_ascii_uppercase());
-                        if is_brace_next {
+                        let is_view_callee = starts_uppercase
+                            || crate::web_ir::primitives::is_primitive(tag);
+                        let all_named = args.iter().all(|a| a.name.is_some());
+                        // Trailing-block-as-children sugar fires only when the call shape is
+                        // unambiguously a view-call: callee is a recognized view-callee
+                        // (capitalized component or primitive), all args are named, AND a `{`
+                        // follows. Otherwise the `{` belongs to an outer construct (e.g.
+                        // `if !has_capability(cap) {`), and we must NOT consume it as children.
+                        if is_brace_next && is_view_callee && all_named {
                             let tag = tag.clone();
                             let attributes = self.view_args_to_attrs(args)?;
                             self.skip_newlines();

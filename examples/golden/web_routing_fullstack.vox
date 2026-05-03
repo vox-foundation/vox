@@ -21,7 +21,10 @@
 
 component Home() {
     state n: int = 0
-    view: text() { "home" }
+    view: column() {
+        text() { "home" }
+        link(href="/section") { "Go to section" }
+    }
 }
 
 component Section() {

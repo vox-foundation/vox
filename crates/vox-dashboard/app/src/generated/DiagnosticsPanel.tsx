@@ -2,30 +2,30 @@ import React from "react";
 
 export function DiagnosticsPanel(): React.ReactElement {
   return (
-<column className={"flex-1 overflow-y-auto"}
+<div className={["flex", "flex-col", "flex-1", "overflow-y-auto"].filter(Boolean).join(" ")}
 >
-  <row className={"px-4 py-2 border-b border-white/10 justify-between items-center shrink-0 bg-zinc-900/50"}
+  <div className={["flex", "flex-row", "px-4", "py-2", "border-b-true", "border-white/10", "justify-between", "items-center", "shrink-0", "bg-zinc-900/50"].filter(Boolean).join(" ")}
 >
-  <text className={"text-xs font-bold text-zinc-400 uppercase tracking-widest"}
+  <p className={["text-xs", "font-bold", "text-zinc-400", "uppercase", "tracking-widest"].filter(Boolean).join(" ")}
 >
   {"DIAGNOSTICS"}
-</text>
-  <text className={"text-xs text-zinc-600"}
+</p>
+  <p className={["text-xs", "text-zinc-600"].filter(Boolean).join(" ")}
 >
   {"0 errors · 0 warnings"}
-</text>
-</row>
-  <column className={"flex-1 items-center justify-center gap-3 text-zinc-500"}
+</p>
+</div>
+  <div className={["flex", "flex-col", "flex-1", "items-center", "justify-center", "text-zinc-500", "gap-3"].filter(Boolean).join(" ")}
 >
-  <text className={"text-sm font-bold uppercase tracking-widest"}
+  <p className={["text-sm", "font-bold", "uppercase", "tracking-widest"].filter(Boolean).join(" ")}
 >
   {"NO DIAGNOSTICS"}
-</text>
-  <text className={"text-xs"}
+</p>
+  <p className={"text-xs"}
 >
   {"Run a build to see compiler output here."}
-</text>
-</column>
-</column>
+</p>
+</div>
+</div>
   );
 }

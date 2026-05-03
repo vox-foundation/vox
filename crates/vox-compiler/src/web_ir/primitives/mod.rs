@@ -108,7 +108,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
             })
         }
         "wrap" => {
-            let mut classes = vec![
+            let classes = vec![
                 "flex".to_string(),
                 "flex-row".to_string(),
                 "flex-wrap".to_string(),
@@ -233,7 +233,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
         }
         // ── Structural ────────────────────────────────────────────────────
         "panel" => {
-            let mut classes = vec![
+            let classes = vec![
                 "bg-background".to_string(),
                 "rounded-lg".to_string(),
                 "border".to_string(),
@@ -249,7 +249,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
             })
         }
         "card" => {
-            let mut classes = vec![
+            let classes = vec![
                 "bg-card".to_string(),
                 "text-card-foreground".to_string(),
                 "rounded-xl".to_string(),
@@ -345,12 +345,6 @@ pub fn is_primitive(tag: &str) -> bool {
 // ---------------------------------------------------------------------------
 // Prop-to-class helpers
 // ---------------------------------------------------------------------------
-
-fn apply_gap(gap: Option<&str>, classes: &mut Vec<String>) {
-    if let Some(g) = gap {
-        classes.push(format!("gap-{g}"));
-    }
-}
 
 fn apply_align(align: Option<&str>, classes: &mut Vec<String>, is_row: bool) {
     match align {

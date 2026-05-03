@@ -26,7 +26,10 @@
 
 component BlogHome() {
     state n: int = 0
-    view: text() { "blog" }
+    view: column() {
+        text() { "blog" }
+        link(href="/edit") { "Edit posts" }
+    }
 }
 
 component PostEditor() {

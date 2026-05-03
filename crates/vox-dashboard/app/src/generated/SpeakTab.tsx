@@ -4,48 +4,45 @@ import { ComposerPanel } from "./ComposerPanel";
 
 export function SpeakTab(): React.ReactElement {
   return (
-<column className={"flex-1 overflow-hidden bg-zinc-950"}
+<div className={["flex", "flex-col", "flex-1", "overflow-hidden", "bg-zinc-950"].filter(Boolean).join(" ")}
 >
-  <row className={"h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0"}
+  <div className={["flex", "flex-row", "h-12", "border-b-true", "border-zinc-800", "px-6", "items-center", "justify-between", "shrink-0"].filter(Boolean).join(" ")}
 >
-  <column className={"gap-0"}
+  <div className={["flex", "flex-col", "gap-0"].filter(Boolean).join(" ")}
 >
-  <text className={"text-sm font-black tracking-tighter text-white"}
+  <p className={["text-sm", "text-white", "tracking-tighter"].filter(Boolean).join(" ")}
 >
   {"LOQUELA"}
-</text>
-  <text className={"text-xs text-zinc-500 tracking-widest"}
+</p>
+  <p className={["text-xs", "text-zinc-500", "tracking-widest"].filter(Boolean).join(" ")}
 >
   {"VOICE INTERFACE"}
-</text>
-</column>
-  <row className={"gap-2 items-center"}
+</p>
+</div>
+  <div className={["flex", "flex-row", "items-center", "gap-2"].filter(Boolean).join(" ")}
 >
-  <panel className={"w-2 h-2 rounded-full bg-zinc-600"}
->
-  
-</panel>
-  <text className={"text-xs text-zinc-500"}
+  <div className={["border", "border-border", "p-4", "w-2", "h-2", "rounded-full", "bg-zinc-600"].filter(Boolean).join(" ")} />
+  <p className={["text-xs", "text-zinc-500"].filter(Boolean).join(" ")}
 >
   {"NO ACTIVE SESSION"}
-</text>
-</row>
-</row>
-  <panel className={"flex-1 overflow-y-auto py-4"}
+</p>
+</div>
+</div>
+  <div className={["bg-background", "rounded-lg", "border", "border-border", "flex-1", "overflow-y-auto", "py-4"].filter(Boolean).join(" ")}
 >
-  <column className={"items-center justify-center h-full gap-4 text-zinc-500"}
+  <div className={["flex", "flex-col", "items-center", "justify-center", "h-full", "text-zinc-500", "gap-4"].filter(Boolean).join(" ")}
 >
-  <text className={"text-sm font-bold uppercase tracking-widest"}
+  <p className={["text-sm", "font-bold", "uppercase", "tracking-widest"].filter(Boolean).join(" ")}
 >
   {"START A CONVERSATION"}
-</text>
-  <text className={"text-xs"}
+</p>
+  <p className={"text-xs"}
 >
   {"Messages will appear here once a session is active."}
-</text>
-</column>
-</panel>
+</p>
+</div>
+</div>
   <ComposerPanel  />
-</column>
+</div>
   );
 }

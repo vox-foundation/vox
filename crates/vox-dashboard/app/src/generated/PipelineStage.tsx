@@ -7,37 +7,37 @@ export interface PipelineStageProps {
 
 export function PipelineStage({ name, desc }: PipelineStageProps): React.ReactElement {
   return (
-<column className={"p-8 flex-1 border-r border-white/5 gap-4"}
+<div className={["flex", "flex-col", "p-8", "flex-1", "border-r-true", "border-white/5", "gap-4"].filter(Boolean).join(" ")}
 >
-  <row className={"justify-between mb-6"}
+  <div className={["flex", "flex-row", "justify-between", "mb-6"].filter(Boolean).join(" ")}
 >
-  <panel className={"w-10 h-10 rounded-xl bg-zinc-900 border border-white/5 items-center justify-center"}
+  <div className={["p-4", "w-10", "h-10", "rounded-xl", "bg-zinc-900", "border", "border-white/5", "items-center", "justify-center"].filter(Boolean).join(" ")}
 >
-  <text className={"text-zinc-500 text-xs font-mono"}
+  <p className={["text-xs", "text-zinc-500", "font-mono"].filter(Boolean).join(" ")}
 >
   {name}
-</text>
-</panel>
-  <text className={"text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20"}
+</p>
+</div>
+  <p className={["text-xs", "font-bold", "text-rose-500", "bg-rose-500/10", "px-2", "py-1", "rounded-DEFAULT", "border", "border-rose-500/20"].filter(Boolean).join(" ")}
 >
   {"IDLE"}
-</text>
-</row>
-  <text className={"text-2xl font-bold text-white/90"}
+</p>
+</div>
+  <p className={["text-2xl", "font-bold", "text-white/90"].filter(Boolean).join(" ")}
 >
   {name}
-</text>
-  <text className={"text-zinc-500 text-sm leading-relaxed"}
+</p>
+  <p className={["text-sm", "text-zinc-500", "leading-relaxed"].filter(Boolean).join(" ")}
 >
   {desc}
-</text>
-  <panel className={"flex-1 rounded-2xl border border-white/5 p-5 font-mono"}
+</p>
+  <div className={["bg-background", "flex-1", "rounded-2xl", "border", "border-white/5", "p-5", "font-mono"].filter(Boolean).join(" ")}
 >
-  <text className={"text-xs text-zinc-500 italic"}
+  <p className={["text-xs", "text-zinc-500", "italic"].filter(Boolean).join(" ")}
 >
   {"No output yet."}
-</text>
-</panel>
-</column>
+</p>
+</div>
+</div>
   );
 }

@@ -4,58 +4,58 @@ import { MeshLegend } from "./MeshLegend";
 
 export function NetworkTab(): React.ReactElement {
   return (
-<column className={"flex-1 overflow-hidden bg-zinc-950"}
+<div className={["flex", "flex-col", "flex-1", "overflow-hidden", "bg-zinc-950"].filter(Boolean).join(" ")}
 >
-  <row className={"h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0"}
+  <div className={["flex", "flex-row", "h-12", "border-b-true", "border-zinc-800", "px-6", "items-center", "justify-between", "shrink-0"].filter(Boolean).join(" ")}
 >
-  <column className={"gap-0"}
+  <div className={["flex", "flex-col", "gap-0"].filter(Boolean).join(" ")}
 >
-  <text className={"text-sm font-black tracking-tighter text-white"}
+  <p className={["text-sm", "text-white", "tracking-tighter"].filter(Boolean).join(" ")}
 >
   {"NETWORK"}
-</text>
-  <text className={"text-xs text-zinc-500 tracking-widest"}
+</p>
+  <p className={["text-xs", "text-zinc-500", "tracking-widest"].filter(Boolean).join(" ")}
 >
   {"AGENT MESH TOPOLOGY"}
-</text>
-</column>
-  <row className={"gap-3 items-center"}
+</p>
+</div>
+  <div className={["flex", "flex-row", "items-center", "gap-3"].filter(Boolean).join(" ")}
 >
-  <text className={"text-xs text-zinc-500"}
+  <p className={["text-xs", "text-zinc-500"].filter(Boolean).join(" ")}
 >
   {"0 nodes · 0 edges"}
-</text>
-  <button className={"px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-zinc-400"}
+</p>
+  <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "hover:bg-primary/90", "h-10", "px-3", "rounded-lg", "bg-white/5", "border", "border-white/10", "text-zinc-400", "py-1.5"].filter(Boolean).join(" ")}
 >
   {"REFRESH"}
 </button>
-</row>
-</row>
-  <panel className={"flex-1 relative overflow-hidden"}
+</div>
+</div>
+  <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "flex-1", "relative", "overflow-hidden"].filter(Boolean).join(" ")}
 >
-  <column className={"flex-1 items-center justify-center gap-4 text-zinc-500"}
+  <div className={["flex", "flex-col", "flex-1", "items-center", "justify-center", "text-zinc-500", "gap-4"].filter(Boolean).join(" ")}
 >
-  <panel className={"w-16 h-16 rounded-2xl border border-white/10 bg-zinc-900 items-center justify-center"}
+  <div className={["p-4", "w-16", "h-16", "rounded-2xl", "border", "border-white/10", "bg-zinc-900", "items-center", "justify-center"].filter(Boolean).join(" ")}
 >
-  <text className={"text-2xl"}
+  <p className={"text-2xl"}
 >
   {"⬡"}
-</text>
-</panel>
-  <column className={"items-center gap-1"}
+</p>
+</div>
+  <div className={["flex", "flex-col", "items-center", "gap-1"].filter(Boolean).join(" ")}
 >
-  <text className={"text-sm font-bold uppercase tracking-widest"}
+  <p className={["text-sm", "font-bold", "uppercase", "tracking-widest"].filter(Boolean).join(" ")}
 >
   {"NO MESH DATA"}
-</text>
-  <text className={"text-xs"}
+</p>
+  <p className={"text-xs"}
 >
   {"Agent graph renders here via @island NetworkGraph (Phase 2)."}
-</text>
-</column>
-</column>
+</p>
+</div>
+</div>
   <MeshLegend  />
-</panel>
-</column>
+</div>
+</div>
   );
 }
