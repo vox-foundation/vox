@@ -260,7 +260,7 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         PopuliAction::TrainStub { .. }
         | PopuliAction::DogfoodStub { .. }
         | PopuliAction::ServeStub { .. } => {
-            vox_build_meta::require("gpu", "cargo build -p vox-cli --features gpu")
+            vox_build_meta::require("gpu", "vox plugin install tensor-burn-wgpu")
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             unreachable!()
         }

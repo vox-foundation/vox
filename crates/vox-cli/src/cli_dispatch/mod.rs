@@ -140,7 +140,7 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::ScriptStub { .. } => {
             vox_build_meta::require(
                 "script-execution",
-                "cargo build -p vox-cli --features script-execution",
+                "vox plugin install script-execution",
             )
             .map_err(|e| anyhow::anyhow!("{e}"))?;
             unreachable!()
