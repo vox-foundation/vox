@@ -56,29 +56,16 @@ pub fn emit_jsx_element(el: &JsxElement, indent: usize, island_names: &HashSet<S
     let pad = "  ".repeat(indent);
     let mut out = String::new();
 
-    out.push_str(&format!("{pad}<{}", el.tag));
-
-    // Attributes
-    for attr in &el.attributes {
-        if attr.name == "bind" {
-            let (value_str, onchange_str) = expand_bind_attribute(&attr.value);
-            out.push_str(&format!(
-                " value={{{value_str}}} onChange={{{onchange_str}}}"
-            ));
-        } else {
-            let react_name = map_jsx_attr_name(&attr.name);
-            let value = emit_jsx_attr_value(&attr.value);
-            out.push_str(&format!(" {react_name}={{{value}}}"));
-        }
-    }
+    let view = transform_view_kwargs(&el.tag, &el.attributes);
+    out.push_str(&format!("{pad}<{}", view.html_tag));
+    out.push_str(&render_view_attrs(&view, &view.passthrough));
     out.push_str(">\n");
 
-    // Children
     for child in &el.children {
         out.push_str(&emit_jsx_child(child, indent + 1, island_names));
     }
 
-    out.push_str(&format!("{pad}</{}>\n", el.tag));
+    out.push_str(&format!("{pad}</{}>\n", view.html_tag));
     out
 }
 
@@ -94,9 +81,94 @@ pub fn emit_jsx_self_closing(
         return emit_ast_island_mount(&el.tag, &el.attributes, indent, 0);
     }
     let pad = "  ".repeat(indent);
-    let mut out = format!("{pad}<{}", el.tag);
+    let view = transform_view_kwargs(&el.tag, &el.attributes);
+    let mut out = format!("{pad}<{}", view.html_tag);
+    out.push_str(&render_view_attrs(&view, &view.passthrough));
+    out.push_str(" />\n");
+    out
+}
 
-    for attr in &el.attributes {
+// ── VUV view-call lowering at AST emit time ─────────────────────────────────
+//
+// Mirrors `web_ir/lower.rs::apply_primitive_emission` so that AST-path codegen produces the same
+// className output as the web_ir validator sees. Without this, `vox build` emitted raw kwargs
+// (`<row pad_x={4}>`) instead of Tailwind classes — invalid HTML / non-rendering React.
+
+/// Result of applying primitive resolution + universal-kwarg lowering to a view call.
+struct ViewCallEmission {
+    /// HTML tag to emit (e.g. `"div"` for `row`/`column`/`panel`, or the original tag if no
+    /// primitive matched).
+    html_tag: String,
+    /// className expression as a TS expression string. May be a static string literal or a
+    /// concatenation of literal + dynamic ternaries.
+    class_expr: Option<String>,
+    /// Attributes that did NOT participate in primitive lowering — emitted as-is.
+    passthrough: Vec<JsxAttribute>,
+}
+
+const PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
+    "size", "weight", "align", "wrap", "variant", "level", "surface", "z",
+];
+
+/// Walk a JSX-shaped attribute list and split it into:
+///   - className contributions (literal + dynamic) merged into a single `class_expr`,
+///   - passthrough attributes preserved verbatim.
+///
+/// If the tag is a known UI primitive, prepend its base classes. Any author-supplied
+/// `class`/`className` attribute is concatenated last so it overrides defaults.
+fn transform_view_kwargs(tag: &str, attrs: &[JsxAttribute]) -> ViewCallEmission {
+    let primitive_emission = crate::web_ir::primitives::resolve(tag, &[]);
+    let html_tag = primitive_emission
+        .as_ref()
+        .map(|e| e.html_tag.to_string())
+        .unwrap_or_else(|| tag.to_string());
+    let mut class_pieces: Vec<String> = primitive_emission
+        .as_ref()
+        .map(|e| e.base_classes.iter().map(|c| format!("\"{c}\"")).collect())
+        .unwrap_or_default();
+    let mut passthrough: Vec<JsxAttribute> = Vec::with_capacity(attrs.len());
+
+    for attr in attrs {
+        let name = attr.name.as_str();
+        if name == "class" || name == "className" {
+            // Author-supplied className takes lowest priority — concatenated after primitive base
+            // and typed kwargs so overrides land last in Tailwind's class string.
+            class_pieces.push(emit_jsx_attr_value(&attr.value));
+            continue;
+        }
+        if PRIMITIVE_CONSUMED_PROPS.contains(&name) {
+            // Per-primitive kwarg consumed by web_ir::primitives::resolve at validation time —
+            // the AST emit here doesn't recompute the primitive class for these. Drop the attr
+            // (don't passthrough); the primitive-base classes already cover the common case.
+            continue;
+        }
+        if let Some(piece) = kwarg_to_class_expr(name, &attr.value) {
+            class_pieces.push(piece);
+            continue;
+        }
+        passthrough.push(attr.clone());
+    }
+
+    let class_expr = if class_pieces.is_empty() {
+        None
+    } else if class_pieces.len() == 1 {
+        Some(class_pieces.into_iter().next().unwrap())
+    } else {
+        Some(format!("[{}].filter(Boolean).join(\" \")", class_pieces.join(", ")))
+    };
+
+    ViewCallEmission { html_tag, class_expr, passthrough }
+}
+
+/// Render the attribute portion of a JSX opening tag: a leading className (if any) followed by
+/// the passthrough attributes. Returns a string starting with a space, suitable for splicing into
+/// `<tag …` or `<tag … />`.
+fn render_view_attrs(view: &ViewCallEmission, passthrough: &[JsxAttribute]) -> String {
+    let mut out = String::new();
+    if let Some(ref ce) = view.class_expr {
+        out.push_str(&format!(" className={{{ce}}}"));
+    }
+    for attr in passthrough {
         if attr.name == "bind" {
             let (value_str, onchange_str) = expand_bind_attribute(&attr.value);
             out.push_str(&format!(
@@ -108,8 +180,67 @@ pub fn emit_jsx_self_closing(
             out.push_str(&format!(" {react_name}={{{value}}}"));
         }
     }
-    out.push_str(" />\n");
     out
+}
+
+/// Try to convert a (kwarg, value-expression) pair into a TS expression string evaluating to a
+/// className fragment. Static-literal values resolve directly; `if/else` expressions recurse and
+/// emit ternaries; other dynamic shapes return `None` (caller will pass them through as raw).
+fn kwarg_to_class_expr(kwarg: &str, expr: &Expr) -> Option<String> {
+    match unwrap_block(expr) {
+        Expr::StringLit { value, .. } => {
+            let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, value)?;
+            Some(format!("\"{}\"", classes.join(" ")))
+        }
+        Expr::BoolLit { value, .. } => {
+            let v = value.to_string();
+            let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            Some(format!("\"{}\"", classes.join(" ")))
+        }
+        Expr::IntLit { value, .. } => {
+            let v = value.to_string();
+            let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            Some(format!("\"{}\"", classes.join(" ")))
+        }
+        Expr::FloatLit { value, .. } => {
+            let v = value.to_string();
+            let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            Some(format!("\"{}\"", classes.join(" ")))
+        }
+        Expr::DecimalLit { value, .. } => {
+            let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, value)?;
+            Some(format!("\"{}\"", classes.join(" ")))
+        }
+        Expr::If { condition, then_body, else_body, .. } => {
+            // `bg=if cond { "x" } else { "y" }` → `(cond ? "bg-x" : "bg-y")`. Pull the trailing
+            // expression of each branch (Stmt::Expr) and recurse; bail to None if either branch
+            // doesn't end in a single expression we can resolve.
+            let then_expr = single_trailing_expr(then_body)?;
+            let else_body = else_body.as_ref()?;
+            let else_expr = single_trailing_expr(else_body)?;
+            let then_class = kwarg_to_class_expr(kwarg, then_expr)?;
+            let else_class = kwarg_to_class_expr(kwarg, else_expr)?;
+            let cond_str = emit_expr(condition);
+            Some(format!("({cond_str} ? {then_class} : {else_class})"))
+        }
+        // Recognized kwarg with an unrecognized expression shape — caller falls back to passing
+        // the attribute through as-is so the user sees the raw kwarg in the output and can fix it.
+        _ if crate::web_ir::primitives::UNIVERSAL_STYLE_KWARGS.contains(&kwarg) => None,
+        _ => None,
+    }
+}
+
+/// Return the single trailing expression of a statement body, if the body is exactly one
+/// `Stmt::Expr`. Used for `if`/`else` branch resolution at view-call sites.
+fn single_trailing_expr(body: &[Stmt]) -> Option<&Expr> {
+    if body.len() != 1 {
+        return None;
+    }
+    if let Stmt::Expr { expr, .. } = &body[0] {
+        Some(expr)
+    } else {
+        None
+    }
 }
 
 /// Emit a JSX attribute value expression.

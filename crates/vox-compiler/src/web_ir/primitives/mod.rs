@@ -470,6 +470,115 @@ fn apply_z_index(z: Option<&str>, classes: &mut Vec<String>) {
     }
 }
 
+/// VUV-4: resolve a single (kwarg, value) pair to its Tailwind class fragment(s), or `None` if
+/// the kwarg is not a recognized universal style kwarg. Used by both the web_ir lowering pass
+/// (via `apply_universal_kwargs`) and the codegen_ts AST-emit path so both produce identical
+/// className output.
+#[must_use]
+pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> {
+    let v = value.trim_matches('"').trim_matches('\'');
+    let v_dashed = v.replace('.', "-");
+    let out: Vec<String> = match kwarg {
+        "gap"   => vec![format!("gap-{v}")],
+        "gap_x" => vec![format!("gap-x-{v}")],
+        "gap_y" => vec![format!("gap-y-{v}")],
+        "pad"   => vec![format!("p-{v}")],
+        "pad_x" => vec![format!("px-{v}")],
+        "pad_y" => vec![format!("py-{v}")],
+        "pad_t" => vec![format!("pt-{v}")],
+        "pad_b" => vec![format!("pb-{v}")],
+        "pad_l" => vec![format!("pl-{v}")],
+        "pad_r" => vec![format!("pr-{v}")],
+        "mb"    => vec![format!("mb-{v}")],
+        "mt"    => vec![format!("mt-{v}")],
+        "ml"    => vec![format!("ml-{v}")],
+        "mr"    => vec![format!("mr-{v}")],
+        "mx"    => vec![format!("mx-{v}")],
+        "my"    => vec![format!("my-{v}")],
+        "w"     => vec![format!("w-{v}")],
+        "h"     => vec![format!("h-{v}")],
+        "min_w" => vec![format!("min-w-{v}")],
+        "min_h" => vec![format!("min-h-{v}")],
+        "max_w" => vec![format!("max-w-{v}")],
+        "max_h" => vec![format!("max-h-{v}")],
+        "bg"    => vec![format!("bg-{}", v_dashed)],
+        "color" => vec![format!("text-{}", v_dashed)],
+        "border" => match v {
+            "" | "true" | "1" => vec!["border".to_string()],
+            _ => vec![format!("border-{v}")],
+        },
+        "border_x" => vec![format!("border-x-{v}")],
+        "border_y" => vec![format!("border-y-{v}")],
+        "border_t" => vec![format!("border-t-{v}")],
+        "border_b" => vec![format!("border-b-{v}")],
+        "border_l" => vec![format!("border-l-{v}")],
+        "border_r" => vec![format!("border-r-{v}")],
+        "border_color" => vec![format!("border-{}", v_dashed)],
+        "radius"    => vec![format!("rounded-{v}")],
+        "radius_t"  => vec![format!("rounded-t-{v}")],
+        "radius_b"  => vec![format!("rounded-b-{v}")],
+        "radius_l"  => vec![format!("rounded-l-{v}")],
+        "radius_r"  => vec![format!("rounded-r-{v}")],
+        "radius_tl" => vec![format!("rounded-tl-{v}")],
+        "radius_tr" => vec![format!("rounded-tr-{v}")],
+        "radius_bl" => vec![format!("rounded-bl-{v}")],
+        "radius_br" => vec![format!("rounded-br-{v}")],
+        "overflow"   => vec![format!("overflow-{v}")],
+        "overflow_x" => vec![format!("overflow-x-{v}")],
+        "overflow_y" => vec![format!("overflow-y-{v}")],
+        "flex" => match v {
+            "1" | "true" => vec!["flex-1".to_string()],
+            _ => vec![format!("flex-{v}")],
+        },
+        "shrink" => match v {
+            "0" => vec!["shrink-0".to_string()],
+            _ => vec![format!("shrink-{v}")],
+        },
+        "grow" => match v {
+            "0" => vec!["grow-0".to_string()],
+            _ => vec![format!("grow-{v}")],
+        },
+        "justify" => vec![format!("justify-{v}")],
+        "items"   => vec![format!("items-{v}")],
+        "tracking" => vec![format!("tracking-{v}")],
+        "leading"  => vec![format!("leading-{v}")],
+        "case" => match v {
+            "upper" | "uppercase" => vec!["uppercase".to_string()],
+            "lower" | "lowercase" => vec!["lowercase".to_string()],
+            "normal" => vec!["normal-case".to_string()],
+            _ => return None,
+        },
+        "italic" => match v {
+            "true" | "" => vec!["italic".to_string()],
+            "false" => vec!["not-italic".to_string()],
+            _ => return None,
+        },
+        "font_family" => match v {
+            "mono" => vec!["font-mono".to_string()],
+            "sans" => vec!["font-sans".to_string()],
+            "serif" => vec!["font-serif".to_string()],
+            _ => return None,
+        },
+        "position" => vec![v.to_string()],
+        "inset"    => vec![format!("inset-{v}")],
+        "top"      => vec![format!("top-{v}")],
+        "bottom"   => vec![format!("bottom-{v}")],
+        "left"     => vec![format!("left-{v}")],
+        "right"    => vec![format!("right-{v}")],
+        "shadow"   => match v {
+            "" | "true" => vec!["shadow".to_string()],
+            _ => vec![format!("shadow-{v}")],
+        },
+        "opacity"  => vec![format!("opacity-{v}")],
+        "raw_class" => v
+            .split_whitespace()
+            .map(std::string::ToString::to_string)
+            .collect(),
+        _ => return None,
+    };
+    Some(out)
+}
+
 /// VUV-4: apply the universal style kwargs to the class list. Each kwarg maps to a Tailwind utility
 /// using a small lookup table. Token-shaped values (e.g. `zinc.400`) are converted to dash-form
 /// (`zinc-400`) so authors can write `bg: zinc.400` and the lowering produces `bg-zinc-400`.
@@ -478,110 +587,8 @@ fn apply_z_index(z: Option<&str>, classes: &mut Vec<String>) {
 /// during the JSX-to-VUV cutover. It will be retired in favour of full typed-kwarg coverage.
 fn apply_universal_kwargs(attrs: &[(String, String)], classes: &mut Vec<String>) {
     for (k, v) in attrs {
-        let v = v.trim_matches('"').trim_matches('\'');
-        // Token-shaped values: `zinc.400` → `zinc-400`. Whole-string conversion is fine for our
-        // purposes; the kwargs that take token paths don't accept dotted CSS selectors.
-        let v_dashed = v.replace('.', "-");
-        let classes_to_push: Vec<String> = match k.as_str() {
-            "gap"   => vec![format!("gap-{v}")],
-            "gap_x" => vec![format!("gap-x-{v}")],
-            "gap_y" => vec![format!("gap-y-{v}")],
-            "pad"   => vec![format!("p-{v}")],
-            "pad_x" => vec![format!("px-{v}")],
-            "pad_y" => vec![format!("py-{v}")],
-            "pad_t" => vec![format!("pt-{v}")],
-            "pad_b" => vec![format!("pb-{v}")],
-            "pad_l" => vec![format!("pl-{v}")],
-            "pad_r" => vec![format!("pr-{v}")],
-            "mb"    => vec![format!("mb-{v}")],
-            "mt"    => vec![format!("mt-{v}")],
-            "ml"    => vec![format!("ml-{v}")],
-            "mr"    => vec![format!("mr-{v}")],
-            "mx"    => vec![format!("mx-{v}")],
-            "my"    => vec![format!("my-{v}")],
-            "w"     => vec![format!("w-{v}")],
-            "h"     => vec![format!("h-{v}")],
-            "min_w" => vec![format!("min-w-{v}")],
-            "min_h" => vec![format!("min-h-{v}")],
-            "max_w" => vec![format!("max-w-{v}")],
-            "max_h" => vec![format!("max-h-{v}")],
-            "bg"    => vec![format!("bg-{}", v_dashed)],
-            "color" => vec![format!("text-{}", v_dashed)],
-            "border" => match v {
-                "" | "true" | "1" => vec!["border".to_string()],
-                _ => vec![format!("border-{v}")],
-            },
-            "border_x" => vec![format!("border-x-{v}")],
-            "border_y" => vec![format!("border-y-{v}")],
-            "border_t" => vec![format!("border-t-{v}")],
-            "border_b" => vec![format!("border-b-{v}")],
-            "border_l" => vec![format!("border-l-{v}")],
-            "border_r" => vec![format!("border-r-{v}")],
-            "border_color" => vec![format!("border-{}", v_dashed)],
-            "radius"    => vec![format!("rounded-{v}")],
-            "radius_t"  => vec![format!("rounded-t-{v}")],
-            "radius_b"  => vec![format!("rounded-b-{v}")],
-            "radius_l"  => vec![format!("rounded-l-{v}")],
-            "radius_r"  => vec![format!("rounded-r-{v}")],
-            "radius_tl" => vec![format!("rounded-tl-{v}")],
-            "radius_tr" => vec![format!("rounded-tr-{v}")],
-            "radius_bl" => vec![format!("rounded-bl-{v}")],
-            "radius_br" => vec![format!("rounded-br-{v}")],
-            "overflow"   => vec![format!("overflow-{v}")],
-            "overflow_x" => vec![format!("overflow-x-{v}")],
-            "overflow_y" => vec![format!("overflow-y-{v}")],
-            "flex" => match v {
-                "1" | "true" => vec!["flex-1".to_string()],
-                _ => vec![format!("flex-{v}")],
-            },
-            "shrink" => match v {
-                "0" => vec!["shrink-0".to_string()],
-                _ => vec![format!("shrink-{v}")],
-            },
-            "grow" => match v {
-                "0" => vec!["grow-0".to_string()],
-                _ => vec![format!("grow-{v}")],
-            },
-            "justify" => vec![format!("justify-{v}")],
-            "items"   => vec![format!("items-{v}")],
-            "tracking" => vec![format!("tracking-{v}")],
-            "leading"  => vec![format!("leading-{v}")],
-            "case" => match v {
-                "upper" | "uppercase" => vec!["uppercase".to_string()],
-                "lower" | "lowercase" => vec!["lowercase".to_string()],
-                "normal" => vec!["normal-case".to_string()],
-                _ => vec![],
-            },
-            "italic" => match v {
-                "true" | "" => vec!["italic".to_string()],
-                "false" => vec!["not-italic".to_string()],
-                _ => vec![],
-            },
-            "font_family" => match v {
-                "mono" => vec!["font-mono".to_string()],
-                "sans" => vec!["font-sans".to_string()],
-                "serif" => vec!["font-serif".to_string()],
-                _ => vec![],
-            },
-            "position" => vec![v.to_string()],
-            "inset"    => vec![format!("inset-{v}")],
-            "top"      => vec![format!("top-{v}")],
-            "bottom"   => vec![format!("bottom-{v}")],
-            "left"     => vec![format!("left-{v}")],
-            "right"    => vec![format!("right-{v}")],
-            "shadow"   => match v {
-                "" | "true" => vec!["shadow".to_string()],
-                _ => vec![format!("shadow-{v}")],
-            },
-            "opacity"  => vec![format!("opacity-{v}")],
-            "raw_class" => v
-                .split_whitespace()
-                .map(std::string::ToString::to_string)
-                .collect(),
-            _ => continue,
-        };
-        for c in classes_to_push {
-            classes.push(c);
+        if let Some(more) = resolve_universal_kwarg(k, v) {
+            classes.extend(more);
         }
     }
 }
