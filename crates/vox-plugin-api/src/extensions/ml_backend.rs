@@ -15,7 +15,7 @@
 
 use abi_stable::{sabi_trait, std_types::*, StableAbi};
 
-pub const ML_BACKEND_REVISION: u32 = 1;
+pub const ML_BACKEND_REVISION: u32 = 2;
 
 /// Opaque handle to a backend-owned model. The host never inspects the
 /// contents — it only passes it back to the same backend across calls.
@@ -59,4 +59,13 @@ pub trait MlBackend: Send + Sync {
         model: &MlModelHandle,
         dest: RStr<'_>,
     ) -> RResult<(), RBoxError>;
+
+    /// Run a complete training session described by `config_json`. The
+    /// plugin owns the entire loop (data loading, epochs, optimizer,
+    /// checkpointing, telemetry). Returns a JSON-encoded summary of
+    /// the run on success. This is the coarse-grained entry point used
+    /// by orchestrators that want fire-and-result semantics; the
+    /// per-step methods (`train_step`, `eval_step`) remain for callers
+    /// that want finer control.
+    fn run_full_training(&self, config_json: RStr<'_>) -> RResult<RString, RBoxError>;
 }

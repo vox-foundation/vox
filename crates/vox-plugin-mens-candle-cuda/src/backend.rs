@@ -95,4 +95,11 @@ impl MlBackend for CandleCudaPlugin {
             Err(e) => RResult::RErr(anyhow_to_rbox(e)),
         }
     }
+
+    fn run_full_training(&self, config_json: RStr<'_>) -> RResult<RString, RBoxError> {
+        match crate::training::run_full_training(config_json.as_str()) {
+            Ok(summary_json) => RResult::ROk(RString::from(summary_json)),
+            Err(e) => RResult::RErr(RBoxError::new(e)),
+        }
+    }
 }

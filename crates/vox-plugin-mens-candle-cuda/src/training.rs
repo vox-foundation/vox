@@ -1,4 +1,6 @@
-//! Training step helpers: run_train_step and run_eval_step.
+//! Training-loop body. Sub-batches B-D will fill this in by porting code
+//! from vox-populi/src/mens/tensor/candle_qlora_train/. For now, the entry
+//! points return "not yet implemented" errors so the trait impl compiles.
 //!
 //! # SP3 stub
 //!
@@ -23,6 +25,8 @@
 //! `train_step`), but the batch schema needs to be agreed between vox-populi (caller)
 //! and the plugin (callee) and is deferred to batch 3/4 when vox-populi is rewired to
 //! call through the plugin host.
+
+use std::io;
 
 use crate::model::CandleModel;
 
@@ -62,4 +66,15 @@ pub fn run_eval_step(
         "vox-plugin-mens-candle-cuda: run_eval_step not yet wired (SP3 stub). \
          Batch 3 will implement the JSON batch protocol. See training.rs for details."
     )
+}
+
+/// Run a complete training session described by a JSON-encoded [`crate::config::LoraTrainingConfig`].
+///
+/// This is the coarse-grained entry point called by `MlBackend::run_full_training`.
+/// Sub-batches B-D will fill in the real loop body; for now it returns a
+/// `not yet implemented` error so the trait impl compiles.
+pub fn run_full_training(_config_json: &str) -> io::Result<String> {
+    Err(io::Error::other(
+        "run_full_training: not yet implemented (SP3 sub-batches B-D pending)",
+    ))
 }
