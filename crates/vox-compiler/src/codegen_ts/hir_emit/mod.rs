@@ -1,22 +1,15 @@
 //! Shared HIR → TypeScript / JSX emission for reactive components, activities, and routes.
 //!
-//! **Migration (Web IR, ADR 012):** Structural JSX, islands, and route/view parity are owned by
+//! **Migration (Web IR, ADR 012):** Structural JSX and route/view parity are owned by
 //! [`crate::web_ir`] (`lower`, `validate`, `emit_tsx`). This module is the **compatibility**
 //! string emitter still used by Path C reactive codegen, routes, activities, and by Web IR lowering
 //! where it needs HIR-shaped expressions (`emit_hir_expr`, attribute values). Prefer
 //! [`crate::web_ir::emit_tsx`] for new preview/parity work; keep changes here in sync with
 //! [`compat`] so AST JSX ([`super::jsx`]) and HIR paths share one attribute/type matrix.
 //!
-//! **Deprecation disposition (OP-0142):** island mount strings and fine-grained HIR statement emit are
-//! compatibility-only; [`crate::web_ir`] is the structural SSOT. Links: ADR 012,
-//! `docs/src/architecture/internal-web-ir-implementation-blueprint.md` (block 09, OP-0129+).
-//!
 //! **Compatibility tags (OP-S029):** grep/CI anchors pairing this module with [`super::jsx`] (OP-S031) and
 //! reactive view emit ([`crate::codegen_ts::reactive`], OP-S037). Attribute semantics and DOM/event name
 //! mapping stay in [`compat`]; do not fork the matrix into JSX or Web IR without updating all three.
-//!
-//! **Wrapper notes B + hir inventory (OP-S079 / S169):** island and event helpers delegate to [`super::island_emit`];
-//! statement-level JSX parity stays compatibility-only vs [`crate::web_ir::emit_tsx`].
 
 pub mod compat;
 mod state_deps;
@@ -105,7 +98,7 @@ fn map_vox_react_hook_callee(name: &str) -> &str {
 
 /// Wrap a child expression so TSX matches [`crate::web_ir::emit_tsx`] [`DomNode::Expr`] (`{ts}`).
 ///
-/// JSX subtree roots (elements / island mounts) start with `<` and must not get an extra `{...}` layer.
+/// JSX subtree roots (elements) start with `<` and must not get an extra `{...}` layer.
 pub(crate) fn wrap_jsx_hir_child_expr(emit: String) -> String {
     let t = emit.trim_start();
     if t.starts_with('<') {
@@ -118,7 +111,7 @@ pub(crate) fn wrap_jsx_hir_child_expr(emit: String) -> String {
 /// Emit a HIR expression as TypeScript/JSX with optional reactive `state` names (for `set_x` rewriting).
 ///
 /// **Phase:** compat-legacy (OP-0138). Prefer [`crate::web_ir::emit_tsx`] for structural parity and
-/// preview emit; keep this in sync with [`compat`] and [`super::island_emit`].
+/// preview emit; keep this in sync with [`compat`].
 #[must_use]
 pub fn emit_hir_expr(
     expr: &HirExpr,

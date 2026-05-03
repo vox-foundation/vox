@@ -16,7 +16,7 @@
 //! bodies fully share the reactive binding model.
 //!
 //! **Adapter notes (OP-S035):** classic AST codegen (`emit_jsx_*`) and Path C reactive (`super::reactive`)
-//! both consume island names and hook registries through shared helpers; new prop or hook wiring should
+//! both consume hook registries through shared helpers; new prop or hook wiring should
 //! land in [`crate::react_bridge`] + Web IR lower/validate before growing this adapter.
 //!
 //! **Notes B/C (OP-S115 / S161 / S193):** classic props interfaces remain the codegen boundary until Path C

@@ -4,9 +4,6 @@
 //! remains for AST-shaped trees; attribute names use [`crate::codegen_ts::hir_emit::compat`] so HIR,
 //! Web IR, and AST paths share one React mapping matrix ([`super::hir_emit::map_jsx_attr_name`]).
 //!
-//! Island mount fragments are formatted via [`super::island_emit::format_island_mount_ast`] (OP-0148)
-//! so HIR and AST paths share one implementation.
-//!
 //! **Disposition (OP-0158):** this file remains the AST codegen surface for `@component fn` and
 //! shared stmt/expr helpers; do not grow new JSX semantics here—extend Web IR instead.
 //!

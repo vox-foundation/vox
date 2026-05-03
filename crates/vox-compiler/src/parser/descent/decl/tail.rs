@@ -35,7 +35,7 @@ impl Parser {
         }))
     }
 
-    /// Parse `@v0 "chat-id" Name { … }` or `@v0 from "design.png" Name { … }` (v0 island stub body).
+    /// Parse `@v0 "chat-id" Name { … }` or `@v0 from "design.png" Name { … }` (v0 stub body).
     #[allow(dead_code)]
     pub(crate) fn parse_v0_component(&mut self) -> Result<Decl, ()> {
         let start = self.span();

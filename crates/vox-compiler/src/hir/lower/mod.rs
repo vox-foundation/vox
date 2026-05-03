@@ -1,7 +1,7 @@
 //! Lower AST [`Module`] to [`HirModule`] / [`crate::hir::TypedCoreIR_v2`].
 //!
 //! This module is the **HIR boundary** before [`crate::web_ir::lower::project_web_from_core`].
-//! Declaration arms here define what structured data reaches WebIR (islands, `HirRoutes`,
+//! Declaration arms here define what structured data reaches WebIR (`HirRoutes`,
 //! reactive components, server/query/mutation `route_path` contracts). See internal Web IR
 //! implementation blueprint (lane P → S).
 //!
@@ -12,7 +12,7 @@
 //!
 //! **Lowering buckets (OP-S005):** each `Decl` arm in `LowerCtx::lower` maps into a named field on
 //! [`HirModule`] — for example `Decl::Import`→`imports`, `Decl::Routes`→`client_routes`,
-//! `Decl::ReactiveComponent`→`components`, `Decl::Island`→`islands`, `Decl::HttpRoute` /
+//! `Decl::ReactiveComponent`→`components`, `Decl::HttpRoute` /
 //! server/query/mutation→`routes` / `server_fns` / `query_fns` / `mutation_fns`, and tables/indices into
 //! their respective vectors. Search `Decl::` in this file for the authoritative match.
 
