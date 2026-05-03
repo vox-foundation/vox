@@ -22,7 +22,7 @@ pub fn emit_ebnf() -> String {
     g.push_str("     | http_route | table | index | test | forall\n");
     g.push_str("     | server_fn | query_fn | mutation_fn\n");
     g.push_str("     | mcp_tool | mcp_resource\n");
-    g.push_str("     | component | reactive_component | island | v0_component\n");
+    g.push_str("     | component | reactive_component | v0_component\n");
     g.push_str("     | routes | loading | agent | environment\n");
     g.push_str("     ;\n\n");
 
@@ -84,8 +84,8 @@ pub fn emit_ebnf() -> String {
     g.push_str("mcp_tool = \"@mcp.tool\", [ string_lit ], \"fn\", ident, \"(\", [ params ], \")\", [ \"to\", type_expr ], block ;\n");
     g.push_str("mcp_resource = \"@mcp.resource\", [ string_lit ], \"fn\", ident, \"(\", [ params ], \")\", [ \"to\", type_expr ], block ;\n\n");
 
-    // ── Components & Islands
-    g.push_str("(* head.rs: parse_component, parse_reactive_component, parse_island, parse_v0_component *)\n");
+    // ── Components
+    g.push_str("(* head.rs: parse_component, parse_reactive_component, parse_v0_component *)\n");
     g.push_str("component = \"@component\", \"fn\", ident, \"(\", [ params ], \")\", [ \"to\", type_expr ], block (* RETIRED: use component Name() {} *) ;\n");
     g.push_str(
         "reactive_component = \"component\", ident, \"(\", [ params ], \")\", reactive_block ;\n",
@@ -97,8 +97,6 @@ pub fn emit_ebnf() -> String {
     g.push_str("effect_block = \"effect\", block ;\n");
     g.push_str("mount_block = \"mount\", block ;\n");
     g.push_str("cleanup_block = \"cleanup\", block ;\n");
-    g.push_str("island = \"@island\", ident, \"{\", { island_prop }, \"}\" ;\n");
-    g.push_str("island_prop = ident, [ \"?\" ], \":\", type_expr ;\n");
     g.push_str(
         "v0_component = \"@v0\", string_lit, \"fn\", ident, \"(\", \")\", \"to\", type_expr ;\n\n",
     );

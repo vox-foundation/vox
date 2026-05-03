@@ -100,7 +100,6 @@ fn count_module_constructs(module: &Module) -> ConstructCounts {
             Decl::V0Component(_) => "v0",
             Decl::Routes(_) => "routes",
             Decl::Agent(_) | Decl::AgentDef(_) => "agent",
-            Decl::Island(_) => "island",
             Decl::Url(_) => "url",
             Decl::StateMachine(_) => "state_machine",
             _ => "other",

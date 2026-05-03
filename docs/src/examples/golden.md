@@ -74,9 +74,9 @@ Demonstrates an actor-based multi-agent system. `TaskMessage` is a structured me
 
 ---
 
-## Dashboard UI — Layout, Islands, and Routes
+## Dashboard UI — Layout, Components, and Routes
 
-Full-stack UI composition. `@island` marks interactive components that get client-side hydration. `layout` wraps every route with shared chrome. `routes` maps URL paths to components.
+Full-stack UI composition. `component` declarations lower to plain React/TSX for the external frontend to import. `layout` wraps every route with shared chrome. `routes` maps URL paths to components.
 
 ```vox
 {{#include ../../../examples/golden/dashboard_ui.vox:display}}

@@ -320,12 +320,12 @@ fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) -> str 
 
 ### IV.6: UI Without Type Drift
 
-When the inventory requires a display, a React Island can be served directly from backend server. The compiler guarantees the backend types exist in the DOM layer.
+When the inventory requires a display, a `component` lowers to plain React/TSX for the external frontend to import. The compiler guarantees the backend types exist in the DOM layer.
 
 ```vox
 // vox:skip
-@island StashMeter {
-    values: list[int]
+component StashMeter(values: list[int]) {
+    view: <div class="meter">"stash meter"</div>
 }
 
 component InventoryView() {

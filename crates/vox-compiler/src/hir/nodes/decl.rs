@@ -62,8 +62,6 @@ pub struct HirModule {
     pub environments: Vec<HirEnvironment>,
 
     // UI surfaces (AST-retained where needed for emit + WebIR projection)
-    /// Standalone islands.
-    pub islands: Vec<HirIsland>,
     /// Reactive components (Path C).
     pub components: Vec<HirReactiveComponent>,
     /// Client routing blocks (`routes { … }`).
@@ -139,8 +137,6 @@ impl HirModule {
             ("mcp_resources", HirFieldOwnership::SemanticCore),
             ("agents", HirFieldOwnership::SemanticCore),
             ("environments", HirFieldOwnership::SemanticCore),
-            ("islands", HirFieldOwnership::AppContract),
-
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
             ("components", HirFieldOwnership::SemanticCore),
             ("url_decls", HirFieldOwnership::SemanticCore),
@@ -216,10 +212,6 @@ impl HirHttpMethod {
         }
     }
 }
-
-/// Island component lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirIsland(pub crate::ast::decl::IslandDecl);
 
 /// A resolved import.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

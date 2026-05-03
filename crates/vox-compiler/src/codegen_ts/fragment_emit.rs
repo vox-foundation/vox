@@ -83,8 +83,7 @@ fn emit_one(frag: &HirFragmentDecl, out: &mut String) {
     // Body — emit the markup expression. Param names are visible to the body
     // (no `state_names` rewriting needed; fragments don't host reactive state).
     let empty_state: HashSet<String> = HashSet::new();
-    let empty_islands: HashSet<String> = HashSet::new();
-    let body = emit_hir_expr(&frag.body, &empty_state, &empty_islands);
+    let body = emit_hir_expr(&frag.body, &empty_state);
     out.push_str(&format!("  return ({body});\n"));
     out.push_str("}\n");
 }

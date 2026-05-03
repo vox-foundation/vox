@@ -460,22 +460,6 @@ fn golden_blog_fullstack_codegen_emits_manifest_get_and_post() {
     insta::assert_snapshot!("blog_fullstack_client_ts", client);
 }
 
-#[test]
-fn golden_v0_shadcn_island_codegen_includes_routes_manifest() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/golden/v0_shadcn_island.vox");
-    let src = read_utf8_path_capped(&path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    let tokens = lex(&src);
-    let module = parse(tokens).unwrap();
-    let hir = vox_compiler::hir::lower_module(&module);
-    let output = generate(&hir).unwrap();
-    let names: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
-    assert!(
-        names.iter().any(|n| *n == "routes.manifest.ts"),
-        "expected routes.manifest.ts with @v0 golden, got {names:?}"
-    );
-}
-
 // --- bind={} reactive binding test ---
 
 #[test]
@@ -627,22 +611,15 @@ fn chatbot_full_pipeline_e2e() {
     insta::assert_snapshot!("chatbot_fixture_chat_tsx", chat_tsx.1);
 }
 
-/// Island + Path C `component` surfaces + client `routes` + HTTP route
+/// Path C `component` surfaces + client `routes` + HTTP route
 /// (blueprint OP-0037 / OP-0047 / OP-0289 family).
 const MIXED_SURFACE_SRC: &str = r#"
 import react.use_state
-
-@island Chart {
-    title: str
-    data: str
-    width?: int
-}
 
 component Dash() {
     state n: int = 0
     view: (
         <div class="dashboard">
-            <Chart title="t" data="d" />
             {n}
         </div>
     )
@@ -688,9 +665,6 @@ fn pipeline_mixed_declarations_hir_counts_and_web_ir_validate() {
         "unexpected legacy: {:?}",
         hir.legacy_ast_nodes
     );
-    assert_eq!(hir.islands.len(), 1);
-    assert_eq!(hir.islands[0].0.name, "Chart");
-
     assert_eq!(hir.endpoint_fns.len(), 1);
 
 
@@ -740,13 +714,6 @@ fn pipeline_mixed_surface_worked_app_web_ir_gate_and_tsx_substrings() {
             .map(|(_, c)| c.as_str())
             .expect("routes.manifest.ts");
         insta::assert_snapshot!("mixed_surface_routes_manifest_ts", m);
-        let meta = output
-            .files
-            .iter()
-            .find(|(n, _)| n == "vox-islands-meta.ts")
-            .map(|(_, c)| c.as_str())
-            .expect("vox-islands-meta.ts");
-        insta::assert_snapshot!("mixed_surface_islands_meta_ts", meta);
     });
 }
 
@@ -790,7 +757,7 @@ fn assert_mixed_surface_codegen_core_files() {
         let hir = vox_compiler::hir::lower_module(&module);
         let output = generate(&hir).expect("codegen");
         let names: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
-        for needle in ["Dash.tsx", "Shell.tsx", "routes.manifest.ts", "vox-islands-meta.ts"] {
+        for needle in ["Dash.tsx", "Shell.tsx", "routes.manifest.ts"] {
             assert!(
                 names.contains(&needle),
                 "expected {needle} in {:?}",

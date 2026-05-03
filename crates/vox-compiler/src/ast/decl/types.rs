@@ -165,8 +165,6 @@ pub enum Decl {
     Environment(EnvironmentDecl),
     /// Static page for SSG.
     Page(PageDecl),
-    /// React island stub (props only); implementation lives in `islands/` TSX.
-    Island(IslandDecl),
     /// Reactive component declaration (Path C).
     ReactiveComponent(ReactiveComponentDecl),
     /// `.vox.ui` reactive module — a top-level container for reactive members
@@ -238,7 +236,6 @@ impl Decl {
             Decl::McpResource(m) => m.func.span,
             Decl::Environment(e) => e.span,
             Decl::Page(p) => p.span,
-            Decl::Island(i) => i.span,
             Decl::ReactiveComponent(r) => r.span,
             Decl::ReactiveModule(r) => r.span,
             Decl::Fragment(f) => f.span,

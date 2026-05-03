@@ -25,7 +25,7 @@ This is a living checklist for the Vox open source community and core contributo
 
 ## Completed 
 - [x] Standard library built-ins (completed 2026-04-06)
-- [x] Correct `@island` decorator syntax (completed 2026-04-06)
+- [x] Correct `component` declaration syntax (completed 2026-04-06; `@island` retired 2026-05-03)
 - [x] Example pipeline validation documentation (completed 2026-04-06)
 
 

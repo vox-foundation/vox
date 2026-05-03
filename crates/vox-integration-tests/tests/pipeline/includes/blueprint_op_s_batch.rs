@@ -159,15 +159,6 @@ fn op_s090_s092_route_printer_integration_gate_multi_route_paths() {
     );
 }
 
-/// OP-S100: optional island prop `width?` still codegen + validates when wired.
-#[test]
-fn op_s100_optionality_extension_gate_optional_island_prop_in_mixed() {
-    let tokens = lex(MIXED_SURFACE_SRC);
-    let module = parse(tokens).expect("parse");
-    let hir = vox_compiler::hir::lower_module(&module);
-    assert!(hir.islands.iter().any(|i| i.0.props.iter().any(|p| p.is_optional)));
-}
-
 /// OP-S112: style + route pipeline — chatbot produces CSS import in TSX (ties emitter bridge).
 #[test]
 fn op_s112_style_node_bridge_gate_chatbot_imports_css() {
@@ -204,24 +195,6 @@ fn op_s118_route_contract_fixture_client_trees() {
     let hir = vox_compiler::hir::lower_module(&module);
     let (_w, s) = lower_hir_to_web_ir_with_summary(&hir);
     assert!(s.client_route_trees >= 1, "{s:?}");
-}
-
-/// OP-S120: island + route — mixed codegen references DataChart meta or mount.
-#[test]
-fn op_s120_route_island_gate_mixed_has_island_meta_or_mount() {
-    let tokens = lex(MIXED_SURFACE_SRC);
-    let module = parse(tokens).expect("parse");
-    let out = generate_without_express!(&module);
-    let meta = out
-        .files
-        .iter()
-        .find(|(n, _)| n == "vox-islands-meta.ts")
-        .map(|(_, c)| c.as_str())
-        .unwrap_or("");
-    assert!(
-        meta.contains("Chart") || out.files.iter().any(|(_, c)| c.contains("data-vox-island")),
-        "expected island surface in output"
-    );
 }
 
 fn op_s_pack_gate_inner(src: &'static str, label: &str) {
@@ -279,15 +252,6 @@ fn op_s164_component_reactive_gate_b() {
     op_s_pack_gate_inner(MIXED_SURFACE_SRC, "B");
 }
 
-/// OP-S168 island/jsx gate B.
-#[test]
-fn op_s168_island_jsx_gate_b() {
-    let tokens = lex(MIXED_SURFACE_SRC);
-    let module = parse(tokens).expect("parse");
-    let out = generate_without_express!(&module);
-    assert!(out.files.iter().any(|(n, _)| n == "Dash.tsx"));
-}
-
 /// OP-S172 emitter bridge gate B.
 #[test]
 fn op_s172_emitter_bridge_gate_b() {
@@ -321,13 +285,13 @@ fn op_s200_emitter_gate_c() {
 /// OP-S208 fixture pack G gate.
 #[test]
 fn op_s208_fixture_pack_g_gate() {
-    op_s_pack_gate_inner(OP_S_PARITY_CHAIN_FIXTURE, "pack G");
+    op_s_pack_gate_inner(MIXED_SURFACE_SRC, "pack G");
 }
 
 /// OP-S215 / S216: final gate matrix — validate-on path clean for parity fixture.
 #[test]
 fn op_s215_s216_final_gate_matrix_web_ir_clean_for_parity_fixture() {
-    op_s_pack_gate_inner(OP_S_PARITY_CHAIN_FIXTURE, "final matrix");
+    op_s_pack_gate_inner(MIXED_SURFACE_SRC, "final matrix");
 }
 
 /// OP-S220: supplemental closure — docs blueprint lists acceptance gates table.

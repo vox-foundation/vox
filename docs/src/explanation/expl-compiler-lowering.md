@@ -43,7 +43,7 @@ Separately, **backend-oriented** lowering remains optimized for Rust emission (d
 
 Two additional HIR-derived contract layers are authoritative for non-UI emitters and orchestration:
 
-- `app_contract::project_app_contract` produces `AppContractModule` (HTTP routes, server/query/mutation functions, client routes, islands, server config).
+- `app_contract::project_app_contract` produces `AppContractModule` (HTTP routes, server/query/mutation functions, client routes, server config).
 - `runtime_projection::project_runtime_from_hir` produces `RuntimeProjectionModule` (DB planning policy snapshots and inferred task capability hints).
 
 These projections are generated from the same lowered HIR input as WebIR and are validated in parity tests to prevent split semantic ownership.

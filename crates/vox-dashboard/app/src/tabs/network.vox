@@ -5,7 +5,7 @@
 //   - MeshLegend     — edge/node type legend
 //   - NetworkTab     — root tab with topology canvas placeholder
 //
-// Note: @xyflow/react graph canvas is deferred to @island NetworkGraph (Phase 2).
+// Note: @xyflow/react graph canvas is deferred to React interop NetworkGraph (Phase 2).
 // This file provides the surrounding chrome and a typed empty-state shell.
 //
 // State machines:
@@ -90,7 +90,7 @@ component NetworkTab() {
                 }
                 column(items="center", gap=1) {
                     text(size="sm", weight="bold", case="upper", tracking="widest") { "NO MESH DATA" }
-                    text(size="xs") { "Agent graph renders here via @island NetworkGraph (Phase 2)." }
+                    text(size="xs") { "Agent graph renders here via React interop NetworkGraph (Phase 2)." }
                 }
             }
             MeshLegend()

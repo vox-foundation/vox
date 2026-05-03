@@ -53,7 +53,7 @@ Source Code (.vox)
        │ WebIrModule
        ▼
 ┌────────────────┐
-│  App Contract  │  HIR→AppContract (HTTP/RPC/islands/server config)
+│  App Contract  │  HIR→AppContract (HTTP/RPC/server config)
 └──────┬─────────┘
        │ AppContractModule
        ▼
@@ -72,7 +72,7 @@ Current path note:
 
 - `codegen_ts` is still the production TS emitter path.
 - `VOX_WEBIR_VALIDATE` defaults **on** (WebIR lower/validate gate); set `=0` / `false` / `no` / `off` to skip.
-- `app_contract::project_app_contract` is the SSOT for route/RPC/island/server-config codegen inputs.
+- `app_contract::project_app_contract` is the SSOT for route/RPC/server-config codegen inputs.
 - `runtime_projection::project_runtime_from_hir` is the SSOT for orchestration-facing DB capability projection.
 - `VOX_WEBIR_EMIT_REACTIVE_VIEWS` defaults **on** so reactive `view:` can use the Web IR TSX bridge when parity checks pass; set `=0` / `false` / `no` / `off` for legacy `emit_hir_expr` views only.
 

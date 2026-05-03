@@ -1,22 +1,24 @@
 // ---
 // title: "Dashboard Ui Example"
-// description: "UI island props, @component view, and routes { path to Name } (use `to`, not `->`)."
+// description: "UI props, @component view, and routes { path to Name } (use `to`, not `->`)."
 // syntax_version: "0.8"
 // status: golden
 // category: example
-// constructs: [@island, component, routes, type, vuv-view-call]
+// constructs: [component, routes, type, vuv-view-call]
 // last_validated: 2026-05-02
 // training_eligible: true
 // training_weight: 1.0
 // ---
-// @training_prompt: Create a minimal dashboard page with an island chart and a route table.
+// @training_prompt: Create a minimal dashboard page with a chart component and a route table.
 // ANCHOR: display
 type DashboardStatus =
     | Loading
     | Ready(data: str)
 
-@island DataChart {
-    data: list[int]
+component DataChart(data: list[int]) {
+    view: column(raw_class="chart") {
+        text() { "Chart placeholder" }
+    }
 }
 
 component DashboardView() {

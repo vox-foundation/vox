@@ -194,8 +194,6 @@ pub fn base_reward(event_type: &str) -> BaseReward {
         "migration_applied" => BaseReward::new(100, 20),
         "seed_completed" => BaseReward::new(50, 10),
         "vox_web_page_rendered" => BaseReward::new(20, 4),
-        "island_built" => BaseReward::new(150, 30),
-        "island_registered" => BaseReward::new(100, 20),
         "v0_import_complete" => BaseReward::new(150, 30),
         "lsp_go_to_def_used" => BaseReward::new(1, 0),
         "lsp_completion_accepted" => BaseReward::new(1, 0),

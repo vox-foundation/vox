@@ -112,32 +112,6 @@ fn web_ir_module_serde_shell_field_names_stable() {
     }
 }
 
-/// OP-S014 / OP-S016: `@island` JSX lowers to [`DomNode::IslandMount`] and validates clean.
-#[test]
-fn web_ir_lowering_island_mount_in_dom_arena() {
-    let source = r#"
-@island Tile { title: str }
-
-component Panel() {
-    state s: str = "x"
-    view: Tile(title=s)
-}
-"#;
-    let module = parse(lex(source)).expect("parse");
-    let hir = lower_module(&module);
-    let web = lower_hir_to_web_ir(&hir);
-    assert!(
-        web.dom_nodes.iter().any(|n| matches!(
-            n,
-            DomNode::IslandMount { island_name, .. } if island_name == "Tile"
-        )),
-        "dom_nodes={:?}",
-        web.dom_nodes
-    );
-    let diags = validate_web_ir(&web);
-    assert!(diags.is_empty(), "{diags:?}");
-}
-
 /// OP-S015: event-like JSX attrs map to React-style names on elements (same edge as `hir_emit`).
 #[test]
 fn web_ir_lowering_event_attr_maps_to_on_click_on_element() {
@@ -350,8 +324,7 @@ component T() {
         _ => panic!("expected state member"),
     };
     let state_names = HashSet::from([state_name]);
-    let island_names = HashSet::new();
-    let direct = emit_hir_expr(view, &state_names, &island_names);
+    let direct = emit_hir_expr(view, &state_names);
     let web = lower_hir_to_web_ir(&hir);
     let via = emit_component_view_tsx(&web, "T").expect("emit");
     assert_eq!(
@@ -566,32 +539,6 @@ fn web_ir_style_node_shape_roundtrip() {
         StyleNode::Declaration { property, .. } => assert_eq!(property, "margin"),
         _ => panic!("expected Declaration"),
     }
-}
-
-/// Island self-closing in view lowers to [`DomNode::IslandMount`] with stable name (OP-0067).
-#[test]
-fn web_ir_island_mount_lowers_from_hir_view() {
-    let source = r#"
-import react.use_state
-
-@island Chart { title: str }
-
-component Board() {
-    state label: str = "x"
-    view: column() { Chart(title=label) }
-}
-"#;
-    let module = parse(lex(source)).expect("parse");
-    let hir = lower_module(&module);
-    let web = lower_hir_to_web_ir(&hir);
-    assert!(
-        web.dom_nodes.iter().any(|n| matches!(
-            n,
-            DomNode::IslandMount { island_name, .. } if island_name == "Chart"
-        )),
-        "expected Chart IslandMount, dom_nodes={:?}",
-        web.dom_nodes
-    );
 }
 
 #[test]
@@ -1005,20 +952,18 @@ fn hir_emit_public_exports_include_compat_module() {
         map_jsx_attr_name("on:click"),
         compat::map_jsx_attr_name("on_click")
     );
-    let _ptr: fn(&vox_compiler::hir::HirExpr, &HashSet<String>, &HashSet<String>) -> String =
+    let _ptr: fn(&vox_compiler::hir::HirExpr, &HashSet<String>) -> String =
         emit_hir_expr;
 }
 
-/// OP-S045 / OP-S047 parity chain (routable `@component` block + `@island`).
+/// Parity chain fixture (post-@island retirement).
 const OP_S_PARITY_CHAIN_FIXTURE: &str = r#"
 import react.use_state
-
-@island ParityP { label: str }
 
 @component ParityPage() {
     state s: str = "x"
     view: column(raw_class="parity-wrap") {
-            ParityP(label=s)
+            text() { s }
     }
 }
 
@@ -1026,23 +971,6 @@ routes {
     "/" to ParityPage
 }
 "#;
-
-/// OP-S046: extra parity fixture B — Web IR TSX preview preserves V1 island mount contract.
-#[test]
-#[ignore = "Path B removed"]
-fn op_s046_extra_parity_fixture_web_ir_preview_island_mount() {
-    let module = parse(lex(OP_S_PARITY_CHAIN_FIXTURE)).expect("parse");
-    let hir = lower_module(&module);
-    let web = lower_hir_to_web_ir(&hir);
-    let diags = validate_web_ir(&web);
-    assert!(diags.is_empty(), "{diags:?}");
-    let tsx = emit_component_view_tsx(&web, "ParityPage").expect("ParityPage preview");
-    assert!(
-        tsx.contains("data-vox-island=\"ParityP\""),
-        "expected island name:\n{tsx}"
-    );
-    assert!(tsx.contains("data-prop-label="), "expected prop:\n{tsx}");
-}
 
 // --- OP-S049–S220 supplemental compiler gates (web_ir_lower_emit target) ---
 
@@ -1411,7 +1339,6 @@ fn syntax_k_artifact_for_parity_chain() {
                 "route_contract_ids_checked": validate_metrics.route_contract_ids_checked,
                 "behavior_nodes_checked": validate_metrics.behavior_nodes_checked,
                 "style_nodes_checked": validate_metrics.style_nodes_checked,
-                "island_mounts_checked": validate_metrics.island_mounts_checked,
                 "scheduled_jobs_checked": validate_metrics.scheduled_jobs_checked
             }
         }),

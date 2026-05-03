@@ -25,7 +25,6 @@
 //! route id policy — changing sort keys requires dual updates in `validate_web_ir` route stage.
 
 use crate::codegen_ts::hir_emit::{emit_hir_expr, emit_hir_pattern};
-use crate::codegen_ts::island_emit::empty_island_set;
 use crate::hir::{HirExpr, HirHttpMethod, HirModule, HirRoute, HirEndpointFn, HirEndpointKind, HirStmt};
 use std::collections::HashSet;
 
@@ -161,7 +160,6 @@ fn sorted_endpoint_fns(hir: &HirModule) -> Vec<&HirEndpointFn> {
 
 fn emit_hir_route_expr(expr: &HirExpr) -> String {
     let empty = HashSet::new();
-    let no_islands = empty_island_set();
     match expr {
         HirExpr::MethodCall(object, method, args, _, _) => {
             let obj = emit_hir_route_expr(object);
@@ -176,7 +174,7 @@ fn emit_hir_route_expr(expr: &HirExpr) -> String {
             }
         }
         HirExpr::Spawn(target, _) => {
-            format!("new {}Actor()", emit_hir_expr(target, &empty, no_islands))
+            format!("new {}Actor()", emit_hir_expr(target, &empty))
         }
         HirExpr::FieldAccess(object, field, _) => {
             let obj = emit_hir_route_expr(object);
@@ -190,12 +188,12 @@ fn emit_hir_route_expr(expr: &HirExpr) -> String {
                 .collect();
             format!("{callee_str}({})", args_str.join(", "))
         }
-        _ => emit_hir_expr(expr, &empty, no_islands),
+        _ => emit_hir_expr(expr, &empty),
     }
 }
 
 fn emit_expr_from_hir_arg(expr: &HirExpr) -> String {
-    emit_hir_expr(expr, &HashSet::new(), empty_island_set())
+    emit_hir_expr(expr, &HashSet::new())
 }
 
 fn emit_hir_route_stmt(stmt: &HirStmt) -> String {

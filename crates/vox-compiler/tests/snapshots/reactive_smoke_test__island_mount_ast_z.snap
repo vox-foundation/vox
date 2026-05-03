@@ -1,6 +1,0 @@
----
-source: crates/vox-compiler/tests/reactive_smoke_test.rs
-assertion_line: 161
-expression: ast
----
-<div data-vox-island="Z" data-prop-title={"hi"} />

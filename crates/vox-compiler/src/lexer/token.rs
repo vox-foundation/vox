@@ -126,8 +126,6 @@ pub enum Token {
     AtIndex,
     #[token("@native")]
     AtNative,
-    #[token("@island")]
-    AtIsland,
     #[token("@loading")]
     AtLoading,
     #[token("@require")]
@@ -385,7 +383,6 @@ impl std::fmt::Display for Token {
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
             Token::AtNative => write!(f, "@native"),
-            Token::AtIsland => write!(f, "@island"),
             Token::AtLoading => write!(f, "@loading"),
             Token::AtRequire => write!(f, "@require"),
             Token::AtEnsure => write!(f, "@ensure"),

@@ -364,10 +364,6 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Review { cmd } => {
             run_review_subcommand(cmd).await?;
         }
-        #[cfg(feature = "island")]
-        Cli::Island { cmd } => {
-            crate::commands::island::run(cmd).await?;
-        }
         Cli::Telemetry { cmd } => {
             crate::commands::telemetry::run(cmd).await?;
         }

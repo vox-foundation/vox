@@ -114,9 +114,8 @@ fn emit_one(pascal: &str, rm: &HirReactiveModule) -> String {
     out.push_str(&format!(
         "export function {pascal}Provider({{ children }}: {{ children: React.ReactNode }}): React.ReactElement {{\n"
     ));
-    let empty_islands: HashSet<String> = HashSet::new();
     for m in &rm.members {
-        emit_member(m, &state_names, &empty_islands, &mut out);
+        emit_member(m, &state_names, &mut out);
     }
 
     // Build the value object exposing state + derived bindings.
@@ -154,18 +153,17 @@ fn emit_one(pascal: &str, rm: &HirReactiveModule) -> String {
 fn emit_member(
     m: &HirReactiveMember,
     state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
     out: &mut String,
 ) {
     match m {
         HirReactiveMember::State(HirState { name, init, .. }) => {
-            let init_str = emit_hir_expr(init, state_names, island_names);
+            let init_str = emit_hir_expr(init, state_names);
             out.push_str(&format!(
                 "  const [{name}, set_{name}] = useState({init_str});\n"
             ));
         }
         HirReactiveMember::Derived(HirDerived { name, expr, .. }) => {
-            let expr_str = emit_hir_expr(expr, state_names, island_names);
+            let expr_str = emit_hir_expr(expr, state_names);
             // Conservative dep array: every state name visible in the module.
             // A future slice can re-use extract_state_deps_with_diagnostics
             // for tighter tracking.
@@ -179,7 +177,7 @@ fn emit_member(
             ));
         }
         HirReactiveMember::Effect(HirEffect { body, .. }) => {
-            let stmts = emit_block_stmts(body, state_names, island_names, 2);
+            let stmts = emit_block_stmts(body, state_names, 2);
             let deps = state_names
                 .iter()
                 .cloned()
@@ -188,11 +186,11 @@ fn emit_member(
             out.push_str(&format!("  useEffect(() => {{\n{stmts}  }}, [{deps}]);\n"));
         }
         HirReactiveMember::OnMount(HirOnMount { body, .. }) => {
-            let stmts = emit_block_stmts(body, state_names, island_names, 2);
+            let stmts = emit_block_stmts(body, state_names, 2);
             out.push_str(&format!("  useEffect(() => {{\n{stmts}  }}, []);\n"));
         }
         HirReactiveMember::OnCleanup(HirOnCleanup { body, .. }) => {
-            let stmts = emit_block_stmts(body, state_names, island_names, 2);
+            let stmts = emit_block_stmts(body, state_names, 2);
             out.push_str(&format!(
                 "  useEffect(() => () => {{\n{stmts}  }}, []);\n"
             ));

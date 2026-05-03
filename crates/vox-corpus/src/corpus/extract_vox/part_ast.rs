@@ -81,7 +81,6 @@ fn decl_kind_and_name(decl: &Decl) -> (String, String) {
         Decl::Mock(m) => ("mock".into(), m.func.name.clone()),
         Decl::Environment(e) => ("environment".into(), e.name.clone()),
         Decl::Page(p) => ("page".into(), p.func.name.clone()),
-        Decl::Island(i) => ("island".into(), i.name.clone()),
         Decl::ReactiveComponent(r) => ("reactive_component".into(), r.name.clone()),
         Decl::ReactiveModule(r) => ("reactive_module".into(), r.name.clone()),
         Decl::Fragment(f) => ("fragment".into(), f.name.clone()),
