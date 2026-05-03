@@ -38,6 +38,9 @@ pub mod tokens_emit;
 pub mod url_emit;
 /// `state_machine` TypeScript discriminated union + reducer emit.
 pub mod state_machine_emit;
+/// `fragment` declaration → typed React function components in `fragments.tsx`
+/// (Phase F of the Svelte-mineable features plan; per ADR-033).
+pub mod fragment_emit;
 /// Zod schema emission.
 pub mod zod_emit;
 

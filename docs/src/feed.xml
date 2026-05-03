@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 03 May 2026 17:09:39 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 03 May 2026 17:29:18 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -48,6 +48,15 @@
   </item>
 
   <item>
+    <title>GUI Authoring Syntax (2026): Vox UI as Values (VUV)</title>
+    <link>https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</guid>
+    <description>Replaces JSX-shaped view bodies and Tailwind class strings with typed function-call views. No tags, no class strings, no CSS files in user code. Lowers to…</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
     <title>Svelte-Mineable Features Implementation Plan (2026)</title>
     <link>https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</guid>
@@ -64,6 +73,15 @@
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>How to author Vox views (VUV)</title>
+    <link>https://vox-lang.org/how-to/how-to-author-views.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-author-views.html</guid>
+    <description>Practical guide to writing UI in Vox using the view-call (VUV) authoring syntax. Covers primitives, typed style kwargs, conditionals, components, and escape…</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
   </item>
 
   <item>
@@ -161,6 +179,16 @@
   </item>
 
   <item>
+    <title>Tutorial: Building UI with VUV view-calls</title>
+    <link>https://vox-lang.org/tutorials/tut-ui-integration.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/tutorials/tut-ui-integration.html</guid>
+    <description>Learn how to build modern, reactive UIs in Vox using the view-call (VUV) authoring syntax — function calls + trailing-block children + typed style kwargs.</description>
+    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
+    <category>Tutorial</category>
+    <category domain="https://schema.org">HowTo</category>
+  </item>
+
+  <item>
     <title>ADR 010 — TanStack as the Vox web spine</title>
     <link>https://vox-lang.org/adr/010-tanstack-web-spine.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/010-tanstack-web-spine.html</guid>
@@ -216,33 +244,6 @@
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>vox-codegen-ts API</title>
-    <link>https://vox-lang.org/api/vox-codegen-ts.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/vox-codegen-ts.html</guid>
-    <description>API reference for the vox-codegen-ts crate: HIR-to-TypeScript/TSX code generation pipeline.</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-  </item>
-
-  <item>
-    <title>Orchestrator Stage 1 &amp; 2: Security + Crash-Prevention Implementation Plan</title>
-    <link>https://vox-lang.org/architecture/2026-05-01-orchestrator-stage1-stage2.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/2026-05-01-orchestrator-stage1-stage2.html</guid>
-    <description>Implementation plan for 7 P0/P1 fixes across the orchestrator gateway, runtime, grounding, and daemon surfaces. Covers FIX-K-03, FIX-K-05, FIX-K-06, FIX-B-02…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Durability &amp; Scheduling Runtime Audit (2026)</title>
-    <link>https://vox-lang.org/architecture/durability-runtime-audit-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/durability-runtime-audit-2026.html</guid>
-    <description>Definitive audit of @scheduled, @durable, DurabilityKind, actor/workflow/activity keywords — what parses vs. what executes. Verdict: zero runtime…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>

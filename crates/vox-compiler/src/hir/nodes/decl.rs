@@ -75,6 +75,12 @@ pub struct HirModule {
     /// State machine declarations (`state_machine Name { … }`).
     pub state_machines: Vec<HirStateMachineDecl>,
 
+    /// Typed parametric fragments (`fragment Name(args) { … }`) per ADR-033.
+    /// Each fragment lowers to a typed React function component in the codegen
+    /// layer; consumer components reference fragments by name in `<RenderFragment>`.
+    #[serde(default)]
+    pub fragments: Vec<HirFragmentDecl>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
 
@@ -660,6 +666,25 @@ pub struct HirUrlArg {
 }
 
 // ── State machine HIR types (TASK-4.1) ────────────────────────────────────
+
+/// A `fragment Name(args) { … }` declaration lowered to HIR (ADR-033).
+///
+/// Fragments emit as typed React function components with a fixed `Args` prop
+/// shape derived from the parameter list, so consumers reference them via
+/// `<RenderFragment of={Name} args={(...)} />` and the compiler validates
+/// arity / types at the call site.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirFragmentDecl {
+    /// Fragment name (PascalCase by convention).
+    pub name: String,
+    /// Typed parameters; same shape as a function parameter list.
+    pub params: Vec<HirParam>,
+    /// Single markup body. Today a generic [`HirExpr`]; the codegen layer asserts
+    /// it's a markup-shaped expression (Phase 6 primitive call) at emit time.
+    pub body: HirExpr,
+    /// Source span.
+    pub span: Span,
+}
 
 /// A `state_machine Name { … }` lowered to HIR.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

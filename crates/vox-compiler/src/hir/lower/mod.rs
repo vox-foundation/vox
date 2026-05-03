@@ -292,6 +292,25 @@ impl LowerCtx {
                 Decl::StateMachine(s) => {
                     hir.state_machines.push(self.lower_state_machine(s));
                 }
+                Decl::Fragment(f) => {
+                    let params = f
+                        .params
+                        .iter()
+                        .map(|p| self.lower_param(p))
+                        .collect::<Vec<_>>();
+                    let body = self.lower_expr(&f.body);
+                    hir.fragments.push(crate::hir::nodes::HirFragmentDecl {
+                        name: f.name.clone(),
+                        params,
+                        body,
+                        span: f.span,
+                    });
+                }
+                Decl::ReactiveModule(_) => {
+                    // ADR-032: lowering and codegen for `.vox.ui` reactive modules
+                    // ships in a follow-up Phase D slice. Parser produces the AST
+                    // node today; HIR keeps it on the side until then.
+                }
                 Decl::Workflow(w) => {
                     let mut f = self.lower_workflow(w);
                     f.durability = Some(crate::hir::nodes::DurabilityKind::Workflow);
