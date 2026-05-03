@@ -52,15 +52,13 @@ mens-candle-qlora = [
     "dep:safetensors",
     "dep:tokenizers",
     "dep:qlora-rs",
-    "dep:peft-rs",
-    "dep:memmap2",
 ]
 mens-candle-qlora-cuda = [
     "mens-candle-qlora",
     "candle-core/cuda",
     "candle-nn/cuda",
 ]
-mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-compiler"]
+mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-compiler", "dep:vox-plugin-host"]
 mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
@@ -78,6 +76,7 @@ tracing = { workspace = true }
 vox-repository = { workspace = true }
 vox-primitives = { workspace = true }
 vox-clavis = { workspace = true }
+vox-plugin-host = { workspace = true, optional = true }
 vox-constrained-gen = { workspace = true }
 vox-grammar-export = { workspace = true }
 vox-crypto = { workspace = true }
@@ -117,11 +116,9 @@ candle-nn = { workspace = true, optional = true }
 safetensors = { workspace = true, optional = true }
 tokenizers = { workspace = true, optional = true }
 qlora-rs = { workspace = true, optional = true }
-peft-rs = { workspace = true, optional = true }
 futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
 vox-compiler = { workspace = true, optional = true }
-memmap2 = { workspace = true, optional = true }
 wgpu = { workspace = true, optional = true }
 nvml-wrapper = { workspace = true, optional = true }
 windows = { version = "0.58", features = ["Win32_Graphics_Dxgi", "Win32_Foundation"], optional = true }
