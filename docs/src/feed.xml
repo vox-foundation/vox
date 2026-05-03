@@ -5,27 +5,8 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sat, 02 May 2026 23:37:29 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 03 May 2026 01:59:23 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
-
-  <item>
-    <title>ADR-029: Formal Intent and Tool Receipt Auditing</title>
-    <link>https://vox-lang.org/adr/029-formal-intent.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/029-formal-intent.html</guid>
-    <description>Architecture Decision Record for formal intent and cryptographic tool receipts in the Vox ecosystem.</description>
-    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Architecture Decision Records (ADR)</title>
-    <link>https://vox-lang.org/adr/index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/index.html</guid>
-    <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
-    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
 
   <item>
     <title>Codebase Cleanup &amp; Signal Improvement Plan (2026-05-02)</title>
@@ -50,6 +31,15 @@
     <link>https://vox-lang.org/architecture/phase5-react-interop-spec-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/phase5-react-interop-spec-2026.html</guid>
     <description>Design spec for importing React components into Vox source, making emitted Vox components consumable by external React apps, and retiring @island.</description>
+    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Web App Archetype Coverage Map (2026)</title>
+    <link>https://vox-lang.org/architecture/web-app-archetype-coverage-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/web-app-archetype-coverage-2026.html</guid>
+    <description>Coverage map of 21 web-app archetypes against Vox&apos;s current substrate. Every blocker traced to a named language, runtime, codegen, or DevEx gap. Prioritization…</description>
     <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -147,6 +137,16 @@
     <link>https://vox-lang.org/adr/031-deprecate-vox-vscode.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/031-deprecate-vox-vscode.html</guid>
     <description>Formally deprecates the vox-vscode VS Code extension as the primary Vox user surface. The Axum-served vox-dashboard is the replacement. vox-vscode is retained…</description>
+    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Architecture Decision Records (ADR)</title>
+    <link>https://vox-lang.org/adr/index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/index.html</guid>
+    <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>

@@ -628,35 +628,40 @@ These are *meta* gaps — independent of any archetype, they degrade the prompt 
 **Why it blocks:** MENS quality gates are language-shape, not application-correctness. A chat app can pass typecheck and still be broken.
 **Slot:** Per-archetype eval scripts; couples to fixture-data generator (A1-05).
 
-### M6. Doom-loop detection (audit FIX-11)
+### M6. Doom-loop detection (audit FIX-11) ✓
 
 **What's missing:** Per [`nextgen-orchestrator-research-2026.md`](nextgen-orchestrator-research-2026.md) §4, the orchestrator does not monitor cost/progress ratio; runaway agents burn budget until the global cap.
 **Why it blocks:** Direct user-visible cost incidents.
 **Slot:** Already specced in audit; `vox-orchestrator` work, no language change.
+**Status (2026-05-02):** Landed. `BudgetManager::doom_loop_cost_check` + `GateResult::DoomLoop` + pre-dispatch hook in `submit_task_with_agent`; `record_task_completion` resets the counter on `complete_task_with_attestation`. Default $2.00 threshold, runtime tunable via `set_doom_loop_cost_threshold`.
 
-### M7. Pre-execution token estimation
+### M7. Pre-execution token estimation ✓
 
 **What's missing:** Tasks dispatch, *then* fail budget checks. No proactive token estimation. Audit-named gap.
 **Why it blocks:** Failed tasks cost real money and force rework.
 **Slot:** Orchestrator-side estimator; couples to model registry token costs.
+**Status (2026-05-02):** Landed. `BudgetManager::would_exceed_token_budget` + pre-dispatch estimation in `process_task_submission_logic` returns `OrchestratorError::BudgetExceeded` before dispatch. Conservative heuristic: `description.len()/4 + file_manifest.len()*200`.
 
-### M8. Schema-aware multi-provider routing
+### M8. Schema-aware multi-provider routing ✓ (partial)
 
 **What's missing:** Tool-call schemas differ across providers (Anthropic vs OpenAI). Routing across providers can fail silently. Audit FIX in [`nextgen-orchestrator-research-2026.md`](nextgen-orchestrator-research-2026.md).
 **Why it blocks:** Users hit "model X doesn't support tool calls correctly" without diagnostics.
 **Slot:** CC-21 (above); the same item, surfaced at the user-journey level.
+**Status (2026-05-02):** Silent-failure path closed. `HttpInferError.is_capability_gap` + `anthropic_tools_guard` + retry-on-gap in `infer_via_provider_adapter` route Anthropic-direct tool-call requests to the OpenAI-compat fallback adapter. Full bidirectional schema translation (tools support directly in `AnthropicRequest`) still deferred.
 
-### M9. P0 security fixes (HTTP timeouts, origin guard, debug-print env vars)
+### M9. P0 security fixes (HTTP timeouts, origin guard, debug-print env vars) ✓
 
 **What's missing:** Per [`orchestrator-companion-audit-findings-2026.md`](orchestrator-companion-audit-findings-2026.md): no explicit timeout on provider HTTP clients; origin-guard prefix-bypass (`127.0.0.1.attacker.com`); env var leak via `println!`.
 **Why it blocks:** Users running dashboards in mixed-trust environments are vulnerable. Until these are fixed, the dashboard cannot be exposed beyond localhost.
 **Slot:** Already specced as FIX-J-01 / FIX-K-01 / FIX-K-02; immediate.
+**Status (2026-05-02):** Landed. Production clients carry 120s timeout; origin guard properly asserts host boundary; no debug env-var prints. Test-side HTTP client also given a 30s timeout (FIX-J-01 follow-up).
 
-### M10. Nightly model discovery refresh
+### M10. Nightly model discovery refresh ✓
 
 **What's missing:** Per audit FIX-30, model discovery is one-shot at process start. New OpenRouter models / pricing changes are not picked up.
 **Why it blocks:** Cost decisions stale. Users routed to deprecated models.
 **Slot:** Orchestrator daemon job; couples to CC-17 once landed.
+**Status (2026-05-02):** Already landed. `catalog_refresh.rs` runs a 6-hour `run_catalog_refresh_loop` background task.
 
 ### M11. Persistent dashboard state
 
