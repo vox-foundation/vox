@@ -122,9 +122,19 @@ fn transform_view_kwargs(tag: &str, attrs: &[JsxAttribute]) -> ViewCallEmission 
         .as_ref()
         .map(|e| e.html_tag.to_string())
         .unwrap_or_else(|| tag.to_string());
+    // Author kwarg names — used to suppress primitive base classes on the same Tailwind axis.
+    let author_kwargs: Vec<&str> = attrs.iter().map(|a| a.name.as_str()).collect();
     let mut class_pieces: Vec<String> = primitive_emission
         .as_ref()
-        .map(|e| e.base_classes.iter().map(|c| format!("\"{c}\"")).collect())
+        .map(|e| {
+            e.base_classes
+                .iter()
+                .filter(|c| {
+                    !crate::web_ir::primitives::primitive_base_class_overridden(c, &author_kwargs)
+                })
+                .map(|c| format!("\"{c}\""))
+                .collect()
+        })
         .unwrap_or_default();
     let mut passthrough: Vec<JsxAttribute> = Vec::with_capacity(attrs.len());
 

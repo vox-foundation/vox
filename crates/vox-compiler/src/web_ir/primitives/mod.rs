@@ -470,6 +470,66 @@ fn apply_z_index(z: Option<&str>, classes: &mut Vec<String>) {
     }
 }
 
+/// VUV-4 conflict resolution: should a primitive's base class (e.g. `bg-background`, `rounded-lg`)
+/// be suppressed because the author supplied a kwarg that addresses the same Tailwind axis?
+///
+/// Heuristic by axis. Examples:
+///   - author `bg=…`  → drop primitive base classes matching `bg-*`.
+///   - author `radius=…` → drop primitive base classes matching `rounded*`.
+///   - author `color=…`  → drop primitive base classes matching `text-{color}` but NOT
+///     `text-{size}` (xs/sm/lg/etc.) or alignment/transform tokens.
+///
+/// Conservative on ambiguous cases — if unsure, keep the primitive base class.
+#[must_use]
+pub fn primitive_base_class_overridden(base_class: &str, author_kwargs: &[&str]) -> bool {
+    let has = |k: &str| author_kwargs.contains(&k);
+    if has("bg") && base_class.starts_with("bg-") { return true; }
+    if has("color") {
+        const SIZE_OR_NON_COLOR: &[&str] = &[
+            "xs", "sm", "base", "lg", "xl", "2xl", "3xl", "4xl", "5xl", "6xl", "7xl", "8xl", "9xl",
+            "left", "right", "center", "justify", "start", "end",
+            "balance", "pretty", "wrap", "nowrap", "ellipsis", "clip",
+        ];
+        if let Some(rest) = base_class.strip_prefix("text-") {
+            if !SIZE_OR_NON_COLOR.contains(&rest) {
+                return true;
+            }
+        }
+    }
+    let radius_like = ["radius", "radius_t", "radius_b", "radius_l", "radius_r",
+                       "radius_tl", "radius_tr", "radius_bl", "radius_br"];
+    if radius_like.iter().any(|k| has(k)) && base_class.starts_with("rounded") { return true; }
+    let any_border_kwarg = has("border") || has("border_color")
+        || has("border_x") || has("border_y") || has("border_t")
+        || has("border_b") || has("border_l") || has("border_r");
+    if any_border_kwarg && (base_class == "border" || base_class.starts_with("border-")) {
+        return true;
+    }
+    let any_pad_kwarg = has("pad") || has("pad_x") || has("pad_y")
+        || has("pad_t") || has("pad_b") || has("pad_l") || has("pad_r");
+    if any_pad_kwarg && (
+        base_class.starts_with("p-")
+        || base_class.starts_with("px-") || base_class.starts_with("py-")
+        || base_class.starts_with("pt-") || base_class.starts_with("pb-")
+        || base_class.starts_with("pl-") || base_class.starts_with("pr-")
+    ) {
+        return true;
+    }
+    if has("w") && base_class.starts_with("w-") { return true; }
+    if has("h") && base_class.starts_with("h-") { return true; }
+    if has("max_w") && base_class.starts_with("max-w-") { return true; }
+    if has("max_h") && base_class.starts_with("max-h-") { return true; }
+    if has("font_family") && base_class.starts_with("font-") {
+        // Don't filter font-bold/font-medium/etc. (those are weight, owned by `weight` kwarg)
+        const WEIGHTS: &[&str] = &[
+            "font-thin", "font-extralight", "font-light", "font-normal", "font-medium",
+            "font-semibold", "font-bold", "font-extrabold", "font-black",
+        ];
+        if !WEIGHTS.contains(&base_class) { return true; }
+    }
+    false
+}
+
 /// VUV-4: resolve a single (kwarg, value) pair to its Tailwind class fragment(s), or `None` if
 /// the kwarg is not a recognized universal style kwarg. Used by both the web_ir lowering pass
 /// (via `apply_universal_kwargs`) and the codegen_ts AST-emit path so both produce identical
