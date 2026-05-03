@@ -160,6 +160,9 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_check" | "vox_validate_file" | "vox_compiler::ast_inspect" => {
             derived_tool_schema!(crate::mcp_tools::params::ValidateFileParams)
         }
+        "vox_validate_source" => {
+            derived_tool_schema!(crate::mcp_tools::params::ValidateSourceParams)
+        }
         "vox_run_tests" => derived_tool_schema!(crate::mcp_tools::params::RunTestsParams),
         "vox_build_crate" | "vox_lint_crate" | "vox_coverage_report" => {
             derived_tool_schema!(crate::mcp_tools::params::OptionalCrateNameParams)

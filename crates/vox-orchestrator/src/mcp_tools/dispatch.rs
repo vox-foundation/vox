@@ -275,6 +275,11 @@ async fn handle_tool_call_inner(
             Ok(code_validator::validate_file(state, serde_json::from_value(args)?).await)
         }
         "vox_check" => Ok(code_validator::vox_check(state, serde_json::from_value(args)?).await),
+        "vox_validate_source" => Ok(code_validator::validate_source(
+            state,
+            serde_json::from_value(args)?,
+        )
+        .await),
         "vox_run_tests" => {
             Ok(compiler_tools::run_tests(state, serde_json::from_value(args)?).await)
         }
@@ -1152,6 +1157,7 @@ mod registry_dispatch_tests {
         "vox_lint_crate",
         "vox_coverage_report",
         "vox_validate_file",
+        "vox_validate_source",
         "vox_generate_code",
         "vox_project_init",
         "vox_oratio_transcribe",

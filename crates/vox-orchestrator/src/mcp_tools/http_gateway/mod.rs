@@ -55,6 +55,7 @@ const DEFAULT_ALLOWED_TOOLS: &[&str] = &[
     "vox_plan_status",
     "vox_inline_edit",
     "vox_validate_file",
+    "vox_validate_source",
     "vox_git_status",
     "vox_git_diff",
     "vox_workspace_modules",
