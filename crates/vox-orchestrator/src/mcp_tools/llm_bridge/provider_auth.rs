@@ -17,6 +17,7 @@ fn required_secret(
                 "{} is not set (required for {provider_label} models)",
                 id.spec().canonical_env
             ),
+            is_capability_gap: false,
         });
     }
     Ok(value)
@@ -53,6 +54,7 @@ pub(crate) fn bearer_for(model: &ModelSpec) -> Result<String, HttpInferError> {
                     "bearer_for is not applicable to provider {:?}",
                     model.provider_type
                 ),
+                is_capability_gap: false,
             })
         }
     }

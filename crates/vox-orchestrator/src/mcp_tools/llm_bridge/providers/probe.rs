@@ -47,6 +47,7 @@ pub(crate) async fn probe_vox_local_health(client: &reqwest::Client) -> Result<(
             message: format!(
                 "VoxLocal unreachable at {base} ({e}); run `python scripts/vox_inference.py --serve` or set VOX_LOCAL_ENDPOINT."
             ),
+            is_capability_gap: false,
         })?;
     let code = res.status().as_u16();
     if !res.status().is_success() {
@@ -54,6 +55,7 @@ pub(crate) async fn probe_vox_local_health(client: &reqwest::Client) -> Result<(
         let err = HttpInferError {
             status: code,
             message: format!("VoxLocal /health error: {t}"),
+            is_capability_gap: false,
         };
         let mut cache = vox_local_probe_ok_at()
             .lock()
@@ -101,6 +103,7 @@ pub(crate) async fn probe_ollama_tags(client: &reqwest::Client) -> Result<(), Ht
             message: format!(
                 "Ollama unreachable at {base} ({e}); set OLLAMA_HOST or start Ollama / Mens."
             ),
+            is_capability_gap: false,
         })?;
     let code = res.status().as_u16();
     if !res.status().is_success() {
@@ -108,6 +111,7 @@ pub(crate) async fn probe_ollama_tags(client: &reqwest::Client) -> Result<(), Ht
         let err = HttpInferError {
             status: code,
             message: format!("Ollama /api/tags error: {t}"),
+            is_capability_gap: false,
         };
         let mut cache = ollama_probe_ok_at()
             .lock()

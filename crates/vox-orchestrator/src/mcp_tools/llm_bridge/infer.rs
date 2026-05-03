@@ -357,6 +357,14 @@ pub async fn mcp_infer_tool_completion(
                 GateResult::BehavioralTestFailed { message } => {
                     return Err(message);
                 }
+                // `DoomLoop` is currently produced only by the task-submission
+                // gate (`BudgetGate::check_doom_loop` in `task_submit.rs`), not
+                // by the budget/attention gates above this match. The arm is
+                // present for exhaustiveness and to ensure correct behavior if
+                // a future change adds doom-loop checking at LLM-call granularity.
+                GateResult::DoomLoop { message } => {
+                    return Err(message);
+                }
             }
         }
 

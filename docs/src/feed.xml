@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 03 May 2026 06:21:04 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 03 May 2026 07:16:09 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -45,6 +45,15 @@
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Point your AI coding assistant at the Vox MCP validator</title>
+    <link>https://vox-lang.org/how-to/how-to-mcp-vox-validate.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-mcp-vox-validate.html</guid>
+    <description>Wire Claude Desktop, Cursor, or any MCP client to vox_validate_source / vox_validate_file so AI-generated Vox code iterates against the real compiler with…</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
   </item>
 
   <item>
@@ -232,15 +241,6 @@
     <link>https://vox-lang.org/architecture/external-frontend-interop-plan-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/external-frontend-interop-plan-2026.html</guid>
     <description>Five-phase plan to make Vox interoperable with the React/TS ecosystem in both directions: keep Vox&apos;s GUI authoring (TS/React emission), add bidirectional…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Legacy URL Redirects on GitHub Pages</title>
-    <link>https://vox-lang.org/architecture/github-pages-redirects.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/github-pages-redirects.html</guid>
-    <description>How the Vox docs site handles old mdBook-era URLs via static HTML stubs on GitHub Pages.</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>

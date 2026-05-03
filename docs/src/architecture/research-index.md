@@ -11,6 +11,7 @@ This file tracks the single source of truth for Vox architecture, research findi
 ## Strategic & Value Proposition
 - [Vox Marquee Explainer 2026](vox-marquee-explainer-2026.md) — The 500-word explainer for the Vox foundation and agentic-native philosophy.
 - [v1.0 Release Criteria](v1-release-criteria.md) — Benchmark criteria for the stable 1.0 release.
+- [Web App Archetype Coverage Map (2026-05-02)](web-app-archetype-coverage-2026.md) — Coverage map of 21 web-app archetypes against the current Vox substrate. Itemizes ~38 archetype-anchored blockers and a 24-item cross-cutting infrastructure spine (CC-00…CC-23) plus 17 MENS / orchestrator journey blockers (M1…M17). Pareto-ordered into 9 sequencing blocks targeting maximum archetype-coverage gain per unit-of-design-surface, mapped onto the existing Phase 1–5 interop plan. Backlog spine for prioritizing the next slate of language, runtime, codegen, and DevEx work.
 
 ## Audits & Assessments
 - [Comprehensive Audit V2 (2026)](comprehensive-audit-v2-2026.md) — Deep dive into core system integrity.

@@ -418,6 +418,7 @@ training_eligible: false
 - [VoxScript as Universal Glue Code — Research & Architecture 2026](archive/research-2026-q1/vox-as-glue-research-2026.md)
 - [Vulnerabilities in AST-Based Coverage Scoring and Reward Hacking](archive/research-2026-q1/research-grpo-ast-reward-hacking-2026.md)
 - [Warp Terminal Research Findings (2026)](architecture/warp-research-findings-2026.md)
+- [Web App Archetype Coverage Map (2026)](architecture/web-app-archetype-coverage-2026.md)
 - [Web Framework Interop Research 2026](archive/research-2026-q1/web-framework-interop-research-2026.md)
 - [Works Cited: AI Agent Context and Handoff](archive/research-2026-q1/research-agent-handoff-works-cited-2026.md)
 - [Works Cited: Continual Learning Flywheel Risks](archive/research-2026-q1/research-cl-works-cited-2026.md)
