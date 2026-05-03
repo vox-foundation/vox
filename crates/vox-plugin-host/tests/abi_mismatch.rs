@@ -40,7 +40,7 @@ fn rejects_mismatched_abi() {
     match result {
         Err(LoadError::AbiMismatch(e)) => {
             assert_eq!(e.plugin_abi, 999_999);
-            assert_eq!(e.host_abi, 4);
+            assert_eq!(e.host_abi, 5);
         }
         Ok(_) => panic!("expected AbiMismatch, got Ok"),
         Err(other) => panic!("expected AbiMismatch, got {other:?}"),

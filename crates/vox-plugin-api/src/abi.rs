@@ -7,6 +7,7 @@
 //! `as_*` accessors are added in SP3+ as their respective traits land.
 
 use crate::extensions::hardware_probe::HardwareProbe_TO;
+use crate::extensions::mesh_driver::MeshDriver_TO;
 use crate::extensions::ml_backend::MlBackend_TO;
 use crate::host::VoxHost_TO;
 use abi_stable::{
@@ -52,6 +53,13 @@ pub trait VoxPlugin: Send + Sync {
     /// return Some(trait object). Default impl returns None — plugins that
     /// don't provide HardwareProbe simply inherit the default.
     fn as_hardware_probe(&self) -> ROption<HardwareProbe_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
+
+    /// Optional accessor: if this plugin provides a MeshDriver implementation,
+    /// return Some(trait object). Default impl returns None — plugins that
+    /// don't provide MeshDriver simply inherit the default.
+    fn as_mesh_driver(&self) -> ROption<MeshDriver_TO<'static, RBox<()>>> {
         ROption::RNone
     }
 }
