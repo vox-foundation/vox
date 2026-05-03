@@ -810,3 +810,34 @@ fn module_scope_derived_and_effect_in_reactive_module_parse() {
         other => panic!("expected ReactiveModule, got {other:?}"),
     }
 }
+
+// ── ADR-033: typed parametric fragment primitive ────────────────────────────
+
+/// Fragment with no parameters — body is parsed as a JSX/markup expression.
+#[test]
+fn fragment_decl_with_no_params_parses() {
+    let m = parse_str("fragment Greeting() { <span>\"hi\"</span> }");
+    assert_eq!(m.declarations.len(), 1);
+    match &m.declarations[0] {
+        Decl::Fragment(f) => {
+            assert_eq!(f.name, "Greeting");
+            assert!(f.params.is_empty());
+        }
+        other => panic!("expected Fragment, got {other:?}"),
+    }
+}
+
+/// Fragment with typed parameters parses; param names and types preserved.
+#[test]
+fn fragment_decl_with_params_parses() {
+    let m = parse_str("fragment Row(item: str, idx: int) { <li>\"row\"</li> }");
+    match &m.declarations[0] {
+        Decl::Fragment(f) => {
+            assert_eq!(f.name, "Row");
+            assert_eq!(f.params.len(), 2);
+            assert_eq!(f.params[0].name, "item");
+            assert_eq!(f.params[1].name, "idx");
+        }
+        other => panic!("expected Fragment, got {other:?}"),
+    }
+}

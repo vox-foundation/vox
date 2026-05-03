@@ -333,6 +333,35 @@ impl Parser {
         })
     }
 
+    /// ADR-033: parse a `fragment Name(args) { <markup> }` declaration into a
+    /// [`crate::ast::decl::FragmentDecl`]. The body is parsed as a single expression
+    /// (matches the `view:` shape inside reactive components). Codegen for fragments
+    /// is gated on Phase 6 typed-primitive stabilization per the ADR; for now the
+    /// parser accepts the syntax and the AST node carries it through to whatever
+    /// future codegen / lowering wants to consume it.
+    pub(crate) fn parse_fragment_decl(&mut self) -> Result<crate::ast::decl::Decl, ()> {
+        use crate::ast::decl::FragmentDecl;
+        use crate::lexer::token::Token;
+
+        let start = self.span();
+        self.expect(&Token::Fragment)?;
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+        let body = self.parse_expr()?;
+        self.skip_newlines();
+        self.expect(&Token::RBrace)?;
+        Ok(crate::ast::decl::Decl::Fragment(FragmentDecl {
+            name,
+            params,
+            body,
+            span: start.merge(self.span()),
+        }))
+    }
+
     /// ADR-032: parse module-scope reactive members in a `.vox.ui` file into a single
     /// synthetic [`ReactiveModuleDecl`]. Consumes consecutive `state` / `derived` /
     /// `effect` / `on mount` / `on cleanup` declarations until it hits a token that

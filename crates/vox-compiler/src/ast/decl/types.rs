@@ -175,6 +175,10 @@ pub enum Decl {
     /// [`crate::module::FileKind::ReactiveModule`]. Lowers to a generated React
     /// context + provider + `use<Name>()` hook.
     ReactiveModule(ReactiveModuleDecl),
+    /// Typed parametric fragment (ADR-033). `fragment Name(arg: T) { <markup> }` —
+    /// passable as a prop, rendered with `<RenderFragment of={Name} args={(…)} />`.
+    /// Codegen gated on Phase 6 typed-primitive stabilization.
+    Fragment(FragmentDecl),
     /// Typed URL path declaration (`url Name { … }`).
     Url(UrlDecl),
     /// First-class state machine with exhaustiveness enforcement.
@@ -237,6 +241,7 @@ impl Decl {
             Decl::Island(i) => i.span,
             Decl::ReactiveComponent(r) => r.span,
             Decl::ReactiveModule(r) => r.span,
+            Decl::Fragment(f) => f.span,
             Decl::Url(u) => u.span,
             Decl::StateMachine(s) => s.span,
             Decl::Workflow(w) => w.span,

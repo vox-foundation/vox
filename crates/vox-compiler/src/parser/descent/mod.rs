@@ -390,6 +390,7 @@ impl Parser {
         match self.peek().clone() {
             Token::Import => self.parse_import(),
             Token::Component => self.parse_reactive_component(),
+            Token::Fragment => self.parse_fragment_decl(),
             Token::AtIsland => self.parse_island(),
             Token::AtV0 => self.parse_v0_component(),
             Token::AtLoading => self.parse_loading(),
