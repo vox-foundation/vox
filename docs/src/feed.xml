@@ -5,8 +5,28 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 03 May 2026 06:02:23 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 03 May 2026 06:21:04 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>ADR 033 — Typed parametric fragment primitive</title>
+    <link>https://vox-lang.org/adr/033-typed-fragment-primitive.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/033-typed-fragment-primitive.html</guid>
+    <description>Introduces a `fragment` bare-keyword scope for typed parametric markup blocks that are passable as props, callable multiple times with different arguments, and…</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Architecture Decision Records (ADR)</title>
+    <link>https://vox-lang.org/adr/index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/index.html</guid>
+    <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
 
   <item>
     <title>Svelte-Mineable Features Implementation Plan (2026)</title>
@@ -41,16 +61,6 @@
     <link>https://vox-lang.org/adr/032-vox-ui-reactive-modules.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/032-vox-ui-reactive-modules.html</guid>
     <description>Introduces a `.vox.ui` file-suffix convention that allows module-scope `state` / `derived` / `effect` / `on mount` / `on cleanup` reactive members. Lowers to a…</description>
-    <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Architecture Decision Records (ADR)</title>
-    <link>https://vox-lang.org/adr/index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/index.html</guid>
-    <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
     <pubDate>Sat, 02 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
@@ -231,15 +241,6 @@
     <link>https://vox-lang.org/architecture/github-pages-redirects.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/github-pages-redirects.html</guid>
     <description>How the Vox docs site handles old mdBook-era URLs via static HTML stubs on GitHub Pages.</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>GUI-Native Language Roadmap — Execution Status</title>
-    <link>https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</guid>
-    <description>Live tracking of task completion for the Vox GUI-native language roadmap (April 2026).</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>

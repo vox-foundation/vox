@@ -81,6 +81,7 @@ training_eligible: false
 - [How-To: Testing Integration](how-to/how-to-testing-integration.md)
 - [How-To: The Database Layer](how-to/how-to-database.md)
 - [Model Routing & Provider Cascade](how-to/how-to-model-routing.md)
+- [Point your AI coding assistant at the Vox MCP validator](how-to/how-to-mcp-vox-validate.md)
 - [Populi Quickstart](how-to/populi-quickstart.md)
 - [Scientia publication: what you type vs what the system derives](how-to/scientia-publication-operator-inputs.md)
 - [Troubleshooting FAQ](how-to/troubleshooting-faq.md)
