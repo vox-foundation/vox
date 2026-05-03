@@ -1,0 +1,31 @@
+# vox-plugin-catalog SSOT
+#
+# Every first-party Vox plugin and distribution bundle is declared here.
+# After editing: `cargo build -p vox-plugin-catalog` validates the file.
+# Regenerate the human-readable docs with:
+#     vox ci generate-plugin-catalog-docs
+#
+# See: docs/src/architecture/plugin-system-redesign-2026.md
+# See: docs/src/reference/plugin-catalog.md
+
+[[plugin]]
+id = "mens-candle-cuda"
+payload-kind = "code"
+description = "ML training backend using Candle with CUDA acceleration."
+extension-points = ["MlBackend"]
+requires-tag = "nvidia-gpu"
+default-source = "github:vox-foundation/vox-plugin-mens-candle-cuda"
+bundled-in = ["vox-ml", "vox-dev"]
+
+[[plugin]]
+id = "skill-compiler"
+payload-kind = "skill"
+description = "Agent-facing skill describing the Vox compiler tools."
+exposes-tools = ["vox_validate_file", "vox_run_tests", "vox_check_workspace"]
+default-source = "github:vox-foundation/vox-plugin-skill-compiler"
+bundled-in = ["vox-fullstack", "vox-ml", "vox-dev"]
+
+[[bundle]]
+id = "vox-base"
+description = "Bare host binary, no plugins."
+plugins = []
