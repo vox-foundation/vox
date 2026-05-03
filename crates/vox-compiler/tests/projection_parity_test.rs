@@ -20,10 +20,6 @@ fn projection_triplet_is_deterministic_and_schema_versioned() {
     let src = r#"
 @table type Task { title: str done: bool }
 
-@island Home {
-    n: int
-}
-
 fn Home_render() to str {
     let rows = db.Task.filter({ done: false }).select("title", "done")
     return "div"

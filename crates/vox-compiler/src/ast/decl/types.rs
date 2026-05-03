@@ -165,8 +165,6 @@ pub enum Decl {
     Environment(EnvironmentDecl),
     /// Static page for SSG.
     Page(PageDecl),
-    /// React island stub (props only); implementation lives in `islands/` TSX.
-    Island(IslandDecl),
     /// Reactive component declaration (Path C).
     ReactiveComponent(ReactiveComponentDecl),
     /// Typed URL path declaration (`url Name { … }`).
@@ -228,7 +226,6 @@ impl Decl {
             Decl::McpResource(m) => m.func.span,
             Decl::Environment(e) => e.span,
             Decl::Page(p) => p.span,
-            Decl::Island(i) => i.span,
             Decl::ReactiveComponent(r) => r.span,
             Decl::Url(u) => u.span,
             Decl::StateMachine(s) => s.span,

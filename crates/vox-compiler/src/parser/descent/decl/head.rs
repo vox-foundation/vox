@@ -4,7 +4,7 @@ use super::super::Parser;
 use crate::ast::decl::{
     Decl, EffectDecl,
     EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind,
-    IslandDecl, IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
+    LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
     OnMountDecl, PostCondition, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl,
     RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl,
 };
@@ -333,7 +333,6 @@ impl Parser {
         })
     }
 
-    /// `@island Name { prop: Type, prop?: Type }` — brace-delimited prop block.
     /// `@loading fn Name() to Element { ... }` — TanStack Router `pendingComponent` / suspense UI.
     pub(crate) fn parse_loading(&mut self) -> Result<Decl, ()> {
         self.advance(); // @loading
@@ -342,50 +341,19 @@ impl Parser {
         Ok(Decl::Loading(LoadingDecl { func: f }))
     }
 
-    /// Parser truth for WebIR docs: only `{ prop: Ty` / `prop?: Ty }` forms; no comma-required between props.
-    /// Braces are authoritative: `{` must follow the island name immediately (non-speculative; OP-0013).
-    pub(crate) fn parse_island(&mut self) -> Result<Decl, ()> {
-        let start = self.span();
-        self.advance(); // @island
-        self.maybe_parser_trace("island.after_kw");
-        self.skip_newlines();
-        if let Token::StringLit(_) = self.peek().clone() {
-            self.advance();
-        }
-        self.skip_newlines();
-        let name = self.parse_ident_name()?;
-        self.expect(&Token::LBrace)?;
-        self.skip_newlines();
-        let mut props = Vec::new();
-        loop {
-            self.skip_newlines();
-            if matches!(self.peek(), Token::RBrace | Token::Eof) {
-                break;
-            }
-            props.push(self.parse_island_prop_line()?);
-            self.skip_newlines();
-        }
-        self.eat(&Token::RBrace);
-        Ok(Decl::Island(IslandDecl {
-            name,
-            props,
-            span: start.merge(self.span()),
-        }))
-    }
-
-    /// One `@island` prop line: `name`, optional `?`, `:`, type (OP-0006).
-    pub(crate) fn parse_island_prop_line(&mut self) -> Result<IslandProp, ()> {
+    /// One v0 component prop line: `name`, optional `?`, `:`, type (OP-0006).
+    pub(crate) fn parse_v0_prop_line(&mut self) -> Result<crate::ast::decl::V0Prop, ()> {
         let pname = self.parse_ident_name()?;
         if std::env::var_os("VOX_PARSER_DEBUG").is_some() {
             eprintln!(
-                "[vox-parser:island.prop] name={pname:?} next={:?}",
+                "[vox-parser:v0.prop] name={pname:?} next={:?}",
                 self.peek()
             );
         }
         let is_optional = self.eat(&Token::Question);
         self.expect(&Token::Colon)?;
         let ty = self.parse_type_expr()?;
-        Ok(IslandProp {
+        Ok(crate::ast::decl::V0Prop {
             name: pname,
             ty,
             is_optional,

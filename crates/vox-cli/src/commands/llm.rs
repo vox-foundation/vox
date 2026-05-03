@@ -50,25 +50,6 @@ pub async fn run(cmd: LlmCmd) -> anyhow::Result<()> {
                 println!("{}", "--- MCP Schema Excerpt ---".bright_yellow());
                 println!("{{ \"type\": \"mutation\", \"decorator\": \"@mutation\" }}");
                 found = true;
-            } else if task_lower == "component" || task_lower == "@island" || task_lower == "island"
-            {
-                println!("{}", "--- Island Decorator Syntax ---".bright_yellow());
-                println!("@island\nfn MyComponent(props: Props) -> Element {{\n    // ...\n}}");
-                println!();
-                println!("{}", "--- Golden Example ---".bright_yellow());
-                println!(
-                    "{}",
-                    r#"@island
-pub fn UserProfile(name: String) -> Element {
-    view! {
-        <div>{name}</div>
-    }
-}"#
-                );
-                println!();
-                println!("{}", "--- MCP Schema Excerpt ---".bright_yellow());
-                println!("{{ \"type\": \"island\", \"decorator\": \"@island\" }}");
-                found = true;
             }
 
             if !found {

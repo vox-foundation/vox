@@ -66,6 +66,11 @@ pub enum GateResult {
     },
     /// Request denied because behavioral tests failed (OAPV phase).
     BehavioralTestFailed { message: String },
+    /// Request denied because the agent appears to be in a doom-loop (cost-without-progress).
+    DoomLoop {
+        /// Human-readable explanation shown to the caller.
+        message: String,
+    },
 }
 
 /// A gate enforcing behavioral tests (e.g. `cargo test`).
@@ -235,6 +240,16 @@ impl<'a> BudgetGate<'a> {
         Self::check_attention_snapshot(&snap, config)
     }
 
+    /// Check whether an agent is stuck in a doom-loop (spending cost without making progress).
+    #[must_use]
+    pub fn check_doom_loop(manager: &BudgetManager, agent_id: AgentId) -> GateResult {
+        if let Some(reason) = manager.doom_loop_cost_check(agent_id) {
+            GateResult::DoomLoop { message: reason }
+        } else {
+            GateResult::Allowed
+        }
+    }
+
     /// Check whether the pilot's attention budget can sustain an interruption right now
     /// based on the `InterruptionSignals`.
     #[must_use]
@@ -401,6 +416,45 @@ mod budget_gate_tests {
             BudgetGate::check_attention_snapshot(&snap, &cfg),
             GateResult::AttentionExhausted { .. }
         ));
+    }
+
+    #[test]
+    fn check_doom_loop_returns_doom_loop_when_threshold_exceeded() {
+        use crate::budget::BudgetManager;
+        use crate::types::AgentId;
+        let mgr = BudgetManager::new(None);
+        let agent = AgentId(1);
+        // Lower the threshold so a small spend triggers doom-loop detection.
+        mgr.set_doom_loop_cost_threshold(0.10);
+        mgr.record_cost_progress(agent, 0.50);
+        let result = BudgetGate::check_doom_loop(&mgr, agent);
+        assert!(
+            matches!(result, GateResult::DoomLoop { .. }),
+            "expected DoomLoop, got {result:?}"
+        );
+    }
+
+    #[test]
+    fn check_doom_loop_allows_after_task_completion() {
+        use crate::budget::BudgetManager;
+        use crate::types::AgentId;
+        let mgr = BudgetManager::new(None);
+        let agent = AgentId(2);
+        mgr.set_doom_loop_cost_threshold(0.10);
+        mgr.record_cost_progress(agent, 0.50);
+        assert!(
+            matches!(
+                BudgetGate::check_doom_loop(&mgr, agent),
+                GateResult::DoomLoop { .. }
+            ),
+            "expected DoomLoop before completion"
+        );
+        mgr.record_task_completion(agent);
+        assert_eq!(
+            BudgetGate::check_doom_loop(&mgr, agent),
+            GateResult::Allowed,
+            "expected Allowed after task completion"
+        );
     }
 
     #[test]

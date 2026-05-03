@@ -61,6 +61,7 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
                 return Err(HttpInferError {
                     status: 0,
                     message: format!("Custom provider base URL is empty for model '{}'", model.id),
+                    is_capability_gap: false,
                 });
             }
             let suffix = "/chat/completions";
@@ -87,6 +88,7 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
                     "endpoint_for is not applicable to provider {:?}",
                     model.provider_type
                 ),
+                is_capability_gap: false,
             })
         }
     }

@@ -27,4 +27,3 @@ For the strategic rationale, see [ADR 012](../adr/012-internal-web-ir-strategy.m
 | `vox-client.ts` | Type-safe client hooks for `@endpoint(kind: query/mutation)` |
 | `types.ts` | TypeScript union types for `type` declarations |
 | `server.ts` | Express/Axum route handlers for `@endpoint(kind: server)` |
-| `vox-islands-meta.ts` | Island hydration metadata for `@island` declarations |

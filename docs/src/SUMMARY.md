@@ -47,7 +47,7 @@ training_eligible: false
 
 ## Status: Current
 
-- [Tutorial: Building UI with Islands](tutorials/tut-ui-integration.md)
+- [Tutorial: Building UI with VUV view-calls](tutorials/tut-ui-integration.md)
 - [Tutorial: Building a Collaborative Task List](tutorials/tut-first-app.md)
 - [Tutorial: Persistent Actors & State](tutorials/tut-actor-basics.md)
 - [Tutorial: Workflow Durability](tutorials/tut-workflow-durability.md)
@@ -67,11 +67,11 @@ training_eligible: false
 - [First Full Stack App](how-to/first-full-stack-app.md)
 - [Golden Examples Corpus](how-to/examples-corpus.md)
 - [How To: Train Mens on RTX 4080 Super](how-to/how-to-train-mens-4080.md)
+- [How to author Vox views (VUV)](how-to/how-to-author-views.md)
 - [How to use the canonical VoxDB / Codex store](how-to/how-to-voxdb-canonical-store.md)
 - [How-To: Build AI Agents and MCP Tools](how-to/how-to-ai-agents.md)
 - [How-To: Deploy to Production](how-to/how-to-deploy.md)
 - [How-To: Handle Errors Gracefully](how-to/how-to-error-handling.md)
-- [How-To: Islands and Pages](how-to/how-to-islands-and-pages.md)
 - [How-To: Model Complex Domain Logic](how-to/how-to-custom-types.md)
 - [How-To: Publish Scientia findings](how-to/how-to-scientia-publication.md)
 - [How-To: Rust crate imports in Vox scripts](how-to/how-to-rust-crate-imports.md)
@@ -84,6 +84,10 @@ training_eligible: false
 - [Populi Quickstart](how-to/populi-quickstart.md)
 - [Scientia publication: what you type vs what the system derives](how-to/scientia-publication-operator-inputs.md)
 - [Troubleshooting FAQ](how-to/troubleshooting-faq.md)
+
+## Status: Deprecated
+
+- [How-To: Islands and Pages (ARCHIVED)](archive/how-to-islands-and-pages.md)
 
 
 # API Reference — Crates
@@ -416,6 +420,7 @@ training_eligible: false
 - [VoxScript as Universal Glue Code — Research & Architecture 2026](archive/research-2026-q1/vox-as-glue-research-2026.md)
 - [Vulnerabilities in AST-Based Coverage Scoring and Reward Hacking](archive/research-2026-q1/research-grpo-ast-reward-hacking-2026.md)
 - [Warp Terminal Research Findings (2026)](architecture/warp-research-findings-2026.md)
+- [Web App Archetype Coverage Map (2026)](architecture/web-app-archetype-coverage-2026.md)
 - [Web Framework Interop Research 2026](archive/research-2026-q1/web-framework-interop-research-2026.md)
 - [Works Cited: AI Agent Context and Handoff](archive/research-2026-q1/research-agent-handoff-works-cited-2026.md)
 - [Works Cited: Continual Learning Flywheel Risks](archive/research-2026-q1/research-cl-works-cited-2026.md)
@@ -450,11 +455,11 @@ training_eligible: false
 - [Data Storage Migration Backlog (2026)](architecture/data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](architecture/data-storage-ssot-2026.md)
 - [External Frontend Interop Plan (2026)](architecture/external-frontend-interop-plan-2026.md)
+- [GUI Authoring Syntax (2026): Vox UI as Values (VUV)](architecture/gui-authoring-syntax-2026.md)
 - [MENS Research Track Blueprint 2026](archive/research-2026-q1/mens-research-track-blueprint-2026.md)
 - [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](architecture/2026-05-01-orchestrator-stage1-stage2.md)
 - [Phase 1: Build Target Split Spec (2026)](architecture/phase1-build-targets-spec-2026.md)
 - [Phase 3: HTTP Ergonomics Decorators Spec (2026)](architecture/phase3-http-ergonomics-spec-2026.md)
-- [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](architecture/phase5-react-interop-spec-2026.md)
 - [Populi GPU mesh implementation plan 2026](archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md)
 - [Scientia Publication Pipeline — Full Implementation Plan v2 (2026)](archive/research-2026-q1/scientia-publication-pipeline-implementation-plan-2026.md)
 - [Telemetry implementation backlog 2026](archive/research-2026-q1/telemetry-implementation-backlog-2026.md)
@@ -479,6 +484,7 @@ training_eligible: false
 ## Status: Deprecated
 
 - [HITL Doubt Flow and Resolution (Redirect)](archive/research-2026-q1/vox-dei-hitl-ssot.md)
+- [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](archive/phase5-react-interop-spec-2026.md)
 - [Populi Mesh — A2A Durability Spec (S1, 2026-05-01)](architecture/populi-mesh-a2a-durability-spec-2026.md)
 
 

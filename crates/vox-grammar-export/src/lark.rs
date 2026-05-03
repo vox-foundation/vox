@@ -20,7 +20,7 @@ pub fn emit_lark() -> String {
     g.push_str("    | http_route | table | index | test | forall\n");
     g.push_str("    | server_fn | query_fn | mutation_fn\n");
     g.push_str("    | mcp_tool | mcp_resource\n");
-    g.push_str("    | component | reactive_component | island | v0_component\n");
+    g.push_str("    | component | reactive_component | v0_component\n");
     g.push_str("    | routes | loading | agent | environment\n");
     g.push_str("    ;\n\n");
 
@@ -76,7 +76,7 @@ pub fn emit_lark() -> String {
     g.push_str("mcp_tool: \"@mcp.tool\" [STRING_LIT] \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n");
     g.push_str("mcp_resource: \"@mcp.resource\" [STRING_LIT] \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n\n");
 
-    // ── Components & Islands
+    // ── Components
     g.push_str(
         "component: \"@component\" \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n",
     );
@@ -88,8 +88,6 @@ pub fn emit_lark() -> String {
     g.push_str("effect_block: \"effect\" block\n");
     g.push_str("mount_block: \"mount\" block\n");
     g.push_str("cleanup_block: \"cleanup\" block\n");
-    g.push_str("island: \"@island\" IDENT \"{\" island_prop* \"}\"\n");
-    g.push_str("island_prop: IDENT [\"?\"] \":\" type_expr\n");
     g.push_str("v0_component: \"@v0\" STRING_LIT \"fn\" IDENT \"(\" \")\" \"to\" type_expr\n\n");
 
     // ── Routes & Loading

@@ -2,10 +2,13 @@
 title: "Phase 5: Bidirectional Vox↔React Interop Spec (2026)"
 description: "Design spec for importing React components into Vox source, making emitted Vox components consumable by external React apps, and retiring @island."
 category: "architecture"
-status: "roadmap"
-training_eligible: true
-training_rationale: "Implementation spec for two-way Vox↔React component interop; required reading before touching component codegen or the @island removal."
+status: deprecated
+archived_date: 2026-05-03
+training_eligible: false
+training_rationale: "Historical implementation spec for two-way Vox↔React component interop; archived 2026-05-03 after island removal."
 ---
+
+**ARCHIVED & SUPERSEDED (2026-05-03):** Islands have been retired. See [`docs/src/architecture/external-frontend-interop-plan-2026.md`](../architecture/external-frontend-interop-plan-2026.md) for the current React interop story. This document is preserved for historical context.
 
 # Phase 5: Bidirectional Vox↔React Interop Spec (2026)
 

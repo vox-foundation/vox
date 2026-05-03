@@ -11,7 +11,6 @@ required_decl_kinds:
   - mcp_tool
   - mcp_resource
   - test
-  - island
   - table
   - query
   - mutation

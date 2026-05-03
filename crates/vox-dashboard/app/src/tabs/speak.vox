@@ -1,13 +1,13 @@
-// TASK-7.2: SpeakTab — Loquela chat composer + session display.
+// TASK-7.2 / VUV-6: SpeakTab — Loquela chat composer + session display.
 //
 // Components:
 //   - ChatMessage     — single message bubble (role + content)
-//   - ComposerPanel   — text input + send button (local state; transport via @island Phase 2)
+//   - ComposerPanel   — text input + send button (local state; transport via Vox transport hook in Phase 2)
 //   - SpeakTab        — root tab with session header + composer
 //
 // State machines:
 //   - ChatSessionState: Idle -> Composing -> Submitting -> Idle
-//     Streaming state deferred to @island bridge (requires useVoxTransport).
+//     Streaming state deferred to Vox transport bridge (requires useVoxTransport).
 
 partial state_machine ChatSessionState {
     state Idle
@@ -22,60 +22,82 @@ partial state_machine ChatSessionState {
 }
 
 component ChatMessage(role: str, content: str) {
-    view: (
-        <row class={if role is "user" { "justify-end px-4 py-2" } else { "justify-start px-4 py-2" }}>
-            <panel class={if role is "user" { "max-w-xl bg-blue-600/20 border border-blue-500/30 rounded-2xl rounded-br-sm px-4 py-3" } else { "max-w-2xl bg-white/5 border border-white/10 rounded-2xl rounded-bl-sm px-4 py-3" }}>
-                <text class="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">{role}</text>
-                <text class="text-sm text-white/80 leading-relaxed">{content}</text>
-            </panel>
-        </row>
-    )
+    view: row(
+        pad_x=4, pad_y=2,
+        justify=if role is "user" { "end" } else { "start" }
+    ) {
+        panel(
+            max_w=if role is "user" { "xl" } else { "2xl" },
+            bg=if role is "user" { "blue.600/20" } else { "white/5" },
+            border=true,
+            border_color=if role is "user" { "blue.500/30" } else { "white/10" },
+            radius="2xl",
+            radius_br=if role is "user" { "sm" } else { "2xl" },
+            radius_bl=if role is "user" { "2xl" } else { "sm" },
+            pad_x=4, pad_y=3
+        ) {
+            text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest", mb=2) {
+                role
+            }
+            text(size="sm", color="white/80", leading="relaxed") {
+                content
+            }
+        }
+    }
 }
 
 component ComposerPanel() {
     state is_submitting: bool = false
 
-    view: (
-        <column class="border-t border-white/10 p-4 gap-3 bg-zinc-950/80">
-            <row class="gap-3 items-end">
-                <panel class="flex-1 bg-zinc-900 border border-white/10 rounded-2xl px-4 py-3 min-h-16">
-                    <text class="text-sm text-white/50 italic">"Type a message…"</text>
-                </panel>
-                <button
-                    class={if is_submitting { "w-12 h-12 rounded-xl bg-blue-600/50 text-white/50 flex items-center justify-center" } else { "w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center" }}
-                    on:click={is_submitting = not is_submitting}
-                >
-                    {if is_submitting { "…" } else { "→" }}
-                </button>
-            </row>
-            <row class="justify-between items-center px-1">
-                <text class="text-xs text-zinc-500">"Shift+Enter for new line"</text>
-                <text class="text-xs text-zinc-600">"Transport bridge: Phase 2"</text>
-            </row>
-        </column>
-    )
+    view: column(
+        border_t=true, border_color="white/10",
+        pad=4, gap=3, raw_class="bg-zinc-950/80"
+    ) {
+        row(gap=3, items="end") {
+            panel(
+                flex=1, bg="zinc.900", border=true, border_color="white/10",
+                radius="2xl", pad_x=4, pad_y=3, min_h=16
+            ) {
+                text(size="sm", color="white/50", italic=true) { "Type a message…" }
+            }
+            button(
+                w=12, h=12, radius="xl",
+                bg=if is_submitting { "blue.600/50" } else { "blue.600" },
+                color=if is_submitting { "white/50" } else { "white" },
+                raw_class="flex items-center justify-center",
+                on_click={is_submitting = not is_submitting}
+            ) {
+                if is_submitting { "…" } else { "→" }
+            }
+        }
+        row(justify="between", items="center", pad_x=1) {
+            text(size="xs", color="zinc.500") { "Shift+Enter for new line" }
+            text(size="xs", color="zinc.600") { "Transport bridge: Phase 2" }
+        }
+    }
 }
 
 component SpeakTab() {
-    view: (
-        <column class="flex-1 overflow-hidden bg-zinc-950">
-            <row class="h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0">
-                <column class="gap-0">
-                    <text class="text-sm font-black tracking-tighter text-white">"LOQUELA"</text>
-                    <text class="text-xs text-zinc-500 tracking-widest">"VOICE INTERFACE"</text>
-                </column>
-                <row class="gap-2 items-center">
-                    <panel class="w-2 h-2 rounded-full bg-zinc-600"></panel>
-                    <text class="text-xs text-zinc-500">"NO ACTIVE SESSION"</text>
-                </row>
-            </row>
-            <panel class="flex-1 overflow-y-auto py-4">
-                <column class="items-center justify-center h-full gap-4 text-zinc-500">
-                    <text class="text-sm font-bold uppercase tracking-widest">"START A CONVERSATION"</text>
-                    <text class="text-xs">"Messages will appear here once a session is active."</text>
-                </column>
-            </panel>
-            <ComposerPanel />
-        </column>
-    )
+    view: column(flex=1, overflow="hidden", bg="zinc.950") {
+        row(
+            h=12, border_b=true, border_color="zinc.800",
+            pad_x=6, items="center", justify="between", shrink=0
+        ) {
+            column(gap=0) {
+                text(size="sm", weight="black", color="white", tracking="tighter") { "LOQUELA" }
+                text(size="xs", color="zinc.500", tracking="widest") { "VOICE INTERFACE" }
+            }
+            row(items="center", gap=2) {
+                panel(w=2, h=2, radius="full", bg="zinc.600")
+                text(size="xs", color="zinc.500") { "NO ACTIVE SESSION" }
+            }
+        }
+        panel(flex=1, overflow_y="auto", pad_y=4) {
+            column(items="center", justify="center", h="full", color="zinc.500", gap=4) {
+                text(size="sm", weight="bold", case="upper", tracking="widest") { "START A CONVERSATION" }
+                text(size="xs") { "Messages will appear here once a session is active." }
+            }
+        }
+        ComposerPanel()
+    }
 }

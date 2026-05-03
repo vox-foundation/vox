@@ -247,9 +247,6 @@ fn build_frontend(generated_ts_dir: &Path) -> Result<()> {
         println!("  Frontend assets copied to {}", public_dir.display());
     }
 
-    let generated_root = Path::new("target").join("generated");
-    frontend::build_islands_if_present(&generated_root, "public")?;
-
     Ok(())
 }
 

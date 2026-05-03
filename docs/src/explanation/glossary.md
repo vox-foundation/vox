@@ -44,13 +44,6 @@ The ability of a program (specifically a **Workflow**) to persist its state and 
 ### HIR (High-level Intermediate Representation)
 The semantic representation of Vox source code used for type checking and initial lowering phases.
 
-### Island
-A reactive UI component (compiled to React) that can be embedded in a server-rendered page. Defined using the `@island` decorator.
-```vox
-// vox:skip
-@island UserProfile { user: str }
-```
-
 ### MCP (Model Context Protocol)
 An open standard that enables AI models to safely interact with local data and tools. Vox provides first-class support for exporting functions as MCP tools via `@mcp.tool`.
 ```vox

@@ -211,8 +211,8 @@ pub struct BudgetManager {
     pub(crate) drift: Arc<std::sync::RwLock<HashMap<AgentId, DriftState>>>,
     pub(crate) drift_cost_threshold_usd: Arc<std::sync::atomic::AtomicU64>,
     pub(crate) cost_progress: Arc<std::sync::RwLock<HashMap<AgentId, CostProgressState>>>,
-    /// Threshold in USD: if cost_since_last_completion exceeds this, doom-loop fires.
-    /// Default: $2.00. Set via `set_doom_loop_cost_threshold`.
+    /// Threshold in USD (stored via `f64::to_bits()`): if cost_since_last_completion exceeds
+    /// this, doom-loop fires. Default: $2.00. Set via `set_doom_loop_cost_threshold`.
     pub(crate) doom_loop_threshold_usd: Arc<std::sync::atomic::AtomicU64>,
 }
 
@@ -237,7 +237,7 @@ impl BudgetManager {
             )),
             cost_progress: Arc::new(std::sync::RwLock::new(HashMap::new())),
             doom_loop_threshold_usd: Arc::new(std::sync::atomic::AtomicU64::new(
-                2_000_000u64, // $2.00 expressed as micro-dollars
+                2.00f64.to_bits(),
             )),
         }
     }
@@ -638,10 +638,10 @@ impl BudgetManager {
     /// Returns `Some(reason)` if the agent has spent more than `doom_loop_threshold_usd`
     /// without completing any task. Returns `None` if within budget.
     pub fn doom_loop_cost_check(&self, agent_id: AgentId) -> Option<String> {
-        let threshold_micros = self
-            .doom_loop_threshold_usd
-            .load(std::sync::atomic::Ordering::Relaxed);
-        let threshold_usd = threshold_micros as f64 / 1_000_000.0;
+        let threshold_usd = f64::from_bits(
+            self.doom_loop_threshold_usd
+                .load(std::sync::atomic::Ordering::Relaxed),
+        );
         let map = sync_lock::rw_read(&*self.cost_progress);
         let cost = map
             .get(&agent_id)
@@ -659,9 +659,23 @@ impl BudgetManager {
 
     /// Configure the doom-loop cost threshold in USD. Default is $2.00.
     pub fn set_doom_loop_cost_threshold(&self, threshold_usd: f64) {
-        let micros = (threshold_usd * 1_000_000.0) as u64;
         self.doom_loop_threshold_usd
-            .store(micros, std::sync::atomic::Ordering::Relaxed);
+            .store(threshold_usd.to_bits(), std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Returns `true` if dispatching `estimated_tokens` more to `agent_id` would
+    /// push the agent over its effective token cap. Returns `false` when no budget
+    /// entry exists (i.e. the agent is uncapped).
+    pub fn would_exceed_token_budget(&self, agent_id: AgentId, estimated_tokens: usize) -> bool {
+        let map = sync_lock::rw_read(&*self.inner);
+        let Some(budget) = map.get(&agent_id) else {
+            return false; // no budget → do not block
+        };
+        let cap = budget.effective_max_tokens();
+        if cap == 0 {
+            return false;
+        }
+        budget.tokens_used.saturating_add(estimated_tokens) > cap
     }
 }
 
@@ -688,6 +702,50 @@ mod tests {
         let reason = bm.doom_loop_cost_check(agent);
         assert!(reason.is_some(), "should fire above threshold");
         assert!(reason.unwrap().contains("no task completed"), "reason should mention no task completed");
+    }
+
+    #[test]
+    fn test_doom_loop_cost_check_unknown_agent_returns_none() {
+        let bm = BudgetManager::new(None);
+        assert!(bm.doom_loop_cost_check(AgentId(999)).is_none());
+    }
+
+    /// Documents the strict-`>` contract: at exactly the threshold, the
+    /// check does NOT fire. Counterpart to the above-threshold test.
+    #[test]
+    fn test_doom_loop_cost_check_does_not_fire_at_exact_threshold() {
+        let bm = BudgetManager::new(None);
+        let agent = AgentId(43);
+        bm.set_doom_loop_cost_threshold(0.10);
+        bm.record_cost_progress(agent, 0.10);
+        assert!(
+            bm.doom_loop_cost_check(agent).is_none(),
+            "strict > contract: cost == threshold should NOT fire"
+        );
+    }
+
+    #[test]
+    fn test_would_exceed_budget_true_when_tight() {
+        let bm = BudgetManager::new(None);
+        let agent = AgentId(7);
+        bm.reset(agent, 1000);
+        bm.record_usage(agent, 900);
+        assert!(bm.would_exceed_token_budget(agent, 200));
+    }
+
+    #[test]
+    fn test_would_exceed_budget_false_when_room() {
+        let bm = BudgetManager::new(None);
+        let agent = AgentId(8);
+        bm.reset(agent, 1000);
+        bm.record_usage(agent, 700);
+        assert!(!bm.would_exceed_token_budget(agent, 200));
+    }
+
+    #[test]
+    fn test_would_exceed_budget_false_when_no_budget_set() {
+        let bm = BudgetManager::new(None);
+        assert!(!bm.would_exceed_token_budget(AgentId(99), 5000));
     }
 
     #[test]

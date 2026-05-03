@@ -71,20 +71,10 @@ static RESEARCH_TOPIC_POOL: &[&str] = &[
     "Build reproducibility techniques",
 ];
 
-static ISLAND_COMPONENT_POOL: &[&str] = &[
-    "login form",
-    "data table",
-    "notification bell",
-    "theme toggle",
-    "code editor",
-    "progress bar",
-    "file upload widget",
-];
-
 /// Fill a template string with seeded-random slot values.
 ///
 /// Supported slots: `{CRATE}`, `{RULE}`, `{LANGUAGE}`, `{DOC_CATEGORY}`,
-/// `{BUILD_CRATE}`, `{TEST_MODULE}`, `{RESEARCH_TOPIC}`, `{ISLAND_COMPONENT}`.
+/// `{BUILD_CRATE}`, `{TEST_MODULE}`, `{RESEARCH_TOPIC}`.
 pub fn slot_fill(template: &str, seed: u64) -> String {
     fn pick<'a>(pool: &'a [&'a str], seed: u64) -> &'a str {
         pool[(seed as usize) % pool.len()]
@@ -108,9 +98,5 @@ pub fn slot_fill(template: &str, seed: u64) -> String {
         .replace(
             "{RESEARCH_TOPIC}",
             pick(RESEARCH_TOPIC_POOL, seed.wrapping_add(6)),
-        )
-        .replace(
-            "{ISLAND_COMPONENT}",
-            pick(ISLAND_COMPONENT_POOL, seed.wrapping_add(7)),
         )
 }

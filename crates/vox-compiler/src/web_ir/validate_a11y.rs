@@ -304,8 +304,7 @@ fn walk_contrast(
         }
         DomNode::Text { .. }
         | DomNode::Slot { .. }
-        | DomNode::Expr { .. }
-        | DomNode::IslandMount { .. } => {}
+        | DomNode::Expr { .. } => {}
     }
 }
 

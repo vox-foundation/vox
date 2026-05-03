@@ -28,7 +28,7 @@ function ConnectionDot({ status }: { status: string }) {
   return <div className={`w-2 h-2 rounded-full ${colour}`} />;
 }
 
-export function SpeakIsland() {
+export function SpeakPanel() {
   const { messages, isLoading, error, send, reset } = useVoxChat();
   const [connStatus, setConnStatus] = React.useState('disconnected');
   const [draft, setDraft] = React.useState('');

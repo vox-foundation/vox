@@ -177,7 +177,6 @@ impl Parser {
                 Token::Import
                     | Token::AtComponent
                     | Token::Component
-                    | Token::AtIsland
                     | Token::AtLoading
                     | Token::AtTest
                     | Token::AtV0
@@ -309,7 +308,6 @@ impl Parser {
                 }
                 Token::Fn
                 | Token::AtComponent
-                | Token::AtIsland
                 | Token::Import
                 | Token::TypeKw
                 | Token::Actor
@@ -355,7 +353,6 @@ impl Parser {
         match self.peek().clone() {
             Token::Import => self.parse_import(),
             Token::Component => self.parse_reactive_component(),
-            Token::AtIsland => self.parse_island(),
             Token::AtV0 => self.parse_v0_component(),
             Token::AtLoading => self.parse_loading(),
             Token::AtTest => self.parse_test(),

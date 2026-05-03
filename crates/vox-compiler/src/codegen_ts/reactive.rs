@@ -104,14 +104,13 @@ fn emit_reactive_view_body(
     hir: &HirModule,
     rc: &HirReactiveComponent,
     state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
     web_projection: Option<&WebIrModule>,
     stats: &mut ReactiveViewBridgeStats,
 ) -> String {
     let Some(view) = &rc.view else {
         return String::new();
     };
-    let legacy = emit_hir_expr(view, state_names, island_names);
+    let legacy = emit_hir_expr(view, state_names);
     if !web_ir_reactive_views_env_enabled() {
         stats.record_pathway(ReactiveViewEmitPathway::LegacyEnvDisabled);
         if web_ir_reactive_trace_enabled() {
@@ -682,8 +681,6 @@ fn collect_jsx_component_refs_stmt(
     }
 }
 
-/// `island_names` should be [`crate::codegen_ts::island_emit::collect_island_names`] for the enclosing [`crate::hir::HirModule`].
-///
 /// `hir` must be the full module (needed for optional Web IR view bridge).
 ///
 /// When `web_projection` is `Some`, it must be [`crate::web_ir::lower::lower_hir_to_web_ir`]`(hir)` (or
@@ -691,7 +688,6 @@ fn collect_jsx_component_refs_stmt(
 pub fn generate_reactive_component(
     hir: &HirModule,
     rc: &HirReactiveComponent,
-    island_names: &HashSet<String>,
     web_projection: Option<&WebIrModule>,
     stats: &mut ReactiveViewBridgeStats,
 ) -> (String, String) {
@@ -756,14 +752,14 @@ pub fn generate_reactive_component(
     for member in &rc.members {
         match member {
             HirReactiveMember::State(s) => {
-                let init = emit_hir_expr(&s.init, &state_names, island_names);
+                let init = emit_hir_expr(&s.init, &state_names);
                 out.push_str(&format!(
                     "  const [{}, set_{}] = useState({});\n",
                     s.name, s.name, init
                 ));
             }
             HirReactiveMember::Derived(d) => {
-                let expr = emit_hir_expr(&d.expr, &state_names, island_names);
+                let expr = emit_hir_expr(&d.expr, &state_names);
                 let deps = extract_state_deps(&d.expr, &state_names);
                 let dep_str = deps.join(", ");
                 out.push_str(&format!(
@@ -772,7 +768,7 @@ pub fn generate_reactive_component(
                 ));
             }
             HirReactiveMember::Effect(e) => {
-                let stmts_str = emit_block_stmts(&e.body, &state_names, island_names, 2);
+                let stmts_str = emit_block_stmts(&e.body, &state_names, 2);
                 let deps = extract_state_deps(&e.body, &state_names);
                 let dep_str = deps.join(", ");
                 out.push_str(&format!(
@@ -781,18 +777,18 @@ pub fn generate_reactive_component(
                 ));
             }
             HirReactiveMember::OnMount(m) => {
-                let stmts_str = emit_block_stmts(&m.body, &state_names, island_names, 2);
+                let stmts_str = emit_block_stmts(&m.body, &state_names, 2);
                 out.push_str(&format!("  useEffect(() => {{\n{}  }}, []);\n", stmts_str));
             }
             HirReactiveMember::OnCleanup(c) => {
-                let stmts_str = emit_block_stmts(&c.body, &state_names, island_names, 2);
+                let stmts_str = emit_block_stmts(&c.body, &state_names, 2);
                 out.push_str(&format!(
                     "  useEffect(() => () => {{\n{}  }}, []);\n",
                     stmts_str
                 ));
             }
             HirReactiveMember::Stmt(s) => {
-                out.push_str(&emit_hir_stmt(s, &state_names, island_names, 2));
+                out.push_str(&emit_hir_stmt(s, &state_names, 2));
             }
         }
     }
@@ -803,7 +799,6 @@ pub fn generate_reactive_component(
             hir,
             rc,
             &state_names,
-            island_names,
             web_projection,
             stats,
         );
@@ -825,11 +820,10 @@ mod tests {
         let tokens = lex(src);
         let module = parse(tokens).expect("parse error");
         let hir = lower_module(&module);
-        let island_names = HashSet::new();
         let mut stats = ReactiveViewBridgeStats::default();
         hir.components
             .iter()
-            .map(|rc| generate_reactive_component(&hir, rc, &island_names, None, &mut stats))
+            .map(|rc| generate_reactive_component(&hir, rc, None, &mut stats))
             .collect()
     }
 
@@ -844,8 +838,8 @@ mod tests {
     #[test]
     fn test_cross_component_import_emitted() {
         let files = compile(
-            "component Inner() { view: (<panel><text>\"hi\"</text></panel>) }\n\
-             component Outer() { view: (<column><Inner /></column>) }",
+            "component Inner() { view: panel() { text() { \"hi\" } } }\n\
+             component Outer() { view: column() { Inner() } }",
         );
         let outer = get(&files, "Outer.tsx");
         assert!(
@@ -856,7 +850,7 @@ mod tests {
 
     #[test]
     fn test_no_import_for_html_primitives() {
-        let files = compile("component Card() { view: (<panel><text>\"x\"</text></panel>) }");
+        let files = compile("component Card() { view: panel() { text() { \"x\" } } }");
         let card = get(&files, "Card.tsx");
         // 'panel' and 'text' are primitives, must not generate import lines
         assert!(
@@ -872,10 +866,10 @@ mod tests {
     #[test]
     fn test_import_inside_if_branch() {
         let files = compile(
-            "component Badge() { view: (<text>\"x\"</text>) }\n\
+            "component Badge() { view: text() { \"x\" } }\n\
              component Host(show: bool) {\n\
                state s: bool = false\n\
-               view: ({if s { <Badge /> } else { <text>\"no\"</text> }})\n\
+               view: if s { Badge() } else { text() { \"no\" } }\n\
              }",
         );
         let host = get(&files, "Host.tsx");

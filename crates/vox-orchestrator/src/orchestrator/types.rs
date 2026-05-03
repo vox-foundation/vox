@@ -65,6 +65,9 @@ pub enum OrchestratorError {
     /// Task was blocked due to extreme resource budget constraints.
     #[error("Budget exceeded: {0}")]
     BudgetExceeded(String),
+    /// Task blocked because the agent appears to be in a doom-loop (cost-without-progress).
+    #[error("Doom loop detected: {0}")]
+    DoomLoop(String),
 }
 
 /// One step in a task's lifecycle timeline (ingress → route → verification → outcome).
