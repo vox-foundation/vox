@@ -5,8 +5,62 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 03 May 2026 02:35:30 GMT</lastBuildDate>
+  <lastBuildDate>Sun, 03 May 2026 08:09:21 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Plugin System Redesign (2026)</title>
+    <link>https://vox-lang.org/architecture/plugin-system-redesign-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-2026.html</guid>
+    <description>Design spec for unifying Vox&apos;s modularity surfaces — Cargo features, vox-skills, and capability registries — into a single runtime-loadable plugin system that…</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Distribution Bundles (Generated)</title>
+    <link>https://vox-lang.org/reference/distribution-bundles.generated.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/distribution-bundles.generated.html</guid>
+    <description>Auto-generated authoritative list of Vox distribution bundles and their plugin composition.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Distribution Bundles</title>
+    <link>https://vox-lang.org/reference/distribution-bundles.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/distribution-bundles.html</guid>
+    <description>What Vox bundles are, how to pick one, and how to roll your own.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Plugin Catalog (Generated)</title>
+    <link>https://vox-lang.org/reference/plugin-catalog.generated.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/plugin-catalog.generated.html</guid>
+    <description>Auto-generated authoritative list of all first-party Vox plugins.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Plugin Catalog</title>
+    <link>https://vox-lang.org/reference/plugin-catalog.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/plugin-catalog.html</guid>
+    <description>What the Vox plugin catalog is and how it relates to per-plugin manifests.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Plugin Manifest (Plugin.toml)</title>
+    <link>https://vox-lang.org/reference/plugin-manifest.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/plugin-manifest.html</guid>
+    <description>Schema for the Plugin.toml file every Vox plugin ships.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
 
   <item>
     <title>ADR-029: Formal Intent and Tool Receipt Auditing</title>
@@ -184,60 +238,6 @@
     <link>https://vox-lang.org/architecture/durability-runtime-audit-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/durability-runtime-audit-2026.html</guid>
     <description>Definitive audit of @scheduled, @durable, DurabilityKind, actor/workflow/activity keywords — what parses vs. what executes. Verdict: zero runtime…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>External Frontend Interop Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/external-frontend-interop-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/external-frontend-interop-plan-2026.html</guid>
-    <description>Five-phase plan to make Vox interoperable with the React/TS ecosystem in both directions: keep Vox&apos;s GUI authoring (TS/React emission), add bidirectional…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Legacy URL Redirects on GitHub Pages</title>
-    <link>https://vox-lang.org/architecture/github-pages-redirects.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/github-pages-redirects.html</guid>
-    <description>How the Vox docs site handles old mdBook-era URLs via static HTML stubs on GitHub Pages.</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>GUI-Native Language Roadmap — Execution Status</title>
-    <link>https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/gui-native-roadmap-status-2026.html</guid>
-    <description>Live tracking of task completion for the Vox GUI-native language roadmap (April 2026).</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Internal Web IR Implementation Blueprint</title>
-    <link>https://vox-lang.org/architecture/internal-web-ir-implementation-blueprint.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/internal-web-ir-implementation-blueprint.html</guid>
-    <description>Implementation plan, acceptance gates, and parity requirements for the Vox internal Web IR layer.</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Orchestrator Companion Audit — Non-Routing Surface Critique &amp; Improvement Plan</title>
-    <link>https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/orchestrator-companion-audit-findings-2026.html</guid>
-    <description>Full-system audit of crates/vox-orchestrator and surrounding surfaces excluding model-routing (covered by model-orchestration-ssot-audit-2026.md). ~280…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Phase 1: Build Target Split Spec (2026)</title>
-    <link>https://vox-lang.org/architecture/phase1-build-targets-spec-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/phase1-build-targets-spec-2026.html</guid>
-    <description>Design spec for vox build --target=server|fullstack|client, vox emit client, and vox init --kind=backend.</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>

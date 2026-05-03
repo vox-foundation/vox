@@ -91,6 +91,8 @@ training_eligible: false
 - [Legacy URL Redirects on GitHub Pages](github-pages-redirects.md)
 - [Ludus Identity Federation & GitHub Integration](ludus-identity-github-integration-research-2026.md)
 - [Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan](orchestrator-companion-audit-findings-2026.md)
+- [Plugin System Redesign (2026)](plugin-system-redesign-2026.md)
+- [Plugin System Redesign — SP1 Implementation Plan (2026)](plugin-system-redesign-sp1-plan-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](shiki-mdbook-doc-platform-research-2026.md)
 - [Warp Terminal Research Findings (2026)](warp-research-findings-2026.md)
 - [Web App Archetype Coverage Map (2026)](web-app-archetype-coverage-2026.md)
