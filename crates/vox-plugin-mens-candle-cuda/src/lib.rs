@@ -24,7 +24,12 @@ mod backend;
 mod checkpoint;
 pub mod checkpoint_state;
 pub mod config;
+pub mod hf_keymap;
+pub mod hf_layout;
 mod model;
+pub mod operator_messages;
+pub mod qlora_preflight;
+pub(crate) mod qlora_weights;
 mod training;
 
 use abi_stable::{

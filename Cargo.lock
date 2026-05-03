@@ -12939,6 +12939,7 @@ dependencies = [
  "safetensors 0.4.5",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror 1.0.69",
  "tokenizers",
  "tracing",
