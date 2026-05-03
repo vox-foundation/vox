@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use std::sync::RwLock;
 use vox_plugin_api::manifest::PluginPayload;
 
+#[derive(Clone)]
 pub struct PluginEntry {
     pub id: String,
     pub version: String,
@@ -34,6 +35,11 @@ impl Registry {
     }
     pub fn has(&self, id: &str) -> bool {
         self.entries.read().unwrap().contains_key(id)
+    }
+
+    /// Return a clone of the full [`PluginEntry`] for `id`, or `None` if not registered.
+    pub fn get_full_entry(&self, id: &str) -> Option<PluginEntry> {
+        self.entries.read().unwrap().get(id).cloned()
     }
 }
 
