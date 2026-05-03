@@ -58,11 +58,21 @@ fn test_ir_emission_with_hashing_and_inference() {
     vox_jsonschema_util::validate(&ir, &validator, "lower_hir_to_vox_ir").expect("schema validate");
 }
 
+/// **Tombstone (ADR-028 / 2026-05-01):** `@scheduled` was removed from the public grammar
+/// because it was parse-only with no runtime implementation. `pipeline::run_frontend_str` now
+/// rejects the keyword early via `check_adr028_reserved_keywords` (`pipeline.rs:139`),
+/// returning an empty HIR. This test asserts the pre-ADR behavior (web_ir.scheduled_jobs
+/// populated) which is no longer reachable through the public pipeline. The
+/// `web_ir_lower_emit_test::web_ir_lowering_scheduled_jobs_from_hir` sibling still passes
+/// because it bypasses the pipeline guard via direct `parse(lex(...))`.
+///
+/// Re-enable when a real scheduler runtime ships and the ADR-028 guard is removed.
 #[test]
+#[ignore = "ADR-028: @scheduled removed from public grammar; restore when runtime ships"]
 fn test_ir_emission_includes_scheduled_jobs_in_web_ir() {
     let source = r#"
 @scheduled("1h")
-fn tick() -> Unit {
+fn tick() to Unit {
     return Unit
 }
 "#;
