@@ -239,11 +239,18 @@ impl DomArena {
 /// Map JSX attribute name + value the same way as TS `hir_emit` (OP-S015).
 ///
 /// Event spellings (`on_click`, `on:click`) become React-style `onClick` names on [`DomNode::Element`];
-/// Props that are consumed by the primitive resolver and must not appear on the final HTML element.
-const PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
-    "gap", "size", "weight", "align", "wrap", "variant", "level", "surface",
-    "z", "position",
+/// Pre-VUV per-primitive props consumed by `primitives::resolve()`. The VUV universal style
+/// kwargs that should ALSO be filtered out come from `primitives::UNIVERSAL_STYLE_KWARGS` so
+/// the two lists never drift out of sync. Combined view via `is_primitive_consumed_prop()`.
+const PRIMITIVE_BASE_CONSUMED_PROPS: &[&str] = &[
+    "size", "weight", "align", "wrap", "variant", "level", "surface", "z",
 ];
+
+#[inline]
+fn is_primitive_consumed_prop(name: &str) -> bool {
+    PRIMITIVE_BASE_CONSUMED_PROPS.contains(&name)
+        || super::primitives::UNIVERSAL_STYLE_KWARGS.contains(&name)
+}
 
 /// TASK-6.1: if `tag` is a known primitive, replace it with the canonical HTML tag and inject
 /// the primitive's Tailwind class list into the `className` attribute (merging with any existing
@@ -264,7 +271,7 @@ fn apply_primitive_emission(
         return (tag.to_string(), attrs);
     };
     // Remove primitive-specific props that are consumed by the resolver.
-    attrs.retain(|(k, _)| !PRIMITIVE_CONSUMED_PROPS.contains(&k.as_str()));
+    attrs.retain(|(k, _)| !is_primitive_consumed_prop(k));
     let base = emission.class_string();
     if !base.is_empty() {
         // Merge with any existing class / className attr from the author.

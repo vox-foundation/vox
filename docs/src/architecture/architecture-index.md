@@ -102,6 +102,7 @@ training_eligible: false
 - [Data Storage Migration Backlog (2026)](data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](data-storage-ssot-2026.md)
 - [External Frontend Interop Plan (2026)](external-frontend-interop-plan-2026.md)
+- [GUI Authoring Syntax (2026): Vox UI as Values (VUV)](gui-authoring-syntax-2026.md)
 - [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](2026-05-01-orchestrator-stage1-stage2.md)
 - [Phase 1: Build Target Split Spec (2026)](phase1-build-targets-spec-2026.md)
 - [Phase 3: HTTP Ergonomics Decorators Spec (2026)](phase3-http-ergonomics-spec-2026.md)

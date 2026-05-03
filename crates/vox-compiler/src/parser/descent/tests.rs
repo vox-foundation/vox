@@ -83,7 +83,7 @@ fn classic_component_fn_is_parse_error() {
 
 #[test]
 fn test_parse_loading_decl() {
-    let m = parse_str("@loading fn RouteSpinner() to Element { return <div/> }");
+    let m = parse_str("@loading fn RouteSpinner() to Element { return column() }");
     assert!(matches!(
         &m.declarations[0],
         Decl::Loading(l) if l.func.name == "RouteSpinner"
@@ -248,32 +248,110 @@ fn test_parse_method_chain() {
     }
 }
 
+// JSX angle-bracket parser path retired (VUV). View calls now use the trailing-block form
+// (`Ident(kwargs) { children }` and `Capitalized()` / `primitive_name()`). See the
+// `test_parse_view_call_*` tests below for the canonical coverage.
+
 #[test]
-fn test_parse_jsx_self_closing() {
-    let m = parse_str("component App() { view: <input value=\"test\" /> }");
-    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
-        match &r.view {
-            Some(Expr::JsxSelfClosing(_)) => {}
-            other => panic!("Expected self-closing JSX in view, got {other:?}"),
-        }
-    } else {
-        panic!("Expected reactive component");
-    }
+fn test_parse_view_call_form_lowers_to_jsx() {
+    // VUV: view-call form `Ident(kwargs) { children }` parses as Expr::Jsx so HIR / web_ir / codegen
+    // are untouched. This test asserts the parser sugars the new shape into the existing JSX AST.
+    let m = parse_str(
+        r#"component A() {
+            view: row(gap=2) {
+                text(size="xs") { "hello" }
+            }
+        }"#,
+    );
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else {
+        panic!("Expected reactive component, got {:?}", m.declarations[0]);
+    };
+    let Some(Expr::Jsx(outer)) = &r.view else {
+        panic!("Expected outer view-call to lower to Expr::Jsx, got {:?}", r.view);
+    };
+    assert_eq!(outer.tag, "row");
+    assert_eq!(outer.attributes.len(), 1);
+    assert_eq!(outer.attributes[0].name, "gap");
+    assert_eq!(outer.children.len(), 1);
+    let Expr::Jsx(inner) = &outer.children[0] else {
+        panic!("Expected inner child to be Expr::Jsx, got {:?}", outer.children[0]);
+    };
+    assert_eq!(inner.tag, "text");
+    assert_eq!(inner.attributes.len(), 1);
+    assert_eq!(inner.attributes[0].name, "size");
+    assert_eq!(inner.children.len(), 1);
+    assert!(matches!(inner.children[0], Expr::StringLit { .. }));
 }
 
 #[test]
-fn test_parse_jsx_with_children() {
-    let m = parse_str("component A() { view: <div><span>hello</span></div> }");
-    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
-        if let Some(Expr::Jsx(el)) = &r.view {
-            assert_eq!(el.tag, "div");
-            assert_eq!(el.children.len(), 1);
-        } else {
-            panic!("Expected JSX element in view");
+fn test_attr_prefix_strips_to_reserved_keyword_attribute_name() {
+    // VUV: `attr_type="checkbox"` parses and lowers to JsxAttribute name "type" so HTML
+    // attributes whose names are Vox keywords can still be expressed.
+    let m = parse_str(r#"component A() { view: input(attr_type="checkbox") }"#);
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else { panic!(); };
+    let Some(Expr::JsxSelfClosing(el)) = &r.view else {
+        panic!("expected self-closing JSX, got {:?}", r.view);
+    };
+    assert_eq!(el.tag, "input");
+    assert_eq!(el.attributes.len(), 1);
+    assert_eq!(el.attributes[0].name, "type", "attr_ prefix should be stripped");
+}
+
+#[test]
+fn test_capitalized_call_no_block_lowers_to_self_closing_jsx() {
+    // VUV: `ComposerPanel()` (no trailing block, capitalized callee, no args or all-named)
+    // sugars to Expr::JsxSelfClosing. Lowercase callees and positional-arg calls do not.
+    let m = parse_str("component A() { view: ComposerPanel() }");
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else {
+        panic!("expected reactive component, got {:?}", m.declarations[0]);
+    };
+    let Some(Expr::JsxSelfClosing(el)) = &r.view else {
+        panic!("expected self-closing JSX, got {:?}", r.view);
+    };
+    assert_eq!(el.tag, "ComposerPanel");
+    assert!(el.attributes.is_empty());
+}
+
+#[test]
+fn test_capitalized_call_with_named_args_lowers_to_self_closing() {
+    let m = parse_str(r#"component A() { view: PipelineStage(name="Lexer", desc="tok") }"#);
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else { panic!(); };
+    let Some(Expr::JsxSelfClosing(el)) = &r.view else {
+        panic!("expected self-closing JSX, got {:?}", r.view);
+    };
+    assert_eq!(el.tag, "PipelineStage");
+    assert_eq!(el.attributes.len(), 2);
+}
+
+#[test]
+fn test_capitalized_call_with_positional_arg_stays_call() {
+    // Enum constructors (Some, Ok, Err) use positional args — must NOT be sugared to JSX.
+    let m = parse_str("fn f() -> int { let x = Some(42); return 1 }");
+    let Decl::Function(func) = &m.declarations[0] else { panic!(); };
+    if let Stmt::Let { value: Expr::Call { callee, .. }, .. } = &func.body[0] {
+        if let Expr::Ident { name, .. } = callee.as_ref() {
+            assert_eq!(name, "Some");
+            return;
         }
-    } else {
-        panic!("Expected reactive component");
     }
+    panic!("expected Some(42) to remain Expr::Call, got {:?}", func.body[0]);
+}
+
+#[test]
+fn test_view_call_positional_arg_does_not_sugar_to_jsx() {
+    // VUV view calls are keyword-only. A positional arg disqualifies the call from view-call
+    // sugar — it stays a regular `Expr::Call` so it can be evaluated as an ordinary function.
+    // Critically, this means `row(2)` (a hypothetical row constructor) does NOT silently
+    // become `<row 2 />`. The parser's view-call path must require all-named args.
+    let m = parse_str("fn build() -> int { return row(2) }");
+    let Decl::Function(func) = &m.declarations[0] else { panic!("expected fn"); };
+    let Stmt::Return { value: Some(Expr::Call { callee, args, .. }), .. } = &func.body[0] else {
+        panic!("expected return Expr::Call, got {:?}", func.body[0]);
+    };
+    let Expr::Ident { name, .. } = callee.as_ref() else { panic!("callee not Ident"); };
+    assert_eq!(name, "row");
+    assert_eq!(args.len(), 1);
+    assert!(args[0].name.is_none(), "positional arg name should be None");
 }
 
 #[test]

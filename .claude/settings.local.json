@@ -41,7 +41,27 @@
       "Bash(pnpm build *)",
       "Bash(node scripts/setup-content.mjs)",
       "Bash(git -C /c/Users/Owner/vox/.claude/worktrees/gallant-shockley-587a69 log --oneline -1)",
-      "Bash(git -C /c/Users/Owner/vox/.claude/worktrees/gallant-shockley-587a69 ls-remote --exit-code origin claude/gallant-shockley-587a69)"
+      "Bash(git -C /c/Users/Owner/vox/.claude/worktrees/gallant-shockley-587a69 ls-remote --exit-code origin claude/gallant-shockley-587a69)",
+      "Bash(xargs wc *)",
+      "Bash(grep -E \"\\\\.rs$\")",
+      "Bash(tasklist)",
+      "Bash(grep -rnE '^\\\\s+\\(panel|row|column|text|button|stack|wrap|heading|link|image|list|list_item|card|overlay|toast|drawer|modal\\)\\\\\\([^\\)]*\\\\\\)$' crates/vox-dashboard/app/src/)",
+      "Bash(grep -n \"^fn \\\\|^pub fn \\\\|^pub\\(crate\\) fn \\\\|^}$\" crates/vox-compiler/src/codegen_ts/hir_emit/mod.rs)",
+      "Bash(grep -rn 'fn tokenize\\\\|fn lex\\\\|\"//\"\\\\|line_comment\\\\|^\\\\s*\"//\"' crates/vox-compiler/src/lexer/token.rs crates/vox-compiler/src/lexer/mod.rs)",
+      "Bash(grep -n '```vox\\\\|<[a-z]\\\\|<[A-Z]\\\\|view:' docs/src/tutorials/tut-ui-integration.md)",
+      "Bash(awk -v BYTE=2433 'BEGIN{c=0} {if\\(c+length\\($0\\)+1 >= BYTE\\){print NR\": \"$0; for\\(i=NR-3;i<NR+5;i++\\) ;exit} c+=length\\($0\\)+1}' examples/golden/inventory_rosetta_platform.vox)",
+      "Bash(sed -n '50,75p' examples/golden/inventory_rosetta_platform.vox)",
+      "Bash(grep \"FAILED$\")",
+      "Bash(awk -F'::' '{print $1}' /tmp/failing.txt)",
+      "Bash(awk '{print $2}')",
+      "Bash(grep -E \"^test result|FAILED$\")",
+      "Bash(grep -v \"^.*//\")",
+      "Bash(awk '{p+=$4; f+=$6; i+=$8} END{print \"passed=\"p\" failed=\"f\" ignored=\"i}')",
+      "Bash(git checkout *)",
+      "Bash(git commit *)",
+      "Bash(gh run *)",
+      "Bash(grep -c \"FAILED$\")",
+      "Bash(VOX_WEB_VITE_SMOKE=1 cargo test -p vox-integration-tests --test web_vite_smoke_test)"
     ]
   }
 }
