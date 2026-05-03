@@ -61,7 +61,7 @@ Vox collapses the common cases. One `@table` declaration becomes a schema, an AP
 
 **Pillar 2: Compile-Time Determinism.** `Result[T]` everywhere. Unhandled error branches are compiler failures — not runtime surprises. Null is not a valid state.
 
-**Pillar 3: Islands Architecture.** Browser interactivity is opt-in at explicit `@island` boundaries. The compiler generates the React lifecycle — none of it appears in your `.vox` source.
+**Pillar 3: React Interop via Components and Endpoints.** Vox compiles `component` declarations to plain React/TSX components and `@endpoint` declarations to a generated `vox-client.ts`. An external React app imports the components or calls the endpoints over RPC — see [architecture/external-frontend-interop-plan-2026](architecture/external-frontend-interop-plan-2026.md).
 
 **Pillar 4: AI-Native Tooling.** `@mcp.tool` exposes any function to Anthropic MCP clients. `workflow` checkpoints survive node death. Local QLoRA fine-tuning via `vox populi` — no Python.
 

@@ -10,8 +10,16 @@ pub struct V0ComponentDecl {
     #[serde(default)]
     pub image_path: Option<String>,
     pub name: String,
-    pub props: Vec<IslandProp>,
+    pub props: Vec<V0Prop>,
     pub span: Span,
+}
+
+/// Prop declaration for a v0 component.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct V0Prop {
+    pub name: String,
+    pub ty: TypeExpr,
+    pub is_optional: bool,
 }
 
 /// Client-side routing declaration.
@@ -132,21 +140,6 @@ pub struct PageDecl {
     pub path: String,
     pub func: FnDecl,
     pub span: Span,
-}
-
-/// React island component stub.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct IslandDecl {
-    pub name: String,
-    pub props: Vec<IslandProp>,
-    pub span: Span,
-}
-/// Prop declaration for an island.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct IslandProp {
-    pub name: String,
-    pub ty: TypeExpr,
-    pub is_optional: bool,
 }
 
 /// Reactive component declaration (Path C reactive model).

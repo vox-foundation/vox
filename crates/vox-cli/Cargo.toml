@@ -93,9 +93,6 @@ coderabbit = [
     "dep:blake3",
     "dep:vox-toestub",
 ]
-# v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
-island = ["dep:dirs"]
-
 # Stub for non-functional inference server when refactoring or debugging.
 # Enables all social platform adapters for publication and diagnostics.
 scientia-social = [

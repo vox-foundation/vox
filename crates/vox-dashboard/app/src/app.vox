@@ -153,7 +153,7 @@ component TaskDispatch() {
                 if is_running { "BUILDING…" } else { "IDLE" }
             }
         }
-        text(size="xs", color="zinc.600") { "Transport bridge: Phase 2 — output streams via @island" }
+        text(size="xs", color="zinc.600") { "Transport bridge: Phase 2 — output streams via React interop" }
     }
 }
 
@@ -257,7 +257,7 @@ component NetworkTab() {
                 }
                 column(items="center", gap=1) {
                     text(size="sm", weight="bold", case="upper", tracking="widest") { "NO MESH DATA" }
-                    text(size="xs") { "Agent graph renders here via @island NetworkGraph (Phase 2)." }
+                    text(size="xs") { "Agent graph renders here via React interop NetworkGraph (Phase 2)." }
                 }
             }
             MeshLegend()

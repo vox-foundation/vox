@@ -40,7 +40,7 @@ Next, we add `@mutation` and `@query` functions to interact with the database.
 
 ## 4. Build the UI
 
-Now, we'll create the frontend using the `@island` decorator. Vox islands use a JSX-like syntax that compiles to high-performance hydrated React components.
+Now, we'll create the frontend using a `component` declaration. Vox components use a JSX-like syntax and compile to plain React/TSX components consumed by the external frontend.
 
 ```tsx
 {{#include ../../../examples/golden/getting_started.vox:ui}}

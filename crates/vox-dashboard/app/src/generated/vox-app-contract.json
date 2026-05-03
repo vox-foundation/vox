@@ -4,7 +4,6 @@
   "server_fns": [],
   "query_fns": [],
   "mutation_fns": [],
-  "islands": [],
   "mcp_tools": [],
   "mcp_resources": [],
   "server_config": {

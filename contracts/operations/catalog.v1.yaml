@@ -4975,32 +4975,6 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
-- id: island
-  title: Island
-  description: CLI operation `vox island`
-  description_human: null
-  product_lane: app
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  canonical_name: null
-  latin_aliases: null
-  mcp: null
-  cli:
-    path:
-    - island
-    status: active
-    latin_ns: null
-    handler_rust: commands::island
-    feature_gate: island
-    catalog_group: null
-    ref_cli_required: true
-    reachability_required: null
 - id: journey.canonical.steps
   title: Journey Canonical Steps
   description: List ordered canonical developer-journey steps from Codex (SSOT `developer_journey_steps`).

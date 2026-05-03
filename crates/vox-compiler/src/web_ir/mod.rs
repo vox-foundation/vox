@@ -7,7 +7,7 @@
 //! ## Schema completeness checklist (OP-0049), by family
 //!
 //! - **DOM ([`DomNode`])** — Phase 1: [`DomNode::Element`], [`DomNode::Text`], [`DomNode::Expr`],
-//!   [`DomNode::IslandMount`]. Structural: [`DomNode::Fragment`], [`DomNode::Slot`],
+//!   Structural: [`DomNode::Fragment`], [`DomNode::Slot`],
 //!   [`DomNode::Conditional`], [`DomNode::Loop`] (validator walks edges when linked from [`WebIrModule::view_roots`]).
 //! - **Behavior ([`BehaviorNode`])** — state / derived / effect / handlers / actions; lowering must preserve
 //!   names for codegen binding (`validate` will deepen).
@@ -93,7 +93,7 @@ pub struct ScheduledJobSpec {
 /// target requires one) should surface as `WebIrDiagnostic` at validate/emit, not silent defaults.
 ///
 /// **Validator (OP-S011 / OP-S017):** the behavior stage of [`validate_web_ir`](validate::validate_web_ir) rejects
-/// `Required` [`BehaviorNode::StateDecl`] rows with no `initial`; `Optional` / `Defaulted` deepen with islands + emit caps.
+/// `Required` [`BehaviorNode::StateDecl`] rows with no `initial`; `Optional` / `Defaulted` deepen with emit caps.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum FieldOptionality {
     /// Must have a concrete lowered value before codegen (see `web_ir_validate.behavior.required_state_without_initial`).
@@ -170,16 +170,6 @@ pub enum DomNode {
         /// Iterator binding placeholder.
         iterator: String,
         body: Vec<DomNodeId>,
-        span: Option<SourceSpanId>,
-    },
-    /// Island SSR/hydration mount point (OP-0057 V1): `island_name` matches HIR `@island`; `props`
-    /// align with `data-prop-*` attrs; `ignored_child_count` mirrors JSX child strip count in `hir_emit`.
-    IslandMount {
-        island_name: String,
-        /// Maps to `data-prop-*` compatibility surface (Phase 1..2).
-        props: Vec<(String, String)>,
-        /// Nested JSX children under an `@island` tag are ignored by hydration (same as `hir_emit`).
-        ignored_child_count: u32,
         span: Option<SourceSpanId>,
     },
     /// Dynamic TypeScript/JSX fragment already in render position (lowering fallback / expression leaf).
@@ -353,7 +343,6 @@ pub struct WebIrValidateMetrics {
     pub route_contract_ids_checked: usize,
     pub behavior_nodes_checked: usize,
     pub style_nodes_checked: usize,
-    pub island_mounts_checked: usize,
     pub scheduled_jobs_checked: usize,
 }
 
@@ -459,7 +448,7 @@ pub struct WebIrDiagnostic {
     pub code: String,
     pub message: String,
     pub span: Option<SourceSpanId>,
-    /// Dashboard facet, e.g. `dom`, `route`, `behavior`, `style`, `island`, `lower`.
+    /// Dashboard facet, e.g. `dom`, `route`, `behavior`, `style`, `lower`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
 }

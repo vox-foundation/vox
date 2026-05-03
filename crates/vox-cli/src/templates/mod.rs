@@ -6,11 +6,9 @@
 //! **file-route** Start path (no `routes:`), run **`pnpm run routes:gen`** after changing
 //! `src/routes/**` to refresh `routeTree.gen.ts` via `tsr` from **`@tanstack/router-cli`**.
 
-mod islands;
 pub mod mobile_pwa;
 mod spa;
 mod tanstack;
 
-pub use islands::*;
 pub use spa::*;
 pub use tanstack::*;

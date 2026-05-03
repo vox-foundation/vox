@@ -101,7 +101,7 @@ All training pairs follow this JSONL schema (must match across all tools):
 **Lab / Burn scratch:** `vox-tensor` exposes a **deterministic small `VoxTokenizer`** (not a mirror of the Vox lexer keyword set):
 
 - **95 printable ASCII characters** (IDs 3-97)
-- **35 Vox compound tokens** (workflow, actor, fn , @island, etc.)
+- **35 Vox compound tokens** (workflow, actor, fn, component, etc.)
 - **3 control tokens**: `[PAD]=0`, `[UNK]=1`, `[EOS]=2`
 - **Total vocab**: 133 tokens
 

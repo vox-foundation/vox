@@ -106,7 +106,6 @@ training_eligible: false
 - [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](2026-05-01-orchestrator-stage1-stage2.md)
 - [Phase 1: Build Target Split Spec (2026)](phase1-build-targets-spec-2026.md)
 - [Phase 3: HTTP Ergonomics Decorators Spec (2026)](phase3-http-ergonomics-spec-2026.md)
-- [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](phase5-react-interop-spec-2026.md)
 
 ## Status: Deprecated
 

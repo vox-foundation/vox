@@ -11,8 +11,6 @@ pub mod component;
 pub mod emitter;
 /// Shared HIR → TS emission (reactive, routes, activities).
 pub mod hir_emit;
-/// `@island` mount-point helpers (`data-vox-island`).
-pub mod island_emit;
 /// JSX lowering and attribute handling.
 pub mod jsx;
 /// Reactive components codegen (Path C).

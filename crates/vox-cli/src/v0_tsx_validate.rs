@@ -3,7 +3,7 @@
 //! Performs a lightweight regex-based JSX element scan and feeds the result
 //! into the Web IR a11y validator (`validate_a11y`).  No full parse tree is
 //! required — we only need enough structure to surface the most common a11y
-//! violations before the generated file is committed to `islands/src/`.
+//! violations before the generated file is committed to the project.
 //!
 //! ## What is checked
 //!

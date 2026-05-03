@@ -25,7 +25,7 @@ export function TaskDispatch(): React.ReactElement {
 </div>
   <p className={["text-xs", "text-zinc-600"].filter(Boolean).join(" ")}
 >
-  {"Transport bridge: Phase 2 — output streams via @island"}
+  {"Transport bridge: Phase 2 — output streams via React interop"}
 </p>
 </div>
   );

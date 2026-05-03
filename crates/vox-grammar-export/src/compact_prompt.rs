@@ -84,7 +84,7 @@ pub fn emit_compact_llm_prompt() -> String {
     p.push_str("@table type Name { field: Type, ... }\n");
     p.push_str("@index Table.idx on (col1, col2)\n\n");
 
-    // ── Components & Islands ────────────────────────────────────────────
+    // ── Components ──────────────────────────────────────────────────────
     p.push_str("== Components ==\n");
     p.push_str("component Name(props) {\n");
     p.push_str("  state x: Type = init\n");
@@ -93,7 +93,6 @@ pub fn emit_compact_llm_prompt() -> String {
     p.push_str("  view: <jsx />\n");
     p.push_str("}\n");
     p.push_str("@component fn Name()    // RETIRED — produces hard error\n");
-    p.push_str("@island Name { prop?: Type, ... }\n");
     p.push_str("@v0 \"prompt\" fn Name() to Element\n\n");
 
     // ── JSX ─────────────────────────────────────────────────────────────
@@ -199,7 +198,6 @@ mod tests {
             "@table",
             "@index",
             "component",
-            "@island",
             "@v0",
             "http",
             "routes",

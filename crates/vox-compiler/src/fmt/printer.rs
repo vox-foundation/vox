@@ -185,31 +185,6 @@ impl Printer {
                 self.dedent();
             }
             Decl::Environment(e) => self.print_environment(e),
-            Decl::Island(isle) => {
-                self.write_indent();
-                self.out.push_str("@island ");
-                self.out.push_str(&isle.name);
-                self.out.push_str(
-                    " {
-",
-                );
-                if !isle.props.is_empty() {
-                    self.indent();
-                    for p in &isle.props {
-                        self.write_indent();
-                        self.out.push_str(&p.name);
-                        if p.is_optional {
-                            self.out.push('?');
-                        }
-                        self.out.push_str(": ");
-                        self.print_type(&p.ty);
-                        self.out.push('\n');
-                    }
-                    self.dedent();
-                }
-                self.write_indent();
-                self.out.push('}');
-            }
             Decl::ReactiveComponent(r) => self.print_reactive_component(r),
             Decl::V0Component(v) => self.print_v0_component(v),
             _ => {}

@@ -139,8 +139,8 @@ fn checkout(amount: int) to Result[str] {
 
 ## Components (Vox-native reactivity, default for greenfield)
 Per ADR 027, greenfield UI uses `component` / `state_machine` / `routes`. The
-classic `@component fn` and `@island` are reserved for explicit React/TanStack
-interop and require a `// @track: react-interop` file header.
+classic `@component fn` is reserved for explicit React/TanStack interop and
+requires a `// @track: react-interop` file header.
 ```
 component Counter() {
     state count: int = 0

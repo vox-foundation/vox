@@ -89,7 +89,7 @@ fn top_level_product_lane(path: &[String]) -> Option<&'static str> {
     match path.first().map(String::as_str) {
         Some(
             "build" | "check" | "test" | "run" | "dev" | "bundle" | "fmt" | "lsp" | "completions"
-            | "fabrica" | "island",
+            | "fabrica",
         ) => Some("app"),
         Some("script" | "populi") => Some("workflow"),
         Some("mens" | "dei" | "review" | "recensio" | "oratio" | "speech" | "train" | "live") => {

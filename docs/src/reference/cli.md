@@ -66,7 +66,7 @@ The command registry also carries a separate **`product_lane`** value used for b
 
 | `product_lane` | Meaning | Representative commands |
 |----------------|---------|-------------------------|
-| `app` | typed app construction | `vox build`, `vox run`, `vox deploy`, `vox island` |
+| `app` | typed app construction | `vox build`, `vox run`, `vox deploy` |
 | `workflow` | automation and background execution | `vox script`, `vox populi` |
 | `ai` | generation, review, eval, orchestration | `vox mens`, `vox review`, `vox dei`, `vox oratio` |
 | `interop` | approved integration surfaces | `vox openclaw`, `vox skill`, `vox share` |
@@ -125,19 +125,13 @@ Compile a `.vox` source file.
 
 **Also writes** generated **Rust** under `target/generated/` (backend crate). If the module declares `@v0` UI components and output files are missing, the CLI invokes Vercel's `npx v0 add` sidecar process.
 
-### `vox island …` (feature `island`)
+### `vox island …` (retired 2026-05-03)
 
-**Not in default builds.** `cargo build -p vox-cli --features island` (often add default stack: e.g. `--features island,mens-base` if you used `--no-default-features`).
-
-| Subcommand | Role |
-|------------|------|
-| `generate <NAME> --prompt '…'` | Calls v0.dev (needs **`V0_API_KEY`**), writes `islands/src/<NAME>/<NAME>.component.tsx`, prints or injects an `@island` stub (`--target file.vox`). Cache: `~/.vox/island-cache/`; `--force` bypasses cache. |
-| `upgrade <NAME> --prompt '…'` | Re-generates from existing TSX + instructions (always hits API). |
-| `list` | Scans `islands/src/` and `Vox.toml [islands]` (`--json`). |
-| `add <component>` | Runs `npx shadcn@latest add` in `islands/` (optional `--from` `.vox` path for `@shadcn` line). Kebab-case registry names get a **PascalCase** import alias (e.g. `dropdown-menu` → `DropdownMenu`). |
-| `cache list \| clear \| remove <NAME>` | Manage the local island cache. |
-
-**First run:** if **`islands/package.json`** is missing, `generate`, `upgrade`, `add`, and the build step **bootstrap** a minimal Vite + React tree under **`islands/`** (then **`pnpm install`** / **`pnpm run build`**). Requires **pnpm** on `PATH` (same as `vox run`’s frontend step). Use **`--no-build`** on generate/upgrade to skip the Vite build.
+The `vox island` subcommand was retired with the rest of the islands surface; UI now
+ships as plain React/TSX components emitted from `component` declarations and consumed
+by an external React frontend. See
+[architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).
+For AI-generated React components use `@v0` directly inside `.vox` source.
 
 ### `vox generate` (HTTP inference) vs MCP codegen
 
@@ -160,7 +154,7 @@ Top-level **`vox generate`** (`crates/vox-cli/src/commands/generate.rs`) posts t
 
 Backend listens on the port from **`VOX_PORT`** (or **3000**) — same variable the generated `main.rs` reads.
 
-**pnpm workspace (repo root):** when the scaffold wrote **`pnpm-workspace.yaml`** at the repository root (for example **`islands/`** plus **`dist/.../app`**), run **`pnpm install`** once from that root so workspace packages link correctly, then use per-package **`pnpm run build`** / **`pnpm run dev`** as needed. See [tanstack-web-backlog.md](../archive/research-2026-q1/tanstack-web-backlog.md) Phase 3.
+**pnpm workspace (repo root):** when the scaffold wrote **`pnpm-workspace.yaml`** at the repository root (for example **`dist/.../app`** plus other packages), run **`pnpm install`** once from that root so workspace packages link correctly, then use per-package **`pnpm run build`** / **`pnpm run dev`** as needed. See [tanstack-web-backlog.md](../archive/research-2026-q1/tanstack-web-backlog.md) Phase 3.
 
 ### `vox script <file> [-- <args>…]` (feature `script-execution`)
 
@@ -807,7 +801,6 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `oratio` | `oratio` | `commands::oratio_cmd` |
 | `speech` | `oratio` | `commands::oratio_cmd` (visible alias of `oratio`) |
 | `review` | `coderabbit` | `commands::review` |
-| `island` | `island` | `commands::island` |
 | `train` | `gpu` + `mens-dei` | `commands::ai::train` |
 | `dei` | `dei` | `commands::dei` (alias `orchestrator`) |
 

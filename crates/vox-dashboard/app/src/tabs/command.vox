@@ -3,7 +3,7 @@
 // Components:
 //   - DiagnosticRow    — single compiler diagnostic entry (severity + message)
 //   - DiagnosticsPanel — scrollable list of diagnostics
-//   - TaskDispatch     — run/clear controls (transport via @island Phase 2)
+//   - TaskDispatch     — run/clear controls (transport via React interop Phase 2)
 //   - CommandTab       — root tab with panel switcher
 //
 // State machines:
@@ -83,7 +83,7 @@ component TaskDispatch() {
                 if is_running { "BUILDING…" } else { "IDLE" }
             }
         }
-        text(size="xs", color="zinc.600") { "Transport bridge: Phase 2 — output streams via @island" }
+        text(size="xs", color="zinc.600") { "Transport bridge: Phase 2 — output streams via React interop" }
     }
 }
 

@@ -763,36 +763,6 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
-  - name: "VOX_ISLAND_MOUNT_V2"
-    owner_crate: "vox-cli"
-    kind: "string"
-    required: false
-    introduced_in: "0.3.0"
-    description: "TODO"
-  - name: "VOX_ISLAND_MOUNT_V2_STUB"
-    owner_crate: "vox-cli"
-    kind: "string"
-    required: false
-    introduced_in: "0.3.0"
-    description: "TODO"
-  - name: "VOX_ISLAND_MOUNT_V2_STUB_MESSAGE"
-    owner_crate: "vox-cli"
-    kind: "string"
-    required: false
-    introduced_in: "0.3.0"
-    description: "TODO"
-  - name: "VOX_ISLAND_NAMES"
-    owner_crate: "vox-compiler"
-    kind: "string"
-    required: false
-    introduced_in: "0.3.0"
-    description: "TODO"
-  - name: "VOX_ISLANDS_V1_METRICS"
-    owner_crate: "vox-cli"
-    kind: "string"
-    required: false
-    introduced_in: "0.3.0"
-    description: "TODO"
   - name: "VOX_JOB_KIND"
     owner_crate: "vox-populi"
     kind: "string"
