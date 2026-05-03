@@ -120,7 +120,7 @@ component T() {
         HirReactiveMember::State(s) => s.name.clone(),
         _ => panic!("expected state member"),
     };
-    let legacy = emit_hir_expr(view, &HashSet::from([state_name]), &HashSet::new());
+    let legacy = emit_hir_expr(view, &HashSet::from([state_name]));
     let web = lower_hir_to_web_ir(&hir);
     let validate_diags = validate_web_ir(&web);
     assert!(validate_diags.is_empty(), "validate_web_ir: {validate_diags:?}");
@@ -139,21 +139,6 @@ component T() {
             "expected WebIrViewEmitted after parity match; after={after:?}"
         );
     });
-}
-
-#[test]
-fn pipeline_optional_island_prop_lowers_with_optional_flag() {
-    let tokens = lex(MIXED_SURFACE_SRC);
-    let module = parse(tokens).expect("parse");
-    let hir = vox_compiler::hir::lower_module(&module);
-    assert_eq!(hir.islands.len(), 1);
-    let width = hir.islands[0]
-        .0
-        .props
-        .iter()
-        .find(|p| p.name == "width")
-        .expect("width?: int on Chart");
-    assert!(width.is_optional, "{width:?}");
 }
 
 #[test]

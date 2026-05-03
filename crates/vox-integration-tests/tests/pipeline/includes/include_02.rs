@@ -151,62 +151,9 @@ fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
         let stats = out.reactive_stats;
         assert!(
             stats.web_ir_view_emitted >= 1,
-            "expected Web IR preview for reactive Dash (island prop order matches legacy); stats={stats:?}"
+            "expected Web IR preview for reactive Dash; stats={stats:?}"
         );
     });
-}
-
-// island_demo.vox
-const ISLAND_DEMO_SRC: &str = r#"@island InteractiveChart {
-    data: str
-    title: str
-    width?: int
-}
-
-@island SearchWidget {
-    placeholder: str
-    endpoint: str
-}
-
-component IslandHost() {
-    view: (
-        <div class="island_host">
-            <h1>"Islands Demo"</h1>
-        </div>
-    )
-}
-
-routes {
-    "/" to IslandHost
-}
-"#;
-
-#[test]
-fn pipeline_island_parse() {
-    let tokens = lex(ISLAND_DEMO_SRC);
-    let module = parse(tokens).expect("island_demo should parse");
-    // 2 islands + 1 component + 1 routes
-    assert_eq!(module.declarations.len(), 4);
-}
-
-#[test]
-fn pipeline_island_codegen() {
-    let tokens = lex(ISLAND_DEMO_SRC);
-    let module = parse(tokens).unwrap();
-    let hir = vox_compiler::hir::lower_module(&module);
-    let output = generate(&hir).unwrap();
-    let filenames: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
-    assert!(
-        filenames.contains(&"vox-islands-meta.ts"),
-        "Should produce vox-islands-meta.ts, got: {:?}",
-        filenames
-    );
-    let meta = output
-        .files
-        .iter()
-        .find(|(n, _)| n == "vox-islands-meta.ts")
-        .unwrap();
-    insta::assert_snapshot!("islands_meta_ts_interactive_search", meta.1);
 }
 
 // v0_component.vox
