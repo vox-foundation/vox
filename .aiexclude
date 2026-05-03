@@ -1,12 +1,14 @@
 # .aiexclude — DERIVED from .voxignore (SSOT)
 # Consumed by Gemini/Android Studio Code Assist
 # DO NOT EDIT DIRECTLY. Run `vox ci sync-ignore-files` to regenerate.
-# See: docs/src/archive/research-2026-q1/multi-repo-context-isolation-research-2026.md §3
+# See: docs/src/architecture/multi-repo-context-isolation-research-2026.md §3
 
 #
+# .aiexclude directly. Edit this file, then run:
 #
 #
 #
+# GitHub Settings → Copilot → Content exclusion. See docs/agents/copilot-exclusions.md
 
 # === ARCHIVED SURFACES ===
 # CRITICAL LLM GUARD: The following directories contain deprecated, retired,
@@ -28,7 +30,6 @@ __pycache__/
 .cache/
 .cargo-targets/
 crates/*/pkg/
-islands/
 .vox_modules/
 docs-astro/node_modules/
 docs-astro/dist/
