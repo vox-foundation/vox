@@ -1,0 +1,21 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+expression: ts
+---
+import React from "react";
+
+export interface KeyHintProps {
+  text: string;
+}
+
+export function KeyHint({ text }: KeyHintProps): React.ReactElement {
+  return (
+<div className={["border", "border-white/15", "rounded-sm", "px-1", "bg-white/5", "h-5 inline-flex items-center"].filter(Boolean).join(" ")}
+>
+  <p className={["text-xs", "font-mono", "text-zinc-400"].filter(Boolean).join(" ")}
+>
+  {text}
+</p>
+</div>
+  );
+}

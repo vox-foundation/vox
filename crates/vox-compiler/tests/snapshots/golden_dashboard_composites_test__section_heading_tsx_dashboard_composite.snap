@@ -1,0 +1,21 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+expression: ts
+---
+import React from "react";
+
+export interface SectionHeadingProps {
+  title: string;
+}
+
+export function SectionHeading({ title }: SectionHeadingProps): React.ReactElement {
+  return (
+<div className={["flex", "flex-row", "px-4", "py-2", "border-b-true", "border-white/10", "flex justify-between", "flex items-center", "shrink-0", "bg-zinc-900/50"].filter(Boolean).join(" ")}
+>
+  <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-400"].filter(Boolean).join(" ")}
+>
+  {title}
+</p>
+</div>
+  );
+}

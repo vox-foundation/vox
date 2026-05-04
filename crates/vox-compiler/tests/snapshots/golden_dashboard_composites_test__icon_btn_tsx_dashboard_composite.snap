@@ -1,0 +1,23 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+expression: ts
+---
+import React from "react";
+
+export interface IconBtnProps {
+  icon: string;
+  size: number;
+  on_click: any;
+}
+
+export function IconBtn({ icon, size, on_click }: IconBtnProps): React.ReactElement {
+  return (
+<button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "rounded-lg", "bg-white/5", "text-zinc-400", "border", "border-white/10", "flex items-center justify-center hover:bg-white/10"].filter(Boolean).join(" ")} w={size} h={size} onClick={on_click}
+>
+  <p className={["text-xs", "font-mono"].filter(Boolean).join(" ")}
+>
+  {icon}
+</p>
+</button>
+  );
+}
