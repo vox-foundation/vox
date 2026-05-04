@@ -1,0 +1,17 @@
+[plugin]
+id = "skill-git"
+name = "Vox Git Skill"
+version = "0.1.0"
+description = "Agent-facing skill describing Vox git integration tools."
+license = "Apache-2.0"
+
+[plugin.host]
+min-vox-version = "0.5.0"
+
+[plugin.payload]
+kind = "skill"
+format-version = 1
+skill-md = "git.skill.md"
+
+[plugin.payload.tools]
+exposes = ["vox_git_status", "vox_git_diff", "vox_git_resolve_conflict"]

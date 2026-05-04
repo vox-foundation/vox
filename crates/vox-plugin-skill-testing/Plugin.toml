@@ -1,0 +1,17 @@
+[plugin]
+id = "skill-testing"
+name = "Vox Testing Skill"
+version = "0.1.0"
+description = "Agent-facing skill for test-runner integration."
+license = "Apache-2.0"
+
+[plugin.host]
+min-vox-version = "0.5.0"
+
+[plugin.payload]
+kind = "skill"
+format-version = 1
+skill-md = "testing.skill.md"
+
+[plugin.payload.tools]
+exposes = ["vox_test_run", "vox_test_select"]

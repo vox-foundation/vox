@@ -1,7 +1,17 @@
 [workspace]
 resolver = "2"
 members = ["crates/*","crates/workspace-hack"]
-exclude = ["crates/vox-plugin-noop-skill", "crates/vox-plugin-skill-compiler"]
+exclude = [
+    "crates/vox-plugin-noop-skill",
+    "crates/vox-plugin-skill-compiler",
+    "crates/vox-plugin-skill-git",
+    "crates/vox-plugin-skill-memory",
+    "crates/vox-plugin-skill-orchestrator",
+    "crates/vox-plugin-skill-rag",
+    "crates/vox-plugin-skill-testing",
+    "crates/vox-plugin-skill-testing-validate",
+    "crates/vox-plugin-skill-v0",
+]
 default-members = ["crates/vox-cli"]
 
 [workspace.package]
