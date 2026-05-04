@@ -4,10 +4,6 @@
 // VUV primitive set (panel, row, column, text, button). No new compiler-level
 // primitives are introduced.
 //
-// VUV parser note: `else if` chains inside kwarg values are not supported by
-// the current parser. All multi-branch conditionals use nested `else { if }`
-// instead, which is equivalent and fully supported.
-//
 // Status color semantics (consistent with tokens.vox):
 //   running / ok / ready      → emerald.400
 //   warn / blocked / pending  → amber.400
@@ -27,27 +23,27 @@ component StateChip(status: str, label: str = "", dim: bool = false) {
         pad_x=2, pad_y=0,
         radius="full",
         bg=if dim { "white/5" }
-           else { if (status is "running" or status is "ok" or status is "ready") { "emerald.400/15" }
-                  else { if (status is "warn" or status is "blocked" or status is "pending") { "amber.400/15" }
-                         else { if (status is "error" or status is "failed" or status is "errored") { "rose.500/15" }
-                                else { "white/5" } } } },
+           else if (status is "running" or status is "ok" or status is "ready") { "emerald.400/15" }
+           else if (status is "warn" or status is "blocked" or status is "pending") { "amber.400/15" }
+           else if (status is "error" or status is "failed" or status is "errored") { "rose.500/15" }
+           else { "white/5" },
         raw_class="h-5 inline-flex"
     ) {
         panel(
             w=1, h=1, radius="full",
             bg=if dim { "zinc.600" }
-               else { if (status is "running" or status is "ok" or status is "ready") { "emerald.400" }
-                      else { if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" }
-                             else { if (status is "error" or status is "failed" or status is "errored") { "rose.500" }
-                                    else { "zinc.600" } } } }
+               else if (status is "running" or status is "ok" or status is "ready") { "emerald.400" }
+               else if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" }
+               else if (status is "error" or status is "failed" or status is "errored") { "rose.500" }
+               else { "zinc.600" }
         )
         text(
             size="xs", font_family="mono", tracking="widest", case="upper",
             color=if dim { "zinc.500" }
-                  else { if (status is "running" or status is "ok" or status is "ready") { "emerald.400" }
-                         else { if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" }
-                                else { if (status is "error" or status is "failed" or status is "errored") { "rose.400" }
-                                       else { "zinc.500" } } } }
+                  else if (status is "running" or status is "ok" or status is "ready") { "emerald.400" }
+                  else if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" }
+                  else if (status is "error" or status is "failed" or status is "errored") { "rose.400" }
+                  else { "zinc.500" }
         ) { if label is "" { status } else { label } }
     }
 }
@@ -66,10 +62,10 @@ component NodeBadge(id: str, status: str, role: str = "", dim: bool = false) {
         panel(
             w=2, h=2, radius="full",
             bg=if dim { "zinc.600" }
-               else { if (status is "running" or status is "ok" or status is "ready") { "emerald.400" }
-                      else { if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" }
-                             else { if (status is "error" or status is "failed" or status is "errored") { "rose.500" }
-                                    else { "zinc.600" } } } }
+               else if (status is "running" or status is "ok" or status is "ready") { "emerald.400" }
+               else if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" }
+               else if (status is "error" or status is "failed" or status is "errored") { "rose.500" }
+               else { "zinc.600" }
         )
         column(gap=0) {
             text(size="xs", font_family="mono", color="white/80") { id }

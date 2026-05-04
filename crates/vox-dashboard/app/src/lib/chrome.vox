@@ -6,9 +6,8 @@
 //   StatusBar — 26px-tall persistent footer with 5 segments + cost/time right side
 //   Shell     — full-surface wrapper composing the three chrome pieces
 //
-// VUV parser notes (known gaps — see Phase 1 batch 1 report):
-//   • `else if` chains in kwarg position are not supported; all multi-branch
-//     conditionals use nested `else { if }` instead.
+// VUV parser notes:
+//   • `else if` chains are fully supported in all positions (fixed in Phase 1 Batch 3).
 //   • `on` is a reserved keyword; callbacks are named `on_click`, `on_nav`,
 //     `on_cmdk` etc. — never the bare word `on`.
 //   • `fn() -> ()` return-type annotation is deprecated; use `fn()` throughout.
@@ -30,29 +29,15 @@
 
 component NavIcon(name: str) {
     view: text(size="xs", font_family="mono", color="inherit", raw_class="w-4 h-4 flex items-center justify-center select-none") {
-        if name is "speak" { "◉" }
-        else {
-            if name is "mesh" { "◈" }
-            else {
-                if name is "forge" { "◧" }
-                else {
-                    if name is "code" { "▤" }
-                    else {
-                        if name is "models" { "◎" }
-                        else {
-                            if name is "runs" { "▶" }
-                            else {
-                                if name is "settings" { "⚙" }
-                                else {
-                                    if name is "search" { "◌" }
-                                    else { "·" }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        if name is "speak"    { "◉" }
+        else if name is "mesh"     { "◈" }
+        else if name is "forge"    { "◧" }
+        else if name is "code"     { "▤" }
+        else if name is "models"   { "◎" }
+        else if name is "runs"     { "▶" }
+        else if name is "settings" { "⚙" }
+        else if name is "search"   { "◌" }
+        else { "·" }
     }
 }
 
