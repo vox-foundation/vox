@@ -51,6 +51,16 @@ pub fn current_target_triple_key() -> &'static str {
     return "unknown";
 }
 
+/// Convenience wrapper: discover the plugin install root, build the registry, and load a
+/// code plugin by id in a single call.
+///
+/// For one-off dispatches from async contexts, wrap in `tokio::task::spawn_blocking`.
+pub fn load_code_plugin_by_id(plugin_id: &str) -> Result<LoadedCodePlugin, errors::LoadError> {
+    let install_root = resolve_plugins_root();
+    let registry = discover(&install_root)?;
+    load_code_plugin(&registry, plugin_id)
+}
+
 /// Discover the given plugin in `registry`, resolve the dylib path for the current target
 /// triple, and load it via [`Loader`].
 ///
