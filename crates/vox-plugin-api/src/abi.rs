@@ -7,6 +7,7 @@
 //! `as_*` accessors are added in SP3+ as their respective traits land.
 
 use crate::extensions::audio_capture::AudioCapture_TO;
+use crate::extensions::browser_automation::BrowserAutomation_TO;
 use crate::extensions::cloud_sync::CloudSync_TO;
 use crate::extensions::hardware_probe::HardwareProbe_TO;
 use crate::extensions::mesh_driver::MeshDriver_TO;
@@ -88,6 +89,12 @@ pub trait VoxPlugin: Send + Sync {
     /// Optional accessor: if this plugin provides a ScriptExecutor implementation,
     /// return Some(trait object). Default impl returns None.
     fn as_script_executor(&self) -> ROption<ScriptExecutor_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
+
+    /// Optional accessor: if this plugin provides a BrowserAutomation implementation,
+    /// return Some(trait object). Default impl returns None.
+    fn as_browser_automation(&self) -> ROption<BrowserAutomation_TO<'static, RBox<()>>> {
         ROption::RNone
     }
 }
