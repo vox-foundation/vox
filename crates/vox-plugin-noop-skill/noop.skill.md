@@ -1,7 +1,10 @@
 ---
-id: noop-skill
-name: Noop Skill
-version: 0.1.0
+name = "noop-skill"
+description = "No-op test fixture skill used by vox-plugin-host integration tests."
+
+[metadata]
+"vox-id" = "noop-skill"
+"vox-version" = "0.1.0"
 ---
 
 # Noop Skill

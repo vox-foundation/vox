@@ -1,13 +1,15 @@
 ---
-id = "vox.testing"
-name = "Vox Testing"
-version = "0.1.0"
-author = "vox-team"
+name = "skill-testing"
 description = "Runs tests, displays coverage summaries, and validates test output for Vox crates."
-category = "testing"
-tools = ["vox_run_tests", "vox_test_all"]
-tags = ["test", "coverage", "ci", "validation"]
-permissions = ["read_files", "shell_exec"]
+
+[metadata]
+"vox-id" = "vox.testing"
+"vox-version" = "0.1.0"
+"vox-author" = "vox-team"
+"vox-category" = "testing"
+"vox-tools" = ["vox_run_tests", "vox_test_all"]
+"vox-tags" = ["test", "coverage", "ci", "validation"]
+"vox-permissions" = ["read_files", "shell_exec"]
 ---
 
 # Vox Testing Skill

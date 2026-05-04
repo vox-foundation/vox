@@ -1,13 +1,15 @@
 ---
-id = "vox.git"
-name = "Vox Git"
-version = "0.1.0"
-author = "vox-team"
+name = "skill-git"
 description = "Git workflow assistance: status, diff, commit messaging, branch management, and file ownership."
-category = "git"
-tools = ["vox_my_files", "vox_claim_file", "vox_transfer_file", "vox_check_file_owner"]
-tags = ["git", "version-control", "branch", "diff", "commit"]
-permissions = ["read_files", "write_files", "shell_exec"]
+
+[metadata]
+"vox-id" = "vox.git"
+"vox-version" = "0.1.0"
+"vox-author" = "vox-team"
+"vox-category" = "git"
+"vox-tools" = ["vox_my_files", "vox_claim_file", "vox_transfer_file", "vox_check_file_owner"]
+"vox-tags" = ["git", "version-control", "branch", "diff", "commit"]
+"vox-permissions" = ["read_files", "write_files", "shell_exec"]
 ---
 
 # Vox Git Skill

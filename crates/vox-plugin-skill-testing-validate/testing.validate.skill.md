@@ -1,13 +1,15 @@
 ---
-id = "vox.testing.validate"
-name = "Vox Testing 5-Stage Delivery Gate"
-version = "0.1.0"
-author = "vox-team"
+name = "skill-testing-validate"
 description = "Executes the 5-stage delivery gate pipeline to autonomously validate and heal Vox code."
-category = "testing"
-tools = ["vox_test"]
-tags = ["test", "validation", "self-healing", "ars"]
-permissions = ["read_files", "write_files", "shell_exec", "ai_invoke"]
+
+[metadata]
+"vox-id" = "vox.testing.validate"
+"vox-version" = "0.1.0"
+"vox-author" = "vox-team"
+"vox-category" = "testing"
+"vox-tools" = ["vox_test"]
+"vox-tags" = ["test", "validation", "self-healing", "ars"]
+"vox-permissions" = ["read_files", "write_files", "shell_exec", "ai_invoke"]
 ---
 
 # Vox Testing Delivery Gate
