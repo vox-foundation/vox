@@ -122,7 +122,7 @@ Extends: `vox-fullstack`
 - `nvml-probe` — NVIDIA GPU hardware probe via NVML (device count, VRAM, utilization, temperature).
 - `populi-mesh` — Populi mesh transport + the agent skill that documents it.
 - `cloud` — Cloud sync provider (Mens cloud + Populi cloud).
-- `oratio` — Audio capture and pipeline integration (Oratio).
+- `oratio` — Audio capture + speech-to-text (Candle Whisper).
 - `oratio-mic` — Microphone input adapter for Oratio.
 - `script-execution` — Script execution sandbox for `.vox run` and similar.
 - `browser` — Chrome DevTools Protocol browser automation via chromiumoxide.

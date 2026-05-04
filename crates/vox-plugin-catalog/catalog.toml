@@ -37,8 +37,8 @@ bundled-in = ["vox-ml", "vox-dev"]
 [[plugin]]
 id = "oratio"
 payload-kind = "code"
-description = "Audio capture and pipeline integration (Oratio)."
-extension-points = ["AudioCapture"]
+description = "Audio capture + speech-to-text (Candle Whisper)."
+extension-points = ["AudioCapture", "SpeechToText"]
 default-source = "github:vox-foundation/vox-plugin-oratio"
 bundled-in = ["vox-dev"]
 

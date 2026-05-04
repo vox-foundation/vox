@@ -21,7 +21,7 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 | `nvml-probe` | `HardwareProbe` | `local:crates/vox-plugin-nvml-probe` | `vox-ml`, `vox-dev` |
 | `mens-candle-cuda` | `MlBackend` | `github:vox-foundation/vox-plugin-mens-candle-cuda` | `vox-ml`, `vox-dev` |
 | `tensor-burn-wgpu` | `TensorBackend` | `github:vox-foundation/vox-plugin-tensor-burn-wgpu` | `vox-ml`, `vox-dev` |
-| `oratio` | `AudioCapture` | `github:vox-foundation/vox-plugin-oratio` | `vox-dev` |
+| `oratio` | `AudioCapture`, `SpeechToText` | `github:vox-foundation/vox-plugin-oratio` | `vox-dev` |
 | `oratio-mic` | `AudioCapture` | `github:vox-foundation/vox-plugin-oratio-mic` | `vox-dev` |
 | `cloud` | `CloudSync` | `github:vox-foundation/vox-plugin-cloud` | `vox-mesh`, `vox-cloud-only`, `vox-dev` |
 | `script-execution` | `ScriptExecutor` | `github:vox-foundation/vox-plugin-script-execution` | `vox-dev` |
