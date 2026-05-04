@@ -1,23 +1,59 @@
 //! PopuliMeshPlugin — composite plugin's code side.
 //!
-//! # Stub status
-//!
-//! All MeshDriver methods below are stubbed with "not yet implemented" errors.
-//! The real implementation requires porting vox-populi's `transport` feature
-//! module (~2000+ LOC: HTTP control plane, A2A dispatch, node registry, TLS,
-//! federation). That work is deferred to a follow-up batch under
-//! "vox-populi-as-plugin extraction" (see plugin-system-redesign-sp1-plan-2026.md).
+//! Implements [`MeshDriver`] by delegating to the ported transport layer
+//! (`crate::transport`). The HTTP control plane is hosted in a background
+//! tokio runtime started by [`MeshDriver::start_transport`].
+
+use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 
 use abi_stable::{erased_types::TD_Opaque, std_types::*};
 use vox_plugin_api::abi::VoxPlugin;
 use vox_plugin_api::extensions::mesh_driver::{MeshDriver, MeshDriver_TO};
 
+use crate::transport::{PopuliTransportState, serve};
+
+/// Configuration JSON for `start_transport`.
+///
+/// Example: `{"addr":"127.0.0.1:9847"}`
+#[derive(serde::Deserialize)]
+struct MeshStartConfig {
+    /// Socket address to bind (e.g. `"127.0.0.1:9847"`).
+    #[serde(default = "default_addr")]
+    addr: String,
+}
+
+fn default_addr() -> String {
+    "127.0.0.1:9847".to_string()
+}
+
+/// Shared interior state for the running transport server.
+struct PluginState {
+    /// Handle to the tokio runtime hosting the control plane.
+    runtime: tokio::runtime::Runtime,
+    /// Shutdown sender — drop or send to initiate graceful stop.
+    shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
+    /// Bound address (populated after `start_transport`).
+    bound_addr: Option<SocketAddr>,
+    /// Client base URL for dispatch / join / list operations.
+    client_base: Option<String>,
+}
+
+/// The plugin object (cdylib entry point).
+///
+/// `PopuliMeshPlugin` is `Clone` (required by abi_stable `TD_Opaque` wrapping)
+/// and internally shares state via `Arc<Mutex<>>` so all clones see the same
+/// running server.
 #[derive(Clone)]
-pub struct PopuliMeshPlugin;
+pub struct PopuliMeshPlugin {
+    state: Arc<Mutex<Option<PluginState>>>,
+}
 
 impl PopuliMeshPlugin {
     pub fn new() -> Self {
-        Self
+        Self {
+            state: Arc::new(Mutex::new(None)),
+        }
     }
 }
 
@@ -27,7 +63,8 @@ impl VoxPlugin for PopuliMeshPlugin {
     }
 
     fn shutdown(&self) -> RResult<(), RBoxError> {
-        RResult::ROk(())
+        // Trigger stop_transport on plugin shutdown.
+        self.stop_transport()
     }
 
     fn as_mesh_driver(&self) -> ROption<MeshDriver_TO<'static, RBox<()>>> {
@@ -36,35 +73,261 @@ impl VoxPlugin for PopuliMeshPlugin {
 }
 
 impl MeshDriver for PopuliMeshPlugin {
-    fn start_transport(&self, _config: RStr<'_>) -> RResult<(), RBoxError> {
-        RResult::RErr(RBoxError::new(std::io::Error::other(
-            "not yet implemented (mesh code-motion deferred)",
-        )))
+    /// Boot the HTTP control plane.
+    ///
+    /// Accepts JSON: `{"addr":"<host:port>"}` (optional; defaults to `127.0.0.1:9847`).
+    /// Idempotent — if transport is already running, returns `ROk` immediately.
+    fn start_transport(&self, config_json: RStr<'_>) -> RResult<(), RBoxError> {
+        let cfg: MeshStartConfig = if config_json.as_str().trim().is_empty()
+            || config_json.as_str().trim() == "{}"
+        {
+            MeshStartConfig {
+                addr: default_addr(),
+            }
+        } else {
+            match serde_json::from_str(config_json.as_str()) {
+                Ok(c) => c,
+                Err(e) => {
+                    return RResult::RErr(RBoxError::new(std::io::Error::other(format!(
+                        "invalid MeshStartConfig JSON: {e}"
+                    ))))
+                }
+            }
+        };
+
+        let mut guard = match self.state.lock() {
+            Ok(g) => g,
+            Err(_) => {
+                return RResult::RErr(RBoxError::new(std::io::Error::other("state mutex poisoned")))
+            }
+        };
+
+        // Idempotent: already running.
+        if guard.is_some() {
+            return RResult::ROk(());
+        }
+
+        let addr: SocketAddr = match cfg.addr.parse() {
+            Ok(a) => a,
+            Err(e) => {
+                return RResult::RErr(RBoxError::new(std::io::Error::other(format!(
+                    "invalid addr `{}`: {e}",
+                    cfg.addr
+                ))))
+            }
+        };
+
+        let rt = match tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .thread_name("populi-mesh")
+            .enable_all()
+            .build()
+        {
+            Ok(r) => r,
+            Err(e) => {
+                return RResult::RErr(RBoxError::new(std::io::Error::other(format!(
+                    "failed to create tokio runtime: {e}"
+                ))))
+            }
+        };
+
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+        // Build transport state using environment config.
+        let state = PopuliTransportState::new_for_serve();
+
+        // Spawn the server on the background runtime.
+        let bound_addr_cell: Arc<std::sync::OnceLock<SocketAddr>> =
+            Arc::new(std::sync::OnceLock::new());
+        let cell_clone = Arc::clone(&bound_addr_cell);
+
+        rt.spawn(async move {
+            // Bind listener here so we can capture the actual bound port.
+            let listener = match tokio::net::TcpListener::bind(addr).await {
+                Ok(l) => l,
+                Err(e) => {
+                    tracing::error!(error = %e, "populi-mesh: failed to bind TCP listener");
+                    return;
+                }
+            };
+            let bound = listener.local_addr().unwrap_or(addr);
+            let _ = cell_clone.set(bound);
+            tracing::info!(%bound, "populi-mesh transport listening");
+
+            state.start_federation_gossip();
+
+            let app = crate::transport::populi_http_app(state);
+
+            // Graceful shutdown: race serve against shutdown signal.
+            let serve_fut = axum::serve(listener, app);
+            tokio::select! {
+                res = serve_fut => {
+                    if let Err(e) = res {
+                        tracing::error!(error = %e, "populi-mesh transport exited with error");
+                    }
+                }
+                _ = shutdown_rx => {
+                    tracing::info!("populi-mesh transport shutting down (signal received)");
+                }
+            }
+        });
+
+        // Brief wait so the OnceLock is populated before we read it.
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        let bound = bound_addr_cell.get().copied().unwrap_or(addr);
+        let client_base = format!("http://{bound}");
+
+        *guard = Some(PluginState {
+            runtime: rt,
+            shutdown_tx: Some(shutdown_tx),
+            bound_addr: Some(bound),
+            client_base: Some(client_base),
+        });
+
+        RResult::ROk(())
     }
 
+    /// Gracefully shut down the HTTP control plane.
     fn stop_transport(&self) -> RResult<(), RBoxError> {
-        RResult::RErr(RBoxError::new(std::io::Error::other(
-            "not yet implemented",
-        )))
+        let mut guard = match self.state.lock() {
+            Ok(g) => g,
+            Err(_) => {
+                return RResult::RErr(RBoxError::new(std::io::Error::other("state mutex poisoned")))
+            }
+        };
+        if let Some(ps) = guard.take() {
+            // Signal shutdown.
+            if let Some(tx) = ps.shutdown_tx {
+                let _ = tx.send(());
+            }
+            // Shut down the runtime (waits for tasks to complete or forcibly stops them).
+            ps.runtime.shutdown_timeout(std::time::Duration::from_secs(5));
+        }
+        RResult::ROk(())
     }
 
-    fn dispatch(&self, _req: RStr<'_>) -> RResult<RString, RBoxError> {
-        RResult::RErr(RBoxError::new(std::io::Error::other(
-            "not yet implemented",
-        )))
+    /// Dispatch a JSON-encoded [`DispatchRequest`] to the hosted control plane.
+    ///
+    /// The request JSON is forwarded to `POST /v1/populi/dispatch` via the
+    /// in-process HTTP client. Returns the [`DispatchResponse`] as JSON.
+    fn dispatch(&self, request_json: RStr<'_>) -> RResult<RString, RBoxError> {
+        let req: crate::transport::DispatchRequest =
+            match serde_json::from_str(request_json.as_str()) {
+                Ok(r) => r,
+                Err(e) => {
+                    return RResult::RErr(RBoxError::new(std::io::Error::other(format!(
+                        "invalid DispatchRequest JSON: {e}"
+                    ))))
+                }
+            };
+
+        let base = match self.client_base() {
+            Some(b) => b,
+            None => {
+                return RResult::RErr(RBoxError::new(std::io::Error::other(
+                    "transport not started; call start_transport first",
+                )))
+            }
+        };
+
+        let result = self.block_on(async move {
+            let client = crate::http_client::PopuliHttpClient::new(&base).with_env_token();
+            client.dispatch(&req).await
+        });
+
+        match result {
+            Ok(resp) => match serde_json::to_string(&resp) {
+                Ok(s) => RResult::ROk(RString::from(s)),
+                Err(e) => RResult::RErr(RBoxError::new(std::io::Error::other(format!(
+                    "serialize DispatchResponse: {e}"
+                )))),
+            },
+            Err(e) => RResult::RErr(RBoxError::new(std::io::Error::other(format!(
+                "dispatch failed: {e}"
+            )))),
+        }
     }
 
-    fn node_join(&self, _node: RStr<'_>) -> RResult<(), RBoxError> {
-        RResult::RErr(RBoxError::new(std::io::Error::other(
-            "not yet implemented",
-        )))
+    /// Register a node by forwarding a JSON-encoded [`NodeRecord`] to `POST /v1/populi/join`.
+    fn node_join(&self, node_record_json: RStr<'_>) -> RResult<(), RBoxError> {
+        let node: vox_populi::NodeRecord = match serde_json::from_str(node_record_json.as_str()) {
+            Ok(n) => n,
+            Err(e) => {
+                return RResult::RErr(RBoxError::new(std::io::Error::other(format!(
+                    "invalid NodeRecord JSON: {e}"
+                ))))
+            }
+        };
+
+        let base = match self.client_base() {
+            Some(b) => b,
+            None => {
+                return RResult::RErr(RBoxError::new(std::io::Error::other(
+                    "transport not started; call start_transport first",
+                )))
+            }
+        };
+
+        let result = self.block_on(async move {
+            let client = crate::http_client::PopuliHttpClient::new(&base).with_env_token();
+            client.join(&node).await
+        });
+
+        match result {
+            Ok(_) => RResult::ROk(()),
+            Err(e) => RResult::RErr(RBoxError::new(std::io::Error::other(format!(
+                "node_join failed: {e}"
+            )))),
+        }
     }
 
+    /// Return the current node list from `GET /v1/populi/nodes` as a JSON array.
+    ///
+    /// Falls back to `[]` when transport is not started (caller degrades gracefully).
     fn list_nodes(&self) -> RResult<RString, RBoxError> {
-        // list_nodes returns an empty array rather than an error — callers
-        // that just want to enumerate nodes get a safe empty result, while
-        // callers that need live data will observe the empty list and can
-        // degrade gracefully.
-        RResult::ROk(RString::from("[]"))
+        let base = match self.client_base() {
+            Some(b) => b,
+            None => return RResult::ROk(RString::from("[]")),
+        };
+
+        let result = self.block_on(async move {
+            let client = crate::http_client::PopuliHttpClient::new(&base).with_env_token();
+            client.list_nodes().await
+        });
+
+        match result {
+            Ok(reg) => match serde_json::to_string(&reg.nodes) {
+                Ok(s) => RResult::ROk(RString::from(s)),
+                Err(e) => RResult::RErr(RBoxError::new(std::io::Error::other(format!(
+                    "serialize nodes: {e}"
+                )))),
+            },
+            Err(e) => RResult::RErr(RBoxError::new(std::io::Error::other(format!(
+                "list_nodes failed: {e}"
+            )))),
+        }
+    }
+}
+
+impl PopuliMeshPlugin {
+    /// Return the client base URL when the transport is running.
+    fn client_base(&self) -> Option<String> {
+        self.state
+            .lock()
+            .ok()
+            .and_then(|g| g.as_ref()?.client_base.clone())
+    }
+
+    /// Block on an async future using the plugin's runtime, or create a temporary one.
+    fn block_on<F: std::future::Future>(&self, fut: F) -> F::Output {
+        // Try to use the already-running runtime's handle to run the future synchronously.
+        // When the transport is started, the runtime lives inside PluginState; we can't call
+        // `block_on` on it while it's borrowed, so we create a small secondary runtime
+        // for client calls (cheap — 1 worker thread, short-lived).
+        let mini_rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("failed to create mini runtime for populi client call");
+        mini_rt.block_on(fut)
     }
 }
