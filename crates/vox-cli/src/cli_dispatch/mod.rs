@@ -138,12 +138,11 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         }
         #[cfg(not(feature = "script-execution"))]
         Cli::ScriptStub { .. } => {
-            vox_build_meta::require(
-                "script-execution",
-                "vox plugin install script-execution",
-            )
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-            unreachable!()
+            anyhow::bail!(
+                "This Vox capability requires the 'script-execution' plugin, which is not installed.\n\n\
+                 To install it, run:\n\n  vox plugin install script-execution\n\n\
+                 See: docs/src/reference/plugins.md"
+            );
         }
         #[cfg(feature = "live")]
         Cli::Live => {

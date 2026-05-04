@@ -22,6 +22,7 @@ use crate::registry::SkillRegistry;
 /// All built-in skill SKILL.md contents.
 ///
 /// Empty: all skills are now standalone plugins installed at runtime.
+#[allow(dead_code)]
 const BUILTIN_SKILLS: &[(&str, &str)] = &[];
 
 /// Install all built-in skills into the registry if they are not already present.

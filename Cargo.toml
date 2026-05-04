@@ -70,7 +70,6 @@ vox-crypto                = { path = "crates/vox-crypto" }
 vox-identity              = { path = "crates/vox-identity" }
 
 vox-audio-ingress         = { path = "crates/vox-audio-ingress" }
-vox-build-meta            = { path = "crates/vox-build-meta" }
 vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
 vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }

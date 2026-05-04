@@ -260,9 +260,11 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         PopuliAction::TrainStub { .. }
         | PopuliAction::DogfoodStub { .. }
         | PopuliAction::ServeStub { .. } => {
-            vox_build_meta::require("gpu", "vox plugin install tensor-burn-wgpu")
-                .map_err(|e| anyhow::anyhow!("{e}"))?;
-            unreachable!()
+            anyhow::bail!(
+                "This Vox capability requires the 'gpu' plugin, which is not installed.\n\n\
+                 To install it, run:\n\n  vox plugin install tensor-burn-wgpu\n\n\
+                 See: docs/src/reference/plugins.md"
+            );
         }
 
         #[cfg(feature = "gpu")]

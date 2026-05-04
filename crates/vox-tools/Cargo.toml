@@ -7,7 +7,6 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-vox-build-meta = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }
 vox-capability-registry = { workspace = true }

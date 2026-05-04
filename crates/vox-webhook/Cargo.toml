@@ -7,7 +7,6 @@ authors.workspace = true
 description = "HTTP webhook gateway for the Vox agent system"
 
 [dependencies]
-vox-build-meta = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-db           = { workspace = true }
 serde            = { workspace = true }
