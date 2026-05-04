@@ -12094,16 +12094,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-build-meta"
-version = "0.5.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "workspace-hack",
-]
-
-[[package]]
 name = "vox-capability-registry"
 version = "0.5.0"
 dependencies = [
@@ -12193,7 +12183,6 @@ dependencies = [
  "uuid",
  "vox-bounded-fs",
  "vox-browser",
- "vox-build-meta",
  "vox-capability-registry",
  "vox-checksum-manifest",
  "vox-clavis",
@@ -12694,7 +12683,6 @@ dependencies = [
  "tracing",
  "uuid",
  "vox-bounded-fs",
- "vox-build-meta",
  "vox-clavis",
  "vox-cli-core",
  "vox-compiler",
@@ -12900,6 +12888,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-plugin-cloud"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "vox-plugin-api",
+]
+
+[[package]]
 name = "vox-plugin-cuda-spike"
 version = "0.1.0"
 dependencies = [
@@ -12987,6 +12983,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-plugin-oratio"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "vox-plugin-api",
+]
+
+[[package]]
+name = "vox-plugin-oratio-mic"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "vox-plugin-api",
+]
+
+[[package]]
 name = "vox-plugin-populi-mesh"
 version = "0.1.0"
 dependencies = [
@@ -12996,6 +13008,22 @@ dependencies = [
  "tracing",
  "vox-plugin-api",
  "workspace-hack",
+]
+
+[[package]]
+name = "vox-plugin-script-execution"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "vox-plugin-api",
+]
+
+[[package]]
+name = "vox-plugin-tensor-burn-wgpu"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "vox-plugin-api",
 ]
 
 [[package]]
@@ -13430,7 +13458,6 @@ version = "0.5.0"
 dependencies = [
  "anyhow",
  "serde_json",
- "vox-build-meta",
  "vox-capability-registry",
  "vox-oratio",
  "workspace-hack",
@@ -13452,7 +13479,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "vox-build-meta",
  "vox-db",
  "vox-orchestrator",
  "vox-reqwest-defaults",
