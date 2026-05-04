@@ -1,0 +1,26 @@
+[package]
+name = "vox-plugin-browser"
+version.workspace = true
+edition.workspace = true
+publish = false
+description = "Browser automation plugin (chromiumoxide CDP)."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+vox-plugin-api = { workspace = true }
+abi_stable = { workspace = true }
+chromiumoxide = "0.9.1"
+chromiumoxide_cdp = "0.9.1"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "sync", "macros", "time", "fs"] }
+futures = "0.3"
+uuid = { workspace = true }
+workspace-hack = { workspace = true }
+
+[lints]
+workspace = true
