@@ -65,7 +65,9 @@ mod backend_candle_qlora;
 #[cfg(feature = "mens-train")]
 pub mod checkpoint_state;
 // SP3-D: candle_qlora_train, candle_qlora_weights, qlora_preflight, candle_qlora_graph extracted
-// to vox-plugin-mens-candle-cuda. candle_qlora_merge and candle_inference_serve remain (inference/merge paths).
+// to vox-plugin-mens-candle-cuda. candle_qlora_merge and candle_inference_serve also extracted
+// (Unit 1 follow-up) but kept here because adapter_schema_v3 + lora/part_block + lora/part_vox
+// depend on the types. TODO: rewire those callers through the plugin host.
 #[cfg(feature = "mens-train")]
 pub mod candle_qlora_merge;
 #[cfg(feature = "mens-train")]

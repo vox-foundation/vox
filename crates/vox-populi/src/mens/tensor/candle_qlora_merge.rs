@@ -1,4 +1,11 @@
 //! Merge exported Candle QLoRA adapter (v2) into base `f32` weights (subset of keys).
+//!
+//! # DEPRECATED — Unit 1 extraction
+//!
+//! The authoritative implementation is now `vox-plugin-mens-candle-cuda/src/merge.rs`.
+//! This copy is kept because `adapter_schema_v3.rs` references `QloraAdapterMetaV2` here.
+//! TODO(Unit 1 follow-up): rewire adapter_schema_v3 to use the plugin type or a shared crate,
+//! then delete this file.
 
 use std::collections::HashMap;
 use std::path::Path;

@@ -1,5 +1,13 @@
 //! Native Candle inference server bridging to `vox mens serve` payload
 //!
+//! # DEPRECATED — Unit 1 extraction
+//!
+//! This file is kept in vox-populi because `adapter_schema_v3` and friends still reference
+//! `candle_qlora_merge::QloraAdapterMetaV2`. The authoritative implementation has been
+//! extracted to `vox-plugin-mens-candle-cuda/src/inference.rs`. Once the callers are rewired
+//! through the plugin host, this file and `candle_qlora_merge.rs` can be deleted.
+//! TODO(Unit 1 follow-up): delete after rewire.
+//!
 //! Loads the base model from local cache (via HF hub or specified path) + LoRA adapter,
 //! and runs autoregressive generation with KV caching.
 
