@@ -102,4 +102,28 @@ impl MlBackend for CandleCudaPlugin {
             Err(e) => RResult::RErr(RBoxError::new(e)),
         }
     }
+
+    fn run_inference(&self, model: &MlModelHandle, prompt_json: RStr<'_>) -> RResult<RString, RBoxError> {
+        // The model handle's opaque pointer is the directory path encoded as a usize pointer
+        // to a Box<String> set in load_model. For inference we re-load via the model_path stored
+        // in the CandleModel wrapper.
+        #[allow(unsafe_code)]
+        let candle_model = unsafe { &*(model.opaque as *const crate::model::CandleModel) };
+        match crate::inference::run(&candle_model.model_path, prompt_json.as_str()) {
+            Ok(s) => RResult::ROk(RString::from(s)),
+            Err(e) => RResult::RErr(anyhow_to_rbox(e)),
+        }
+    }
+
+    fn merge_adapter(
+        &self,
+        base_path: RStr<'_>,
+        adapter_path: RStr<'_>,
+        dest_path: RStr<'_>,
+    ) -> RResult<(), RBoxError> {
+        match crate::merge::merge_qlora_adapter(base_path.as_str(), adapter_path.as_str(), dest_path.as_str()) {
+            Ok(()) => RResult::ROk(()),
+            Err(e) => RResult::RErr(anyhow_to_rbox(e)),
+        }
+    }
 }

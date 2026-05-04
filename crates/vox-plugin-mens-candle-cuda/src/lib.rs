@@ -14,6 +14,8 @@
 
 mod backend;
 mod checkpoint;
+pub mod inference;
+pub mod merge;
 pub mod candle_qlora_train;
 pub mod checkpoint_state;
 pub mod config;

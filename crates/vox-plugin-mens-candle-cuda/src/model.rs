@@ -527,6 +527,8 @@ impl Qwen35ForwardCache {
 /// pass it to the plugin via an alternative init path.
 pub struct CandleModel {
     pub inner: Qwen35Model,
+    /// Path to the model directory, stored so `run_inference` can reload the engine.
+    pub model_path: String,
 }
 
 impl CandleModel {
