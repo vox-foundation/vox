@@ -2,6 +2,7 @@
 
 use super::super::Parser;
 use crate::ast::expr::{Arg, Expr, MatchArm, UnOp};
+use crate::ast::stmt::Stmt;
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
 
@@ -463,8 +464,19 @@ impl Parser {
         let then_body = self.parse_block()?;
         self.skip_newlines();
         let else_body = if self.eat(&Token::Else) {
-            self.expect(&Token::LBrace)?;
-            Some(self.parse_block()?)
+            self.skip_newlines();
+            if matches!(self.peek(), Token::If) {
+                // `else if` chain: recurse and wrap as a single expression statement
+                let else_if_expr = self.parse_if()?;
+                let span = else_if_expr.span();
+                Some(vec![Stmt::Expr {
+                    expr: else_if_expr,
+                    span,
+                }])
+            } else {
+                self.expect(&Token::LBrace)?;
+                Some(self.parse_block()?)
+            }
         } else {
             None
         };
