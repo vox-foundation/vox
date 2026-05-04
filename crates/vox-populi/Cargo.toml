@@ -6,7 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = ["mens-gpu"]
+default = []
 # NVIDIA NVML probe → Populi hardware pipeline (optional; requires NVML at runtime).
 # NVML probing has moved to vox-plugin-nvml-probe; this feature now only gates the
 # in-process fallback via mens/hardware/nvml.rs (used when the plugin is not loaded).
