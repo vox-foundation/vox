@@ -11,9 +11,7 @@ pub struct DefaultVoxHost {
 
 impl DefaultVoxHost {
     pub fn new() -> Self {
-        let data_dir = dirs::data_local_dir()
-            .map(|p| p.join("vox").join("plugins").to_string_lossy().to_string())
-            .unwrap_or_else(|| "./vox-plugins".into());
+        let data_dir = crate::resolve_plugins_root().to_string_lossy().to_string();
         Self { data_dir }
     }
 

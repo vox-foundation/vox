@@ -18,6 +18,17 @@ pub use registry::{PluginEntry, Registry};
 pub use skill_registry::SkillRegistry;
 pub use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 
+/// Resolve the plugin install root, respecting `$VOX_PLUGINS_DIR` if set.
+/// Falls back to the platform's local data directory under `vox/plugins`.
+pub fn resolve_plugins_root() -> std::path::PathBuf {
+    if let Ok(p) = std::env::var("VOX_PLUGINS_DIR") {
+        return std::path::PathBuf::from(p);
+    }
+    dirs::data_local_dir()
+        .map(|p| p.join("vox").join("plugins"))
+        .unwrap_or_else(|| std::path::PathBuf::from("./vox-plugins"))
+}
+
 /// Return the target-triple key used in `[plugin.payload.artifacts]` for the current build.
 ///
 /// The format is `"<os>-<arch>"` where `os` is `"windows"`, `"linux"`, or `"macos"` and

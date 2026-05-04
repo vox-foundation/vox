@@ -5,14 +5,11 @@ use std::path::PathBuf;
 
 /// Resolve the plugin install root:
 /// `$VOX_PLUGINS_DIR` env override, else `<data_local_dir>/vox/plugins`.
+///
+/// Delegates to [`vox_plugin_host::resolve_plugins_root`] so the logic lives
+/// in one place and `DefaultVoxHost` and the CLI always agree on the root.
 pub fn plugins_root() -> PathBuf {
-    if let Ok(v) = std::env::var("VOX_PLUGINS_DIR") {
-        return PathBuf::from(v);
-    }
-    dirs::data_local_dir()
-        .unwrap_or_else(|| PathBuf::from(".local/share"))
-        .join("vox")
-        .join("plugins")
+    vox_plugin_host::resolve_plugins_root()
 }
 
 /// Returns the versioned install dir for a given id, using the first version
