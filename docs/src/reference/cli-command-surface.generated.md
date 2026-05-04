@@ -21,7 +21,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 234
+**schema_version:** `1` · **vox-cli operations:** 239
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -116,6 +116,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox db prune-plan` | active | — | codex | data | — |
 | `vox db publication-decision-explain` | active | — | codex | data | — |
 | `vox db publication-discovery-explain` | active | — | codex | data | — |
+| `vox db publication-discovery-publish-rss` | active | — | codex | data | — |
 | `vox db publication-discovery-refresh-evidence` | active | — | codex | data | — |
 | `vox db publication-discovery-scan` | active | — | codex | data | — |
 | `vox db publication-novelty-fetch` | active | — | codex | data | — |
@@ -137,7 +138,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox fabrica` | active | — | fabrica | app | — |
 | `vox fmt` | active | — | fabrica | app | — |
 | `vox init` | active | — | pm | platform | — |
-| `vox island` | active | island | — | app | — |
 | `vox live` | active | live | — | ai | — |
 | `vox lock` | active | — | pm | platform | — |
 | `vox login` | deprecated | — | ars | platform | — |
@@ -170,6 +170,10 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox mens workflow list` | active | mens-dei | mens | ai | — |
 | `vox mens workflow run` | active | mens-dei | mens | ai | — |
 | `vox migrate web` | active | — | pm | platform | — |
+| `vox model pricing check` | active | — | — | ai | — |
+| `vox model pricing refresh` | active | — | — | ai | — |
+| `vox model pricing rollup` | active | — | — | ai | — |
+| `vox model pricing show` | active | — | — | ai | — |
 | `vox openclaw` | active | ars | ars | interop | — |
 | `vox openclaw doctor` | active | ars | ars | interop | — |
 | `vox openclaw gateway-call` | active | ars | ars | interop | — |
@@ -218,6 +222,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox scientia publication-arxiv-handoff-record` | active | — | codex | data | — |
 | `vox scientia publication-decision-explain` | active | — | codex | data | — |
 | `vox scientia publication-discovery-explain` | active | — | codex | data | — |
+| `vox scientia publication-discovery-publish-rss` | active | — | codex | data | — |
 | `vox scientia publication-discovery-scan` | active | — | codex | data | — |
 | `vox scientia publication-external-jobs-dead-letter` | active | — | codex | data | — |
 | `vox scientia publication-external-jobs-due` | active | — | codex | data | — |
