@@ -21,7 +21,7 @@ First-party Vox distribution bundles. Each bundle is the same host binary plus a
 | `vox-server` | `vox-base` | 4 | 4 |
 | `vox-edge` | `vox-base` | 3 | 3 |
 | `vox-cloud-only` | `vox-base` | 3 | 3 |
-| `vox-dev` | `vox-fullstack` | 8 | 16 |
+| `vox-dev` | `vox-fullstack` | 9 | 17 |
 
 ## Per-bundle plugin lists
 
@@ -125,4 +125,5 @@ Extends: `vox-fullstack`
 - `oratio` — Audio capture and pipeline integration (Oratio).
 - `oratio-mic` — Microphone input adapter for Oratio.
 - `script-execution` — Script execution sandbox for `.vox run` and similar.
+- `browser` — Chrome DevTools Protocol browser automation via chromiumoxide.
 

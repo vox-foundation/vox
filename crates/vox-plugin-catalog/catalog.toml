@@ -156,6 +156,14 @@ default-source = "github:vox-foundation/vox-plugin-skill-v0"
 bundled-in = ["vox-fullstack", "vox-edge"]
 
 [[plugin]]
+id = "browser"
+payload-kind = "code"
+description = "Chrome DevTools Protocol browser automation via chromiumoxide."
+extension-points = ["BrowserAutomation"]
+default-source = "github:vox-foundation/vox-plugin-browser"
+bundled-in = ["vox-dev"]
+
+[[plugin]]
 id = "noop-code"
 payload-kind = "code"
 description = "Test fixture: no-op code plugin used by vox-plugin-host loader tests."
@@ -229,5 +237,5 @@ extends = "vox-fullstack"
 plugins = [
     "tensor-burn-wgpu", "mens-candle-cuda", "nvml-probe",
     "populi-mesh", "cloud", "oratio", "oratio-mic",
-    "script-execution",
+    "script-execution", "browser",
 ]

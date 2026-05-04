@@ -27,6 +27,7 @@ _Columns: `id`, `payload-kind`, `extension-points`/`exposes-tools`, `default-sou
 | `script-execution` | `ScriptExecutor` | `github:vox-foundation/vox-plugin-script-execution` | `vox-dev` |
 | `execution-api` | `ScriptExecutor` | `github:vox-foundation/vox-plugin-execution-api` | — |
 | `stub-check` | `ScriptExecutor` | `github:vox-foundation/vox-plugin-stub-check` | — |
+| `browser` | `BrowserAutomation` | `github:vox-foundation/vox-plugin-browser` | `vox-dev` |
 | `noop-code` | `__noop__` | `local:crates/vox-plugin-noop-code` | — |
 | `noop-bad-abi` | `__noop__` | `local:crates/vox-plugin-noop-code-bad-abi` | — |
 
