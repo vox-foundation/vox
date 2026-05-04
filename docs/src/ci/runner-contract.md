@@ -37,7 +37,9 @@ Guard logic lives in **`vox ci`** (`crates/vox-cli/src/commands/ci`). Shell scri
 
 ## Pre-push validation (Linux CI mirror)
 
-For a **copy-paste subset** of the default [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml) job (`cargo fmt`, `cargo clippy --workspace`, `vox ci ssot-drift`, TOESTUB on touched paths, and merge-blocking **`check-codex-ssot` / `check-docs-ssot`**), see [Contributor hub — Pre-push local CI parity](../contributors/contributor-hub.md#pre-push-local-ci-parity).
+Use **`vox ci pre-push`** to run the merge-blocking subset locally
+(fmt-check, clippy, ssot-drift, line-endings, doc-inventory verify, scoped
+TOESTUB). See [local CI parity](../contributors/local-ci-pre-push.md).
 
 ## Line endings (cross-platform)
 

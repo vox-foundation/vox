@@ -30,6 +30,7 @@ pub(crate) mod nomenclature_guard;
 mod openclaw_contract;
 mod operations_catalog;
 mod pm_provenance;
+mod pre_push;
 mod release_build;
 pub(crate) mod retired_symbol_check;
 mod scaling_audit;
