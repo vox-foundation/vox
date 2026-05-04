@@ -8,6 +8,8 @@ use crate::parser::error::{ParseError, ParseErrorClass};
 
 impl Parser {
     /// Parse a JSX fragment `<>children</>`.
+    // Retained for future JSX-in-VUV embedding work; not yet called from the pratt table.
+    #[allow(dead_code)]
     pub(crate) fn parse_jsx_fragment(&mut self) -> Result<Expr, ()> {
         let start = self.span();
         self.advance(); // eat `<>`
@@ -45,6 +47,8 @@ impl Parser {
         })
     }
 
+    // Retained for future JSX-in-VUV embedding work; not yet called from the pratt table.
+    #[allow(dead_code)]
     pub(crate) fn parse_jsx(&mut self) -> Result<Expr, ()> {
         let start = self.span();
         self.errors.push(ParseError::warning(
