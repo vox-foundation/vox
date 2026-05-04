@@ -18,15 +18,15 @@ export interface ShellProps {
 
 export function Shell({ active, rail_collapsed, workspace, run_status, run_label }: ShellProps): React.ReactElement {
   return (
-<div className={["flex", "flex-col", "min-h-screen", "overflow-hidden", "bg-zinc-950", "text-zinc-100"].filter(Boolean).join(" ")}
+<column min_h={"screen"} overflow={"hidden"} bg={"zinc.950"} color={"zinc.100"}
 >
   <TopBar workspace={workspace} run_status={run_status} run_label={run_label} />
-  <div className={["flex", "flex-row", "flex-1", "min-h-0", "overflow-hidden"].filter(Boolean).join(" ")}
+  <row flex={1} min_h={0} overflow={"hidden"}
 >
   <LeftRail active={active} collapsed={rail_collapsed} />
-  <div className={["rounded-lg", "border", "border-border", "p-4", "flex-1", "min-w-0", "overflow-hidden", "bg-zinc-950"].filter(Boolean).join(" ")} />
-</div>
+  <panel flex={1} min_w={0} overflow={"hidden"} bg={"zinc.950"} />
+</row>
   <StatusBar active={active} />
-</div>
+</column>
   );
 }

@@ -127,12 +127,15 @@ component TopBar(workspace: str, run_status: str, run_label: str) {
 //
 // Reference: design brief §4 IA; plan Task 1.6.
 
-component NavItem(label: str, surface_key: str, active: str, collapsed: bool) {
+// on_select is called when the user clicks this nav item.
+// Defaults to a no-op so callers that don't need interactivity can omit it.
+component NavItem(label: str, surface_key: str, active: str, collapsed: bool, on_select: fn() = fn() {}) {
     view: button(
         raw_class=if collapsed { "flex items-center justify-center w-full rounded-lg py-2 transition-colors" } else { "flex items-center gap-3 w-full text-left rounded-lg px-3 py-2 transition-colors" },
         bg=if active is surface_key { "white/8" } else { "transparent" },
         color=if active is surface_key { "white" } else { "zinc.500" },
-        border=false
+        border=false,
+        on_click=on_select
     ) {
         NavIcon(name=surface_key)
         if collapsed {
@@ -143,7 +146,10 @@ component NavItem(label: str, surface_key: str, active: str, collapsed: bool) {
     }
 }
 
-component LeftRail(active: str, collapsed: bool) {
+// on_speak..on_settings: per-surface navigation callbacks.
+// All default to no-ops; app.vox passes lambdas that update its `active` state.
+// Single-line declaration required by current VUV parser (multiline params fail).
+component LeftRail(active: str, collapsed: bool, on_speak: fn() = fn() {}, on_mesh: fn() = fn() {}, on_forge: fn() = fn() {}, on_code: fn() = fn() {}, on_models: fn() = fn() {}, on_runs: fn() = fn() {}, on_settings: fn() = fn() {}) {
     view: column(
         raw_class=if collapsed { "w-14 shrink-0" } else { "w-[200px] shrink-0" },
         border_r=true, border_color="zinc.800",
@@ -163,17 +169,17 @@ component LeftRail(active: str, collapsed: bool) {
         }
 
         // ── Nav items ─────────────────────────────────────────────────────────
-        NavItem(label="Speak",    surface_key="speak",    active=active, collapsed=collapsed)
-        NavItem(label="Mesh",     surface_key="mesh",     active=active, collapsed=collapsed)
-        NavItem(label="Forge",    surface_key="forge",    active=active, collapsed=collapsed)
-        NavItem(label="Code",     surface_key="code",     active=active, collapsed=collapsed)
-        NavItem(label="Models",   surface_key="models",   active=active, collapsed=collapsed)
-        NavItem(label="Runs",     surface_key="runs",     active=active, collapsed=collapsed)
+        NavItem(label="Speak",    surface_key="speak",    active=active, collapsed=collapsed, on_select=on_speak)
+        NavItem(label="Mesh",     surface_key="mesh",     active=active, collapsed=collapsed, on_select=on_mesh)
+        NavItem(label="Forge",    surface_key="forge",    active=active, collapsed=collapsed, on_select=on_forge)
+        NavItem(label="Code",     surface_key="code",     active=active, collapsed=collapsed, on_select=on_code)
+        NavItem(label="Models",   surface_key="models",   active=active, collapsed=collapsed, on_select=on_models)
+        NavItem(label="Runs",     surface_key="runs",     active=active, collapsed=collapsed, on_select=on_runs)
 
         // Spacer pushes Settings to bottom
         panel(flex=1)
 
-        NavItem(label="Settings", surface_key="settings", active=active, collapsed=collapsed)
+        NavItem(label="Settings", surface_key="settings", active=active, collapsed=collapsed, on_select=on_settings)
 
         // ── Version label (hidden when collapsed) ─────────────────────────────
         if collapsed {
@@ -284,13 +290,18 @@ component StatusBar(active: str) {
 //
 // Reference: design brief §4 shell layout; plan Task 1.8.
 
-component Shell(active: str, rail_collapsed: bool, workspace: str, run_status: str, run_label: str) {
+// Shell — Phase 1 nav callbacks threaded through to LeftRail.
+// app.vox passes fn() lambdas that update its `active` state variable.
+// The surface outlet (children slot) is not available in VUV yet —
+// app.vox composes TopBar + LeftRail + surface + StatusBar directly.
+// Shell is kept here as a layout reference; app.vox does NOT call it directly.
+component Shell(active: str, rail_collapsed: bool, workspace: str, run_status: str, run_label: str, on_speak: fn() = fn() {}, on_mesh: fn() = fn() {}, on_forge: fn() = fn() {}, on_code: fn() = fn() {}, on_models: fn() = fn() {}, on_runs: fn() = fn() {}, on_settings: fn() = fn() {}) {
     view: column(min_h="screen", overflow="hidden", bg="zinc.950", color="zinc.100") {
         TopBar(workspace=workspace, run_status=run_status, run_label=run_label)
         row(flex=1, min_h=0, overflow="hidden") {
-            LeftRail(active=active, collapsed=rail_collapsed)
+            LeftRail(active=active, collapsed=rail_collapsed, on_speak=on_speak, on_mesh=on_mesh, on_forge=on_forge, on_code=on_code, on_models=on_models, on_runs=on_runs, on_settings=on_settings)
             // Main content area — surface provided by the caller as children.
-            // Batch 3 wires the actual surface outlet here.
+            // VUV children slots arrive in Phase 5; until then app.vox composes inline.
             panel(flex=1, min_w=0, overflow="hidden", bg="zinc.950")
         }
         StatusBar(active=active)

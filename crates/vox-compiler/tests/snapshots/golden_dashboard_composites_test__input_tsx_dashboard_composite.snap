@@ -12,15 +12,15 @@ export interface InputProps {
 
 export function Input({ value, mono, placeholder }: InputProps): React.ReactElement {
   return (
-<div className={["bg-zinc-900", "border", "border-white/10", "rounded-lg", "px-3", "py-2", "flex items-center h-9"].filter(Boolean).join(" ")}
+<panel bg={"zinc.900"} border={true} border_color={"white/10"} radius={"lg"} pad_x={3} pad_y={2} raw_class={"flex items-center h-9"}
 >
-  {(value === "" ? <p className={["text-sm", "text-zinc-600", (mono ? "font-mono" : "font-sans"), "italic"].filter(Boolean).join(" ")}
+  {(value === "" ? <text size={"sm"} color={"zinc.600"} fontFamily={(mono ? "mono" : "sans")} italic={true}
 >
   {placeholder}
-</p> : <p className={["text-sm", "text-zinc-300", (mono ? "font-mono" : "font-sans")].filter(Boolean).join(" ")}
+</text> : <text size={"sm"} color={"zinc.300"} fontFamily={(mono ? "mono" : "sans")}
 >
   {value}
-</p>)}
-</div>
+</text>)}
+</panel>
   );
 }

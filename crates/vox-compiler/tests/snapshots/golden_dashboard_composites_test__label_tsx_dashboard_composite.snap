@@ -10,9 +10,9 @@ export interface LabelProps {
 
 export function Label({ text }: LabelProps): React.ReactElement {
   return (
-<p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-500"].filter(Boolean).join(" ")}
+<text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.500"}
 >
   {text}
-</p>
+</text>
   );
 }

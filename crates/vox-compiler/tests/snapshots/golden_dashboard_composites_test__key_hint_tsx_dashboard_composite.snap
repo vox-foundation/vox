@@ -10,12 +10,12 @@ export interface KeyHintProps {
 
 export function KeyHint({ text }: KeyHintProps): React.ReactElement {
   return (
-<div className={["border", "border-white/15", "rounded-sm", "px-1", "bg-white/5", "h-5 inline-flex items-center"].filter(Boolean).join(" ")}
+<panel border={true} border_color={"white/15"} radius={"sm"} pad_x={1} bg={"white/5"} raw_class={"h-5 inline-flex items-center"}
 >
-  <p className={["text-xs", "font-mono", "text-zinc-400"].filter(Boolean).join(" ")}
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.400"}
 >
   {text}
-</p>
-</div>
+</text>
+</panel>
   );
 }

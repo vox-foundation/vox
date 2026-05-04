@@ -15,53 +15,53 @@ export interface TopBarProps {
 
 export function TopBar({ workspace, run_status, run_label }: TopBarProps): React.ReactElement {
   return (
-<div className={["flex", "flex-row", "h-12", "border-b-true", "border-zinc-800", "px-4", "flex items-center", "flex justify-between", "shrink-0", "bg-zinc-950"].filter(Boolean).join(" ")}
+<row h={12} border_b={true} border_color={"zinc.800"} pad_x={4} items={"center"} justify={"between"} shrink={0} bg={"zinc.950"}
 >
-  <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "h-10", "px-4", "py-2", "flex items-center gap-1.5 hover:bg-white/5 rounded-lg px-2 py-1 transition-colors", "bg-transparent", "text-zinc-300", "border-false"].filter(Boolean).join(" ")}
+  <button raw_class={"flex items-center gap-1.5 hover:bg-white/5 rounded-lg px-2 py-1 transition-colors"} bg={"transparent"} color={"zinc.300"} border={false}
 >
-  <p className={["text-xs", "font-bold", "text-zinc-400", "tracking-widest", "uppercase"].filter(Boolean).join(" ")}
+  <text size={"xs"} weight={"bold"} color={"zinc.400"} tracking={"widest"} case={"upper"}
 >
   {"Vox"}
-</p>
-  <p className={["text-xs", "text-zinc-700"].filter(Boolean).join(" ")}
+</text>
+  <text size={"xs"} color={"zinc.700"}
 >
   {"/"}
-</p>
-  <p className={["text-sm", "text-zinc-300", "font-mono"].filter(Boolean).join(" ")}
+</text>
+  <text size={"sm"} color={"zinc.300"} fontFamily={"mono"}
 >
   {workspace}
-</p>
-  <p className={["text-xs", "text-zinc-600", "ml-0.5"].filter(Boolean).join(" ")}
+</text>
+  <text size={"xs"} color={"zinc.600"} raw_class={"ml-0.5"}
 >
   {"‹"}
-</p>
+</text>
 </button>
-  <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "h-10", "flex items-center gap-2 w-64", "bg-zinc-900", "border", "border-white/10", "rounded-lg", "px-3", "py-1", "text-zinc-500"].filter(Boolean).join(" ")}
+  <button raw_class={"flex items-center gap-2 w-64"} bg={"zinc.900"} border={true} border_color={"white/10"} radius={"lg"} pad_x={3} pad_y={1} color={"zinc.500"}
 >
   <NavIcon name={"search"} />
-  <p className={["text-xs", "text-zinc-600", "flex-1 text-left"].filter(Boolean).join(" ")}
+  <text size={"xs"} color={"zinc.600"} raw_class={"flex-1 text-left"}
 >
   {"Search or jump to…"}
-</p>
-  <div className={["border", "border-white/15", "rounded-sm", "px-1", "bg-white/5", "h-5 inline-flex items-center"].filter(Boolean).join(" ")}
+</text>
+  <panel border={true} border_color={"white/15"} radius={"sm"} pad_x={1} bg={"white/5"} raw_class={"h-5 inline-flex items-center"}
 >
-  <p className={["text-xs", "font-mono", "text-zinc-500"].filter(Boolean).join(" ")}
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.500"}
 >
   {"⌘K"}
-</p>
-</div>
+</text>
+</panel>
 </button>
-  <div className={["flex", "flex-row", "flex items-center", "gap-3"].filter(Boolean).join(" ")}
+  <row items={"center"} gap={3}
 >
   <StateChip status={run_status} label={run_label} />
-  <div className={["p-4", "w-7", "h-7", "rounded-full", "bg-blue-600/20", "border", "border-blue-500/30", "flex items-center justify-center"].filter(Boolean).join(" ")}
+  <panel w={7} h={7} radius={"full"} bg={"blue.600/20"} border={true} border_color={"blue.500/30"} raw_class={"flex items-center justify-center"}
 >
-  <p className={["text-xs", "font-bold", "text-blue-400", "font-mono"].filter(Boolean).join(" ")}
+  <text size={"xs"} weight={"bold"} color={"blue.400"} fontFamily={"mono"}
 >
   {"AU"}
-</p>
-</div>
-</div>
-</div>
+</text>
+</panel>
+</row>
+</row>
   );
 }

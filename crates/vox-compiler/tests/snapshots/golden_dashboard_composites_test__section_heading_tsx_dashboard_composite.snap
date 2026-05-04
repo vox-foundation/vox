@@ -10,12 +10,12 @@ export interface SectionHeadingProps {
 
 export function SectionHeading({ title }: SectionHeadingProps): React.ReactElement {
   return (
-<div className={["flex", "flex-row", "px-4", "py-2", "border-b-true", "border-white/10", "flex justify-between", "flex items-center", "shrink-0", "bg-zinc-900/50"].filter(Boolean).join(" ")}
+<row pad_x={4} pad_y={2} border_b={true} border_color={"white/10"} justify={"between"} items={"center"} shrink={0} bg={"zinc.900/50"}
 >
-  <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-400"].filter(Boolean).join(" ")}
+  <text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.400"}
 >
   {title}
-</p>
-</div>
+</text>
+</row>
   );
 }
