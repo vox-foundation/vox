@@ -52,6 +52,7 @@ toml = { workspace = true }
 vox-pm.workspace = true
 vox-ludus = { workspace = true }
 vox-skills = { workspace = true }
+vox-ars = { workspace = true }
 vox-plugin-host = { workspace = true }
 dirs = { workspace = true }
 parking_lot = "0.12"

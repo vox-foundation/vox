@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use vox_skills::ars_shim::context::{
+use vox_ars::context::{
     ArsContextBundle, ContextPolicy, RetrievalTier, assemble_bundle,
 };
 

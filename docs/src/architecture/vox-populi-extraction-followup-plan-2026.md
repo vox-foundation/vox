@@ -138,7 +138,16 @@ These accompany or follow Unit 1–5:
 
 ### CC-1: Retire `vox-skills` shim entirely
 
-After all skill consumers migrate, delete `vox-skills/`. Currently blocked on the ARS shim (used by 15+ vox-cli call sites for OpenClaw integration). Move ARS to its own crate (`vox-ars`?) or fold into vox-orchestrator.
+**ARS shim relocation — DONE (2026-05-03).**
+Created `crates/vox-ars` as a thin re-export facade over `vox_skills::ars_shim`.
+All external consumers (vox-cli, vox-runtime, vox-orchestrator) migrated to `vox_ars::*` import paths.
+Physical move of the 12 `ars_shim/` files out of vox-skills is **deferred** — `ars_shim/mod.rs` re-exports
+`crate::parser::parse_skill_md`, `crate::SkillRegistry`, and `crate::install_builtins` from the vox-skills
+crate root, creating a circular dependency if extracted. Those types need to move into `vox-plugin-host` first.
+
+**Full vox-skills deletion still deferred.** Remaining blocker: `parser.rs`, `registry.rs`, `plugin.rs`
+consumed by vox-orchestrator's `plugin_skills_bridge` — requires those types to be replicated or moved
+into vox-plugin-host before vox-skills can be deleted.
 
 ### CC-2: Adopt AgentSkills open standard at SKILL.md level
 

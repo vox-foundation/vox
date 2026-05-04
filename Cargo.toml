@@ -69,6 +69,7 @@ vox-forge                 = { path = "crates/vox-forge" }
 vox-crypto                = { path = "crates/vox-crypto" }
 vox-identity              = { path = "crates/vox-identity" }
 
+vox-ars                   = { path = "crates/vox-ars" }
 vox-audio-ingress         = { path = "crates/vox-audio-ingress" }
 vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
 vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
