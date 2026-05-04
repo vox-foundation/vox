@@ -238,7 +238,7 @@ pub use contract::{
     OrchestrationMigrationFlags, SessionContractEnvelope, TaskCapabilityHints,
     plan_tool_daemon_alignment_valid,
 };
-pub use events::{AgentActivity, AgentEvent, AgentEventKind, EventBus};
+pub use events::{AgentActivity, AgentEvent, AgentEventKind, BuildStageKind, EventBus};
 pub use gate::{BudgetGate, Gate, GateResult};
 pub use groups::{AffinityGroup, AffinityGroupRegistry, load_from_config};
 pub use handoff::{
