@@ -18,8 +18,17 @@ impl Parser {
         self.advance(); // eat 'import'
         let mut paths = Vec::new();
         loop {
-            let path = self.parse_import_path()?;
-            paths.push(path);
+            // `rust:` imports use the full parse_import_path handler.
+            // All symbol imports go through parse_symbol_import which also accepts
+            // `/` as a path separator and `as { name1, name2 }` destructuring.
+            let first_is_rust =
+                matches!(self.peek(), Token::Ident(n) if n == "rust");
+            if first_is_rust {
+                let path = self.parse_import_path()?;
+                paths.push(path);
+            } else {
+                self.parse_symbol_import(&mut paths)?;
+            }
             if !self.eat(&Token::Comma) {
                 break;
             }
@@ -28,6 +37,134 @@ impl Parser {
             paths,
             span: start.merge(self.span()),
         }))
+    }
+
+    /// Parse one symbol import declaration, appending zero or more `ImportPath`s to `paths`.
+    ///
+    /// Handles three forms:
+    ///   `import lib.chrome.StateChip`          — dotted single-item
+    ///   `import lib/chrome.StateChip`          — slash-separated (equivalent)
+    ///   `import lib/chrome as { A, B, C }`     — destructured multi-item (ES6-style)
+    ///   `import lib.chrome as Alias`           — whole-module alias
+    fn parse_symbol_import(&mut self, paths: &mut Vec<ImportPath>) -> Result<(), ()> {
+        let seg_start = self.span();
+
+        // ── collect path segments (separated by '.' or '/') ──────────────────
+        let first = match self.peek().clone() {
+            Token::Ident(name) | Token::TypeIdent(name) => {
+                self.advance();
+                name
+            }
+            Token::Env => {
+                self.advance();
+                "env".to_string()
+            }
+            Token::Http => {
+                self.advance();
+                "http".to_string()
+            }
+            _ => {
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "Import path must begin with an identifier (for example `lib.chrome.StateChip` or `lib/chrome as { StateChip }`).",
+                    vec!["identifier".into()],
+                    Some(self.peek().to_string()),
+                    ParseErrorClass::Declaration,
+                ));
+                return Err(());
+            }
+        };
+
+        let mut segments = vec![first];
+        loop {
+            // Accept both '.' and '/' as path separators.
+            if !matches!(self.peek(), Token::Dot | Token::Slash) {
+                break;
+            }
+            self.advance(); // eat '.' or '/'
+            match self.peek().clone() {
+                Token::Ident(name) | Token::TypeIdent(name) => {
+                    segments.push(name);
+                    self.advance();
+                }
+                Token::Env => {
+                    self.advance();
+                    segments.push("env".to_string());
+                }
+                Token::Http => {
+                    self.advance();
+                    segments.push("http".to_string());
+                }
+                _ => break,
+            }
+        }
+
+        // ── check for `as …` ──────────────────────────────────────────────────
+        let has_as = matches!(self.peek(), Token::Ident(w) if w == "as");
+        if has_as {
+            self.advance(); // eat 'as'
+            if matches!(self.peek(), Token::LBrace) {
+                self.advance(); // eat '{'
+                // Destructured form: `import lib/chrome as { StateChip, TopBar }`
+                // Expand into one ImportPath per item (item appended to segments).
+                loop {
+                    if matches!(self.peek(), Token::RBrace) {
+                        break;
+                    }
+                    let item = match self.peek().clone() {
+                        Token::Ident(name) | Token::TypeIdent(name) => {
+                            self.advance();
+                            name
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected identifier inside destructured import `as { ... }`.",
+                                vec!["identifier".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    };
+                    // Optional `as item_alias` inside the braces.
+                    let item_alias =
+                        if matches!(self.peek(), Token::Ident(w) if w == "as") {
+                            self.advance();
+                            Some(self.parse_ident_name()?)
+                        } else {
+                            None
+                        };
+                    let mut full = segments.clone();
+                    full.push(item.clone());
+                    paths.push(ImportPath {
+                        kind: ImportPathKind::SymbolPath { segments: full },
+                        alias: item_alias,
+                        span: seg_start.merge(self.span()),
+                    });
+                    if !self.eat(&Token::Comma) {
+                        break;
+                    }
+                }
+                self.expect(&Token::RBrace)?;
+            } else {
+                // Single alias: `import lib.chrome as chrome`
+                let alias_name = self.parse_ident_name()?;
+                paths.push(ImportPath {
+                    kind: ImportPathKind::SymbolPath { segments },
+                    alias: Some(alias_name),
+                    span: seg_start.merge(self.span()),
+                });
+            }
+        } else {
+            // No `as` — last segment is the item name.
+            paths.push(ImportPath {
+                kind: ImportPathKind::SymbolPath { segments },
+                alias: None,
+                span: seg_start.merge(self.span()),
+            });
+        }
+        Ok(())
     }
 
     pub(crate) fn parse_import_path(&mut self) -> Result<ImportPath, ()> {

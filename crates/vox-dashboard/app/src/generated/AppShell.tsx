@@ -1,53 +1,35 @@
 import React, { useState } from "react";
 
-import { CommandTab } from "./CommandTab";
-import { ForgeTab } from "./ForgeTab";
-import { NetworkTab } from "./NetworkTab";
-import { SpeakTab } from "./SpeakTab";
-
 export function AppShell(): React.ReactElement {
-  const [tab, set_tab] = useState("speak");
+  const [active, set_active] = useState("mesh");
+  const [rail_collapsed, set_rail_collapsed] = useState(false);
   return (
-<column className={"min-h-screen bg-zinc-950 text-zinc-100 font-mono"}
+<column min_h={"screen"} overflow={"hidden"} bg={"zinc.950"} color={"zinc.100"} fontFamily={"sans"}
 >
-  <row className={"h-10 border-b border-zinc-800 px-4 items-center justify-between shrink-0"}
+  <TopBar workspace={"aurelia-mesh"} run_status={"idle"} run_label={"idle"} />
+  <row flex={1} min_h={0} overflow={"hidden"}
 >
-  <text className={"text-xs tracking-widest text-zinc-500"}
+  <LeftRail active={active} collapsed={rail_collapsed} on_speak={(() => ((() => {
+    set_active("speak");
+  })()))} on_mesh={(() => ((() => {
+    set_active("mesh");
+  })()))} on_forge={(() => ((() => {
+    set_active("forge");
+  })()))} on_code={(() => ((() => {
+    set_active("code");
+  })()))} on_models={(() => ((() => {
+    set_active("models");
+  })()))} on_runs={(() => ((() => {
+    set_active("runs");
+  })()))} on_settings={(() => ((() => {
+    set_active("settings");
+  })()))} />
+  <panel flex={1} min_w={0} overflow={"hidden"} bg={"zinc.950"} raw_class={"flex flex-col"}
 >
-  {"VOX ORCHESTRATOR"}
-</text>
-  <row className={"gap-1"}
->
-  <button className={"tab-btn"} onClick={() => {
-    set_tab("speak");
-}}
->
-  {"LOQUELA"}
-</button>
-  <button className={"tab-btn"} onClick={() => {
-    set_tab("command");
-}}
->
-  {"IMPERIUM"}
-</button>
-  <button className={"tab-btn"} onClick={() => {
-    set_tab("network");
-}}
->
-  {"RETE"}
-</button>
-  <button className={"tab-btn"} onClick={() => {
-    set_tab("forge");
-}}
->
-  {"FABRICA"}
-</button>
-</row>
-</row>
-  <panel className={"flex-1 overflow-hidden"}
->
-  {(tab === "speak" ? <SpeakTab  /> : (tab === "command" ? <CommandTab  /> : (tab === "network" ? <NetworkTab  /> : <ForgeTab  />)))}
+  {(active === "speak" ? <SpeakSurface  /> : (active === "mesh" ? <MeshSurface  /> : (active === "forge" ? <ForgeSurface  /> : (active === "code" ? <CodeSurface  /> : (active === "models" ? <ModelsSurface  /> : (active === "runs" ? <RunsSurface  /> : <SettingsSurface  />))))))}
 </panel>
+</row>
+  <StatusBar active={active} />
 </column>
   );
 }

@@ -57,12 +57,17 @@ use serde_json::{Value, json};
 // ── GET /api/v2/mesh/summary ──────────────────────────────────────────────────
 
 async fn get_summary() -> Json<Value> {
+    // Phase 2.6 stub — string values so the KPI chips render without
+    // a JS toString step. Real values from orchestrator EventBus in Phase 2.
     Json(json!({
         "v": 1,
         "data": {
-            "nodes":         0,
-            "queue":         0,
-            "errors":        0,
+            "nodes":         "7",
+            "active":        "0",
+            "blocked":       "0",
+            "errors":        "0",
+            "tok_s":         "0",
+            "cost_h":        "$0.00",
             "default_model": "—",
             "build_state":   "idle"
         }

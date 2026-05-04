@@ -5,10 +5,12 @@
 //   2.3  MeshTopology   — SVG canvas, fixture aurelia-mesh topology, selection state
 //   2.4  ActivityStrip  — 80px tok/s bar chart (static placeholder; live in Phase 2.4)
 //   2.5  MeshInspector  — inline right-rail inspector (Pause/Replay/Kill stubs)
+//   2.6  MeshSurface    — REST fetch wiring (on mount: fetch /api/v2/mesh/summary)
 //
-// Data flow (Phase 2 stub):
-//   All KPI values are initialised to "0". Phase 2 REST+WS wiring lands when
-//   transport.vox's fetch_json + ws_connect are wired in the next sub-task.
+// Data flow:
+//   MeshSurface fetches /api/v2/mesh/summary on mount and maps the six KPI
+//   fields (nodes/active/blocked/errors/tok_s/cost_h) into state.
+//   Phase 2 WS wiring replaces the static stub values with live EventBus ticks.
 //
 // SVG coordinate map (800 × 480 viewBox, flat-top hexagons r=32):
 //   orchestrator-7c2a  (230, 260)  hex  blue   — sonnet-4.6
@@ -26,6 +28,7 @@
 
 import lib/chrome as { StateChip }
 import lib/primitives as { NodeBadge }
+import lib/transport as { fetch_json }
 
 // ── MeshKpi ───────────────────────────────────────────────────────────────────
 // Compact KPI chip for the summary bar. Smaller than StatBox (xl vs 2xl).
@@ -210,23 +213,46 @@ component ActivityStrip() {
     }
 }
 
-// ── MeshSurface ───────────────────────────────────────────────────────────────
+// ── MeshSurface (Task 2.6) ────────────────────────────────────────────────────
 // Full Mesh surface: header + summary bar + topology canvas + activity strip.
-// Replaces the Phase 1 SurfaceStub placeholder.
+// Fetches /api/v2/mesh/summary on mount to populate the six KPI chips.
+// Phase 2 WS wiring replaces on-mount fetch with live EventBus subscriptions.
 
 component MeshSurface() {
+    state kpi_nodes:   str = "—"
+    state kpi_active:  str = "—"
+    state kpi_blocked: str = "—"
+    state kpi_errors:  str = "—"
+    state kpi_tok_s:   str = "—"
+    state kpi_cost_h:  str = "—"
+    state build_state: str = "idle"
+    state node_count:  str = "0"
+
+    on mount: {
+        fetch_json("/api/v2/mesh/summary").then(fn(data: any) {
+            kpi_nodes   = data.nodes
+            kpi_active  = data.active
+            kpi_blocked = data.blocked
+            kpi_errors  = data.errors
+            kpi_tok_s   = data.tok_s
+            kpi_cost_h  = data.cost_h
+            build_state = data.build_state
+            node_count  = data.nodes
+        })
+    }
+
     view: column(flex=1, overflow="hidden", bg="zinc.950") {
         // Surface header
         row(h=10, border_b=true, border_color="zinc.800", pad_x=4, items="center", justify="between", shrink=0) {
             text(size="sm", weight="black", tracking="tight", color="white") { "Mesh" }
             row(gap=2, items="center") {
-                StateChip(status="idle", label="0 nodes")
+                StateChip(status=build_state, label=node_count)
                 button(raw_class="px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800") { "Refresh" }
             }
         }
 
-        // Phase 2.2 — KPI summary bar
-        MeshSummaryBar(nodes="0", active="0", blocked="0", errors="0", tok_s="0", cost_h="$0.00")
+        // Phase 2.2 — KPI summary bar (wired to state)
+        MeshSummaryBar(nodes=kpi_nodes, active=kpi_active, blocked=kpi_blocked, errors=kpi_errors, tok_s=kpi_tok_s, cost_h=kpi_cost_h)
 
         // Phase 2.3 — topology canvas + inspector
         MeshTopology()
