@@ -53,6 +53,7 @@ training_eligible: false
 - [Migration of Vox Compiler to AI-Native Architecture](path-b-decommission-2026.md)
 - [Milestone and gate definition spec](planning-meta/08-milestone-gate-definition-spec.md)
 - [Model Orchestration SSOT — Audit & Convergence Plan (2026-04-20)](model-orchestration-ssot-audit-2026.md)
+- [Multi-Agent VCS Replication — Landscape Research (2026-05-03)](multi-agent-vcs-replication-research-2026.md)
 - [Next-Generation AI Orchestrator: Systemic Flaws, Power User Demands, and Production Design Patterns](nextgen-orchestrator-research-2026.md)
 - [Planning critique and gap analysis](planning-meta/04-planning-critique-gap-analysis.md)
 - [Planning meta exception register](planning-meta/exception-register.md)
@@ -97,6 +98,7 @@ training_eligible: false
 - [Plugin System Redesign — SP3 Implementation Plan (2026)](plugin-system-redesign-sp3-plan-2026.md)
 - [Plugin System Redesign — SP4 Implementation Plan (2026)](plugin-system-redesign-sp4-plan-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](shiki-mdbook-doc-platform-research-2026.md)
+- [Svelte 5/6 vs React Meta-Frameworks — Comparative Research and Mineable Ideas for Vox (2026)](svelte-vs-react-frameworks-research-2026.md)
 - [Vox-Populi Extraction Follow-Up Plan (2026)](vox-populi-extraction-followup-plan-2026.md)
 - [Warp Terminal Research Findings (2026)](warp-research-findings-2026.md)
 - [Web App Archetype Coverage Map (2026)](web-app-archetype-coverage-2026.md)
@@ -108,10 +110,13 @@ training_eligible: false
 - [Data Storage Migration Backlog (2026)](data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](data-storage-ssot-2026.md)
 - [External Frontend Interop Plan (2026)](external-frontend-interop-plan-2026.md)
+- [GUI Authoring Syntax (2026): Vox UI as Values (VUV)](gui-authoring-syntax-2026.md)
+- [Multi-Agent VCS Replication — Architecture Spec (2026-05-03)](multi-agent-vcs-replication-spec-2026.md)
+- [Multi-Agent VCS Replication — Phase 1 Implementation Plan (2026-05-03)](multi-agent-vcs-replication-impl-plan-phase1-2026.md)
 - [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](2026-05-01-orchestrator-stage1-stage2.md)
 - [Phase 1: Build Target Split Spec (2026)](phase1-build-targets-spec-2026.md)
 - [Phase 3: HTTP Ergonomics Decorators Spec (2026)](phase3-http-ergonomics-spec-2026.md)
-- [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](phase5-react-interop-spec-2026.md)
+- [Svelte-Mineable Features Implementation Plan (2026)](svelte-mineable-features-implementation-plan-2026.md)
 
 ## Status: Deprecated
 

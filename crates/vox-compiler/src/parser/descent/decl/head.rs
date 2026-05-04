@@ -4,7 +4,7 @@ use super::super::Parser;
 use crate::ast::decl::{
     Decl, EffectDecl,
     EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind,
-    IslandDecl, IslandProp, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
+    LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
     OnMountDecl, PostCondition, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl,
     RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl,
 };
@@ -333,7 +333,113 @@ impl Parser {
         })
     }
 
-    /// `@island Name { prop: Type, prop?: Type }` — brace-delimited prop block.
+    /// ADR-033: parse a `fragment Name(args) { <markup> }` declaration into a
+    /// [`crate::ast::decl::FragmentDecl`]. The body is parsed as a single expression
+    /// (matches the `view:` shape inside reactive components). Codegen for fragments
+    /// is gated on Phase 6 typed-primitive stabilization per the ADR; for now the
+    /// parser accepts the syntax and the AST node carries it through to whatever
+    /// future codegen / lowering wants to consume it.
+    pub(crate) fn parse_fragment_decl(&mut self) -> Result<crate::ast::decl::Decl, ()> {
+        use crate::ast::decl::FragmentDecl;
+        use crate::lexer::token::Token;
+
+        let start = self.span();
+        self.expect(&Token::Fragment)?;
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+        let body = self.parse_expr()?;
+        self.skip_newlines();
+        self.expect(&Token::RBrace)?;
+        Ok(crate::ast::decl::Decl::Fragment(FragmentDecl {
+            name,
+            params,
+            body,
+            span: start.merge(self.span()),
+        }))
+    }
+
+    /// ADR-032: parse module-scope reactive members in a `.vox.ui` file into a single
+    /// synthetic [`ReactiveModuleDecl`]. Consumes consecutive `state` / `derived` /
+    /// `effect` / `on mount` / `on cleanup` declarations until it hits a token that
+    /// isn't one of those, then returns. Subsequent module-scope reactive members in
+    /// the same file would be picked up by another `parse_decl` call and produce a
+    /// second `ReactiveModuleDecl` — that's intentional; per-module name disambiguation
+    /// is the file's responsibility.
+    ///
+    /// Caller (`parse_decl`) only invokes this when `self.file_kind ==
+    /// FileKind::ReactiveModule` and the next token is a reactive member.
+    pub(crate) fn parse_reactive_module_decl(&mut self) -> Result<crate::ast::decl::Decl, ()> {
+        use crate::ast::decl::{
+            EffectDecl, OnCleanupDecl, OnMountDecl, ReactiveMemberDecl, ReactiveModuleDecl,
+        };
+
+        let start = self.span();
+        let mut members: Vec<ReactiveMemberDecl> = Vec::new();
+
+        loop {
+            self.skip_newlines();
+            match self.peek().clone() {
+                Token::State => {
+                    members.push(ReactiveMemberDecl::State(self.parse_state_decl()?))
+                }
+                Token::Derived => {
+                    members.push(ReactiveMemberDecl::Derived(self.parse_derived_decl()?))
+                }
+                Token::Effect => {
+                    let eff_start = self.span();
+                    let body = self.parse_reactive_block()?;
+                    members.push(ReactiveMemberDecl::Effect(EffectDecl {
+                        body,
+                        span: eff_start.merge(self.span()),
+                    }));
+                }
+                Token::On => {
+                    let on_start = self.span();
+                    self.advance();
+                    match self.peek().clone() {
+                        Token::Mount => {
+                            let body = self.parse_reactive_block()?;
+                            members.push(ReactiveMemberDecl::OnMount(OnMountDecl {
+                                body,
+                                span: on_start.merge(self.span()),
+                            }));
+                        }
+                        Token::Cleanup => {
+                            let body = self.parse_reactive_block()?;
+                            members.push(ReactiveMemberDecl::OnCleanup(OnCleanupDecl {
+                                body,
+                                span: on_start.merge(self.span()),
+                            }));
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected `mount` or `cleanup` after `on` at module scope in a `.vox.ui` file.",
+                                vec!["mount".into(), "cleanup".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                }
+                _ => break,
+            }
+        }
+
+        Ok(crate::ast::decl::Decl::ReactiveModule(ReactiveModuleDecl {
+            // Module name is filled in later by codegen from the source file basename;
+            // the parser doesn't know the path. Empty for now.
+            name: String::new(),
+            members,
+            span: start.merge(self.span()),
+        }))
+    }
+
     /// `@loading fn Name() to Element { ... }` — TanStack Router `pendingComponent` / suspense UI.
     pub(crate) fn parse_loading(&mut self) -> Result<Decl, ()> {
         self.advance(); // @loading
@@ -342,50 +448,19 @@ impl Parser {
         Ok(Decl::Loading(LoadingDecl { func: f }))
     }
 
-    /// Parser truth for WebIR docs: only `{ prop: Ty` / `prop?: Ty }` forms; no comma-required between props.
-    /// Braces are authoritative: `{` must follow the island name immediately (non-speculative; OP-0013).
-    pub(crate) fn parse_island(&mut self) -> Result<Decl, ()> {
-        let start = self.span();
-        self.advance(); // @island
-        self.maybe_parser_trace("island.after_kw");
-        self.skip_newlines();
-        if let Token::StringLit(_) = self.peek().clone() {
-            self.advance();
-        }
-        self.skip_newlines();
-        let name = self.parse_ident_name()?;
-        self.expect(&Token::LBrace)?;
-        self.skip_newlines();
-        let mut props = Vec::new();
-        loop {
-            self.skip_newlines();
-            if matches!(self.peek(), Token::RBrace | Token::Eof) {
-                break;
-            }
-            props.push(self.parse_island_prop_line()?);
-            self.skip_newlines();
-        }
-        self.eat(&Token::RBrace);
-        Ok(Decl::Island(IslandDecl {
-            name,
-            props,
-            span: start.merge(self.span()),
-        }))
-    }
-
-    /// One `@island` prop line: `name`, optional `?`, `:`, type (OP-0006).
-    pub(crate) fn parse_island_prop_line(&mut self) -> Result<IslandProp, ()> {
+    /// One v0 component prop line: `name`, optional `?`, `:`, type (OP-0006).
+    pub(crate) fn parse_v0_prop_line(&mut self) -> Result<crate::ast::decl::V0Prop, ()> {
         let pname = self.parse_ident_name()?;
         if std::env::var_os("VOX_PARSER_DEBUG").is_some() {
             eprintln!(
-                "[vox-parser:island.prop] name={pname:?} next={:?}",
+                "[vox-parser:v0.prop] name={pname:?} next={:?}",
                 self.peek()
             );
         }
         let is_optional = self.eat(&Token::Question);
         self.expect(&Token::Colon)?;
         let ty = self.parse_type_expr()?;
-        Ok(IslandProp {
+        Ok(crate::ast::decl::V0Prop {
             name: pname,
             ty,
             is_optional,
@@ -668,6 +743,7 @@ impl Parser {
         let mut invariants = Vec::new();
         let mut is_mobile_native = false;
         let mut is_pure = false;
+        let mut is_reactive = false;
         let mut is_deprecated = false;
         let mut is_llm = false;
         let mut llm_model = None;
@@ -710,6 +786,10 @@ impl Parser {
                 Token::AtPure => {
                     self.advance();
                     is_pure = true;
+                }
+                Token::AtReactive => {
+                    self.advance();
+                    is_reactive = true;
                 }
                 Token::AtDeprecated => {
                     self.advance();
@@ -781,6 +861,7 @@ impl Parser {
             is_async: false,
             is_deprecated,
             is_pure,
+            is_reactive,
             is_llm,
             llm_model,
             is_traced: false,

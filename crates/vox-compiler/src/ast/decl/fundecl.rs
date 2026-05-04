@@ -42,6 +42,13 @@ pub struct FnDecl {
     pub is_deprecated: bool,
     /// Whether the function is pure (no side effects).
     pub is_pure: bool,
+    /// Whether the function carries an `@reactive` decorator. When set, the auto-dep
+    /// inference pass at [`crate::codegen_ts::hir_emit::state_deps`] is allowed to
+    /// recurse into the body when this function is called from a reactive `derived` /
+    /// `effect`, so that reads of reactive bindings through the call participate in
+    /// dependency tracking. Default: `false` (the dep walker stops at the call site).
+    #[serde(default)]
+    pub is_reactive: bool,
     /// Explicit effect annotations from the `uses` clause.
     /// Empty means unannotated (unconstrained); `[Nothing]` means `uses nothing` (pure).
     #[serde(default)]

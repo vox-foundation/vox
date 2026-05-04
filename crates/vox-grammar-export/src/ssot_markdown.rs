@@ -64,7 +64,6 @@ const LEXER_DECORATORS: &[&str] = &[
     "@index",
     "@v0",
     "@mobile.native",
-    "@island",
     "@loading",
 ];
 

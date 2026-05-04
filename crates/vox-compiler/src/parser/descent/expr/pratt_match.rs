@@ -1,7 +1,7 @@
 // Primary expressions, postfix, control/lambda forms.
 
 use super::super::Parser;
-use crate::ast::expr::{Arg, Expr, MatchArm, UnOp};
+use crate::ast::expr::{Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, UnOp};
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
 
@@ -194,7 +194,10 @@ impl Parser {
                     span: start.merge(self.span()),
                 }
             }
-            Token::Lt => self.parse_jsx()?,
+            // VUV: angle-bracket JSX (`<tag attr=...>`) was retired as a parser entry point.
+            // View calls are now `Ident(kwargs) { children }`. Hitting `<` here is a real
+            // less-than usage in expression context — fall through to the error path so we
+            // don't silently consume HTML-shaped source.
             Token::Ident(name) | Token::TypeIdent(name) => {
                 self.advance();
                 if self.eat(&Token::FatArrow) {
@@ -253,6 +256,76 @@ impl Parser {
                     self.advance();
                     let args = self.parse_args()?;
                     self.expect(&Token::RParen)?;
+                    // VUV view-call form: `Ident(args) { children }` parses as JSX.
+                    // Trigger requires (a) callee is a bare Ident (no method chains, no field access)
+                    // and (b) next non-newline token is `{`. Sugars to Expr::Jsx so HIR / web_ir /
+                    // codegen are untouched. Positional args are rejected — view calls are kw-only.
+                    //
+                    // Capitalized-Ident calls without a trailing block are also sugared into
+                    // Expr::JsxSelfClosing — `Component()` ≡ `Component() {}` ≡ `<Component/>`.
+                    // This matches React's tag-naming convention and avoids forcing every
+                    // self-closing component invocation to write `() {}`.
+                    if let Expr::Ident { name: tag, .. } = &expr {
+                        let mut peek_pos = self.pos;
+                        while peek_pos < self.tokens.len()
+                            && matches!(self.tokens[peek_pos].token, Token::Newline)
+                        {
+                            peek_pos += 1;
+                        }
+                        let is_brace_next = matches!(
+                            self.tokens.get(peek_pos).map(|t| &t.token),
+                            Some(Token::LBrace)
+                        );
+                        let starts_uppercase = tag
+                            .chars()
+                            .next()
+                            .map_or(false, |c| c.is_ascii_uppercase());
+                        let is_view_callee = starts_uppercase
+                            || crate::web_ir::primitives::is_primitive(tag);
+                        let all_named = args.iter().all(|a| a.name.is_some());
+                        // Trailing-block-as-children sugar fires only when the call shape is
+                        // unambiguously a view-call: callee is a recognized view-callee
+                        // (capitalized component or primitive), all args are named, AND a `{`
+                        // follows. Otherwise the `{` belongs to an outer construct (e.g.
+                        // `if !has_capability(cap) {`), and we must NOT consume it as children.
+                        if is_brace_next && is_view_callee && all_named {
+                            let tag = tag.clone();
+                            let attributes = self.view_args_to_attrs(args)?;
+                            self.skip_newlines();
+                            self.expect(&Token::LBrace)?;
+                            let children = self.parse_view_children()?;
+                            self.expect(&Token::RBrace)?;
+                            expr = Expr::Jsx(JsxElement {
+                                tag,
+                                attributes,
+                                children,
+                                span: start.merge(self.span()),
+                            });
+                            continue;
+                        } else if (starts_uppercase
+                            || crate::web_ir::primitives::is_primitive(tag)
+                            || is_known_html_view_tag(tag))
+                            && args.iter().all(|a| a.name.is_some())
+                        {
+                            // Three view-call self-closing triggers, all requiring all-named args:
+                            //   1. Capitalized callee (`Component(...)`) — React component shape.
+                            //   2. Recognized UI primitive (`row(...)`, `panel(...)`).
+                            //   3. Recognized raw HTML element from a curated allowlist
+                            //      (`input(attr_type="checkbox")`, `select(...)`, etc.). The
+                            //      allowlist guards against ordinary lowercase function calls
+                            //      like `fetch(timeout=5)` accidentally lowering to JSX.
+                            // Positional args (enum/type constructors like `Some(x)`) always fall
+                            // through to a regular Expr::Call below.
+                            let tag = tag.clone();
+                            let attributes = self.view_args_to_attrs(args)?;
+                            expr = Expr::JsxSelfClosing(JsxSelfClosingElement {
+                                tag,
+                                attributes,
+                                span: start.merge(self.span()),
+                            });
+                            continue;
+                        }
+                    }
                     expr = Expr::Call {
                         callee: Box::new(expr),
                         args,
@@ -287,6 +360,7 @@ impl Parser {
 
     pub(crate) fn parse_args(&mut self) -> Result<Vec<Arg>, ()> {
         let mut args = Vec::new();
+        self.skip_newlines();
         while !matches!(self.peek(), Token::RParen | Token::Eof) {
             // Check for named arg: name=value
             if let Token::Ident(name) = self.peek().clone() {
@@ -298,18 +372,22 @@ impl Parser {
                         name: Some(name),
                         value,
                     });
+                    self.skip_newlines();
                     if !self.eat(&Token::Comma) {
                         break;
                     }
+                    self.skip_newlines();
                     continue;
                 }
                 self.pos = saved; // backtrack
             }
             let value = self.parse_expr()?;
             args.push(Arg { name: None, value });
+            self.skip_newlines();
             if !self.eat(&Token::Comma) {
                 break;
             }
+            self.skip_newlines();
         }
         Ok(args)
     }
@@ -498,5 +576,89 @@ impl Parser {
             body: Box::new(body),
             span: start.merge(self.span()),
         })
+    }
+
+    // Curated allowlist of raw HTML elements that may appear as view-calls outside the primitive
+    // set. Only tags that genuinely belong in a view tree are listed; ordinary function names
+    // like `fetch`, `query`, `request` — even when called with named args only — must NOT be
+    // sugared into JSX, because that breaks them at the type-check layer.
+}
+
+#[must_use]
+fn is_known_html_view_tag(tag: &str) -> bool {
+    matches!(
+        tag,
+        // Form / interactive
+        "input" | "label" | "textarea" | "select" | "option" | "form" | "fieldset" | "legend"
+        // Tabular
+        | "table" | "thead" | "tbody" | "tfoot" | "tr" | "th" | "td" | "caption"
+        // Media
+        | "audio" | "video" | "source" | "track" | "canvas" | "svg" | "img"
+        // Inline structural
+        | "span" | "br" | "hr" | "i" | "b" | "em" | "strong" | "small" | "code" | "pre"
+        | "kbd" | "abbr" | "cite" | "blockquote" | "q"
+        // Document
+        | "head" | "meta" | "title" | "link" | "script" | "style" | "noscript" | "main" | "section"
+        | "article" | "aside" | "header" | "footer" | "nav" | "details" | "summary" | "dialog"
+        | "figure" | "figcaption"
+        // Embedded
+        | "iframe" | "embed" | "object" | "param"
+    )
+}
+
+impl super::super::Parser {
+    /// VUV: convert positional/named call args into JSX attributes. Positional args are rejected
+    /// because view calls are keyword-only by design (props need names like HTML attributes).
+    ///
+    /// Reserved-keyword escape: kwarg names beginning with `attr_` have the prefix stripped so
+    /// HTML attributes whose names collide with Vox keywords can still be expressed. Example:
+    /// `attr_type="checkbox"` → JSX `type="checkbox"`. The escape is needed because `type`,
+    /// `for`, and similar HTML attribute names are reserved Vox identifiers and cannot appear
+    /// as bare kwarg names without a parse error.
+    pub(crate) fn view_args_to_attrs(
+        &mut self,
+        args: Vec<Arg>,
+    ) -> Result<Vec<JsxAttribute>, ()> {
+        let mut attrs = Vec::with_capacity(args.len());
+        for arg in args {
+            match arg.name {
+                Some(mut name) => {
+                    if let Some(rest) = name.strip_prefix("attr_") {
+                        name = rest.to_string();
+                    }
+                    attrs.push(JsxAttribute {
+                        name,
+                        value: arg.value,
+                    });
+                }
+                None => {
+                    self.errors.push(ParseError::classified(
+                        self.span(),
+                        "Positional argument in view-call form. View calls are keyword-only — give every argument a name.",
+                        vec![],
+                        None,
+                        ParseErrorClass::Expression,
+                    ));
+                    return Err(());
+                }
+            }
+        }
+        Ok(attrs)
+    }
+
+    /// VUV: parse the trailing `{ … }` children block of a view call. Each statement-position
+    /// expression is one child; separators (newline, comma, semicolon) are all accepted.
+    /// Caller has already consumed the opening `{`; this stops at (but does not consume) `}`.
+    pub(crate) fn parse_view_children(&mut self) -> Result<Vec<Expr>, ()> {
+        let mut children = Vec::new();
+        self.skip_newlines();
+        while !matches!(self.peek(), Token::RBrace | Token::Eof) {
+            let child = self.parse_expr()?;
+            children.push(child);
+            self.skip_newlines();
+            self.eat(&Token::Comma);
+            self.skip_newlines();
+        }
+        Ok(children)
     }
 }

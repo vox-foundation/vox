@@ -89,7 +89,7 @@ pub(crate) fn get_chunk_id(path: &str) -> (u32, &'static str) {
     }
 
     // ── Frontend / UI ────────────────────────────────────────────────────
-    if p.contains("frontend/") || p.contains("islands/") || p.contains("packages/") {
+    if p.contains("frontend/") || p.contains("packages/") {
         return (20, "05_frontend");
     }
     if p.contains("vox-vscode/") {

@@ -47,7 +47,7 @@ training_eligible: false
 
 ## Status: Current
 
-- [Tutorial: Building UI with Islands](tutorials/tut-ui-integration.md)
+- [Tutorial: Building UI with VUV view-calls](tutorials/tut-ui-integration.md)
 - [Tutorial: Building a Collaborative Task List](tutorials/tut-first-app.md)
 - [Tutorial: Persistent Actors & State](tutorials/tut-actor-basics.md)
 - [Tutorial: Workflow Durability](tutorials/tut-workflow-durability.md)
@@ -67,11 +67,11 @@ training_eligible: false
 - [First Full Stack App](how-to/first-full-stack-app.md)
 - [Golden Examples Corpus](how-to/examples-corpus.md)
 - [How To: Train Mens on RTX 4080 Super](how-to/how-to-train-mens-4080.md)
+- [How to author Vox views (VUV)](how-to/how-to-author-views.md)
 - [How to use the canonical VoxDB / Codex store](how-to/how-to-voxdb-canonical-store.md)
 - [How-To: Build AI Agents and MCP Tools](how-to/how-to-ai-agents.md)
 - [How-To: Deploy to Production](how-to/how-to-deploy.md)
 - [How-To: Handle Errors Gracefully](how-to/how-to-error-handling.md)
-- [How-To: Islands and Pages](how-to/how-to-islands-and-pages.md)
 - [How-To: Model Complex Domain Logic](how-to/how-to-custom-types.md)
 - [How-To: Publish Scientia findings](how-to/how-to-scientia-publication.md)
 - [How-To: Rust crate imports in Vox scripts](how-to/how-to-rust-crate-imports.md)
@@ -83,9 +83,14 @@ training_eligible: false
 - [Migrating from Cargo Feature Flags](how-to/how-to-migrate-from-cargo-features.md)
 - [Model Routing & Provider Cascade](how-to/how-to-model-routing.md)
 - [Picking a Vox bundle](how-to/how-to-pick-a-vox-bundle.md)
+- [Point your AI coding assistant at the Vox MCP validator](how-to/how-to-mcp-vox-validate.md)
 - [Populi Quickstart](how-to/populi-quickstart.md)
 - [Scientia publication: what you type vs what the system derives](how-to/scientia-publication-operator-inputs.md)
 - [Troubleshooting FAQ](how-to/troubleshooting-faq.md)
+
+## Status: Deprecated
+
+- [How-To: Islands and Pages (ARCHIVED)](archive/how-to-islands-and-pages.md)
 
 
 # API Reference — Crates
@@ -171,6 +176,8 @@ training_eligible: false
 - [MCP exposure from the Vox language (SSOT)](archive/research-2026-q1/mcp-vox-language-exposure.md)
 - [ADR 030 — state_machine as SSoT for reactive UI state](adr/030-state-machine-ssot.md)
 - [ADR 031 — Deprecate vox-vscode; dashboard is the primary surface](adr/031-deprecate-vox-vscode.md)
+- [ADR 032 — `.vox.ui` reactive modules](adr/032-vox-ui-reactive-modules.md)
+- [ADR 033 — Typed parametric fragment primitive](adr/033-typed-fragment-primitive.md)
 - [ADR-025: Multi-Agent Lock Coherence and Lease Propagation](adr/025-multi-agent-lock-coherence.md)
 - [ADR-026: Third-Party Code Provenance Policy](adr/026-third-party-code-provenance.md)
 - [ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)](adr/027-dual-track-ui-surfaces.md)
@@ -228,6 +235,7 @@ training_eligible: false
 - [Minimal React Interop Shell Strategy](archive/research-2026-q1/react-interop-minimal-shell-strategy.md)
 - [Mobile/Desktop Convergence & Language Extension Research 2026](archive/research-2026-q1/mobile-desktop-convergence-research-2026.md)
 - [Model Orchestration SSOT — Audit & Convergence Plan (2026-04-20)](architecture/model-orchestration-ssot-audit-2026.md)
+- [Multi-Agent VCS Replication — Landscape Research (2026-05-03)](architecture/multi-agent-vcs-replication-research-2026.md)
 - [News syndication: incident patterns and mitigations](archive/research-2026-q1/news_syndication_incident_patterns.md)
 - [Next-Generation AI Orchestrator: Systemic Flaws, Power User Demands, and Production Design Patterns](architecture/nextgen-orchestrator-research-2026.md)
 - [Nomenclature migration map (SSOT)](archive/research-2026-q1/nomenclature-migration-map.md)
@@ -404,6 +412,7 @@ training_eligible: false
 - [Semantic Proximity, Split-Brain Detection, and Safe Symbol Surfacing (Research 2026)](archive/research-2026-q1/research-semantic-proximity-split-brain-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](architecture/shiki-mdbook-doc-platform-research-2026.md)
 - [State of the Art for Context-Aware Agent Handoff Protocols](archive/research-2026-q1/research-agent-handoff-sota-protocols-2026.md)
+- [Svelte 5/6 vs React Meta-Frameworks — Comparative Research and Mineable Ideas for Vox (2026)](architecture/svelte-vs-react-frameworks-research-2026.md)
 - [Telemetry unification research findings 2026](archive/research-2026-q1/telemetry-unification-research-findings-2026.md)
 - [Terminal AST validation research 2026](archive/research-2026-q1/terminal-ast-validation-research-2026.md)
 - [Terminal execution policy research findings 2026](archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md)
@@ -459,13 +468,16 @@ training_eligible: false
 - [Data Storage Migration Backlog (2026)](architecture/data-storage-migration-backlog-2026.md)
 - [Data Storage SSOT (2026)](architecture/data-storage-ssot-2026.md)
 - [External Frontend Interop Plan (2026)](architecture/external-frontend-interop-plan-2026.md)
+- [GUI Authoring Syntax (2026): Vox UI as Values (VUV)](architecture/gui-authoring-syntax-2026.md)
 - [MENS Research Track Blueprint 2026](archive/research-2026-q1/mens-research-track-blueprint-2026.md)
+- [Multi-Agent VCS Replication — Architecture Spec (2026-05-03)](architecture/multi-agent-vcs-replication-spec-2026.md)
+- [Multi-Agent VCS Replication — Phase 1 Implementation Plan (2026-05-03)](architecture/multi-agent-vcs-replication-impl-plan-phase1-2026.md)
 - [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](architecture/2026-05-01-orchestrator-stage1-stage2.md)
 - [Phase 1: Build Target Split Spec (2026)](architecture/phase1-build-targets-spec-2026.md)
 - [Phase 3: HTTP Ergonomics Decorators Spec (2026)](architecture/phase3-http-ergonomics-spec-2026.md)
-- [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](architecture/phase5-react-interop-spec-2026.md)
 - [Populi GPU mesh implementation plan 2026](archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md)
 - [Scientia Publication Pipeline — Full Implementation Plan v2 (2026)](archive/research-2026-q1/scientia-publication-pipeline-implementation-plan-2026.md)
+- [Svelte-Mineable Features Implementation Plan (2026)](architecture/svelte-mineable-features-implementation-plan-2026.md)
 - [Telemetry implementation backlog 2026](archive/research-2026-q1/telemetry-implementation-backlog-2026.md)
 - [Telemetry implementation blueprint 2026](archive/research-2026-q1/telemetry-implementation-blueprint-2026.md)
 - [Telemetry retention and sensitivity SSOT](archive/research-2026-q1/telemetry-retention-sensitivity-ssot.md)
@@ -488,6 +500,7 @@ training_eligible: false
 ## Status: Deprecated
 
 - [HITL Doubt Flow and Resolution (Redirect)](archive/research-2026-q1/vox-dei-hitl-ssot.md)
+- [Phase 5: Bidirectional Vox↔React Interop Spec (2026)](archive/phase5-react-interop-spec-2026.md)
 - [Populi Mesh — A2A Durability Spec (S1, 2026-05-01)](architecture/populi-mesh-a2a-durability-spec-2026.md)
 
 

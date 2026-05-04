@@ -185,34 +185,89 @@ impl Printer {
                 self.dedent();
             }
             Decl::Environment(e) => self.print_environment(e),
-            Decl::Island(isle) => {
-                self.write_indent();
-                self.out.push_str("@island ");
-                self.out.push_str(&isle.name);
-                self.out.push_str(
-                    " {
-",
-                );
-                if !isle.props.is_empty() {
-                    self.indent();
-                    for p in &isle.props {
-                        self.write_indent();
-                        self.out.push_str(&p.name);
-                        if p.is_optional {
-                            self.out.push('?');
-                        }
-                        self.out.push_str(": ");
-                        self.print_type(&p.ty);
-                        self.out.push('\n');
-                    }
-                    self.dedent();
-                }
-                self.write_indent();
-                self.out.push('}');
-            }
             Decl::ReactiveComponent(r) => self.print_reactive_component(r),
             Decl::V0Component(v) => self.print_v0_component(v),
+            Decl::Fragment(f) => self.print_fragment_decl(f),
+            Decl::ReactiveModule(rm) => self.print_reactive_module_decl(rm),
             _ => {}
+        }
+    }
+
+    /// Pretty-print a `fragment Name(args) { body }` declaration (ADR-033).
+    fn print_fragment_decl(&mut self, f: &FragmentDecl) {
+        self.write_indent();
+        self.out.push_str("fragment ");
+        self.out.push_str(&f.name);
+        self.out.push('(');
+        for (i, p) in f.params.iter().enumerate() {
+            if i > 0 {
+                self.out.push_str(", ");
+            }
+            self.out.push_str(&p.name);
+            if let Some(t) = &p.type_ann {
+                self.out.push_str(": ");
+                self.print_type(t);
+            }
+        }
+        self.out.push_str(") {\n");
+        self.indent();
+        self.write_indent();
+        self.print_expr(&f.body);
+        self.out.push('\n');
+        self.dedent();
+        self.write_indent();
+        self.out.push('}');
+    }
+
+    /// Pretty-print a `.vox.ui` reactive module (ADR-032). The members are the same
+    /// shape as the body of a `component { }` block, so reuse the same per-member
+    /// emission as `print_reactive_component`.
+    fn print_reactive_module_decl(&mut self, rm: &ReactiveModuleDecl) {
+        // ReactiveModuleDecl has no surrounding keyword in source — the file's
+        // `.vox.ui` extension makes the members module-scope. The pretty-printer
+        // round-trips by emitting the members directly, one per line.
+        for m in &rm.members {
+            self.write_indent();
+            match m {
+                ReactiveMemberDecl::State(s) => {
+                    self.out.push_str("state ");
+                    self.out.push_str(&s.name);
+                    if let Some(t) = &s.ty {
+                        self.out.push_str(": ");
+                        self.print_type(t);
+                    }
+                    self.out.push_str(" = ");
+                    self.print_expr(&s.init);
+                    self.out.push('\n');
+                }
+                ReactiveMemberDecl::Derived(d) => {
+                    self.out.push_str("derived ");
+                    self.out.push_str(&d.name);
+                    if let Some(t) = &d.ty {
+                        self.out.push_str(": ");
+                        self.print_type(t);
+                    }
+                    self.out.push_str(" = ");
+                    self.print_expr(&d.expr);
+                    self.out.push('\n');
+                }
+                ReactiveMemberDecl::Effect(e) => {
+                    self.out.push_str("effect: ");
+                    self.print_expr(&e.body);
+                    self.out.push('\n');
+                }
+                ReactiveMemberDecl::OnMount(om) => {
+                    self.out.push_str("on mount: ");
+                    self.print_expr(&om.body);
+                    self.out.push('\n');
+                }
+                ReactiveMemberDecl::OnCleanup(oc) => {
+                    self.out.push_str("on cleanup: ");
+                    self.print_expr(&oc.body);
+                    self.out.push('\n');
+                }
+                ReactiveMemberDecl::Stmt(s) => self.print_stmt(s),
+            }
         }
     }
 

@@ -1,9 +1,9 @@
-// TASK-7.2: CommandTab — engineering diagnostics + task dispatch console.
+// TASK-7.2 / VUV-6: CommandTab — engineering diagnostics + task dispatch console.
 //
 // Components:
 //   - DiagnosticRow    — single compiler diagnostic entry (severity + message)
 //   - DiagnosticsPanel — scrollable list of diagnostics
-//   - TaskDispatch     — run/clear controls (transport via @island Phase 2)
+//   - TaskDispatch     — run/clear controls (transport via React interop Phase 2)
 //   - CommandTab       — root tab with panel switcher
 //
 // State machines:
@@ -21,81 +21,96 @@ partial state_machine DiagnosticViewState {
 }
 
 component DiagnosticRow(severity: str, message: str, location: str) {
-    view: (
-        <row class="px-4 py-3 border-b border-white/5 gap-4 items-start hover:bg-white/5">
-            <panel class={if severity is "error" { "w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0" } else { "w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0" }}></panel>
-            <column class="flex-1 gap-1 min-w-0">
-                <text class="text-sm text-white/80 font-mono leading-snug">{message}</text>
-                <text class="text-xs text-zinc-500 font-mono">{location}</text>
-            </column>
-            <text class={if severity is "error" { "text-xs font-bold text-rose-400 uppercase shrink-0" } else { "text-xs font-bold text-amber-400 uppercase shrink-0" }}>{severity}</text>
-        </row>
-    )
+    view: row(
+        pad_x=4, pad_y=3, border_b=true, border_color="white/5",
+        items="start", gap=4, raw_class="hover:bg-white/5"
+    ) {
+        panel(
+            w=2, h=2, radius="full",
+            bg=if severity is "error" { "rose.500" } else { "amber.400" },
+            mt=1.5, shrink=0
+        )
+        column(flex=1, min_w=0, gap=1) {
+            text(size="sm", color="white/80", font_family="mono", leading="snug") { message }
+            text(size="xs", color="zinc.500", font_family="mono") { location }
+        }
+        text(
+            size="xs", weight="bold", case="upper", shrink=0,
+            color=if severity is "error" { "rose.400" } else { "amber.400" }
+        ) { severity }
+    }
 }
 
 component DiagnosticsPanel() {
-    view: (
-        <column class="flex-1 overflow-y-auto">
-            <row class="px-4 py-2 border-b border-white/10 justify-between items-center shrink-0 bg-zinc-900/50">
-                <text class="text-xs font-bold text-zinc-400 uppercase tracking-widest">"DIAGNOSTICS"</text>
-                <text class="text-xs text-zinc-600">"0 errors · 0 warnings"</text>
-            </row>
-            <column class="flex-1 items-center justify-center gap-3 text-zinc-500">
-                <text class="text-sm font-bold uppercase tracking-widest">"NO DIAGNOSTICS"</text>
-                <text class="text-xs">"Run a build to see compiler output here."</text>
-            </column>
-        </column>
-    )
+    view: column(flex=1, overflow_y="auto") {
+        row(
+            pad_x=4, pad_y=2, border_b=true, border_color="white/10",
+            justify="between", items="center", shrink=0, bg="zinc.900/50"
+        ) {
+            text(size="xs", weight="bold", color="zinc.400", case="upper", tracking="widest") { "DIAGNOSTICS" }
+            text(size="xs", color="zinc.600") { "0 errors · 0 warnings" }
+        }
+        column(flex=1, items="center", justify="center", color="zinc.500", gap=3) {
+            text(size="sm", weight="bold", case="upper", tracking="widest") { "NO DIAGNOSTICS" }
+            text(size="xs") { "Run a build to see compiler output here." }
+        }
+    }
 }
 
 component TaskDispatch() {
     state is_running: bool = false
 
-    view: (
-        <column class="border-t border-white/10 p-4 gap-3 shrink-0">
-            <row class="gap-3 items-center">
-                <button
-                    class={if is_running { "px-4 py-2 rounded-xl bg-rose-600/80 text-white text-sm font-bold" } else { "px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-500" }}
-                    on:click={is_running = not is_running}
-                >
-                    {if is_running { "STOP" } else { "RUN BUILD" }}
-                </button>
-                <button class="px-4 py-2 rounded-xl bg-white/5 text-zinc-400 text-sm font-bold border border-white/10">
-                    "CLEAR"
-                </button>
-                <panel class="flex-1"></panel>
-                <text class={if is_running { "text-xs text-blue-400 font-bold uppercase" } else { "text-xs text-zinc-600 uppercase" }}>
-                    {if is_running { "BUILDING…" } else { "IDLE" }}
-                </text>
-            </row>
-            <text class="text-xs text-zinc-600">"Transport bridge: Phase 2 — output streams via @island"</text>
-        </column>
-    )
+    view: column(border_t=true, border_color="white/10", pad=4, shrink=0, gap=3) {
+        row(items="center", gap=3) {
+            button(
+                pad_x=4, pad_y=2, radius="xl",
+                bg=if is_running { "rose.600/80" } else { "blue.600" },
+                color="white", size="sm", weight="bold",
+                raw_class=if is_running { "" } else { "hover:bg-blue-500" },
+                on_click={is_running = not is_running}
+            ) {
+                if is_running { "STOP" } else { "RUN BUILD" }
+            }
+            button(
+                pad_x=4, pad_y=2, radius="xl", bg="white/5", color="zinc.400",
+                size="sm", weight="bold", border=true, border_color="white/10"
+            ) { "CLEAR" }
+            panel(flex=1)
+            text(
+                size="xs", weight="bold", case="upper",
+                color=if is_running { "blue.400" } else { "zinc.600" }
+            ) {
+                if is_running { "BUILDING…" } else { "IDLE" }
+            }
+        }
+        text(size="xs", color="zinc.600") { "Transport bridge: Phase 2 — output streams via React interop" }
+    }
 }
 
 component CommandTab() {
     state active_panel: str = "diagnostics"
 
-    view: (
-        <column class="flex-1 overflow-hidden bg-zinc-950">
-            <row class="h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0">
-                <text class="text-sm font-black tracking-tighter text-white">"COMMAND"</text>
-                <row class="gap-2">
-                    <button class="tab-btn" on:click={active_panel = "diagnostics"}>"DIAGNOSTICS"</button>
-                    <button class="tab-btn" on:click={active_panel = "context"}>"CONTEXT"</button>
-                </row>
-            </row>
-            <panel class="flex-1 overflow-hidden">
-                {if active_panel is "diagnostics" {
-                    <DiagnosticsPanel />
-                } else {
-                    <column class="flex-1 items-center justify-center gap-3 text-zinc-500">
-                        <text class="text-sm font-bold uppercase tracking-widest">"CONTEXT EXPLORER"</text>
-                        <text class="text-xs">"Context window analysis — Phase 2."</text>
-                    </column>
-                }}
-            </panel>
-            <TaskDispatch />
-        </column>
-    )
+    view: column(flex=1, overflow="hidden", bg="zinc.950") {
+        row(
+            h=12, border_b=true, border_color="zinc.800",
+            pad_x=6, items="center", justify="between", shrink=0
+        ) {
+            text(size="sm", weight="black", color="white", tracking="tighter") { "COMMAND" }
+            row(gap=2) {
+                button(raw_class="tab-btn", on_click={active_panel = "diagnostics"}) { "DIAGNOSTICS" }
+                button(raw_class="tab-btn", on_click={active_panel = "context"}) { "CONTEXT" }
+            }
+        }
+        panel(flex=1, overflow="hidden") {
+            if active_panel is "diagnostics" {
+                DiagnosticsPanel()
+            } else {
+                column(flex=1, items="center", justify="center", color="zinc.500", gap=3) {
+                    text(size="sm", weight="bold", case="upper", tracking="widest") { "CONTEXT EXPLORER" }
+                    text(size="xs") { "Context window analysis — Phase 2." }
+                }
+            }
+        }
+        TaskDispatch()
+    }
 }

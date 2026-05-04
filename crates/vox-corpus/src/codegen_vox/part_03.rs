@@ -188,7 +188,7 @@ pub fn compute_variety_requirements() -> Vec<(&'static str, usize)> {
                 // High-body-complexity: many parameters, complex bodies, many use cases
                 "function" | "actor" | "workflow" | "component" | "activity" | "server_fn"
                 | "agent_def" | "agent" | "skill" | "action" | "trait" | "impl" | "hook"
-                | "provider" | "page" | "island" => 7,
+                | "provider" | "page" => 7,
                 // Medium: decorator-style with predictable structure
                 "test" | "fixture" | "mock" | "scheduled" | "mcp_tool" | "mcp_resource"
                 | "query" | "mutation" | "http_route" | "error_boundary" | "layout" | "loading"

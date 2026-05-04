@@ -42,6 +42,9 @@ pub mod retrieval;
 pub mod routing_telemetry;
 /// Cooperative Tokio-backed scheduler registering spawned actors.
 pub mod scheduler;
+/// Reactive state-machine instance helper consumed by emitted state-machine hooks
+/// (Phase G of the Svelte-mineable features plan).
+pub mod state_machine;
 /// Per-table reactive mutation notifications (broadcast channels for reactive queries).
 pub mod subscription;
 /// Supervision strategies and child restart loops for actor trees.

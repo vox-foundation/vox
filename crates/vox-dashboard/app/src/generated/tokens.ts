@@ -9,6 +9,11 @@ export const voxTokens = {
   "font-large": "var(--vox-font-large)",
   "spacing-lg": "var(--vox-spacing-lg)",
   "spacing-md": "var(--vox-spacing-md)",
+  "spacing-s0": "var(--vox-spacing-s0)",
+  "spacing-s1": "var(--vox-spacing-s1)",
+  "spacing-s2": "var(--vox-spacing-s2)",
+  "spacing-s4": "var(--vox-spacing-s4)",
+  "spacing-s8": "var(--vox-spacing-s8)",
   "spacing-sm": "var(--vox-spacing-sm)",
   "spacing-xl": "var(--vox-spacing-xl)",
 } as const;

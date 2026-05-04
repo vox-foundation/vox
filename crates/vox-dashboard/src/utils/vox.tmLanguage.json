@@ -104,7 +104,7 @@
         },
         {
           "name": "storage.type.vox",
-          "match": "\\b(/*SSOT_TM_ALL*/fn|component|type|actor|workflow|activity|struct|enum|trait|impl|message|state|routes|on|to|from|import|use|str|int|float|bool|Unit|Result|Option|List|Map|Id|island|style/*END_SSOT_TM_ALL*/)\\b"
+          "match": "\\b(/*SSOT_TM_ALL*/fn|component|type|actor|workflow|activity|struct|enum|trait|impl|message|state|routes|on|to|from|import|use|str|int|float|bool|Unit|Result|Option|List|Map|Id|style/*END_SSOT_TM_ALL*/)\\b"
         },
         {
           "name": "storage.modifier.vox",

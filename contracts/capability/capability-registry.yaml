@@ -2024,23 +2024,6 @@ curated:
   cli_path:
   - init
   parameters: null
-- id: cli.island
-  title: Island
-  description_human: null
-  description_model: CLI operation `vox island`
-  intent_tags: []
-  side_effect_class: null
-  scope_kind: null
-  reversible: null
-  requires_repo: null
-  requires_git: null
-  preferred_for_models: null
-  human_takeover_friendly: null
-  mens_planner_visible: null
-  mcp_tool: null
-  cli_path:
-  - island
-  parameters: null
 - id: cli.live
   title: Live
   description_human: null

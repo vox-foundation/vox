@@ -13,8 +13,23 @@ use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass, ParseSeverity};
 
 /// Strict parse: returns [`Module`] or **all** accumulated [`ParseError`] values.
+///
+/// Defaults to [`FileKind::Source`] semantics. Use [`parse_with_kind`] when the file
+/// path's classification (e.g., `.vox.ui`) needs to relax the grammar — see
+/// [ADR-032](../../../../../docs/src/adr/032-vox-ui-reactive-modules.md).
 pub fn parse(tokens: Vec<Spanned>) -> Result<Module, Vec<ParseError>> {
+    parse_with_kind(tokens, crate::module::FileKind::Source)
+}
+
+/// Like [`parse`] but additionally tells the descent which [`FileKind`] the source
+/// belongs to. Currently only [`FileKind::ReactiveModule`] changes behavior — it
+/// permits module-scope reactive members per ADR-032.
+pub fn parse_with_kind(
+    tokens: Vec<Spanned>,
+    file_kind: crate::module::FileKind,
+) -> Result<Module, Vec<ParseError>> {
     let mut p = Parser::new(tokens);
+    p.file_kind = file_kind;
     p.parse_module()
 }
 
@@ -37,6 +52,11 @@ struct Parser {
     tokens: Vec<Spanned>,
     pos: usize,
     errors: Vec<ParseError>,
+    /// Source file classification. Defaults to [`crate::module::FileKind::Source`];
+    /// overridden via [`parse_with_kind`] when the entry point knows the path. Per
+    /// ADR-032, [`crate::module::FileKind::ReactiveModule`] permits module-scope
+    /// `state` / `derived` / `effect` / `on mount` / `on cleanup`.
+    file_kind: crate::module::FileKind,
 }
 
 impl Parser {
@@ -45,6 +65,7 @@ impl Parser {
             tokens,
             pos: 0,
             errors: vec![],
+            file_kind: crate::module::FileKind::Source,
         }
     }
 
@@ -177,7 +198,6 @@ impl Parser {
                 Token::Import
                     | Token::AtComponent
                     | Token::Component
-                    | Token::AtIsland
                     | Token::AtLoading
                     | Token::AtTest
                     | Token::AtV0
@@ -253,6 +273,7 @@ impl Parser {
                 is_async: false,
                 is_deprecated: false,
                 is_pure: false,
+                is_reactive: false,
                 is_traced: false,
                 is_llm: false,
                 llm_model: None,
@@ -309,7 +330,6 @@ impl Parser {
                 }
                 Token::Fn
                 | Token::AtComponent
-                | Token::AtIsland
                 | Token::Import
                 | Token::TypeKw
                 | Token::Actor
@@ -332,6 +352,7 @@ impl Parser {
                 | Token::AtInvariant
                 | Token::AtFuzz
                 | Token::AtPure
+                | Token::AtReactive
                 | Token::AtAi
                 | Token::AtDeprecated
                 | Token::AtLoading
@@ -352,10 +373,22 @@ impl Parser {
 
     pub(crate) fn parse_decl(&mut self) -> Result<Decl, ()> {
         self.skip_newlines();
+        // ADR-032: in `.vox.ui` files, top-level `state` / `derived` / `effect` /
+        // `on mount` / `on cleanup` are absorbed into a synthetic ReactiveModuleDecl
+        // (one per file). This branch fires when the next decl-position token is one
+        // of those reactive members.
+        if self.file_kind.allows_module_scope_reactive_members()
+            && matches!(
+                self.peek(),
+                Token::State | Token::Derived | Token::Effect | Token::On
+            )
+        {
+            return self.parse_reactive_module_decl();
+        }
         match self.peek().clone() {
             Token::Import => self.parse_import(),
             Token::Component => self.parse_reactive_component(),
-            Token::AtIsland => self.parse_island(),
+            Token::Fragment => self.parse_fragment_decl(),
             Token::AtV0 => self.parse_v0_component(),
             Token::AtLoading => self.parse_loading(),
             Token::AtTest => self.parse_test(),
@@ -423,6 +456,7 @@ impl Parser {
             | Token::AtInvariant
             | Token::AtFuzz
             | Token::AtPure
+            | Token::AtReactive
             | Token::AtAi
             | Token::AtDeprecated
             | Token::AtNative => {

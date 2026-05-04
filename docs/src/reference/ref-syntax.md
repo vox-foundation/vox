@@ -181,13 +181,17 @@ Use `workflow` to group state machine processes that survive process restarts. U
 }
 ```
 
-## Island and UI Syntax
+## Component and UI Syntax
 
-The `@island` directive dictates interactive DOM components. 
+UI is declared with `component`. The codegen emits a plain React/TSX component for the
+external frontend to import. (`@island` was retired 2026-05-03 — see
+[architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).)
 
-```tsx
+```vox
 // vox:skip
-@island TaskList { tasks: list[Task] }
+component TaskList(tasks: list[Task]) {
+    view: <ul></ul>
+}
 
 // Web Routing Layout Mapping
 routes {

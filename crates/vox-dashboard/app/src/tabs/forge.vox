@@ -1,4 +1,4 @@
-// TASK-7.2: ForgeTab — pipeline visualization + workflow time-travel scrubber.
+// TASK-7.2 / VUV-6: ForgeTab — pipeline visualization + workflow time-travel scrubber.
 //
 // Components ported from src/components/:
 //   - PipelineView.tsx      — static 5-stage pipeline display (data via props later)
@@ -8,7 +8,7 @@
 //   - ScrubberState: Paused -> Playing -> Scrubbing -> Paused
 //   - PipelinePhase: Idle -> Running -> Completed | Failed
 //
-// Transport calls (vox_plan_resume) are deferred to @island or Phase 2 bridge.
+// Transport calls (vox_plan_resume) are deferred to the Vox transport bridge (Phase 2).
 
 partial state_machine ScrubberState {
     state Paused
@@ -33,77 +33,90 @@ partial state_machine PipelinePhase {
 }
 
 component PipelineStage(name: str, desc: str) {
-    view: (
-        <column class="p-8 flex-1 border-r border-white/5 gap-4">
-            <row class="justify-between mb-6">
-                <panel class="w-10 h-10 rounded-xl bg-zinc-900 border border-white/5 items-center justify-center">
-                    <text class="text-zinc-500 text-xs font-mono">{name}</text>
-                </panel>
-                <text class="text-xs font-bold text-rose-500 bg-rose-500/10 px-2 py-1 rounded border border-rose-500/20">"IDLE"</text>
-            </row>
-            <text class="text-2xl font-bold text-white/90">{name}</text>
-            <text class="text-zinc-500 text-sm leading-relaxed">{desc}</text>
-            <panel class="flex-1 rounded-2xl border border-white/5 p-5 font-mono">
-                <text class="text-xs text-zinc-500 italic">"No output yet."</text>
-            </panel>
-        </column>
-    )
+    view: column(pad=8, flex=1, border_r=true, border_color="white/5", gap=4) {
+        row(justify="between", mb=6) {
+            panel(
+                w=10, h=10, radius="xl", bg="zinc.900",
+                border=true, border_color="white/5",
+                items="center", justify="center"
+            ) {
+                text(color="zinc.500", size="xs", font_family="mono") { name }
+            }
+            text(
+                size="xs", weight="bold", color="rose.500",
+                bg="rose.500/10", pad_x=2, pad_y=1, radius="DEFAULT",
+                border=true, border_color="rose.500/20"
+            ) { "IDLE" }
+        }
+        text(size="2xl", weight="bold", color="white/90") { name }
+        text(color="zinc.500", size="sm", leading="relaxed") { desc }
+        panel(flex=1, radius="2xl", border=true, border_color="white/5", pad=5, font_family="mono") {
+            text(size="xs", color="zinc.500", italic=true) { "No output yet." }
+        }
+    }
 }
 
 component PipelineView() {
-    view: (
-        <row class="h-full bg-zinc-950">
-            <PipelineStage name="Lexer" desc="Logos-based tokenization" />
-            <PipelineStage name="Parser" desc="Rowan GreenTree CST generation" />
-            <PipelineStage name="HIR" desc="High-level IR with name resolution" />
-            <PipelineStage name="TypeCheck" desc="Bidirectional unification logic" />
-            <PipelineStage name="CodeGen" desc="Rust and TypeScript emission" />
-        </row>
-    )
+    view: row(h="full", bg="zinc.950") {
+        PipelineStage(name="Lexer", desc="Logos-based tokenization")
+        PipelineStage(name="Parser", desc="Rowan GreenTree CST generation")
+        PipelineStage(name="HIR", desc="High-level IR with name resolution")
+        PipelineStage(name="TypeCheck", desc="Bidirectional unification logic")
+        PipelineStage(name="CodeGen", desc="Rust and TypeScript emission")
+    }
 }
 
 component WorkflowScrubber() {
     state is_playing: bool = false
 
-    view: (
-        <column class="p-10 bg-zinc-950 h-full gap-8 text-white">
-            <row class="justify-between items-center">
-                <column class="gap-2">
-                    <text class="text-3xl font-black tracking-tighter text-white">"TIME TRAVEL"</text>
-                    <text class="text-xs text-zinc-400 font-bold tracking-widest">"DURABLE WORKFLOW STATE INSPECTOR"</text>
-                </column>
-                <row class="gap-4 bg-white/5 p-2 rounded-2xl border border-white/5 items-center">
-                    <button class="w-10 h-10 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center">"<<"</button>
-                    <button class="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center" on:click={is_playing = not is_playing}>{if is_playing { "PAUSE" } else { "PLAY" }}</button>
-                    <button class="w-10 h-10 rounded-xl bg-white/5 text-zinc-400 flex items-center justify-center">">>"</button>
-                </row>
-            </row>
-            <panel class="flex-1 flex items-center justify-center">
-                <column class="items-center gap-4 text-zinc-500">
-                    <text class="text-sm font-bold uppercase tracking-widest">"NO ACTIVE WORKFLOW"</text>
-                    <text class="text-xs">"Durable state execution will appear here when orchestrated."</text>
-                </column>
-            </panel>
-        </column>
-    )
+    view: column(pad=10, bg="zinc.950", h="full", color="white", gap=8) {
+        row(justify="between", items="center") {
+            column(gap=2) {
+                text(size="3xl", weight="black", color="white", tracking="tighter") { "TIME TRAVEL" }
+                text(size="xs", color="zinc.400", weight="bold", tracking="widest") { "DURABLE WORKFLOW STATE INSPECTOR" }
+            }
+            row(
+                bg="white/5", pad=2, radius="2xl",
+                border=true, border_color="white/5", items="center",
+                gap=4
+            ) {
+                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400") { "<<" }
+                button(
+                    w=12, h=12, radius="xl", bg="blue.600", color="white",
+                    raw_class="flex items-center justify-center",
+                    on_click={is_playing = not is_playing}
+                ) {
+                    if is_playing { "PAUSE" } else { "PLAY" }
+                }
+                button(w=10, h=10, radius="xl", bg="white/5", color="zinc.400") { ">>" }
+            }
+        }
+        panel(flex=1) {
+            column(items="center", color="zinc.500", gap=4) {
+                text(size="sm", weight="bold", case="upper", tracking="widest") { "NO ACTIVE WORKFLOW" }
+                text(size="xs") { "Durable state execution will appear here when orchestrated." }
+            }
+        }
+    }
 }
 
 component ForgeTab() {
     state active_panel: str = "pipeline"
 
-    view: (
-        <column class="flex-1 overflow-hidden">
-            <row class="h-10 border-b border-zinc-800 px-4 items-center gap-2 shrink-0">
-                <button class="tab-btn" on:click={active_panel = "pipeline"}>"PIPELINE"</button>
-                <button class="tab-btn" on:click={active_panel = "scrubber"}>"SCRUBBER"</button>
-            </row>
-            <panel class="flex-1 overflow-hidden">
-                {if active_panel is "pipeline" {
-                    <PipelineView />
-                } else {
-                    <WorkflowScrubber />
-                }}
-            </panel>
-        </column>
-    )
+    view: column(flex=1, overflow="hidden") {
+        row(
+            h=10, border_b=true, border_color="zinc.800",
+            pad_x=4, items="center", shrink=0, gap=2
+        ) {
+            button(raw_class="tab-btn", on_click={active_panel = "pipeline"}) { "PIPELINE" }
+            button(raw_class="tab-btn", on_click={active_panel = "scrubber"}) { "SCRUBBER" }
+        }
+        panel(flex=1, overflow="hidden") {
+            if active_panel is "pipeline" {
+                PipelineView()
+            } else {
+                WorkflowScrubber()
+            }
+        }
+    }
 }

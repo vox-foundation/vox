@@ -37,7 +37,7 @@ fn codegen_emitter_honors_vox_webir_validate_success_path() {
     let source = r#"
 component Home() {
     state n: int = 0
-    view: <span />
+    view: text()
 }
 routes {
     "/" to Home
@@ -79,7 +79,7 @@ fn codegen_emitter_vox_webir_validate_fails_on_literal_style_color() {
 
     let source = r#"
 component A() {
-    view: <div class="x">"hello"</div>
+    view: column(raw_class="x") { "hello" }
 }
 style {
     .x { color: "red" }

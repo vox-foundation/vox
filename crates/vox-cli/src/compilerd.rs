@@ -399,17 +399,6 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
     .await
     .context("initial dev build failed")?;
 
-    let gen_dir = std::path::PathBuf::from("target").join("generated");
-    match tokio::task::spawn_blocking(move || {
-        crate::frontend::build_islands_if_present(&gen_dir, "public")
-    })
-    .await
-    {
-        Ok(Ok(_)) => {}
-        Ok(Err(e)) => return Err(e).context("islands build"),
-        Err(e) => return Err(anyhow::anyhow!(e)).context("islands build join"),
-    }
-
     if p.open {
         let url = format!("http://127.0.0.1:{}/", p.port);
         tokio::spawn(async move {
@@ -465,35 +454,6 @@ async fn handle_dev(req: &DispatchRequest) -> anyhow::Result<()> {
                 .is_err()
                 {
                     eprintln!("vox-compilerd: failed to emit rebuild error log");
-                }
-                return;
-            }
-            let gen_dir = std::path::PathBuf::from("target").join("generated");
-            match tokio::task::spawn_blocking(move || {
-                crate::frontend::build_islands_if_present(&gen_dir, "public")
-            })
-            .await
-            {
-                Ok(Ok(_)) => {}
-                Ok(Err(e)) => {
-                    let _ = write_resp(
-                        &req_id,
-                        DispatchPayload::Log {
-                            level: "warn".into(),
-                            msg: format!("islands rebuild failed: {e}"),
-                        },
-                    )
-                    .await;
-                }
-                Err(e) => {
-                    let _ = write_resp(
-                        &req_id,
-                        DispatchPayload::Log {
-                            level: "warn".into(),
-                            msg: format!("islands rebuild task failed: {e}"),
-                        },
-                    )
-                    .await;
                 }
             }
         }

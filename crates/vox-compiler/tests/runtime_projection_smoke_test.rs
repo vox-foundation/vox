@@ -18,12 +18,6 @@ fn canonical_web_ir_bytes_sorted_is_stable() {
     let src = r#"
 import react.use_state
 
-@island Chart {
-    title: str
-    data: str
-    width?: int
-}
-
 fn Dash() to str {
     let n = 0
     return "div"

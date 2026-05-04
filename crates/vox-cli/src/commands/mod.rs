@@ -64,9 +64,6 @@ pub mod fmt;
 pub mod info;
 /// `vox init` — scaffold `Vox.toml` / `src/main.vox` / skill markdown.
 pub mod init;
-/// Web island UI creation handler (`vox island`).
-#[cfg(feature = "island")]
-pub mod island;
 /// Interactive telemetry-enabled execution orchestrator (`vox live`).
 #[cfg(feature = "live")]
 pub mod live;

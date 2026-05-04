@@ -35,7 +35,6 @@ pub mod fs_utils;
 /// Fuzzy ranking for command catalog, MCP tool picker, and dashboard palette.
 /// Gated behind the `fuzzy-search` feature; falls back to identity ordering when disabled.
 pub mod fuzzy;
-mod island_paths;
 #[cfg(feature = "script-execution")]
 mod isolation;
 mod latin_cmd;
@@ -50,8 +49,6 @@ pub mod pipeline;
 mod process_supervision;
 /// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
 pub(crate) mod render;
-#[cfg(feature = "island")]
-mod table;
 pub mod templates;
 /// WASI preopen mode for `script-execution` / `execution-api` runners.
 #[cfg(any(feature = "script-execution", feature = "execution-api"))]
@@ -66,10 +63,8 @@ pub mod v0;
 /// Normalize v0.dev TSX for Vox `routes:` named imports.
 pub(crate) mod v0_tsx_normalize;
 /// Accessibility validator for v0.dev TSX output (TASK-5.4).
-#[cfg(feature = "island")]
 pub(crate) mod v0_tsx_validate;
 /// TASK-5.4: pre-flight validation of v0.dev TSX output (a11y + design-token checks).
-#[cfg(feature = "island")]
 pub(crate) mod v0_validate;
 
 pub use dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
@@ -514,14 +509,6 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::review::ReviewCli,
     },
-    /// v0.dev React islands under `islands/` (`--features island`; needs `V0_API_KEY` for generate/upgrade).
-    #[cfg(feature = "island")]
-    Island {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: cli_actions::IslandCli,
-    },
-
     /// Emergency stop the orchestrator (MCP/daemon local stop request)
     Stop {
         /// Reason for stopping

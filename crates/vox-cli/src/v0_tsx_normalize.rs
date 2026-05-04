@@ -1,4 +1,4 @@
-//! Normalize v0.dev (and similar) TSX so Vox `routes:` → **TanStack Router** codegen can use **named** imports (`import { Name } from "./Name.tsx"`). Used for the main generated app and for **`islands/`** when the **`island`** feature is enabled.
+//! Normalize v0.dev (and similar) TSX so Vox `routes:` → **TanStack Router** codegen can use **named** imports (`import { Name } from "./Name.tsx"`).
 
 use regex::Regex;
 use std::path::Path;

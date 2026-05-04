@@ -155,7 +155,98 @@ pub fn emit_route_manifest_from_web_ir(web: &WebIrModule, _hir: &HirModule) -> O
         s.push_str(&emit_contract_route_object(c, ""));
     }
     s.push_str("]\n");
+
+    // Phase C part 2 (typed `href` builder): emit a `KnownRoute` union of all declared
+    // route patterns plus a `routePath` const mapping each pattern to a typed builder
+    // that returns the substituted URL string. Authors can write
+    // `<a href={routePath["/users/:id"](userId)}>` and get full type-flow on path params.
+    s.push_str(&emit_route_path_builder(&top));
+
     Some(s)
+}
+
+/// Phase C part 2: emit `KnownRoute` union + `routePath` builder map.
+fn emit_route_path_builder(top: &[&RouteContract]) -> String {
+    use crate::codegen_ts::route_pattern::{RoutePattern, Segment};
+
+    fn flatten<'a>(contracts: &'a [RouteContract], out: &mut Vec<&'a str>) {
+        for c in contracts {
+            out.push(c.pattern.as_str());
+            flatten(&c.children, out);
+        }
+    }
+    let mut all_paths: Vec<&str> = Vec::new();
+    for c in top {
+        all_paths.push(c.pattern.as_str());
+        flatten(&c.children, &mut all_paths);
+    }
+    if all_paths.is_empty() {
+        return String::new();
+    }
+
+    let mut s = String::new();
+    s.push_str("\n// Phase C part 2: typed route URL surface.\n");
+    s.push_str("// Use `routePath[\"/users/:id\"](userId)` instead of hand-formatting URLs.\n");
+
+    // KnownRoute union — type-only; useful for catching typos at compile time.
+    s.push_str("export type KnownRoute =");
+    let mut deduped = all_paths.clone();
+    deduped.sort();
+    deduped.dedup();
+    for p in &deduped {
+        s.push_str(&format!("\n  | \"{p}\""));
+    }
+    s.push_str(";\n\n");
+
+    // routePath const — typed builder per route pattern. Wildcard routes are exposed as
+    // identity (return the literal "/files/*"); typed builders for them require a
+    // separate decision (variadic params? rest segments?). Keep them callable as () for
+    // now so the surface is uniform.
+    s.push_str("export const routePath = {\n");
+    for p in &deduped {
+        let pattern = RoutePattern::parse(p);
+        let mut params: Vec<&str> = Vec::new();
+        let mut template = String::new();
+        let mut has_wildcard = false;
+        for seg in &pattern.segments {
+            template.push('/');
+            match seg {
+                Segment::Literal(lit) => template.push_str(lit),
+                Segment::Param(name) => {
+                    template.push_str("${");
+                    template.push_str(name);
+                    template.push('}');
+                    params.push(name.as_str());
+                }
+                Segment::Wildcard => {
+                    template.push('*');
+                    has_wildcard = true;
+                }
+            }
+        }
+        if pattern.segments.is_empty() {
+            template.push('/');
+        }
+        let arg_list = params
+            .iter()
+            .map(|name| format!("{name}: string"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        if params.is_empty() {
+            // No interpolation needed; use a plain string literal.
+            s.push_str(&format!("  \"{p}\": (): string => \"{p}\",\n"));
+        } else if has_wildcard {
+            // Skip building wildcard routes for now — uniform identity is safer than
+            // guessing how to substitute the rest segment. Still listed in KnownRoute.
+            s.push_str(&format!("  \"{p}\": (): string => \"{p}\",\n"));
+        } else {
+            s.push_str(&format!(
+                "  \"{p}\": ({arg_list}): string => `{template}`,\n"
+            ));
+        }
+    }
+    s.push_str("} as const;\n");
+    s
 }
 
 /// Emit a route manifest via WebIR (lowers HIR once). Kept for call sites without a cached [`WebIrModule`].
@@ -302,4 +393,70 @@ fn get_contract_route_json(e: &RouteContract) -> serde_json::Value {
         obj.insert("children".to_string(), serde_json::json!(children));
     }
     serde_json::Value::Object(obj)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::web_ir::RouteContract;
+
+    fn rc(pattern: &str, component: &str) -> RouteContract {
+        RouteContract {
+            id: pattern.to_string(),
+            pattern: pattern.to_string(),
+            meta: serde_json::json!({ "component": component }),
+            children: vec![],
+        }
+    }
+
+    #[test]
+    fn route_path_builder_emits_known_route_union_with_all_patterns() {
+        let contracts = vec![rc("/", "Home"), rc("/users/:id", "User"), rc("/edit", "Editor")];
+        let refs: Vec<&RouteContract> = contracts.iter().collect();
+        let out = emit_route_path_builder(&refs);
+        assert!(out.contains("export type KnownRoute"), "{out}");
+        assert!(out.contains("\"/\""), "{out}");
+        assert!(out.contains("\"/users/:id\""), "{out}");
+        assert!(out.contains("\"/edit\""), "{out}");
+    }
+
+    #[test]
+    fn route_path_builder_emits_typed_builder_for_param_routes() {
+        let contracts = vec![rc("/users/:id", "User")];
+        let refs: Vec<&RouteContract> = contracts.iter().collect();
+        let out = emit_route_path_builder(&refs);
+        assert!(
+            out.contains("\"/users/:id\": (id: string): string => `/users/${id}`"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn route_path_builder_emits_identity_for_literal_routes() {
+        let contracts = vec![rc("/edit", "Editor")];
+        let refs: Vec<&RouteContract> = contracts.iter().collect();
+        let out = emit_route_path_builder(&refs);
+        assert!(
+            out.contains("\"/edit\": (): string => \"/edit\""),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn route_path_builder_skips_substitution_for_wildcard_routes() {
+        // Wildcard routes are exposed as identity (no substitution); they appear in
+        // KnownRoute but their builder returns the literal pattern.
+        let contracts = vec![rc("/files/*", "Files")];
+        let refs: Vec<&RouteContract> = contracts.iter().collect();
+        let out = emit_route_path_builder(&refs);
+        assert!(
+            out.contains("\"/files/*\": (): string => \"/files/*\""),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn route_path_builder_returns_empty_when_no_routes() {
+        assert_eq!(emit_route_path_builder(&[]), "");
+    }
 }

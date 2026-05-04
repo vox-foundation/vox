@@ -153,27 +153,17 @@ fn add_task(title: str, owner: str) to Id[Task] {
 
 > The three `kind:` values were separate decorators (`@query`, `@server`, `@mutation`) until recently; they collapsed into one `@endpoint` primitive in the April 2026 grammar unification.
 
-### Pillar 3: Islands, Not Hook Soup
+### Pillar 3: React Interop via Plain Components and Endpoints
 
-Interactive state is confined to explicit `@island` boundaries. The compiler generates the React component, lifecycle wiring, and typed client stub — none of it appears in the `.vox` source.<sup>[1](#ref1)</sup>
+Vox compiles `component` declarations to plain React/TSX components and `@endpoint` declarations to typed server functions plus a generated `vox-client.ts`. An external React, TanStack, or mobile app can either import the emitted components directly or call the endpoints over the generated RPC bridge — there is no island-mount harness to learn. See [`docs/src/architecture/external-frontend-interop-plan-2026.md`](docs/src/architecture/external-frontend-interop-plan-2026.md) for the full bidirectional interop story (server-only and fullstack build modes, Phase 5 React adapter).
 
 ```vox
-// [ @island ]
-// Marks the browser boundary.
-@island TaskList {
-    tasks: list[Task]
-    on_complete: fn(str) -> Unit
-}
-
 // [ component ]
-// Server-rendered; React hooks and lifecycles stay in the generated layer.
-component TaskPage() {
+// Lowered to a plain React component (TSX) for the external frontend to import.
+component TaskPage(tasks: list[Task]) {
     view: (
         <div className="task-list">
-            <TaskList
-                tasks=[...]
-                on_complete={complete_task}
-            />
+            { tasks.map(t -> <TaskRow task={t} />) }
         </div>
     )
 }
@@ -181,7 +171,7 @@ component TaskPage() {
 routes { "/" to TaskPage }
 ```
 
-> **v0.dev integration.** `vox island generate TaskDashboard "A minimal sidebar dashboard"` calls the v0.dev API (requires `V0_API_KEY`) and writes the result into `islands/src/TaskDashboard/`. The `@v0` build hook runs it automatically during `vox build`.
+> **v0.dev integration.** `@v0` is unchanged: scaffolds React components from a prompt during `vox build` (requires `V0_API_KEY`).
 
 ### Pillar 4: Durable State & Agent Interoperability
 
@@ -292,7 +282,7 @@ Surfaces are tracked by how reproducibly an LLM can target them. Data, logic, an
 | RAG & knowledge curation | 🟡 Preview | `vox scientia` retrieval, Socrates guards. |
 | Durable execution | 🚧 Experimental | Parser keywords (`workflow`/`activity`/`actor`) tombstoned; replacement decorator pending ADR. Runtime works, but the source-language surface is in flux. |
 | Local training (MENS) | 🟡 Preview | Hardware coverage is still expanding. |
-| Web UI & rendering | 🟡 Preview | Dual-track: Vox-native reactivity (`component` + `state_machine` + WebIR) for greenfield, `@island` / `@v0` / TSX emit reserved for explicit React/TanStack interop. Boundary docs in flight. |
+| Web UI & rendering | 🟡 Preview | Vox-native reactivity (`component` + `state_machine` + WebIR) for greenfield, plus React-interop via TSX emit and generated `vox-client.ts` (server-only and fullstack build modes). `@v0` unchanged. |
 | Distributed node mesh | 🚧 Experimental | Cross-machine routing is pre-1.0 design. |
 
 Vox is in active pre-1.0 development (workspace version `0.5.0` at the time of writing); treat this as a preview. The core of the language itself is still moving — the April 2026 grammar unification collapsed multiple decorators and tombstoned several keywords, and that work isn't finished. Notable changes land in [`CHANGELOG.md`](CHANGELOG.md), and the machine-verified v1.0 criteria, with per-domain verification pipelines, live at [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md).
@@ -351,8 +341,6 @@ These aren't style suggestions — they fail CI. See [`AGENTS.md`](AGENTS.md) fo
 ---
 
 ## References
-
-<a id="ref1"></a>**[1]** Miller, J. (2020). *Islands Architecture*. JasonFormat. <https://jasonformat.com/islands-architecture/>
 
 <a id="ref2"></a>**[2]** Fateev, M., & Abbas, S. (2019). *Temporal*. Temporal Technologies. <https://temporal.io>
 
