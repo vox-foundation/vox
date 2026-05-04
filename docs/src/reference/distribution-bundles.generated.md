@@ -16,12 +16,12 @@ First-party Vox distribution bundles. Each bundle is the same host binary plus a
 |--------|---------|----------------|------------------------|
 | `vox-base` | — | 0 | 0 |
 | `vox-fullstack` | — | 8 | 8 |
-| `vox-ml` | `vox-fullstack` | 2 | 10 |
+| `vox-ml` | `vox-fullstack` | 3 | 11 |
 | `vox-mesh` | `vox-base` | 3 | 3 |
 | `vox-server` | `vox-base` | 4 | 4 |
 | `vox-edge` | `vox-base` | 3 | 3 |
 | `vox-cloud-only` | `vox-base` | 3 | 3 |
-| `vox-dev` | `vox-fullstack` | 6 | 14 |
+| `vox-dev` | `vox-fullstack` | 8 | 16 |
 
 ## Per-bundle plugin lists
 
@@ -60,6 +60,7 @@ Extends: `vox-fullstack`
 - `skill-v0` — Agent-facing skill providing legacy v0 compatibility surface.
 - `tensor-burn-wgpu` — Tensor backend on Burn + wgpu (cross-vendor GPU).
 - `mens-candle-cuda` — ML training backend using Candle with CUDA acceleration.
+- `nvml-probe` — NVIDIA GPU hardware probe via NVML (device count, VRAM, utilization, temperature).
 
 ### `vox-mesh`
 
@@ -118,8 +119,10 @@ Extends: `vox-fullstack`
 - `skill-v0` — Agent-facing skill providing legacy v0 compatibility surface.
 - `tensor-burn-wgpu` — Tensor backend on Burn + wgpu (cross-vendor GPU).
 - `mens-candle-cuda` — ML training backend using Candle with CUDA acceleration.
+- `nvml-probe` — NVIDIA GPU hardware probe via NVML (device count, VRAM, utilization, temperature).
 - `populi-mesh` — Populi mesh transport + the agent skill that documents it.
 - `cloud` — Cloud sync provider (Mens cloud + Populi cloud).
 - `oratio` — Audio capture and pipeline integration (Oratio).
 - `oratio-mic` — Microphone input adapter for Oratio.
+- `script-execution` — Script execution sandbox for `.vox run` and similar.
 
