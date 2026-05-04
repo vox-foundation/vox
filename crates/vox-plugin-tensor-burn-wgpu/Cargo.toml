@@ -8,9 +8,19 @@ description = "TensorBackend plugin stub: Burn + wgpu backend (SP7 scaffold; act
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = []
+# Enable the Burn/wgpu backend (requires GPU-capable build environment).
+# Without this feature the plugin still loads but reports supports_wgpu = false.
+gpu = ["vox-tensor/gpu"]
+
 [dependencies]
 vox-plugin-api = { workspace = true }
 abi_stable = { workspace = true }
+vox-tensor = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
 
 [lints]
 workspace = true
