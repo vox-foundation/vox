@@ -1,42 +1,130 @@
-//! `vox bundle build <id>` — assemble a distribution tarball for a bundle.
+//! `vox bundle build <id> [--target T] [--out PATH]`
 //!
-//! # MVP status
-//! This implementation performs a **dry-run** listing of what would be included.
-//! Actual tarball assembly (finding installed dylibs and packing them with the
-//! `tar` + `flate2` crates) is deferred to a follow-up commit.
-//! TODO: implement tarball assembly when plugin install artifacts are in place.
+//! Resolves a bundle id through the catalog (extends-chain), gathers the
+//! plugin set, locates each plugin's install dir, and emits a tarball
+//! with layout:
+//!
+//! ```text
+//! bin/vox
+//! plugins/<id>/<version>/...
+//! BUNDLE.toml
+//! ```
+//!
+//! Plugins are located relative to the plugins root
+//! (`$VOX_PLUGINS_DIR` or the platform data-local default).  If a plugin
+//! is not installed it is skipped with a warning rather than aborting, so
+//! `vox-base` (which has no plugins) always succeeds.
 
 use anyhow::{Context, Result};
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use std::fs::File;
+use std::io::Write;
 use std::path::Path;
 
 pub fn run(id: &str, target: Option<&str>, out: Option<&Path>) -> Result<()> {
-    let triple = target.unwrap_or_else(|| vox_plugin_host::current_target_triple_key());
-
     let plugins = vox_plugin_catalog::bundle_resolved(id)
-        .with_context(|| format!("resolving bundle '{}'", id))?;
+        .with_context(|| format!("resolving bundle '{id}'"))?;
 
-    let out_name = match out {
-        Some(p) => p.display().to_string(),
-        None => format!("vox-{}-latest-{}.tar.gz", id, triple),
-    };
+    let triple = target.unwrap_or_else(|| vox_plugin_host::current_target_triple_key());
+    let bundle_version = env!("CARGO_PKG_VERSION");
 
-    println!("Bundle : {}", id);
-    println!("Target : {}", triple);
-    println!("Output : {}", out_name);
-    println!();
-    println!("Plugins to include ({}):", plugins.len());
+    let default_out = format!("{id}-{bundle_version}-{triple}.tar.gz");
+    let out_path = out
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| std::path::PathBuf::from(&default_out));
 
-    for p in &plugins {
-        println!("  - {} ({:?})", p.id, p.payload_kind);
+    println!("-> Building bundle '{id}' for target '{triple}' -> {}", out_path.display());
+
+    // Resolve plugins root — respects $VOX_PLUGINS_DIR.
+    let install_root = crate::commands::plugin::list::plugins_root();
+
+    let vox_binary = std::env::current_exe().context("locating current vox binary")?;
+
+    let tarball_file =
+        File::create(&out_path).with_context(|| format!("creating {}", out_path.display()))?;
+    let gz = GzEncoder::new(tarball_file, Compression::default());
+    let mut tar = tar::Builder::new(gz);
+
+    // 1. bin/vox (or bin/vox.exe on Windows)
+    let bin_entry = if cfg!(windows) { "bin/vox.exe" } else { "bin/vox" };
+    tar.append_path_with_name(&vox_binary, bin_entry)
+        .with_context(|| format!("archiving vox binary from {}", vox_binary.display()))?;
+
+    // 2. plugins/<id>/<version>/*  for each resolved plugin
+    let mut included_count = 0usize;
+    let mut skipped: Vec<String> = Vec::new();
+
+    for plugin in &plugins {
+        // The install layout is  <root>/<plugin-id>/<version>/...
+        let id_dir = install_root.join(&plugin.id);
+        if !id_dir.is_dir() {
+            eprintln!("  ! plugin '{}' not installed at {}; skipping", plugin.id, id_dir.display());
+            skipped.push(plugin.id.clone());
+            continue;
+        }
+        // Walk version sub-dirs.
+        let entries: Vec<_> = std::fs::read_dir(&id_dir)
+            .with_context(|| format!("reading plugin dir {}", id_dir.display()))?
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().is_dir())
+            .collect();
+
+        if entries.is_empty() {
+            eprintln!("  ! plugin '{}' install dir has no version sub-dirs; skipping", plugin.id);
+            skipped.push(plugin.id.clone());
+            continue;
+        }
+
+        for entry in &entries {
+            let version_dir = entry.path();
+            let archive_prefix = format!("plugins/{}/{}", plugin.id, entry.file_name().to_string_lossy());
+            tar.append_dir_all(&archive_prefix, &version_dir)
+                .with_context(|| {
+                    format!(
+                        "archiving plugin '{}' version '{}' from {}",
+                        plugin.id,
+                        entry.file_name().to_string_lossy(),
+                        version_dir.display()
+                    )
+                })?;
+        }
+        included_count += 1;
     }
 
-    println!();
-    println!(
-        "NOTE: Tarball assembly is not yet implemented (MVP dry-run).\n\
-         Install the listed plugins with `vox bundle apply {}` first,\n\
-         then re-run once tarball assembly is shipped.",
-        id
+    // 3. BUNDLE.toml
+    let bundle_toml = format!(
+        "# Auto-generated by `vox bundle build`\n\
+         [bundle]\n\
+         id = \"{id}\"\n\
+         target = \"{triple}\"\n\
+         vox-version = \"{bundle_version}\"\n\
+         plugin-count = {included_count}\n"
     );
+    let mut bundle_header = tar::Header::new_gnu();
+    bundle_header
+        .set_path("BUNDLE.toml")
+        .context("setting BUNDLE.toml path in tar header")?;
+    bundle_header.set_size(bundle_toml.len() as u64);
+    bundle_header.set_mode(0o644);
+    bundle_header.set_cksum();
+    tar.append(&bundle_header, bundle_toml.as_bytes())
+        .context("appending BUNDLE.toml")?;
+
+    // Finalise the archive.
+    let gz_enc = tar.into_inner().context("finalising tar")?;
+    let mut tarball_file = gz_enc.finish().context("flushing gz stream")?;
+    tarball_file.flush().context("flushing tarball file")?;
+
+    let bytes = std::fs::metadata(&out_path)
+        .with_context(|| format!("stat {}", out_path.display()))?
+        .len();
+
+    println!("✓ wrote {} ({} plugins included", out_path.display(), included_count);
+    if !skipped.is_empty() {
+        println!("  {} plugin(s) skipped (not installed): {}", skipped.len(), skipped.join(", "));
+    }
+    println!("  tarball size: {} bytes", bytes);
 
     Ok(())
 }
