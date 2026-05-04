@@ -13,30 +13,53 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  check-and-test:
-    name: Check, Build, and Test (Rust)
-    runs-on: [self-hosted, linux, x64, docker]
-    timeout-minutes: 45
+  # Cache warmup: builds vox-cli + warms target/ once so the five parallel
+  # jobs below all restore from a populated cache instead of racing.
+  setup:
+    name: Cache warmup
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 20
+    outputs:
+      cache-key: ${{ steps.k.outputs.key }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - id: k
+        run: echo "key=${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
-
-      - name: Cache Cargo Registry & Target
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ steps.k.outputs.key }}
           restore-keys: |
             ${{ runner.os }}-cargo-
+      - name: Build vox-cli (warms target/ + makes guards available)
+        run: cargo build -p vox-cli
 
-      - name: Build vox-cli (guards + doc-inventory)
+  guards-fast:
+    name: Guards (fast)
+    needs: setup
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Build vox-cli
         run: cargo build -p vox-cli
 
       - name: Line endings (forward-only)
@@ -56,7 +79,6 @@ jobs:
 
       - name: Retired symbol documentation guard
         run: cargo run -p vox-cli --quiet -- ci retired-symbol-check
-
 
       - name: CLI command registry / docs / MCP parity
         run: cargo run -p vox-cli --quiet -- ci command-compliance
@@ -78,11 +100,6 @@ jobs:
 
       - name: Telemetry-Driven Architectural Audit
         run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-telemetry.vox
-
-      - name: Completion quality audit + gates (LLM premature-completion SSOT)
-        run: |
-          cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-audit
-          cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-gates --mode enforce
 
       - name: Clavis SSOT parity + secret direct-read guard
         shell: bash
@@ -115,13 +132,8 @@ jobs:
           cargo run -p vox-cli --quiet -- ci scientia-novelty-ledger-contracts
           cargo run -p vox-cli --quiet -- ci scaling-audit verify
 
-      - name: TOESTUB full crates/ — syn parse failure budget (JSON envelope)
-        env:
-          VOX_TOESTUB_MAX_RUST_PARSE_FAILURES: 3
-        run: |
-          set -euo pipefail
-          cargo run -p vox-toestub -q --bin toestub -- --mode audit --format json --min-severity info crates \
-            | python3 -c "import json,os,sys;m=int(os.environ['VOX_TOESTUB_MAX_RUST_PARSE_FAILURES']);v=json.load(sys.stdin);n=int(v.get('rust_parse_failures',0));((print(f'rust_parse_failures={n} exceeds cap {m}',file=sys.stderr),sys.exit(1)) if n>m else (print(f'rust_parse_failures={n} (cap {m}) OK'),sys.exit(0)))"
+      - name: Workflow scripts allowlist
+        run: cargo run -p vox-cli --quiet -- ci workflow-scripts
 
       - name: Doc inventory matches generator (Rust)
         run: cargo run -p vox-cli --quiet -- ci doc-inventory verify
@@ -176,20 +188,27 @@ jobs:
             exit 1
           fi
 
-      - name: routes.manifest + vox-client legacy-bundle smoke
-        run: cargo test -p vox-compiler --test web_ir_lower_emit codegen_output_never_includes_vox_tanstack_router_or_server_fns -q
-
-      - name: SPA scaffold manifest idempotency
-        run: cargo test -p vox-cli --test scaffold_spa_manifest_idempotent -q
-
-      - name: Eval benchmark matrix contract + vox-cli GPU compile smoke
-        run: |
-          cargo run -p vox-cli --quiet -- ci eval-matrix verify
-          cargo run -p vox-cli --quiet -- ci eval-matrix run --milestone m3-dei-contracts
-          cargo check -p vox-cli --features gpu
-
-      - name: Workflow scripts allowlist
-        run: cargo run -p vox-cli --quiet -- ci workflow-scripts
+  lints:
+    name: Lints (clippy + rustdoc + TOESTUB-scoped + hakari + grammar)
+    needs: setup
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Build vox-cli
+        run: cargo build -p vox-cli
 
       - name: Rustdoc (deny warnings)
         run: RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps
@@ -213,34 +232,6 @@ jobs:
             echo "No architecture docs changed. Skipping full strict TOESTUB."
           fi
 
-      - name: Repository SSOT + MCP smoke
-        run: cargo test -p vox-repository --lib && cargo test -p vox-orchestrator --lib detect_layout_node_workspaces && cargo test -p vox-mcp --lib && cargo check -p vox-git
-
-      - name: Mesh transport + workflow-runtime + CLI feature matrix slice
-        run: |
-          cargo test -p vox-populi --features transport
-          cargo test -p vox-workflow-runtime
-          cargo check -p vox-cli --features mesh,workflow-runtime
-
-      - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
-        env:
-          VOX_BENCHMARK_TELEMETRY: "1"
-          # H.79: enforce soft build budget caps — fails if any lane exceeds budgets.json
-          VOX_BUILD_TIMINGS_BUDGET_FAIL: "1"
-        run: cargo run -p vox-cli --quiet -- ci build-timings --crates
-
-      - name: vox-cli feature matrix + no vox_orchestrator imports
-        run: cargo run -p vox-cli --quiet -- ci feature-matrix && cargo run -p vox-cli --quiet -- ci no-vox-orchestrator-import
-
-      - name: Workspace-wide all-features check (A.4)
-        run: cargo check --workspace --all-features
-
-      - name: Grammar export check (EBNF/GBNF/Lark/JSON-Schema non-empty)
-        run: cargo run -p vox-cli --quiet -- ci grammar-export-check
-
-      - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
-        run: cargo run -p vox-cli --quiet -- ci cuda-features
-
       - name: Install cargo-hakari
         uses: taiki-e/install-action@v2
         with:
@@ -249,36 +240,42 @@ jobs:
       - name: Verify Hakari (Workspace Dependency Determinism)
         run: cargo hakari generate --diff
 
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
+      - name: Grammar export check (EBNF/GBNF/Lark/JSON-Schema non-empty)
+        run: cargo run -p vox-cli --quiet -- ci grammar-export-check
 
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@v2
+  compiler-gates:
+    name: Compiler gates (WebIR + projection + golden examples + benches)
+    needs: setup
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          tool: cargo-llvm-cov
-
-      - name: Run Tests (llvm-cov + nextest, bounded timeouts)
-        # Includes vox-compiler integration tests such as rust_ecosystem_support_parity.
-        # INSTA_UPDATE=unseen: auto-accept new (not-yet-committed) snapshots without failing.
-        # Changed snapshots still fail.  Committed snap files live in tests/snapshots/.
-        env:
-          INSTA_UPDATE: unseen
-        run: cargo llvm-cov nextest --workspace --profile ci
-
-      - name: Upload insta snapshots (review and commit after first run)
-        if: always()
-        uses: actions/upload-artifact@v4
+          components: rustfmt, clippy
+      - uses: actions/cache@v4
         with:
-          name: insta-snapshots
           path: |
-            crates/vox-integration-tests/tests/snapshots/
-            crates/vox-compiler/tests/snapshots/
-          if-no-files-found: ignore
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Build vox-cli
+        run: cargo build -p vox-cli
 
-      - name: vox-db replication feature (compile + embedded sync smoke skips without creds)
-        run: cargo test -p vox-db --features replication sync_embedded_replica_smoke
+      - name: routes.manifest + vox-client legacy-bundle smoke
+        run: cargo test -p vox-compiler --test web_ir_lower_emit codegen_output_never_includes_vox_tanstack_router_or_server_fns -q
+
+      - name: SPA scaffold manifest idempotency
+        run: cargo test -p vox-cli --test scaffold_spa_manifest_idempotent -q
+
+      - name: Eval benchmark matrix contract + vox-cli GPU compile smoke
+        run: |
+          cargo run -p vox-cli --quiet -- ci eval-matrix verify
+          cargo run -p vox-cli --quiet -- ci eval-matrix run --milestone m3-dei-contracts
+          cargo check -p vox-cli --features gpu
 
       - name: WebIR structural validate gate (TS codegen path)
         env:
@@ -289,26 +286,6 @@ jobs:
         env:
           VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE: "0"
         run: cargo test -p vox-compiler --test projection_parity
-
-      - name: Line coverage report (summary, LCOV, gates enforce)
-        run: |
-          set -euo pipefail
-          cargo llvm-cov report --text --summary-only
-          cargo llvm-cov report --json --summary-only --output-path target/llvm-cov-summary.json
-          cargo llvm-cov report --lcov --output-path target/llvm-cov-lcov.info
-          cargo run -p vox-cli --quiet -- ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
-
-      - name: Upload LLVM coverage artifacts
-        if: success() || failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: llvm-cov
-          path: |
-            target/llvm-cov-summary.json
-            target/llvm-cov-lcov.info
-
-      - name: Doc tests (not run by nextest)
-        run: cargo test --workspace --doc
 
       - name: Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)
         # A.13: VOX_EXAMPLES_STRICT_PARSE=1 must be the default in CI.
@@ -341,6 +318,138 @@ jobs:
             exit 1
           fi
 
+  tests:
+    name: Tests (nextest + llvm-cov + doctests)
+    needs: setup
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy, llvm-tools-preview
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Build vox-cli
+        run: cargo build -p vox-cli
+
+      - name: Repository SSOT + MCP smoke
+        run: cargo test -p vox-repository --lib && cargo test -p vox-orchestrator --lib detect_layout_node_workspaces && cargo test -p vox-mcp --lib && cargo check -p vox-git
+
+      - name: Mesh transport + workflow-runtime + CLI feature matrix slice
+        run: |
+          cargo test -p vox-populi --features transport
+          cargo test -p vox-workflow-runtime
+          cargo check -p vox-cli --features mesh,workflow-runtime
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Run Tests (llvm-cov + nextest, bounded timeouts)
+        # Includes vox-compiler integration tests such as rust_ecosystem_support_parity.
+        # INSTA_UPDATE=unseen: auto-accept new (not-yet-committed) snapshots without failing.
+        # Changed snapshots still fail.  Committed snap files live in tests/snapshots/.
+        env:
+          INSTA_UPDATE: unseen
+        run: cargo llvm-cov nextest --workspace --profile ci
+
+      - name: Upload insta snapshots (review and commit after first run)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: insta-snapshots
+          path: |
+            crates/vox-integration-tests/tests/snapshots/
+            crates/vox-compiler/tests/snapshots/
+          if-no-files-found: ignore
+
+      - name: vox-db replication feature (compile + embedded sync smoke skips without creds)
+        run: cargo test -p vox-db --features replication sync_embedded_replica_smoke
+
+      - name: Doc tests (not run by nextest)
+        run: cargo test --workspace --doc
+
+      - name: Line coverage report (summary, LCOV, gates enforce)
+        run: |
+          set -euo pipefail
+          cargo llvm-cov report --text --summary-only
+          cargo llvm-cov report --json --summary-only --output-path target/llvm-cov-summary.json
+          cargo llvm-cov report --lcov --output-path target/llvm-cov-lcov.info
+          cargo run -p vox-cli --quiet -- ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
+
+      - name: Upload LLVM coverage artifacts
+        if: success() || failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-cov
+          path: |
+            target/llvm-cov-summary.json
+            target/llvm-cov-lcov.info
+
+  audits:
+    name: Audits (TOESTUB-full + build-timings + feature-matrix + completion + mens-gate)
+    needs: setup
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ needs.setup.outputs.cache-key }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Build vox-cli
+        run: cargo build -p vox-cli
+
+      - name: Completion quality audit + gates (LLM premature-completion SSOT)
+        run: |
+          cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-audit
+          cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-gates --mode enforce
+
+      - name: TOESTUB full crates/ — syn parse failure budget (JSON envelope)
+        env:
+          VOX_TOESTUB_MAX_RUST_PARSE_FAILURES: 3
+        run: |
+          set -euo pipefail
+          cargo run -p vox-toestub -q --bin toestub -- --mode audit --format json --min-severity info crates \
+            | python3 -c "import json,os,sys;m=int(os.environ['VOX_TOESTUB_MAX_RUST_PARSE_FAILURES']);v=json.load(sys.stdin);n=int(v.get('rust_parse_failures',0));((print(f'rust_parse_failures={n} exceeds cap {m}',file=sys.stderr),sys.exit(1)) if n>m else (print(f'rust_parse_failures={n} (cap {m}) OK'),sys.exit(0)))"
+
+      - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
+        env:
+          VOX_BENCHMARK_TELEMETRY: "1"
+          # H.79: enforce soft build budget caps — fails if any lane exceeds budgets.json
+          VOX_BUILD_TIMINGS_BUDGET_FAIL: "1"
+        run: cargo run -p vox-cli --quiet -- ci build-timings --crates
+
+      - name: vox-cli feature matrix + no vox_orchestrator imports
+        run: cargo run -p vox-cli --quiet -- ci feature-matrix && cargo run -p vox-cli --quiet -- ci no-vox-orchestrator-import
+
+      - name: Workspace-wide all-features check (A.4)
+        run: cargo check --workspace --all-features
+
+      - name: Optional CUDA feature compile (Oratio + Populi Candle, when nvcc exists)
+        run: cargo run -p vox-cli --quiet -- ci cuda-features
 
       - name: Mens corpus mix (strict required sources)
         run: |
@@ -349,6 +458,30 @@ jobs:
 
       - name: Populi CI gate matrix (single manifest)
         run: cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
+
+  # Single required-status check for branch protection. Keep this job's `name:`
+  # identical to the existing required check ("Check, Build, and Test (Rust)")
+  # so branch-protection settings carry over without admin action.
+  ci-summary:
+    name: Check, Build, and Test (Rust)
+    needs: [guards-fast, lints, compiler-gates, tests, audits]
+    if: always()
+    runs-on: [self-hosted, linux, x64]
+    timeout-minutes: 2
+    steps:
+      - name: All required jobs succeeded
+        run: |
+          set -euo pipefail
+          fail=0
+          for r in \
+            "${{ needs.guards-fast.result }}" \
+            "${{ needs.lints.result }}" \
+            "${{ needs.compiler-gates.result }}" \
+            "${{ needs.tests.result }}" \
+            "${{ needs.audits.result }}"; do
+            if [ "$r" != "success" ]; then fail=1; fi
+          done
+          exit $fail
 
   # GitHub-hosted exception: stock Node + pnpm (see .cursor/rules/ci-runner-convention.mdc).
   visualizer-ingest-smoke:

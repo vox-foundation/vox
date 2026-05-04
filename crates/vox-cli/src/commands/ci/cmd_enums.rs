@@ -57,6 +57,21 @@ pub enum CiCmd {
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
+    /// Local pre-push aggregate: runs the merge-blocking subset (fmt, clippy,
+    /// ssot-drift, line-endings, doc-inventory verify, scoped TOESTUB). Mirrors
+    /// the `check-and-test` guards cluster so failures match CI before pushing.
+    #[command(name = "pre-push")]
+    PrePush {
+        /// Skip clippy and TOESTUB (fmt + ssot-drift + line-endings only). ~30s.
+        #[arg(long, conflicts_with = "full")]
+        quick: bool,
+        /// Also run `cargo nextest run --workspace --no-fail-fast` (slow). Off by default.
+        #[arg(long)]
+        full: bool,
+        /// Print commands without executing.
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// VoxDB connect policy doc, telemetry JSONL parsing, and `research_metrics` NULL-vs-zero invariants.
     #[command(name = "data-ssot-guards")]
     DataSsotGuards,

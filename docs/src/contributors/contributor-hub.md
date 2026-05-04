@@ -71,33 +71,9 @@ Fast local policy rerun for this lane:
 
 ## Pre-push: local CI parity
 
-CI on `main` / PRs is defined in [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml). The job does **not** rely on a lone `cargo check -p vox-cli`; it runs **`cargo clippy --workspace --all-targets`**, **`cargo doc --workspace --no-deps`** (with warnings denied), **`cargo llvm-cov nextest --workspace`**, and many **`vox ci *`** guards. Before pushing, run a **high-signal subset** so failures match CI instead of showing up only on the runner.
-
-**Suggested commands** (from repo root; use full `cargo` path on Windows agents if `PATH` is minimal — see [AGENTS.md](../../../AGENTS.md)):
-
-```bash
-cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo run -p vox-cli --quiet -- ci ssot-drift
-```
-
-Then run **tests for crates you changed** (faster than a full workspace test pass):
-
-```bash
-cargo test -p vox-db --test schema_contract_tests   # example; pick your crates
-```
-
-**TOESTUB** on changed directories (requires the `stub-check` feature on `vox-cli`):
-
-```bash
-cargo run -p vox-cli --features stub-check --quiet -- stub-check crates/vox-mcp
-```
-
-Use a **single** positional path per invocation (repeat for each directory). See [Architectural governance (TOESTUB)](../../agents/governance.md).
-
-**`vox_db::legacy_schema` warnings during `stub-check`:** if stderr mentions `schema_version chain is not the current baseline`, the harness opened the **canonical Codex store** resolved from your environment (usually the platform default `vox.db` when `VOX_DB_PATH` is unset). Fix by either completing **Stage 1** in the [VoxDB cutover runbook](../operations/voxdb-cutover-runbook.md) for that file, or — when you do not need to keep data — point **`VOX_DB_PATH`** at a **fresh scratch `.db`** per the runbook section *Contributors / local tooling — fresh canonical DB* (`connect_default` does not use `:memory:` when env is empty). Do not lower `BASELINE_VERSION` to silence the log.
-
-**Codex + docs SSOT:** `vox ci check-codex-ssot` and `vox ci check-docs-ssot` are **merge-blocking** in CI (see [.github/workflows/ci.yml](../../../.github/workflows/ci.yml)). Run `check-codex-ssot` locally after changing [`contracts/db/baseline-version-policy.yaml`](../../../contracts/db/baseline-version-policy.yaml) or [`crates/vox-db/src/schema/manifest.rs`](../../../crates/vox-db/src/schema/manifest.rs). Run `check-docs-ssot` when you change doc inventories, canonical maps, or migration-facing docs.
+Run the merge-blocking subset before pushing: **`vox ci pre-push`**
+(install once via `vox ci install-hooks`).
+See [local CI parity](local-ci-pre-push.md) for modes and tuning.
 
 ## Contributor expectations
 

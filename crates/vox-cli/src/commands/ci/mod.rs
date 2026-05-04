@@ -34,6 +34,7 @@ mod plugin_abi_parity;
 mod plugin_catalog_parity;
 mod plugin_skill_parity;
 mod pm_provenance;
+mod pre_push;
 mod release_build;
 pub(crate) mod retired_symbol_check;
 mod scaling_audit;

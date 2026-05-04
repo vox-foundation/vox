@@ -514,6 +514,7 @@ training_eligible: false
 - [Agent instruction architecture](contributors/agent-instruction-architecture.md)
 - [Coding Agent Instructions](contributors/coding-agents.md)
 - [Continuation Prompt Engineering](contributors/continuation-prompt-engineering.md)
+- [Local CI parity (pre-push)](contributors/local-ci-pre-push.md)
 - [TOESTUB contributor guide](contributors/toestub-contributor-guide.md)
 - [The Vox Contribution Loop](contributors/contribution-loop.md)
 

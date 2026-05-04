@@ -45,7 +45,11 @@
       "Bash(git commit -m 'refactor\\(compiler\\): scrub stale island references from doc-comments *)",
       "Bash(git rm *)",
       "Bash(git commit *)",
-      "Bash(git mv *)"
+      "Bash(git mv *)",
+      "Bash(grep -v \"^warning\\\\|^  -->\\\\|^   \\\\||$\")",
+      "Bash(echo \"EXIT:$?\")",
+      "WebSearch",
+      "Bash(xargs wc *)"
     ]
   }
 }
