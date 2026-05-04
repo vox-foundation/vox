@@ -1,0 +1,33 @@
+---
+source: crates/vox-compiler/tests/golden_mesh_surface_test.rs
+assertion_line: 267
+expression: ts
+---
+import React from "react";
+
+export function ActivityStrip(): React.ReactElement {
+  return (
+<row h={20} border_t={true} border_color={"zinc.800"} pad_x={4} items={"center"} gap={3} shrink={0} bg={"zinc.950"}
+>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.600"} raw_class={"w-10 shrink-0 text-right"}
+>
+  {"tok/s"}
+</text>
+  <panel flex={1} raw_class={"h-10 relative overflow-hidden"}
+>
+  <svg raw_class={"w-full h-full"} viewBox={"0 0 600 40"} preserveAspectRatio={"none"}
+>
+  <rect x={0} y={36} width={8} height={4} fill={"#22c55e28"} />
+  <rect x={10} y={33} width={8} height={7} fill={"#22c55e38"} />
+  <rect x={20} y={29} width={8} height={11} fill={"#22c55e48"} />
+  <rect x={30} y={26} width={8} height={14} fill={"#22c55e58"} />
+  <rect x={40} y={22} width={8} height={18} fill={"#22c55e68"} />
+</svg>
+</panel>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.700"} raw_class={"w-10 shrink-0"}
+>
+  {"-/s"}
+</text>
+</row>
+  );
+}

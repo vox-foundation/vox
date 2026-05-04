@@ -1,0 +1,28 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_surfaces_test.rs
+assertion_line: 254
+expression: ts
+---
+import React from "react";
+
+import { SurfaceStub } from "./SurfaceStub";
+
+export function RunsSurface(): React.ReactElement {
+  return (
+<column flex={1} overflow={"hidden"} bg={"zinc.950"}
+>
+  <row h={10} border_b={true} border_color={"zinc.800"} pad_x={4} items={"center"} justify={"between"} shrink={0}
+>
+  <text size={"sm"} weight={"black"} tracking={"tight"} color={"white"}
+>
+  {"Runs"}
+</text>
+  <button raw_class={"px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800"}
+>
+  {"Live tail: off"}
+</button>
+</row>
+  <SurfaceStub title={"Runs"} desc={"Persistent log of every orchestrator run. Click a row to see the full event tree."} action={"Start a run"} />
+</column>
+  );
+}

@@ -1,0 +1,36 @@
+---
+source: crates/vox-compiler/tests/golden_mesh_surface_test.rs
+assertion_line: 103
+expression: ts
+---
+import React from "react";
+
+import { MeshKpi } from "./MeshKpi";
+
+export interface MeshSummaryBarProps {
+  nodes: string;
+  active: string;
+  blocked: string;
+  errors: string;
+  tok_s: string;
+  cost_h: string;
+}
+
+export function MeshSummaryBar({ nodes, active, blocked, errors, tok_s, cost_h }: MeshSummaryBarProps): React.ReactElement {
+  return (
+<row pad_y={1} border_b={true} border_color={"zinc.800"} shrink={0} bg={"zinc.950"}
+>
+  <MeshKpi key={"NODES"} value={nodes} sub={"total"} />
+  <panel w={1} bg={"zinc.800"} raw_class={"self-stretch my-2"} />
+  <MeshKpi key={"ACTIVE"} value={active} sub={"running"} />
+  <panel w={1} bg={"zinc.800"} raw_class={"self-stretch my-2"} />
+  <MeshKpi key={"BLOCKED"} value={blocked} sub={"waiting"} />
+  <panel w={1} bg={"zinc.800"} raw_class={"self-stretch my-2"} />
+  <MeshKpi key={"ERRORS"} value={errors} />
+  <panel w={1} bg={"zinc.800"} raw_class={"self-stretch my-2"} />
+  <MeshKpi key={"TOK/S"} value={tok_s} sub={"avg"} />
+  <panel w={1} bg={"zinc.800"} raw_class={"self-stretch my-2"} />
+  <MeshKpi key={"$/HR"} value={cost_h} sub={"rate"} />
+</row>
+  );
+}

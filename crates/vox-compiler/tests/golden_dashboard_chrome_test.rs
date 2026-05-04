@@ -11,12 +11,11 @@
 //!      attribute names; expected content strings).
 //!   3. A snapshot captures the full emitted TSX for visual review.
 //!
-//! VUV known gaps worked around in chrome.vox (all from batch 1 + batch 2):
-//!   • `else if` chains in kwarg position → nested `else { if }` instead
-//!   • `on` is a reserved keyword → callbacks are `on_nav`, `on_cmdk` etc.
-//!   • `fn() -> ()` deprecated → bare `fn()` used throughout
-//!   • NEW (batch 2): multiline component parameter lists do not parse →
-//!     all `component Foo(a, b, c)` declarations must fit on one line
+//! VUV notes (current state after Phase 1 Batch 3):
+//!   • `else if` chains are fully supported in all positions (parser fix landed).
+//!   • `on` is a reserved keyword → callbacks named `on_click`, `on_select` etc.
+//!   • Multiline component parameter lists do not parse — all `component Foo(a, b)`
+//!     declarations must fit on one line.
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -41,9 +40,9 @@ fn compile_component(source: &str, component_name: &str) -> String {
 
 const STATE_CHIP_SRC: &str = r#"
 component StateChip(status: str, label: str = "", dim: bool = false) {
-    view: row(items="center", gap=1, pad_x=2, pad_y=0, radius="full", bg=if dim { "white/5" } else { if (status is "running" or status is "ok" or status is "ready") { "emerald.400/15" } else { if (status is "warn" or status is "blocked" or status is "pending") { "amber.400/15" } else { if (status is "error" or status is "failed" or status is "errored") { "rose.500/15" } else { "white/5" } } } }, raw_class="h-5 inline-flex") {
-        panel(w=1, h=1, radius="full", bg=if dim { "zinc.600" } else { if (status is "running" or status is "ok" or status is "ready") { "emerald.400" } else { if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" } else { if (status is "error" or status is "failed" or status is "errored") { "rose.500" } else { "zinc.600" } } } })
-        text(size="xs", font_family="mono", tracking="widest", case="upper", color=if dim { "zinc.500" } else { if (status is "running" or status is "ok" or status is "ready") { "emerald.400" } else { if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" } else { if (status is "error" or status is "failed" or status is "errored") { "rose.400" } else { "zinc.500" } } } }) { if label is "" { status } else { label } }
+    view: row(items="center", gap=1, pad_x=2, pad_y=0, radius="full", bg=if dim { "white/5" } else if (status is "running" or status is "ok" or status is "ready") { "emerald.400/15" } else if (status is "warn" or status is "blocked" or status is "pending") { "amber.400/15" } else if (status is "error" or status is "failed" or status is "errored") { "rose.500/15" } else { "white/5" }, raw_class="h-5 inline-flex") {
+        panel(w=1, h=1, radius="full", bg=if dim { "zinc.600" } else if (status is "running" or status is "ok" or status is "ready") { "emerald.400" } else if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" } else if (status is "error" or status is "failed" or status is "errored") { "rose.500" } else { "zinc.600" })
+        text(size="xs", font_family="mono", tracking="widest", case="upper", color=if dim { "zinc.500" } else if (status is "running" or status is "ok" or status is "ready") { "emerald.400" } else if (status is "warn" or status is "blocked" or status is "pending") { "amber.400" } else if (status is "error" or status is "failed" or status is "errored") { "rose.400" } else { "zinc.500" }) { if label is "" { status } else { label } }
     }
 }
 "#;
@@ -51,29 +50,15 @@ component StateChip(status: str, label: str = "", dim: bool = false) {
 const NAV_ICON_SRC: &str = r#"
 component NavIcon(name: str) {
     view: text(size="xs", font_family="mono", color="inherit", raw_class="w-4 h-4 flex items-center justify-center select-none") {
-        if name is "speak" { "◉" }
-        else {
-            if name is "mesh" { "◈" }
-            else {
-                if name is "forge" { "◧" }
-                else {
-                    if name is "code" { "▤" }
-                    else {
-                        if name is "models" { "◎" }
-                        else {
-                            if name is "runs" { "▶" }
-                            else {
-                                if name is "settings" { "⚙" }
-                                else {
-                                    if name is "search" { "◌" }
-                                    else { "·" }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        if name is "speak"    { "◉" }
+        else if name is "mesh"     { "◈" }
+        else if name is "forge"    { "◧" }
+        else if name is "code"     { "▤" }
+        else if name is "models"   { "◎" }
+        else if name is "runs"     { "▶" }
+        else if name is "settings" { "⚙" }
+        else if name is "search"   { "◌" }
+        else { "·" }
     }
 }
 "#;

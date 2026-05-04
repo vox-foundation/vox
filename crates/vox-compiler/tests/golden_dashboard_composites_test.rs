@@ -6,9 +6,10 @@
 //!      call emission, expected attribute names).
 //!   3. A snapshot captures the full emitted TSX for visual review.
 //!
-//! VUV parser note: `else if` chains in kwarg position are not supported by the
-//! current parser. Composites use nested `else { if }` instead (equivalent
-//! semantics, see DONE_WITH_CONCERNS note in the implementation report).
+//! VUV parser note: `else if` chains are fully supported in all positions as of
+//! Phase 1 Batch 3. Composite sources below use the cleaner `else if` form.
+//! (The snapshot sources still reflect the old nested style — snapshots are
+//! stable; source style is updated in new tests going forward.)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
