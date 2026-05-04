@@ -87,6 +87,50 @@ skill-md = "<filename>.skill.md"
 tools.exposes = ["vox_tool_one"]
 ```
 
+## AgentSkills Compliance
+
+Vox skill plugins implement the [AgentSkills open standard](https://agentskills.io/specification), which allows them to be loaded by Claude Code, OpenAI Codex CLI, Gemini CLI, GitHub Copilot, Cursor, JetBrains, and any other tool that follows the spec.
+
+### SKILL.md frontmatter schema
+
+The AgentSkills spec requires two top-level fields: `name` (lowercase + hyphens, matches the directory short-id) and `description`. All Vox-specific fields live under a `metadata` block prefixed with `vox-`:
+
+```toml
+---
+name = "skill-compiler"
+description = "Compiles Vox source files and runs cargo check/build for the workspace."
+
+[metadata]
+"vox-id" = "vox.compiler"
+"vox-version" = "0.1.0"
+"vox-author" = "vox-team"
+"vox-category" = "compiler"
+"vox-tools" = ["vox_validate_file", "vox_run_tests", "vox_check_workspace"]
+"vox-tags" = ["compile", "build", "cargo"]
+"vox-permissions" = ["read_files", "shell_exec"]
+---
+```
+
+**Field mapping:**
+
+| AgentSkills field | Vox usage |
+|---|---|
+| `name` | Spec-required; lowercase-hyphen id matching the plugin directory short-name (e.g. `skill-compiler`) |
+| `description` | Spec-required; one-paragraph description shown in tool marketplaces |
+| `metadata.vox-id` | Internal dot-notation id used by the Vox orchestrator bridge (e.g. `vox.compiler`) |
+| `metadata.vox-version` | Semver version string |
+| `metadata.vox-author` | Author or publisher identifier |
+| `metadata.vox-category` | Primary skill category (see `SkillCategory` enum) |
+| `metadata.vox-tools` | MCP tool IDs this skill exposes |
+| `metadata.vox-tags` | Search tags |
+| `metadata.vox-permissions` | Permissions required at install time |
+
+### Parser compatibility
+
+The `vox-skills` parser reads `metadata.vox-*` fields first, then falls back to the legacy top-level field names (`id`, `version`, `author`, etc.) for backward compatibility. This means older SKILL.md files continue to work without migration.
+
+If neither `metadata.vox-id` nor the legacy `id` field is present, the parser derives the id from the `name` field.
+
 ## Validation
 
 The manifest is parsed at host startup and validated against this schema. Failures are reported by `vox plugin doctor` with the offending field path.
