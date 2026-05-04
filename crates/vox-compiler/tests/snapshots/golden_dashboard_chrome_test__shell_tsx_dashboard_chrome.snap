@@ -1,0 +1,32 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_chrome_test.rs
+expression: ts
+---
+import React from "react";
+
+import { LeftRail } from "./LeftRail";
+import { StatusBar } from "./StatusBar";
+import { TopBar } from "./TopBar";
+
+export interface ShellProps {
+  active: string;
+  rail_collapsed: boolean;
+  workspace: string;
+  run_status: string;
+  run_label: string;
+}
+
+export function Shell({ active, rail_collapsed, workspace, run_status, run_label }: ShellProps): React.ReactElement {
+  return (
+<div className={["flex", "flex-col", "min-h-screen", "overflow-hidden", "bg-zinc-950", "text-zinc-100"].filter(Boolean).join(" ")}
+>
+  <TopBar workspace={workspace} run_status={run_status} run_label={run_label} />
+  <div className={["flex", "flex-row", "flex-1", "min-h-0", "overflow-hidden"].filter(Boolean).join(" ")}
+>
+  <LeftRail active={active} collapsed={rail_collapsed} />
+  <div className={["rounded-lg", "border", "border-border", "p-4", "flex-1", "min-w-0", "overflow-hidden", "bg-zinc-950"].filter(Boolean).join(" ")} />
+</div>
+  <StatusBar active={active} />
+</div>
+  );
+}

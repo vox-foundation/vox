@@ -1,0 +1,49 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_chrome_test.rs
+expression: ts
+---
+import React from "react";
+
+import { NavItem } from "./NavItem";
+
+export interface LeftRailProps {
+  active: string;
+  collapsed: boolean;
+}
+
+export function LeftRail({ active, collapsed }: LeftRailProps): React.ReactElement {
+  return (
+<div className={["flex", "flex-col", (collapsed ? "w-14 shrink-0" : "w-[200px] shrink-0"), "border-r-true", "border-zinc-800", "p-2", "gap-1", "bg-zinc-950"].filter(Boolean).join(" ")}
+>
+  <div className={["flex", "flex-row", "h-12", "flex items-center", "shrink-0", (collapsed ? "justify-center px-1" : "gap-2 px-2")].filter(Boolean).join(" ")}
+>
+  <div className={["border", "border-border", "p-4", "w-6", "h-6", "rounded-md", "bg-blue-600", "flex items-center justify-center shrink-0"].filter(Boolean).join(" ")}
+>
+  <p className={["text-xs", "font-bold", "text-white", "font-mono"].filter(Boolean).join(" ")}
+>
+  {"V"}
+</p>
+</div>
+  {(collapsed ? <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4"].filter(Boolean).join(" ")} /> : <p className={["text-sm", "font-bold", "text-white/90", "tracking-tight"].filter(Boolean).join(" ")}
+>
+  {"Vox"}
+</p>)}
+</div>
+  <NavItem label={"Speak"} surface_key={"speak"} active={active} collapsed={collapsed} />
+  <NavItem label={"Mesh"} surface_key={"mesh"} active={active} collapsed={collapsed} />
+  <NavItem label={"Forge"} surface_key={"forge"} active={active} collapsed={collapsed} />
+  <NavItem label={"Code"} surface_key={"code"} active={active} collapsed={collapsed} />
+  <NavItem label={"Models"} surface_key={"models"} active={active} collapsed={collapsed} />
+  <NavItem label={"Runs"} surface_key={"runs"} active={active} collapsed={collapsed} />
+  <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "flex-1"].filter(Boolean).join(" ")} />
+  <NavItem label={"Settings"} surface_key={"settings"} active={active} collapsed={collapsed} />
+  {(collapsed ? <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4"].filter(Boolean).join(" ")} /> : <div className={["flex", "flex-row", "px-2", "py-2", "shrink-0"].filter(Boolean).join(" ")}
+>
+  <p className={["text-xs", "font-mono", "text-zinc-700"].filter(Boolean).join(" ")}
+>
+  {"v0.14.2 · main"}
+</p>
+</div>)}
+</div>
+  );
+}

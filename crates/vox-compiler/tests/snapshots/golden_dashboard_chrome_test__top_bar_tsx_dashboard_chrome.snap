@@ -1,0 +1,67 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_chrome_test.rs
+expression: ts
+---
+import React from "react";
+
+import { NavIcon } from "./NavIcon";
+import { StateChip } from "./StateChip";
+
+export interface TopBarProps {
+  workspace: string;
+  run_status: string;
+  run_label: string;
+}
+
+export function TopBar({ workspace, run_status, run_label }: TopBarProps): React.ReactElement {
+  return (
+<div className={["flex", "flex-row", "h-12", "border-b-true", "border-zinc-800", "px-4", "flex items-center", "flex justify-between", "shrink-0", "bg-zinc-950"].filter(Boolean).join(" ")}
+>
+  <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "h-10", "px-4", "py-2", "flex items-center gap-1.5 hover:bg-white/5 rounded-lg px-2 py-1 transition-colors", "bg-transparent", "text-zinc-300", "border-false"].filter(Boolean).join(" ")}
+>
+  <p className={["text-xs", "font-bold", "text-zinc-400", "tracking-widest", "uppercase"].filter(Boolean).join(" ")}
+>
+  {"Vox"}
+</p>
+  <p className={["text-xs", "text-zinc-700"].filter(Boolean).join(" ")}
+>
+  {"/"}
+</p>
+  <p className={["text-sm", "text-zinc-300", "font-mono"].filter(Boolean).join(" ")}
+>
+  {workspace}
+</p>
+  <p className={["text-xs", "text-zinc-600", "ml-0.5"].filter(Boolean).join(" ")}
+>
+  {"‹"}
+</p>
+</button>
+  <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "h-10", "flex items-center gap-2 w-64", "bg-zinc-900", "border", "border-white/10", "rounded-lg", "px-3", "py-1", "text-zinc-500"].filter(Boolean).join(" ")}
+>
+  <NavIcon name={"search"} />
+  <p className={["text-xs", "text-zinc-600", "flex-1 text-left"].filter(Boolean).join(" ")}
+>
+  {"Search or jump to…"}
+</p>
+  <div className={["border", "border-white/15", "rounded-sm", "px-1", "bg-white/5", "h-5 inline-flex items-center"].filter(Boolean).join(" ")}
+>
+  <p className={["text-xs", "font-mono", "text-zinc-500"].filter(Boolean).join(" ")}
+>
+  {"⌘K"}
+</p>
+</div>
+</button>
+  <div className={["flex", "flex-row", "flex items-center", "gap-3"].filter(Boolean).join(" ")}
+>
+  <StateChip status={run_status} label={run_label} />
+  <div className={["p-4", "w-7", "h-7", "rounded-full", "bg-blue-600/20", "border", "border-blue-500/30", "flex items-center justify-center"].filter(Boolean).join(" ")}
+>
+  <p className={["text-xs", "font-bold", "text-blue-400", "font-mono"].filter(Boolean).join(" ")}
+>
+  {"AU"}
+</p>
+</div>
+</div>
+</div>
+  );
+}
