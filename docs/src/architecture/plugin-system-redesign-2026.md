@@ -626,15 +626,22 @@ Each iteration mirrors SP3's pattern: define trait → extract crate → wire ho
 
 ## Sub-Project 8: Distribution Bundles in CI & Releases
 
+> **Status: SHIPPED 2026-05-03** — `vox bundle build` now produces real
+> tar.gz tarballs (replacing the SP5 dry-run stub); `vox bundle verify`
+> extracts to a tempdir and runs `vox plugin doctor`; the
+> `.github/workflows/bundle-release.yml` matrix builds all 8 bundles per
+> (OS, arch) on release tags.  Deferred from initial delivery: release-notes
+> delta generator (deliverable 4) — non-blocking, planned as a follow-up.
+
 **Scope.** Make bundle production a first-class CI artifact. Each `vox` release produces `vox-base`, `vox-fullstack`, `vox-ml`, `vox-mesh`, `vox-server` tarballs per supported (OS, arch).
 
 **Deliverables.**
 
-1. `vox bundle build` integration into the release workflow.
-2. CI matrix: for each (OS, arch, bundle-id) tuple, build the bundle and upload.
-3. Bundle integrity test: extract each bundle, run `<bundle>/bin/vox plugin list` and assert all listed plugins load (`vox plugin doctor` exits 0).
-4. Release notes generator updated to enumerate which bundle gained / lost which plugins between versions.
-5. Documentation: `docs/src/how-to/how-to-pick-a-vox-bundle.md` — short decision-tree for users ("running a server? `vox-server`. Doing local ML? `vox-ml`.").
+1. `vox bundle build` integration into the release workflow. ✓
+2. CI matrix: for each (OS, arch, bundle-id) tuple, build the bundle and upload. ✓
+3. Bundle integrity test: extract each bundle, run `<bundle>/bin/vox plugin list` and assert all listed plugins load (`vox plugin doctor` exits 0). ✓ (`vox bundle verify`)
+4. Release notes generator updated to enumerate which bundle gained / lost which plugins between versions. — *Deferred; non-blocking.*
+5. Documentation: `docs/src/how-to/how-to-pick-a-vox-bundle.md` — short decision-tree for users. ✓
 
 **Acceptance.**
 
