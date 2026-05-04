@@ -3,14 +3,53 @@ name = "vox-plugin-oratio"
 version = "0.1.0"
 edition.workspace = true
 publish = false
-description = "AudioCapture plugin stub: Oratio speech-to-code pipeline (SP7 scaffold; actual extraction deferred)."
+description = "Speech-to-text plugin: Candle Whisper backend extracted from vox-oratio."
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = ["stt-candle"]
+# Pure-Rust Candle Whisper inference (HF Hub weights).
+stt-candle = [
+    "dep:candle-core",
+    "dep:candle-nn",
+    "dep:candle-transformers",
+    "dep:hf-hub",
+    "dep:tokenizers",
+    "dep:symphonia",
+    "dep:rubato",
+    "dep:rand",
+    "dep:byteorder",
+]
+# CUDA acceleration (opt-in).
+cuda = ["candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
+
 [dependencies]
 vox-plugin-api = { workspace = true }
 abi_stable = { workspace = true }
+vox-clavis = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+tempfile = { workspace = true }
+
+# Heavy STT deps — pulled in only when stt-candle feature is enabled
+candle-core   = { version = "0.9.1", optional = true, default-features = false }
+candle-nn     = { version = "0.9.1", optional = true, default-features = false }
+candle-transformers = { version = "0.9.1", optional = true, default-features = false }
+hf-hub        = { workspace = true, optional = true }
+tokenizers    = { version = "0.21", optional = true }
+symphonia     = { version = "0.5.4", optional = true, default-features = false, features = [
+    "aac", "alac", "flac", "mp3", "ogg", "pcm", "vorbis", "wav",
+] }
+rubato        = { version = "0.15.0", optional = true }
+rand          = { version = "0.9", optional = true }
+byteorder     = { version = "1.5", optional = true }
+workspace-hack = { workspace = true }
 
 [lints]
 workspace = true

@@ -1,10 +1,12 @@
 //! Vox plugin: oratio
 //!
-//! Stub plugin that provides the AudioCapture extension point for the
-//! Oratio speech-to-code pipeline. SP7 scaffold — actual extraction from
-//! vox-oratio is deferred. See src/audio.rs for TODO(SP7-followup) markers.
+//! Provides the AudioCapture and SpeechToText extension points for the Oratio
+//! speech-to-code pipeline. The SpeechToText impl uses the Candle Whisper backend
+//! extracted from vox-oratio (Unit 4 of the vox-populi extraction follow-up plan).
 
 mod audio;
+mod backends;
+mod oratio_internals;
 
 use abi_stable::{export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn, std_types::*};
 use vox_plugin_api::abi::{VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
