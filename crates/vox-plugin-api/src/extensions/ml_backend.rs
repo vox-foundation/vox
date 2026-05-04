@@ -15,7 +15,7 @@
 
 use abi_stable::{sabi_trait, std_types::*, StableAbi};
 
-pub const ML_BACKEND_REVISION: u32 = 2;
+pub const ML_BACKEND_REVISION: u32 = 3;
 
 /// Opaque handle to a backend-owned model. The host never inspects the
 /// contents — it only passes it back to the same backend across calls.
@@ -68,4 +68,16 @@ pub trait MlBackend: Send + Sync {
     /// per-step methods (`train_step`, `eval_step`) remain for callers
     /// that want finer control.
     fn run_full_training(&self, config_json: RStr<'_>) -> RResult<RString, RBoxError>;
+
+    /// Run inference on a loaded model. Returns generated text + metadata as JSON.
+    fn run_inference(&self, model: &MlModelHandle, prompt_json: RStr<'_>) -> RResult<RString, RBoxError>;
+
+    /// Merge a QLoRA adapter into base weights and write to dest_path.
+    /// Used by `vox mens merge-qlora` workflow.
+    fn merge_adapter(
+        &self,
+        base_path: RStr<'_>,
+        adapter_path: RStr<'_>,
+        dest_path: RStr<'_>,
+    ) -> RResult<(), RBoxError>;
 }
