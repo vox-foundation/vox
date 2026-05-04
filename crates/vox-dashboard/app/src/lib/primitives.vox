@@ -262,3 +262,39 @@ component Codeframe(file: str, line: int, col: int, excerpt: str, caret: str) {
         text(size="xs", font_family="mono", color="rose.400") { caret }
     }
 }
+
+// ── SurfaceStub ───────────────────────────────────────────────────────────────
+// Shared empty-state silhouette used by every stub surface until its Phase
+// implementation lands.
+//
+//   title  — surface name ("Mesh", "Runs", …)
+//   desc   — one sentence describing what lives here
+//   action — primary CTA label ("Start an orchestrator", …)
+//
+// Usage: SurfaceStub(title="Mesh", desc="…", action="Start an orchestrator")
+
+component SurfaceStub(title: str, desc: str, action: str) {
+    view: column(flex=1, items="center", justify="center", gap=4, color="zinc.500", pad=8) {
+        // Silhouette: faint panel grid suggesting populated layout
+        column(w="full", gap=2, raw_class="max-w-md opacity-20 pointer-events-none mb-4") {
+            row(gap=2) {
+                panel(flex=1, h=8, bg="zinc.800", radius="lg")
+                panel(w=20, h=8, bg="zinc.800", radius="lg")
+            }
+            panel(w="full", h=24, bg="zinc.800", radius="lg")
+            row(gap=2) {
+                panel(flex=1, h=6, bg="zinc.800", radius="lg")
+                panel(flex=1, h=6, bg="zinc.800", radius="lg")
+                panel(flex=1, h=6, bg="zinc.800", radius="lg")
+            }
+        }
+
+        text(size="sm", weight="bold", case="upper", tracking="widest", color="zinc.400") { title }
+        text(size="xs", color="zinc.600", raw_class="text-center max-w-xs") { desc }
+
+        row(gap=3, raw_class="mt-2") {
+            button(raw_class="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-500 transition-colors") { action }
+            button(raw_class="px-4 py-2 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800 transition-colors") { "Load example" }
+        }
+    }
+}

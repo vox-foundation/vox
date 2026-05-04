@@ -1,0 +1,25 @@
+// Mesh surface — stub shell, Phase 2 implementation.
+//
+// Phase 2 will replace SurfaceStub with:
+//   MeshSummaryBar  — 6-chip KPI row (nodes/active/blocked/errors/tok_s/cost_h)
+//   MeshTopology    — SVG canvas (force/hierarchy/cluster layout presets)
+//   ActivityStrip   — 80px SVG bar chart subscribed to throughput.tick
+//   MeshInspector   — 320px right rail (kill/pause/replay + event list)
+//
+// Backend: GET /api/v2/mesh/summary (stub live), GET /api/v2/mesh/nodes,
+//          GET /api/v2/mesh/edges, POST /api/v2/mesh/nodes/{id}/kill|pause|replay
+import lib/chrome as { StateChip }
+import lib/primitives as { SurfaceStub }
+
+component MeshSurface() {
+    view: column(flex=1, overflow="hidden", bg="zinc.950") {
+        row(h=10, border_b=true, border_color="zinc.800", pad_x=4, items="center", justify="between", shrink=0) {
+            text(size="sm", weight="black", tracking="tight", color="white") { "Mesh" }
+            row(gap=2, items="center") {
+                StateChip(status="idle", label="0 nodes")
+                button(raw_class="px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800") { "Refresh" }
+            }
+        }
+        SurfaceStub(title="Mesh", desc="Force-directed agent topology. Nodes show orchestrators; edges show active channels.", action="Start an orchestrator")
+    }
+}

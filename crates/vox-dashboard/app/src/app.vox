@@ -1,148 +1,27 @@
-// Dashboard shell — Phase 1 Batch 3.
+// Dashboard root — Phase 1 complete, surfaces wired.
 //
-// Replaced the JSX 4-tab Latin shell (LOQUELA/IMPERIUM/RETE/FABRICA) with a
-// VUV-form 7-surface layout using the chrome components from lib/chrome.vox.
+// Surface components live in surfaces/*.vox; this file is the shell only.
+// SurfaceStub is in lib/primitives.vox.
 //
-// Navigation: the `active` state variable in AppShell drives both LeftRail
-// highlight and surface outlet.  Each NavItem's `on_select` callback updates
-// `active` via a captured lambda.
+// Navigation: `active` in AppShell drives LeftRail highlight and surface outlet.
+// Each NavItem's on_select callback updates `active` via a captured lambda.
 //
-// Surface stubs: each of the 7 surfaces renders a labeled empty-state silhouette
-// with a one-sentence description and a primary action (per §8 of the design brief).
-// Full surface implementations arrive in Phases 2–8.
-//
-// Compiler note: `else if` chains now work in all expression positions (fixed in
-// Phase 1 Batch 3 parser commit).  The nested `else { if }` workaround in the
-// chrome/primitives components will be cleaned up in a follow-up commit.
+// Phase 2+: surfaces/*.vox files are replaced one by one with full implementations.
 
-import lib/chrome as { TopBar, LeftRail, StatusBar, StateChip }
-import lib/primitives as { NodeBadge }
-
-// ── Empty-state helper ────────────────────────────────────────────────────────
-// Shared silhouette layout for stub surfaces.
-// `title`  — surface name (mixed-case, e.g. "Mesh")
-// `desc`   — one sentence about what lives here
-// `action` — primary CTA label ("Start an orchestrator", etc.)
-
-component SurfaceStub(title: str, desc: str, action: str) {
-    view: column(flex=1, items="center", justify="center", gap=4, color="zinc.500", pad=8) {
-        // Silhouette: a faint panel grid suggesting populated layout
-        column(w="full", gap=2, raw_class="max-w-md opacity-20 pointer-events-none mb-4") {
-            row(gap=2) {
-                panel(flex=1, h=8, bg="zinc.800", radius="lg")
-                panel(w=20, h=8, bg="zinc.800", radius="lg")
-            }
-            panel(w="full", h=24, bg="zinc.800", radius="lg")
-            row(gap=2) {
-                panel(flex=1, h=6, bg="zinc.800", radius="lg")
-                panel(flex=1, h=6, bg="zinc.800", radius="lg")
-                panel(flex=1, h=6, bg="zinc.800", radius="lg")
-            }
-        }
-
-        text(size="sm", weight="bold", case="upper", tracking="widest", color="zinc.400") { title }
-        text(size="xs", color="zinc.600", raw_class="text-center max-w-xs") { desc }
-
-        row(gap=3, raw_class="mt-2") {
-            button(raw_class="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-500 transition-colors") { action }
-            button(raw_class="px-4 py-2 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800 transition-colors") { "Load example" }
-        }
-    }
-}
-
-// ── 7 Surface stubs ────────────────────────────────────────────────────────────
-
-component SpeakSurface() {
-    view: column(flex=1, overflow="hidden", bg="zinc.950") {
-        // Header
-        row(h=10, border_b=true, border_color="zinc.800", pad_x=4, items="center", justify="between", shrink=0) {
-            text(size="sm", weight="black", tracking="tight", color="white") { "Speak" }
-            StateChip(status="idle", label="no session")
-        }
-        // Empty state
-        SurfaceStub(title="Speak", desc="Chat with the mesh. Tool calls render as collapsible cards.", action="Start a conversation")
-    }
-}
-
-component MeshSurface() {
-    view: column(flex=1, overflow="hidden", bg="zinc.950") {
-        row(h=10, border_b=true, border_color="zinc.800", pad_x=4, items="center", justify="between", shrink=0) {
-            text(size="sm", weight="black", tracking="tight", color="white") { "Mesh" }
-            row(gap=2, items="center") {
-                StateChip(status="idle", label="0 nodes")
-                button(raw_class="px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800") { "Refresh" }
-            }
-        }
-        SurfaceStub(title="Mesh", desc="Force-directed agent topology. Nodes show orchestrators; edges show active channels.", action="Start an orchestrator")
-    }
-}
-
-component ForgeSurface() {
-    state panel: str = "pipeline"
-
-    view: column(flex=1, overflow="hidden", bg="zinc.950") {
-        row(h=10, border_b=true, border_color="zinc.800", pad_x=4, items="center", gap=4, shrink=0) {
-            text(size="sm", weight="black", tracking="tight", color="white") { "Forge" }
-            row(gap=1) {
-                button(raw_class=if panel is "pipeline" { "px-3 py-1 rounded-lg bg-white/8 text-xs text-white font-medium" } else { "px-3 py-1 rounded-lg text-xs text-zinc-500 hover:text-zinc-300" }, on_click=fn() { panel = "pipeline" }) { "Pipeline" }
-                button(raw_class=if panel is "timeline" { "px-3 py-1 rounded-lg bg-white/8 text-xs text-white font-medium" } else { "px-3 py-1 rounded-lg text-xs text-zinc-500 hover:text-zinc-300" }, on_click=fn() { panel = "timeline" }) { "Time Travel" }
-            }
-        }
-        if panel is "pipeline" {
-            SurfaceStub(title="Pipeline", desc="Lex → Parse → HIR → Typecheck → Codegen. Each stage shows duration, status, and diagnostics with codeframes.", action="Run build")
-        } else {
-            SurfaceStub(title="Time Travel", desc="Scrub the workflow event timeline to inspect durable state at any past instant.", action="Load a workflow")
-        }
-    }
-}
-
-component CodeSurface() {
-    view: column(flex=1, overflow="hidden", bg="zinc.950") {
-        row(h=10, border_b=true, border_color="zinc.800", pad_x=4, items="center", justify="between", shrink=0) {
-            text(size="sm", weight="black", tracking="tight", color="white") { "Code" }
-            StateChip(status="idle", label="no file")
-        }
-        SurfaceStub(title="Code", desc="Scoped file editor for .vox, Rust, and TypeScript. File tree on the left; diagnostics and agent activity on the right.", action="Open a file")
-    }
-}
-
-component ModelsSurface() {
-    view: column(flex=1, overflow="hidden", bg="zinc.950") {
-        row(h=10, border_b=true, border_color="zinc.800", pad_x=4, items="center", justify="between", shrink=0) {
-            text(size="sm", weight="black", tracking="tight", color="white") { "Models" }
-            button(raw_class="px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800") { "Auto-route: on" }
-        }
-        SurfaceStub(title="Models", desc="Hosted and local model registry. Cards show provider, context window, cost, and latency.", action="Add a model")
-    }
-}
-
-component RunsSurface() {
-    view: column(flex=1, overflow="hidden", bg="zinc.950") {
-        row(h=10, border_b=true, border_color="zinc.800", pad_x=4, items="center", justify="between", shrink=0) {
-            text(size="sm", weight="black", tracking="tight", color="white") { "Runs" }
-            button(raw_class="px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800") { "Live tail: off" }
-        }
-        SurfaceStub(title="Runs", desc="Persistent log of every orchestrator run. Click a row to see the full event tree.", action="Start a run")
-    }
-}
-
-component SettingsSurface() {
-    view: column(flex=1, overflow="hidden", bg="zinc.950") {
-        row(h=10, border_b=true, border_color="zinc.800", pad_x=4, items="center", shrink=0) {
-            text(size="sm", weight="black", tracking="tight", color="white") { "Settings" }
-        }
-        SurfaceStub(title="Settings", desc="Identity & API tokens, workspace paths, budget caps, telemetry, and appearance.", action="Configure identity")
-    }
-}
+import lib/chrome as { TopBar, LeftRail, StatusBar }
+import surfaces/speak as { SpeakSurface }
+import surfaces/mesh as { MeshSurface }
+import surfaces/forge as { ForgeSurface }
+import surfaces/code as { CodeSurface }
+import surfaces/models as { ModelsSurface }
+import surfaces/runs as { RunsSurface }
+import surfaces/settings as { SettingsSurface }
 
 // ── AppShell ──────────────────────────────────────────────────────────────────
 // Root component: chrome + surface outlet.
 //
 // `active` drives both LeftRail highlight and surface routing.
 // `rail_collapsed` toggles the left rail to icon-only mode (⌘\, Phase 9).
-//
-// Nav wiring: each on_<surface> kwarg on LeftRail is a lambda that sets `active`.
-// This replaces the old JSX `on:click={tab = "speak"}` pattern.
 
 component AppShell() {
     state active: str = "mesh"
@@ -152,7 +31,6 @@ component AppShell() {
         TopBar(workspace="aurelia-mesh", run_status="idle", run_label="idle")
         row(flex=1, min_h=0, overflow="hidden") {
             LeftRail(active=active, collapsed=rail_collapsed, on_speak=fn() { active = "speak" }, on_mesh=fn() { active = "mesh" }, on_forge=fn() { active = "forge" }, on_code=fn() { active = "code" }, on_models=fn() { active = "models" }, on_runs=fn() { active = "runs" }, on_settings=fn() { active = "settings" })
-            // ── Surface outlet ────────────────────────────────────────────────
             panel(flex=1, min_w=0, overflow="hidden", bg="zinc.950", raw_class="flex flex-col") {
                 if active is "speak"    { SpeakSurface() }
                 else if active is "mesh"    { MeshSurface() }
