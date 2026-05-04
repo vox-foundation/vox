@@ -10,7 +10,7 @@ min-vox-version = "0.5.0"
 
 [plugin.payload]
 kind = "code"
-abi-version = 5
+abi-version = 6
 
 [plugin.payload.provides]
 extension-points = ["MlBackend"]

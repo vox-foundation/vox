@@ -12,7 +12,7 @@ min-vox-version = "0.5.0"
 kind = "composite"
 
 [plugin.payload.code]
-abi-version = 5
+abi-version = 6
 
 [plugin.payload.code.provides]
 extension-points = ["MeshDriver"]

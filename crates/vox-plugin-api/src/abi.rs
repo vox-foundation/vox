@@ -6,9 +6,13 @@
 //! SP2 ships only the `VoxPlugin` root with `id` + `shutdown`. Per-extension
 //! `as_*` accessors are added in SP3+ as their respective traits land.
 
+use crate::extensions::audio_capture::AudioCapture_TO;
+use crate::extensions::cloud_sync::CloudSync_TO;
 use crate::extensions::hardware_probe::HardwareProbe_TO;
 use crate::extensions::mesh_driver::MeshDriver_TO;
 use crate::extensions::ml_backend::MlBackend_TO;
+use crate::extensions::script_executor::ScriptExecutor_TO;
+use crate::extensions::tensor_backend::TensorBackend_TO;
 use crate::host::VoxHost_TO;
 use abi_stable::{
     StableAbi,
@@ -60,6 +64,30 @@ pub trait VoxPlugin: Send + Sync {
     /// return Some(trait object). Default impl returns None — plugins that
     /// don't provide MeshDriver simply inherit the default.
     fn as_mesh_driver(&self) -> ROption<MeshDriver_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
+
+    /// Optional accessor: if this plugin provides a TensorBackend implementation,
+    /// return Some(trait object). Default impl returns None.
+    fn as_tensor_backend(&self) -> ROption<TensorBackend_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
+
+    /// Optional accessor: if this plugin provides an AudioCapture implementation,
+    /// return Some(trait object). Default impl returns None.
+    fn as_audio_capture(&self) -> ROption<AudioCapture_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
+
+    /// Optional accessor: if this plugin provides a CloudSync implementation,
+    /// return Some(trait object). Default impl returns None.
+    fn as_cloud_sync(&self) -> ROption<CloudSync_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
+
+    /// Optional accessor: if this plugin provides a ScriptExecutor implementation,
+    /// return Some(trait object). Default impl returns None.
+    fn as_script_executor(&self) -> ROption<ScriptExecutor_TO<'static, RBox<()>>> {
         ROption::RNone
     }
 }
