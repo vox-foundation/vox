@@ -108,3 +108,20 @@ fn every_plugin_has_default_source() {
         );
     }
 }
+
+#[test]
+fn every_plugin_bundled_in_claim_is_satisfied_by_the_named_bundle() {
+    use vox_plugin_catalog::bundle_resolved;
+    for plugin in all_plugins() {
+        for bundle_id in &plugin.bundled_in {
+            let resolved = bundle_resolved(bundle_id).unwrap_or_default();
+            let resolved_ids: std::collections::HashSet<&str> =
+                resolved.iter().map(|p| p.id.as_str()).collect();
+            assert!(
+                resolved_ids.contains(plugin.id.as_str()),
+                "plugin '{}' claims bundled-in='{}', but bundle '{}' does not include it (check plugins[] or extends chain)",
+                plugin.id, bundle_id, bundle_id
+            );
+        }
+    }
+}

@@ -16,10 +16,11 @@ fn vox_fullstack_resolves_to_eight_skills() {
 #[test]
 fn vox_ml_resolves_through_extends_chain() {
     // vox-ml extends vox-fullstack which has 8 skills.
-    // vox-ml adds 2 ML plugins. Total = 10.
+    // vox-ml adds 3 ML/GPU plugins: tensor-burn-wgpu, mens-candle-cuda, nvml-probe. Total = 11.
     let plugins = bundle_resolved("vox-ml").expect("should resolve");
-    assert_eq!(plugins.len(), 10);
+    assert_eq!(plugins.len(), 11);
     assert!(plugins.iter().any(|p| p.id == "mens-candle-cuda"));
+    assert!(plugins.iter().any(|p| p.id == "nvml-probe"));
     assert!(plugins.iter().any(|p| p.id == "skill-compiler"));
 }
 

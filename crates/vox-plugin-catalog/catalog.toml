@@ -196,7 +196,7 @@ plugins = [
 id = "vox-ml"
 description = "Fullstack plus ML/GPU code plugins (NVIDIA CUDA stack)."
 extends = "vox-fullstack"
-plugins = ["tensor-burn-wgpu", "mens-candle-cuda"]
+plugins = ["tensor-burn-wgpu", "mens-candle-cuda", "nvml-probe"]
 
 [[bundle]]
 id = "vox-mesh"
@@ -227,6 +227,7 @@ id = "vox-dev"
 description = "Contributor / power-user development environment: fullstack + ML + mesh + audio."
 extends = "vox-fullstack"
 plugins = [
-    "tensor-burn-wgpu", "mens-candle-cuda",
+    "tensor-burn-wgpu", "mens-candle-cuda", "nvml-probe",
     "populi-mesh", "cloud", "oratio", "oratio-mic",
+    "script-execution",
 ]

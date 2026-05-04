@@ -37,6 +37,30 @@ struct CatalogFile {
     bundles: Vec<BundleEntry>,
 }
 
+fn resolve_bundle<'a>(
+    id: &str,
+    bundles: &'a [BundleEntry],
+    visited: &mut std::collections::HashSet<String>,
+) -> Vec<String> {
+    if !visited.insert(id.to_string()) {
+        return vec![]; // cycle — caught elsewhere
+    }
+    let Some(bundle) = bundles.iter().find(|b| b.id == id) else {
+        return vec![];
+    };
+    let mut acc = if let Some(parent) = &bundle.extends {
+        resolve_bundle(parent, bundles, visited)
+    } else {
+        vec![]
+    };
+    for p in &bundle.plugins {
+        if !acc.contains(p) {
+            acc.push(p.clone());
+        }
+    }
+    acc
+}
+
 fn main() {
     println!("cargo:rerun-if-changed=catalog.toml");
     let src = std::fs::read_to_string("catalog.toml")
@@ -89,6 +113,20 @@ fn main() {
                 errors.push(format!(
                     "bundle '{}' extends '{}', but no such bundle exists",
                     b.id, parent
+                ));
+            }
+        }
+    }
+
+    // Inverse: every plugin's bundled-in[] must include the plugin in the named bundle's resolved set.
+    for p in &cat.plugins {
+        for bundle_id in &p.bundled_in {
+            let mut visited = std::collections::HashSet::new();
+            let resolved = resolve_bundle(bundle_id, &cat.bundles, &mut visited);
+            if !resolved.contains(&p.id) {
+                errors.push(format!(
+                    "plugin '{}' claims bundled-in='{}', but '{}' does not include it (check the bundle's plugins[] or extends chain)",
+                    p.id, bundle_id, bundle_id
                 ));
             }
         }
