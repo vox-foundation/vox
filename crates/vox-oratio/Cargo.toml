@@ -14,7 +14,11 @@ categories = ["multimedia::audio"]
 # prevents accidental bleed-through of ~100MB+ of native ML code into crates that
 # only need lightweight surfaces like `refine`, `routing`, or `runtime_config`.
 default = []
-# Pure-Rust inference via Hugging Face Candle (no whisper.cpp / clang).
+# DEPRECATED: The Candle Whisper code has been extracted into vox-plugin-oratio (Unit 4 of the
+# vox-populi extraction follow-up plan). vox-audio-ingress still enables this feature while the
+# plugin-host rewire is pending. Once the ingress is rewired through vox-plugin-host::load_code_plugin
+# + as_speech_to_text(), this feature and its heavy deps will be deleted from this crate.
+# TODO(extraction-unit4-followup): drop stt-candle after vox-audio-ingress rewire.
 stt-candle = [
     "dep:candle-core",
     "dep:candle-nn",
