@@ -42,6 +42,21 @@ pub enum OpenClawError {
     /// Skill registry install failure.
     #[error("OpenClaw install: {0}")]
     Install(String),
+    /// Gateway rejected a publish request.
+    #[error("OpenClaw publish failed with status {status}: {body}")]
+    PublishFailed { status: u16, body: String },
+}
+
+/// Result returned by [`OpenClawClient::publish_skill`].
+#[derive(Debug, Clone, Deserialize)]
+pub struct PublishResult {
+    /// Gateway-assigned slug for the published skill.
+    pub slug: String,
+    /// Canonical URL of the published skill on the gateway.
+    pub url: String,
+    /// Optional revision / version string assigned by the gateway.
+    #[serde(default)]
+    pub revision: Option<String>,
 }
 
 /// Client for OpenClaw-compatible HTTP APIs.
@@ -138,6 +153,47 @@ impl OpenClawClient {
             .install(&bundle)
             .await
             .map_err(|e| OpenClawError::Install(e.to_string()))
+    }
+
+    /// Publish a Vox skill to an OpenClaw gateway.
+    ///
+    /// `skill_md` should be the AgentSkills-compliant SKILL.md content (top-level
+    /// `name` + `description`, Vox extensions under `metadata.vox-*`).
+    ///
+    /// Returns the gateway-assigned slug and canonical URL on success.
+    pub async fn publish_skill(
+        &self,
+        skill_md: &str,
+        spec: &OpenClawSkillSpec,
+    ) -> Result<PublishResult, OpenClawError> {
+        let url = format!("{}/v1/skills", self.base);
+        let body = serde_json::json!({
+            "name": spec.name,
+            "version": spec.version,
+            "description": spec.description,
+            "skill_md": skill_md,
+        });
+        let mut req = self
+            .http
+            .post(&url)
+            .header(ACCEPT, "application/json")
+            .header(CONTENT_TYPE, "application/json")
+            .json(&body);
+        if let Some(t) = self.bearer() {
+            req = req.header(AUTHORIZATION, format!("Bearer {t}"));
+        }
+        let resp = req
+            .send()
+            .await
+            .map_err(|e| OpenClawError::Http(e.to_string()))?;
+        if !resp.status().is_success() {
+            let status = resp.status().as_u16();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(OpenClawError::PublishFailed { status, body });
+        }
+        resp.json::<PublishResult>()
+            .await
+            .map_err(|e| OpenClawError::Payload(e.to_string()))
     }
 
     async fn fetch_skill_md(&self, slug: &str) -> Result<String, OpenClawError> {
