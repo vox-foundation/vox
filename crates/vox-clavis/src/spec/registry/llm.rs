@@ -227,6 +227,17 @@ pub const SPECS_LLM: &[SecretSpec] = &[
         scope_description: "OpenClaw token.",
     },
     SecretSpec {
+        id: SecretId::OpenClawApiKey,
+        canonical_env: "OPENCLAW_API_KEY",
+        aliases: &["CLAWHUB_API_KEY"],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "Set OPENCLAW_API_KEY (or CLAWHUB_API_KEY) to publish skills to an OpenClaw / ClawHub gateway.",
+        scope_description: "API key for publishing skills to OpenClaw / ClawHub gateways.",
+    },
+    SecretSpec {
         id: SecretId::VoxRunpodApiKey,
         canonical_env: "RUNPOD_API_KEY",
         aliases: &[],

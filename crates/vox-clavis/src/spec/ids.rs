@@ -26,6 +26,8 @@ pub enum SecretId {
     CustomOpenaiApiKey,
     V0ApiKey,
     OpenClawToken,
+    /// API key for publishing skills to OpenClaw / ClawHub gateways.
+    OpenClawApiKey,
     VoxOpenClawUrl,
     VoxOpenClawWsUrl,
     TogetherApiKey,
@@ -509,6 +511,7 @@ impl SecretId {
             | SecretId::PopuliApiKey
             | SecretId::V0ApiKey
             | SecretId::OpenClawToken
+            | SecretId::OpenClawApiKey
             | SecretId::VoxSearchQdrantApiKey
             | SecretId::VoxCrossrefPlusApiKey
             | SecretId::VoxZenodoAccessToken
