@@ -12987,6 +12987,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-plugin-populi-mesh"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tracing",
+ "vox-plugin-api",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-pm"
 version = "0.5.0"
 dependencies = [
@@ -13143,7 +13155,6 @@ version = "0.5.0"
 dependencies = [
  "blake3",
  "glob",
- "nvml-wrapper",
  "regex",
  "schemars",
  "serde",

@@ -105,7 +105,7 @@ pub(crate) fn cli_top_level_into_fabrica_or_self(
         Cli::Test { args } => Ok(FabricaCmd::Test(args)),
         Cli::Run { args } => Ok(FabricaCmd::Run(args)),
         Cli::Dev { args } => Ok(FabricaCmd::Dev(args)),
-        Cli::Bundle { args } => Ok(FabricaCmd::Bundle(args)),
+        Cli::BundleApp { args } => Ok(FabricaCmd::Bundle(args)),
         Cli::Fmt { args } => Ok(FabricaCmd::Fmt(args)),
         other => Err(other),
     }

@@ -45,7 +45,6 @@ database = ["vox-corpus/database"]
 
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
 script-execution = [
-    "dep:dirs",
     "dep:xxhash-rust",
     "dep:wasmtime",
     "dep:wasmtime-wasi",
@@ -58,7 +57,6 @@ execution-api = ["script-execution", "dep:axum", "dep:tokio-stream", "vox-build-
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
     "dep:vox-toestub",
-    "dep:dirs",
     "dep:vox-ludus",
     "vox-build-meta/stub-check",
 ]
@@ -82,9 +80,7 @@ mens-dei = ["dei", "database"]
 # Interpreted workflow journal + activities.
 workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime"]
 # BYOK / config slices in `mens status`, extended `vox doctor`, scope checks (`vox_eval`).
-codex = [
-    "dep:dirs",
-]
+codex = []
 
 # GitHub CodeRabbit batch PRs (`vox review coderabbit …`).
 coderabbit = [
@@ -94,7 +90,7 @@ coderabbit = [
     "dep:vox-toestub",
 ]
 # v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
-island = ["dep:dirs"]
+island = []
 
 # Stub for non-functional inference server when refactoring or debugging.
 # Enables all social platform adapters for publication and diagnostics.
@@ -188,7 +184,7 @@ vox-browser = { workspace = true }
 axum-extra = { version = "0.12.5", features = ["typed-header"] }
 notify = "7"
 tokio-stream = { version = "0.1", optional = true }
-dirs = { version = "6", optional = true }
+dirs = { version = "6" }
 walkdir = "2"
 sysinfo = { workspace = true }
 vox-eval = { workspace = true }

@@ -16,6 +16,7 @@ pub use host_impl::DefaultVoxHost;
 pub use loader::{LoadedCodePlugin, Loader};
 pub use registry::{PluginEntry, Registry};
 pub use skill_registry::SkillRegistry;
+pub use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 
 /// Return the target-triple key used in `[plugin.payload.artifacts]` for the current build.
 ///

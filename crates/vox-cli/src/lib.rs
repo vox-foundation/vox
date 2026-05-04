@@ -234,11 +234,24 @@ pub enum Cli {
     /// In-process orchestrator event dashboard (requires `--features live`)
     #[cfg(feature = "live")]
     Live,
-    /// Bundle a Vox source file into a complete web application
-    Bundle {
+    /// Bundle a Vox source file into a complete web application (use `vox fab bundle` or `vox fabrica bundle`).
+    #[command(name = "bundle-app", visible_alias = "bapp", hide = true)]
+    BundleApp {
         /// Arguments.
         #[command(flatten)]
         args: cli_args::BundleArgs,
+    },
+    /// Manage plugin distribution bundles (`list`, `build`, `apply`).
+    Bundle {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::plugin_bundle::BundlePluginCmd,
+    },
+    /// Install, remove, list, and inspect Vox plugins.
+    Plugin {
+        /// Subcommand.
+        #[command(subcommand)]
+        cmd: commands::plugin::PluginCmd,
     },
     /// Format a Vox source file in place
     Fmt {
