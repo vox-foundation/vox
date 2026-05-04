@@ -22,15 +22,20 @@ pub fn discover(root: &Path) -> Result<Registry, LoadError> {
         .filter(|e| e.file_name() == "Plugin.toml")
     {
         let path = entry.path();
-        let raw = std::fs::read_to_string(path).map_err(|source| LoadError::Io {
-            path: path.to_path_buf(),
-            source,
-        })?;
-        let manifest: PluginManifest =
-            toml::from_str(&raw).map_err(|source| LoadError::ManifestParse {
-                path: path.to_path_buf(),
-                source,
-            })?;
+        let raw = match std::fs::read_to_string(path) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!(path = %path.display(), error = %e, "skipping plugin: failed to read manifest");
+                continue;
+            }
+        };
+        let manifest: PluginManifest = match toml::from_str(&raw) {
+            Ok(m) => m,
+            Err(e) => {
+                tracing::warn!(path = %path.display(), error = %e, "skipping plugin: failed to parse manifest");
+                continue;
+            }
+        };
         let install_dir = path.parent().unwrap().to_path_buf();
 
         // Skill side: eagerly parse and register if present.
@@ -42,7 +47,21 @@ pub fn discover(root: &Path) -> Result<Registry, LoadError> {
 
         if let Some(skill_payload) = skill_to_register {
             let skill_md_path = install_dir.join(&skill_payload.skill_md);
-            let body = std::fs::read_to_string(&skill_md_path).unwrap_or_default();
+            let body = match std::fs::read_to_string(&skill_md_path) {
+                Ok(b) => b,
+                Err(e) => {
+                    tracing::warn!(
+                        plugin_id = %manifest.plugin.id,
+                        skill_md_path = %skill_md_path.display(),
+                        error = %e,
+                        "skill plugin '{}' references missing or unreadable SKILL.md '{}': {}",
+                        manifest.plugin.id, skill_md_path.display(), e
+                    );
+                    // Skip registering this skill — better to surface the missing payload
+                    // than to register an empty-body skill that an agent might invoke.
+                    continue;
+                }
+            };
             let exposed_tools = skill_payload.tools.exposes.clone();
             registry.skills.install(LoadedSkill {
                 plugin_id: manifest.plugin.id.clone(),
