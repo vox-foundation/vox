@@ -359,15 +359,21 @@ impl<'a> Checker<'a> {
                 crate::hir::HirReactiveMember::State(s) => {
                     let init_ty = self.check_expr(&s.init, None);
                     if let Some((_, decl_ty)) = state_vars.get(state_idx) {
-                        if let Err(msg) = self.uf.unify(&init_ty, decl_ty) {
-                            self.diags.push(Diagnostic::error(
-                                format!(
-                                    "Type mismatch in `state {}` initializer: {msg}",
-                                    s.name
-                                ),
-                                s.span,
-                                self.source,
-                            ));
+                        // `any` is an escape hatch — skip unification and accept
+                        // any initializer value (mirrors TypeScript `any` semantics).
+                        let resolved_decl = self.uf.resolve(decl_ty);
+                        let is_any = matches!(&resolved_decl, Ty::Named(n) if n == "any");
+                        if !is_any {
+                            if let Err(msg) = self.uf.unify(&init_ty, decl_ty) {
+                                self.diags.push(Diagnostic::error(
+                                    format!(
+                                        "Type mismatch in `state {}` initializer: {msg}",
+                                        s.name
+                                    ),
+                                    s.span,
+                                    self.source,
+                                ));
+                            }
                         }
                     }
                     state_idx += 1;

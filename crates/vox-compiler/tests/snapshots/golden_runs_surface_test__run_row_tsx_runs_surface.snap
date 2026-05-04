@@ -1,0 +1,56 @@
+---
+source: crates/vox-compiler/tests/golden_runs_surface_test.rs
+assertion_line: 186
+expression: ts
+---
+import React from "react";
+
+import { StateChip } from "./StateChip";
+
+export interface RunRowProps {
+  id: string;
+  started: string;
+  duration: string;
+  model: string;
+  status: string;
+  cost: string;
+  tokens: string;
+  active: string;
+  on_click: any;
+}
+
+export function RunRow({ id, started, duration, model, status, cost, tokens, active, on_click }: RunRowProps): React.ReactElement {
+  return (
+<row border_b={true} border_color={"zinc.800/60"} pad_x={4} pad_y={0} items={"center"} raw_class={(active === id ? "h-10 bg-blue-950/30 cursor-pointer border-l-2 border-l-blue-500" : "h-10 hover:bg-zinc-900/60 cursor-pointer")} onClick={on_click}
+>
+  <text size={"xs"} fontFamily={"mono"} color={"blue.400"} raw_class={"w-24 shrink-0 truncate"}
+>
+  {id}
+</text>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.500"} raw_class={"w-36 shrink-0"}
+>
+  {started}
+</text>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.300"} raw_class={"w-20 shrink-0"}
+>
+  {duration}
+</text>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.400"} raw_class={"flex-1 truncate"}
+>
+  {model}
+</text>
+  <panel raw_class={"w-20 shrink-0 flex items-center"}
+>
+  <StateChip status={status} label={status} />
+</panel>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.400"} raw_class={"w-20 shrink-0 text-right"}
+>
+  {cost}
+</text>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.500"} raw_class={"w-20 shrink-0 text-right pr-1"}
+>
+  {tokens}
+</text>
+</row>
+  );
+}
