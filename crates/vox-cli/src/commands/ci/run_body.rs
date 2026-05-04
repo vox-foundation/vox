@@ -73,6 +73,12 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ScientiaHeuristicsParity => scientia_heuristics_parity::run(&root),
         CiCmd::ScientiaNoveltyLedgerContracts => scientia_novelty_ledger_contract::run(&root),
         CiCmd::SsotDrift => run_ssot_drift(&root),
+        CiCmd::PrePush { quick, full, dry_run } => {
+            super::pre_push::run(
+                &root,
+                super::pre_push::PrePushOpts { quick, full, dry_run },
+            )
+        }
         CiCmd::SsotAudit => run_ssot_audit(&root).await,
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
         CiCmd::DataStorageGuard(opts) => {
