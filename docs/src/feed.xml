@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 03 May 2026 16:54:30 GMT</lastBuildDate>
+  <lastBuildDate>Mon, 04 May 2026 02:06:30 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -33,6 +33,51 @@
     <description>Step-by-step implementation plan for Sub-Project 1 of the plugin system redesign: plugin manifest schemas, the vox-plugin-catalog SSOT crate, hand-rolled and…</description>
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Plugin System Redesign — SP2 Implementation Plan (2026)</title>
+    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp2-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp2-plan-2026.html</guid>
+    <description>Step-by-step implementation plan for Sub-Project 2: vox-plugin-api shared types, vox-plugin-host loader for both code and skill payloads, dual-payload…</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Plugin System Redesign — SP3 Implementation Plan (2026)</title>
+    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp3-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp3-plan-2026.html</guid>
+    <description>Step-by-step implementation plan for Sub-Project 3: define the MlBackend extension-point trait, extract candle-cuda from vox-populi into a standalone…</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Plugin System Redesign — SP4 Implementation Plan (2026)</title>
+    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp4-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp4-plan-2026.html</guid>
+    <description>Step-by-step implementation plan for Sub-Project 4: migrate the vox.compiler skill from vox-skills&apos;s compile-time builtins to a standalone skill-payload plugin…</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Migrating from Cargo Feature Flags</title>
+    <link>https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</guid>
+    <description>Migrating from Cargo Feature Flags</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
+  </item>
+
+  <item>
+    <title>Picking a Vox bundle</title>
+    <link>https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</guid>
+    <description>Decision guide for choosing the right Vox distribution bundle for your use case.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
   </item>
 
   <item>
@@ -191,53 +236,6 @@
     <link>https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</guid>
     <description>Splits Vox&apos;s UI primitives into a Vox-native reactivity track and an explicit React/TanStack interop track, with a sharp boundary so each track stays coherent…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>ADR-028: Remove Stub Durability/Scheduling Grammar from Public API</title>
-    <link>https://vox-lang.org/adr/028-deprecate-stub-durability-grammar.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/028-deprecate-stub-durability-grammar.html</guid>
-    <description>Proposes removing @scheduled, @durable, workflow, and activity from the public Vox grammar, retaining actor with documented limitations, following the…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>ADR 030 — state_machine as SSoT for reactive UI state</title>
-    <link>https://vox-lang.org/adr/030-state-machine-ssot.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/030-state-machine-ssot.html</guid>
-    <description>Formally adopts the Vox state_machine compiler primitive as the single source of truth for all reactive browser UI state in vox-dashboard and Vox-generated…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 031 — Deprecate vox-vscode; dashboard is the primary surface</title>
-    <link>https://vox-lang.org/adr/031-deprecate-vox-vscode.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/031-deprecate-vox-vscode.html</guid>
-    <description>Formally deprecates the vox-vscode VS Code extension as the primary Vox user surface. The Axum-served vox-dashboard is the replacement. vox-vscode is retained…</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>vox-codegen-ts API</title>
-    <link>https://vox-lang.org/api/vox-codegen-ts.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/vox-codegen-ts.html</guid>
-    <description>API reference for the vox-codegen-ts crate: HIR-to-TypeScript/TSX code generation pipeline.</description>
-    <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-  </item>
-
-  <item>
-    <title>Orchestrator Stage 1 &amp; 2: Security + Crash-Prevention Implementation Plan</title>
-    <link>https://vox-lang.org/architecture/2026-05-01-orchestrator-stage1-stage2.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/2026-05-01-orchestrator-stage1-stage2.html</guid>
-    <description>Implementation plan for 7 P0/P1 fixes across the orchestrator gateway, runtime, grounding, and daemon surfaces. Covers FIX-K-03, FIX-K-05, FIX-K-06, FIX-B-02…</description>
     <pubDate>Fri, 01 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>

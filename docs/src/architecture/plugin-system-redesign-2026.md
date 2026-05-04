@@ -9,6 +9,8 @@ training_rationale: "Architecture spec defining the unified plugin model, ABI, l
 
 # Plugin System Redesign (2026)
 
+> **Implementation status (2026-05-03):** Foundation landed on `claude/infallible-lalande-baf300` (~70 commits). **Fully implemented:** SP1, SP2, SP3 mens training extraction (sub-batches A–D), SP4, SP5 CLI surface, SP6 vox-build-meta deletion + skill migration, SP8 bundle build/verify + CI workflow, plus NVML extraction. **Trait surface only (zero code-motion):** SP3 residual mens/tensor (~7,852 LOC still in vox-populi), SP7 four extension scaffolds (TensorBackend / AudioCapture / CloudSync / ScriptExecutor — ~5,329 LOC across vox-tensor and vox-oratio not yet moved), populi-mesh composite (4,990 LOC of transport not yet moved). **Deferred:** vox-skills full retirement (ARS shim still consumed by 15+ vox-cli call sites), vox-browser plugin extraction. See [`vox-populi-extraction-followup-plan-2026.md`](vox-populi-extraction-followup-plan-2026.md) for the honest scope of what remains.
+
 ## Summary
 
 Vox's modularity is currently spread across three uncoordinated surfaces:

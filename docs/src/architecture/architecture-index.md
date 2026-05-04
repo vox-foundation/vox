@@ -97,6 +97,7 @@ training_eligible: false
 - [Plugin System Redesign — SP3 Implementation Plan (2026)](plugin-system-redesign-sp3-plan-2026.md)
 - [Plugin System Redesign — SP4 Implementation Plan (2026)](plugin-system-redesign-sp4-plan-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](shiki-mdbook-doc-platform-research-2026.md)
+- [Vox-Populi Extraction Follow-Up Plan (2026)](vox-populi-extraction-followup-plan-2026.md)
 - [Warp Terminal Research Findings (2026)](warp-research-findings-2026.md)
 - [Web App Archetype Coverage Map (2026)](web-app-archetype-coverage-2026.md)
 
