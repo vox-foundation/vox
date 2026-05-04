@@ -65,7 +65,7 @@ pub enum CiCmd {
         /// Skip clippy and TOESTUB (fmt + ssot-drift + line-endings only). ~30s.
         #[arg(long, conflicts_with = "full")]
         quick: bool,
-        /// Also run `cargo nextest` for changed crates (slow). Off by default.
+        /// Also run `cargo nextest run --workspace --no-fail-fast` (slow). Off by default.
         #[arg(long)]
         full: bool,
         /// Print commands without executing.

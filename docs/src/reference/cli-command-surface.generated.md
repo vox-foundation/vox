@@ -21,7 +21,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 239
+**schema_version:** `1` · **vox-cli operations:** 238
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -76,6 +76,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci operations-verify` | active | — | — | platform | — |
 | `vox ci pm-provenance` | active | — | — | platform | — |
 | `vox ci policy-smoke` | active | — | — | platform | — |
+| `vox ci pre-push` | active | — | — | platform | — |
 | `vox ci query-all-guard` | active | — | — | platform | — |
 | `vox ci release-build` | active | — | — | platform | — |
 | `vox ci repo-guards` | active | — | — | platform | — |
@@ -116,7 +117,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox db prune-plan` | active | — | codex | data | — |
 | `vox db publication-decision-explain` | active | — | codex | data | — |
 | `vox db publication-discovery-explain` | active | — | codex | data | — |
-| `vox db publication-discovery-publish-rss` | active | — | codex | data | — |
 | `vox db publication-discovery-refresh-evidence` | active | — | codex | data | — |
 | `vox db publication-discovery-scan` | active | — | codex | data | — |
 | `vox db publication-novelty-fetch` | active | — | codex | data | — |
@@ -222,7 +222,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox scientia publication-arxiv-handoff-record` | active | — | codex | data | — |
 | `vox scientia publication-decision-explain` | active | — | codex | data | — |
 | `vox scientia publication-discovery-explain` | active | — | codex | data | — |
-| `vox scientia publication-discovery-publish-rss` | active | — | codex | data | — |
 | `vox scientia publication-discovery-scan` | active | — | codex | data | — |
 | `vox scientia publication-external-jobs-dead-letter` | active | — | codex | data | — |
 | `vox scientia publication-external-jobs-due` | active | — | codex | data | — |

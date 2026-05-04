@@ -17,7 +17,7 @@ jobs:
   # jobs below all restore from a populated cache instead of racing.
   setup:
     name: Cache warmup
-    runs-on: [self-hosted, linux, x64, docker]
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     outputs:
       cache-key: ${{ steps.k.outputs.key }}
@@ -43,7 +43,7 @@ jobs:
   guards-fast:
     name: Guards (fast)
     needs: setup
-    runs-on: [self-hosted, linux, x64, docker]
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -191,7 +191,7 @@ jobs:
   lints:
     name: Lints (clippy + rustdoc + TOESTUB-scoped + hakari + grammar)
     needs: setup
-    runs-on: [self-hosted, linux, x64, docker]
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -246,7 +246,7 @@ jobs:
   compiler-gates:
     name: Compiler gates (WebIR + projection + golden examples + benches)
     needs: setup
-    runs-on: [self-hosted, linux, x64, docker]
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -321,7 +321,7 @@ jobs:
   tests:
     name: Tests (nextest + llvm-cov + doctests)
     needs: setup
-    runs-on: [self-hosted, linux, x64, docker]
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -403,7 +403,7 @@ jobs:
   audits:
     name: Audits (TOESTUB-full + build-timings + feature-matrix + completion + mens-gate)
     needs: setup
-    runs-on: [self-hosted, linux, x64, docker]
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -466,7 +466,7 @@ jobs:
     name: Check, Build, and Test (Rust)
     needs: [guards-fast, lints, compiler-gates, tests, audits]
     if: always()
-    runs-on: [self-hosted, linux, x64, docker]
+    runs-on: [self-hosted, linux, x64]
     timeout-minutes: 2
     steps:
       - name: All required jobs succeeded

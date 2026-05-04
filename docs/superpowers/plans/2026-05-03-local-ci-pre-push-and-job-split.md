@@ -397,6 +397,7 @@ Create with frontmatter matching the project convention (see neighboring docs fo
 title: "Local CI parity (pre-push)"
 description: "Run the merge-blocking subset locally before every push via `vox ci pre-push`."
 category: "contributors"
+status: "current"
 last_updated: "2026-05-03"
 training_eligible: true
 schema_type: "TechArticle"
