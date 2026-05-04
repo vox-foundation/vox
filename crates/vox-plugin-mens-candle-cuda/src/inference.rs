@@ -18,7 +18,7 @@ use safetensors::SafeTensors;
 use tokenizers::Tokenizer;
 
 use crate::model::{
-    Qwen2Attention, Qwen2MLP, Qwen35AttentionBlock, Qwen35ForwardCache, Qwen35Layer,
+    Qwen2Attention, Qwen2MLP, Qwen35AttentionBlock, Qwen35Layer,
     Qwen35LinearAttention, Qwen35Model,
 };
 use crate::hf_layout::HfArchitecture;
@@ -28,15 +28,10 @@ pub struct InferenceEngine {
     pub model: InferenceModel,
     pub tokenizer: Tokenizer,
     pub device: Device,
-    pub kv_cache: InferenceCache,
 }
 
 pub enum InferenceModel {
     Qwen35(Qwen35Model),
-}
-
-pub enum InferenceCache {
-    Qwen35(Qwen35ForwardCache),
 }
 
 fn resolve_adapter_meta_path(model_dir: &Path) -> Option<std::path::PathBuf> {
@@ -350,13 +345,10 @@ impl InferenceEngine {
                 layout.architecture
             );
         };
-        let kv_cache = InferenceCache::Qwen35(Qwen35ForwardCache::new(layout.num_hidden_layers));
-
         Ok(Self {
             model,
             tokenizer: _tokenizer,
             device: _device,
-            kv_cache,
         })
     }
 
@@ -407,18 +399,15 @@ impl InferenceEngine {
 
         let mut generated = String::new();
 
-        for i in 0..max_tokens {
-            let input = if i == 0 {
-                Tensor::new(tokens.as_slice(), &self.device)?.unsqueeze(0)?
-            } else {
-                let last = *tokens.last().unwrap();
-                Tensor::new(&[last], &self.device)?.unsqueeze(0)?
-            };
+        // Greedy decoding without KV cache — re-runs the full context each step.
+        // KV-cache autoregressive generation requires forward_with_cache which is
+        // available in vox-populi's candle_model_qwen but not yet in the plugin's
+        // model.rs (SP3 stub). Use full-context forward for correctness.
+        for _ in 0..max_tokens {
+            let input = Tensor::new(tokens.as_slice(), &self.device)?.unsqueeze(0)?;
 
-            let logits = match (&self.model, &mut self.kv_cache) {
-                (InferenceModel::Qwen35(model), InferenceCache::Qwen35(cache)) => {
-                    model.forward_with_cache(&input, i, cache)?
-                }
+            let logits = match &self.model {
+                InferenceModel::Qwen35(model) => model.forward(&input)?,
             };
             let logits = logits.squeeze(0)?;
             let seq = logits.dim(0)?;
