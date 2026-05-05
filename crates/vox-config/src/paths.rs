@@ -79,10 +79,10 @@ fn platform_data_dir() -> Option<PathBuf> {
 
     #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
     {
-        if let Ok(xdg) = std::env::var("XDG_DATA_HOME") {
-            if !xdg.is_empty() {
-                return Some(PathBuf::from(xdg));
-            }
+        if let Ok(xdg) = std::env::var("XDG_DATA_HOME")
+            && !xdg.is_empty()
+        {
+            return Some(PathBuf::from(xdg));
         }
         Some(user_home_dir().join(".local").join("share"))
     }
