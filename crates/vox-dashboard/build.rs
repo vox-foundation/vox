@@ -47,9 +47,9 @@ fn main() {
              in crates/vox-dashboard before building with --features embedded-assets"
         );
 
-        let _ = fs::create_dir_all(&dist_dir);
+        let _ = fs::create_dir_all(dist_dir);
         let _ = fs::write(
-            &index_file,
+            index_file,
             "<html><body>Dashboard bundle not built.</body></html>",
         );
     }

@@ -78,10 +78,10 @@ pub async fn serve_asset(
             );
 
             // Check If-None-Match
-            if let Some(if_none_match) = req_headers.get(axum::http::header::IF_NONE_MATCH) {
-                if if_none_match.to_str().unwrap_or("") == etag {
-                    return StatusCode::NOT_MODIFIED.into_response();
-                }
+            if let Some(if_none_match) = req_headers.get(axum::http::header::IF_NONE_MATCH)
+                && if_none_match.to_str().unwrap_or("") == etag
+            {
+                return StatusCode::NOT_MODIFIED.into_response();
             }
 
             let mut response_builder = axum::response::Response::builder()
