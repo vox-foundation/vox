@@ -148,13 +148,13 @@ pub async fn run_search_with_verification(
                 || (policy.tavily_fire_on_weak && execution.evidence_quality < threshold);
 
             if tavily_should_fire {
-                if let Some(b) = budget {
-                    if !b.try_consume(1) {
-                        execution
-                            .warnings
-                            .push("tavily_budget_exhausted".to_string());
-                        return Ok((execution, diagnostics, plan));
-                    }
+                if let Some(b) = budget
+                    && !b.try_consume(1)
+                {
+                    execution
+                        .warnings
+                        .push("tavily_budget_exhausted".to_string());
+                    return Ok((execution, diagnostics, plan));
                 }
                 if let Some(client) = crate::tavily::TavilySearchClient::from_env() {
                     match client

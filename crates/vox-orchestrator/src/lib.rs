@@ -93,19 +93,23 @@ pub mod events;
 pub mod fatigue_monitor;
 /// Pre/post task gates (including TOESTUB quality checks).
 pub mod gate;
+pub mod generated;
 /// Completion citation grounding against session context envelopes.
 pub mod grounding;
 /// Affinity group registry built from repository layout.
 pub mod groups;
 /// Structured handoff payloads between agents.
 pub mod handoff;
-pub mod generated;
 pub mod legacy;
 
+/// Entropy-based hallucination detection.
+pub mod entropy_scorer;
 /// Agent liveness heartbeats and staleness policy.
 pub mod heartbeat;
 /// Jujutsu (jj) merge DAG and backend helpers.
 pub mod jj_backend;
+/// Cross-model consensus and judge logic.
+pub mod judge_model;
 /// Per-file lock manager for exclusive writer access.
 pub mod locks;
 /// Long-term and daily agent memory backed by Codex when enabled.
@@ -128,18 +132,18 @@ pub mod oplog;
 pub mod orch_daemon;
 /// Core multi-agent orchestrator implementation.
 pub mod orchestrator;
+/// PII-aware redacting filter for sensitive data.
+pub mod pii_filter;
 /// Optional JSONL sink for orchestrator agent events (`VOX_ORCHESTRATOR_EVENT_LOG`).
 
 /// Dynamic planning domain (router, synthesis, policies, replanning).
 pub mod planning;
-/// PII-aware privacy routing and data isolation policies.
-pub mod privacy_router;
 /// Read-only mens HTTP federation snapshot types (filled by MCP / embedders).
 pub mod populi_federation;
-/// PII-aware redacting filter for sensitive data.
-pub mod pii_filter;
 /// Populi remote execution gating and lease-class helpers.
 pub mod populi_remote;
+/// PII-aware privacy routing and data isolation policies.
+pub mod privacy_router;
 /// Question/answer routing between agents.
 pub mod qa;
 /// Priority task queues and overflow handling.
@@ -171,10 +175,6 @@ pub mod state;
 pub mod summary;
 /// Cryptographic receipts for tool execution grounding.
 pub mod tool_receipt;
-/// Entropy-based hallucination detection.
-pub mod entropy_scorer;
-/// Cross-model consensus and judge logic.
-pub mod judge_model;
 pub mod topology;
 /// Core identifiers, tasks, messages, and shared value types.
 pub mod types;
@@ -238,37 +238,42 @@ pub use contract::{
     OrchestrationMigrationFlags, SessionContractEnvelope, TaskCapabilityHints,
     plan_tool_daemon_alignment_valid,
 };
+pub use entropy_scorer::{calculate_entropy, score_confidence};
 pub use events::{AgentActivity, AgentEvent, AgentEventKind, EventBus};
 pub use gate::{BudgetGate, Gate, GateResult};
+pub use generated::agent_harness::{
+    Adapter as HarnessAdapter, AgentHarnessSpec, CompletionGate as HarnessGate,
+    Contracts as HarnessContracts, FailureTaxonomy as HarnessFailureMode,
+    RequiredOutput as HarnessArtifactSpec, Role as HarnessRole, Stage as HarnessStage,
+    State as HarnessState, Subject as HarnessSubject,
+};
 pub use groups::{AffinityGroup, AffinityGroupRegistry, load_from_config};
 pub use handoff::{
     HandoffInvariantError, HandoffPayload, execute_handoff, validate_handoff_invariants,
 };
-pub use generated::agent_harness::{
-    Adapter as HarnessAdapter, AgentHarnessSpec, CompletionGate as HarnessGate, Contracts as HarnessContracts,
-    FailureTaxonomy as HarnessFailureMode, RequiredOutput as HarnessArtifactSpec, Role as HarnessRole,
-    Stage as HarnessStage, State as HarnessState, Subject as HarnessSubject,
-};
-pub use legacy::harness_hand::{HarnessIngestExpectations, apply_harness_subject_defaults, validate_agent_harness_ingest};
 pub use heartbeat::{
     AgentHeartbeat, HeartbeatMonitor, HeartbeatPolicy, StalenessLevel, evict_dead_heartbeats,
     live_nodes_from_db, persist_heartbeat,
 };
 pub use jj_backend::{ContentMerge, DagNodeId, MergeSide, OperationDag};
+pub use judge_model::{JudgeModel, JudgePolicy, JudgeVerdict};
+pub use legacy::harness_hand::{
+    HarnessIngestExpectations, apply_harness_subject_defaults, validate_agent_harness_ingest,
+};
 pub use memory::{LongTermMemory, MemoryConfig, MemoryManager, SearchHit};
 pub use monitor::AiMonitor;
 pub use observer::{ObservationSummary, Observer, ObserverPolicy};
 pub use oplog::{OpLog, OperationEntry, OperationId, OperationKind};
 pub use orchestrator::{Orchestrator, TaskTraceStep};
+pub use pii_filter::PiiFilter;
 pub use planning::{
     ExecutionPolicy, PlanNode, PlanSessionRecord, PlanStatus, PlanVersionRecord, PlanningMode,
     PlanningStrategy, PlanningTaskMeta, ReplanTrigger, RouterEvaluation,
 };
-pub use privacy_router::{PrivacyLevel, PrivacyRouter, PrivacyRoutingPolicy};
 pub use populi_federation::{
     PopuliNodeBrief, PopuliRoutingHintUpdate, RemotePopuliRoutingHint, RemotePopuliSnapshot,
 };
-pub use pii_filter::PiiFilter;
+pub use privacy_router::{PrivacyLevel, PrivacyRouter, PrivacyRoutingPolicy};
 pub use reconstruction::{
     AgentExecutionRole, CampaignMemorySnapshot, ReconstructionArtifactKind,
     ReconstructionArtifactRecord, ReconstructionBenchmarkKpis, ReconstructionBenchmarkTier,
@@ -290,10 +295,8 @@ pub use socrates::{
     SessionRetrievalEnvelope, SocratesGateOutcome, SocratesTaskContext, evaluate_socrates_gate,
     session_context_envelope_key,
 };
-pub use tool_receipt::{ReceiptValidationResult, ToolReceipt, ToolReceiptLedger};
-pub use entropy_scorer::{calculate_entropy, score_confidence};
-pub use judge_model::{JudgeModel, JudgePolicy, JudgeVerdict};
 pub use summary::SummaryManager;
+pub use tool_receipt::{ReceiptValidationResult, ToolReceipt, ToolReceiptLedger};
 pub use topology::{
     AgentDelegationBinding, AgentRole, AgentTopologyNode, AgentTopologySnapshot, DelegationEdge,
     DynamicSpawnContext, TopologyGap,

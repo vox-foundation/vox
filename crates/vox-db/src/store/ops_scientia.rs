@@ -336,7 +336,7 @@ impl crate::VoxDb {
                             last_observed_at_ms = excluded.last_observed_at_ms,
                             updated_at_ms = excluded.updated_at_ms
                     "#;
-                    
+
                     let changes = conn.execute(sql, turso::params![now_ms]).await?;
                     Ok::<_, StoreError>(changes as usize)
                 }

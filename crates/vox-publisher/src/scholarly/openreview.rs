@@ -204,7 +204,7 @@ async fn resolve_bearer_async(
                 .into(),
         });
     };
-    login_bearer(http, base, &email, &password).await
+    login_bearer(http, base, email, password).await
 }
 
 #[derive(Debug, Clone)]

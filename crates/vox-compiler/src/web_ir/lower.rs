@@ -32,8 +32,8 @@ use crate::codegen_ts::hir_emit::{
     map_jsx_attr_name,
 };
 use crate::hir::{
-    HirPattern, HirReactiveMember, HirEndpointFn, HirEndpointKind, HirStmt, HirModule, HirExpr,
-    HirJsxElement, HirJsxSelfClosing, HirJsxAttr, HirParam,
+    HirEndpointFn, HirEndpointKind, HirExpr, HirJsxAttr, HirJsxElement, HirJsxSelfClosing,
+    HirModule, HirParam, HirPattern, HirReactiveMember, HirStmt,
 };
 use crate::web_ir::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, MutationContract, RouteContract, RouteNode,
@@ -124,11 +124,7 @@ impl DomArena {
         id
     }
 
-    fn lower_expr(
-        &mut self,
-        expr: &HirExpr,
-        state_names: &HashSet<String>,
-    ) -> DomNodeId {
+    fn lower_expr(&mut self, expr: &HirExpr, state_names: &HashSet<String>) -> DomNodeId {
         match expr {
             HirExpr::Jsx(el) => self.lower_jsx_el(el, state_names),
             HirExpr::JsxSelfClosing(el) => self.lower_jsx_self(el, state_names),
@@ -144,11 +140,7 @@ impl DomArena {
         }
     }
 
-    fn lower_jsx_el(
-        &mut self,
-        el: &HirJsxElement,
-        state_names: &HashSet<String>,
-    ) -> DomNodeId {
+    fn lower_jsx_el(&mut self, el: &HirJsxElement, state_names: &HashSet<String>) -> DomNodeId {
         let mut attrs: Vec<(String, String)> = Vec::new();
         for attr in &el.attributes {
             attrs.extend(lower_jsx_attr_pair(attr, state_names));
@@ -239,17 +231,16 @@ fn apply_primitive_emission(
             attrs.push(("className".to_string(), base));
         }
     }
-    if let Some(role) = emission.aria_role {
-        if !attrs.iter().any(|(k, _)| k == "role") {
-            attrs.push(("role".to_string(), role.to_string()));
-        }
+    if let Some(role) = emission.aria_role
+        && !attrs.iter().any(|(k, _)| k == "role")
+    {
+        attrs.push(("role".to_string(), role.to_string()));
     }
     // TASK-6.3: surface pair — inject CSS vars and a data-vox-surface attr for validation.
     if let Some(surface) = &emission.surface_ref {
         attrs.push(("data-vox-surface".to_string(), surface.clone()));
-        let style_val = format!(
-            "--fg: var(--vox-surface-{surface}-fg); --bg: var(--vox-surface-{surface}-bg)"
-        );
+        let style_val =
+            format!("--fg: var(--vox-surface-{surface}-fg); --bg: var(--vox-surface-{surface}-bg)");
         if let Some(pos) = attrs.iter().position(|(k, _)| k == "style") {
             let existing = attrs[pos].1.clone();
             attrs[pos].1 = format!("{style_val}; {existing}");
@@ -263,10 +254,18 @@ fn apply_primitive_emission(
             attrs.push(("data-vox-overlay".to_string(), "true".to_string()));
         }
         "toast" | "drawer" | "modal" => {
-            if let Some(z_val) = unquoted.iter().find(|(k, _)| k == "z").map(|(_, v)| v.clone()) {
+            if let Some(z_val) = unquoted
+                .iter()
+                .find(|(k, _)| k == "z")
+                .map(|(_, v)| v.clone())
+            {
                 attrs.push(("data-vox-z".to_string(), z_val));
             }
-            if let Some(pos_val) = unquoted.iter().find(|(k, _)| k == "position").map(|(_, v)| v.clone()) {
+            if let Some(pos_val) = unquoted
+                .iter()
+                .find(|(k, _)| k == "position")
+                .map(|(_, v)| v.clone())
+            {
                 attrs.push(("data-vox-pos".to_string(), pos_val));
             }
         }
@@ -279,13 +278,9 @@ fn apply_primitive_emission(
 /// reserved for future binding tables — Phase 1 keeps behavior on the DOM edge for parity with `hir_emit`.
 ///
 /// `bind={…}` expands to `value` + `onChange` like [`crate::codegen_ts::jsx::expand_bind_attribute`].
-fn lower_jsx_attr_pair(
-    attr: &HirJsxAttr,
-    state_names: &HashSet<String>,
-) -> Vec<(String, String)> {
+fn lower_jsx_attr_pair(attr: &HirJsxAttr, state_names: &HashSet<String>) -> Vec<(String, String)> {
     if attr.name == "bind" {
-        let (value_str, onchange_str) =
-            expand_bind_hir_attribute(&attr.value, state_names);
+        let (value_str, onchange_str) = expand_bind_hir_attribute(&attr.value, state_names);
         return vec![
             ("value".to_string(), value_str),
             ("onChange".to_string(), onchange_str),
@@ -327,8 +322,6 @@ fn lower_route_contract_entry(
     }
 }
 
-
-
 fn lower_client_routes(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
     for rd in &hir.client_routes {
         let routes: Vec<RouteContract> = rd
@@ -337,10 +330,8 @@ fn lower_client_routes(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIr
             .enumerate()
             .map(|(i, e)| lower_route_contract_entry(e, "", i))
             .collect();
-        m.route_nodes.push(RouteNode::RouteTree {
-            routes,
-            span: None,
-        });
+        m.route_nodes
+            .push(RouteNode::RouteTree { routes, span: None });
         summary.client_route_trees += 1;
     }
 }
@@ -526,7 +517,6 @@ fn lower_styles_from_classic_components(
         }
     };
 
-
     for rc in &hir.components {
         push_blocks(&rc.styles, m, summary);
     }
@@ -558,11 +548,7 @@ fn lower_http_routes(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLo
     }
 }
 
-fn lower_endpoint_contracts(
-    hir: &HirModule,
-    m: &mut WebIrModule,
-    summary: &mut WebIrLowerSummary,
-) {
+fn lower_endpoint_contracts(hir: &HirModule, m: &mut WebIrModule, summary: &mut WebIrLowerSummary) {
     for sf in &hir.endpoint_fns {
         match sf.kind {
             HirEndpointKind::Server | HirEndpointKind::Query => {
@@ -631,8 +617,6 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
     };
 
     let mut summary = WebIrLowerSummary::default();
-
-
 
     // Stage R — client `routes { }` blocks + HTTP handlers + RPC-shaped endpoints from HIR
     lower_client_routes(hir, &mut m, &mut summary);
@@ -703,8 +687,6 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
         }
     }
 
-
-
     summary.dom_expr_fallbacks = arena.expr_fallback_count;
     m.dom_nodes = arena.nodes;
 
@@ -730,8 +712,6 @@ fn accumulate_route_manifest_summary(_hir: &HirModule, _summary: &mut WebIrLower
             walk_entry(c, loaders, pending);
         }
     }
-
-
 }
 
 /// Build a [`WebIrModule`] from lowered HIR (reactive views + `routes:` contracts + behaviors).

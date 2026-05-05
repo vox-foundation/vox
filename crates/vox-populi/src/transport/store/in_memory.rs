@@ -46,7 +46,10 @@ impl InMemoryMeshStore {
 #[async_trait]
 impl MeshStore for InMemoryMeshStore {
     async fn put_a2a(&self, msg: &A2AStoredMessage) -> Result<(), MeshStoreError> {
-        let mut v = self.a2a.lock().map_err(|e| MeshStoreError::Other(e.to_string()))?;
+        let mut v = self
+            .a2a
+            .lock()
+            .map_err(|e| MeshStoreError::Other(e.to_string()))?;
         if let Some(existing) = v.iter_mut().find(|m| m.id == msg.id) {
             *existing = msg.clone();
         } else {
@@ -56,16 +59,19 @@ impl MeshStore for InMemoryMeshStore {
     }
 
     async fn list_a2a(&self, page: A2APage) -> Result<Vec<A2AStoredMessage>, MeshStoreError> {
-        let v = self.a2a.lock().map_err(|e| MeshStoreError::Other(e.to_string()))?;
+        let v = self
+            .a2a
+            .lock()
+            .map_err(|e| MeshStoreError::Other(e.to_string()))?;
         let mut result: Vec<A2AStoredMessage> = v
             .iter()
             .filter(|m| page.include_acked || !m.acknowledged)
             .filter(|m| {
                 page.receiver_agent_id
                     .as_deref()
-                    .map_or(true, |r| m.receiver_agent_id == r)
+                    .is_none_or(|r| m.receiver_agent_id == r)
             })
-            .filter(|m| page.since_id.map_or(true, |s| m.id > s))
+            .filter(|m| page.since_id.is_none_or(|s| m.id > s))
             .cloned()
             .collect();
         result.sort_by_key(|m| m.id);
@@ -76,7 +82,10 @@ impl MeshStore for InMemoryMeshStore {
     }
 
     async fn ack_a2a(&self, message_id: u64, ack: A2AAck) -> Result<(), MeshStoreError> {
-        let mut v = self.a2a.lock().map_err(|e| MeshStoreError::Other(e.to_string()))?;
+        let mut v = self
+            .a2a
+            .lock()
+            .map_err(|e| MeshStoreError::Other(e.to_string()))?;
         if let Some(m) = v.iter_mut().find(|m| m.id == message_id) {
             m.acknowledged = ack.acknowledged;
         }
@@ -84,11 +93,18 @@ impl MeshStore for InMemoryMeshStore {
     }
 
     async fn load_all_a2a(&self) -> Result<Vec<A2AStoredMessage>, MeshStoreError> {
-        self.list_a2a(A2APage { include_acked: true, ..Default::default() }).await
+        self.list_a2a(A2APage {
+            include_acked: true,
+            ..Default::default()
+        })
+        .await
     }
 
     async fn put_exec_lease(&self, row: &RemoteExecLeaseRow) -> Result<(), MeshStoreError> {
-        let mut v = self.leases.lock().map_err(|e| MeshStoreError::Other(e.to_string()))?;
+        let mut v = self
+            .leases
+            .lock()
+            .map_err(|e| MeshStoreError::Other(e.to_string()))?;
         if let Some(e) = v.iter_mut().find(|r| r.lease_id == row.lease_id) {
             *e = row.clone();
         } else {
@@ -98,18 +114,27 @@ impl MeshStore for InMemoryMeshStore {
     }
 
     async fn list_exec_leases(&self) -> Result<Vec<RemoteExecLeaseRow>, MeshStoreError> {
-        let v = self.leases.lock().map_err(|e| MeshStoreError::Other(e.to_string()))?;
+        let v = self
+            .leases
+            .lock()
+            .map_err(|e| MeshStoreError::Other(e.to_string()))?;
         Ok(v.clone())
     }
 
     async fn revoke_exec_lease(&self, lease_id: &str) -> Result<(), MeshStoreError> {
-        let mut v = self.leases.lock().map_err(|e| MeshStoreError::Other(e.to_string()))?;
+        let mut v = self
+            .leases
+            .lock()
+            .map_err(|e| MeshStoreError::Other(e.to_string()))?;
         v.retain(|r| r.lease_id != lease_id);
         Ok(())
     }
 
     async fn delete_exec_lease(&self, lease_id: &str) -> Result<(), MeshStoreError> {
-        let mut v = self.leases.lock().map_err(|e| MeshStoreError::Other(e.to_string()))?;
+        let mut v = self
+            .leases
+            .lock()
+            .map_err(|e| MeshStoreError::Other(e.to_string()))?;
         v.retain(|r| r.lease_id != lease_id);
         Ok(())
     }
@@ -119,7 +144,10 @@ impl MeshStore for InMemoryMeshStore {
         key: &str,
         value: &DispatchResponse,
     ) -> Result<(), MeshStoreError> {
-        let mut m = self.dispatch.lock().map_err(|e| MeshStoreError::Other(e.to_string()))?;
+        let mut m = self
+            .dispatch
+            .lock()
+            .map_err(|e| MeshStoreError::Other(e.to_string()))?;
         m.insert(key.to_string(), value.clone());
         Ok(())
     }
@@ -128,14 +156,20 @@ impl MeshStore for InMemoryMeshStore {
         &self,
         key: &str,
     ) -> Result<Option<DispatchResponse>, MeshStoreError> {
-        let m = self.dispatch.lock().map_err(|e| MeshStoreError::Other(e.to_string()))?;
+        let m = self
+            .dispatch
+            .lock()
+            .map_err(|e| MeshStoreError::Other(e.to_string()))?;
         Ok(m.get(key).cloned())
     }
 
     async fn load_all_dispatch_results(
         &self,
     ) -> Result<HashMap<String, DispatchResponse>, MeshStoreError> {
-        let m = self.dispatch.lock().map_err(|e| MeshStoreError::Other(e.to_string()))?;
+        let m = self
+            .dispatch
+            .lock()
+            .map_err(|e| MeshStoreError::Other(e.to_string()))?;
         Ok(m.clone())
     }
 
@@ -144,7 +178,10 @@ impl MeshStore for InMemoryMeshStore {
     }
 
     async fn integrity_check(&self) -> Result<IntegrityReport, MeshStoreError> {
-        let v = self.a2a.lock().map_err(|e| MeshStoreError::Other(e.to_string()))?;
+        let v = self
+            .a2a
+            .lock()
+            .map_err(|e| MeshStoreError::Other(e.to_string()))?;
         let mut counts: HashMap<&str, usize> = HashMap::new();
         for m in v.iter().filter(|m| !m.acknowledged) {
             if let Some(k) = m.idempotency_dedupe_key.as_deref() {

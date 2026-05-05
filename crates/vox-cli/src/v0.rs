@@ -10,7 +10,6 @@ use tracing::info;
 
 use base64::Engine;
 
-
 const V0_API_URL: &str = "https://api.v0.dev/v1/chats";
 
 /// Full URL for the v0 chats endpoint (including path). Override with **`VOX_V0_API_URL`** for tests or proxies.
@@ -240,4 +239,3 @@ mod v0_wiremock_tests {
         );
     }
 }
-

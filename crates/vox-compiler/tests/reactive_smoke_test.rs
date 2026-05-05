@@ -1,10 +1,10 @@
 #![allow(unsafe_code)] // `std::env::{set_var,remove_var}` for opt-in Web IR view bridge tests
 
-use std::ffi::OsString;
+use serde::Deserialize;
 use std::collections::BTreeMap;
+use std::ffi::OsString;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use serde::Deserialize;
 
 /// Serializes `reactive_smoke` tests: `VOX_WEBIR_EMIT_REACTIVE_VIEWS` is process-global and `generate()` touches bridge counters.
 static REACTIVE_SMOKE_SERIAL: Mutex<()> = Mutex::new(());
@@ -168,7 +168,7 @@ fn gui_compatibility_contract_matches_attr_mapping_matrix() {
             .join("frontend")
             .join("gui-compatibility.v1.yaml"),
     )
-        .expect("read gui compatibility contract");
+    .expect("read gui compatibility contract");
     let contract: GuiCompatibilityContract =
         serde_yaml::from_str(&raw).expect("parse gui compatibility contract");
 
@@ -416,7 +416,9 @@ fn reactive_view_bridge_stats_legacy_when_web_ir_env_off() {
             }
         }
     }
-    let _guard = Guard { prev: std::env::var_os(KEY) };
+    let _guard = Guard {
+        prev: std::env::var_os(KEY),
+    };
     unsafe { std::env::set_var(KEY, "0") };
 
     let source = r#"
@@ -455,7 +457,9 @@ fn reactive_view_bridge_stats_env_on_uses_non_legacy_pathways() {
             }
         }
     }
-    let _guard = Guard { prev: std::env::var_os(KEY) };
+    let _guard = Guard {
+        prev: std::env::var_os(KEY),
+    };
     unsafe { std::env::set_var(KEY, "1") };
 
     let source = r#"

@@ -53,10 +53,10 @@ pub fn char_error_rate(reference: &str, hypothesis: &str) -> f64 {
 pub fn symbol_error_rate(reference: &str, hypothesis: &str) -> f64 {
     let is_ident = |s: &str| -> bool {
         let mut chars = s.chars();
-        if let Some(c) = chars.next() {
-            if c.is_ascii_alphabetic() || c == '_' {
-                return chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_');
-            }
+        if let Some(c) = chars.next()
+            && (c.is_ascii_alphabetic() || c == '_')
+        {
+            return chars.all(|ch| ch.is_ascii_alphanumeric() || ch == '_');
         }
         false
     };

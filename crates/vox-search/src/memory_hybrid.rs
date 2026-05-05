@@ -61,24 +61,24 @@ struct IndexedDocument {
 fn parse_frontmatter_meta(content: &str) -> (String, Option<String>) {
     let mut status = "current".to_string();
     let mut last_updated = None;
-    if let Some(after) = content.strip_prefix("---\n") {
-        if let Some(end) = after.find("\n---") {
-            let yaml = &after[..end];
-            for line in yaml.lines() {
-                let line = line.trim();
-                if let Some(st) = line.strip_prefix("status:") {
-                    status = st
-                        .trim()
-                        .trim_matches(|c| c == '"' || c == '\'')
-                        .to_string();
-                } else if let Some(lu) = line.strip_prefix("last_updated:") {
-                    let raw = lu
-                        .trim()
-                        .trim_matches(|c| c == '"' || c == '\'')
-                        .to_string();
-                    if !raw.is_empty() {
-                        last_updated = Some(raw);
-                    }
+    if let Some(after) = content.strip_prefix("---\n")
+        && let Some(end) = after.find("\n---")
+    {
+        let yaml = &after[..end];
+        for line in yaml.lines() {
+            let line = line.trim();
+            if let Some(st) = line.strip_prefix("status:") {
+                status = st
+                    .trim()
+                    .trim_matches(|c| c == '"' || c == '\'')
+                    .to_string();
+            } else if let Some(lu) = line.strip_prefix("last_updated:") {
+                let raw = lu
+                    .trim()
+                    .trim_matches(|c| c == '"' || c == '\'')
+                    .to_string();
+                if !raw.is_empty() {
+                    last_updated = Some(raw);
                 }
             }
         }
@@ -92,12 +92,12 @@ fn get_git_last_updated_unix(path: &Path) -> u64 {
         .arg(path)
         .output();
 
-    if let Ok(out) = output {
-        if out.status.success() {
-            let date_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            if let Ok(unix) = date_str.parse::<u64>() {
-                return unix;
-            }
+    if let Ok(out) = output
+        && out.status.success()
+    {
+        let date_str = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if let Ok(unix) = date_str.parse::<u64>() {
+            return unix;
         }
     }
     0

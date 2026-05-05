@@ -121,7 +121,7 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
         for entry in fs::read_dir(&api_dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.extension().map_or(false, |e| e == "md") {
+            if path.extension().is_some_and(|e| e == "md") {
                 if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
                     // Check if the filename looks like a crate name or matches an existing crate
                     if stem.starts_with("vox-") || actual_crates.contains(stem) {
@@ -158,7 +158,7 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
         for entry in fs::read_dir(&arch_dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.extension().map_or(false, |e| e == "md") {
+            if path.extension().is_some_and(|e| e == "md") {
                 if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
                     if stem == "architecture-index" {
                         continue;
@@ -185,7 +185,7 @@ pub(crate) fn check_docs_ssot(root: &Path) -> Result<()> {
         let now = chrono::Utc::now().naive_utc();
 
         for p in src_files {
-            if p.extension().map_or(false, |e| e == "md") {
+            if p.extension().is_some_and(|e| e == "md") {
                 if let Ok(md) = read_utf8_path_capped(&p) {
                     // Enforcement 1: Location Compliance
                     if (md.contains("status: archived") || md.contains("status: \"archived\""))
@@ -253,7 +253,7 @@ fn check_archival_pipeline(root: &Path) -> Result<()> {
         let md = read_utf8_path_capped(p).unwrap_or_default();
 
         // Enforcement 2: Metadata Compliance
-        if p.extension().map_or(false, |e| e == "md") {
+        if p.extension().is_some_and(|e| e == "md") {
             if !md.contains("training_eligible: false")
                 && !md.contains("training_eligible: \"false\"")
             {
@@ -269,7 +269,7 @@ fn check_archival_pipeline(root: &Path) -> Result<()> {
                 if end <= md.len() {
                     let date_str = &md[start..end];
                     if let Ok(dt) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
-                        if oldest_date.map_or(true, |old| dt < old) {
+                        if oldest_date.is_none_or(|old| dt < old) {
                             oldest_date = Some(dt);
                         }
                     } else {

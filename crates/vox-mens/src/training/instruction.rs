@@ -93,16 +93,16 @@ pub fn extract_name_from_source(code: &str) -> String {
                 }
             }
             // Check for decorator-prefixed: "@component fn Name"
-            if trimmed.starts_with('@') {
-                if let Some(idx) = trimmed.find(kw) {
-                    let rest = &trimmed[idx + kw.len()..];
-                    let name: String = rest
-                        .chars()
-                        .take_while(|c| c.is_alphanumeric() || *c == '_')
-                        .collect();
-                    if !name.is_empty() {
-                        return name;
-                    }
+            if trimmed.starts_with('@')
+                && let Some(idx) = trimmed.find(kw)
+            {
+                let rest = &trimmed[idx + kw.len()..];
+                let name: String = rest
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_')
+                    .collect();
+                if !name.is_empty() {
+                    return name;
                 }
             }
         }

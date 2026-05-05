@@ -25,12 +25,12 @@ use vox_compiler::web_ir::lower::{lower_hir_to_web_ir, lower_hir_to_web_ir_with_
 use vox_compiler::web_ir::validate::{
     format_web_ir_validate_failure, validate_web_ir, validate_web_ir_with_metrics,
 };
+use vox_compiler::web_ir::validate_a11y::validate_a11y;
 use vox_compiler::web_ir::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, MutationContract,
     RouteContract, RouteNode, ServerFnContract, StyleDeclarationValue, StyleNode, StyleSelector,
     WebIrModule, WebIrVersion,
 };
-use vox_compiler::web_ir::validate_a11y::validate_a11y;
 
 #[test]
 fn web_ir_lowering_validates_and_emits_counter_view() {
@@ -230,7 +230,10 @@ routes {
         .find(|(n, _)| n == "routes.manifest.ts")
         .map(|(_, c)| c.as_str())
         .expect("routes.manifest.ts");
-    insta::assert_snapshot!("nested_route_manifest_with_pending_loader_notfound_error", manifest);
+    insta::assert_snapshot!(
+        "nested_route_manifest_with_pending_loader_notfound_error",
+        manifest
+    );
 }
 
 /// Emitter contract: `maybe_web_ir_validate` is invoked before the `route_manifest` match block so a failing
@@ -314,10 +317,7 @@ component T() {
 "#;
     let module = parse(lex(source)).expect("parse");
     let hir = lower_module(&module);
-    let rc = hir
-        .components
-        .first()
-        .expect("one reactive component");
+    let rc = hir.components.first().expect("one reactive component");
     let view = rc.view.as_ref().expect("view");
     let state_name = match &rc.members[0] {
         HirReactiveMember::State(s) => s.name.clone(),
@@ -952,8 +952,7 @@ fn hir_emit_public_exports_include_compat_module() {
         map_jsx_attr_name("on:click"),
         compat::map_jsx_attr_name("on_click")
     );
-    let _ptr: fn(&vox_compiler::hir::HirExpr, &HashSet<String>) -> String =
-        emit_hir_expr;
+    let _ptr: fn(&vox_compiler::hir::HirExpr, &HashSet<String>) -> String = emit_hir_expr;
 }
 
 /// Parity chain fixture (post-@island retirement).
@@ -1534,8 +1533,10 @@ fn web_ir_validate_style_token_ref_is_ok() {
     });
     let diags = validate_web_ir(&m);
     assert!(
-        diags.iter().all(|d| d.code != "web_ir_validate.style.literal_color_value"
-            && d.code != "web_ir_validate.style.literal_dimension_value"),
+        diags
+            .iter()
+            .all(|d| d.code != "web_ir_validate.style.literal_color_value"
+                && d.code != "web_ir_validate.style.literal_dimension_value"),
         "token ref must not trigger literal value errors: {diags:?}"
     );
 }
@@ -1543,7 +1544,10 @@ fn web_ir_validate_style_token_ref_is_ok() {
 // ── TASK-5.2: route reachability ──────────────────────────────────────────────
 
 fn route_tree(contracts: Vec<RouteContract>) -> RouteNode {
-    RouteNode::RouteTree { routes: contracts, span: None }
+    RouteNode::RouteTree {
+        routes: contracts,
+        span: None,
+    }
 }
 
 fn route_contract(id: &str, pattern: &str, component: Option<&str>) -> RouteContract {
@@ -1552,7 +1556,12 @@ fn route_contract(id: &str, pattern: &str, component: Option<&str>) -> RouteCont
     } else {
         serde_json::Value::Object(Default::default())
     };
-    RouteContract { id: id.to_string(), pattern: pattern.to_string(), meta, children: vec![] }
+    RouteContract {
+        id: id.to_string(),
+        pattern: pattern.to_string(),
+        meta,
+        children: vec![],
+    }
 }
 
 /// Build an `<a href="…">` element pinned to `DomNodeId(0)` so it can be addressed by
@@ -1574,11 +1583,17 @@ fn link_element(id: u32, href: &str) -> DomNode {
 #[test]
 fn web_ir_validate_route_missing_component_is_error() {
     let mut m = WebIrModule::default();
-    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", Some("Home"))]));
+    m.route_nodes.push(route_tree(vec![route_contract(
+        "r1",
+        "/home",
+        Some("Home"),
+    )]));
     // view_roots does NOT include "Home"
     let diags = validate_web_ir(&m);
     assert!(
-        diags.iter().any(|d| d.code == "web_ir_validate.route.missing_component"),
+        diags
+            .iter()
+            .any(|d| d.code == "web_ir_validate.route.missing_component"),
         "expected missing_component: {diags:?}"
     );
 }
@@ -1586,11 +1601,17 @@ fn web_ir_validate_route_missing_component_is_error() {
 #[test]
 fn web_ir_validate_route_component_exists_is_ok() {
     let mut m = WebIrModule::default();
-    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", Some("Home"))]));
+    m.route_nodes.push(route_tree(vec![route_contract(
+        "r1",
+        "/home",
+        Some("Home"),
+    )]));
     m.view_roots.push(("Home".to_string(), DomNodeId(0)));
     let diags = validate_web_ir(&m);
     assert!(
-        diags.iter().all(|d| d.code != "web_ir_validate.route.missing_component"),
+        diags
+            .iter()
+            .all(|d| d.code != "web_ir_validate.route.missing_component"),
         "unexpected missing_component: {diags:?}"
     );
 }
@@ -1599,14 +1620,17 @@ fn web_ir_validate_route_component_exists_is_ok() {
 #[ignore = "Pre-existing on this branch (verified by stash bisect): broken-link diagnostic only fires for `<a>` patterns the link-extractor recognizes; the constructed link_element here triggers `route.unreachable` first. Out of scope for VUV; needs a separate validate-link-extractor fix"]
 fn web_ir_validate_route_broken_link_is_error() {
     let mut m = WebIrModule::default();
-    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", None)]));
+    m.route_nodes
+        .push(route_tree(vec![route_contract("r1", "/home", None)]));
     m.dom_nodes.push(link_element(0, "/nonexistent"));
     // The broken-link check only fires for links reachable from a declared view root —
     // see the "orphan nodes must not count as route references" comment in validate.rs.
     m.view_roots.push(("Home".to_string(), DomNodeId(0)));
     let diags = validate_web_ir(&m);
     assert!(
-        diags.iter().any(|d| d.code == "web_ir_validate.route.broken_link"),
+        diags
+            .iter()
+            .any(|d| d.code == "web_ir_validate.route.broken_link"),
         "expected broken_link: {diags:?}"
     );
 }
@@ -1614,12 +1638,15 @@ fn web_ir_validate_route_broken_link_is_error() {
 #[test]
 fn web_ir_validate_route_matching_link_is_ok() {
     let mut m = WebIrModule::default();
-    m.route_nodes.push(route_tree(vec![route_contract("r1", "/home", None)]));
+    m.route_nodes
+        .push(route_tree(vec![route_contract("r1", "/home", None)]));
     m.dom_nodes.push(link_element(0, "/home"));
     m.view_roots.push(("Home".to_string(), DomNodeId(0)));
     let diags = validate_web_ir(&m);
     assert!(
-        diags.iter().all(|d| d.code != "web_ir_validate.route.broken_link"),
+        diags
+            .iter()
+            .all(|d| d.code != "web_ir_validate.route.broken_link"),
         "unexpected broken_link: {diags:?}"
     );
 }
@@ -1627,11 +1654,14 @@ fn web_ir_validate_route_matching_link_is_ok() {
 #[test]
 fn web_ir_validate_route_unreachable_warns() {
     let mut m = WebIrModule::default();
-    m.route_nodes.push(route_tree(vec![route_contract("r1", "/about", None)]));
+    m.route_nodes
+        .push(route_tree(vec![route_contract("r1", "/about", None)]));
     // No link elements in DOM → unreachable
     let diags = validate_web_ir(&m);
     assert!(
-        diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
+        diags
+            .iter()
+            .any(|d| d.code == "web_ir_validate.route.unreachable"),
         "expected unreachable: {diags:?}"
     );
 }
@@ -1642,7 +1672,10 @@ fn elem_node(id: u32, tag: &str, attrs: Vec<(&str, &str)>, children: Vec<u32>) -
     DomNode::Element {
         id: DomNodeId(id),
         tag: tag.to_string(),
-        attrs: attrs.into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+        attrs: attrs
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect(),
         children: children.into_iter().map(DomNodeId).collect(),
         span: None,
     }
@@ -1651,10 +1684,13 @@ fn elem_node(id: u32, tag: &str, attrs: Vec<(&str, &str)>, children: Vec<u32>) -
 #[test]
 fn web_ir_validate_a11y_img_missing_alt_fires_via_validate_web_ir() {
     let mut m = WebIrModule::default();
-    m.dom_nodes.push(elem_node(0, "img", vec![("src", "logo.png")], vec![]));
+    m.dom_nodes
+        .push(elem_node(0, "img", vec![("src", "logo.png")], vec![]));
     let diags = validate_web_ir(&m);
     assert!(
-        diags.iter().any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
+        diags
+            .iter()
+            .any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
         "expected img_missing_alt via validate_web_ir: {diags:?}"
     );
 }
@@ -1665,7 +1701,9 @@ fn web_ir_validate_a11y_button_missing_label_fires_via_validate_web_ir() {
     m.dom_nodes.push(elem_node(0, "button", vec![], vec![]));
     let diags = validate_web_ir(&m);
     assert!(
-        diags.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+        diags
+            .iter()
+            .any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
         "expected interactive_missing_label via validate_web_ir: {diags:?}"
     );
 }
@@ -1725,9 +1763,9 @@ component Cta() {
     let btn = web.dom_nodes.iter().find(|n| {
         if let DomNode::Element { tag, attrs, .. } = n {
             tag == "button"
-                && attrs.iter().any(|(k, v)| {
-                    k == "className" && v.contains("bg-primary")
-                })
+                && attrs
+                    .iter()
+                    .any(|(k, v)| k == "className" && v.contains("bg-primary"))
         } else {
             false
         }
@@ -1756,7 +1794,10 @@ component R() {
     assert!(
         web.dom_nodes.iter().any(|n| {
             if let DomNode::Element { tag, attrs, .. } = n {
-                tag == "div" && attrs.iter().any(|(k, v)| k == "className" && v.contains("flex-row"))
+                tag == "div"
+                    && attrs
+                        .iter()
+                        .any(|(k, v)| k == "className" && v.contains("flex-row"))
             } else {
                 false
             }
@@ -1814,11 +1855,15 @@ fn raw_css_escape_emits_warning_not_error() {
     });
     let diags = validate_web_ir(&m);
     assert!(
-        diags.iter().any(|d| d.code == "web_ir_validate.style.raw_css_escape"),
+        diags
+            .iter()
+            .any(|d| d.code == "web_ir_validate.style.raw_css_escape"),
         "expected raw_css_escape warning: {diags:?}"
     );
     assert!(
-        diags.iter().all(|d| d.code != "web_ir_validate.style.literal_color_value"),
+        diags
+            .iter()
+            .all(|d| d.code != "web_ir_validate.style.literal_color_value"),
         "raw_css block must NOT fire literal_color_value error: {diags:?}"
     );
 }
@@ -1830,15 +1875,18 @@ fn normal_style_block_literal_color_still_errors() {
     m.style_nodes.push(StyleNode::Rule {
         specificity: (0, 1, 0),
         selector: StyleSelector::Class("bad".into()),
-        declarations: vec![("color".into(), StyleDeclarationValue::Color(
-            vox_compiler::web_ir::CssColor::Hex("#ff0000".into())
-        ))],
+        declarations: vec![(
+            "color".into(),
+            StyleDeclarationValue::Color(vox_compiler::web_ir::CssColor::Hex("#ff0000".into())),
+        )],
         is_raw_css: false,
         span: None,
     });
     let diags = validate_web_ir(&m);
     assert!(
-        diags.iter().any(|d| d.code == "web_ir_validate.style.literal_color_value"),
+        diags
+            .iter()
+            .any(|d| d.code == "web_ir_validate.style.literal_color_value"),
         "expected literal_color_value error in normal style block: {diags:?}"
     );
 }
@@ -1868,16 +1916,24 @@ raw_css {
             false
         }
     });
-    assert!(raw_css_rule.is_some(), "expected a raw_css style rule; got: {:?}", web.style_nodes);
+    assert!(
+        raw_css_rule.is_some(),
+        "expected a raw_css style rule; got: {:?}",
+        web.style_nodes
+    );
 
     // Validate should emit warning, not hard error on literal color.
     let diags = validate_web_ir(&web);
     assert!(
-        diags.iter().any(|d| d.code == "web_ir_validate.style.raw_css_escape"),
+        diags
+            .iter()
+            .any(|d| d.code == "web_ir_validate.style.raw_css_escape"),
         "expected raw_css_escape warning: {diags:?}"
     );
     assert!(
-        diags.iter().all(|d| d.code != "web_ir_validate.style.literal_color_value"),
+        diags
+            .iter()
+            .all(|d| d.code != "web_ir_validate.style.literal_color_value"),
         "raw_css should not fire literal_color_value: {diags:?}"
     );
 }
@@ -1908,7 +1964,9 @@ fn surface_known_name_no_error() {
     });
     let diags = validate_web_ir_with_registry(&m, Some(&registry));
     assert!(
-        diags.iter().all(|d| d.code != "web_ir_validate.surface.unknown_surface"),
+        diags
+            .iter()
+            .all(|d| d.code != "web_ir_validate.surface.unknown_surface"),
         "known surface should not fire unknown_surface: {diags:?}"
     );
 }
@@ -1936,7 +1994,9 @@ fn surface_unknown_name_fires_error() {
     });
     let diags = validate_web_ir_with_registry(&m, Some(&registry));
     assert!(
-        diags.iter().any(|d| d.code == "web_ir_validate.surface.unknown_surface"),
+        diags
+            .iter()
+            .any(|d| d.code == "web_ir_validate.surface.unknown_surface"),
         "expected unknown_surface error: {diags:?}"
     );
 }
@@ -1963,7 +2023,11 @@ component Page() {
             false
         }
     });
-    assert!(has_surface, "expected panel with data-vox-surface + CSS vars; nodes: {:?}", web.dom_nodes);
+    assert!(
+        has_surface,
+        "expected panel with data-vox-surface + CSS vars; nodes: {:?}",
+        web.dom_nodes
+    );
 }
 
 /// surface attr without registry → no surface validation errors (registry is optional).
@@ -1980,7 +2044,9 @@ fn surface_without_registry_no_error() {
     // validate_web_ir doesn't use a registry — surface validation skipped
     let diags = validate_web_ir(&m);
     assert!(
-        diags.iter().all(|d| d.code != "web_ir_validate.surface.unknown_surface"),
+        diags
+            .iter()
+            .all(|d| d.code != "web_ir_validate.surface.unknown_surface"),
         "surface validation without registry should not fire: {diags:?}"
     );
 }
@@ -2004,22 +2070,35 @@ component Layout() {
 
     let overlay_elem = web.dom_nodes.iter().find(|n| {
         if let DomNode::Element { tag, attrs, .. } = n {
-            tag == "div" && attrs.iter().any(|(k, v)| k == "data-vox-overlay" && v == "true")
+            tag == "div"
+                && attrs
+                    .iter()
+                    .any(|(k, v)| k == "data-vox-overlay" && v == "true")
         } else {
             false
         }
     });
-    assert!(overlay_elem.is_some(), "expected overlay div; nodes: {:?}", web.dom_nodes);
+    assert!(
+        overlay_elem.is_some(),
+        "expected overlay div; nodes: {:?}",
+        web.dom_nodes
+    );
 
     let toast_elem = web.dom_nodes.iter().find(|n| {
         if let DomNode::Element { attrs, .. } = n {
             attrs.iter().any(|(k, v)| k == "data-vox-z" && v == "100")
-                && attrs.iter().any(|(k, v)| k == "data-vox-pos" && v == "top_right")
+                && attrs
+                    .iter()
+                    .any(|(k, v)| k == "data-vox-pos" && v == "top_right")
         } else {
             false
         }
     });
-    assert!(toast_elem.is_some(), "expected toast with data-vox-z=100 and data-vox-pos=top_right; nodes: {:?}", web.dom_nodes);
+    assert!(
+        toast_elem.is_some(),
+        "expected toast with data-vox-z=100 and data-vox-pos=top_right; nodes: {:?}",
+        web.dom_nodes
+    );
 }
 
 /// Duplicate z-index on overlay children fires a diagnostic.
@@ -2040,7 +2119,10 @@ fn overlay_duplicate_z_integration() {
     m.dom_nodes.push(DomNode::Element {
         id: DomNodeId(1),
         tag: "div".into(),
-        attrs: vec![("data-vox-z".into(), "100".into()), ("data-vox-pos".into(), "top_right".into())],
+        attrs: vec![
+            ("data-vox-z".into(), "100".into()),
+            ("data-vox-pos".into(), "top_right".into()),
+        ],
         children: vec![],
         span: None,
     });
@@ -2048,7 +2130,10 @@ fn overlay_duplicate_z_integration() {
     m.dom_nodes.push(DomNode::Element {
         id: DomNodeId(2),
         tag: "div".into(),
-        attrs: vec![("data-vox-z".into(), "100".into()), ("data-vox-pos".into(), "top_left".into())],
+        attrs: vec![
+            ("data-vox-z".into(), "100".into()),
+            ("data-vox-pos".into(), "top_left".into()),
+        ],
         children: vec![],
         span: None,
     });
@@ -2056,7 +2141,9 @@ fn overlay_duplicate_z_integration() {
     let mut diags = Vec::new();
     validate_overlay(&m, &mut diags);
     assert!(
-        diags.iter().any(|d| d.code == "web_ir_validate.overlay.duplicate_z"),
+        diags
+            .iter()
+            .any(|d| d.code == "web_ir_validate.overlay.duplicate_z"),
         "expected duplicate_z: {diags:?}"
     );
 }

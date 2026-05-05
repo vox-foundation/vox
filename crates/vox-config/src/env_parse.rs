@@ -20,10 +20,10 @@ pub fn parse_u64_opt(raw: Option<&str>, default: u64) -> u64 {
 /// Do NOT use this for secrets — use `vox_clavis::resolve_secret`.
 #[must_use]
 pub fn resolve_config_str(name: &str, default: &str) -> String {
-    if let Ok(v) = std::env::var(name) {
-        if !v.trim().is_empty() {
-            return v;
-        }
+    if let Ok(v) = std::env::var(name)
+        && !v.trim().is_empty()
+    {
+        return v;
     }
     if let Some(v) = toml_config::load_user_config().values.get(name) {
         if let Some(s) = v.as_str() {
@@ -42,20 +42,20 @@ pub fn resolve_config_str(name: &str, default: &str) -> String {
 /// Resolve a u64 config value using layered precedence.
 #[must_use]
 pub fn resolve_config_u64(name: &str, default: u64) -> u64 {
-    if let Ok(v) = std::env::var(name) {
-        if let Ok(parsed) = v.trim().parse::<u64>() {
-            return parsed;
-        }
+    if let Ok(v) = std::env::var(name)
+        && let Ok(parsed) = v.trim().parse::<u64>()
+    {
+        return parsed;
     }
     if let Some(v) = toml_config::load_user_config().values.get(name) {
         if let Some(i) = v.as_integer() {
             if i >= 0 {
                 return i as u64;
             }
-        } else if let Some(s) = v.as_str() {
-            if let Ok(parsed) = s.trim().parse::<u64>() {
-                return parsed;
-            }
+        } else if let Some(s) = v.as_str()
+            && let Ok(parsed) = s.trim().parse::<u64>()
+        {
+            return parsed;
         }
     }
     default
@@ -64,20 +64,20 @@ pub fn resolve_config_u64(name: &str, default: u64) -> u64 {
 /// Resolve a usize config value using layered precedence.
 #[must_use]
 pub fn resolve_config_usize(name: &str, default: usize) -> usize {
-    if let Ok(v) = std::env::var(name) {
-        if let Ok(parsed) = v.trim().parse::<usize>() {
-            return parsed;
-        }
+    if let Ok(v) = std::env::var(name)
+        && let Ok(parsed) = v.trim().parse::<usize>()
+    {
+        return parsed;
     }
     if let Some(v) = toml_config::load_user_config().values.get(name) {
         if let Some(i) = v.as_integer() {
             if i >= 0 {
                 return i as usize;
             }
-        } else if let Some(s) = v.as_str() {
-            if let Ok(parsed) = s.trim().parse::<usize>() {
-                return parsed;
-            }
+        } else if let Some(s) = v.as_str()
+            && let Ok(parsed) = s.trim().parse::<usize>()
+        {
+            return parsed;
         }
     }
     default

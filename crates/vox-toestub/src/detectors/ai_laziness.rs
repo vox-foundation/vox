@@ -90,7 +90,7 @@ impl AiLazinessDetector {
     }
 
     fn is_builtin_default_type(name: &str) -> bool {
-        BUILTIN_DEFAULT_TYPES.iter().any(|b| *b == name)
+        BUILTIN_DEFAULT_TYPES.contains(&name)
     }
 
     fn is_test_gated(file: &SourceFile) -> bool {
@@ -256,10 +256,9 @@ impl DetectionRule for AiLazinessDetector {
                     file: file.path.clone(),
                     line: line_num,
                     column: 0,
-                    message:
-                        "Function returns a placeholder string literal (\"TODO\", \"WIP\", \
+                    message: "Function returns a placeholder string literal (\"TODO\", \"WIP\", \
                         \"placeholder\", …)."
-                            .into(),
+                        .into(),
                     suggestion: Some("Return the real value or surface an error.".into()),
                     context: file.context_around(line_num, 2),
                     confidence: Some(FindingConfidence::High),
@@ -289,31 +288,29 @@ impl DetectionRule for AiLazinessDetector {
                 });
             }
 
-            if !test_gated {
-                if let Some(caps) = self.mock_named_fn.captures(line) {
-                    let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                    findings.push(Finding {
-                        rule_id: "ai-laziness/mock-named-fn".into(),
-                        rule_name: "Mock-named function in non-test code".into(),
-                        severity: Severity::Warning,
-                        file: file.path.clone(),
-                        line: line_num,
-                        column: 0,
-                        message: format!(
-                            "Function name starts with `{}` but the file is not gated as test \
+            if !test_gated && let Some(caps) = self.mock_named_fn.captures(line) {
+                let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                findings.push(Finding {
+                    rule_id: "ai-laziness/mock-named-fn".into(),
+                    rule_name: "Mock-named function in non-test code".into(),
+                    severity: Severity::Warning,
+                    file: file.path.clone(),
+                    line: line_num,
+                    column: 0,
+                    message: format!(
+                        "Function name starts with `{}` but the file is not gated as test \
                              code — mocks should not ship.",
-                            prefix
-                        ),
-                        suggestion: Some(
-                            "Move the function under `#[cfg(test)]`, rename it to its real \
+                        prefix
+                    ),
+                    suggestion: Some(
+                        "Move the function under `#[cfg(test)]`, rename it to its real \
                              responsibility, or delete it if unused."
-                                .into(),
-                        ),
-                        context: file.context_around(line_num, 1),
-                        confidence: Some(FindingConfidence::Medium),
-                        evidence: None,
-                    });
-                }
+                            .into(),
+                    ),
+                    context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Medium),
+                    evidence: None,
+                });
             }
 
             if let Some(caps) = self.custom_type_default_return.captures(line) {
@@ -422,7 +419,9 @@ mod tests {
 
     #[test]
     fn catches_conditional_stub() {
-        let f = run("fn x(b: bool) -> Result<()> { if b { return Ok(()); } else { do_real_work(); Ok(()) } }");
+        let f = run(
+            "fn x(b: bool) -> Result<()> { if b { return Ok(()); } else { do_real_work(); Ok(()) } }",
+        );
         assert!(ids(&f).contains(&"ai-laziness/conditional-stub"));
     }
 

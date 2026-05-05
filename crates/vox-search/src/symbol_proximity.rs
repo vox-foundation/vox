@@ -16,25 +16,25 @@ pub async fn scan_symbol_proximity(
 
     #[cfg(feature = "qdrant-vector")]
     {
-        if let Some(url) = policy.qdrant_url.as_deref().filter(|u| !u.is_empty()) {
-            if let Some(qv) = query_vector.filter(|v| !v.is_empty()) {
-                let client = QdrantSemanticClient::new(url, policy.qdrant_collection.as_str());
-                let trace = _ctx
-                    .trace_id
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|s| !s.is_empty());
+        if let Some(url) = policy.qdrant_url.as_deref().filter(|u| !u.is_empty())
+            && let Some(qv) = query_vector.filter(|v| !v.is_empty())
+        {
+            let client = QdrantSemanticClient::new(url, policy.qdrant_collection.as_str());
+            let trace = _ctx
+                .trace_id
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty());
 
-                match client
-                    .search_vectors(qv, 5, policy.qdrant_vector_name.as_deref(), trace)
-                    .await
-                {
-                    Ok(results) => qdrant_results = results,
-                    Err(e) => tracing::warn!(
-                        "Qdrant vector search failed during symbol proximity scan. Falling back to text stub. Error: {:?}",
-                        e
-                    ),
-                }
+            match client
+                .search_vectors(qv, 5, policy.qdrant_vector_name.as_deref(), trace)
+                .await
+            {
+                Ok(results) => qdrant_results = results,
+                Err(e) => tracing::warn!(
+                    "Qdrant vector search failed during symbol proximity scan. Falling back to text stub. Error: {:?}",
+                    e
+                ),
             }
         }
     }

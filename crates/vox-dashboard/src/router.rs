@@ -1,7 +1,7 @@
 //! Axum sub-router: GET /dashboard/* → SPA shell + dashboard API routes
-use axum::{Router, routing::get};
-use crate::assets::serve_asset;
 use crate::api::settings_router;
+use crate::assets::serve_asset;
+use axum::{Router, routing::get};
 
 pub fn dashboard_router<S>(token: Option<String>) -> Router<S>
 where

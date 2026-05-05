@@ -13,17 +13,21 @@ pub fn trim_context(text: &str, max_tokens: usize) -> String {
     if tokens.len() <= max_tokens {
         return text.to_string();
     }
-    
+
     // Trim from the middle to keep head and tail
     let head_len = max_tokens / 2;
     let tail_len = max_tokens - head_len;
-    
+
     let head_tokens = &tokens[..head_len];
     let tail_tokens = &tokens[tokens.len() - tail_len..];
-    
-    let head = bpe.decode(head_tokens.to_vec()).unwrap_or_else(|_| "[DECODE ERROR]".to_string());
-    let tail = bpe.decode(tail_tokens.to_vec()).unwrap_or_else(|_| "[DECODE ERROR]".to_string());
-    
+
+    let head = bpe
+        .decode(head_tokens.to_vec())
+        .unwrap_or_else(|_| "[DECODE ERROR]".to_string());
+    let tail = bpe
+        .decode(tail_tokens.to_vec())
+        .unwrap_or_else(|_| "[DECODE ERROR]".to_string());
+
     format!("{}\n... [TRUNCATED] ...\n{}", head, tail)
 }
 
@@ -34,10 +38,10 @@ pub fn prioritize_context(
 ) -> String {
     let mut sorted = snippets.clone();
     sorted.sort_by(|a, b| b.1.cmp(&a.1)); // Higher priority first
-    
+
     let mut total_tokens = 0;
     let mut result = String::new();
-    
+
     for (text, _) in sorted {
         let tokens = count_tokens(&text);
         if total_tokens + tokens > max_total_tokens {
@@ -52,6 +56,6 @@ pub fn prioritize_context(
         result.push('\n');
         total_tokens += tokens + 1; // +1 for the newline
     }
-    
+
     result
 }

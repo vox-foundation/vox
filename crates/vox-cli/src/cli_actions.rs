@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::Parser;
 
 /// Subcommands for `vox architect` (requires `--features codex` or `stub-check`).
 #[derive(Parser)]
@@ -62,4 +62,3 @@ pub enum WorkflowAction {
         mesh: bool,
     },
 }
-

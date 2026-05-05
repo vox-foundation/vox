@@ -529,26 +529,35 @@ fn execute_coolify(cfg: &CoolifyTarget, dry_run: bool) -> Result<()> {
     }
 
     let response = String::from_utf8_lossy(&output.stdout);
-    let json: serde_json::Value = serde_json::from_str(&response).unwrap_or(serde_json::Value::Null);
+    let json: serde_json::Value =
+        serde_json::from_str(&response).unwrap_or(serde_json::Value::Null);
     let deploy_uuid = json["deploymentUuid"].as_str().map(|s| s.to_string());
 
     println!("  ✓ Deployment triggered successfully on Coolify.");
-    
+
     if let Some(timeout_secs) = cfg.wait_timeout_secs {
         let deploy_uuid = match deploy_uuid {
             Some(u) => u,
             None => {
-                println!("  Could not extract deployment UUID to poll. Proceeding without polling.");
+                println!(
+                    "  Could not extract deployment UUID to poll. Proceeding without polling."
+                );
                 return Ok(());
             }
         };
 
-        println!("  Polling deployment {} for completion (timeout {}s)...", deploy_uuid, timeout_secs);
+        println!(
+            "  Polling deployment {} for completion (timeout {}s)...",
+            deploy_uuid, timeout_secs
+        );
         let start_time = std::time::Instant::now();
 
         loop {
             if start_time.elapsed().as_secs() > timeout_secs {
-                anyhow::bail!("Coolify deployment timed out after {} seconds", timeout_secs);
+                anyhow::bail!(
+                    "Coolify deployment timed out after {} seconds",
+                    timeout_secs
+                );
             }
             std::thread::sleep(std::time::Duration::from_secs(10));
 
@@ -568,9 +577,10 @@ fn execute_coolify(cfg: &CoolifyTarget, dry_run: bool) -> Result<()> {
                     &status_url,
                 ])
                 .output()?;
-            
+
             let res = String::from_utf8_lossy(&out.stdout);
-            let stat_json: serde_json::Value = serde_json::from_str(&res).unwrap_or(serde_json::Value::Null);
+            let stat_json: serde_json::Value =
+                serde_json::from_str(&res).unwrap_or(serde_json::Value::Null);
             let status = stat_json["status"].as_str().unwrap_or("");
 
             if status == "finished" || status == "success" {
@@ -578,7 +588,7 @@ fn execute_coolify(cfg: &CoolifyTarget, dry_run: bool) -> Result<()> {
                 break;
             } else if status == "failed" || status == "error" {
                 println!("  ❌ Deployment failed!");
-                
+
                 let logs_url = format!(
                     "{}/api/v1/applications/{}/logs",
                     cfg.base_url.trim_end_matches('/'),
@@ -592,10 +602,11 @@ fn execute_coolify(cfg: &CoolifyTarget, dry_run: bool) -> Result<()> {
                         &logs_url,
                     ])
                     .output();
-                
+
                 if let Ok(l_out) = logs_out {
                     let log_res = String::from_utf8_lossy(&l_out.stdout);
-                    let l_json: serde_json::Value = serde_json::from_str(&log_res).unwrap_or(serde_json::Value::Null);
+                    let l_json: serde_json::Value =
+                        serde_json::from_str(&log_res).unwrap_or(serde_json::Value::Null);
                     if let Some(logs) = l_json["logs"].as_str() {
                         eprintln!("\n--- COOLIFY LOGS ---\n{}\n--------------------", logs);
                     }

@@ -4,7 +4,7 @@
 //! JSON-in-query encoding: sorted keys, each value is `JSON.stringify` + `encodeURIComponent`) and
 //! **`POST` + JSON body** for `@mutation` / `@server`. Cache-friendly reads use GET as intended.
 
-use crate::hir::{HirModule, HirEndpointFn, HirEndpointKind};
+use crate::hir::{HirEndpointFn, HirEndpointKind, HirModule};
 
 /// Stable output filename for the generated client.
 pub const VOX_CLIENT_FILENAME: &str = "vox-client.ts";

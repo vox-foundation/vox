@@ -250,16 +250,16 @@ fn lint_frontmatter(path: &Path, content: &str, errors: &mut Vec<LintError>) {
         });
     }
 
-    if training_eligible && !saw_training_rationale {
-        if let Some(st) = status {
-            if st == "research" || st == "roadmap" {
-                errors.push(LintError {
-                    file: path.to_owned(),
-                    line: 1,
-                    kind: LintKind::MissingTrainingRationale,
-                });
-            }
-        }
+    if training_eligible
+        && !saw_training_rationale
+        && let Some(st) = status
+        && (st == "research" || st == "roadmap")
+    {
+        errors.push(LintError {
+            file: path.to_owned(),
+            line: 1,
+            kind: LintKind::MissingTrainingRationale,
+        });
     }
 }
 

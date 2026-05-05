@@ -75,7 +75,7 @@ fn frontend_dependency_policy_is_enforced_for_gui_surfaces() {
             .join("frontend")
             .join("dependency-policy.v1.yaml"),
     )
-        .expect("read contracts/frontend/dependency-policy.v1.yaml");
+    .expect("read contracts/frontend/dependency-policy.v1.yaml");
     let contract: DependencyPolicyContract =
         serde_yaml::from_str(&contract_raw).expect("parse dependency policy contract");
 
@@ -85,10 +85,7 @@ fn frontend_dependency_policy_is_enforced_for_gui_surfaces() {
         let package: PackageJson = serde_json::from_str(&package_raw)
             .unwrap_or_else(|e| panic!("parse {}: {}", surface.path, e));
 
-        let package_manager = package
-            .package_manager
-            .as_deref()
-            .unwrap_or("pnpm@unknown");
+        let package_manager = package.package_manager.as_deref().unwrap_or("pnpm@unknown");
         assert!(
             package_manager.starts_with(&contract.policy.package_manager),
             "{} packageManager must start with `{}` (found `{}`)",
@@ -104,12 +101,12 @@ fn frontend_dependency_policy_is_enforced_for_gui_surfaces() {
         let vite_version = lookup_dep(&package, "vite")
             .unwrap_or_else(|| panic!("{} missing vite dependency", surface.path));
 
-        let react_major =
-            first_major(&react_version).unwrap_or_else(|| panic!("bad react semver in {}", surface.path));
+        let react_major = first_major(&react_version)
+            .unwrap_or_else(|| panic!("bad react semver in {}", surface.path));
         let react_dom_major = first_major(&react_dom_version)
             .unwrap_or_else(|| panic!("bad react-dom semver in {}", surface.path));
-        let vite_major =
-            first_major(&vite_version).unwrap_or_else(|| panic!("bad vite semver in {}", surface.path));
+        let vite_major = first_major(&vite_version)
+            .unwrap_or_else(|| panic!("bad vite semver in {}", surface.path));
 
         assert_eq!(
             react_major, contract.policy.react_major,

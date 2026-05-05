@@ -2,9 +2,8 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    Decl, EffectDecl,
-    EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind,
-    LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
+    Decl, EffectDecl, EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath,
+    ImportPathKind, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
     OnMountDecl, PostCondition, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl,
     RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl,
 };
@@ -228,7 +227,7 @@ impl Parser {
                     Some("fn".into()),
                     ParseErrorClass::Declaration,
                 ));
-                return Err(());
+                Err(())
             }
             Token::Ident(_) | Token::TypeIdent(_) => {
                 let name = self.parse_ident_name()?;
@@ -383,9 +382,7 @@ impl Parser {
         loop {
             self.skip_newlines();
             match self.peek().clone() {
-                Token::State => {
-                    members.push(ReactiveMemberDecl::State(self.parse_state_decl()?))
-                }
+                Token::State => members.push(ReactiveMemberDecl::State(self.parse_state_decl()?)),
                 Token::Derived => {
                     members.push(ReactiveMemberDecl::Derived(self.parse_derived_decl()?))
                 }
@@ -452,10 +449,7 @@ impl Parser {
     pub(crate) fn parse_v0_prop_line(&mut self) -> Result<crate::ast::decl::V0Prop, ()> {
         let pname = self.parse_ident_name()?;
         if std::env::var_os("VOX_PARSER_DEBUG").is_some() {
-            eprintln!(
-                "[vox-parser:v0.prop] name={pname:?} next={:?}",
-                self.peek()
-            );
+            eprintln!("[vox-parser:v0.prop] name={pname:?} next={:?}", self.peek());
         }
         let is_optional = self.eat(&Token::Question);
         self.expect(&Token::Colon)?;
@@ -575,12 +569,9 @@ impl Parser {
         self.advance(); // eat @test
         let mut label = String::new();
         if self.eat(&Token::LParen) {
-            match self.peek().clone() {
-                Token::StringLit(s) => {
-                    self.advance();
-                    label = s;
-                }
-                _ => {}
+            if let Token::StringLit(s) = self.peek().clone() {
+                self.advance();
+                label = s;
             }
             let _ = self.eat(&Token::RParen);
         }
@@ -696,28 +687,28 @@ impl Parser {
         self.advance(); // eat @endpoint
         self.expect(&Token::LParen)?;
         let mut kind = None;
-        if let Token::Ident(k) = self.peek().clone() {
-            if k == "kind" {
-                self.advance();
-                self.expect(&Token::Colon)?;
-                if let Token::Ident(v) = self.peek().clone() {
-                    match v.as_str() {
-                        "query" => kind = Some(EndpointKind::Query),
-                        "mutation" => kind = Some(EndpointKind::Mutation),
-                        "server" => kind = Some(EndpointKind::Server),
-                        _ => {
-                            self.errors.push(ParseError::classified(
-                                self.span(),
-                                "Unknown endpoint kind. Expected query, mutation, or server.",
-                                vec!["query".into(), "mutation".into(), "server".into()],
-                                Some(v),
-                                ParseErrorClass::Declaration,
-                            ));
-                            return Err(());
-                        }
+        if let Token::Ident(k) = self.peek().clone()
+            && k == "kind"
+        {
+            self.advance();
+            self.expect(&Token::Colon)?;
+            if let Token::Ident(v) = self.peek().clone() {
+                match v.as_str() {
+                    "query" => kind = Some(EndpointKind::Query),
+                    "mutation" => kind = Some(EndpointKind::Mutation),
+                    "server" => kind = Some(EndpointKind::Server),
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Unknown endpoint kind. Expected query, mutation, or server.",
+                            vec!["query".into(), "mutation".into(), "server".into()],
+                            Some(v),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
                     }
-                    self.advance();
                 }
+                self.advance();
             }
         }
         self.expect(&Token::RParen)?;
@@ -733,7 +724,10 @@ impl Parser {
         }
         self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
-        Ok(Decl::Endpoint(EndpointDecl { kind: kind.unwrap(), func: f }))
+        Ok(Decl::Endpoint(EndpointDecl {
+            kind: kind.unwrap(),
+            func: f,
+        }))
     }
 
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
@@ -762,14 +756,13 @@ impl Parser {
                     self.expect(&Token::LParen)?;
                     let condition = self.parse_expr()?;
                     let mut fallback = None;
-                    if self.eat(&Token::Comma) {
-                        if let Token::Ident(k) = self.peek().clone() {
-                            if k == "fallback" {
-                                self.advance();
-                                self.expect(&Token::Colon)?;
-                                fallback = Some(self.parse_ident_name()?);
-                            }
-                        }
+                    if self.eat(&Token::Comma)
+                        && let Token::Ident(k) = self.peek().clone()
+                        && k == "fallback"
+                    {
+                        self.advance();
+                        self.expect(&Token::Colon)?;
+                        fallback = Some(self.parse_ident_name()?);
                     }
                     postconditions.push(PostCondition {
                         condition,
@@ -803,14 +796,14 @@ impl Parser {
                     self.advance();
                     is_llm = true;
                     if self.eat(&Token::LParen) {
-                        if let Token::Ident(key) = self.peek().clone() {
-                            if key == "model" {
+                        if let Token::Ident(key) = self.peek().clone()
+                            && key == "model"
+                        {
+                            self.advance();
+                            self.expect(&Token::Eq)?;
+                            if let Token::StringLit(m) = self.peek().clone() {
                                 self.advance();
-                                self.expect(&Token::Eq)?;
-                                if let Token::StringLit(m) = self.peek().clone() {
-                                    self.advance();
-                                    llm_model = Some(m);
-                                }
+                                llm_model = Some(m);
                             }
                         }
                         self.expect(&Token::RParen)?;
@@ -994,7 +987,9 @@ impl Parser {
                         } else {
                             crate::ast::decl::EffectAnnotation::Mcp(String::new())
                         }
-                    } else if let Some(eff) = crate::ast::decl::EffectAnnotation::from_keyword(&name) {
+                    } else if let Some(eff) =
+                        crate::ast::decl::EffectAnnotation::from_keyword(&name)
+                    {
                         self.advance();
                         eff
                     } else {

@@ -46,12 +46,11 @@ mod tests {
 
     #[tokio::test]
     async fn pipeline_returns_first_found() {
-        let pipeline = ProbePipeline::empty()
-            .with_probe(Box::new(MockProbe {
-                name: "first",
-                applicable: true,
-                result: Ok(Some(dummy_summary())),
-            }));
+        let pipeline = ProbePipeline::empty().with_probe(Box::new(MockProbe {
+            name: "first",
+            applicable: true,
+            result: Ok(Some(dummy_summary())),
+        }));
         let report = pipeline.run().await;
         assert_eq!(report.summary.model_name, "Test GPU");
         assert_eq!(report.attempts.len(), 1);
@@ -143,7 +142,10 @@ mod tests {
             }));
         let report = pipeline.run().await;
         assert_eq!(report.attempts[0].probe_name, "off");
-        assert!(matches!(report.attempts[0].outcome, ProbeOutcome::NotApplicable));
+        assert!(matches!(
+            report.attempts[0].outcome,
+            ProbeOutcome::NotApplicable
+        ));
         assert_eq!(report.attempts[0].duration_ms, 0);
         assert!(matches!(report.attempts[1].outcome, ProbeOutcome::Found(_)));
     }

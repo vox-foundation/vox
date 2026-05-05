@@ -28,7 +28,11 @@ fn test_all_markdown_vox_blocks_parse() {
             continue;
         }
         // Skip archived docs — historical content is allowed to contain pre-tombstone syntax.
-        if entry.path().components().any(|c| c.as_os_str() == "archive") {
+        if entry
+            .path()
+            .components()
+            .any(|c| c.as_os_str() == "archive")
+        {
             continue;
         }
 

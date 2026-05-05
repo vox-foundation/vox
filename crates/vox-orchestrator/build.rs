@@ -63,7 +63,7 @@ fn main() {
     let mut strength_variants = Vec::new();
     for strength in &config.strengths {
         let pascal = strength
-            .split(|c| c == '-' || c == '_')
+            .split(['-', '_'])
             .map(|s| {
                 let mut c = s.chars();
                 match c.next() {
@@ -162,11 +162,11 @@ fn main() {
     for block in &config.strength_inference {
         if let Some(mapping) = block.as_mapping() {
             let type_str = mapping
-                .get(&serde_yaml::Value::String("type".to_string()))
+                .get(serde_yaml::Value::String("type".to_string()))
                 .and_then(|v| v.as_str())
                 .unwrap_or("");
             let rules = mapping
-                .get(&serde_yaml::Value::String("rules".to_string()))
+                .get(serde_yaml::Value::String("rules".to_string()))
                 .and_then(|v| v.as_sequence())
                 .map(|v| v.as_slice())
                 .unwrap_or(&[]);
@@ -199,15 +199,14 @@ fn main() {
                             out.push_str(";\n");
                             out.push_str("    if has_param {\n");
                             for s in strengths_to_add {
-                                if let Some(s_str) = s.as_str() {
-                                    if let Some((pascal, _)) =
+                                if let Some(s_str) = s.as_str()
+                                    && let Some((pascal, _)) =
                                         strength_variants.iter().find(|(_, raw)| raw == s_str)
-                                    {
-                                        out.push_str(&format!(
-                                            "        strengths.insert(StrengthTag::{});\n",
-                                            pascal
-                                        ));
-                                    }
+                                {
+                                    out.push_str(&format!(
+                                        "        strengths.insert(StrengthTag::{});\n",
+                                        pascal
+                                    ));
                                 }
                             }
                             out.push_str("    }\n");
@@ -224,15 +223,14 @@ fn main() {
                                 .unwrap_or(&empty_vec);
                             out.push_str(&format!("        \"{}\" => {{\n", match_str));
                             for s in strengths_to_add {
-                                if let Some(s_str) = s.as_str() {
-                                    if let Some((pascal, _)) =
+                                if let Some(s_str) = s.as_str()
+                                    && let Some((pascal, _)) =
                                         strength_variants.iter().find(|(_, raw)| raw == s_str)
-                                    {
-                                        out.push_str(&format!(
-                                            "            strengths.insert(StrengthTag::{});\n",
-                                            pascal
-                                        ));
-                                    }
+                                {
+                                    out.push_str(&format!(
+                                        "            strengths.insert(StrengthTag::{});\n",
+                                        pascal
+                                    ));
                                 }
                             }
                             out.push_str("        }\n");
@@ -249,7 +247,7 @@ fn main() {
                                 .get("strengths")
                                 .and_then(|v| v.as_sequence())
                                 .unwrap_or(&empty_vec);
-                            let inner = pattern.replace('(', "").replace(')', "");
+                            let inner = pattern.replace(['(', ')'], "");
                             let parts: Vec<&str> = inner.split('|').collect();
                             out.push_str("        if ");
                             let checks: Vec<String> = parts
@@ -259,15 +257,14 @@ fn main() {
                             out.push_str(&checks.join(" || "));
                             out.push_str(" {\n");
                             for s in strengths_to_add {
-                                if let Some(s_str) = s.as_str() {
-                                    if let Some((pascal, _)) =
+                                if let Some(s_str) = s.as_str()
+                                    && let Some((pascal, _)) =
                                         strength_variants.iter().find(|(_, raw)| raw == s_str)
-                                    {
-                                        out.push_str(&format!(
-                                            "            strengths.insert(StrengthTag::{});\n",
-                                            pascal
-                                        ));
-                                    }
+                                {
+                                    out.push_str(&format!(
+                                        "            strengths.insert(StrengthTag::{});\n",
+                                        pascal
+                                    ));
                                 }
                             }
                             out.push_str("        }\n");
@@ -283,15 +280,14 @@ fn main() {
                             .and_then(|v| v.as_sequence())
                             .unwrap_or(&empty_vec);
                         for s in strengths_to_add {
-                            if let Some(s_str) = s.as_str() {
-                                if let Some((pascal, _)) =
+                            if let Some(s_str) = s.as_str()
+                                && let Some((pascal, _)) =
                                     strength_variants.iter().find(|(_, raw)| raw == s_str)
-                                {
-                                    out.push_str(&format!(
-                                        "        strengths.insert(StrengthTag::{});\n",
-                                        pascal
-                                    ));
-                                }
+                            {
+                                out.push_str(&format!(
+                                    "        strengths.insert(StrengthTag::{});\n",
+                                    pascal
+                                ));
                             }
                         }
                     }

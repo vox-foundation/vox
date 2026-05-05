@@ -1,6 +1,6 @@
+use super::loader::ContractIndex;
 use anyhow::{Context, Result, anyhow};
 use std::path::Path;
-use super::loader::ContractIndex;
 
 pub fn validate(index: &ContractIndex, root: &Path) -> Result<()> {
     let schema_path = root.join("contracts/index.schema.json");
@@ -12,6 +12,7 @@ pub fn validate(index: &ContractIndex, root: &Path) -> Result<()> {
         .with_context(|| "failed to serialize ContractIndex to JSON Value")?;
     crate::validate(&index_json, &validator, "contracts/index.yaml")?;
 
+    let v_file_re = regex::Regex::new(r"\.v(\d+)\.").expect("regex");
     for contract in &index.contracts {
         let p = root.join(&contract.path);
         if !p.is_file() {
@@ -23,24 +24,24 @@ pub fn validate(index: &ContractIndex, root: &Path) -> Result<()> {
                 .with_context(|| format!("failed to read schema file: {}", contract.path))?;
             let schema_val: serde_json::Value = serde_json::from_str(&text)
                 .with_context(|| format!("failed to parse JSON schema: {}", contract.path))?;
-            
+
             if let Some(x_vox_version) = schema_val.get("x-vox-version").and_then(|v| v.as_i64()) {
                 // filename parity check. if path is "contracts/operations/catalog.v1.schema.json"
                 let file_name = p.file_name().and_then(|n| n.to_str()).unwrap_or("");
-                let re = regex::Regex::new(r"\.v(\d+)\.").expect("regex");
-                if let Some(caps) = re.captures(file_name) {
-                    if let Ok(v_match) = caps[1].parse::<i64>() {
-                        if v_match != x_vox_version {
-                            return Err(anyhow!(
-                                "{}: x-vox-version ({}) does not match filename version v{}",
-                                contract.path, x_vox_version, v_match
-                            ));
-                        }
-                    }
+                if let Some(caps) = v_file_re.captures(file_name)
+                    && let Ok(v_match) = caps[1].parse::<i64>()
+                    && v_match != x_vox_version
+                {
+                    return Err(anyhow!(
+                        "{}: x-vox-version ({}) does not match filename version v{}",
+                        contract.path,
+                        x_vox_version,
+                        v_match
+                    ));
                 }
             }
         }
     }
-    
+
     Ok(())
 }

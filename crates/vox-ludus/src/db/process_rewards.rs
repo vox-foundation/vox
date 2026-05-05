@@ -133,7 +133,7 @@ pub async fn process_event_rewards(
                 &base,
                 mode_mult,
                 streak_days,
-                profile.trust_tier.clone(),
+                profile.trust_tier,
                 event_type,
                 &mut session,
             );

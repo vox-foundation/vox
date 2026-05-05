@@ -68,8 +68,16 @@ where
             if o == "std" && field == "args" {
                 "std::env::args().skip(1).map(|s| s.to_string()).collect::<Vec<String>>()"
                     .to_string()
-            } else if o == "std" || o == "::std" || o.starts_with("std::") || o.starts_with("::std::") {
-                let prefix = if o.starts_with("::") { o } else { format!("::{}", o) };
+            } else if o == "std"
+                || o == "::std"
+                || o.starts_with("std::")
+                || o.starts_with("::std::")
+            {
+                let prefix = if o.starts_with("::") {
+                    o
+                } else {
+                    format!("::{}", o)
+                };
                 format!("{}::{}", prefix, field)
             } else {
                 format!("{}[\"{}\"].clone()", o, field)

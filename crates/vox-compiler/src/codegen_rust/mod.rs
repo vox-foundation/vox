@@ -24,8 +24,8 @@ mod tests {
     use super::*;
     use crate::ast::span::Span;
     use crate::hir::{
-        DefId, HirExpr, HirModule, HirRustImport, HirEndpointFn, HirStmt, HirTable,
-        HirTableField, HirType,
+        DefId, HirEndpointFn, HirExpr, HirModule, HirRustImport, HirStmt, HirTable, HirTableField,
+        HirType,
     };
     use emit::{emit_cargo_toml, emit_main, emit_table_struct};
 

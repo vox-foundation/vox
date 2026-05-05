@@ -275,11 +275,9 @@ async fn handle_tool_call_inner(
             Ok(code_validator::validate_file(state, serde_json::from_value(args)?).await)
         }
         "vox_check" => Ok(code_validator::vox_check(state, serde_json::from_value(args)?).await),
-        "vox_validate_source" => Ok(code_validator::validate_source(
-            state,
-            serde_json::from_value(args)?,
-        )
-        .await),
+        "vox_validate_source" => {
+            Ok(code_validator::validate_source(state, serde_json::from_value(args)?).await)
+        }
         "vox_run_tests" => {
             Ok(compiler_tools::run_tests(state, serde_json::from_value(args)?).await)
         }

@@ -210,4 +210,3 @@ pub fn emit_fn(func: &HirFn) -> String {
     out.push_str("}\n\n");
     out
 }
-

@@ -76,7 +76,7 @@ pub async fn feed_source_list() -> Result<()> {
     if sources.is_empty() {
         println!("No feed sources registered.");
     } else {
-        println!("{:<20} {:<10} {:<10} {}", "ID", "KIND", "INTERVAL", "URL");
+        println!("{:<20} {:<10} {:<10} URL", "ID", "KIND", "INTERVAL");
         for s in sources {
             println!(
                 "{:<20} {:<10} {:<10} {}",

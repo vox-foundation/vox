@@ -1,4 +1,4 @@
-﻿//! Express `server.ts` generation from HIR HTTP routes and `@server` / `@query` / `@mutation` fns.
+//! Express `server.ts` generation from HIR HTTP routes and `@server` / `@query` / `@mutation` fns.
 //!
 //! ## Adapter seam (OP-0161..OP-0176)
 //!
@@ -25,7 +25,9 @@
 //! route id policy — changing sort keys requires dual updates in `validate_web_ir` route stage.
 
 use crate::codegen_ts::hir_emit::{emit_hir_expr, emit_hir_pattern};
-use crate::hir::{HirExpr, HirHttpMethod, HirModule, HirRoute, HirEndpointFn, HirEndpointKind, HirStmt};
+use crate::hir::{
+    HirEndpointFn, HirEndpointKind, HirExpr, HirHttpMethod, HirModule, HirRoute, HirStmt,
+};
 use std::collections::HashSet;
 
 /// Mock `ClaudeActor` embedded in generated `server.ts` when HTTP routes exist (OP-0172 SSOT).

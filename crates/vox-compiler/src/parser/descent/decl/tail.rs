@@ -312,9 +312,7 @@ impl Parser {
         loop {
             self.skip_newlines();
             match self.peek().clone() {
-                Token::Ident(ref vname) | Token::TypeIdent(ref vname)
-                    if !vname.is_empty() =>
-                {
+                Token::Ident(ref vname) | Token::TypeIdent(ref vname) if !vname.is_empty() => {
                     let var_start = self.span();
                     let vname = vname.clone();
                     self.advance();

@@ -166,7 +166,12 @@ pub async fn run(args: DeployArgs) -> Result<()> {
 
             vox_container::DeployTarget::Coolify(vox_container::deploy_target::CoolifyTarget {
                 base_url: cfg.base_url.clone().unwrap_or_default(),
-                token: std::env::var(&cfg.token_env).unwrap_or_else(|_| vox_clavis::resolve_secret(vox_clavis::SecretId::CoolifyToken).expose().unwrap_or_default().to_string()),
+                token: std::env::var(&cfg.token_env).unwrap_or_else(|_| {
+                    vox_clavis::resolve_secret(vox_clavis::SecretId::CoolifyToken)
+                        .expose()
+                        .unwrap_or_default()
+                        .to_string()
+                }),
                 app_uuid: cfg.app_uuid.clone().unwrap_or_default(),
                 force_rebuild: cfg.force_rebuild,
                 wait_timeout_secs: Some(900),

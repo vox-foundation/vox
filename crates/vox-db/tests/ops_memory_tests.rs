@@ -1,7 +1,7 @@
 use tempfile::tempdir;
 use turso::params;
 use vox_db::MemoryParams as SaveMemoryParams;
-use vox_db::{SearchBackend, VoxDb};
+use vox_db::{RetrievalEvidenceSource, SearchBackend, VoxDb};
 
 #[tokio::test]
 async fn test_memory_save_and_recall() {
@@ -222,15 +222,80 @@ async fn test_search_document_chunks_hybrid_uses_vector_hits() {
         .unwrap();
 
     let (hits, diagnostics) = store
-        .query_search_document_chunks_hybrid("grounded", Some(&[1.0, 0.0, 0.0]), 5)
+        .query_search_document_chunks_hybrid("grounded", Some(&[1.0, 0.0, 0.0]), 5, 0.60)
         .await
         .unwrap();
     assert!(!hits.is_empty());
     assert_eq!(hits[0].chunk_id, chunk_id.to_string());
+    assert_eq!(
+        hits[0].evidence_source,
+        RetrievalEvidenceSource::Hybrid,
+        "lexical + vector chunk ids must align for fused Hybrid provenance"
+    );
     assert!(diagnostics.backends_used.contains(&SearchBackend::ChunkFts));
     assert!(
         diagnostics
             .backends_used
             .contains(&SearchBackend::ChunkVector)
+    );
+}
+
+#[tokio::test]
+async fn test_search_document_chunks_hybrid_chunk_vector_weight_affects_score() {
+    let dir = tempdir().unwrap();
+    let db_path = dir.path().join("chunks_hybrid_weight.db");
+    let store: VoxDb = VoxDb::open(db_path.to_str().unwrap()).await.unwrap();
+
+    store
+        .connection()
+        .execute(
+            "INSERT INTO search_documents (source_uri, title) VALUES (?1, ?2)",
+            params!["test://chunk-hybrid-weight", "Weight doc"],
+        )
+        .await
+        .unwrap();
+    let doc_id = store.connection().last_insert_rowid();
+
+    store
+        .replace_search_document_chunks_with_refs(
+            doc_id,
+            &[String::from("alpha grounded retrieval overlap")],
+            &[None],
+        )
+        .await
+        .unwrap();
+    let rows = store
+        .query_all(
+            "SELECT id FROM search_document_chunks WHERE document_id = ?1 AND chunk_index = 0",
+            params![doc_id],
+        )
+        .await
+        .unwrap();
+    let chunk_db_id: i64 = rows[0].get(0).unwrap();
+    store
+        .store_embedding(
+            "search_document_chunk",
+            &chunk_db_id.to_string(),
+            "test-model",
+            &[1.0, 0.0, 0.0],
+            Some("alpha grounded retrieval overlap"),
+            None,
+        )
+        .await
+        .unwrap();
+
+    let qv = &[1.0_f32, 0.0, 0.0];
+    let (low_vec_weight, _) = store
+        .query_search_document_chunks_hybrid("grounded", Some(qv), 5, 0.05)
+        .await
+        .unwrap();
+    let (high_vec_weight, _) = store
+        .query_search_document_chunks_hybrid("grounded", Some(qv), 5, 0.95)
+        .await
+        .unwrap();
+    assert!(!low_vec_weight.is_empty() && !high_vec_weight.is_empty());
+    assert!(
+        (low_vec_weight[0].score - high_vec_weight[0].score).abs() > f32::EPSILON,
+        "fusion weight should change the fused score when both lexical and vector legs hit"
     );
 }

@@ -7,8 +7,8 @@ pub mod injection_policy;
 pub mod token_optimization;
 
 pub use injection_policy::*;
-pub use token_optimization::*;
 use std::sync::Arc;
+pub use token_optimization::*;
 
 use std::collections::HashMap;
 

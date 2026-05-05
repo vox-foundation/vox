@@ -75,7 +75,7 @@ async fn run_init() -> Result<()> {
     println!("Node ID: {}", identity.node_id());
 
     let pubkey_bytes = vox_crypto::verifying_key_to_bytes(&identity.verifying_key);
-    println!("Public Key: {}", hex::encode(&pubkey_bytes));
+    println!("Public Key: {}", hex::encode(pubkey_bytes));
 
     // Cache it for the session
     ACTIVE_IDENTITY
@@ -111,7 +111,7 @@ async fn run_whoami() -> Result<()> {
 
     println!("Node ID: {}", identity.node_id());
     let pubkey_bytes = vox_crypto::verifying_key_to_bytes(&identity.verifying_key);
-    println!("Public Key: {}", hex::encode(&pubkey_bytes));
+    println!("Public Key: {}", hex::encode(pubkey_bytes));
 
     Ok(())
 }

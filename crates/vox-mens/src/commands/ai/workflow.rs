@@ -85,7 +85,9 @@ pub async fn inspect(file: &Path, workflow_name: &str) -> Result<()> {
         .functions
         .iter()
         .find(|f| f.durability == Some(DurabilityKind::Workflow) && f.name == workflow_name)
-        .ok_or_else(|| anyhow::anyhow!("workflow `{workflow_name}` not found in {}", file.display()))?;
+        .ok_or_else(|| {
+            anyhow::anyhow!("workflow `{workflow_name}` not found in {}", file.display())
+        })?;
 
     let params: Vec<String> = wf
         .params

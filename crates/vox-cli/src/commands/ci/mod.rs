@@ -38,8 +38,8 @@ mod scientia_heuristics_parity;
 mod scientia_novelty_ledger_contract;
 mod scientia_worthiness_contract;
 pub(crate) mod sync_ignore_files;
-pub mod workspace_artifacts;
 pub mod watch_run;
+pub mod workspace_artifacts;
 
 mod cmd_enums;
 mod constants;

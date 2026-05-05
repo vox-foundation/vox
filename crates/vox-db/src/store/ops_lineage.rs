@@ -127,7 +127,7 @@ impl crate::VoxDb {
             query.push_str(" AND kind = ?2");
         }
         query.push_str(" ORDER BY id DESC LIMIT ");
-        query.push_str(&if kind.is_some() { "?3" } else { "?2" });
+        query.push_str(if kind.is_some() { "?3" } else { "?2" });
 
         let mut rows = if let Some(k) = kind {
             self.conn

@@ -76,12 +76,12 @@ fn scan_train_jsonl_content(content: &str) -> Result<EvalScan> {
         }
 
         let dummy_path = Path::new("__eval__.vox");
-        if let Ok(result) = crate::pipeline::run_frontend_str(response, dummy_path, false) {
-            if !result.has_errors() {
-                parse_passed += 1;
-                for c in crate::training::extract_constructs(&result.module) {
-                    construct_hits.insert(c);
-                }
+        if let Ok(result) = crate::pipeline::run_frontend_str(response, dummy_path, false)
+            && !result.has_errors()
+        {
+            parse_passed += 1;
+            for c in crate::training::extract_constructs(&result.module) {
+                construct_hits.insert(c);
             }
         }
     }
