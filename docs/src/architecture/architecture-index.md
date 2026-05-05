@@ -38,6 +38,7 @@ training_eligible: false
 - [Document boundary matrix](planning-meta/11-document-boundary-matrix.md)
 - [Document maintenance protocol](planning-meta/10-document-maintenance-protocol.md)
 - [Durability & Scheduling Runtime Audit (2026)](durability-runtime-audit-2026.md)
+- [Eval sandbox deployment (Coolify)](eval-sandbox-deployment.md)
 - [Exception and deferral policy](planning-meta/09-exception-deferral-policy.md)
 - [FFScript Linter Engine Design (T-046)](ffscript-linter-design-2026.md)
 - [FFScript Mutation API Spec (T-041)](ffscript-mutation-api-spec-2026.md)

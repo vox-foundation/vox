@@ -23,6 +23,8 @@ graph TD
 
 ## Gate 3 — Production HTTPS (eval sandbox)
 
+Compose SSOT for this stack lives at **[`vox-eval.compose.yml`](../../../vox-eval.compose.yml)** (mirror under **`docker/vox-eval.compose.yml`** for compose paths rooted in **`docker/`**). Operators should ensure **`COOLIFY_APP_UUID`** is the Coolify **Docker Compose** application that serves **`eval.vox-lang.org`** (not another app on the same instance). Use **`vox ci coolify-eval discover`** locally with repository secrets mirrored into env to confirm **`uuid`**, **`fqdn`**, and **`docker_compose_raw`** before relying on Gate 3. Full topology and DNS: **[eval sandbox deployment](../architecture/eval-sandbox-deployment.md)**.
+
 After Coolify reports a finished deployment, **`deploy-hetzner.yml`** verifies:
 
 1. **`GET`** `COOLIFY_BASE_URL/api/v1/applications/{COOLIFY_APP_UUID}` with a read-capable token returns **HTTP 200**.
@@ -41,6 +43,8 @@ Manual **`workflow_dispatch`** may set **`skip_public_health_probe: true`** only
 | **HTTP 404** on plain **HTTP** while HTTPS misconfigured | Confirm Coolify routes port **443** for this service and HTTP→HTTPS redirect middleware exists. |
 
 Live probes should use **`curl`** with default verification (not **`curl -k`**) before declaring production healthy.
+
+**Provisioning:** From a checkout with Coolify credentials in the environment (or resolved via Clavis locally), **`vox ci coolify-eval sync-compose`** pushes the composed YAML from **`vox-eval.compose.yml`** to **`PATCH /api/v1/applications/{uuid}`** and can trigger deploy. Optional workflow: **[`.github/workflows/coolify-eval-sync.yml`](../../../.github/workflows/coolify-eval-sync.yml)** (`workflow_dispatch`: discover-only vs sync).
 
 ## Deploy trigger (Coolify API)
 
@@ -63,7 +67,7 @@ The `vox-foundation/vox` repository requires the following GitHub Secrets, which
 | `CoolifyBaseUrl` | `COOLIFY_BASE_URL` | Origin of the Coolify instance **without** a trailing slash (e.g. `http://...:8000`). Requests use `…/api/v1/…`. |
 | `CoolifyToken` | `COOLIFY_TOKEN` | Bearer for **Deploy** (**`/api/v1/deploy`**, **`/start`**, webhooks). Should also include **Read** unless you set **`COOLIFY_READ_TOKEN`**. Deploy-only **`COOLIFY_TOKEN`** without **`COOLIFY_READ_TOKEN`** fails Gate 2 with HTTP **403** `Missing required permissions: read`. |
 | `CoolifyReadToken` | `COOLIFY_READ_TOKEN` | Optional. Bearer with **Read** for listing deployments, **`GET /api/v1/deployments/{uuid}`**, deployment/application logs, and Gate 3 application probe. When unset, **`COOLIFY_TOKEN`** is used for those calls. |
-| `CoolifyAppUuid` | `COOLIFY_APP_UUID` | Target application UUID to poll and pull logs from. |
+| `CoolifyAppUuid` | `COOLIFY_APP_UUID` | Target application UUID to poll and pull logs from. For Gate 3 this must be the **eval** compose app that terminates **`eval.vox-lang.org`** (verify with **`vox ci coolify-eval discover`** if unsure). |
 | _(optional)_ | `COOLIFY_PUBLIC_EVAL_HEALTH_URL` | Overrides **`https://eval.vox-lang.org/health`** for Gate 3 public HTTPS + TLS verification. |
 
 *Note: Accessing these secrets via raw `std::env::var` in Rust source code is prohibited. Use `vox_clavis::resolve_secret(SecretId::CoolifyToken)` and, when splitting read vs deploy credentials, `SecretId::CoolifyReadToken`.*

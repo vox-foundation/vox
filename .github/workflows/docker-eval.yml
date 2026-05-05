@@ -60,4 +60,4 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-to: type=inline
           build-args: |
-            VOX_CLI_FEATURES=
+            VOX_CLI_FEATURES=mcp-server

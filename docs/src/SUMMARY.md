@@ -200,6 +200,7 @@ training_eligible: false
 - [Document maintenance protocol](architecture/planning-meta/10-document-maintenance-protocol.md)
 - [Documentation hygiene and AI-agent guidelines 2026](archive/research-2026-q1/doc-hygiene-agent-guidelines-2026.md)
 - [Durability & Scheduling Runtime Audit (2026)](architecture/durability-runtime-audit-2026.md)
+- [Eval sandbox deployment (Coolify)](architecture/eval-sandbox-deployment.md)
 - [Exception and deferral policy](architecture/planning-meta/09-exception-deferral-policy.md)
 - [FFScript Linter Engine Design (T-046)](architecture/ffscript-linter-design-2026.md)
 - [FFScript Mutation API Spec (T-041)](architecture/ffscript-mutation-api-spec-2026.md)

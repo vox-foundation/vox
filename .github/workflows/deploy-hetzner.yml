@@ -331,9 +331,12 @@ jobs:
             body="$(cat "$tmp" 2>/dev/null || true)"
             rm -f "$tmp"
             if [ "$http" = "200" ]; then
-              echo "✅ HTTP $http — response head:"
-              printf '%s\n' "$body" | head -c 600
-              echo ""
+              echo "✅ HTTP $http — body:"
+              printf '%s\n' "$body"
+              if [ "$body" != "ok" ]; then
+                echo "::error::Public eval /health must return body exactly 'ok' (got ${#body} bytes)"
+                exit 1
+              fi
               ok="1"
               break
             fi

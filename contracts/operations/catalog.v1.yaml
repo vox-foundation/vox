@@ -1646,6 +1646,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.coolify-eval
+  title: Ci Coolify-eval
+  description: CLI operation `vox ci coolify-eval`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - coolify-eval
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.coverage-gates
   title: Ci Coverage-gates
   description: CLI operation `vox ci coverage-gates`

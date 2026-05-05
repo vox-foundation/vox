@@ -1,0 +1,47 @@
+name: Coolify eval sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_compose:
+        description: "PATCH vox-eval.compose.yml to COOLIFY_APP_UUID and trigger deploy (false = discover only)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  coolify-eval:
+    name: coolify-eval API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          shared-key: "coolify-eval-sync"
+
+      - name: Discover Coolify applications
+        env:
+          COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_READ_TOKEN: ${{ secrets.COOLIFY_READ_TOKEN }}
+          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+        run: cargo run -p vox-cli --quiet -- ci coolify-eval discover
+
+      - name: Sync compose and deploy
+        if: ${{ inputs.sync_compose }}
+        env:
+          COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_READ_TOKEN: ${{ secrets.COOLIFY_READ_TOKEN }}
+          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+        run: |
+          cargo run -p vox-cli --quiet -- ci coolify-eval sync-compose \
+            --compose vox-eval.compose.yml \
+            --domains https://eval.vox-lang.org

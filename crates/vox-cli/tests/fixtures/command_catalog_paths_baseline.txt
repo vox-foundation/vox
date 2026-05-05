@@ -52,6 +52,9 @@ ci/completion-gates
 ci/completion-ingest
 ci/constrained-gen-smoke
 ci/contracts-index
+ci/coolify-eval
+ci/coolify-eval/discover
+ci/coolify-eval/sync-compose
 ci/corpus-decl-coverage
 ci/coverage-gates
 ci/cuda-features
