@@ -45,6 +45,16 @@ The `vox-foundation/vox` repository requires the following GitHub Secrets, which
 
 *Note: Accessing these secrets via raw `std::env::var` in Rust source code is prohibited. Use `vox_clavis::resolve_secret(SecretId::CoolifyToken)` instead.*
 
+### Operator checklist (GitHub Secrets + Coolify UI)
+
+When Gate 2 fails authentication or polling, verify **in Coolify first**, then mirror into **GitHub repository secrets**:
+
+- **API token scopes:** Prefer a token that can call **`GET /api/v1/deploy`** (typically **Deploy** scope). **`/applications/{uuid}/start`** may return **403** without **Write**; the workflow prefers **`/deploy`** exactly for Deploy-scoped tokens.
+- **`COOLIFY_BASE_URL`:** Public origin only, **no trailing slash**, and must resolve to your Coolify **API host** (not a random proxy path).
+- **`COOLIFY_APP_UUID`:** The **application** resource UUID in Coolify (same app you poll in the UI).
+- **`COOLIFY_WEBHOOK_URL`:** Optional. Must be the **Deploy Webhook** URL for that resource—not the dashboard `/login` page. An HTML redirect to **`/login`** in workflow logs usually means this secret is wrong.
+- **`COOLIFY_WEBHOOK_URL` + Bearer:** If Coolify expects this URL **without** an `Authorization` header, rely on step 3 of Gate 2 (unauthenticated **`GET`** is attempted before Bearer).
+
 ## AI Auto-Healing Loop
 
 Instead of blindly failing CI and requiring manual GitHub inspection, the deployment workflow implements a passive AI feedback loop:
