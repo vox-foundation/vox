@@ -96,7 +96,6 @@ training_eligible: false
 ## Status: Current
 
 - [Known Documentation Gaps & Backlog](api/DOC_GAPS.md)
-- [vox-codegen-ts API](api/vox-codegen-ts.md)
 
 ## Status: Deprecated
 
@@ -113,6 +112,7 @@ training_eligible: false
 - [Crate API: vox-py](archive/vox-py.md)
 - [Crate API: vox-typeck](archive/vox-typeck.md)
 - [Crate API: vox-wasm](archive/vox-wasm.md)
+- [vox-codegen-ts API (deprecated stub)](api/vox-codegen-ts.md)
 
 
 # Examples
@@ -603,6 +603,7 @@ training_eligible: false
 - [External repositories & workspace SSOT](reference/external-repositories.md)
 - [Feasibility: full-graph Candle training (qlora-rs)](archive/research-2026-q1/candle-full-graph-feasibility.md)
 - [Forward-only migration charter](archive/research-2026-q1/forward-migration-charter.md)
+- [Frontend Surface Ownership](reference/frontend-surface-ownership.md)
 - [GitHub-hosted runner exceptions](ci/github-hosted-exceptions.md)
 - [HF fine-tune gap matrix (SSOT ↔ code)](reference/hf-finetune-gap-matrix.md)
 - [HF fine-tuning capability matrix (code-grounded)](archive/research-2026-q1/hf-finetune-capability-matrix.md)

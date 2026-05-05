@@ -5,8 +5,74 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Mon, 04 May 2026 03:15:30 GMT</lastBuildDate>
+  <lastBuildDate>Tue, 05 May 2026 01:24:58 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)</title>
+    <link>https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</guid>
+    <description>Splits Vox&apos;s UI primitives into a Vox-native reactivity track and an explicit React/TanStack interop track, with a sharp boundary so each track stays coherent…</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Svelte-Mineable Features Implementation Plan (2026)</title>
+    <link>https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</guid>
+    <description>Phased implementation plan for the Svelte 5/6-inspired Vox compiler and MCP improvements identified in the comparative research. Concrete file changes, scope…</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Svelte 5/6 vs React Meta-Frameworks — Comparative Research and Mineable Ideas for Vox (2026)</title>
+    <link>https://vox-lang.org/architecture/svelte-vs-react-frameworks-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/svelte-vs-react-frameworks-research-2026.html</guid>
+    <description>Comparative analysis of Svelte 5/6, Next.js 15/16, and TanStack Start as competitors and idea sources for Vox&apos;s GUI authoring layer. Frames Vox&apos;s React-emit…</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Explanation: Compiler Lowering Phases</title>
+    <link>https://vox-lang.org/explanation/expl-compiler-lowering.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-compiler-lowering.html</guid>
+    <description>Official documentation for Explanation: Compiler Lowering Phases for the Vox language. Detailed technical reference, architecture guides,</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Explanation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>cli</title>
+    <link>https://vox-lang.org/reference/cli.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/cli.html</guid>
+    <description>Documentation for cli.md</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Frontend Surface Ownership</title>
+    <link>https://vox-lang.org/reference/frontend-surface-ownership.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/frontend-surface-ownership.html</guid>
+    <description>Canonical ownership and lifecycle policy for Vox frontend surfaces.</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Vox full-stack web UI — single source of truth</title>
+    <link>https://vox-lang.org/reference/vox-web-stack.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/vox-web-stack.html</guid>
+    <description>Official documentation for Vox full-stack web UI — single source of truth for the Vox language. Detailed technical reference, architectur</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
 
   <item>
     <title>ADR 010 — TanStack as the Vox web spine</title>
@@ -26,15 +92,6 @@
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)</title>
-    <link>https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</guid>
-    <description>Splits Vox&apos;s UI primitives into a Vox-native reactivity track and an explicit React/TanStack interop track, with a sharp boundary so each track stays coherent…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>
@@ -75,15 +132,6 @@
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>vox-codegen-ts API</title>
-    <link>https://vox-lang.org/api/vox-codegen-ts.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/vox-codegen-ts.html</guid>
-    <description>API reference for the vox-codegen-ts crate: HIR-to-TypeScript/TSX code generation pipeline.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
   </item>
 
   <item>
@@ -141,19 +189,30 @@
   </item>
 
   <item>
-    <title>Svelte-Mineable Features Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</guid>
-    <description>Phased implementation plan for the Svelte 5/6-inspired Vox compiler and MCP improvements identified in the comparative research. Concrete file changes, scope…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
     <title>The Vox Contribution Loop</title>
     <link>https://vox-lang.org/contributors/contribution-loop.html</link>
     <guid isPermaLink="true">https://vox-lang.org/contributors/contribution-loop.html</guid>
     <description>How Vox contributions feed the MENS training pipeline, why quality gates matter doubly, and what makes code training-eligible.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Contributor hub</title>
+    <link>https://vox-lang.org/contributors/contributor-hub.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/contributors/contributor-hub.html</guid>
+    <description>Start here for contributor-facing Vox documentation, governance, inventories, and review checklists.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Local CI parity (pre-push)</title>
+    <link>https://vox-lang.org/contributors/local-ci-pre-push.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/contributors/local-ci-pre-push.html</guid>
+    <description>Run the merge-blocking subset locally before every push via `vox ci pre-push`.</description>
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
@@ -180,16 +239,6 @@
   </item>
 
   <item>
-    <title>Explanation: Compiler Lowering Phases</title>
-    <link>https://vox-lang.org/explanation/expl-compiler-lowering.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-compiler-lowering.html</guid>
-    <description>Official documentation for Explanation: Compiler Lowering Phases for the Vox language. Detailed technical reference, architecture guides,</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Explanation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
     <title>Native ML Training Pipeline</title>
     <link>https://vox-lang.org/explanation/expl-ml-pipeline.html</link>
     <guid isPermaLink="true">https://vox-lang.org/explanation/expl-ml-pipeline.html</guid>
@@ -197,55 +246,6 @@
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Explanation</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Rosetta Inventory: One Scenario, Four Languages</title>
-    <link>https://vox-lang.org/explanation/expl-rosetta-inventory.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-rosetta-inventory.html</guid>
-    <description>The same inventory merge across C++, Rust, Python, and Vox — not to show who wins, but to show what each language reveals about the problem.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Explanation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Explanation: The Vox Runtime</title>
-    <link>https://vox-lang.org/explanation/expl-runtime.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-runtime.html</guid>
-    <description>Understand the inner workings of the Vox runtime—the engine that powers AI-native, stateful applications.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Explanation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Vox FAQ: Frequently Asked Questions</title>
-    <link>https://vox-lang.org/explanation/faq.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/faq.html</guid>
-    <description>Answers to common questions about Vox, its current architecture, generated outputs, MCP support, and Mens training lanes.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Explanation</category>
-    <category domain="https://schema.org">FAQPage</category>
-  </item>
-
-  <item>
-    <title>Glossary: Vox Terminology</title>
-    <link>https://vox-lang.org/explanation/glossary.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/glossary.html</guid>
-    <description>Authoritative vocabulary for the Vox language, runtime, and AI orchestration ecosystem.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Explanation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>How to author Vox views (VUV)</title>
-    <link>https://vox-lang.org/how-to/how-to-author-views.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-author-views.html</guid>
-    <description>Practical guide to writing UI in Vox using the view-call (VUV) authoring syntax. Covers primitives, typed style kwargs, conditionals, components, and escape…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>How-To</category>
   </item>
 
   <item>
