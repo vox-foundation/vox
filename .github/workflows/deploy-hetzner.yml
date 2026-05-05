@@ -160,20 +160,59 @@ jobs:
       - name: Poll Deployment Status
         id: poll
         run: |
-          set -e
+          set -euo pipefail
           DEPLOY_UUID="${{ steps.trigger.outputs.deploy_uuid }}"
+          BASE="${COOLIFY_BASE_URL%/}"
           echo "Polling deployment $DEPLOY_UUID ..."
+          
+          deployment_status_resolve() {
+            local body="$1"
+            jq -r '
+              (if type == "array" then .[0] else . end)
+              | (.status // .deploymentStatus // .deployment.status // .data.status
+                // empty)
+            ' <<<"$body" 2>/dev/null || echo ""
+          }
+          
+          deployments_list_status_for_uuid() {
+            local deploy_uuid="$1"
+            local list apps s
+            list="$(curl -sS -H "Authorization: Bearer ${COOLIFY_TOKEN}" "${BASE}/api/v1/deployments" || true)"
+            s="$(jq -r --arg u "$deploy_uuid" '
+                (if type == "array" then . elif (.data | type) == "array" then .data else [] end)
+                | [.[] | select((.deployment_uuid // .uuid // "") == $u)][0].status // empty
+              ' <<<"$list" 2>/dev/null || true)"
+            if [ -n "$s" ]; then echo "$s"; return 0; fi
+            apps="$(curl -sS -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+              "${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/deployments" || true)"
+            jq -r --arg u "$deploy_uuid" '
+                (if type == "array" then . elif (.data | type) == "array" then .data else [] end)
+                | [.[] | select((.deployment_uuid // .uuid // "") == $u)][0].status // empty
+              ' <<<"$apps" 2>/dev/null || true
+          }
           
           MAX_RETRIES=90   # 90 x 10s = 15 minutes
           RETRY_COUNT=0
           
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            STATUS_RES=$(curl -sS -H "Authorization: Bearer $COOLIFY_TOKEN" \
-              "${COOLIFY_BASE_URL%/}/api/v1/deployments/$DEPLOY_UUID")
-            STATUS=$(echo "$STATUS_RES" | jq -r '.status // "unknown"')
+            TMP="$(mktemp)"
+            HTTP="$(curl -sS -o "$TMP" -w '%{http_code}' -H "Authorization: Bearer $COOLIFY_TOKEN" \
+              "${BASE}/api/v1/deployments/${DEPLOY_UUID}" || echo "000")"
+            STATUS_RES="$(cat "$TMP" 2>/dev/null || echo "")"
+            rm -f "$TMP"
+            
+            STATUS="$(deployment_status_resolve "$STATUS_RES")"
+            if [ -z "$STATUS" ] || [ "$STATUS" = "null" ]; then
+              STATUS="$(deployments_list_status_for_uuid "$DEPLOY_UUID")"
+            fi
+            STATUS="${STATUS:-unknown}"
+            
+            if [ "$STATUS" = "unknown" ] && (( RETRY_COUNT % 15 == 0 )); then
+              echo "[$RETRY_COUNT/$MAX_RETRIES] GET /deployments/{uuid} HTTP $HTTP snippet: ${STATUS_RES:0:400}"
+            fi
             echo "[$RETRY_COUNT/$MAX_RETRIES] Status: $STATUS"
             
-            if [ "$STATUS" = "finished" ] || [ "$STATUS" = "success" ]; then
+            if [ "$STATUS" = "finished" ] || [ "$STATUS" = "success" ] || [ "$STATUS" = "completed" ]; then
               echo "✅ Deployment succeeded."
               echo "deploy_status=success" >> "$GITHUB_OUTPUT"
               exit 0
