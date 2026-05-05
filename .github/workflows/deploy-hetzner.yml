@@ -212,9 +212,12 @@ jobs:
             if [ "$HTTP" = "403" ]; then
               if echo "$STATUS_RES" | jq -e '(.message // "") | (test("read") and test("permission"))' >/dev/null 2>&1; then
                 ERR_MSG="$(echo "$STATUS_RES" | jq -r '.message // empty' 2>/dev/null || true)"
-                echo "::error::Coolify HTTP 403: ${ERR_MSG}. Use **Read** on polling: set **COOLIFY_READ_TOKEN** (Read) or give **COOLIFY_TOKEN** Read + Deploy. Polling uses GET /api/v1/deployments/{uuid}, list, and logs."
-                echo "deploy_status=auth" >> "$GITHUB_OUTPUT"
-                exit 1
+                echo "::warning::Coolify HTTP 403 (polling token lacks Read): ${ERR_MSG}"
+                echo "Skipping deployment status polling — deploy was already triggered above."
+                echo "Gate 3 will still verify production via the **public** HTTPS /health probe."
+                echo "For deployment polling + Coolify API probes, set **COOLIFY_READ_TOKEN** or grant **Read** on **COOLIFY_TOKEN**."
+                echo "deploy_status=skipped_poll_no_read" >> "$GITHUB_OUTPUT"
+                exit 0
               fi
             fi
             
@@ -310,11 +313,14 @@ jobs:
             -H "Authorization: Bearer $POLL" \
             "$BASE/api/v1/applications/${COOLIFY_APP_UUID}")
           echo "Coolify application API HTTP status: $HEALTH"
-          if [ "$HEALTH" != "200" ]; then
+          if [ "$HEALTH" = "403" ]; then
+            echo "::warning::Skipping Coolify GET /applications/{uuid} (HTTP 403 — token lacks Read). Public /health probe below is authoritative."
+          elif [ "$HEALTH" != "200" ]; then
             echo "::error::Coolify GET /api/v1/applications/{uuid} expected HTTP 200, got $HEALTH"
             exit 1
+          else
+            echo "✅ Coolify application resource is reachable via API."
           fi
-          echo "✅ Coolify application resource is reachable via API."
 
       - name: Probe public eval host (HTTPS, verified TLS)
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.skip_public_health_probe != 'true' }}
@@ -330,11 +336,11 @@ jobs:
             http="$(curl -sS -o "$tmp" -w '%{http_code}' "$URL" || echo "000")"
             body="$(cat "$tmp" 2>/dev/null || true)"
             rm -f "$tmp"
+            body_trim="$(printf '%s' "$body" | tr -d '\r\n')"
             if [ "$http" = "200" ]; then
-              echo "✅ HTTP $http — body:"
-              printf '%s\n' "$body"
-              if [ "$body" != "ok" ]; then
-                echo "::error::Public eval /health must return body exactly 'ok' (got ${#body} bytes)"
+              echo "✅ HTTP $http — body (trimmed for gate): ${body_trim} (${#body_trim} bytes)"
+              if [ "$body_trim" != "ok" ]; then
+                echo "::error::Public eval /health must return body exactly 'ok' after trimming CRLF (raw ${#body} bytes)"
                 exit 1
               fi
               ok="1"
