@@ -11,6 +11,11 @@ on:
         type: boolean
         required: false
         default: false
+      skip_public_health_probe:
+        description: 'Skip strict HTTPS probe of the public eval host (incidents only)'
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: deploy-vox-${{ github.ref }}
@@ -304,11 +309,42 @@ jobs:
           HEALTH=$(curl -sS -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer $POLL" \
             "$BASE/api/v1/applications/${COOLIFY_APP_UUID}")
-          echo "Application API status: $HEALTH"
+          echo "Coolify application API HTTP status: $HEALTH"
           if [ "$HEALTH" != "200" ]; then
-            echo "::warning::Health check returned HTTP $HEALTH — application may still be starting"
-          else
-            echo "✅ Application is responding."
+            echo "::error::Coolify GET /api/v1/applications/{uuid} expected HTTP 200, got $HEALTH"
+            exit 1
+          fi
+          echo "✅ Coolify application resource is reachable via API."
+
+      - name: Probe public eval host (HTTPS, verified TLS)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.skip_public_health_probe != 'true' }}
+        env:
+          COOLIFY_PUBLIC_EVAL_HEALTH_URL: ${{ secrets.COOLIFY_PUBLIC_EVAL_HEALTH_URL }}
+        run: |
+          set -euo pipefail
+          URL="${COOLIFY_PUBLIC_EVAL_HEALTH_URL:-https://eval.vox-lang.org/health}"
+          echo "Public HTTPS probe (curl CA verification, no -k): $URL"
+          ok=""
+          for i in $(seq 1 24); do
+            tmp="$(mktemp)"
+            http="$(curl -sS -o "$tmp" -w '%{http_code}' "$URL" || echo "000")"
+            body="$(cat "$tmp" 2>/dev/null || true)"
+            rm -f "$tmp"
+            if [ "$http" = "200" ]; then
+              echo "✅ HTTP $http — response head:"
+              printf '%s\n' "$body" | head -c 600
+              echo ""
+              ok="1"
+              break
+            fi
+            echo "[$i/24] HTTP $http — body head: $(printf '%s' "$body" | head -c 120)"
+            sleep 10
+          done
+          if [ -z "$ok" ]; then
+            echo "::error::Public eval health probe failed after ~4m: $URL"
+            echo "Check Coolify: TLS must chain to a public CA (not self-signed), Traefik Host rule must match,"
+            echo "and the eval container must pass its Docker healthcheck (503 'no available server' = no backend)."
+            exit 1
           fi
 
   notify:

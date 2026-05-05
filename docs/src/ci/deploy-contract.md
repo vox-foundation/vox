@@ -21,6 +21,27 @@ graph TD
   G --> F
 ```
 
+## Gate 3 — Production HTTPS (eval sandbox)
+
+After Coolify reports a finished deployment, **`deploy-hetzner.yml`** verifies:
+
+1. **`GET`** `COOLIFY_BASE_URL/api/v1/applications/{COOLIFY_APP_UUID}` with a read-capable token returns **HTTP 200**.
+2. **Public routing + TLS:** **`curl`** (Ubuntu/OpenSSL CA store, **no** `-k`) against **`https://eval.vox-lang.org/health`** until **HTTP 200** or timeout (~4 minutes, 24 × 10s). This confirms the hostname is bound in Traefik, a trusted certificate chain is presented, and a healthy backend responds.
+
+Optional repository secret **`COOLIFY_PUBLIC_EVAL_HEALTH_URL`** overrides the default URL (same checks).
+
+Manual **`workflow_dispatch`** may set **`skip_public_health_probe: true`** only for incidents — default is strict.
+
+### When Gate 3 fails (operator cheatsheet)
+
+| Symptom | Likely cause |
+|--------|----------------|
+| **`curl: (60)` / untrusted certificate / self-signed** | Edge TLS not using Let’s Encrypt (or wrong resolver); fix Coolify **Generate TLS Certificates** / Traefik **`certresolver`** for `eval.vox-lang.org`. |
+| **HTTP 503** body **`no available server`** | Traefik has no reachable backend (container stopped, failing healthcheck, or router **`Host`** rule mismatch). |
+| **HTTP 404** on plain **HTTP** while HTTPS misconfigured | Confirm Coolify routes port **443** for this service and HTTP→HTTPS redirect middleware exists. |
+
+Live probes should use **`curl`** with default verification (not **`curl -k`**) before declaring production healthy.
+
 ## Deploy trigger (Coolify API)
 
 Gate 2 triggers deploy in this order (**`COOLIFY_TOKEN`** Bearer for triggers; **`${COOLIFY_READ_TOKEN:-$COOLIFY_TOKEN}`** for read-only fallback steps 4+, polling, logs, Gate 3 when **`COOLIFY_READ_TOKEN`** is set):
@@ -43,6 +64,7 @@ The `vox-foundation/vox` repository requires the following GitHub Secrets, which
 | `CoolifyToken` | `COOLIFY_TOKEN` | Bearer for **Deploy** (**`/api/v1/deploy`**, **`/start`**, webhooks). Should also include **Read** unless you set **`COOLIFY_READ_TOKEN`**. Deploy-only **`COOLIFY_TOKEN`** without **`COOLIFY_READ_TOKEN`** fails Gate 2 with HTTP **403** `Missing required permissions: read`. |
 | `CoolifyReadToken` | `COOLIFY_READ_TOKEN` | Optional. Bearer with **Read** for listing deployments, **`GET /api/v1/deployments/{uuid}`**, deployment/application logs, and Gate 3 application probe. When unset, **`COOLIFY_TOKEN`** is used for those calls. |
 | `CoolifyAppUuid` | `COOLIFY_APP_UUID` | Target application UUID to poll and pull logs from. |
+| _(optional)_ | `COOLIFY_PUBLIC_EVAL_HEALTH_URL` | Overrides **`https://eval.vox-lang.org/health`** for Gate 3 public HTTPS + TLS verification. |
 
 *Note: Accessing these secrets via raw `std::env::var` in Rust source code is prohibited. Use `vox_clavis::resolve_secret(SecretId::CoolifyToken)` and, when splitting read vs deploy credentials, `SecretId::CoolifyReadToken`.*
 
@@ -55,7 +77,7 @@ When Gate 2 fails authentication or polling, verify **in Coolify first**, then m
 - **`COOLIFY_APP_UUID`:** The **application** resource UUID in Coolify (same app you poll in the UI).
 - **`COOLIFY_WEBHOOK_URL`:** Optional. Must be the **Deploy Webhook** URL for that resource—not the dashboard `/login` page. An HTML redirect to **`/login`** in workflow logs usually means this secret is wrong.
 - **`COOLIFY_WEBHOOK_URL` + Bearer:** If Coolify expects this URL **without** an `Authorization` header, rely on step 3 of Gate 2 (unauthenticated **`GET`** is attempted before Bearer).
-- **Re-run deploy:** GitHub Actions → **Deploy Hetzner (Coolify)** → **Run workflow**, or locally: `gh workflow run "Deploy Hetzner (Coolify)" -f skip_tests=true` (omit `-f skip_tests` to run Rust smoke gates first).
+- **Re-run deploy:** GitHub Actions → **Deploy Hetzner (Coolify)** → **Run workflow**, or locally: `gh workflow run "Deploy Hetzner (Coolify)" -f skip_tests=true` (omit `-f skip_tests` to run Rust smoke gates first). Use **`skip_public_health_probe=true`** only during incidents when the public eval URL is intentionally broken — default keeps verified **`curl`** HTTPS checks.
 
 ## AI Auto-Healing Loop
 
