@@ -90,16 +90,17 @@ pub fn emit_compact_llm_prompt() -> String {
     p.push_str("  state x: Type = init\n");
     p.push_str("  derived y: Type = expr\n");
     p.push_str("  effect { ... }   mount { ... }   cleanup { ... }\n");
-    p.push_str("  view: <jsx />\n");
+    p.push_str("  view: column(gap=\"2\") { text() { \"hello\" } }\n");
     p.push_str("}\n");
     p.push_str("@component fn Name()    // RETIRED — produces hard error\n");
     p.push_str("@v0 \"prompt\" fn Name() to Element\n\n");
 
-    // ── JSX ─────────────────────────────────────────────────────────────
-    p.push_str("== JSX ==\n");
-    p.push_str("<Tag attr=\"val\" dyn={expr}> children </Tag>\n");
-    p.push_str("<SelfClosing attr={expr} />\n");
-    p.push_str("Children: nested JSX | {expr} | text\n\n");
+    // ── View-call surface ───────────────────────────────────────────────
+    p.push_str("== View Calls ==\n");
+    p.push_str("Tag(named=prop) { child_exprs }\n");
+    p.push_str("SelfClosing(named=prop)\n");
+    p.push_str("All view-call args are named (keyword-only)\n");
+    p.push_str("Lowering target is JSX-shaped HIR; angle-bracket JSX source is retired\n\n");
 
     // ── HTTP Routes ─────────────────────────────────────────────────────
     p.push_str("== HTTP ==\n");
@@ -157,7 +158,7 @@ mod tests {
             "Server Functions",
             "Data",
             "Components",
-            "JSX",
+            "View Calls",
             "HTTP",
             "Routes",
             "Actors",

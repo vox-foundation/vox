@@ -36,6 +36,8 @@ schema_type: "TechArticle"
 
 The **orchestration dashboard** (`crates/vox-dashboard/`) is the primary Vox user surface. It is served by the Axum backend (`vox dashboard` command) and communicates with the orchestrator over a local MCP WebSocket proxy. All reactive UI state within the dashboard uses the Vox `state_machine` compiler primitive as the single source of truth (see below).
 
+Frontend lifecycle ownership (canonical vs experimental vs fixture-only) is tracked in [`frontend-surface-ownership.md`](frontend-surface-ownership.md) and the machine-readable contract [`contracts/frontend/surface-ownership.v1.yaml`](../../../contracts/frontend/surface-ownership.v1.yaml).
+
 - **Dashboard entry point:** `crates/vox-dashboard/app/src/app.vox` — lowered to `app/src/generated/` by `vox build`
 - **Backend:** `crates/vox-dashboard/src/` — Axum routes, MCP proxy, settings API
 - **Unified Grammar**: Vocabulary is synchronized via **`tree-sitter-vox/GRAMMAR_SSOT.md`**.
@@ -43,7 +45,7 @@ The **orchestration dashboard** (`crates/vox-dashboard/`) is the primary Vox use
 
 ## `state_machine` as SSoT for reactive UI state
 
-Within the dashboard (and any Vox-generated application), reactive state **must** be expressed using the Vox `state_machine` compiler primitive. This primitive is defined in `crates/vox-compiler/src/hir/nodes/state_machine.rs`, type-checked at `src/typeck/state_machine_check.rs`, and lowered to TypeScript+React by `src/codegen_ts/state_machine_emit.ts`.
+Within the dashboard (and any Vox-generated application), reactive state **must** be expressed using the Vox `state_machine` compiler primitive. This primitive is defined in `crates/vox-compiler/src/hir/nodes/state_machine.rs`, type-checked at `crates/vox-compiler/src/typeck/state_machine_check.rs`, and lowered to TypeScript+React by `crates/vox-compiler/src/codegen_ts/state_machine_emit.rs`.
 
 Do **not** hand-write reactive `.tsx` files in `app/src/generated/` — they must be compiler outputs from `.vox` sources. The CI gate at `scripts/check_dashboard_ssot.vox` enforces this rule.
 

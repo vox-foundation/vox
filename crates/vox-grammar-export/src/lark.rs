@@ -155,12 +155,14 @@ pub fn emit_lark() -> String {
     g.push_str("list_lit: \"[\" (expr (\",\" expr)*)? \"]\"\n");
     g.push_str("tuple_lit: \"(\" expr \",\" (expr (\",\" expr)*)? \")\"\n\n");
 
-    // ── JSX
-    g.push_str("jsx_expr: jsx_self_closing | jsx_element\n");
-    g.push_str("jsx_self_closing: \"<\" IDENT jsx_attr* \"/>\"\n");
-    g.push_str("jsx_element: \"<\" IDENT jsx_attr* \">\" jsx_child* \"</\" IDENT \">\"\n");
-    g.push_str("jsx_attr: IDENT \"=\" (STRING_LIT | \"{\" expr \"}\")\n");
-    g.push_str("jsx_child: jsx_expr | \"{\" expr \"}\" | TEXT\n\n");
+    // ── View-call surface (lowers to JSX-shaped HIR nodes)
+    g.push_str("jsx_expr: view_call_expr\n");
+    g.push_str("view_call_expr: view_call_block | view_call_self_closing\n");
+    g.push_str("view_call_block: IDENT \"(\" view_args? \")\" \"{\" expr* \"}\"\n");
+    g.push_str("view_call_self_closing: IDENT \"(\" view_args? \")\"\n");
+    g.push_str("view_args: view_arg (\",\" view_arg)*\n");
+    g.push_str("view_arg: IDENT \"=\" expr\n");
+    g.push_str("// angle-bracket JSX (<tag ...>) is retired at parser entry\n\n");
 
     // ── Type expressions
     g.push_str("type_expr: simple_type | generic_type | fn_type | tuple_type | \"Unit\"\n");

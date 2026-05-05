@@ -302,7 +302,7 @@ fn check_archival_pipeline(root: &Path) -> Result<()> {
 fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
     const WORKFLOW_BANNED: &[&str] = &["verify_doc_inventory_fresh.py", "populi_release_gate.sh"];
     const DOC_BANNED: &[&str] = &["verify_doc_inventory_fresh.py", "populi_release_gate.sh"];
-    // Retired crate paths / broken SSOT links — see `docs/src/architecture/nomenclature-migration-map.md`.
+    // Retired crate paths / broken SSOT links — see `docs/src/archive/research-2026-q1/nomenclature-migration-map.md`.
     const NOMENCLATURE_DOC_BANNED: &[&str] = &[
         "reference/mens.md",
         "reference/mens-ssot.md",
@@ -362,7 +362,7 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
             for b in NOMENCLATURE_DOC_BANNED {
                 if text.contains(b) {
                     return Err(anyhow!(
-                        "{}: nomenclature drift {:?} — use canonical crate paths (see docs/src/architecture/nomenclature-migration-map.md)",
+                        "{}: nomenclature drift {:?} — use canonical crate paths (see docs/src/archive/research-2026-q1/nomenclature-migration-map.md)",
                         p.display(),
                         b
                     ));

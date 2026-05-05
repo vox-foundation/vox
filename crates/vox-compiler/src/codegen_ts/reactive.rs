@@ -46,7 +46,8 @@ pub enum ReactiveViewEmitPathway {
     /// Env on, validate clean, but no preview TSX for this component.
     LegacyFallbackNoComponentTsx,
     /// Env on, clean TSX emitted, but whitespace-normalized string ≠ legacy `emit_hir_expr`.
-    LegacyFallbackParityMismatch,
+    /// Migration policy now keeps the Web IR view to converge on a single canonical path.
+    WebIrViewEmittedParityMismatch,
     /// Web IR preview TSX used for the view body.
     WebIrViewEmitted,
 }
@@ -56,7 +57,7 @@ pub struct ReactiveViewBridgeStats {
     pub legacy_env_disabled: u64,
     pub legacy_fallback_validate_failed: u64,
     pub legacy_fallback_no_component_tsx: u64,
-    pub legacy_fallback_parity_mismatch: u64,
+    pub web_ir_view_emitted_parity_mismatch: u64,
     pub web_ir_view_emitted: u64,
 }
 
@@ -70,8 +71,8 @@ impl ReactiveViewBridgeStats {
             ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx => {
                 self.legacy_fallback_no_component_tsx += 1
             }
-            ReactiveViewEmitPathway::LegacyFallbackParityMismatch => {
-                self.legacy_fallback_parity_mismatch += 1
+            ReactiveViewEmitPathway::WebIrViewEmittedParityMismatch => {
+                self.web_ir_view_emitted_parity_mismatch += 1
             }
             ReactiveViewEmitPathway::WebIrViewEmitted => self.web_ir_view_emitted += 1,
         }
@@ -153,13 +154,15 @@ fn emit_reactive_view_body(
         }
         indent_view_for_return(&tsx)
     } else {
-        stats.record_pathway(ReactiveViewEmitPathway::LegacyFallbackParityMismatch);
+        stats.record_pathway(ReactiveViewEmitPathway::WebIrViewEmittedParityMismatch);
         if web_ir_reactive_trace_enabled() {
             eprintln!(
-                "[vox-webir-reactive] component={component_name} pathway=LegacyFallbackParityMismatch"
+                "[vox-webir-reactive] component={component_name} pathway=WebIrViewEmittedParityMismatch"
             );
         }
-        legacy
+        // Convergence policy: keep Web IR output even when legacy string parity differs.
+        // This prevents long-lived dual-emitter drift and makes Web IR the canonical view source.
+        indent_view_for_return(&tsx)
     }
 }
 

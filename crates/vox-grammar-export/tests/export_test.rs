@@ -161,6 +161,29 @@ fn test_lark_known_constructs() {
     }
 }
 
+#[test]
+fn test_grammar_exports_track_view_call_surface_not_retired_pratt_jsx() {
+    let ebnf = emit_ebnf();
+    let lark = emit_lark();
+
+    assert!(
+        ebnf.contains("view_call_expr"),
+        "EBNF must expose view_call_expr as parser-facing surface"
+    );
+    assert!(
+        lark.contains("view_call_expr"),
+        "Lark must expose view_call_expr as parser-facing surface"
+    );
+    assert!(
+        !ebnf.contains("pratt_jsx.rs"),
+        "EBNF must not reference retired parser file names"
+    );
+    assert!(
+        !lark.contains("pratt_jsx.rs"),
+        "Lark must not reference retired parser file names"
+    );
+}
+
 // ── JSON Schema tests ─────────────────────────────────────────────────────────
 
 #[test]

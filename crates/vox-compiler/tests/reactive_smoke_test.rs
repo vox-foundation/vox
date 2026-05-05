@@ -1,10 +1,24 @@
 #![allow(unsafe_code)] // `std::env::{set_var,remove_var}` for opt-in Web IR view bridge tests
 
 use std::ffi::OsString;
+use std::collections::BTreeMap;
+use std::path::PathBuf;
 use std::sync::Mutex;
+use serde::Deserialize;
 
 /// Serializes `reactive_smoke` tests: `VOX_WEBIR_EMIT_REACTIVE_VIEWS` is process-global and `generate()` touches bridge counters.
 static REACTIVE_SMOKE_SERIAL: Mutex<()> = Mutex::new(());
+
+#[derive(Debug, Deserialize)]
+struct GuiCompatibilityContract {
+    react_attr_matrix: BTreeMap<String, String>,
+}
+
+fn repo_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("..")
+}
 
 /// Shared fixture for OP-S114 / OP-S177: derived state surfaces in `D.tsx` output.
 const REACTIVE_SMOKE_DERIVED_HARNESS_FIXTURE: &str = r#"
@@ -139,12 +153,52 @@ fn op_s030_compat_tag_fixture_dom_and_a11y_edges() {
     }
 }
 
+/// SSOT guard: `contracts/frontend/gui-compatibility.v1.yaml` is the authoritative attr matrix
+/// and codegen must stay byte-for-byte aligned with it.
+#[serial_test::serial]
+#[test]
+fn gui_compatibility_contract_matches_attr_mapping_matrix() {
+    let _serial = REACTIVE_SMOKE_SERIAL
+        .lock()
+        .expect("REACTIVE_SMOKE_SERIAL poisoned");
+
+    let raw = std::fs::read_to_string(
+        repo_root()
+            .join("contracts")
+            .join("frontend")
+            .join("gui-compatibility.v1.yaml"),
+    )
+        .expect("read gui compatibility contract");
+    let contract: GuiCompatibilityContract =
+        serde_yaml::from_str(&raw).expect("parse gui compatibility contract");
+
+    for (vox_attr, react_attr) in contract.react_attr_matrix {
+        let mapped = vox_compiler::codegen_ts::hir_emit::compat::map_jsx_attr_name(&vox_attr);
+        assert_eq!(
+            mapped, react_attr,
+            "contract drift for `{}`: compat map = `{}` but contract = `{}`",
+            vox_attr, mapped, react_attr
+        );
+        assert_eq!(
+            vox_compiler::codegen_ts::jsx::map_jsx_attr_name(&vox_attr),
+            react_attr,
+            "jsx alias drift for `{}`",
+            vox_attr
+        );
+        assert_eq!(
+            vox_compiler::codegen_ts::hir_emit::map_jsx_attr_name(&vox_attr),
+            react_attr,
+            "hir_emit re-export drift for `{}`",
+            vox_attr
+        );
+    }
+}
+
 /// OP-S038: behavior adapter — with `VOX_WEBIR_EMIT_REACTIVE_VIEWS=0`, pathway tallies `LegacyEnvDisabled`.
 #[serial_test::serial]
 #[test]
 fn op_s038_behavior_adapter_fixture_increments_legacy_pathway_without_webir_env() {
     use std::ffi::OsString;
-    use vox_compiler::codegen_ts::reactive::ReactiveViewBridgeStats;
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
         .expect("REACTIVE_SMOKE_SERIAL poisoned");
@@ -432,7 +486,7 @@ component Counter(initial: int) {
     let d_web = after.web_ir_view_emitted;
     let d_val = after.legacy_fallback_validate_failed;
     let d_tsx = after.legacy_fallback_no_component_tsx;
-    let d_par = after.legacy_fallback_parity_mismatch;
+    let d_par = after.web_ir_view_emitted_parity_mismatch;
     assert_eq!(
         d_web + d_val + d_tsx + d_par,
         1,

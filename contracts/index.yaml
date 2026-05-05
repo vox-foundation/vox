@@ -102,6 +102,30 @@ contracts:
     enforced_by:
       - vox ci check-docs-ssot
 
+  - id: frontend-surface-ownership-v1
+    path: contracts/frontend/surface-ownership.v1.yaml
+    owner: platform-gui
+    kind: yaml
+    description: Canonical frontend surface lifecycle and ownership map (canonical, experimental, fixture-only, deprecated).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: frontend-gui-compatibility-v1
+    path: contracts/frontend/gui-compatibility.v1.yaml
+    owner: platform-gui
+    kind: yaml
+    description: Canonical GUI authoring syntax + React attribute compatibility matrix for Vox view-call lowering.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: frontend-dependency-policy-v1
+    path: contracts/frontend/dependency-policy.v1.yaml
+    owner: platform-gui
+    kind: yaml
+    description: Frontend dependency drift limits (package manager and React/Vite major-version bounds) for maintained GUI surfaces.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: completion-policy-v1
     path: contracts/operations/completion-policy.v1.yaml
     owner: platform-ci
