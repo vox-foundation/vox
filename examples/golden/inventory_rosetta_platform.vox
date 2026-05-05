@@ -5,7 +5,7 @@
 // status: golden
 // category: example
 // constructs: [fn, @mcp.tool, component, Result, match, if, cap]
-// last_validated: 2026-04-06
+// last_validated: 2026-05-05
 // training_eligible: true
 // training_weight: 1.0
 // ---
@@ -58,7 +58,9 @@ fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) to str 
 
 // ANCHOR: ui_layer
 component StashMeter(values: list[int]) {
-    view: <div class="meter">"stash meter"</div>
+    view: column(raw_class="meter") {
+        text() { "stash meter" }
+    }
 }
 
 fn InventoryView() to str {

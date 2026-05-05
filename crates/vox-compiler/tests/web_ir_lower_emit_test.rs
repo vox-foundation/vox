@@ -2,9 +2,7 @@
 #![allow(unsafe_code)] // `VOX_WEBIR_VALIDATE` toggles for emitter bridge tests (OP-S026 / OP-S028)
 
 use std::collections::HashSet;
-use std::ffi::OsString;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
 
 use vox_compiler::ast::decl::{Decl, ThemeDecl};
 use vox_compiler::ast::span::Span;
@@ -25,7 +23,6 @@ use vox_compiler::web_ir::lower::{lower_hir_to_web_ir, lower_hir_to_web_ir_with_
 use vox_compiler::web_ir::validate::{
     format_web_ir_validate_failure, validate_web_ir, validate_web_ir_with_metrics,
 };
-use vox_compiler::web_ir::validate_a11y::validate_a11y;
 use vox_compiler::web_ir::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, MutationContract,
     RouteContract, RouteNode, ServerFnContract, StyleDeclarationValue, StyleNode, StyleSelector,
@@ -307,7 +304,6 @@ http get "/api/x" to int {
 }
 
 #[test]
-#[ignore = "VUV-9 codegen plumbing: hir_emit now formats className as a `[…].filter(Boolean).join(\" \")` array (52d877813), while web_ir/emit_tsx flattens at lower-time. Both paths produce semantically-equivalent output but no longer byte-identical; parity moved to higher-level integration tests"]
 fn web_ir_view_matches_hir_emit_for_self_closing_jsx() {
     let source = r#"
 component T() {

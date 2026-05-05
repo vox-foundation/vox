@@ -858,17 +858,17 @@ mod hir_emit_if_tests {
 // as raw JSX attributes (`<row pad_x={4}>`) instead of Tailwind classes. This module mirrors
 // `web_ir::primitives::apply_primitive_emission` for HIR.
 
-struct ViewCallHir {
-    html_tag: String,
-    class_expr: Option<String>,
-    passthrough: Vec<HirJsxAttr>,
+pub(crate) struct ViewCallHir {
+    pub(crate) html_tag: String,
+    pub(crate) class_expr: Option<String>,
+    pub(crate) passthrough: Vec<HirJsxAttr>,
 }
 
 const HIR_PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
     "size", "weight", "align", "wrap", "variant", "level", "surface", "z",
 ];
 
-fn transform_hir_view_kwargs(
+pub(crate) fn transform_hir_view_kwargs(
     tag: &str,
     attrs: &[HirJsxAttr],
     state_names: &HashSet<String>,
