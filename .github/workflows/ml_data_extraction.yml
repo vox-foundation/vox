@@ -67,7 +67,7 @@ jobs:
       pair_count: ${{ steps.count_pairs.outputs.count }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 2   # need HEAD^ for diff
 
@@ -75,7 +75,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -86,7 +86,7 @@ jobs:
             ${{ runner.os }}-cargo-ml-
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.5
+        uses: mozilla-actions/sccache-action@v0.0.10
 
       - name: Build Vox Compiler
         run: cargo build -p vox-cli --release --quiet
@@ -192,7 +192,7 @@ jobs:
           git push
 
       - name: Upload training data artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # Portable note: GitLab uses `artifacts: paths:` block.
           # Forgejo Actions uses identical syntax to GitHub Actions.
@@ -217,10 +217,10 @@ jobs:
     env:
       VCS_SHA: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download training data
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: training-data-${{ env.VCS_SHA }}
           path: target/dogfood/
@@ -279,7 +279,7 @@ jobs:
           EOF
 
       - name: Upload LoRA adapter
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lora-adapter-${{ env.VCS_SHA }}
           path: target/dogfood/run/
@@ -318,7 +318,7 @@ jobs:
 
       - name: Upload eval and benchmark artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: eval-gate-${{ env.VCS_SHA }}
           path: |

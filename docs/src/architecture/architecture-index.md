@@ -30,6 +30,7 @@ training_eligible: false
 - [Telemetry Trust (SSoT)](telemetry-trust-ssot.md)
 - [Classification Taxonomy SSoT](classification-ssot-2026.md)
 - [Cryptography Policy SSoT](cryptography-ssot-2026.md)
+- [Search & Retrieval SSOT (2026)](search-retrieval-ssot-2026.md)
 - [Anti-foot-gun planning standard](planning-meta/05-anti-foot-gun-planning-standard.md)
 - [Architecture Index](architecture-index.md)
 - [Comprehensive Vox audit and improvement plan (April 2026, v2)](comprehensive-audit-v2-2026.md)

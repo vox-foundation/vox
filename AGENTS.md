@@ -205,6 +205,7 @@ Agents and contributors must strictly adhere to architectural invariants. Ensure
 ## Related Operational Surfaces
 
 - CI and runner behavior: [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)
+- Search & retrieval (agent corpora, MCP tools, policy): [`docs/src/architecture/search-retrieval-ssot-2026.md`](docs/src/architecture/search-retrieval-ssot-2026.md)
 - Workspace artifact hygiene and governance policy: [`docs/agents/governance.md`](docs/agents/governance.md)
 - Agent instruction architecture: [`docs/src/contributors/agent-instruction-architecture.md`](docs/src/contributors/agent-instruction-architecture.md)
 - Continuation prompt strategy: [`docs/src/contributors/continuation-prompt-engineering.md`](docs/src/contributors/continuation-prompt-engineering.md)

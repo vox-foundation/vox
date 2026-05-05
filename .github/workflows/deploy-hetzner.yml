@@ -22,13 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ !inputs.skip_tests }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -54,28 +54,52 @@ jobs:
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
       COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
     steps:
-      - name: Trigger Coolify Webhook
+      - name: Trigger Coolify deploy
         id: trigger
         run: |
-          set -e
-          echo "Triggering Coolify webhook..."
-          TRIGGER_RES=$(curl -s -X GET -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_WEBHOOK_URL")
-          echo "Trigger Response: $TRIGGER_RES"
+          set -euo pipefail
           
-          # Extract deploymentUuid from response, fall back to latest for the app
-          DEPLOY_UUID=$(echo "$TRIGGER_RES" | jq -r '.deploymentUuid // empty')
+          deployment_uuid_from_json() {
+            echo "$1" | jq -r '.deployment_uuid // .deploymentUuid // empty'
+          }
           
-          if [ -z "$DEPLOY_UUID" ]; then
-            echo "No deploymentUuid in webhook response — polling latest deployment..."
-            sleep 5
-            LATEST=$(curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
-              "$COOLIFY_BASE_URL/api/v1/applications/$COOLIFY_APP_UUID/deployments")
-            echo "Deployments response: $LATEST"
-            DEPLOY_UUID=$(echo "$LATEST" | jq -r '.[0].uuid // empty')
+          BASE="${COOLIFY_BASE_URL%/}"
+          START_URL="${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true"
+          
+          echo "Triggering Coolify via Applications API (instant_deploy)..."
+          TMP="$(mktemp)"
+          HTTP_CODE="$(
+            curl -sS -o "$TMP" -w '%{http_code}' -X GET \
+              -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+              "$START_URL" || echo "000"
+          )"
+          TRIGGER_RES="$(cat "$TMP" 2>/dev/null || echo '{}')"
+          rm -f "$TMP"
+          echo "Start API HTTP ${HTTP_CODE} — ${TRIGGER_RES}"
+          
+          DEPLOY_UUID=""
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+            DEPLOY_UUID="$(deployment_uuid_from_json "$TRIGGER_RES")"
+          fi
+          
+          if [ -z "$DEPLOY_UUID" ] && [ -n "${COOLIFY_WEBHOOK_URL:-}" ]; then
+            echo "Falling back to Coolify webhook trigger..."
+            WH_RES="$(curl -sS -X GET -H "Authorization: Bearer ${COOLIFY_TOKEN}" "${COOLIFY_WEBHOOK_URL}" || true)"
+            echo "Webhook response: ${WH_RES}"
+            DEPLOY_UUID="$(deployment_uuid_from_json "$WH_RES")"
           fi
           
           if [ -z "$DEPLOY_UUID" ]; then
-            echo "::error::Could not determine deployment UUID. Check COOLIFY_APP_UUID and COOLIFY_TOKEN secrets."
+            echo "No deployment UUID from API/webhook — polling latest deployment for this app..."
+            sleep 5
+            LATEST="$(curl -sS -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+              "${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/deployments" || true)"
+            echo "Deployments response: $LATEST"
+            DEPLOY_UUID="$(echo "$LATEST" | jq -r '.[0].uuid // empty')"
+          fi
+          
+          if [ -z "$DEPLOY_UUID" ]; then
+            echo "::error::Could not determine deployment UUID. Check COOLIFY_BASE_URL, COOLIFY_APP_UUID, COOLIFY_TOKEN, and (optional) COOLIFY_WEBHOOK_URL."
             exit 1
           fi
           
@@ -93,8 +117,8 @@ jobs:
           RETRY_COUNT=0
           
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            STATUS_RES=$(curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
-              "$COOLIFY_BASE_URL/api/v1/deployments/$DEPLOY_UUID")
+            STATUS_RES=$(curl -sS -H "Authorization: Bearer $COOLIFY_TOKEN" \
+              "${COOLIFY_BASE_URL%/}/api/v1/deployments/$DEPLOY_UUID")
             STATUS=$(echo "$STATUS_RES" | jq -r '.status // "unknown"')
             echo "[$RETRY_COUNT/$MAX_RETRIES] Status: $STATUS"
             
@@ -126,8 +150,8 @@ jobs:
           # Try deployment-specific logs first
           DEPLOY_UUID="${{ steps.trigger.outputs.deploy_uuid }}"
           if [ -n "$DEPLOY_UUID" ]; then
-            curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
-              "$COOLIFY_BASE_URL/api/v1/deployments/$DEPLOY_UUID/logs" \
+            curl -sS -H "Authorization: Bearer $COOLIFY_TOKEN" \
+              "${COOLIFY_BASE_URL%/}/api/v1/deployments/$DEPLOY_UUID/logs" \
               | jq -r '.logs // .output // "No deployment logs available"' \
               >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
           fi
@@ -138,8 +162,8 @@ jobs:
           # Also surface the full application log endpoint
           echo "## 📋 Application Logs" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
-            "$COOLIFY_BASE_URL/api/v1/applications/$COOLIFY_APP_UUID/logs" \
+          curl -sS -H "Authorization: Bearer $COOLIFY_TOKEN" \
+            "${COOLIFY_BASE_URL%/}/api/v1/applications/$COOLIFY_APP_UUID/logs" \
             | jq -r '.logs // "No application logs available"' \
             >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
@@ -150,7 +174,7 @@ jobs:
           STATUS="${{ steps.poll.outputs.deploy_status }}"
           echo "{\"status\":\"$STATUS\",\"deploy_uuid\":\"${{ steps.trigger.outputs.deploy_uuid }}\",\"run_id\":\"${{ github.run_id }}\",\"sha\":\"${{ github.sha }}\"}" > deploy-status.json
           cat deploy-status.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: deploy-status
@@ -167,8 +191,9 @@ jobs:
       - name: Probe Coolify app health
         run: |
           BASE="${{ secrets.COOLIFY_BASE_URL }}"
+          BASE="${BASE%/}"
           # Try the Coolify health API for this application
-          HEALTH=$(curl -s -o /dev/null -w "%{http_code}" \
+          HEALTH=$(curl -sS -o /dev/null -w "%{http_code}" \
             -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
             "$BASE/api/v1/applications/${{ secrets.COOLIFY_APP_UUID }}")
           echo "Application API status: $HEALTH"
