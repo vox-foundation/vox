@@ -124,6 +124,7 @@ pub enum SecretId {
     CoolifyWebhookUrl,
     CoolifyBaseUrl,
     CoolifyToken,
+    CoolifyReadToken,
     CoolifyAppUuid,
     VoxMeshEnabled,
     VoxMeshMode,
@@ -523,6 +524,7 @@ impl SecretId {
             | SecretId::VoxGithubClientId
             | SecretId::VoxGithubOauthToken
             | SecretId::CoolifyToken
+            | SecretId::CoolifyReadToken
             | SecretId::TogetherTuningTemperature
             | SecretId::TogetherTuningTopP
             | SecretId::GeminiTuningTemperature

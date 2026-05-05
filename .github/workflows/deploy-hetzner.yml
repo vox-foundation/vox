@@ -52,12 +52,14 @@ jobs:
       COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
       COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      COOLIFY_READ_TOKEN: ${{ secrets.COOLIFY_READ_TOKEN }}
       COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
     steps:
       - name: Trigger Coolify deploy
         id: trigger
         run: |
           set -euo pipefail
+          POLL_TOKEN="${COOLIFY_READ_TOKEN:-$COOLIFY_TOKEN}"
           
           # Parse deployment id from JSON bodies only (avoids jq on HTML login pages).
           json_deploy_uuid() {
@@ -143,7 +145,7 @@ jobs:
           if [ -z "$DEPLOY_UUID" ]; then
             echo "Polling deployments list for this application..."
             sleep 5
-            LATEST="$(curl -sS -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+            LATEST="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" \
               "${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/deployments" || true)"
             echo "Deployments response: $LATEST"
             DEPLOY_UUID="$(json_first_list_uuid "$LATEST")"
@@ -161,6 +163,7 @@ jobs:
         id: poll
         run: |
           set -euo pipefail
+          POLL_TOKEN="${COOLIFY_READ_TOKEN:-$COOLIFY_TOKEN}"
           DEPLOY_UUID="${{ steps.trigger.outputs.deploy_uuid }}"
           BASE="${COOLIFY_BASE_URL%/}"
           echo "Polling deployment $DEPLOY_UUID ..."
@@ -177,13 +180,13 @@ jobs:
           deployments_list_status_for_uuid() {
             local deploy_uuid="$1"
             local list apps s
-            list="$(curl -sS -H "Authorization: Bearer ${COOLIFY_TOKEN}" "${BASE}/api/v1/deployments" || true)"
+            list="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" "${BASE}/api/v1/deployments" || true)"
             s="$(jq -r --arg u "$deploy_uuid" '
                 (if type == "array" then . elif (.data | type) == "array" then .data else [] end)
                 | [.[] | select((.deployment_uuid // .uuid // "") == $u)][0].status // empty
               ' <<<"$list" 2>/dev/null || true)"
             if [ -n "$s" ]; then echo "$s"; return 0; fi
-            apps="$(curl -sS -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+            apps="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" \
               "${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/deployments" || true)"
             jq -r --arg u "$deploy_uuid" '
                 (if type == "array" then . elif (.data | type) == "array" then .data else [] end)
@@ -196,7 +199,7 @@ jobs:
           
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
             TMP="$(mktemp)"
-            HTTP="$(curl -sS -o "$TMP" -w '%{http_code}' -H "Authorization: Bearer $COOLIFY_TOKEN" \
+            HTTP="$(curl -sS -o "$TMP" -w '%{http_code}' -H "Authorization: Bearer $POLL_TOKEN" \
               "${BASE}/api/v1/deployments/${DEPLOY_UUID}" || echo "000")"
             STATUS_RES="$(cat "$TMP" 2>/dev/null || echo "")"
             rm -f "$TMP"
@@ -204,7 +207,7 @@ jobs:
             if [ "$HTTP" = "403" ]; then
               if echo "$STATUS_RES" | jq -e '(.message // "") | (test("read") and test("permission"))' >/dev/null 2>&1; then
                 ERR_MSG="$(echo "$STATUS_RES" | jq -r '.message // empty' 2>/dev/null || true)"
-                echo "::error::Coolify HTTP 403: ${ERR_MSG}. COOLIFY_TOKEN must include **Read** (not only Deploy): polling uses GET /api/v1/deployments/{uuid}, GET /api/v1/deployments, and log endpoints. Regenerate the API token in Coolify with Read + Deploy."
+                echo "::error::Coolify HTTP 403: ${ERR_MSG}. Use **Read** on polling: set **COOLIFY_READ_TOKEN** (Read) or give **COOLIFY_TOKEN** Read + Deploy. Polling uses GET /api/v1/deployments/{uuid}, list, and logs."
                 echo "deploy_status=auth" >> "$GITHUB_OUTPUT"
                 exit 1
               fi
@@ -250,7 +253,7 @@ jobs:
           # Try deployment-specific logs first
           DEPLOY_UUID="${{ steps.trigger.outputs.deploy_uuid }}"
           if [ -n "$DEPLOY_UUID" ]; then
-            curl -sS -H "Authorization: Bearer $COOLIFY_TOKEN" \
+            curl -sS -H "Authorization: Bearer ${COOLIFY_READ_TOKEN:-$COOLIFY_TOKEN}" \
               "${COOLIFY_BASE_URL%/}/api/v1/deployments/$DEPLOY_UUID/logs" \
               | jq -r '.logs // .output // "No deployment logs available"' \
               >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
@@ -262,7 +265,7 @@ jobs:
           # Also surface the full application log endpoint
           echo "## 📋 Application Logs" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          curl -sS -H "Authorization: Bearer $COOLIFY_TOKEN" \
+          curl -sS -H "Authorization: Bearer ${COOLIFY_READ_TOKEN:-$COOLIFY_TOKEN}" \
             "${COOLIFY_BASE_URL%/}/api/v1/applications/$COOLIFY_APP_UUID/logs" \
             | jq -r '.logs // "No application logs available"' \
             >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
@@ -289,13 +292,18 @@ jobs:
       - name: Wait for container to settle
         run: sleep 15
       - name: Probe Coolify app health
+        env:
+          COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_READ_TOKEN: ${{ secrets.COOLIFY_READ_TOKEN }}
+          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
         run: |
-          BASE="${{ secrets.COOLIFY_BASE_URL }}"
-          BASE="${BASE%/}"
+          POLL="${COOLIFY_READ_TOKEN:-$COOLIFY_TOKEN}"
+          BASE="${COOLIFY_BASE_URL%/}"
           # Try the Coolify health API for this application
           HEALTH=$(curl -sS -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
-            "$BASE/api/v1/applications/${{ secrets.COOLIFY_APP_UUID }}")
+            -H "Authorization: Bearer $POLL" \
+            "$BASE/api/v1/applications/${COOLIFY_APP_UUID}")
           echo "Application API status: $HEALTH"
           if [ "$HEALTH" != "200" ]; then
             echo "::warning::Health check returned HTTP $HEALTH — application may still be starting"
