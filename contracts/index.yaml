@@ -306,6 +306,34 @@ contracts:
     enforced_by:
       - vox ci contracts-index
 
+  - id: orchestration-model-routing-v1
+    path: contracts/orchestration/model-routing.v1.yaml
+    owner: orchestrator
+    kind: yaml
+    description: SSOT for model tiers, strengths, routing/scoring policy, capability policy, and lifecycle metadata.
+    enforced_by:
+      - vox ci data-ssot-guards
+      - vox ci contracts-index
+
+  - id: orchestration-model-routing-v1-schema
+    path: contracts/orchestration/model-routing.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for model-routing.v1.yaml.
+    enforced_by:
+      - vox ci data-ssot-guards
+      - vox ci contracts-index
+
+  - id: orchestration-providers-v1
+    path: contracts/orchestration/providers.v1.yaml
+    owner: orchestrator
+    kind: yaml
+    description: Canonical provider registry (secret_id mapping, route kinds, lifecycle metadata).
+    enforced_by:
+      - vox ci data-ssot-guards
+      - vox ci clavis-contracts
+      - vox ci contracts-index
+
   - id: orchestration-context-work-item-schema
     path: contracts/orchestration/context-work-item.schema.json
     owner: orchestrator

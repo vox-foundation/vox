@@ -184,6 +184,9 @@ pub async fn run(args: DeployArgs) -> Result<()> {
         .as_deref()
         .map(|r| r as &dyn ContainerRuntime);
 
+    enforce_portable_backend_artifact_lane(&project_root, target_kind, args.dry_run)
+        .context("portable backend artifact lane guard")?;
+
     println!(
         "Deploying environment `{}` via {} target",
         env_name,
@@ -192,6 +195,63 @@ pub async fn run(args: DeployArgs) -> Result<()> {
     target
         .execute(runtime_ref, args.dry_run)
         .context("deploy execution failed")?;
+    Ok(())
+}
+
+/// OCI-facing deploy targets that participate in the portable backend artifact lane.
+fn portable_backend_promotion_target_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "container" | "compose" | "kubernetes" | "fly" | "coolify"
+    )
+}
+
+fn enforce_portable_backend_artifact_lane(
+    project_root: &std::path::Path,
+    target_kind: &str,
+    dry_run: bool,
+) -> Result<()> {
+    if dry_run || !portable_backend_promotion_target_kind(target_kind) {
+        return Ok(());
+    }
+    let sbom_required =
+        vox_config::env_parse::resolve_config_bool("VOX_BACKEND_ARTIFACT_SBOM_REQUIRED", false);
+    let signing_required =
+        vox_config::env_parse::resolve_config_bool("VOX_BACKEND_ARTIFACT_SIGNING_REQUIRED", false);
+    if !sbom_required && !signing_required {
+        return Ok(());
+    }
+
+    let lane_dir = vox_config::paths::repo_backend_artifact_dir(project_root);
+    if sbom_required {
+        let candidates = [
+            lane_dir.join("sbom.json"),
+            lane_dir.join("sbom.spdx.json"),
+            lane_dir.join("sbom.cyclonedx.json"),
+        ];
+        if !candidates.iter().any(|p| p.is_file()) {
+            anyhow::bail!(
+                "VOX_BACKEND_ARTIFACT_SBOM_REQUIRED is enabled but no SBOM file found under {} \
+                 (expected sbom.json, sbom.spdx.json, or sbom.cyclonedx.json). \
+                 See docs/src/reference/vox-portability-ssot.md.",
+                lane_dir.display()
+            );
+        }
+    }
+    if signing_required {
+        let candidates = [
+            lane_dir.join("signing.attestation.json"),
+            lane_dir.join("artifact.sig"),
+        ];
+        if !candidates.iter().any(|p| p.is_file()) {
+            anyhow::bail!(
+                "VOX_BACKEND_ARTIFACT_SIGNING_REQUIRED is enabled but no signing material found under {} \
+                 (expected signing.attestation.json or artifact.sig). \
+                 See docs/src/reference/vox-portability-ssot.md.",
+                lane_dir.display()
+            );
+        }
+    }
     Ok(())
 }
 

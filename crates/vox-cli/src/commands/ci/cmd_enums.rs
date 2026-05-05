@@ -320,6 +320,9 @@ pub enum CiCmd {
     /// Fast local smoke: orchestrator compile + command-compliance + rust ecosystem policy.
     #[command(name = "policy-smoke")]
     PolicySmoke,
+    /// Targeted backend tests (`vox-runtime` + orchestrator routing policy modules).
+    #[command(name = "backend-tests")]
+    BackendTests,
     /// GUI smoke: `web_ir_lower_emit` always; optional Vite (`VOX_WEB_VITE_SMOKE=1`) and Playwright (`VOX_GUI_PLAYWRIGHT=1`) lanes.
     #[command(name = "gui-smoke")]
     GuiSmoke,

@@ -1,6 +1,6 @@
 {
   "schema": "contracts/clavis/managed-env-names.v1.json",
-  "generated_at_ms": 1777966681915,
+  "generated_at_ms": 1777967492755,
   "generator": "vox ci clavis-contracts",
   "secrets": [
     {

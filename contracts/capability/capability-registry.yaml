@@ -160,6 +160,24 @@ curated:
   - ci
   - artifact-prune
   parameters: null
+- id: cli.ci.backend-tests
+  title: Ci Backend-tests
+  description_human: null
+  description_model: CLI operation `vox ci backend-tests`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - backend-tests
+  parameters: null
 - id: cli.ci.build-docs
   title: Ci Build-docs
   description_human: null
@@ -925,6 +943,24 @@ curated:
   cli_path:
   - ci
   - policy-smoke
+  parameters: null
+- id: cli.ci.pre-push
+  title: Ci Pre-push
+  description_human: null
+  description_model: CLI operation `vox ci pre-push`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - ci
+  - pre-push
   parameters: null
 - id: cli.ci.query-all-guard
   title: Ci Query-all-guard
@@ -8102,6 +8138,22 @@ curated:
   human_takeover_friendly: null
   mens_planner_visible: null
   mcp_tool: vox_validate_file
+  cli_path: null
+  parameters: null
+- id: mcp.vox_validate_source
+  title: Validate Source
+  description_human: null
+  description_model: Validate Vox source code passed as a string (no filesystem read). Returns LSP-style diagnostics with stable codes and structured autofix suggestions for the iterative AI-assistant repair loop.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: vox_validate_source
   cli_path: null
   parameters: null
 - id: mcp.vox_vcs_status

@@ -21,6 +21,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 uuid = { workspace = true }
 hound = { workspace = true }
 
+vox-config = { workspace = true }
 vox-oratio = { workspace = true, features = ["stt-candle", "compiler-rerank"] }
 workspace-hack = { workspace = true }
 

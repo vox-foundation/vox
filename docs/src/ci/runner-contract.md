@@ -103,6 +103,16 @@ cargo nextest run -p vox-mcp --profile ci
 
 Individual async tests can still wrap work in **`tokio::time::timeout`** so plain **`cargo test`** fails instead of hanging indefinitely.
 
+## Targeted backend reruns
+
+For routing/telemetry/capability-policy changes, prefer narrow reruns before full workspace passes:
+
+- `cargo test -p vox-runtime`
+- `cargo test -p vox-db`
+- `cargo test -p vox-orchestrator`
+
+Use these focused lanes during iteration, then finish with `vox ci pre-push` (or CI lane equivalent) before merge.
+
 ## Workflow list
 
 See [workflow enumeration](workflow-enumeration.md).

@@ -1,6 +1,42 @@
 x-vox-version: 1
 version: 1
 variables:
+  - name: "VOX_ROUTE_POLICY_PROFILE"
+    owner_crate: "vox-runtime"
+    kind: "string"
+    required: false
+    introduced_in: "0.3.0"
+    description: "Routing capability policy profile selector (for example balanced or restricted)."
+  - name: "VOX_ROUTE_ALLOW_NET"
+    owner_crate: "vox-runtime"
+    kind: "string"
+    required: false
+    introduced_in: "0.3.0"
+    description: "Override: allow outbound network usage for route selection and provider calls."
+  - name: "VOX_ROUTE_ALLOW_PROVIDER_NETWORK"
+    owner_crate: "vox-runtime"
+    kind: "string"
+    required: false
+    introduced_in: "0.3.0"
+    description: "Override: allow remote provider API network lanes during route resolution."
+  - name: "VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP"
+    owner_crate: "vox-runtime"
+    kind: "string"
+    required: false
+    introduced_in: "0.3.0"
+    description: "Override: allow local model HTTP lanes (Populi/Ollama/VoxLocal)."
+  - name: "VOX_BACKEND_ARTIFACT_SBOM_REQUIRED"
+    owner_crate: "vox-cli"
+    kind: "bool"
+    required: false
+    introduced_in: "0.3.0"
+    description: "Portable backend lane: require SBOM attachment before promotion (see vox-portability SSOT)."
+  - name: "VOX_BACKEND_ARTIFACT_SIGNING_REQUIRED"
+    owner_crate: "vox-cli"
+    kind: "bool"
+    required: false
+    introduced_in: "0.3.0"
+    description: "Portable backend lane: require signing/provenance attestation before release promotion."
   - name: "VOX_A2A_CONSUMER_ID"
     owner_crate: "vox-db"
     kind: "string"
@@ -3789,7 +3825,7 @@ variables:
     description: "Directory for dashboard persistent config (dashboard-settings.json). Defaults to the platform config dir."
   - name: "VOX_DASHBOARD_PORT"
     owner_crate: "vox-cli"
-    kind: "integer"
+    kind: "int"
     required: false
     introduced_in: "0.5.0"
     description: "TCP port for the dashboard HTTP server. Overrides the default port selected by the CLI."
@@ -3813,13 +3849,13 @@ variables:
     description: "When '1', the dashboard CLI automatically opens a browser tab after the server starts."
   - name: "VOX_LOCAL_PROBE_TIMEOUT_SECS"
     owner_crate: "vox-orchestrator"
-    kind: "integer"
+    kind: "int"
     required: false
     introduced_in: "0.5.0"
     description: "Timeout in seconds for VoxLocal availability probes. Internal constant; not read from the process environment."
   - name: "VOX_LOCAL_PROBE_CACHE_TTL_SECS"
     owner_crate: "vox-orchestrator"
-    kind: "integer"
+    kind: "int"
     required: false
     introduced_in: "0.5.0"
     description: "TTL in seconds for caching VoxLocal probe results. Internal constant; not read from the process environment."

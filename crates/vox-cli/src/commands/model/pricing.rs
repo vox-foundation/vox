@@ -1,3 +1,4 @@
+//! CLI wiring / registry: handler key `commands::model::pricing` (`contracts/cli/command-registry.yaml`).
 use clap::{Parser, Subcommand};
 use comfy_table::Table;
 use comfy_table::modifiers::UTF8_ROUND_CORNERS;

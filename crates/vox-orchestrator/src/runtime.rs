@@ -243,6 +243,10 @@ impl TaskProcessor for AiTaskProcessor {
                 format!("{:?}", cost_pref),
                 ludus_fallback,
                 vox_runtime::routing_telemetry::unified_routing_rollout_enabled(),
+                vox_runtime::route_capability_policy::RouteCapabilityPolicySnapshot::from_env()
+                    .profile
+                    .clone(),
+                Vec::new(),
                 task.id.0,
             );
             let reason_s = reason

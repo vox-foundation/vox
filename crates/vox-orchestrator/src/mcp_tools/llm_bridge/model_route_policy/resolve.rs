@@ -2,6 +2,7 @@
 
 use crate::Orchestrator;
 use crate::models::{ModelSpec, ProviderType};
+use crate::route_policy::route_policy_allows_model;
 use crate::types::TaskCategory;
 use crate::usage::{RemainingBudget, UsageTracker};
 use vox_runtime::model_resolution::{ChatRouteBackend, backend_telemetry_labels};
@@ -11,6 +12,10 @@ use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_local_
 use super::types::McpChatModelResolution;
 use crate::mcp_tools::server_state::ServerState;
 use crate::models::scoring::auto_score_model;
+
+fn provider_allowed_by_route_policy(model: &ModelSpec) -> bool {
+    route_policy_allows_model(model)
+}
 
 /// Task categories where the Vox-trained local model is preferred when available.
 const VOX_LOCAL_PREFERRED_TASKS: &[TaskCategory] = &[
@@ -59,6 +64,9 @@ pub fn resolve_mcp_chat_model_sync(
                         "Sticky MCP model uses Ollama but VOX_INFERENCE_PROFILE does not allow local Ollama HTTP; use desktop_ollama or lan_gateway, pick a cloud model, or clear the override (see docs/src/architecture/mobile-edge-ai-ssot.md).".into(),
                     );
                 }
+                if !provider_allowed_by_route_policy(&m) {
+                    return Err("Sticky MCP model denied by VOX_ROUTE_* capability policy.".into());
+                }
                 let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
                 return Ok((m.clone(), m.is_free));
             }
@@ -68,12 +76,16 @@ pub fn resolve_mcp_chat_model_sync(
     let task = res.task_category;
 
     if res.free_tier_latency_critical {
-        if let Some(m) = registry.best_free_for_with_filter(task, mcp_local_model_allowed) {
+        if let Some(m) = registry.best_free_for_with_filter(task, |m| {
+            mcp_local_model_allowed(m) && provider_allowed_by_route_policy(m)
+        }) {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
         if res.allow_cheapest_fallback {
-            if let Some(m) = registry.cheapest_free_with_filter(mcp_local_model_allowed) {
+            if let Some(m) = registry.cheapest_free_with_filter(|m| {
+                mcp_local_model_allowed(m) && provider_allowed_by_route_policy(m)
+            }) {
                 let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
                 return Ok((m.clone(), m.is_free));
             }
@@ -87,6 +99,7 @@ pub fn resolve_mcp_chat_model_sync(
             .into_iter()
             .filter(|m| matches!(m.provider_type, ProviderType::VoxLocal))
             .filter(|m| mcp_local_model_allowed(m))
+            .filter(provider_allowed_by_route_policy)
             .max_by(|a, b| a.max_tokens.cmp(&b.max_tokens))
         {
             return Ok((m.clone(), m.is_free));
@@ -97,6 +110,7 @@ pub fn resolve_mcp_chat_model_sync(
         .list_models()
         .into_iter()
         .filter(mcp_local_model_allowed)
+        .filter(provider_allowed_by_route_policy)
         .max_by(|a, b| {
             let score_a = auto_score_model(
                 a,
@@ -123,11 +137,15 @@ pub fn resolve_mcp_chat_model_sync(
     }
 
     if res.allow_cheapest_fallback {
-        if let Some(m) = registry.cheapest_free_with_filter(mcp_local_model_allowed) {
+        if let Some(m) = registry.cheapest_free_with_filter(|m| {
+            mcp_local_model_allowed(m) && provider_allowed_by_route_policy(m)
+        }) {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
-        if let Some(m) = registry.cheapest_with_filter(mcp_local_model_allowed) {
+        if let Some(m) = registry.cheapest_with_filter(|m| {
+            mcp_local_model_allowed(m) && provider_allowed_by_route_policy(m)
+        }) {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }

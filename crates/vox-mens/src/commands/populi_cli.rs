@@ -850,38 +850,31 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 );
             }
 
-            // Token resolution: env → config file → auto-generate.
-            // If we auto-generate, persist to config.toml and print once so the user can copy it.
+            // Token resolution: Clavis → config (`mesh.token`) → auto-generate (then inject env).
             const MESH_TOKEN_KEY: &str = "mesh.token";
-            if std::env::var("VOX_MESH_TOKEN").is_err() {
-                let cfg = vox_config::toml_config::load_user_config();
-                let saved = cfg
-                    .values
-                    .get(MESH_TOKEN_KEY)
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-                let token = if let Some(t) = saved {
-                    t
-                } else {
-                    // Generate a 32-byte hex token via uuid v4 (available in vox-mens already).
-                    let raw = uuid::Uuid::new_v4().simple().to_string()
-                        + &uuid::Uuid::new_v4().simple().to_string();
-                    let token = raw[..48].to_string(); // 48 hex chars = 192 bits
-                    if let Err(e) =
-                        vox_config::toml_config::set_user_config_value(MESH_TOKEN_KEY, &token)
-                    {
-                        tracing::warn!(error = %e, "failed to persist mesh.token to config");
-                    }
-                    println!(
-                        "vox populi: generated mesh bearer token (saved to ~/.vox/config.toml):"
-                    );
-                    println!("  VOX_MESH_TOKEN={token}");
-                    println!("  Keep this secret — it authenticates all control-plane requests.");
-                    token
-                };
-                // Inject into this process so Clavis picks it up for auth middleware.
-                // SAFETY: called before the tokio runtime starts accepting connections;
-                // no other threads are reading the environment concurrently at this point.
+            let cfg_mesh = vox_config::toml_config::load_user_config();
+            let saved_mesh = cfg_mesh
+                .values
+                .get(MESH_TOKEN_KEY)
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+            let resolved_mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+                .expose()
+                .map(|s| s.to_string())
+                .or(saved_mesh);
+
+            if resolved_mesh.is_none() {
+                let raw = uuid::Uuid::new_v4().simple().to_string()
+                    + &uuid::Uuid::new_v4().simple().to_string();
+                let token = raw[..48].to_string(); // 48 hex chars = 192 bits
+                if let Err(e) =
+                    vox_config::toml_config::set_user_config_value(MESH_TOKEN_KEY, &token)
+                {
+                    tracing::warn!(error = %e, "failed to persist mesh.token to config");
+                }
+                println!("vox populi: generated mesh bearer token (saved to ~/.vox/config.toml):");
+                println!("  VOX_MESH_TOKEN={token}");
+                println!("  Keep this secret — it authenticates all control-plane requests.");
                 #[allow(unsafe_code)]
                 unsafe {
                     std::env::set_var("VOX_MESH_TOKEN", &token);
@@ -976,13 +969,17 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     println!("  bind           : 127.0.0.1:0 (default; override with --bind)");
 
                     // Token source
-                    let token_source = if std::env::var("VOX_MESH_TOKEN").is_ok() {
-                        "env: VOX_MESH_TOKEN"
-                    } else if cfg.values.contains_key(MESH_TOKEN_KEY) {
-                        "file: ~/.vox/config.toml (mesh.token)"
-                    } else {
-                        "unset (will be auto-generated on first `vox populi serve --enable`)"
-                    };
+                    let token_source =
+                        if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+                            .expose()
+                            .is_some()
+                        {
+                            "Clavis-resolved mesh token (env / vault)"
+                        } else if cfg.values.contains_key(MESH_TOKEN_KEY) {
+                            "file: ~/.vox/config.toml (mesh.token)"
+                        } else {
+                            "unset (will be auto-generated on first `vox populi serve --enable`)"
+                        };
                     println!("  mesh.token     : {token_source}");
 
                     // Bootstrap peers
@@ -1006,7 +1003,9 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     let ok = true;
                     println!("Checking mesh configuration...");
 
-                    let has_token = std::env::var("VOX_MESH_TOKEN").is_ok()
+                    let has_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+                        .expose()
+                        .is_some()
                         || cfg.values.contains_key(MESH_TOKEN_KEY);
                     if !has_token {
                         println!(

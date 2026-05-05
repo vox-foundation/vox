@@ -144,6 +144,13 @@ pub fn repo_memory_cache_dir(repo_root: &Path, repository_id: &str) -> PathBuf {
     repo_tooling_cache_dir(repo_root, repository_id).join("memory")
 }
 
+/// Portable backend artifact lane metadata under `<repo_root>/.vox/backend-artifact/`
+/// (SBOM and signing attestations before OCI promotion; see portability SSOT).
+#[must_use]
+pub fn repo_backend_artifact_dir(repo_root: &Path) -> PathBuf {
+    repo_root.join(".vox").join("backend-artifact")
+}
+
 /// Basename for MCP session dirs (`.vox/sessions/<repository_id>` under repo root).
 pub const MCP_SESSIONS_DIR_BASENAME: &str = ".vox/sessions";
 

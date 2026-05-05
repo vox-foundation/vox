@@ -25,6 +25,9 @@ pub struct OrchestratorTaskRoutingReasonV1 {
     pub ludus_fallback: bool,
     #[serde(skip_serializing_if = "is_false")]
     pub unified_routing_env: bool,
+    pub route_policy_profile: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub policy_denials: Vec<String>,
     pub task_id: u64,
 }
 
@@ -43,6 +46,8 @@ impl OrchestratorTaskRoutingReasonV1 {
         cost_preference: String,
         ludus_fallback: bool,
         unified_routing_env: bool,
+        route_policy_profile: String,
+        policy_denials: Vec<String>,
         task_id: u64,
     ) -> Self {
         Self {
@@ -55,6 +60,8 @@ impl OrchestratorTaskRoutingReasonV1 {
             cost_preference,
             ludus_fallback,
             unified_routing_env,
+            route_policy_profile,
+            policy_denials,
             task_id,
         }
     }
@@ -89,6 +96,8 @@ mod tests {
             "Low".into(),
             false,
             false,
+            "balanced".to_string(),
+            Vec::new(),
             42,
         );
         let j = r.to_json_bounded(200);

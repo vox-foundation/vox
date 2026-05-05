@@ -64,6 +64,39 @@ premium_alias:
 
 economy_cost_ceiling_usd_per_1k: 0.1
 
+capability_policy:
+  default_profile: "balanced"
+  profiles:
+    balanced:
+      fs_read: true
+      fs_write: true
+      net: true
+      child_process: true
+      worker: true
+      wasi: false
+      inspector: false
+      provider_network: true
+      local_model_http: true
+    restricted:
+      fs_read: true
+      fs_write: false
+      net: false
+      child_process: false
+      worker: false
+      wasi: false
+      inspector: false
+      provider_network: false
+      local_model_http: false
+  env_overrides:
+    profile: "VOX_ROUTE_POLICY_PROFILE"
+    allow_net: "VOX_ROUTE_ALLOW_NET"
+    allow_provider_network: "VOX_ROUTE_ALLOW_PROVIDER_NETWORK"
+    allow_local_model_http: "VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP"
+
+lifecycle:
+  maturity: "experimental"
+  migration_window_days: 90
+
 strength_inference:
   - type: parameter_graph
     rules:

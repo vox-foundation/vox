@@ -11930,6 +11930,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "vox-config",
  "vox-oratio",
  "workspace-hack",
 ]

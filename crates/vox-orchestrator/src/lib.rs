@@ -50,6 +50,9 @@ pub mod json_vcs_facade;
 
 pub mod lineage;
 
+/// `VOX_ROUTE_*` alignment helpers for registry/MCP paths (see contracts orchestration routing YAML).
+pub mod route_policy;
+
 /// Agent-to-agent messaging types and helpers.
 pub mod a2a;
 /// File and task affinity groups for routing work to the right agent.

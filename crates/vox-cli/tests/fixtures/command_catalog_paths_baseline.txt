@@ -30,6 +30,7 @@ ci/artifact-audit
 ci/artifact-prune
 ci/attention-config-parity
 ci/attention-event-ledger-parity
+ci/backend-tests
 ci/build-docs
 ci/build-timings
 ci/capability-snapshot
@@ -95,6 +96,7 @@ ci/operations-verify
 ci/operator-env-guard
 ci/pm-provenance
 ci/policy-smoke
+ci/pre-push
 ci/query-all-guard
 ci/release-build
 ci/repo-guards

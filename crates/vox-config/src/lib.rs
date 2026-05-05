@@ -33,8 +33,8 @@ pub use inference::{
 };
 pub use paths::{
     APP_DIR_NAME, DEFAULT_DB_FILENAME, MCP_SESSIONS_DIR_BASENAME, config_dir, data_dir,
-    default_db_path, dot_vox_user_dir, local_user_id, mcp_sessions_dir, repo_memory_cache_dir,
-    repo_tooling_cache_dir, script_cache_dir, state_dir, user_home_dir,
+    default_db_path, dot_vox_user_dir, local_user_id, mcp_sessions_dir, repo_backend_artifact_dir,
+    repo_memory_cache_dir, repo_tooling_cache_dir, script_cache_dir, state_dir, user_home_dir,
 };
 pub use policy::hitl_policy::HitlPolicy;
 pub use rollout::{

@@ -322,6 +322,34 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             println!("policy-smoke OK");
             Ok(())
         }
+        CiCmd::BackendTests => {
+            let cargo = cargo_bin();
+            let suites: &[(&[&str], &str)] = &[
+                (&["test", "-p", "vox-runtime"], "vox-runtime"),
+                (
+                    &["test", "-p", "vox-orchestrator", "model_route_policy"],
+                    "vox-orchestrator model_route_policy",
+                ),
+                (
+                    &["test", "-p", "vox-db", "research_metrics_contract"],
+                    "vox-db research_metrics_contract",
+                ),
+            ];
+            for (args, label) in suites {
+                let st = Command::new(&cargo)
+                    .current_dir(&root)
+                    .args(*args)
+                    .status()?;
+                if !st.success() {
+                    return Err(anyhow!(
+                        "backend-tests failed ({label}); rerun: cargo {}",
+                        args.join(" ")
+                    ));
+                }
+            }
+            println!("backend-tests OK");
+            Ok(())
+        }
         CiCmd::GuiSmoke => super::gui_smoke::run(&root),
         CiCmd::CoverageGates {
             summary_json,

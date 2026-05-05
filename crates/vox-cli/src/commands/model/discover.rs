@@ -1,5 +1,7 @@
 use clap::Parser;
 use owo_colors::OwoColorize;
+use std::time::{SystemTime, UNIX_EPOCH};
+use vox_db::{DbConfig, VoxDb};
 use vox_orchestrator::catalog::{ModelCatalog, OpenRouterCatalog};
 
 /// Refresh the model catalog from all sources.
@@ -64,7 +66,24 @@ pub async fn run(_args: DiscoverArgs) -> anyhow::Result<()> {
         all_models.len().green().bold()
     );
 
-    // In a full implementation, we'd persist these to ~/.vox/cache/model-catalog.v1.json
+    // Persist a lightweight cache for doctor checks and operational freshness audits.
+    let cache_dir = vox_config::paths::dot_vox_user_dir().join("cache");
+    std::fs::create_dir_all(&cache_dir)?;
+    let cache_file = cache_dir.join("model-catalog.v1.json");
+    std::fs::write(&cache_file, serde_json::to_string_pretty(&all_models)?)?;
+
+    // Persist refresh timestamp in user preferences for stale-catalog health checks.
+    if let Ok(cfg) = DbConfig::resolve_canonical()
+        && let Ok(db) = VoxDb::connect(cfg).await
+    {
+        let now_secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let _ = db
+            .set_user_preference("global", "catalog_refresh", &now_secs.to_string())
+            .await;
+    }
 
     Ok(())
 }

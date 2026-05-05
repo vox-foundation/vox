@@ -727,6 +727,9 @@ impl ModelRegistry {
                 if preference == crate::config::CostPreference::Performance && m.is_free {
                     return false;
                 }
+                if !crate::route_policy::route_policy_allows_model(m) {
+                    return false;
+                }
                 Self::matches_strength(m, strength)
             })
             .cloned()
@@ -761,6 +764,21 @@ impl ModelRegistry {
         });
 
         candidates
+    }
+
+    /// Models rejected by [crate::route_policy] under current VOX_ROUTE_* env (stable sort by id).
+    #[must_use]
+    pub fn explain_route_policy_exclusions(&self) -> Vec<(String, &'static str)> {
+        let mut out: Vec<(String, &'static str)> = self
+            .models
+            .values()
+            .filter_map(|m| {
+                crate::route_policy::route_policy_exclusion_reason(m)
+                    .map(|reason| (m.id.clone(), reason))
+            })
+            .collect();
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        out
     }
 
     /// Return the best free model for a given task category.
