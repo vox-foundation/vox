@@ -44,15 +44,10 @@ pub async fn evaluate_condition(
                 _ => false,
             }
         }
-        PeriodicCondition::MilestoneUnlock { achievement_id } => {
-            match db
-                .gamify_periodic_has_achievement(user_id, achievement_id.as_str())
-                .await
-            {
-                Ok(v) => v,
-                _ => false,
-            }
-        }
+        PeriodicCondition::MilestoneUnlock { achievement_id } => db
+            .gamify_periodic_has_achievement(user_id, achievement_id.as_str())
+            .await
+            .unwrap_or_default(),
         PeriodicCondition::RandomDrop { probability } => {
             let rand_val: f64 = rand::random();
             evaluate_random_drop(*probability, rand_val)
@@ -69,15 +64,10 @@ pub async fn evaluate_condition(
                 _ => false,
             }
         }
-        PeriodicCondition::SeasonalChallenge { challenge_id } => {
-            match db
-                .gamify_periodic_has_completed_quest(user_id, challenge_id.as_str())
-                .await
-            {
-                Ok(v) => v,
-                _ => false,
-            }
-        }
+        PeriodicCondition::SeasonalChallenge { challenge_id } => db
+            .gamify_periodic_has_completed_quest(user_id, challenge_id.as_str())
+            .await
+            .unwrap_or_default(),
         PeriodicCondition::PerfectWeek => {
             match db
                 .gamify_periodic_perfect_week_completed_count(user_id)

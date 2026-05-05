@@ -18,7 +18,10 @@ use crate::commands::runtime::shell::check_terminal;
 /// Smoke payloads exercised by both the Rust-fallback and pwsh paths.
 const SMOKE_PAYLOADS: &[(&str, &str)] = &[
     ("Get-Location", "bare cmdlet"),
-    ("Write-Output 1 | ConvertTo-Json -Compress", "pipeline + cmdlet"),
+    (
+        "Write-Output 1 | ConvertTo-Json -Compress",
+        "pipeline + cmdlet",
+    ),
     ("git status", "allowed binary"),
     ("cargo build --release", "allowed binary with long flag"),
 ];
@@ -54,10 +57,9 @@ fn load_disk_corpus(repo_root: &Path) -> Result<Option<DiskCorpus>> {
     if !path.is_file() {
         return Ok(None);
     }
-    let src = read_utf8_path_capped(&path)
-        .with_context(|| format!("read {}", path.display()))?;
-    let corpus: DiskCorpus = serde_yaml::from_str(&src)
-        .with_context(|| format!("parse {}", path.display()))?;
+    let src = read_utf8_path_capped(&path).with_context(|| format!("read {}", path.display()))?;
+    let corpus: DiskCorpus =
+        serde_yaml::from_str(&src).with_context(|| format!("parse {}", path.display()))?;
     Ok(Some(corpus))
 }
 
@@ -92,13 +94,14 @@ pub fn run(repo_root: &Path) -> Result<()> {
     }
     if let Some(ref c) = disk {
         for entry in &c.allow {
-            check_terminal::run_check_for_ci(&entry.payload, Some(policy.as_path()))
-                .with_context(|| {
+            check_terminal::run_check_for_ci(&entry.payload, Some(policy.as_path())).with_context(
+                || {
                     format!(
                         "rust fallback disk-corpus (allow): {} — {:?}",
                         entry.label, entry.payload
                     )
-                })?;
+                },
+            )?;
         }
         for entry in &c.deny {
             let result = check_terminal::run_check_for_ci(&entry.payload, Some(policy.as_path()));

@@ -1,14 +1,16 @@
 use axum::{body::Body, http::Request};
+use std::env;
+use std::fs;
 use tower::ServiceExt;
 use vox_dashboard::dashboard_router;
-use std::fs;
-use std::env;
 
 fn setup_dummy_assets() -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     let index_path = dir.path().join("index.html");
     fs::write(index_path, "<html><head></head><body></body></html>").unwrap();
-    unsafe { env::set_var("VOX_DASHBOARD_ASSET_DIR", dir.path().to_str().unwrap()); }
+    unsafe {
+        env::set_var("VOX_DASHBOARD_ASSET_DIR", dir.path().to_str().unwrap());
+    }
     dir
 }
 
@@ -26,12 +28,19 @@ async fn test_dashboard_router_serves_asset() {
     let response = app.oneshot(req).await.unwrap();
 
     assert_eq!(response.status(), axum::http::StatusCode::OK);
-    
+
     // Check security headers
     let headers = response.headers();
     assert_eq!(headers.get("X-Frame-Options").unwrap(), "DENY");
     assert_eq!(headers.get("Cache-Control").unwrap(), "no-store");
-    assert!(headers.get("Content-Security-Policy").unwrap().to_str().unwrap().contains("frame-ancestors 'none'"));
+    assert!(
+        headers
+            .get("Content-Security-Policy")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("frame-ancestors 'none'")
+    );
 }
 
 #[serial_test::serial]
@@ -48,9 +57,11 @@ async fn test_dashboard_router_injects_token() {
     let response = app.oneshot(req).await.unwrap();
     assert_eq!(response.status(), axum::http::StatusCode::OK);
 
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let html = String::from_utf8(bytes.to_vec()).unwrap();
-    
+
     assert!(html.contains("<meta name=\"vox-bearer\" content=\"secret_token_abc\">"));
 }
 
@@ -66,8 +77,10 @@ async fn test_dashboard_router_no_token_injection() {
         .unwrap();
 
     let response = app.oneshot(req).await.unwrap();
-    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let html = String::from_utf8(bytes.to_vec()).unwrap();
-    
+
     assert!(!html.contains("vox-bearer"));
 }

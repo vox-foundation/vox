@@ -330,7 +330,10 @@ impl TaskProcessor for AiTaskProcessor {
                     });
                     return Err(anyhow::anyhow!("Safety Halt: {}", reason));
                 }
-                crate::budget::DriftDecision::WarnUser { iterations, cost_usd } => {
+                crate::budget::DriftDecision::WarnUser {
+                    iterations,
+                    cost_usd,
+                } => {
                     tracing::warn!(
                         agent_id = agent_id.0,
                         iterations,
@@ -740,11 +743,7 @@ impl AgentFleet {
                     let limit = std::cmp::min(count, max_per_tick - spawns);
                     for _ in 0..limit {
                         let uuid_str = uuid::Uuid::new_v4().to_string();
-                        let name = format!(
-                            "{}-{}",
-                            name_prefix,
-                            short_id_from_str(&uuid_str)
-                        );
+                        let name = format!("{}-{}", name_prefix, short_id_from_str(&uuid_str));
                         let _ = self.orchestrator.spawn_dynamic_agent_with_parent(
                             &name,
                             None,

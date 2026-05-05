@@ -249,47 +249,45 @@ async fn sync_companion_lifecycle(
 
     match event_type {
         // serde `AgentEventKind` uses #[serde(tag = "type", rename_all = "snake_case")]
-        "agent_spawned" => {
-            if get_companion(db, &companion_id).await?.is_none() {
-                let agent_name = event_json
-                    .get("name")
-                    .or_else(|| event_json.get("agent_name"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("Unnamed Agent");
-                let task = event_json
-                    .get("task")
-                    .or_else(|| event_json.get("initial_task"))
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                let archetype_names = [
-                    "Scriptor", "Rector", "Censor", "Aedilis", "Quaestor", "Tribunus", "Praetor",
-                    "Consul",
-                ];
-                let rank = archetype_names[(agent_id % 8) as usize];
-                let sprite = generate_svg(character_for_agent(agent_id), AgentPose::Idle);
-                let c = Companion {
-                    id: companion_id.clone(),
-                    user_id: user_id.to_string(),
-                    name: format!("{rank} {agent_name}"),
-                    description: if task.is_empty() {
-                        None
-                    } else {
-                        Some(task.to_string())
-                    },
-                    code_hash: None,
-                    language: "vox".to_string(),
-                    ascii_sprite: Some(sprite.svg_body),
-                    mood: Mood::Neutral,
-                    health: 100,
-                    max_health: 100,
-                    energy: 100,
-                    max_energy: 100,
-                    code_quality: 50,
-                    last_active: now_unix(),
-                    personality: Personality::default(),
-                };
-                let _ = upsert_companion(db, &c).await;
-            }
+        "agent_spawned" if get_companion(db, &companion_id).await?.is_none() => {
+            let agent_name = event_json
+                .get("name")
+                .or_else(|| event_json.get("agent_name"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unnamed Agent");
+            let task = event_json
+                .get("task")
+                .or_else(|| event_json.get("initial_task"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let archetype_names = [
+                "Scriptor", "Rector", "Censor", "Aedilis", "Quaestor", "Tribunus", "Praetor",
+                "Consul",
+            ];
+            let rank = archetype_names[(agent_id % 8) as usize];
+            let sprite = generate_svg(character_for_agent(agent_id), AgentPose::Idle);
+            let c = Companion {
+                id: companion_id.clone(),
+                user_id: user_id.to_string(),
+                name: format!("{rank} {agent_name}"),
+                description: if task.is_empty() {
+                    None
+                } else {
+                    Some(task.to_string())
+                },
+                code_hash: None,
+                language: "vox".to_string(),
+                ascii_sprite: Some(sprite.svg_body),
+                mood: Mood::Neutral,
+                health: 100,
+                max_health: 100,
+                energy: 100,
+                max_energy: 100,
+                code_quality: 50,
+                last_active: now_unix(),
+                personality: Personality::default(),
+            };
+            let _ = upsert_companion(db, &c).await;
         }
         "activity_changed" | "task_started" => {
             if let Ok(Some(mut c)) = get_companion(db, &companion_id).await {

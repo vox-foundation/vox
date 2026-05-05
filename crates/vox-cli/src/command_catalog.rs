@@ -170,7 +170,11 @@ pub fn search_entries_scored(
     if pattern.is_empty() {
         return entries
             .into_iter()
-            .map(|entry| SearchResult { entry, score: 0, matched_via: None })
+            .map(|entry| SearchResult {
+                entry,
+                score: 0,
+                matched_via: None,
+            })
             .collect();
     }
 
@@ -197,14 +201,22 @@ pub fn search_entries_scored(
             .filter_map(|entry| {
                 let matched_via = if entry.command.to_ascii_lowercase().contains(&pat) {
                     Some("command".to_owned())
-                } else if entry.aliases.iter().any(|a| a.to_ascii_lowercase().contains(&pat)) {
+                } else if entry
+                    .aliases
+                    .iter()
+                    .any(|a| a.to_ascii_lowercase().contains(&pat))
+                {
                     Some("alias".to_owned())
                 } else if entry.about.to_ascii_lowercase().contains(&pat) {
                     Some("about".to_owned())
                 } else {
                     return None;
                 };
-                Some(SearchResult { entry, score: 0, matched_via })
+                Some(SearchResult {
+                    entry,
+                    score: 0,
+                    matched_via,
+                })
             })
             .collect()
     }
@@ -427,6 +439,9 @@ mod tests {
     fn search_entries_no_match_returns_empty() {
         let catalog = build_catalog();
         let results = search_entries(catalog.entries, "zzz_no_such_command_xyzzy");
-        assert!(results.is_empty(), "expected no results for nonsense pattern");
+        assert!(
+            results.is_empty(),
+            "expected no results for nonsense pattern"
+        );
     }
 }

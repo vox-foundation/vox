@@ -40,12 +40,12 @@ impl DomainRouter {
         for entry in std::fs::read_dir(artifacts_dir)? {
             let entry = entry?;
             let path = entry.path();
-            if path.is_dir() {
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    let adapter_file = path.join("adapter_model.safetensors");
-                    if adapter_file.exists() {
-                        router.register(name, adapter_file);
-                    }
+            if path.is_dir()
+                && let Some(name) = path.file_name().and_then(|n| n.to_str())
+            {
+                let adapter_file = path.join("adapter_model.safetensors");
+                if adapter_file.exists() {
+                    router.register(name, adapter_file);
                 }
             }
         }

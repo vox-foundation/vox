@@ -38,10 +38,7 @@ pub(crate) fn unwrap_inline_hir_block_expr(expr: &HirExpr) -> &HirExpr {
 ///
 /// A single-expression block is always safe to inline: it produces a value, never void.
 /// Multi-statement blocks still fall back to IIFEs.
-fn extract_single_jsx_expr(
-    stmts: &[HirStmt],
-    state_names: &HashSet<String>,
-) -> Option<String> {
+fn extract_single_jsx_expr(stmts: &[HirStmt], state_names: &HashSet<String>) -> Option<String> {
     if stmts.len() != 1 {
         return None;
     }
@@ -113,10 +110,7 @@ pub(crate) fn wrap_jsx_hir_child_expr(emit: String) -> String {
 /// **Phase:** compat-legacy (OP-0138). Prefer [`crate::web_ir::emit_tsx`] for structural parity and
 /// preview emit; keep this in sync with [`compat`].
 #[must_use]
-pub fn emit_hir_expr(
-    expr: &HirExpr,
-    state_names: &HashSet<String>,
-) -> String {
+pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
         HirExpr::FloatLit(v, _) => v.to_string(),
@@ -432,10 +426,7 @@ pub(crate) fn emit_hir_stmt(
         }
         HirStmt::Return { value, .. } => {
             if let Some(v) = value {
-                format!(
-                    "{pad}return {};\n",
-                    emit_hir_expr(v, state_names)
-                )
+                format!("{pad}return {};\n", emit_hir_expr(v, state_names))
             } else {
                 format!("{pad}return;\n")
             }
@@ -821,12 +812,7 @@ mod hir_emit_if_tests {
         let then_stmts = vec![expr_stmt(jsx_self_closing("SpeakTab"))];
         let else_stmts = vec![expr_stmt(jsx_self_closing("CommandTab"))];
 
-        let if_expr = HirExpr::If(
-            Box::new(cond),
-            then_stmts,
-            Some(else_stmts),
-            span(),
-        );
+        let if_expr = HirExpr::If(Box::new(cond), then_stmts, Some(else_stmts), span());
 
         let out = emit_hir_expr(&if_expr, &HashSet::new());
 
@@ -946,10 +932,17 @@ fn transform_hir_view_kwargs(
     } else if class_pieces.len() == 1 {
         Some(class_pieces.into_iter().next().unwrap())
     } else {
-        Some(format!("[{}].filter(Boolean).join(\" \")", class_pieces.join(", ")))
+        Some(format!(
+            "[{}].filter(Boolean).join(\" \")",
+            class_pieces.join(", ")
+        ))
     };
 
-    ViewCallHir { html_tag, class_expr, passthrough }
+    ViewCallHir {
+        html_tag,
+        class_expr,
+        passthrough,
+    }
 }
 
 fn hir_kwarg_to_class_expr(

@@ -6,6 +6,12 @@ use std::fs;
 /// 2. Root `Cargo.toml` missing definitions for physical `crates/*` directories.
 pub struct WorkspaceDriftDetector;
 
+impl Default for WorkspaceDriftDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WorkspaceDriftDetector {
     pub fn new() -> Self {
         Self
@@ -121,20 +127,20 @@ impl DetectionRule for WorkspaceDriftDetector {
             // It's the root Cargo.toml. Check for orphan crates in the `crates/` directory.
             if let Some(parent) = file.path.parent() {
                 let crates_dir = parent.join("crates");
-                if crates_dir.is_dir() {
-                    if let Ok(entries) = fs::read_dir(crates_dir) {
-                        for entry in entries.flatten() {
-                            let path = entry.path();
-                            if path.is_dir() {
-                                // Check if this dir has a Cargo.toml and is not registered in the root Cargo.toml
-                                let crate_cargo = path.join("Cargo.toml");
-                                if crate_cargo.is_file() {
-                                    if let Some(dir_name) =
-                                        path.file_name().and_then(|n| n.to_str())
-                                    {
-                                        // Simple string search for the crate name in the root Cargo.toml
-                                        if !file.content.contains(dir_name) {
-                                            findings.push(Finding {
+                if crates_dir.is_dir()
+                    && let Ok(entries) = fs::read_dir(crates_dir)
+                {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.is_dir() {
+                            // Check if this dir has a Cargo.toml and is not registered in the root Cargo.toml
+                            let crate_cargo = path.join("Cargo.toml");
+                            if crate_cargo.is_file()
+                                && let Some(dir_name) = path.file_name().and_then(|n| n.to_str())
+                            {
+                                // Simple string search for the crate name in the root Cargo.toml
+                                if !file.content.contains(dir_name) {
+                                    findings.push(Finding {
                                                 rule_id: self.id().to_string(),
                                                 rule_name: self.name().to_string(),
                                                 severity: self.severity(),
@@ -147,8 +153,6 @@ impl DetectionRule for WorkspaceDriftDetector {
                                                 confidence: None,
                                                 evidence: None,
                                             });
-                                        }
-                                    }
                                 }
                             }
                         }

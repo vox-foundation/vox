@@ -7,6 +7,7 @@
 
 use crate::VoxDb;
 use crate::store::{LearnedPatternEntry, StoreError};
+use std::cmp::Reverse;
 use std::collections::HashMap;
 
 /// Minimum number of observations before a pattern is considered confident.
@@ -297,7 +298,7 @@ impl<'a> BehavioralLearner<'a> {
                 recent_context: ctx,
             })
             .collect();
-        patterns.sort_by(|a, b| b.count.cmp(&a.count));
+        patterns.sort_by_key(|p| Reverse(p.count));
         Ok(patterns)
     }
 
@@ -328,7 +329,7 @@ impl<'a> BehavioralLearner<'a> {
                 avg_gap_ms: None,
             })
             .collect();
-        sequences.sort_by(|a, b| b.frequency.cmp(&a.frequency));
+        sequences.sort_by_key(|s| Reverse(s.frequency));
         Ok(sequences)
     }
 

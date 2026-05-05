@@ -649,7 +649,10 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 anyhow::bail!("failed to save mesh token: {}", e);
             }
             println!("vox populi pair: mesh token saved to ~/.vox/config.toml");
-            println!("  Set VOX_MESH_TOKEN={} in your environment to use it now.", resp.mesh_token);
+            println!(
+                "  Set VOX_MESH_TOKEN={} in your environment to use it now.",
+                resp.mesh_token
+            );
 
             if let Some(scope) = &resp.scope_id {
                 if !scope.is_empty() {
@@ -864,10 +867,14 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     let raw = uuid::Uuid::new_v4().simple().to_string()
                         + &uuid::Uuid::new_v4().simple().to_string();
                     let token = raw[..48].to_string(); // 48 hex chars = 192 bits
-                    if let Err(e) = vox_config::toml_config::set_user_config_value(MESH_TOKEN_KEY, &token) {
+                    if let Err(e) =
+                        vox_config::toml_config::set_user_config_value(MESH_TOKEN_KEY, &token)
+                    {
                         tracing::warn!(error = %e, "failed to persist mesh.token to config");
                     }
-                    println!("vox populi: generated mesh bearer token (saved to ~/.vox/config.toml):");
+                    println!(
+                        "vox populi: generated mesh bearer token (saved to ~/.vox/config.toml):"
+                    );
                     println!("  VOX_MESH_TOKEN={token}");
                     println!("  Keep this secret — it authenticates all control-plane requests.");
                     token
@@ -1002,7 +1009,9 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     let has_token = std::env::var("VOX_MESH_TOKEN").is_ok()
                         || cfg.values.contains_key(MESH_TOKEN_KEY);
                     if !has_token {
-                        println!("  WARN  mesh.token not set — a token will be auto-generated on first serve");
+                        println!(
+                            "  WARN  mesh.token not set — a token will be auto-generated on first serve"
+                        );
                     } else {
                         println!("  OK    mesh.token is set");
                     }
@@ -1011,7 +1020,10 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     let config_path = vox_config::dot_vox_user_dir().join("config.toml");
                     let parent = config_path.parent().unwrap_or(&config_path);
                     if !parent.exists() {
-                        println!("  WARN  config dir does not yet exist: {}", parent.display());
+                        println!(
+                            "  WARN  config dir does not yet exist: {}",
+                            parent.display()
+                        );
                     } else {
                         println!("  OK    config dir exists: {}", parent.display());
                     }

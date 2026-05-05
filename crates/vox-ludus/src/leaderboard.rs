@@ -63,11 +63,9 @@ pub struct AgentStats {
 impl AgentStats {
     /// Average code quality (0-100).
     pub fn avg_code_quality(&self) -> u32 {
-        if self.code_quality_count == 0 {
-            50
-        } else {
-            self.code_quality_sum / self.code_quality_count
-        }
+        self.code_quality_sum
+            .checked_div(self.code_quality_count)
+            .unwrap_or(50)
     }
 
     /// Average task duration in milliseconds.

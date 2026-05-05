@@ -84,9 +84,7 @@ fn walk_dom_edges(
             v
         }
         DomNode::Loop { body, .. } => body.clone(),
-        DomNode::Text { .. }
-        | DomNode::Slot { .. }
-        | DomNode::Expr { .. } => vec![],
+        DomNode::Text { .. } | DomNode::Slot { .. } | DomNode::Expr { .. } => vec![],
     };
     for c in child_ids {
         walk_dom_edges(out, module, c, metrics);
@@ -334,15 +332,15 @@ fn validate_styles_with_registry(
                     // TASK-5.1: literal CSS value enforcement (fires regardless of registry).
                     check_literal_value(prop, decl_val, out);
 
-                    if let Some(existing_props) = seen_selectors.get(&sel_key) {
-                        if existing_props.contains(&css_prop) {
-                            out.push(WebIrDiagnostic {
+                    if let Some(existing_props) = seen_selectors.get(&sel_key)
+                        && existing_props.contains(&css_prop)
+                    {
+                        out.push(WebIrDiagnostic {
                                 code: "web_ir_validate.style.specificity_conflict".to_string(),
                                 message: format!("Property '{}' redefined for selector '{}' at same specificity level", prop, sel_key),
                                 span: None,
                                 category: Some("style".to_string()),
                             });
-                        }
                     }
 
                     // Token registry checks (only when a registry is loaded)
@@ -383,14 +381,12 @@ fn validate_styles_with_registry(
     if let Some(reg) = registry {
         for diag in reg.validate_contrast() {
             let (code, severity_label) = match diag.severity {
-                crate::tokens::ContrastSeverity::Warning => (
-                    "web_ir_validate.style.token_contrast_warning",
-                    "warning",
-                ),
-                crate::tokens::ContrastSeverity::Error => (
-                    "web_ir_validate.style.token_contrast_error",
-                    "error",
-                ),
+                crate::tokens::ContrastSeverity::Warning => {
+                    ("web_ir_validate.style.token_contrast_warning", "warning")
+                }
+                crate::tokens::ContrastSeverity::Error => {
+                    ("web_ir_validate.style.token_contrast_error", "error")
+                }
             };
             out.push(WebIrDiagnostic {
                 code: code.to_string(),
@@ -430,18 +426,19 @@ fn validate_route_reachability(
     let view_root_names: HashSet<&str> =
         module.view_roots.iter().map(|(n, _)| n.as_str()).collect();
     for (pattern, component_opt) in &route_entries {
-        if let Some(component) = component_opt {
-            if !component.is_empty() && !view_root_names.contains(component.as_str()) {
-                out.push(WebIrDiagnostic {
-                    code: "web_ir_validate.route.missing_component".to_string(),
-                    message: format!(
-                        "Route '{}' declares component '{}' but no matching view root exists",
-                        pattern, component
-                    ),
-                    span: None,
-                    category: Some("route".to_string()),
-                });
-            }
+        if let Some(component) = component_opt
+            && !component.is_empty()
+            && !view_root_names.contains(component.as_str())
+        {
+            out.push(WebIrDiagnostic {
+                code: "web_ir_validate.route.missing_component".to_string(),
+                message: format!(
+                    "Route '{}' declares component '{}' but no matching view root exists",
+                    pattern, component
+                ),
+                span: None,
+                category: Some("route".to_string()),
+            });
         }
     }
 
@@ -449,8 +446,7 @@ fn validate_route_reachability(
     // but only from nodes that are reachable from a declared view root.
     // Orphan / detached nodes must not count as route references — they could
     // hide `web_ir_validate.route.unreachable` diagnostics.
-    let known_patterns: HashSet<&str> =
-        route_entries.iter().map(|(p, _)| p.as_str()).collect();
+    let known_patterns: HashSet<&str> = route_entries.iter().map(|(p, _)| p.as_str()).collect();
     let mut referenced: HashSet<String> = HashSet::new();
 
     // BFS/DFS from every view root to collect the reachable node set.
@@ -466,7 +462,11 @@ fn validate_route_reachability(
         match node {
             DomNode::Element { children, .. } => work.extend(children.iter().copied()),
             DomNode::Fragment { children, .. } => work.extend(children.iter().copied()),
-            DomNode::Conditional { then_children, else_children, .. } => {
+            DomNode::Conditional {
+                then_children,
+                else_children,
+                ..
+            } => {
                 work.extend(then_children.iter().copied());
                 work.extend(else_children.iter().copied());
             }
@@ -544,7 +544,11 @@ fn collect_route_entries(contracts: &[RouteContract], out: &mut Vec<(String, Opt
 /// TASK-5.1: reject literal CSS color and dimension values regardless of token registry.
 /// Fires unconditionally so that raw `#rrggbb` / `rgb(…)` / `42px` values are always
 /// compile errors, not just warnings gated on a loaded registry.
-fn check_literal_value(prop: &str, decl_val: &StyleDeclarationValue, out: &mut Vec<WebIrDiagnostic>) {
+fn check_literal_value(
+    prop: &str,
+    decl_val: &StyleDeclarationValue,
+    out: &mut Vec<WebIrDiagnostic>,
+) {
     match decl_val {
         StyleDeclarationValue::Raw(s) => {
             let s = s.trim();
@@ -791,7 +795,9 @@ fn validate_surface_refs(
     out: &mut Vec<WebIrDiagnostic>,
 ) {
     for node in &module.dom_nodes {
-        let DomNode::Element { attrs, .. } = node else { continue };
+        let DomNode::Element { attrs, .. } = node else {
+            continue;
+        };
         for (k, v) in attrs {
             if k != "data-vox-surface" {
                 continue;
@@ -918,7 +924,9 @@ mod tests {
         });
         let diags = validate_web_ir(&m);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_validate.route.missing_component"),
+            !diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.route.missing_component"),
             "component exists in view_roots — no missing_component diag expected"
         );
     }
@@ -934,7 +942,9 @@ mod tests {
         });
         let diags = validate_web_ir(&m);
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.route.missing_component"),
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.route.missing_component"),
             "missing component should produce diagnostic"
         );
     }
@@ -957,7 +967,9 @@ mod tests {
         });
         let diags = validate_web_ir(&m);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
+            !diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.route.unreachable"),
             "root / route should never be flagged as unreachable"
         );
     }
@@ -981,7 +993,9 @@ mod tests {
         });
         let diags = validate_web_ir(&m);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
+            !diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.route.unreachable"),
             "<link to='/about'> makes /about route reachable"
         );
     }
@@ -1005,7 +1019,9 @@ mod tests {
         });
         let diags = validate_web_ir(&m);
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.route.unreachable"),
             "/about without any <link> should warn as potentially unreachable"
         );
     }
@@ -1039,7 +1055,9 @@ mod tests {
         });
         let diags = validate_web_ir(&m);
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.route.unreachable"),
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.route.unreachable"),
             "orphan <a href='/about'> should not suppress unreachable warning: {diags:?}"
         );
     }

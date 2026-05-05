@@ -156,7 +156,7 @@ pub fn gc_script_cache(max_entries: usize, max_size_mb: u64) -> Result<()> {
                 entries.push((p, mt));
             }
         }
-        entries.sort_by(|a, b| a.1.cmp(&b.1));
+        entries.sort_by_key(|a| a.1);
         loop {
             let count = entries.len();
             let total: u64 = entries

@@ -28,15 +28,15 @@ pub fn calculate_entropy(text: &str) -> f64 {
 /// Scores the confidence of a model output based on lexical diversity and entropy.
 pub fn score_confidence(text: &str) -> f64 {
     let entropy = calculate_entropy(text);
-    
+
     // Heuristic: for most natural language, entropy is between 3.0 and 5.0.
     // Below 2.0 is likely repetitive garbage.
     // Above 6.0 might be high-variance hallucination (random chars).
-    
+
     if entropy < 1.5 {
         return 0.1; // Extremely repetitive
     }
-    
+
     if entropy > 7.0 {
         return 0.2; // Likely random noise
     }

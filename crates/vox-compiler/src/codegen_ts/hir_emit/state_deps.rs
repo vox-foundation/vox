@@ -89,7 +89,10 @@ pub fn extract_state_deps_with_diagnostics(
     sorted_deps.sort();
     let mut sorted_calls: Vec<String> = unannotated.into_iter().collect();
     sorted_calls.sort();
-    DepAnalysis { deps: sorted_deps, unannotated_calls: sorted_calls }
+    DepAnalysis {
+        deps: sorted_deps,
+        unannotated_calls: sorted_calls,
+    }
 }
 
 fn collect_deps_and_calls(
@@ -102,50 +105,136 @@ fn collect_deps_and_calls(
     unannotated: &mut HashSet<String>,
 ) {
     match expr {
-        HirExpr::Ident(name, _) => {
-            if state_names.contains(name) {
-                deps.insert(name.clone());
-            }
+        HirExpr::Ident(name, _) if state_names.contains(name) => {
+            deps.insert(name.clone());
         }
         HirExpr::Binary(_, left, right, _) => {
-            collect_deps_and_calls(left, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
-            collect_deps_and_calls(right, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                left,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
+            collect_deps_and_calls(
+                right,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
         }
         HirExpr::Unary(_, e, _) => {
-            collect_deps_and_calls(e, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                e,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
         }
         HirExpr::Block(stmts, _) => {
             for stmt in stmts {
-                collect_deps_and_calls_stmt(stmt, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls_stmt(
+                    stmt,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
         }
         HirExpr::Jsx(el) => {
             for attr in &el.attributes {
-                collect_deps_and_calls(&attr.value, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls(
+                    &attr.value,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
             for child in &el.children {
-                collect_deps_and_calls(child, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls(
+                    child,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
         }
         HirExpr::JsxSelfClosing(el) => {
             for attr in &el.attributes {
-                collect_deps_and_calls(&attr.value, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls(
+                    &attr.value,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
         }
         HirExpr::ObjectLit(fields, _) => {
             for (_, val) in fields {
-                collect_deps_and_calls(val, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls(
+                    val,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
         }
         HirExpr::ListLit(elems, _) | HirExpr::TupleLit(elems, _) => {
             for e in elems {
-                collect_deps_and_calls(e, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls(
+                    e,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
         }
         HirExpr::Call(callee, args, _, _) => {
-            collect_deps_and_calls(callee, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                callee,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
             for arg in args {
-                collect_deps_and_calls(&arg.value, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls(
+                    &arg.value,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
             // If the callee resolves to a known in-module free function, classify it.
             if let HirExpr::Ident(name, _) = callee.as_ref() {
@@ -155,7 +244,15 @@ fn collect_deps_and_calls(
                         // and prevents infinite loops from direct or mutual recursion.
                         visited.insert(name.clone());
                         for stmt in body {
-                            collect_deps_and_calls_stmt(stmt, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                            collect_deps_and_calls_stmt(
+                                stmt,
+                                state_names,
+                                reactive_callees,
+                                visible_fn_names,
+                                visited,
+                                deps,
+                                unannotated,
+                            );
                         }
                     } else if visible_fn_names.contains(name) {
                         // Known in-module fn without `@reactive`: flag for the
@@ -168,48 +265,168 @@ fn collect_deps_and_calls(
         }
         HirExpr::MethodCall(_, _, args, Some(_), _) => {
             for arg in args {
-                collect_deps_and_calls(&arg.value, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls(
+                    &arg.value,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
         }
         HirExpr::MethodCall(obj, _, args, _, _) => {
-            collect_deps_and_calls(obj, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                obj,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
             for arg in args {
-                collect_deps_and_calls(&arg.value, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls(
+                    &arg.value,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
         }
         HirExpr::FieldAccess(obj, _, _) => {
-            collect_deps_and_calls(obj, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                obj,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
         }
         HirExpr::If(cond, then_body, else_body, _) => {
-            collect_deps_and_calls(cond, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                cond,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
             for stmt in then_body {
-                collect_deps_and_calls_stmt(stmt, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls_stmt(
+                    stmt,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
             if let Some(estmts) = else_body {
                 for stmt in estmts {
-                    collect_deps_and_calls_stmt(stmt, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                    collect_deps_and_calls_stmt(
+                        stmt,
+                        state_names,
+                        reactive_callees,
+                        visible_fn_names,
+                        visited,
+                        deps,
+                        unannotated,
+                    );
                 }
             }
         }
         HirExpr::For(_, iterable, body, _) => {
-            collect_deps_and_calls(iterable, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
-            collect_deps_and_calls(body, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                iterable,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
+            collect_deps_and_calls(
+                body,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
         }
         HirExpr::Lambda(_, _, body, _) => {
-            collect_deps_and_calls(body, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                body,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
         }
         HirExpr::Match(subject, arms, _) => {
-            collect_deps_and_calls(subject, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                subject,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
             for arm in arms {
-                collect_deps_and_calls(&arm.body, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls(
+                    &arm.body,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
         }
         HirExpr::With(left, right, _) => {
-            collect_deps_and_calls(left, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
-            collect_deps_and_calls(right, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                left,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
+            collect_deps_and_calls(
+                right,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
         }
         HirExpr::Spawn(e, _) => {
-            collect_deps_and_calls(e, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                e,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
         }
         _ => {}
     }
@@ -226,31 +443,95 @@ fn collect_deps_and_calls_stmt(
 ) {
     match stmt {
         HirStmt::Let { value, .. } => {
-            collect_deps_and_calls(value, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                value,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
         }
         HirStmt::Assign { target, value, .. } => {
-            collect_deps_and_calls(target, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
-            collect_deps_and_calls(value, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                target,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
+            collect_deps_and_calls(
+                value,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
         }
         HirStmt::Expr { expr, .. } => {
-            collect_deps_and_calls(expr, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                expr,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
         }
         HirStmt::Return { value, .. } => {
             if let Some(v) = value {
-                collect_deps_and_calls(v, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls(
+                    v,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
         }
         HirStmt::While {
             condition, body, ..
         } => {
-            collect_deps_and_calls(condition, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+            collect_deps_and_calls(
+                condition,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
             for s in body {
-                collect_deps_and_calls_stmt(s, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls_stmt(
+                    s,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
         }
         HirStmt::Loop { body, .. } => {
             for s in body {
-                collect_deps_and_calls_stmt(s, state_names, reactive_callees, visible_fn_names, visited, deps, unannotated);
+                collect_deps_and_calls_stmt(
+                    s,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
             }
         }
         HirStmt::Break { .. } | HirStmt::Continue { .. } => {}

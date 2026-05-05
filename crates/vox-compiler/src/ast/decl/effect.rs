@@ -2,7 +2,9 @@
 ///
 /// A missing `uses` clause leaves the function unannotated (open/unconstrained).
 /// `uses nothing` declares the function pure; equivalent to `@pure`.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum EffectAnnotation {
     /// Outbound HTTP / WebSocket.
     Net,

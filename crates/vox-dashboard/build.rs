@@ -1,5 +1,5 @@
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 fn main() {
     // TASK-7.1: compile .vox source → generated TSX before the pnpm/Vite bundle step.
@@ -47,8 +47,11 @@ fn main() {
              in crates/vox-dashboard before building with --features embedded-assets"
         );
 
-        let _ = fs::create_dir_all(&dist_dir);
-        let _ = fs::write(&index_file, "<html><body>Dashboard bundle not built.</body></html>");
+        let _ = fs::create_dir_all(dist_dir);
+        let _ = fs::write(
+            index_file,
+            "<html><body>Dashboard bundle not built.</body></html>",
+        );
     }
 
     println!("cargo:rerun-if-changed=dist");

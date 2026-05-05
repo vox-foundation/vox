@@ -27,8 +27,6 @@ pub mod checker;
 pub mod diagnostics;
 /// Effect propagation check: `caller.capabilities ⊇ callee.capabilities`.
 pub mod effect_check;
-/// State machine exhaustiveness and structural checks.
-pub mod state_machine_check;
 /// Environment management for symbols, types, and scopes.
 pub mod env;
 /// Core logic for unification-based type inference.
@@ -36,6 +34,8 @@ pub mod infer;
 pub mod policy;
 /// Logic for registering declarations into the global environment.
 pub mod registration;
+/// State machine exhaustiveness and structural checks.
+pub mod state_machine_check;
 /// Representation of internal types used during inference and checking.
 pub mod ty;
 /// Logic for unification of types and solving constraints.

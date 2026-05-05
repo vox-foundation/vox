@@ -171,7 +171,9 @@ pub use legacy::{
 mod legacy {
     use std::path::PathBuf;
 
-    use super::super::{A2AStoredMessage, DispatchResponse, PopuliTransportState, RemoteExecLeaseRow};
+    use super::super::{
+        A2AStoredMessage, DispatchResponse, PopuliTransportState, RemoteExecLeaseRow,
+    };
     use crate::PopuliRegistryError;
 
     pub fn a2a_store_path_from_env() -> Option<PathBuf> {

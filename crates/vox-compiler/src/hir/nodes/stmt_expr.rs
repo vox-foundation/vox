@@ -139,7 +139,13 @@ pub enum HirExpr {
     /// Call; `bool` indicates tail-call hint when used by backend.
     Call(Box<HirExpr>, Vec<HirArg>, bool, Span),
     /// Method call `obj.method(args)`.
-    MethodCall(Box<HirExpr>, String, Vec<HirArg>, Option<Box<HirDbQueryPlan>>, Span),
+    MethodCall(
+        Box<HirExpr>,
+        String,
+        Vec<HirArg>,
+        Option<Box<HirDbQueryPlan>>,
+        Span,
+    ),
     /// Field projection.
     FieldAccess(Box<HirExpr>, String, Span),
     /// `match` expression.

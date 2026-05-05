@@ -34,7 +34,10 @@ impl Orchestrator {
             let config = crate::sync_lock::rw_read(&*self.config);
             let (bb, fr) = if let Some(q_lock) = self.agent_queue(agent_id) {
                 let q = crate::sync_lock::rw_read(&*q_lock);
-                (q.capabilities.is_low_confidence_bypass_blocked, q.capabilities.force_socrates_research)
+                (
+                    q.capabilities.is_low_confidence_bypass_blocked,
+                    q.capabilities.force_socrates_research,
+                )
             } else {
                 (false, false)
             };
@@ -120,7 +123,8 @@ impl Orchestrator {
 
         if force_research && !outcome.research_decision.should_research {
             outcome.research_decision.should_research = true;
-            outcome.research_decision.trigger = "Policy: force_socrates_research enabled".to_string();
+            outcome.research_decision.trigger =
+                "Policy: force_socrates_research enabled".to_string();
         }
 
         if socrates_shadow {
@@ -209,7 +213,8 @@ impl Orchestrator {
                 reason.push_str(" Bypass blocked by security policy due to low confidence.");
             }
             reason.push_str(&format!(" Suggested next action: {}.", next_action));
-            t.description.push_str(&format!("\n\n[SOCRATES GATE]\n{}\n", reason));
+            t.description
+                .push_str(&format!("\n\n[SOCRATES GATE]\n{}\n", reason));
             t.status = TaskStatus::Queued;
             Ok(GateOutcome {
                 requeue: Some((t, "Socrates risk gate blocked completion".into(), 1, 0)),

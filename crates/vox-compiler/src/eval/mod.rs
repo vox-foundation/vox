@@ -133,7 +133,10 @@ impl Interpreter {
         // Register ADT variant constructors so `Applied(x, y)` etc. work in tests.
         for ty in &module.types {
             for variant in &ty.variants {
-                self.scope.set(variant.name.clone(), VoxValue::Constructor(variant.name.clone()));
+                self.scope.set(
+                    variant.name.clone(),
+                    VoxValue::Constructor(variant.name.clone()),
+                );
             }
         }
 

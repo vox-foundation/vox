@@ -91,7 +91,10 @@ mod tests {
 
     #[test]
     fn from_path_recognizes_reactive_module_suffix() {
-        assert_eq!(FileKind::from_path("counter.vox.ui"), FileKind::ReactiveModule);
+        assert_eq!(
+            FileKind::from_path("counter.vox.ui"),
+            FileKind::ReactiveModule
+        );
         assert_eq!(
             FileKind::from_path("/abs/path/counter.vox.ui"),
             FileKind::ReactiveModule

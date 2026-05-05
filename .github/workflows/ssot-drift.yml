@@ -12,7 +12,7 @@ jobs:
   check-versions:
     runs-on: [self-hosted, linux, x64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Check for hardcoded versions
         run: |
           # Fails if any crate Cargo.toml has a hardcoded version instead of workspace inheritance
@@ -25,7 +25,7 @@ jobs:
   check-dashboard-ssot:
     runs-on: [self-hosted, linux, x64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # full history needed for commit-log check
       - name: Install Vox toolchain

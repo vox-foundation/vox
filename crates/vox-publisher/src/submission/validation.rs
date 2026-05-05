@@ -21,18 +21,15 @@ pub fn validate_scholarly_staging(
     let plan = super::staging_artifacts(venue);
 
     for art in &plan {
-        match art.relative_path.as_str() {
-            "citations.json" => {
-                let src = manifest
-                    .citations_json
-                    .as_deref()
-                    .map(str::trim)
-                    .unwrap_or("");
-                if src.is_empty() {
-                    continue;
-                }
+        if art.relative_path.as_str() == "citations.json" {
+            let src = manifest
+                .citations_json
+                .as_deref()
+                .map(str::trim)
+                .unwrap_or("");
+            if src.is_empty() {
+                continue;
             }
-            _ => {}
         }
         let p = out_dir.join(&art.relative_path);
         if !p.is_file() {
@@ -364,43 +361,40 @@ fn arxiv_staging_handoff_quality_notes(
 ) -> Vec<ValidationFinding> {
     let mut v = Vec::new();
     let handoff_p = out_dir.join("arxiv_handoff.json");
-    if handoff_p.is_file() {
-        if let Ok(raw) = fs::read_to_string(&handoff_p) {
-            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) {
-                if !validate_arxiv_handoff_value(&val) {
-                    v.push(ValidationFinding {
+    if handoff_p.is_file()
+        && let Ok(raw) = fs::read_to_string(&handoff_p)
+        && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+    {
+        if !validate_arxiv_handoff_value(&val) {
+            v.push(ValidationFinding {
                         code: "arxiv_handoff_contract_mismatch",
                         message: "arxiv_handoff.json failed contract validation against expected arXiv assist operator envelope".into(),
                     });
-                }
-                let digest_ok = val.get("content_sha3_256").and_then(|x| x.as_str())
-                    == Some(manifest.content_sha3_256().as_str());
-                if !digest_ok {
-                    v.push(ValidationFinding {
+        }
+        let digest_ok = val.get("content_sha3_256").and_then(|x| x.as_str())
+            == Some(manifest.content_sha3_256().as_str());
+        if !digest_ok {
+            v.push(ValidationFinding {
                         code: "arxiv_handoff_digest_mismatch",
                         message: "arxiv_handoff.json content_sha3_256 does not match current manifest digest \u{2014} regenerate staging".into(),
                     });
-                }
-            }
         }
     }
     let checksums = out_dir.join("staging_checksums.json");
-    if checksums.is_file() {
-        if let Ok(raw) = fs::read_to_string(&checksums) {
-            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) {
-                let has_bundle = val
-                    .get("sha3_256")
-                    .and_then(|m| m.as_object())
-                    .is_some_and(|m| m.contains_key("arxiv_bundle.tar.gz"));
-                if !has_bundle {
-                    v.push(ValidationFinding {
-                        code: "staging_checksums_missing_arxiv_bundle",
-                        message:
-                            "staging_checksums.json should record arxiv_bundle.tar.gz for custody"
-                                .into(),
-                    });
-                }
-            }
+    if checksums.is_file()
+        && let Ok(raw) = fs::read_to_string(&checksums)
+        && let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw)
+    {
+        let has_bundle = val
+            .get("sha3_256")
+            .and_then(|m| m.as_object())
+            .is_some_and(|m| m.contains_key("arxiv_bundle.tar.gz"));
+        if !has_bundle {
+            v.push(ValidationFinding {
+                code: "staging_checksums_missing_arxiv_bundle",
+                message: "staging_checksums.json should record arxiv_bundle.tar.gz for custody"
+                    .into(),
+            });
         }
     }
     v

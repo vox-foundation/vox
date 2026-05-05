@@ -43,10 +43,7 @@ pub fn emit_jsx_element(el: &JsxElement, indent: usize) -> String {
 /// Emit a self-closing JSX element.
 ///
 /// **Phase:** compat-legacy (OP-0150).
-pub fn emit_jsx_self_closing(
-    el: &JsxSelfClosingElement,
-    indent: usize,
-) -> String {
+pub fn emit_jsx_self_closing(el: &JsxSelfClosingElement, indent: usize) -> String {
     let pad = "  ".repeat(indent);
     let view = transform_view_kwargs(&el.tag, &el.attributes);
     let mut out = format!("{pad}<{}", view.html_tag);
@@ -150,10 +147,17 @@ fn transform_view_kwargs(tag: &str, attrs: &[JsxAttribute]) -> ViewCallEmission 
     } else if class_pieces.len() == 1 {
         Some(class_pieces.into_iter().next().unwrap())
     } else {
-        Some(format!("[{}].filter(Boolean).join(\" \")", class_pieces.join(", ")))
+        Some(format!(
+            "[{}].filter(Boolean).join(\" \")",
+            class_pieces.join(", ")
+        ))
     };
 
-    ViewCallEmission { html_tag, class_expr, passthrough }
+    ViewCallEmission {
+        html_tag,
+        class_expr,
+        passthrough,
+    }
 }
 
 /// Render the attribute portion of a JSX opening tag: a leading className (if any) followed by
@@ -207,7 +211,12 @@ fn kwarg_to_class_expr(kwarg: &str, expr: &Expr) -> Option<String> {
             let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, value)?;
             Some(format!("\"{}\"", classes.join(" ")))
         }
-        Expr::If { condition, then_body, else_body, .. } => {
+        Expr::If {
+            condition,
+            then_body,
+            else_body,
+            ..
+        } => {
             // `bg=if cond { "x" } else { "y" }` → `(cond ? "bg-x" : "bg-y")`. Pull the trailing
             // expression of each branch (Stmt::Expr) and recurse; bail to None if either branch
             // doesn't end in a single expression we can resolve.
@@ -333,10 +342,13 @@ fn jsx_branch_to_ternary_str(stmts: &[Stmt], indent: usize) -> String {
     if let [Stmt::Expr { expr, .. }] = stmts {
         let u = unwrap_block(expr);
         return match u {
-            Expr::JsxSelfClosing(_) | Expr::Jsx(_) => {
-                emit_jsx_child(u, indent).trim().to_string()
-            }
-            Expr::If { condition, then_body, else_body, .. } => {
+            Expr::JsxSelfClosing(_) | Expr::Jsx(_) => emit_jsx_child(u, indent).trim().to_string(),
+            Expr::If {
+                condition,
+                then_body,
+                else_body,
+                ..
+            } => {
                 let pad = "  ".repeat(indent);
                 let cond_str = emit_expr(condition);
                 let then_part = jsx_branch_to_ternary_str(then_body, indent + 1);
@@ -348,7 +360,11 @@ fn jsx_branch_to_ternary_str(stmts: &[Stmt], indent: usize) -> String {
             }
             _ => {
                 let s = emit_expr(u);
-                if s.trim_start().starts_with('<') { s } else { format!("{{{s}}}") }
+                if s.trim_start().starts_with('<') {
+                    s
+                } else {
+                    format!("{{{s}}}")
+                }
             }
         };
     }

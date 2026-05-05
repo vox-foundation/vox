@@ -86,8 +86,7 @@ fn estimated_cost_usd(
         // Cache-hit pricing is also discounted during off-peak.
         let cache_read_cost = model.cache_read_cost_per_1k * discount;
         let input_cost = if cached > 0 && cache_read_cost > 0.0 {
-            (non_cached as f64 / 1000.0) * in_cost
-                + (cached as f64 / 1000.0) * cache_read_cost
+            (non_cached as f64 / 1000.0) * in_cost + (cached as f64 / 1000.0) * cache_read_cost
         } else {
             (prompt_tokens as f64 / 1000.0) * in_cost
         };

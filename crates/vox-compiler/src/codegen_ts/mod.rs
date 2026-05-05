@@ -9,12 +9,18 @@ pub mod adt;
 pub mod component;
 /// Main HIR → TypeScript emitter ([`generate`]).
 pub mod emitter;
+/// `fragment` declaration → typed React function components in `fragments.tsx`
+/// (Phase F of the Svelte-mineable features plan; per ADR-033).
+pub mod fragment_emit;
 /// Shared HIR → TS emission (reactive, routes, activities).
 pub mod hir_emit;
 /// JSX lowering and attribute handling.
 pub mod jsx;
 /// Reactive components codegen (Path C).
 pub mod reactive;
+/// `.vox.ui` reactive module → React context + provider + hook (Phase D of the
+/// Svelte-mineable features plan; per ADR-032).
+pub mod reactive_module_emit;
 /// `routes.manifest.ts` (framework-agnostic `VoxRoute[]`).
 pub mod route_manifest;
 /// Segment-aware route-pattern parser and overlap detection (Phase C of the
@@ -26,22 +32,16 @@ pub mod routes;
 pub mod scaffold;
 /// `@table` / VoxDB `schema.ts` generator ([`generate_voxdb_schema`]).
 pub mod schema;
+/// `state_machine` TypeScript discriminated union + reducer emit.
+pub mod state_machine_emit;
 /// TanStack Query helper emission (`vox-tanstack-query.tsx`).
 pub mod tanstack_query_emit;
-/// `vox-client.ts` typed `fetch` SDK.
-pub mod vox_client;
 /// Design token CSS + TypeScript emit from vox.tokens.json.
 pub mod tokens_emit;
 /// `url` block TypeScript discriminated union + builder emit.
 pub mod url_emit;
-/// `state_machine` TypeScript discriminated union + reducer emit.
-pub mod state_machine_emit;
-/// `fragment` declaration → typed React function components in `fragments.tsx`
-/// (Phase F of the Svelte-mineable features plan; per ADR-033).
-pub mod fragment_emit;
-/// `.vox.ui` reactive module → React context + provider + hook (Phase D of the
-/// Svelte-mineable features plan; per ADR-032).
-pub mod reactive_module_emit;
+/// `vox-client.ts` typed `fetch` SDK.
+pub mod vox_client;
 /// Zod schema emission.
 pub mod zod_emit;
 

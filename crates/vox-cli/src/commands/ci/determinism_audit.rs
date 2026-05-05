@@ -16,7 +16,7 @@ pub fn run(root: &Path) -> Result<()> {
 
     let mut entries: Vec<_> = fs::read_dir(golden_dir)?
         .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map_or(false, |ext| ext == "vox"))
+        .filter(|e| e.path().extension().is_some_and(|ext| ext == "vox"))
         .collect();
     entries.sort_by_key(|e| e.path());
 

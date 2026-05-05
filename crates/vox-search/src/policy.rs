@@ -10,6 +10,11 @@ use crate::searxng_defaults::embedded_searxng_query_defaults;
 /// Policy version mirrored into [`vox_db::SearchDiagnostics::policy_version`] and notes.
 pub const SEARCH_POLICY_DEFAULT_VERSION: u32 = 1;
 
+#[inline]
+fn default_chunk_vector_fusion_weight() -> f32 {
+    0.60
+}
+
 /// Tunable retrieval weights and safety rails (replaces ad hoc literals in tool surfaces).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SearchPolicy {
@@ -17,6 +22,9 @@ pub struct SearchPolicy {
     pub version: u32,
     /// Weight on the vector leg in memory hybrid fusion (`fuse_hybrid_results`).
     pub memory_vector_fusion_weight: f32,
+    /// Weight on the vector leg when fusing ingested `search_document_chunks` lexical + embedding hits.
+    #[serde(default = "default_chunk_vector_fusion_weight")]
+    pub chunk_vector_fusion_weight: f32,
     /// Trigger automatic verification when coarse evidence quality falls below this threshold.
     pub verification_weak_evidence_threshold: f64,
     /// Weight of top fused score when estimating `evidence_quality`.
@@ -77,6 +85,7 @@ impl Default for SearchPolicy {
         Self {
             version: SEARCH_POLICY_DEFAULT_VERSION,
             memory_vector_fusion_weight: 0.55,
+            chunk_vector_fusion_weight: 0.60,
             verification_weak_evidence_threshold: 0.55,
             evidence_quality_top_weight: 0.7,
             evidence_quality_coverage_weight: 0.3,
@@ -209,6 +218,12 @@ impl SearchPolicy {
             p.memory_vector_fusion_weight = w.clamp(0.0, 1.0);
         }
         if let Some(v) =
+            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchChunkVectorWeight).expose()
+            && let Ok(w) = v.parse::<f32>()
+        {
+            p.chunk_vector_fusion_weight = w.clamp(0.0, 1.0);
+        }
+        if let Some(v) =
             vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchVerificationQualityThreshold)
                 .expose()
             && let Ok(t) = v.parse::<f64>()
@@ -304,6 +319,12 @@ impl SearchPolicy {
     #[must_use]
     pub fn clamped_memory_vector_weight(&self) -> f32 {
         self.memory_vector_fusion_weight.clamp(0.0, 1.0)
+    }
+
+    /// Effective chunk hybrid fusion weight on the vector leg, clamped to `[0, 1]`.
+    #[must_use]
+    pub fn clamped_chunk_vector_weight(&self) -> f32 {
+        self.chunk_vector_fusion_weight.clamp(0.0, 1.0)
     }
 
     /// Sanitized `engines=` value for SearXNG requests.

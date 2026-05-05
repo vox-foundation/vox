@@ -1,7 +1,7 @@
+use crate::types::AgentId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::types::AgentId;
 
 /// Kind of resource lock.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -140,8 +140,8 @@ fn walk_golden_dir(dir: &Path, out: &mut Vec<VoxTrainingPair>) -> anyhow::Result
         let path = entry.path();
         if path.is_dir() {
             walk_golden_dir(&path, out)?;
-        } else if path.extension().is_some_and(|e| e == "vox") {
-            if let Ok(source) = std::fs::read_to_string(&path) {
+        } else if path.extension().is_some_and(|e| e == "vox")
+            && let Ok(source) = std::fs::read_to_string(&path) {
                 let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("example");
                 let summary = extract_golden_prompt_summary(&source).unwrap_or_else(|| {
                     source
@@ -162,7 +162,6 @@ fn walk_golden_dir(dir: &Path, out: &mut Vec<VoxTrainingPair>) -> anyhow::Result
                     rating: 5,
                 });
             }
-        }
     }
     Ok(())
 }

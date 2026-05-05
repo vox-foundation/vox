@@ -193,7 +193,7 @@ fn run_mens_gate_isolated(root: &Path, profile: &str, opts: &MensGateOpts) -> Re
     }
     #[cfg(unix)]
     {
-        return run_mens_gate_unix_isolated(root, profile, opts);
+        run_mens_gate_unix_isolated(root, profile, opts)
     }
     #[cfg(not(any(windows, unix)))]
     {

@@ -76,7 +76,7 @@ fn emit_one(sm: &HirStateMachineDecl, out: &mut String) {
             let ty_str = field
                 .ty
                 .as_ref()
-                .map(|t| hir_type_to_ts(t))
+                .map(hir_type_to_ts)
                 .unwrap_or_else(|| "unknown".to_string());
             out.push_str(&format!("; readonly {}: {ty_str}", field.name));
         }
@@ -135,12 +135,17 @@ fn emit_one(sm: &HirStateMachineDecl, out: &mut String) {
             let state_transitions: Vec<_> = sm
                 .transitions
                 .iter()
-                .filter(|tr| matches!(&tr.from, crate::hir::HirSmFrom::Named(n) if n == &st.name)
-                    || matches!(&tr.from, crate::hir::HirSmFrom::Any))
+                .filter(|tr| {
+                    matches!(&tr.from, crate::hir::HirSmFrom::Named(n) if n == &st.name)
+                        || matches!(&tr.from, crate::hir::HirSmFrom::Any)
+                })
                 .collect();
             for tr in &state_transitions {
                 out.push_str(&format!("        case {:?}:\n", tr.event_name));
-                out.push_str(&format!("          return {{ _tag: {:?} }};\n", tr.to_state));
+                out.push_str(&format!(
+                    "          return {{ _tag: {:?} }};\n",
+                    tr.to_state
+                ));
             }
             out.push_str("        default: return state;\n");
             out.push_str("      }\n");
@@ -213,7 +218,9 @@ mod tests {
 
     #[test]
     fn test_emit_state_type_discriminated_union() {
-        let out = emit("state_machine Light { state On\nstate Off\non Toggle from On -> Off\non Toggle from Off -> On\n}");
+        let out = emit(
+            "state_machine Light { state On\nstate Off\non Toggle from On -> Off\non Toggle from Off -> On\n}",
+        );
         assert!(out.contains("export type Light ="));
         assert!(out.contains("\"On\""));
         assert!(out.contains("\"Off\""));
@@ -221,14 +228,18 @@ mod tests {
 
     #[test]
     fn test_emit_event_type() {
-        let out = emit("state_machine Light { state On\nstate Off\non Toggle from On -> Off\non Toggle from Off -> On\n}");
+        let out = emit(
+            "state_machine Light { state On\nstate Off\non Toggle from On -> Off\non Toggle from Off -> On\n}",
+        );
         assert!(out.contains("export type LightEvent ="));
         assert!(out.contains("\"Toggle\""));
     }
 
     #[test]
     fn test_emit_reducer() {
-        let out = emit("state_machine Light { state On\nstate Off\non Toggle from On -> Off\non Toggle from Off -> On\n}");
+        let out = emit(
+            "state_machine Light { state On\nstate Off\non Toggle from On -> Off\non Toggle from Off -> On\n}",
+        );
         assert!(out.contains("export function lightReducer("));
         assert!(out.contains("state: Light"));
         assert!(out.contains("event: LightEvent"));
@@ -238,7 +249,9 @@ mod tests {
     /// React hook backed by the reducer.
     #[test]
     fn test_emit_react_hook_alongside_reducer() {
-        let out = emit("state_machine Light { state On\nstate Off\non Toggle from On -> Off\non Toggle from Off -> On\n}");
+        let out = emit(
+            "state_machine Light { state On\nstate Off\non Toggle from On -> Off\non Toggle from Off -> On\n}",
+        );
         assert!(
             out.contains("import { useState, useCallback } from \"react\""),
             "{out}"

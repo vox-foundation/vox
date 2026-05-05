@@ -23,32 +23,31 @@ pub fn generate_mutations(source: &str, _module: &Module) -> Vec<Mutation> {
     let id_re =
         regex::Regex::new(r"\b([a-z][a-zA-Z0-9]*[A-Z][a-zA-Z0-9]*|[A-Z][a-zA-Z0-9]+)\b").unwrap();
     for cap in id_re.captures_iter(source) {
-        if rng.gen_bool(0.2) {
-            if let Some(m) = cap.get(1) {
-                let replacement = MUTATION_NAMES.choose(&mut rng).unwrap().to_string();
-                mutations.push(Mutation {
-                    start: m.start(),
-                    end: m.end(),
-                    replacement,
-                });
-            }
+        if rng.gen_bool(0.2)
+            && let Some(m) = cap.get(1)
+        {
+            let replacement = MUTATION_NAMES.choose(&mut rng).unwrap().to_string();
+            mutations.push(Mutation {
+                start: m.start(),
+                end: m.end(),
+                replacement,
+            });
         }
     }
 
     // Number substitution
     let num_re = regex::Regex::new(r"\b(\d+)\b").unwrap();
     for cap in num_re.captures_iter(source) {
-        if rng.gen_bool(0.15) {
-            if let Some(m) = cap.get(1) {
-                if let Ok(val) = m.as_str().parse::<i64>() {
-                    let replacement = (val + rng.gen_range(-2..=2)).to_string();
-                    mutations.push(Mutation {
-                        start: m.start(),
-                        end: m.end(),
-                        replacement,
-                    });
-                }
-            }
+        if rng.gen_bool(0.15)
+            && let Some(m) = cap.get(1)
+            && let Ok(val) = m.as_str().parse::<i64>()
+        {
+            let replacement = (val + rng.gen_range(-2..=2)).to_string();
+            mutations.push(Mutation {
+                start: m.start(),
+                end: m.end(),
+                replacement,
+            });
         }
     }
 

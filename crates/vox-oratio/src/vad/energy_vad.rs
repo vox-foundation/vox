@@ -71,11 +71,11 @@ impl VadBackend for EnergyVad {
         // Merge segments separated by less than gap_samples
         let mut merged: Vec<VadSegment> = Vec::new();
         for seg in raw {
-            if let Some(last) = merged.last_mut() {
-                if seg.start.saturating_sub(last.end) <= gap_samples {
-                    last.end = seg.end;
-                    continue;
-                }
+            if let Some(last) = merged.last_mut()
+                && seg.start.saturating_sub(last.end) <= gap_samples
+            {
+                last.end = seg.end;
+                continue;
             }
             merged.push(seg);
         }

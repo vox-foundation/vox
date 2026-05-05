@@ -90,7 +90,7 @@ pub fn create_snapshot(
     for entry in fs::read_dir(src_dir)? {
         let entry = entry?;
         let path = entry.path();
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "jsonl") {
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "jsonl") {
             let file_name = path.file_name().unwrap();
             let dest_path = dest_dir.join(file_name);
 

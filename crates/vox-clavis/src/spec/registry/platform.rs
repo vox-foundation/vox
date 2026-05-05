@@ -182,7 +182,11 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
     SecretSpec {
         id: SecretId::TavilyProject,
         canonical_env: "TAVILY_PROJECT",
-        aliases: &["VOX_TAVILY_PROJECT", "TAVILY_PROJECT_ID", "VOX_TAVILY_PROJECT_ID"],
+        aliases: &[
+            "VOX_TAVILY_PROJECT",
+            "TAVILY_PROJECT_ID",
+            "VOX_TAVILY_PROJECT_ID",
+        ],
         deprecated_aliases: &[],
         backend_key: None,
         auth_registry: None,

@@ -22,9 +22,7 @@ pub fn redact_secrets_from_value(value: &Value, patterns: &[&str]) -> Value {
     if non_empty.is_empty() {
         return value.clone();
     }
-    let replacements: Vec<&str> = std::iter::repeat("[REDACTED]")
-        .take(non_empty.len())
-        .collect();
+    let replacements: Vec<&str> = std::iter::repeat_n("[REDACTED]", non_empty.len()).collect();
     let Ok(ac) = AhoCorasick::builder()
         .match_kind(MatchKind::LeftmostFirst)
         .build(&non_empty)

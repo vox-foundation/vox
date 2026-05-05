@@ -450,6 +450,12 @@ pub struct PopuliTransportState {
     pub bootstrap_peers: Vec<String>,
 }
 
+impl Default for PopuliTransportState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PopuliTransportState {
     /// New empty in-memory registry; does **not** read `VOX_MESH_SCOPE_ID` (for tests).
     #[must_use]
@@ -483,10 +489,17 @@ impl PopuliTransportState {
     /// No-op when `mesh_store` is `None`.
     pub async fn init_from_mesh_store(&mut self) -> Result<(), store::MeshStoreError> {
         use std::sync::atomic::Ordering;
-        let Some(ms) = self.mesh_store.clone() else { return Ok(()); };
+        let Some(ms) = self.mesh_store.clone() else {
+            return Ok(());
+        };
 
         let a2a = ms.load_all_a2a().await?;
-        let next_id = a2a.iter().map(|m| m.id).max().unwrap_or(0).saturating_add(1);
+        let next_id = a2a
+            .iter()
+            .map(|m| m.id)
+            .max()
+            .unwrap_or(0)
+            .saturating_add(1);
         *self.a2a_messages.write().await = a2a;
         self.a2a_id_gen.store(next_id, Ordering::SeqCst);
 
@@ -498,13 +511,13 @@ impl PopuliTransportState {
             .unwrap_or(0)
             .saturating_add(1);
         *self.exec_leases.write().await = leases;
-        self.exec_lease_id_gen.store(next_lease_id, Ordering::SeqCst);
+        self.exec_lease_id_gen
+            .store(next_lease_id, Ordering::SeqCst);
 
         #[cfg(feature = "transport")]
         {
             let dispatch = ms.load_all_dispatch_results().await?;
-            self.dispatch_results =
-                Arc::new(dashmap::DashMap::from_iter(dispatch.into_iter()));
+            self.dispatch_results = Arc::new(dashmap::DashMap::from_iter(dispatch));
         }
 
         Ok(())
@@ -584,7 +597,7 @@ impl PopuliTransportState {
         if let Some(path) = &dispatch_results_store_path
             && let Ok(existing) = store::load_dispatch_results_store(path)
         {
-            s.dispatch_results = Arc::new(dashmap::DashMap::from_iter(existing.into_iter()));
+            s.dispatch_results = Arc::new(dashmap::DashMap::from_iter(existing));
         }
 
         s.a2a_store_path = store_path;
@@ -678,7 +691,7 @@ impl PopuliTransportState {
             dispatch_results: if let Some(path) = &dispatch_results_store_path
                 && let Ok(existing) = store::load_dispatch_results_store(path)
             {
-                Arc::new(dashmap::DashMap::from_iter(existing.into_iter()))
+                Arc::new(dashmap::DashMap::from_iter(existing))
             } else {
                 Arc::new(dashmap::DashMap::new())
             },
@@ -894,10 +907,10 @@ pub(super) fn dispatch_results_sweep(
 ) {
     let mut to_remove = Vec::new();
     for entry in map.iter() {
-        if let Some(exp) = entry.value().expires_unix_ms {
-            if exp <= now_ms {
-                to_remove.push(entry.key().clone());
-            }
+        if let Some(exp) = entry.value().expires_unix_ms
+            && exp <= now_ms
+        {
+            to_remove.push(entry.key().clone());
         }
     }
     for k in to_remove {

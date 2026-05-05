@@ -179,9 +179,7 @@ pub fn emit_ebnf() -> String {
     g.push_str("(* pratt_match.rs: parse_primary view-call lowering *)\n");
     g.push_str("jsx_expr = view_call_expr ;\n");
     g.push_str("view_call_expr = view_call_block | view_call_self_closing ;\n");
-    g.push_str(
-        "view_call_block = ident, \"(\", [ view_args ], \")\", \"{\", { expr }, \"}\" ;\n",
-    );
+    g.push_str("view_call_block = ident, \"(\", [ view_args ], \")\", \"{\", { expr }, \"}\" ;\n");
     g.push_str("view_call_self_closing = ident, \"(\", [ view_args ], \")\" ;\n");
     g.push_str("view_args = view_arg, { \",\", view_arg } ;\n");
     g.push_str("view_arg = ident, \"=\", expr ;\n");

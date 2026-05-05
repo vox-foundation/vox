@@ -30,7 +30,8 @@ impl DashboardToken {
         }
 
         if !state_dir.exists() {
-            std::fs::create_dir_all(state_dir).context("failed to create state_dir for dashboard token")?;
+            std::fs::create_dir_all(state_dir)
+                .context("failed to create state_dir for dashboard token")?;
         }
 
         let mut key = [0u8; 32];
@@ -42,10 +43,13 @@ impl DashboardToken {
             use std::os::unix::fs::OpenOptionsExt;
             let mut options = std::fs::OpenOptions::new();
             options.write(true).create(true).truncate(true).mode(0o600);
-            let mut file = options.open(&token_path).context("failed to open dashboard.token")?;
+            let mut file = options
+                .open(&token_path)
+                .context("failed to open dashboard.token")?;
             use std::io::Write;
-            file.write_all(token_str.as_bytes()).context("failed to write dashboard.token")?;
-            
+            file.write_all(token_str.as_bytes())
+                .context("failed to write dashboard.token")?;
+
             let now = std::time::SystemTime::now();
             let _ = file.set_modified(now);
         }
@@ -65,8 +69,8 @@ impl DashboardToken {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::tempdir;
     use std::time::Duration;
+    use tempfile::tempdir;
 
     #[test]
     fn test_generate_and_load() {

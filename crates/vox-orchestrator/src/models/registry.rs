@@ -125,8 +125,7 @@ impl ModelRegistry {
                     // Suffix fallback — only match when exactly one model ID ends with the
                     // bare name. If multiple models share the suffix the match is ambiguous
                     // and nondeterministic (HashMap ordering), so we skip and log instead.
-                    let mut matches =
-                        self.models.keys().filter(|k| k.ends_with(suffix));
+                    let mut matches = self.models.keys().filter(|k| k.ends_with(suffix));
                     match (matches.next().cloned(), matches.next()) {
                         (Some(key), None) => Some(key),
                         _ => {
@@ -142,8 +141,7 @@ impl ModelRegistry {
                 }
             } else {
                 // Same deterministic suffix fallback without provider prefix.
-                let mut matches =
-                    self.models.keys().filter(|k| k.ends_with(suffix));
+                let mut matches = self.models.keys().filter(|k| k.ends_with(suffix));
                 match (matches.next().cloned(), matches.next()) {
                     (Some(key), None) => Some(key),
                     _ => {
@@ -159,7 +157,9 @@ impl ModelRegistry {
             };
 
             let Some(key) = found_key else { continue };
-            let Some(spec) = self.models.get_mut(&key) else { continue };
+            let Some(spec) = self.models.get_mut(&key) else {
+                continue;
+            };
 
             // Telemetry is always the highest-trust source; never downgrade it.
             if spec.pricing_source == PricingSource::Telemetry {
@@ -441,8 +441,8 @@ impl ModelRegistry {
             config_path.push("models.toml");
             if config_path.exists() {
                 if let Ok(contents) = vox_bounded_fs::read_utf8_path_capped(&config_path) {
-                    let cfg: super::spec::ModelConfig =
-                        toml::from_str(&contents).unwrap_or_else(|_| super::spec::ModelConfig::default());
+                    let cfg: super::spec::ModelConfig = toml::from_str(&contents)
+                        .unwrap_or_else(|_| super::spec::ModelConfig::default());
                     registry.premium_alias = if cfg.premium_alias.is_empty() {
                         built_in_premium_alias()
                     } else {
@@ -467,7 +467,9 @@ impl ModelRegistry {
             .join("cache")
             .join("model-catalog.v1.json");
         if let Ok(contents) = std::fs::read_to_string(&cache_file) {
-            if let Ok(cached_models) = serde_json::from_str::<Vec<super::spec::ModelSpec>>(&contents) {
+            if let Ok(cached_models) =
+                serde_json::from_str::<Vec<super::spec::ModelSpec>>(&contents)
+            {
                 for m in cached_models {
                     registry.register(m);
                 }

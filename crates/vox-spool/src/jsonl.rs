@@ -61,7 +61,10 @@ impl SpoolWriter {
 
     pub fn append(&mut self, data: &str) -> Result<()> {
         std::fs::create_dir_all(&self.config.root)?;
-        let path = self.config.root.join(format!("{}.jsonl", self.config.channel.as_str()));
+        let path = self
+            .config
+            .root
+            .join(format!("{}.jsonl", self.config.channel.as_str()));
         let mut file = OpenOptions::new().create(true).append(true).open(&path)?;
         writeln!(file, "{}", data)?;
         if matches!(self.config.fsync, FsyncPolicy::PerLine) {

@@ -280,10 +280,10 @@ fn resolve_secret_internal(id: SecretId, options: ResolveOptions) -> ResolvedSec
             {
                 return resolve_vault(id, profile, &options.caller_context);
             }
-            if let Ok(entry) = keyring::Entry::new("vox-clavis-vault", "master") {
-                if entry.get_password().is_ok() {
-                    return resolve_vox_cloud(id, options);
-                }
+            if let Ok(entry) = keyring::Entry::new("vox-clavis-vault", "master")
+                && entry.get_password().is_ok()
+            {
+                return resolve_vox_cloud(id, options);
             }
             resolve_with_backend(backend::NoopBackend, id, options)
         }

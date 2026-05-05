@@ -4,8 +4,8 @@
 //! diagnostics for tool-driven self-repair.
 
 use crate::mcp_tools::params::{
-    DiagnosticInfo, FixInfo, ToolResult, ValidateFileParams, ValidateResponse, ValidateSourceParams,
-    VoxCheckParams, VoxCheckResponse,
+    DiagnosticInfo, FixInfo, ToolResult, ValidateFileParams, ValidateResponse,
+    ValidateSourceParams, VoxCheckParams, VoxCheckResponse,
 };
 use crate::mcp_tools::server_state::ServerState;
 
@@ -13,7 +13,9 @@ use crate::mcp_tools::server_state::ServerState;
 /// the stable diagnostic `code` and any structured autofix suggestions carried in the
 /// `Diagnostic.data` payload (`{ "suggestions": [...], "fixes": [...] }`, populated by
 /// [`vox_lsp::typeck_diagnostic_to_lsp`]).
-fn lsp_diagnostics_to_info(diagnostics: &[tower_lsp::lsp_types::Diagnostic]) -> Vec<DiagnosticInfo> {
+fn lsp_diagnostics_to_info(
+    diagnostics: &[tower_lsp::lsp_types::Diagnostic],
+) -> Vec<DiagnosticInfo> {
     diagnostics
         .iter()
         .map(|d| {
@@ -324,8 +326,14 @@ mod tests {
         };
         let d = Diagnostic {
             range: Range {
-                start: Position { line: 1, character: 0 },
-                end: Position { line: 1, character: 4 },
+                start: Position {
+                    line: 1,
+                    character: 0,
+                },
+                end: Position {
+                    line: 1,
+                    character: 4,
+                },
             },
             severity: Some(DiagnosticSeverity::WARNING),
             code: Some(NumberOrString::String("web_ir.test.code".to_string())),

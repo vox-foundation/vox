@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::types::AgentId;
+use serde::{Deserialize, Serialize};
 
 /// Result of a judge model's evaluation of another agent's output.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -7,7 +7,7 @@ pub struct JudgeVerdict {
     pub task_id: String,
     pub target_agent_id: AgentId,
     pub judge_agent_id: AgentId,
-    pub score: f64,              // [0, 1]
+    pub score: f64, // [0, 1]
     pub reason: String,
     pub identifies_hallucination: bool,
 }

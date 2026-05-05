@@ -191,10 +191,7 @@ mod tests {
     fn parse_wildcard_segment() {
         assert_eq!(
             p("/files/*").segments,
-            vec![
-                Segment::Literal("files".to_string()),
-                Segment::Wildcard,
-            ]
+            vec![Segment::Literal("files".to_string()), Segment::Wildcard,]
         );
     }
 
@@ -221,10 +218,7 @@ mod tests {
     #[test]
     fn overlap_disjoint_literals_is_none() {
         assert_eq!(p("/users").overlap_with(&p("/posts")), Overlap::None);
-        assert_eq!(
-            p("/users/me").overlap_with(&p("/users/all")),
-            Overlap::None
-        );
+        assert_eq!(p("/users/me").overlap_with(&p("/users/all")), Overlap::None);
     }
 
     #[test]
@@ -243,10 +237,7 @@ mod tests {
 
     #[test]
     fn overlap_two_param_routes_is_ambiguous() {
-        assert_eq!(
-            p("/:a/:b").overlap_with(&p("/:x/:y")),
-            Overlap::Ambiguous
-        );
+        assert_eq!(p("/:a/:b").overlap_with(&p("/:x/:y")), Overlap::Ambiguous);
     }
 
     #[test]

@@ -205,14 +205,13 @@ fn construct_prompt(construct_type: &str, name: &str, seed: usize) -> String {
 pub(super) fn extract_golden_prompt_summary(source: &str) -> Option<String> {
     for line in source.lines() {
         let t = line.trim();
-        if let Some(rest) = t.strip_prefix("//").map(str::trim) {
-            if let Some(p) = rest.strip_prefix("@training_prompt:") {
+        if let Some(rest) = t.strip_prefix("//").map(str::trim)
+            && let Some(p) = rest.strip_prefix("@training_prompt:") {
                 let p = p.trim();
                 if !p.is_empty() {
                     return Some(p.to_string());
                 }
             }
-        }
     }
     let mut in_fm = false;
     let mut desc: Option<String> = None;
@@ -222,16 +221,14 @@ pub(super) fn extract_golden_prompt_summary(source: &str) -> Option<String> {
             in_fm = !in_fm;
             continue;
         }
-        if in_fm {
-            if let Some(rest) = t.strip_prefix("//").map(str::trim) {
-                if let Some(d) = rest.strip_prefix("description:") {
+        if in_fm
+            && let Some(rest) = t.strip_prefix("//").map(str::trim)
+                && let Some(d) = rest.strip_prefix("description:") {
                     let d = d.trim().trim_matches('"').trim_matches('\'').trim();
                     if !d.is_empty() {
                         desc = Some(d.to_string());
                     }
                 }
-            }
-        }
     }
     desc
 }

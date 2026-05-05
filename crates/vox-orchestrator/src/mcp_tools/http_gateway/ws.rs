@@ -33,7 +33,7 @@ pub(super) async fn handle_ws(
                 match msg {
                     Message::Text(text) => {
                         let parsed: Result<WsMessageIn, _> = serde_json::from_str(&text);
-                        
+
                         if role_opt.is_none() {
                             let mut authenticated = false;
                             if let Ok(ref req) = parsed {
@@ -68,7 +68,7 @@ pub(super) async fn handle_ws(
                                 continue;
                             }
                         }
-                        
+
                         let role = role_opt.unwrap();
                         if let Err(msg) = enforce_rate_limit(&state, &identity) {
                             let _ = socket

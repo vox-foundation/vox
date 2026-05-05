@@ -4,9 +4,7 @@ use crate::rust_interop_support::{
     is_template_managed_app_dependency, semantics_state_for_rust_crate,
 };
 use crate::typeck::diagnostics::Diagnostic;
-use crate::typeck::env::{
-    AdtDef, AgentHandlerSig, Binding, BindingKind, TypeEnv, VariantDef,
-};
+use crate::typeck::env::{AdtDef, AgentHandlerSig, Binding, BindingKind, TypeEnv, VariantDef};
 use crate::typeck::ty::Ty;
 use crate::typeck::unify::InferenceContext;
 use std::collections::HashMap;
@@ -318,10 +316,18 @@ pub fn register_hir_typedef(env: &mut TypeEnv, td: &HirTypeDef) {
 
 /// Register a URL decl's name as an ADT type so variant names can be resolved.
 pub fn register_hir_url_decl(env: &mut TypeEnv, u: &HirUrlDecl) {
-    let variants: Vec<VariantDef> = u.variants.iter().map(|v| VariantDef {
-        name: v.name.clone(),
-        fields: v.args.iter().map(|a| (a.name.clone(), resolve_hir_type(&a.ty, env))).collect(),
-    }).collect();
+    let variants: Vec<VariantDef> = u
+        .variants
+        .iter()
+        .map(|v| VariantDef {
+            name: v.name.clone(),
+            fields: v
+                .args
+                .iter()
+                .map(|a| (a.name.clone(), resolve_hir_type(&a.ty, env)))
+                .collect(),
+        })
+        .collect();
     env.register_type(AdtDef {
         name: u.name.clone(),
         variants,
@@ -389,7 +395,7 @@ fn register_fn_like(
         })
         .collect();
     let ret_ty = ret.map(|t| resolve_hir_type(t, env)).unwrap_or_else(|| {
-        if let Some(ctx) = uf.as_deref_mut() {
+        if let Some(ctx) = uf {
             ctx.fresh_var()
         } else {
             Ty::Infer

@@ -38,10 +38,7 @@ pub async fn run_catalog_refresh_loop(orch: Arc<Orchestrator>) {
         tokio::time::sleep(Duration::from_secs(interval)).await;
 
         // Honour the stop flag so the loop exits cleanly on shutdown.
-        if orch
-            .stop_flag
-            .load(std::sync::atomic::Ordering::Relaxed)
-        {
+        if orch.stop_flag.load(std::sync::atomic::Ordering::Relaxed) {
             tracing::info!(target: "vox.orchestrator.catalog_refresh", "stop flag set; exiting refresh loop");
             break;
         }

@@ -28,7 +28,11 @@ pub enum RiskLevel {
 
 /// Commands known to perform network I/O even when not in `network_fetch_commands`.
 const IMPLICIT_NETWORK_COMMANDS: &[&str] = &[
-    "curl", "wget", "fetch", "Invoke-WebRequest", "Invoke-RestMethod",
+    "curl",
+    "wget",
+    "fetch",
+    "Invoke-WebRequest",
+    "Invoke-RestMethod",
 ];
 
 /// Classify `ast` using the given policy and update `ast.risk` in place.
@@ -60,9 +64,16 @@ pub fn classify(ast: &mut ExecAst, policy: &ExecPolicy) {
 
     // Flags that indicate elevated scope regardless of command
     const ELEVATED_FLAGS: &[&str] = &[
-        "recurse", "r", "rf", "force", "f",
-        "no-preserve-root", "delete", "rm",
-        "sudo", "admin",
+        "recurse",
+        "r",
+        "rf",
+        "force",
+        "f",
+        "no-preserve-root",
+        "delete",
+        "rm",
+        "sudo",
+        "admin",
     ];
     let has_elevated_flag = ast.flags.iter().any(|fl| {
         ELEVATED_FLAGS

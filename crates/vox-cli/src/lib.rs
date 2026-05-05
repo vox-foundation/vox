@@ -22,7 +22,6 @@ pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
-pub mod telemetry_spool;
 /// External `vox-dei-d` RPC boundary (method id SSOT).
 pub mod dei_daemon;
 /// Colored CLI output helpers (`print_info`, `print_success`, …).
@@ -49,6 +48,7 @@ pub mod pipeline;
 mod process_supervision;
 /// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
 pub(crate) mod render;
+pub mod telemetry_spool;
 pub mod templates;
 /// WASI preopen mode for `script-execution` / `execution-api` runners.
 #[cfg(any(feature = "script-execution", feature = "execution-api"))]

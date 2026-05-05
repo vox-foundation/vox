@@ -5,8 +5,8 @@ use jsonschema::validator_for;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
 use vox_compiler::ast::span::Span;
-use vox_compiler::hir::{DefId, HirExpr, HirModule, HirStmt};
 use vox_compiler::hir::nodes::{DurabilityKind, HirFn};
+use vox_compiler::hir::{DefId, HirExpr, HirModule, HirStmt};
 use vox_db::{DbConfig, VoxDb};
 use vox_workflow_runtime::{
     VoxDbTracker, WORKFLOW_JOURNAL_VERSION, WorkflowTracker, interpret_workflow_durable,
@@ -191,9 +191,15 @@ async fn workflow_not_found_returns_error_stub() {
     let hir = HirModule::default();
     let mut tracker = RecordingTracker::default();
     let err = interpret_workflow_durable(&hir, "any_workflow", &mut tracker).await;
-    assert!(err.is_err(), "planner should error when workflow HIR is unavailable");
+    assert!(
+        err.is_err(),
+        "planner should error when workflow HIR is unavailable"
+    );
     let msg = err.unwrap_err().to_string();
-    assert!(msg.contains("not found"), "error should mention workflow not found: {msg}");
+    assert!(
+        msg.contains("not found"),
+        "error should mention workflow not found: {msg}"
+    );
 }
 
 #[tokio::test]

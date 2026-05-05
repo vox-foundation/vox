@@ -1,8 +1,8 @@
+use crate::commands::ci::cmd_enums::GuardOpts;
 use anyhow::{Context, Result};
+use glob;
 use serde::Deserialize;
 use std::path::Path;
-use glob;
-use crate::commands::ci::cmd_enums::GuardOpts;
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct GuardReport {
@@ -29,21 +29,25 @@ pub struct DataStoragePolicy {
 pub fn load_policy(path: &Path) -> Result<DataStoragePolicy> {
     let yaml = std::fs::read_to_string(path).context("read policy yaml")?;
     let val: serde_json::Value = serde_yaml::from_str(&yaml).context("parse yaml")?;
-    
-    let schema_path = path.parent().unwrap().join("data-storage-policy.v1.schema.json");
+
+    let schema_path = path
+        .parent()
+        .unwrap()
+        .join("data-storage-policy.v1.schema.json");
     let schema_str = std::fs::read_to_string(&schema_path).context("read policy schema")?;
-    let schema_val: serde_json::Value = serde_json::from_str(&schema_str).context("parse schema")?;
-    
+    let schema_val: serde_json::Value =
+        serde_json::from_str(&schema_str).context("parse schema")?;
+
     let validator = vox_jsonschema_util::compile_validator(&schema_val, schema_path.display())?;
     vox_jsonschema_util::validate(&val, &validator, "data storage policy")?;
-    
+
     serde_json::from_value(val).context("deserialize policy")
 }
 
 pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
     let root = std::env::current_dir()?;
     let policy_path = root.join("contracts/db/data-storage-policy.v1.yaml");
-    
+
     if opts.check_policy_only {
         let _ = load_policy(&policy_path)?;
         if !opts.json {
@@ -53,14 +57,17 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
     }
 
     let mut report = GuardReport::empty();
-    
+
     let run_all = opts.only.is_empty();
 
     // Check for stray root files
     if run_all || opts.only.contains(&"repo-root-strays-absent".to_string()) {
         let schemas_path = root.join("schemas");
         if schemas_path.exists() {
-            report.violations.push("schemas-dir-absent: schemas directory exists but is forbidden by policy.".to_string());
+            report.violations.push(
+                "schemas-dir-absent: schemas directory exists but is forbidden by policy."
+                    .to_string(),
+            );
         }
 
         let strays = [
@@ -71,15 +78,21 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
         ];
         for stray in strays.iter() {
             if root.join(stray).exists() {
-                report.violations.push(format!("repo-root-strays-absent: {} is forbidden by policy.", stray));
+                report.violations.push(format!(
+                    "repo-root-strays-absent: {} is forbidden by policy.",
+                    stray
+                ));
             }
         }
-        
+
         if let Ok(entries) = std::fs::read_dir(&root) {
             for entry in entries.filter_map(|e| e.ok()) {
                 if let Some(name) = entry.file_name().to_str() {
                     if name.starts_with("codex-cutover-") && name.ends_with(".sidecar.json") {
-                        report.violations.push(format!("repo-root-strays-absent: {} is forbidden by policy.", name));
+                        report.violations.push(format!(
+                            "repo-root-strays-absent: {} is forbidden by policy.",
+                            name
+                        ));
                     }
                 }
             }
@@ -93,10 +106,14 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
             if let Ok(content) = std::fs::read_to_string(root.join(ignore_file)) {
                 for line in content.lines() {
                     let line = line.trim();
-                    if line.is_empty() || line.starts_with('#') || line.contains('*') || line.ends_with('/') {
+                    if line.is_empty()
+                        || line.starts_with('#')
+                        || line.contains('*')
+                        || line.ends_with('/')
+                    {
                         continue;
                     }
-                    
+
                     if let Ok(output) = std::process::Command::new("git")
                         .arg("ls-files")
                         .arg(line)
@@ -104,7 +121,10 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                         .output()
                     {
                         if !output.stdout.is_empty() {
-                            report.violations.push(format!("ignore-tracked-parity: {} is in {} but is tracked by git.", line, ignore_file));
+                            report.violations.push(format!(
+                                "ignore-tracked-parity: {} is in {} but is tracked by git.",
+                                line, ignore_file
+                            ));
                         }
                     }
                 }
@@ -121,9 +141,15 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
             .output()
         {
             if let Ok(stdout) = String::from_utf8(output.stdout) {
-                let tracked_files: Vec<&str> = stdout.lines().filter(|l| !l.ends_with(".gitkeep")).collect();
+                let tracked_files: Vec<&str> = stdout
+                    .lines()
+                    .filter(|l| !l.ends_with(".gitkeep"))
+                    .collect();
                 if !tracked_files.is_empty() {
-                    report.violations.push(format!("scratch-clean: scratch/ contains tracked files other than .gitkeep: {:?}", tracked_files));
+                    report.violations.push(format!(
+                        "scratch-clean: scratch/ contains tracked files other than .gitkeep: {:?}",
+                        tracked_files
+                    ));
                 }
             }
         }
@@ -133,17 +159,30 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
     if run_all || opts.only.contains(&"schema-codegen-drift".to_string()) {
         // Run emit_agent_harness --verify
         let output = std::process::Command::new("cargo")
-            .args(["run", "-p", "vox-jsonschema-util", "--example", "emit_agent_harness", "--", "--verify"])
+            .args([
+                "run",
+                "-p",
+                "vox-jsonschema-util",
+                "--example",
+                "emit_agent_harness",
+                "--",
+                "--verify",
+            ])
             .current_dir(&root)
             .output();
 
         match output {
             Ok(out) if !out.status.success() => {
                 let stderr = String::from_utf8_lossy(&out.stderr);
-                report.violations.push(format!("schema-codegen-drift: {}", stderr.trim()));
+                report
+                    .violations
+                    .push(format!("schema-codegen-drift: {}", stderr.trim()));
             }
             Err(e) => {
-                report.violations.push(format!("schema-codegen-drift: failed to run generator: {}", e));
+                report.violations.push(format!(
+                    "schema-codegen-drift: failed to run generator: {}",
+                    e
+                ));
             }
             _ => {}
         }
@@ -157,7 +196,7 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                 if entry.is_file() {
                     report.files_scanned += 1;
                     let path_str = entry.to_string_lossy();
-                    
+
                     // Extract version N from .vN. in filename
                     let mut version = None;
                     if let Some(idx) = path_str.find(".v") {
@@ -172,8 +211,8 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
 
                     if let Some(v) = version {
                         if let Ok(content) = std::fs::read_to_string(&entry) {
-                            let has_header = content.contains(&format!("x-vox-version: {v}")) || 
-                                             content.contains(&format!("\"x-vox-version\": {v}"));
+                            let has_header = content.contains(&format!("x-vox-version: {v}"))
+                                || content.contains(&format!("\"x-vox-version\": {v}"));
                             if !has_header {
                                 report.violations.push(format!(
                                     "version-header-parity: file {} is missing mandatory header 'x-vox-version: {}'",
@@ -204,7 +243,13 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                     }
 
                     if let Ok(output) = std::process::Command::new("rg")
-                        .args(["-o", "--no-heading", "--no-line-number", "(VOX|TURSO|XDG)_[A-Z0-9_]+", "crates/"])
+                        .args([
+                            "-o",
+                            "--no-heading",
+                            "--no-line-number",
+                            "(VOX|TURSO|XDG)_[A-Z0-9_]+",
+                            "crates/",
+                        ])
                         .current_dir(&root)
                         .output()
                     {
@@ -237,7 +282,9 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
                 }
             }
         } else {
-             report.violations.push("env-parity: contracts/config/env-vars.v1.yaml missing".to_string());
+            report
+                .violations
+                .push("env-parity: contracts/config/env-vars.v1.yaml missing".to_string());
         }
     }
 
@@ -245,7 +292,10 @@ pub fn run(opts: &GuardOpts) -> Result<GuardReport> {
         if report.violations.is_empty() {
             println!("DataStorageGuard check passed.");
         } else {
-            println!("DataStorageGuard check failed with violations: {:#?}", report.violations);
+            println!(
+                "DataStorageGuard check failed with violations: {:#?}",
+                report.violations
+            );
         }
     }
     Ok(report)
@@ -257,9 +307,15 @@ mod tests {
 
     #[test]
     fn test_bad_policy_fails() {
-        let root = std::env::current_dir().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+        let root = std::env::current_dir()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf();
         // Since we are running in crates/vox-cli, the workspace root is `../../`
-        // Wait, current_dir() during test is `crates/vox-cli`. 
+        // Wait, current_dir() during test is `crates/vox-cli`.
         // Let's use env!("CARGO_MANIFEST_DIR") and go up.
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let bad_policy_path = manifest.join("../../tests/fixtures/bad-data-storage-policy.yaml");

@@ -75,8 +75,7 @@ impl ExecPolicy {
 
         // Blocked-parameter check (wildcard `"*"` + case-insensitive command scope)
         for (scope, blocked) in &self.blocked_parameters {
-            let applies =
-                scope == "*" || scope.trim().eq_ignore_ascii_case(ast.command.trim());
+            let applies = scope == "*" || scope.trim().eq_ignore_ascii_case(ast.command.trim());
             if !applies {
                 continue;
             }

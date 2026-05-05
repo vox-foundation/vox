@@ -99,9 +99,9 @@ fn for_each_doc_pipeline_include(text: &str, mut f: impl FnMut(&str)) {
     while let Some(found) = text[search..].find(needle) {
         let abs = search + found + needle.len();
         let rest = &text[abs..];
-        let close = rest
-            .find("}}")
-            .unwrap_or_else(|| panic!("unclosed doc pipeline `{{{{#include` starting at byte {abs}"));
+        let close = rest.find("}}").unwrap_or_else(|| {
+            panic!("unclosed doc pipeline `{{{{#include` starting at byte {abs}")
+        });
         let token = rest[..close].trim();
         let path_part = token.split(':').next().unwrap_or(token).trim();
         if !path_part.is_empty() {

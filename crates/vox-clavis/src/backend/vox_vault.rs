@@ -629,20 +629,20 @@ impl SecretBackend for VoxCloudBackend {
         }
 
         // Try profile override first if profile is specified
-        if let Some(prof) = profile {
-            if let Some(row) = self.get_profile_row(&self.account_id, key, prof)? {
-                if !verify_profile_record_checksum(&row) {
-                    return Err(SecretError::BackendQueryFailed(format!(
-                        "checksum mismatch for override account_id={} secret_id={} profile={}",
-                        row.account_id, row.secret_id, prof
-                    )));
-                }
-                let dek = self.unwrap_dek(&row.dek_wrapped, &row.kek_ref, row.kek_version)?;
-                let plaintext = decrypt_vault(&dek, &row.nonce, &row.ciphertext)?;
-                let secret_str = String::from_utf8(plaintext)
-                    .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
-                return Ok(Some(SecretString::new(secret_str.into_boxed_str())));
+        if let Some(prof) = profile
+            && let Some(row) = self.get_profile_row(&self.account_id, key, prof)?
+        {
+            if !verify_profile_record_checksum(&row) {
+                return Err(SecretError::BackendQueryFailed(format!(
+                    "checksum mismatch for override account_id={} secret_id={} profile={}",
+                    row.account_id, row.secret_id, prof
+                )));
             }
+            let dek = self.unwrap_dek(&row.dek_wrapped, &row.kek_ref, row.kek_version)?;
+            let plaintext = decrypt_vault(&dek, &row.nonce, &row.ciphertext)?;
+            let secret_str = String::from_utf8(plaintext)
+                .map_err(|e| SecretError::BackendQueryFailed(e.to_string()))?;
+            return Ok(Some(SecretString::new(secret_str.into_boxed_str())));
         }
 
         // Fallback to canonical
@@ -675,12 +675,12 @@ impl SecretBackend for VoxCloudBackend {
         // For audit logs, we don't have a broad pattern set here, but we can check
         // against the secret_id itself (though id is usually public) or just ensure
         // it doesn't look like a known leak.
-        if let Some(d) = detail {
-            if crate::redact::contains_secret_material(d, &[]) {
-                return Err(SecretError::BackendQueryFailed(
-                    "detail field contains suspected secret material".to_string(),
-                ));
-            }
+        if let Some(d) = detail
+            && crate::redact::contains_secret_material(d, &[])
+        {
+            return Err(SecretError::BackendQueryFailed(
+                "detail field contains suspected secret material".to_string(),
+            ));
         }
 
         let account_id = self.account_id.clone();
@@ -764,21 +764,21 @@ fn resolve_cloudless_db_url() -> String {
 }
 
 fn resolve_cloudless_auth_token() -> String {
-    if let Ok(t) = std::env::var("VOX_CLAVIS_VAULT_TOKEN") {
-        if !t.trim().is_empty() {
-            return t;
-        }
+    if let Ok(t) = std::env::var("VOX_CLAVIS_VAULT_TOKEN")
+        && !t.trim().is_empty()
+    {
+        return t;
     }
     if clavis_vault_compat_aliases_allowed() {
-        if let Ok(t) = std::env::var(concat!("VOX_", "TURSO", "_TOKEN")) {
-            if !t.trim().is_empty() {
-                return t;
-            }
+        if let Ok(t) = std::env::var(concat!("VOX_", "TURSO", "_TOKEN"))
+            && !t.trim().is_empty()
+        {
+            return t;
         }
-        if let Ok(t) = std::env::var(concat!("TURSO", "_AUTH_TOKEN")) {
-            if !t.trim().is_empty() {
-                return t;
-            }
+        if let Ok(t) = std::env::var(concat!("TURSO", "_AUTH_TOKEN"))
+            && !t.trim().is_empty()
+        {
+            return t;
         }
     }
     String::new()

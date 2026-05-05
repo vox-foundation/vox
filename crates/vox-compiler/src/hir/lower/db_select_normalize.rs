@@ -31,11 +31,10 @@ fn reorder_db_select_cols(field_names: &[String], cols: &mut Vec<String>) {
 }
 
 fn normalize_select_at_expr(expr: &mut HirExpr, field_order: &HashMap<String, Vec<String>>) {
-    if let HirExpr::MethodCall(_, _, _, Some(plan), _) = expr {
-        if let Some(cols) = plan.projection.as_mut()
-            && let Some(order) = field_order.get(&plan.table)
-        {
-            reorder_db_select_cols(order, cols);
-        }
+    if let HirExpr::MethodCall(_, _, _, Some(plan), _) = expr
+        && let Some(cols) = plan.projection.as_mut()
+        && let Some(order) = field_order.get(&plan.table)
+    {
+        reorder_db_select_cols(order, cols);
     }
 }

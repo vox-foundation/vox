@@ -105,10 +105,10 @@ async fn legacy_post(
     let mut cache_guard = session_cache().lock().await;
 
     let mut maybe_session = None;
-    if let Some(entry) = cache_guard.get(&cache_key) {
-        if std::time::Instant::now() < entry.expires_at {
-            maybe_session = Some(entry.session.clone());
-        }
+    if let Some(entry) = cache_guard.get(&cache_key)
+        && std::time::Instant::now() < entry.expires_at
+    {
+        maybe_session = Some(entry.session.clone());
     }
 
     let session = if let Some(s) = maybe_session {

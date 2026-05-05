@@ -2989,6 +2989,12 @@ variables:
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
+  - name: "VOX_SEARCH_CHUNK_VECTOR_WEIGHT"
+    owner_crate: "vox-clavis"
+    kind: "string"
+    required: false
+    introduced_in: "0.3.0"
+    description: "Fusion weight for hybrid chunk retrieval (FTS + embeddings); consumed by SearchPolicy.chunk_vector_fusion_weight."
   - name: "VOX_SEARCH_DDG_FALLBACK_DISABLED"
     owner_crate: "vox-clavis"
     kind: "string"

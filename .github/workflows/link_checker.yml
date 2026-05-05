@@ -12,12 +12,12 @@ jobs:
   check-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Link Checker
         id: lychee
-        uses: lycheeverse/lychee-action@v1.9.3
+        uses: lycheeverse/lychee-action@v2
         with:
-          args: --base . --verbose --no-progress --max-retries 5 --retry-wait-time 5 --timeout 40 --exclude-path docs/src/archive '**/*.md'
+          args: --root-dir . --verbose --no-progress --max-retries 5 --retry-wait-time 5 --timeout 40 --exclude-path docs/src/archive '**/*.md'
           fail: true
 
       - name: Link Checker Guidance

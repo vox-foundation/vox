@@ -19,7 +19,7 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                 std::env::current_dir()?.join(json)
             };
             scientia_ledger_contract::validate_finding_candidate_file(&root, &path)?;
-            return Ok(());
+            Ok(())
         }
         ScientiaCmd::NoveltyEvidenceBundleValidate { json } => {
             let root = repo_root();
@@ -29,7 +29,7 @@ pub async fn run(cmd: ScientiaCmd) -> anyhow::Result<()> {
                 std::env::current_dir()?.join(json)
             };
             scientia_ledger_contract::validate_novelty_bundle_file(&root, &path)?;
-            return Ok(());
+            Ok(())
         }
         cmd => {
             let db_cmd = match cmd {
@@ -330,8 +330,8 @@ async fn diagnose_adapters(live: bool) -> anyhow::Result<()> {
 
     // Simple table-like output without requiring comfy-table if not present
     println!(
-        "{:<20} {:<10} {:<15} {}",
-        "Channel", "Feature", "Credentials", "Heartbeat"
+        "{:<20} {:<10} {:<15} Heartbeat",
+        "Channel", "Feature", "Credentials"
     );
     println!("{:-<20} {:-<10} {:-<15} {:-<15}", "", "", "", "");
 

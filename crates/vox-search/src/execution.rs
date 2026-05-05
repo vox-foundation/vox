@@ -374,7 +374,12 @@ pub async fn execute_search_plan(
     let (chunk_lines, chunk_diagnostics) = if let Some(db) = db_opt.as_ref() {
         if plan.corpora.contains(&SearchCorpus::DocumentChunks) {
             let (rows, diagnostics) = db
-                .query_search_document_chunks_hybrid(query, query_vector.as_deref(), limit as i64)
+                .query_search_document_chunks_hybrid(
+                    query,
+                    query_vector.as_deref(),
+                    limit as i64,
+                    policy.clamped_chunk_vector_weight(),
+                )
                 .await
                 .map_err(|e| e.to_string())?;
             if diagnostics.backends_used.contains(&SearchBackend::ChunkFts) {

@@ -407,6 +407,7 @@ pub enum SecretId {
     VoxAnthropicChatCompletionsUrl,
     VoxSearchPolicyVersion,
     VoxSearchMemoryVectorWeight,
+    VoxSearchChunkVectorWeight,
     VoxSearchVerificationQualityThreshold,
     VoxSearchRepoMaxFiles,
     VoxSearchRepoSkipDirs,

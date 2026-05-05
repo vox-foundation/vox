@@ -304,7 +304,7 @@ impl ScientiaHeuristics {
         }
         let pa = &y.prior_art;
         if let Some(v) = pa.results_per_source {
-            h.prior_art_results_per_source = v.max(1).min(50);
+            h.prior_art_results_per_source = v.clamp(1, 50);
         }
         if let Some(v) = pa.token_min_len {
             h.prior_art_token_min_len = v;

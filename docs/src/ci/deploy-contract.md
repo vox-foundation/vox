@@ -14,13 +14,23 @@ Deploys are managed by the `.github/workflows/deploy-hetzner.yml` GitHub Actions
 ```mermaid
 graph TD
   A[Push to main] --> B[smoke-ci]
-  B -->|Success| C[docker-smoke]
-  C -->|Success| D[deploy-coolify]
-  D -->|Poll & Verify| E[health-check]
+  B -->|Success or skipped| D[deploy-coolify]
+  D -->|Poll & verify| E[health-check]
   E --> F[notify]
-  D -->|Failure| G[Fetch Logs & TOESTUB]
+  D -->|Failure| G[Fetch logs & artifact]
   G --> F
 ```
+
+## Deploy trigger (Coolify API)
+
+Gate 2 starts a deployment via the documented Coolify HTTP API:
+
+- **`GET`** `…/api/v1/applications/{uuid}/start` with query **`instant_deploy=true`** (Bearer **`COOLIFY_TOKEN`**).
+- The **200** response body includes **`deployment_uuid`** (some stacks echo **`deploymentUuid`**); the workflow parses either shape.
+
+See [Coolify “Start application” operation](https://coolify.io/docs/api-reference/api/operations/start-application-by-uuid).
+
+If that response does not yield a UUID (HTTP error or unexpected JSON), the job falls back to **`COOLIFY_WEBHOOK_URL`** when configured, then to listing **`…/applications/{uuid}/deployments`** and taking the latest entry.
 
 ## Secrets (Clavis Managed)
 
@@ -28,8 +38,8 @@ The `vox-foundation/vox` repository requires the following GitHub Secrets, which
 
 | Clavis Secret ID | GHA Secret Name | Description |
 |---|---|---|
-| `CoolifyWebhookUrl` | `COOLIFY_WEBHOOK_URL` | The deploy trigger URL from Coolify. |
-| `CoolifyBaseUrl` | `COOLIFY_BASE_URL` | Base URL of the Coolify dashboard (e.g. `http://...:8000`). |
+| `CoolifyWebhookUrl` | `COOLIFY_WEBHOOK_URL` | Optional fallback deploy trigger URL if the Applications **start** API response lacks a deployment UUID. |
+| `CoolifyBaseUrl` | `COOLIFY_BASE_URL` | Origin of the Coolify instance **without** a trailing slash (e.g. `http://...:8000`). Requests use `…/api/v1/…`. |
 | `CoolifyToken` | `COOLIFY_TOKEN` | Bearer API token with `deploy` permissions. |
 | `CoolifyAppUuid` | `COOLIFY_APP_UUID` | Target application UUID to poll and pull logs from. |
 
@@ -45,5 +55,5 @@ Instead of blindly failing CI and requiring manual GitHub inspection, the deploy
 
 ## Coolify Mitigations
 
-- **Webhook Race Conditions**: Coolify sometimes triggers before an image is available. The `deploy-coolify` job mitigates this by actively polling the `/api/v1/deployments/{uuid}` endpoint rather than using a blind `sleep 90`.
+- **Stale deploy identity**: Gate 2 prefers the **`deployment_uuid`** returned by **`/applications/{uuid}/start`**; if absent, it can fall back to the webhook URL or listing recent deployments before polling **`/api/v1/deployments/{uuid}`**.
 - **Missing UI Logs**: Failed Coolify builds sometimes drop logs in the web UI. We mitigate this by programmatically fetching the API logs *and* running a fallback `docker logs` command via the runner.

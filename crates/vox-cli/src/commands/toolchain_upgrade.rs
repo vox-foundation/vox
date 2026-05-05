@@ -816,27 +816,24 @@ fn run_bootstrap_environment_check(
         .args(["plan"])
         .output();
 
-    match output {
-        Ok(out) => {
-            if !out.status.success() {
-                if !json_output {
-                    let heal_script = if cfg!(target_os = "windows") {
-                        ".\\scripts\\install.ps1 -Apply"
-                    } else {
-                        "./scripts/install.sh --apply"
-                    };
-                    eprintln!("\n{}", "=".repeat(60));
-                    eprintln!("WARNING: ENVIRONMENTAL DRIFT DETECTED");
-                    eprintln!("{}", "=".repeat(60));
-                    eprintln!("The newly installed version of Vox requires system dependencies");
-                    eprintln!("that are either missing or outdated on your machine.");
-                    eprintln!("\nPlease run the following command to self-heal your environment:");
-                    eprintln!("    {}", heal_script);
-                    eprintln!("{}\n", "=".repeat(60));
-                }
+    if let Ok(out) = output {
+        if !out.status.success() {
+            if !json_output {
+                let heal_script = if cfg!(target_os = "windows") {
+                    ".\\scripts\\install.ps1 -Apply"
+                } else {
+                    "./scripts/install.sh --apply"
+                };
+                eprintln!("\n{}", "=".repeat(60));
+                eprintln!("WARNING: ENVIRONMENTAL DRIFT DETECTED");
+                eprintln!("{}", "=".repeat(60));
+                eprintln!("The newly installed version of Vox requires system dependencies");
+                eprintln!("that are either missing or outdated on your machine.");
+                eprintln!("\nPlease run the following command to self-heal your environment:");
+                eprintln!("    {}", heal_script);
+                eprintln!("{}\n", "=".repeat(60));
             }
         }
-        Err(_) => {}
     }
 
     Ok(())

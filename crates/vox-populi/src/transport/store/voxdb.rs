@@ -48,7 +48,10 @@ fn turso_err(e: turso::Error) -> MeshStoreError {
 
 macro_rules! store_span {
     ($op:expr, $ms:expr) => {
-        debug!("vox.mesh.store.op" = $op, "vox.mesh.store.duration_ms" = $ms);
+        debug!(
+            "vox.mesh.store.op" = $op,
+            "vox.mesh.store.duration_ms" = $ms
+        );
     };
     ($op:expr, $ms:expr, rows = $n:expr) => {
         debug!(
@@ -70,7 +73,8 @@ macro_rules! store_span {
 
 fn a2a_from_row(row: &turso::Row) -> Result<A2AStoredMessage, MeshStoreError> {
     let col = |i: i32| -> Result<_, MeshStoreError> {
-        row.get(i as usize).map_err(|e| MeshStoreError::Io(e.to_string()))
+        row.get(i as usize)
+            .map_err(|e| MeshStoreError::Io(e.to_string()))
     };
     let col_opt = |i: i32| -> Result<Option<String>, MeshStoreError> {
         row.get::<Option<String>>(i as usize)
@@ -110,10 +114,18 @@ fn a2a_from_row(row: &turso::Row) -> Result<A2AStoredMessage, MeshStoreError> {
 
 fn lease_from_row(row: &turso::Row) -> Result<RemoteExecLeaseRow, MeshStoreError> {
     Ok(RemoteExecLeaseRow {
-        lease_id: row.get::<String>(0).map_err(|e| MeshStoreError::Io(e.to_string()))?,
-        scope_key: row.get::<String>(1).map_err(|e| MeshStoreError::Io(e.to_string()))?,
-        holder_node_id: row.get::<String>(2).map_err(|e| MeshStoreError::Io(e.to_string()))?,
-        expires_unix_ms: row.get::<i64>(3).map_err(|e| MeshStoreError::Io(e.to_string()))? as u64,
+        lease_id: row
+            .get::<String>(0)
+            .map_err(|e| MeshStoreError::Io(e.to_string()))?,
+        scope_key: row
+            .get::<String>(1)
+            .map_err(|e| MeshStoreError::Io(e.to_string()))?,
+        holder_node_id: row
+            .get::<String>(2)
+            .map_err(|e| MeshStoreError::Io(e.to_string()))?,
+        expires_unix_ms: row
+            .get::<i64>(3)
+            .map_err(|e| MeshStoreError::Io(e.to_string()))? as u64,
     })
 }
 
@@ -239,7 +251,11 @@ impl MeshStore for VoxDbMeshStore {
         )
         .await
         .map_err(|e| {
-            store_span!("ack_a2a", t.elapsed().as_millis(), err = e.to_string().as_str());
+            store_span!(
+                "ack_a2a",
+                t.elapsed().as_millis(),
+                err = e.to_string().as_str()
+            );
             turso_err(e)
         })?;
         store_span!("ack_a2a", t.elapsed().as_millis());
@@ -247,7 +263,11 @@ impl MeshStore for VoxDbMeshStore {
     }
 
     async fn load_all_a2a(&self) -> Result<Vec<A2AStoredMessage>, MeshStoreError> {
-        self.list_a2a(A2APage { include_acked: true, ..Default::default() }).await
+        self.list_a2a(A2APage {
+            include_acked: true,
+            ..Default::default()
+        })
+        .await
     }
 
     // ── exec leases ────────────────────────────────────────────────
@@ -275,7 +295,11 @@ impl MeshStore for VoxDbMeshStore {
         )
         .await
         .map_err(|e| {
-            store_span!("put_exec_lease", t.elapsed().as_millis(), err = e.to_string().as_str());
+            store_span!(
+                "put_exec_lease",
+                t.elapsed().as_millis(),
+                err = e.to_string().as_str()
+            );
             turso_err(e)
         })?;
         store_span!("put_exec_lease", t.elapsed().as_millis());
@@ -300,7 +324,11 @@ impl MeshStore for VoxDbMeshStore {
         while let Some(row) = rows.next().await.map_err(turso_err)? {
             result.push(lease_from_row(&row)?);
         }
-        store_span!("list_exec_leases", t.elapsed().as_millis(), rows = result.len());
+        store_span!(
+            "list_exec_leases",
+            t.elapsed().as_millis(),
+            rows = result.len()
+        );
         Ok(result)
     }
 
@@ -313,7 +341,11 @@ impl MeshStore for VoxDbMeshStore {
         )
         .await
         .map_err(|e| {
-            store_span!("revoke_exec_lease", t.elapsed().as_millis(), err = e.to_string().as_str());
+            store_span!(
+                "revoke_exec_lease",
+                t.elapsed().as_millis(),
+                err = e.to_string().as_str()
+            );
             turso_err(e)
         })?;
         store_span!("revoke_exec_lease", t.elapsed().as_millis());
@@ -329,7 +361,11 @@ impl MeshStore for VoxDbMeshStore {
         )
         .await
         .map_err(|e| {
-            store_span!("delete_exec_lease", t.elapsed().as_millis(), err = e.to_string().as_str());
+            store_span!(
+                "delete_exec_lease",
+                t.elapsed().as_millis(),
+                err = e.to_string().as_str()
+            );
             turso_err(e)
         })?;
         store_span!("delete_exec_lease", t.elapsed().as_millis());
@@ -382,8 +418,7 @@ impl MeshStore for VoxDbMeshStore {
             .map_err(turso_err)?;
 
         let result = if let Some(row) = rows.next().await.map_err(turso_err)? {
-            let json: String =
-                row.get(0).map_err(|e| MeshStoreError::Io(e.to_string()))?;
+            let json: String = row.get(0).map_err(|e| MeshStoreError::Io(e.to_string()))?;
             Some(
                 serde_json::from_str(&json)
                     .map_err(|e| MeshStoreError::Serialization(e.to_string()))?,
