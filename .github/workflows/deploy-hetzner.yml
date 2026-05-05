@@ -59,47 +59,98 @@ jobs:
         run: |
           set -euo pipefail
           
-          deployment_uuid_from_json() {
-            echo "$1" | jq -r '.deployment_uuid // .deploymentUuid // empty'
+          # Parse deployment id from JSON bodies only (avoids jq on HTML login pages).
+          json_deploy_uuid() {
+            local body="$1"
+            case "$body" in
+              \{*) ;;
+              *) echo ""; return 0 ;;
+            esac
+            local u
+            u="$(jq -r '.deployment_uuid // .deploymentUuid // empty' <<<"$body" 2>/dev/null || true)"
+            if [ -n "$u" ] && [ "$u" != "null" ]; then echo "$u"; return 0; fi
+            u="$(jq -r '.deployments[0].deployment_uuid // empty' <<<"$body" 2>/dev/null || true)"
+            if [ -n "$u" ] && [ "$u" != "null" ]; then echo "$u"; return 0; fi
+            echo ""
+          }
+          
+          json_first_list_uuid() {
+            local body="$1"
+            case "$body" in
+              \{*) ;;
+              *) echo ""; return 0 ;;
+            esac
+            jq -r '
+              (if type == "array" then .[0].uuid else empty end)
+                // .data[0].uuid
+                // .deployments[0].uuid
+                // empty
+            ' <<<"$body" 2>/dev/null || true
           }
           
           BASE="${COOLIFY_BASE_URL%/}"
-          START_URL="${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true"
+          DEPLOY_UUID=""
           
-          echo "Triggering Coolify via Applications API (instant_deploy)..."
+          # 1) Official deploy endpoint — works with "Deploy" API token scope (not "Write").
+          echo "Triggering Coolify via GET /api/v1/deploy?uuid=..."
           TMP="$(mktemp)"
           HTTP_CODE="$(
             curl -sS -o "$TMP" -w '%{http_code}' -X GET \
               -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
-              "$START_URL" || echo "000"
+              "${BASE}/api/v1/deploy?uuid=${COOLIFY_APP_UUID}" || echo "000"
           )"
-          TRIGGER_RES="$(cat "$TMP" 2>/dev/null || echo '{}')"
+          BODY="$(cat "$TMP" 2>/dev/null || echo "")"
           rm -f "$TMP"
-          echo "Start API HTTP ${HTTP_CODE} — ${TRIGGER_RES}"
-          
-          DEPLOY_UUID=""
+          echo "Deploy API HTTP ${HTTP_CODE} — ${BODY}"
           if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
-            DEPLOY_UUID="$(deployment_uuid_from_json "$TRIGGER_RES")"
+            DEPLOY_UUID="$(json_deploy_uuid "$BODY")"
+          fi
+          
+          # 2) Start endpoint — requires broader token permission on some Coolify builds.
+          if [ -z "$DEPLOY_UUID" ]; then
+            echo "Trying Applications /start (instant_deploy)..."
+            START_URL="${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true"
+            TMP="$(mktemp)"
+            HTTP_CODE="$(
+              curl -sS -o "$TMP" -w '%{http_code}' -X GET \
+                -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+                "$START_URL" || echo "000"
+            )"
+            BODY="$(cat "$TMP" 2>/dev/null || echo "")"
+            rm -f "$TMP"
+            echo "Start API HTTP ${HTTP_CODE} — ${BODY}"
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+              DEPLOY_UUID="$(json_deploy_uuid "$BODY")"
+            fi
+          fi
+          
+          # 3) Optional webhook URLs (manual hooks often omit Bearer).
+          if [ -z "$DEPLOY_UUID" ] && [ -n "${COOLIFY_WEBHOOK_URL:-}" ]; then
+            echo "Webhook fallback (no Authorization header)..."
+            WH_RES="$(curl -sS -X GET "${COOLIFY_WEBHOOK_URL}" || true)"
+            echo "Webhook response head: ${WH_RES:0:200}"
+            DEPLOY_UUID="$(json_deploy_uuid "$WH_RES")"
           fi
           
           if [ -z "$DEPLOY_UUID" ] && [ -n "${COOLIFY_WEBHOOK_URL:-}" ]; then
-            echo "Falling back to Coolify webhook trigger..."
+            echo "Webhook fallback (Bearer token)..."
             WH_RES="$(curl -sS -X GET -H "Authorization: Bearer ${COOLIFY_TOKEN}" "${COOLIFY_WEBHOOK_URL}" || true)"
-            echo "Webhook response: ${WH_RES}"
-            DEPLOY_UUID="$(deployment_uuid_from_json "$WH_RES")"
+            echo "Webhook response head: ${WH_RES:0:200}"
+            DEPLOY_UUID="$(json_deploy_uuid "$WH_RES")"
           fi
           
+          # 4) List recent deployments for the application.
           if [ -z "$DEPLOY_UUID" ]; then
-            echo "No deployment UUID from API/webhook — polling latest deployment for this app..."
+            echo "Polling deployments list for this application..."
             sleep 5
             LATEST="$(curl -sS -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
               "${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/deployments" || true)"
             echo "Deployments response: $LATEST"
-            DEPLOY_UUID="$(echo "$LATEST" | jq -r '.[0].uuid // empty')"
+            DEPLOY_UUID="$(json_first_list_uuid "$LATEST")"
           fi
           
           if [ -z "$DEPLOY_UUID" ]; then
-            echo "::error::Could not determine deployment UUID. Check COOLIFY_BASE_URL, COOLIFY_APP_UUID, COOLIFY_TOKEN, and (optional) COOLIFY_WEBHOOK_URL."
+            echo "::error::Could not determine deployment UUID. Use a Coolify API token with at least Deploy scope; set COOLIFY_BASE_URL (no trailing slash), COOLIFY_APP_UUID, and optionally a Deploy Webhook URL from the Coolify UI."
             exit 1
           fi
           
