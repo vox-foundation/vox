@@ -18,7 +18,8 @@ fn require_secret(id: vox_clavis::SecretId) -> Result<String> {
 }
 
 fn base_url() -> Result<String> {
-    require_secret(vox_clavis::SecretId::CoolifyBaseUrl).map(|s| s.trim_end_matches('/').to_string())
+    require_secret(vox_clavis::SecretId::CoolifyBaseUrl)
+        .map(|s| s.trim_end_matches('/').to_string())
 }
 
 fn bearer_read() -> Result<String> {
@@ -84,7 +85,10 @@ async fn discover() -> Result<()> {
     {
         Ok(resp) if resp.status().is_success() => {
             let t = resp.text().await.unwrap_or_default();
-            println!("Coolify GET /api/v1/version (truncated): {}", &t[..t.len().min(400)]);
+            println!(
+                "Coolify GET /api/v1/version (truncated): {}",
+                &t[..t.len().min(400)]
+            );
         }
         Ok(resp) => {
             println!(
@@ -107,7 +111,10 @@ async fn discover() -> Result<()> {
     let status = resp.status();
     let text = resp.text().await.context("read applications body")?;
     if !status.is_success() {
-        anyhow::bail!("GET /api/v1/applications HTTP {status}: {}", &text[..text.len().min(800)]);
+        anyhow::bail!(
+            "GET /api/v1/applications HTTP {status}: {}",
+            &text[..text.len().min(800)]
+        );
     }
     let body: Value = serde_json::from_str(&text).with_context(|| {
         format!(
@@ -129,10 +136,7 @@ async fn discover() -> Result<()> {
             .get("name")
             .and_then(Value::as_str)
             .unwrap_or("(no name)");
-        let fqdn = row
-            .get("fqdn")
-            .and_then(Value::as_str)
-            .unwrap_or("");
+        let fqdn = row.get("fqdn").and_then(Value::as_str).unwrap_or("");
         let raw = row
             .get("docker_compose_raw")
             .and_then(Value::as_str)
