@@ -40,7 +40,7 @@ The `vox-foundation/vox` repository requires the following GitHub Secrets, which
 |---|---|---|
 | `CoolifyWebhookUrl` | `COOLIFY_WEBHOOK_URL` | Optional fallback if **`/api/v1/deploy`** and **`/start`** do not return a UUID (manual-style URL may work without Bearer). |
 | `CoolifyBaseUrl` | `COOLIFY_BASE_URL` | Origin of the Coolify instance **without** a trailing slash (e.g. `http://...:8000`). Requests use `…/api/v1/…`. |
-| `CoolifyToken` | `COOLIFY_TOKEN` | Bearer API token with `deploy` permissions. |
+| `CoolifyToken` | `COOLIFY_TOKEN` | Bearer API token with **Deploy** (for **`/api/v1/deploy`**) **and Read** (for **`GET /api/v1/deployments/…`**, list, and logs). Deploy-only tokens time out in Gate 2 with HTTP **403** `Missing required permissions: read`. |
 | `CoolifyAppUuid` | `COOLIFY_APP_UUID` | Target application UUID to poll and pull logs from. |
 
 *Note: Accessing these secrets via raw `std::env::var` in Rust source code is prohibited. Use `vox_clavis::resolve_secret(SecretId::CoolifyToken)` instead.*
@@ -49,7 +49,7 @@ The `vox-foundation/vox` repository requires the following GitHub Secrets, which
 
 When Gate 2 fails authentication or polling, verify **in Coolify first**, then mirror into **GitHub repository secrets**:
 
-- **API token scopes:** Prefer a token that can call **`GET /api/v1/deploy`** (typically **Deploy** scope). **`/applications/{uuid}/start`** may return **403** without **Write**; the workflow prefers **`/deploy`** exactly for Deploy-scoped tokens.
+- **API token scopes:** Use **Deploy** (to trigger **`GET /api/v1/deploy`**) **and Read** (to poll **`GET /api/v1/deployments/{uuid}`**, list deployments, and fetch logs). A **Deploy-only** token produces **HTTP 403** `Missing required permissions: read` on polling. **`/applications/{uuid}/start`** may still require **Write**; the workflow tries **`/deploy`** first.
 - **`COOLIFY_BASE_URL`:** Public origin only, **no trailing slash**, and must resolve to your Coolify **API host** (not a random proxy path).
 - **`COOLIFY_APP_UUID`:** The **application** resource UUID in Coolify (same app you poll in the UI).
 - **`COOLIFY_WEBHOOK_URL`:** Optional. Must be the **Deploy Webhook** URL for that resource—not the dashboard `/login` page. An HTML redirect to **`/login`** in workflow logs usually means this secret is wrong.

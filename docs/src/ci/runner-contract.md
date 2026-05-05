@@ -17,6 +17,21 @@ schema_type: "TechArticle"
 | Basic Linux | `[self-hosted, linux, x64]` |
 | Docker / Buildx | `[self-hosted, linux, x64, docker]` |
 | Playwright / browser | `[self-hosted, linux, x64, browser]` |
+| GPU / Mens train | `[self-hosted, linux, x64, gpu]` |
+
+Machines registered with **`linux`**, **`docker`**, **`browser`**, and **`gpu`** are **distinct capacity pools**, but each host still runs the same **GitHub Actions Runner** application version (the `actions-runner` service). Upgrade **every** self-hosted runner that serves this repository—not only the “basic” pool—when the runner app falls below the version floor below.
+
+## Actions Runner application version (self-hosted)
+
+Upstream JavaScript actions in this repo (for example **`actions/checkout@v6`**, **`actions/cache@v5`**, **`actions/setup-node@v6`**, Docker’s **`docker/*-action@v4+`**) use the **Node.js 24** Actions runtime where documented by each action release. GitHub documents a **minimum Actions Runner version of v2.327.1** for that runtime on self-hosted agents (see the [Actions Runner v2.327.1 release](https://github.com/actions/runner/releases/tag/v2.327.1) and each action’s README).
+
+**Operator checklist**
+
+- Keep **`actions-runner` at v2.327.1 or newer** on **all** self-hosted hosts (basic, docker, browser, **and** gpu pools).
+- Confirm from a job log line such as **“Current runner version: '…'"** at the start of a step, or upgrade proactively from [actions/runner releases](https://github.com/actions/runner/releases).
+- **GitHub-hosted** images (`ubuntu-latest`, `windows-latest`, `macos-latest`) are updated by GitHub; this requirement applies to **self-managed** fleets only.
+
+If a runner is too old, jobs fail early when invoking Node 24–based actions, or GitHub emits deprecation notices for obsolete Node runtimes—see GitHub’s [Actions runner changelog](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/) for the Node 20 deprecation timeline.
 
 ## GitHub-hosted exceptions
 

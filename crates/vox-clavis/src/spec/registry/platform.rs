@@ -33,8 +33,8 @@ pub const SPECS_PLATFORM: &[SecretSpec] = &[
         backend_key: None,
         auth_registry: None,
         policy: SecretPolicy::optional_skip(),
-        remediation: "Set COOLIFY_TOKEN to authenticate with the Coolify API.",
-        scope_description: "",
+        remediation: "Set COOLIFY_TOKEN to a Coolify API token with Read and Deploy (Deploy-only cannot poll GET /api/v1/deployments).",
+        scope_description: "Coolify API: read deployments + trigger deploy",
     },
     SecretSpec {
         id: SecretId::CoolifyAppUuid,

@@ -201,6 +201,15 @@ jobs:
             STATUS_RES="$(cat "$TMP" 2>/dev/null || echo "")"
             rm -f "$TMP"
             
+            if [ "$HTTP" = "403" ]; then
+              if echo "$STATUS_RES" | jq -e '(.message // "") | (test("read") and test("permission"))' >/dev/null 2>&1; then
+                ERR_MSG="$(echo "$STATUS_RES" | jq -r '.message // empty' 2>/dev/null || true)"
+                echo "::error::Coolify HTTP 403: ${ERR_MSG}. COOLIFY_TOKEN must include **Read** (not only Deploy): polling uses GET /api/v1/deployments/{uuid}, GET /api/v1/deployments, and log endpoints. Regenerate the API token in Coolify with Read + Deploy."
+                echo "deploy_status=auth" >> "$GITHUB_OUTPUT"
+                exit 1
+              fi
+            fi
+            
             STATUS="$(deployment_status_resolve "$STATUS_RES")"
             if [ -z "$STATUS" ] || [ "$STATUS" = "null" ]; then
               STATUS="$(deployments_list_status_for_uuid "$DEPLOY_UUID")"
@@ -212,11 +221,12 @@ jobs:
             fi
             echo "[$RETRY_COUNT/$MAX_RETRIES] Status: $STATUS"
             
-            if [ "$STATUS" = "finished" ] || [ "$STATUS" = "success" ] || [ "$STATUS" = "completed" ]; then
+            SNORM="${STATUS,,}"
+            if [ "$SNORM" = "finished" ] || [ "$SNORM" = "success" ] || [ "$SNORM" = "completed" ]; then
               echo "✅ Deployment succeeded."
               echo "deploy_status=success" >> "$GITHUB_OUTPUT"
               exit 0
-            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "error" ] || [ "$STATUS" = "cancelled" ]; then
+            elif [ "$SNORM" = "failed" ] || [ "$SNORM" = "error" ] || [ "$SNORM" = "cancelled" ]; then
               echo "❌ Deployment failed with status: $STATUS"
               echo "Full response: $STATUS_RES"
               echo "deploy_status=failed" >> "$GITHUB_OUTPUT"
