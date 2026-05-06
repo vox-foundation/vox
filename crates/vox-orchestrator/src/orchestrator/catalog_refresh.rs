@@ -125,6 +125,8 @@ async fn refresh_once(orch: &Arc<Orchestrator>) {
         return;
     }
 
+    crate::catalog_classifier::classify_models(&mut openrouter_models).await;
+
     // ── 4. Apply to registry under write lock ─────────────────────────────────
     let total_registered = {
         let mut registry = orch.models.write().unwrap();

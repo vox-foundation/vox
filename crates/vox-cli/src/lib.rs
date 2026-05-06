@@ -280,11 +280,14 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::SyncArgs,
     },
-    /// Deprecated: use `vox auth connect` instead.
-    #[command(hide = true)]
-    Login,
-    /// Deprecated: use `vox auth` instead.
-    #[command(hide = true)]
+    /// Sign in: configure cloud vault URL/token and Clavis profile (`canonical login`).
+    #[command(name = "login")]
+    Login {
+        #[command(flatten)]
+        args: commands::login_shared::LoginArgs,
+    },
+    /// Sign out: clear vault credentials from local keyring and `~/.vox/login.toml`.
+    #[command(name = "logout")]
     Logout,
     /// Share / search packages via local Arca index (`vox share`).
     Share {

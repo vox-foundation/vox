@@ -165,13 +165,11 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Sync { args } => {
             crate::commands::sync::run(args.registry.as_deref(), args.frozen).await?;
         }
-        Cli::Login => {
-            eprintln!("vox login is deprecated. Use `vox auth connect` instead.");
-            std::process::exit(1);
+        Cli::Login { args } => {
+            crate::commands::login_shared::run_login(args.into()).await?;
         }
         Cli::Logout => {
-            eprintln!("vox logout is deprecated. Use `vox auth` instead.");
-            std::process::exit(1);
+            crate::commands::login_shared::run_logout().await?;
         }
         Cli::Share { cmd } => {
             crate::commands::extras::share_cli::run(cmd).await?;

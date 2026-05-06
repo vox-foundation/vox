@@ -277,6 +277,7 @@ Centralized secret diagnostics and compatibility credential storage.
 | Subcommand | Role |
 |------------|------|
 | `vox clavis status --workflow chat\|mcp\|publish\|review\|db-remote\|mens-mesh --profile dev\|ci\|mobile\|prod --mode auto\|local\|cloud [--bundle minimal-local-dev\|minimal-cloud-dev\|gpu-cloud\|publish-review]` | Prints active-mode blocking vs optional secret readiness using requirement groups and optional bundle checks (alias: `vox clavis doctor …`). |
+| `vox clavis login [--vault-url URL] [--vault-token TOKEN] [--account ID] [--backend NAME] [--force] [--non-interactive]` | Same as top-level `vox login` (vault URL/token + profile). |
 | `vox clavis set <registry> <token> [--username <name>]` | Stores a registry token in `~/.vox/auth.json` through the Clavis API. |
 | `vox clavis get <registry>` | Reads and prints redacted token status from Clavis resolution sources. |
 | `vox clavis backend-status` | Prints backend mode (`env_only`/`infisical`/`vault`/`auto`) and backend availability diagnostics. |
@@ -299,12 +300,19 @@ Repository discovery from the current directory (`vox repo` with no subcommand d
 
 Scaffolds **`Vox.toml`**, **`src/main.vox`**, **`.vox_modules/`**, or a **`<name>.skill.md`** file (same layout as MCP **`vox_project_init`**; success JSON schema [`vox-project-scaffold-result.schema.json`](../../../contracts/repository/vox-project-scaffold-result.schema.json)). Implementation: **`vox-project-scaffold`** crate (shared with **`vox-mcp`**).
 
-### Deprecated compatibility commands
+### `vox login` (canonical)
 
-- `vox login [--registry <name>] [<token>] [--username <name>]` — compatibility shim for older workflows; prefer `vox clavis set`.
-- `vox logout [--registry <name>]` — compatibility shim; prefer `vox clavis` commands.
+Sign in for **VoxDB / Turso** cloud sync: writes URL + token to the OS keyring (`vox-clavis-env` / `turso-url`, `turso-token`) and optional `account_id` + `clavis_backend` to `~/.vox/login.toml`. Same implementation as `vox auth connect`, `vox auth login`, and `vox clavis login`.
 
-**Diagnostics:** `vox lock-report` remains separate (lock telemetry); it is **not** part of the `vox ci` surface.
+| Invocation | Role |
+|------------|------|
+| `vox login [--vault-url URL] [--vault-token TOKEN] [--account ID] [--backend vox_cloud] [--force] [--non-interactive]` | Prompts or uses flags; `--non-interactive` requires both `--vault-url` and `--vault-token`. |
+| `vox logout` | Clears keyring entries and removes `login.toml`. |
+| `vox clavis login …` | Alias of `vox login` under the Clavis tree. |
+| `vox auth connect …` · `vox auth login …` | Same handler as `vox login` (`Connect` exposes `login` as a Clap alias). |
+| `vox auth` | Identity / trust: `vox auth init`, `vox auth unlock`, `vox auth whoami`, `vox auth trust`, `vox auth trust-list`, `vox auth untrust`. |
+
+**Note:** older registry-token flows use `vox clavis set` / `vox clavis get`; vault DB sync uses the commands above.
 
 ### `vox commands`
 
@@ -779,8 +787,8 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `upgrade` | default | `commands::upgrade` (toolchain only) |
 | `init` | default | `commands::init` |
 | `pm` | default | `commands::pm` |
-| `login` | default | `commands::login` (deprecated compatibility shim) |
-| `logout` | default | `commands::logout` (deprecated compatibility shim) |
+| `login` | default | `commands::login_shared::run_login` |
+| `logout` | default | `commands::login_shared::run_logout` |
 | `lsp` | default | `commands::lsp` |
 | `doctor` | default / `codex` | `commands::doctor` or `commands::diagnostics::doctor` |
 | `clavis` | default | `commands::clavis` |

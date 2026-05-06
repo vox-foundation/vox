@@ -1,5 +1,34 @@
-x-vox-version: 1
-schema_version: 1
+x-vox-version: 3
+schema_version: 3
+
+# SSOT for quality-first routing, exploration, and outage fallback (overridable via Clavis).
+routing_objective:
+  kind: quality_first
+
+quality_weights:
+  socrates_factuality: 0.25
+  contradiction_inverse: 0.15
+  success_rate: 0.25
+  p50_latency_inverse: 0.15
+  cost_inverse: 0.2
+
+exploration:
+  algorithm: thompson_beta
+  epsilon_floor: 0.02
+  epsilon_ceiling: 0.12
+  min_samples_per_arm: 3
+  max_concurrent_explorations: 2
+  budget_usd_per_day: 50.0
+  exploration_boost_for_novel: 0.5
+
+safety:
+  max_cost_usd_per_request: 5.0
+
+# Ordered cascade when primary route fails (symbolic provider names; engine maps to registry).
+fallback_graph:
+  - OpenRouter
+  - PopuliMesh
+  - Ollama
 
 tiers:
   - Unknown
@@ -170,3 +199,54 @@ strength_inference:
   - type: default
     rules:
       - strengths: ["generalist"]
+
+capability_inference:
+  parameters_to_capabilities:
+    - parameters: ["tools", "tool_use", "tool_choice"]
+      capability: "supports_tool_use"
+    - parameters: ["response_format", "structured_outputs", "json_mode"]
+      capability: "supports_json"
+    - parameters: ["reasoning", "thinking", "reasoning_effort"]
+      capability: "supports_reasoning"
+    - parameters: ["web_search", "search", "web_search_options"]
+      capability: "supports_web_search"
+  modalities_to_capabilities:
+    - input_modality: "image"
+      capability: "supports_vision"
+    - input_modality: "audio"
+      capability: "supports_audio_input"
+    - output_modality: "image"
+      capability: "supports_image_generation"
+    - output_modality: "audio"
+      capability: "supports_audio_output"
+  default_capabilities: []
+
+intent_to_required_capabilities:
+  image_generation:
+    - supports_image_generation
+  vision_understanding:
+    - supports_vision
+  tool_calling:
+    - supports_tool_use
+  web_search:
+    - supports_web_search
+  reasoning:
+    - supports_reasoning
+  json_mode:
+    - supports_json
+
+prompt_intent_inference:
+  - kind: name_regex
+    rules:
+      - pattern: "(generate|create|draw|render).*(image|picture|illustration|art|logo|icon)"
+        intents: ["image_generation"]
+      - pattern: "(analyze|describe|read).*(image|photo|screenshot|chart)"
+        intents: ["vision_understanding"]
+      - pattern: "(call|use).*(tool|function|api)"
+        intents: ["tool_calling"]
+      - pattern: "(think|reason|step.by.step|chain.of.thought)"
+        intents: ["reasoning"]
+      - pattern: "(search the web|web search|look up|latest|current event|today's |news)"
+        intents: ["web_search"]
+      - pattern: "(json|schema|structured|valid object)"
+        intents: ["json_mode"]

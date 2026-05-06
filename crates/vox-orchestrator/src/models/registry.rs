@@ -42,6 +42,8 @@ pub struct ModelRegistry {
     premium_alias: HashMap<String, String>,
     /// Dynamic scores retrieved from `vox-db` `model_scoreboard` (keyed by model_id).
     scoreboard: HashMap<String, ModelScore>,
+    /// Thompson/Beta arm stats `(successes, failures)` from DB scoreboard aggregates.
+    arm_stats: HashMap<String, (u32, u32)>,
     /// In-memory penalty map for models that abstain (FIX-12).
     /// Key: (model_id, task_category). Value: Expiry time.
     penalty_map: HashMap<(String, TaskCategory), SystemTime>,
@@ -64,6 +66,15 @@ impl ModelRegistry {
 
     pub fn inject_scoreboard(&mut self, scores: HashMap<String, ModelScore>) {
         self.scoreboard = scores;
+    }
+
+    pub fn inject_arm_stats(&mut self, stats: HashMap<String, (u32, u32)>) {
+        self.arm_stats = stats;
+    }
+
+    #[must_use]
+    pub fn arm_stats_snapshot(&self) -> &HashMap<String, (u32, u32)> {
+        &self.arm_stats
     }
 
     pub fn inject_pricing_catalog(
@@ -372,6 +383,7 @@ impl ModelRegistry {
                         agent_overrides: HashMap::new(),
                         premium_alias: HashMap::new(),
                         scoreboard: HashMap::new(),
+                        arm_stats: HashMap::new(),
                         penalty_map: HashMap::new(),
                     };
                     tmp.apply_litellm_pricing(&litellm_entries);
@@ -434,6 +446,7 @@ impl ModelRegistry {
             agent_overrides: HashMap::new(),
             premium_alias: HashMap::new(),
             scoreboard: HashMap::new(),
+            arm_stats: HashMap::new(),
             penalty_map: HashMap::new(),
         };
 
@@ -486,6 +499,7 @@ impl ModelRegistry {
             agent_overrides: HashMap::new(),
             premium_alias: HashMap::new(),
             scoreboard: HashMap::new(),
+            arm_stats: HashMap::new(),
             penalty_map: HashMap::new(),
         };
 

@@ -7,7 +7,10 @@ pub(crate) mod spec;
 #[cfg(test)]
 mod tests;
 
-pub use generated::{ModelTier, StrengthTag, TaskCategory};
+pub use generated::{
+    infer_capabilities, infer_prompt_intents, intent_required_capabilities, Capability,
+    CapabilityFlags, ModelTier, PromptIntent, StrengthTag, TaskCategory,
+};
 pub use registry::{ModelRegistry, ModelScore};
 pub use spec::{
     ModelCapabilities, ModelConfig, ModelRouteBackend, ModelSpec, PricingSource, ProviderType,

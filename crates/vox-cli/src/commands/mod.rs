@@ -8,8 +8,10 @@ pub mod add;
 
 #[cfg(feature = "dei")]
 pub mod attention;
-/// Identity and master key generation.
+/// Identity and master key integration (`vox auth`).
 pub mod auth;
+/// Canonical login for vault / Clavis (`vox login`, `vox auth connect`, `vox clavis login`).
+pub mod login_shared;
 /// Building and codegen orchestration endpoints.
 pub mod build;
 /// Packaging tools for bundling Vox web apps (e.g., TanStack/Vite wrapper).

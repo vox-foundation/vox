@@ -1,11 +1,40 @@
 {
-  "x-vox-version": 1,
+  "x-vox-version": 3,
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
   "additionalProperties": true,
   "properties": {
     "schema_version": {
       "type": "integer"
+    },
+    "routing_objective": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "type": "string"
+        }
+      }
+    },
+    "quality_weights": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "exploration": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "fallback_graph": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "tiers": {
       "type": "array",
@@ -135,6 +164,28 @@
         "env_overrides"
       ]
     },
+    "strength_inference": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "capability_inference": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "intent_to_required_capabilities": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "prompt_intent_inference": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
     "lifecycle": {
       "type": "object",
       "properties": {
@@ -159,6 +210,11 @@
   },
   "required": [
     "schema_version",
+    "routing_objective",
+    "quality_weights",
+    "exploration",
+    "safety",
+    "fallback_graph",
     "tiers",
     "strengths",
     "task_categories",
@@ -166,6 +222,10 @@
     "premium_alias",
     "economy_cost_ceiling_usd_per_1k",
     "capability_policy",
+    "strength_inference",
+    "capability_inference",
+    "intent_to_required_capabilities",
+    "prompt_intent_inference",
     "lifecycle"
   ]
 }

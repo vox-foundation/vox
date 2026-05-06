@@ -2,7 +2,6 @@ use crate::config::CostPreference;
 use crate::mode::InferenceConfig;
 use crate::models::{BestModelParams, ModelRegistry, ModelSpec, RoutingStrategy};
 use crate::types::TaskCategory;
-use crate::models::scoring::auto_score_model;
 use crate::usage::RemainingBudget;
 
 use super::free_tier::FreeTierRouteRequest;
@@ -101,26 +100,56 @@ pub fn resolve_model_with_registry_fallbacks(
             "Model override '{id}' is not in the registry; clear the override or pick a valid id from the model list"
         ));
     }
+    if let Some(pin) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingHardPinModel).expose()
+    {
+        let p = pin.trim();
+        if !p.is_empty() {
+            if let Some(spec) = models.get(p) {
+                return Ok((spec.clone(), free_only));
+            }
+        }
+    }
     let complexity = params.complexity.min(10).max(1);
     let preference = cost_preference_override.unwrap_or_else(|| cfg.quality.to_cost_preference());
     let mut selected = models
         .best_for_config(params.task, complexity, &cfg)
         .or_else(|| {
             let strength = crate::models::registry::task_category_strength(params.task);
-            models
+            let candidates: Vec<ModelSpec> = models
                 .list_models()
                 .into_iter()
                 .filter(|m| {
-                    if free_only && !m.is_free { return false; }
-                    if vis && !m.capabilities.supports_vision { return false; }
-                    if cfg.modalities.web_search && !m.capabilities.supports_web_search { return false; }
+                    if free_only && !m.is_free {
+                        return false;
+                    }
+                    if vis && !m.capabilities.supports_vision {
+                        return false;
+                    }
+                    if cfg.modalities.web_search && !m.capabilities.supports_web_search {
+                        return false;
+                    }
                     crate::models::registry::ModelRegistry::matches_strength(m, strength)
                 })
-                .max_by(|a, b| {
-                    let score_a = auto_score_model(a, complexity, params.free_tier_latency_critical, params.context_fill_ratio, preference, availability_hint);
-                    let score_b = auto_score_model(b, complexity, params.free_tier_latency_critical, params.context_fill_ratio, preference, availability_hint);
-                    score_a.total_cmp(&score_b)
-                })
+                .collect();
+            if candidates.is_empty() {
+                return None;
+            }
+            if candidates.len() == 1 {
+                return Some(candidates.into_iter().next().expect("len 1"));
+            }
+            let mut engine = crate::routing::ModelSelectionEngine::new(None);
+            let arm_stats = std::collections::HashMap::new();
+            engine.pick_with_auto_score_thompson(
+                &candidates,
+                params.task,
+                complexity,
+                params.free_tier_latency_critical,
+                params.context_fill_ratio,
+                preference,
+                availability_hint,
+                &arm_stats,
+                0,
+            )
         })
         .or_else(|| {
             models.best_free_tier(FreeTierRouteRequest {

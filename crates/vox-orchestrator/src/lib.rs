@@ -52,6 +52,8 @@ pub mod lineage;
 
 /// `VOX_ROUTE_*` alignment helpers for registry/MCP paths (see contracts orchestration routing YAML).
 pub mod route_policy;
+/// Centralized model-routing policy + Thompson exploration (see `contracts/orchestration/model-routing.v1.yaml`).
+pub mod routing;
 
 /// Agent-to-agent messaging types and helpers.
 pub mod a2a;

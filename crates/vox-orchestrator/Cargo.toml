@@ -116,6 +116,7 @@ vox-compiler.workspace = true
 glob.workspace = true
 ignore = "0.4.25"
 rmp-serde = { workspace = true }
+rand_distr = "0.4"
 vox-openai-wire.workspace = true
 async-stream.workspace = true
 vox-project-scaffold.workspace = true

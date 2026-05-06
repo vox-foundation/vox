@@ -92,35 +92,37 @@ pub fn openrouter_api_key() -> Option<String> {
 
 /// Preferred Hugging Face **router** model id for chat when policy selects HF (`HF_CHAT_MODEL`).
 pub fn hf_chat_model_preference() -> Option<String> {
-    std::env::var("HF_CHAT_MODEL")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
+    crate::clavis::clavis_str(vox_clavis::SecretId::VoxHfChatModel)
 }
 
 /// Preferred OpenRouter model id when policy selects OpenRouter (`OPENROUTER_CHAT_MODEL`).
 ///
 /// Falls back to [`crate::bootstrap_inference::OPENROUTER_AUTO`] when unset.
 pub fn openrouter_chat_model_preference() -> String {
-    let preferred = std::env::var("OPENROUTER_CHAT_MODEL")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| std::env::var("OPENROUTER_GEMINI_MODEL").ok());
+    crate::routing_migration::trace_openrouter_chat_env_migration_once();
+    let preferred = crate::clavis::clavis_str(vox_clavis::SecretId::VoxOpenRouterChatModel).or_else(
+        || crate::clavis::clavis_str(vox_clavis::SecretId::OpenRouterGeminiModel),
+    );
     crate::routing_policy::resolve_openrouter_model(preferred)
 }
 
 /// OpenAI-compatible chat completions URL for a **pinned** Hugging Face Inference Endpoint
 /// (`HF_DEDICATED_CHAT_URL`), when policy should prefer dedicated over the shared router.
 pub fn hf_dedicated_chat_completions_url() -> Option<String> {
-    std::env::var("HF_DEDICATED_CHAT_URL")
-        .ok()
-        .filter(|s| !s.trim().is_empty())
+    crate::clavis::clavis_str(vox_clavis::SecretId::VoxHfDedicatedChatUrl)
 }
 
 /// Model id sent in the JSON body for [`hf_dedicated_chat_completions_url`] (`HF_DEDICATED_CHAT_MODEL`).
 pub fn hf_dedicated_chat_model() -> Option<String> {
-    std::env::var("HF_DEDICATED_CHAT_MODEL")
-        .ok()
+    crate::clavis::clavis_str(vox_clavis::SecretId::VoxHfDedicatedChatModel)
+}
+
+/// Canonical HF Inference Providers router chat completions URL (override via Clavis `VOX_HF_ROUTER_CHAT_COMPLETIONS_URL`).
+#[must_use]
+pub fn hf_router_chat_completions_url() -> String {
+    crate::clavis::clavis_str(vox_clavis::SecretId::VoxHfRouterChatCompletionsUrl)
         .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "https://router.huggingface.co/v1/chat/completions".to_string())
 }
 
 /// Sanitize a string for ChatML formatting by replacing control tokens that could

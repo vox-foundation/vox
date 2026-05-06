@@ -56,6 +56,167 @@ curated:
   cli_path:
   - ars
   parameters: null
+- id: cli.auth
+  title: Auth
+  description_human: null
+  description_model: CLI operation `vox auth`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - auth
+  parameters: null
+- id: cli.auth.connect
+  title: Auth Connect
+  description_human: null
+  description_model: CLI operation `vox auth connect`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - auth
+  - connect
+  parameters: null
+- id: cli.auth.init
+  title: Auth Init
+  description_human: null
+  description_model: CLI operation `vox auth init`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - auth
+  - init
+  parameters: null
+- id: cli.auth.login
+  title: Auth Login
+  description_human: null
+  description_model: CLI operation `vox auth login`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - auth
+  - login
+  parameters: null
+- id: cli.auth.trust
+  title: Auth Trust
+  description_human: null
+  description_model: CLI operation `vox auth trust`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - auth
+  - trust
+  parameters: null
+- id: cli.auth.trust-list
+  title: Auth Trust-list
+  description_human: null
+  description_model: CLI operation `vox auth trust-list`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - auth
+  - trust-list
+  parameters: null
+- id: cli.auth.unlock
+  title: Auth Unlock
+  description_human: null
+  description_model: CLI operation `vox auth unlock`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - auth
+  - unlock
+  parameters: null
+- id: cli.auth.untrust
+  title: Auth Untrust
+  description_human: null
+  description_model: CLI operation `vox auth untrust`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - auth
+  - untrust
+  parameters: null
+- id: cli.auth.whoami
+  title: Auth Whoami
+  description_human: null
+  description_model: CLI operation `vox auth whoami`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - auth
+  - whoami
+  parameters: null
 - id: cli.build
   title: Build
   description_human: null
@@ -1323,6 +1484,24 @@ curated:
   - clavis
   - get
   parameters: null
+- id: cli.clavis.login
+  title: Clavis Login
+  description_human: null
+  description_model: CLI operation `vox clavis login`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - clavis
+  - login
+  parameters: null
 - id: cli.clavis.migrate-auth-store
   title: Clavis Migrate-auth-store
   description_human: null
@@ -2112,6 +2291,40 @@ curated:
   cli_path:
   - lock
   parameters: null
+- id: cli.login
+  title: Login
+  description_human: null
+  description_model: CLI operation `vox login`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - login
+  parameters: null
+- id: cli.logout
+  title: Logout
+  description_human: null
+  description_model: CLI operation `vox logout`
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - logout
+  parameters: null
 - id: cli.lsp
   title: Lsp
   description_human: null
@@ -2599,6 +2812,116 @@ curated:
   - migrate
   - web
   parameters: null
+- id: cli.model.costs
+  title: Model Costs
+  description_human: null
+  description_model: Show detailed cost reporting.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - costs
+  parameters: null
+- id: cli.model.discover
+  title: Model Discover
+  description_human: null
+  description_model: Refresh the model catalog from all sources (discovery).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - discover
+  parameters: null
+- id: cli.model.explain
+  title: Model Explain
+  description_human: null
+  description_model: Explain model selection for a given task description.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - explain
+  parameters: null
+- id: cli.model.list
+  title: Model List
+  description_human: null
+  description_model: List model ids from the local catalog cache.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - list
+  parameters: null
+- id: cli.model.preferences.reset
+  title: Model Preferences Reset
+  description_human: null
+  description_model: Clear all VOX_CAPABILITY_* vault entries (best-effort).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - preferences
+  - reset
+  parameters: null
+- id: cli.model.preferences.set
+  title: Model Preferences Set
+  description_human: null
+  description_model: Set a Clavis capability routing preference or pinned model id in the vault.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - preferences
+  - set
+  parameters: null
 - id: cli.model.pricing.check
   title: Model Pricing Check
   description_human: null
@@ -2673,6 +2996,60 @@ curated:
   cli_path:
   - model
   - pricing
+  - show
+  parameters: null
+- id: cli.model.rollup
+  title: Model Rollup
+  description_human: null
+  description_model: Perform batch aggregation of telemetry into the scoreboard.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - rollup
+  parameters: null
+- id: cli.model.scoreboard
+  title: Model Scoreboard
+  description_human: null
+  description_model: Show the model scoreboard (latency, success rate, cost).
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
+  - scoreboard
+  parameters: null
+- id: cli.model.show
+  title: Model Show
+  description_human: null
+  description_model: Show JSON for one model from the cache.
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  requires_git: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  mcp_tool: null
+  cli_path:
+  - model
   - show
   parameters: null
 - id: cli.openclaw

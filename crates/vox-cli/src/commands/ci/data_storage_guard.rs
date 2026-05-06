@@ -307,16 +307,6 @@ mod tests {
 
     #[test]
     fn test_bad_policy_fails() {
-        let root = std::env::current_dir()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .parent()
-            .unwrap()
-            .to_path_buf();
-        // Since we are running in crates/vox-cli, the workspace root is `../../`
-        // Wait, current_dir() during test is `crates/vox-cli`.
-        // Let's use env!("CARGO_MANIFEST_DIR") and go up.
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
         let bad_policy_path = manifest.join("../../tests/fixtures/bad-data-storage-policy.yaml");
         let res = load_policy(&bad_policy_path);

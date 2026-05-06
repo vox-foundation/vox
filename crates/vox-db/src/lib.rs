@@ -121,6 +121,7 @@ pub mod populi_registry_telemetry;
 pub mod preferences;
 pub mod project_store;
 mod questioning_telemetry;
+pub mod outcome_recorder;
 mod research;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
 pub mod retrieval;
@@ -165,6 +166,7 @@ pub use eval_params::EvalRunParams;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
 pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalSampleRecord};
+pub use outcome_recorder::UnifiedLlmTurnRowIds;
 pub use project_store::{open_project_db, open_project_db_at_root};
 pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
 pub use research::{

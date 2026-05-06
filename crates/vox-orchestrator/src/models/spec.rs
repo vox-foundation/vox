@@ -43,6 +43,18 @@ pub struct ModelCapabilities {
     pub supports_vision: bool,
     #[serde(default = "default_true")]
     pub supports_native_tools: bool,
+    #[serde(default)]
+    pub supports_tool_use: bool,
+    #[serde(default)]
+    pub supports_reasoning: bool,
+    #[serde(default)]
+    pub supports_web_search: bool,
+    #[serde(default)]
+    pub supports_image_generation: bool,
+    #[serde(default)]
+    pub supports_audio_input: bool,
+    #[serde(default)]
+    pub supports_audio_output: bool,
     pub max_context: u64,
     pub tier: ModelTier,
     /// Provider-reported RPM limit (e.g. from OpenRouter `per_request_limits`).
@@ -58,6 +70,36 @@ pub struct ModelCapabilities {
     /// Provider-reported uptime score 0.0–1.0 (1.0 = fully available).
     #[serde(default)]
     pub uptime_score: Option<f32>,
+}
+
+impl ModelCapabilities {
+    /// Whether this catalog row advertises the given routing [`Capability`](super::generated::Capability).
+    #[must_use]
+    pub fn supports(&self, cap: super::generated::Capability) -> bool {
+        use super::generated::Capability::*;
+        match cap {
+            SupportsJson => self.supports_json,
+            SupportsVision => self.supports_vision,
+            SupportsToolUse => self.supports_tool_use || self.supports_native_tools,
+            SupportsReasoning => self.supports_reasoning,
+            SupportsWebSearch => self.supports_web_search,
+            SupportsImageGeneration => self.supports_image_generation,
+            SupportsAudioInput => self.supports_audio_input,
+            SupportsAudioOutput => self.supports_audio_output,
+        }
+    }
+
+    /// OR-merge OpenRouter / contract-inferred capability flags into this struct.
+    pub fn merge_capability_flags(&mut self, flags: &super::generated::CapabilityFlags) {
+        self.supports_json |= flags.supports_json;
+        self.supports_vision |= flags.supports_vision;
+        self.supports_tool_use |= flags.supports_tool_use;
+        self.supports_reasoning |= flags.supports_reasoning;
+        self.supports_web_search |= flags.supports_web_search;
+        self.supports_image_generation |= flags.supports_image_generation;
+        self.supports_audio_input |= flags.supports_audio_input;
+        self.supports_audio_output |= flags.supports_audio_output;
+    }
 }
 
 /// Specification for an LLM model in the registry.

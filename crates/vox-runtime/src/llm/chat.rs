@@ -222,7 +222,7 @@ async fn record_telemetry_outcome(
                     quality_score: Some(if success { 1.0 } else { 0.0 }),
                 };
 
-                let _ = db.record_llm_outcome(outcome).await;
+                let _ = db.record_unified_llm_turn(outcome, None).await;
             }
         });
     }

@@ -301,5 +301,267 @@ fn main() {
     out.push_str("    strengths.into_iter().collect()\n");
     out.push_str("}\n");
 
+    append_capability_intent_codegen(&mut out, &yaml_content);
+
     fs::write(&dest_path, out).unwrap();
+}
+
+fn append_capability_intent_codegen(out: &mut String, yaml_content: &str) {
+    use serde_yaml::Value;
+    use std::collections::BTreeSet;
+
+    let root: Value =
+        serde_yaml::from_str(yaml_content).expect("parse yaml for capability codegen");
+    let cap_inf = root
+        .get("capability_inference")
+        .expect("capability_inference missing");
+    let params_rules = cap_inf
+        .get("parameters_to_capabilities")
+        .and_then(|v| v.as_sequence())
+        .expect("parameters_to_capabilities");
+    let mod_rules = cap_inf
+        .get("modalities_to_capabilities")
+        .and_then(|v| v.as_sequence())
+        .expect("modalities_to_capabilities");
+
+    let mut cap_names: BTreeSet<String> = BTreeSet::new();
+    for rule in params_rules {
+        if let Some(c) = rule.get("capability").and_then(|v| v.as_str()) {
+            cap_names.insert(c.to_string());
+        }
+    }
+    for rule in mod_rules {
+        if let Some(c) = rule.get("capability").and_then(|v| v.as_str()) {
+            cap_names.insert(c.to_string());
+        }
+    }
+
+    out.push_str("use regex::Regex;\n");
+    out.push_str("use std::sync::OnceLock;\n\n");
+
+    // --- Capability ---
+    out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]\n");
+    out.push_str("pub enum Capability {\n");
+    for c in &cap_names {
+        out.push_str(&format!("    {},\n", snake_to_pascal_upper(c)));
+    }
+    out.push_str("}\n\n");
+
+    out.push_str("#[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]\n");
+    out.push_str("pub struct CapabilityFlags {\n");
+    for c in &cap_names {
+        out.push_str(&format!(
+            "    #[serde(default)]\n    pub {}: bool,\n",
+            c
+        ));
+    }
+    out.push_str("}\n\n");
+
+    out.push_str("#[must_use]\n");
+    out.push_str("pub fn infer_capabilities(\n");
+    out.push_str("    supported_parameters: &[String],\n");
+    out.push_str("    input_modalities: &[String],\n");
+    out.push_str("    output_modalities: &[String],\n");
+    out.push_str(") -> CapabilityFlags {\n");
+    out.push_str("    let mut out = CapabilityFlags::default();\n");
+    out.push_str("    let has_param = |p: &str| {\n");
+    out.push_str("        supported_parameters.iter().any(|x| x.eq_ignore_ascii_case(p))\n");
+    out.push_str("    };\n");
+    out.push_str("    let has_in_mod = |m: &str| {\n");
+    out.push_str("        input_modalities.iter().any(|x| x.eq_ignore_ascii_case(m))\n");
+    out.push_str("    };\n");
+    out.push_str("    let has_out_mod = |m: &str| {\n");
+    out.push_str("        output_modalities.iter().any(|x| x.eq_ignore_ascii_case(m))\n");
+    out.push_str("    };\n");
+    for rule in params_rules {
+        let Some(cap) = rule.get("capability").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        let params = rule
+            .get("parameters")
+            .and_then(|v| v.as_sequence())
+            .map(|s| {
+                s.iter()
+                    .filter_map(|v| v.as_str())
+                    .map(|x| x.to_string())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        if params.is_empty() {
+            continue;
+        }
+        let checks = params
+            .iter()
+            .map(|p| format!("has_param(\"{}\")", p.replace('\\', "\\\\").replace('"', "\\\"")))
+            .collect::<Vec<_>>()
+            .join(" || ");
+        out.push_str(&format!("    if {} {{\n        out.{} = true;\n    }}\n", checks, cap));
+    }
+    for rule in mod_rules {
+        let Some(cap) = rule.get("capability").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        if let Some(im) = rule.get("input_modality").and_then(|v| v.as_str()) {
+            out.push_str(&format!(
+                "    if has_in_mod(\"{}\") {{ out.{} = true; }}\n",
+                im.replace('\\', "\\\\").replace('"', "\\\""),
+                cap
+            ));
+        }
+        if let Some(om) = rule.get("output_modality").and_then(|v| v.as_str()) {
+            out.push_str(&format!(
+                "    if has_out_mod(\"{}\") {{ out.{} = true; }}\n",
+                om.replace('\\', "\\\\").replace('"', "\\\""),
+                cap
+            ));
+        }
+    }
+    out.push_str("    out\n");
+    out.push_str("}\n\n");
+
+    // --- Intent ---
+    let intent_map = root
+        .get("intent_to_required_capabilities")
+        .and_then(|v| v.as_mapping())
+        .expect("intent_to_required_capabilities");
+    let mut intent_keys: Vec<String> = intent_map
+        .keys()
+        .filter_map(|k| k.as_str().map(str::to_string))
+        .collect();
+    intent_keys.sort();
+
+    out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]\n");
+    out.push_str("pub enum PromptIntent {\n");
+    for k in &intent_keys {
+        out.push_str(&format!("    {},\n", snake_to_pascal_upper(k)));
+    }
+    out.push_str("}\n\n");
+
+    out.push_str("#[must_use]\n");
+    out.push_str("pub fn intent_required_capabilities(intent: PromptIntent) -> &'static [Capability] {\n");
+    out.push_str("    match intent {\n");
+    for k_str in &intent_keys {
+        let Some(val) = intent_map.get(&Value::String(k_str.clone())) else {
+            continue;
+        };
+        let caps_seq = val
+            .as_sequence()
+            .map(|s| {
+                s.iter()
+                    .filter_map(|v| v.as_str())
+                    .map(|c| snake_to_pascal_upper(c))
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        let arms = caps_seq
+            .iter()
+            .map(|c| format!("Capability::{}", c))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let variant = snake_to_pascal_upper(k_str);
+        if caps_seq.is_empty() {
+            out.push_str(&format!("        PromptIntent::{} => &[],\n", variant));
+        } else {
+            out.push_str(&format!(
+                "        PromptIntent::{} => &[{}],\n",
+                variant, arms
+            ));
+        }
+    }
+    out.push_str("    }\n");
+    out.push_str("}\n\n");
+
+    // prompt_intent_inference regex (case-insensitive)
+    let prompt_blocks = root
+        .get("prompt_intent_inference")
+        .and_then(|v| v.as_sequence())
+        .cloned()
+        .unwrap_or_default();
+    let mut regex_rows: Vec<(String, Vec<String>)> = Vec::new();
+    for block in &prompt_blocks {
+        let Some(mapping) = block.as_mapping() else {
+            continue;
+        };
+        let ty = mapping
+            .get(Value::String("kind".into()))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if ty != "name_regex" {
+            continue;
+        }
+        let Some(rules) = mapping
+            .get(Value::String("rules".into()))
+            .and_then(|v| v.as_sequence())
+        else {
+            continue;
+        };
+        for rule in rules {
+            let Some(pat) = rule.get("pattern").and_then(|v| v.as_str()) else {
+                continue;
+            };
+            let intents: Vec<String> = rule
+                .get("intents")
+                .and_then(|v| v.as_sequence())
+                .map(|s| {
+                    s.iter()
+                        .filter_map(|v| v.as_str())
+                        .map(str::to_string)
+                        .collect()
+                })
+                .unwrap_or_default();
+            if intents.is_empty() {
+                continue;
+            }
+            regex_rows.push((pat.to_string(), intents));
+        }
+    }
+
+    out.push_str("static PROMPT_INTENT_RULES: OnceLock<Vec<(Regex, Vec<PromptIntent>)>> = OnceLock::new();\n\n");
+    out.push_str("fn prompt_intent_regex_rules() -> &'static Vec<(Regex, Vec<PromptIntent>)> {\n");
+    out.push_str("    PROMPT_INTENT_RULES.get_or_init(|| {\n");
+    out.push_str("        vec![\n");
+    for (pat, intents) in &regex_rows {
+        let intent_variants: Vec<String> = intents
+            .iter()
+            .map(|i| format!("PromptIntent::{}", snake_to_pascal_upper(i)))
+            .collect();
+        let pat_clean = pat.replace('\\', "\\\\");
+        out.push_str(&format!(
+            "            (Regex::new(r#\"(?i){}\"#).expect(\"prompt intent regex\"), vec![{}]),\n",
+            pat_clean,
+            intent_variants.join(", ")
+        ));
+    }
+    out.push_str("        ]\n");
+    out.push_str("    })\n");
+    out.push_str("}\n\n");
+
+    out.push_str("#[must_use]\n");
+    out.push_str("pub fn infer_prompt_intents(prompt: &str) -> Vec<PromptIntent> {\n");
+    out.push_str("    let pl = prompt.to_ascii_lowercase();\n");
+    out.push_str("    let mut out = Vec::new();\n");
+    out.push_str("    for (rx, intents) in prompt_intent_regex_rules().iter() {\n");
+    out.push_str("        if rx.is_match(&pl) {\n");
+    out.push_str("            for i in intents {\n");
+    out.push_str("                if !out.contains(i) {\n");
+    out.push_str("                    out.push(*i);\n");
+    out.push_str("                }\n");
+    out.push_str("            }\n");
+    out.push_str("        }\n");
+    out.push_str("    }\n");
+    out.push_str("    out\n");
+    out.push_str("}\n");
+}
+
+fn snake_to_pascal_upper(s: &str) -> String {
+    s.split(|c| c == '_' || c == '.')
+        .filter(|p| !p.is_empty())
+        .map(|w| {
+            let mut ch = w.chars();
+            match ch.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + ch.as_str(),
+            }
+        })
+        .collect()
 }

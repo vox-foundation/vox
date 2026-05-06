@@ -45,6 +45,9 @@ pub struct ContextBudget {
     pub model_max_tokens: usize,
     pub tokens_used: usize,
     pub cost_usd: f64,
+    /// MCP global LLM routing: picks of arms with no scoreboard samples (session-scoped via process lifetime).
+    #[serde(default)]
+    pub novel_routing_explores: u32,
     pub allocation: Option<AgentBudgetAllocation>,
     pub rollover_tokens: usize,
 }
@@ -56,6 +59,7 @@ impl ContextBudget {
             model_max_tokens: max_tokens,
             tokens_used: 0,
             cost_usd: 0.0,
+            novel_routing_explores: 0,
             allocation: None,
             rollover_tokens: 0,
         }
@@ -349,6 +353,22 @@ impl BudgetManager {
     pub fn check_budget(&self, agent_id: AgentId) -> Option<ContextBudget> {
         let map = sync_lock::rw_read(&*self.inner);
         map.get(&agent_id).cloned()
+    }
+
+    #[must_use]
+    pub fn novel_routing_explores(&self, agent_id: AgentId) -> u32 {
+        sync_lock::rw_read(&*self.inner)
+            .get(&agent_id)
+            .map(|b| b.novel_routing_explores)
+            .unwrap_or(0)
+    }
+
+    pub fn record_novel_routing_explore(&self, agent_id: AgentId) {
+        let mut map = sync_lock::rw_write(&*self.inner);
+        let budget = map
+            .entry(agent_id)
+            .or_insert_with(|| ContextBudget::new(agent_id, 100_000));
+        budget.novel_routing_explores = budget.novel_routing_explores.saturating_add(1);
     }
 
     pub fn should_summarize(&self, agent_id: AgentId) -> bool {

@@ -3,6 +3,7 @@
 //! Precedence: CLI args > env > config file > defaults.
 
 pub mod bootstrap_inference;
+pub mod clavis;
 pub mod config;
 pub mod env_parse;
 pub mod inference;
@@ -10,6 +11,7 @@ pub mod operator_registry;
 pub mod paths;
 pub mod policy;
 pub mod rollout;
+pub mod routing_migration;
 pub mod routing_policy;
 pub mod scholarly;
 pub mod toml_config;
@@ -28,7 +30,8 @@ pub use inference::{
     inference_profile_allows_local_ollama_http, inference_profile_from_env,
     local_ollama_populi_base_url, ollama_tuning_temperature, ollama_tuning_top_p,
     openai_tuning_temperature, openai_tuning_top_p, openrouter_api_key,
-    openrouter_chat_model_preference, sanitize_chatml, together_tuning_temperature,
+    openrouter_chat_model_preference, hf_router_chat_completions_url, sanitize_chatml,
+    together_tuning_temperature,
     together_tuning_top_p,
 };
 pub use paths::{
@@ -37,11 +40,16 @@ pub use paths::{
     repo_memory_cache_dir, repo_tooling_cache_dir, script_cache_dir, state_dir, user_home_dir,
 };
 pub use policy::hitl_policy::HitlPolicy;
+pub use clavis::clavis_str;
 pub use rollout::{
     RolloutFlagSnapshot, db_circuit_breaker_env_enabled,
     db_embedded_replica_integration_gate_armed, db_sync_remote_integration_gate_armed, env_truthy,
     orchestration_lineage_persist_enabled, rollout_flag_snapshot,
     workflow_journal_codex_persist_enabled,
+};
+pub use routing_migration::{
+    clavis_cutover_blocks_legacy_env, clavis_cutover_blocks_legacy_env_raw,
+    trace_openrouter_chat_env_migration_once,
 };
 pub use routing_policy::{
     AutoModelStrategy, AutoRoutingPriority, GeminiRoutePolicy, GeminiRouteTargets,
@@ -88,5 +96,13 @@ mod tests {
         assert!(!InferenceProfile::CloudOpenAiCompatible.allows_local_ollama_http());
         assert!(!InferenceProfile::MobileLitert.allows_local_ollama_http());
         assert!(!InferenceProfile::MobileCoreml.allows_local_ollama_http());
+    }
+
+    #[test]
+    fn routing_migration_cutover_raw_parses_phases() {
+        assert!(routing_migration::clavis_cutover_blocks_legacy_env_raw("enforce"));
+        assert!(routing_migration::clavis_cutover_blocks_legacy_env_raw("  Decommission \n"));
+        assert!(!routing_migration::clavis_cutover_blocks_legacy_env_raw("shadow"));
+        assert!(!routing_migration::clavis_cutover_blocks_legacy_env_raw(""));
     }
 }

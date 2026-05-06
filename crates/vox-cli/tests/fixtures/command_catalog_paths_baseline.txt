@@ -126,6 +126,7 @@ clavis
 clavis/backend-status
 clavis/get
 clavis/import-env
+clavis/login
 clavis/migrate-auth-store
 clavis/set
 clavis/status
@@ -266,6 +267,10 @@ model
 model/costs
 model/discover
 model/explain
+model/list
+model/preferences
+model/preferences/reset
+model/preferences/set
 model/pricing
 model/pricing/check
 model/pricing/refresh
@@ -273,6 +278,7 @@ model/pricing/rollup
 model/pricing/show
 model/rollup
 model/scoreboard
+model/show
 new
 new/skill
 new/web
