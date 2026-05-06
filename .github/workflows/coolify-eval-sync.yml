@@ -38,7 +38,7 @@ jobs:
 
       - name: Sync compose and deploy
         if: ${{ inputs.sync_compose }}
-        timeout-minutes: 8
+        timeout-minutes: 25
         env:
           COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
