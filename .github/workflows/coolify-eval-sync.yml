@@ -27,6 +27,8 @@ jobs:
           shared-key: "coolify-eval-sync"
 
       - name: Discover Coolify applications
+        if: ${{ !inputs.sync_compose }}
+        timeout-minutes: 4
         env:
           COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
@@ -36,6 +38,7 @@ jobs:
 
       - name: Sync compose and deploy
         if: ${{ inputs.sync_compose }}
+        timeout-minutes: 8
         env:
           COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
           COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}

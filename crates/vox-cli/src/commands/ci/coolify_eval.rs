@@ -111,6 +111,14 @@ async fn discover() -> Result<()> {
     let status = resp.status();
     let text = resp.text().await.context("read applications body")?;
     if !status.is_success() {
+        if status.as_u16() == 403 {
+            println!(
+                "Coolify applications list HTTP 403 (missing read scope). \
+Proceeding without discovery output. Body head: {}",
+                &text[..text.len().min(400)]
+            );
+            return Ok(());
+        }
         anyhow::bail!(
             "GET /api/v1/applications HTTP {status}: {}",
             &text[..text.len().min(800)]
@@ -187,10 +195,18 @@ async fn sync_compose(
     let cur_status = cur.status();
     let cur_text = cur.text().await?;
     if !cur_status.is_success() {
-        anyhow::bail!(
-            "GET application HTTP {cur_status}: {}",
-            &cur_text[..cur_text.len().min(1200)]
-        );
+        if cur_status.as_u16() == 403 {
+            println!(
+                "GET application HTTP 403 (missing read scope); continuing to PATCH with write token. \
+Body head: {}",
+                &cur_text[..cur_text.len().min(400)]
+            );
+        } else {
+            anyhow::bail!(
+                "GET application HTTP {cur_status}: {}",
+                &cur_text[..cur_text.len().min(1200)]
+            );
+        }
     }
 
     let mut patch = json!({
