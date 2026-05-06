@@ -65,6 +65,8 @@ Verify **`COOLIFY_APP_UUID`** matches the eval compose application (**`vox ci co
 
 Manual **[`.github/workflows/coolify-eval-sync.yml`](../../../.github/workflows/coolify-eval-sync.yml)** (`workflow_dispatch`) runs **`discover`** and optionally **`sync-compose`** using repository secrets. Exact Coolify **`PATCH`** shapes may differ by major version; treat failures as a signal to confirm API docs for your install.
 
+**`deploy-hetzner.yml` Gate 3:** The public **`curl`** probe must still run when Gate 1 is skipped (**`workflow_dispatch`** + **`skip_tests: true`**). The health-check job should **`needs: [smoke-ci, deploy-coolify]`** with **`if: ${{ always() && needs.deploy-coolify.result == 'success' }}`** so GitHub Actions does not skip the HTTPS verifier just because smoke CI did not run.
+
 ## Recovery loop (everything except Cloudflare)
 
 Use this **repeat-until-green** procedure when **`curl -fsS https://eval.vox-lang.org/health`** fails (TLS errors, **503** **`no available server`**, etc.). Symptom → cause mapping: **[deploy-contract Gate 3 cheatsheet](../ci/deploy-contract.md)**.
