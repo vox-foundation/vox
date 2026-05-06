@@ -293,8 +293,11 @@ jobs:
 
   health-check:
     name: "Gate 3: Health Check"
-    needs: deploy-coolify
-    if: ${{ needs.deploy-coolify.result == 'success' }}
+    # Include smoke-ci in `needs` so Gate 3 is still scheduled when Gate 1 is skipped
+    # (`workflow_dispatch` + skip_tests). A plain `needs: deploy-coolify` + success-only `if`
+    # can incorrectly skip this job when the upstream smoke job did not run.
+    needs: [smoke-ci, deploy-coolify]
+    if: ${{ always() && needs.deploy-coolify.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Wait for container to settle
