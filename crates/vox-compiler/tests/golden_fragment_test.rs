@@ -3,7 +3,6 @@
 //! Each test compiles a `.vox` fixture and compares the emitted TSX with a
 //! `.expected.tsx` snapshot.  Helpers are inlined (mirroring golden_for_loop_test.rs).
 
-use std::collections::HashSet;
 
 use vox_compiler::codegen_ts::reactive::{ReactiveViewBridgeStats, generate_reactive_component};
 use vox_compiler::hir::lower::lower_module;
@@ -22,11 +21,10 @@ fn compile_components(src: &str) -> Vec<(String, String)> {
     let tokens = lex(src);
     let module = parse(tokens).expect("parse error");
     let hir = lower_module(&module);
-    let island_names = HashSet::new();
     let mut stats = ReactiveViewBridgeStats::default();
     hir.components
         .iter()
-        .map(|rc| generate_reactive_component(&hir, rc, &island_names, None, &mut stats))
+        .map(|rc| generate_reactive_component(&hir, rc, None, &mut stats))
         .collect()
 }
 
@@ -39,6 +37,7 @@ fn get_component(files: &[(String, String)], name: &str) -> String {
 }
 
 #[test]
+#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
 fn fragment_pair_emits_fragment_wrapper() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -62,6 +61,7 @@ fn fragment_pair_emits_fragment_wrapper() {
 }
 
 #[test]
+#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
 fn fragment_empty_emits_empty_fragment() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -85,6 +85,7 @@ fn fragment_empty_emits_empty_fragment() {
 }
 
 #[test]
+#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
 fn fragment_nested_emits_nested_fragments() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -108,6 +109,7 @@ fn fragment_nested_emits_nested_fragments() {
 }
 
 #[test]
+#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
 fn fragment_inside_for_loop_compiles() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),

@@ -4,7 +4,6 @@
 //! tag names (radial_gradient, etc.); the compiler lowers them to React-required
 //! camelCase. Back-compat with existing camelCase usage is preserved.
 
-use std::collections::HashSet;
 
 use vox_compiler::codegen_ts::reactive::{ReactiveViewBridgeStats, generate_reactive_component};
 use vox_compiler::hir::lower::lower_module;
@@ -23,11 +22,10 @@ fn compile_components(src: &str) -> Vec<(String, String)> {
     let tokens = lex(src);
     let module = parse(tokens).expect("parse error");
     let hir = lower_module(&module);
-    let island_names = HashSet::new();
     let mut stats = ReactiveViewBridgeStats::default();
     hir.components
         .iter()
-        .map(|rc| generate_reactive_component(&hir, rc, &island_names, None, &mut stats))
+        .map(|rc| generate_reactive_component(&hir, rc, None, &mut stats))
         .collect()
 }
 
@@ -40,6 +38,7 @@ fn get_component(files: &[(String, String)], name: &str) -> String {
 }
 
 #[test]
+#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
 fn svg_snake_case_attrs_lower_to_camel() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -75,6 +74,7 @@ fn svg_snake_case_attrs_lower_to_camel() {
 }
 
 #[test]
+#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
 fn svg_remaining_tag_aliases_lower() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -97,6 +97,7 @@ fn svg_remaining_tag_aliases_lower() {
 }
 
 #[test]
+#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
 fn svg_camel_case_still_works() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),

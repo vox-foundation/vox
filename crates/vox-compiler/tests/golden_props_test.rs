@@ -10,7 +10,6 @@
 //! - `props/subscript.vox`  — subscript expressions (`obj[idx]`)
 //! - `props/coverage.vox`   — member access, negation, conditional, function-ref
 
-use std::collections::HashSet;
 
 use vox_compiler::codegen_ts::reactive::{ReactiveViewBridgeStats, generate_reactive_component};
 use vox_compiler::hir::lower::lower_module;
@@ -29,11 +28,10 @@ fn compile_components(src: &str) -> Vec<(String, String)> {
     let tokens = lex(src);
     let module = parse(tokens).expect("parse error");
     let hir = lower_module(&module);
-    let island_names = HashSet::new();
     let mut stats = ReactiveViewBridgeStats::default();
     hir.components
         .iter()
-        .map(|rc| generate_reactive_component(&hir, rc, &island_names, None, &mut stats))
+        .map(|rc| generate_reactive_component(&hir, rc, None, &mut stats))
         .collect()
 }
 
@@ -47,6 +45,7 @@ fn get_component(files: &[(String, String)], name: &str) -> String {
 
 /// Subscript expressions (`items[0]`, `items[i]`, `items[i + 1]`) in JSX children.
 #[test]
+#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
 fn subscript_props_emit() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -86,6 +85,7 @@ fn subscript_props_emit() {
 
 /// Coverage: member access, negation, conditional, function-ref.
 #[test]
+#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
 fn coverage_member_access() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -114,6 +114,7 @@ fn coverage_member_access() {
 
 /// Arithmetic (`count * 16`) and object-literal (`{{ width: width, padding: 8 }}`) props.
 #[test]
+#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
 fn rich_props_compile() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -140,6 +141,7 @@ fn rich_props_compile() {
 
 /// Boolean-expression props (`{i is stages}`), mixed string+expression props.
 #[test]
+#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
 fn edge_case_props_compile() {
     let src = std::fs::read_to_string(concat!(
         env!("CARGO_MANIFEST_DIR"),
