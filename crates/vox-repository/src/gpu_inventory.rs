@@ -64,7 +64,7 @@ fn probe_nvml_inner() -> Option<GpuInventorySnapshot> {
 
 #[cfg(not(feature = "nvml-probe"))]
 fn probe_nvml_inner() -> Option<GpuInventorySnapshot> {
-    let _ = std::hint::black_box(());
+    std::hint::black_box(());
     None
 }
 

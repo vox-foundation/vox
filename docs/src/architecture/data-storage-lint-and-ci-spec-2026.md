@@ -399,7 +399,7 @@ The existing workflow runs `data-ssot-guards` at L67–68. Add the new guard dir
 +
 +      - name: Upload data-storage guard report
 +        if: always()
-+        uses: actions/upload-artifact@v4
++        uses: actions/upload-artifact@v7
 +        with:
 +          name: data-storage-guard
 +          path: data-storage-guard.json
@@ -418,7 +418,7 @@ jobs:
   db-doctor:
     runs-on: [self-hosted, linux]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: cargo run -p vox-cli --quiet -- init --data-dir ${{ github.workspace }}/.ci-data
         env:
           VOX_DATA_DIR: ${{ github.workspace }}/.ci-data

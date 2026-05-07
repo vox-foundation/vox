@@ -2,9 +2,8 @@
 
 use super::super::Parser;
 use crate::ast::decl::{
-    Decl, EffectDecl,
-    EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath, ImportPathKind,
-    LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
+    Decl, EffectDecl, EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath,
+    ImportPathKind, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
     OnMountDecl, PostCondition, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl,
     RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl,
 };
@@ -228,7 +227,7 @@ impl Parser {
                     Some("fn".into()),
                     ParseErrorClass::Declaration,
                 ));
-                return Err(());
+                Err(())
             }
             Token::Ident(_) | Token::TypeIdent(_) => {
                 let name = self.parse_ident_name()?;
@@ -333,6 +332,111 @@ impl Parser {
         })
     }
 
+    /// ADR-033: parse a `fragment Name(args) { <markup> }` declaration into a
+    /// [`crate::ast::decl::FragmentDecl`]. The body is parsed as a single expression
+    /// (matches the `view:` shape inside reactive components). Codegen for fragments
+    /// is gated on Phase 6 typed-primitive stabilization per the ADR; for now the
+    /// parser accepts the syntax and the AST node carries it through to whatever
+    /// future codegen / lowering wants to consume it.
+    pub(crate) fn parse_fragment_decl(&mut self) -> Result<crate::ast::decl::Decl, ()> {
+        use crate::ast::decl::FragmentDecl;
+        use crate::lexer::token::Token;
+
+        let start = self.span();
+        self.expect(&Token::Fragment)?;
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+        self.expect(&Token::LBrace)?;
+        self.skip_newlines();
+        let body = self.parse_expr()?;
+        self.skip_newlines();
+        self.expect(&Token::RBrace)?;
+        Ok(crate::ast::decl::Decl::Fragment(FragmentDecl {
+            name,
+            params,
+            body,
+            span: start.merge(self.span()),
+        }))
+    }
+
+    /// ADR-032: parse module-scope reactive members in a `.vox.ui` file into a single
+    /// synthetic [`ReactiveModuleDecl`]. Consumes consecutive `state` / `derived` /
+    /// `effect` / `on mount` / `on cleanup` declarations until it hits a token that
+    /// isn't one of those, then returns. Subsequent module-scope reactive members in
+    /// the same file would be picked up by another `parse_decl` call and produce a
+    /// second `ReactiveModuleDecl` — that's intentional; per-module name disambiguation
+    /// is the file's responsibility.
+    ///
+    /// Caller (`parse_decl`) only invokes this when `self.file_kind ==
+    /// FileKind::ReactiveModule` and the next token is a reactive member.
+    pub(crate) fn parse_reactive_module_decl(&mut self) -> Result<crate::ast::decl::Decl, ()> {
+        use crate::ast::decl::{
+            EffectDecl, OnCleanupDecl, OnMountDecl, ReactiveMemberDecl, ReactiveModuleDecl,
+        };
+
+        let start = self.span();
+        let mut members: Vec<ReactiveMemberDecl> = Vec::new();
+
+        loop {
+            self.skip_newlines();
+            match self.peek().clone() {
+                Token::State => members.push(ReactiveMemberDecl::State(self.parse_state_decl()?)),
+                Token::Derived => {
+                    members.push(ReactiveMemberDecl::Derived(self.parse_derived_decl()?))
+                }
+                Token::Effect => {
+                    let eff_start = self.span();
+                    let body = self.parse_reactive_block()?;
+                    members.push(ReactiveMemberDecl::Effect(EffectDecl {
+                        body,
+                        span: eff_start.merge(self.span()),
+                    }));
+                }
+                Token::On => {
+                    let on_start = self.span();
+                    self.advance();
+                    match self.peek().clone() {
+                        Token::Mount => {
+                            let body = self.parse_reactive_block()?;
+                            members.push(ReactiveMemberDecl::OnMount(OnMountDecl {
+                                body,
+                                span: on_start.merge(self.span()),
+                            }));
+                        }
+                        Token::Cleanup => {
+                            let body = self.parse_reactive_block()?;
+                            members.push(ReactiveMemberDecl::OnCleanup(OnCleanupDecl {
+                                body,
+                                span: on_start.merge(self.span()),
+                            }));
+                        }
+                        _ => {
+                            self.errors.push(ParseError::classified(
+                                self.span(),
+                                "Expected `mount` or `cleanup` after `on` at module scope in a `.vox.ui` file.",
+                                vec!["mount".into(), "cleanup".into()],
+                                Some(self.peek().to_string()),
+                                ParseErrorClass::Declaration,
+                            ));
+                            return Err(());
+                        }
+                    }
+                }
+                _ => break,
+            }
+        }
+
+        Ok(crate::ast::decl::Decl::ReactiveModule(ReactiveModuleDecl {
+            // Module name is filled in later by codegen from the source file basename;
+            // the parser doesn't know the path. Empty for now.
+            name: String::new(),
+            members,
+            span: start.merge(self.span()),
+        }))
+    }
+
     /// `@loading fn Name() to Element { ... }` — TanStack Router `pendingComponent` / suspense UI.
     pub(crate) fn parse_loading(&mut self) -> Result<Decl, ()> {
         self.advance(); // @loading
@@ -345,10 +449,7 @@ impl Parser {
     pub(crate) fn parse_v0_prop_line(&mut self) -> Result<crate::ast::decl::V0Prop, ()> {
         let pname = self.parse_ident_name()?;
         if std::env::var_os("VOX_PARSER_DEBUG").is_some() {
-            eprintln!(
-                "[vox-parser:v0.prop] name={pname:?} next={:?}",
-                self.peek()
-            );
+            eprintln!("[vox-parser:v0.prop] name={pname:?} next={:?}", self.peek());
         }
         let is_optional = self.eat(&Token::Question);
         self.expect(&Token::Colon)?;
@@ -468,12 +569,9 @@ impl Parser {
         self.advance(); // eat @test
         let mut label = String::new();
         if self.eat(&Token::LParen) {
-            match self.peek().clone() {
-                Token::StringLit(s) => {
-                    self.advance();
-                    label = s;
-                }
-                _ => {}
+            if let Token::StringLit(s) = self.peek().clone() {
+                self.advance();
+                label = s;
             }
             let _ = self.eat(&Token::RParen);
         }
@@ -589,28 +687,28 @@ impl Parser {
         self.advance(); // eat @endpoint
         self.expect(&Token::LParen)?;
         let mut kind = None;
-        if let Token::Ident(k) = self.peek().clone() {
-            if k == "kind" {
-                self.advance();
-                self.expect(&Token::Colon)?;
-                if let Token::Ident(v) = self.peek().clone() {
-                    match v.as_str() {
-                        "query" => kind = Some(EndpointKind::Query),
-                        "mutation" => kind = Some(EndpointKind::Mutation),
-                        "server" => kind = Some(EndpointKind::Server),
-                        _ => {
-                            self.errors.push(ParseError::classified(
-                                self.span(),
-                                "Unknown endpoint kind. Expected query, mutation, or server.",
-                                vec!["query".into(), "mutation".into(), "server".into()],
-                                Some(v),
-                                ParseErrorClass::Declaration,
-                            ));
-                            return Err(());
-                        }
+        if let Token::Ident(k) = self.peek().clone()
+            && k == "kind"
+        {
+            self.advance();
+            self.expect(&Token::Colon)?;
+            if let Token::Ident(v) = self.peek().clone() {
+                match v.as_str() {
+                    "query" => kind = Some(EndpointKind::Query),
+                    "mutation" => kind = Some(EndpointKind::Mutation),
+                    "server" => kind = Some(EndpointKind::Server),
+                    _ => {
+                        self.errors.push(ParseError::classified(
+                            self.span(),
+                            "Unknown endpoint kind. Expected query, mutation, or server.",
+                            vec!["query".into(), "mutation".into(), "server".into()],
+                            Some(v),
+                            ParseErrorClass::Declaration,
+                        ));
+                        return Err(());
                     }
-                    self.advance();
                 }
+                self.advance();
             }
         }
         self.expect(&Token::RParen)?;
@@ -626,7 +724,10 @@ impl Parser {
         }
         self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
-        Ok(Decl::Endpoint(EndpointDecl { kind: kind.unwrap(), func: f }))
+        Ok(Decl::Endpoint(EndpointDecl {
+            kind: kind.unwrap(),
+            func: f,
+        }))
     }
 
     pub(crate) fn parse_fn_decl(&mut self, is_pub: bool) -> Result<FnDecl, ()> {
@@ -636,6 +737,7 @@ impl Parser {
         let mut invariants = Vec::new();
         let mut is_mobile_native = false;
         let mut is_pure = false;
+        let mut is_reactive = false;
         let mut is_deprecated = false;
         let mut is_llm = false;
         let mut llm_model = None;
@@ -654,14 +756,13 @@ impl Parser {
                     self.expect(&Token::LParen)?;
                     let condition = self.parse_expr()?;
                     let mut fallback = None;
-                    if self.eat(&Token::Comma) {
-                        if let Token::Ident(k) = self.peek().clone() {
-                            if k == "fallback" {
-                                self.advance();
-                                self.expect(&Token::Colon)?;
-                                fallback = Some(self.parse_ident_name()?);
-                            }
-                        }
+                    if self.eat(&Token::Comma)
+                        && let Token::Ident(k) = self.peek().clone()
+                        && k == "fallback"
+                    {
+                        self.advance();
+                        self.expect(&Token::Colon)?;
+                        fallback = Some(self.parse_ident_name()?);
                     }
                     postconditions.push(PostCondition {
                         condition,
@@ -679,6 +780,10 @@ impl Parser {
                     self.advance();
                     is_pure = true;
                 }
+                Token::AtReactive => {
+                    self.advance();
+                    is_reactive = true;
+                }
                 Token::AtDeprecated => {
                     self.advance();
                     is_deprecated = true;
@@ -691,14 +796,14 @@ impl Parser {
                     self.advance();
                     is_llm = true;
                     if self.eat(&Token::LParen) {
-                        if let Token::Ident(key) = self.peek().clone() {
-                            if key == "model" {
+                        if let Token::Ident(key) = self.peek().clone()
+                            && key == "model"
+                        {
+                            self.advance();
+                            self.expect(&Token::Eq)?;
+                            if let Token::StringLit(m) = self.peek().clone() {
                                 self.advance();
-                                self.expect(&Token::Eq)?;
-                                if let Token::StringLit(m) = self.peek().clone() {
-                                    self.advance();
-                                    llm_model = Some(m);
-                                }
+                                llm_model = Some(m);
                             }
                         }
                         self.expect(&Token::RParen)?;
@@ -749,6 +854,7 @@ impl Parser {
             is_async: false,
             is_deprecated,
             is_pure,
+            is_reactive,
             is_llm,
             llm_model,
             is_traced: false,
@@ -881,7 +987,9 @@ impl Parser {
                         } else {
                             crate::ast::decl::EffectAnnotation::Mcp(String::new())
                         }
-                    } else if let Some(eff) = crate::ast::decl::EffectAnnotation::from_keyword(&name) {
+                    } else if let Some(eff) =
+                        crate::ast::decl::EffectAnnotation::from_keyword(&name)
+                    {
                         self.advance();
                         eff
                     } else {

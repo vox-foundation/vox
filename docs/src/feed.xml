@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sun, 03 May 2026 22:31:49 GMT</lastBuildDate>
+  <lastBuildDate>Thu, 07 May 2026 22:39:51 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -48,15 +48,6 @@
   </item>
 
   <item>
-    <title>vox-codegen-ts API</title>
-    <link>https://vox-lang.org/api/vox-codegen-ts.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/vox-codegen-ts.html</guid>
-    <description>API reference for the vox-codegen-ts crate: HIR-to-TypeScript/TSX code generation pipeline.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-  </item>
-
-  <item>
     <title>Architecture Index</title>
     <link>https://vox-lang.org/architecture/architecture-index.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
@@ -79,6 +70,15 @@
     <link>https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</guid>
     <description>Replaces JSX-shaped view bodies and Tailwind class strings with typed function-call views. No tags, no class strings, no CSS files in user code. Lowers to…</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Vox Mobile Plugin Spec (2026)</title>
+    <link>https://vox-lang.org/architecture/vox-mobile-plugin-spec-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-mobile-plugin-spec-2026.html</guid>
+    <description>Promotes the existing mobile-pwa template into a first-class vox-mobile plugin binary, adds cdylib cross-compile, host-shell FFI contract, mobile Clavis…</description>
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>

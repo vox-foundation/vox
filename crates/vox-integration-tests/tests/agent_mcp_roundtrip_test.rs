@@ -29,9 +29,7 @@ async fn test_agent_mcp_roundtrip() {
 
     // 2. Check task status.
     let status_req = serde_json::json!({ "task_id": task_id });
-    let status_resp: String = tools(&state, "vox_task_status", status_req)
-        .await
-        .unwrap();
+    let status_resp: String = tools(&state, "vox_task_status", status_req).await.unwrap();
     assert!(
         status_resp.contains("\"success\": true"),
         "Task status check failed: {}",
@@ -44,9 +42,7 @@ async fn test_agent_mcp_roundtrip() {
     // to an agent, so `vox_complete_task` (which requires "Running/Assigned"
     // state) cannot succeed.  `vox_cancel_task` works for any lifecycle state.
     let cancel_req = serde_json::json!({ "task_id": task_id });
-    let cancel_resp: String = tools(&state, "vox_cancel_task", cancel_req)
-        .await
-        .unwrap();
+    let cancel_resp: String = tools(&state, "vox_cancel_task", cancel_req).await.unwrap();
     assert!(
         cancel_resp.contains("\"success\": true"),
         "Task cancel failed: {}",

@@ -1,7 +1,9 @@
 // Primary expressions, postfix, control/lambda forms.
 
 use super::super::Parser;
-use crate::ast::expr::{Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, UnOp};
+use crate::ast::expr::{
+    Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, UnOp,
+};
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
 
@@ -276,12 +278,10 @@ impl Parser {
                             self.tokens.get(peek_pos).map(|t| &t.token),
                             Some(Token::LBrace)
                         );
-                        let starts_uppercase = tag
-                            .chars()
-                            .next()
-                            .map_or(false, |c| c.is_ascii_uppercase());
-                        let is_view_callee = starts_uppercase
-                            || crate::web_ir::primitives::is_primitive(tag);
+                        let starts_uppercase =
+                            tag.chars().next().is_some_and(|c| c.is_ascii_uppercase());
+                        let is_view_callee =
+                            starts_uppercase || crate::web_ir::primitives::is_primitive(tag);
                         let all_named = args.iter().all(|a| a.name.is_some());
                         // Trailing-block-as-children sugar fires only when the call shape is
                         // unambiguously a view-call: callee is a recognized view-callee
@@ -615,10 +615,7 @@ impl super::super::Parser {
     /// `attr_type="checkbox"` → JSX `type="checkbox"`. The escape is needed because `type`,
     /// `for`, and similar HTML attribute names are reserved Vox identifiers and cannot appear
     /// as bare kwarg names without a parse error.
-    pub(crate) fn view_args_to_attrs(
-        &mut self,
-        args: Vec<Arg>,
-    ) -> Result<Vec<JsxAttribute>, ()> {
+    pub(crate) fn view_args_to_attrs(&mut self, args: Vec<Arg>) -> Result<Vec<JsxAttribute>, ()> {
         let mut attrs = Vec::with_capacity(args.len());
         for arg in args {
             match arg.name {

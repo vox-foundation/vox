@@ -210,8 +210,8 @@ impl VoxTokenizer {
         let mut text = String::new();
         for (i, turn) in turns.iter().enumerate() {
             if i == turns.len() - 1 && turn.role == "assistant" {
-                last_assistant_start = Self::encode(&text).len()
-                    + Self::encode(&format!("<|im_start|>assistant\n")).len();
+                last_assistant_start =
+                    Self::encode(&text).len() + Self::encode("<|im_start|>assistant\n").len();
             }
             text.push_str(&format!(
                 "<|im_start|>{role}\n{content}<|im_end|>\n",
@@ -484,9 +484,10 @@ mod tests {
 
     #[test]
     fn training_pair_accepts_instruction_and_output_aliases() {
-        let p: TrainingPair =
-            serde_json::from_str(r#"{"instruction":"fix this","output":"fn ok() to int: return 0"}"#)
-                .expect("instruction/output aliases");
+        let p: TrainingPair = serde_json::from_str(
+            r#"{"instruction":"fix this","output":"fn ok() to int: return 0"}"#,
+        )
+        .expect("instruction/output aliases");
         assert_eq!(p.prompt.as_deref(), Some("fix this"));
         assert_eq!(p.response.as_deref(), Some("fn ok() to int: return 0"));
     }

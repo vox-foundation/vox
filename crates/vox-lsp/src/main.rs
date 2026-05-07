@@ -114,43 +114,42 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
 
         for diagnostic in params.context.diagnostics {
-            if let Some(ref data) = diagnostic.data {
-                if let Ok(data) = serde_json::from_value::<serde_json::Value>(data.clone()) {
-                    if let Some(fixes) = data.get("fixes").and_then(|f| f.as_array()) {
-                        for fix in fixes {
-                            let label = fix.get("label").and_then(|l| l.as_str()).unwrap_or("Fix");
-                            let replacement = fix
-                                .get("replacement")
-                                .and_then(|r| r.as_str())
-                                .unwrap_or("");
-                            let range = fix
-                                .get("range")
-                                .and_then(|r| serde_json::from_value::<Range>(r.clone()).ok());
+            if let Some(ref data) = diagnostic.data
+                && let Ok(data) = serde_json::from_value::<serde_json::Value>(data.clone())
+                && let Some(fixes) = data.get("fixes").and_then(|f| f.as_array())
+            {
+                for fix in fixes {
+                    let label = fix.get("label").and_then(|l| l.as_str()).unwrap_or("Fix");
+                    let replacement = fix
+                        .get("replacement")
+                        .and_then(|r| r.as_str())
+                        .unwrap_or("");
+                    let range = fix
+                        .get("range")
+                        .and_then(|r| serde_json::from_value::<Range>(r.clone()).ok());
 
-                            if let Some(range) = range {
-                                let mut changes = HashMap::new();
-                                changes.insert(
-                                    uri.clone(),
-                                    vec![TextEdit {
-                                        range,
-                                        new_text: replacement.to_string(),
-                                    }],
-                                );
+                    if let Some(range) = range {
+                        let mut changes = HashMap::new();
+                        changes.insert(
+                            uri.clone(),
+                            vec![TextEdit {
+                                range,
+                                new_text: replacement.to_string(),
+                            }],
+                        );
 
-                                let action = CodeAction {
-                                    title: label.to_string(),
-                                    kind: Some(CodeActionKind::QUICKFIX),
-                                    diagnostics: Some(vec![diagnostic.clone()]),
-                                    edit: Some(WorkspaceEdit {
-                                        changes: Some(changes),
-                                        ..Default::default()
-                                    }),
-                                    is_preferred: Some(true),
-                                    ..Default::default()
-                                };
-                                actions.push(CodeActionOrCommand::CodeAction(action));
-                            }
-                        }
+                        let action = CodeAction {
+                            title: label.to_string(),
+                            kind: Some(CodeActionKind::QUICKFIX),
+                            diagnostics: Some(vec![diagnostic.clone()]),
+                            edit: Some(WorkspaceEdit {
+                                changes: Some(changes),
+                                ..Default::default()
+                            }),
+                            is_preferred: Some(true),
+                            ..Default::default()
+                        };
+                        actions.push(CodeActionOrCommand::CodeAction(action));
                     }
                 }
             }

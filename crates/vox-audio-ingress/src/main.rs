@@ -311,10 +311,8 @@ async fn handle_audio_stream_ws(state: AppState, mut socket: WebSocket) {
     let mut pcm: Vec<f32> = Vec::new();
     let mut last_emit = Instant::now();
     let mut last_progress_log = Instant::now();
-    let max_buffer_ms = std::env::var("VOX_ORATIO_STREAM_MAX_BUFFER_MS")
-        .ok()
-        .and_then(|s| s.parse::<u64>().ok())
-        .unwrap_or(300_000);
+    let max_buffer_ms =
+        vox_config::env_parse::resolve_config_u64("VOX_ORATIO_STREAM_MAX_BUFFER_MS", 300_000);
     let max_samples = ((max_buffer_ms as usize).saturating_mul(16_000) / 1000).max(16_000);
 
     let _ = send_ws_json(
@@ -464,12 +462,9 @@ async fn main() -> anyhow::Result<()> {
         .with_writer(std::io::stderr)
         .init();
 
-    let host = std::env::var("VOX_DASH_HOST")
-        .unwrap_or_else(|_| std::net::Ipv4Addr::LOCALHOST.to_string());
-    let port: u16 = std::env::var("VOX_DASH_PORT")
-        .ok()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(3847);
+    let host = vox_config::env_parse::resolve_config_str("VOX_DASH_HOST", "127.0.0.1");
+    let port: u16 = vox_config::env_parse::resolve_config_u64("VOX_DASH_PORT", 3847)
+        .min(u16::MAX as u64) as u16;
     let workspace_root = workspace_root();
     info!(
         workspace = %workspace_root.display(),

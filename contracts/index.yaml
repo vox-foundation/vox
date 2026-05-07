@@ -102,6 +102,30 @@ contracts:
     enforced_by:
       - vox ci check-docs-ssot
 
+  - id: frontend-surface-ownership-v1
+    path: contracts/frontend/surface-ownership.v1.yaml
+    owner: platform-gui
+    kind: yaml
+    description: Canonical frontend surface lifecycle and ownership map (canonical, experimental, fixture-only, deprecated).
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: frontend-gui-compatibility-v1
+    path: contracts/frontend/gui-compatibility.v1.yaml
+    owner: platform-gui
+    kind: yaml
+    description: Canonical GUI authoring syntax + React attribute compatibility matrix for Vox view-call lowering.
+    enforced_by:
+      - vox ci contracts-index
+
+  - id: frontend-dependency-policy-v1
+    path: contracts/frontend/dependency-policy.v1.yaml
+    owner: platform-gui
+    kind: yaml
+    description: Frontend dependency drift limits (package manager and React/Vite major-version bounds) for maintained GUI surfaces.
+    enforced_by:
+      - vox ci contracts-index
+
   - id: completion-policy-v1
     path: contracts/operations/completion-policy.v1.yaml
     owner: platform-ci
@@ -280,6 +304,34 @@ contracts:
     kind: json-schema
     description: JSON Schema for compact prompt-expanded repository reconstruction campaign specs.
     enforced_by:
+      - vox ci contracts-index
+
+  - id: orchestration-model-routing-v1
+    path: contracts/orchestration/model-routing.v1.yaml
+    owner: orchestrator
+    kind: yaml
+    description: SSOT for model tiers, strengths, routing/scoring policy, capability policy, and lifecycle metadata.
+    enforced_by:
+      - vox ci data-ssot-guards
+      - vox ci contracts-index
+
+  - id: orchestration-model-routing-v1-schema
+    path: contracts/orchestration/model-routing.v1.schema.json
+    owner: orchestrator
+    kind: json-schema
+    description: JSON Schema for model-routing.v1.yaml.
+    enforced_by:
+      - vox ci data-ssot-guards
+      - vox ci contracts-index
+
+  - id: orchestration-providers-v1
+    path: contracts/orchestration/providers.v1.yaml
+    owner: orchestrator
+    kind: yaml
+    description: Canonical provider registry (secret_id mapping, route kinds, lifecycle metadata).
+    enforced_by:
+      - vox ci data-ssot-guards
+      - vox ci clavis-contracts
       - vox ci contracts-index
 
   - id: orchestration-context-work-item-schema

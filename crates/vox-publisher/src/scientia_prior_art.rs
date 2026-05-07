@@ -171,7 +171,7 @@ fn openalex_hits(
     let Some(arr) = v.get("results").and_then(|x| x.as_array()) else {
         return out;
     };
-    let take_n = h.prior_art_results_per_source.max(1).min(50) as usize;
+    let take_n = h.prior_art_results_per_source.clamp(1, 50) as usize;
     for w in arr.iter().take(take_n) {
         let uri = w
             .get("id")
@@ -219,7 +219,7 @@ fn crossref_hits(
         .and_then(|x| x.as_array())
         .cloned()
         .unwrap_or_default();
-    let take_n = h.prior_art_results_per_source.max(1).min(50) as usize;
+    let take_n = h.prior_art_results_per_source.clamp(1, 50) as usize;
     for w in items.into_iter().take(take_n) {
         let doi = w.get("DOI").and_then(|x| x.as_str()).unwrap_or("").trim();
         let title = w
@@ -267,7 +267,7 @@ fn s2_hits(
         .and_then(|x| x.as_array())
         .cloned()
         .unwrap_or_default();
-    let take_n = h.prior_art_results_per_source.max(1).min(50) as usize;
+    let take_n = h.prior_art_results_per_source.clamp(1, 50) as usize;
     for w in data.into_iter().take(take_n) {
         let pid = w
             .get("paperId")
@@ -356,7 +356,7 @@ fn finalize_bundle(
 }
 
 fn openalex_url(search: &str, per_page: u32) -> Result<String> {
-    let pp = per_page.max(1).min(50).to_string();
+    let pp = per_page.clamp(1, 50).to_string();
     let u = reqwest::Url::parse_with_params(
         "https://api.openalex.org/works",
         [("search", search), ("per_page", pp.as_str())],
@@ -366,7 +366,7 @@ fn openalex_url(search: &str, per_page: u32) -> Result<String> {
 }
 
 fn crossref_url(search: &str, mailto: &str, rows: u32) -> Result<String> {
-    let rr = rows.max(1).min(50).to_string();
+    let rr = rows.clamp(1, 50).to_string();
     let u = reqwest::Url::parse_with_params(
         "https://api.crossref.org/works",
         [
@@ -380,7 +380,7 @@ fn crossref_url(search: &str, mailto: &str, rows: u32) -> Result<String> {
 }
 
 fn s2_api_url(search: &str, limit: u32) -> Result<String> {
-    let lim = limit.max(1).min(50).to_string();
+    let lim = limit.clamp(1, 50).to_string();
     let u = reqwest::Url::parse_with_params(
         "https://api.semanticscholar.org/graph/v1/paper/search",
         [
@@ -419,7 +419,7 @@ pub async fn fetch_prior_art_federated(
 
     let search = prior_art_search_text(query, heuristics);
     let title_only = query.title.trim();
-    let per = heuristics.prior_art_results_per_source.max(1).min(50);
+    let per = heuristics.prior_art_results_per_source.clamp(1, 50);
     let mail: String = options
         .mailto_for_crossref
         .map(std::string::ToString::to_string)

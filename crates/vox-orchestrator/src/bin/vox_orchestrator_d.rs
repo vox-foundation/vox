@@ -114,12 +114,15 @@ async fn main() -> anyhow::Result<()> {
     // HTTP Gateway requires a ServerState
     let session_cfg = vox_orchestrator::SessionConfig {
         repository_id: Some(repository_id.clone()),
-        sessions_dir: build.repository.root.join(vox_config::mcp_sessions_dir(&repository_id)),
+        sessions_dir: build
+            .repository
+            .root
+            .join(vox_config::mcp_sessions_dir(&repository_id)),
         ..vox_orchestrator::SessionConfig::default()
     };
     let session_manager = vox_orchestrator::SessionManager::new(session_cfg)
         .context("session manager initialization failed")?;
-    
+
     let registry = vox_skills::new_registry_arc();
     let registry_for_builtins = registry.clone();
     tokio::spawn(async move {
@@ -137,7 +140,8 @@ async fn main() -> anyhow::Result<()> {
         state = state.with_db_initialized(db).await;
     }
 
-    if let Err(e) = vox_orchestrator::mcp_tools::http_gateway::spawn_http_gateway_if_enabled(state) {
+    if let Err(e) = vox_orchestrator::mcp_tools::http_gateway::spawn_http_gateway_if_enabled(state)
+    {
         tracing::error!(error = %e, "Failed to spawn HTTP gateway");
     }
 

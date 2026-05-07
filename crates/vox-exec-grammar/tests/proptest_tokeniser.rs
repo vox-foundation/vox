@@ -32,18 +32,16 @@ fn well_formed_pipeline() -> impl Strategy<Value = String> {
     ];
     proptest::collection::vec(well_formed_command(), 1..5).prop_flat_map(move |segs| {
         let n = segs.len();
-        proptest::collection::vec(separator.clone(), n.saturating_sub(1)).prop_map(
-            move |seps| {
-                let mut out = String::new();
-                for (i, seg) in segs.iter().enumerate() {
-                    out.push_str(seg);
-                    if i + 1 < segs.len() {
-                        out.push_str(seps[i]);
-                    }
+        proptest::collection::vec(separator.clone(), n.saturating_sub(1)).prop_map(move |seps| {
+            let mut out = String::new();
+            for (i, seg) in segs.iter().enumerate() {
+                out.push_str(seg);
+                if i + 1 < segs.len() {
+                    out.push_str(seps[i]);
                 }
-                out
-            },
-        )
+            }
+            out
+        })
     })
 }
 

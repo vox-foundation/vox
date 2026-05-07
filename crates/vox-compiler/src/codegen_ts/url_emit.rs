@@ -38,12 +38,20 @@ fn emit_url_decl(u: &HirUrlDecl) -> String {
     for (i, variant) in u.variants.iter().enumerate() {
         let sep = if i < u.variants.len() - 1 { "" } else { ";" };
         if variant.args.is_empty() {
-            out.push_str(&format!("  | {{ readonly _tag: \"{}\" }}{sep}\n", variant.name));
+            out.push_str(&format!(
+                "  | {{ readonly _tag: \"{}\" }}{sep}\n",
+                variant.name
+            ));
         } else {
-            let fields: String = variant.args.iter().map(|a| {
-                let opt = if a.optional { "?" } else { "" };
-                format!("readonly {}{opt}: {}", a.name, hir_type_to_ts(&a.ty))
-            }).collect::<Vec<_>>().join("; ");
+            let fields: String = variant
+                .args
+                .iter()
+                .map(|a| {
+                    let opt = if a.optional { "?" } else { "" };
+                    format!("readonly {}{opt}: {}", a.name, hir_type_to_ts(&a.ty))
+                })
+                .collect::<Vec<_>>()
+                .join("; ");
             out.push_str(&format!(
                 "  | {{ readonly _tag: \"{}\"; {fields} }}{sep}\n",
                 variant.name
@@ -66,11 +74,21 @@ fn emit_builder(type_name: &str, v: &HirUrlVariant) -> String {
     if v.args.is_empty() {
         format!("  {vname}: (): {type_name} => ({{ _tag: \"{vname}\" }}),\n")
     } else {
-        let params: String = v.args.iter().map(|a| {
-            let opt = if a.optional { "?" } else { "" };
-            format!("{}{opt}: {}", a.name, hir_type_to_ts(&a.ty))
-        }).collect::<Vec<_>>().join(", ");
-        let fields: String = v.args.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(", ");
+        let params: String = v
+            .args
+            .iter()
+            .map(|a| {
+                let opt = if a.optional { "?" } else { "" };
+                format!("{}{opt}: {}", a.name, hir_type_to_ts(&a.ty))
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let fields: String = v
+            .args
+            .iter()
+            .map(|a| a.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
         format!("  {vname}: ({params}): {type_name} => ({{ _tag: \"{vname}\", {fields} }}),\n")
     }
 }
@@ -92,12 +110,20 @@ pub fn hir_type_to_ts(ty: &HirType) -> String {
                 format!("ReadonlyArray<{}>", hir_type_to_ts(&args[0]))
             }
             _ => {
-                let args_ts: String = args.iter().map(hir_type_to_ts).collect::<Vec<_>>().join(", ");
+                let args_ts: String = args
+                    .iter()
+                    .map(hir_type_to_ts)
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 format!("{name}<{args_ts}>")
             }
         },
         HirType::Tuple(elems) => {
-            let ts: String = elems.iter().map(hir_type_to_ts).collect::<Vec<_>>().join(", ");
+            let ts: String = elems
+                .iter()
+                .map(hir_type_to_ts)
+                .collect::<Vec<_>>()
+                .join(", ");
             format!("[{ts}]")
         }
         HirType::Unit => "void".to_string(),
@@ -123,22 +149,37 @@ mod tests {
     fn url_emit_simple_variant() {
         let out = emit_from_src("url Path {\nHome\n}");
         assert!(out.contains("type Path ="), "expected union type: {out}");
-        assert!(out.contains("_tag: \"Home\""), "expected Home variant: {out}");
+        assert!(
+            out.contains("_tag: \"Home\""),
+            "expected Home variant: {out}"
+        );
         assert!(out.contains("Home: ():"), "expected Home builder: {out}");
     }
 
     #[test]
     fn url_emit_parameterized_variant() {
         let out = emit_from_src("url Path {\nTask(id: str)\n}");
-        assert!(out.contains("readonly id: string"), "expected id field: {out}");
-        assert!(out.contains("Task: (id: string):"), "expected Task builder: {out}");
+        assert!(
+            out.contains("readonly id: string"),
+            "expected id field: {out}"
+        );
+        assert!(
+            out.contains("Task: (id: string):"),
+            "expected Task builder: {out}"
+        );
     }
 
     #[test]
     fn url_emit_optional_arg() {
         let out = emit_from_src("url Path {\nLogin(?return_to: str)\n}");
-        assert!(out.contains("return_to?: string"), "expected optional field: {out}");
-        assert!(out.contains("return_to?: string"), "expected optional param: {out}");
+        assert!(
+            out.contains("return_to?: string"),
+            "expected optional field: {out}"
+        );
+        assert!(
+            out.contains("return_to?: string"),
+            "expected optional param: {out}"
+        );
     }
 
     #[test]

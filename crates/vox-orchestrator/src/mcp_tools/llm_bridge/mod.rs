@@ -60,8 +60,8 @@ pub async fn vox_local_generate(
         .await
         .map_err(|e: HttpInferError| e.message)?;
 
-    let base = std::env::var("VOX_LOCAL_ENDPOINT")
-        .unwrap_or_else(|_| "http://127.0.0.1:7863".to_string());
+    let base =
+        std::env::var("VOX_LOCAL_ENDPOINT").unwrap_or_else(|_| "http://127.0.0.1:7863".to_string());
     let endpoint = format!("{}/generate", base.trim_end_matches('/'));
 
     #[derive(serde::Serialize)]
@@ -84,7 +84,11 @@ pub async fn vox_local_generate(
 
     let resp = client
         .post(&endpoint)
-        .json(&Req { prompt, validate, max_retries })
+        .json(&Req {
+            prompt,
+            validate,
+            max_retries,
+        })
         .send()
         .await
         .map_err(|e| format!("VoxLocal /generate request failed: {e}"))?;

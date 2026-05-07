@@ -26,10 +26,7 @@ fn check_one(sm: &HirStateMachineDecl, source: &str, diags: &mut Vec<Diagnostic>
     for st in &sm.states {
         if !seen_states.insert(st.name.as_str()) {
             diags.push(err(
-                format!(
-                    "State machine `{}`: duplicate state `{}`",
-                    sm.name, st.name
-                ),
+                format!("State machine `{}`: duplicate state `{}`", sm.name, st.name),
                 sm.span,
                 source,
             ));
@@ -106,8 +103,11 @@ fn check_one(sm: &HirStateMachineDecl, source: &str, diags: &mut Vec<Diagnostic>
     }
 
     // ── 4. Every terminal state is reachable ──────────────────────────────
-    let reachable_targets: HashSet<&str> =
-        sm.transitions.iter().map(|tr| tr.to_state.as_str()).collect();
+    let reachable_targets: HashSet<&str> = sm
+        .transitions
+        .iter()
+        .map(|tr| tr.to_state.as_str())
+        .collect();
 
     for term in &terminal_names {
         if !reachable_targets.contains(*term) {
@@ -128,7 +128,11 @@ fn check_one(sm: &HirStateMachineDecl, source: &str, diags: &mut Vec<Diagnostic>
     }
 
     // Collect all unique event names declared across all transitions.
-    let all_events: HashSet<&str> = sm.transitions.iter().map(|tr| tr.event_name.as_str()).collect();
+    let all_events: HashSet<&str> = sm
+        .transitions
+        .iter()
+        .map(|tr| tr.event_name.as_str())
+        .collect();
 
     // Build a coverage map: state_name → set of covered events.
     let mut covered: HashMap<&str, HashSet<&str>> = HashMap::new();
@@ -237,7 +241,10 @@ partial state_machine Light {
   on Toggle from On -> Off
 }";
         let diags = check(src);
-        assert!(diags.is_empty(), "partial machine should skip check: {diags:?}");
+        assert!(
+            diags.is_empty(),
+            "partial machine should skip check: {diags:?}"
+        );
     }
 
     #[test]
@@ -251,7 +258,10 @@ state_machine Door {
 }";
         let diags = check(src);
         let unreachable = diags.iter().any(|d| d.message.contains("unreachable"));
-        assert!(unreachable, "expected unreachable terminal error: {diags:?}");
+        assert!(
+            unreachable,
+            "expected unreachable terminal error: {diags:?}"
+        );
     }
 
     #[test]
@@ -335,7 +345,9 @@ partial state_machine Broken {
         });
         let diags = check_state_machines(&module, "");
         assert!(
-            diags.iter().any(|d| d.code.as_deref() == Some("E_SM_UNKNOWN_STATE")),
+            diags
+                .iter()
+                .any(|d| d.code.as_deref() == Some("E_SM_UNKNOWN_STATE")),
             "Expected E_SM_UNKNOWN_STATE for unknown `from` state, got: {diags:?}"
         );
         assert!(

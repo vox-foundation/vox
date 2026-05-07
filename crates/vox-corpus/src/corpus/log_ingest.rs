@@ -22,13 +22,11 @@ pub fn ingest_training_logs(log_path: &Path, out: &mut impl Write) -> anyhow::Re
             collecting = true;
             current_error = line.trim().to_string();
             snippet.clear();
-        } else if collecting {
-            if let Some(pos) = line.find('|') {
-                let content = line[pos + 1..].trim();
-                if !content.is_empty() && !content.contains("^^") && !content.contains("expected") {
-                    snippet.push_str(content);
-                    snippet.push('\n');
-                }
+        } else if collecting && let Some(pos) = line.find('|') {
+            let content = line[pos + 1..].trim();
+            if !content.is_empty() && !content.contains("^^") && !content.contains("expected") {
+                snippet.push_str(content);
+                snippet.push('\n');
             }
         }
     }

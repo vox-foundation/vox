@@ -128,7 +128,10 @@ mod tests {
         );
         assert!(compacted.contains('{'), "Should preserve LBrace");
         assert!(compacted.contains('}'), "Should preserve RBrace");
-        assert!(compacted.contains("return x"), "Should preserve return statement");
+        assert!(
+            compacted.contains("return x"),
+            "Should preserve return statement"
+        );
     }
 
     #[test]

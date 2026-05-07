@@ -269,45 +269,29 @@ impl Decl {
                     h.is_traced = true;
                 }
             }
-            Decl::Table(t) => {
-                if is_deprecated {
-                    t.is_deprecated = true;
-                }
+            Decl::Table(t) if is_deprecated => {
+                t.is_deprecated = true;
             }
-            Decl::Trait(t) => {
-                if is_deprecated {
-                    t.is_deprecated = true;
-                }
+            Decl::Trait(t) if is_deprecated => {
+                t.is_deprecated = true;
             }
-            Decl::TypeDef(t) => {
-                if is_deprecated {
-                    t.is_deprecated = true;
-                }
+            Decl::TypeDef(t) if is_deprecated => {
+                t.is_deprecated = true;
             }
-            Decl::Const(c) => {
-                if is_deprecated {
-                    c.is_deprecated = true;
-                }
+            Decl::Const(c) if is_deprecated => {
+                c.is_deprecated = true;
             }
-            Decl::Config(c) => {
-                if is_deprecated {
-                    c.is_deprecated = true;
-                }
+            Decl::Config(c) if is_deprecated => {
+                c.is_deprecated = true;
             }
-            Decl::Environment(e) => {
-                if is_deprecated {
-                    e.is_deprecated = true;
-                }
+            Decl::Environment(e) if is_deprecated => {
+                e.is_deprecated = true;
             }
-            Decl::Agent(a) => {
-                if is_deprecated {
-                    a.is_deprecated = true;
-                }
+            Decl::Agent(a) if is_deprecated => {
+                a.is_deprecated = true;
             }
-            Decl::Message(m) => {
-                if is_deprecated {
-                    m.is_deprecated = true;
-                }
+            Decl::Message(m) if is_deprecated => {
+                m.is_deprecated = true;
             }
             Decl::Layout(l) => {
                 if is_deprecated {

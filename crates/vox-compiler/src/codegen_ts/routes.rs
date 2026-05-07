@@ -1,4 +1,4 @@
-﻿//! Express `server.ts` generation from HIR HTTP routes and `@server` / `@query` / `@mutation` fns.
+//! Express `server.ts` generation from HIR HTTP routes and `@server` / `@query` / `@mutation` fns.
 //!
 //! ## Adapter seam (OP-0161..OP-0176)
 //!
@@ -25,7 +25,9 @@
 //! route id policy — changing sort keys requires dual updates in `validate_web_ir` route stage.
 
 use crate::codegen_ts::hir_emit::{emit_hir_expr, emit_hir_pattern};
-use crate::hir::{HirExpr, HirHttpMethod, HirModule, HirRoute, HirEndpointFn, HirEndpointKind, HirStmt};
+use crate::hir::{
+    HirEndpointFn, HirEndpointKind, HirExpr, HirHttpMethod, HirModule, HirRoute, HirStmt,
+};
 use std::collections::HashSet;
 
 /// Mock `ClaudeActor` embedded in generated `server.ts` when HTTP routes exist (OP-0172 SSOT).
@@ -65,15 +67,26 @@ fn http_method_ord(m: HirHttpMethod) -> u8 {
     }
 }
 
-/// Fail-fast checks for duplicate Express registrations and empty paths (OP-0170).
+/// Fail-fast checks for duplicate / unresolvably-ambiguous Express registrations and
+/// empty paths (OP-0170, extended in Phase C of the Svelte-mineable features plan with
+/// segment-aware overlap detection via [`super::route_pattern`]).
+///
+/// **Conflict policy:**
+/// - Empty path → error.
+/// - Same method, [`super::route_pattern::Overlap::Ambiguous`] (e.g. `/users/me` declared
+///   twice, or `/:a/:b` vs `/:x/:y`) → error.
+/// - Same method, [`super::route_pattern::Overlap::Shadowed`] (e.g. `/users/me` and
+///   `/users/:id`) → allowed; the more specific route wins by source order. No diagnostic
+///   surfaced from this fast-path validator (a future change can route a structured
+///   `routes.overlap.shadowed` info diagnostic through the typeck channel).
 pub fn validate_express_route_emit_input(hir: &HirModule) -> Result<(), String> {
-    use crate::codegen_shared::{RouteMethod, lower_module_routes};
-    use std::collections::HashSet;
+    use super::route_pattern::{Overlap, RoutePattern};
+    use crate::codegen_shared::lower_module_routes;
 
     let routes = lower_module_routes(hir);
-    let mut http_keys = HashSet::<(RouteMethod, String)>::new();
+    let mut parsed: Vec<(usize, RoutePattern)> = Vec::with_capacity(routes.len());
 
-    for r in &routes {
+    for (idx, r) in routes.iter().enumerate() {
         let path = r.path.trim();
         if path.is_empty() {
             return Err(format!(
@@ -83,14 +96,24 @@ pub fn validate_express_route_emit_input(hir: &HirModule) -> Result<(), String> 
             ));
         }
 
-        let key = (r.method, path.to_string());
-        if !http_keys.insert(key) {
-            return Err(format!(
-                "duplicate Express handler for {} {}",
-                r.method.as_uppercase_str(),
-                r.path
-            ));
+        let pattern = RoutePattern::parse(path);
+
+        for (prev_idx, prev_pattern) in &parsed {
+            if routes[*prev_idx].method != r.method {
+                continue;
+            }
+            if matches!(pattern.overlap_with(prev_pattern), Overlap::Ambiguous) {
+                return Err(format!(
+                    "ambiguous Express handlers for {} {} vs {} (no specificity tiebreaker — \
+                     declare the more specific route or rename one of the params)",
+                    r.method.as_uppercase_str(),
+                    r.path,
+                    routes[*prev_idx].path
+                ));
+            }
         }
+
+        parsed.push((idx, pattern));
     }
 
     Ok(())

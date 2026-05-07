@@ -39,6 +39,113 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
+  - auth
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::auth
+- surface: vox-cli
+  path:
+  - auth
+  - connect
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::login_shared::run_login
+- surface: vox-cli
+  path:
+  - auth
+  - init
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - auth
+  - login
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::login_shared::run_login
+- surface: vox-cli
+  path:
+  - auth
+  - trust
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - auth
+  - trust-list
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - auth
+  - unlock
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - auth
+  - untrust
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - auth
+  - whoami
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
   - build
   status: active
   latin_ns: fabrica
@@ -97,6 +204,18 @@ operations:
   path:
   - ci
   - artifact-prune
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - backend-tests
   status: active
   latin_ns: null
   product_lane: platform
@@ -265,6 +384,18 @@ operations:
   path:
   - ci
   - contracts-index
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
+  - coolify-eval
   status: active
   latin_ns: null
   product_lane: platform
@@ -619,6 +750,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - pre-push
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - query-all-guard
   status: active
   latin_ns: null
@@ -845,6 +988,18 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: null
+- surface: vox-cli
+  path:
+  - clavis
+  - login
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::login_shared::run_login
 - surface: vox-cli
   path:
   - clavis
@@ -1120,18 +1275,6 @@ operations:
 - surface: vox-cli
   path:
   - db
-  - publication-discovery-publish-rss
-  status: active
-  latin_ns: codex
-  product_lane: data
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: crates/vox-cli/src/commands/db/publication/discovery.rs::publication_discovery_publish_rss
-- surface: vox-cli
-  path:
-  - db
   - publication-novelty-fetch
   status: active
   latin_ns: codex
@@ -1381,25 +1524,25 @@ operations:
 - surface: vox-cli
   path:
   - login
-  status: deprecated
+  status: active
   latin_ns: ars
   product_lane: platform
   feature_gate: null
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
-  handler_rust: null
+  handler_rust: commands::login_shared::run_login
 - surface: vox-cli
   path:
   - logout
-  status: deprecated
+  status: active
   latin_ns: ars
   product_lane: platform
   feature_gate: null
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
-  handler_rust: null
+  handler_rust: commands::login_shared::run_logout
 - surface: vox-cli
   path:
   - lsp
@@ -1740,6 +1883,80 @@ operations:
 - surface: vox-cli
   path:
   - model
+  - costs
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::costs
+- surface: vox-cli
+  path:
+  - model
+  - discover
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::discover
+- surface: vox-cli
+  path:
+  - model
+  - explain
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::explain
+- surface: vox-cli
+  path:
+  - model
+  - list
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::list
+- surface: vox-cli
+  path:
+  - model
+  - preferences
+  - reset
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::preferences
+- surface: vox-cli
+  path:
+  - model
+  - preferences
+  - set
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::preferences
+- surface: vox-cli
+  path:
+  - model
   - pricing
   - check
   status: active
@@ -1789,6 +2006,42 @@ operations:
   ref_cli_required: false
   reachability_required: null
   handler_rust: commands::model::pricing
+- surface: vox-cli
+  path:
+  - model
+  - rollup
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::rollup
+- surface: vox-cli
+  path:
+  - model
+  - scoreboard
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::scoreboard
+- surface: vox-cli
+  path:
+  - model
+  - show
+  status: active
+  latin_ns: null
+  product_lane: ai
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::model::show
 - surface: vox-cli
   path:
   - openclaw
@@ -2365,18 +2618,6 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: null
-- surface: vox-cli
-  path:
-  - scientia
-  - publication-discovery-publish-rss
-  status: active
-  latin_ns: codex
-  product_lane: data
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: crates/vox-cli/src/commands/db/publication/discovery.rs::publication_discovery_publish_rss
 - surface: vox-cli
   path:
   - scientia

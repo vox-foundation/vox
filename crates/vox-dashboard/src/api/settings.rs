@@ -29,7 +29,9 @@ fn settings_path() -> PathBuf {
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".vox").join("dashboard-settings.json")
+    PathBuf::from(home)
+        .join(".vox")
+        .join("dashboard-settings.json")
 }
 
 impl SettingsState {
@@ -50,9 +52,7 @@ impl SettingsState {
     }
 }
 
-async fn get_settings(
-    State(s): State<SettingsState>,
-) -> Json<Value> {
+async fn get_settings(State(s): State<SettingsState>) -> Json<Value> {
     let map = s.inner.read().await;
     Json(Value::Object(map.clone()))
 }
@@ -68,8 +68,8 @@ async fn put_settings(
         }
         map.clone()
     }; // write lock released before async I/O
-    let serialized = serde_json::to_string_pretty(&updated)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let serialized =
+        serde_json::to_string_pretty(&updated).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     if let Some(parent) = s.path.parent() {
         tokio::fs::create_dir_all(parent).await.ok();
     }

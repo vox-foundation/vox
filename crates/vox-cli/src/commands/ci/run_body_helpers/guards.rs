@@ -263,6 +263,11 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-scientia-ingest/",
         "crates/vox-config/",
         "crates/vox-container/",
+        "crates/vox-crypto/",
+        "crates/vox-dashboard/",
+        "crates/vox-mens/",
+        "crates/vox-mesh-types/",
+        "crates/vox-spool/",
     ];
     const HARD_CUT_ALLOWLIST: &[&str] = &[
         "crates/vox-clavis/",
@@ -293,6 +298,11 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-scientia-ingest/",
         "crates/vox-config/",
         "crates/vox-container/",
+        "crates/vox-crypto/",
+        "crates/vox-dashboard/",
+        "crates/vox-mens/",
+        "crates/vox-mesh-types/",
+        "crates/vox-spool/",
     ];
     let entries = if hard_cut_strict {
         HARD_CUT_ALLOWLIST

@@ -6,6 +6,32 @@ use std::path::PathBuf;
 use super::completion_quality::CompletionGateMode;
 use super::release_build;
 
+/// Subcommands for [`CiCmd::CoolifyEval`].
+#[derive(Subcommand, Debug, Clone)]
+#[command(
+    name = "coolify-eval",
+    about = "Coolify eval sandbox: API discovery and compose sync (no SSH)."
+)]
+pub enum CoolifyEvalCmd {
+    /// Print Coolify version (if supported) and list applications (uuid, name, fqdn).
+    Discover,
+    /// PATCH `COOLIFY_APP_UUID` with compose YAML from the repo and optionally trigger deploy.
+    SyncCompose {
+        /// Compose file path (repo-relative or absolute). Default: `vox-eval.compose.yml`.
+        #[arg(long, default_value = "vox-eval.compose.yml")]
+        compose: PathBuf,
+        /// Override application UUID (default: Clavis `CoolifyAppUuid`).
+        #[arg(long)]
+        app_uuid: Option<String>,
+        /// After PATCH, call `GET /api/v1/deploy?uuid=…`.
+        #[arg(long, default_value_t = true)]
+        deploy: bool,
+        /// Coolify `domains` field (e.g. `https://eval.vox-lang.org`). Omit to leave unchanged.
+        #[arg(long)]
+        domains: Option<String>,
+    },
+}
+
 /// Command variations for Continuous Integration guards and internal codebase hygiene.
 #[derive(Subcommand)]
 pub enum CiCmd {
@@ -57,6 +83,21 @@ pub enum CiCmd {
     /// Run documentation + Codex + command-compliance + contracts-index guards in one shot.
     #[command(name = "ssot-drift")]
     SsotDrift,
+    /// Local pre-push aggregate: runs the merge-blocking subset (fmt, clippy,
+    /// ssot-drift, line-endings, doc-inventory verify, scoped TOESTUB). Mirrors
+    /// the `check-and-test` guards cluster so failures match CI before pushing.
+    #[command(name = "pre-push")]
+    PrePush {
+        /// Skip clippy and TOESTUB (fmt + ssot-drift + line-endings only). ~30s.
+        #[arg(long, conflicts_with = "full")]
+        quick: bool,
+        /// Also run `cargo nextest run --workspace --no-fail-fast` (slow). Off by default.
+        #[arg(long)]
+        full: bool,
+        /// Print commands without executing.
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// VoxDB connect policy doc, telemetry JSONL parsing, and `research_metrics` NULL-vs-zero invariants.
     #[command(name = "data-ssot-guards")]
     DataSsotGuards,
@@ -305,6 +346,9 @@ pub enum CiCmd {
     /// Fast local smoke: orchestrator compile + command-compliance + rust ecosystem policy.
     #[command(name = "policy-smoke")]
     PolicySmoke,
+    /// Targeted backend tests (`vox-runtime` + orchestrator routing policy modules).
+    #[command(name = "backend-tests")]
+    BackendTests,
     /// GUI smoke: `web_ir_lower_emit` always; optional Vite (`VOX_WEB_VITE_SMOKE=1`) and Playwright (`VOX_GUI_PLAYWRIGHT=1`) lanes.
     #[command(name = "gui-smoke")]
     GuiSmoke,
@@ -459,6 +503,11 @@ pub enum CiCmd {
         /// Exit non-zero if any doctest fails (default: warn only).
         #[arg(long)]
         strict: bool,
+    },
+    /// Coolify eval sandbox: discover apps and sync `vox-eval.compose.yml` via API.
+    CoolifyEval {
+        #[command(subcommand)]
+        cmd: CoolifyEvalCmd,
     },
     /// Fetch and format the latest deploy-hetzner.yml GitHub Action status.
     #[command(name = "deploy-status")]

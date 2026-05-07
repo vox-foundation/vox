@@ -80,6 +80,8 @@ pub fn extract_constructs(module: &vox_compiler::ast::decl::Module) -> Vec<Strin
             Decl::Environment(_) => "environment",
             Decl::Page(_) => "page",
             Decl::ReactiveComponent(_) => "reactive_component",
+            Decl::ReactiveModule(_) => "reactive_module",
+            Decl::Fragment(_) => "fragment",
             Decl::Endpoint(_) => "endpoint",
             Decl::Url(_) => "url",
             Decl::StateMachine(_) => "state_machine",

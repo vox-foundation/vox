@@ -184,16 +184,15 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 eval_args.push(eval_expr(interp, &a.value)?);
             }
             // Try global built-in first when callee is a bare identifier
-            if let HirExpr::Ident(name, _) = callee.as_ref() {
-                if interp.scope.get(name).is_none() {
-                    if let Some(result) =
-                        super::builtins::call_global_builtin(name, eval_args.clone())
-                    {
-                        return Ok(result);
-                    } else if matches!(name.as_str(), "assert") {
-                        // assert returning None means failure
-                        return Err(EvalError::AssertionFailed(format!("assert failed")));
-                    }
+            if let HirExpr::Ident(name, _) = callee.as_ref()
+                && interp.scope.get(name).is_none()
+            {
+                if let Some(result) = super::builtins::call_global_builtin(name, eval_args.clone())
+                {
+                    return Ok(result);
+                } else if matches!(name.as_str(), "assert") {
+                    // assert returning None means failure
+                    return Err(EvalError::AssertionFailed("assert failed".to_string()));
                 }
             }
             let c = eval_expr(interp, callee)?;
@@ -226,9 +225,10 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     interp.scope = old_scope;
                     Ok(val)
                 }
-                VoxValue::Constructor(name) => {
-                    Ok(VoxValue::Tagged { name, fields: eval_args })
-                }
+                VoxValue::Constructor(name) => Ok(VoxValue::Tagged {
+                    name,
+                    fields: eval_args,
+                }),
                 _ => Err(EvalError::TypeError {
                     expected: "function",
                     found: "other".into(),

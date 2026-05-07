@@ -500,3 +500,76 @@ fn vox_local_not_preferred_for_non_code_tasks() {
         std::env::remove_var("VOX_INFERENCE_PROFILE");
     }
 }
+
+#[test]
+fn restricted_route_overrides_allow_cloud_not_local_http_until_local_enabled() {
+    let _g = INFERENCE_PROFILE_TEST_LOCK.lock().expect("lock");
+    let cloud = ModelSpec {
+        id: "or-route".into(),
+        canonical_slug: "test/or-route".into(),
+        provider: "test".into(),
+        provider_type: ProviderType::OpenRouter,
+        max_tokens: 1000,
+        cost_per_1k: 0.01,
+        cost_per_1k_input: 0.01,
+        cost_per_1k_output: 0.01,
+        is_free: false,
+        observed_cost_per_1k: None,
+        strengths: vec![crate::models::generated::StrengthTag::Codegen],
+        capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
+        supported_parameters: vec![],
+    };
+    let local = ModelSpec {
+        id: "ollama-route".into(),
+        canonical_slug: "local/route".into(),
+        provider: "ollama".into(),
+        provider_type: ProviderType::Ollama,
+        max_tokens: 8192,
+        cost_per_1k: 0.0,
+        cost_per_1k_input: 0.0,
+        cost_per_1k_output: 0.0,
+        is_free: true,
+        observed_cost_per_1k: None,
+        strengths: vec![crate::models::generated::StrengthTag::Codegen],
+        capabilities: Default::default(),
+        cache_creation_cost_per_1k: 0.0,
+        cache_read_cost_per_1k: 0.0,
+        supports_prompt_caching: false,
+        pricing_source: crate::models::spec::PricingSource::Bootstrap,
+        supported_parameters: vec![],
+    };
+
+    unsafe {
+        std::env::set_var("VOX_ROUTE_POLICY_PROFILE", "restricted");
+        std::env::set_var("VOX_ROUTE_ALLOW_NET", "1");
+        std::env::set_var("VOX_ROUTE_ALLOW_PROVIDER_NETWORK", "1");
+        std::env::remove_var("VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP");
+    }
+    assert!(
+        crate::route_policy::route_policy_allows_model(&cloud),
+        "OpenRouter should be allowed when net + provider_network overrides are set"
+    );
+    assert!(
+        !crate::route_policy::route_policy_allows_model(&local),
+        "local HTTP lanes should stay blocked until explicitly allowed"
+    );
+
+    unsafe {
+        std::env::set_var("VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP", "1");
+    }
+    assert!(
+        crate::route_policy::route_policy_allows_model(&local),
+        "local HTTP should be permitted when VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP is truthy"
+    );
+
+    unsafe {
+        std::env::remove_var("VOX_ROUTE_POLICY_PROFILE");
+        std::env::remove_var("VOX_ROUTE_ALLOW_NET");
+        std::env::remove_var("VOX_ROUTE_ALLOW_PROVIDER_NETWORK");
+        std::env::remove_var("VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP");
+    }
+}

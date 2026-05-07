@@ -191,6 +191,7 @@ impl VoxWriteHandle {
     }
 
     /// Helper to insert telemetry flat via the actor.
+    #[allow(clippy::too_many_arguments)]
     pub async fn insert_telemetry_flat(
         &self,
         agent_id: String,
@@ -261,7 +262,7 @@ pub fn spawn_writer(db: VoxDb) -> VoxWriteHandle {
         while let Some(cmd) = rx.recv().await {
             msg_count += 1;
             // Every 100 messages, check capacity as a proxy for backpressure
-            if msg_count % 100 == 0 {
+            if msg_count.is_multiple_of(100) {
                 let cap = tx_clone.capacity();
                 if cap < 100 {
                     // Emit backpressure warning to flat telemetry

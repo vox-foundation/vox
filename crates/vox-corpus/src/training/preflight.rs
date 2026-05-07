@@ -41,10 +41,10 @@ fn count_nonempty_lines(path: &Path) -> anyhow::Result<usize> {
     let reader = std::io::BufReader::with_capacity(128 * 1024, file);
     let mut count = 0;
     for line in reader.lines() {
-        if let Ok(l) = line {
-            if !l.trim().is_empty() {
-                count += 1;
-            }
+        if let Ok(l) = line
+            && !l.trim().is_empty()
+        {
+            count += 1;
         }
     }
     Ok(count)

@@ -1,6 +1,6 @@
 ---
 title: "Vox Mobile Plugin Spec (2026)"
-description: "Promotes the existing mobile-pwa template into a first-class vox-mobile plugin binary, adds cdylib cross-compile, host-shell FFI contract, mobile Clavis sources (Android Keystore / iOS Keychain), Codex bundled-sqlcipher, and a table-based reminder runtime — the platform additions needed to build a native-feel offline mobile app in Vox."
+description: "Promotes the existing mobile-pwa template into a first-class vox-mobile plugin binary, adds cdylib cross-compile, host-shell FFI contract, mobile Clavis sources via the existing SecureStore variant, Codex bundled-sqlcipher, and a table-based reminder runtime — the platform additions needed to build a native-feel offline mobile app in Vox. Driving use case is the vox-mental-tracker app."
 category: "architecture"
 status: "roadmap"
 training_eligible: true
@@ -15,9 +15,9 @@ Vox today supports mobile only via the [`mobile-pwa` template](../../../crates/v
 
 This spec **promotes that template into a real plugin binary** (`vox-mobile`) parallel to [`vox-mens` and `vox-schola`](../../../README.md), and adds the small, focused set of platform primitives that any voice-first or offline-first mobile Vox app needs.
 
-The driving use case is [Acta](vox-acta-app-architecture-2026.md) — an offline voice-first universal logbook ("press button → record → timestamp → reminders for the future, recordings for the past") that will be the first standalone external Vox project. Every addition in this spec is justified by a concrete need from Acta, with the test that each addition is also useful for any other mobile Vox app that follows.
+The **driving use case is `apps/vox-mental-tracker`** — an offline-first, append-only health-event logbook (see its app-tree docs at [`apps/vox-mental-tracker/docs/architecture/data-model-ssot.md`](../../../apps/vox-mental-tracker/docs/architecture/data-model-ssot.md)). The app already exists in working form using Capacitor + Vite + a custom Capacitor plugin (`vox-sherpa-transcribe`), and the gaps it has — true on-device sherpa-onnx STT instead of `SpeechRecognizer`, encryption-at-rest, reliable scheduled reminders, an iOS parity path — are exactly the gaps this spec fills at the Vox-platform layer. Per [`apps/vox-mental-tracker/AGENTS.md`](../../../apps/vox-mental-tracker/AGENTS.md), app-internal product details (data model, clinical export specifics, user-facing privacy copy) stay app-tree; this doc is platform-generic and serves any mobile Vox app.
 
-Acta is mobile-first and **platform-agnostic between iOS and Android** from day one. Desktop and web are explicitly out of scope for the `vox-mobile` plugin (they are served by `--target=server` and `--target=fullstack` per the [external frontend interop plan](external-frontend-interop-plan-2026.md)).
+Every addition in this spec is justified by a concrete need from vox-mental-tracker, with the test that each addition is also useful for any other mobile Vox app that follows. The plugin is mobile-first and **platform-agnostic between iOS and Android** from day one. Desktop and web are explicitly out of scope (they are served by `--target=server` and `--target=fullstack` per the [external frontend interop plan](external-frontend-interop-plan-2026.md)).
 
 ## Non-goals
 
@@ -30,10 +30,11 @@ Acta is mobile-first and **platform-agnostic between iOS and Android** from day 
 ## Decisions baked into this plan
 
 - **`vox-mobile` is a plugin binary**, discovered on `PATH` per the existing model documented in [README.md §Optional plugins](../../../README.md). It ships as `vox-mobile-<version>-<target>.tar.gz` and registers the `vox mobile *` subcommand surface.
-- **Default on-device STT is sherpa-onnx**, not Candle Whisper. Rationale: the [VoicePing 2026 offline ASR benchmark](https://voiceping.net/en/blog/research-offline-speech-transcription-benchmark/) measured sherpa-onnx as ~51× faster than whisper.cpp on Android for the same Whisper-Tiny model. [vox-oratio](../../../crates/vox-oratio/Cargo.toml) already supports both backends behind feature flags; the plugin selects `stt-sherpa` for mobile builds. Candle remains available as an opt-in for desktop/server.
-- **Encryption-at-rest is a deployment concern, not a language concern.** No new `@vault` decorator and no `@table(encrypted: true)` argument. Instead: Clavis resolves the database encryption key from a platform source (Android Keystore / iOS Keychain / passphrase-Argon2id), Codex opens the SQLite connection with `PRAGMA key`, and the manifest carries one `[storage] encryption = { source = "clavis:..." }` line. App `@table` declarations are unchanged.
-- **Reminders are data, not declarations.** No re-introduction of `@scheduled` ([currently reserved with diagnostic E028](../../../crates/vox-compiler/src/pipeline.rs)). Apps declare a `@table type Reminder { ... }` and the mobile plugin's reminder runtime reconciles rows to host-platform alarms via the host-shell FFI. This keeps the grammar minimal and makes user-managed reminders fall out of the existing CRUD machinery for free.
+- **Default on-device STT is sherpa-onnx**, not Candle Whisper, and not Android `SpeechRecognizer`. Rationale: the [VoicePing 2026 offline ASR benchmark](https://voiceping.net/en/blog/research-offline-speech-transcription-benchmark/) measured sherpa-onnx as ~51× faster than whisper.cpp on Android for the same Whisper-Tiny model; Android `SpeechRecognizer` (which the existing `vox-sherpa-transcribe` Capacitor plugin currently uses as a placeholder) depends on a Google-installed offline pack that is not guaranteed and not auditable, so it doesn't satisfy "fully offline" in the audited sense. [vox-oratio](../../../crates/vox-oratio/Cargo.toml) already supports the sherpa backend behind the `stt-sherpa` feature; this plugin's cdylib build pulls it in for mobile targets, and `vox-sherpa-transcribe`'s Android implementation should swap from `SpeechRecognizer` to JNI-into-the-cdylib once Phase 2 lands.
+- **Encryption-at-rest is a deployment concern, not a language concern.** No new `@vault` decorator and no `@table(encrypted: true)` argument. Instead: Clavis resolves the database encryption key from the existing [`SecretSource::SecureStore`](../../../crates/vox-clavis/src/types.rs) variant (Android Keystore / iOS Keychain underneath, abstracted) or an `Argon2id`-derived passphrase fallback; Codex opens the SQLite connection with `PRAGMA key`; and the manifest carries one `[storage] encryption = { source = "clavis:..." }` line. App `@table` declarations are unchanged.
+- **Reminders are data, not declarations.** No re-introduction of `@scheduled` ([currently reserved with diagnostic E028](../../../crates/vox-compiler/src/pipeline.rs)). Apps declare a `@table type Reminder { ... }` (or in vox-mental-tracker's case, configure the runtime to watch `HealthEventLog` rows where `event_kind = "scheduled_reminder"` and `event_at` is in the future) and the mobile plugin's reminder runtime reconciles rows to host-platform alarms via the host-shell FFI. This keeps the grammar minimal and makes user-managed reminders fall out of the existing CRUD machinery for free.
 - **The host-shell contract is versioned and frozen.** App authors never touch the Kotlin/Swift shell after `vox mobile init` generates it. Surface changes are spec-versioned (`host-shell.v1`, `v2`, …) like other contracts under [`contracts/`](../../../contracts/).
+- **App-tree boundaries are respected.** Per `apps/<app>/AGENTS.md` conventions (see [`apps/vox-mental-tracker/AGENTS.md`](../../../apps/vox-mental-tracker/AGENTS.md)), app-owned product docs, contracts (`apps/<app>/contracts/`), and Capacitor plugins (`apps/<app>/plugins/`) stay in the app tree. The `vox-mobile` plugin provides infrastructure those apps consume; it does not pull app-specific schemas, payloads, or UI into the platform.
 
 ---
 
@@ -127,41 +128,60 @@ Acta is mobile-first and **platform-agnostic between iOS and Android** from day 
 
 **Scope:**
 
-1. New sources under [`crates/vox-clavis/src/sources/`](../../../crates/vox-clavis/src/sources/):
-   - `android_keystore.rs` — wraps a key with the Android Keystore via the host shell's JCA bridge (the cdylib calls back through a `keystore_wrap` / `keystore_unwrap` callback added to the host-shell contract). Uses the StrongBox-backed key when available.
-   - `ios_keychain.rs` — wraps via Keychain Services. Same callback pattern.
-   - `passphrase_argon2id.rs` — for "remember me off" mode. Derives the DB key from a user passphrase via Argon2id (memory-hard, mitigates GPU brute-force). The KDF runs in the cdylib, not the host shell, to keep the salt and parameters in one place.
+The post-2026-Q2 Clavis architecture restructured the spec layer: secrets are declared as `SecretId` enum variants in [`crates/vox-clavis/src/spec/ids.rs`](../../../crates/vox-clavis/src/spec/ids.rs), backed by `&'static [SecretSpec]` arrays in [`crates/vox-clavis/src/spec/registry/`](../../../crates/vox-clavis/src/spec/registry/), with the existing [`SecretSource`](../../../crates/vox-clavis/src/types.rs) enum's `SecureStore` variant abstracting the platform secure store. This phase plugs the mobile case into that existing structure rather than inventing parallel surfaces.
 
-2. Spec entries added to [`crates/vox-clavis/src/spec.rs`](../../../crates/vox-clavis/src/spec.rs):
+1. **New `SecretId` variant** in [`crates/vox-clavis/src/spec/ids.rs`](../../../crates/vox-clavis/src/spec/ids.rs):
+
    ```rust
-   SecretSpec {
-       id: SecretId::new("vox.mobile.db_key"),
-       class: SecretClass::DataEncryption,
-       material_kind: SecretMaterialKind::SymmetricKey32,
-       sources: vec![
-           SecretSource::AndroidKeystore { alias: "vox.mobile.db_key.v1" },
-           SecretSource::IosKeychain { service: "com.vox.app.db_key", account: "v1" },
-           SecretSource::PassphraseArgon2id { salt_path: ".vox/db_key.salt" },
-       ],
-       rotation: RotationPolicy::Manual,
-       ..
+   pub enum SecretId {
+       // ... existing variants ...
+       VoxMobileDbKey,
    }
    ```
 
-3. Resolution flows through unchanged `vox_clavis::resolve_secret(SecretId::new("vox.mobile.db_key"))`. Consumers never special-case the source.
+2. **New registry file** `crates/vox-clavis/src/spec/registry/mobile.rs` (mirroring the shape of `platform.rs`, `llm.rs`, etc.):
 
-4. **Lifecycle additions** in the host-shell contract (callbacks added in Phase 2 but specified here):
+   ```rust
+   use crate::policy::SecretPolicy;
+   use crate::spec::ids::SecretId;
+   use crate::spec::types::*;
+
+   pub const SPECS_MOBILE: &[SecretSpec] = &[
+       SecretSpec {
+           id: SecretId::VoxMobileDbKey,
+           canonical_env: "VOX_MOBILE_DB_KEY",         // dev/test override only; never in prod APK
+           aliases: &[],
+           deprecated_aliases: &[],
+           backend_key: Some("vox.mobile.db_key.v1"),  // SecureStore key alias
+           auth_registry: None,
+           policy: SecretPolicy::required_or_kdf_fallback(),
+           remediation: "Generated on first launch. Wrapped by Android Keystore (StrongBox when available) or iOS Keychain. Falls back to user-passphrase + Argon2id when the platform store is unavailable.",
+           scope_description: "vox-mobile: at-rest database encryption key",
+       },
+   ];
+   ```
+
+   Register the slice from [`spec/registry/mod.rs`](../../../crates/vox-clavis/src/spec/registry/) so `all_specs()` includes it.
+
+3. **`SecureStore` source backing on mobile.** The cdylib's `SecureStore` resolver (a small new module under [`crates/vox-clavis/src/sources/`](../../../crates/vox-clavis/src/sources/) — `secure_store.rs`) calls back into the host shell to perform the actual wrap/unwrap, using the host-shell contract callbacks `keystore_wrap` / `keystore_unwrap` introduced in Phase 2. On Android the host shell talks to `AndroidKeyStore`; on iOS, Keychain Services. The cdylib never sees the unwrapping key material — only wrapped blobs in transit and the resolved plaintext key in memory only for the duration of the SQLite connection open.
+
+4. **Argon2id passphrase fallback.** When the platform secure store is unavailable (older devices, unprovisioned StrongBox, user opted out), `SecretPolicy::required_or_kdf_fallback()` triggers the fallback path: a small new source `crates/vox-clavis/src/sources/argon2id_passphrase.rs` derives the key from a user-entered passphrase + a per-install salt at `<config_dir>/.vox/db_key.salt`. KDF parameters (`m_cost`, `t_cost`, `p_cost`) are pinned in code; bumps require a key-version increment (`vox.mobile.db_key.v2`) and a one-time re-encryption migration.
+
+5. **Resolution surface unchanged.** Consumers call `vox_clavis::resolve_secret(SecretId::VoxMobileDbKey)` exactly as for any other secret. Codex's Phase-4 connection builder (next phase) feeds the resolved key into `PRAGMA key`.
+
+6. **Host-shell contract callbacks** (defined in Phase 2 spec, used here):
    - `keystore_wrap(plaintext_key) -> Result<wrapped_blob>`
    - `keystore_unwrap(wrapped_blob) -> Result<plaintext_key>`
-   - The plaintext key never leaves the cdylib's memory after init except as a wrapped blob.
+   - The plaintext key buffer is zeroed (`zeroize` crate) immediately after `PRAGMA key` returns.
 
-5. `vox clavis doctor` extended to check for keystore availability on the running device and to surface fall-back-to-passphrase warnings.
+7. **`vox clavis doctor` extension** — add per-platform availability check that exercises a round-trip wrap/unwrap and reports the actual backing (StrongBox / TEE / software-only on Android; Secure Enclave / software on iOS) plus the passphrase-fallback presence.
 
-**Deliverables:** three new Clavis sources, spec entries, host-shell callback additions, doctor extension, security-property tests (round-trip wrap/unwrap, KDF parameter pinning).
+**Deliverables:** `SecretId::VoxMobileDbKey` enum addition, `spec/registry/mobile.rs` and `mod.rs` registration, `sources/secure_store.rs` with host-bridge callback integration, `sources/argon2id_passphrase.rs`, `SecretPolicy::required_or_kdf_fallback()` policy variant, host-shell callback additions, doctor check, security-property tests (round-trip wrap/unwrap fidelity, KDF parameter pinning, zeroize verification).
 
 **Risks:**
-- **Vendor differences in StrongBox availability.** Mitigation: doctor reports the actual backing on each device; passphrase fallback is always present.
-- **Argon2id parameter choice.** Mitigation: pin `m_cost`, `t_cost`, `p_cost` in the spec entry; bump via a numbered key version (`v2`) when hardware moves.
+- **Vendor differences in StrongBox availability.** Mitigation: doctor reports the actual backing on each device; passphrase fallback is always present and selectable.
+- **Argon2id parameter choice.** Mitigation: pin `m_cost = 64 MiB`, `t_cost = 3`, `p_cost = 1` in the spec entry as a starting point per OWASP 2024 guidance; bump via a numbered key version (`v2`) plus a one-time re-encryption when hardware moves.
+- **`SecureStore` resolver coupling to host callbacks.** The cdylib's `SecureStore` source is unusable in non-mobile builds. Mitigation: `cfg(feature = "mobile-secure-store")` gates the Clavis additions; desktop Vox installs are unaffected.
 
 ---
 
@@ -186,7 +206,7 @@ Acta is mobile-first and **platform-agnostic between iOS and Android** from day 
    ```
    When `required = true`, Codex refuses to open the DB without a resolvable key. When omitted, Codex opens unencrypted (current behavior, unchanged).
 4. Migration handling: PRAGMA key fires before any SQL, so existing migrations work transparently. A **one-time conversion** subcommand `vox db rekey --from-plain --to-clavis=vox.mobile.db_key` covers the upgrade path for existing unencrypted databases.
-5. Backup/restore: a `vox db export-encrypted --out=<path>` produces a portable `.vox-vault` file (the SQLCipher-encrypted DB itself, plus a `manifest.json` containing the wrapped key under a backup-specific KEK). The complementary `vox db restore-encrypted` reverses it. Used by Acta's encrypted-DB export path.
+5. Backup/restore: a `vox db export-encrypted --out=<path>` produces a portable `.vox-vault` file (the SQLCipher-encrypted DB itself, plus a `manifest.json` containing the wrapped key under a backup-specific KEK). The complementary `vox db restore-encrypted` reverses it. Apps with deterministic clinical-export contracts (such as vox-mental-tracker's [`csv-columns.v1.yaml`](../../../apps/vox-mental-tracker/contracts/export/csv-columns.v1.yaml)) layer their own export pipelines on top — `.vox-vault` is the full-fidelity raw backup; deterministic CSV/JSON bundles are app-defined.
 
 **Deliverables:** feature flag, connection builder extension, manifest schema update, rekey/export/restore subcommands, golden tests for round-trip integrity, docs at [docs/src/reference/data-storage.md](../reference/data-storage.md).
 
@@ -215,15 +235,17 @@ Acta is mobile-first and **platform-agnostic between iOS and Android** from day 
        active:       bool,
    }
    ```
-   The table name `Reminder` is the default convention the runtime watches. Apps with a different shape register their own table, predicate, and handler in `Vox.toml`:
+   The table name `Reminder` is the default convention the runtime watches. Apps with a different shape register their own table, predicate, and handler in `Vox.toml`. For example, vox-mental-tracker's append-only `HealthEventLog` uses a `scheduled_reminder` event_kind with the future fire instant in `event_at`:
    ```toml
    [mobile.reminders]
-   table = "LogEntry"                                           # Acta uses one wide table
-   active_predicate = "fire_at_utc IS NOT NULL AND fired_at_utc IS NULL AND active"
-   fire_at_column = "fire_at_utc"
-   handler = "on_reminder_fired"
+   table            = "HealthEventLog"
+   active_predicate = "event_kind = 'scheduled_reminder' AND correction_of = '' AND CAST(event_at AS INTEGER) > recorded_at_monotonic"
+   fire_at_column   = "event_at"
+   handler          = "on_reminder_fired"
    ```
-   The predicate and column names are required for non-default schemas. Required columns on the configured table: a `ulid`-typed primary key and a `datetime?` "fire-at" column. Everything else (recurrence, title, body, payload) is app-defined and surfaces to the handler as the row type.
+   This integrates cleanly with the app's existing append-only model: a reminder is just an event whose `event_at` is in the future; firing it inserts a child event (e.g. `reminder_fired`); cancelling it inserts a `correction_of` row referencing the original `event_id`. No new tables, no new schema migrations.
+
+   Required columns on the configured table: a primary key (any sortable type — `ulid`, `str`, `int`), a `datetime`-or-equivalent "fire-at" column (string ISO-8601 or integer ms), and whatever fields the predicate filters on. Everything else (title, body, payload, recurrence) is app-defined and surfaces to the handler as the row type.
 2. **Runtime behavior:**
    - At `vox_mobile_init`, the runtime queries all `active = true` reminders with `fire_at_utc > now()` within a configurable horizon (default 30 days), and calls `request_alarm` for each through the host-shell callback.
    - On `INSERT` / `UPDATE` to the reminders table (intercepted via Codex's existing change-notification hook), the runtime computes the delta and issues `request_alarm` / `cancel_alarm` callbacks immediately. **No polling loop.** The host scheduler is the source of truth for "time elapsed."
@@ -255,7 +277,7 @@ Acta is mobile-first and **platform-agnostic between iOS and Android** from day 
 **Deliverables:** stdlib `reminder` module, change-notification hook in Codex (if not already present), RRULE next-occurrence helper (rrule crate), unit tests for the reconciler, integration test simulating fire→handler→reschedule round trip.
 
 **Risks:**
-- **One handler limitation.** A single `on_reminder_fired` is the only dispatch point. Apps that need multiple handler types use the `payload_json` field to discriminate. This matches Acta's intent-extracted-reminder use case and avoids hard-wiring a registry.
+- **One handler limitation.** A single `on_reminder_fired` is the only dispatch point. Apps that need multiple handler types use the `payload_json` field to discriminate (vox-mental-tracker's existing event-payload schemas under `apps/vox-mental-tracker/contracts/event-payloads/` are the canonical pattern). This avoids hard-wiring a registry into the platform.
 - **Clock skew.** Reconciler uses `now()` from the host clock. Documented; matches every other Android scheduler.
 
 ---
@@ -323,7 +345,7 @@ Phase 1 (cdylib + cargo-ndk)
 - Phase 5: ~1.5 weeks (reconciler + RRULE + tests)
 - Phase 6: ~2 weeks (template + tutorials + signing + packaging)
 
-**Total: ~10–11 weeks** of focused work for one engineer, before [Acta](vox-acta-app-architecture-2026.md) can be built on top.
+**Total: ~10–11 weeks** of focused work for one engineer to deliver all six phases of the platform plugin. Apps consuming the plugin (e.g. vox-mental-tracker, currently at ~55% completion against its own [handoff plan](../../../apps/vox-mental-tracker/docs/README.md)) can begin migrating off Capacitor-Vite-only flows as each phase lands — Phase 1 alone unblocks running real Vox-emitted business logic on-device, even before encryption (Phase 4) or the reminder runtime (Phase 5) lands.
 
 ## What this plan does *not* yet decide
 

@@ -28,7 +28,7 @@ fn syntax_k_telemetry_enabled() -> bool {
     vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSyntaxKTelemetry)
         .expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or_else(|| telemetry_enabled())
+        .unwrap_or_else(telemetry_enabled)
 }
 
 fn telemetry_discovery_start() -> std::path::PathBuf {

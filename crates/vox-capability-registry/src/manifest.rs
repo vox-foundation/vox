@@ -86,10 +86,10 @@ fn merge_cli_entry(
     });
     if let Some(c) = curated {
         let mut merged = merge_curated(base, c);
-        if let Some(params) = &c.parameters {
-            if let Some(obj) = merged.as_object_mut() {
-                obj.insert("parameters".into(), params.clone());
-            }
+        if let Some(params) = &c.parameters
+            && let Some(obj) = merged.as_object_mut()
+        {
+            obj.insert("parameters".into(), params.clone());
         }
         merged
     } else {

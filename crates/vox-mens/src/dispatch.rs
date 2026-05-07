@@ -248,12 +248,10 @@ async fn emit_unstructured_daemon_line(line: &str, auto_open: bool, app_launched
         }
         println!("\n  ↳  Dashboard ready: {}", line.trim());
     } else if line.contains("http://") || line.contains("App Launched at") {
-        if auto_open {
-            if let Some(pos) = line.find("http://") {
-                let rest = &line[pos..];
-                let extracted_url = rest.split_whitespace().next().unwrap_or(rest);
-                vox_cli_core::fs_utils::open_browser(extracted_url.trim_end_matches(']')).await;
-            }
+        if auto_open && let Some(pos) = line.find("http://") {
+            let rest = &line[pos..];
+            let extracted_url = rest.split_whitespace().next().unwrap_or(rest);
+            vox_cli_core::fs_utils::open_browser(extracted_url.trim_end_matches(']')).await;
         }
         if app_launched_banner {
             println!("\n  ↳  App launched: {}", line.trim());

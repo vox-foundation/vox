@@ -1,52 +1,231 @@
 {
-  "x-vox-version": 1,
+  "x-vox-version": 3,
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "properties": 
-    "schema_version":  "type": "integer" },
-    "tiers": 
-      "type": "array",
-      "items":  "type": "string" }
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {
+      "type": "integer"
     },
-    "strengths": 
-      "type": "array",
-      "items":  "type": "string" }
-    },
-    "task_categories": 
-      "type": "array",
-      "items":  "type": "string" }
-    },
-    "scoring": 
+    "routing_objective": {
       "type": "object",
-      "properties": 
-        "weights": 
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "type": "string"
+        }
+      }
+    },
+    "quality_weights": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "number"
+      }
+    },
+    "exploration": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "fallback_graph": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tiers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "strengths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "task_categories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "properties": {
+        "weights": {
           "type": "object",
-          "additionalProperties":  "type": "integer" }
+          "additionalProperties": {
+            "type": "integer"
+          }
         },
-        "latency_bands": 
+        "latency_bands": {
           "type": "object",
-          "properties": 
-            "excellent_ms":  "type": "integer" },
-            "poor_ms":  "type": "integer" }
+          "properties": {
+            "excellent_ms": {
+              "type": "integer"
+            },
+            "poor_ms": {
+              "type": "integer"
+            }
           },
-          "required": ["excellent_ms", "poor_ms"]
+          "required": [
+            "excellent_ms",
+            "poor_ms"
+          ]
         }
       },
-      "required": ["weights", "latency_bands"]
+      "required": [
+        "weights",
+        "latency_bands"
+      ]
     },
-    "premium_alias": 
+    "premium_alias": {
       "type": "object",
-      "additionalProperties":  "type": "string" }
+      "additionalProperties": {
+        "type": "string"
+      }
     },
-    "economy_cost_ceiling_usd_per_1k":  "type": "number" }
+    "economy_cost_ceiling_usd_per_1k": {
+      "type": "number"
+    },
+    "capability_policy": {
+      "type": "object",
+      "properties": {
+        "default_profile": {
+          "type": "string"
+        },
+        "profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "fs_read": {
+                "type": "boolean"
+              },
+              "fs_write": {
+                "type": "boolean"
+              },
+              "net": {
+                "type": "boolean"
+              },
+              "child_process": {
+                "type": "boolean"
+              },
+              "worker": {
+                "type": "boolean"
+              },
+              "wasi": {
+                "type": "boolean"
+              },
+              "inspector": {
+                "type": "boolean"
+              },
+              "provider_network": {
+                "type": "boolean"
+              },
+              "local_model_http": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "env_overrides": {
+          "type": "object",
+          "properties": {
+            "profile": {
+              "type": "string"
+            },
+            "allow_net": {
+              "type": "string"
+            },
+            "allow_provider_network": {
+              "type": "string"
+            },
+            "allow_local_model_http": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "profile",
+            "allow_net",
+            "allow_provider_network",
+            "allow_local_model_http"
+          ]
+        }
+      },
+      "required": [
+        "default_profile",
+        "profiles",
+        "env_overrides"
+      ]
+    },
+    "strength_inference": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "capability_inference": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "intent_to_required_capabilities": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "prompt_intent_inference": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "properties": {
+        "maturity": {
+          "type": "string",
+          "enum": [
+            "experimental",
+            "stable",
+            "deprecated"
+          ]
+        },
+        "migration_window_days": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "maturity",
+        "migration_window_days"
+      ]
+    }
   },
   "required": [
     "schema_version",
+    "routing_objective",
+    "quality_weights",
+    "exploration",
+    "safety",
+    "fallback_graph",
     "tiers",
     "strengths",
     "task_categories",
     "scoring",
     "premium_alias",
-    "economy_cost_ceiling_usd_per_1k"
+    "economy_cost_ceiling_usd_per_1k",
+    "capability_policy",
+    "strength_inference",
+    "capability_inference",
+    "intent_to_required_capabilities",
+    "prompt_intent_inference",
+    "lifecycle"
   ]
 }

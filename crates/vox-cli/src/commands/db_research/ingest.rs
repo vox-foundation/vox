@@ -63,7 +63,9 @@ pub async fn research_ingest_url(
         kb_id,
         embeddings: vec![],
     };
-    let db = vox_db::VoxDb::connect_default().await.map_err(|e| anyhow::anyhow!("{e}"))?;
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     let result = db
         .ingest_research_document_async(&mut req)
         .await
@@ -135,7 +137,9 @@ pub async fn research_ingest_file(
         kb_id,
         embeddings: vec![],
     };
-    let db = vox_db::VoxDb::connect_default().await.map_err(|e| anyhow::anyhow!("{e}"))?;
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     let result = db
         .ingest_research_document_async(&mut req)
         .await

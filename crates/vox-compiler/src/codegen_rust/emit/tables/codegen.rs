@@ -290,10 +290,9 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
     // -- from_row (column order: _id, then fields in declaration order)
     out.push_str("    fn from_row(row: &turso::Row) -> Result<Self, turso::Error> {\n");
     out.push_str("        let _id_val: i64 = row.get(0)?;\n");
-    let mut col_idx: usize = 1;
     out.push_str("        Ok(Self {\n");
     out.push_str("            _id: Some(_id_val),\n");
-    for field in &table.fields {
+    for (col_idx, field) in (1usize..).zip(table.fields.iter()) {
         if is_json(&field.type_ann) {
             out.push_str(&format!(
                 "            {}: {{\n                let s: String = row.get({})?;\n                serde_json::from_str(&s).map_err(|e| turso::Error::ConversionFailure(format!(\"JSON decode on {}.{} row _id {{}}: {{}}\", _id_val, e)))?\n            }},\n",
@@ -305,7 +304,6 @@ pub fn emit_table_struct(table: &HirTable, projections: &[Vec<String>]) -> Strin
                 field.name, col_idx
             ));
         }
-        col_idx += 1;
     }
     out.push_str("        })\n");
     out.push_str("    }\n");

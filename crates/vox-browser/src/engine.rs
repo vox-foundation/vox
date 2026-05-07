@@ -267,10 +267,7 @@ impl BrowserEngine {
             .await
             .map_err(|e| format!("AXTree CDP failed: {e}"))?;
 
-        Ok(
-            serde_json::to_value(res.nodes.clone())
-                .map_err(|e: serde_json::Error| e.to_string())?,
-        )
+        serde_json::to_value(res.nodes.clone()).map_err(|e: serde_json::Error| e.to_string())
     }
 
     /// Layer 1: Deterministic Overlap Detector.

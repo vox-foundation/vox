@@ -10,6 +10,7 @@ pub use vox_config::inference::{
 };
 
 pub use vox_orchestrator_types::{HuggingFaceDedicatedEndpoint, HuggingFaceRouterEndpoint};
+/// Canonical router URL; override via [`vox_config::inference::hf_router_chat_completions_url`].
 pub const HF_ROUTER_CHAT_COMPLETIONS_URL: &str =
     "https://router.huggingface.co/v1/chat/completions";
 
@@ -17,7 +18,7 @@ pub const HF_ROUTER_CHAT_COMPLETIONS_URL: &str =
 pub fn resolve_huggingface_router(model: impl Into<String>) -> HuggingFaceRouterEndpoint {
     let model = model.into();
     HuggingFaceRouterEndpoint {
-        chat_completions_url: HF_ROUTER_CHAT_COMPLETIONS_URL.to_string(),
+        chat_completions_url: vox_config::inference::hf_router_chat_completions_url(),
         bearer_token: huggingface_hub_token(),
         model,
     }

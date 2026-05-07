@@ -126,6 +126,12 @@ pub enum OutputFormat {
 
 #[derive(Subcommand, Debug)]
 pub enum ClavisCmd {
+    /// Sign in: configure vault URL/token and optional Clavis account/backend.
+    #[command(name = "login")]
+    Login {
+        #[command(flatten)]
+        args: crate::commands::login_shared::LoginArgs,
+    },
     /// Show secret readiness for a workflow (credentials / env resolution).
     #[command(name = "status", visible_alias = "doctor")]
     Status {
@@ -176,6 +182,7 @@ pub enum ClavisCmd {
 
 pub async fn run(cmd: ClavisCmd) -> Result<()> {
     match cmd {
+        ClavisCmd::Login { args } => crate::commands::login_shared::run_login(args.into()).await,
         ClavisCmd::Status {
             workflow,
             profile,

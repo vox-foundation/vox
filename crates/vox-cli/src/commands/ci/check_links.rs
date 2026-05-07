@@ -214,10 +214,7 @@ fn collect_markdown_files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
         // Skip tombstoned archive trees per AGENTS.md §Archival Protocol —
         // archived docs are kept for human reference and may legitimately link
         // to since-moved code or pre-archive doc paths.
-        if path
-            .components()
-            .any(|c| c.as_os_str() == "archive")
-        {
+        if path.components().any(|c| c.as_os_str() == "archive") {
             continue;
         }
         if entry.file_type().is_file() && path.extension().is_some_and(|ext| ext == "md") {

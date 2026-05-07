@@ -81,6 +81,7 @@ training_eligible: false
 - [How-To: Testing Integration](how-to/how-to-testing-integration.md)
 - [How-To: The Database Layer](how-to/how-to-database.md)
 - [Model Routing & Provider Cascade](how-to/how-to-model-routing.md)
+- [Point your AI coding assistant at the Vox MCP validator](how-to/how-to-mcp-vox-validate.md)
 - [Populi Quickstart](how-to/populi-quickstart.md)
 - [Scientia publication: what you type vs what the system derives](how-to/scientia-publication-operator-inputs.md)
 - [Troubleshooting FAQ](how-to/troubleshooting-faq.md)
@@ -95,7 +96,6 @@ training_eligible: false
 ## Status: Current
 
 - [Known Documentation Gaps & Backlog](api/DOC_GAPS.md)
-- [vox-codegen-ts API](api/vox-codegen-ts.md)
 
 ## Status: Deprecated
 
@@ -112,6 +112,7 @@ training_eligible: false
 - [Crate API: vox-py](archive/vox-py.md)
 - [Crate API: vox-typeck](archive/vox-typeck.md)
 - [Crate API: vox-wasm](archive/vox-wasm.md)
+- [vox-codegen-ts API (deprecated stub)](api/vox-codegen-ts.md)
 
 
 # Examples
@@ -171,8 +172,11 @@ training_eligible: false
 - [Classification Taxonomy SSoT](architecture/classification-ssot-2026.md)
 - [Cryptography Policy SSoT](architecture/cryptography-ssot-2026.md)
 - [MCP exposure from the Vox language (SSOT)](archive/research-2026-q1/mcp-vox-language-exposure.md)
+- [Search & Retrieval SSOT (2026)](architecture/search-retrieval-ssot-2026.md)
 - [ADR 030 — state_machine as SSoT for reactive UI state](adr/030-state-machine-ssot.md)
 - [ADR 031 — Deprecate vox-vscode; dashboard is the primary surface](adr/031-deprecate-vox-vscode.md)
+- [ADR 032 — `.vox.ui` reactive modules](adr/032-vox-ui-reactive-modules.md)
+- [ADR 033 — Typed parametric fragment primitive](adr/033-typed-fragment-primitive.md)
 - [ADR-025: Multi-Agent Lock Coherence and Lease Propagation](adr/025-multi-agent-lock-coherence.md)
 - [ADR-026: Third-Party Code Provenance Policy](adr/026-third-party-code-provenance.md)
 - [ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)](adr/027-dual-track-ui-surfaces.md)
@@ -196,6 +200,7 @@ training_eligible: false
 - [Document maintenance protocol](architecture/planning-meta/10-document-maintenance-protocol.md)
 - [Documentation hygiene and AI-agent guidelines 2026](archive/research-2026-q1/doc-hygiene-agent-guidelines-2026.md)
 - [Durability & Scheduling Runtime Audit (2026)](architecture/durability-runtime-audit-2026.md)
+- [Eval sandbox deployment (Coolify)](architecture/eval-sandbox-deployment.md)
 - [Exception and deferral policy](architecture/planning-meta/09-exception-deferral-policy.md)
 - [FFScript Linter Engine Design (T-046)](architecture/ffscript-linter-design-2026.md)
 - [FFScript Mutation API Spec (T-041)](architecture/ffscript-mutation-api-spec-2026.md)
@@ -230,6 +235,7 @@ training_eligible: false
 - [Minimal React Interop Shell Strategy](archive/research-2026-q1/react-interop-minimal-shell-strategy.md)
 - [Mobile/Desktop Convergence & Language Extension Research 2026](archive/research-2026-q1/mobile-desktop-convergence-research-2026.md)
 - [Model Orchestration SSOT — Audit & Convergence Plan (2026-04-20)](architecture/model-orchestration-ssot-audit-2026.md)
+- [Multi-Agent VCS Replication — Landscape Research (2026-05-03)](architecture/multi-agent-vcs-replication-research-2026.md)
 - [News syndication: incident patterns and mitigations](archive/research-2026-q1/news_syndication_incident_patterns.md)
 - [Next-Generation AI Orchestrator: Systemic Flaws, Power User Demands, and Production Design Patterns](architecture/nextgen-orchestrator-research-2026.md)
 - [Nomenclature migration map (SSOT)](archive/research-2026-q1/nomenclature-migration-map.md)
@@ -401,6 +407,7 @@ training_eligible: false
 - [Semantic Proximity, Split-Brain Detection, and Safe Symbol Surfacing (Research 2026)](archive/research-2026-q1/research-semantic-proximity-split-brain-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](architecture/shiki-mdbook-doc-platform-research-2026.md)
 - [State of the Art for Context-Aware Agent Handoff Protocols](archive/research-2026-q1/research-agent-handoff-sota-protocols-2026.md)
+- [Svelte 5/6 vs React Meta-Frameworks — Comparative Research and Mineable Ideas for Vox (2026)](architecture/svelte-vs-react-frameworks-research-2026.md)
 - [Telemetry unification research findings 2026](archive/research-2026-q1/telemetry-unification-research-findings-2026.md)
 - [Terminal AST validation research 2026](archive/research-2026-q1/terminal-ast-validation-research-2026.md)
 - [Terminal execution policy research findings 2026](archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md)
@@ -446,8 +453,6 @@ training_eligible: false
 - [GUI, v0/islands, vision, and Mens Qwen — virtuous-cycle implementation plan (2026)](archive/research-2026-q1/vox-gui-vision-virtuous-cycle-implementation-plan-2026.md)
 - [Orchestrator task attachment_manifest (RFC 2026)](archive/research-2026-q1/orchestrator-attachment-manifest-rfc-2026.md)
 - [MENS Corpus: Full Implementation Plan (2026)](archive/research-2026-q1/mens-corpus-implementation-plan-2026.md)
-- [Acta — App Architecture (2026)](architecture/vox-acta-app-architecture-2026.md)
-- [Acta — User Journey (2026)](architecture/vox-acta-user-journey-2026.md)
 - [Clavis Cloudless Implementation Catalog](archive/research-2026-q1/clavis-cloudless-implementation-catalog.md)
 - [Clavis Cloudless Threat Model V1](archive/research-2026-q1/clavis-cloudless-threat-model-v1.md)
 - [Codebase Cleanup & Signal Improvement Plan (2026-05-02)](architecture/2026-05-02-codebase-cleanup-and-signal-improvement.md)
@@ -459,11 +464,14 @@ training_eligible: false
 - [External Frontend Interop Plan (2026)](architecture/external-frontend-interop-plan-2026.md)
 - [GUI Authoring Syntax (2026): Vox UI as Values (VUV)](architecture/gui-authoring-syntax-2026.md)
 - [MENS Research Track Blueprint 2026](archive/research-2026-q1/mens-research-track-blueprint-2026.md)
+- [Multi-Agent VCS Replication — Architecture Spec (2026-05-03)](architecture/multi-agent-vcs-replication-spec-2026.md)
+- [Multi-Agent VCS Replication — Phase 1 Implementation Plan (2026-05-03)](architecture/multi-agent-vcs-replication-impl-plan-phase1-2026.md)
 - [Orchestrator Stage 1 & 2: Security + Crash-Prevention Implementation Plan](architecture/2026-05-01-orchestrator-stage1-stage2.md)
 - [Phase 1: Build Target Split Spec (2026)](architecture/phase1-build-targets-spec-2026.md)
 - [Phase 3: HTTP Ergonomics Decorators Spec (2026)](architecture/phase3-http-ergonomics-spec-2026.md)
 - [Populi GPU mesh implementation plan 2026](archive/research-2026-q1/populi-gpu-mesh-implementation-plan-2026.md)
 - [Scientia Publication Pipeline — Full Implementation Plan v2 (2026)](archive/research-2026-q1/scientia-publication-pipeline-implementation-plan-2026.md)
+- [Svelte-Mineable Features Implementation Plan (2026)](architecture/svelte-mineable-features-implementation-plan-2026.md)
 - [Telemetry implementation backlog 2026](archive/research-2026-q1/telemetry-implementation-backlog-2026.md)
 - [Telemetry implementation blueprint 2026](archive/research-2026-q1/telemetry-implementation-blueprint-2026.md)
 - [Telemetry retention and sensitivity SSOT](archive/research-2026-q1/telemetry-retention-sensitivity-ssot.md)
@@ -501,6 +509,7 @@ training_eligible: false
 - [Agent instruction architecture](contributors/agent-instruction-architecture.md)
 - [Coding Agent Instructions](contributors/coding-agents.md)
 - [Continuation Prompt Engineering](contributors/continuation-prompt-engineering.md)
+- [Local CI parity (pre-push)](contributors/local-ci-pre-push.md)
 - [TOESTUB contributor guide](contributors/toestub-contributor-guide.md)
 - [The Vox Contribution Loop](contributors/contribution-loop.md)
 
@@ -597,6 +606,7 @@ training_eligible: false
 - [External repositories & workspace SSOT](reference/external-repositories.md)
 - [Feasibility: full-graph Candle training (qlora-rs)](archive/research-2026-q1/candle-full-graph-feasibility.md)
 - [Forward-only migration charter](archive/research-2026-q1/forward-migration-charter.md)
+- [Frontend Surface Ownership](reference/frontend-surface-ownership.md)
 - [GitHub-hosted runner exceptions](ci/github-hosted-exceptions.md)
 - [HF fine-tune gap matrix (SSOT ↔ code)](reference/hf-finetune-gap-matrix.md)
 - [HF fine-tuning capability matrix (code-grounded)](archive/research-2026-q1/hf-finetune-capability-matrix.md)

@@ -550,10 +550,10 @@ pub fn eval_semantic_entropy(outputs: &[String], collapse_threshold: f64) -> Sem
 
 /// Heuristic code extractor for triple-backticked blocks.
 pub fn extract_vox_code(response: &str) -> Option<String> {
-    if let Some(start) = response.find("```vox") {
-        if let Some(end) = response[start + 6..].find("```") {
-            return Some(response[start + 6..start + 6 + end].trim().to_string());
-        }
+    if let Some(start) = response.find("```vox")
+        && let Some(end) = response[start + 6..].find("```")
+    {
+        return Some(response[start + 6..start + 6 + end].trim().to_string());
     }
     None
 }

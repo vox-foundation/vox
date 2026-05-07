@@ -35,10 +35,10 @@ impl HardwareRegistryV2 {
     /// has expired.
     pub async fn probe(&self) -> Arc<HardwareSummary> {
         let mut state = self.state.lock().await;
-        if let Some((cached_at, ref summary)) = state.entry {
-            if cached_at.elapsed() < self.cache_ttl {
-                return Arc::clone(summary);
-            }
+        if let Some((cached_at, ref summary)) = state.entry
+            && cached_at.elapsed() < self.cache_ttl
+        {
+            return Arc::clone(summary);
         }
         let report = run_probe_internal().await;
         let arc = Arc::new(report.summary);
@@ -68,23 +68,22 @@ async fn run_probe_internal() -> ProbeReport {
     if let (Some(model), Some(vram_s)) = (
         vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGpuModel).expose(),
         vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGpuVramMb).expose(),
-    ) {
-        if let Ok(vram_mb) = vram_s.parse::<u64>() {
-            let summary = HardwareSummary {
-                vendor: vendor_from_model(&model),
-                model_name: model.to_string(),
-                vram_mb,
-                gpu_count: 1,
-                backend: ComputeBackend::Unknown,
-                driver_version: None,
-                pci_bus_id: None,
-                probe_failures: None,
-            };
-            return ProbeReport {
-                summary,
-                attempts: Vec::new(),
-            };
-        }
+    ) && let Ok(vram_mb) = vram_s.parse::<u64>()
+    {
+        let summary = HardwareSummary {
+            vendor: vendor_from_model(model),
+            model_name: model.to_string(),
+            vram_mb,
+            gpu_count: 1,
+            backend: ComputeBackend::Unknown,
+            driver_version: None,
+            pci_bus_id: None,
+            probe_failures: None,
+        };
+        return ProbeReport {
+            summary,
+            attempts: Vec::new(),
+        };
     }
 
     ProbePipeline::default_for_platform().run().await
@@ -119,7 +118,10 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(10)).await;
         let second = registry.probe().await;
         // A fresh probe may return the same model name, but it must be a new Arc.
-        assert!(!Arc::ptr_eq(&first, &second), "expected new Arc after TTL expiry");
+        assert!(
+            !Arc::ptr_eq(&first, &second),
+            "expected new Arc after TTL expiry"
+        );
     }
 
     #[tokio::test]
@@ -128,6 +130,9 @@ mod tests {
         let first = registry.probe().await;
         registry.invalidate();
         let second = registry.probe().await;
-        assert!(!Arc::ptr_eq(&first, &second), "expected new Arc after invalidate");
+        assert!(
+            !Arc::ptr_eq(&first, &second),
+            "expected new Arc after invalidate"
+        );
     }
 }

@@ -8,7 +8,9 @@ use crate::ast::decl::Module;
 use crate::hir::HirModule;
 use crate::hir::lower::LowerConfig;
 use crate::typeck::Diagnostic;
-use crate::typeck::diagnostics::{DiagnosticCategory, TypeckSeverity, VoxCompilerDiagnosticPayload};
+use crate::typeck::diagnostics::{
+    DiagnosticCategory, TypeckSeverity, VoxCompilerDiagnosticPayload,
+};
 use anyhow::Result;
 
 /// ADR-028: emit an error diagnostic for each reserved durability keyword found in `source`.
@@ -24,37 +26,40 @@ fn check_adr028_reserved_keywords(source: &str) -> Vec<Diagnostic> {
     // Decorator forms like `@scheduled` use `@` as a leading sentinel and don't need it.
     const RESERVED: &[(&str, &str, &str, bool)] = &[
         ("@scheduled", "@scheduled", "E028", false),
-        ("@durable",   "@durable",   "E028", false),
-        ("workflow",   "workflow",   "E028", true),
-        ("activity",   "activity",   "E028", true),
+        ("@durable", "@durable", "E028", false),
+        ("workflow", "workflow", "E028", true),
+        ("activity", "activity", "E028", true),
     ];
 
     let mut diags = Vec::new();
     for (pattern, label, code, ident_boundary) in RESERVED {
-        let Some(offset) = find_keyword_outside_comments_and_strings(source, pattern, *ident_boundary) else {
+        let Some(offset) =
+            find_keyword_outside_comments_and_strings(source, pattern, *ident_boundary)
+        else {
             continue;
         };
         diags.push(Diagnostic {
-                severity: TypeckSeverity::Error,
-                message: format!(
-                    "{} is not yet implemented and has been reserved for a future release (ADR-028). \
+            severity: TypeckSeverity::Error,
+            message: format!(
+                "{} is not yet implemented and has been reserved for a future release (ADR-028). \
                      Remove this declaration or replace it with a plain `fn`.",
-                    label
-                ),
-                span: crate::ast::span::Span::new(offset, offset + pattern.len()),
-                expected_type: None,
-                found_type: None,
-                context: None,
-                suggestions: vec![
-                    format!("Replace `{}` with a plain `fn` declaration.", label),
-                ],
-                category: DiagnosticCategory::Parse,
-                code: Some(code.to_string()),
-                fixes: vec![],
-                line_col: None,
-                missing_cases: vec![],
-                ast_node_kind: None,
-            });
+                label
+            ),
+            span: crate::ast::span::Span::new(offset, offset + pattern.len()),
+            expected_type: None,
+            found_type: None,
+            context: None,
+            suggestions: vec![format!(
+                "Replace `{}` with a plain `fn` declaration.",
+                label
+            )],
+            category: DiagnosticCategory::Parse,
+            code: Some(code.to_string()),
+            fixes: vec![],
+            line_col: None,
+            missing_cases: vec![],
+            ast_node_kind: None,
+        });
     }
     diags
 }
@@ -64,6 +69,7 @@ fn check_adr028_reserved_keywords(source: &str) -> Vec<Diagnostic> {
 ///
 /// Needed because ADR-028's reserved-keyword scan runs at the source-text level (before parsing)
 /// and would otherwise flag the word "workflow" appearing in a doc comment as a real declaration.
+#[cfg(test)]
 fn find_outside_comments_and_strings(source: &str, pattern: &str) -> Option<usize> {
     find_keyword_outside_comments_and_strings(source, pattern, false)
 }
@@ -72,7 +78,11 @@ fn find_outside_comments_and_strings(source: &str, pattern: &str) -> Option<usiz
 /// for bare keyword matches. When `ident_boundary` is true, the byte immediately following the
 /// match must NOT be an identifier-continuing character (alpha/digit/underscore), so substrings
 /// inside longer identifiers (e.g. `workflow_handle`) don't trigger.
-fn find_keyword_outside_comments_and_strings(source: &str, pattern: &str, ident_boundary: bool) -> Option<usize> {
+fn find_keyword_outside_comments_and_strings(
+    source: &str,
+    pattern: &str,
+    ident_boundary: bool,
+) -> Option<usize> {
     let bytes = source.as_bytes();
     let mut i = 0usize;
     let plen = pattern.len();
@@ -138,7 +148,10 @@ mod adr028_comment_skip_tests {
     fn skips_keyword_in_line_comment() {
         // The bare word "workflow" inside a `//` comment must NOT be matched.
         assert_eq!(
-            find_outside_comments_and_strings("// workflow time-travel scrubber\nfn foo() {}", "workflow "),
+            find_outside_comments_and_strings(
+                "// workflow time-travel scrubber\nfn foo() {}",
+                "workflow "
+            ),
             None
         );
     }
@@ -164,7 +177,10 @@ mod adr028_comment_skip_tests {
         let src = "// pre-amble mentioning workflow\nworkflow Real {}";
         let offset = find_outside_comments_and_strings(src, "workflow ").unwrap();
         // Must be the second occurrence (start of the `workflow Real` line), not the comment.
-        assert!(offset > 30, "expected match past the comment, got offset {offset}");
+        assert!(
+            offset > 30,
+            "expected match past the comment, got offset {offset}"
+        );
     }
 }
 
@@ -218,9 +234,10 @@ pub fn run_frontend_str_with_options(
 
     // 1.5. Prevent Syntactic Configurability (K-Complexity Guard)
     for spanned in &tokens {
-        if let crate::lexer::token::Token::Ident(ref name) = spanned.token {
-            if name == "macro_rules" || name == "macro" {
-                let diag = Diagnostic {
+        if let crate::lexer::token::Token::Ident(ref name) = spanned.token
+            && (name == "macro_rules" || name == "macro")
+        {
+            let diag = Diagnostic {
                     severity: TypeckSeverity::Error,
                     message: "SyntacticConfigurabilityNotAllowed: Vox is strictly constrained. Do not use macros or custom syntactic configurability. Use vox-skills for extended actions.".to_string(),
                     span: crate::ast::span::Span::new(spanned.span.start, spanned.span.end),
@@ -235,16 +252,15 @@ pub fn run_frontend_str_with_options(
                     missing_cases: vec![],
                     ast_node_kind: None,
                 };
-                return Ok(FrontendResult {
-                    module: crate::ast::decl::Module {
-                        declarations: vec![],
-                        span: crate::ast::span::Span::new(0, 0),
-                    },
-                    hir: crate::hir::HirModule::default(),
-                    diagnostics: vec![diag],
-                    source: source.to_owned(),
-                });
-            }
+            return Ok(FrontendResult {
+                module: crate::ast::decl::Module {
+                    declarations: vec![],
+                    span: crate::ast::span::Span::new(0, 0),
+                },
+                hir: crate::hir::HirModule::default(),
+                diagnostics: vec![diag],
+                source: source.to_owned(),
+            });
         }
     }
 
@@ -370,9 +386,10 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
 
     // 1.5. Prevent Syntactic Configurability (K-Complexity Guard)
     for spanned in &tokens {
-        if let crate::lexer::token::Token::Ident(ref name) = spanned.token {
-            if name == "macro_rules" || name == "macro" {
-                let diag = Diagnostic {
+        if let crate::lexer::token::Token::Ident(ref name) = spanned.token
+            && (name == "macro_rules" || name == "macro")
+        {
+            let diag = Diagnostic {
                     severity: TypeckSeverity::Error,
                     message: "SyntacticConfigurabilityNotAllowed: Vox is strictly constrained. Do not use macros or custom syntactic configurability. Use vox-skills for extended actions.".to_string(),
                     span: crate::ast::span::Span::new(spanned.span.start, spanned.span.end),
@@ -387,10 +404,9 @@ pub fn check_file(source: &str, file_path: &str) -> Vec<VoxCompilerDiagnosticPay
                     missing_cases: vec![],
                     ast_node_kind: None,
                 };
-                return vec![VoxCompilerDiagnosticPayload::from_diagnostic(
-                    &diag, file_path, source,
-                )];
-            }
+            return vec![VoxCompilerDiagnosticPayload::from_diagnostic(
+                &diag, file_path, source,
+            )];
         }
     }
 
@@ -548,7 +564,9 @@ mod tests {
             diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
         );
         assert!(
-            diagnostics.iter().any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
+            diagnostics
+                .iter()
+                .any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
             "severity should be error"
         );
     }
@@ -585,7 +603,9 @@ mod tests {
             diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
         );
         assert!(
-            diagnostics.iter().any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
+            diagnostics
+                .iter()
+                .any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
             "severity should be error"
         );
     }
@@ -605,7 +625,9 @@ mod tests {
             diagnostics.iter().map(|d| &d.message).collect::<Vec<_>>()
         );
         assert!(
-            diagnostics.iter().any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
+            diagnostics
+                .iter()
+                .any(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error),
             "severity should be error"
         );
     }
@@ -616,9 +638,14 @@ mod tests {
         let source = r#"actor Counter { on increment(n: int) to int { return n } }"#;
         let diagnostics = check_file(source, "test.vox");
         assert!(
-            diagnostics.iter().all(|d| d.severity != crate::typeck::diagnostics::TypeckSeverity::Error),
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::typeck::diagnostics::TypeckSeverity::Error),
             "actor should still compile successfully (ADR-028 retains actor); errors: {:?}",
-            diagnostics.iter().filter(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error).collect::<Vec<_>>()
+            diagnostics
+                .iter()
+                .filter(|d| d.severity == crate::typeck::diagnostics::TypeckSeverity::Error)
+                .collect::<Vec<_>>()
         );
     }
 }

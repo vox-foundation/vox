@@ -18,7 +18,7 @@ use crate::hir::*;
 use std::collections::HashSet;
 
 pub use compat::{map_hir_type_to_ts, map_jsx_attr_name};
-pub(crate) use state_deps::extract_state_deps;
+pub(crate) use state_deps::extract_state_deps_with_diagnostics;
 
 /// Unwrap a single-expression block used as a JSX / attribute value (matches AST `unwrap_block`).
 #[must_use]
@@ -38,10 +38,7 @@ pub(crate) fn unwrap_inline_hir_block_expr(expr: &HirExpr) -> &HirExpr {
 ///
 /// A single-expression block is always safe to inline: it produces a value, never void.
 /// Multi-statement blocks still fall back to IIFEs.
-fn extract_single_jsx_expr(
-    stmts: &[HirStmt],
-    state_names: &HashSet<String>,
-) -> Option<String> {
+fn extract_single_jsx_expr(stmts: &[HirStmt], state_names: &HashSet<String>) -> Option<String> {
     if stmts.len() != 1 {
         return None;
     }
@@ -113,10 +110,7 @@ pub(crate) fn wrap_jsx_hir_child_expr(emit: String) -> String {
 /// **Phase:** compat-legacy (OP-0138). Prefer [`crate::web_ir::emit_tsx`] for structural parity and
 /// preview emit; keep this in sync with [`compat`].
 #[must_use]
-pub fn emit_hir_expr(
-    expr: &HirExpr,
-    state_names: &HashSet<String>,
-) -> String {
+pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
         HirExpr::FloatLit(v, _) => v.to_string(),
@@ -432,10 +426,7 @@ pub(crate) fn emit_hir_stmt(
         }
         HirStmt::Return { value, .. } => {
             if let Some(v) = value {
-                format!(
-                    "{pad}return {};\n",
-                    emit_hir_expr(v, state_names)
-                )
+                format!("{pad}return {};\n", emit_hir_expr(v, state_names))
             } else {
                 format!("{pad}return;\n")
             }
@@ -821,12 +812,7 @@ mod hir_emit_if_tests {
         let then_stmts = vec![expr_stmt(jsx_self_closing("SpeakTab"))];
         let else_stmts = vec![expr_stmt(jsx_self_closing("CommandTab"))];
 
-        let if_expr = HirExpr::If(
-            Box::new(cond),
-            then_stmts,
-            Some(else_stmts),
-            span(),
-        );
+        let if_expr = HirExpr::If(Box::new(cond), then_stmts, Some(else_stmts), span());
 
         let out = emit_hir_expr(&if_expr, &HashSet::new());
 
@@ -872,17 +858,17 @@ mod hir_emit_if_tests {
 // as raw JSX attributes (`<row pad_x={4}>`) instead of Tailwind classes. This module mirrors
 // `web_ir::primitives::apply_primitive_emission` for HIR.
 
-struct ViewCallHir {
-    html_tag: String,
-    class_expr: Option<String>,
-    passthrough: Vec<HirJsxAttr>,
+pub(crate) struct ViewCallHir {
+    pub(crate) html_tag: String,
+    pub(crate) class_expr: Option<String>,
+    pub(crate) passthrough: Vec<HirJsxAttr>,
 }
 
 const HIR_PRIMITIVE_CONSUMED_PROPS: &[&str] = &[
     "size", "weight", "align", "wrap", "variant", "level", "surface", "z",
 ];
 
-fn transform_hir_view_kwargs(
+pub(crate) fn transform_hir_view_kwargs(
     tag: &str,
     attrs: &[HirJsxAttr],
     state_names: &HashSet<String>,
@@ -946,10 +932,17 @@ fn transform_hir_view_kwargs(
     } else if class_pieces.len() == 1 {
         Some(class_pieces.into_iter().next().unwrap())
     } else {
-        Some(format!("[{}].filter(Boolean).join(\" \")", class_pieces.join(", ")))
+        Some(format!(
+            "[{}].filter(Boolean).join(\" \")",
+            class_pieces.join(", ")
+        ))
     };
 
-    ViewCallHir { html_tag, class_expr, passthrough }
+    ViewCallHir {
+        html_tag,
+        class_expr,
+        passthrough,
+    }
 }
 
 fn hir_kwarg_to_class_expr(

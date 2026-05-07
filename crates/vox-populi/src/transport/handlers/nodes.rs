@@ -11,7 +11,9 @@ use tracing::{info, warn};
 
 use crate::{NodeRecord, node_maintenance_blocks_new_work, sweep_expired_maintenance_on_nodes};
 
-use super::super::auth::{PopuliAuthContext, auth_allows_worker_plane, populi_control_token_from_env};
+use super::super::auth::{
+    PopuliAuthContext, auth_allows_worker_plane, populi_control_token_from_env,
+};
 #[cfg(feature = "transport")]
 use super::super::dispatch_results_sweep;
 use super::super::store::scope_ok;
@@ -46,7 +48,13 @@ pub(super) fn store_ack_a2a(st: &PopuliTransportState, message_id: u64, acked_un
     if let Some(ms) = st.mesh_store.clone() {
         tokio::spawn(async move {
             if let Err(e) = ms
-                .ack_a2a(message_id, super::super::store::A2AAck { acknowledged: true, acked_unix_ms })
+                .ack_a2a(
+                    message_id,
+                    super::super::store::A2AAck {
+                        acknowledged: true,
+                        acked_unix_ms,
+                    },
+                )
                 .await
             {
                 tracing::warn!(error = %e, message_id, "mesh_store ack_a2a failed");
@@ -403,4 +411,3 @@ pub(crate) async fn require_claimer_node_registered(
     }
     Ok(())
 }
-

@@ -159,20 +159,16 @@ pub async fn run(
                 }
             }
             PipelineStage::Validate => {
-                if !dry_run {
-                    if validated.is_file() {
-                        crate::commands::corpus::run(
-                            crate::commands::corpus::CorpusAction::Validate {
-                                input: validated.clone(),
-                                output: Some(validated.clone()),
-                                no_recheck: true,
-                                quarantine: None,
-                                report: None,
-                                reward_hook: None,
-                            },
-                        )
-                        .await?;
-                    }
+                if !dry_run && validated.is_file() {
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Validate {
+                        input: validated.clone(),
+                        output: Some(validated.clone()),
+                        no_recheck: true,
+                        quarantine: None,
+                        report: None,
+                        reward_hook: None,
+                    })
+                    .await?;
                 }
             }
             PipelineStage::Replay => {
@@ -248,29 +244,23 @@ pub async fn run(
                 }
             }
             PipelineStage::Pairs => {
-                if !dry_run {
-                    if validated.is_file() {
-                        crate::commands::corpus::run(
-                            crate::commands::corpus::CorpusAction::Pairs {
-                                input: validated.clone(),
-                                output: train_jsonl.clone(),
-                                docs: vec![PathBuf::from("docs/src")],
-                            },
-                        )
-                        .await?;
-                    }
+                if !dry_run && validated.is_file() {
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Pairs {
+                        input: validated.clone(),
+                        output: train_jsonl.clone(),
+                        docs: vec![PathBuf::from("docs/src")],
+                    })
+                    .await?;
                 }
             }
             PipelineStage::Eval => {
-                if !dry_run {
-                    if train_jsonl.is_file() {
-                        crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Eval {
-                            input: train_jsonl.clone(),
-                            output: eval_out.clone(),
-                            print_summary: false,
-                        })
-                        .await?;
-                    }
+                if !dry_run && train_jsonl.is_file() {
+                    crate::commands::corpus::run(crate::commands::corpus::CorpusAction::Eval {
+                        input: train_jsonl.clone(),
+                        output: eval_out.clone(),
+                        print_summary: false,
+                    })
+                    .await?;
                 }
             }
             PipelineStage::Mix => {

@@ -371,7 +371,7 @@ pub(super) async fn run_pairs(
         .green()
     );
     let mut sorted_cats: Vec<_> = cats.into_iter().collect();
-    sorted_cats.sort_by(|a, b| b.1.cmp(&a.1));
+    sorted_cats.sort_by_key(|t| std::cmp::Reverse(t.1));
     for (cat, count) in &sorted_cats {
         let diff = crate::training::construct_difficulty(cat);
         println!("  {:<20} {:>4} pairs  (difficulty: {})", cat, count, diff);
@@ -597,46 +597,46 @@ pub(super) async fn run_mutate(source_dir: &Path, count: usize, output: &Path) -
                 break;
             }
 
-            if let Ok(result) = crate::training::core::run_frontend(path).await {
-                if !crate::training::core::has_errors(&result) {
-                    let mutations =
-                        vox_corpus::ast_mutator::generate_mutations(&result.source, &result.module);
-                    if mutations.is_empty() {
-                        continue;
-                    }
+            if let Ok(result) = crate::training::core::run_frontend(path).await
+                && !crate::training::core::has_errors(&result)
+            {
+                let mutations =
+                    vox_corpus::ast_mutator::generate_mutations(&result.source, &result.module);
+                if mutations.is_empty() {
+                    continue;
+                }
 
-                    let mutated_source =
-                        vox_corpus::ast_mutator::apply_mutations(&result.source, mutations);
+                let mutated_source =
+                    vox_corpus::ast_mutator::apply_mutations(&result.source, mutations);
 
-                    // Round-trip verification
-                    let mutated_source_clone = mutated_source.clone();
-                    let verification_res = tokio::task::spawn_blocking(move || {
-                        vox_compiler::pipeline::run_frontend_str(&mutated_source_clone, "<mutated>")
-                    })
-                    .await?;
+                // Round-trip verification
+                let mutated_source_clone = mutated_source.clone();
+                let verification_res = tokio::task::spawn_blocking(move || {
+                    vox_compiler::pipeline::run_frontend_str(&mutated_source_clone, "<mutated>")
+                })
+                .await?;
 
-                    if let Ok(verification) = verification_res {
-                        if !verification.has_errors() {
-                            let pair = serde_json::json!({
-                                "prompt": "Rewrite the following code to adhere to style guidelines focusing on snake_case:\n\n```vox\n".to_string() + &result.source + "\n```",
-                                "response": "```vox\n".to_string() + &mutated_source + "\n```",
-                                "messages": [
-                                    { "role": "user", "content": "Rewrite the following code to adhere to style guidelines focusing on snake_case:\n\n```vox\n".to_string() + &result.source + "\n```" },
-                                    { "role": "assistant", "content": "```vox\n".to_string() + &mutated_source + "\n```" }
-                                ],
-                                "category": "ast_mutate",
-                                "lane": "vox_lang_tier_b",
-                                "origin": "synthetic",
-                                "schema_version": "vox_dogfood_v1",
-                                "difficulty": 0.5,
-                            });
+                if let Ok(verification) = verification_res
+                    && !verification.has_errors()
+                {
+                    let pair = serde_json::json!({
+                        "prompt": "Rewrite the following code to adhere to style guidelines focusing on snake_case:\n\n```vox\n".to_string() + &result.source + "\n```",
+                        "response": "```vox\n".to_string() + &mutated_source + "\n```",
+                        "messages": [
+                            { "role": "user", "content": "Rewrite the following code to adhere to style guidelines focusing on snake_case:\n\n```vox\n".to_string() + &result.source + "\n```" },
+                            { "role": "assistant", "content": "```vox\n".to_string() + &mutated_source + "\n```" }
+                        ],
+                        "category": "ast_mutate",
+                        "lane": "vox_lang_tier_b",
+                        "origin": "synthetic",
+                        "schema_version": "vox_dogfood_v1",
+                        "difficulty": 0.5,
+                    });
 
-                            out_buffer.push_str(&serde_json::to_string(&pair)?);
-                            out_buffer.push('\n');
-                            generated += 1;
-                            progress = true;
-                        }
-                    }
+                    out_buffer.push_str(&serde_json::to_string(&pair)?);
+                    out_buffer.push('\n');
+                    generated += 1;
+                    progress = true;
                 }
             }
         }
@@ -662,10 +662,10 @@ pub(super) async fn run_mutate(source_dir: &Path, count: usize, output: &Path) -
 pub(super) async fn run_rust_mine(source_dir: &Path, output: &Path) -> Result<()> {
     let mut entries = Vec::new();
     for entry in walkdir::WalkDir::new(source_dir) {
-        if let Ok(e) = entry {
-            if e.path().extension().and_then(|e| e.to_str()) == Some("rs") {
-                entries.push(e.path().to_path_buf());
-            }
+        if let Ok(e) = entry
+            && e.path().extension().and_then(|e| e.to_str()) == Some("rs")
+        {
+            entries.push(e.path().to_path_buf());
         }
     }
 
@@ -685,25 +685,24 @@ pub(super) async fn run_rust_mine(source_dir: &Path, output: &Path) -> Result<()
                 // Verify the generated code with vox parser
                 if let Ok(result) =
                     vox_compiler::pipeline::run_frontend_str(&tr.output_vox, "<synthetic>")
+                    && !result.has_errors()
                 {
-                    if !result.has_errors() {
-                        let pair = serde_json::json!({
-                            "prompt": format!("{}\n\n```rust\n{}\n```", tr.instruction, tr.input_rust),
-                            "response": "```vox\n".to_string() + &result.source + "\n```",
-                            "messages": [
-                                { "role": "user", "content": format!("{}\n\n```rust\n{}\n```", tr.instruction, tr.input_rust) },
-                                { "role": "assistant", "content": "```vox\n".to_string() + &result.source + "\n```" }
-                            ],
-                            "category": "rust_to_vox_translation",
-                            "lane": "vox_rust_expert_cross",
-                            "origin": "human",
-                            "confidence": tr.confidence,
-                        });
+                    let pair = serde_json::json!({
+                        "prompt": format!("{}\n\n```rust\n{}\n```", tr.instruction, tr.input_rust),
+                        "response": "```vox\n".to_string() + &result.source + "\n```",
+                        "messages": [
+                            { "role": "user", "content": format!("{}\n\n```rust\n{}\n```", tr.instruction, tr.input_rust) },
+                            { "role": "assistant", "content": "```vox\n".to_string() + &result.source + "\n```" }
+                        ],
+                        "category": "rust_to_vox_translation",
+                        "lane": "vox_rust_expert_cross",
+                        "origin": "human",
+                        "confidence": tr.confidence,
+                    });
 
-                        out_buffer.push_str(&serde_json::to_string(&pair)?);
-                        out_buffer.push('\n');
-                        generated += 1;
-                    }
+                    out_buffer.push_str(&serde_json::to_string(&pair)?);
+                    out_buffer.push('\n');
+                    generated += 1;
                 }
             }
         }
@@ -750,10 +749,10 @@ pub(super) async fn run_diversity_check(
     if codes.is_empty() {
         // Fallback: try looking for 'code' field often used in intermediate steps
         for line in content.lines() {
-            if let Ok(value) = serde_json::from_str::<serde_json::Value>(line) {
-                if let Some(code) = value.get("code").and_then(|v| v.as_str()) {
-                    codes.push(code.to_string());
-                }
+            if let Ok(value) = serde_json::from_str::<serde_json::Value>(line)
+                && let Some(code) = value.get("code").and_then(|v| v.as_str())
+            {
+                codes.push(code.to_string());
             }
         }
     }

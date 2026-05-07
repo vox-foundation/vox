@@ -8,7 +8,9 @@ pub async fn research_list(
 ) -> anyhow::Result<()> {
     let vendor = vendor.map(ToString::to_string);
     let topic = topic.map(ToString::to_string);
-    let db = vox_db::VoxDb::connect_default().await.map_err(|e| anyhow::anyhow!("{e}"))?;
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     let rows = tokio::task::block_in_place(|| {
         db.list_research_packets(vendor.as_deref(), topic.as_deref(), limit)
     })
@@ -55,7 +57,9 @@ pub async fn research_map_add(
             "created_from": "vox codex research-map-add",
         }),
     };
-    let db = vox_db::VoxDb::connect_default().await.map_err(|e| anyhow::anyhow!("{e}"))?;
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     let id = tokio::task::block_in_place(|| db.store_capability_map_record(&rec))
         .map_err(|e| anyhow::anyhow!("{e}"))?;
     db.shutdown_for_drop();
@@ -71,7 +75,9 @@ pub async fn research_map_list(
 ) -> anyhow::Result<()> {
     let vendor = vendor.map(ToString::to_string);
     let topic = topic.map(ToString::to_string);
-    let db = vox_db::VoxDb::connect_default().await.map_err(|e| anyhow::anyhow!("{e}"))?;
+    let db = vox_db::VoxDb::connect_default()
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     let rows = tokio::task::block_in_place(|| {
         db.list_capability_map_records(vendor.as_deref(), topic.as_deref(), limit)
     })

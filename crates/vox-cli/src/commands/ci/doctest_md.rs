@@ -44,9 +44,18 @@ pub async fn run(paths: Vec<PathBuf>, strict: bool) -> anyhow::Result<()> {
 
     if !errors.is_empty() {
         for err in &errors {
-            eprintln!("Doctest failure in {}:{}: {:?}", err.file.display(), err.line, err.kind);
+            eprintln!(
+                "Doctest failure in {}:{}: {:?}",
+                err.file.display(),
+                err.line,
+                err.kind
+            );
         }
-        eprintln!("Checked {} files. Found {} errors.", files_checked, errors.len());
+        eprintln!(
+            "Checked {} files. Found {} errors.",
+            files_checked,
+            errors.len()
+        );
         if strict {
             anyhow::bail!("Doctest failures detected.");
         }

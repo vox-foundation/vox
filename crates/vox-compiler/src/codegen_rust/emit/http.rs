@@ -1,4 +1,4 @@
-﻿use crate::app_contract::project_app_contract;
+use crate::app_contract::project_app_contract;
 use crate::hir::{HirHttpMethod, HirModule, HirRoute};
 
 use super::stmt_expr::emit_stmt;
@@ -57,7 +57,11 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
             routing_methods.join(", ")
         ));
     }
-    if module.endpoint_fns.iter().any(|sf| sf.kind == crate::hir::HirEndpointKind::Query) {
+    if module
+        .endpoint_fns
+        .iter()
+        .any(|sf| sf.kind == crate::hir::HirEndpointKind::Query)
+    {
         out.push_str("use axum::extract::Query;\n");
     }
     out.push_str("use axum::response::{Response, IntoResponse};\n");
@@ -193,8 +197,7 @@ pub fn emit_main(module: &HirModule, package_name: &str) -> String {
     out.push_str("        }\n");
     out.push_str("    }\n");
 
-    let has_routes = !module.routes.is_empty()
-        || !module.endpoint_fns.is_empty();
+    let has_routes = !module.routes.is_empty() || !module.endpoint_fns.is_empty();
 
     // Setup routes
     if has_routes {
@@ -411,7 +414,11 @@ fn emit_server_fn_handler(
 }
 
 /// Axum GET handler for `@query`: args are JSON-encoded query values (`name=<json>`), keys sorted on the client.
-fn emit_query_fn_handler(sf: &crate::hir::HirEndpointFn, has_tables: bool, name_prefix: &str) -> String {
+fn emit_query_fn_handler(
+    sf: &crate::hir::HirEndpointFn,
+    has_tables: bool,
+    name_prefix: &str,
+) -> String {
     let mut out = String::new();
     out.push_str(&format!("async fn {name_prefix}{}(", sf.name));
     if has_tables {

@@ -1,5 +1,8 @@
 x-vox-version: 1
 schema_version: 1
+lifecycle:
+  maturity: "experimental"
+  migration_window_days: 90
 
 providers:
   - name: GoogleDirect
@@ -8,6 +11,9 @@ providers:
     supports_openai_compat: false
     default_route_kind: "GeminiDirect"
     fallback_kind: "OpenRouter"
+    lifecycle:
+      maturity: "stable"
+      migration_window_days: 180
 
   - name: OpenRouter
     description: "OpenRouter API (openrouter.ai/api/v1)"
@@ -15,6 +21,9 @@ providers:
     supports_openai_compat: true
     default_route_kind: "OpenRouter"
     fallback_kind: "CascadeFallback"
+    lifecycle:
+      maturity: "stable"
+      migration_window_days: 180
 
   - name: Ollama
     description: "Local Ollama instance (localhost:11434)"
@@ -22,6 +31,9 @@ providers:
     supports_openai_compat: true
     default_route_kind: "Ollama"
     fallback_kind: "PopuliMesh"
+    lifecycle:
+      maturity: "stable"
+      migration_window_days: 180
 
   - name: PopuliMesh
     description: "Populi Remote mesh endpoint"
@@ -29,6 +41,9 @@ providers:
     supports_openai_compat: true
     default_route_kind: "PopuliMesh"
     fallback_kind: "OpenRouter"
+    lifecycle:
+      maturity: "experimental"
+      migration_window_days: 90
 
   - name: Groq
     description: "Groq LPU endpoint"
@@ -36,6 +51,9 @@ providers:
     supports_openai_compat: true
     default_route_kind: "Groq"
     fallback_kind: "OpenRouter"
+    lifecycle:
+      maturity: "experimental"
+      migration_window_days: 90
 
   - name: Cerebras
     description: "Cerebras endpoint"
@@ -43,6 +61,9 @@ providers:
     supports_openai_compat: true
     default_route_kind: "Cerebras"
     fallback_kind: "OpenRouter"
+    lifecycle:
+      maturity: "experimental"
+      migration_window_days: 90
 
   - name: Mistral
     description: "Mistral direct"
@@ -50,6 +71,9 @@ providers:
     supports_openai_compat: true
     default_route_kind: "Mistral"
     fallback_kind: "OpenRouter"
+    lifecycle:
+      maturity: "experimental"
+      migration_window_days: 90
 
   - name: DeepSeek
     description: "DeepSeek direct"
@@ -57,6 +81,9 @@ providers:
     supports_openai_compat: true
     default_route_kind: "DeepSeek"
     fallback_kind: "OpenRouter"
+    lifecycle:
+      maturity: "experimental"
+      migration_window_days: 90
 
   - name: SambaNova
     description: "SambaNova endpoint"
@@ -64,6 +91,9 @@ providers:
     supports_openai_compat: true
     default_route_kind: "SambaNova"
     fallback_kind: "OpenRouter"
+    lifecycle:
+      maturity: "experimental"
+      migration_window_days: 90
 
   - name: Anthropic
     description: "Anthropic direct or proxy endpoint"
@@ -71,6 +101,9 @@ providers:
     supports_openai_compat: false
     default_route_kind: "Anthropic"
     fallback_kind: "OpenRouter"
+    lifecycle:
+      maturity: "stable"
+      migration_window_days: 180
 
   - name: Custom
     description: "Custom third-party endpoint"
@@ -79,13 +112,19 @@ providers:
     default_route_kind: "Custom"
     fallback_kind: "OpenRouter"
     is_tuple: true # Indicates it takes a String payload
+    lifecycle:
+      maturity: "experimental"
+      migration_window_days: 90
 
   - name: HuggingFaceRouter
     description: "HuggingFace Dedicated Endpoints / TGI"
-    secret_id: "HfApiKey"
+    secret_id: "HuggingFaceToken"
     supports_openai_compat: true
     default_route_kind: "HuggingFace"
     fallback_kind: "OpenRouter"
+    lifecycle:
+      maturity: "experimental"
+      migration_window_days: 90
 
   - name: VoxLocal
     description: "Vox-trained MENS checkpoint served at 127.0.0.1:7863 (started by `python scripts/vox_inference.py --serve`)"
@@ -93,4 +132,7 @@ providers:
     supports_openai_compat: false
     default_route_kind: "VoxLocal"
     fallback_kind: "Ollama"
+    lifecycle:
+      maturity: "experimental"
+      migration_window_days: 90
 

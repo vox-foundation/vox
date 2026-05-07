@@ -22,6 +22,7 @@ zstd = "0.13.3"
 rust_decimal = { workspace = true }
 chrono = { workspace = true }
 vox-clavis.workspace = true
+vox-config.workspace = true
 secrecy = { workspace = true }
 which = { workspace = true }
 glob = "0.3.1"

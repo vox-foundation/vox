@@ -107,10 +107,10 @@ fn replay_window_secs() -> u64 {
 /// Validate that `timestamp` is present, non-empty, parses as a Unix-epoch
 /// integer, and is within the configured replay window relative to `now_unix`.
 /// Returns the trimmed timestamp string on success.
-fn require_fresh_timestamp<'a>(
-    timestamp: &'a Option<String>,
+fn require_fresh_timestamp(
+    timestamp: &Option<String>,
     now_unix: u64,
-) -> Result<&'a str, WebhookError> {
+) -> Result<&str, WebhookError> {
     let ts = timestamp
         .as_deref()
         .map(str::trim)
@@ -120,11 +120,7 @@ fn require_fresh_timestamp<'a>(
         .parse::<u64>()
         .map_err(|_| WebhookError::TimestampOutOfWindow(ts.to_string()))?;
     let window = replay_window_secs();
-    let abs_skew = if parsed > now_unix {
-        parsed - now_unix
-    } else {
-        now_unix - parsed
-    };
+    let abs_skew = parsed.abs_diff(now_unix);
     if abs_skew > window {
         return Err(WebhookError::TimestampOutOfWindow(ts.to_string()));
     }

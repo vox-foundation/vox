@@ -30,7 +30,7 @@ pub fn create_backend() -> anyhow::Result<Box<dyn AsrBackend>> {
             }
             #[cfg(all(feature = "stt-candle", not(feature = "stt-sherpa")))]
             {
-                return Ok(Box::new(CandleWhisperBackend));
+                Ok(Box::new(CandleWhisperBackend))
             }
             #[cfg(not(any(feature = "stt-candle", feature = "stt-sherpa")))]
             anyhow::bail!(

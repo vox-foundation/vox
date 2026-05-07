@@ -29,7 +29,7 @@ impl<'a> DogfoodExporter<'a> {
             let effective_response = if pair
                 .correction
                 .as_ref()
-                .map_or(false, |c: &String| !c.is_empty())
+                .is_some_and(|c: &String| !c.is_empty())
             {
                 pair.correction.clone()
             } else if pair.rating.unwrap_or(0) >= 4 {

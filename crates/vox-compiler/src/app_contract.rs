@@ -5,8 +5,6 @@
 
 use serde::{Deserialize, Serialize};
 
-
-use crate::ast::types::TypeExpr;
 use crate::hir::{HirHttpMethod, HirModule};
 use crate::typeck::env::TypeEnv;
 use crate::typeck::registration::{resolve_hir_type, type_signature_from_hir};
@@ -97,42 +95,6 @@ fn fn_signature(params: &[crate::hir::HirParam], ret: Option<&crate::hir::HirTyp
     let env = TypeEnv::new();
     type_signature_from_hir(params, ret, &env)
 }
-fn type_expr_signature(te: &TypeExpr) -> String {
-    match te {
-        TypeExpr::Named { name, .. } => name.clone(),
-        TypeExpr::Generic { name, args, .. } => {
-            let args = args
-                .iter()
-                .map(type_expr_signature)
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("{name}[{args}]")
-        }
-        TypeExpr::Function {
-            params,
-            return_type,
-            ..
-        } => {
-            let params = params
-                .iter()
-                .map(type_expr_signature)
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("fn({params}) -> {}", type_expr_signature(return_type))
-        }
-        TypeExpr::Tuple { elements, .. } => {
-            let elems = elements
-                .iter()
-                .map(type_expr_signature)
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!("({elems})")
-        }
-        TypeExpr::Unit { .. } => "Unit".to_string(),
-        TypeExpr::Infer { .. } => "any".to_string(),
-        TypeExpr::Decimal { .. } => "dec".to_string(),
-    }
-}
 
 #[must_use]
 pub fn project_app_contract(module: &HirModule) -> AppContractModule {
@@ -185,7 +147,6 @@ pub fn project_app_contract(module: &HirModule) -> AppContractModule {
             wraps_db_transaction,
         })
         .collect();
-
 
     let mcp_tools = module
         .mcp_tools

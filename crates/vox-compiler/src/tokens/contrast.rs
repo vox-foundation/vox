@@ -1,5 +1,7 @@
 //! WCAG 2.1 relative luminance and contrast ratio computation.
 
+use std::str::FromStr;
+
 /// A declared contrast pair from vox.tokens.json.
 #[derive(Debug, Clone)]
 pub struct ContrastPair {
@@ -20,16 +22,20 @@ pub enum TextRole {
     Ui,
 }
 
-impl TextRole {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for TextRole {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "body" => Some(TextRole::Body),
-            "large" => Some(TextRole::Large),
-            "ui" => Some(TextRole::Ui),
-            _ => None,
+            "body" => Ok(TextRole::Body),
+            "large" => Ok(TextRole::Large),
+            "ui" => Ok(TextRole::Ui),
+            _ => Err(()),
         }
     }
+}
 
+impl TextRole {
     /// Ratio below which a warning is emitted.
     pub fn warn_threshold(self) -> f64 {
         match self {

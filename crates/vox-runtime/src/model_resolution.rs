@@ -12,6 +12,7 @@
 
 use crate::inference_env::{self, PopuliCapabilitySnapshot};
 use crate::llm::LlmConfig;
+use crate::route_capability_policy::RouteCapabilityPolicySnapshot;
 pub use vox_orchestrator_types::{
     ChatProviderRouteKind, ChatRouteBackend, backend_telemetry_labels, route_backend_for_chat_route,
 };
@@ -79,18 +80,43 @@ fn resolve_chat_provider_route_impl(
     input: &RouteResolutionInput,
     hf_token_present: bool,
 ) -> ChatProviderRouteKind {
+    let policy = RouteCapabilityPolicySnapshot::from_env();
     if let Some(ref m) = input.manual_model {
         if let Some(ref base) = input.manual_base_url {
+            if !policy.allow_net {
+                tracing::warn!(
+                    target: "vox_orchestrator::model_route",
+                    event = "route_policy_denied",
+                    route = "manual_openai_compatible",
+                    reason = "allow_net=false",
+                    "routing: manual endpoint denied by capability policy"
+                );
+                return ChatProviderRouteKind::OpenRouter {
+                    model: vox_config::OPENROUTER_AUTO.to_string(),
+                };
+            }
             return ChatProviderRouteKind::ManualOpenAiCompatible {
                 base_url: base.clone(),
                 model: m.clone(),
                 bearer: input.manual_bearer.clone(),
             };
         }
+        if !policy.allow_provider_network || !policy.allow_net {
+            tracing::warn!(
+                target: "vox_orchestrator::model_route",
+                event = "route_policy_denied",
+                route = "openrouter_manual_model",
+                reason = "provider/network disabled",
+                "routing: manual OpenRouter model denied by capability policy"
+            );
+            return ChatProviderRouteKind::OpenRouter {
+                model: vox_config::OPENROUTER_AUTO.to_string(),
+            };
+        }
         return ChatProviderRouteKind::OpenRouter { model: m.clone() };
     }
 
-    if input.prefer_populi_when_gpu {
+    if input.prefer_populi_when_gpu && policy.allow_local_model_http {
         if let Some(ref snap) = input.populi_probe {
             if snap.reachable
                 && snap.gpu_capable == Some(true)
@@ -111,7 +137,7 @@ fn resolve_chat_provider_route_impl(
         }
     }
 
-    if hf_token_present {
+    if hf_token_present && policy.allow_provider_network && policy.allow_net {
         if let (Some(url), Some(mid)) =
             (&input.hf_dedicated_chat_url, &input.hf_dedicated_chat_model)
         {
@@ -128,7 +154,7 @@ fn resolve_chat_provider_route_impl(
         }
     }
 
-    if hf_token_present {
+    if hf_token_present && policy.allow_provider_network && policy.allow_net {
         if let Some(ref mid) = input.hf_router_model {
             tracing::info!(
                 target: "vox_orchestrator::model_route",
@@ -143,7 +169,10 @@ fn resolve_chat_provider_route_impl(
         }
     }
 
-    if vox_config::inference::openrouter_api_key().is_some() {
+    if policy.allow_provider_network
+        && policy.allow_net
+        && vox_config::inference::openrouter_api_key().is_some()
+    {
         tracing::info!(
             target: "vox_orchestrator::model_route",
             event = "route_resolution",
@@ -156,7 +185,9 @@ fn resolve_chat_provider_route_impl(
         };
     }
 
-    if let Some(ref snap) = input.populi_probe {
+    if policy.allow_local_model_http
+        && let Some(ref snap) = input.populi_probe
+    {
         if snap.reachable && populi_model_plausible(snap, &input.mens_chat_model) {
             tracing::info!(
                 target: "vox_orchestrator::model_route",

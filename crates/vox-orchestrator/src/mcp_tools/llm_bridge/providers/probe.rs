@@ -15,8 +15,7 @@ fn vox_local_probe_ok_at() -> &'static Mutex<Option<Instant>> {
 
 /// Returns the base URL for the VoxLocal inference server (default: `http://127.0.0.1:7863`).
 fn vox_local_base_url() -> String {
-    std::env::var("VOX_LOCAL_ENDPOINT")
-        .unwrap_or_else(|_| "http://127.0.0.1:7863".to_string())
+    std::env::var("VOX_LOCAL_ENDPOINT").unwrap_or_else(|_| "http://127.0.0.1:7863".to_string())
 }
 
 /// Cheap `GET /health` probe so routing to VoxLocal fails fast with a clear message.

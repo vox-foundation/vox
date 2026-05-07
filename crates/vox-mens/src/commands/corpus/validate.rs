@@ -196,49 +196,49 @@ pub(super) async fn run_validate(
         }
 
         // Exact reward filtering: check against specified hook if any
-        if let Some(hook) = reward_hook {
-            if let Some(src) = vox_source_for_compiler_recheck(&record).or_else(|| {
+        if let Some(hook) = reward_hook
+            && let Some(src) = vox_source_for_compiler_recheck(&record).or_else(|| {
                 // fallback to extract raw code if not standard vox format
                 record
                     .get("code")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string())
-            }) {
-                let reward = match hook {
-                    "cargo_build" => vox_eval::cargo_build_reward(&src),
-                    "cargo_test" => vox_eval::cargo_test_reward(&src),
-                    _ => 1.0, // unknown hook
-                };
+            })
+        {
+            let reward = match hook {
+                "cargo_build" => vox_eval::cargo_build_reward(&src),
+                "cargo_test" => vox_eval::cargo_test_reward(&src),
+                _ => 1.0, // unknown hook
+            };
 
-                if reward <= 0.0 {
-                    rejected_reward += 1;
-                    if quarantine.is_some() {
-                        quarantine_rows.push(serde_json::json!({
-                            "reason": "reward_hook_failed",
-                            "hook": hook,
-                            "record": record,
-                        }));
-                    }
-                    continue; // Skip appending this to valid list
+            if reward <= 0.0 {
+                rejected_reward += 1;
+                if quarantine.is_some() {
+                    quarantine_rows.push(serde_json::json!({
+                        "reason": "reward_hook_failed",
+                        "hook": hook,
+                        "record": record,
+                    }));
                 }
+                continue; // Skip appending this to valid list
             }
         }
 
         // Assign difficulty if missing
         let mut record = record;
-        if record.get("difficulty").is_none() {
-            if let Some(constructs) = record.get("constructs").and_then(|v| v.as_array()) {
-                let diff = constructs
-                    .iter()
-                    .filter_map(|v| v.as_str())
-                    .map(crate::training::construct_difficulty)
-                    .max()
-                    .unwrap_or(5);
-                record
-                    .as_object_mut()
-                    .unwrap()
-                    .insert("difficulty".to_string(), serde_json::json!(diff));
-            }
+        if record.get("difficulty").is_none()
+            && let Some(constructs) = record.get("constructs").and_then(|v| v.as_array())
+        {
+            let diff = constructs
+                .iter()
+                .filter_map(|v| v.as_str())
+                .map(crate::training::construct_difficulty)
+                .max()
+                .unwrap_or(5);
+            record
+                .as_object_mut()
+                .unwrap()
+                .insert("difficulty".to_string(), serde_json::json!(diff));
         }
 
         // Count constructs

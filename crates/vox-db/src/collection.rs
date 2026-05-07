@@ -147,9 +147,8 @@ impl Collection {
             // so they MUST be validated against the same identifier rule as
             // table names — otherwise a key like `name'); DROP TABLE x; --`
             // breaks out of the json_extract path.
-            let key = validate_identifier(key).map_err(|e| {
-                CollectionError::InvalidInput(format!("filter key {key:?} {e}"))
-            })?;
+            let key = validate_identifier(key)
+                .map_err(|e| CollectionError::InvalidInput(format!("filter key {key:?} {e}")))?;
             let sql_lit = json_to_sql_literal(val);
             conditions.push(format!("json_extract(_data, '$.{key}') = {sql_lit}"));
         }
@@ -221,9 +220,7 @@ impl Collection {
         offset: i64,
     ) -> Result<Vec<(i64, Value)>, CollectionError> {
         let table = self.validated_table()?;
-        let sql = format!(
-            "SELECT _id, _data FROM {table} ORDER BY _id ASC LIMIT ?1 OFFSET ?2"
-        );
+        let sql = format!("SELECT _id, _data FROM {table} ORDER BY _id ASC LIMIT ?1 OFFSET ?2");
         let mut rows = self.conn.query(&sql, params![limit, offset]).await?;
 
         let mut results = Vec::new();

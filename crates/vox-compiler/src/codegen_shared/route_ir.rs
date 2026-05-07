@@ -1,4 +1,4 @@
-﻿//! Shared Route Intermediate Representation — the single source of truth for HTTP route
+//! Shared Route Intermediate Representation — the single source of truth for HTTP route
 //! contracts that both Rust (Axum) and TypeScript (Express) codegen emit against.
 //!
 //! Neither [`crate::codegen_rust::emit::http`] nor [`crate::codegen_ts::routes`] should
@@ -10,7 +10,7 @@
 //!   and return-type presence. Body stmts stay in HIR and are emitted by each backend.
 //! * Lowering is additive: the existing HIR structs ([`HirRoute`], [`HirServerFn`]) are
 //!   unchanged — `RouteIR` is a read-only projection computed at codegen time.
-use crate::hir::{HirHttpMethod, HirModule, HirParam, HirRoute, HirEndpointFn};
+use crate::hir::{HirEndpointFn, HirHttpMethod, HirModule, HirParam, HirRoute};
 
 /// Unified HTTP route contract used by Rust and TypeScript backends.
 ///

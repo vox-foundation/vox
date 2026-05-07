@@ -1,0 +1,74 @@
+name: Coolify eval sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_compose:
+        description: "PATCH vox-eval.compose.yml to COOLIFY_APP_UUID and trigger deploy (false = discover only)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  coolify-eval:
+    name: coolify-eval API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+          shared-key: "coolify-eval-sync"
+
+      - name: Discover Coolify applications
+        if: ${{ !inputs.sync_compose }}
+        timeout-minutes: 4
+        env:
+          COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_READ_TOKEN: ${{ secrets.COOLIFY_READ_TOKEN }}
+          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+        run: cargo run -p vox-cli --quiet -- ci coolify-eval discover
+
+      - name: Sync compose and deploy
+        if: ${{ inputs.sync_compose }}
+        timeout-minutes: 25
+        env:
+          COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_READ_TOKEN: ${{ secrets.COOLIFY_READ_TOKEN }}
+          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+        run: |
+          set -euo pipefail
+          LOG="$(mktemp)"
+          if cargo run -p vox-cli --quiet -- ci coolify-eval sync-compose \
+            --compose vox-eval.compose.yml \
+            --domains https://eval.vox-lang.org 2>&1 | tee "$LOG"; then
+            exit 0
+          fi
+
+          if grep -q "Missing required permissions: write" "$LOG"; then
+            echo "::warning::Coolify token lacks Write scope; cannot PATCH compose. Falling back to deploy trigger only."
+            BASE="${COOLIFY_BASE_URL%/}"
+            TMP="$(mktemp)"
+            HTTP_CODE="$(
+              curl -sS -o "$TMP" -w '%{http_code}' -X GET \
+                -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+                "${BASE}/api/v1/deploy?uuid=${COOLIFY_APP_UUID}" || echo "000"
+            )"
+            BODY="$(cat "$TMP" 2>/dev/null || echo "")"
+            rm -f "$TMP"
+            echo "Deploy fallback HTTP ${HTTP_CODE} — ${BODY}"
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+              exit 0
+            fi
+          fi
+
+          echo "::error::Coolify sync failed and deploy fallback did not succeed."
+          exit 1

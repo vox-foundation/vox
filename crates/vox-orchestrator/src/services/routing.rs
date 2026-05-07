@@ -752,6 +752,8 @@ mod tests {
 
         let mut config = OrchestratorConfig::for_testing();
         config.populi_routing_experimental = true;
+        // Deterministic winner: default `attention_enabled` uses epsilon-random exploration.
+        config.attention_enabled = false;
 
         let hints = TaskCapabilityHints {
             labels: vec!["pool=a".to_string()],

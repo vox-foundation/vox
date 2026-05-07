@@ -25,7 +25,11 @@ pub fn check_run(run_dir: &Path, policy_path: &Path) -> Result<Vec<GateResult>> 
     let manifest_path = {
         let canonical = run_dir.join("training_manifest.json");
         let legacy = run_dir.join("manifest.json");
-        if canonical.exists() { canonical } else { legacy }
+        if canonical.exists() {
+            canonical
+        } else {
+            legacy
+        }
     };
     let manifest: Option<serde_json::Value> = if manifest_path.exists() {
         let content = read_utf8_path_capped(&manifest_path)?;

@@ -45,6 +45,9 @@ pub struct ContextBudget {
     pub model_max_tokens: usize,
     pub tokens_used: usize,
     pub cost_usd: f64,
+    /// MCP global LLM routing: picks of arms with no scoreboard samples (session-scoped via process lifetime).
+    #[serde(default)]
+    pub novel_routing_explores: u32,
     pub allocation: Option<AgentBudgetAllocation>,
     pub rollover_tokens: usize,
 }
@@ -56,6 +59,7 @@ impl ContextBudget {
             model_max_tokens: max_tokens,
             tokens_used: 0,
             cost_usd: 0.0,
+            novel_routing_explores: 0,
             allocation: None,
             rollover_tokens: 0,
         }
@@ -232,13 +236,9 @@ impl BudgetManager {
             local_inference_tokens: Arc::new(std::sync::atomic::AtomicU64::new(0)),
             db: Arc::new(std::sync::RwLock::new(db)),
             drift: Arc::new(std::sync::RwLock::new(HashMap::new())),
-            drift_cost_threshold_usd: Arc::new(std::sync::atomic::AtomicU64::new(
-                0.5f64.to_bits(),
-            )),
+            drift_cost_threshold_usd: Arc::new(std::sync::atomic::AtomicU64::new(0.5f64.to_bits())),
             cost_progress: Arc::new(std::sync::RwLock::new(HashMap::new())),
-            doom_loop_threshold_usd: Arc::new(std::sync::atomic::AtomicU64::new(
-                2.00f64.to_bits(),
-            )),
+            doom_loop_threshold_usd: Arc::new(std::sync::atomic::AtomicU64::new(2.00f64.to_bits())),
         }
     }
 
@@ -353,6 +353,22 @@ impl BudgetManager {
     pub fn check_budget(&self, agent_id: AgentId) -> Option<ContextBudget> {
         let map = sync_lock::rw_read(&*self.inner);
         map.get(&agent_id).cloned()
+    }
+
+    #[must_use]
+    pub fn novel_routing_explores(&self, agent_id: AgentId) -> u32 {
+        sync_lock::rw_read(&*self.inner)
+            .get(&agent_id)
+            .map(|b| b.novel_routing_explores)
+            .unwrap_or(0)
+    }
+
+    pub fn record_novel_routing_explore(&self, agent_id: AgentId) {
+        let mut map = sync_lock::rw_write(&*self.inner);
+        let budget = map
+            .entry(agent_id)
+            .or_insert_with(|| ContextBudget::new(agent_id, 100_000));
+        budget.novel_routing_explores = budget.novel_routing_explores.saturating_add(1);
     }
 
     pub fn should_summarize(&self, agent_id: AgentId) -> bool {
@@ -659,8 +675,10 @@ impl BudgetManager {
 
     /// Configure the doom-loop cost threshold in USD. Default is $2.00.
     pub fn set_doom_loop_cost_threshold(&self, threshold_usd: f64) {
-        self.doom_loop_threshold_usd
-            .store(threshold_usd.to_bits(), std::sync::atomic::Ordering::Relaxed);
+        self.doom_loop_threshold_usd.store(
+            threshold_usd.to_bits(),
+            std::sync::atomic::Ordering::Relaxed,
+        );
     }
 
     /// Returns `true` if dispatching `estimated_tokens` more to `agent_id` would
@@ -695,13 +713,19 @@ mod tests {
 
         // Add $0.09 cost — should NOT trigger
         bm.record_cost_progress(agent, 0.09);
-        assert!(bm.doom_loop_cost_check(agent).is_none(), "should not fire below threshold");
+        assert!(
+            bm.doom_loop_cost_check(agent).is_none(),
+            "should not fire below threshold"
+        );
 
         // Add another $0.02 — total $0.11, should trigger
         bm.record_cost_progress(agent, 0.02);
         let reason = bm.doom_loop_cost_check(agent);
         assert!(reason.is_some(), "should fire above threshold");
-        assert!(reason.unwrap().contains("no task completed"), "reason should mention no task completed");
+        assert!(
+            reason.unwrap().contains("no task completed"),
+            "reason should mention no task completed"
+        );
     }
 
     #[test]
@@ -761,6 +785,9 @@ mod tests {
         bm.record_task_completion(agent);
 
         // Cost counter resets — should no longer fire
-        assert!(bm.doom_loop_cost_check(agent).is_none(), "should not fire after task completion");
+        assert!(
+            bm.doom_loop_cost_check(agent).is_none(),
+            "should not fire after task completion"
+        );
     }
 }

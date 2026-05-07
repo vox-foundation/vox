@@ -16,9 +16,17 @@ use super::{DomNode, DomNodeId, WebIrDiagnostic, WebIrModule};
 /// Run overlay structural checks on the DOM arena.
 pub fn validate_overlay(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
     for node in &module.dom_nodes {
-        let DomNode::Element { attrs, children, .. } = node else { continue };
+        let DomNode::Element {
+            attrs, children, ..
+        } = node
+        else {
+            continue;
+        };
         // Only check overlay roots.
-        if !attrs.iter().any(|(k, v)| k == "data-vox-overlay" && v == "true") {
+        if !attrs
+            .iter()
+            .any(|(k, v)| k == "data-vox-overlay" && v == "true")
+        {
             continue;
         }
         check_overlay_children(module, children, out);
@@ -34,11 +42,19 @@ fn check_overlay_children(
     let mut seen_pos: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
 
     for child_id in child_ids {
-        let Some(child_node) = module.dom_nodes.get(child_id.0 as usize) else { continue };
-        let DomNode::Element { attrs, .. } = child_node else { continue };
+        let Some(child_node) = module.dom_nodes.get(child_id.0 as usize) else {
+            continue;
+        };
+        let DomNode::Element { attrs, .. } = child_node else {
+            continue;
+        };
 
         // Check z-index uniqueness.
-        if let Some(z_val) = attrs.iter().find(|(k, _)| k == "data-vox-z").map(|(_, v)| v.clone()) {
+        if let Some(z_val) = attrs
+            .iter()
+            .find(|(k, _)| k == "data-vox-z")
+            .map(|(_, v)| v.clone())
+        {
             let count = seen_z.entry(z_val.clone()).or_insert(0);
             *count += 1;
             if *count == 2 {
@@ -54,7 +70,11 @@ fn check_overlay_children(
         }
 
         // Check position conflict (same position hint on two children = likely visual overlap).
-        if let Some(pos_val) = attrs.iter().find(|(k, _)| k == "data-vox-pos").map(|(_, v)| v.clone()) {
+        if let Some(pos_val) = attrs
+            .iter()
+            .find(|(k, _)| k == "data-vox-pos")
+            .map(|(_, v)| v.clone())
+        {
             let count = seen_pos.entry(pos_val.clone()).or_insert(0);
             *count += 1;
             if *count == 2 {
@@ -80,7 +100,10 @@ mod tests {
         DomNode::Element {
             id: DomNodeId(id),
             tag: "div".to_string(),
-            attrs: attrs.into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+            attrs: attrs
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
             children: children.into_iter().map(DomNodeId).collect(),
             span: None,
         }
@@ -123,7 +146,8 @@ mod tests {
         let mut out = Vec::new();
         validate_overlay(&m, &mut out);
         assert!(
-            out.iter().any(|d| d.code == "web_ir_validate.overlay.duplicate_z"),
+            out.iter()
+                .any(|d| d.code == "web_ir_validate.overlay.duplicate_z"),
             "expected duplicate_z: {out:?}"
         );
     }
@@ -132,13 +156,22 @@ mod tests {
     fn overlay_duplicate_position_fires_warning() {
         let m = module_with_nodes(vec![
             elem(0, vec![("data-vox-overlay", "true")], vec![1, 2]),
-            elem(1, vec![("data-vox-z", "100"), ("data-vox-pos", "top_right")], vec![]),
-            elem(2, vec![("data-vox-z", "90"), ("data-vox-pos", "top_right")], vec![]),
+            elem(
+                1,
+                vec![("data-vox-z", "100"), ("data-vox-pos", "top_right")],
+                vec![],
+            ),
+            elem(
+                2,
+                vec![("data-vox-z", "90"), ("data-vox-pos", "top_right")],
+                vec![],
+            ),
         ]);
         let mut out = Vec::new();
         validate_overlay(&m, &mut out);
         assert!(
-            out.iter().any(|d| d.code == "web_ir_validate.overlay.position_conflict"),
+            out.iter()
+                .any(|d| d.code == "web_ir_validate.overlay.position_conflict"),
             "expected position_conflict: {out:?}"
         );
     }
@@ -152,6 +185,9 @@ mod tests {
         ]);
         let mut out = Vec::new();
         validate_overlay(&m, &mut out);
-        assert!(out.is_empty(), "non-overlay parent should not trigger check: {out:?}");
+        assert!(
+            out.is_empty(),
+            "non-overlay parent should not trigger check: {out:?}"
+        );
     }
 }
