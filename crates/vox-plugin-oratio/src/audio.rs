@@ -113,6 +113,45 @@ impl SpeechToText for OratioPlugin {
         }
     }
 
+    fn transcribe_path(
+        &self,
+        path: RStr<'_>,
+        config_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        #[cfg(feature = "stt-candle")]
+        {
+            use crate::backends::candle_whisper::transcribe_audio_file_with_language;
+
+            let path_str = path.to_string();
+            let file_path = std::path::Path::new(&path_str);
+
+            // Extract optional language from config_json.
+            let language_override: Option<String> = serde_json::from_str::<serde_json::Value>(config_json.as_str())
+                .ok()
+                .and_then(|v| v.get("language")?.as_str().map(|s| s.to_string()));
+
+            match transcribe_audio_file_with_language(file_path, language_override.as_deref()) {
+                Ok(text) => {
+                    let lang = language_override.as_deref().unwrap_or("auto");
+                    let out = serde_json::json!({
+                        "text": text,
+                        "language": lang,
+                        "segments": [],
+                    });
+                    RResult::ROk(RString::from(out.to_string()))
+                }
+                Err(e) => RResult::RErr(RBoxError::new(std::io::Error::other(e.to_string()))),
+            }
+        }
+        #[cfg(not(feature = "stt-candle"))]
+        {
+            let _ = (path, config_json);
+            RResult::RErr(RBoxError::new(std::io::Error::other(
+                "vox-plugin-oratio built without stt-candle feature",
+            )))
+        }
+    }
+
     /// Streaming transcription is not yet supported — the Candle Whisper backend is batch-only.
     /// Deferred: streaming requires chunk-wise model state management (Unit 4 deferral).
     fn begin_stream(&self, _config_json: RStr<'_>) -> RResult<RString, RBoxError> {
