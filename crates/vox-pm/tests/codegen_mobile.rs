@@ -39,6 +39,11 @@ fn mobile_target_emits_cdylib_and_staticlib() {
     );
     assert!(out.contains("jni"), "expected jni dep under android cfg");
     assert!(out.contains("my-mobile-app"));
+
+    let parsed: toml::Value =
+        toml::from_str(&out).expect("emitted Cargo.toml should parse as valid TOML");
+    assert_eq!(parsed["package"]["name"].as_str(), Some("my-mobile-app"));
+    assert_eq!(parsed["lib"]["crate-type"].as_array().unwrap().len(), 2);
 }
 
 #[test]
@@ -66,4 +71,36 @@ fn server_target_does_not_emit_cdylib() {
     );
     assert!(out.contains("vox-runtime"));
     assert!(out.contains("my-server"));
+
+    let parsed: toml::Value =
+        toml::from_str(&out).expect("emitted Cargo.toml should parse as valid TOML");
+    assert_eq!(parsed["package"]["name"].as_str(), Some("my-server"));
+}
+
+#[test]
+fn no_build_section_uses_baseline() {
+    // Tests the unwrap_or("fullstack") path when manifest.build is None.
+    let manifest = VoxManifest {
+        package: PackageSection {
+            name: "hello-default".into(),
+            version: "0.1.0".into(),
+            kind: "application".into(),
+            ..Default::default()
+        },
+        build: None,
+        ..Default::default()
+    };
+
+    let cargo_toml = cargo_toml_for_manifest(&manifest);
+    assert!(
+        !cargo_toml.contains("cdylib"),
+        "no [build] should not emit cdylib; got:\n{cargo_toml}"
+    );
+    assert!(
+        cargo_toml.contains("vox-runtime"),
+        "baseline should still pull in vox-runtime"
+    );
+    let parsed: toml::Value = toml::from_str(&cargo_toml)
+        .expect("emitted Cargo.toml should parse as valid TOML");
+    assert_eq!(parsed["package"]["name"].as_str(), Some("hello-default"));
 }

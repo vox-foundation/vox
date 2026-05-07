@@ -35,7 +35,7 @@ pub struct VoxManifest {
     pub mobile: Option<MobileSection>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageSection {
     pub name: String,
     #[serde(default = "default_version")]
@@ -63,6 +63,23 @@ fn default_version() -> String {
 }
 fn default_kind() -> String {
     "library".to_string()
+}
+
+impl Default for PackageSection {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            version: default_version(),
+            kind: default_kind(),
+            description: None,
+            license: None,
+            authors: Vec::new(),
+            repository: None,
+            homepage: None,
+            keywords: Vec::new(),
+            targets: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

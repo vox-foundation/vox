@@ -50,9 +50,16 @@ pub fn cargo_toml_for_manifest(manifest: &VoxManifest) -> String {
             out.push_str("[target.'cfg(target_os = \"android\")'.dependencies]\n");
             out.push_str("jni = \"0.21\"\n");
         }
-        _ => {
-            // Default / server / client / fullstack: baseline shape — a binary crate
-            // with the runtime as its only dep. Future tasks may expand this.
+        "server" | "client" | "fullstack" => {
+            // Baseline shape: binary crate with the runtime as its only dep.
+            // Future tasks will distinguish these (server-only no Vite, client-only TS SDK, etc.).
+            out.push_str("[dependencies]\nvox-runtime = { workspace = true }\n");
+        }
+        other => {
+            // Unknown target — emit a comment and the same baseline so the build doesn't fail silently.
+            out.push_str(&format!(
+                "# Unknown [build] target = \"{other}\"; emitting baseline.\n"
+            ));
             out.push_str("[dependencies]\nvox-runtime = { workspace = true }\n");
         }
     }
