@@ -20,6 +20,11 @@ pub fn build(project_dir: &Path, ios: &IosConfig, release: bool) -> Result<()> {
     std::fs::create_dir_all(&out_root)
         .with_context(|| format!("creating {}", out_root.display()))?;
 
+    // The fixture's package name is `hello_mobile`, but a real app would use its own.
+    // We discover the staticlib by reading the Cargo.toml's package name. This is invariant
+    // across arches, so hoist it out of the loop.
+    let crate_name = read_crate_name(project_dir)?;
+    let lib_filename = format!("lib{crate_name}.a");
     let profile = if release { "release" } else { "debug" };
     let mut staticlib_paths: Vec<std::path::PathBuf> = Vec::new();
     for arch in &ios.archs {
@@ -42,10 +47,6 @@ pub fn build(project_dir: &Path, ios: &IosConfig, release: bool) -> Result<()> {
                 status.code().unwrap_or(-1)
             );
         }
-        // The fixture's package name is `hello_mobile`, but a real app would use its own.
-        // We discover the staticlib by reading the Cargo.toml's package name.
-        let crate_name = read_crate_name(project_dir)?;
-        let lib_filename = format!("lib{crate_name}.a");
         let staticlib = project_dir
             .join("target")
             .join(arch)
@@ -60,7 +61,9 @@ pub fn build(project_dir: &Path, ios: &IosConfig, release: bool) -> Result<()> {
         staticlib_paths.push(staticlib);
     }
 
-    // Assemble the XCFramework.
+    // Assemble the XCFramework. Note: out_root holds the assembled XCFramework;
+    // per-arch staticlibs stay in cargo's target/<arch>/<profile>/ tree (asymmetric
+    // with the Android path, where out_root holds per-arch artifacts directly).
     let xcf_path = out_root.join("VoxApp.xcframework");
     if xcf_path.exists() {
         std::fs::remove_dir_all(&xcf_path).context("clearing previous XCFramework")?;
