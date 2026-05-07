@@ -22,21 +22,22 @@ jobs:
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install sccache
-        uses: mozilla-actions/sccache-action@v0.0.5
+        uses: mozilla-actions/sccache-action@v0.0.10
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
+          package-manager-cache: false
 
       - name: Build Docs Pipeline
         run: cargo build -p vox-doc-pipeline --profile ci
@@ -48,13 +49,14 @@ jobs:
         env:
           SOURCE_DATE_EPOCH: ${{ github.event.head_commit.timestamp }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
+          package-manager-cache: false
 
       - name: Install docs-astro deps
         working-directory: docs-astro
@@ -66,9 +68,9 @@ jobs:
 
       - name: Run Lychee Link Checker for UI
         continue-on-error: true
-        uses: lycheeverse/lychee-action@v1.9.3
+        uses: lycheeverse/lychee-action@v2
         with:
-          args: --base docs-astro/dist --verbose --no-progress --format json --output docs-astro/lychee_report.json 'docs-astro/dist/**/*.html'
+          args: --root-dir docs-astro/dist --verbose --no-progress --format json --output docs-astro/lychee_report.json 'docs-astro/dist/**/*.html'
           fail: false
 
       - name: Link Checker Guidance
@@ -84,7 +86,7 @@ jobs:
 
       # ── GitHub Pages Deploy ─────────────────────────────────────────────
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs-astro/dist
 
@@ -98,5 +100,5 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 

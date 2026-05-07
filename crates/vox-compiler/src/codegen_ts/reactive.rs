@@ -46,7 +46,8 @@ pub enum ReactiveViewEmitPathway {
     /// Env on, validate clean, but no preview TSX for this component.
     LegacyFallbackNoComponentTsx,
     /// Env on, clean TSX emitted, but whitespace-normalized string ≠ legacy `emit_hir_expr`.
-    LegacyFallbackParityMismatch,
+    /// Migration policy now keeps the Web IR view to converge on a single canonical path.
+    WebIrViewEmittedParityMismatch,
     /// Web IR preview TSX used for the view body.
     WebIrViewEmitted,
 }
@@ -56,7 +57,7 @@ pub struct ReactiveViewBridgeStats {
     pub legacy_env_disabled: u64,
     pub legacy_fallback_validate_failed: u64,
     pub legacy_fallback_no_component_tsx: u64,
-    pub legacy_fallback_parity_mismatch: u64,
+    pub web_ir_view_emitted_parity_mismatch: u64,
     pub web_ir_view_emitted: u64,
 }
 
@@ -70,8 +71,8 @@ impl ReactiveViewBridgeStats {
             ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx => {
                 self.legacy_fallback_no_component_tsx += 1
             }
-            ReactiveViewEmitPathway::LegacyFallbackParityMismatch => {
-                self.legacy_fallback_parity_mismatch += 1
+            ReactiveViewEmitPathway::WebIrViewEmittedParityMismatch => {
+                self.web_ir_view_emitted_parity_mismatch += 1
             }
             ReactiveViewEmitPathway::WebIrViewEmitted => self.web_ir_view_emitted += 1,
         }
@@ -153,13 +154,15 @@ fn emit_reactive_view_body(
         }
         indent_view_for_return(&tsx)
     } else {
-        stats.record_pathway(ReactiveViewEmitPathway::LegacyFallbackParityMismatch);
+        stats.record_pathway(ReactiveViewEmitPathway::WebIrViewEmittedParityMismatch);
         if web_ir_reactive_trace_enabled() {
             eprintln!(
-                "[vox-webir-reactive] component={component_name} pathway=LegacyFallbackParityMismatch"
+                "[vox-webir-reactive] component={component_name} pathway=WebIrViewEmittedParityMismatch"
             );
         }
-        legacy
+        // Convergence policy: keep Web IR output even when legacy string parity differs.
+        // This prevents long-lived dual-emitter drift and makes Web IR the canonical view source.
+        indent_view_for_return(&tsx)
     }
 }
 
@@ -642,11 +645,7 @@ fn react_import_line(members: &[HirReactiveMember]) -> String {
 
 /// Walk an HIR expression tree and collect uppercase JSX tag names that correspond
 /// to known Vox components. Used to emit cross-component import statements.
-fn collect_jsx_component_refs(
-    expr: &HirExpr,
-    known: &HashSet<String>,
-    out: &mut HashSet<String>,
-) {
+fn collect_jsx_component_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSet<String>) {
     match expr {
         HirExpr::Jsx(el) => {
             if el.tag.starts_with(|c: char| c.is_uppercase()) && known.contains(&el.tag) {
@@ -656,10 +655,10 @@ fn collect_jsx_component_refs(
                 collect_jsx_component_refs(child, known, out);
             }
         }
-        HirExpr::JsxSelfClosing(el) => {
-            if el.tag.starts_with(|c: char| c.is_uppercase()) && known.contains(&el.tag) {
-                out.insert(el.tag.clone());
-            }
+        HirExpr::JsxSelfClosing(el)
+            if el.tag.starts_with(|c: char| c.is_uppercase()) && known.contains(&el.tag) =>
+        {
+            out.insert(el.tag.clone());
         }
         HirExpr::If(cond, then_stmts, else_stmts, _) => {
             collect_jsx_component_refs(cond, known, out);
@@ -694,11 +693,7 @@ fn collect_jsx_component_refs_stmt(
         HirStmt::Expr { expr, .. } => collect_jsx_component_refs(expr, known, out),
         HirStmt::Let { value, .. } => collect_jsx_component_refs(value, known, out),
         HirStmt::Assign { value, .. } => collect_jsx_component_refs(value, known, out),
-        HirStmt::Return { value, .. } => {
-            if let Some(v) = value {
-                collect_jsx_component_refs(v, known, out);
-            }
-        }
+        HirStmt::Return { value: Some(v), .. } => collect_jsx_component_refs(v, known, out),
         _ => {}
     }
 }
@@ -732,14 +727,12 @@ pub fn generate_reactive_component(
     // Phase E tier-2: full set of in-module fn names — used by the dep walker to
     // distinguish "in-module fn missing @reactive" (worth a hint) from "method call /
     // stdlib call / unknown identifier" (silent).
-    let visible_fn_names: HashSet<String> =
-        hir.functions.iter().map(|f| f.name.clone()).collect();
+    let visible_fn_names: HashSet<String> = hir.functions.iter().map(|f| f.name.clone()).collect();
 
     out.push_str(&react_import_line(&rc.members));
 
     // Emit import statements for other Vox components referenced in the view.
-    let known_components: HashSet<String> =
-        hir.components.iter().map(|c| c.name.clone()).collect();
+    let known_components: HashSet<String> = hir.components.iter().map(|c| c.name.clone()).collect();
     let mut comp_refs: HashSet<String> = HashSet::new();
     if let Some(view_expr) = &rc.view {
         collect_jsx_component_refs(view_expr, &known_components, &mut comp_refs);
@@ -844,14 +837,7 @@ pub fn generate_reactive_component(
     }
 
     if rc.view.is_some() {
-        let view_js = emit_reactive_view_body(
-            name,
-            hir,
-            rc,
-            &state_names,
-            web_projection,
-            stats,
-        );
+        let view_js = emit_reactive_view_body(name, hir, rc, &state_names, web_projection, stats);
         out.push_str(&format!("  return (\n{}\n  );\n", view_js));
     }
 

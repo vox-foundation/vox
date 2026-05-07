@@ -3,22 +3,15 @@
 # This is ONLY the HTTP gateway. It has no workspace, no AI keys, no mesh.
 # Secrets are injected as environment variables via Coolify's project secrets.
 #
+# Image SSOT: GHCR (built by .github/workflows/docker-eval.yml with VOX_CLI_FEATURES=mcp-server).
 # Docs: docs/src/architecture/eval-sandbox-deployment.md
 
 name: vox-eval-sandbox
 
 services:
   eval:
-    # Pre-built by GitHub Actions → ghcr.io (avoids OOM on memory-constrained VPS).
-    # Workflow: .github/workflows/docker-eval.yml
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        # Minimal features to avoid OOM on VPS
-        VOX_CLI_FEATURES: "mcp-server"
-        CARGO_BUILD_JOBS: "1"
-
+    image: ghcr.io/vox-foundation/vox-eval:latest
+    pull_policy: always
     container_name: vox-eval-sandbox
     restart: unless-stopped
     command: ["vox", "mcp"]
@@ -54,7 +47,7 @@ services:
       - "traefik.http.routers.vox-eval-http.middlewares=redirect-to-https"
       # Global redirect middleware (assumed to exist in Coolify's Traefik, otherwise we define it)
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      
+
       - "traefik.http.services.vox-eval.loadbalancer.server.port=3921"
       # CORS for GitHub Pages
       - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolalloworiginlist=https://vox-lang.github.io,https://vox-lang.org,http://localhost:4321"
@@ -63,8 +56,7 @@ services:
       - "traefik.http.routers.vox-eval.middlewares=vox-eval-cors"
       - com.centurylinklabs.watchtower.enable=true
     healthcheck:
-      # Fix: vox doctor --probe currently panics in async contexts.
-      # Use curl against the gateway's own /health endpoint instead.
+      # Runtime image includes curl (Dockerfile); probes the MCP HTTP gateway directly.
       test: ["CMD", "curl", "-f", "http://localhost:3921/health"]
       interval: 30s
       timeout: 5s

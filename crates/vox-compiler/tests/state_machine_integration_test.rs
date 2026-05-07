@@ -2,7 +2,7 @@ use vox_compiler::codegen_ts::state_machine_emit::emit_state_machine_decls;
 use vox_compiler::hir::lower::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
-use vox_compiler::typeck::{typecheck_hir_module, diagnostics::TypeckSeverity};
+use vox_compiler::typeck::{diagnostics::TypeckSeverity, typecheck_hir_module};
 
 fn parse_and_lower(src: &str) -> vox_compiler::hir::HirModule {
     let tokens = lex(src);
@@ -76,7 +76,11 @@ partial state_machine Flow {
 }";
     let hir = parse_and_lower(src);
     let sm = &hir.state_machines[0];
-    let tr = sm.transitions.iter().find(|t| t.event_name == "Start").unwrap();
+    let tr = sm
+        .transitions
+        .iter()
+        .find(|t| t.event_name == "Start")
+        .unwrap();
     assert_eq!(tr.event_params, vec!["task_id"]);
 }
 
@@ -110,7 +114,10 @@ state_machine Light {
 }";
     let mut hir = parse_and_lower(src);
     let diags = typecheck_hir_module(src, &mut hir);
-    let errors: Vec<_> = diags.iter().filter(|d| d.severity == TypeckSeverity::Error).collect();
+    let errors: Vec<_> = diags
+        .iter()
+        .filter(|d| d.severity == TypeckSeverity::Error)
+        .collect();
     assert!(errors.is_empty(), "unexpected errors: {errors:?}");
 }
 
@@ -125,12 +132,17 @@ state_machine Light {
 }";
     let mut hir = parse_and_lower(src);
     let diags = typecheck_hir_module(src, &mut hir);
-    let error_msgs: Vec<_> = diags.iter()
+    let error_msgs: Vec<_> = diags
+        .iter()
         .filter(|d| d.severity == TypeckSeverity::Error)
         .map(|d| d.message.as_str())
         .collect();
     assert!(!error_msgs.is_empty(), "expected exhaustiveness error");
-    assert!(error_msgs.iter().any(|m| m.contains("Off") && m.contains("Toggle")));
+    assert!(
+        error_msgs
+            .iter()
+            .any(|m| m.contains("Off") && m.contains("Toggle"))
+    );
 }
 
 // ── Codegen emit ──────────────────────────────────────────────────────────────
@@ -165,5 +177,8 @@ partial state_machine Door {
     insta::assert_snapshot!("door_terminal_state_machine_emit", out);
     let reducer_start = out.find("switch (state._tag)").unwrap();
     let reducer_body = &out[reducer_start..];
-    assert!(!reducer_body.contains("case \"Locked\""), "terminal state must not appear in reducer switch");
+    assert!(
+        !reducer_body.contains("case \"Locked\""),
+        "terminal state must not appear in reducer switch"
+    );
 }

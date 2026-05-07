@@ -4,7 +4,7 @@
 //! clippy (workspace, all-targets, -D warnings), scoped TOESTUB (changed paths).
 //! `--quick` skips clippy + TOESTUB; `--full` also runs nextest on changed crates.
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
@@ -42,17 +42,38 @@ struct Step {
 
 fn build_steps(opts: PrePushOpts) -> Vec<Step> {
     let mut v = vec![
-        Step { label: "cargo fmt --all -- --check", run: step_fmt },
-        Step { label: "vox ci line-endings", run: step_line_endings },
-        Step { label: "vox ci ssot-drift", run: step_ssot_drift },
+        Step {
+            label: "cargo fmt --all -- --check",
+            run: step_fmt,
+        },
+        Step {
+            label: "vox ci line-endings",
+            run: step_line_endings,
+        },
+        Step {
+            label: "vox ci ssot-drift",
+            run: step_ssot_drift,
+        },
     ];
     if !opts.quick {
-        v.push(Step { label: "vox ci doc-inventory verify", run: step_doc_inventory });
-        v.push(Step { label: "cargo clippy --workspace --all-targets -- -D warnings", run: step_clippy });
-        v.push(Step { label: "vox ci toestub-scoped (changed paths)", run: step_toestub_changed });
+        v.push(Step {
+            label: "vox ci doc-inventory verify",
+            run: step_doc_inventory,
+        });
+        v.push(Step {
+            label: "cargo clippy --workspace --all-targets -- -D warnings",
+            run: step_clippy,
+        });
+        v.push(Step {
+            label: "vox ci toestub-scoped (changed paths)",
+            run: step_toestub_changed,
+        });
     }
     if opts.full {
-        v.push(Step { label: "cargo nextest run --workspace --no-fail-fast", run: step_nextest });
+        v.push(Step {
+            label: "cargo nextest run --workspace --no-fail-fast",
+            run: step_nextest,
+        });
     }
     v
 }
@@ -86,11 +107,27 @@ fn step_ssot_drift(_root: &Path) -> Result<()> {
 }
 
 fn step_doc_inventory(_root: &Path) -> Result<()> {
-    cargo_status(&["run", "-q", "-p", "vox-cli", "--", "ci", "doc-inventory", "verify"])
+    cargo_status(&[
+        "run",
+        "-q",
+        "-p",
+        "vox-cli",
+        "--",
+        "ci",
+        "doc-inventory",
+        "verify",
+    ])
 }
 
 fn step_clippy(_root: &Path) -> Result<()> {
-    cargo_status(&["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"])
+    cargo_status(&[
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--",
+        "-D",
+        "warnings",
+    ])
 }
 
 fn step_toestub_changed(root: &Path) -> Result<()> {
@@ -104,7 +141,17 @@ fn step_toestub_changed(root: &Path) -> Result<()> {
         return Ok(());
     }
     let mut cmd = cargo();
-    cmd.args(["run", "-q", "-p", "vox-cli", "--", "ci", "toestub-scoped", "--mode", "legacy"]);
+    cmd.args([
+        "run",
+        "-q",
+        "-p",
+        "vox-cli",
+        "--",
+        "ci",
+        "toestub-scoped",
+        "--mode",
+        "legacy",
+    ]);
     for d in &dirs {
         cmd.arg(d);
     }
@@ -143,7 +190,9 @@ fn changed_dirs_under_crates(root: &Path) -> Result<Vec<PathBuf>> {
     let raw = match attempt(&primary) {
         Ok(s) => s,
         Err(primary_err) => {
-            eprintln!("pre-push: primary diff base `{primary}` unavailable ({primary_err}); trying HEAD~1");
+            eprintln!(
+                "pre-push: primary diff base `{primary}` unavailable ({primary_err}); trying HEAD~1"
+            );
             attempt("HEAD~1").context("HEAD~1 fallback also failed")?
         }
     };

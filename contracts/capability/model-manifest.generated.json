@@ -94,6 +94,17 @@
       "title": "Ci Artifact-prune"
     },
     {
+      "capability_id": "cli.ci.backend-tests",
+      "cli_path": [
+        "ci",
+        "backend-tests"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci backend-tests`",
+      "implicit": false,
+      "title": "Ci Backend-tests"
+    },
+    {
       "capability_id": "cli.ci.build-docs",
       "cli_path": [
         "ci",
@@ -567,6 +578,17 @@
       "description_model": "CLI operation `vox ci policy-smoke`",
       "implicit": false,
       "title": "Ci Policy-smoke"
+    },
+    {
+      "capability_id": "cli.ci.pre-push",
+      "cli_path": [
+        "ci",
+        "pre-push"
+      ],
+      "curated": true,
+      "description_model": "CLI operation `vox ci pre-push`",
+      "implicit": false,
+      "title": "Ci Pre-push"
     },
     {
       "capability_id": "cli.ci.query-all-guard",
@@ -1249,16 +1271,6 @@
       "title": "Init"
     },
     {
-      "capability_id": "cli.island",
-      "cli_path": [
-        "island"
-      ],
-      "curated": true,
-      "description_model": "CLI operation `vox island`",
-      "implicit": false,
-      "title": "Island"
-    },
-    {
       "capability_id": "cli.live",
       "cli_path": [
         "live"
@@ -1575,6 +1587,54 @@
       "description_model": "CLI operation `vox migrate web`",
       "implicit": false,
       "title": "Migrate Web Sources"
+    },
+    {
+      "capability_id": "cli.model.pricing.check",
+      "cli_path": [
+        "model",
+        "pricing",
+        "check"
+      ],
+      "curated": true,
+      "description_model": "Check pricing freshness and flag models still on stale bootstrap pricing.",
+      "implicit": false,
+      "title": "Model Pricing Check"
+    },
+    {
+      "capability_id": "cli.model.pricing.refresh",
+      "cli_path": [
+        "model",
+        "pricing",
+        "refresh"
+      ],
+      "curated": true,
+      "description_model": "Fetch live pricing from OpenRouter and LiteLLM and write to the local cache. Safe to run without a daemon.",
+      "implicit": false,
+      "title": "Model Pricing Refresh"
+    },
+    {
+      "capability_id": "cli.model.pricing.rollup",
+      "cli_path": [
+        "model",
+        "pricing",
+        "rollup"
+      ],
+      "curated": true,
+      "description_model": "Batch aggregate telemetry into the pricing catalog.",
+      "implicit": false,
+      "title": "Model Pricing Rollup"
+    },
+    {
+      "capability_id": "cli.model.pricing.show",
+      "cli_path": [
+        "model",
+        "pricing",
+        "show"
+      ],
+      "curated": true,
+      "description_model": "Show the model pricing catalog with observed vs catalog costs, cache pricing, and pricing source.",
+      "implicit": false,
+      "title": "Model Pricing Show"
     },
     {
       "capability_id": "cli.openclaw",
@@ -4611,6 +4671,14 @@
       "implicit": false,
       "mcp_tool": "vox_validate_file",
       "title": "Validate File"
+    },
+    {
+      "capability_id": "mcp.vox_validate_source",
+      "curated": true,
+      "description_model": "Validate Vox source code passed as a string (no filesystem read). Returns LSP-style diagnostics with stable codes and structured autofix suggestions for the iterative AI-assistant repair loop.",
+      "implicit": false,
+      "mcp_tool": "vox_validate_source",
+      "title": "Validate Source"
     },
     {
       "capability_id": "mcp.vox_vcs_status",

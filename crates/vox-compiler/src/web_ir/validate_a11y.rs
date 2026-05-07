@@ -50,7 +50,6 @@ fn has_attr(attrs: &[(String, String)], name: &str) -> bool {
     attrs.iter().any(|(k, _)| k.eq_ignore_ascii_case(name))
 }
 
-
 /// True if the element carries an explicit accessible name via aria attributes.
 fn has_aria_name(attrs: &[(String, String)]) -> bool {
     has_attr(attrs, "aria-label") || has_attr(attrs, "aria-labelledby")
@@ -64,36 +63,30 @@ fn has_non_empty_text_child(module: &WebIrModule, child_ids: &[DomNodeId]) -> bo
             continue;
         };
         match node {
-            DomNode::Text { content, .. } => {
-                if !content.trim().is_empty() {
-                    return true;
-                }
+            DomNode::Text { content, .. } if !content.trim().is_empty() => {
+                return true;
             }
-            DomNode::Element { children, .. } => {
-                if has_non_empty_text_child(module, children) {
-                    return true;
-                }
+            DomNode::Element { children, .. } if has_non_empty_text_child(module, children) => {
+                return true;
             }
             // Expression nodes ({label}, {count}, etc.) may produce text at runtime;
             // treat their presence as satisfying the accessible-name requirement.
             DomNode::Expr { .. } => return true,
             // Fragment, Conditional, Loop may contain text children — recurse.
-            DomNode::Fragment { children, .. } => {
-                if has_non_empty_text_child(module, children) {
-                    return true;
-                }
+            DomNode::Fragment { children, .. } if has_non_empty_text_child(module, children) => {
+                return true;
             }
-            DomNode::Conditional { then_children, else_children, .. } => {
-                if has_non_empty_text_child(module, then_children)
-                    || has_non_empty_text_child(module, else_children)
-                {
-                    return true;
-                }
+            DomNode::Conditional {
+                then_children,
+                else_children,
+                ..
+            } if (has_non_empty_text_child(module, then_children)
+                || has_non_empty_text_child(module, else_children)) =>
+            {
+                return true;
             }
-            DomNode::Loop { body, .. } => {
-                if has_non_empty_text_child(module, body) {
-                    return true;
-                }
+            DomNode::Loop { body, .. } if has_non_empty_text_child(module, body) => {
+                return true;
             }
             _ => {}
         }
@@ -125,7 +118,7 @@ pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
         match tag.as_str() {
             "img" => {
                 let has_alt = attrs.iter().any(|(k, _)| k == "alt");
-                let aria_hidden = get_a("aria-hidden").map_or(false, |v| v == "true");
+                let aria_hidden = get_a("aria-hidden") == Some("true");
                 if !has_alt && !aria_hidden {
                     out.push(WebIrDiagnostic {
                         code: "web_ir_validate.a11y.img_missing_alt".to_string(),
@@ -139,9 +132,9 @@ pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                 check_accessible_name(module, tag, attrs, children, out);
             }
             "a" => {
-                let has_href = attrs.iter().any(|(k, _)| {
-                    k.eq_ignore_ascii_case("href") || k.eq_ignore_ascii_case("to")
-                });
+                let has_href = attrs
+                    .iter()
+                    .any(|(k, _)| k.eq_ignore_ascii_case("href") || k.eq_ignore_ascii_case("to"));
                 if !has_href {
                     out.push(WebIrDiagnostic {
                         code: "web_ir_validate.a11y.anchor_missing_href".to_string(),
@@ -155,7 +148,8 @@ pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                 }
             }
             "input" => {
-                let has_label = has_aria_name(attrs) || attrs.iter().any(|(k, _)| k.eq_ignore_ascii_case("id"));
+                let has_label =
+                    has_aria_name(attrs) || attrs.iter().any(|(k, _)| k.eq_ignore_ascii_case("id"));
                 if !has_label {
                     out.push(WebIrDiagnostic {
                         code: "web_ir_validate.a11y.input_missing_label".to_string(),
@@ -166,13 +160,13 @@ pub fn validate_a11y(module: &WebIrModule, out: &mut Vec<WebIrDiagnostic>) {
                 }
             }
             _ => {
-                if let Some(role) = get_a("role") {
-                    if role == "button" {
-                        // Only check role="button" on non-button elements
-                        if !matches!(implicit_role(tag), AriaRole::Button) {
-                            check_accessible_name(module, tag, attrs, children, out);
-                            check_keyboard_handler(module, *elem_id, out);
-                        }
+                if let Some(role) = get_a("role")
+                    && role == "button"
+                {
+                    // Only check role="button" on non-button elements
+                    if !matches!(implicit_role(tag), AriaRole::Button) {
+                        check_accessible_name(module, tag, attrs, children, out);
+                        check_keyboard_handler(module, *elem_id, out);
                     }
                 }
             }
@@ -212,17 +206,18 @@ fn check_keyboard_handler(
     elem_id: DomNodeId,
     out: &mut Vec<WebIrDiagnostic>,
 ) {
-    let is_keyboard = |event: &str| {
-        event == "keydown" || event == "keyup" || event == "keypress"
-    };
+    let is_keyboard = |event: &str| event == "keydown" || event == "keyup" || event == "keypress";
 
     let has_handler = module.behavior_nodes.iter().any(|b| {
-        if let BehaviorNode::EventHandler { event, target_dom, .. } = b {
+        if let BehaviorNode::EventHandler {
+            event, target_dom, ..
+        } = b
+        {
             if !is_keyboard(event) {
                 return false;
             }
             // Accept: handler targeting this element OR a catch-all (None target).
-            target_dom.map_or(true, |t| t == elem_id)
+            target_dom.is_none_or(|t| t == elem_id)
         } else {
             false
         }
@@ -263,21 +258,25 @@ fn walk_contrast(
         return;
     };
     match node {
-        DomNode::Element { tag, attrs, children, .. } => {
+        DomNode::Element {
+            tag,
+            attrs,
+            children,
+            ..
+        } => {
             // Inherit or update surface context from data-vox-surface attr.
-            let surface_ctx: Option<(String, String)> =
-                if let Some(surface_name) = attrs
-                    .iter()
-                    .find(|(k, _)| k == "data-vox-surface")
-                    .map(|(_, v)| v.as_str())
-                {
-                    registry
-                        .lookup_surface(surface_name)
-                        .map(|e| (e.fg_key.clone(), e.bg_key.clone()))
-                        .or_else(|| current_surface.clone())
-                } else {
-                    current_surface.clone()
-                };
+            let surface_ctx: Option<(String, String)> = if let Some(surface_name) = attrs
+                .iter()
+                .find(|(k, _)| k == "data-vox-surface")
+                .map(|(_, v)| v.as_str())
+            {
+                registry
+                    .lookup_surface(surface_name)
+                    .map(|e| (e.fg_key.clone(), e.bg_key.clone()))
+                    .or_else(|| current_surface.clone())
+            } else {
+                current_surface.clone()
+            };
 
             if let Some((ref fg_key, ref bg_key)) = surface_ctx {
                 check_text_contrast(tag, fg_key, bg_key, registry, out);
@@ -292,7 +291,11 @@ fn walk_contrast(
                 walk_contrast(module, *child_id, current_surface.clone(), registry, out);
             }
         }
-        DomNode::Conditional { then_children, else_children, .. } => {
+        DomNode::Conditional {
+            then_children,
+            else_children,
+            ..
+        } => {
             for child_id in then_children.iter().chain(else_children.iter()) {
                 walk_contrast(module, *child_id, current_surface.clone(), registry, out);
             }
@@ -302,9 +305,7 @@ fn walk_contrast(
                 walk_contrast(module, *child_id, current_surface.clone(), registry, out);
             }
         }
-        DomNode::Text { .. }
-        | DomNode::Slot { .. }
-        | DomNode::Expr { .. } => {}
+        DomNode::Text { .. } | DomNode::Slot { .. } | DomNode::Expr { .. } => {}
     }
 }
 
@@ -319,14 +320,21 @@ fn check_text_contrast(
     if !is_text_tag {
         return;
     }
-    let Some(fg_hex) = registry.lookup(fg_key) else { return };
-    let Some(bg_hex) = registry.lookup(bg_key) else { return };
-    let Some(ratio) = crate::tokens::wcag21_contrast_ratio(fg_hex, bg_hex) else { return };
+    let Some(fg_hex) = registry.lookup(fg_key) else {
+        return;
+    };
+    let Some(bg_hex) = registry.lookup(bg_key) else {
+        return;
+    };
+    let Some(ratio) = crate::tokens::wcag21_contrast_ratio(fg_hex, bg_hex) else {
+        return;
+    };
 
     // h1–h3 are large text (≥18pt regular or ≥14pt bold): WCAG 2.1 minimum 3:1.
     // p, h4–h6 are body text: warn <4.5:1, error <3:1.
     let is_large = matches!(tag, "h1" | "h2" | "h3");
-    let (error_threshold, warn_threshold): (f64, f64) = if is_large { (3.0, 3.0) } else { (3.0, 4.5) };
+    let (error_threshold, warn_threshold): (f64, f64) =
+        if is_large { (3.0, 3.0) } else { (3.0, 4.5) };
 
     if ratio < error_threshold {
         out.push(WebIrDiagnostic {
@@ -358,7 +366,10 @@ mod tests {
         DomNode::Element {
             id: DomNodeId(id),
             tag: tag.to_string(),
-            attrs: attrs.into_iter().map(|(k, v)| (k.to_string(), v.to_string())).collect(),
+            attrs: attrs
+                .into_iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect(),
             children: children.into_iter().map(DomNodeId).collect(),
             span: None,
         }
@@ -387,14 +398,21 @@ mod tests {
             out
         };
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
             "expected img_missing_alt: {diags:?}"
         );
     }
 
     #[test]
     fn img_with_alt_is_ok() {
-        let m = module_with_nodes(vec![elem(0, "img", vec![("src", "x.png"), ("alt", "Logo")], vec![])]);
+        let m = module_with_nodes(vec![elem(
+            0,
+            "img",
+            vec![("src", "x.png"), ("alt", "Logo")],
+            vec![],
+        )]);
         let mut out = Vec::new();
         validate_a11y(&m, &mut out);
         assert!(out.is_empty(), "unexpected: {out:?}");
@@ -402,7 +420,12 @@ mod tests {
 
     #[test]
     fn img_with_aria_hidden_is_ok() {
-        let m = module_with_nodes(vec![elem(0, "img", vec![("src", "deco.svg"), ("aria-hidden", "true")], vec![])]);
+        let m = module_with_nodes(vec![elem(
+            0,
+            "img",
+            vec![("src", "deco.svg"), ("aria-hidden", "true")],
+            vec![],
+        )]);
         let mut out = Vec::new();
         validate_a11y(&m, &mut out);
         assert!(out.is_empty(), "unexpected: {out:?}");
@@ -414,17 +437,15 @@ mod tests {
         let mut out = Vec::new();
         validate_a11y(&m, &mut out);
         assert!(
-            out.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+            out.iter()
+                .any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
             "expected interactive_missing_label: {out:?}"
         );
     }
 
     #[test]
     fn button_with_text_child_is_ok() {
-        let m = module_with_nodes(vec![
-            elem(0, "button", vec![], vec![1]),
-            text("Submit"),
-        ]);
+        let m = module_with_nodes(vec![elem(0, "button", vec![], vec![1]), text("Submit")]);
         let mut out = Vec::new();
         validate_a11y(&m, &mut out);
         assert!(out.is_empty(), "unexpected: {out:?}");
@@ -432,7 +453,12 @@ mod tests {
 
     #[test]
     fn button_with_aria_label_is_ok() {
-        let m = module_with_nodes(vec![elem(0, "button", vec![("aria-label", "Close")], vec![])]);
+        let m = module_with_nodes(vec![elem(
+            0,
+            "button",
+            vec![("aria-label", "Close")],
+            vec![],
+        )]);
         let mut out = Vec::new();
         validate_a11y(&m, &mut out);
         assert!(out.is_empty(), "unexpected: {out:?}");
@@ -445,12 +471,14 @@ mod tests {
         validate_a11y(&m, &mut out);
         // anchor without href gets a warning about the missing href
         assert!(
-            out.iter().any(|d| d.code == "web_ir_validate.a11y.anchor_missing_href"),
+            out.iter()
+                .any(|d| d.code == "web_ir_validate.a11y.anchor_missing_href"),
             "expected anchor_missing_href warning: {out:?}"
         );
         // but the accessible-label check is skipped (only runs when href is present)
         assert!(
-            !out.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+            !out.iter()
+                .any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
             "label check should be skipped for anchor without href: {out:?}"
         );
     }
@@ -461,7 +489,8 @@ mod tests {
         let mut out = Vec::new();
         validate_a11y(&m, &mut out);
         assert!(
-            out.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+            out.iter()
+                .any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
             "expected interactive_missing_label: {out:?}"
         );
     }
@@ -477,7 +506,8 @@ mod tests {
         let mut out = Vec::new();
         validate_a11y(&m, &mut out);
         assert!(
-            out.iter().any(|d| d.code == "web_ir_validate.a11y.role_button_missing_keyboard"),
+            out.iter()
+                .any(|d| d.code == "web_ir_validate.a11y.role_button_missing_keyboard"),
             "expected role_button_missing_keyboard: {out:?}"
         );
     }
@@ -499,7 +529,8 @@ mod tests {
         let mut out = Vec::new();
         validate_a11y(&m, &mut out);
         assert!(
-            out.iter().all(|d| d.code != "web_ir_validate.a11y.role_button_missing_keyboard"),
+            out.iter()
+                .all(|d| d.code != "web_ir_validate.a11y.role_button_missing_keyboard"),
             "unexpected keyboard error: {out:?}"
         );
     }
@@ -512,8 +543,10 @@ mod tests {
         bg_hex: &str,
     ) -> crate::tokens::TokenRegistry {
         let mut reg = crate::tokens::TokenRegistry::default();
-        reg.by_css_var.insert("fg-test".to_string(), fg_hex.to_string());
-        reg.by_css_var.insert("bg-test".to_string(), bg_hex.to_string());
+        reg.by_css_var
+            .insert("fg-test".to_string(), fg_hex.to_string());
+        reg.by_css_var
+            .insert("bg-test".to_string(), bg_hex.to_string());
         reg.surface_pairs.insert(
             surface_name.to_string(),
             crate::tokens::SurfacePairEntry {
@@ -562,7 +595,8 @@ mod tests {
         let mut out = Vec::new();
         validate_a11y_with_registry(&m, &reg, &mut out);
         assert!(
-            out.iter().any(|d| d.code == "web_ir_validate.a11y.insufficient_contrast"),
+            out.iter()
+                .any(|d| d.code == "web_ir_validate.a11y.insufficient_contrast"),
             "expected insufficient_contrast: {out:?}"
         );
     }
@@ -575,7 +609,8 @@ mod tests {
         let mut out = Vec::new();
         validate_a11y_with_registry(&m, &reg, &mut out);
         assert!(
-            out.iter().any(|d| d.code == "web_ir_validate.a11y.low_contrast"),
+            out.iter()
+                .any(|d| d.code == "web_ir_validate.a11y.low_contrast"),
             "expected low_contrast warning for p at ~3.5:1: {out:?}"
         );
     }
@@ -595,7 +630,10 @@ mod tests {
         m.view_roots.push(("Page".to_string(), DomNodeId(0)));
         let mut out = Vec::new();
         validate_a11y_with_registry(&m, &reg, &mut out);
-        assert!(out.is_empty(), "should skip check without surface context: {out:?}");
+        assert!(
+            out.is_empty(),
+            "should skip check without surface context: {out:?}"
+        );
     }
 
     #[test]
@@ -605,6 +643,9 @@ mod tests {
         let m = module_with_surface_and_tag("dark", "h1");
         let mut out = Vec::new();
         validate_a11y_with_registry(&m, &reg, &mut out);
-        assert!(out.is_empty(), "h1 at ~3.5:1 should pass large-text 3:1 threshold: {out:?}");
+        assert!(
+            out.is_empty(),
+            "h1 at ~3.5:1 should pass large-text 3:1 threshold: {out:?}"
+        );
     }
 }

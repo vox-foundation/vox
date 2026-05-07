@@ -83,12 +83,8 @@ pub fn generate_with_options(
     if options.mode != BuildMode::Library && !hir.components.is_empty() {
         let web_projection = crate::web_ir::lower::project_web_from_core(hir);
         for rc in &hir.components {
-            let (filename, content) = generate_reactive_component(
-                hir,
-                rc,
-                Some(&web_projection),
-                &mut reactive_stats,
-            );
+            let (filename, content) =
+                generate_reactive_component(hir, rc, Some(&web_projection), &mut reactive_stats);
             files.push((filename, content));
             if !rc.styles.is_empty() {
                 let mut css = String::new();
@@ -136,9 +132,7 @@ pub fn generate_with_options(
 
     // Phase D: emit `<Name>Provider.tsx` per `.vox.ui` reactive module
     // (per ADR-032). Skipped when the module has none.
-    for (filename, content) in
-        crate::codegen_ts::reactive_module_emit::emit_reactive_modules(hir)
-    {
+    for (filename, content) in crate::codegen_ts::reactive_module_emit::emit_reactive_modules(hir) {
         files.push((filename, content));
     }
     if let Ok(contract_json) = serde_json::to_string_pretty(&app_contract) {
@@ -164,7 +158,6 @@ pub fn generate_with_options(
         {
             files.push(("server.ts".to_string(), routes_content));
         }
-
     }
 
     // Generate table interfaces + schema from HIR
@@ -195,13 +188,11 @@ pub fn generate_with_options(
         files.push((VOX_CLIENT_FILENAME.to_string(), emit_vox_client(hir)));
     }
 
-
     // Load vox.tokens.json via TokenRegistry: emits typed CSS + TS and validates token refs.
-    let token_registry =
-        crate::tokens::TokenRegistry::load_from_str(
-            &std::fs::read_to_string("vox.tokens.json").unwrap_or_default(),
-        )
-        .ok();
+    let token_registry = crate::tokens::TokenRegistry::load_from_str(
+        &std::fs::read_to_string("vox.tokens.json").unwrap_or_default(),
+    )
+    .ok();
     if let Some(ref reg) = token_registry {
         files.push((
             "vox-tokens.css".to_string(),
@@ -220,13 +211,17 @@ pub fn generate_with_options(
         (
             "routes.manifest.json",
             crate::codegen_ts::route_manifest::try_emit_route_manifest_json_from_web_ir(
-                &web_projection, hir,
+                &web_projection,
+                hir,
             )?,
         )
     } else {
         (
             "routes.manifest.ts",
-            crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(&web_projection, hir)?,
+            crate::codegen_ts::route_manifest::try_emit_route_manifest_from_web_ir(
+                &web_projection,
+                hir,
+            )?,
         )
     };
     if let Some(manifest) = route_manifest {
@@ -252,8 +247,7 @@ pub fn generate_with_options(
         }
 
         let uses_mobile_namespace = hir.imports.iter().any(|imp| {
-            (imp.module_path == vec!["std"] && imp.item == "mobile")
-                || (imp.module_path.is_empty() && imp.item == "mobile")
+            imp.item == "mobile" && (imp.module_path.is_empty() || imp.module_path == vec!["std"])
         });
         if uses_mobile_namespace {
             files.push((
@@ -343,10 +337,8 @@ fn maybe_web_ir_validate(
     };
     let diags = crate::web_ir::validate::validate_web_ir_with_registry(web, registry);
     // Advisory diagnostics must not block codegen — only hard errors gate the build.
-    let error_diags: Vec<crate::web_ir::WebIrDiagnostic> = diags
-        .into_iter()
-        .filter(|d| !is_advisory_diag(d))
-        .collect();
+    let error_diags: Vec<crate::web_ir::WebIrDiagnostic> =
+        diags.into_iter().filter(|d| !is_advisory_diag(d)).collect();
     if error_diags.is_empty() {
         return Ok(());
     }

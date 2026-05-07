@@ -2,7 +2,7 @@
 title: "Vox portability SSOT"
 description: "Normative portability contract for Docker/OCI-backed `.vox` deployment, source-of-truth boundaries, and conformance expectations."
 category: "reference"
-last_updated: "2026-03-28"
+last_updated: "2026-05-05"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -79,6 +79,23 @@ Vox portability does **not** guarantee:
 - WASI/Wasmtime is a complementary execution/isolation lane and not the primary deployed-app portability boundary.
 - Stock-phone execution of the full Vox CLI/toolchain is not a portability requirement for this contract.
 - Mobile support is primarily browser-app portability plus remote control of a non-phone Vox host.
+
+## Portable backend artifact lane
+
+For backend portability workstreams, use a single release-grade lane with explicit provenance:
+
+- Build artifacts from lock-bound project state (`Vox.toml` + `vox.lock`).
+- Publish OCI images with source/revision metadata labels.
+- Generate and retain SBOM + provenance attestations for promoted builds.
+- Apply signing policy before promotion to runtime environments.
+- Avoid embedding secrets in images; runtime secret resolution remains Clavis-managed.
+
+### Repo-local artifact markers (`vox deploy`)
+
+When **`VOX_BACKEND_ARTIFACT_SBOM_REQUIRED`** or **`VOX_BACKEND_ARTIFACT_SIGNING_REQUIRED`** are truthy ([environment SSOT](env-vars.md)), **`vox deploy`** requires marker files under **`<repo_root>/.vox/backend-artifact/`** (resolved via **`vox_config::paths::repo_backend_artifact_dir`**) before a non–dry-run deploy on OCI-facing targets (`container`, `compose`, `kubernetes`, `fly`, `coolify`):
+
+- **SBOM** (at least one): `sbom.json`, `sbom.spdx.json`, or `sbom.cyclonedx.json`
+- **Signing** (at least one): `signing.attestation.json` or `artifact.sig`
 
 ## Compatibility caveats
 

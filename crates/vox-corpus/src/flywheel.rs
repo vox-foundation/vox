@@ -26,10 +26,10 @@ pub struct FlywheelDomainConfig {
 impl FlywheelConfig {
     pub fn load() -> Self {
         let path = std::path::Path::new("mens/config/flywheel.yaml");
-        if let Ok(content) = std::fs::read_to_string(path) {
-            if let Ok(config) = serde_yaml::from_str(&content) {
-                return config;
-            }
+        if let Ok(content) = std::fs::read_to_string(path)
+            && let Ok(config) = serde_yaml::from_str(&content)
+        {
+            return config;
         }
         Self::default()
     }
@@ -37,14 +37,14 @@ impl FlywheelConfig {
     /// Resolve effective config for a specific domain.
     pub fn for_domain(&self, domain: Option<&str>) -> Self {
         let mut effective = self.clone();
-        if let Some(d) = domain {
-            if let Some(ovr) = self.domains.get(d) {
-                if let Some(f) = ovr.sample_floor {
-                    effective.sample_floor = f;
-                }
-                if let Some(div) = ovr.min_ast_diversity {
-                    effective.min_ast_diversity = div;
-                }
+        if let Some(d) = domain
+            && let Some(ovr) = self.domains.get(d)
+        {
+            if let Some(f) = ovr.sample_floor {
+                effective.sample_floor = f;
+            }
+            if let Some(div) = ovr.min_ast_diversity {
+                effective.min_ast_diversity = div;
             }
         }
         effective
@@ -125,20 +125,20 @@ pub fn evaluate_readiness(
         }
         count += 1;
 
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) {
-            if let Some(resp) = v.get("response").and_then(|r| r.as_str()) {
-                // If it's valid Vox, hash the AST structure to ignore comments/whitespace
-                let tokens = vox_compiler::lexer::lex(resp);
-                if let Ok(module) = vox_compiler::parser::parse(tokens) {
-                    if let Ok(ser) = serde_json::to_vec(&module) {
-                        signatures.insert(xxh3_64(&ser));
-                    } else {
-                        signatures.insert(xxh3_64(resp.as_bytes()));
-                    }
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&line)
+            && let Some(resp) = v.get("response").and_then(|r| r.as_str())
+        {
+            // If it's valid Vox, hash the AST structure to ignore comments/whitespace
+            let tokens = vox_compiler::lexer::lex(resp);
+            if let Ok(module) = vox_compiler::parser::parse(tokens) {
+                if let Ok(ser) = serde_json::to_vec(&module) {
+                    signatures.insert(xxh3_64(&ser));
                 } else {
-                    // Fallback to text hash for non-Vox lanes
                     signatures.insert(xxh3_64(resp.as_bytes()));
                 }
+            } else {
+                // Fallback to text hash for non-Vox lanes
+                signatures.insert(xxh3_64(resp.as_bytes()));
             }
         }
     }

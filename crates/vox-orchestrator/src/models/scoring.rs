@@ -45,7 +45,7 @@ const DEEPSEEK_OFFPEAK_R1_BONUS: f64 = 0.12;
 #[must_use]
 pub fn is_deepseek_off_peak() -> bool {
     const START_SECS: u64 = 16 * 3_600 + 30 * 60; // 59_400 — 16:30 UTC
-    const END_SECS: u64 = 30 * 60;                  // 1_800  — 00:30 UTC (next day)
+    const END_SECS: u64 = 30 * 60; // 1_800  — 00:30 UTC (next day)
     let sod = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -286,16 +286,17 @@ pub fn auto_score_model(
 
     // Off-peak pricing bonus: DeepSeek cuts prices 50–75% UTC 16:30–00:30.
     // A small additive bonus tips routing toward DeepSeek when competing models score similarly.
-    let off_peak_bonus =
-        if matches!(m.provider_type, crate::models::ProviderType::DeepSeek) && is_deepseek_off_peak() {
-            if m.id.to_ascii_lowercase().contains("r1") {
-                DEEPSEEK_OFFPEAK_R1_BONUS
-            } else {
-                DEEPSEEK_OFFPEAK_V3_BONUS
-            }
+    let off_peak_bonus = if matches!(m.provider_type, crate::models::ProviderType::DeepSeek)
+        && is_deepseek_off_peak()
+    {
+        if m.id.to_ascii_lowercase().contains("r1") {
+            DEEPSEEK_OFFPEAK_R1_BONUS
         } else {
-            0.0
-        };
+            DEEPSEEK_OFFPEAK_V3_BONUS
+        }
+    } else {
+        0.0
+    };
 
     (score / total_w) + fim_bias + mens_bonus + off_peak_bonus
 }

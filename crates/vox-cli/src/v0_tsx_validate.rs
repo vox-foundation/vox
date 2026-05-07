@@ -25,8 +25,12 @@
 //! block generation on false positives (only `Error` severity items trigger a
 //! mandatory user decision; `Warning` items are printed but auto-accepted).
 
+#![allow(dead_code)] // Staged v0.dev integration; exported for future `vox validate` wiring
+
 use regex::Regex;
-use vox_compiler::web_ir::{BehaviorNode, DomNode, DomNodeId, WebIrDiagnostic, WebIrDiagnosticSeverity, WebIrModule};
+use vox_compiler::web_ir::{
+    BehaviorNode, DomNode, DomNodeId, WebIrDiagnostic, WebIrDiagnosticSeverity, WebIrModule,
+};
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -62,13 +66,17 @@ pub fn format_diagnostics(diags: &[WebIrDiagnostic], component_name: &str) -> Op
         };
         buf.push_str(&format!("  {icon} [{}] {}\n", d.code, d.message));
     }
-    buf.push_str("\nFix these issues in the generated TSX before shipping, or add explicit aria attributes.");
+    buf.push_str(
+        "\nFix these issues in the generated TSX before shipping, or add explicit aria attributes.",
+    );
     Some(buf)
 }
 
 /// True if any diagnostic has [`WebIrDiagnosticSeverity::Error`] severity.
 pub fn has_errors(diags: &[WebIrDiagnostic]) -> bool {
-    diags.iter().any(|d| d.severity() == WebIrDiagnosticSeverity::Error)
+    diags
+        .iter()
+        .any(|d| d.severity() == WebIrDiagnosticSeverity::Error)
 }
 
 // ---------------------------------------------------------------------------
@@ -187,7 +195,13 @@ fn tsx_to_web_ir_module(tsx: &str) -> WebIrModule {
                 attrs.push((key, val));
             }
         }
-        events.push(TagEvent::Open { pos, end, tag, attrs, self_closing });
+        events.push(TagEvent::Open {
+            pos,
+            end,
+            tag,
+            attrs,
+            self_closing,
+        });
     }
 
     for cap in re_close.captures_iter(tsx) {
@@ -213,7 +227,13 @@ fn tsx_to_web_ir_module(tsx: &str) -> WebIrModule {
 
     for ev in events {
         match ev {
-            TagEvent::Open { tag, attrs, self_closing, end, .. } => {
+            TagEvent::Open {
+                tag,
+                attrs,
+                self_closing,
+                end,
+                ..
+            } => {
                 let is_relevant = RELEVANT.contains(&tag.as_str());
                 let arena_idx: Option<usize> = if is_relevant {
                     let elem_id = DomNodeId(id_counter);
@@ -268,11 +288,12 @@ fn tsx_to_web_ir_module(tsx: &str) -> WebIrModule {
                 }
             }
 
-            TagEvent::Close { tag, pos: close_pos } => {
+            TagEvent::Close {
+                tag,
+                pos: close_pos,
+            } => {
                 // Find the innermost matching open tag and pop it.
-                if let Some(stack_pos) =
-                    stack.iter().rposition(|(_, name, _)| *name == tag)
-                {
+                if let Some(stack_pos) = stack.iter().rposition(|(_, name, _)| *name == tag) {
                     let (arena_idx, _, open_end) = stack.remove(stack_pos);
                     if let Some(arena_idx) = arena_idx {
                         // Extract text content that belongs to this element's body
@@ -340,7 +361,9 @@ export function Card() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
             "expected img.missing_alt, got: {diags:?}"
         );
     }
@@ -354,7 +377,9 @@ export function Card() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
+            !diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.a11y.img_missing_alt"),
             "img with alt should pass"
         );
     }
@@ -368,7 +393,9 @@ export function Btn() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
             "expected button.missing_label, got: {diags:?}"
         );
     }
@@ -382,7 +409,9 @@ export function Btn() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+            !diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
             "button with text should pass, got: {diags:?}"
         );
     }
@@ -396,7 +425,9 @@ export function Nav() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.a11y.anchor_missing_href"),
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.a11y.anchor_missing_href"),
             "expected anchor.missing_href, got: {diags:?}"
         );
     }
@@ -410,7 +441,9 @@ export function Nav() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_validate.a11y.anchor_missing_href"),
+            !diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.a11y.anchor_missing_href"),
             "anchor with href should pass"
         );
     }
@@ -424,7 +457,9 @@ export function Form() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.a11y.input_missing_label"),
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.a11y.input_missing_label"),
             "expected input.missing_label, got: {diags:?}"
         );
     }
@@ -438,7 +473,9 @@ export function Form() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_validate.a11y.input_missing_label"),
+            !diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.a11y.input_missing_label"),
             "input with aria-label should pass"
         );
     }
@@ -452,7 +489,10 @@ export function Form() {
             .filter(|d| d.severity() == WebIrDiagnosticSeverity::Error)
             .collect();
         // Only anchor.missing_href which is Warning
-        assert!(errors.is_empty(), "anchor.missing_href is Warning not Error");
+        assert!(
+            errors.is_empty(),
+            "anchor.missing_href is Warning not Error"
+        );
     }
 
     #[test]
@@ -481,7 +521,9 @@ export function Form() {
         let diags = validate_tsx_a11y(tsx);
         // The button has no accessible label — it's self-closing with no content.
         assert!(
-            diags.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+            diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
             "self-closing button with no label should fail; got: {diags:?}"
         );
     }
@@ -496,7 +538,9 @@ export function Form() {
 "#;
         let diags = validate_tsx_a11y(tsx);
         assert!(
-            !diags.iter().any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
+            !diags
+                .iter()
+                .any(|d| d.code == "web_ir_validate.a11y.interactive_missing_label"),
             "button with nested span text should pass; got: {diags:?}"
         );
     }

@@ -19,10 +19,10 @@ pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>)
         &scaffold_path,
         project_name,
         package_kind,
-        template.as_deref(),
+        template,
     )?;
 
-    if let Some("mobile-pwa") = template.as_deref() {
+    if let Some("mobile-pwa") = template {
         crate::templates::mobile_pwa::scaffold(project_name, &scaffold_path)?;
     }
 
@@ -51,7 +51,7 @@ pub async fn run(name: Option<&str>, kind: Option<&str>, template: Option<&str>)
     println!("  Created src/main.vox");
     println!("  Created .vox_modules/");
     println!();
-    match (package_kind, template.as_deref()) {
+    match (package_kind, template) {
         (_, Some("chatbot")) | ("chatbot", _) => {
             println!("  Next steps:");
             println!("    1. Add OPENROUTER_API_KEY to .env");

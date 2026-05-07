@@ -45,6 +45,7 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 | `mcp:` | `mcp:<repository_id>` | MCP Socrates / surface telemetry |
 | `mens:` | `mens:<repository_id>` | Populi control-plane audit (`populi_control_event`) |
 | `workflow:` | `workflow:<repository_id>` | Interpreted workflow journal (`workflow_journal_entry`, versioned event payloads from the workflow durability contract) |
+| `route:` | `route:<repository_id>` | Routing policy and capability-gate telemetry (`model_route_event`) |
 
 **Fixed session (no repository in id):** hybrid memory fusion uses session `socrates:retrieval` and metric type `memory_hybrid_fusion` (see `SESSION_ID_MEMORY_HYBRID_FUSION` in the Rust module).
 
@@ -57,6 +58,8 @@ Producers should prefix `session_id` so rollups and dashboards can group without
 | `benchmark_event` | `bench:<repository_id>` | Optional; unit in metadata `metric_value_unit` | CLI build timings use **`seconds`** for wall time. |
 | `syntax_k_event` | `syntaxk:<repository_id>` | Optional ratio / timing | Fixture id in metadata; optional `support_metrics` (representability / LLM surface / runtime projection summaries per `contracts/eval/syntax-k-event.schema.json`). |
 | `socrates_surface` | `mcp:<repository_id>` | Hallucination-risk proxy | Prefer metadata for interpretability; eval summaries inject explicit denominators (below). |
+| `agent_exec_time` | `mcp:<repository_id>` | Optional | Tool execution duration/budget events used for execution-time calibration. |
+| `model_route_event` | `route:<repository_id>` | Optional | Runtime/orchestrator route decisions. `metadata_json` must include `trace_id` and `route_policy_profile`. |
 
 ### `socrates_surface` aggregate metadata (`record_socrates_eval_summary`)
 

@@ -104,14 +104,14 @@ fn append_repository_context(prompt: &mut String) {
     ));
 
     let agents = repo.root.join("AGENTS.md");
-    if agents.is_file() {
-        if let Ok(text) = read_utf8_path_capped(&agents) {
-            let take = text.len().min(REPO_CONTEXT_FILE_CAP);
-            prompt.push_str("\n### AGENTS.md (excerpt)\n\n");
-            prompt.push_str(&text[..take]);
-            if text.len() > take {
-                prompt.push_str("\n\n… (truncated)");
-            }
+    if agents.is_file()
+        && let Ok(text) = read_utf8_path_capped(&agents)
+    {
+        let take = text.len().min(REPO_CONTEXT_FILE_CAP);
+        prompt.push_str("\n### AGENTS.md (excerpt)\n\n");
+        prompt.push_str(&text[..take]);
+        if text.len() > take {
+            prompt.push_str("\n\n… (truncated)");
         }
     }
 }

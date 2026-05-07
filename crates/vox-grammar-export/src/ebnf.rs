@@ -175,15 +175,15 @@ pub fn emit_ebnf() -> String {
     g.push_str("list_lit = \"[\", [ expr, { \",\", expr } ], \"]\" ;\n");
     g.push_str("tuple_lit = \"(\", expr, \",\", [ expr, { \",\", expr } ], \")\" ;\n\n");
 
-    // ── JSX
-    g.push_str("(* pratt_jsx.rs: parse_jsx *)\n");
-    g.push_str("jsx_expr = jsx_self_closing | jsx_element ;\n");
-    g.push_str("jsx_self_closing = \"<\", ident, { jsx_attr }, \"/>\" ;\n");
-    g.push_str(
-        "jsx_element = \"<\", ident, { jsx_attr }, \">\", { jsx_child }, \"</\", ident, \">\" ;\n",
-    );
-    g.push_str("jsx_attr = ident, \"=\", ( string_lit | \"{\", expr, \"}\" ) ;\n");
-    g.push_str("jsx_child = jsx_expr | \"{\", expr, \"}\" | text ;\n\n");
+    // ── View-call surface (lowers to JSX-shaped HIR nodes)
+    g.push_str("(* pratt_match.rs: parse_primary view-call lowering *)\n");
+    g.push_str("jsx_expr = view_call_expr ;\n");
+    g.push_str("view_call_expr = view_call_block | view_call_self_closing ;\n");
+    g.push_str("view_call_block = ident, \"(\", [ view_args ], \")\", \"{\", { expr }, \"}\" ;\n");
+    g.push_str("view_call_self_closing = ident, \"(\", [ view_args ], \")\" ;\n");
+    g.push_str("view_args = view_arg, { \",\", view_arg } ;\n");
+    g.push_str("view_arg = ident, \"=\", expr ;\n");
+    g.push_str("(* angle-bracket JSX is retired at parser entry: <tag ...> ... *)\n\n");
 
     // ── Type expressions
     g.push_str("(* types.rs: parse_type_expr *)\n");

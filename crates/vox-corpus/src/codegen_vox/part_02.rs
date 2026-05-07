@@ -140,7 +140,7 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
         "reactive_component" => {
             tags.push("expr:jsx".into());
             let (sf, st) = FIELD_POOL[rng.usize(FIELD_POOL.len())];
-            let mount_cleanup = format!("    on mount {{\n        // Initialize data\n    }}\n    on cleanup {{\n        // teardown\n    }}");
+            let mount_cleanup = "    on mount {\n        // Initialize data\n    }\n    on cleanup {\n        // teardown\n    }".to_string();
             (
                 format!(
                     "component {type_name}({params}) {{\n    state {sf}: {st} = {}\n{}\n    view: <div className=\"{noun}\">\n        <h1>{{\"{type_name}\"}}</h1>\n        <p>{{{sf}}}</p>\n    </div>\n}}",

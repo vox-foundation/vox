@@ -1,5 +1,7 @@
 use crate::mens::hardware::probe::{HardwareProbe, ProbeError};
-use crate::mens::hardware::types::{ComputeBackend, GpuTelemetry, GpuVendor, HardwareSummary, BYTES_TO_MB};
+use crate::mens::hardware::types::{
+    BYTES_TO_MB, ComputeBackend, GpuTelemetry, GpuVendor, HardwareSummary,
+};
 use async_trait::async_trait;
 
 /// Hardware probe backend that uses the NVIDIA Management Library (NVML).

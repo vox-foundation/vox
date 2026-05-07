@@ -1,0 +1,19 @@
+// vox:caps process
+// Smoke: doctor probe (includes LLM routing check) — run after `vox clavis login` on fresh machines.
+import process;
+
+fn main() {
+    print("smoke-llm: running `vox doctor --probe` …");
+    let res = process.run("vox", ["doctor", "--probe"]);
+    if res is not null {
+        if res.code == 0 {
+            print("smoke-llm: OK");
+        } else {
+            print("smoke-llm: doctor failed, code=", res.code);
+            process.exit(1);
+        }
+    } else {
+        print("smoke-llm: could not spawn vox");
+        process.exit(1);
+    }
+}

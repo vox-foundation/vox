@@ -8,6 +8,8 @@ training_eligible: false
 ---
 # ADR 027: Dual-Track UI Surfaces
 
+**Layering:** Normative machine rules live in **`contracts/frontend/`**; end-to-end interop narrative lives in **[`external-frontend-interop-plan-2026.md`](../architecture/external-frontend-interop-plan-2026.md)**. This ADR is a **decision record** (superseded status below).
+
 ## Status
 **Superseded** (2026-05-03) — islands retired; see [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). Original status: Accepted (2026-04-30)
 
@@ -33,7 +35,7 @@ Vox supports **two UI tracks**, each with a distinct surface, training-eligibili
 
 | Surface | Status | Lowering target |
 |---|---|---|
-| `component Name(params) { … view: <jsx/> }` | 🟡 Preview | `HirReactiveComponent` → WebIR → TSX |
+| `component Name(params) { … view: Tag(named=props) { children } }` | 🟡 Preview | `HirReactiveComponent` → WebIR → TSX |
 | `state_machine Name { … }` | 🟡 Preview | `HirStateMachineDecl` → WebIR → TSX |
 | `routes { … }` | 🟢 Stable | `client_routes` → TanStack Router file routes |
 | `style { … }` | 🟡 Preview | WebIR → CSS-in-JS or stylesheet |

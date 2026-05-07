@@ -8,11 +8,14 @@ impl PiiFilter {
     /// Redact potential PII (emails, IP addresses, typical tokens) from a string.
     pub fn redact(text: &str) -> String {
         let mut result = text.to_string();
-        
+
         // Email pattern
         static EMAIL_RE: OnceLock<Regex> = OnceLock::new();
-        let email_re = EMAIL_RE.get_or_init(|| Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap());
-        result = email_re.replace_all(&result, "[REDACTED_EMAIL]").to_string();
+        let email_re = EMAIL_RE
+            .get_or_init(|| Regex::new(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}").unwrap());
+        result = email_re
+            .replace_all(&result, "[REDACTED_EMAIL]")
+            .to_string();
 
         // IPv4 pattern
         static IP_RE: OnceLock<Regex> = OnceLock::new();
@@ -21,8 +24,11 @@ impl PiiFilter {
 
         // Potential secret/token pattern (e.g. sk-..., gsk-...)
         static TOKEN_RE: OnceLock<Regex> = OnceLock::new();
-        let token_re = TOKEN_RE.get_or_init(|| Regex::new(r"\b(?:sk|gsk|pk|ak)-[a-zA-Z0-9]{20,}\b").unwrap());
-        result = token_re.replace_all(&result, "[REDACTED_TOKEN]").to_string();
+        let token_re =
+            TOKEN_RE.get_or_init(|| Regex::new(r"\b(?:sk|gsk|pk|ak)-[a-zA-Z0-9]{20,}\b").unwrap());
+        result = token_re
+            .replace_all(&result, "[REDACTED_TOKEN]")
+            .to_string();
 
         result
     }

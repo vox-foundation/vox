@@ -221,23 +221,23 @@ pub fn generate_srt_file(
 
     let mut metrics = None;
 
-    if let Some(gt_path) = ground_truth_srt {
-        if let Ok(gt_content) = std::fs::read_to_string(&gt_path) {
-            let gt_segs = parse_srt_basic(&gt_content);
-            let offset = crate::eval_srt::mean_timing_offset_ms(&gt_segs, &out.segments);
-            println!("Ground Truth Evaluation against: {}", gt_path);
-            println!("Mean Timing Offset (TER proxy): {:.1} ms", offset);
+    if let Some(gt_path) = ground_truth_srt
+        && let Ok(gt_content) = std::fs::read_to_string(&gt_path)
+    {
+        let gt_segs = parse_srt_basic(&gt_content);
+        let offset = crate::eval_srt::mean_timing_offset_ms(&gt_segs, &out.segments);
+        println!("Ground Truth Evaluation against: {}", gt_path);
+        println!("Mean Timing Offset (TER proxy): {:.1} ms", offset);
 
-            // Collect single raw text line for basic WER comparison
-            let gt_text: Vec<_> = gt_segs.iter().map(|s| s.text.as_str()).collect();
-            let actual_text: Vec<_> = out.segments.iter().map(|s| s.text.as_str()).collect();
-            let wer = crate::eval::word_error_rate(&gt_text.join(" "), &actual_text.join(" "));
-            let cer = crate::eval::char_error_rate(&gt_text.join(" "), &actual_text.join(" "));
-            println!("Overall WER: {:.2}%", wer * 100.0);
-            println!("Overall CER: {:.2}%", cer * 100.0);
+        // Collect single raw text line for basic WER comparison
+        let gt_text: Vec<_> = gt_segs.iter().map(|s| s.text.as_str()).collect();
+        let actual_text: Vec<_> = out.segments.iter().map(|s| s.text.as_str()).collect();
+        let wer = crate::eval::word_error_rate(&gt_text.join(" "), &actual_text.join(" "));
+        let cer = crate::eval::char_error_rate(&gt_text.join(" "), &actual_text.join(" "));
+        println!("Overall WER: {:.2}%", wer * 100.0);
+        println!("Overall CER: {:.2}%", cer * 100.0);
 
-            metrics = Some((wer, cer, offset));
-        }
+        metrics = Some((wer, cer, offset));
     }
 
     Ok(metrics)

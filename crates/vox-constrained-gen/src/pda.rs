@@ -77,8 +77,7 @@ impl PdaState {
         match &top {
             StackEntry::Terminal(lit) => {
                 // Check if token_text starts with or is a prefix of the literal.
-                if lit.starts_with(token_text) {
-                    let remainder = &lit[token_text.len()..];
+                if let Some(remainder) = lit.strip_prefix(token_text) {
                     let mut new = self.clone();
                     new.stack.pop();
                     if !remainder.is_empty() {

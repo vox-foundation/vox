@@ -36,9 +36,18 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         validate_name_and_params(&s.name, &s.params, s.span, label, &mut errors);
         if s.route_path.is_empty() {
             let (hint, kind_str) = match s.kind {
-                crate::hir::HirEndpointKind::Server => ("@endpoint(kind: server) must declare a route, e.g. @endpoint(kind: server) fn foo()", "server fn"),
-                crate::hir::HirEndpointKind::Query => ("@endpoint(kind: query) must declare a route, e.g. @endpoint(kind: query) fn foo()", "@query fn"),
-                crate::hir::HirEndpointKind::Mutation => ("@endpoint(kind: mutation) must declare a route, e.g. @endpoint(kind: mutation) fn foo()", "@mutation fn"),
+                crate::hir::HirEndpointKind::Server => (
+                    "@endpoint(kind: server) must declare a route, e.g. @endpoint(kind: server) fn foo()",
+                    "server fn",
+                ),
+                crate::hir::HirEndpointKind::Query => (
+                    "@endpoint(kind: query) must declare a route, e.g. @endpoint(kind: query) fn foo()",
+                    "@query fn",
+                ),
+                crate::hir::HirEndpointKind::Mutation => (
+                    "@endpoint(kind: mutation) must declare a route, e.g. @endpoint(kind: mutation) fn foo()",
+                    "@mutation fn",
+                ),
             };
             errors.push(HirValidationError {
                 message: format!("{kind_str} route_path is empty"),
@@ -83,7 +92,13 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
     }
 
     for c in &module.components {
-        validate_name_and_params(&c.name, &c.params, c.span, "reactive component", &mut errors);
+        validate_name_and_params(
+            &c.name,
+            &c.params,
+            c.span,
+            "reactive component",
+            &mut errors,
+        );
     }
 
     for r in &module.routes {
@@ -241,8 +256,6 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
         }
     }
 
-
-
     for ri in &module.rust_imports {
         if ri.crate_name.trim().is_empty() {
             errors.push(HirValidationError {
@@ -277,17 +290,17 @@ pub fn validate_module(module: &HirModule) -> Vec<HirValidationError> {
 
 fn validate_fn(f: &HirFn, kind: &str, errors: &mut Vec<HirValidationError>) {
     validate_name_and_params(&f.name, &f.params, f.span, kind, errors);
-    if let Some(iv) = &f.schedule_interval {
-        if iv.trim().is_empty() {
-            errors.push(HirValidationError {
-                message: format!(
-                    "{kind} `{}`: @scheduled interval must be a non-empty string",
-                    f.name
-                ),
-                span: f.span,
-                correction_hint: Some(r#"use @scheduled("1h") or a cron-like string"#.into()),
-            });
-        }
+    if let Some(iv) = &f.schedule_interval
+        && iv.trim().is_empty()
+    {
+        errors.push(HirValidationError {
+            message: format!(
+                "{kind} `{}`: @scheduled interval must be a non-empty string",
+                f.name
+            ),
+            span: f.span,
+            correction_hint: Some(r#"use @scheduled("1h") or a cron-like string"#.into()),
+        });
     }
 }
 

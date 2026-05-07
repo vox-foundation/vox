@@ -21,7 +21,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 238
+**schema_version:** `1` · **vox-cli operations:** 240
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -34,6 +34,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci` | active | — | ci | platform | — |
 | `vox ci artifact-audit` | active | — | — | platform | — |
 | `vox ci artifact-prune` | active | — | — | platform | — |
+| `vox ci backend-tests` | active | — | — | platform | — |
 | `vox ci build-docs` | active | — | — | platform | — |
 | `vox ci build-timings` | active | — | — | platform | — |
 | `vox ci capability-sync` | active | — | — | platform | — |
@@ -48,6 +49,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci completion-gates` | active | — | — | platform | — |
 | `vox ci completion-ingest` | active | — | — | platform | — |
 | `vox ci contracts-index` | active | — | — | platform | — |
+| `vox ci coolify-eval` | active | — | — | platform | — |
 | `vox ci coverage-gates` | active | — | — | platform | — |
 | `vox ci cuda-features` | active | — | — | platform | — |
 | `vox ci cuda-release-build` | active | — | — | platform | — |

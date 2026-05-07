@@ -241,17 +241,17 @@ pub fn run_preflight_with_attention(
     }
 
     if profile == PreflightProfile::ArxivAssist {
-        if let Some(abs) = manifest.abstract_text.as_deref() {
-            if abs.chars().count() > 1920 {
-                findings.push(PreflightFinding {
-                    code: "arxiv_abstract_too_long",
-                    severity: PreflightSeverity::Error,
-                    message: format!(
-                        "arXiv abstract exceeds 1,920 chars ({} chars). ArXiv moderation boundary.",
-                        abs.chars().count()
-                    ),
-                });
-            }
+        if let Some(abs) = manifest.abstract_text.as_deref()
+            && abs.chars().count() > 1920
+        {
+            findings.push(PreflightFinding {
+                code: "arxiv_abstract_too_long",
+                severity: PreflightSeverity::Error,
+                message: format!(
+                    "arXiv abstract exceeds 1,920 chars ({} chars). ArXiv moderation boundary.",
+                    abs.chars().count()
+                ),
+            });
         }
         let tc = manifest.title.chars().count();
         if tc > 100 {

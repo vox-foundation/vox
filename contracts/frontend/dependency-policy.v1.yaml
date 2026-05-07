@@ -1,0 +1,15 @@
+x-vox-version: 1
+schema_version: 1
+
+policy:
+  package_manager: pnpm
+  react_major: 19
+  vite_major:
+    min: 6
+    max: 8
+
+surfaces:
+  - path: crates/vox-dashboard/package.json
+  - path: marquee_app/package.json
+  - path: tools/visualizer/package.json
+  - path: test_app_bundle/app/package.json

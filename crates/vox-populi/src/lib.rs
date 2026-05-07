@@ -193,7 +193,7 @@ pub fn populi_env() -> PopuliEnv {
     let donation_policy =
         vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshDonationPolicyJson)
             .expose()
-            .and_then(|s| serde_json::from_str(&s).ok());
+            .and_then(|s| serde_json::from_str(s).ok());
     PopuliEnv {
         enabled,
         node_id,

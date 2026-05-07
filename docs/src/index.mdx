@@ -22,7 +22,7 @@ sort_order: 0
 category: "getting-started"
 status: "current"
 training_eligible: true
-last_updated: "2026-04-22"
+last_updated: "2026-05-05"
 ---
 
 import VoxPlayground from '../../docs-astro/src/components/VoxPlayground.astro';
@@ -53,17 +53,19 @@ fn main() {
 
 Mainstream languages predate LLMs by decades. They accept implicit state — nulls, exceptions, schemas restated three times across the stack. That's tractable for humans; it's a minefield for a statistical code generator.
 
-Vox collapses the common cases. One `@table` declaration becomes a schema, an API, and a typed client. Errors are values, not exceptions. Durable execution, MCP tool exposure, and a local training pipeline are **built in** — not glued on top.
+Vox collapses the common cases. One `@table` declaration becomes a schema, an API, and a typed client. Errors are values, not exceptions. Browser interactivity is opt-in at explicit boundaries where you need it. Durable execution, MCP tool exposure, and a local training pipeline are **built in** — not glued on top.
 
-## Four Core Pillars
+## Five Core Pillars
 
-**Pillar 1: Single Source of Truth.** `@table Task { title: str; done: bool }` — one declaration becomes SQL migrations, REST API, and a typed TypeScript client. No schema drift. No sync.
+**Pillar 1: Single Source of Truth.** `@table type Task { … }` — one declaration becomes SQL migrations, typed API surface, and a typed client. No schema drift across layers.
 
-**Pillar 2: Compile-Time Determinism.** `Result[T]` everywhere. Unhandled error branches are compiler failures — not runtime surprises. Null is not a valid state.
+**Pillar 2: Compile-Time Determinism.** `Result[T]` and explicit `match` — unhandled error branches are compiler failures. Null is not a valid state.
 
-**Pillar 3: React Interop via Components and Endpoints.** Vox compiles `component` declarations to plain React/TSX components and `@endpoint` declarations to a generated `vox-client.ts`. An external React app imports the components or calls the endpoints over RPC — see [architecture/external-frontend-interop-plan-2026](architecture/external-frontend-interop-plan-2026.md).
+**Pillar 3: React Interop via Components and Endpoints.** Vox compiles `component` declarations to plain React/TSX and `@endpoint` declarations to typed server functions plus a generated `vox-client.ts`. Import components or call endpoints over the generated RPC bridge — see [architecture/external-frontend-interop-plan-2026](architecture/external-frontend-interop-plan-2026.md).
 
-**Pillar 4: AI-Native Tooling.** `@mcp.tool` exposes any function to Anthropic MCP clients. `workflow` checkpoints survive node death. Local QLoRA fine-tuning via `vox populi` — no Python.
+**Pillar 4: Durable State & Agent Interoperability.** Checkpointing and supervised restart come from `vox-workflow-runtime`. In source, use `@durable` on `fn` and bare `workflow` / `activity` / `actor` blocks per [`AGENTS.md`](https://github.com/vox-foundation/vox/blob/main/AGENTS.md) (Grammar Unification). **`@mcp.tool`** exposes functions to MCP-compatible clients.
+
+**Pillar 5: Local Training (MENS).** `vox populi` runs QLoRA fine-tunes and OpenAI-compatible serving in native Rust — no Python glue in the default path.
 
 ---
 
@@ -80,7 +82,8 @@ Vox collapses the common cases. One `@table` declaration becomes a schema, an AP
 }
 
 // Compile-enforced: every caller handles both branches
-@server fn get_task(id: Id[Task]) to Result[Task] {
+@endpoint(kind: server)
+fn get_task(id: Id[Task]) to Result[Task] {
     let row = db.Task.find(id)
     match row {
         Some(t) -> Ok(t)
@@ -92,7 +95,7 @@ Vox collapses the common cases. One `@table` declaration becomes a schema, an AP
 @mcp.tool "Complete a task by ID"
 fn complete_task(id: Id[Task]) to Result[Unit] {
     db.Task.delete(id)
-    ret Ok(Unit)
+    return Ok(Unit)
 }
 ```
 
@@ -100,18 +103,27 @@ fn complete_task(id: Id[Task]) to Result[Unit] {
 
 ## Stability
 
+Surfaces are tracked by how reproducibly an LLM can target them.
+
+* 🟢 **Stable** — contract locked; output on this surface is reproducible across sessions.
+* 🟡 **Preview** — functionally complete; implementation may still shift.
+* 🚧 **Experimental** — under active design; not for deployment.
+
 | Domain | Tier | What it covers |
 |:---|:---|:---|
-| Core syntax & engine | 🟢 Stable | AST, type checking, compiler directives, LSP |
-| Data & connectivity | 🟢 Stable | `@table` migrations, `@query`/`@server`, wire types |
-| Agent tooling | 🟢 Stable | `@mcp.tool` exposure, MCP protocol compliance |
-| RAG & knowledge curation | 🟡 Preview | `vox scientia` retrieval, Socrates guards |
-| Durable execution | 🟡 Preview | `workflow` and `actor` lifecycle |
-| Local training (MENS) | 🟡 Preview | Hardware coverage still expanding |
-| Web UI & rendering | 🟡 Preview | WebIR and React bridge will shift |
-| Distributed node mesh | 🚧 Experimental | Cross-machine routing is pre-1.0 design |
+| Compiler engine | 🟢 Stable | AST, HIR, type checker, LSP, code generation pipeline. |
+| Surface syntax | 🟡 Preview | Decorator + bare-keyword rules in `AGENTS.md`: `@endpoint(kind: …)`, `@durable` on `fn`, bare `workflow` / `activity` / `actor`. |
+| `@table` & data layer | 🟢 Stable | Schema, migrations, `db.*` query builder, wire types. |
+| Endpoints (`@endpoint`) | 🟡 Preview | Unified shape: `@endpoint(kind: query)`, `server`, or `mutation`. |
+| Agent tooling | 🟢 Stable | `@mcp.tool` / `@mcp.resource`, MCP protocol compliance. |
+| Stub detection / AI-laziness gates | 🟡 Preview | `vox stub-check` and related CI gates for placeholder code. |
+| RAG & knowledge curation | 🟡 Preview | `vox scientia` retrieval, Socrates guards. |
+| Durable execution | 🟡 Preview | Grammar includes orchestration blocks and `@durable`; runtime and distributed stories still maturing pre-1.0. |
+| Local training (MENS) | 🟡 Preview | Hardware coverage still expanding. |
+| Web UI & rendering | 🟡 Preview | `component`, `state_machine`, WebIR, plus React/TSX interop and `vox-client.ts`. |
+| Distributed node mesh | 🚧 Experimental | Cross-machine routing is pre-1.0 design. |
 
-*As of `v0.5`, April 2026. See [v1.0 criteria](/architecture/v1-release-criteria/) for the full machine-verified release gate.*
+*As of `v0.5`, 2026. See [v1.0 criteria](/architecture/v1-release-criteria/) and the [GUI-native roadmap](architecture/gui-native-roadmap-status-2026.md); changes also land in the repository [`CHANGELOG.md`](https://github.com/vox-foundation/vox/blob/main/CHANGELOG.md).*
 
 ---
 

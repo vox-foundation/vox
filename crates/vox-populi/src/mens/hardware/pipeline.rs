@@ -117,14 +117,17 @@ impl ProbePipeline {
     /// unrecognised entries. Called by `vox populi config check` before applying
     /// `[mesh.probe.order]` from the workspace config.
     pub fn validate_probe_names(&self, order: &[&str]) -> Result<(), Vec<String>> {
-        let known: std::collections::HashSet<&str> =
-            self.probes.iter().map(|p| p.name()).collect();
+        let known: std::collections::HashSet<&str> = self.probes.iter().map(|p| p.name()).collect();
         let unknown: Vec<String> = order
             .iter()
             .filter(|&&name| !known.contains(name))
             .map(|&name| name.to_string())
             .collect();
-        if unknown.is_empty() { Ok(()) } else { Err(unknown) }
+        if unknown.is_empty() {
+            Ok(())
+        } else {
+            Err(unknown)
+        }
     }
 
     /// Returns a new pipeline with probes reordered according to `order`.
@@ -157,15 +160,12 @@ impl ProbePipeline {
 
         #[cfg(all(target_os = "windows", feature = "mens-gpu"))]
         {
-            pipeline = pipeline.with_probe(Box::new(
-                crate::mens::hardware::win_dxgi::WinDxgiProbe,
-            ));
+            pipeline = pipeline.with_probe(Box::new(crate::mens::hardware::win_dxgi::WinDxgiProbe));
         }
         #[cfg(target_os = "linux")]
         {
-            pipeline = pipeline.with_probe(Box::new(
-                crate::mens::hardware::linux_drm::LinuxDrmProbe,
-            ));
+            pipeline =
+                pipeline.with_probe(Box::new(crate::mens::hardware::linux_drm::LinuxDrmProbe));
         }
         #[cfg(target_os = "macos")]
         {
@@ -175,15 +175,11 @@ impl ProbePipeline {
         }
         #[cfg(feature = "mens-gpu")]
         {
-            pipeline = pipeline.with_probe(Box::new(
-                crate::mens::hardware::wgpu_probe::WgpuProbe,
-            ));
+            pipeline = pipeline.with_probe(Box::new(crate::mens::hardware::wgpu_probe::WgpuProbe));
         }
         #[cfg(feature = "nvml-gpu-probe")]
         {
-            pipeline = pipeline.with_probe(Box::new(
-                crate::mens::hardware::nvml::NvmlProbe,
-            ));
+            pipeline = pipeline.with_probe(Box::new(crate::mens::hardware::nvml::NvmlProbe));
         }
 
         pipeline

@@ -35,6 +35,10 @@ bundle_*.txt
 .claude/settings.local.json.bak
 .claude/worktrees/
 
+# Local agent worktrees / clones (machine-specific; never commit)
+.claire/
+.clone/
+
 # Editor / IDE artifacts (keep shared `settings.json` for terminal PATH / CUDA)
 .vscode/*
 !.vscode/settings.json

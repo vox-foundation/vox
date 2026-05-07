@@ -6,8 +6,9 @@ use super::hydrate::context_history_or_hydrate;
 use super::mentions::{chat_grounding_score, resolve_mentions};
 use crate::mcp_tools::chat_model_resolve::resolve_chat_llm_model;
 use crate::mcp_tools::chat_socrates_meta::{
-    clarification_turn_for_session, mcp_questioning_session_key, socrates_surface_tags,
-    socrates_tool_meta, spawn_questioning_trace_from_socrates, spawn_socrates_telemetry_with_meta,
+    LlmSurfaceTelemetry, clarification_turn_for_session, mcp_questioning_session_key,
+    socrates_surface_tags, socrates_tool_meta, spawn_questioning_trace_from_socrates,
+    spawn_socrates_telemetry_with_llm,
 };
 use crate::mcp_tools::journey_envelope;
 use crate::mcp_tools::llm_bridge::{McpChatModelResolution, McpInferRouting, call_llm};
@@ -666,12 +667,42 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     } else {
         retrieval_meta = socrates_surface_tags("chat_turn", &["interactive", "general_coding"]);
     }
-    spawn_socrates_telemetry_with_meta(
+    let llm_turn = state.db.as_ref().map(|_| {
+        let provider_slug = model_used
+            .split_once('/')
+            .map(|(p, _)| p)
+            .unwrap_or("openrouter")
+            .to_string();
+        let strength_tag = params
+            .cognitive_profile
+            .clone()
+            .unwrap_or_else(|| "generalist".to_string());
+        LlmSurfaceTelemetry {
+            session_id: session_id.clone(),
+            user_id: None,
+            prompt: user_prompt.clone(),
+            response: response_text.clone(),
+            model_id: model_used.clone(),
+            provider: provider_slug,
+            task_category: "General".to_string(),
+            strength_tag,
+            latency_ms: llm_started.elapsed().as_millis() as i64,
+            input_tokens: None,
+            output_tokens: Some(tokens as i64),
+            cache_read_tokens: None,
+            trace_id: Some(journey_id.clone()),
+            success: true,
+            cost_usd: None,
+            quality_score: Some(1.0),
+        }
+    });
+    spawn_socrates_telemetry_with_llm(
         state,
         "vox_chat_message",
         soc.clone(),
         Some(model_used.clone()),
         Some(retrieval_meta),
+        llm_turn,
     );
     spawn_questioning_trace_from_socrates(
         state,

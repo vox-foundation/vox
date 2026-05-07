@@ -38,6 +38,8 @@ pub mod registry;
 pub mod resilient_http;
 /// RAG-style chunk retrieval, context budgets, and provenance records.
 pub mod retrieval;
+/// `VOX_ROUTE_*` capability policy snapshot (shared with orchestrator explain/MCP paths).
+pub mod route_capability_policy;
 /// Shared routing decision telemetry for DB joins (bounded `reason_json`).
 pub mod routing_telemetry;
 /// Cooperative Tokio-backed scheduler registering spawned actors.

@@ -2,6 +2,7 @@
 
 use crate::Orchestrator;
 use crate::models::{ModelSpec, ProviderType};
+use crate::route_policy::route_policy_allows_model;
 use crate::types::TaskCategory;
 use crate::usage::{RemainingBudget, UsageTracker};
 use vox_runtime::model_resolution::{ChatRouteBackend, backend_telemetry_labels};
@@ -10,7 +11,81 @@ use super::super::MCP_GLOBAL_LLM_AGENT;
 use super::policy::{apply_gemini_policy, enforce_free_tier_if_needed, mcp_local_model_allowed};
 use super::types::McpChatModelResolution;
 use crate::mcp_tools::server_state::ServerState;
-use crate::models::scoring::auto_score_model;
+use crate::routing::ModelSelectionEngine;
+
+fn provider_allowed_by_route_policy(model: &ModelSpec) -> bool {
+    route_policy_allows_model(model)
+}
+
+#[inline]
+fn clavis_truthy(id: vox_clavis::SecretId) -> bool {
+    vox_clavis::resolve_secret(id)
+        .expose()
+        .map(|s| s.trim().eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+fn clavis_required_capabilities() -> Vec<crate::models::Capability> {
+    use crate::models::Capability;
+    use vox_clavis::SecretId;
+    let mut v = Vec::new();
+    if clavis_truthy(SecretId::VoxCapabilityRequireToolUse) {
+        v.push(Capability::SupportsToolUse);
+    }
+    if clavis_truthy(SecretId::VoxCapabilityRequireReasoning) {
+        v.push(Capability::SupportsReasoning);
+    }
+    if clavis_truthy(SecretId::VoxCapabilityRequireWebSearch) {
+        v.push(Capability::SupportsWebSearch);
+    }
+    if clavis_truthy(SecretId::VoxCapabilityRequireImageGeneration) {
+        v.push(Capability::SupportsImageGeneration);
+    }
+    v
+}
+
+fn clavis_capability_pin_model_id(
+    required: &[crate::models::Capability],
+    task: TaskCategory,
+    prompt: &str,
+) -> Option<String> {
+    use crate::models::{Capability, PromptIntent};
+    use vox_clavis::SecretId;
+    let pick = |id: SecretId| {
+        vox_clavis::resolve_secret(id)
+            .expose()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(std::string::ToString::to_string)
+    };
+    let intents: Vec<PromptIntent> = crate::models::infer_prompt_intents(prompt);
+    if required.contains(&Capability::SupportsImageGeneration)
+        || intents.contains(&PromptIntent::ImageGeneration)
+    {
+        if let Some(id) = pick(SecretId::VoxCapabilityImageGenerationModel) {
+            return Some(id);
+        }
+    }
+    if required.contains(&Capability::SupportsVision)
+        || intents.contains(&PromptIntent::VisionUnderstanding)
+    {
+        if let Some(id) = pick(SecretId::VoxCapabilityVisionModel) {
+            return Some(id);
+        }
+    }
+    if matches!(
+        task,
+        TaskCategory::CodeGen
+            | TaskCategory::Testing
+            | TaskCategory::Parsing
+            | TaskCategory::TypeChecking
+    ) {
+        if let Some(id) = pick(SecretId::VoxCapabilityCodeGenModel) {
+            return Some(id);
+        }
+    }
+    None
+}
 
 /// Task categories where the Vox-trained local model is preferred when available.
 const VOX_LOCAL_PREFERRED_TASKS: &[TaskCategory] = &[
@@ -28,10 +103,18 @@ pub fn mcp_global_llm_context_fill_ratio(orch: &Orchestrator) -> Option<f32> {
         .map(|b| b.tokens_used as f32 / b.effective_max_tokens().max(1) as f32)
 }
 
+/// Accumulated USD cost for MCP global LLM agent (in-process "session"), when budget exists.
+#[must_use]
+pub fn mcp_global_llm_session_spend_usd(orch: &Orchestrator) -> Option<f64> {
+    crate::sync_lock::rw_read(&*orch.budget_handle())
+        .check_budget(MCP_GLOBAL_LLM_AGENT)
+        .map(|b| b.cost_usd)
+}
+
 /// Resolve a concrete [`ModelSpec`] synchronously from sticky override + orchestrator registry.
 pub fn resolve_mcp_chat_model_sync(
     orch: &Orchestrator,
-    _user_prompt: &str,
+    user_prompt: &str,
     pref: Option<&str>,
     res: McpChatModelResolution,
     availability_hint: Option<&[RemainingBudget]>,
@@ -43,12 +126,67 @@ pub fn resolve_mcp_chat_model_sync(
         ));
     }
 
+    let mut res = res;
+    let routing_policy = crate::routing::RoutingPolicy::load();
+    if let (Some(cap), Some(spent)) = (
+        routing_policy.max_spend_usd_per_session,
+        mcp_global_llm_session_spend_usd(orch),
+    ) {
+        if spent >= cap {
+            res.enforce_free_tier_only = true;
+        }
+    }
+
     let models_handle = orch.models_handle();
     let registry = crate::sync_lock::rw_read(&*models_handle);
+    let routing_allows = |m: &ModelSpec| {
+        routing_policy.provider_filter_allows(m) && provider_allowed_by_route_policy(m)
+    };
+
+    let mut required_capabilities: Vec<crate::models::Capability> = {
+        let mut caps = Vec::new();
+        for intent in crate::models::infer_prompt_intents(user_prompt) {
+            for c in crate::models::intent_required_capabilities(intent) {
+                if !caps.contains(c) {
+                    caps.push(*c);
+                }
+            }
+        }
+        caps
+    };
+    for c in clavis_required_capabilities() {
+        if !required_capabilities.contains(&c) {
+            required_capabilities.push(c);
+        }
+    }
+    let caps_ok = |m: &ModelSpec| {
+        required_capabilities
+            .iter()
+            .all(|c| m.capabilities.supports(*c))
+    };
     let preference = {
         let config_handle = orch.config_handle();
         crate::sync_lock::rw_read(&*config_handle).cost_preference
     };
+    let task = res.task_category;
+    let vox_local_route_preferred = VOX_LOCAL_PREFERRED_TASKS.contains(&task);
+
+    if let Some(pin) = routing_policy.hard_pin_model_id.as_deref() {
+        if let Some(m) = registry.get(pin) {
+            if mcp_local_model_allowed(&m) && routing_allows(&m) && caps_ok(&m) {
+                let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
+                return Ok((m.clone(), m.is_free));
+            }
+        }
+    }
+    if let Some(pin) = clavis_capability_pin_model_id(&required_capabilities, task, user_prompt) {
+        if let Some(m) = registry.get(&pin) {
+            if mcp_local_model_allowed(&m) && routing_allows(&m) && caps_ok(&m) {
+                let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
+                return Ok((m.clone(), m.is_free));
+            }
+        }
+    }
 
     if let Some(raw) = pref {
         let id = raw.trim();
@@ -59,21 +197,29 @@ pub fn resolve_mcp_chat_model_sync(
                         "Sticky MCP model uses Ollama but VOX_INFERENCE_PROFILE does not allow local Ollama HTTP; use desktop_ollama or lan_gateway, pick a cloud model, or clear the override (see docs/src/architecture/mobile-edge-ai-ssot.md).".into(),
                     );
                 }
+                if !caps_ok(&m) {
+                    return Err(
+                        "Sticky MCP model does not satisfy inferred capability requirements for this prompt."
+                            .into(),
+                    );
+                }
                 let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
                 return Ok((m.clone(), m.is_free));
             }
         }
     }
 
-    let task = res.task_category;
-
     if res.free_tier_latency_critical {
-        if let Some(m) = registry.best_free_for_with_filter(task, mcp_local_model_allowed) {
+        if let Some(m) = registry.best_free_for_with_filter(task, |m| {
+            caps_ok(m) && mcp_local_model_allowed(m) && routing_allows(m)
+        }) {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
         if res.allow_cheapest_fallback {
-            if let Some(m) = registry.cheapest_free_with_filter(mcp_local_model_allowed) {
+            if let Some(m) = registry.cheapest_free_with_filter(|m| {
+                caps_ok(m) && mcp_local_model_allowed(m) && routing_allows(m)
+            }) {
                 let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
                 return Ok((m.clone(), m.is_free));
             }
@@ -81,53 +227,67 @@ pub fn resolve_mcp_chat_model_sync(
     }
 
     // Prefer the Vox-trained local model for code-oriented tasks when available and permitted.
-    if VOX_LOCAL_PREFERRED_TASKS.contains(&task) && !res.enforce_free_tier_only {
+    if vox_local_route_preferred && !res.enforce_free_tier_only {
         if let Some(m) = registry
             .list_models()
             .into_iter()
+            .filter(|m| caps_ok(m))
             .filter(|m| matches!(m.provider_type, ProviderType::VoxLocal))
             .filter(|m| mcp_local_model_allowed(m))
+            .filter(|m| routing_allows(m))
             .max_by(|a, b| a.max_tokens.cmp(&b.max_tokens))
         {
             return Ok((m.clone(), m.is_free));
         }
     }
 
-    if let Some(m) = registry
+    let candidates: Vec<ModelSpec> = registry
         .list_models()
         .into_iter()
+        .filter(caps_ok)
         .filter(mcp_local_model_allowed)
-        .max_by(|a, b| {
-            let score_a = auto_score_model(
-                a,
-                res.complexity,
-                res.free_tier_latency_critical,
-                res.context_fill_ratio,
-                preference,
-                availability_hint,
-            );
-            let score_b = auto_score_model(
-                b,
-                res.complexity,
-                res.free_tier_latency_critical,
-                res.context_fill_ratio,
-                preference,
-                availability_hint,
-            );
-            score_a.total_cmp(&score_b)
-        })
-    {
+        .filter(|m| routing_allows(m))
+        .filter(|m| vox_local_route_preferred || !matches!(m.provider_type, ProviderType::VoxLocal))
+        .collect();
+    let arm_stats = registry.arm_stats_snapshot().clone();
+    let novel_trials = crate::sync_lock::rw_read(&*orch.budget_handle())
+        .novel_routing_explores(MCP_GLOBAL_LLM_AGENT);
+    let mut engine = ModelSelectionEngine::new(None);
+    if let Some(m) = engine.pick_with_auto_score_thompson(
+        &candidates,
+        task,
+        res.complexity,
+        res.free_tier_latency_critical,
+        res.context_fill_ratio,
+        preference,
+        availability_hint,
+        &arm_stats,
+        novel_trials,
+    ) {
+        let (s, f) = arm_stats.get(&m.id).copied().unwrap_or((0, 0));
+        let max_ne = routing_policy.exploration.max_concurrent_explorations;
+        if routing_policy.routing_objective.kind == "quality_first"
+            && s + f == 0
+            && novel_trials < max_ne
+        {
+            crate::sync_lock::rw_write(&*orch.budget_handle())
+                .record_novel_routing_explore(MCP_GLOBAL_LLM_AGENT);
+        }
         let m = apply_gemini_policy(&registry, m, false);
         let m = enforce_free_tier_if_needed(&registry, &res, m)?;
         return Ok((m.clone(), m.is_free));
     }
 
     if res.allow_cheapest_fallback {
-        if let Some(m) = registry.cheapest_free_with_filter(mcp_local_model_allowed) {
+        if let Some(m) = registry.cheapest_free_with_filter(|m| {
+            caps_ok(m) && mcp_local_model_allowed(m) && routing_allows(m)
+        }) {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
-        if let Some(m) = registry.cheapest_with_filter(mcp_local_model_allowed) {
+        if let Some(m) = registry
+            .cheapest_with_filter(|m| caps_ok(m) && mcp_local_model_allowed(m) && routing_allows(m))
+        {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }

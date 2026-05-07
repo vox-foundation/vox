@@ -3,7 +3,6 @@ use crate::{
     BudgetManager, Observer, Orchestrator, OrchestratorConfig, RemotePopuliSnapshot, SessionConfig,
     SessionManager,
 };
-use vox_runtime::supervisor::spawn_supervised_infallible;
 use parking_lot::Mutex as PrMutex;
 use parking_lot::RwLock as PrRwLock;
 use std::collections::HashMap;
@@ -11,6 +10,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex as TokMutex;
 use tokio::sync::RwLock as TokRwLock;
+use vox_runtime::supervisor::spawn_supervised_infallible;
 use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
 
 #[derive(Debug, Clone)]
@@ -204,7 +204,6 @@ impl ServerState {
             observer: Arc::new(Observer::with_default_policy()),
         }
     }
-
 
     fn mcp_env_truthy(id: vox_clavis::SecretId) -> bool {
         let resolved = vox_clavis::resolve_secret(id);

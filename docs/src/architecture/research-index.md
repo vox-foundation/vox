@@ -67,6 +67,7 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 
 ## Core SSoT
 - [V0.5 Core SSoT](v0.5-core-ssot.md) — Version 0.5 core architecture specifications.
+- [Search & Retrieval SSOT (2026)](search-retrieval-ssot-2026.md) — Agent-facing retrieval: `vox-db` contracts, `vox-search` execution, MCP tools, two-VoxDB distinction (`vox-db` Rust vs `voxdb/server` TS emit), policy knobs, dashboard transport.
 - [Terminal Exec Policy SSOT (2026)](terminal-exec-policy-ssot.md) — Live SSOT for the PowerShell-first terminal exec policy. Scopes the claim to host-side allowlisting and output parsing, explicitly disclaims any codegen-fluency superiority over Bash, and documents why a separate "PowerShell spoke" in MENS is not justified.
 - [Agent Shell Fluency Eval Design (2026)](agent-shell-fluency-eval-design-2026.md) — Design-only A/B eval (20 tasks × 2 shells × 5 trials) for the codegen-fluency claim. Not run; not required by current policy. On-shelf until a proposal depends on the wider claim.
 
@@ -75,6 +76,7 @@ Ready-to-use TypeScript drop-ins in `docs/src/architecture/fableforge-impl/`. Ve
 - [Data Storage Migration Backlog (2026)](data-storage-migration-backlog-2026.md) — Ticket-sized work items (M-00 through M-78) across six phases, with owners, blockers, and acceptance criteria; cross-indexed to SSOT findings.
 - [Data Storage Lint & CI Spec (2026)](data-storage-lint-and-ci-spec-2026.md) — Concrete `vox ci data-storage-guard` subcommand, clippy denies, `deny.toml` bans, grep rules, Cursor rule, and CI wiring that enforce the SSOT.
 - [Coolify Deployment Contract](../ci/deploy-contract.md) — Automated CI/CD pipeline definition for the Hetzner VPS including LLM auto-healing loops.
+- [Eval sandbox deployment (Coolify)](eval-sandbox-deployment.md) — `eval.vox-lang.org` MCP HTTP gateway: GHCR image, compose SSOT, DNS, **`vox ci coolify-eval`**, Gate 3 alignment.
 
 ## Documentation Platform
 

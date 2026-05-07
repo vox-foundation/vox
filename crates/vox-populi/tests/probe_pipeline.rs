@@ -3,10 +3,10 @@
 // On CI machines without GPU hardware, all platform probes return NoDevice and
 // the pipeline falls back to "Host CPU".
 
+use std::time::Duration;
 use vox_populi::mens::hardware::pipeline::ProbePipeline;
 use vox_populi::mens::hardware::probe::ProbeOutcome;
 use vox_populi::mens::hardware::registry::HardwareRegistryV2;
-use std::time::Duration;
 
 #[tokio::test]
 async fn default_pipeline_returns_non_empty_model_name() {
@@ -103,7 +103,10 @@ fn operator_override_rejects_unknown_probe_name() {
 
     // Inject a typo — validation must reject it.
     let bad = pipeline.validate_probe_names(&["nvvml_typo"]);
-    assert!(bad.is_err(), "expected Err for unknown probe name 'nvvml_typo'");
+    assert!(
+        bad.is_err(),
+        "expected Err for unknown probe name 'nvvml_typo'"
+    );
     assert_eq!(bad.unwrap_err(), vec!["nvvml_typo".to_string()]);
 }
 

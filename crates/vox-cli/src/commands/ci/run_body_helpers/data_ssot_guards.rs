@@ -176,6 +176,15 @@ fn run_routing_ssot_guard(root: &Path) -> Result<()> {
         .with_context(|| format!("read {}", yaml_path.display()))?;
     let _yaml: serde_yaml::Value = serde_yaml::from_str(&yaml_txt)
         .with_context(|| format!("parse {}", yaml_path.display()))?;
+    if !yaml_txt.contains("capability_policy:") {
+        return Err(anyhow!(
+            "{} must define `capability_policy`",
+            yaml_path.display()
+        ));
+    }
+    if !yaml_txt.contains("lifecycle:") {
+        return Err(anyhow!("{} must define `lifecycle`", yaml_path.display()));
+    }
 
     let schema_txt = read_utf8_path_capped(&schema_path)
         .with_context(|| format!("read {}", schema_path.display()))?;
@@ -185,9 +194,52 @@ fn run_routing_ssot_guard(root: &Path) -> Result<()> {
     Ok(())
 }
 
+fn run_provider_secret_parity_guard(root: &Path) -> Result<()> {
+    let providers_path = root.join("contracts/orchestration/providers.v1.yaml");
+    let providers_txt = read_utf8_path_capped(&providers_path)
+        .with_context(|| format!("read {}", providers_path.display()))?;
+    let providers_yaml: serde_yaml::Value = serde_yaml::from_str(&providers_txt)
+        .with_context(|| format!("parse {}", providers_path.display()))?;
+    let providers = providers_yaml
+        .get("providers")
+        .and_then(serde_yaml::Value::as_sequence)
+        .ok_or_else(|| anyhow!("{} must define providers[]", providers_path.display()))?;
+
+    let known_ids: std::collections::BTreeSet<String> = vox_clavis::all_specs()
+        .iter()
+        .map(|s| format!("{:?}", s.id))
+        .collect();
+    for provider in providers {
+        let provider_name = provider
+            .get("name")
+            .and_then(serde_yaml::Value::as_str)
+            .unwrap_or("<unknown>");
+        if provider.get("lifecycle").is_none() {
+            return Err(anyhow!(
+                "{} provider `{}` must define lifecycle metadata",
+                providers_path.display(),
+                provider_name
+            ));
+        }
+        if let Some(secret_id) = provider
+            .get("secret_id")
+            .and_then(serde_yaml::Value::as_str)
+            && !known_ids.contains(secret_id)
+        {
+            return Err(anyhow!(
+                "{} provider `{}` uses unknown secret_id `{}` (not present in vox_clavis::all_specs)",
+                providers_path.display(),
+                provider_name,
+                secret_id
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Run file-based checks that do not require a full workspace `cargo test`.
 pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
-    let watch = root.join("crates/vox-cli/src/commands/mens/watch_telemetry.rs");
+    let watch = root.join("crates/vox-mens/src/commands/mens/watch_telemetry.rs");
     let watch_txt =
         read_utf8_path_capped(&watch).with_context(|| format!("read {}", watch.display()))?;
     if !watch_txt.contains("eta_seconds_remaining") {
@@ -204,8 +256,13 @@ pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
     }
 
     let policy_doc = root.join("docs/src/architecture/voxdb-connect-policy.md");
-    if !policy_doc.is_file() {
-        return Err(anyhow!("missing {}", policy_doc.display()));
+    let fallback_policy_doc = root.join("docs/src/architecture/data-storage-ssot-2026.md");
+    if !policy_doc.is_file() && !fallback_policy_doc.is_file() {
+        return Err(anyhow!(
+            "missing {} and {}",
+            policy_doc.display(),
+            fallback_policy_doc.display()
+        ));
     }
 
     let metric_doc = root.join("docs/src/reference/telemetry-metric-contract.md");
@@ -216,11 +273,21 @@ pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
         .with_context(|| format!("read {}", metric_doc.display()))?;
 
     let taxonomy_doc = root.join("docs/src/architecture/telemetry-taxonomy-contracts-ssot.md");
-    if !taxonomy_doc.is_file() {
-        return Err(anyhow!("missing {}", taxonomy_doc.display()));
+    let fallback_taxonomy_doc = root.join("docs/src/architecture/telemetry-trust-ssot.md");
+    if !taxonomy_doc.is_file() && !fallback_taxonomy_doc.is_file() {
+        return Err(anyhow!(
+            "missing {} and {}",
+            taxonomy_doc.display(),
+            fallback_taxonomy_doc.display()
+        ));
     }
-    let taxonomy_txt = read_utf8_path_capped(&taxonomy_doc)
-        .with_context(|| format!("read {}", taxonomy_doc.display()))?;
+    let taxonomy_txt = if taxonomy_doc.is_file() {
+        read_utf8_path_capped(&taxonomy_doc)
+            .with_context(|| format!("read {}", taxonomy_doc.display()))?
+    } else {
+        read_utf8_path_capped(&fallback_taxonomy_doc)
+            .with_context(|| format!("read {}", fallback_taxonomy_doc.display()))?
+    };
 
     let research_contract = root.join("crates/vox-db/src/research_metrics_contract.rs");
     let rc = read_utf8_path_capped(&research_contract)
@@ -249,6 +316,9 @@ pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
         "telemetry-completion-run-v1-schema",
         "telemetry-completion-finding-v1-schema",
         "telemetry-completion-detector-snapshot-v1-schema",
+        "orchestration-model-routing-v1",
+        "orchestration-model-routing-v1-schema",
+        "orchestration-providers-v1",
     ] {
         if !ix.contains(id) {
             return Err(anyhow!(
@@ -258,6 +328,25 @@ pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
         }
     }
     run_scientia_consumption_registry_guard(root, &ix)?;
+    run_provider_secret_parity_guard(root)?;
+
+    let env_vars = root.join("contracts/config/env-vars.v1.yaml");
+    let env_txt =
+        read_utf8_path_capped(&env_vars).with_context(|| format!("read {}", env_vars.display()))?;
+    for name in [
+        "VOX_ROUTE_POLICY_PROFILE",
+        "VOX_ROUTE_ALLOW_NET",
+        "VOX_ROUTE_ALLOW_PROVIDER_NETWORK",
+        "VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP",
+    ] {
+        if !env_txt.contains(name) {
+            return Err(anyhow!(
+                "{} must include `{}` for routing capability policy overrides",
+                env_vars.display(),
+                name
+            ));
+        }
+    }
 
     let codex_metrics = root.join("crates/vox-db/src/store/ops_codex/codex_metrics_packages.rs");
     let cm = read_utf8_path_capped(&codex_metrics)

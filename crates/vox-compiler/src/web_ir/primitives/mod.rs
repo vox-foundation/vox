@@ -56,27 +56,78 @@ impl PrimitiveEmission {
 /// listed here MUST also appear in `PRIMITIVE_CONSUMED_PROPS` in `web_ir/lower.rs` so it doesn't
 /// leak through as a raw HTML attribute.
 pub const UNIVERSAL_STYLE_KWARGS: &[&str] = &[
-    "gap", "gap_x", "gap_y",
-    "pad", "pad_x", "pad_y", "pad_t", "pad_b", "pad_l", "pad_r",
-    "mb", "mt", "ml", "mr", "mx", "my",
-    "w", "h", "min_w", "min_h", "max_w", "max_h",
-    "bg", "color",
-    "border", "border_x", "border_y", "border_t", "border_b", "border_l", "border_r", "border_color",
-    "radius", "radius_t", "radius_b", "radius_l", "radius_r",
-    "radius_tl", "radius_tr", "radius_bl", "radius_br",
-    "overflow", "overflow_x", "overflow_y",
-    "flex", "shrink", "grow",
-    "justify", "items",
-    "tracking", "leading", "case", "italic", "font_family",
-    "position", "inset", "top", "bottom", "left", "right",
-    "shadow", "opacity",
+    "gap",
+    "gap_x",
+    "gap_y",
+    "pad",
+    "pad_x",
+    "pad_y",
+    "pad_t",
+    "pad_b",
+    "pad_l",
+    "pad_r",
+    "mb",
+    "mt",
+    "ml",
+    "mr",
+    "mx",
+    "my",
+    "w",
+    "h",
+    "min_w",
+    "min_h",
+    "max_w",
+    "max_h",
+    "bg",
+    "color",
+    "border",
+    "border_x",
+    "border_y",
+    "border_t",
+    "border_b",
+    "border_l",
+    "border_r",
+    "border_color",
+    "radius",
+    "radius_t",
+    "radius_b",
+    "radius_l",
+    "radius_r",
+    "radius_tl",
+    "radius_tr",
+    "radius_bl",
+    "radius_br",
+    "overflow",
+    "overflow_x",
+    "overflow_y",
+    "flex",
+    "shrink",
+    "grow",
+    "justify",
+    "items",
+    "tracking",
+    "leading",
+    "case",
+    "italic",
+    "font_family",
+    "position",
+    "inset",
+    "top",
+    "bottom",
+    "left",
+    "right",
+    "shadow",
+    "opacity",
     "raw_class",
 ];
 
 #[must_use]
 pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmission> {
     let get_attr = |name: &str| -> Option<&str> {
-        attrs.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str())
+        attrs
+            .iter()
+            .find(|(k, _)| k == name)
+            .map(|(_, v)| v.as_str())
     };
     let surface_name: Option<String> = get_attr("surface").map(|s| s.to_string());
 
@@ -97,7 +148,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
             let mut classes = vec!["flex".to_string(), "flex-row".to_string()];
 
             apply_align(get_attr("align"), &mut classes, true);
-            if get_attr("wrap").map_or(false, |v| v == "true") {
+            if get_attr("wrap") == Some("true") {
                 classes.push("flex-wrap".to_string());
             }
             Some(PrimitiveEmission {
@@ -134,7 +185,9 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
             })
         }
         "heading" => {
-            let level = get_attr("level").and_then(|v| v.parse::<u8>().ok()).unwrap_or(2);
+            let level = get_attr("level")
+                .and_then(|v| v.parse::<u8>().ok())
+                .unwrap_or(2);
             let tag = match level {
                 1 => "h1",
                 2 => "h2",
@@ -481,54 +534,96 @@ pub fn primitive_base_class_overridden(base_class: &str, author_kwargs: &[&str])
     // author kwarg like `bg=` correctly overrides primitives' `hover:bg-…` defaults too.
     // Modifiers are colon-separated; the actual utility is whatever follows the last `:`.
     let utility = base_class.rsplit(':').next().unwrap_or(base_class);
-    if has("bg") && utility.starts_with("bg-") { return true; }
+    if has("bg") && utility.starts_with("bg-") {
+        return true;
+    }
     if has("color") {
         const SIZE_OR_NON_COLOR: &[&str] = &[
             "xs", "sm", "base", "lg", "xl", "2xl", "3xl", "4xl", "5xl", "6xl", "7xl", "8xl", "9xl",
-            "left", "right", "center", "justify", "start", "end",
-            "balance", "pretty", "wrap", "nowrap", "ellipsis", "clip",
+            "left", "right", "center", "justify", "start", "end", "balance", "pretty", "wrap",
+            "nowrap", "ellipsis", "clip",
         ];
-        if let Some(rest) = utility.strip_prefix("text-") {
-            if !SIZE_OR_NON_COLOR.contains(&rest) {
-                return true;
-            }
+        if let Some(rest) = utility.strip_prefix("text-")
+            && !SIZE_OR_NON_COLOR.contains(&rest)
+        {
+            return true;
         }
     }
-    let radius_like = ["radius", "radius_t", "radius_b", "radius_l", "radius_r",
-                       "radius_tl", "radius_tr", "radius_bl", "radius_br"];
-    if radius_like.iter().any(|k| has(k)) && utility.starts_with("rounded") { return true; }
+    let radius_like = [
+        "radius",
+        "radius_t",
+        "radius_b",
+        "radius_l",
+        "radius_r",
+        "radius_tl",
+        "radius_tr",
+        "radius_bl",
+        "radius_br",
+    ];
+    if radius_like.iter().any(|k| has(k)) && utility.starts_with("rounded") {
+        return true;
+    }
     // Border kwargs split by intent: width vs color. Width kwargs own `border` and the
     // directional variants; color kwarg owns everything that ISN'T the bare width.
     let any_border_width_kwarg = has("border")
-        || has("border_x") || has("border_y") || has("border_t")
-        || has("border_b") || has("border_l") || has("border_r");
+        || has("border_x")
+        || has("border_y")
+        || has("border_t")
+        || has("border_b")
+        || has("border_l")
+        || has("border_r");
     if any_border_width_kwarg && (utility == "border" || utility.starts_with("border-")) {
         return true;
     }
     if has("border_color") && utility.starts_with("border-") && utility != "border" {
         return true;
     }
-    let any_pad_kwarg = has("pad") || has("pad_x") || has("pad_y")
-        || has("pad_t") || has("pad_b") || has("pad_l") || has("pad_r");
-    if any_pad_kwarg && (
-        utility.starts_with("p-")
-        || utility.starts_with("px-") || utility.starts_with("py-")
-        || utility.starts_with("pt-") || utility.starts_with("pb-")
-        || utility.starts_with("pl-") || utility.starts_with("pr-")
-    ) {
+    let any_pad_kwarg = has("pad")
+        || has("pad_x")
+        || has("pad_y")
+        || has("pad_t")
+        || has("pad_b")
+        || has("pad_l")
+        || has("pad_r");
+    if any_pad_kwarg
+        && (utility.starts_with("p-")
+            || utility.starts_with("px-")
+            || utility.starts_with("py-")
+            || utility.starts_with("pt-")
+            || utility.starts_with("pb-")
+            || utility.starts_with("pl-")
+            || utility.starts_with("pr-"))
+    {
         return true;
     }
-    if has("w") && utility.starts_with("w-") { return true; }
-    if has("h") && utility.starts_with("h-") { return true; }
-    if has("max_w") && utility.starts_with("max-w-") { return true; }
-    if has("max_h") && utility.starts_with("max-h-") { return true; }
+    if has("w") && utility.starts_with("w-") {
+        return true;
+    }
+    if has("h") && utility.starts_with("h-") {
+        return true;
+    }
+    if has("max_w") && utility.starts_with("max-w-") {
+        return true;
+    }
+    if has("max_h") && utility.starts_with("max-h-") {
+        return true;
+    }
     if has("font_family") && utility.starts_with("font-") {
         // Don't filter font-bold/font-medium/etc. (those are weight, owned by `weight` kwarg)
         const WEIGHTS: &[&str] = &[
-            "font-thin", "font-extralight", "font-light", "font-normal", "font-medium",
-            "font-semibold", "font-bold", "font-extrabold", "font-black",
+            "font-thin",
+            "font-extralight",
+            "font-light",
+            "font-normal",
+            "font-medium",
+            "font-semibold",
+            "font-bold",
+            "font-extrabold",
+            "font-black",
         ];
-        if !WEIGHTS.contains(&utility) { return true; }
+        if !WEIGHTS.contains(&utility) {
+            return true;
+        }
     }
     false
 }
@@ -542,29 +637,29 @@ pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> 
     let v = value.trim_matches('"').trim_matches('\'');
     let v_dashed = v.replace('.', "-");
     let out: Vec<String> = match kwarg {
-        "gap"   => vec![format!("gap-{v}")],
+        "gap" => vec![format!("gap-{v}")],
         "gap_x" => vec![format!("gap-x-{v}")],
         "gap_y" => vec![format!("gap-y-{v}")],
-        "pad"   => vec![format!("p-{v}")],
+        "pad" => vec![format!("p-{v}")],
         "pad_x" => vec![format!("px-{v}")],
         "pad_y" => vec![format!("py-{v}")],
         "pad_t" => vec![format!("pt-{v}")],
         "pad_b" => vec![format!("pb-{v}")],
         "pad_l" => vec![format!("pl-{v}")],
         "pad_r" => vec![format!("pr-{v}")],
-        "mb"    => vec![format!("mb-{v}")],
-        "mt"    => vec![format!("mt-{v}")],
-        "ml"    => vec![format!("ml-{v}")],
-        "mr"    => vec![format!("mr-{v}")],
-        "mx"    => vec![format!("mx-{v}")],
-        "my"    => vec![format!("my-{v}")],
-        "w"     => vec![format!("w-{v}")],
-        "h"     => vec![format!("h-{v}")],
+        "mb" => vec![format!("mb-{v}")],
+        "mt" => vec![format!("mt-{v}")],
+        "ml" => vec![format!("ml-{v}")],
+        "mr" => vec![format!("mr-{v}")],
+        "mx" => vec![format!("mx-{v}")],
+        "my" => vec![format!("my-{v}")],
+        "w" => vec![format!("w-{v}")],
+        "h" => vec![format!("h-{v}")],
         "min_w" => vec![format!("min-w-{v}")],
         "min_h" => vec![format!("min-h-{v}")],
         "max_w" => vec![format!("max-w-{v}")],
         "max_h" => vec![format!("max-h-{v}")],
-        "bg"    => vec![format!("bg-{}", v_dashed)],
+        "bg" => vec![format!("bg-{}", v_dashed)],
         "color" => vec![format!("text-{}", v_dashed)],
         "border" => match v {
             "" | "true" | "1" => vec!["border".to_string()],
@@ -577,16 +672,16 @@ pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> 
         "border_l" => vec![format!("border-l-{v}")],
         "border_r" => vec![format!("border-r-{v}")],
         "border_color" => vec![format!("border-{}", v_dashed)],
-        "radius"    => vec![format!("rounded-{v}")],
-        "radius_t"  => vec![format!("rounded-t-{v}")],
-        "radius_b"  => vec![format!("rounded-b-{v}")],
-        "radius_l"  => vec![format!("rounded-l-{v}")],
-        "radius_r"  => vec![format!("rounded-r-{v}")],
+        "radius" => vec![format!("rounded-{v}")],
+        "radius_t" => vec![format!("rounded-t-{v}")],
+        "radius_b" => vec![format!("rounded-b-{v}")],
+        "radius_l" => vec![format!("rounded-l-{v}")],
+        "radius_r" => vec![format!("rounded-r-{v}")],
         "radius_tl" => vec![format!("rounded-tl-{v}")],
         "radius_tr" => vec![format!("rounded-tr-{v}")],
         "radius_bl" => vec![format!("rounded-bl-{v}")],
         "radius_br" => vec![format!("rounded-br-{v}")],
-        "overflow"   => vec![format!("overflow-{v}")],
+        "overflow" => vec![format!("overflow-{v}")],
         "overflow_x" => vec![format!("overflow-x-{v}")],
         "overflow_y" => vec![format!("overflow-y-{v}")],
         "flex" => match v {
@@ -607,9 +702,9 @@ pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> 
         // primitive's base classes already include it; on non-flex primitives this turns the
         // class into the intended layout instead of a silent no-op.
         "justify" => vec!["flex".to_string(), format!("justify-{v}")],
-        "items"   => vec!["flex".to_string(), format!("items-{v}")],
+        "items" => vec!["flex".to_string(), format!("items-{v}")],
         "tracking" => vec![format!("tracking-{v}")],
-        "leading"  => vec![format!("leading-{v}")],
+        "leading" => vec![format!("leading-{v}")],
         "case" => match v {
             "upper" | "uppercase" => vec!["uppercase".to_string()],
             "lower" | "lowercase" => vec!["lowercase".to_string()],
@@ -628,16 +723,16 @@ pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> 
             _ => return None,
         },
         "position" => vec![v.to_string()],
-        "inset"    => vec![format!("inset-{v}")],
-        "top"      => vec![format!("top-{v}")],
-        "bottom"   => vec![format!("bottom-{v}")],
-        "left"     => vec![format!("left-{v}")],
-        "right"    => vec![format!("right-{v}")],
-        "shadow"   => match v {
+        "inset" => vec![format!("inset-{v}")],
+        "top" => vec![format!("top-{v}")],
+        "bottom" => vec![format!("bottom-{v}")],
+        "left" => vec![format!("left-{v}")],
+        "right" => vec![format!("right-{v}")],
+        "shadow" => match v {
             "" | "true" => vec!["shadow".to_string()],
             _ => vec![format!("shadow-{v}")],
         },
-        "opacity"  => vec![format!("opacity-{v}")],
+        "opacity" => vec![format!("opacity-{v}")],
         "raw_class" => v
             .split_whitespace()
             .map(std::string::ToString::to_string)
@@ -666,7 +761,10 @@ mod tests {
     use super::*;
 
     fn attrs(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
-        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
     }
 
     #[test]
@@ -680,7 +778,11 @@ mod tests {
     #[test]
     fn stack_with_gap_appends_gap_class() {
         let e = resolve("stack", &attrs(&[("gap", "4")])).unwrap();
-        assert!(e.base_classes.contains(&"gap-4".to_string()), "{:?}", e.base_classes);
+        assert!(
+            e.base_classes.contains(&"gap-4".to_string()),
+            "{:?}",
+            e.base_classes
+        );
     }
 
     #[test]
@@ -727,7 +829,10 @@ mod tests {
         let e = resolve("button", &[]).unwrap();
         assert_eq!(e.html_tag, "button");
         assert!(e.base_classes.contains(&"bg-primary".to_string()));
-        assert!(e.base_classes.contains(&"text-primary-foreground".to_string()));
+        assert!(
+            e.base_classes
+                .contains(&"text-primary-foreground".to_string())
+        );
     }
 
     #[test]
@@ -778,7 +883,18 @@ mod tests {
 
     #[test]
     fn is_primitive_recognizes_all_10() {
-        for tag in &["stack", "row", "column", "text", "button", "link", "panel", "card", "list", "route_outlet"] {
+        for tag in &[
+            "stack",
+            "row",
+            "column",
+            "text",
+            "button",
+            "link",
+            "panel",
+            "card",
+            "list",
+            "route_outlet",
+        ] {
             assert!(is_primitive(tag), "{tag} should be a primitive");
         }
         assert!(!is_primitive("div"));
@@ -798,8 +914,16 @@ mod tests {
     #[test]
     fn vuv_padding_kwargs_emit_tailwind() {
         let e = resolve("row", &attrs(&[("pad_x", "4"), ("pad_y", "2")])).unwrap();
-        assert!(e.base_classes.contains(&"px-4".to_string()), "{:?}", e.base_classes);
-        assert!(e.base_classes.contains(&"py-2".to_string()), "{:?}", e.base_classes);
+        assert!(
+            e.base_classes.contains(&"px-4".to_string()),
+            "{:?}",
+            e.base_classes
+        );
+        assert!(
+            e.base_classes.contains(&"py-2".to_string()),
+            "{:?}",
+            e.base_classes
+        );
     }
 
     #[test]
@@ -813,19 +937,31 @@ mod tests {
     fn vuv_color_token_value_dashes_to_tailwind() {
         // Token-shaped value `zinc.400` is converted to `zinc-400` and prefixed with `text-`.
         let e = resolve("text", &attrs(&[("color", "zinc.400")])).unwrap();
-        assert!(e.base_classes.contains(&"text-zinc-400".to_string()), "{:?}", e.base_classes);
+        assert!(
+            e.base_classes.contains(&"text-zinc-400".to_string()),
+            "{:?}",
+            e.base_classes
+        );
     }
 
     #[test]
     fn vuv_bg_token_value_emits_bg_class() {
         let e = resolve("panel", &attrs(&[("bg", "blue.600")])).unwrap();
-        assert!(e.base_classes.contains(&"bg-blue-600".to_string()), "{:?}", e.base_classes);
+        assert!(
+            e.base_classes.contains(&"bg-blue-600".to_string()),
+            "{:?}",
+            e.base_classes
+        );
     }
 
     #[test]
     fn vuv_radius_kwargs_emit_rounded_classes() {
         let e = resolve("panel", &attrs(&[("radius", "2xl"), ("radius_br", "sm")])).unwrap();
-        assert!(e.base_classes.contains(&"rounded-2xl".to_string()), "{:?}", e.base_classes);
+        assert!(
+            e.base_classes.contains(&"rounded-2xl".to_string()),
+            "{:?}",
+            e.base_classes
+        );
         assert!(e.base_classes.contains(&"rounded-br-sm".to_string()));
     }
 
@@ -851,21 +987,33 @@ mod tests {
 
     #[test]
     fn vuv_tracking_and_leading() {
-        let e = resolve("text", &attrs(&[("tracking", "widest"), ("leading", "snug")])).unwrap();
+        let e = resolve(
+            "text",
+            &attrs(&[("tracking", "widest"), ("leading", "snug")]),
+        )
+        .unwrap();
         assert!(e.base_classes.contains(&"tracking-widest".to_string()));
         assert!(e.base_classes.contains(&"leading-snug".to_string()));
     }
 
     #[test]
     fn vuv_justify_and_items_emit_flex_classes() {
-        let e = resolve("row", &attrs(&[("justify", "between"), ("items", "center")])).unwrap();
+        let e = resolve(
+            "row",
+            &attrs(&[("justify", "between"), ("items", "center")]),
+        )
+        .unwrap();
         assert!(e.base_classes.contains(&"justify-between".to_string()));
         assert!(e.base_classes.contains(&"items-center".to_string()));
     }
 
     #[test]
     fn vuv_raw_class_passes_value_verbatim() {
-        let e = resolve("panel", &attrs(&[("raw_class", "border-white/10 backdrop-blur-md")])).unwrap();
+        let e = resolve(
+            "panel",
+            &attrs(&[("raw_class", "border-white/10 backdrop-blur-md")]),
+        )
+        .unwrap();
         assert!(e.base_classes.contains(&"border-white/10".to_string()));
         assert!(e.base_classes.contains(&"backdrop-blur-md".to_string()));
     }
@@ -876,6 +1024,10 @@ mod tests {
         // PRIMITIVE_CONSUMED_PROPS) leaks through as an HTML attribute. This is the desired
         // failure mode — typos surface as visible HTML rather than silently disappear.
         let e = resolve("row", &attrs(&[("padd", "4")])).unwrap();
-        assert!(!e.base_classes.iter().any(|c| c.contains("padd")), "{:?}", e.base_classes);
+        assert!(
+            !e.base_classes.iter().any(|c| c.contains("padd")),
+            "{:?}",
+            e.base_classes
+        );
     }
 }

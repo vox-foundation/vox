@@ -1,6 +1,4 @@
-/// CUDA kernel shimming for Mens training.
-/// This allows loading pre-compiled PTX artifacts without requiring nvcc at runtime.
-
+/// CUDA kernel shimming for Mens training; loads pre-compiled PTX artifacts without requiring nvcc at runtime.
 pub const AFFINE_PTX: &str = include_str!("affine.ptx");
 pub const BINARY_PTX: &str = include_str!("binary.ptx");
 pub const CAST_PTX: &str = include_str!("cast.ptx");

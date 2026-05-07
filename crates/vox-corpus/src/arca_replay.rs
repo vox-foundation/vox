@@ -90,13 +90,13 @@ pub async fn extract_arca_pairs(
                 let payload = row.get::<String>(1).unwrap_or_default();
 
                 if let Ok(mut json) = serde_json::from_str::<serde_json::Value>(&payload) {
-                    if json.get("type").is_none() {
-                        if let Some(m) = json.as_object_mut() {
-                            m.insert(
-                                "type".to_string(),
-                                serde_json::Value::String(event_type.clone()),
-                            );
-                        }
+                    if json.get("type").is_none()
+                        && let Some(m) = json.as_object_mut()
+                    {
+                        m.insert(
+                            "type".to_string(),
+                            serde_json::Value::String(event_type.clone()),
+                        );
                     }
 
                     if let Some(session_id) = json.get("session_id").and_then(|v| v.as_str()) {
@@ -131,24 +131,24 @@ pub async fn extract_arca_pairs(
                             });
                         } else if event_type == "llm_turn" {
                             // Fallback for flat LLM turns
-                            if let Some(prompt) = json.get("prompt").and_then(|v| v.as_str()) {
-                                if let Some(resp) = json.get("response").and_then(|v| v.as_str()) {
-                                    let repo_id = json
-                                        .get("repository_id")
-                                        .and_then(|v| v.as_str())
-                                        .unwrap_or("unknown");
-                                    rows.push(ReplayRow {
-                                        prompt: prompt.to_string(),
-                                        response: resp.to_string(),
-                                        category: "llm_turn".to_string(),
-                                        record_type: "llm_turn".to_string(),
-                                        chatml: false,
-                                        repository_id: repo_id.to_string(),
-                                        difficulty: Some(crate::training::construct_difficulty(
-                                            prompt, "llm_turn",
-                                        )),
-                                    });
-                                }
+                            if let Some(prompt) = json.get("prompt").and_then(|v| v.as_str())
+                                && let Some(resp) = json.get("response").and_then(|v| v.as_str())
+                            {
+                                let repo_id = json
+                                    .get("repository_id")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("unknown");
+                                rows.push(ReplayRow {
+                                    prompt: prompt.to_string(),
+                                    response: resp.to_string(),
+                                    category: "llm_turn".to_string(),
+                                    record_type: "llm_turn".to_string(),
+                                    chatml: false,
+                                    repository_id: repo_id.to_string(),
+                                    difficulty: Some(crate::training::construct_difficulty(
+                                        prompt, "llm_turn",
+                                    )),
+                                });
                             }
                         }
                     }
@@ -188,26 +188,25 @@ fn compile_chatml_session(session_id: &str, events: &[serde_json::Value]) -> Opt
     let mut repo_id = "unknown".to_string();
 
     for ev in events {
-        if repo_id == "unknown" {
-            if let Some(r) = ev.get("repository_id").and_then(|v| v.as_str()) {
-                repo_id = r.to_string();
-            }
+        if repo_id == "unknown"
+            && let Some(r) = ev.get("repository_id").and_then(|v| v.as_str())
+        {
+            repo_id = r.to_string();
         }
         let ty = ev.get("type").and_then(|v| v.as_str()).unwrap_or("");
         match ty {
             "TaskSubmitted" | "TaskStarted" => {
-                if initial_task.is_empty() {
-                    if let Some(desc) = ev
+                if initial_task.is_empty()
+                    && let Some(desc) = ev
                         .get("description")
                         .or_else(|| ev.get("task"))
                         .and_then(|v| v.as_str())
-                    {
-                        initial_task = desc.to_string();
-                        chatml_buffer.push_str(&format!(
-                            "<|im_start|>user\n{}<|im_end|>\n",
-                            sanitize_chatml(&initial_task)
-                        ));
-                    }
+                {
+                    initial_task = desc.to_string();
+                    chatml_buffer.push_str(&format!(
+                        "<|im_start|>user\n{}<|im_end|>\n",
+                        sanitize_chatml(&initial_task)
+                    ));
                 }
             }
             "ActivityStarted" => {

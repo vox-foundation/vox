@@ -134,9 +134,16 @@ async fn lease_gated_submit_holds_then_completes_via_populi_result_poll() {
         .expect("bind seed");
     let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve_with_listener(listener, state)
-            .await
-            .expect("serve");
+        let app = vox_populi::transport::populi_http_app_with_auth(
+            state,
+            vox_populi::transport::PopuliHttpAuth::Open,
+        );
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .expect("serve");
     });
 
     let base = format!("http://{bound}");
@@ -259,9 +266,16 @@ async fn lease_gated_submit_relays_context_envelope_in_payload() {
         .expect("bind seed");
     let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve_with_listener(listener, state)
-            .await
-            .expect("serve");
+        let app = vox_populi::transport::populi_http_app_with_auth(
+            state,
+            vox_populi::transport::PopuliHttpAuth::Open,
+        );
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .expect("serve");
     });
 
     let base = format!("http://{bound}");
@@ -374,9 +388,16 @@ async fn remote_worker_tick_once_seeds_context_and_attaches_socrates_when_task_a
         .expect("bind seed");
     let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve_with_listener(listener, state)
-            .await
-            .expect("serve");
+        let app = vox_populi::transport::populi_http_app_with_auth(
+            state,
+            vox_populi::transport::PopuliHttpAuth::Open,
+        );
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .expect("serve");
     });
 
     let base = format!("http://{bound}");
@@ -513,9 +534,16 @@ async fn remote_worker_tick_once_accepts_object_context_envelope_payload() {
         .expect("bind seed");
     let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve_with_listener(listener, state)
-            .await
-            .expect("serve");
+        let app = vox_populi::transport::populi_http_app_with_auth(
+            state,
+            vox_populi::transport::PopuliHttpAuth::Open,
+        );
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .expect("serve");
     });
 
     let base = format!("http://{bound}");
@@ -625,9 +653,16 @@ async fn cancel_populi_remote_delegated_relays_remote_cancel_message() {
         .expect("bind seed");
     let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve_with_listener(listener, state)
-            .await
-            .expect("serve");
+        let app = vox_populi::transport::populi_http_app_with_auth(
+            state,
+            vox_populi::transport::PopuliHttpAuth::Open,
+        );
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .expect("serve");
     });
 
     let base = format!("http://{bound}");
@@ -691,9 +726,16 @@ async fn lease_renew_loss_requeues_locally_and_relays_cancel() {
         .expect("bind seed");
     let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve_with_listener(listener, state)
-            .await
-            .expect("serve");
+        let app = vox_populi::transport::populi_http_app_with_auth(
+            state,
+            vox_populi::transport::PopuliHttpAuth::Open,
+        );
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .expect("serve");
     });
 
     let base = format!("http://{bound}");
@@ -789,9 +831,16 @@ async fn remote_result_poll_respects_max_messages_per_poll() {
         .expect("bind seed");
     let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve_with_listener(listener, state)
-            .await
-            .expect("serve");
+        let app = vox_populi::transport::populi_http_app_with_auth(
+            state,
+            vox_populi::transport::PopuliHttpAuth::Open,
+        );
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .expect("serve");
     });
 
     let base = format!("http://{bound}");
@@ -900,9 +949,16 @@ async fn non_lease_remote_relay_includes_session_and_context_payload() {
         .expect("bind seed");
     let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve_with_listener(listener, state)
-            .await
-            .expect("serve");
+        let app = vox_populi::transport::populi_http_app_with_auth(
+            state,
+            vox_populi::transport::PopuliHttpAuth::Open,
+        );
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .expect("serve");
     });
 
     let base = format!("http://{bound}");
@@ -1143,9 +1199,16 @@ async fn vram_admission_rejects_oversized_task_and_falls_back_to_local_queue() {
         .expect("bind seed");
     let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve_with_listener(listener, state)
-            .await
-            .expect("serve");
+        let app = vox_populi::transport::populi_http_app_with_auth(
+            state,
+            vox_populi::transport::PopuliHttpAuth::Open,
+        );
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .expect("serve");
     });
 
     let base = format!("http://{bound}");
@@ -1270,9 +1333,16 @@ async fn vram_admission_allows_task_when_node_meets_requirement() {
         .expect("bind seed");
     let bound = listener.local_addr().expect("local addr");
     let server = tokio::spawn(async move {
-        vox_populi::transport::serve_with_listener(listener, state)
-            .await
-            .expect("serve");
+        let app = vox_populi::transport::populi_http_app_with_auth(
+            state,
+            vox_populi::transport::PopuliHttpAuth::Open,
+        );
+        axum::serve(
+            listener,
+            app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .expect("serve");
     });
 
     let base = format!("http://{bound}");

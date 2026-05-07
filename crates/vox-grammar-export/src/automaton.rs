@@ -2,7 +2,7 @@
 ///
 /// This is used to track the depth of nested objects and arrays to ensure
 /// that the generated JSON is structurally balanced.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct JsonBraceDepthTracker {
     in_string: bool,
     brace_depth: usize,
@@ -10,10 +10,7 @@ pub struct JsonBraceDepthTracker {
 
 impl JsonBraceDepthTracker {
     pub fn new() -> Self {
-        Self {
-            in_string: false,
-            brace_depth: 0,
-        }
+        Self::default()
     }
 
     /// Feeds a new chunk of string into the tracker.

@@ -14,9 +14,10 @@ use crate::util::now_unix;
 use serde::{Deserialize, Serialize};
 
 /// Community trust level based on verification and reputation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub enum TrustTier {
     /// Local-only play. No global synchronization or leaderboard access.
+    #[default]
     Novice = 0,
     /// GitHub linked. Basic synchronization and community participation.
     Linked = 1,
@@ -24,12 +25,6 @@ pub enum TrustTier {
     Proven = 2,
     /// Community veteran with high reputation and peer-vouched status.
     Master = 3,
-}
-
-impl Default for TrustTier {
-    fn default() -> Self {
-        Self::Novice
-    }
 }
 
 impl TrustTier {

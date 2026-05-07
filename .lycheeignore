@@ -20,6 +20,8 @@ docs/news/templates/.*
 .*babel\.dev.*
 .*diva-portal\.org.*
 .*openreview\.net.*
+# Bots often get 403 from COPE; human-readable citation remains in scientia-publication-worthiness-rules.md
+.*publicationethics\.org/.*
 .*docs\.astro\.build.*
 .*astro\.build/.*
 .*\.gemini/antigravity/.*

@@ -61,7 +61,10 @@ pub async fn run(args: WatchRunArgs) -> Result<()> {
         "\n📡 Polling GitHub Actions for commit {} (timeout: {}s, interval: {}s)",
         short_sha, args.timeout_secs, POLL_INTERVAL_SECS
     );
-    println!("   https://github.com/{}/commit/{}/checks", GITHUB_REPO, head_sha);
+    println!(
+        "   https://github.com/{}/commit/{}/checks",
+        GITHUB_REPO, head_sha
+    );
 
     let client = reqwest::Client::new();
     let start = Instant::now();
@@ -74,7 +77,10 @@ pub async fn run(args: WatchRunArgs) -> Result<()> {
                 "\n⏰ Timeout: CI checks did not complete within {}s for {}.",
                 args.timeout_secs, short_sha
             );
-            eprintln!("   Check manually: https://github.com/{}/commit/{}/checks", GITHUB_REPO, head_sha);
+            eprintln!(
+                "   Check manually: https://github.com/{}/commit/{}/checks",
+                GITHUB_REPO, head_sha
+            );
             if args.advisory {
                 return Ok(());
             }
@@ -90,23 +96,38 @@ pub async fn run(args: WatchRunArgs) -> Result<()> {
         }
 
         let total = check_runs.len();
-        let completed: Vec<&Value> = check_runs.iter().filter(|r| {
-            r["status"].as_str().unwrap_or("") == "completed"
-        }).collect();
-        let failed: Vec<&Value> = completed.iter().filter(|r| {
-            matches!(r["conclusion"].as_str().unwrap_or(""), "failure" | "timed_out" | "cancelled")
-        }).copied().collect();
-        let pending: Vec<&Value> = check_runs.iter().filter(|r| {
-            r["status"].as_str().unwrap_or("") != "completed"
-        }).collect();
-        let succeeded: Vec<&Value> = completed.iter().filter(|r| {
-            r["conclusion"].as_str().unwrap_or("") == "success"
-        }).copied().collect();
+        let completed: Vec<&Value> = check_runs
+            .iter()
+            .filter(|r| r["status"].as_str().unwrap_or("") == "completed")
+            .collect();
+        let failed: Vec<&Value> = completed
+            .iter()
+            .filter(|r| {
+                matches!(
+                    r["conclusion"].as_str().unwrap_or(""),
+                    "failure" | "timed_out" | "cancelled"
+                )
+            })
+            .copied()
+            .collect();
+        let pending: Vec<&Value> = check_runs
+            .iter()
+            .filter(|r| r["status"].as_str().unwrap_or("") != "completed")
+            .collect();
+        let succeeded: Vec<&Value> = completed
+            .iter()
+            .filter(|r| r["conclusion"].as_str().unwrap_or("") == "success")
+            .copied()
+            .collect();
 
         // Print current summary line
         println!(
             "\r   [{:>3}s] ✅ {} passed  ❌ {} failed  ⏳ {} pending  (total: {})",
-            elapsed.as_secs(), succeeded.len(), failed.len(), pending.len(), total
+            elapsed.as_secs(),
+            succeeded.len(),
+            failed.len(),
+            pending.len(),
+            total
         );
 
         // Print failures immediately as they land
@@ -116,7 +137,8 @@ pub async fn run(args: WatchRunArgs) -> Result<()> {
                 let name = run["name"].as_str().unwrap_or("unknown");
                 let conclusion = run["conclusion"].as_str().unwrap_or("?");
                 let url = run["html_url"].as_str().unwrap_or("");
-                let duration_ms = run["completed_at"].as_str()
+                let duration_ms = run["completed_at"]
+                    .as_str()
                     .zip(run["started_at"].as_str())
                     .map(|(end, start)| format!(" ({})", format_duration(start, end)))
                     .unwrap_or_default();
@@ -138,7 +160,10 @@ pub async fn run(args: WatchRunArgs) -> Result<()> {
 
             // Print actionable failure list
             println!("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            println!("❌ CI FAILURES — {} check(s) require attention:", failed.len());
+            println!(
+                "❌ CI FAILURES — {} check(s) require attention:",
+                failed.len()
+            );
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             for run in &failed {
                 let name = run["name"].as_str().unwrap_or("unknown");
@@ -147,7 +172,7 @@ pub async fn run(args: WatchRunArgs) -> Result<()> {
                 println!("\n  Check:  {}", name);
                 println!("  Result: {}", conclusion);
                 println!("  URL:    {}", url);
-                
+
                 if let Some(id) = run["id"].as_u64() {
                     println!("  Fetching logs...");
                     match fetch_job_log(&client, &token, id).await {
@@ -170,8 +195,14 @@ pub async fn run(args: WatchRunArgs) -> Result<()> {
                     }
                 }
             }
-            println!("\n  View all: https://github.com/{}/commit/{}/checks", GITHUB_REPO, head_sha);
-            println!("  Self-heal: run `vox ci watch-run --sha {}` to re-poll after fixes.", short_sha);
+            println!(
+                "\n  View all: https://github.com/{}/commit/{}/checks",
+                GITHUB_REPO, head_sha
+            );
+            println!(
+                "  Self-heal: run `vox ci watch-run --sha {}` to re-poll after fixes.",
+                short_sha
+            );
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 
             if args.advisory {
@@ -185,11 +216,7 @@ pub async fn run(args: WatchRunArgs) -> Result<()> {
 }
 
 /// Fetch all check runs for a commit SHA via the GitHub Checks API.
-async fn fetch_check_runs(
-    client: &reqwest::Client,
-    token: &str,
-    sha: &str,
-) -> Result<Vec<Value>> {
+async fn fetch_check_runs(client: &reqwest::Client, token: &str, sha: &str) -> Result<Vec<Value>> {
     let url = format!(
         "https://api.github.com/repos/{}/commits/{}/check-runs?per_page=100",
         GITHUB_REPO, sha
@@ -209,24 +236,27 @@ async fn fetch_check_runs(
         anyhow::bail!("GitHub Checks API returned {}: {}", status, body);
     }
 
-    let json: Value = resp.json().await.context("Failed to parse GitHub Checks API response")?;
-    let runs = json["check_runs"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
+    let json: Value = resp
+        .json()
+        .await
+        .context("Failed to parse GitHub Checks API response")?;
+    let runs = json["check_runs"].as_array().cloned().unwrap_or_default();
     Ok(runs)
 }
 
 /// Fetch logs for a specific job ID
 async fn fetch_job_log(client: &reqwest::Client, token: &str, job_id: u64) -> Result<String> {
-    let url = format!("https://api.github.com/repos/{}/actions/jobs/{}/logs", GITHUB_REPO, job_id);
+    let url = format!(
+        "https://api.github.com/repos/{}/actions/jobs/{}/logs",
+        GITHUB_REPO, job_id
+    );
     let resp = client
         .get(&url)
         .header("Authorization", format!("Bearer {}", token))
         .header("User-Agent", "vox-cli")
         .send()
         .await?;
-        
+
     if resp.status().is_success() {
         Ok(resp.text().await?)
     } else {

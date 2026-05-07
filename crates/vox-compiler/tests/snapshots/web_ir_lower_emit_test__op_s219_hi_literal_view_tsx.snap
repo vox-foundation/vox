@@ -1,8 +1,8 @@
 ---
 source: crates/vox-compiler/tests/web_ir_lower_emit_test.rs
-assertion_line: 1349
+assertion_line: 1277
 expression: tsx
 ---
-<p className={text-base}>
+<p className={"text-base"}>
   {"hello"}
 </p>

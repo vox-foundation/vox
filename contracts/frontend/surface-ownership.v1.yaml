@@ -1,0 +1,70 @@
+x-vox-version: 1
+schema_version: 1
+
+surfaces:
+  - id: vox-dashboard
+    path: crates/vox-dashboard
+    status: canonical
+    role: Primary user-facing GUI surface for Vox.
+    source_of_truth:
+      - crates/vox-dashboard/app/src/app.vox
+      - crates/vox-dashboard/app/src/generated
+      - docs/src/reference/vox-web-stack.md
+    ownership:
+      team: platform-gui
+      review_label: gui-canonical
+    notes:
+      - Compiler-generated files under app/src/generated are immutable outputs.
+      - Hand-authored React escape-hatch components live under src/components.
+
+  - id: marquee-app
+    path: marquee_app
+    status: interoperability-reference
+    role: External React integration exemplar consuming generated Vox artifacts.
+    source_of_truth:
+      - docs/src/case-studies/v0.5-production-deployment.md
+      - docs/src/architecture/external-frontend-interop-plan-2026.md
+    ownership:
+      team: platform-gui
+      review_label: gui-interop
+    notes:
+      - Keep scope minimal and representative; avoid feature duplication with vox-dashboard.
+
+  - id: tools-visualizer
+    path: tools/visualizer
+    status: experimental
+    role: Experimental visualization sandbox.
+    source_of_truth:
+      - docs/src/reference/frontend-surface-ownership.md
+    ownership:
+      team: platform-gui
+      review_label: gui-experimental
+    notes:
+      - Do not duplicate canonical product UX from vox-dashboard.
+      - Promote features by upstreaming to vox-dashboard and reducing local divergence.
+
+  - id: test-app-bundle
+    path: test_app_bundle
+    status: fixture-only
+    role: Scaffold and fixture bundle; not a canonical product surface.
+    source_of_truth:
+      - docs/src/reference/frontend-surface-ownership.md
+    ownership:
+      team: platform-ci
+      review_label: gui-fixture
+    notes:
+      - Keep generated and fixture data deterministic for tests.
+      - Avoid using this tree as a product integration reference.
+
+  - id: vox-vscode-webview
+    path: vox-vscode
+    status: deprecated-primary-surface
+    role: VS Code extension host retained for LSP and compatibility.
+    source_of_truth:
+      - docs/src/adr/031-deprecate-vox-vscode.md
+      - docs/src/reference/vox-web-stack.md
+    ownership:
+      team: platform-editor
+      review_label: gui-deprecated
+    notes:
+      - New UX and orchestration visualization ship in vox-dashboard.

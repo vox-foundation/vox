@@ -11,6 +11,11 @@ on:
         type: boolean
         required: false
         default: false
+      skip_public_health_probe:
+        description: 'Skip strict HTTPS probe of the public eval host (incidents only)'
+        type: boolean
+        required: false
+        default: false
 
 concurrency:
   group: deploy-vox-${{ github.ref }}
@@ -22,13 +27,13 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ !inputs.skip_tests }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -52,30 +57,107 @@ jobs:
       COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
       COOLIFY_WEBHOOK_URL: ${{ secrets.COOLIFY_WEBHOOK_URL }}
       COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+      COOLIFY_READ_TOKEN: ${{ secrets.COOLIFY_READ_TOKEN }}
       COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
     steps:
-      - name: Trigger Coolify Webhook
+      - name: Trigger Coolify deploy
         id: trigger
         run: |
-          set -e
-          echo "Triggering Coolify webhook..."
-          TRIGGER_RES=$(curl -s -X GET -H "Authorization: Bearer $COOLIFY_TOKEN" "$COOLIFY_WEBHOOK_URL")
-          echo "Trigger Response: $TRIGGER_RES"
+          set -euo pipefail
+          POLL_TOKEN="${COOLIFY_READ_TOKEN:-$COOLIFY_TOKEN}"
           
-          # Extract deploymentUuid from response, fall back to latest for the app
-          DEPLOY_UUID=$(echo "$TRIGGER_RES" | jq -r '.deploymentUuid // empty')
+          # Parse deployment id from JSON bodies only (avoids jq on HTML login pages).
+          json_deploy_uuid() {
+            local body="$1"
+            case "$body" in
+              \{*) ;;
+              *) echo ""; return 0 ;;
+            esac
+            local u
+            u="$(jq -r '.deployment_uuid // .deploymentUuid // empty' <<<"$body" 2>/dev/null || true)"
+            if [ -n "$u" ] && [ "$u" != "null" ]; then echo "$u"; return 0; fi
+            u="$(jq -r '.deployments[0].deployment_uuid // empty' <<<"$body" 2>/dev/null || true)"
+            if [ -n "$u" ] && [ "$u" != "null" ]; then echo "$u"; return 0; fi
+            echo ""
+          }
           
+          json_first_list_uuid() {
+            local body="$1"
+            case "$body" in
+              \{*) ;;
+              *) echo ""; return 0 ;;
+            esac
+            jq -r '
+              (if type == "array" then .[0].uuid else empty end)
+                // .data[0].uuid
+                // .deployments[0].uuid
+                // empty
+            ' <<<"$body" 2>/dev/null || true
+          }
+          
+          BASE="${COOLIFY_BASE_URL%/}"
+          DEPLOY_UUID=""
+          
+          # 1) Official deploy endpoint — works with "Deploy" API token scope (not "Write").
+          echo "Triggering Coolify via GET /api/v1/deploy?uuid=..."
+          TMP="$(mktemp)"
+          HTTP_CODE="$(
+            curl -sS -o "$TMP" -w '%{http_code}' -X GET \
+              -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+              "${BASE}/api/v1/deploy?uuid=${COOLIFY_APP_UUID}" || echo "000"
+          )"
+          BODY="$(cat "$TMP" 2>/dev/null || echo "")"
+          rm -f "$TMP"
+          echo "Deploy API HTTP ${HTTP_CODE} — ${BODY}"
+          if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+            DEPLOY_UUID="$(json_deploy_uuid "$BODY")"
+          fi
+          
+          # 2) Start endpoint — requires broader token permission on some Coolify builds.
           if [ -z "$DEPLOY_UUID" ]; then
-            echo "No deploymentUuid in webhook response — polling latest deployment..."
+            echo "Trying Applications /start (instant_deploy)..."
+            START_URL="${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/start?instant_deploy=true"
+            TMP="$(mktemp)"
+            HTTP_CODE="$(
+              curl -sS -o "$TMP" -w '%{http_code}' -X GET \
+                -H "Authorization: Bearer ${COOLIFY_TOKEN}" \
+                "$START_URL" || echo "000"
+            )"
+            BODY="$(cat "$TMP" 2>/dev/null || echo "")"
+            rm -f "$TMP"
+            echo "Start API HTTP ${HTTP_CODE} — ${BODY}"
+            if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+              DEPLOY_UUID="$(json_deploy_uuid "$BODY")"
+            fi
+          fi
+          
+          # 3) Optional webhook URLs (manual hooks often omit Bearer).
+          if [ -z "$DEPLOY_UUID" ] && [ -n "${COOLIFY_WEBHOOK_URL:-}" ]; then
+            echo "Webhook fallback (no Authorization header)..."
+            WH_RES="$(curl -sS -X GET "${COOLIFY_WEBHOOK_URL}" || true)"
+            echo "Webhook response head: ${WH_RES:0:200}"
+            DEPLOY_UUID="$(json_deploy_uuid "$WH_RES")"
+          fi
+          
+          if [ -z "$DEPLOY_UUID" ] && [ -n "${COOLIFY_WEBHOOK_URL:-}" ]; then
+            echo "Webhook fallback (Bearer token)..."
+            WH_RES="$(curl -sS -X GET -H "Authorization: Bearer ${COOLIFY_TOKEN}" "${COOLIFY_WEBHOOK_URL}" || true)"
+            echo "Webhook response head: ${WH_RES:0:200}"
+            DEPLOY_UUID="$(json_deploy_uuid "$WH_RES")"
+          fi
+          
+          # 4) List recent deployments for the application.
+          if [ -z "$DEPLOY_UUID" ]; then
+            echo "Polling deployments list for this application..."
             sleep 5
-            LATEST=$(curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
-              "$COOLIFY_BASE_URL/api/v1/applications/$COOLIFY_APP_UUID/deployments")
+            LATEST="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" \
+              "${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/deployments" || true)"
             echo "Deployments response: $LATEST"
-            DEPLOY_UUID=$(echo "$LATEST" | jq -r '.[0].uuid // empty')
+            DEPLOY_UUID="$(json_first_list_uuid "$LATEST")"
           fi
           
           if [ -z "$DEPLOY_UUID" ]; then
-            echo "::error::Could not determine deployment UUID. Check COOLIFY_APP_UUID and COOLIFY_TOKEN secrets."
+            echo "::error::Could not determine deployment UUID. Use a Coolify API token with at least Deploy scope; set COOLIFY_BASE_URL (no trailing slash), COOLIFY_APP_UUID, and optionally a Deploy Webhook URL from the Coolify UI."
             exit 1
           fi
           
@@ -85,24 +167,77 @@ jobs:
       - name: Poll Deployment Status
         id: poll
         run: |
-          set -e
+          set -euo pipefail
+          POLL_TOKEN="${COOLIFY_READ_TOKEN:-$COOLIFY_TOKEN}"
           DEPLOY_UUID="${{ steps.trigger.outputs.deploy_uuid }}"
+          BASE="${COOLIFY_BASE_URL%/}"
           echo "Polling deployment $DEPLOY_UUID ..."
+          
+          deployment_status_resolve() {
+            local body="$1"
+            jq -r '
+              (if type == "array" then .[0] else . end)
+              | (.status // .deploymentStatus // .deployment.status // .data.status
+                // empty)
+            ' <<<"$body" 2>/dev/null || echo ""
+          }
+          
+          deployments_list_status_for_uuid() {
+            local deploy_uuid="$1"
+            local list apps s
+            list="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" "${BASE}/api/v1/deployments" || true)"
+            s="$(jq -r --arg u "$deploy_uuid" '
+                (if type == "array" then . elif (.data | type) == "array" then .data else [] end)
+                | [.[] | select((.deployment_uuid // .uuid // "") == $u)][0].status // empty
+              ' <<<"$list" 2>/dev/null || true)"
+            if [ -n "$s" ]; then echo "$s"; return 0; fi
+            apps="$(curl -sS -H "Authorization: Bearer ${POLL_TOKEN}" \
+              "${BASE}/api/v1/applications/${COOLIFY_APP_UUID}/deployments" || true)"
+            jq -r --arg u "$deploy_uuid" '
+                (if type == "array" then . elif (.data | type) == "array" then .data else [] end)
+                | [.[] | select((.deployment_uuid // .uuid // "") == $u)][0].status // empty
+              ' <<<"$apps" 2>/dev/null || true
+          }
           
           MAX_RETRIES=90   # 90 x 10s = 15 minutes
           RETRY_COUNT=0
           
           while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            STATUS_RES=$(curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
-              "$COOLIFY_BASE_URL/api/v1/deployments/$DEPLOY_UUID")
-            STATUS=$(echo "$STATUS_RES" | jq -r '.status // "unknown"')
+            TMP="$(mktemp)"
+            HTTP="$(curl -sS -o "$TMP" -w '%{http_code}' -H "Authorization: Bearer $POLL_TOKEN" \
+              "${BASE}/api/v1/deployments/${DEPLOY_UUID}" || echo "000")"
+            STATUS_RES="$(cat "$TMP" 2>/dev/null || echo "")"
+            rm -f "$TMP"
+            
+            if [ "$HTTP" = "403" ]; then
+              if echo "$STATUS_RES" | jq -e '(.message // "") | (test("read") and test("permission"))' >/dev/null 2>&1; then
+                ERR_MSG="$(echo "$STATUS_RES" | jq -r '.message // empty' 2>/dev/null || true)"
+                echo "::warning::Coolify HTTP 403 (polling token lacks Read): ${ERR_MSG}"
+                echo "Skipping deployment status polling — deploy was already triggered above."
+                echo "Gate 3 will still verify production via the **public** HTTPS /health probe."
+                echo "For deployment polling + Coolify API probes, set **COOLIFY_READ_TOKEN** or grant **Read** on **COOLIFY_TOKEN**."
+                echo "deploy_status=skipped_poll_no_read" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+            
+            STATUS="$(deployment_status_resolve "$STATUS_RES")"
+            if [ -z "$STATUS" ] || [ "$STATUS" = "null" ]; then
+              STATUS="$(deployments_list_status_for_uuid "$DEPLOY_UUID")"
+            fi
+            STATUS="${STATUS:-unknown}"
+            
+            if [ "$STATUS" = "unknown" ] && (( RETRY_COUNT % 15 == 0 )); then
+              echo "[$RETRY_COUNT/$MAX_RETRIES] GET /deployments/{uuid} HTTP $HTTP snippet: ${STATUS_RES:0:400}"
+            fi
             echo "[$RETRY_COUNT/$MAX_RETRIES] Status: $STATUS"
             
-            if [ "$STATUS" = "finished" ] || [ "$STATUS" = "success" ]; then
+            SNORM="${STATUS,,}"
+            if [ "$SNORM" = "finished" ] || [ "$SNORM" = "success" ] || [ "$SNORM" = "completed" ]; then
               echo "✅ Deployment succeeded."
               echo "deploy_status=success" >> "$GITHUB_OUTPUT"
               exit 0
-            elif [ "$STATUS" = "failed" ] || [ "$STATUS" = "error" ] || [ "$STATUS" = "cancelled" ]; then
+            elif [ "$SNORM" = "failed" ] || [ "$SNORM" = "error" ] || [ "$SNORM" = "cancelled" ]; then
               echo "❌ Deployment failed with status: $STATUS"
               echo "Full response: $STATUS_RES"
               echo "deploy_status=failed" >> "$GITHUB_OUTPUT"
@@ -126,8 +261,8 @@ jobs:
           # Try deployment-specific logs first
           DEPLOY_UUID="${{ steps.trigger.outputs.deploy_uuid }}"
           if [ -n "$DEPLOY_UUID" ]; then
-            curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
-              "$COOLIFY_BASE_URL/api/v1/deployments/$DEPLOY_UUID/logs" \
+            curl -sS -H "Authorization: Bearer ${COOLIFY_READ_TOKEN:-$COOLIFY_TOKEN}" \
+              "${COOLIFY_BASE_URL%/}/api/v1/deployments/$DEPLOY_UUID/logs" \
               | jq -r '.logs // .output // "No deployment logs available"' \
               >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
           fi
@@ -138,8 +273,8 @@ jobs:
           # Also surface the full application log endpoint
           echo "## 📋 Application Logs" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          curl -s -H "Authorization: Bearer $COOLIFY_TOKEN" \
-            "$COOLIFY_BASE_URL/api/v1/applications/$COOLIFY_APP_UUID/logs" \
+          curl -sS -H "Authorization: Bearer ${COOLIFY_READ_TOKEN:-$COOLIFY_TOKEN}" \
+            "${COOLIFY_BASE_URL%/}/api/v1/applications/$COOLIFY_APP_UUID/logs" \
             | jq -r '.logs // "No application logs available"' \
             >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
           echo '```' >> "$GITHUB_STEP_SUMMARY"
@@ -150,7 +285,7 @@ jobs:
           STATUS="${{ steps.poll.outputs.deploy_status }}"
           echo "{\"status\":\"$STATUS\",\"deploy_uuid\":\"${{ steps.trigger.outputs.deploy_uuid }}\",\"run_id\":\"${{ github.run_id }}\",\"sha\":\"${{ github.sha }}\"}" > deploy-status.json
           cat deploy-status.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: deploy-status
@@ -158,24 +293,70 @@ jobs:
 
   health-check:
     name: "Gate 3: Health Check"
-    needs: deploy-coolify
-    if: ${{ needs.deploy-coolify.result == 'success' }}
+    # Include smoke-ci in `needs` so Gate 3 is still scheduled when Gate 1 is skipped
+    # (`workflow_dispatch` + skip_tests). A plain `needs: deploy-coolify` + success-only `if`
+    # can incorrectly skip this job when the upstream smoke job did not run.
+    needs: [smoke-ci, deploy-coolify]
+    if: ${{ always() && needs.deploy-coolify.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Wait for container to settle
         run: sleep 15
       - name: Probe Coolify app health
+        env:
+          COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          COOLIFY_READ_TOKEN: ${{ secrets.COOLIFY_READ_TOKEN }}
+          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
         run: |
-          BASE="${{ secrets.COOLIFY_BASE_URL }}"
+          POLL="${COOLIFY_READ_TOKEN:-$COOLIFY_TOKEN}"
+          BASE="${COOLIFY_BASE_URL%/}"
           # Try the Coolify health API for this application
-          HEALTH=$(curl -s -o /dev/null -w "%{http_code}" \
-            -H "Authorization: Bearer ${{ secrets.COOLIFY_TOKEN }}" \
-            "$BASE/api/v1/applications/${{ secrets.COOLIFY_APP_UUID }}")
-          echo "Application API status: $HEALTH"
-          if [ "$HEALTH" != "200" ]; then
-            echo "::warning::Health check returned HTTP $HEALTH — application may still be starting"
+          HEALTH=$(curl -sS -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $POLL" \
+            "$BASE/api/v1/applications/${COOLIFY_APP_UUID}")
+          echo "Coolify application API HTTP status: $HEALTH"
+          if [ "$HEALTH" = "403" ]; then
+            echo "::warning::Skipping Coolify GET /applications/{uuid} (HTTP 403 — token lacks Read). Public /health probe below is authoritative."
+          elif [ "$HEALTH" != "200" ]; then
+            echo "::error::Coolify GET /api/v1/applications/{uuid} expected HTTP 200, got $HEALTH"
+            exit 1
           else
-            echo "✅ Application is responding."
+            echo "✅ Coolify application resource is reachable via API."
+          fi
+
+      - name: Probe public eval host (HTTPS, verified TLS)
+        if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.skip_public_health_probe != 'true' }}
+        env:
+          COOLIFY_PUBLIC_EVAL_HEALTH_URL: ${{ secrets.COOLIFY_PUBLIC_EVAL_HEALTH_URL }}
+        run: |
+          set -euo pipefail
+          URL="${COOLIFY_PUBLIC_EVAL_HEALTH_URL:-https://eval.vox-lang.org/health}"
+          echo "Public HTTPS probe (curl CA verification, no -k): $URL"
+          ok=""
+          for i in $(seq 1 24); do
+            tmp="$(mktemp)"
+            http="$(curl -sS -o "$tmp" -w '%{http_code}' "$URL" || echo "000")"
+            body="$(cat "$tmp" 2>/dev/null || true)"
+            rm -f "$tmp"
+            body_trim="$(printf '%s' "$body" | tr -d '\r\n')"
+            if [ "$http" = "200" ]; then
+              echo "✅ HTTP $http — body (trimmed for gate): ${body_trim} (${#body_trim} bytes)"
+              if [ "$body_trim" != "ok" ]; then
+                echo "::error::Public eval /health must return body exactly 'ok' after trimming CRLF (raw ${#body} bytes)"
+                exit 1
+              fi
+              ok="1"
+              break
+            fi
+            echo "[$i/24] HTTP $http — body head: $(printf '%s' "$body" | head -c 120)"
+            sleep 10
+          done
+          if [ -z "$ok" ]; then
+            echo "::error::Public eval health probe failed after ~4m: $URL"
+            echo "Check Coolify: TLS must chain to a public CA (not self-signed), Traefik Host rule must match,"
+            echo "and the eval container must pass its Docker healthcheck (503 'no available server' = no backend)."
+            exit 1
           fi
 
   notify:

@@ -228,8 +228,7 @@ impl crate::VoxDb {
             .retention_delete_older_than_days("external_review_deadletter", "created_at", days)
             .await?;
 
-        let sql = format!(
-            "DELETE FROM external_review_comment_thread
+        let sql = "DELETE FROM external_review_comment_thread
              WHERE id IN (
                SELECT t.id
                FROM external_review_comment_thread t
@@ -247,7 +246,7 @@ impl crate::VoxDb {
                    )
                  )
              )"
-        );
+        .to_string();
         let _ = sql; // keep complex prune path disabled until thread timestamp migration is added
         // Current schema has no thread timestamp column; keep zero until additive migration introduces one.
         let orphan_thread_deleted = 0u64;

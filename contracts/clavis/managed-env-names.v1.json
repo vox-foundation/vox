@@ -1,6 +1,6 @@
 {
   "schema": "contracts/clavis/managed-env-names.v1.json",
-  "generated_at_ms": 1776909558798,
+  "generated_at_ms": 1778096228740,
   "generator": "vox ci clavis-contracts",
   "secrets": [
     {
@@ -56,6 +56,248 @@
     {
       "id": "OpenRouterModel",
       "canonical_env": "OPENROUTER_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxOpenRouterChatModel",
+      "canonical_env": "OPENROUTER_CHAT_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxHfChatModel",
+      "canonical_env": "HF_CHAT_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxHfDedicatedChatUrl",
+      "canonical_env": "HF_DEDICATED_CHAT_URL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxHfDedicatedChatModel",
+      "canonical_env": "HF_DEDICATED_CHAT_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxHfRouterChatCompletionsUrl",
+      "canonical_env": "VOX_HF_ROUTER_CHAT_COMPLETIONS_URL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxAutoModelStrategy",
+      "canonical_env": "VOX_AUTO_MODEL_STRATEGY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxAutoRoutingPriority",
+      "canonical_env": "VOX_AUTO_ROUTING_PRIORITY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxGeminiRoutePolicy",
+      "canonical_env": "VOX_GEMINI_ROUTE_POLICY",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxRoutingProfile",
+      "canonical_env": "VOX_ROUTING_PROFILE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxRoutingExplorationEpsilon",
+      "canonical_env": "VOX_ROUTING_EXPLORATION_EPSILON",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxRoutingMaxSpendUsdPerSession",
+      "canonical_env": "VOX_ROUTING_MAX_SPEND_USD_PER_SESSION",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxRoutingProviderAllowlist",
+      "canonical_env": "VOX_ROUTING_PROVIDER_ALLOWLIST",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxRoutingProviderDenylist",
+      "canonical_env": "VOX_ROUTING_PROVIDER_DENYLIST",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxCapabilityRequireImageGeneration",
+      "canonical_env": "VOX_CAPABILITY_REQUIRE_IMAGE_GENERATION",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxCapabilityRequireToolUse",
+      "canonical_env": "VOX_CAPABILITY_REQUIRE_TOOL_USE",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxCapabilityRequireReasoning",
+      "canonical_env": "VOX_CAPABILITY_REQUIRE_REASONING",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxCapabilityRequireWebSearch",
+      "canonical_env": "VOX_CAPABILITY_REQUIRE_WEB_SEARCH",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxCapabilityPreferReasoning",
+      "canonical_env": "VOX_CAPABILITY_PREFER_REASONING",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxCapabilityImageGenerationModel",
+      "canonical_env": "VOX_CAPABILITY_IMAGE_GENERATION_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxCapabilityVisionModel",
+      "canonical_env": "VOX_CAPABILITY_VISION_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxCapabilityCodeGenModel",
+      "canonical_env": "VOX_CAPABILITY_CODEGEN_MODEL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxRoutingHardPinModel",
+      "canonical_env": "VOX_ROUTING_HARD_PIN_MODEL",
       "aliases": [],
       "deprecated_aliases": [],
       "class": "Operator",
@@ -230,7 +472,9 @@
     {
       "id": "V0ApiKey",
       "canonical_env": "V0_API_KEY",
-      "aliases": [],
+      "aliases": [
+        "VOX_V0_API_KEY"
+      ],
       "deprecated_aliases": [],
       "class": "Integration",
       "material_kind": "ApiKey",
@@ -242,7 +486,9 @@
     {
       "id": "OpenClawToken",
       "canonical_env": "OPENCLAW_TOKEN",
-      "aliases": [],
+      "aliases": [
+        "VOX_OPENCLAW_TOKEN"
+      ],
       "deprecated_aliases": [],
       "class": "Integration",
       "material_kind": "ApiKey",
@@ -533,6 +779,61 @@
       ]
     },
     {
+      "id": "CoolifyWebhookUrl",
+      "canonical_env": "COOLIFY_WEBHOOK_URL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "CoolifyBaseUrl",
+      "canonical_env": "COOLIFY_BASE_URL",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "CoolifyToken",
+      "canonical_env": "COOLIFY_TOKEN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "CoolifyReadToken",
+      "canonical_env": "COOLIFY_READ_TOKEN",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Integration",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "CoolifyAppUuid",
+      "canonical_env": "COOLIFY_APP_UUID",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
       "id": "VoxCostPreference",
       "canonical_env": "VOX_COST_PREFERENCE",
       "aliases": [],
@@ -570,32 +871,6 @@
       "material_kind": "ApiKey",
       "capabilities": [
         "PublishReview"
-      ]
-    },
-    {
-      "id": "V0ApiKey",
-      "canonical_env": "V0_API_KEY",
-      "aliases": [
-        "VOX_V0_API_KEY"
-      ],
-      "deprecated_aliases": [],
-      "class": "Integration",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "AuxTools",
-        "AutonomousResearch"
-      ]
-    },
-    {
-      "id": "OpenClawToken",
-      "canonical_env": "VOX_OPENCLAW_TOKEN",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Integration",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "AuxTools",
-        "AutonomousResearch"
       ]
     },
     {
@@ -712,7 +987,9 @@
       "id": "TavilyProject",
       "canonical_env": "TAVILY_PROJECT",
       "aliases": [
-        "VOX_TAVILY_PROJECT"
+        "VOX_TAVILY_PROJECT",
+        "TAVILY_PROJECT_ID",
+        "VOX_TAVILY_PROJECT_ID"
       ],
       "deprecated_aliases": [],
       "class": "Integration",
@@ -731,20 +1008,6 @@
       "material_kind": "ApiKey",
       "capabilities": [
         "Orchestration"
-      ]
-    },
-    {
-      "id": "TavilyProject",
-      "canonical_env": "TAVILY_PROJECT_ID",
-      "aliases": [
-        "VOX_TAVILY_PROJECT_ID"
-      ],
-      "deprecated_aliases": [],
-      "class": "Integration",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "AuxTools",
-        "AutonomousResearch"
       ]
     },
     {
@@ -794,17 +1057,6 @@
     {
       "id": "VoxProviderDailyLimitsJson",
       "canonical_env": "VOX_PROVIDER_DAILY_LIMITS_JSON",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    {
-      "id": "VoxWorkspaceRoot",
-      "canonical_env": "VOX_WORKSPACE_ROOT",
       "aliases": [],
       "deprecated_aliases": [],
       "class": "Operator",
@@ -951,19 +1203,6 @@
       "id": "VoxCandleDevice",
       "canonical_env": "VOX_CANDLE_DEVICE",
       "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    {
-      "id": "VoxRepositoryRoot",
-      "canonical_env": "VOX_REPOSITORY_ROOT",
-      "aliases": [
-        "VOX_REPO_ROOT"
-      ],
       "deprecated_aliases": [],
       "class": "Operator",
       "material_kind": "ApiKey",
@@ -1229,50 +1468,6 @@
     {
       "id": "VoxMcpHttpReadBearerToken",
       "canonical_env": "VOX_MCP_HTTP_READ_BEARER_TOKEN",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    {
-      "id": "VoxGithubSha",
-      "canonical_env": "GITHUB_SHA",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    {
-      "id": "SkipCudaFeatureCheck",
-      "canonical_env": "SKIP_CUDA_FEATURE_CHECK",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    {
-      "id": "VoxCargoBin",
-      "canonical_env": "VOX_CARGO_BIN",
-      "aliases": [],
-      "deprecated_aliases": [],
-      "class": "Operator",
-      "material_kind": "ApiKey",
-      "capabilities": [
-        "Orchestration"
-      ]
-    },
-    {
-      "id": "VoxCliGlobalJson",
-      "canonical_env": "VOX_CLI_GLOBAL_JSON",
       "aliases": [],
       "deprecated_aliases": [],
       "class": "Operator",
@@ -4842,6 +5037,17 @@
     {
       "id": "VoxSearchMemoryVectorWeight",
       "canonical_env": "VOX_SEARCH_MEMORY_VECTOR_WEIGHT",
+      "aliases": [],
+      "deprecated_aliases": [],
+      "class": "Operator",
+      "material_kind": "ApiKey",
+      "capabilities": [
+        "Orchestration"
+      ]
+    },
+    {
+      "id": "VoxSearchChunkVectorWeight",
+      "canonical_env": "VOX_SEARCH_CHUNK_VECTOR_WEIGHT",
       "aliases": [],
       "deprecated_aliases": [],
       "class": "Operator",

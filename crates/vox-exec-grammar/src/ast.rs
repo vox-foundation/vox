@@ -165,19 +165,31 @@ pub(crate) fn parse_raw(raw: &str) -> Result<ExecAst, super::ParseError> {
             // Redirect operators
             "|" => {
                 let target = iter.next().unwrap_or_default();
-                redirects.push(Redirect { kind: RedirectKind::Pipe, target });
+                redirects.push(Redirect {
+                    kind: RedirectKind::Pipe,
+                    target,
+                });
             }
             ">" => {
                 let target = iter.next().unwrap_or_default();
-                redirects.push(Redirect { kind: RedirectKind::Stdout, target });
+                redirects.push(Redirect {
+                    kind: RedirectKind::Stdout,
+                    target,
+                });
             }
             ">>" => {
                 let target = iter.next().unwrap_or_default();
-                redirects.push(Redirect { kind: RedirectKind::StdoutAppend, target });
+                redirects.push(Redirect {
+                    kind: RedirectKind::StdoutAppend,
+                    target,
+                });
             }
             "2>" => {
                 let target = iter.next().unwrap_or_default();
-                redirects.push(Redirect { kind: RedirectKind::Stderr, target });
+                redirects.push(Redirect {
+                    kind: RedirectKind::Stderr,
+                    target,
+                });
             }
             // Double-dash: everything after is positional
             "--" => {
@@ -187,7 +199,10 @@ pub(crate) fn parse_raw(raw: &str) -> Result<ExecAst, super::ParseError> {
                 // Long flag: --name or --name=value
                 let body = &tok[2..];
                 if let Some((name, val)) = body.split_once('=') {
-                    flags.push(Flag { name: name.to_owned(), value: Some(val.to_owned()) });
+                    flags.push(Flag {
+                        name: name.to_owned(),
+                        value: Some(val.to_owned()),
+                    });
                 } else {
                     // Peek: if next token is not a flag and not a redirect, treat as value
                     let value = match iter.peek() {
@@ -199,7 +214,10 @@ pub(crate) fn parse_raw(raw: &str) -> Result<ExecAst, super::ParseError> {
                         }
                         _ => None,
                     };
-                    flags.push(Flag { name: body.to_owned(), value });
+                    flags.push(Flag {
+                        name: body.to_owned(),
+                        value,
+                    });
                 }
             }
             tok if !after_double_dash
@@ -223,18 +241,30 @@ pub(crate) fn parse_raw(raw: &str) -> Result<ExecAst, super::ParseError> {
                         }
                         _ => None,
                     };
-                    flags.push(Flag { name: body.to_owned(), value });
+                    flags.push(Flag {
+                        name: body.to_owned(),
+                        value,
+                    });
                 } else if first.is_ascii_lowercase() {
                     let rest: String = body_chars.collect();
                     if rest.chars().all(|c| c.is_ascii_lowercase()) {
                         // POSIX bundled lowercase flags: `-rf`, `-abc` → one flag each.
-                        flags.push(Flag { name: first.to_string(), value: None });
+                        flags.push(Flag {
+                            name: first.to_string(),
+                            value: None,
+                        });
                         for ch in rest.chars() {
-                            flags.push(Flag { name: ch.to_string(), value: None });
+                            flags.push(Flag {
+                                name: ch.to_string(),
+                                value: None,
+                            });
                         }
                     } else {
                         // POSIX attached value: `-p22`, `-C/tmp`, `-oout.log` → name="p", value="22".
-                        flags.push(Flag { name: first.to_string(), value: Some(rest) });
+                        flags.push(Flag {
+                            name: first.to_string(),
+                            value: Some(rest),
+                        });
                     }
                 } else {
                     // PowerShell / GNU long-word style: -Recurse, -Path foo, -J4.
@@ -247,7 +277,10 @@ pub(crate) fn parse_raw(raw: &str) -> Result<ExecAst, super::ParseError> {
                         }
                         _ => None,
                     };
-                    flags.push(Flag { name: body.to_owned(), value });
+                    flags.push(Flag {
+                        name: body.to_owned(),
+                        value,
+                    });
                 }
             }
             tok => {
@@ -398,7 +431,10 @@ mod tests {
 
     #[test]
     fn empty_error() {
-        assert!(matches!(parse_raw("   "), Err(super::super::ParseError::Empty)));
+        assert!(matches!(
+            parse_raw("   "),
+            Err(super::super::ParseError::Empty)
+        ));
     }
 
     #[test]

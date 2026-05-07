@@ -131,16 +131,13 @@ impl MeshTraceContext {
                 parts[0]
             )));
         }
-        let trace_id = TraceId::from_hex(parts[1]).ok_or_else(|| {
-            ParseTraceparentError(format!("invalid trace_id {:?}", parts[1]))
-        })?;
+        let trace_id = TraceId::from_hex(parts[1])
+            .ok_or_else(|| ParseTraceparentError(format!("invalid trace_id {:?}", parts[1])))?;
         let parent_span_id = SpanId::from_hex(parts[2]).ok_or_else(|| {
             ParseTraceparentError(format!("invalid parent_span_id {:?}", parts[2]))
         })?;
-        let flags_bytes =
-            hex_decode_fixed::<1>(parts[3]).ok_or_else(|| {
-                ParseTraceparentError(format!("invalid trace_flags {:?}", parts[3]))
-            })?;
+        let flags_bytes = hex_decode_fixed::<1>(parts[3])
+            .ok_or_else(|| ParseTraceparentError(format!("invalid trace_flags {:?}", parts[3])))?;
         Ok(Self {
             trace_id,
             parent_span_id,
@@ -230,7 +227,7 @@ mod tests {
             "00-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ-00f067aa0ba902b7-01", // non-hex trace_id
             "00-00000000000000000000000000000000-00f067aa0ba902b7-01", // all-zero trace_id
             "00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01", // all-zero span_id
-            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7",   // missing flags
+            "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7",    // missing flags
             "",
         ];
         for bad in &cases {
@@ -245,7 +242,10 @@ mod tests {
     fn child_preserves_trace_id_and_changes_span_id() {
         let parent = MeshTraceContext::new_root();
         let child = parent.child();
-        assert_eq!(parent.trace_id, child.trace_id, "trace_id must be preserved");
+        assert_eq!(
+            parent.trace_id, child.trace_id,
+            "trace_id must be preserved"
+        );
         assert_ne!(
             parent.parent_span_id, child.parent_span_id,
             "span_id must change"

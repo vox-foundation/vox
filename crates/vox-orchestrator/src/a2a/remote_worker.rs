@@ -90,7 +90,9 @@ async fn process_one_envelope(
                 error = %e,
                 "populi remote worker: invalid envelope JSON; acking to drain poison-pill"
             );
-            let _ = client.relay_a2a_ack(&receiver_agent.to_string(), msg.id).await;
+            let _ = client
+                .relay_a2a_ack(&receiver_agent.to_string(), msg.id)
+                .await;
             return;
         }
     };
@@ -400,9 +402,16 @@ async fn run_remote_worker_tick(
             message_id = msg.id,
             "vox.mesh.trace_id" = trace_id.as_deref().unwrap_or(""),
         );
-        process_one_envelope(orchestrator, client, sender_agent, receiver_agent, msg, &node_id)
-            .instrument(span)
-            .await;
+        process_one_envelope(
+            orchestrator,
+            client,
+            sender_agent,
+            receiver_agent,
+            msg,
+            &node_id,
+        )
+        .instrument(span)
+        .await;
     }
 }
 

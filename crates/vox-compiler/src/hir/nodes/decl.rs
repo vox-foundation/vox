@@ -18,8 +18,6 @@ pub enum HirFieldOwnership {
     AppContract,
 }
 
-
-
 /// A fully lowered Vox module: every declaration category is collected into its own vector.
 ///
 /// Empty vectors mean the construct was absent in source; there is no implicit ordering across
@@ -86,8 +84,6 @@ pub struct HirModule {
 
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
-
-
 }
 
 /// Snapshot of a post-migration semantic-only HIR shape.
@@ -601,7 +597,9 @@ pub struct HirOnCleanup {
 /// A capability declared via the `uses` clause: `fn f() uses net, db { … }`.
 ///
 /// Distinct from [`HirEffect`] which is a reactive lifecycle effect (`effect { … }` block).
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum HirCapability {
     Net,
     Db,
@@ -764,8 +762,9 @@ mod tests {
                 && *own == HirFieldOwnership::MigrationOnly)
         );
         assert!(
-            map.iter()
-                .any(|(name, own)| *name == "endpoint_fns" && *own == HirFieldOwnership::AppContract)
+            map.iter().any(
+                |(name, own)| *name == "endpoint_fns" && *own == HirFieldOwnership::AppContract
+            )
         );
         assert!(
             map.iter()

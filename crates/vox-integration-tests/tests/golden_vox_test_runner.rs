@@ -159,9 +159,7 @@ fn all_golden_at_test_fns_pass() {
             .map(|(path, name, msg)| {
                 format!(
                     "  FAIL {}::{}\n       {}\n",
-                    path.strip_prefix(&root)
-                        .unwrap_or(path)
-                        .to_string_lossy(),
+                    path.strip_prefix(&root).unwrap_or(path).to_string_lossy(),
                     name,
                     msg
                 )

@@ -372,10 +372,10 @@ fn infer_origin(obj: &serde_json::Map<String, serde_json::Value>) -> &'static st
             return "agent";
         }
     }
-    if let Some(cat) = obj.get("category").and_then(|x| x.as_str()) {
-        if cat == "tool_trace" || cat == "speech_to_code" {
-            return "agent";
-        }
+    if let Some(cat) = obj.get("category").and_then(|x| x.as_str())
+        && (cat == "tool_trace" || cat == "speech_to_code")
+    {
+        return "agent";
     }
     "synthetic"
 }
@@ -539,27 +539,23 @@ pub fn run_mix_with_options(
             .map(|s| format!("{}.mix_report.json", s.to_string_lossy()))
             .unwrap_or_else(|| "mix_report.json".into());
         let report_path = out_path.with_file_name(report_name);
-        if report_path.is_file() && out_path.is_file() {
-            if let Ok(raw) = std::fs::read_to_string(&report_path) {
-                if let Ok(report) = serde_json::from_str::<MixRunReport>(&raw) {
-                    if report.config_fingerprint == config_fp {
-                        let mut all_match = true;
-                        for src_report in &report.sources {
-                            let p = cwd.join(&src_report.path);
-                            if calculate_file_fingerprint(&p) != src_report.source_fingerprint {
-                                all_match = false;
-                                break;
-                            }
-                        }
-                        if all_match {
-                            tracing::info!(
-                                "  [mix] Incremental skip: {} is fresh",
-                                out_path.display()
-                            );
-                            return Ok(());
-                        }
-                    }
+        if report_path.is_file()
+            && out_path.is_file()
+            && let Ok(raw) = std::fs::read_to_string(&report_path)
+            && let Ok(report) = serde_json::from_str::<MixRunReport>(&raw)
+            && report.config_fingerprint == config_fp
+        {
+            let mut all_match = true;
+            for src_report in &report.sources {
+                let p = cwd.join(&src_report.path);
+                if calculate_file_fingerprint(&p) != src_report.source_fingerprint {
+                    all_match = false;
+                    break;
                 }
+            }
+            if all_match {
+                tracing::info!("  [mix] Incremental skip: {} is fresh", out_path.display());
+                return Ok(());
             }
         }
     }

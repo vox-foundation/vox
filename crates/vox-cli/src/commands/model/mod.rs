@@ -5,9 +5,12 @@ use clap::{Parser, Subcommand};
 pub mod costs;
 pub mod discover;
 pub mod explain;
+pub mod list;
+pub mod preferences;
 pub mod pricing;
 pub mod rollup;
 pub mod scoreboard;
+pub mod show;
 
 /// Manage models: discovery, scoreboard, and explainability.
 #[derive(Parser)]
@@ -24,6 +27,12 @@ pub enum ModelCmd {
     Rollup(rollup::RollupArgs),
     /// Show the model scoreboard (latency, success rate, cost).
     Scoreboard(scoreboard::ScoreboardArgs),
+    /// List model ids from the local catalog cache.
+    List(list::ListArgs),
+    /// Show JSON for one model from the cache.
+    Show(show::ShowArgs),
+    /// Set or reset Clavis capability routing preferences.
+    Preferences(preferences::PreferencesArgs),
     /// Explain model selection for a given task description.
     Explain(explain::ExplainArgs),
     /// Show detailed cost reporting.
@@ -37,6 +46,9 @@ pub async fn run(cmd: ModelCmd) -> anyhow::Result<()> {
         ModelCmd::Discover(args) => discover::run(args).await,
         ModelCmd::Rollup(args) => rollup::run(args).await,
         ModelCmd::Scoreboard(args) => scoreboard::run(args).await,
+        ModelCmd::List(args) => list::run(args).await,
+        ModelCmd::Show(args) => show::run(args).await,
+        ModelCmd::Preferences(args) => preferences::run(args).await,
         ModelCmd::Explain(args) => explain::run(args).await,
         ModelCmd::Costs(args) => costs::run(args).await,
         ModelCmd::Pricing(args) => pricing::run(args).await,

@@ -76,7 +76,10 @@ mod unit {
         store
             .ack_a2a(
                 1,
-                A2AAck { acknowledged: true, acked_unix_ms: 12345 },
+                A2AAck {
+                    acknowledged: true,
+                    acked_unix_ms: 12345,
+                },
             )
             .await
             .unwrap();
@@ -85,7 +88,10 @@ mod unit {
         assert!(pending.is_empty(), "acked row must be excluded");
 
         let all = store
-            .list_a2a(A2APage { include_acked: true, ..Default::default() })
+            .list_a2a(A2APage {
+                include_acked: true,
+                ..Default::default()
+            })
             .await
             .unwrap();
         assert_eq!(all.len(), 1);
@@ -99,7 +105,10 @@ mod unit {
             store.put_a2a(&a2a(i, "A")).await.unwrap();
         }
         let page = store
-            .list_a2a(A2APage { since_id: Some(3), ..Default::default() })
+            .list_a2a(A2APage {
+                since_id: Some(3),
+                ..Default::default()
+            })
             .await
             .unwrap();
         assert_eq!(page.len(), 2);
@@ -114,7 +123,10 @@ mod unit {
             store.put_a2a(&a2a(i, "A")).await.unwrap();
         }
         let page = store
-            .list_a2a(A2APage { limit: Some(3), ..Default::default() })
+            .list_a2a(A2APage {
+                limit: Some(3),
+                ..Default::default()
+            })
             .await
             .unwrap();
         assert_eq!(page.len(), 3);

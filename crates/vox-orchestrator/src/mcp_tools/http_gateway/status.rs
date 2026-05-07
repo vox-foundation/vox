@@ -21,7 +21,8 @@ pub(super) async fn http_health(
         )
             .into_response();
     }
-    Json(serde_json::json!({ "status": "ok" })).into_response()
+    // Plain body for load balancers and strict `curl` gates (e.g. `eval.vox-lang.org/health`).
+    (StatusCode::OK, "ok").into_response()
 }
 pub(super) async fn http_info(
     State(state): State<GatewayState>,

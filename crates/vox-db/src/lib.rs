@@ -94,10 +94,10 @@ mod config;
 pub mod data_flow;
 pub mod ddl;
 pub mod error_enrichment;
-pub mod sql_util;
 /// Parameters for [`VoxDb::record_eval_run`].
 mod eval_params;
 pub mod exec_time_telemetry;
+pub mod sql_util;
 pub use exec_time_telemetry::{ExecOutcome, ExecTimeRecord, TimedExecution, ToolLatencyProfile};
 pub mod hash;
 pub mod learning;
@@ -113,6 +113,7 @@ pub use writer_actor::{DbWriteCmd, VoxWriteHandle};
 pub mod paths;
 pub mod pool;
 pub use pool::VoxDbPool;
+pub mod outcome_recorder;
 /// Mens control-plane audit (`populi_control_event` in `research_metrics`).
 pub mod populi_control_telemetry;
 /// Opt-in mens local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
@@ -165,6 +166,7 @@ pub use eval_params::EvalRunParams;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
 pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalSampleRecord};
+pub use outcome_recorder::UnifiedLlmTurnRowIds;
 pub use project_store::{open_project_db, open_project_db_at_root};
 pub use questioning_telemetry::{QuestioningKpiSnapshot, QuestioningResearchArtifact};
 pub use research::{

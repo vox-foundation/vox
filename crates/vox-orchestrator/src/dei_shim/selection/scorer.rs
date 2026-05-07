@@ -88,6 +88,10 @@ impl ModelScorer {
         let has_openrouter_equivalent = params.has_openrouter_equivalent;
         let mode = params.mode;
 
+        if crate::route_policy::route_policy_exclusion_reason(model).is_some() {
+            return f64::NEG_INFINITY;
+        }
+
         if free_only && !model.is_free {
             return f64::NEG_INFINITY;
         }

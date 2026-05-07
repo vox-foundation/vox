@@ -141,17 +141,29 @@ pub enum ContrastSeverity {
 /// Parse `surface.*` entries with `$surface_pair: true` into registry.surface_pairs.
 /// Token dot-paths (e.g. "color.text") are converted to CSS-var keys ("color-text").
 fn walk_surface_pairs(surface_obj: &serde_json::Value, registry: &mut TokenRegistry) {
-    let Some(obj) = surface_obj.as_object() else { return };
+    let Some(obj) = surface_obj.as_object() else {
+        return;
+    };
     for (name, entry) in obj {
         if name.starts_with('$') {
             continue;
         }
-        let Some(entry_obj) = entry.as_object() else { continue };
-        if !entry_obj.get("$surface_pair").and_then(|v| v.as_bool()).unwrap_or(false) {
+        let Some(entry_obj) = entry.as_object() else {
+            continue;
+        };
+        if !entry_obj
+            .get("$surface_pair")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             continue;
         }
-        let Some(fg_path) = entry_obj.get("fg").and_then(|v| v.as_str()) else { continue };
-        let Some(bg_path) = entry_obj.get("bg").and_then(|v| v.as_str()) else { continue };
+        let Some(fg_path) = entry_obj.get("fg").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        let Some(bg_path) = entry_obj.get("bg").and_then(|v| v.as_str()) else {
+            continue;
+        };
         registry.surface_pairs.insert(
             name.clone(),
             SurfacePairEntry {
@@ -171,14 +183,16 @@ fn walk_json(val: &serde_json::Value, path: &[&str], registry: &mut TokenRegistr
             if let Some(value_str) = obj.get("value").and_then(|v| v.as_str()) {
                 // Annotated color token: { "value": "#hex", "on": "color.background", ... }
                 let key = path.join("-");
-                registry.by_css_var.insert(key.clone(), value_str.to_string());
+                registry
+                    .by_css_var
+                    .insert(key.clone(), value_str.to_string());
 
                 if let Some(on_path) = obj.get("on").and_then(|v| v.as_str()) {
                     let bg_key = on_path.replace('.', "-");
                     let text_role = obj
                         .get("text_role")
                         .and_then(|v| v.as_str())
-                        .and_then(TextRole::from_str)
+                        .and_then(|s| s.parse::<TextRole>().ok())
                         .unwrap_or(TextRole::Body);
                     registry.contrast_pairs.push(ContrastPair {
                         foreground_key: key,
@@ -233,9 +247,7 @@ fn levenshtein(a: &str, b: &str) -> usize {
         curr[0] = i;
         for j in 1..=n {
             let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
-            curr[j] = (prev[j] + 1)
-                .min(curr[j - 1] + 1)
-                .min(prev[j - 1] + cost);
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
         }
         std::mem::swap(&mut prev, &mut curr);
     }
@@ -307,7 +319,10 @@ mod tests {
         }"##;
         let reg = TokenRegistry::load_from_str(json).unwrap();
         let diags = reg.validate_contrast();
-        assert!(!diags.is_empty(), "expected a contrast failure for #cccccc on #ffffff");
+        assert!(
+            !diags.is_empty(),
+            "expected a contrast failure for #cccccc on #ffffff"
+        );
         assert_eq!(diags[0].severity, ContrastSeverity::Error);
     }
 

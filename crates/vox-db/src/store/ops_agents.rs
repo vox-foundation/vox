@@ -216,14 +216,14 @@ impl crate::VoxDb {
                     ],
                 )
                 .await?;
-                
+
                 let rowid = conn.last_insert_rowid();
-                
+
                 // 2. Upsert to model_scoreboard (7-day window)
                 let window_days = 7;
                 let cost_to_add = cost_usd.unwrap_or(0.0);
-                
-                // Note: p50/p99 approximations require separate compute batches. 
+
+                // Note: p50/p99 approximations require separate compute batches.
                 // We do a simple exponential moving average for quality/cost here for now,
                 // or just increment the counters and let batch jobs recalculate p50.
                 conn.execute(
@@ -247,7 +247,7 @@ impl crate::VoxDb {
                         now_ms
                     ]
                 ).await?;
-                
+
                 Ok::<_, StoreError>(rowid)
             })
             .await

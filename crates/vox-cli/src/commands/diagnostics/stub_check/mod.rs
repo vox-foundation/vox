@@ -119,7 +119,7 @@ pub async fn run(
             let task_queue = vox_toestub::TaskQueue::from_findings(&findings);
             let fix_suggestions_json = serde_json::to_string(&task_queue.fix_suggestions)
                 .unwrap_or_else(|_| "[]".to_string());
-            
+
             save_task_queue(
                 &db,
                 &user_id,
@@ -129,7 +129,7 @@ pub async fn run(
             )
             .await
             .map_err(|e| anyhow::anyhow!("save_task_queue: {:?}", e))?;
-            
+
             println!(
                 "Ingested {} findings from {} into VoxDB task queue (user_id={}).",
                 total,
@@ -139,7 +139,9 @@ pub async fn run(
             db.shutdown_for_drop();
             Ok::<(), anyhow::Error>(())
         });
-        handle.await.map_err(|_| anyhow::anyhow!("ingest task panicked"))??;
+        handle
+            .await
+            .map_err(|_| anyhow::anyhow!("ingest task panicked"))??;
         return Ok(());
     }
 

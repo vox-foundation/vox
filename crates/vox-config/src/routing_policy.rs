@@ -10,8 +10,8 @@ pub enum AutoModelStrategy {
 impl AutoModelStrategy {
     #[must_use]
     pub fn from_env() -> Self {
-        let raw = std::env::var("VOX_AUTO_MODEL_STRATEGY")
-            .unwrap_or_else(|_| "provider_auto".to_string());
+        let raw = crate::clavis::clavis_str(vox_clavis::SecretId::VoxAutoModelStrategy)
+            .unwrap_or_else(|| "provider_auto".to_string());
         match raw.trim().to_ascii_lowercase().as_str() {
             "preferred_model" | "preferred" => Self::PreferredModel,
             _ => Self::ProviderAuto,
@@ -66,9 +66,9 @@ impl Default for AutoRoutingPriority {
 impl AutoRoutingPriority {
     #[must_use]
     pub fn from_env() -> Self {
-        let raw = match std::env::var("VOX_AUTO_ROUTING_PRIORITY") {
-            Ok(v) => v,
-            Err(_) => return Self::default(),
+        let Some(raw) = crate::clavis::clavis_str(vox_clavis::SecretId::VoxAutoRoutingPriority)
+        else {
+            return Self::default();
         };
         let mut out = Self::default();
         for part in raw.split(',') {
@@ -102,8 +102,8 @@ pub enum GeminiRoutePolicy {
 impl GeminiRoutePolicy {
     #[must_use]
     pub fn from_env() -> Self {
-        let raw = std::env::var("VOX_GEMINI_ROUTE_POLICY")
-            .unwrap_or_else(|_| "openrouter_first".to_string());
+        let raw = crate::clavis::clavis_str(vox_clavis::SecretId::VoxGeminiRoutePolicy)
+            .unwrap_or_else(|| "openrouter_first".to_string());
         match raw.trim().to_ascii_lowercase().as_str() {
             "registry_default" | "default" => Self::RegistryDefault,
             "google_direct_only" | "google_only" | "direct_only" => Self::GoogleDirectOnly,

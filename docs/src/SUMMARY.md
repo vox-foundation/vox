@@ -98,7 +98,6 @@ training_eligible: false
 ## Status: Current
 
 - [Known Documentation Gaps & Backlog](api/DOC_GAPS.md)
-- [vox-codegen-ts API](api/vox-codegen-ts.md)
 
 ## Status: Deprecated
 
@@ -115,6 +114,7 @@ training_eligible: false
 - [Crate API: vox-py](archive/vox-py.md)
 - [Crate API: vox-typeck](archive/vox-typeck.md)
 - [Crate API: vox-wasm](archive/vox-wasm.md)
+- [vox-codegen-ts API (deprecated stub)](api/vox-codegen-ts.md)
 
 
 # Examples
@@ -174,6 +174,7 @@ training_eligible: false
 - [Classification Taxonomy SSoT](architecture/classification-ssot-2026.md)
 - [Cryptography Policy SSoT](architecture/cryptography-ssot-2026.md)
 - [MCP exposure from the Vox language (SSOT)](archive/research-2026-q1/mcp-vox-language-exposure.md)
+- [Search & Retrieval SSOT (2026)](architecture/search-retrieval-ssot-2026.md)
 - [ADR 030 — state_machine as SSoT for reactive UI state](adr/030-state-machine-ssot.md)
 - [ADR 031 — Deprecate vox-vscode; dashboard is the primary surface](adr/031-deprecate-vox-vscode.md)
 - [ADR 032 — `.vox.ui` reactive modules](adr/032-vox-ui-reactive-modules.md)
@@ -201,6 +202,7 @@ training_eligible: false
 - [Document maintenance protocol](architecture/planning-meta/10-document-maintenance-protocol.md)
 - [Documentation hygiene and AI-agent guidelines 2026](archive/research-2026-q1/doc-hygiene-agent-guidelines-2026.md)
 - [Durability & Scheduling Runtime Audit (2026)](architecture/durability-runtime-audit-2026.md)
+- [Eval sandbox deployment (Coolify)](architecture/eval-sandbox-deployment.md)
 - [Exception and deferral policy](architecture/planning-meta/09-exception-deferral-policy.md)
 - [FFScript Linter Engine Design (T-046)](architecture/ffscript-linter-design-2026.md)
 - [FFScript Mutation API Spec (T-041)](architecture/ffscript-mutation-api-spec-2026.md)
@@ -613,6 +615,7 @@ training_eligible: false
 - [External repositories & workspace SSOT](reference/external-repositories.md)
 - [Feasibility: full-graph Candle training (qlora-rs)](archive/research-2026-q1/candle-full-graph-feasibility.md)
 - [Forward-only migration charter](archive/research-2026-q1/forward-migration-charter.md)
+- [Frontend Surface Ownership](reference/frontend-surface-ownership.md)
 - [GitHub-hosted runner exceptions](ci/github-hosted-exceptions.md)
 - [HF fine-tune gap matrix (SSOT ↔ code)](reference/hf-finetune-gap-matrix.md)
 - [HF fine-tuning capability matrix (code-grounded)](archive/research-2026-q1/hf-finetune-capability-matrix.md)

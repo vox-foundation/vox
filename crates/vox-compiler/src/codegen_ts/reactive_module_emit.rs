@@ -150,11 +150,7 @@ fn emit_one(pascal: &str, rm: &HirReactiveModule) -> String {
     out
 }
 
-fn emit_member(
-    m: &HirReactiveMember,
-    state_names: &HashSet<String>,
-    out: &mut String,
-) {
+fn emit_member(m: &HirReactiveMember, state_names: &HashSet<String>, out: &mut String) {
     match m {
         HirReactiveMember::State(HirState { name, init, .. }) => {
             let init_str = emit_hir_expr(init, state_names);
@@ -167,22 +163,14 @@ fn emit_member(
             // Conservative dep array: every state name visible in the module.
             // A future slice can re-use extract_state_deps_with_diagnostics
             // for tighter tracking.
-            let deps = state_names
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>()
-                .join(", ");
+            let deps = state_names.iter().cloned().collect::<Vec<_>>().join(", ");
             out.push_str(&format!(
                 "  const {name} = useMemo(() => {expr_str}, [{deps}]);\n"
             ));
         }
         HirReactiveMember::Effect(HirEffect { body, .. }) => {
             let stmts = emit_block_stmts(body, state_names, 2);
-            let deps = state_names
-                .iter()
-                .cloned()
-                .collect::<Vec<_>>()
-                .join(", ");
+            let deps = state_names.iter().cloned().collect::<Vec<_>>().join(", ");
             out.push_str(&format!("  useEffect(() => {{\n{stmts}  }}, [{deps}]);\n"));
         }
         HirReactiveMember::OnMount(HirOnMount { body, .. }) => {
@@ -191,9 +179,7 @@ fn emit_member(
         }
         HirReactiveMember::OnCleanup(HirOnCleanup { body, .. }) => {
             let stmts = emit_block_stmts(body, state_names, 2);
-            out.push_str(&format!(
-                "  useEffect(() => () => {{\n{stmts}  }}, []);\n"
-            ));
+            out.push_str(&format!("  useEffect(() => () => {{\n{stmts}  }}, []);\n"));
         }
         HirReactiveMember::Stmt(_) => {
             // Module-scope `let` / expr statements aren't yet wired into the
@@ -245,7 +231,10 @@ mod tests {
         );
         assert!(content.contains("CounterContext"), "{content}");
         assert!(content.contains("CounterProvider"), "{content}");
-        assert!(content.contains("export function useCounter()"), "{content}");
+        assert!(
+            content.contains("export function useCounter()"),
+            "{content}"
+        );
         assert!(
             content.contains("const [count, set_count] = useState(0);"),
             "{content}"

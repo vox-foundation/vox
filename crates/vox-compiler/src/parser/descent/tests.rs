@@ -92,7 +92,9 @@ fn test_parse_loading_decl() {
 
 #[test]
 fn test_parse_at_component_reactive_path_c_is_tombstoned() {
-    assert_parse_fails("@component Widget(x: int) {\n  state n: int = x\n  view: <span>{n}</span>\n}");
+    assert_parse_fails(
+        "@component Widget(x: int) {\n  state n: int = x\n  view: <span>{n}</span>\n}",
+    );
 }
 
 #[test]
@@ -267,14 +269,20 @@ fn test_parse_view_call_form_lowers_to_jsx() {
         panic!("Expected reactive component, got {:?}", m.declarations[0]);
     };
     let Some(Expr::Jsx(outer)) = &r.view else {
-        panic!("Expected outer view-call to lower to Expr::Jsx, got {:?}", r.view);
+        panic!(
+            "Expected outer view-call to lower to Expr::Jsx, got {:?}",
+            r.view
+        );
     };
     assert_eq!(outer.tag, "row");
     assert_eq!(outer.attributes.len(), 1);
     assert_eq!(outer.attributes[0].name, "gap");
     assert_eq!(outer.children.len(), 1);
     let Expr::Jsx(inner) = &outer.children[0] else {
-        panic!("Expected inner child to be Expr::Jsx, got {:?}", outer.children[0]);
+        panic!(
+            "Expected inner child to be Expr::Jsx, got {:?}",
+            outer.children[0]
+        );
     };
     assert_eq!(inner.tag, "text");
     assert_eq!(inner.attributes.len(), 1);
@@ -288,13 +296,18 @@ fn test_attr_prefix_strips_to_reserved_keyword_attribute_name() {
     // VUV: `attr_type="checkbox"` parses and lowers to JsxAttribute name "type" so HTML
     // attributes whose names are Vox keywords can still be expressed.
     let m = parse_str(r#"component A() { view: input(attr_type="checkbox") }"#);
-    let Decl::ReactiveComponent(r) = &m.declarations[0] else { panic!(); };
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else {
+        panic!();
+    };
     let Some(Expr::JsxSelfClosing(el)) = &r.view else {
         panic!("expected self-closing JSX, got {:?}", r.view);
     };
     assert_eq!(el.tag, "input");
     assert_eq!(el.attributes.len(), 1);
-    assert_eq!(el.attributes[0].name, "type", "attr_ prefix should be stripped");
+    assert_eq!(
+        el.attributes[0].name, "type",
+        "attr_ prefix should be stripped"
+    );
 }
 
 #[test]
@@ -315,7 +328,9 @@ fn test_capitalized_call_no_block_lowers_to_self_closing_jsx() {
 #[test]
 fn test_capitalized_call_with_named_args_lowers_to_self_closing() {
     let m = parse_str(r#"component A() { view: PipelineStage(name="Lexer", desc="tok") }"#);
-    let Decl::ReactiveComponent(r) = &m.declarations[0] else { panic!(); };
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else {
+        panic!();
+    };
     let Some(Expr::JsxSelfClosing(el)) = &r.view else {
         panic!("expected self-closing JSX, got {:?}", r.view);
     };
@@ -327,14 +342,23 @@ fn test_capitalized_call_with_named_args_lowers_to_self_closing() {
 fn test_capitalized_call_with_positional_arg_stays_call() {
     // Enum constructors (Some, Ok, Err) use positional args — must NOT be sugared to JSX.
     let m = parse_str("fn f() -> int { let x = Some(42); return 1 }");
-    let Decl::Function(func) = &m.declarations[0] else { panic!(); };
-    if let Stmt::Let { value: Expr::Call { callee, .. }, .. } = &func.body[0] {
+    let Decl::Function(func) = &m.declarations[0] else {
+        panic!();
+    };
+    if let Stmt::Let {
+        value: Expr::Call { callee, .. },
+        ..
+    } = &func.body[0]
+    {
         if let Expr::Ident { name, .. } = callee.as_ref() {
             assert_eq!(name, "Some");
             return;
         }
     }
-    panic!("expected Some(42) to remain Expr::Call, got {:?}", func.body[0]);
+    panic!(
+        "expected Some(42) to remain Expr::Call, got {:?}",
+        func.body[0]
+    );
 }
 
 #[test]
@@ -344,11 +368,19 @@ fn test_view_call_positional_arg_does_not_sugar_to_jsx() {
     // Critically, this means `row(2)` (a hypothetical row constructor) does NOT silently
     // become `<row 2 />`. The parser's view-call path must require all-named args.
     let m = parse_str("fn build() -> int { return row(2) }");
-    let Decl::Function(func) = &m.declarations[0] else { panic!("expected fn"); };
-    let Stmt::Return { value: Some(Expr::Call { callee, args, .. }), .. } = &func.body[0] else {
+    let Decl::Function(func) = &m.declarations[0] else {
+        panic!("expected fn");
+    };
+    let Stmt::Return {
+        value: Some(Expr::Call { callee, args, .. }),
+        ..
+    } = &func.body[0]
+    else {
         panic!("expected return Expr::Call, got {:?}", func.body[0]);
     };
-    let Expr::Ident { name, .. } = callee.as_ref() else { panic!("callee not Ident"); };
+    let Expr::Ident { name, .. } = callee.as_ref() else {
+        panic!("callee not Ident");
+    };
     assert_eq!(name, "row");
     assert_eq!(args.len(), 1);
     assert!(args[0].name.is_none(), "positional arg name should be None");
@@ -578,16 +610,12 @@ fn test_routes_parse_summary_matches_paths() {
     }
 }
 
-
 /// OP-0015: syntax inventory strings remain wired for tooling/docs extraction.
 #[test]
 fn test_web_surface_syntax_inventory_non_empty() {
     use crate::parser::WEB_SURFACE_SYNTAX_INVENTORY;
     let joined = WEB_SURFACE_SYNTAX_INVENTORY.join("\n");
-    assert!(
-        joined.contains("routes {"),
-        "{joined}"
-    );
+    assert!(joined.contains("routes {"), "{joined}");
 }
 
 #[test]
@@ -800,7 +828,10 @@ fn test_parse_no_uses_clause_is_empty() {
     let m = parse_str("fn pure_fn(x: int) to int { x + 1 }");
     match &m.declarations[0] {
         Decl::Function(f) => {
-            assert!(f.effects.is_empty(), "expected empty effects for unannotated fn");
+            assert!(
+                f.effects.is_empty(),
+                "expected empty effects for unannotated fn"
+            );
         }
         other => panic!("Expected Decl::Function, got {other:?}"),
     }
@@ -841,9 +872,7 @@ fn module_scope_state_in_reactive_module_parses_into_reactive_module_decl() {
 /// `.vox.ui` files allow `derived` and `effect` at module scope alongside `state`.
 #[test]
 fn module_scope_derived_and_effect_in_reactive_module_parse() {
-    let tokens = lex(
-        "state count: int = 0\nderived doubled = count * 2\neffect: { print(count) }",
-    );
+    let tokens = lex("state count: int = 0\nderived doubled = count * 2\neffect: { print(count) }");
     let module = super::parse_with_kind(tokens, crate::module::FileKind::ReactiveModule)
         .expect("`.vox.ui` derived+effect should parse");
     match &module.declarations[0] {

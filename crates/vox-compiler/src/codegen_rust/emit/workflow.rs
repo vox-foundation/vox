@@ -10,6 +10,9 @@ pub fn emit_lib(module: &HirModule) -> String {
 
     if module.functions.iter().any(|f| f.is_llm) {
         out.push_str("use vox_clavis::{SecretId, resolve_secret};\n");
+        out.push_str(
+            "use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};\n",
+        );
     }
 
     if !module.tables.is_empty() {
@@ -143,12 +146,17 @@ pub fn emit_fn(func: &HirFn) -> String {
     }
     out.push_str("{\n");
     if func.is_llm {
-        let model = func
-            .llm_model
-            .as_deref()
-            .unwrap_or("google/gemini-2.0-flash-001");
+        let model_init = if let Some(m) = func.llm_model.as_deref() {
+            format!(
+                "\"{}\".to_string()",
+                m.replace('\\', "\\\\").replace('"', "\\\"")
+            )
+        } else {
+            "openrouter_chat_model_preference()".to_string()
+        };
         out.push_str("    let client = reqwest::Client::new();\n");
         out.push_str("    let token = resolve_secret(SecretId::OpenRouterApiKey).expose().expect(\"LLM function requires OpenRouterApiKey\").to_string();\n");
+        out.push_str(&format!("    let model = {};\n", model_init));
 
         // Build the prompt from parameters
         out.push_str("    let mut prompt = String::new();\n");
@@ -167,10 +175,10 @@ pub fn emit_fn(func: &HirFn) -> String {
 
         out.push_str("    let runtime = tokio::runtime::Handle::current();\n");
         out.push_str("    let res = runtime.block_on(async {\n");
-        out.push_str("        client.post(\"https://openrouter.ai/api/v1/chat/completions\")\n");
+        out.push_str("        client.post(OPENROUTER_CHAT_COMPLETIONS_URL)\n");
         out.push_str("            .header(\"Authorization\", format!(\"Bearer {}\", token))\n");
         out.push_str("            .json(&serde_json::json!({\n");
-        out.push_str(&format!("                \"model\": \"{}\",\n", model));
+        out.push_str("                \"model\": model,\n");
         out.push_str(
             "                \"messages\": [{ \"role\": \"user\", \"content\": prompt }],\n",
         );
@@ -210,4 +218,3 @@ pub fn emit_fn(func: &HirFn) -> String {
     out.push_str("}\n\n");
     out
 }
-

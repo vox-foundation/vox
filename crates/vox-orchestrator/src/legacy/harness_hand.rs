@@ -2,8 +2,6 @@
 
 use std::collections::HashSet;
 
-
-
 use crate::generated::agent_harness::{
     Adapter as HarnessAdapter, AgentHarnessSpec, CompletionGate as HarnessGate,
     Contracts as HarnessContracts, FailureTaxonomy as HarnessFailureMode,
@@ -91,10 +89,12 @@ impl AgentHarnessSpec {
                     role_id: "worker".to_string(),
                     summary: "Perform the task and materialize designated outputs.".to_string(),
                     input_artifacts: Some(vec![]),
-                    output_artifacts: Some(required_outputs
-                        .iter()
-                        .map(|x| x.artifact_id.clone())
-                        .collect()),
+                    output_artifacts: Some(
+                        required_outputs
+                            .iter()
+                            .map(|x| x.artifact_id.clone())
+                            .collect(),
+                    ),
                     completion_gate_ids: Some(vec!["artifact_delivery".to_string()]),
                     failure_mode_codes: Some(vec!["tool_error".to_string(), "timeout".to_string()]),
                 },
@@ -103,10 +103,12 @@ impl AgentHarnessSpec {
                     role_id: "orchestrator".to_string(),
                     summary: "Check that required outputs and evidence exist before closure."
                         .to_string(),
-                    input_artifacts: Some(required_outputs
-                        .iter()
-                        .map(|x| x.artifact_id.clone())
-                        .collect()),
+                    input_artifacts: Some(
+                        required_outputs
+                            .iter()
+                            .map(|x| x.artifact_id.clone())
+                            .collect(),
+                    ),
                     output_artifacts: Some(vec![]),
                     completion_gate_ids: Some(vec!["artifact_delivery".to_string()]),
                     failure_mode_codes: Some(vec!["missing_artifact".to_string()]),

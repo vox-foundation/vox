@@ -24,7 +24,7 @@ RUN if [ -z "$VOX_CLI_FEATURES" ]; then \
 # Runtime image — no Rust toolchain, just the binary + TLS certs
 FROM debian:bookworm-slim
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/target/release/vox /usr/local/bin/vox

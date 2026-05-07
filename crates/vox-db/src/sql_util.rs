@@ -28,7 +28,13 @@ mod tests {
 
     #[test]
     fn accepts_normal_names() {
-        for ok in &["users", "_private", "col_1", "A", "table_name_64_chars_123456789012345678901234"] {
+        for ok in &[
+            "users",
+            "_private",
+            "col_1",
+            "A",
+            "table_name_64_chars_123456789012345678901234",
+        ] {
             assert!(validate_identifier(ok).is_ok(), "should accept: {ok}");
         }
     }

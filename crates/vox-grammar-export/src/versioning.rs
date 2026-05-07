@@ -21,7 +21,7 @@ pub fn compute_ebnf_hash() -> String {
 /// The SHA256 hash of the grammar at the time this crate was built.
 /// Updated via `vox grammar` sync.
 pub const BUILT_GRAMMAR_HASH: &str =
-    "837d889c3e660b15ec03a2d89be2a168dc6e04a46f4dbff2c44f0a71ae24e4a2";
+    "80d62eb7f6993de188a8d9e98c47557c5d03bbbf2c88999d010a083af8ef75d7";
 
 pub fn verify_grammar_alignment() -> Result<(), String> {
     let live_hash = compute_ebnf_hash();

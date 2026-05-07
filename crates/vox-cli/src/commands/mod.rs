@@ -8,7 +8,7 @@ pub mod add;
 
 #[cfg(feature = "dei")]
 pub mod attention;
-/// Identity and master key generation.
+/// Identity and master key integration (`vox auth`).
 pub mod auth;
 /// Building and codegen orchestration endpoints.
 pub mod build;
@@ -29,6 +29,8 @@ pub mod config;
 /// Training data extraction / mixing pipelines (`vox corpus`).
 /// Codex research ingest / reliability helpers (`vox db` research subcommands).
 mod db_research;
+/// Canonical login for vault / Clavis (`vox login`, `vox auth connect`, `vox clavis login`).
+pub mod login_shared;
 pub mod remove;
 // `db.rs` re-exports this tree; keep a same-file reference for tooling / unwired-module checks.
 #[allow(unused_imports)]

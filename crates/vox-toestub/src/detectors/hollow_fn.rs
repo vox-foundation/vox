@@ -37,7 +37,7 @@ impl HollowFnDetector {
         if name.starts_with("default_") {
             return true;
         }
-        ALLOWED_FN_NAMES.iter().any(|a| name == *a)
+        ALLOWED_FN_NAMES.contains(&name)
     }
 
     fn is_hollow_expr_ast(expr: &str) -> bool {
@@ -111,12 +111,11 @@ impl HollowFnDetector {
             if path == "test" || path == "cfg(test)" {
                 return true;
             }
-            if let syn::Meta::List(list) = &attr.meta {
-                if list.path.to_token_stream().to_string().replace(" ", "") == "cfg" {
-                    if list.tokens.to_token_stream().to_string().contains("test") {
-                        return true;
-                    }
-                }
+            if let syn::Meta::List(list) = &attr.meta
+                && list.path.to_token_stream().to_string().replace(" ", "") == "cfg"
+                && list.tokens.to_token_stream().to_string().contains("test")
+            {
+                return true;
             }
         }
         false
@@ -159,7 +158,7 @@ impl HollowFnDetector {
                     .file
                     .lines
                     .get(line.saturating_sub(1))
-                    .map_or(false, |l| l.contains("toestub-ignore"))
+                    .is_some_and(|l| l.contains("toestub-ignore"))
                 {
                     return;
                 }
@@ -179,7 +178,7 @@ impl HollowFnDetector {
                     .file
                     .lines
                     .get(line.saturating_sub(1))
-                    .map_or(false, |l| l.contains("toestub-ignore"))
+                    .is_some_and(|l| l.contains("toestub-ignore"))
                 {
                     return;
                 }
@@ -248,11 +247,12 @@ impl HollowFnDetector {
                     }
                 }
 
-                if meaningful_stmts == 0 {
-                    if let Some(expr) = last_expr {
-                        let expr_str = expr.to_token_stream().to_string();
-                        if HollowFnDetector::is_hollow_expr_ast(&expr_str) {
-                            self.findings.push(Finding {
+                if meaningful_stmts == 0
+                    && let Some(expr) = last_expr
+                {
+                    let expr_str = expr.to_token_stream().to_string();
+                    if HollowFnDetector::is_hollow_expr_ast(&expr_str) {
+                        self.findings.push(Finding {
                                 rule_id: "skeleton/hollow-fn".to_string(),
                                 rule_name: "Hollow Function Detector".to_string(),
                                 severity: Severity::Warning,
@@ -268,7 +268,6 @@ impl HollowFnDetector {
                                     "hollow_expr": expr_str.replace(" ", ""),
                                 })),
                             });
-                        }
                     }
                 }
             }
@@ -301,22 +300,23 @@ impl HollowFnDetector {
         ];
 
         for (i, line) in file.lines.iter().enumerate() {
-            if let Some(caps) = self.ts_fn_re.captures(line) {
-                if let (Some(name), Some(body)) = (caps.get(1), caps.get(2)) {
-                    let body_trimmed = body.as_str().trim().trim_end_matches(';').trim();
-                    let mut is_hollow = ts_hollow.iter().any(|h| body_trimmed == *h);
+            if let Some(caps) = self.ts_fn_re.captures(line)
+                && let (Some(name), Some(body)) = (caps.get(1), caps.get(2))
+            {
+                let body_trimmed = body.as_str().trim().trim_end_matches(';').trim();
+                let mut is_hollow = ts_hollow.contains(&body_trimmed);
 
-                    if !is_hollow
-                        && (body_trimmed == "return <></>" || body_trimmed == "return [] as any")
-                    {
-                        is_hollow = true;
-                    }
-                    if !is_hollow && self.ts_hollow_ui_re.is_match(body_trimmed) {
-                        is_hollow = true;
-                    }
+                if !is_hollow
+                    && (body_trimmed == "return <></>" || body_trimmed == "return [] as any")
+                {
+                    is_hollow = true;
+                }
+                if !is_hollow && self.ts_hollow_ui_re.is_match(body_trimmed) {
+                    is_hollow = true;
+                }
 
-                    if is_hollow {
-                        findings.push(Finding {
+                if is_hollow {
+                    findings.push(Finding {
                             rule_id: "skeleton/hollow-fn".to_string(),
                             rule_name: self.name().to_string(),
                             severity: self.severity(),
@@ -334,7 +334,6 @@ impl HollowFnDetector {
                             confidence: Some(FindingConfidence::Medium),
                             evidence: None,
                         });
-                    }
                 }
             }
         }

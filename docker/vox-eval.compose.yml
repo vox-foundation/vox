@@ -1,19 +1,20 @@
+# Mirror of ../vox-eval.compose.yml — keep in sync when editing the repo-root SSOT file.
+# Some local workflows use `docker compose -f docker/vox-eval.compose.yml` from `docker/`.
+
 # Vox Eval Sandbox — Coolify deployment
 # Purpose: exposes /v1/eval to the public internet for the docs playground.
 # This is ONLY the HTTP gateway. It has no workspace, no AI keys, no mesh.
 # Secrets are injected as environment variables via Coolify's project secrets.
+#
+# Image SSOT: GHCR (built by .github/workflows/docker-eval.yml with VOX_CLI_FEATURES=mcp-server).
 # Docs: docs/src/architecture/eval-sandbox-deployment.md
+
 name: vox-eval-sandbox
 
 services:
   eval:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        # Only compile the MCP HTTP gateway feature; omit everything else.
-        # This produces a smaller binary and a smaller attack surface.
-        VOX_CLI_FEATURES: ""
+    image: ghcr.io/vox-foundation/vox-eval:latest
+    pull_policy: always
     container_name: vox-eval-sandbox
     restart: unless-stopped
     command: ["vox", "mcp"]
@@ -36,20 +37,30 @@ services:
       # Coolify will route eval.vox-lang.org → container port 3921
       - "3921"
     labels:
-      # Coolify / Traefik routing labels (filled by Coolify UI, shown here for reference)
+      # Coolify / Traefik routing labels
       - "traefik.enable=true"
+      # HTTPS Router
       - "traefik.http.routers.vox-eval.rule=Host(`eval.vox-lang.org`)"
+      - "traefik.http.routers.vox-eval.entrypoints=https"
       - "traefik.http.routers.vox-eval.tls=true"
       - "traefik.http.routers.vox-eval.tls.certresolver=letsencrypt"
+      # HTTP Router (for redirect)
+      - "traefik.http.routers.vox-eval-http.rule=Host(`eval.vox-lang.org`)"
+      - "traefik.http.routers.vox-eval-http.entrypoints=http"
+      - "traefik.http.routers.vox-eval-http.middlewares=redirect-to-https"
+      # Global redirect middleware (assumed to exist in Coolify's Traefik, otherwise we define it)
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
       - "traefik.http.services.vox-eval.loadbalancer.server.port=3921"
-      # CORS for GitHub Pages — allow the static docs site to call the eval endpoint
-      - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolalloworiginlist=https://vox-lang.github.io,https://vox-lang.org"
+      # CORS for GitHub Pages
+      - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolalloworiginlist=https://vox-lang.github.io,https://vox-lang.org,http://localhost:4321"
       - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolallowmethods=POST,OPTIONS"
-      - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolallowheaders=Content-Type"
+      - "traefik.http.middlewares.vox-eval-cors.headers.accesscontrolallowheaders=Content-Type,Authorization"
       - "traefik.http.routers.vox-eval.middlewares=vox-eval-cors"
       - com.centurylinklabs.watchtower.enable=true
     healthcheck:
-      test: ["CMD", "vox", "doctor", "--probe"]
+      # Runtime image includes curl (Dockerfile); probes the MCP HTTP gateway directly.
+      test: ["CMD", "curl", "-f", "http://localhost:3921/health"]
       interval: 30s
       timeout: 5s
-      start_period: 15s
+      start_period: 20s

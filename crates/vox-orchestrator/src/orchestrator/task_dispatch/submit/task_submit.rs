@@ -203,10 +203,12 @@ impl Orchestrator {
                     estimated_tokens,
                     "blocking task submission: estimated tokens would exceed budget"
                 );
-                return Err(crate::orchestrator::OrchestratorError::BudgetExceeded(format!(
-                    "Pre-dispatch estimate of {} tokens would exceed remaining budget",
-                    estimated_tokens
-                )));
+                return Err(crate::orchestrator::OrchestratorError::BudgetExceeded(
+                    format!(
+                        "Pre-dispatch estimate of {} tokens would exceed remaining budget",
+                        estimated_tokens
+                    ),
+                ));
             }
         }
 
@@ -477,44 +479,43 @@ impl Orchestrator {
                 // verify at least one healthy registered node can satisfy it before
                 // granting a lease. Fall back to local queue rather than dispatch a job
                 // the mesh cannot run.
-                let vram_admission_ok =
-                    if let Some(required_vram) = capability_requirements
-                        .as_ref()
-                        .and_then(|c| c.min_vram_mb)
-                        .filter(|&v| v > 0)
-                    {
-                        match client.list_nodes().await {
-                            Ok(registry) => {
-                                let fits = registry.nodes.iter().any(|n| {
-                                    n.maintenance != Some(true)
-                                        && n.quarantined != Some(true)
-                                        && n.capabilities
-                                            .min_vram_mb
-                                            .map_or(false, |v| v >= required_vram)
-                                });
-                                if !fits {
-                                    tracing::info!(
+                let vram_admission_ok = if let Some(required_vram) = capability_requirements
+                    .as_ref()
+                    .and_then(|c| c.min_vram_mb)
+                    .filter(|&v| v > 0)
+                {
+                    match client.list_nodes().await {
+                        Ok(registry) => {
+                            let fits = registry.nodes.iter().any(|n| {
+                                n.maintenance != Some(true)
+                                    && n.quarantined != Some(true)
+                                    && n.capabilities
+                                        .min_vram_mb
+                                        .map_or(false, |v| v >= required_vram)
+                            });
+                            if !fits {
+                                tracing::info!(
                                         task_id = task_id.0,
                                         required_vram_mb = required_vram,
                                         placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueFallbackInsufficientVram.as_str(),
                                         "populi admission: no node meets min_vram_mb; falling back to local queue"
                                     );
-                                    placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueFallbackInsufficientVram;
-                                }
-                                fits
+                                placement_reason = crate::populi_remote::PlacementReasonCode::LocalQueueFallbackInsufficientVram;
                             }
-                            Err(err) => {
-                                tracing::debug!(
-                                    task_id = task_id.0,
-                                    error = %err,
-                                    "populi admission: list_nodes failed; skipping vram check"
-                                );
-                                true // optimistic: let lease grant decide
-                            }
+                            fits
                         }
-                    } else {
-                        true // no VRAM requirement; skip check
-                    };
+                        Err(err) => {
+                            tracing::debug!(
+                                task_id = task_id.0,
+                                error = %err,
+                                "populi admission: list_nodes failed; skipping vram check"
+                            );
+                            true // optimistic: let lease grant decide
+                        }
+                    }
+                } else {
+                    true // no VRAM requirement; skip check
+                };
 
                 let mut lease_id = if !vram_admission_ok {
                     None

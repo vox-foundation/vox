@@ -2,6 +2,7 @@
 
 mod clavis;
 mod gpu_hardware;
+mod llm_routing;
 mod model_catalog;
 mod model_telemetry;
 mod tail;
@@ -18,6 +19,7 @@ pub async fn run_checks(auto_heal: bool, test_health: bool, checks: &mut Vec<Che
     }
     toolchain::run(auto_heal, checks).await;
     clavis::run(auto_heal, checks).await;
+    llm_routing::run(checks);
     gpu_hardware::run(checks).await;
     vox_ignore::run(auto_heal, checks).await;
     web_frontend::run(checks).await;

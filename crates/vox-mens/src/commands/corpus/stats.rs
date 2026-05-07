@@ -76,12 +76,12 @@ fn scan_train_jsonl_content(content: &str) -> Result<EvalScan> {
         }
 
         let dummy_path = Path::new("__eval__.vox");
-        if let Ok(result) = crate::pipeline::run_frontend_str(response, dummy_path, false) {
-            if !result.has_errors() {
-                parse_passed += 1;
-                for c in crate::training::extract_constructs(&result.module) {
-                    construct_hits.insert(c);
-                }
+        if let Ok(result) = crate::pipeline::run_frontend_str(response, dummy_path, false)
+            && !result.has_errors()
+        {
+            parse_passed += 1;
+            for c in crate::training::extract_constructs(&result.module) {
+                construct_hits.insert(c);
             }
         }
     }
@@ -162,13 +162,14 @@ pub(crate) async fn run_benchmark_gate(data_dir: &Path, output_dir: Option<&Path
             return Ok(());
         };
 
-        let bench: PathBuf = std::env::var("VOX_BENCHMARK_DIR")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                vox_corpus::training::contract::find_workspace_root()
-                    .map(|r| r.join("mens/data/heldout_bench"))
-                    .unwrap_or_else(|| PathBuf::from("mens/data/heldout_bench"))
-            });
+        let bench_raw = vox_config::env_parse::resolve_config_str("VOX_BENCHMARK_DIR", "");
+        let bench: PathBuf = if bench_raw.trim().is_empty() {
+            vox_corpus::training::contract::find_workspace_root()
+                .map(|r| r.join("mens/data/heldout_bench"))
+                .unwrap_or_else(|| PathBuf::from("mens/data/heldout_bench"))
+        } else {
+            PathBuf::from(bench_raw)
+        };
 
         if !bench.is_dir() {
             tracing::warn!(

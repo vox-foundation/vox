@@ -400,6 +400,248 @@ operations:
     catalog_group: null
     ref_cli_required: false
     reachability_required: false
+- id: auth
+  title: Auth
+  description: CLI operation `vox auth`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - auth
+    status: active
+    latin_ns: ars
+    handler_rust: commands::auth
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: auth.connect
+  title: Auth Connect
+  description: CLI operation `vox auth connect`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - auth
+    - connect
+    status: active
+    latin_ns: ars
+    handler_rust: commands::login_shared::run_login
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: auth.login
+  title: Auth Login
+  description: CLI operation `vox auth login`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - auth
+    - login
+    status: active
+    latin_ns: ars
+    handler_rust: commands::login_shared::run_login
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: auth.init
+  title: Auth Init
+  description: CLI operation `vox auth init`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - auth
+    - init
+    status: active
+    latin_ns: ars
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: auth.unlock
+  title: Auth Unlock
+  description: CLI operation `vox auth unlock`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - auth
+    - unlock
+    status: active
+    latin_ns: ars
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: auth.whoami
+  title: Auth Whoami
+  description: CLI operation `vox auth whoami`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - auth
+    - whoami
+    status: active
+    latin_ns: ars
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: auth.trust
+  title: Auth Trust
+  description: CLI operation `vox auth trust`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - auth
+    - trust
+    status: active
+    latin_ns: ars
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: auth.trust-list
+  title: Auth Trust-list
+  description: CLI operation `vox auth trust-list`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - auth
+    - trust-list
+    status: active
+    latin_ns: ars
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: auth.untrust
+  title: Auth Untrust
+  description: CLI operation `vox auth untrust`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - auth
+    - untrust
+    status: active
+    latin_ns: ars
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
 - id: ask.agent
   title: Ask Agent
   description: Ask another agent a question.
@@ -1241,6 +1483,33 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
+- id: ci.backend-tests
+  title: Ci Backend-tests
+  description: CLI operation `vox ci backend-tests`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - backend-tests
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
 - id: ci.build-docs
   title: Ci Build-docs
   description: CLI operation `vox ci build-docs`
@@ -1612,6 +1881,33 @@ operations:
     path:
     - ci
     - contracts-index
+    status: active
+    latin_ns: null
+    handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: false
+- id: ci.coolify-eval
+  title: Ci Coolify-eval
+  description: CLI operation `vox ci coolify-eval`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - ci
+    - coolify-eval
     status: active
     latin_ns: null
     handler_rust: null
@@ -3043,6 +3339,33 @@ operations:
     status: active
     latin_ns: ars
     handler_rust: null
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: true
+    reachability_required: null
+- id: clavis.login
+  title: Clavis Login
+  description: CLI operation `vox clavis login`
+  description_human: null
+  product_lane: platform
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - clavis
+    - login
+    status: active
+    latin_ns: ars
+    handler_rust: commands::login_shared::run_login
     feature_gate: null
     catalog_group: null
     ref_cli_required: true
@@ -5228,14 +5551,15 @@ operations:
   human_takeover_friendly: null
   mens_planner_visible: null
   canonical_name: null
-  latin_aliases: null
+  latin_aliases:
+  - consociare
   mcp: null
   cli:
     path:
     - login
-    status: deprecated
+    status: active
     latin_ns: ars
-    handler_rust: null
+    handler_rust: commands::login_shared::run_login
     feature_gate: null
     catalog_group: null
     ref_cli_required: true
@@ -5254,14 +5578,15 @@ operations:
   human_takeover_friendly: null
   mens_planner_visible: null
   canonical_name: null
-  latin_aliases: null
+  latin_aliases:
+  - excedere
   mcp: null
   cli:
     path:
     - logout
-    status: deprecated
+    status: active
     latin_ns: ars
-    handler_rust: null
+    handler_rust: commands::login_shared::run_logout
     feature_gate: null
     catalog_group: null
     ref_cli_required: true
@@ -11060,6 +11385,26 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
+- id: validate.source
+  title: Validate Source
+  description: Validate Vox source code passed as a string (no filesystem read). Returns LSP-style diagnostics with stable codes and structured autofix suggestions for the iterative AI-assistant repair loop.
+  description_human: null
+  product_lane: app
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp:
+    name: vox_validate_source
+    http_read_role_eligible: false
+    tier: core
+  cli: null
 - id: vcs.status
   title: Vcs Status
   description: Get unified VCS status.
@@ -11358,6 +11703,251 @@ operations:
     status: active
     latin_ns: null
     handler_rust: commands::model::pricing
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.discover
+  title: Model Discover
+  description: Refresh the model catalog from all sources (discovery).
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - discover
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::discover
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.rollup
+  title: Model Rollup
+  description: Perform batch aggregation of telemetry into the scoreboard.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - rollup
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::rollup
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.scoreboard
+  title: Model Scoreboard
+  description: Show the model scoreboard (latency, success rate, cost).
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - scoreboard
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::scoreboard
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.list
+  title: Model List
+  description: List model ids from the local catalog cache.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - list
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::list
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.show
+  title: Model Show
+  description: Show JSON for one model from the cache.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - show
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::show
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.preferences.set
+  title: Model Preferences Set
+  description: Set a Clavis capability routing preference or pinned model id in the vault.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - preferences
+    - set
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::preferences
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.preferences.reset
+  title: Model Preferences Reset
+  description: Clear all VOX_CAPABILITY_* vault entries (best-effort).
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - preferences
+    - reset
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::preferences
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.explain
+  title: Model Explain
+  description: Explain model selection for a given task description.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - explain
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::explain
+    feature_gate: null
+    catalog_group: null
+    ref_cli_required: false
+    reachability_required: null
+- id: model.costs
+  title: Model Costs
+  description: Show detailed cost reporting.
+  description_human: null
+  product_lane: ai
+  intent_tags: []
+  side_effect_class: null
+  scope_kind: null
+  reversible: null
+  requires_repo: null
+  preferred_for_models: null
+  human_takeover_friendly: null
+  mens_planner_visible: null
+  canonical_name: null
+  latin_aliases: null
+  mcp: null
+  cli:
+    path:
+    - model
+    - costs
+    status: active
+    latin_ns: null
+    handler_rust: commands::model::costs
     feature_gate: null
     catalog_group: null
     ref_cli_required: false

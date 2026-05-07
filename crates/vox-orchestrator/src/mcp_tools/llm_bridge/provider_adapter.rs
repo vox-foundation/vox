@@ -378,10 +378,12 @@ pub(crate) async fn infer_via_provider_adapter(
             }
         }
     }
-    Err(last_err.unwrap_or_else(|| HttpInferError::new(
-        0,
-        format!("No provider adapter found for {:?}", model.provider_type),
-    )))
+    Err(last_err.unwrap_or_else(|| {
+        HttpInferError::new(
+            0,
+            format!("No provider adapter found for {:?}", model.provider_type),
+        )
+    }))
 }
 
 #[cfg(test)]
@@ -412,7 +414,10 @@ mod tests {
         );
         let err = anthropic_tools_guard(&req).expect_err("should be a capability gap");
         assert!(err.is_capability_gap);
-        assert!(err.message.contains("AnthropicNative does not support tool calls"));
+        assert!(
+            err.message
+                .contains("AnthropicNative does not support tool calls")
+        );
     }
 
     #[test]

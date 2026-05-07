@@ -51,6 +51,21 @@ pub async fn run(args: ExplainArgs) -> anyhow::Result<()> {
         description.italic()
     );
     println!("Category: {:?}, Complexity: {}", category, complexity);
+    let snap = vox_runtime::route_capability_policy::RouteCapabilityPolicySnapshot::from_env();
+    println!(
+        "Route policy profile: {} (net={}, provider_net={}, local_http={})",
+        snap.profile, snap.allow_net, snap.allow_provider_network, snap.allow_local_model_http
+    );
+    let exclusions = registry.explain_route_policy_exclusions();
+    if !exclusions.is_empty() {
+        println!("{}", " Policy exclusions (VOX_ROUTE_*):".yellow().bold());
+        for (id, reason) in exclusions.iter().take(25) {
+            println!("  - {}: {}", id.dimmed(), reason);
+        }
+        if exclusions.len() > 25 {
+            println!("  … {} more", exclusions.len() - 25);
+        }
+    }
     println!("---");
 
     let strength = vox_orchestrator::models::task_category_strength(category);

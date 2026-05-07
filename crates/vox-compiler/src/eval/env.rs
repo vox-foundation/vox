@@ -6,6 +6,12 @@ pub struct Scope {
     frames: Vec<HashMap<String, VoxValue>>,
 }
 
+impl Default for Scope {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Scope {
     pub fn new() -> Self {
         Self {

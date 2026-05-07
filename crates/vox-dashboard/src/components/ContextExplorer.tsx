@@ -1,5 +1,15 @@
 import React, { useMemo, useState } from 'react';
-import { BrainCircuit, Database, Globe2, RefreshCcw, Search, FolderKanban, Compass, Rocket } from 'lucide-react';
+import {
+  BrainCircuit,
+  Database,
+  Globe2,
+  Library,
+  RefreshCcw,
+  Search,
+  FolderKanban,
+  Compass,
+  Rocket,
+} from 'lucide-react';
 import { voxTransport } from '../transport';
 import type { WorkspaceInspectorState } from '../types';
 
@@ -38,6 +48,13 @@ export function ContextExplorer({
   const [screenshotPath, setScreenshotPath] = useState('.vox/tmp/browser-shot.png');
   const [projectName, setProjectName] = useState('');
   const [targetSubdir, setTargetSubdir] = useState('');
+  const [memorySearchQuery, setMemorySearchQuery] = useState('');
+  const [memorySearchRaw, setMemorySearchRaw] = useState<string | null>(null);
+  const [memorySearchErr, setMemorySearchErr] = useState<string | null>(null);
+  const [kgQuery, setKgQuery] = useState('');
+  const [kgLimit, setKgLimit] = useState(8);
+  const [kgRaw, setKgRaw] = useState<string | null>(null);
+  const [kgErr, setKgErr] = useState<string | null>(null);
 
   const socrates = inspector?.lastChatMeta?.socrates;
   const retrieval = inspector?.lastChatMeta?.retrieval;
@@ -54,6 +71,8 @@ export function ContextExplorer({
           <button
             type="button"
             className="p-2 rounded-lg border border-white/10 text-zinc-300"
+            aria-label="Refresh orchestrator status"
+            title="Refresh orchestrator status"
             onClick={() => voxTransport.callTool('vox_orchestrator_status', {})}
           >
             <RefreshCcw size={14} />
@@ -147,6 +166,117 @@ export function ContextExplorer({
                   <div className="mt-1 text-zinc-500">{inspector.lastPlan.adequacy_reason_codes?.join(', ')}</div>
                 ) : null}
               </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      <section className="glass rounded-2xl border border-white/10 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Library size={16} className="text-sky-400" />
+          <h3 className="text-sm font-bold">Agent Retrieval (MCP)</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="text-[11px] text-zinc-400 mb-2 leading-relaxed">
+              Calls <code className="text-zinc-500">vox_memory_search</code> (same bundle as chat retrieval: memory,
+              chunks, knowledge, repo paths per server plan).
+            </div>
+            <input
+              className="w-full rounded-lg border border-white/10 bg-black/30 p-2 text-sm outline-none mb-2"
+              placeholder="Retrieval query..."
+              value={memorySearchQuery}
+              onChange={(event) => setMemorySearchQuery(event.target.value)}
+            />
+            <button
+              type="button"
+              className="px-3 py-2 rounded-xl bg-sky-600 text-white text-xs font-semibold"
+              onClick={async () => {
+                const q = memorySearchQuery.trim();
+                if (!q) {
+                  setMemorySearchErr('Enter a query.');
+                  setMemorySearchRaw(null);
+                  return;
+                }
+                setMemorySearchErr(null);
+                setMemorySearchRaw(null);
+                try {
+                  const raw = await voxTransport.callTool('vox_memory_search', { query: q });
+                  setMemorySearchRaw(pretty(raw));
+                } catch (err) {
+                  setMemorySearchErr(err instanceof Error ? err.message : String(err));
+                }
+              }}
+            >
+              Search memory
+            </button>
+            {memorySearchErr ? (
+              <div className="mt-2 text-[11px] text-red-400 whitespace-pre-wrap">{memorySearchErr}</div>
+            ) : null}
+            {memorySearchRaw ? (
+              <pre className="mt-3 m-0 text-[11px] text-zinc-400 whitespace-pre-wrap break-words max-h-56 overflow-auto">
+                {memorySearchRaw}
+              </pre>
+            ) : null}
+          </div>
+          <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="text-[11px] text-zinc-400 mb-2 leading-relaxed">
+              Calls <code className="text-zinc-500">vox_knowledge_query</code> against Turso knowledge nodes.
+            </div>
+            <input
+              className="w-full rounded-lg border border-white/10 bg-black/30 p-2 text-sm outline-none mb-2"
+              placeholder="Knowledge graph query..."
+              value={kgQuery}
+              onChange={(event) => setKgQuery(event.target.value)}
+            />
+            <div className="flex gap-2 mb-2 items-center">
+              <label className="text-[11px] text-zinc-500 shrink-0" htmlFor="kg-limit">
+                Limit
+              </label>
+              <input
+                id="kg-limit"
+                aria-label="Knowledge graph result limit"
+                type="number"
+                min={1}
+                max={100}
+                className="flex-1 rounded-lg border border-white/10 bg-black/30 p-2 text-sm outline-none"
+                value={kgLimit}
+                onChange={(event) => {
+                  const n = Number.parseInt(event.target.value, 10);
+                  setKgLimit(Number.isFinite(n) ? Math.min(100, Math.max(1, n)) : 8);
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              className="px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-semibold"
+              onClick={async () => {
+                const q = kgQuery.trim();
+                if (!q) {
+                  setKgErr('Enter a query.');
+                  setKgRaw(null);
+                  return;
+                }
+                setKgErr(null);
+                setKgRaw(null);
+                try {
+                  const raw = await voxTransport.callTool('vox_knowledge_query', {
+                    query: q,
+                    limit: kgLimit,
+                  });
+                  setKgRaw(pretty(raw));
+                } catch (err) {
+                  setKgErr(err instanceof Error ? err.message : String(err));
+                }
+              }}
+            >
+              Query knowledge graph
+            </button>
+            {kgErr ? <div className="mt-2 text-[11px] text-red-400 whitespace-pre-wrap">{kgErr}</div> : null}
+            {kgRaw ? (
+              <pre className="mt-3 m-0 text-[11px] text-zinc-400 whitespace-pre-wrap break-words max-h-56 overflow-auto">
+                {kgRaw}
+              </pre>
             ) : null}
           </div>
         </div>

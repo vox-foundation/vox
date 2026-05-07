@@ -175,10 +175,8 @@ fn parse_frontmatter(
         title = title_case(&title);
     }
 
-    if !saw_title {
-        if let Some(h1) = first_h1(content) {
-            title = h1;
-        }
+    if !saw_title && let Some(h1) = first_h1(content) {
+        title = h1;
     }
 
     Ok((

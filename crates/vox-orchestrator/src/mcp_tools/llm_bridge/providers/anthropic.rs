@@ -133,12 +133,10 @@ pub(crate) async fn http_anthropic_direct(
 
     // Anthropic bills cache reads at cache_read_cost_per_1k and newly-created cache entries at
     // cache_creation_cost_per_1k. Account for these in the estimated cost when reported.
-    let non_cached = input_tokens
-        - cached_input_tokens.unwrap_or(0).min(input_tokens);
-    let cache_read_cost = cached_input_tokens.unwrap_or(0) as f64 / 1000.0
-        * spec.cache_read_cost_per_1k;
-    let cache_create_cost = parsed.usage.cache_creation_input_tokens.unwrap_or(0) as f64
-        / 1000.0
+    let non_cached = input_tokens - cached_input_tokens.unwrap_or(0).min(input_tokens);
+    let cache_read_cost =
+        cached_input_tokens.unwrap_or(0) as f64 / 1000.0 * spec.cache_read_cost_per_1k;
+    let cache_create_cost = parsed.usage.cache_creation_input_tokens.unwrap_or(0) as f64 / 1000.0
         * spec.cache_creation_cost_per_1k;
     let estimated_usd = (non_cached as f64 / 1000.0) * spec.cost_per_1k_input
         + (output_tokens as f64 / 1000.0) * spec.cost_per_1k_output

@@ -32,7 +32,9 @@ pub async fn run(
         .context("Failed to build HTTP client")?;
 
     if server_url.is_some() && !legacy_direct {
-        anyhow::bail!("--server-url only applies with --legacy-direct; use VOX_LOCAL_ENDPOINT for orchestrator mode");
+        anyhow::bail!(
+            "--server-url only applies with --legacy-direct; use VOX_LOCAL_ENDPOINT for orchestrator mode"
+        );
     }
 
     let (code, valid, errors, warnings, attempts) = if legacy_direct {
@@ -94,14 +96,18 @@ async fn run_via_orchestrator(
     eprintln!("🔮 Generating Vox code via orchestrator...");
     eprintln!("   Prompt: {}", prompt);
 
-    let result =
-        vox_orchestrator::mcp_tools::llm_bridge::vox_local_generate(client, prompt, validate, max_retries)
-            .await
-            .map_err(|e| {
-                eprintln!("⚠️  VoxLocal inference unavailable: {e}");
-                eprintln!("   Start it with: vox run scripts/vox_inference.vox --serve");
-                anyhow::anyhow!(e)
-            })?;
+    let result = vox_orchestrator::mcp_tools::llm_bridge::vox_local_generate(
+        client,
+        prompt,
+        validate,
+        max_retries,
+    )
+    .await
+    .map_err(|e| {
+        eprintln!("⚠️  VoxLocal inference unavailable: {e}");
+        eprintln!("   Start it with: vox run scripts/vox_inference.vox --serve");
+        anyhow::anyhow!(e)
+    })?;
 
     Ok((
         result.code,

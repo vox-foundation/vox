@@ -1,5 +1,5 @@
+use crate::context_envelope::{ContextMergeStrategy, ContextPriority};
 use serde::{Deserialize, Serialize};
-use crate::context_envelope::{ContextPriority, ContextMergeStrategy};
 
 /// Policy for deciding which context envelopes to inject into an agent's session.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,6 +1,6 @@
+use crate::budget::DriftDecision;
 use crate::orchestrator::Orchestrator;
 use crate::types::{AgentId, TaskId};
-use crate::budget::DriftDecision;
 
 impl Orchestrator {
     /// Issues a cryptographic tool receipt for an agent to perform a specific tool call.
@@ -12,7 +12,9 @@ impl Orchestrator {
         args_json: &str,
     ) -> String {
         let ledger = crate::sync_lock::rw_read(&*self.tool_ledger);
-        ledger.issue_intent(agent_id, tool_name, args_json).receipt_id
+        ledger
+            .issue_intent(agent_id, tool_name, args_json)
+            .receipt_id
     }
 
     /// Records the result of a tool execution in an existing receipt.
@@ -70,12 +72,16 @@ impl Orchestrator {
         kind: crate::locks::ResourceLockKind,
         ttl_ms: u64,
     ) -> bool {
-        match self.resource_locks.try_acquire(resource_id, agent_id, kind, ttl_ms) {
+        match self
+            .resource_locks
+            .try_acquire(resource_id, agent_id, kind, ttl_ms)
+        {
             Ok(_) => {
-                self.bulletin.publish(crate::types::AgentMessage::ResourceLockAcquired {
-                    agent_id,
-                    resource_id: resource_id.to_string(),
-                });
+                self.bulletin
+                    .publish(crate::types::AgentMessage::ResourceLockAcquired {
+                        agent_id,
+                        resource_id: resource_id.to_string(),
+                    });
                 true
             }
             Err(_) => false,
@@ -85,9 +91,10 @@ impl Orchestrator {
     /// Releases a generic resource lock and broadcasts the event to the bulletin board.
     pub fn release_resource_lock(&self, agent_id: AgentId, resource_id: &str) {
         self.resource_locks.release(resource_id, agent_id);
-        self.bulletin.publish(crate::types::AgentMessage::ResourceLockReleased {
-            agent_id,
-            resource_id: resource_id.to_string(),
-        });
+        self.bulletin
+            .publish(crate::types::AgentMessage::ResourceLockReleased {
+                agent_id,
+                resource_id: resource_id.to_string(),
+            });
     }
 }

@@ -131,10 +131,7 @@ pub fn generate_component_from_web_ir(
 
 /// Generate a React component from a Vox @component function declaration.
 /// Returns (filename, content) tuple.
-pub fn generate_component(
-    func: &FnDecl,
-    has_styles: bool,
-) -> (String, String) {
+pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
     let name = &func.name;
     let filename = format!("{name}.tsx");
     let mut out = String::new();
@@ -421,7 +418,7 @@ fn uses_mobile_ident_in_stmt(stmt: &Stmt) -> bool {
         Stmt::Assign { target, value, .. } => {
             uses_mobile_ident_in_expr(target) || uses_mobile_ident_in_expr(value)
         }
-        Stmt::Return { value, .. } => value.as_ref().map_or(false, uses_mobile_ident_in_expr),
+        Stmt::Return { value, .. } => value.as_ref().is_some_and(uses_mobile_ident_in_expr),
         Stmt::Expr { expr, .. } => uses_mobile_ident_in_expr(expr),
         Stmt::While {
             condition, body, ..
@@ -458,7 +455,7 @@ fn uses_mobile_ident_in_expr(expr: &Expr) -> bool {
                 || then_body.iter().any(uses_mobile_ident_in_stmt)
                 || else_body
                     .as_ref()
-                    .map_or(false, |b| b.iter().any(uses_mobile_ident_in_stmt))
+                    .is_some_and(|b| b.iter().any(uses_mobile_ident_in_stmt))
         }
         Expr::ObjectLit { fields, .. } => fields.iter().any(|(_, v)| uses_mobile_ident_in_expr(v)),
         Expr::ListLit { elements, .. } | Expr::TupleLit { elements, .. } => {

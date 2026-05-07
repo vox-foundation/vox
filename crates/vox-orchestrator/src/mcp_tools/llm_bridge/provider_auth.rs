@@ -47,16 +47,14 @@ pub(crate) fn bearer_for(model: &ModelSpec) -> Result<String, HttpInferError> {
         ProviderType::GoogleDirect
         | ProviderType::Ollama
         | ProviderType::PopuliMesh
-        | ProviderType::VoxLocal => {
-            Err(HttpInferError {
-                status: 0,
-                message: format!(
-                    "bearer_for is not applicable to provider {:?}",
-                    model.provider_type
-                ),
-                is_capability_gap: false,
-            })
-        }
+        | ProviderType::VoxLocal => Err(HttpInferError {
+            status: 0,
+            message: format!(
+                "bearer_for is not applicable to provider {:?}",
+                model.provider_type
+            ),
+            is_capability_gap: false,
+        }),
     }
 }
 

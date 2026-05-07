@@ -72,7 +72,6 @@ pub fn try_emit_route_manifest_from_web_ir(
     web: &WebIrModule,
     hir: &HirModule,
 ) -> Result<Option<String>, String> {
-
     validate_manifest_symbols(web, hir)?;
     if let Some(content) = emit_route_manifest_from_web_ir(web, hir) {
         Ok(Some(content))
@@ -342,7 +341,6 @@ pub fn try_emit_route_manifest_json_from_web_ir(
     web: &WebIrModule,
     hir: &HirModule,
 ) -> Result<Option<String>, String> {
-
     validate_manifest_symbols(web, hir)?;
     if let Some(content) = emit_route_manifest_json(web, hir) {
         Ok(Some(content))
@@ -385,11 +383,7 @@ fn get_contract_route_json(e: &RouteContract) -> serde_json::Value {
         obj.insert("index".to_string(), serde_json::json!(true));
     }
     if !e.children.is_empty() {
-        let children: Vec<_> = e
-            .children
-            .iter()
-            .map(|c| get_contract_route_json(c))
-            .collect();
+        let children: Vec<_> = e.children.iter().map(get_contract_route_json).collect();
         obj.insert("children".to_string(), serde_json::json!(children));
     }
     serde_json::Value::Object(obj)
@@ -411,7 +405,11 @@ mod tests {
 
     #[test]
     fn route_path_builder_emits_known_route_union_with_all_patterns() {
-        let contracts = vec![rc("/", "Home"), rc("/users/:id", "User"), rc("/edit", "Editor")];
+        let contracts = vec![
+            rc("/", "Home"),
+            rc("/users/:id", "User"),
+            rc("/edit", "Editor"),
+        ];
         let refs: Vec<&RouteContract> = contracts.iter().collect();
         let out = emit_route_path_builder(&refs);
         assert!(out.contains("export type KnownRoute"), "{out}");
@@ -436,10 +434,7 @@ mod tests {
         let contracts = vec![rc("/edit", "Editor")];
         let refs: Vec<&RouteContract> = contracts.iter().collect();
         let out = emit_route_path_builder(&refs);
-        assert!(
-            out.contains("\"/edit\": (): string => \"/edit\""),
-            "{out}"
-        );
+        assert!(out.contains("\"/edit\": (): string => \"/edit\""), "{out}");
     }
 
     #[test]

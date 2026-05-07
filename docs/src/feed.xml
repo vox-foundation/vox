@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Mon, 04 May 2026 05:10:44 GMT</lastBuildDate>
+  <lastBuildDate>Thu, 07 May 2026 22:18:31 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -84,15 +84,6 @@
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>vox-codegen-ts API</title>
-    <link>https://vox-lang.org/api/vox-codegen-ts.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/vox-codegen-ts.html</guid>
-    <description>API reference for the vox-codegen-ts crate: HIR-to-TypeScript/TSX code generation pipeline.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
   </item>
 
   <item>
@@ -214,6 +205,26 @@
   </item>
 
   <item>
+    <title>Contributor hub</title>
+    <link>https://vox-lang.org/contributors/contributor-hub.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/contributors/contributor-hub.html</guid>
+    <description>Start here for contributor-facing Vox documentation, governance, inventories, and review checklists.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Local CI parity (pre-push)</title>
+    <link>https://vox-lang.org/contributors/local-ci-pre-push.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/contributors/local-ci-pre-push.html</guid>
+    <description>Run the merge-blocking subset locally before every push via `vox ci pre-push`.</description>
+    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
     <title>Golden Examples: Working Vox Code</title>
     <link>https://vox-lang.org/examples/golden.html</link>
     <guid isPermaLink="true">https://vox-lang.org/examples/golden.html</guid>
@@ -228,16 +239,6 @@
     <link>https://vox-lang.org/explanation/expl-architecture.html</link>
     <guid isPermaLink="true">https://vox-lang.org/explanation/expl-architecture.html</guid>
     <description>Official documentation for Compiler Architecture for the Vox language. Detailed technical reference, architecture guides, and implementat</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Explanation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Explanation: Compiler Lowering Phases</title>
-    <link>https://vox-lang.org/explanation/expl-compiler-lowering.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-compiler-lowering.html</guid>
-    <description>Official documentation for Explanation: Compiler Lowering Phases for the Vox language. Detailed technical reference, architecture guides,</description>
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Explanation</category>
     <category domain="https://schema.org">TechArticle</category>

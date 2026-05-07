@@ -30,6 +30,7 @@ ci/artifact-audit
 ci/artifact-prune
 ci/attention-config-parity
 ci/attention-event-ledger-parity
+ci/backend-tests
 ci/build-docs
 ci/build-timings
 ci/capability-snapshot
@@ -51,6 +52,9 @@ ci/completion-gates
 ci/completion-ingest
 ci/constrained-gen-smoke
 ci/contracts-index
+ci/coolify-eval
+ci/coolify-eval/discover
+ci/coolify-eval/sync-compose
 ci/corpus-decl-coverage
 ci/coverage-gates
 ci/cuda-features
@@ -95,6 +99,7 @@ ci/operations-verify
 ci/operator-env-guard
 ci/pm-provenance
 ci/policy-smoke
+ci/pre-push
 ci/query-all-guard
 ci/release-build
 ci/repo-guards
@@ -121,6 +126,7 @@ clavis
 clavis/backend-status
 clavis/get
 clavis/import-env
+clavis/login
 clavis/migrate-auth-store
 clavis/set
 clavis/status
@@ -261,6 +267,10 @@ model
 model/costs
 model/discover
 model/explain
+model/list
+model/preferences
+model/preferences/reset
+model/preferences/set
 model/pricing
 model/pricing/check
 model/pricing/refresh
@@ -268,6 +278,7 @@ model/pricing/rollup
 model/pricing/show
 model/rollup
 model/scoreboard
+model/show
 new
 new/skill
 new/web

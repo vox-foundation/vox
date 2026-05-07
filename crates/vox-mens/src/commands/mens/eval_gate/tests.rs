@@ -285,8 +285,15 @@ anti_stub:
     )
     .unwrap();
     let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let g = results.iter().find(|r| r.name == "anti_stub").expect("anti_stub gate present");
-    assert!(g.passed, "should pass: all metrics above thresholds. msg={}", g.message);
+    let g = results
+        .iter()
+        .find(|r| r.name == "anti_stub")
+        .expect("anti_stub gate present");
+    assert!(
+        g.passed,
+        "should pass: all metrics above thresholds. msg={}",
+        g.message
+    );
     assert!(g.block, "block flag from policy");
 }
 
@@ -317,7 +324,10 @@ anti_stub:
     )
     .unwrap();
     let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let g = results.iter().find(|r| r.name == "anti_stub").expect("anti_stub gate present");
+    let g = results
+        .iter()
+        .find(|r| r.name == "anti_stub")
+        .expect("anti_stub gate present");
     assert!(!g.passed, "0.80 < 0.92 should fail");
     assert!(g.block, "block: true in policy");
 }
@@ -340,7 +350,10 @@ anti_stub:
     )
     .unwrap();
     let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let g = results.iter().find(|r| r.name == "anti_stub").expect("anti_stub gate present");
+    let g = results
+        .iter()
+        .find(|r| r.name == "anti_stub")
+        .expect("anti_stub gate present");
     assert!(!g.passed, "missing file → gate fails");
     assert!(!g.block, "block: false → warning, not hard-block");
 }
@@ -360,10 +373,16 @@ anti_stub:
     )
     .unwrap();
     let results = check_run(dir.path(), &policy_path).expect("check_run");
-    let g = results.iter().find(|r| r.name == "anti_stub").expect("anti_stub gate present");
+    let g = results
+        .iter()
+        .find(|r| r.name == "anti_stub")
+        .expect("anti_stub gate present");
     assert!(!g.passed, "missing file → gate fails");
     assert!(g.block, "block: true → hard-block");
-    assert!(g.message.contains("eval_local_report.json"), "message should name the expected file");
+    assert!(
+        g.message.contains("eval_local_report.json"),
+        "message should name the expected file"
+    );
 }
 
 #[test]
@@ -400,7 +419,10 @@ anti_stub:
     let text = std::fs::read_to_string(&receipt_path).unwrap();
     let v: serde_json::Value = serde_json::from_str(&text).unwrap();
     assert_eq!(v["schema"], "vox_mens_gate_receipt_v1");
-    assert!(v["overall_passed"].as_bool().unwrap_or(false), "overall_passed should be true");
+    assert!(
+        v["overall_passed"].as_bool().unwrap_or(false),
+        "overall_passed should be true"
+    );
     let gates = v["gates"].as_array().expect("gates array");
     assert!(!gates.is_empty(), "gates list should not be empty");
 }
@@ -431,7 +453,10 @@ anti_stub:
         &std::fs::read_to_string(dir.path().join("gate_receipt.json")).unwrap(),
     )
     .unwrap();
-    assert!(!v["overall_passed"].as_bool().unwrap_or(true), "overall_passed false on fail");
+    assert!(
+        !v["overall_passed"].as_bool().unwrap_or(true),
+        "overall_passed false on fail"
+    );
 }
 
 #[test]

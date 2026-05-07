@@ -8,12 +8,12 @@ mod status;
 use status::*;
 mod rpc_tools;
 use rpc_tools::*;
-mod ws;
 mod token;
-pub(super) use token::DashboardToken;
+mod ws;
 use anyhow::{Context, Result};
 use axum::Json;
 use axum::extract::DefaultBodyLimit;
+pub(super) use token::DashboardToken;
 mod eval;
 use eval::*;
 mod origin_guard;
@@ -217,7 +217,7 @@ pub fn spawn_http_gateway_if_enabled(
             .map(str::to_string);
     let allow_unauthenticated =
         read_bool_env(vox_clavis::SecretId::VoxMcpHttpAllowUnauthenticated).unwrap_or(false);
-        
+
     #[cfg(feature = "dashboard")]
     let mut dashboard_token: Option<token::DashboardToken> = None;
     #[cfg(not(feature = "dashboard"))]
@@ -242,7 +242,11 @@ pub fn spawn_http_gateway_if_enabled(
         read_bool_env(vox_clavis::SecretId::VoxMcpHttpPublicEvalEnabled).unwrap_or(false);
     let public_eval_rate_limiter = new_identity_rate_limiter(10);
 
-    if bearer_token.is_none() && read_bearer_token.is_none() && !allow_unauthenticated && !public_eval_enabled {
+    if bearer_token.is_none()
+        && read_bearer_token.is_none()
+        && !allow_unauthenticated
+        && !public_eval_enabled
+    {
         anyhow::bail!(
             "VOX_MCP_HTTP_ENABLED=1 requires VOX_MCP_HTTP_BEARER_TOKEN or VOX_MCP_HTTP_READ_BEARER_TOKEN unless VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED=1 or VOX_MCP_HTTP_PUBLIC_EVAL_ENABLED=1 is explicitly set."
         );
@@ -292,7 +296,9 @@ pub fn spawn_http_gateway_if_enabled(
         .route("/v1/mobile/status", get(http_mobile_status));
 
     #[cfg(feature = "dashboard")]
-    let app = app.merge(vox_dashboard::dashboard_router(dashboard_token.as_ref().map(|t| t.0.clone())));
+    let app = app.merge(vox_dashboard::dashboard_router(
+        dashboard_token.as_ref().map(|t| t.0.clone()),
+    ));
 
     let cors = tower_http::cors::CorsLayer::new()
         .allow_origin(tower_http::cors::Any)
@@ -302,7 +308,10 @@ pub fn spawn_http_gateway_if_enabled(
 
     let app = app
         .layer(cors)
-        .layer(axum::middleware::from_fn_with_state(gateway_state.clone(), origin_guard::check_origin_allowlist))
+        .layer(axum::middleware::from_fn_with_state(
+            gateway_state.clone(),
+            origin_guard::check_origin_allowlist,
+        ))
         .layer(DefaultBodyLimit::max(256 * 1024))
         .with_state(gateway_state.clone());
 
@@ -430,13 +439,17 @@ pub(super) fn resolve_access_role(
         tracing::warn!("Unauthenticated access allowed by VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED");
         return Ok(AccessRole::Write);
     }
-    
+
     let mut got = String::new();
-    
+
     if let Some(auth) = headers.get("authorization").and_then(|v| v.to_str().ok()) {
-        got = auth.strip_prefix("Bearer ").unwrap_or_default().trim().to_string();
+        got = auth
+            .strip_prefix("Bearer ")
+            .unwrap_or_default()
+            .trim()
+            .to_string();
     }
-    
+
     if let Some(expected) = state.bearer_token.as_ref()
         && constant_time_eq(got.as_bytes(), expected.as_bytes())
     {
@@ -447,7 +460,7 @@ pub(super) fn resolve_access_role(
     {
         return Ok(AccessRole::Read);
     }
-    
+
     if let Some(dt) = state.dashboard_token.as_ref()
         && constant_time_eq(got.as_bytes(), dt.0.as_bytes())
     {
@@ -456,7 +469,7 @@ pub(super) fn resolve_access_role(
             return Ok(AccessRole::Write);
         }
     }
-    
+
     Err("missing or invalid bearer token".to_string())
 }
 
