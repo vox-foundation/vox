@@ -12851,6 +12851,7 @@ dependencies = [
  "vox-openai-wire",
  "vox-oratio",
  "vox-orchestrator-types",
+ "vox-plugin-api",
  "vox-plugin-host",
  "vox-pm",
  "vox-populi",

@@ -54,6 +54,7 @@ vox-ludus = { workspace = true }
 vox-skills = { workspace = true }
 vox-ars = { workspace = true }
 vox-plugin-host = { workspace = true }
+vox-plugin-api = { workspace = true }
 dirs = { workspace = true }
 parking_lot = "0.12"
 futures-util = { workspace = true }

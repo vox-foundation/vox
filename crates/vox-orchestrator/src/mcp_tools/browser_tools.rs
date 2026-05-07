@@ -1,6 +1,7 @@
 //! Chromium-backed browser MCP tools (`vox_browser_*`).
 //!
-//! Uses [`vox_browser`] (CDP / `chromiumoxide`). Playwright is not required.
+//! Dispatches through vox-plugin-host / BrowserAutomation sabi trait.
+//! All blocking CDP work runs inside `tokio::task::spawn_blocking`.
 
 use crate::mcp_tools::llm_bridge::call_llm;
 use crate::mcp_tools::params::{
@@ -10,7 +11,6 @@ use crate::mcp_tools::params::{
 };
 use crate::mcp_tools::server_state::ServerState;
 use serde::Deserialize;
-use vox_browser::global_engine;
 
 fn summary_max_chars() -> usize {
     vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBrowserLlmContextChars)
@@ -19,94 +19,236 @@ fn summary_max_chars() -> usize {
         .unwrap_or(24_000)
 }
 
+/// Obtain the cached browser plugin and call a closure with its BrowserAutomation backend.
+/// Must be called inside `spawn_blocking` (or a non-async context).
+///
+/// The closure receives the `LoadedCodePlugin`; callers should call
+/// `plugin.plugin.as_browser_automation().into_option().unwrap()` to get the backend.
+/// This avoids naming the `BrowserAutomation_TO` generic type in the function signature.
+fn with_browser_plugin<F, T>(f: F) -> anyhow::Result<T>
+where
+    F: FnOnce(&'static vox_plugin_host::loader::LoadedCodePlugin) -> anyhow::Result<T>,
+{
+    let plugin = vox_plugin_host::cached_code_plugin("browser")
+        .map_err(|e| anyhow::anyhow!("browser plugin load: {e}"))?;
+    // Verify the accessor is present before handing off.
+    if plugin.plugin.as_browser_automation().into_option().is_none() {
+        return Err(anyhow::anyhow!(
+            "browser plugin loaded but BrowserAutomation accessor returned None"
+        ));
+    }
+    f(plugin)
+}
+
+/// Convenience: get the BrowserAutomation accessor, panicking if absent (guarded by
+/// `with_browser_plugin` above).
+macro_rules! backend {
+    ($plugin:expr) => {
+        $plugin
+            .plugin
+            .as_browser_automation()
+            .into_option()
+            .expect("BrowserAutomation accessor checked in with_browser_plugin")
+    };
+}
+
 pub async fn browser_open(_state: &ServerState, p: BrowserOpenParams) -> String {
-    let eng = global_engine();
-    match eng.open(&p.url, p.headless).await {
-        Ok(page_id) => ToolResult::ok(serde_json::json!({
+    let url = p.url.clone();
+    let headless = p.headless;
+    match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.open(url.as_str().into(), headless)
+                .into_result()
+                .map(|s| s.into_string())
+                .map_err(|e| anyhow::anyhow!("browser open: {e}"))
+        })
+    })
+    .await
+    {
+        Ok(Ok(page_id)) => ToolResult::ok(serde_json::json!({
             "page_id": page_id,
             "url": p.url,
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
-            e,
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err_with_remediation(
+            e.to_string(),
             "Install Chromium/Chrome or set VOX_CHROME_EXECUTABLE; for containers try VOX_BROWSER_NO_SANDBOX=1.",
         )
         .to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
 }
 
 pub async fn browser_close(_state: &ServerState, p: BrowserPageParams) -> String {
-    let eng = global_engine();
-    match eng.close(&p.page_id).await {
-        Ok(()) => ToolResult::ok(serde_json::json!({ "closed": true })).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+    let page_id = p.page_id.clone();
+    match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.close(page_id.as_str().into())
+                .into_result()
+                .map_err(|e| anyhow::anyhow!("browser close: {e}"))
+        })
+    })
+    .await
+    {
+        Ok(Ok(())) => ToolResult::ok(serde_json::json!({ "closed": true })).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
 }
 
 pub async fn browser_goto(_state: &ServerState, p: BrowserGotoParams) -> String {
-    let eng = global_engine();
-    match eng.goto(&p.page_id, &p.url).await {
-        Ok(()) => ToolResult::ok(serde_json::json!({ "ok": true })).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+    let page_id = p.page_id.clone();
+    let url = p.url.clone();
+    match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.goto(page_id.as_str().into(), url.as_str().into())
+                .into_result()
+                .map_err(|e| anyhow::anyhow!("browser goto: {e}"))
+        })
+    })
+    .await
+    {
+        Ok(Ok(())) => ToolResult::ok(serde_json::json!({ "ok": true })).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
 }
 
 pub async fn browser_click(_state: &ServerState, p: BrowserTargetParams) -> String {
-    let eng = global_engine();
-    match eng.click(&p.page_id, &p.target).await {
-        Ok(()) => ToolResult::ok(serde_json::json!({ "ok": true })).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+    let page_id = p.page_id.clone();
+    let target = p.target.clone();
+    match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.click(page_id.as_str().into(), target.as_str().into())
+                .into_result()
+                .map_err(|e| anyhow::anyhow!("browser click: {e}"))
+        })
+    })
+    .await
+    {
+        Ok(Ok(())) => ToolResult::ok(serde_json::json!({ "ok": true })).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
 }
 
 pub async fn browser_fill(_state: &ServerState, p: BrowserFillParams) -> String {
-    let eng = global_engine();
-    match eng.fill(&p.page_id, &p.target, &p.value).await {
-        Ok(()) => ToolResult::ok(serde_json::json!({ "ok": true })).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+    let page_id = p.page_id.clone();
+    let target = p.target.clone();
+    let value = p.value.clone();
+    match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.fill(
+                page_id.as_str().into(),
+                target.as_str().into(),
+                value.as_str().into(),
+            )
+            .into_result()
+            .map_err(|e| anyhow::anyhow!("browser fill: {e}"))
+        })
+    })
+    .await
+    {
+        Ok(Ok(())) => ToolResult::ok(serde_json::json!({ "ok": true })).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
 }
 
 pub async fn browser_wait_for(_state: &ServerState, p: BrowserWaitParams) -> String {
-    let eng = global_engine();
-    match eng.wait_for(&p.page_id, &p.target, p.timeout_secs).await {
-        Ok(()) => ToolResult::ok(serde_json::json!({ "ok": true })).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+    let page_id = p.page_id.clone();
+    let target = p.target.clone();
+    let timeout_secs = p.timeout_secs;
+    match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.wait_for(page_id.as_str().into(), target.as_str().into(), timeout_secs)
+                .into_result()
+                .map_err(|e| anyhow::anyhow!("browser wait_for: {e}"))
+        })
+    })
+    .await
+    {
+        Ok(Ok(())) => ToolResult::ok(serde_json::json!({ "ok": true })).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
 }
 
 pub async fn browser_text(_state: &ServerState, p: BrowserTargetParams) -> String {
-    let eng = global_engine();
-    match eng.text(&p.page_id, &p.target).await {
-        Ok(text) => ToolResult::ok(serde_json::json!({ "text": text })).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+    let page_id = p.page_id.clone();
+    let target = p.target.clone();
+    match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.text(page_id.as_str().into(), target.as_str().into())
+                .into_result()
+                .map(|s| s.into_string())
+                .map_err(|e| anyhow::anyhow!("browser text: {e}"))
+        })
+    })
+    .await
+    {
+        Ok(Ok(text)) => ToolResult::ok(serde_json::json!({ "text": text })).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
 }
 
 pub async fn browser_html(_state: &ServerState, p: BrowserHtmlParams) -> String {
-    let eng = global_engine();
-    match eng.html(&p.page_id, &p.target).await {
-        Ok(html) => ToolResult::ok(serde_json::json!({ "html": html })).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+    let page_id = p.page_id.clone();
+    let target = p.target.clone();
+    match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.html(page_id.as_str().into(), target.as_str().into())
+                .into_result()
+                .map(|s| s.into_string())
+                .map_err(|e| anyhow::anyhow!("browser html: {e}"))
+        })
+    })
+    .await
+    {
+        Ok(Ok(html)) => ToolResult::ok(serde_json::json!({ "html": html })).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
 }
 
 pub async fn browser_screenshot(_state: &ServerState, p: BrowserScreenshotParams) -> String {
-    let eng = global_engine();
-    match eng.screenshot(&p.page_id, &p.path).await {
-        Ok(path) => ToolResult::ok(serde_json::json!({ "path": path })).to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+    let page_id = p.page_id.clone();
+    let path = p.path.clone();
+    match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.screenshot(page_id.as_str().into(), path.as_str().into())
+                .into_result()
+                .map(|s| s.into_string())
+                .map_err(|e| anyhow::anyhow!("browser screenshot: {e}"))
+        })
+    })
+    .await
+    {
+        Ok(Ok(path)) => ToolResult::ok(serde_json::json!({ "path": path })).to_json(),
+        Ok(Err(e)) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json(),
     }
 }
 
 pub async fn browser_extract(state: &ServerState, p: BrowserExtractParams) -> String {
-    let eng = global_engine();
-    let summary = match eng
-        .visible_text_summary(&p.page_id, summary_max_chars())
-        .await
+    let page_id = p.page_id.clone();
+    let max_chars = summary_max_chars() as u64;
+    let summary = match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.visible_text_summary(page_id.as_str().into(), max_chars)
+                .into_result()
+                .map(|s| s.into_string())
+                .map_err(|e| anyhow::anyhow!("browser visible_text_summary: {e}"))
+        })
+    })
+    .await
     {
-        Ok(s) => s,
-        Err(e) => return ToolResult::<serde_json::Value>::err(e).to_json(),
+        Ok(Ok(s)) => s,
+        Ok(Err(e)) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json()
+        }
     };
     let sys = "You help automate web pages. Answer ONLY with the extracted content requested — no preamble.";
     let user = format!(
@@ -129,13 +271,23 @@ pub async fn browser_extract(state: &ServerState, p: BrowserExtractParams) -> St
 }
 
 pub async fn browser_extract_json(state: &ServerState, p: BrowserExtractJsonParams) -> String {
-    let eng = global_engine();
-    let summary = match eng
-        .visible_text_summary(&p.page_id, summary_max_chars())
-        .await
+    let page_id = p.page_id.clone();
+    let max_chars = summary_max_chars() as u64;
+    let summary = match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.visible_text_summary(page_id.as_str().into(), max_chars)
+                .into_result()
+                .map(|s| s.into_string())
+                .map_err(|e| anyhow::anyhow!("browser visible_text_summary: {e}"))
+        })
+    })
+    .await
     {
-        Ok(s) => s,
-        Err(e) => return ToolResult::<serde_json::Value>::err(e).to_json(),
+        Ok(Ok(s)) => s,
+        Ok(Err(e)) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json()
+        }
     };
     let sys = "Reply with a single JSON object only (no markdown fences). The object MUST validate informally against the schema description given.";
     let user = format!(
@@ -180,13 +332,23 @@ struct ActJson {
 }
 
 pub async fn browser_act(state: &ServerState, p: BrowserActParams) -> String {
-    let eng = global_engine();
-    let summary = match eng
-        .visible_text_summary(&p.page_id, summary_max_chars())
-        .await
+    let page_id = p.page_id.clone();
+    let max_chars = summary_max_chars() as u64;
+    let summary = match tokio::task::spawn_blocking(move || {
+        with_browser_plugin(|p| { let b = backend!(p);
+            b.visible_text_summary(page_id.as_str().into(), max_chars)
+                .into_result()
+                .map(|s| s.into_string())
+                .map_err(|e| anyhow::anyhow!("browser visible_text_summary: {e}"))
+        })
+    })
+    .await
     {
-        Ok(s) => s,
-        Err(e) => return ToolResult::<serde_json::Value>::err(e).to_json(),
+        Ok(Ok(s)) => s,
+        Ok(Err(e)) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
+        Err(e) => {
+            return ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json()
+        }
     };
     let sys = r#"Reply with ONE JSON object only, no markdown. Shape:
 {"action":"click"|"fill"|"goto"|"wait"|"noop","target":"css or xpath:... optional","value":"optional","url":"optional"}.
@@ -213,44 +375,97 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
         }
     };
     let action = act.action.to_lowercase();
-    let res = match action.as_str() {
+    let page_id = p.page_id.clone();
+    let act_target = act.target.clone();
+    let act_value = act.value.clone();
+    let act_url = act.url.clone();
+    let res: Result<(), String> = match action.as_str() {
         "noop" => Ok(()),
         "goto" => {
-            let Some(url) = act.url.as_deref().filter(|u| !u.is_empty()) else {
+            let Some(url) = act_url.as_deref().filter(|u| !u.is_empty()) else {
                 return ToolResult::<serde_json::Value>::err("act goto requires url".to_string())
                     .to_json();
             };
-            eng.goto(&p.page_id, url).await
+            let url = url.to_string();
+            let page_id = page_id.clone();
+            tokio::task::spawn_blocking(move || {
+                with_browser_plugin(|p| { let b = backend!(p);
+                    b.goto(page_id.as_str().into(), url.as_str().into())
+                        .into_result()
+                        .map_err(|e| anyhow::anyhow!("{e}"))
+                })
+            })
+            .await
+            .map_err(|e| format!("spawn_blocking: {e}"))
+            .and_then(|r| r.map_err(|e| e.to_string()))
         }
         "wait" => {
-            let Some(t) = act.target.as_deref().filter(|s| !s.is_empty()) else {
+            let Some(t) = act_target.as_deref().filter(|s| !s.is_empty()) else {
                 return ToolResult::<serde_json::Value>::err(
                     "act wait requires target".to_string(),
                 )
                 .to_json();
             };
-            eng.wait_for(&p.page_id, t, 30).await
+            let t = t.to_string();
+            let page_id = page_id.clone();
+            tokio::task::spawn_blocking(move || {
+                with_browser_plugin(|p| { let b = backend!(p);
+                    b.wait_for(page_id.as_str().into(), t.as_str().into(), 30)
+                        .into_result()
+                        .map_err(|e| anyhow::anyhow!("{e}"))
+                })
+            })
+            .await
+            .map_err(|e| format!("spawn_blocking: {e}"))
+            .and_then(|r| r.map_err(|e| e.to_string()))
         }
         "click" => {
-            let Some(t) = act.target.as_deref().filter(|s| !s.is_empty()) else {
+            let Some(t) = act_target.as_deref().filter(|s| !s.is_empty()) else {
                 return ToolResult::<serde_json::Value>::err(
                     "act click requires target".to_string(),
                 )
                 .to_json();
             };
-            eng.click(&p.page_id, t).await
+            let t = t.to_string();
+            let page_id = page_id.clone();
+            tokio::task::spawn_blocking(move || {
+                with_browser_plugin(|p| { let b = backend!(p);
+                    b.click(page_id.as_str().into(), t.as_str().into())
+                        .into_result()
+                        .map_err(|e| anyhow::anyhow!("{e}"))
+                })
+            })
+            .await
+            .map_err(|e| format!("spawn_blocking: {e}"))
+            .and_then(|r| r.map_err(|e| e.to_string()))
         }
         "fill" => {
             let (Some(t), Some(v)) = (
-                act.target.as_deref().filter(|s| !s.is_empty()),
-                act.value.as_deref(),
+                act_target.as_deref().filter(|s| !s.is_empty()),
+                act_value.as_deref(),
             ) else {
                 return ToolResult::<serde_json::Value>::err(
                     "act fill requires target and value".to_string(),
                 )
                 .to_json();
             };
-            eng.fill(&p.page_id, t, v).await
+            let t = t.to_string();
+            let v = v.to_string();
+            let page_id = page_id.clone();
+            tokio::task::spawn_blocking(move || {
+                with_browser_plugin(|p| { let b = backend!(p);
+                    b.fill(
+                        page_id.as_str().into(),
+                        t.as_str().into(),
+                        v.as_str().into(),
+                    )
+                    .into_result()
+                    .map_err(|e| anyhow::anyhow!("{e}"))
+                })
+            })
+            .await
+            .map_err(|e| format!("spawn_blocking: {e}"))
+            .and_then(|r| r.map_err(|e| e.to_string()))
         }
         _ => {
             return ToolResult::<serde_json::Value>::err(format!("unknown action {action:?}"))
@@ -265,6 +480,6 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
             "execution_mode": "assisted",
         }))
         .to_json(),
-        Err(e) => ToolResult::<serde_json::Value>::err(e).to_json(),
+        Err(e) => ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
     }
 }
