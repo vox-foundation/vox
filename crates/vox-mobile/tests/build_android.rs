@@ -68,3 +68,41 @@ platforms = ["android"]
         "expected helpful error; got: {stderr}"
     );
 }
+
+#[test]
+fn build_android_fails_clearly_with_no_mobile_section() {
+    use std::fs;
+    use tempfile::tempdir;
+
+    let dir = tempdir().unwrap();
+    fs::write(
+        dir.path().join("Vox.toml"),
+        r#"[package]
+name = "x"
+kind = "application"
+
+[build]
+target = "mobile"
+"#,
+    )
+    .unwrap();
+
+    let mut cmd = Command::cargo_bin("vox-mobile").unwrap();
+    let out = cmd
+        .current_dir(dir.path())
+        .arg("build")
+        .arg("--platform=android")
+        .output()
+        .unwrap();
+
+    assert!(!out.status.success(), "should fail with no [mobile] section");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("[mobile]") && stderr.contains("missing"),
+        "expected error mentioning missing [mobile] section; got: {stderr}"
+    );
+    assert!(
+        !stderr.contains("panicked") && !stderr.contains("RUST_BACKTRACE"),
+        "should fail gracefully, not panic; got: {stderr}"
+    );
+}

@@ -21,7 +21,7 @@ fn main() -> Result<()> {
             let mobile = manifest
                 .mobile
                 .as_ref()
-                .expect("validated by manifest_resolve");
+                .expect("manifest_resolve::load guarantees [mobile] is present when target=mobile");
 
             match platform.as_str() {
                 "android" => {

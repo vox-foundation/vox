@@ -1,6 +1,6 @@
 //! Reads `Vox.toml` from the project directory and validates it for mobile builds.
 
-use anyhow::{bail, Context, Result};
+use anyhow::{anyhow, bail, Context, Result};
 use std::path::Path;
 use vox_pm::manifest::{validate_mobile, VoxManifest};
 
@@ -19,7 +19,15 @@ pub fn load(project_dir: &Path) -> Result<VoxManifest> {
             target
         );
     }
+
+    if manifest.mobile.is_none() {
+        bail!(
+            "{} has [build] target = \"mobile\" but is missing the [mobile] section",
+            manifest_path.display()
+        );
+    }
+
     validate_mobile(&manifest)
-        .map_err(|e| anyhow::anyhow!("validating [mobile] in {}: {e}", manifest_path.display()))?;
+        .map_err(|e| anyhow!("validating [mobile] in {}: {e}", manifest_path.display()))?;
     Ok(manifest)
 }
