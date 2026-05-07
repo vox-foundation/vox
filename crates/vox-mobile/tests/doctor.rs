@@ -15,9 +15,8 @@ fn doctor_prints_check_table() {
 }
 
 #[test]
-fn doctor_succeeds_when_at_least_one_platform_is_complete() {
-    // Cannot reliably guarantee any platform is fully installed in CI;
-    // this test only asserts the binary runs without panicking.
-    let mut cmd = Command::cargo_bin("vox-mobile").unwrap();
-    cmd.arg("doctor").assert();
+fn doctor_exits_with_documented_code() {
+    let output = Command::cargo_bin("vox-mobile").unwrap().arg("doctor").output().unwrap();
+    let code = output.status.code().expect("doctor should have an exit code");
+    assert!(matches!(code, 0 | 1), "doctor should exit 0 or 1; got: {code}");
 }

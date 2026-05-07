@@ -1,9 +1,7 @@
 //! `vox-mobile doctor` — toolchain detection.
 
-use anyhow::Result;
 use std::env;
 use std::path::PathBuf;
-use std::process::Command;
 
 /// One toolchain check.
 #[derive(Debug)]
@@ -21,9 +19,10 @@ pub enum Status {
 
 /// Run all checks for a platform-agnostic doctor pass.
 /// Returns 0 if at least one platform is fully configured, 1 otherwise.
-pub fn run() -> Result<i32> {
-    let android_checks = android_checks();
-    let ios_checks = ios_checks();
+pub fn run() -> i32 {
+    let installed = rustup_installed_targets();
+    let android_checks = android_checks(&installed);
+    let ios_checks = ios_checks(&installed);
 
     println!("vox-mobile doctor\n");
     println!("Android:");
@@ -40,7 +39,7 @@ pub fn run() -> Result<i32> {
 
     if !android_ok && !ios_ok {
         println!("\nNo platform is fully configured. Install at least one platform's prerequisites and re-run `vox mobile doctor`.");
-        return Ok(1);
+        return 1;
     }
     if android_ok {
         println!("\nAndroid: ready to build.");
@@ -48,10 +47,24 @@ pub fn run() -> Result<i32> {
     if ios_ok {
         println!("iOS: ready to build.");
     }
-    Ok(0)
+    0
 }
 
-fn android_checks() -> Vec<Check> {
+fn rustup_installed_targets() -> Vec<String> {
+    let output = std::process::Command::new("rustup")
+        .args(["target", "list", "--installed"])
+        .output();
+    match output {
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn android_checks(installed: &[String]) -> Vec<Check> {
     let mut checks = vec![
         check_executable("cargo-ndk", "cargo install cargo-ndk"),
         check_env(
@@ -64,12 +77,12 @@ fn android_checks() -> Vec<Check> {
         "armv7-linux-androideabi",
         "x86_64-linux-android",
     ] {
-        checks.push(check_rustup_target(target));
+        checks.push(check_rustup_target(target, installed));
     }
     checks
 }
 
-fn ios_checks() -> Vec<Check> {
+fn ios_checks(installed: &[String]) -> Vec<Check> {
     if cfg!(not(target_os = "macos")) {
         return vec![Check {
             name: "iOS toolchain".into(),
@@ -86,7 +99,7 @@ fn ios_checks() -> Vec<Check> {
         "aarch64-apple-ios-sim",
         "x86_64-apple-ios",
     ] {
-        checks.push(check_rustup_target(target));
+        checks.push(check_rustup_target(target, installed));
     }
     checks
 }
@@ -105,31 +118,29 @@ fn check_executable(name: &str, hint: &str) -> Check {
 }
 
 fn check_env(var: &str, hint: &str) -> Check {
-    let status = match env::var(var) {
-        Ok(v) if !v.trim().is_empty() && PathBuf::from(&v).exists() => Status::Present,
-        _ => Status::Missing,
+    let raw = env::var(var).ok();
+    let (status, hint_to_use) = match raw {
+        Some(ref v) if !v.trim().is_empty() && PathBuf::from(v).exists() => {
+            (Status::Present, hint.to_string())
+        }
+        Some(v) if !v.trim().is_empty() => (
+            Status::Missing,
+            format!("{var} is set to '{v}' but that path does not exist. {hint}"),
+        ),
+        _ => (Status::Missing, hint.to_string()),
     };
     Check {
         name: var.into(),
         status,
-        install_hint: hint.into(),
+        install_hint: hint_to_use,
     }
 }
 
-fn check_rustup_target(target: &str) -> Check {
-    let output = Command::new("rustup")
-        .args(["target", "list", "--installed"])
-        .output();
-    let status = match output {
-        Ok(out) if out.status.success() => {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            if stdout.lines().any(|line| line.trim() == target) {
-                Status::Present
-            } else {
-                Status::Missing
-            }
-        }
-        _ => Status::Missing,
+fn check_rustup_target(target: &str, installed: &[String]) -> Check {
+    let status = if installed.iter().any(|t| t == target) {
+        Status::Present
+    } else {
+        Status::Missing
     };
     Check {
         name: format!("rustup target {target}"),
