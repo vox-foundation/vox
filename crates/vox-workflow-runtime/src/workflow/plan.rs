@@ -215,20 +215,35 @@ fn collect_activity_calls_from_stmts(
 ) -> anyhow::Result<()> {
     for s in stmts {
         match s {
-            HirStmt::Let { value, .. } => {
-                collect_from_expr(workflow_name, value, ctx, activity_names, out, branch_counter)?
-            }
-            HirStmt::Assign { value, .. } => {
-                collect_from_expr(workflow_name, value, ctx, activity_names, out, branch_counter)?
-            }
+            HirStmt::Let { value, .. } => collect_from_expr(
+                workflow_name,
+                value,
+                ctx,
+                activity_names,
+                out,
+                branch_counter,
+            )?,
+            HirStmt::Assign { value, .. } => collect_from_expr(
+                workflow_name,
+                value,
+                ctx,
+                activity_names,
+                out,
+                branch_counter,
+            )?,
             HirStmt::Return { value, .. } => {
                 if let Some(v) = value {
                     collect_from_expr(workflow_name, v, ctx, activity_names, out, branch_counter)?;
                 }
             }
-            HirStmt::Expr { expr, .. } => {
-                collect_from_expr(workflow_name, expr, ctx, activity_names, out, branch_counter)?
-            }
+            HirStmt::Expr { expr, .. } => collect_from_expr(
+                workflow_name,
+                expr,
+                ctx,
+                activity_names,
+                out,
+                branch_counter,
+            )?,
             HirStmt::While { .. } | HirStmt::Loop { .. } => {
                 anyhow::bail!(
                     "workflow `{workflow_name}`: interpreted durable planning does not support `while` or `loop` statements"
@@ -255,7 +270,14 @@ fn collect_from_expr(
     match expr {
         HirExpr::With(inner, opts, _) => {
             let merged = ctx.merged_with(opts)?;
-            collect_from_expr(workflow_name, inner, &merged, activity_names, out, branch_counter)?;
+            collect_from_expr(
+                workflow_name,
+                inner,
+                &merged,
+                activity_names,
+                out,
+                branch_counter,
+            )?;
         }
         HirExpr::Call(callee, args, _, _) => {
             if let HirExpr::Ident(name, _) = &**callee {
@@ -328,7 +350,14 @@ fn collect_from_expr(
                     is_detached: ctx.is_detached,
                 });
             } else {
-                collect_from_expr(workflow_name, callee, ctx, activity_names, out, branch_counter)?;
+                collect_from_expr(
+                    workflow_name,
+                    callee,
+                    ctx,
+                    activity_names,
+                    out,
+                    branch_counter,
+                )?;
                 for arg in args {
                     collect_from_expr(
                         workflow_name,
@@ -384,29 +413,60 @@ fn collect_from_expr(
                 )?;
             }
         }
-        HirExpr::Block(stmts, _) => {
-            collect_activity_calls_from_stmts(workflow_name, stmts, ctx, activity_names, out, branch_counter)?
-        }
+        HirExpr::Block(stmts, _) => collect_activity_calls_from_stmts(
+            workflow_name,
+            stmts,
+            ctx,
+            activity_names,
+            out,
+            branch_counter,
+        )?,
         HirExpr::Binary(_, a, b, _) => {
             collect_from_expr(workflow_name, a, ctx, activity_names, out, branch_counter)?;
             collect_from_expr(workflow_name, b, ctx, activity_names, out, branch_counter)?;
         }
-        HirExpr::Unary(_, a, _) => collect_from_expr(workflow_name, a, ctx, activity_names, out, branch_counter)?,
+        HirExpr::Unary(_, a, _) => {
+            collect_from_expr(workflow_name, a, ctx, activity_names, out, branch_counter)?
+        }
         HirExpr::Match(_, _, _) => anyhow::bail!(
             "workflow `{workflow_name}`: interpreted durable planning currently supports only linear activity plans; `match` branches are not replay-safe yet"
         ),
         HirExpr::MethodCall(recv, _, args, _, _) => {
-            collect_from_expr(workflow_name, recv, ctx, activity_names, out, branch_counter)?;
+            collect_from_expr(
+                workflow_name,
+                recv,
+                ctx,
+                activity_names,
+                out,
+                branch_counter,
+            )?;
             for a in args {
-                collect_from_expr(workflow_name, &a.value, ctx, activity_names, out, branch_counter)?;
+                collect_from_expr(
+                    workflow_name,
+                    &a.value,
+                    ctx,
+                    activity_names,
+                    out,
+                    branch_counter,
+                )?;
             }
         }
-        HirExpr::FieldAccess(recv, _, _) => {
-            collect_from_expr(workflow_name, recv, ctx, activity_names, out, branch_counter)?
-        }
-        HirExpr::Lambda(_, _, body, _) => {
-            collect_from_expr(workflow_name, body, ctx, activity_names, out, branch_counter)?
-        }
+        HirExpr::FieldAccess(recv, _, _) => collect_from_expr(
+            workflow_name,
+            recv,
+            ctx,
+            activity_names,
+            out,
+            branch_counter,
+        )?,
+        HirExpr::Lambda(_, _, body, _) => collect_from_expr(
+            workflow_name,
+            body,
+            ctx,
+            activity_names,
+            out,
+            branch_counter,
+        )?,
         HirExpr::For(_, _, iter, body, _) => {
             // Replay-safe bounded loops: literal lists are deterministic and can be unrolled.
             const MAX_STATIC_LOOP_UNROLL: usize = 64;
@@ -418,7 +478,14 @@ fn collect_from_expr(
                         );
                     }
                     for _ in items {
-                        collect_from_expr(workflow_name, body, ctx, activity_names, out, branch_counter)?;
+                        collect_from_expr(
+                            workflow_name,
+                            body,
+                            ctx,
+                            activity_names,
+                            out,
+                            branch_counter,
+                        )?;
                     }
                 }
                 _ => anyhow::bail!(
@@ -426,9 +493,14 @@ fn collect_from_expr(
                 ),
             }
         }
-        HirExpr::Spawn(inner, _) => {
-            collect_from_expr(workflow_name, inner, ctx, activity_names, out, branch_counter)?
-        }
+        HirExpr::Spawn(inner, _) => collect_from_expr(
+            workflow_name,
+            inner,
+            ctx,
+            activity_names,
+            out,
+            branch_counter,
+        )?,
         HirExpr::ListLit(items, _) => {
             for it in items {
                 collect_from_expr(workflow_name, it, ctx, activity_names, out, branch_counter)?;

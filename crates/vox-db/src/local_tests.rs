@@ -468,3 +468,76 @@ async fn record_and_query_exec_time() {
     let latency = db.query_tool_latency("t1", "r1", 90, 1.5).await.unwrap();
     assert!(latency.is_some());
 }
+
+#[tokio::test]
+async fn unified_llm_turn_writes_llm_and_socrates() {
+    use vox_socrates_policy::RiskDecision;
+
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+    let outcome = crate::store::types::ModelOutcome {
+        session_id: "s-unified",
+        user_id: None,
+        prompt: "p",
+        response: "r",
+        model_id: "openai/gpt-test",
+        provider: "openrouter",
+        task_category: "General",
+        strength_tag: "generalist",
+        latency_ms: Some(10),
+        input_tokens: Some(3),
+        output_tokens: Some(5),
+        cache_read_tokens: Some(0),
+        trace_id: Some("t1"),
+        context_utilization_pct: None,
+        success: true,
+        cost_usd: Some(0.001),
+        quality_score: Some(1.0),
+    };
+    let ids = db
+        .record_unified_llm_turn(
+            outcome,
+            Some((
+                "repo-hash".to_string(),
+                "vox_chat_message".to_string(),
+                RiskDecision::Answer,
+                0.9,
+                0.05,
+                Some("openai/gpt-test".to_string()),
+                Some(serde_json::json!({"task_class": "chat_turn"})),
+            )),
+        )
+        .await
+        .expect("unified");
+    assert!(ids.llm_interaction_rowid > 0);
+    assert!(ids.socrates_research_metric_rowid.unwrap_or(0) > 0);
+}
+
+#[tokio::test]
+async fn list_model_arm_stats_aggregates_scoreboard_rows() {
+    use crate::store::ModelScoreboardRow;
+
+    let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
+    let w: i64 = 7;
+    let now = crate::now_unix_ms() as i64;
+    for (task, sr) in [("CodeGen", 1.0_f64), ("Testing", 0.0_f64)] {
+        db.upsert_model_scoreboard(ModelScoreboardRow {
+            model_id: "openrouter/test-m".to_string(),
+            task_category: task.to_string(),
+            strength_tag: "generalist".to_string(),
+            window_days: w,
+            n_calls: 10,
+            success_rate: sr,
+            p50_latency_ms: None,
+            p99_latency_ms: None,
+            cost_per_success_usd: None,
+            quality_score: 0.0,
+            updated_at_ms: now,
+            success_count: 0,
+            cumulative_cost_usd: 0.0,
+        })
+        .await
+        .expect("upsert");
+    }
+    let map = db.list_model_arm_stats(w).await.expect("arm stats");
+    assert_eq!(map.get("openrouter/test-m").copied(), Some((10, 10)));
+}

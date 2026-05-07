@@ -88,7 +88,7 @@ pub fn call_builtin_method(
             "get" => {
                 let idx = args.into_iter().next()?;
                 if let VoxValue::Int(i) = idx {
-                    let val = v.get(i as usize).cloned().map(|v| Box::new(v));
+                    let val = v.get(i as usize).cloned().map(Box::new);
                     Some(VoxValue::Option(val))
                 } else {
                     Some(VoxValue::Option(None))
@@ -269,19 +269,13 @@ pub fn call_builtin_method(
                 );
             }
 
-            if let Some(ns_str) = ns {
-                if let Some(c) = caps {
-                    if (ns_str == "fs"
-                        || ns_str == "process"
-                        || ns_str == "env"
-                        || ns_str == "clavis")
-                        && !(c.contains(ns_str)
-                            || (ns_str == "process" && c.contains("subprocess")))
-                    {
-                        println!("Capability denied: script missing capability '{}'", ns_str);
-                        return Some(VoxValue::Null);
-                    }
-                }
+            if let Some(ns_str) = ns
+                && let Some(c) = caps
+                && (ns_str == "fs" || ns_str == "process" || ns_str == "env" || ns_str == "clavis")
+                && !(c.contains(ns_str) || (ns_str == "process" && c.contains("subprocess")))
+            {
+                println!("Capability denied: script missing capability '{}'", ns_str);
+                return Some(VoxValue::Null);
             }
 
             match ns {
@@ -458,19 +452,24 @@ pub fn call_builtin_method(
 
                         match output {
                             Ok(out) => {
-                                let mut res = Vec::new();
-                                res.push((
-                                    "stdout".to_string(),
-                                    VoxValue::Str(String::from_utf8_lossy(&out.stdout).to_string()),
-                                ));
-                                res.push((
-                                    "stderr".to_string(),
-                                    VoxValue::Str(String::from_utf8_lossy(&out.stderr).to_string()),
-                                ));
-                                res.push((
-                                    "code".to_string(),
-                                    VoxValue::Int(out.status.code().unwrap_or(0) as i64),
-                                ));
+                                let res = vec![
+                                    (
+                                        "stdout".to_string(),
+                                        VoxValue::Str(
+                                            String::from_utf8_lossy(&out.stdout).to_string(),
+                                        ),
+                                    ),
+                                    (
+                                        "stderr".to_string(),
+                                        VoxValue::Str(
+                                            String::from_utf8_lossy(&out.stderr).to_string(),
+                                        ),
+                                    ),
+                                    (
+                                        "code".to_string(),
+                                        VoxValue::Int(out.status.code().unwrap_or(0) as i64),
+                                    ),
+                                ];
                                 Some(VoxValue::Object(res))
                             }
                             Err(_) => Some(VoxValue::Null),
@@ -675,7 +674,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
         "print" => {
             let msg = args
                 .iter()
-                .map(|v| vox_value_display(v))
+                .map(vox_value_display)
                 .collect::<Vec<_>>()
                 .join(" ");
             println!("{msg}");
@@ -687,7 +686,7 @@ pub fn call_global_builtin(name: &str, args: Vec<VoxValue>) -> Option<VoxValue> 
             if !ok {
                 let msg = args
                     .get(1)
-                    .map(|v| vox_value_display(v))
+                    .map(vox_value_display)
                     .unwrap_or_else(|| "Assertion failed".to_string());
                 eprintln!("assertion failed: {msg}");
                 // Surface as Null — callers can check via EvalError::AssertionFailed

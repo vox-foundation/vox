@@ -335,7 +335,6 @@ fn channel_contract_defaults(channel: &str) -> (usize, usize) {
 }
 
 /// Validate every `template_profile` value used in embedded topic packs exists in projection profiles.
-#[must_use]
 pub fn validate_topic_pack_projection_profiles() -> Result<(), String> {
     let packs = crate::topic_packs::load_topic_packs_embedded().map_err(|e| e.to_string())?;
     let profiles = embedded_profiles();

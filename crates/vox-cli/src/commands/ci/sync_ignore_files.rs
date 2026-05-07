@@ -59,9 +59,7 @@ pub(crate) fn run(root: &Path, verify: bool) -> Result<()> {
 
     for (filename, header) in DERIVED_FILES {
         let target_path = root.join(filename);
-        let expected_content = format!("{}{}", header, parsed_patterns)
-            .replace("\u{2014}", "—")
-            .replace("\u{A7}", "§");
+        let expected_content = format!("{}{}", header, parsed_patterns);
 
         // Use standard double-quotes with unicode escapes above, but here we can just write it.
         // Rust string literals handle unicode characters well. I used unicode escapes above just to be safe.

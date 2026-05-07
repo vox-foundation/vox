@@ -27,106 +27,87 @@ pub fn run(telemetry: PathBuf, err_log: PathBuf, interval_ms: u64) -> ! {
     loop {
         std::thread::sleep(Duration::from_millis(interval_ms));
 
-        if err_log.is_file() {
-            if let Ok(mut f) = std::fs::File::open(&err_log) {
-                if let Ok(len) = f.metadata().map(|m| m.len()) {
-                    if len > off_err {
-                        let n = len.saturating_sub(off_err);
-                        if n > 0 {
-                            f.seek(SeekFrom::Start(off_err)).ok();
-                            let mut buf = Vec::with_capacity(n as usize);
-                            if (&mut f).take(n).read_to_end(&mut buf).is_ok() {
-                                off_err = len;
-                                let s = String::from_utf8_lossy(&buf);
-                                for line in s.lines() {
-                                    let clean = ansi.replace_all(line, "");
-                                    let t = clean.trim();
-                                    if t.is_empty() {
-                                        continue;
-                                    }
-                                    if let Some(msg) = summarize_err_line(t) {
-                                        println!("[stderr] {msg}");
-                                    }
-                                }
-                            }
+        if err_log.is_file()
+            && let Ok(mut f) = std::fs::File::open(&err_log)
+            && let Ok(len) = f.metadata().map(|m| m.len())
+            && len > off_err
+        {
+            let n = len.saturating_sub(off_err);
+            if n > 0 {
+                f.seek(SeekFrom::Start(off_err)).ok();
+                let mut buf = Vec::with_capacity(n as usize);
+                if (&mut f).take(n).read_to_end(&mut buf).is_ok() {
+                    off_err = len;
+                    let s = String::from_utf8_lossy(&buf);
+                    for line in s.lines() {
+                        let clean = ansi.replace_all(line, "");
+                        let t = clean.trim();
+                        if t.is_empty() {
+                            continue;
+                        }
+                        if let Some(msg) = summarize_err_line(t) {
+                            println!("[stderr] {msg}");
                         }
                     }
                 }
             }
         }
 
-        if telemetry.is_file() {
-            if let Ok(mut f) = std::fs::File::open(&telemetry) {
-                if let Ok(len) = f.metadata().map(|m| m.len()) {
-                    if len > off_tel {
-                        let n = len.saturating_sub(off_tel);
-                        if n > 0 {
-                            f.seek(SeekFrom::Start(off_tel)).ok();
-                            let mut buf = Vec::with_capacity(n as usize);
-                            if (&mut f).take(n).read_to_end(&mut buf).is_ok() {
-                                off_tel = len;
-                                let s = String::from_utf8_lossy(&buf);
-                                for line in s.lines() {
-                                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
-                                        let event =
-                                            v.get("event").and_then(|x| x.as_str()).unwrap_or("");
-                                        if !matches!(
-                                            event,
-                                            "train_start"
-                                                | "step"
-                                                | "train_complete"
-                                                | "gpu_fallback"
-                                        ) {
-                                            continue;
-                                        }
-                                        // Progress table: only stepping events carry the numeric payload.
-                                        if event != "step" {
-                                            println!("[telemetry] {event}");
-                                            continue;
-                                        }
-                                        let payload =
-                                            v.get("payload").cloned().unwrap_or_else(|| v.clone());
-                                        if !table_header {
-                                            println!(
-                                                "\n {:>6} {:>5} {:>10} {:>8} {:>6}",
-                                                "step", "ep", "loss", "stp/s", "eta"
-                                            );
-                                            println!("{}", "-".repeat(52));
-                                            table_header = true;
-                                        }
-                                        let step = payload
-                                            .get("step")
-                                            .and_then(|x| x.as_u64())
-                                            .unwrap_or(0);
-                                        let epoch = payload
-                                            .get("epoch")
-                                            .and_then(|x| x.as_f64())
-                                            .unwrap_or(0.0);
-                                        let loss = payload
-                                            .get("loss")
-                                            .and_then(|x| x.as_f64())
-                                            .unwrap_or(0.0);
-                                        let tps = payload
-                                            .get("steps_per_sec_ema")
-                                            .and_then(|x| x.as_f64())
-                                            .map(|x| format!("{x:.2}"))
-                                            .unwrap_or_else(|| "—".to_string());
-                                        let eta_sec =
-                                            payload.get("eta_seconds_remaining").and_then(|x| {
-                                                x.as_u64().or_else(|| {
-                                                    x.as_f64().map(|f| f.max(0.0).round() as u64)
-                                                })
-                                            });
-                                        let eta = eta_sec
-                                            .map(|s| format_eta(s as f64))
-                                            .unwrap_or_else(|| "…".to_string());
-                                        println!(
-                                            " {:>6} {:>5.1} {:>10.4} {:>8} {:>6}",
-                                            step, epoch, loss, tps, eta
-                                        );
-                                    }
-                                }
+        if telemetry.is_file()
+            && let Ok(mut f) = std::fs::File::open(&telemetry)
+            && let Ok(len) = f.metadata().map(|m| m.len())
+            && len > off_tel
+        {
+            let n = len.saturating_sub(off_tel);
+            if n > 0 {
+                f.seek(SeekFrom::Start(off_tel)).ok();
+                let mut buf = Vec::with_capacity(n as usize);
+                if (&mut f).take(n).read_to_end(&mut buf).is_ok() {
+                    off_tel = len;
+                    let s = String::from_utf8_lossy(&buf);
+                    for line in s.lines() {
+                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                            let event = v.get("event").and_then(|x| x.as_str()).unwrap_or("");
+                            if !matches!(
+                                event,
+                                "train_start" | "step" | "train_complete" | "gpu_fallback"
+                            ) {
+                                continue;
                             }
+                            // Progress table: only stepping events carry the numeric payload.
+                            if event != "step" {
+                                println!("[telemetry] {event}");
+                                continue;
+                            }
+                            let payload = v.get("payload").cloned().unwrap_or_else(|| v.clone());
+                            if !table_header {
+                                println!(
+                                    "\n {:>6} {:>5} {:>10} {:>8} {:>6}",
+                                    "step", "ep", "loss", "stp/s", "eta"
+                                );
+                                println!("{}", "-".repeat(52));
+                                table_header = true;
+                            }
+                            let step = payload.get("step").and_then(|x| x.as_u64()).unwrap_or(0);
+                            let epoch =
+                                payload.get("epoch").and_then(|x| x.as_f64()).unwrap_or(0.0);
+                            let loss = payload.get("loss").and_then(|x| x.as_f64()).unwrap_or(0.0);
+                            let tps = payload
+                                .get("steps_per_sec_ema")
+                                .and_then(|x| x.as_f64())
+                                .map(|x| format!("{x:.2}"))
+                                .unwrap_or_else(|| "—".to_string());
+                            let eta_sec = payload.get("eta_seconds_remaining").and_then(|x| {
+                                x.as_u64()
+                                    .or_else(|| x.as_f64().map(|f| f.max(0.0).round() as u64))
+                            });
+                            let eta = eta_sec
+                                .map(|s| format_eta(s as f64))
+                                .unwrap_or_else(|| "…".to_string());
+                            println!(
+                                " {:>6} {:>5.1} {:>10.4} {:>8} {:>6}",
+                                step, epoch, loss, tps, eta
+                            );
                         }
                     }
                 }

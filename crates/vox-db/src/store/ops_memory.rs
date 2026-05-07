@@ -480,6 +480,7 @@ impl crate::VoxDb {
         query: &str,
         query_vector: Option<&[f32]>,
         limit: i64,
+        chunk_vector_fusion_weight: f32,
     ) -> Result<(Vec<RetrievalResult>, SearchDiagnostics), StoreError> {
         let lim = limit.clamp(1, 1_000);
         let lexical_rows = self.query_search_document_chunks(query, lim).await?;
@@ -545,7 +546,11 @@ impl crate::VoxDb {
         } else if text_hits.is_empty() {
             vector_hits
         } else {
-            fuse_hybrid_results(&vector_hits, &text_hits, 0.60)
+            fuse_hybrid_results(
+                &vector_hits,
+                &text_hits,
+                chunk_vector_fusion_weight.clamp(0.0, 1.0),
+            )
         };
         diagnostics.source_diversity = usize::from(!fused.is_empty());
         diagnostics.evidence_quality = fused

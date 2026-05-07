@@ -35,7 +35,6 @@ fn collect_query_plans_expr(
 ) {
     use vox_compiler::hir::HirExpr;
     match expr {
-
         HirExpr::ObjectLit(fields, _) => {
             for (_, v) in fields {
                 collect_query_plans_expr(v, out);

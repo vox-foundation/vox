@@ -89,14 +89,9 @@ type User {
 
 ## UI & Frontend
 
-### `@island`
-- **Goal**: Declare a **React island** implemented under repo-root **`islands/`** (TSX), separate from the main Vite app.
-- **Effect**: Parser emits `HirIsland`. Writes `vox-islands-meta.ts`. Mounts onto the client.
-- **Usage**:
-  ```vox
-  // vox:skip
-  @island Counter { initial: Option[int] }
-  ```
+> **Note (2026-05-03):** `@island` was retired. Use `component` for UI; the compiler
+> emits plain React/TSX for external React apps to import. See
+> [architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).
 
 ### `@loading`
 - **Goal**: Suspense / transition UI for TanStack Router while a lazy route or data boundary resolves.
@@ -112,7 +107,7 @@ fn Spinner() -> Element {
 
 ### `@v0`
 - **Goal**: Retrieve an AI-generated React component natively via Vercel's unofficial CLI.
-- **Effect**: Downloads `.tsx` implementation and wraps it as an island.
+- **Effect**: Downloads `.tsx` implementation and emits it as a React component.
 - **Usage**: `@v0 "chat-id" fn Dashboard() -> Element { }`
 
 ## Testing & Tooling

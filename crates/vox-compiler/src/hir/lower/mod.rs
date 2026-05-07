@@ -1,7 +1,7 @@
 //! Lower AST [`Module`] to [`HirModule`] / [`crate::hir::TypedCoreIR_v2`].
 //!
 //! This module is the **HIR boundary** before [`crate::web_ir::lower::project_web_from_core`].
-//! Declaration arms here define what structured data reaches WebIR (islands, `HirRoutes`,
+//! Declaration arms here define what structured data reaches WebIR (`HirRoutes`,
 //! reactive components, server/query/mutation `route_path` contracts). See internal Web IR
 //! implementation blueprint (lane P → S).
 //!
@@ -12,7 +12,7 @@
 //!
 //! **Lowering buckets (OP-S005):** each `Decl` arm in `LowerCtx::lower` maps into a named field on
 //! [`HirModule`] — for example `Decl::Import`→`imports`, `Decl::Routes`→`client_routes`,
-//! `Decl::ReactiveComponent`→`components`, `Decl::Island`→`islands`, `Decl::HttpRoute` /
+//! `Decl::ReactiveComponent`→`components`, `Decl::HttpRoute` /
 //! server/query/mutation→`routes` / `server_fns` / `query_fns` / `mutation_fns`, and tables/indices into
 //! their respective vectors. Search `Decl::` in this file for the authoritative match.
 
@@ -82,7 +82,6 @@ impl LowerCtx {
 
     fn lower(&mut self, module: &Module) -> HirModule {
         let mut hir = HirModule::default();
-
 
         for decl in &module.declarations {
             match decl {
@@ -175,7 +174,11 @@ impl LowerCtx {
                         body: lowered.body.clone(),
                         route_path,
                         is_pure: lowered.is_pure,
-                        effects: lowered.capabilities.iter().filter_map(cap_to_effect_kind).collect(),
+                        effects: lowered
+                            .capabilities
+                            .iter()
+                            .filter_map(cap_to_effect_kind)
+                            .collect(),
                         span: lowered.span,
                     });
                 }
@@ -192,7 +195,11 @@ impl LowerCtx {
                         body: lowered.body.clone(),
                         route_path,
                         is_pure: lowered.is_pure,
-                        effects: lowered.capabilities.iter().filter_map(cap_to_effect_kind).collect(),
+                        effects: lowered
+                            .capabilities
+                            .iter()
+                            .filter_map(cap_to_effect_kind)
+                            .collect(),
                         span: lowered.span,
                     });
                 }
@@ -208,16 +215,27 @@ impl LowerCtx {
                         body: lowered.body.clone(),
                         route_path,
                         is_pure: lowered.is_pure,
-                        effects: lowered.capabilities.iter().filter_map(cap_to_effect_kind).collect(),
+                        effects: lowered
+                            .capabilities
+                            .iter()
+                            .filter_map(cap_to_effect_kind)
+                            .collect(),
                         span: lowered.span,
                     });
                 }
                 Decl::Endpoint(e) => {
                     let lowered = self.lower_fn(&e.func, false);
                     let (kind, prefix) = match e.kind {
-                        crate::ast::decl::EndpointKind::Query => (crate::hir::HirEndpointKind::Query, QUERY_FN_API_PREFIX),
-                        crate::ast::decl::EndpointKind::Mutation => (crate::hir::HirEndpointKind::Mutation, MUTATION_FN_API_PREFIX),
-                        crate::ast::decl::EndpointKind::Server => (crate::hir::HirEndpointKind::Server, SERVER_FN_API_PREFIX),
+                        crate::ast::decl::EndpointKind::Query => {
+                            (crate::hir::HirEndpointKind::Query, QUERY_FN_API_PREFIX)
+                        }
+                        crate::ast::decl::EndpointKind::Mutation => (
+                            crate::hir::HirEndpointKind::Mutation,
+                            MUTATION_FN_API_PREFIX,
+                        ),
+                        crate::ast::decl::EndpointKind::Server => {
+                            (crate::hir::HirEndpointKind::Server, SERVER_FN_API_PREFIX)
+                        }
                     };
                     let route_path = format!("{prefix}{}", lowered.name);
                     hir.endpoint_fns.push(crate::hir::HirEndpointFn {
@@ -229,7 +247,11 @@ impl LowerCtx {
                         body: lowered.body.clone(),
                         route_path,
                         is_pure: lowered.is_pure,
-                        effects: lowered.capabilities.iter().filter_map(cap_to_effect_kind).collect(),
+                        effects: lowered
+                            .capabilities
+                            .iter()
+                            .filter_map(cap_to_effect_kind)
+                            .collect(),
                         span: lowered.span,
                     });
                 }
@@ -282,15 +304,84 @@ impl LowerCtx {
                 | Decl::NotFound(_) => {
                     // Path B UI surfaces deleted
                 }
-                // Island prop optionality (`prop?: T`) is preserved on AST `IslandDecl` for mount codegen + WebIR mounts.
-                Decl::Island(decl) => {
-                    hir.islands.push(HirIsland(decl.clone()));
-                }
                 Decl::Url(u) => {
                     hir.url_decls.push(self.lower_url_decl(u));
                 }
                 Decl::StateMachine(s) => {
                     hir.state_machines.push(self.lower_state_machine(s));
+                }
+                Decl::Fragment(f) => {
+                    let params = f
+                        .params
+                        .iter()
+                        .map(|p| self.lower_param(p))
+                        .collect::<Vec<_>>();
+                    let body = self.lower_expr(&f.body);
+                    hir.fragments.push(crate::hir::nodes::HirFragmentDecl {
+                        name: f.name.clone(),
+                        params,
+                        body,
+                        span: f.span,
+                    });
+                }
+                Decl::ReactiveModule(rm) => {
+                    // ADR-032: lower module-scope reactive members the same way
+                    // `lower_reactive_component` lowers in-component members. The
+                    // module name is filled in by codegen from the source basename
+                    // (parser leaves it empty); preserve whatever the AST has.
+                    use crate::ast::decl::ReactiveMemberDecl;
+                    use crate::hir::nodes::{
+                        HirDerived, HirEffect, HirOnCleanup, HirOnMount, HirReactiveMember,
+                        HirReactiveModule, HirState,
+                    };
+                    self.def_map.push_scope();
+                    let members: Vec<HirReactiveMember> = rm
+                        .members
+                        .iter()
+                        .map(|m| match m {
+                            ReactiveMemberDecl::State(s) => HirReactiveMember::State(HirState {
+                                id: self.def_map.define(s.name.clone()),
+                                name: s.name.clone(),
+                                ty: s.ty.as_ref().map(|t| self.lower_type(t)),
+                                init: self.lower_expr(&s.init),
+                                span: s.span,
+                            }),
+                            ReactiveMemberDecl::Derived(d) => {
+                                HirReactiveMember::Derived(HirDerived {
+                                    id: self.def_map.define(d.name.clone()),
+                                    name: d.name.clone(),
+                                    ty: d.ty.as_ref().map(|t| self.lower_type(t)),
+                                    expr: self.lower_expr(&d.expr),
+                                    span: d.span,
+                                })
+                            }
+                            ReactiveMemberDecl::Effect(e) => HirReactiveMember::Effect(HirEffect {
+                                body: self.lower_expr(&e.body),
+                                span: e.span,
+                            }),
+                            ReactiveMemberDecl::OnMount(m) => {
+                                HirReactiveMember::OnMount(HirOnMount {
+                                    body: self.lower_expr(&m.body),
+                                    span: m.span,
+                                })
+                            }
+                            ReactiveMemberDecl::OnCleanup(c) => {
+                                HirReactiveMember::OnCleanup(HirOnCleanup {
+                                    body: self.lower_expr(&c.body),
+                                    span: c.span,
+                                })
+                            }
+                            ReactiveMemberDecl::Stmt(s) => {
+                                HirReactiveMember::Stmt(self.lower_stmt(s))
+                            }
+                        })
+                        .collect();
+                    self.def_map.pop_scope();
+                    hir.reactive_modules.push(HirReactiveModule {
+                        name: rm.name.clone(),
+                        members,
+                        span: rm.span,
+                    });
                 }
                 Decl::Workflow(w) => {
                     let mut f = self.lower_workflow(w);
@@ -348,7 +439,6 @@ impl LowerCtx {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -396,48 +486,6 @@ http post "/chat" to Result { return Ok(0) }
         );
     }
 
-    /// Islands, `routes { ... }`, and reactive components populate `HirModule`; full module must
-    /// [`crate::web_ir::lower::lower_hir_to_web_ir`] + validate without diagnostics (blueprint OP-0035, OP-0039).
-    #[test]
-    #[ignore = "Path B removed"]
-    fn hir_island_routes_reactive_surface_validates_as_web_ir() {
-        let src = r#"
-import react.use_state
-
-@island Chart {
-    title: str
-    data: str
-    width?: int
-}
-
-@component Dash() {
-    state n: int = 0
-    view: <div class="dashboard">{n}</div>
-}
-
-routes {
-    "/" to Dash
-}
-"#;
-        let hir = lower_str(src);
-        assert!(
-            hir.legacy_ast_nodes.is_empty(),
-            "unexpected legacy: {:?}",
-            hir.legacy_ast_nodes
-        );
-        assert_eq!(hir.islands.len(), 1);
-        assert_eq!(hir.islands[0].0.name, "Chart");
-        assert_eq!(hir.islands[0].0.props.len(), 3);
-        assert!(hir.islands[0].0.props[2].is_optional);
-        assert_eq!(hir.islands[0].0.props[2].name, "width");
-
-
-
-        let web = crate::web_ir::lower::lower_hir_to_web_ir(&hir);
-        let diags = crate::web_ir::validate::validate_web_ir(&web);
-        assert!(diags.is_empty(), "{diags:?}");
-    }
-
     #[test]
     #[ignore = "Path B removed"]
     fn golden_crud_api_vox_lowers_without_legacy_nodes() {
@@ -479,7 +527,8 @@ fn f() to int {
                 && cargs.len() == 1
             {
                 dbg!(&cargs[0].value);
-                if let crate::hir::HirExpr::MethodCall(_, method, _, Some(plan), _) = &cargs[0].value
+                if let crate::hir::HirExpr::MethodCall(_, method, _, Some(plan), _) =
+                    &cargs[0].value
                 {
                     if method == "filter" && plan.op == crate::hir::HirDbTableOp::FilterRecord {
                         found = true;
@@ -563,12 +612,13 @@ fn f() to int {
                 && let crate::hir::HirExpr::Ident(fn_name, _) = callee.as_ref()
                 && fn_name == "len"
                 && cargs.len() == 1
-                && let crate::hir::HirExpr::MethodCall(_, method, _, Some(plan), _) = &cargs[0].value
+                && let crate::hir::HirExpr::MethodCall(_, method, _, Some(plan), _) =
+                    &cargs[0].value
                 && method == "all"
                 && plan.op == crate::hir::HirDbTableOp::All
-                && plan.projection
-                    .as_ref()
-                    .is_some_and(|c: &Vec<String>| c.len() == 2 && c[0] == "name" && c[1] == "active")
+                && plan.projection.as_ref().is_some_and(|c: &Vec<String>| {
+                    c.len() == 2 && c[0] == "name" && c[1] == "active"
+                })
             {
                 found = true;
             }
@@ -592,7 +642,8 @@ fn f() to int {
         for st in body {
             if let crate::hir::HirStmt::Return { value: Some(e), .. } = st
                 && let crate::hir::HirExpr::Call(_, cargs, _, _) = e
-                && let crate::hir::HirExpr::MethodCall(_, method, _, Some(plan), _) = &cargs[0].value
+                && let crate::hir::HirExpr::MethodCall(_, method, _, Some(plan), _) =
+                    &cargs[0].value
                 && method == "where"
             {
                 found = matches!(

@@ -16,7 +16,7 @@
 //! bodies fully share the reactive binding model.
 //!
 //! **Adapter notes (OP-S035):** classic AST codegen (`emit_jsx_*`) and Path C reactive (`super::reactive`)
-//! both consume island names and hook registries through shared helpers; new prop or hook wiring should
+//! both consume hook registries through shared helpers; new prop or hook wiring should
 //! land in [`crate::react_bridge`] + Web IR lower/validate before growing this adapter.
 //!
 //! **Notes B/C (OP-S115 / S161 / S193):** classic props interfaces remain the codegen boundary until Path C
@@ -28,7 +28,7 @@ use crate::ast::scalar_mapping::VoxScalar;
 use crate::ast::stmt::Stmt;
 use crate::codegen_ts::jsx::{emit_expr, emit_jsx_element, emit_jsx_fragment, emit_jsx_self_closing, emit_stmt};
 use crate::react_bridge::{for_each_vox_hook_call_in_stmt, react_hook_export_for_vox_ident};
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 
 /// Generate a React component from WebIR when a lowered view root is available.
 #[must_use]
@@ -131,11 +131,7 @@ pub fn generate_component_from_web_ir(
 
 /// Generate a React component from a Vox @component function declaration.
 /// Returns (filename, content) tuple.
-pub fn generate_component(
-    func: &FnDecl,
-    has_styles: bool,
-    island_names: &HashSet<String>,
-) -> (String, String) {
+pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
     let name = &func.name;
     let filename = format!("{name}.tsx");
     let mut out = String::new();
@@ -235,13 +231,13 @@ pub fn generate_component(
                 match expr {
                     Expr::Jsx(el) => {
                         // This is the return JSX
-                        jsx_return = Some(emit_jsx_element(el, 2, island_names));
+                        jsx_return = Some(emit_jsx_element(el, 2));
                     }
                     Expr::JsxSelfClosing(el) => {
-                        jsx_return = Some(emit_jsx_self_closing(el, 2, island_names));
+                        jsx_return = Some(emit_jsx_self_closing(el, 2));
                     }
                     Expr::JsxFragment { children, .. } => {
-                        jsx_return = Some(emit_jsx_fragment(children, 2, island_names));
+                        jsx_return = Some(emit_jsx_fragment(children, 2));
                     }
                     Expr::Call { .. } | Expr::MethodCall { .. } => {
                         out.push_str(&emit_component_stmt(stmt));
@@ -425,7 +421,7 @@ fn uses_mobile_ident_in_stmt(stmt: &Stmt) -> bool {
         Stmt::Assign { target, value, .. } => {
             uses_mobile_ident_in_expr(target) || uses_mobile_ident_in_expr(value)
         }
-        Stmt::Return { value, .. } => value.as_ref().map_or(false, uses_mobile_ident_in_expr),
+        Stmt::Return { value, .. } => value.as_ref().is_some_and(uses_mobile_ident_in_expr),
         Stmt::Expr { expr, .. } => uses_mobile_ident_in_expr(expr),
         Stmt::While {
             condition, body, ..
@@ -462,7 +458,7 @@ fn uses_mobile_ident_in_expr(expr: &Expr) -> bool {
                 || then_body.iter().any(uses_mobile_ident_in_stmt)
                 || else_body
                     .as_ref()
-                    .map_or(false, |b| b.iter().any(uses_mobile_ident_in_stmt))
+                    .is_some_and(|b| b.iter().any(uses_mobile_ident_in_stmt))
         }
         Expr::ObjectLit { fields, .. } => fields.iter().any(|(_, v)| uses_mobile_ident_in_expr(v)),
         Expr::ListLit { elements, .. } | Expr::TupleLit { elements, .. } => {

@@ -20,6 +20,7 @@ All notable changes to the Vox project are documented here.
 - **Docs**: `how-to-setup.md` + `scripts/README.md` — document `vox-bootstrap` flags (`--dev`, `--install-clang`, `--apply`, `plan` / `plan --human`).
 
 ### Added
+- **Orchestration contracts**: `capability_policy` + lifecycle metadata on `model-routing.v1.yaml` / `providers.v1.yaml`; `vox ci backend-tests` for targeted routing/telemetry/db smoke.
 - **CLI / scripts / CI (hybrid migration QA)**: `vox mens pipeline`; `std.process.run_capture` + `std.fs.glob`; `vox-compilerd` `run.mode`; `vox ci check-docs-ssot` stale-ref scan; `script-execution` in CI feature matrix; GitLab guard parity + native-only `ml-train`; doc [command surface duals](../ci/command-surface-duals.md).
 - **Codex / Arca / Turso**: ADR 004, architecture docs (`codex-vnext-schema`, `codex-baas`, `orphan-surface-inventory`, `codex-legacy-migration`), schema migration **V8** (`codex_*` reactivity + lineage), `vox_db::Codex` type alias, `vox_db::codex_legacy`, `vox-runtime` optional `database` feature + `db` module (`VOX_DB_*` + legacy `TURSO_*`), Coolify template under `infra/coolify/`, CI guard `scripts/check_codex_ssot.sh`
 - **Parser/Codegen**: `for item in list key item.id:` keyed iteration syntax — emits stable React `key` props from item fields instead of array indices; falls back to `_i` when no `key` modifier is given (motivated by Svelte research — avoids silent list-diffing performance bugs)

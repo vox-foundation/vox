@@ -8,11 +8,9 @@ use base64::Engine as _;
 use crate::{NodeRecord, node_maintenance_blocks_new_work};
 
 use super::super::auth::{PopuliAuthContext, auth_allows_deliver, auth_allows_worker_plane};
-use super::super::{
-    DispatchRequest, DispatchResponse, MeshQueueStats, PopuliTransportState,
-};
 #[cfg(feature = "transport")]
 use super::super::dispatch_results_sweep;
+use super::super::{DispatchRequest, DispatchResponse, MeshQueueStats, PopuliTransportState};
 use super::nodes::ResponseErr;
 
 pub(crate) async fn dispatch_script(
@@ -87,18 +85,21 @@ pub(crate) async fn dispatch_script(
                 }
             }
             if let Some(path) = &st_cl.dispatch_results_store_path {
-                let _ = super::super::store::persist_dispatch_results_store(path, &st_cl.dispatch_results);
+                let _ = super::super::store::persist_dispatch_results_store(
+                    path,
+                    &st_cl.dispatch_results,
+                );
             }
-            if let Some(ms) = st_cl.mesh_store.clone() {
-                if let Some(val) = st_cl.dispatch_results.get(&dispatch_id_for_store) {
-                    let key = dispatch_id_for_store.clone();
-                    let result = val.clone();
-                    tokio::spawn(async move {
-                        if let Err(e) = ms.put_dispatch_result(&key, &result).await {
-                            tracing::warn!(error = %e, key, "mesh_store put_dispatch_result failed");
-                        }
-                    });
-                }
+            if let Some(ms) = st_cl.mesh_store.clone()
+                && let Some(val) = st_cl.dispatch_results.get(&dispatch_id_for_store)
+            {
+                let key = dispatch_id_for_store.clone();
+                let result = val.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = ms.put_dispatch_result(&key, &result).await {
+                        tracing::warn!(error = %e, key, "mesh_store put_dispatch_result failed");
+                    }
+                });
             }
         });
 
@@ -163,14 +164,13 @@ fn select_best_node<'a>(nodes: &'a [NodeRecord], req: &DispatchRequest) -> Optio
         })
         .filter(|n| {
             // Label matching
-            if let Some(required) = &req.required_labels {
-                if !required.is_empty()
-                    && !required
-                        .iter()
-                        .all(|req_lab| n.capabilities.labels.contains(req_lab))
-                {
-                    return false;
-                }
+            if let Some(required) = &req.required_labels
+                && !required.is_empty()
+                && !required
+                    .iter()
+                    .all(|req_lab| n.capabilities.labels.contains(req_lab))
+            {
+                return false;
             }
             // VRAM matching
             if let Some(min_vram) = req.min_vram_mb {
@@ -338,7 +338,7 @@ pub(crate) async fn execute_on_worker(
     let start_time = std::time::Instant::now();
 
     let output = if req.is_bundle {
-        if bin_path.extension().map_or(false, |ext| ext == "wasm") {
+        if bin_path.extension().is_some_and(|ext| ext == "wasm") {
             std::process::Command::new("vox")
                 .arg("run")
                 .arg("--mode")

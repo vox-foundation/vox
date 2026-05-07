@@ -14,7 +14,7 @@ fn registry_client_for_sync(registry_url: Option<&str>) -> RegistryClient {
     let token_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRegistryToken);
     let token = token_resolved.expose().filter(|s| !s.is_empty());
     if let Some(t) = token {
-        RegistryClient::with_auth(base, &t)
+        RegistryClient::with_auth(base, t)
     } else {
         RegistryClient::new(base)
     }

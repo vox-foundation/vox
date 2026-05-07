@@ -43,13 +43,12 @@ pub fn worthiness_inputs_from_manifest_and_preflight(
             "citations_json_invalid"
             | "metadata_json_invalid"
             | "scientific_metadata_invalid"
-            | "author_primary_mismatch" => {
+            | "author_primary_mismatch"
                 if !red_line_violation_ids
                     .iter()
-                    .any(|x| x == "claim_evidence_mismatch")
-                {
-                    red_line_violation_ids.push("claim_evidence_mismatch".to_string());
-                }
+                    .any(|x| x == "claim_evidence_mismatch") =>
+            {
+                red_line_violation_ids.push("claim_evidence_mismatch".to_string());
             }
             _ => {}
         }

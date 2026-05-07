@@ -11,7 +11,7 @@ training_rationale: "Strategic plan; canonical reference for backend-only mode, 
 
 ## Premise
 
-Vox today supports exactly one shape: full-stack co-generation of a Vite/React frontend and an Axum backend from the same `.vox` source, with `@island` as the bridge primitive for sprinkling React into the generated tree.
+Historically Vox supported one shape: full-stack co-generation of a Vite/React frontend and an Axum backend from the same `.vox` source, with `@island` as the bridge primitive for sprinkling React into the generated tree. **As of 2026-05-03, `@island` is retired**: the compiler, CLI, templates, contracts, examples, and docs no longer reference it; Vox lowers `component` declarations directly to plain React/TSX that any external frontend imports.
 
 This plan **expands the model in two directions** without removing what works:
 
@@ -131,9 +131,11 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
 
 ---
 
-## Phase 5 — Bidirectional Vox↔React component interop; retire `@island`
+## Phase 5 — Bidirectional Vox↔React component interop (`@island` retired 2026-05-03)
 
-**Goal:** Make the Vox GUI language and the React ecosystem into peer citizens. A Vox component can use any React component; an emitted Vox component is a normal React component any external React app can use. With that in place, `@island` has no remaining job and is retired.
+> **Status update (2026-05-03):** `@island` is retired across the workspace. The remaining Phase 5 work is the bidirectional import bridge: Vox-side `import_react` for consuming React components, and emitted-component packaging so Vox components are first-class npm-importable React components.
+
+**Goal:** Make the Vox GUI language and the React ecosystem into peer citizens. A Vox component can use any React component; an emitted Vox component is a normal React component any external React app can use.
 
 **Scope:**
 

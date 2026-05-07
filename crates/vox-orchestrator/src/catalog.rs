@@ -65,6 +65,8 @@ struct OpenRouterPricing {
 struct OpenRouterArchitecture {
     #[serde(default)]
     input_modalities: Vec<String>,
+    #[serde(default)]
+    output_modalities: Vec<String>,
 }
 
 #[derive(serde::Deserialize, Default)]
@@ -175,7 +177,7 @@ impl ModelCatalog for OpenRouterCatalog {
                 .map(|tp| tp.is_moderated)
                 .unwrap_or(false);
 
-            let capabilities = ModelCapabilities {
+            let mut capabilities = ModelCapabilities {
                 supports_json,
                 supports_vision,
                 max_context: m.context_length,
@@ -186,6 +188,12 @@ impl ModelCatalog for OpenRouterCatalog {
                 uptime_score: None, // populated later by catalog_classifier
                 ..Default::default()
             };
+            let inferred = crate::models::infer_capabilities(
+                &m.supported_parameters,
+                &architecture.input_modalities,
+                &architecture.output_modalities,
+            );
+            capabilities.merge_capability_flags(&inferred);
             let strengths =
                 infer_strengths(&m.id, m.description.as_deref(), &m.supported_parameters);
             let max_tokens = m
@@ -597,10 +605,17 @@ impl ModelCatalog for AnthropicDirectCatalog {
                 is_free: pricing_unknown,
                 strengths: infer_strengths(&m.id, Some(&m.display_name), &[]),
                 capabilities: ModelCapabilities {
+                    supports_native_tools: true,
+                    supports_tool_use: true,
+                    supports_reasoning: true,
                     tier,
                     ..Default::default()
                 },
-                supported_parameters: vec![],
+                supported_parameters: vec![
+                    "tools".to_string(),
+                    "tool_choice".to_string(),
+                    "thinking".to_string(),
+                ],
                 observed_cost_per_1k: None,
                 cache_creation_cost_per_1k: 0.0,
                 cache_read_cost_per_1k: 0.0,

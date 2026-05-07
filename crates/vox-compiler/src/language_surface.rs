@@ -47,10 +47,6 @@ pub const LSP_KEYWORD_SNIPPETS: &[(&str, &str)] = &[
 /// Decorators with dedicated lexer tokens — `(spelling, LSP doc)`.
 pub const LSP_DECORATOR_DOCS: &[(&str, &str)] = &[
     (
-        "@island",
-        "Typed stub for a React island under `islands/` (hydration mount point).",
-    ),
-    (
         "@loading",
         "Route suspense UI (`fn` → `*.tsx`); TanStack Router `pendingComponent` when `routes:` exists.",
     ),
@@ -103,7 +99,6 @@ pub const LSP_DECORATOR_DOCS: &[(&str, &str)] = &[
 
 /// LSP decorator snippets: `(label, snippet)`.
 pub const LSP_DECORATOR_SNIPPETS: &[(&str, &str)] = &[
-    ("@island", "@island"),
     ("@loading", "@loading"),
     ("@server", "@server"),
     ("@table", "@table"),
@@ -198,7 +193,6 @@ pub const LEXER_DECORATORS: &[&str] = &[
     "@index",
     "@placeholder",
     "@native",
-    "@island",
     "@loading",
     "@ai",
 ];

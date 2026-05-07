@@ -8,27 +8,19 @@ export interface DiagnosticRowProps {
 
 export function DiagnosticRow({ severity, message, location }: DiagnosticRowProps): React.ReactElement {
   return (
-<row className={"px-4 py-3 border-b border-white/5 gap-4 items-start hover:bg-white/5"}
->
-  <panel className={(severity === "error" ? "w-2 h-2 rounded-full bg-rose-500 mt-1.5 shrink-0" : "w-2 h-2 rounded-full bg-amber-400 mt-1.5 shrink-0")}
->
-  
-</panel>
-  <column className={"flex-1 gap-1 min-w-0"}
->
-  <text className={"text-sm text-white/80 font-mono leading-snug"}
->
-  {message}
-</text>
-  <text className={"text-xs text-zinc-500 font-mono"}
->
-  {location}
-</text>
-</column>
-  <text className={(severity === "error" ? "text-xs font-bold text-rose-400 uppercase shrink-0" : "text-xs font-bold text-amber-400 uppercase shrink-0")}
->
-  {severity}
-</text>
-</row>
+    <div className={["flex", "flex-row", "px-4", "py-3", "border-b-true", "border-white/5", "flex items-start", "gap-4", "hover:bg-white/5"].filter(Boolean).join(" ")}>
+      <div className={["border", "border-border", "p-4", "w-2", "h-2", "rounded-full", (severity === "error" ? "bg-rose-500" : "bg-amber-400"), "mt-1.5", "shrink-0"].filter(Boolean).join(" ")} role={region} />
+      <div className={["flex", "flex-col", "flex-1", "min-w-0", "gap-1"].filter(Boolean).join(" ")}>
+        <p className={["text-sm", "text-white/80", "font-mono", "leading-snug"].filter(Boolean).join(" ")}>
+          {message}
+        </p>
+        <p className={["text-xs", "text-zinc-500", "font-mono"].filter(Boolean).join(" ")}>
+          {location}
+        </p>
+      </div>
+      <p className={["text-xs", "font-bold", "uppercase", "shrink-0", (severity === "error" ? "text-rose-400" : "text-amber-400")].filter(Boolean).join(" ")}>
+        {severity}
+      </p>
+    </div>
   );
 }

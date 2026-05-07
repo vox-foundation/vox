@@ -26,11 +26,13 @@ pub async fn run(write_to: Option<PathBuf>) -> Result<()> {
         .context("Failed to fetch workflow runs from GitHub API")?;
 
     let json: Value = resp.json().await?;
-    let runs = json["workflow_runs"].as_array().context("Invalid GitHub API response")?;
+    let runs = json["workflow_runs"]
+        .as_array()
+        .context("Invalid GitHub API response")?;
 
-    let deploy_run = runs.iter().find(|r| {
-        r["name"].as_str().unwrap_or("") == "Deploy Hetzner (Coolify)"
-    });
+    let deploy_run = runs
+        .iter()
+        .find(|r| r["name"].as_str().unwrap_or("") == "Deploy Hetzner (Coolify)");
 
     let deploy_run = match deploy_run {
         Some(r) => r,
@@ -45,13 +47,24 @@ pub async fn run(write_to: Option<PathBuf>) -> Result<()> {
     let conclusion = deploy_run["conclusion"].as_str().unwrap_or("pending");
     let html_url = deploy_run["html_url"].as_str().unwrap_or("");
     let head_sha = deploy_run["head_sha"].as_str().unwrap_or("unknown");
-    let head_commit_msg = deploy_run["head_commit"]["message"].as_str().unwrap_or("").lines().next().unwrap_or("");
+    let head_commit_msg = deploy_run["head_commit"]["message"]
+        .as_str()
+        .unwrap_or("")
+        .lines()
+        .next()
+        .unwrap_or("");
 
     // Try to fetch jobs to see which stage failed
     let jobs_url = deploy_run["jobs_url"].as_str().unwrap_or("");
     let mut failed_job = String::new();
     if !jobs_url.is_empty() {
-        if let Ok(jobs_resp) = client.get(jobs_url).header("Authorization", format!("Bearer {}", token)).header("User-Agent", "vox-cli").send().await {
+        if let Ok(jobs_resp) = client
+            .get(jobs_url)
+            .header("Authorization", format!("Bearer {}", token))
+            .header("User-Agent", "vox-cli")
+            .send()
+            .await
+        {
             if let Ok(jobs_json) = jobs_resp.json::<Value>().await {
                 if let Some(jobs_arr) = jobs_json["jobs"].as_array() {
                     for job in jobs_arr {
@@ -66,13 +79,23 @@ pub async fn run(write_to: Option<PathBuf>) -> Result<()> {
         }
     }
 
-    let emoji = if conclusion == "success" { "✅ SUCCESS" } else if conclusion == "failure" { "❌ FAILED" } else { "⏳ PENDING" };
+    let emoji = if conclusion == "success" {
+        "✅ SUCCESS"
+    } else if conclusion == "failure" {
+        "❌ FAILED"
+    } else {
+        "⏳ PENDING"
+    };
     let mut md = format!(
         "# Deploy Status — vox main @ {} ({})\n\n**Status**: {}  |  **Stage**: {}\n**Run**: {}\n\n",
         &head_sha[0..std::cmp::min(7, head_sha.len())],
         head_commit_msg,
         emoji,
-        if failed_job.is_empty() { status } else { &failed_job },
+        if failed_job.is_empty() {
+            status
+        } else {
+            &failed_job
+        },
         html_url
     );
 

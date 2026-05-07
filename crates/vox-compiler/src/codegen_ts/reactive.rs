@@ -18,7 +18,8 @@
 //! [`crate::web_ir::WebIrModule::view_roots`] lowering.
 
 use crate::codegen_ts::hir_emit::{
-    emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps, map_hir_type_to_ts,
+    emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps_with_diagnostics,
+    map_hir_type_to_ts,
 };
 use crate::hir::*;
 use crate::react_bridge::react_exports::{USE_CALLBACK, USE_EFFECT, USE_MEMO, USE_REF, USE_STATE};
@@ -45,7 +46,8 @@ pub enum ReactiveViewEmitPathway {
     /// Env on, validate clean, but no preview TSX for this component.
     LegacyFallbackNoComponentTsx,
     /// Env on, clean TSX emitted, but whitespace-normalized string ≠ legacy `emit_hir_expr`.
-    LegacyFallbackParityMismatch,
+    /// Migration policy now keeps the Web IR view to converge on a single canonical path.
+    WebIrViewEmittedParityMismatch,
     /// Web IR preview TSX used for the view body.
     WebIrViewEmitted,
 }
@@ -55,7 +57,7 @@ pub struct ReactiveViewBridgeStats {
     pub legacy_env_disabled: u64,
     pub legacy_fallback_validate_failed: u64,
     pub legacy_fallback_no_component_tsx: u64,
-    pub legacy_fallback_parity_mismatch: u64,
+    pub web_ir_view_emitted_parity_mismatch: u64,
     pub web_ir_view_emitted: u64,
 }
 
@@ -69,8 +71,8 @@ impl ReactiveViewBridgeStats {
             ReactiveViewEmitPathway::LegacyFallbackNoComponentTsx => {
                 self.legacy_fallback_no_component_tsx += 1
             }
-            ReactiveViewEmitPathway::LegacyFallbackParityMismatch => {
-                self.legacy_fallback_parity_mismatch += 1
+            ReactiveViewEmitPathway::WebIrViewEmittedParityMismatch => {
+                self.web_ir_view_emitted_parity_mismatch += 1
             }
             ReactiveViewEmitPathway::WebIrViewEmitted => self.web_ir_view_emitted += 1,
         }
@@ -104,14 +106,13 @@ fn emit_reactive_view_body(
     hir: &HirModule,
     rc: &HirReactiveComponent,
     state_names: &HashSet<String>,
-    island_names: &HashSet<String>,
     web_projection: Option<&WebIrModule>,
     stats: &mut ReactiveViewBridgeStats,
 ) -> String {
     let Some(view) = &rc.view else {
         return String::new();
     };
-    let legacy = emit_hir_expr(view, state_names, island_names);
+    let legacy = emit_hir_expr(view, state_names);
     if !web_ir_reactive_views_env_enabled() {
         stats.record_pathway(ReactiveViewEmitPathway::LegacyEnvDisabled);
         if web_ir_reactive_trace_enabled() {
@@ -153,13 +154,15 @@ fn emit_reactive_view_body(
         }
         indent_view_for_return(&tsx)
     } else {
-        stats.record_pathway(ReactiveViewEmitPathway::LegacyFallbackParityMismatch);
+        stats.record_pathway(ReactiveViewEmitPathway::WebIrViewEmittedParityMismatch);
         if web_ir_reactive_trace_enabled() {
             eprintln!(
-                "[vox-webir-reactive] component={component_name} pathway=LegacyFallbackParityMismatch"
+                "[vox-webir-reactive] component={component_name} pathway=WebIrViewEmittedParityMismatch"
             );
         }
-        legacy
+        // Convergence policy: keep Web IR output even when legacy string parity differs.
+        // This prevents long-lived dual-emitter drift and makes Web IR the canonical view source.
+        indent_view_for_return(&tsx)
     }
 }
 
@@ -555,6 +558,27 @@ fn scan_hir_stmt_for_react_imports(
     }
 }
 
+/// Phase E tier-2: emit a `// dep_inference.over_track` hint comment above a `useMemo` /
+/// `useEffect` line whenever its body calls visible in-module functions that aren't
+/// `@reactive`-annotated. Surfaces the conservative under-tracking gap to humans and AI
+/// readers of the generated TSX. Stripped by minifiers; harmless to runtime.
+fn emit_dep_inference_hints(out: &mut String, owner: &str, unannotated: &[String]) {
+    if unannotated.is_empty() {
+        return;
+    }
+    out.push_str(&format!(
+        "  // dep_inference.over_track: `{}` calls [{}] which lack `@reactive` — \
+         reactive reads inside those bodies will not trigger re-runs. Add `@reactive` \
+         to the callee(s) to opt in to cross-call dep tracking.\n",
+        owner,
+        unannotated
+            .iter()
+            .map(|n| format!("`{n}`"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    ));
+}
+
 fn collect_reactive_binding_names(members: &[HirReactiveMember]) -> HashSet<String> {
     fn pat_names(pat: &HirPattern, out: &mut HashSet<String>) {
         match pat {
@@ -651,11 +675,7 @@ fn react_import_line(members: &[HirReactiveMember]) -> String {
 
 /// Walk an HIR expression tree and collect uppercase JSX tag names that correspond
 /// to known Vox components. Used to emit cross-component import statements.
-fn collect_jsx_component_refs(
-    expr: &HirExpr,
-    known: &HashSet<String>,
-    out: &mut HashSet<String>,
-) {
+fn collect_jsx_component_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSet<String>) {
     match expr {
         HirExpr::Jsx(el) => {
             if el.tag.starts_with(|c: char| c.is_uppercase()) && known.contains(&el.tag) {
@@ -665,10 +685,10 @@ fn collect_jsx_component_refs(
                 collect_jsx_component_refs(child, known, out);
             }
         }
-        HirExpr::JsxSelfClosing(el) => {
-            if el.tag.starts_with(|c: char| c.is_uppercase()) && known.contains(&el.tag) {
-                out.insert(el.tag.clone());
-            }
+        HirExpr::JsxSelfClosing(el)
+            if el.tag.starts_with(|c: char| c.is_uppercase()) && known.contains(&el.tag) =>
+        {
+            out.insert(el.tag.clone());
         }
         HirExpr::If(cond, then_stmts, else_stmts, _) => {
             collect_jsx_component_refs(cond, known, out);
@@ -708,17 +728,11 @@ fn collect_jsx_component_refs_stmt(
         HirStmt::Expr { expr, .. } => collect_jsx_component_refs(expr, known, out),
         HirStmt::Let { value, .. } => collect_jsx_component_refs(value, known, out),
         HirStmt::Assign { value, .. } => collect_jsx_component_refs(value, known, out),
-        HirStmt::Return { value, .. } => {
-            if let Some(v) = value {
-                collect_jsx_component_refs(v, known, out);
-            }
-        }
+        HirStmt::Return { value: Some(v), .. } => collect_jsx_component_refs(v, known, out),
         _ => {}
     }
 }
 
-/// `island_names` should be [`crate::codegen_ts::island_emit::collect_island_names`] for the enclosing [`crate::hir::HirModule`].
-///
 /// `hir` must be the full module (needed for optional Web IR view bridge).
 ///
 /// When `web_projection` is `Some`, it must be [`crate::web_ir::lower::lower_hir_to_web_ir`]`(hir)` (or
@@ -726,7 +740,6 @@ fn collect_jsx_component_refs_stmt(
 pub fn generate_reactive_component(
     hir: &HirModule,
     rc: &HirReactiveComponent,
-    island_names: &HashSet<String>,
     web_projection: Option<&WebIrModule>,
     stats: &mut ReactiveViewBridgeStats,
 ) -> (String, String) {
@@ -736,11 +749,25 @@ pub fn generate_reactive_component(
 
     let state_names = collect_reactive_binding_names(&rc.members);
 
+    // Phase E: collect `@reactive`-annotated free functions visible from this module so the
+    // dep walker can recurse one level into their bodies when called from `derived` / `effect`.
+    // Functions without `@reactive` are not indexed; their call sites contribute no deps from
+    // inside the callee (conservative under-tracking, opt-in extension).
+    let reactive_callees: std::collections::HashMap<String, Vec<HirStmt>> = hir
+        .functions
+        .iter()
+        .filter(|f| f.is_reactive)
+        .map(|f| (f.name.clone(), f.body.clone()))
+        .collect();
+    // Phase E tier-2: full set of in-module fn names — used by the dep walker to
+    // distinguish "in-module fn missing @reactive" (worth a hint) from "method call /
+    // stdlib call / unknown identifier" (silent).
+    let visible_fn_names: HashSet<String> = hir.functions.iter().map(|f| f.name.clone()).collect();
+
     out.push_str(&react_import_line(&rc.members));
 
     // Emit import statements for other Vox components referenced in the view.
-    let known_components: HashSet<String> =
-        hir.components.iter().map(|c| c.name.clone()).collect();
+    let known_components: HashSet<String> = hir.components.iter().map(|c| c.name.clone()).collect();
     let mut comp_refs: HashSet<String> = HashSet::new();
     if let Some(view_expr) = &rc.view {
         collect_jsx_component_refs(view_expr, &known_components, &mut comp_refs);
@@ -791,57 +818,61 @@ pub fn generate_reactive_component(
     for member in &rc.members {
         match member {
             HirReactiveMember::State(s) => {
-                let init = emit_hir_expr(&s.init, &state_names, island_names);
+                let init = emit_hir_expr(&s.init, &state_names);
                 out.push_str(&format!(
                     "  const [{}, set_{}] = useState({});\n",
                     s.name, s.name, init
                 ));
             }
             HirReactiveMember::Derived(d) => {
-                let expr = emit_hir_expr(&d.expr, &state_names, island_names);
-                let deps = extract_state_deps(&d.expr, &state_names);
-                let dep_str = deps.join(", ");
+                let expr = emit_hir_expr(&d.expr, &state_names);
+                let analysis = extract_state_deps_with_diagnostics(
+                    &d.expr,
+                    &state_names,
+                    &reactive_callees,
+                    &visible_fn_names,
+                );
+                emit_dep_inference_hints(&mut out, &d.name, &analysis.unannotated_calls);
+                let dep_str = analysis.deps.join(", ");
                 out.push_str(&format!(
                     "  const {} = useMemo(() => {}, [{}]);\n",
                     d.name, expr, dep_str
                 ));
             }
             HirReactiveMember::Effect(e) => {
-                let stmts_str = emit_block_stmts(&e.body, &state_names, island_names, 2);
-                let deps = extract_state_deps(&e.body, &state_names);
-                let dep_str = deps.join(", ");
+                let stmts_str = emit_block_stmts(&e.body, &state_names, 2);
+                let analysis = extract_state_deps_with_diagnostics(
+                    &e.body,
+                    &state_names,
+                    &reactive_callees,
+                    &visible_fn_names,
+                );
+                emit_dep_inference_hints(&mut out, "effect", &analysis.unannotated_calls);
+                let dep_str = analysis.deps.join(", ");
                 out.push_str(&format!(
                     "  useEffect(() => {{\n{}  }}, [{}]);\n",
                     stmts_str, dep_str
                 ));
             }
             HirReactiveMember::OnMount(m) => {
-                let stmts_str = emit_block_stmts(&m.body, &state_names, island_names, 2);
+                let stmts_str = emit_block_stmts(&m.body, &state_names, 2);
                 out.push_str(&format!("  useEffect(() => {{\n{}  }}, []);\n", stmts_str));
             }
             HirReactiveMember::OnCleanup(c) => {
-                let stmts_str = emit_block_stmts(&c.body, &state_names, island_names, 2);
+                let stmts_str = emit_block_stmts(&c.body, &state_names, 2);
                 out.push_str(&format!(
                     "  useEffect(() => () => {{\n{}  }}, []);\n",
                     stmts_str
                 ));
             }
             HirReactiveMember::Stmt(s) => {
-                out.push_str(&emit_hir_stmt(s, &state_names, island_names, 2));
+                out.push_str(&emit_hir_stmt(s, &state_names, 2));
             }
         }
     }
 
     if rc.view.is_some() {
-        let view_js = emit_reactive_view_body(
-            name,
-            hir,
-            rc,
-            &state_names,
-            island_names,
-            web_projection,
-            stats,
-        );
+        let view_js = emit_reactive_view_body(name, hir, rc, &state_names, web_projection, stats);
         out.push_str(&format!("  return (\n{}\n  );\n", view_js));
     }
 
@@ -860,11 +891,10 @@ mod tests {
         let tokens = lex(src);
         let module = parse(tokens).expect("parse error");
         let hir = lower_module(&module);
-        let island_names = HashSet::new();
         let mut stats = ReactiveViewBridgeStats::default();
         hir.components
             .iter()
-            .map(|rc| generate_reactive_component(&hir, rc, &island_names, None, &mut stats))
+            .map(|rc| generate_reactive_component(&hir, rc, None, &mut stats))
             .collect()
     }
 
@@ -879,8 +909,8 @@ mod tests {
     #[test]
     fn test_cross_component_import_emitted() {
         let files = compile(
-            "component Inner() { view: (<panel><text>\"hi\"</text></panel>) }\n\
-             component Outer() { view: (<column><Inner /></column>) }",
+            "component Inner() { view: panel() { text() { \"hi\" } } }\n\
+             component Outer() { view: column() { Inner() } }",
         );
         let outer = get(&files, "Outer.tsx");
         assert!(
@@ -891,7 +921,7 @@ mod tests {
 
     #[test]
     fn test_no_import_for_html_primitives() {
-        let files = compile("component Card() { view: (<panel><text>\"x\"</text></panel>) }");
+        let files = compile("component Card() { view: panel() { text() { \"x\" } } }");
         let card = get(&files, "Card.tsx");
         // 'panel' and 'text' are primitives, must not generate import lines
         assert!(
@@ -905,12 +935,113 @@ mod tests {
     }
 
     #[test]
+    fn derived_calling_reactive_callee_includes_state_in_dep_array() {
+        // Phase E end-to-end: a `derived` that calls a `@reactive`-annotated free function
+        // which reads a reactive `state` binding should include that binding in the
+        // emitted React `useMemo` dep array. Without the wiring (or without `@reactive`)
+        // the dep array would be empty, leaving the memo stale on state updates.
+        let files = compile(
+            "@reactive fn double_it(c: int) to int { c * 2 }\n\
+             component Counter() {\n\
+               state count: int = 0\n\
+               derived doubled = double_it(count)\n\
+               view: text() { \"v\" }\n\
+             }",
+        );
+        let counter = get(&files, "Counter.tsx");
+        assert!(
+            counter.contains("useMemo(() => double_it(count), [count])"),
+            "expected useMemo dep array to include `count` traced through @reactive callee:\n{counter}"
+        );
+    }
+
+    #[test]
+    fn derived_calling_non_reactive_callee_emits_dep_inference_over_track_hint() {
+        // Phase E tier-2: when `derived` calls a visible in-module fn that is not
+        // `@reactive`, emit a `// dep_inference.over_track` hint comment above the
+        // useMemo line so downstream readers (humans + AI) see why the dep array might
+        // miss reactive reads through the call.
+        let files = compile(
+            "fn opaque(x: int) to int { x + 1 }\n\
+             component Counter() {\n\
+               state count: int = 0\n\
+               derived doubled = opaque(count)\n\
+               view: text() { \"v\" }\n\
+             }",
+        );
+        let counter = get(&files, "Counter.tsx");
+        assert!(
+            counter.contains("// dep_inference.over_track"),
+            "expected over_track hint comment:\n{counter}"
+        );
+        assert!(
+            counter.contains("`opaque`"),
+            "expected hint to name the offending callee:\n{counter}"
+        );
+    }
+
+    #[test]
+    fn derived_with_only_reactive_callees_omits_dep_inference_hint() {
+        // Counterpart: when every called in-module fn is `@reactive`, no hint comment
+        // appears (the analyzer can fully descend, no over-tracking risk).
+        let files = compile(
+            "@reactive fn double_it(c: int) to int { c * 2 }\n\
+             component Counter() {\n\
+               state count: int = 0\n\
+               derived doubled = double_it(count)\n\
+               view: text() { \"v\" }\n\
+             }",
+        );
+        let counter = get(&files, "Counter.tsx");
+        assert!(
+            !counter.contains("dep_inference.over_track"),
+            "did not expect over_track hint:\n{counter}"
+        );
+    }
+
+    #[test]
+    fn derived_calling_non_reactive_callee_omits_state_from_dep_array() {
+        // Counterpart: without `@reactive`, the analyzer must NOT recurse into the callee
+        // body (conservative under-tracking). The dep array is empty and the memo will be
+        // stale — opt-in is the policy.
+        let files = compile(
+            "fn double_it(c: int) to int { c * 2 }\n\
+             component Counter() {\n\
+               state count: int = 0\n\
+               derived doubled = double_it(count)\n\
+               view: text() { \"v\" }\n\
+             }",
+        );
+        let counter = get(&files, "Counter.tsx");
+        // The arg `count` still appears as a direct read, so dep array is `[count]`. To
+        // truly demonstrate the under-tracking, use an arg that doesn't reference state:
+        let files2 = compile(
+            "fn opaque() to int { 42 }\n\
+             component Counter() {\n\
+               state count: int = 0\n\
+               derived doubled = opaque()\n\
+               view: text() { \"v\" }\n\
+             }",
+        );
+        let counter2 = get(&files2, "Counter.tsx");
+        assert!(
+            counter2.contains("useMemo(() => opaque(), [])"),
+            "expected empty dep array (no @reactive on `opaque`):\n{counter2}"
+        );
+        // And the first compile should still find `count` via the direct argument read:
+        assert!(
+            counter.contains("[count]"),
+            "expected `count` dep from the direct argument read:\n{counter}"
+        );
+    }
+
+    #[test]
     fn test_import_inside_if_branch() {
         let files = compile(
-            "component Badge() { view: (<text>\"x\"</text>) }\n\
+            "component Badge() { view: text() { \"x\" } }\n\
              component Host(show: bool) {\n\
                state s: bool = false\n\
-               view: ({if s { <Badge /> } else { <text>\"no\"</text> }})\n\
+               view: if s { Badge() } else { text() { \"no\" } }\n\
              }",
         );
         let host = get(&files, "Host.tsx");

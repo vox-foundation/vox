@@ -494,10 +494,10 @@ impl GitForgeProvider for GitHubProvider {
             "{}/repos/{owner}/{repo}/releases/tags/{tag_name}",
             self.api_base
         );
-        if let Ok(existing) = self.get_json(&check_url).await {
-            if let Some(url) = existing["html_url"].as_str() {
-                return Ok(url.to_string());
-            }
+        if let Ok(existing) = self.get_json(&check_url).await
+            && let Some(url) = existing["html_url"].as_str()
+        {
+            return Ok(url.to_string());
         }
 
         let url = format!("{}/repos/{owner}/{repo}/releases", self.api_base);

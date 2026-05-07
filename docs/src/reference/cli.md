@@ -66,7 +66,7 @@ The command registry also carries a separate **`product_lane`** value used for b
 
 | `product_lane` | Meaning | Representative commands |
 |----------------|---------|-------------------------|
-| `app` | typed app construction | `vox build`, `vox run`, `vox deploy`, `vox island` |
+| `app` | typed app construction | `vox build`, `vox run`, `vox deploy` |
 | `workflow` | automation and background execution | `vox script`, `vox populi` |
 | `ai` | generation, review, eval, orchestration | `vox mens`, `vox review`, `vox dei`, `vox oratio` |
 | `interop` | approved integration surfaces | `vox openclaw`, `vox skill`, `vox share` |
@@ -125,19 +125,13 @@ Compile a `.vox` source file.
 
 **Also writes** generated **Rust** under `target/generated/` (backend crate). If the module declares `@v0` UI components and output files are missing, the CLI invokes Vercel's `npx v0 add` sidecar process.
 
-### `vox island …` (feature `island`)
+### `vox island …` (retired 2026-05-03)
 
-**Not in default builds.** `cargo build -p vox-cli --features island` (often add default stack: e.g. `--features island,mens-base` if you used `--no-default-features`).
-
-| Subcommand | Role |
-|------------|------|
-| `generate <NAME> --prompt '…'` | Calls v0.dev (needs **`V0_API_KEY`**), writes `islands/src/<NAME>/<NAME>.component.tsx`, prints or injects an `@island` stub (`--target file.vox`). Cache: `~/.vox/island-cache/`; `--force` bypasses cache. |
-| `upgrade <NAME> --prompt '…'` | Re-generates from existing TSX + instructions (always hits API). |
-| `list` | Scans `islands/src/` and `Vox.toml [islands]` (`--json`). |
-| `add <component>` | Runs `npx shadcn@latest add` in `islands/` (optional `--from` `.vox` path for `@shadcn` line). Kebab-case registry names get a **PascalCase** import alias (e.g. `dropdown-menu` → `DropdownMenu`). |
-| `cache list \| clear \| remove <NAME>` | Manage the local island cache. |
-
-**First run:** if **`islands/package.json`** is missing, `generate`, `upgrade`, `add`, and the build step **bootstrap** a minimal Vite + React tree under **`islands/`** (then **`pnpm install`** / **`pnpm run build`**). Requires **pnpm** on `PATH` (same as `vox run`’s frontend step). Use **`--no-build`** on generate/upgrade to skip the Vite build.
+The `vox island` subcommand was retired with the rest of the islands surface; UI now
+ships as plain React/TSX components emitted from `component` declarations and consumed
+by an external React frontend. See
+[architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).
+For AI-generated React components use `@v0` directly inside `.vox` source.
 
 ### `vox generate` (HTTP inference) vs MCP codegen
 
@@ -160,7 +154,7 @@ Top-level **`vox generate`** (`crates/vox-cli/src/commands/generate.rs`) posts t
 
 Backend listens on the port from **`VOX_PORT`** (or **3000**) — same variable the generated `main.rs` reads.
 
-**pnpm workspace (repo root):** when the scaffold wrote **`pnpm-workspace.yaml`** at the repository root (for example **`islands/`** plus **`dist/.../app`**), run **`pnpm install`** once from that root so workspace packages link correctly, then use per-package **`pnpm run build`** / **`pnpm run dev`** as needed. See [tanstack-web-backlog.md](../archive/research-2026-q1/tanstack-web-backlog.md) Phase 3.
+**pnpm workspace (repo root):** when the scaffold wrote **`pnpm-workspace.yaml`** at the repository root (for example **`dist/.../app`** plus other packages), run **`pnpm install`** once from that root so workspace packages link correctly, then use per-package **`pnpm run build`** / **`pnpm run dev`** as needed. See [tanstack-web-backlog.md](../archive/research-2026-q1/tanstack-web-backlog.md) Phase 3.
 
 ### `vox script <file> [-- <args>…]` (feature `script-execution`)
 
@@ -202,6 +196,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `check-links` | Fails on broken internal Markdown links under `docs/src` and root-level guides |
 | `artifact-audit [--json]` | Inventory of workspace artifact classes (stale renames, repo-root `target-*` sprawl, OS-temp Cargo targets, `mens/runs/*`, root scratch files, canonical `target/`). JSON optional. Policy defaults: [`contracts/operations/workspace-artifact-retention.v1.yaml`](../../../contracts/operations/workspace-artifact-retention.v1.yaml) |
 | `artifact-prune --dry-run \| --apply [--policy <path>]` | Prune untracked artifact paths per retention policy (requires exactly one of `--dry-run` or `--apply`). Skips git-tracked paths; Windows delete failures may rename to `*.stale-<epoch>`. |
+| `backend-tests` | Runs `cargo test -p vox-runtime`, `cargo test -p vox-orchestrator model_route_policy`, and `cargo test -p vox-db research_metrics_contract` (routing, orchestrator policy tests, research metrics contract). |
 | `doc-inventory generate \| verify` | Regenerate or verify `docs/agents/doc-inventory.json` (Rust; replaces retired Python scripts) |
 | `eval-matrix verify` | Validates `contracts/eval/benchmark-matrix.json` against `contracts/eval/benchmark-matrix.schema.json` (M1–M5 milestones; `benchmark_classes` ids are a fixed enum in the schema) |
 | `eval-matrix run [--milestone <id>]` | Runs `cargo` checks/tests mapped from each `benchmark_classes` entry (deduped); always re-runs `verify` first |
@@ -234,6 +229,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `completion-ingest [--report <path>] [--workflow …] [--run-kind …]` | Inserts the audit report into VoxDB **`ci_completion_*`** tables (optional telemetry; requires a working local/default DB) |
 | `rust-ecosystem-policy` | Runs focused rust ecosystem contract parity checks (`cargo test -p vox-compiler --test rust_ecosystem_support_parity`) for faster local iteration than full CI suites |
 | `policy-smoke` | Fast bundle: `cargo check -p vox-orchestrator`, in-process `command-compliance`, and `cargo test -p vox-compiler --test rust_ecosystem_support_parity` (same parity test as `rust-ecosystem-policy`) |
+| `pre-push [--dry-run] [--quick] [--full]` | Local merge-blocking aggregate: `cargo fmt --check`, `line-endings`, `ssot-drift`; by default also `doc-inventory verify`, workspace `clippy -D warnings`, and scoped TOESTUB on changed paths. **`--quick`** skips doc-inventory, clippy, and TOESTUB; **`--full`** appends `cargo nextest`. **`--dry-run`** prints planned steps only. |
 | `gui-smoke` | GUI regression bundle: always runs `cargo test -p vox-compiler --test web_ir_lower_emit`; when **`VOX_WEB_VITE_SMOKE=1`**, also runs ignored `web_vite_smoke`; when **`VOX_GUI_PLAYWRIGHT=1`**, runs ignored `playwright_golden_route` (requires `pnpm install` + `pnpm exec playwright install chromium` under `crates/vox-integration-tests`) |
 | `coverage-gates` | Compares `cargo llvm-cov report --json --summary-only` output to `.config/coverage-gates.toml`: `--summary-json <path>`, `--config` (default `.config/coverage-gates.toml`), `--mode warn\|enforce` (GitHub/GitLab CI uses **`enforce`** with `workspace_min_lines_percent` in `.config/coverage-gates.toml`). Run this **after** `cargo llvm-cov nextest --workspace --profile ci`; the **`report`** subcommand does not accept `--workspace` (it merges the prior instrumented run’s profraw data). |
 | `command-sync [--write]` | Regenerates or verifies [`cli-command-surface.generated.md`](cli-command-surface.generated.md) from `command-registry.yaml` (after `operations-sync --target cli`, run `--write` to refresh the table) |
@@ -242,6 +238,7 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `capability-sync [--write]` | Regenerates or verifies [`contracts/capability/model-manifest.generated.json`](../../../contracts/capability/model-manifest.generated.json) from the capability + MCP + CLI registries (run after `operations-sync --target capability`) |
 | `pm-provenance [--strict] [--root <dir>]` | Validates `vox.pm.provenance/1` JSON under `<dir>/.vox_modules/provenance/` (emitted by **`vox pm publish`**). Without **`--strict`**, missing/empty dir is OK. Use **`--strict`** on release pipelines after publishing. |
 | `contracts-index` | Validates `contracts/index.yaml` against `contracts/index.schema.json`, checks every listed contract path exists, and validates indexed YAML contracts against their index-listed JSON Schema when the schema id follows `{contract-id}-schema` (plus a small explicit override table for historical id pairs) |
+| `coolify-eval discover \| sync-compose [--compose <path>] [--app-uuid <uuid>] [--domains <url>] [--no-deploy]` | Coolify HTTP API (Bearer via env / Clavis): **`discover`** prints `/api/v1/version` when present and lists applications (`uuid`, name, `fqdn`, whether `docker_compose_raw` is set). **`sync-compose`** reads `vox-eval.compose.yml` (default), **`PATCH`**es `COOLIFY_APP_UUID`’s `docker_compose_raw`, optionally sets **`domains`**, and triggers **`GET /api/v1/deploy?uuid=`** unless **`--no-deploy`**. Requires **`COOLIFY_BASE_URL`**, **`COOLIFY_TOKEN`** (write/deploy); optional **`COOLIFY_READ_TOKEN`** for read-only **`GET`**s. See [eval sandbox deployment](../architecture/eval-sandbox-deployment.md) and [deploy contract](../ci/deploy-contract.md). |
 | `exec-policy-contract` | Validates `contracts/terminal/exec-policy.v1.yaml` against `exec-policy.v1.schema.json` and (when `pwsh`/`powershell` is on PATH) smoke-runs `vox shell check` on `Get-Location` and a small pipeline payload (`Write-Output 1 \| ConvertTo-Json -Compress`) |
 | `openclaw-contract` | Validates OpenClaw protocol fixture contracts under `contracts/openclaw/protocol/` (required event/response shapes). |
 | `scientia-worthiness-contract` | Validates `contracts/scientia/publication-worthiness.default.yaml` against `publication-worthiness.schema.json` and publisher invariants (weights sum, threshold ordering) |
@@ -280,6 +277,7 @@ Centralized secret diagnostics and compatibility credential storage.
 | Subcommand | Role |
 |------------|------|
 | `vox clavis status --workflow chat\|mcp\|publish\|review\|db-remote\|mens-mesh --profile dev\|ci\|mobile\|prod --mode auto\|local\|cloud [--bundle minimal-local-dev\|minimal-cloud-dev\|gpu-cloud\|publish-review]` | Prints active-mode blocking vs optional secret readiness using requirement groups and optional bundle checks (alias: `vox clavis doctor …`). |
+| `vox clavis login [--vault-url URL] [--vault-token TOKEN] [--account ID] [--backend NAME] [--force] [--non-interactive]` | Same as top-level `vox login` (vault URL/token + profile). |
 | `vox clavis set <registry> <token> [--username <name>]` | Stores a registry token in `~/.vox/auth.json` through the Clavis API. |
 | `vox clavis get <registry>` | Reads and prints redacted token status from Clavis resolution sources. |
 | `vox clavis backend-status` | Prints backend mode (`env_only`/`infisical`/`vault`/`auto`) and backend availability diagnostics. |
@@ -302,12 +300,19 @@ Repository discovery from the current directory (`vox repo` with no subcommand d
 
 Scaffolds **`Vox.toml`**, **`src/main.vox`**, **`.vox_modules/`**, or a **`<name>.skill.md`** file (same layout as MCP **`vox_project_init`**; success JSON schema [`vox-project-scaffold-result.schema.json`](../../../contracts/repository/vox-project-scaffold-result.schema.json)). Implementation: **`vox-project-scaffold`** crate (shared with **`vox-mcp`**).
 
-### Deprecated compatibility commands
+### `vox login` (canonical)
 
-- `vox login [--registry <name>] [<token>] [--username <name>]` — compatibility shim for older workflows; prefer `vox clavis set`.
-- `vox logout [--registry <name>]` — compatibility shim; prefer `vox clavis` commands.
+Sign in for **VoxDB / Turso** cloud sync: writes URL + token to the OS keyring (`vox-clavis-env` / `turso-url`, `turso-token`) and optional `account_id` + `clavis_backend` to `~/.vox/login.toml`. Same implementation as `vox auth connect`, `vox auth login`, and `vox clavis login`.
 
-**Diagnostics:** `vox lock-report` remains separate (lock telemetry); it is **not** part of the `vox ci` surface.
+| Invocation | Role |
+|------------|------|
+| `vox login [--vault-url URL] [--vault-token TOKEN] [--account ID] [--backend vox_cloud] [--force] [--non-interactive]` | Prompts or uses flags; `--non-interactive` requires both `--vault-url` and `--vault-token`. |
+| `vox logout` | Clears keyring entries and removes `login.toml`. |
+| `vox clavis login …` | Alias of `vox login` under the Clavis tree. |
+| `vox auth connect …` · `vox auth login …` | Same handler as `vox login` (`Connect` exposes `login` as a Clap alias). |
+| `vox auth` | Identity / trust: `vox auth init`, `vox auth unlock`, `vox auth whoami`, `vox auth trust`, `vox auth trust-list`, `vox auth untrust`. |
+
+**Note:** older registry-token flows use `vox clavis set` / `vox clavis get`; vault DB sync uses the commands above.
 
 ### `vox commands`
 
@@ -562,7 +567,7 @@ Spawns the **`vox-lsp`** binary (from the `vox-lsp` crate) with stdio inherited.
 
 With default features (**`mens-base` only** — corpus + `vox-runtime`, **no** Oratio / `vox-oratio` and **no** native training deps), **`vox mens`** covers corpus / pipeline / status / plan / eval-gate / bench-completion / system templates / etc. **`vox oratio`** (alias **`vox speech`**) requires **`--features oratio`** (STT stack; separate from the **`mens`** command tree). **Native train** / **serve** / **probe** / **merge-weights** / **merge-qlora** / **eval-local** (Burn + Candle) require **`cargo build -p vox-cli --features gpu`** (alias **`mens-qlora`**). For **Candle QLoRA on NVIDIA** with linked CUDA kernels, use **`cargo vox-cuda-release`** (workspace alias → `gpu,mens-candle-cuda`; see `.cargo/config.toml`). Optional: **`vox-mens`** shim binary inserts the **`mens`** subcommand for argv ergonomics — use **`vox oratio`** for speech. `cargo build -p vox-cli --features mens-base`; add **`oratio`** on the same build for Oratio. See [vox-cli build feature inventory](../archive/research-2026-q1/vox-cli-build-feature-inventory.md). **`vox mens pipeline`** runs the dogfood corpus → eval → optional native train stages (replaces heavy orchestration in `scripts/run_mens_pipeline.ps1`). **`vox mens serve`** (HTTP/OpenAI-compatible API) requires **`gpu`** (Axum/control-plane pieces may additionally need **`execution-api`** for other REST surfaces — see `crates/vox-cli/Cargo.toml`). **`serve`** loads **Burn** LoRA `*.bin` or merged **`model_merged.bin`** (`merge-weights`); it does **not** load Candle **`merge-qlora`** f32 safetensor outputs. Corpus lives under **`vox mens corpus`** (e.g. `extract`, `validate`, `pairs`, **`mix`**, `eval`).
 
-- **`vox mens train`** — native Mens training (contract/planner inside **`vox-populi`** (`mens::tensor`); use **`vox-mens`** argv shim when you want the binary that inserts `mens`). **`--backend lora`** (default): Burn + wgpu LoRA; **`--tokenizer vox`** (default) or **`--tokenizer hf`** with **GPT-2-shaped** HF `config.json` + optional **HF embed warm-start** from safetensors. **`--backend qlora`**: Candle + **qlora-rs** — **NF4 frozen base** linear(s) + trainable LoRA; **mmap `f32`** for context embeddings (`wte` / `model.embed_tokens`). When all per-layer **output-projection** weights exist in shards, trains a **sequential stack** + LM head; else **LM-head-only**. **`--qlora-no-double-quant`** turns off qlora-rs **double quant** of scales (default: on). **`--qlora-require-full-proxy-stack`** fails preflight if expected middle projection keys are missing from shards (strict prod gate). **`--qlora-lm-head-only`** skips the middle `o_proj` stack even when shards are complete (stable CE on some CUDA dogfood paths; conflicts with **`--qlora-require-full-proxy-stack`**). **`--qlora-proxy-max-layers N`** caps stacked middle projections for ablation (`0` = LM-head-only; conflicts with **`--qlora-lm-head-only`** when `N > 0`). **`--qlora-ce-last-k K`** (default **64**, source: `qlora_ce_last_k` in `crates/vox-mens/src/commands/mens/populi/dispatch.rs`) applies next-token CE on the last **K** positions per JSONL row (bounded by **`seq_len`** and **64**). In-tree **qlora-rs** `training_step_lm`: pre-norm residual middles with **`1/√depth`** per block and again before the LM head. **`--qlora-max-skip-rate <0..=1>`** aborts training when skipped JSONL rows exceed the fraction per epoch. **`--log-dir DIR`** re-spawns training in the background with a timestamped log (parent returns immediately — avoids IDE/agent wall-clock timeouts; tail the log). **`--background`** lowers process priority and caps VRAM fraction for long runs. Same **`--device`** story; **CUDA** / **Metal** with **`mens-candle-cuda`** / **`mens-candle-metal`**. QLoRA needs **`--tokenizer hf`**, **`--model`**, HF safetensors + **`tokenizer.json`**. **`--deployment-target mobile_edge`** or **`--preset mobile_edge`**: planner gates for edge export + **`--device cpu`** required. See [`reference/mens-training.md`](mens-training.md), [`reference/mobile-edge-ai.md`](mobile-edge-ai.md), [`hf-finetune-capability-matrix.md`](../archive/research-2026-q1/hf-finetune-capability-matrix.md). Python QLoRA: **`vox train`** / `train_qlora.vox` with **`--features mens-dei`**.
+- **`vox mens train`** — native Mens training (contract/planner inside **`vox-populi`** (`mens::tensor`); use **`vox-mens`** argv shim when you want the binary that inserts `mens`). **`--backend lora`** (default): Burn + wgpu LoRA; **`--tokenizer vox`** (default) or **`--tokenizer hf`** with **GPT-2-shaped** HF `config.json` + optional **HF embed warm-start** from safetensors. **`--backend qlora`**: Candle + **qlora-rs** — **NF4 frozen base** linear(s) + trainable LoRA; **mmap `f32`** for context embeddings (`wte` / `model.embed_tokens`). When all per-layer **output-projection** weights exist in shards, trains a **sequential stack** + LM head; else **LM-head-only**. **`--qlora-no-double-quant`** turns off qlora-rs **double quant** of scales (default: on). **`--qlora-require-full-proxy-stack`** fails preflight if expected middle projection keys are missing from shards (strict prod gate). **`--qlora-lm-head-only`** skips the middle `o_proj` stack even when shards are complete (stable CE on some CUDA dogfood paths; conflicts with **`--qlora-require-full-proxy-stack`**). **`--qlora-proxy-max-layers N`** caps stacked middle projections for ablation (`0` = LM-head-only; conflicts with **`--qlora-lm-head-only`** when `N > 0`). **`--qlora-ce-last-k K`** (default **64**, contract field `qlora_ce_last_k` in **`crates/vox-populi/src/mens/tensor/training_config.rs`**; CLI wiring in **`vox-mens`** `src/commands/mens/populi/dispatch.rs`) applies next-token CE on the last **K** positions per JSONL row (bounded by **`seq_len`** and **64**). In-tree **qlora-rs** `training_step_lm`: pre-norm residual middles with **`1/√depth`** per block and again before the LM head. **`--qlora-max-skip-rate <0..=1>`** aborts training when skipped JSONL rows exceed the fraction per epoch. **`--log-dir DIR`** re-spawns training in the background with a timestamped log (parent returns immediately — avoids IDE/agent wall-clock timeouts; tail the log). **`--background`** lowers process priority and caps VRAM fraction for long runs. Same **`--device`** story; **CUDA** / **Metal** with **`mens-candle-cuda`** / **`mens-candle-metal`**. QLoRA needs **`--tokenizer hf`**, **`--model`**, HF safetensors + **`tokenizer.json`**. **`--deployment-target mobile_edge`** or **`--preset mobile_edge`**: planner gates for edge export + **`--device cpu`** required. See [`reference/mens-training.md`](mens-training.md), [`reference/mobile-edge-ai.md`](mobile-edge-ai.md), [`hf-finetune-capability-matrix.md`](../archive/research-2026-q1/hf-finetune-capability-matrix.md). Python QLoRA: **`vox train`** / `train_qlora.vox` with **`--features mens-dei`**.
 - **`vox mens merge-weights`** — merges a **Burn** LoRA checkpoint (`*.bin`) into **`model_merged.bin`** (`gpu` only). Does **not** apply Candle qlora adapter tensors.
 - **`vox mens merge-qlora`** (alias **`merge-adapter`**) — merges **`candle_qlora_adapter.safetensors`** + sidecar meta (**v2** `candle_qlora_adapter_meta.json` or **v3** `populi_adapter_manifest_v3.json`) into **f32** base shards (subset); **`*.bin`** Burn checkpoints are **rejected** (use **`merge-weights`**). See SSOT merge table.
 - **`vox oratio`** (alias **`vox speech`**) — transcribe via **`vox-oratio`** (**Candle Whisper**, Rust + HF weights; not whisper.cpp). Build CLI with **`--features oratio`**. Includes `transcribe`, `status`, and sessionized `listen` (Enter-or-timeout gate, correction profile, route mode). Optional **`record-transcribe`** (default microphone → WAV → STT) needs **`--features oratio-mic`**. Env: `VOX_ORATIO_MODEL`, `VOX_ORATIO_REVISION`, `VOX_ORATIO_LANGUAGE`, etc. HTTP ingress: **`cargo run -p vox-audio-ingress`** (**`GET /api/audio/status`**, **`POST /api/audio/transcribe`** JSON `{"path":"…"}`, **`POST /api/audio/transcribe/upload`** multipart); relative paths use `VOX_ORATIO_WORKSPACE` or CWD. Bind with **`VOX_DASH_HOST`** / **`VOX_DASH_PORT`** (default `127.0.0.1:3847`). See [`speech-capture-architecture.md`](speech-capture-architecture.md). **VS Code / Cursor** Oratio flows: [`vox-vscode/README.md`](../../../vox-vscode/README.md) (MCP via `vox mcp`).
@@ -782,8 +787,8 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `upgrade` | default | `commands::upgrade` (toolchain only) |
 | `init` | default | `commands::init` |
 | `pm` | default | `commands::pm` |
-| `login` | default | `commands::login` (deprecated compatibility shim) |
-| `logout` | default | `commands::logout` (deprecated compatibility shim) |
+| `login` | default | `commands::login_shared::run_login` |
+| `logout` | default | `commands::login_shared::run_logout` |
 | `lsp` | default | `commands::lsp` |
 | `doctor` | default / `codex` | `commands::doctor` or `commands::diagnostics::doctor` |
 | `clavis` | default | `commands::clavis` |
@@ -807,7 +812,6 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `oratio` | `oratio` | `commands::oratio_cmd` |
 | `speech` | `oratio` | `commands::oratio_cmd` (visible alias of `oratio`) |
 | `review` | `coderabbit` | `commands::review` |
-| `island` | `island` | `commands::island` |
 | `train` | `gpu` + `mens-dei` | `commands::ai::train` |
 | `dei` | `dei` | `commands::dei` (alias `orchestrator`) |
 

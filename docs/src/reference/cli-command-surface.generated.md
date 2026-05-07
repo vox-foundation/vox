@@ -21,7 +21,7 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 234
+**schema_version:** `1` · **vox-cli operations:** 240
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
@@ -34,6 +34,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci` | active | — | ci | platform | — |
 | `vox ci artifact-audit` | active | — | — | platform | — |
 | `vox ci artifact-prune` | active | — | — | platform | — |
+| `vox ci backend-tests` | active | — | — | platform | — |
 | `vox ci build-docs` | active | — | — | platform | — |
 | `vox ci build-timings` | active | — | — | platform | — |
 | `vox ci capability-sync` | active | — | — | platform | — |
@@ -48,6 +49,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci completion-gates` | active | — | — | platform | — |
 | `vox ci completion-ingest` | active | — | — | platform | — |
 | `vox ci contracts-index` | active | — | — | platform | — |
+| `vox ci coolify-eval` | active | — | — | platform | — |
 | `vox ci coverage-gates` | active | — | — | platform | — |
 | `vox ci cuda-features` | active | — | — | platform | — |
 | `vox ci cuda-release-build` | active | — | — | platform | — |
@@ -76,6 +78,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci operations-verify` | active | — | — | platform | — |
 | `vox ci pm-provenance` | active | — | — | platform | — |
 | `vox ci policy-smoke` | active | — | — | platform | — |
+| `vox ci pre-push` | active | — | — | platform | — |
 | `vox ci query-all-guard` | active | — | — | platform | — |
 | `vox ci release-build` | active | — | — | platform | — |
 | `vox ci repo-guards` | active | — | — | platform | — |
@@ -137,7 +140,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox fabrica` | active | — | fabrica | app | — |
 | `vox fmt` | active | — | fabrica | app | — |
 | `vox init` | active | — | pm | platform | — |
-| `vox island` | active | island | — | app | — |
 | `vox live` | active | live | — | ai | — |
 | `vox lock` | active | — | pm | platform | — |
 | `vox login` | deprecated | — | ars | platform | — |
@@ -170,6 +172,10 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox mens workflow list` | active | mens-dei | mens | ai | — |
 | `vox mens workflow run` | active | mens-dei | mens | ai | — |
 | `vox migrate web` | active | — | pm | platform | — |
+| `vox model pricing check` | active | — | — | ai | — |
+| `vox model pricing refresh` | active | — | — | ai | — |
+| `vox model pricing rollup` | active | — | — | ai | — |
+| `vox model pricing show` | active | — | — | ai | — |
 | `vox openclaw` | active | ars | ars | interop | — |
 | `vox openclaw doctor` | active | ars | ars | interop | — |
 | `vox openclaw gateway-call` | active | ars | ars | interop | — |

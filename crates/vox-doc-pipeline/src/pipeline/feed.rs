@@ -161,7 +161,7 @@ fn trim_description(s: &str, max_chars: usize) -> String {
         None => truncated.trim_end(),
     };
     // Strip any trailing punctuation that looks odd before the ellipsis.
-    let trimmed = trimmed.trim_end_matches(|c| c == ',' || c == ';');
+    let trimmed = trimmed.trim_end_matches([',', ';']);
     format!("{trimmed}\u{2026}")
 }
 

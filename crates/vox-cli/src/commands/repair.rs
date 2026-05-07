@@ -4,6 +4,7 @@ use serde::Deserialize;
 use std::fs;
 use std::process::Command;
 use vox_clavis::{SecretId, resolve_secret};
+use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};
 
 #[derive(Debug, Deserialize)]
 struct SpanPayload {
@@ -130,13 +131,14 @@ Focus on correctness and adhering to Vox language standards (Wave 1: non-null by
         );
 
         // 4. Call LLM
-        println!("Calling LLM (google/gemini-2.0-flash-001)...");
+        let openrouter_model = openrouter_chat_model_preference();
+        println!("Calling LLM ({openrouter_model}) via OpenRouter...");
         let response = http
-            .post("https://openrouter.ai/api/v1/chat/completions")
+            .post(OPENROUTER_CHAT_COMPLETIONS_URL)
             .header("Authorization", format!("Bearer {}", token))
             .header("X-Title", "Vox Repair Loop")
             .json(&serde_json::json!({
-                "model": "google/gemini-2.0-flash-001",
+                "model": openrouter_model,
                 "messages": [
                     { "role": "system", "content": system_prompt },
                     { "role": "user", "content": user_prompt }

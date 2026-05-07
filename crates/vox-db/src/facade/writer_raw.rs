@@ -118,6 +118,7 @@ impl VoxDb {
     }
 
     /// Internal raw insert for the flattened telemetry projection (v51).
+    #[allow(clippy::too_many_arguments)]
     pub async fn insert_telemetry_flat_raw(
         &self,
         agent_id: &str,

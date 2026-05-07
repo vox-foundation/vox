@@ -110,7 +110,13 @@ impl LowerCtx {
                         has_limit: false,
                         capabilities: HirDbPlanCapabilities::default(),
                     };
-                    return HirExpr::MethodCall(Box::new(obj_hir), method.clone(), count_args, Some(Box::new(plan)), *span);
+                    return HirExpr::MethodCall(
+                        Box::new(obj_hir),
+                        method.clone(),
+                        count_args,
+                        Some(Box::new(plan)),
+                        *span,
+                    );
                 }
                 if method == "filter"
                     && let Some(table) = super::expr_db::db_table_handle_name(&obj_hir)
@@ -135,7 +141,13 @@ impl LowerCtx {
                         has_limit: false,
                         capabilities: HirDbPlanCapabilities::default(),
                     };
-                    return HirExpr::MethodCall(Box::new(obj_hir), method.clone(), filter_args, Some(Box::new(plan)), *span);
+                    return HirExpr::MethodCall(
+                        Box::new(obj_hir),
+                        method.clone(),
+                        filter_args,
+                        Some(Box::new(plan)),
+                        *span,
+                    );
                 }
                 if let Some((table, op)) =
                     super::expr_db::db_table_op_from_field(&obj_hir, method.as_str())
@@ -144,7 +156,11 @@ impl LowerCtx {
                     if matches!(op, HirDbTableOp::UnsafeQueryRawClause) {
                         cap.emits_change_log = true;
                     }
-                    HirExpr::MethodCall(Box::new(obj_hir), method.clone(), hir_args, Some(Box::new(HirDbQueryPlan {
+                    HirExpr::MethodCall(
+                        Box::new(obj_hir),
+                        method.clone(),
+                        hir_args,
+                        Some(Box::new(HirDbQueryPlan {
                             table,
                             op,
                             predicate: None,
@@ -152,7 +168,9 @@ impl LowerCtx {
                             order_by: None,
                             has_limit: false,
                             capabilities: cap,
-                        })), *span)
+                        })),
+                        *span,
+                    )
                 } else {
                     HirExpr::MethodCall(Box::new(obj_hir), method.clone(), hir_args, None, *span)
                 }

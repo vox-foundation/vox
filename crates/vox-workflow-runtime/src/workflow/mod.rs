@@ -22,8 +22,14 @@ mod tests {
     fn plan_workflow_activities_returns_error_when_hir_is_stubbed() {
         let hir = HirModule::default();
         let result = plan_workflow_activities(&hir, "any_workflow");
-        assert!(result.is_err(), "planner should error when workflow HIR is unavailable");
+        assert!(
+            result.is_err(),
+            "planner should error when workflow HIR is unavailable"
+        );
         let msg = result.unwrap_err().to_string();
-        assert!(msg.contains("not found"), "error should mention workflow not found: {msg}");
+        assert!(
+            msg.contains("not found"),
+            "error should mention workflow not found: {msg}"
+        );
     }
 }

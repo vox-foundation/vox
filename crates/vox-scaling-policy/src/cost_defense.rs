@@ -107,7 +107,10 @@ impl CostDefenseState {
     pub fn record_cost(&mut self, tenant_id: &str, cost_usd: f64) {
         self.daily_spent_usd += cost_usd;
         self.monthly_spent_usd += cost_usd;
-        *self.tenant_spent_usd.entry(tenant_id.to_string()).or_insert(0.0) += cost_usd;
+        *self
+            .tenant_spent_usd
+            .entry(tenant_id.to_string())
+            .or_insert(0.0) += cost_usd;
     }
 
     /// Record a retry attempt for a task.
@@ -233,7 +236,12 @@ impl CostCircuitBreaker {
 
         // Layer 6: Tenant budget isolation
         if let Some(limit_usd) = self.config.tenant_daily_caps.get(tenant_id) {
-            let spent = self.state.tenant_spent_usd.get(tenant_id).copied().unwrap_or(0.0);
+            let spent = self
+                .state
+                .tenant_spent_usd
+                .get(tenant_id)
+                .copied()
+                .unwrap_or(0.0);
             if spent + estimated_cost_usd > *limit_usd {
                 rejections.push(CostDefenseRejection::TenantBudgetExhausted {
                     tenant_id: tenant_id.to_string(),
@@ -413,10 +421,11 @@ mod tests {
     #[test]
     fn layer6_tenant_budget_enforced() {
         let mut cfg = CostDefenseConfig::default();
-        cfg.tenant_daily_caps.insert("expensive-tenant".into(), 10.0);
+        cfg.tenant_daily_caps
+            .insert("expensive-tenant".into(), 10.0);
         let mut cb = CostCircuitBreaker::new(cfg);
         cb.state.record_cost("expensive-tenant", 9.0);
-        
+
         let r = cb.check_before_task(10, "t1", "expensive-tenant", "local", 2.0);
         assert!(
             r.iter()

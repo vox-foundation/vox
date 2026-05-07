@@ -4,7 +4,7 @@
 // syntax_version: "0.3"
 // status: golden
 // category: example
-// constructs: [@table, @endpoint(kind: server), @island, routes]
+// constructs: [@table, @endpoint(kind: server), component, routes]
 // ---
 
 // ANCHOR: data
@@ -21,18 +21,16 @@
 
 // ANCHOR: ui
 component TaskList(tasks: List[Task]) {
-    view: <div>
-        {tasks.map(fn(t) {
-            <label>
-                <input 
-                    type="checkbox" 
-                    checked={t.done} 
-                    onChange={fn() complete_task(t.id)} 
-                />
-                {t.title}
-            </label>
-        })}
-    </div>
+    view: column() {
+        tasks.map(fn(t) {
+            row() {
+                // `attr_type` strips the `attr_` prefix at parse time so `type=...` reaches the
+                // emitted HTML even though `type` is a Vox keyword.
+                input(attr_type="checkbox", checked=t.done, on_change={fn() complete_task(t.id)})
+                text() { t.title }
+            }
+        })
+    }
 }
 // ANCHOR_END: ui
 

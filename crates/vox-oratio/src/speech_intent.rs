@@ -71,13 +71,13 @@ pub fn fill_slots_heuristic(
     let lower = transcript.to_ascii_lowercase();
 
     // Contextual resolution for "this file" / "this"
-    if let Some(ctx) = context {
-        if lower.contains("this file") || lower.contains("edit this") || lower.contains("fix this")
-        {
-            if let Some(active) = &ctx.active_file {
-                path = Some(active.clone());
-            }
-        }
+    if let Some(ctx) = context
+        && (lower.contains("this file")
+            || lower.contains("edit this")
+            || lower.contains("fix this"))
+        && let Some(active) = &ctx.active_file
+    {
+        path = Some(active.clone());
     }
 
     for part in transcript.split('`') {

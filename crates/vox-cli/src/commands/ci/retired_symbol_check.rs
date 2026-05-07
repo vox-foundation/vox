@@ -54,7 +54,7 @@ pub fn run(root: &Path) -> Result<()> {
             let path = entry.path();
             if path.is_dir() {
                 dirs_to_visit.push(path);
-            } else if path.extension().map_or(false, |e| e == "md" || e == "json") {
+            } else if path.extension().is_some_and(|e| e == "md" || e == "json") {
                 let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
                 if filename == "SUMMARY.md" || filename == "doc-inventory.json" {
                     println!("DEBUG: skipping {}", filename);

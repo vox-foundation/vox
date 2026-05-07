@@ -258,9 +258,11 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
         ),
 
         HirExpr::Ident(n, _) => {
-            if n == "request" || n == "std" || n == "fs" {
-                n.clone()
-            } else if n.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+            if n == "request"
+                || n == "std"
+                || n == "fs"
+                || n.chars().next().is_some_and(|c| c.is_uppercase())
+            {
                 n.clone()
             } else {
                 format!("{}.clone()", n)

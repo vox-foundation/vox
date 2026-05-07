@@ -83,7 +83,7 @@ pub async fn llm_chat(
                 let latency = start.elapsed().as_millis() as i64;
 
                 let _ = record_telemetry_attempt(&config, "error", latency, Some(&status.to_string())).await;
-                
+
                 if !config.telemetry_skip_interaction {
                     let _ = record_telemetry_outcome(
                         &config,
@@ -121,7 +121,7 @@ pub async fn llm_chat(
             let cache_read_tokens = usage.cache_read_input_tokens
                 .or_else(|| usage.prompt_tokens_details.as_ref().map(|d| d.cached_tokens))
                 .unwrap_or(0) as i64;
-            let provider_cost = usage.total_cost.or(usage.cost).map(|c| c as f64);
+            let provider_cost = usage.total_cost.or(usage.cost);
             let cost_usd = provider_cost.or_else(|| {
                 config.cost_per_1k.map(|c| {
                     ((prompt_tokens + completion_tokens) as f64 / 1000.0) * c
@@ -222,7 +222,7 @@ async fn record_telemetry_outcome(
                     quality_score: Some(if success { 1.0 } else { 0.0 }),
                 };
 
-                let _ = db.record_llm_outcome(outcome).await;
+                let _ = db.record_unified_llm_turn(outcome, None).await;
             }
         });
     }
@@ -278,7 +278,9 @@ pub async fn infer_with_retry(
     let trace_id = Uuid::new_v4().to_string();
     let mut attempt_number = 0;
 
-    for mut candidate in candidates.iter().cloned().collect::<Vec<_>>() {
+    let terminal_fallback = candidates.first().cloned();
+
+    for mut candidate in candidates {
         attempt_number += 1;
         candidate.telemetry_trace_id = Some(trace_id.clone());
         candidate.telemetry_attempt_number = Some(attempt_number);
@@ -319,8 +321,7 @@ pub async fn infer_with_retry(
     }
 
     // Record terminal failure interaction
-    if !candidates.is_empty() {
-        let mut terminal_config = candidates[0].clone();
+    if let Some(mut terminal_config) = terminal_fallback {
         terminal_config.telemetry_trace_id = Some(trace_id);
         let _ = record_telemetry_outcome(
             &terminal_config,

@@ -1,28 +1,28 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use crate::types::AgentId;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 use uuid::Uuid;
-use crate::types::AgentId;
 
 /// A cryptographic receipt proving that a tool was successfully executed by the runtime.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolReceipt {
-    pub receipt_id: String,      // UUIDv7
+    pub receipt_id: String, // UUIDv7
     pub agent_id: AgentId,
     pub tool_name: String,
-    pub call_args_hash: String,  // BLAKE3 of canonical JSON args
+    pub call_args_hash: String,      // BLAKE3 of canonical JSON args
     pub result_hash: Option<String>, // BLAKE3 of result bytes (None for intent)
     pub executed_at_ms: u64,
-    pub hmac_tag: [u8; 32],      // MAC tag protecting the record
+    pub hmac_tag: [u8; 32], // MAC tag protecting the record
 }
 
 /// Outcome of validating agent tool claims.
 #[derive(Debug, Clone, Default)]
 pub struct ReceiptValidationResult {
     pub valid: Vec<String>,
-    pub fabricated: Vec<String>,   // claimed but no ledger entry
-    pub unverified: Vec<String>,   // ledger entry exists but tag fails
+    pub fabricated: Vec<String>, // claimed but no ledger entry
+    pub unverified: Vec<String>, // ledger entry exists but tag fails
 }
 
 /// Thread-safe ledger of tool execution receipts.
@@ -80,16 +80,19 @@ impl ToolReceiptLedger {
     pub fn snapshot(&self) -> HashMap<String, (AgentId, String)> {
         let guard = self.receipts.read();
         let receipts: &HashMap<String, ToolReceipt> = &*guard;
-        receipts.iter().map(|(id, r)| (id.clone(), (r.agent_id, r.tool_name.clone()))).collect()
+        receipts
+            .iter()
+            .map(|(id, r)| (id.clone(), (r.agent_id, r.tool_name.clone())))
+            .collect()
     }
 
     /// Issue a new receipt for a tool execution intent.
     pub fn issue_intent(&self, agent_id: AgentId, tool_name: &str, args_json: &str) -> ToolReceipt {
         let receipt_id = Uuid::now_v7().to_string();
         let executed_at_ms = chrono::Utc::now().timestamp_millis() as u64;
-        
+
         let args_hash = blake3::hash(args_json.as_bytes()).to_string();
-        
+
         let mut hasher = blake3::Hasher::new_keyed(&self.session_key);
         hasher.update(receipt_id.as_bytes());
         hasher.update(&agent_id.0.to_le_bytes());
@@ -114,13 +117,17 @@ impl ToolReceiptLedger {
     }
 
     /// Update a receipt with the execution result.
-    pub fn fulfill_intent(&self, receipt_id: &str, result_json: &str) -> Result<ToolReceipt, &'static str> {
+    pub fn fulfill_intent(
+        &self,
+        receipt_id: &str,
+        result_json: &str,
+    ) -> Result<ToolReceipt, &'static str> {
         let mut map = self.receipts.write();
         let receipt = map.get_mut(receipt_id).ok_or("Receipt not found")?;
-        
+
         let res_hash = blake3::hash(result_json.as_bytes()).to_string();
         receipt.result_hash = Some(res_hash.clone());
-        
+
         // Re-compute tag with result
         let mut hasher = blake3::Hasher::new_keyed(&self.session_key);
         hasher.update(receipt.receipt_id.as_bytes());
@@ -135,16 +142,23 @@ impl ToolReceiptLedger {
     }
 
     /// Issue a complete receipt (intent + result).
-    pub fn issue(&self, agent_id: AgentId, tool_name: &str, args_json: &str, result_json: &str) -> ToolReceipt {
+    pub fn issue(
+        &self,
+        agent_id: AgentId,
+        tool_name: &str,
+        args_json: &str,
+        result_json: &str,
+    ) -> ToolReceipt {
         let receipt = self.issue_intent(agent_id, tool_name, args_json);
-        self.fulfill_intent(&receipt.receipt_id, result_json).unwrap()
+        self.fulfill_intent(&receipt.receipt_id, result_json)
+            .unwrap()
     }
 
     /// Verify a single receipt by ID.
     pub fn verify(&self, receipt_id: &str) -> Result<(), &'static str> {
         let map = self.receipts.read();
         let receipt = map.get(receipt_id).ok_or("Receipt not found in ledger")?;
-        
+
         let mut hasher = blake3::Hasher::new_keyed(&self.session_key);
         hasher.update(receipt.receipt_id.as_bytes());
         hasher.update(&receipt.agent_id.0.to_le_bytes());

@@ -1,8 +1,8 @@
-use crate::hir::{
-    HirAgent, HirFn, HirImport, HirMcpResource, HirMcpTool, HirRoute,
-    HirRustImport, HirEndpointFn, HirTable, HirTypeDef, HirUrlDecl,
-};
 use crate::hir::HirStateMachineDecl;
+use crate::hir::{
+    HirAgent, HirEndpointFn, HirFn, HirImport, HirMcpResource, HirMcpTool, HirRoute, HirRustImport,
+    HirTable, HirTypeDef, HirUrlDecl,
+};
 use crate::web_ir::WebIrModule;
 use serde::{Deserialize, Serialize};
 

@@ -1,13 +1,13 @@
 ---
-title: "vox-codegen-ts API"
-description: "API reference for the vox-codegen-ts crate: HIR-to-TypeScript/TSX code generation pipeline."
+title: "vox-codegen-ts API (deprecated stub)"
+description: "Deprecated API stub: TypeScript/TSX generation is implemented in vox-compiler, not a separate vox-codegen-ts crate."
 category: "api-crate"
-status: current
+status: deprecated
 ---
 
-# vox-codegen-ts API
+# vox-codegen-ts API (deprecated)
 
-The `vox-codegen-ts` crate translates Vox HIR into TypeScript/TSX output files.
+The historical `vox-codegen-ts` crate name is retired. **HIR-to-TypeScript/TSX emission** lives in the monolith crate [`vox-compiler`](../../../crates/vox-compiler) under `codegen_ts` (see `crates/vox-compiler/src/codegen_ts/`).
 
 ## Overview
 
@@ -27,4 +27,3 @@ For the strategic rationale, see [ADR 012](../adr/012-internal-web-ir-strategy.m
 | `vox-client.ts` | Type-safe client hooks for `@endpoint(kind: query/mutation)` |
 | `types.ts` | TypeScript union types for `type` declarations |
 | `server.ts` | Express/Axum route handlers for `@endpoint(kind: server)` |
-| `vox-islands-meta.ts` | Island hydration metadata for `@island` declarations |

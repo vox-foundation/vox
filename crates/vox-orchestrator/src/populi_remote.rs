@@ -26,9 +26,7 @@ impl PlacementReasonCode {
             Self::LocalQueueFallbackAfterRemoteRelayError => {
                 "local_queue_fallback_after_remote_relay_error"
             }
-            Self::LocalQueueFallbackInsufficientVram => {
-                "local_queue_fallback_insufficient_vram"
-            }
+            Self::LocalQueueFallbackInsufficientVram => "local_queue_fallback_insufficient_vram",
         }
     }
 }

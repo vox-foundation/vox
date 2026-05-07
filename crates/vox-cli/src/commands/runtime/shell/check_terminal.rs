@@ -648,7 +648,10 @@ mod shell_policy_tests {
         // the first stage `cargo` is allowed.
         let policy = make_policy_with_network(&[], &[]);
         let err = run_check_rust_fallback("cargo build | Totally-Fake-Cmd", &policy);
-        assert!(err.is_err(), "expected second pipeline stage to be rejected");
+        assert!(
+            err.is_err(),
+            "expected second pipeline stage to be rejected"
+        );
     }
 
     #[test]
@@ -669,7 +672,10 @@ mod shell_policy_tests {
         let err = run_check_rust_fallback("cargo build | curl https://evil.com", &policy);
         assert!(err.is_err(), "expected rejection of evil.com in curl stage");
         let msg = format!("{:#}", err.unwrap_err());
-        assert!(msg.contains("evil.com"), "error should name the offending host: {msg}");
+        assert!(
+            msg.contains("evil.com"),
+            "error should name the offending host: {msg}"
+        );
     }
 
     #[test]
@@ -677,14 +683,20 @@ mod shell_policy_tests {
         // `;`-separated compound commands must be fully evaluated.
         let policy = make_policy_with_network(&[], &[]);
         let err = run_check_rust_fallback("cargo build; Totally-Fake-Cmd", &policy);
-        assert!(err.is_err(), "expected second semicolon-segment to be rejected");
+        assert!(
+            err.is_err(),
+            "expected second semicolon-segment to be rejected"
+        );
     }
 
     #[test]
     fn rust_fallback_semicolon_url_in_second_segment() {
         let policy = make_policy_with_network(&["curl"], &["github.com"]);
         let err = run_check_rust_fallback("cargo build; curl https://evil.com", &policy);
-        assert!(err.is_err(), "expected URL rejection in semicolon-separated segment");
+        assert!(
+            err.is_err(),
+            "expected URL rejection in semicolon-separated segment"
+        );
     }
 
     #[test]

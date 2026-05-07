@@ -150,8 +150,8 @@ impl SandboxedSkillRunner {
             .map(|h| {
                 let mut buf = String::new();
                 let reader = BufReader::new(h);
-                for line in reader.lines().flatten() {
-                    if buf.len() + line.len() + 1 <= max_bytes {
+                for line in reader.lines().map_while(Result::ok) {
+                    if buf.len() + line.len() < max_bytes {
                         buf.push_str(&line);
                         buf.push('\n');
                     } else {
@@ -166,7 +166,7 @@ impl SandboxedSkillRunner {
             .map(|h| {
                 let mut buf = String::new();
                 let reader = BufReader::new(h);
-                for line in reader.lines().flatten() {
+                for line in reader.lines().map_while(Result::ok) {
                     buf.push_str(&line);
                     buf.push('\n');
                 }

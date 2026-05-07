@@ -1,4 +1,4 @@
-x-vox-version: 1
+x-vox-version: 2
 schema_version: 1
 
 domains:
@@ -111,14 +111,30 @@ domains:
     owning_crate_globs:
       - crates/vox-compiler/**
 
+  - id: frontend-surface-ownership
+    title: Frontend surface ownership
+    tier: B-canon
+    status: current
+    spec_paths:
+      - contracts/frontend/surface-ownership.v1.yaml
+      - contracts/frontend/gui-compatibility.v1.yaml
+      - contracts/frontend/dependency-policy.v1.yaml
+    canon_doc: docs/src/reference/frontend-surface-ownership.md
+    generated_docs: []
+    aliases: []
+    owning_crate_globs:
+      - crates/vox-dashboard/**
+      - tools/visualizer/**
+      - marquee_app/**
+      - test_app_bundle/**
+
   - id: hitl-doubt
     title: HITL Doubt Flow and Resolution
     tier: B-canon
-    status: legacy
+    status: current
     spec_paths: []
-    canon_doc: docs/src/archive/research-2026-q1/hitl-doubt-loop-ssot.md
-    aliases:
-      - docs/src/reference/hitl-and-doubt.md
+    canon_doc: docs/src/reference/hitl-and-doubt.md
+    aliases: []
     owning_crate_globs: []
 
   - id: agent-instruction-files
@@ -156,7 +172,7 @@ domains:
     status: current
     spec_paths:
       - docs/agents/ai-ide-feature-matrix-2026.json
-    canon_doc: docs/src/archive/research-2026-q1/ai-ide-feature-research-findings-2026.md
+    canon_doc: docs/src/reference/ai-ide-feature-matrix.md
     aliases: []
 
   - id: toestub-quality

@@ -125,17 +125,16 @@ pub fn refine_transcript(raw: &str, ctx: &CorrectionContext) -> RefineOutput {
         if !matches!(
             ctx.speaker_profile,
             crate::speaker_profile::SpeakerProfile::Dysarthric(_)
-        ) {
-            if let Some(mapped) = confusion.get(lower.as_str()) {
-                trace.push(CorrectionTrace {
-                    rule: "confusion_map".to_string(),
-                    before: token.to_string(),
-                    after: (*mapped).to_string(),
-                    reason: "Matched common ASR confusion token".to_string(),
-                });
-                rewritten.push((*mapped).to_string());
-                continue;
-            }
+        ) && let Some(mapped) = confusion.get(lower.as_str())
+        {
+            trace.push(CorrectionTrace {
+                rule: "confusion_map".to_string(),
+                before: token.to_string(),
+                after: (*mapped).to_string(),
+                reason: "Matched common ASR confusion token".to_string(),
+            });
+            rewritten.push((*mapped).to_string());
+            continue;
         }
 
         if domain_lexicon.contains(&lower) {

@@ -4,16 +4,16 @@ use std::time::Duration;
 
 pub mod linux_drm;
 pub mod macos_metal;
+#[cfg(test)]
+mod mock;
 #[cfg(feature = "nvml-gpu-probe")]
 pub mod nvml;
 pub mod pipeline;
 pub mod probe;
 pub mod registry;
-pub mod types;
-#[cfg(test)]
-mod mock;
 #[cfg(test)]
 mod tests;
+pub mod types;
 #[cfg(feature = "mens-gpu")]
 pub mod wgpu_probe;
 #[cfg(all(target_os = "windows", feature = "mens-gpu"))]

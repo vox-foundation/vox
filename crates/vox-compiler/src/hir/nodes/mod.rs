@@ -8,13 +8,13 @@
 //! or bump all match sites in the same change.
 
 mod decl;
-mod expr;
-mod stmt;
-mod stmt_expr;
 pub mod durability;
 pub mod effect;
-pub mod url;
+mod expr;
 pub mod state_machine;
+mod stmt;
+mod stmt_expr;
+pub mod url;
 
 pub use decl::*;
 pub use durability::DurabilityKind;

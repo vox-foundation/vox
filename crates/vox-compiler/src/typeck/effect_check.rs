@@ -7,8 +7,8 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::hir::nodes::{HirEndpointFn, HirFn};
 use crate::hir::nodes::effect::HirEffectKind;
+use crate::hir::nodes::{HirEndpointFn, HirFn};
 use crate::hir::{HirArg, HirCapability, HirExpr, HirModule, HirStmt};
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 
@@ -149,7 +149,9 @@ fn check_stmt(
             check_expr(v, caller_name, caller_set, cap_map, source, diags);
         }
         HirStmt::Return { value: None, .. } => {}
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             check_expr(condition, caller_name, caller_set, cap_map, source, diags);
             for s in body {
                 check_stmt(s, caller_name, caller_set, cap_map, source, diags);
@@ -208,8 +210,12 @@ fn check_expr(
                             format!(
                                 "Function `{}` calls `{}.{}()` which requires `{}`, \
                                  but `{}` does not declare `uses {}`",
-                                caller_name, module_name, method_name, required,
-                                caller_name, required
+                                caller_name,
+                                module_name,
+                                method_name,
+                                required,
+                                caller_name,
+                                required
                             ),
                             *span,
                             source,
@@ -338,7 +344,11 @@ fn check_arg(
 fn check_one_endpoint_fn(f: &HirEndpointFn, diags: &mut Vec<Diagnostic>) {
     // E_EFFECT_PURE_CONFLICT: @pure + uses clause is contradictory.
     if f.is_pure && !f.effects.is_empty() {
-        let labels: Vec<String> = f.effects.iter().map(|e: &HirEffectKind| e.label()).collect();
+        let labels: Vec<String> = f
+            .effects
+            .iter()
+            .map(|e: &HirEffectKind| e.label())
+            .collect();
         diags.push(Diagnostic {
             severity: TypeckSeverity::Error,
             message: format!(
@@ -364,7 +374,7 @@ fn check_one_endpoint_fn(f: &HirEndpointFn, diags: &mut Vec<Diagnostic>) {
     // E_EFFECT_DUPLICATE: same effect listed more than once.
     let mut seen: Vec<&HirEffectKind> = Vec::new();
     for eff in &f.effects {
-        if seen.iter().any(|s| *s == eff) {
+        if seen.contains(&eff) {
             diags.push(Diagnostic {
                 severity: TypeckSeverity::Error,
                 message: format!(
@@ -393,8 +403,8 @@ fn check_one_endpoint_fn(f: &HirEndpointFn, diags: &mut Vec<Diagnostic>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::lower::lower_module;
     use crate::hir::DefId;
+    use crate::hir::lower::lower_module;
     use crate::lexer::lex;
     use crate::parser::parse;
 
@@ -459,8 +469,16 @@ fn caller() to str { fetch() }",
     fn test_http_method_call_requires_net() {
         let diags = check(r#"fn f() uses nothing to str { http.get("https://example.com") }"#);
         assert_eq!(diags.len(), 1, "expected net violation: {diags:?}");
-        assert!(diags[0].message.contains("net"), "message: {}", diags[0].message);
-        assert!(diags[0].message.contains("http.get"), "message: {}", diags[0].message);
+        assert!(
+            diags[0].message.contains("net"),
+            "message: {}",
+            diags[0].message
+        );
+        assert!(
+            diags[0].message.contains("http.get"),
+            "message: {}",
+            diags[0].message
+        );
     }
 
     #[test]
@@ -473,7 +491,11 @@ fn caller() to str { fetch() }",
     fn test_db_method_call_requires_db() {
         let diags = check(r#"fn f() uses nothing to str { db.query("SELECT 1") }"#);
         assert_eq!(diags.len(), 1, "expected db violation: {diags:?}");
-        assert!(diags[0].message.contains("db"), "message: {}", diags[0].message);
+        assert!(
+            diags[0].message.contains("db"),
+            "message: {}",
+            diags[0].message
+        );
     }
 
     #[test]
@@ -486,21 +508,32 @@ fn caller() to str { fetch() }",
     fn test_fs_method_call_requires_fs() {
         let diags = check(r#"fn f() uses nothing to str { fs.read("/etc/hosts") }"#);
         assert_eq!(diags.len(), 1, "expected fs violation: {diags:?}");
-        assert!(diags[0].message.contains("fs"), "message: {}", diags[0].message);
+        assert!(
+            diags[0].message.contains("fs"),
+            "message: {}",
+            diags[0].message
+        );
     }
 
     #[test]
     fn test_unannotated_caller_skips_stdlib_check() {
         // Unannotated callers must not be penalised — open world.
         let diags = check(r#"fn f() to str { http.get("https://example.com") }"#);
-        assert!(diags.is_empty(), "unannotated caller must not be checked: {diags:?}");
+        assert!(
+            diags.is_empty(),
+            "unannotated caller must not be checked: {diags:?}"
+        );
     }
 
     #[test]
     fn test_env_method_call_requires_env() {
         let diags = check(r#"fn f() uses nothing to str { env.get("HOME") }"#);
         assert_eq!(diags.len(), 1, "expected env violation: {diags:?}");
-        assert!(diags[0].message.contains("env"), "message: {}", diags[0].message);
+        assert!(
+            diags[0].message.contains("env"),
+            "message: {}",
+            diags[0].message
+        );
     }
 
     #[test]
@@ -508,13 +541,17 @@ fn caller() to str { fetch() }",
         // Caller declares net but not db — db call should error, http should not.
         let diags = check(r#"fn f() uses net to str { http.get("url"); db.query("SELECT 1") }"#);
         assert_eq!(diags.len(), 1, "expected exactly one violation: {diags:?}");
-        assert!(diags[0].message.contains("db"), "expected db violation: {}", diags[0].message);
+        assert!(
+            diags[0].message.contains("db"),
+            "expected db violation: {}",
+            diags[0].message
+        );
     }
 
     // ── endpoint fn checks ──────────────────────────────────────────────────
 
     fn make_endpoint_fn(name: &str, is_pure: bool, effects: Vec<HirEffectKind>) -> HirEndpointFn {
-        use crate::hir::nodes::{HirEndpointKind};
+        use crate::hir::nodes::HirEndpointKind;
         HirEndpointFn {
             kind: HirEndpointKind::Query,
             id: DefId(0),
@@ -541,7 +578,11 @@ fn caller() to str { fetch() }",
 
     #[test]
     fn endpoint_duplicate_effect_is_caught() {
-        let f = make_endpoint_fn("dup_endpoint", false, vec![HirEffectKind::Net, HirEffectKind::Net]);
+        let f = make_endpoint_fn(
+            "dup_endpoint",
+            false,
+            vec![HirEffectKind::Net, HirEffectKind::Net],
+        );
         let diags = check_endpoint_fn_effects(&[f]);
         assert_eq!(diags.len(), 1);
         assert_eq!(diags[0].code, Some("E_EFFECT_DUPLICATE".to_string()));
@@ -551,6 +592,9 @@ fn caller() to str { fetch() }",
     fn endpoint_clean_effects_pass() {
         let f = make_endpoint_fn("list_tasks", false, vec![HirEffectKind::Db]);
         let diags = check_endpoint_fn_effects(&[f]);
-        assert!(diags.is_empty(), "endpoint with single declared effect should pass");
+        assert!(
+            diags.is_empty(),
+            "endpoint with single declared effect should pass"
+        );
     }
 }

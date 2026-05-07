@@ -1,5 +1,5 @@
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { AppShellLive } from './components/islands/AppShellLive';
+import { AppShellLive } from './components/shell/AppShellLive';
 
 export default function App() {
   return (

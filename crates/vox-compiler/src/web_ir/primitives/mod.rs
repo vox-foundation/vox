@@ -51,10 +51,83 @@ impl PrimitiveEmission {
 ///
 /// `attrs` are the raw `(name, value)` pairs from the JSX element, allowing
 /// prop-driven class augmentation (e.g. `gap="4"` → `gap-4`).
+/// VUV-4 universal style kwargs supported on every primitive. The set is intentionally aimed at
+/// what the dashboard uses today; new kwargs are added as the migration surfaces them. Any kwarg
+/// listed here MUST also appear in `PRIMITIVE_CONSUMED_PROPS` in `web_ir/lower.rs` so it doesn't
+/// leak through as a raw HTML attribute.
+pub const UNIVERSAL_STYLE_KWARGS: &[&str] = &[
+    "gap",
+    "gap_x",
+    "gap_y",
+    "pad",
+    "pad_x",
+    "pad_y",
+    "pad_t",
+    "pad_b",
+    "pad_l",
+    "pad_r",
+    "mb",
+    "mt",
+    "ml",
+    "mr",
+    "mx",
+    "my",
+    "w",
+    "h",
+    "min_w",
+    "min_h",
+    "max_w",
+    "max_h",
+    "bg",
+    "color",
+    "border",
+    "border_x",
+    "border_y",
+    "border_t",
+    "border_b",
+    "border_l",
+    "border_r",
+    "border_color",
+    "radius",
+    "radius_t",
+    "radius_b",
+    "radius_l",
+    "radius_r",
+    "radius_tl",
+    "radius_tr",
+    "radius_bl",
+    "radius_br",
+    "overflow",
+    "overflow_x",
+    "overflow_y",
+    "flex",
+    "shrink",
+    "grow",
+    "justify",
+    "items",
+    "tracking",
+    "leading",
+    "case",
+    "italic",
+    "font_family",
+    "position",
+    "inset",
+    "top",
+    "bottom",
+    "left",
+    "right",
+    "shadow",
+    "opacity",
+    "raw_class",
+];
+
 #[must_use]
 pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmission> {
     let get_attr = |name: &str| -> Option<&str> {
-        attrs.iter().find(|(k, _)| k == name).map(|(_, v)| v.as_str())
+        attrs
+            .iter()
+            .find(|(k, _)| k == name)
+            .map(|(_, v)| v.as_str())
     };
     let surface_name: Option<String> = get_attr("surface").map(|s| s.to_string());
 
@@ -62,7 +135,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
         // ── Layout ────────────────────────────────────────────────────────
         "stack" | "column" => {
             let mut classes = vec!["flex".to_string(), "flex-col".to_string()];
-            apply_gap(get_attr("gap"), &mut classes);
+
             apply_align(get_attr("align"), &mut classes, false);
             Some(PrimitiveEmission {
                 html_tag: "div",
@@ -73,9 +146,9 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
         }
         "row" => {
             let mut classes = vec!["flex".to_string(), "flex-row".to_string()];
-            apply_gap(get_attr("gap"), &mut classes);
+
             apply_align(get_attr("align"), &mut classes, true);
-            if get_attr("wrap").map_or(false, |v| v == "true") {
+            if get_attr("wrap") == Some("true") {
                 classes.push("flex-wrap".to_string());
             }
             Some(PrimitiveEmission {
@@ -86,12 +159,12 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
             })
         }
         "wrap" => {
-            let mut classes = vec![
+            let classes = vec![
                 "flex".to_string(),
                 "flex-row".to_string(),
                 "flex-wrap".to_string(),
             ];
-            apply_gap(get_attr("gap"), &mut classes);
+
             Some(PrimitiveEmission {
                 html_tag: "div",
                 base_classes: classes,
@@ -112,7 +185,9 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
             })
         }
         "heading" => {
-            let level = get_attr("level").and_then(|v| v.parse::<u8>().ok()).unwrap_or(2);
+            let level = get_attr("level")
+                .and_then(|v| v.parse::<u8>().ok())
+                .unwrap_or(2);
             let tag = match level {
                 1 => "h1",
                 2 => "h2",
@@ -211,14 +286,14 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
         }
         // ── Structural ────────────────────────────────────────────────────
         "panel" => {
-            let mut classes = vec![
+            let classes = vec![
                 "bg-background".to_string(),
                 "rounded-lg".to_string(),
                 "border".to_string(),
                 "border-border".to_string(),
                 "p-4".to_string(),
             ];
-            apply_gap(get_attr("gap"), &mut classes);
+
             Some(PrimitiveEmission {
                 html_tag: "div",
                 base_classes: classes,
@@ -227,7 +302,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
             })
         }
         "card" => {
-            let mut classes = vec![
+            let classes = vec![
                 "bg-card".to_string(),
                 "text-card-foreground".to_string(),
                 "rounded-xl".to_string(),
@@ -235,7 +310,7 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
                 "shadow-sm".to_string(),
                 "p-6".to_string(),
             ];
-            apply_gap(get_attr("gap"), &mut classes);
+
             Some(PrimitiveEmission {
                 html_tag: "div",
                 base_classes: classes,
@@ -308,6 +383,10 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
         }
         _ => None,
     }
+    .map(|mut e| {
+        apply_universal_kwargs(attrs, &mut e.base_classes);
+        e
+    })
 }
 
 /// Returns `true` if the tag is in the known primitive set.
@@ -319,12 +398,6 @@ pub fn is_primitive(tag: &str) -> bool {
 // ---------------------------------------------------------------------------
 // Prop-to-class helpers
 // ---------------------------------------------------------------------------
-
-fn apply_gap(gap: Option<&str>, classes: &mut Vec<String>) {
-    if let Some(g) = gap {
-        classes.push(format!("gap-{g}"));
-    }
-}
 
 fn apply_align(align: Option<&str>, classes: &mut Vec<String>, is_row: bool) {
     match align {
@@ -444,12 +517,254 @@ fn apply_z_index(z: Option<&str>, classes: &mut Vec<String>) {
     }
 }
 
+/// VUV-4 conflict resolution: should a primitive's base class (e.g. `bg-background`, `rounded-lg`)
+/// be suppressed because the author supplied a kwarg that addresses the same Tailwind axis?
+///
+/// Heuristic by axis. Examples:
+///   - author `bg=…`  → drop primitive base classes matching `bg-*`.
+///   - author `radius=…` → drop primitive base classes matching `rounded*`.
+///   - author `color=…`  → drop primitive base classes matching `text-{color}` but NOT
+///     `text-{size}` (xs/sm/lg/etc.) or alignment/transform tokens.
+///
+/// Conservative on ambiguous cases — if unsure, keep the primitive base class.
+#[must_use]
+pub fn primitive_base_class_overridden(base_class: &str, author_kwargs: &[&str]) -> bool {
+    let has = |k: &str| author_kwargs.contains(&k);
+    // Strip Tailwind state-variant modifier prefixes (`hover:`, `focus:`, `md:`, …) so an
+    // author kwarg like `bg=` correctly overrides primitives' `hover:bg-…` defaults too.
+    // Modifiers are colon-separated; the actual utility is whatever follows the last `:`.
+    let utility = base_class.rsplit(':').next().unwrap_or(base_class);
+    if has("bg") && utility.starts_with("bg-") {
+        return true;
+    }
+    if has("color") {
+        const SIZE_OR_NON_COLOR: &[&str] = &[
+            "xs", "sm", "base", "lg", "xl", "2xl", "3xl", "4xl", "5xl", "6xl", "7xl", "8xl", "9xl",
+            "left", "right", "center", "justify", "start", "end", "balance", "pretty", "wrap",
+            "nowrap", "ellipsis", "clip",
+        ];
+        if let Some(rest) = utility.strip_prefix("text-")
+            && !SIZE_OR_NON_COLOR.contains(&rest)
+        {
+            return true;
+        }
+    }
+    let radius_like = [
+        "radius",
+        "radius_t",
+        "radius_b",
+        "radius_l",
+        "radius_r",
+        "radius_tl",
+        "radius_tr",
+        "radius_bl",
+        "radius_br",
+    ];
+    if radius_like.iter().any(|k| has(k)) && utility.starts_with("rounded") {
+        return true;
+    }
+    // Border kwargs split by intent: width vs color. Width kwargs own `border` and the
+    // directional variants; color kwarg owns everything that ISN'T the bare width.
+    let any_border_width_kwarg = has("border")
+        || has("border_x")
+        || has("border_y")
+        || has("border_t")
+        || has("border_b")
+        || has("border_l")
+        || has("border_r");
+    if any_border_width_kwarg && (utility == "border" || utility.starts_with("border-")) {
+        return true;
+    }
+    if has("border_color") && utility.starts_with("border-") && utility != "border" {
+        return true;
+    }
+    let any_pad_kwarg = has("pad")
+        || has("pad_x")
+        || has("pad_y")
+        || has("pad_t")
+        || has("pad_b")
+        || has("pad_l")
+        || has("pad_r");
+    if any_pad_kwarg
+        && (utility.starts_with("p-")
+            || utility.starts_with("px-")
+            || utility.starts_with("py-")
+            || utility.starts_with("pt-")
+            || utility.starts_with("pb-")
+            || utility.starts_with("pl-")
+            || utility.starts_with("pr-"))
+    {
+        return true;
+    }
+    if has("w") && utility.starts_with("w-") {
+        return true;
+    }
+    if has("h") && utility.starts_with("h-") {
+        return true;
+    }
+    if has("max_w") && utility.starts_with("max-w-") {
+        return true;
+    }
+    if has("max_h") && utility.starts_with("max-h-") {
+        return true;
+    }
+    if has("font_family") && utility.starts_with("font-") {
+        // Don't filter font-bold/font-medium/etc. (those are weight, owned by `weight` kwarg)
+        const WEIGHTS: &[&str] = &[
+            "font-thin",
+            "font-extralight",
+            "font-light",
+            "font-normal",
+            "font-medium",
+            "font-semibold",
+            "font-bold",
+            "font-extrabold",
+            "font-black",
+        ];
+        if !WEIGHTS.contains(&utility) {
+            return true;
+        }
+    }
+    false
+}
+
+/// VUV-4: resolve a single (kwarg, value) pair to its Tailwind class fragment(s), or `None` if
+/// the kwarg is not a recognized universal style kwarg. Used by both the web_ir lowering pass
+/// (via `apply_universal_kwargs`) and the codegen_ts AST-emit path so both produce identical
+/// className output.
+#[must_use]
+pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> {
+    let v = value.trim_matches('"').trim_matches('\'');
+    let v_dashed = v.replace('.', "-");
+    let out: Vec<String> = match kwarg {
+        "gap" => vec![format!("gap-{v}")],
+        "gap_x" => vec![format!("gap-x-{v}")],
+        "gap_y" => vec![format!("gap-y-{v}")],
+        "pad" => vec![format!("p-{v}")],
+        "pad_x" => vec![format!("px-{v}")],
+        "pad_y" => vec![format!("py-{v}")],
+        "pad_t" => vec![format!("pt-{v}")],
+        "pad_b" => vec![format!("pb-{v}")],
+        "pad_l" => vec![format!("pl-{v}")],
+        "pad_r" => vec![format!("pr-{v}")],
+        "mb" => vec![format!("mb-{v}")],
+        "mt" => vec![format!("mt-{v}")],
+        "ml" => vec![format!("ml-{v}")],
+        "mr" => vec![format!("mr-{v}")],
+        "mx" => vec![format!("mx-{v}")],
+        "my" => vec![format!("my-{v}")],
+        "w" => vec![format!("w-{v}")],
+        "h" => vec![format!("h-{v}")],
+        "min_w" => vec![format!("min-w-{v}")],
+        "min_h" => vec![format!("min-h-{v}")],
+        "max_w" => vec![format!("max-w-{v}")],
+        "max_h" => vec![format!("max-h-{v}")],
+        "bg" => vec![format!("bg-{}", v_dashed)],
+        "color" => vec![format!("text-{}", v_dashed)],
+        "border" => match v {
+            "" | "true" | "1" => vec!["border".to_string()],
+            _ => vec![format!("border-{v}")],
+        },
+        "border_x" => vec![format!("border-x-{v}")],
+        "border_y" => vec![format!("border-y-{v}")],
+        "border_t" => vec![format!("border-t-{v}")],
+        "border_b" => vec![format!("border-b-{v}")],
+        "border_l" => vec![format!("border-l-{v}")],
+        "border_r" => vec![format!("border-r-{v}")],
+        "border_color" => vec![format!("border-{}", v_dashed)],
+        "radius" => vec![format!("rounded-{v}")],
+        "radius_t" => vec![format!("rounded-t-{v}")],
+        "radius_b" => vec![format!("rounded-b-{v}")],
+        "radius_l" => vec![format!("rounded-l-{v}")],
+        "radius_r" => vec![format!("rounded-r-{v}")],
+        "radius_tl" => vec![format!("rounded-tl-{v}")],
+        "radius_tr" => vec![format!("rounded-tr-{v}")],
+        "radius_bl" => vec![format!("rounded-bl-{v}")],
+        "radius_br" => vec![format!("rounded-br-{v}")],
+        "overflow" => vec![format!("overflow-{v}")],
+        "overflow_x" => vec![format!("overflow-x-{v}")],
+        "overflow_y" => vec![format!("overflow-y-{v}")],
+        "flex" => match v {
+            "1" | "true" => vec!["flex-1".to_string()],
+            _ => vec![format!("flex-{v}")],
+        },
+        "shrink" => match v {
+            "0" => vec!["shrink-0".to_string()],
+            _ => vec![format!("shrink-{v}")],
+        },
+        "grow" => match v {
+            "0" => vec!["grow-0".to_string()],
+            _ => vec![format!("grow-{v}")],
+        },
+        // `justify`/`items` only have an effect on flex containers. Auto-include `flex` so
+        // the kwarg works on any primitive (`panel(items="center")`, `card(justify="end")`,
+        // …), not just row/column. Tailwind happily ignores duplicate `flex` if the
+        // primitive's base classes already include it; on non-flex primitives this turns the
+        // class into the intended layout instead of a silent no-op.
+        "justify" => vec!["flex".to_string(), format!("justify-{v}")],
+        "items" => vec!["flex".to_string(), format!("items-{v}")],
+        "tracking" => vec![format!("tracking-{v}")],
+        "leading" => vec![format!("leading-{v}")],
+        "case" => match v {
+            "upper" | "uppercase" => vec!["uppercase".to_string()],
+            "lower" | "lowercase" => vec!["lowercase".to_string()],
+            "normal" => vec!["normal-case".to_string()],
+            _ => return None,
+        },
+        "italic" => match v {
+            "true" | "" => vec!["italic".to_string()],
+            "false" => vec!["not-italic".to_string()],
+            _ => return None,
+        },
+        "font_family" => match v {
+            "mono" => vec!["font-mono".to_string()],
+            "sans" => vec!["font-sans".to_string()],
+            "serif" => vec!["font-serif".to_string()],
+            _ => return None,
+        },
+        "position" => vec![v.to_string()],
+        "inset" => vec![format!("inset-{v}")],
+        "top" => vec![format!("top-{v}")],
+        "bottom" => vec![format!("bottom-{v}")],
+        "left" => vec![format!("left-{v}")],
+        "right" => vec![format!("right-{v}")],
+        "shadow" => match v {
+            "" | "true" => vec!["shadow".to_string()],
+            _ => vec![format!("shadow-{v}")],
+        },
+        "opacity" => vec![format!("opacity-{v}")],
+        "raw_class" => v
+            .split_whitespace()
+            .map(std::string::ToString::to_string)
+            .collect(),
+        _ => return None,
+    };
+    Some(out)
+}
+
+/// VUV-4: apply the universal style kwargs to the class list. Each kwarg maps to a Tailwind utility
+/// using a small lookup table. Token-shaped values (e.g. `zinc.400`) are converted to dash-form
+/// (`zinc-400`) so authors can write `bg: zinc.400` and the lowering produces `bg-zinc-400`.
+///
+/// `raw_class` is special: its value is added verbatim, intended as a transitional escape hatch
+/// during the JSX-to-VUV cutover. It will be retired in favour of full typed-kwarg coverage.
+fn apply_universal_kwargs(attrs: &[(String, String)], classes: &mut Vec<String>) {
+    for (k, v) in attrs {
+        if let Some(more) = resolve_universal_kwarg(k, v) {
+            classes.extend(more);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn attrs(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
-        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
     }
 
     #[test]
@@ -463,7 +778,11 @@ mod tests {
     #[test]
     fn stack_with_gap_appends_gap_class() {
         let e = resolve("stack", &attrs(&[("gap", "4")])).unwrap();
-        assert!(e.base_classes.contains(&"gap-4".to_string()), "{:?}", e.base_classes);
+        assert!(
+            e.base_classes.contains(&"gap-4".to_string()),
+            "{:?}",
+            e.base_classes
+        );
     }
 
     #[test]
@@ -510,7 +829,10 @@ mod tests {
         let e = resolve("button", &[]).unwrap();
         assert_eq!(e.html_tag, "button");
         assert!(e.base_classes.contains(&"bg-primary".to_string()));
-        assert!(e.base_classes.contains(&"text-primary-foreground".to_string()));
+        assert!(
+            e.base_classes
+                .contains(&"text-primary-foreground".to_string())
+        );
     }
 
     #[test]
@@ -561,7 +883,18 @@ mod tests {
 
     #[test]
     fn is_primitive_recognizes_all_10() {
-        for tag in &["stack", "row", "column", "text", "button", "link", "panel", "card", "list", "route_outlet"] {
+        for tag in &[
+            "stack",
+            "row",
+            "column",
+            "text",
+            "button",
+            "link",
+            "panel",
+            "card",
+            "list",
+            "route_outlet",
+        ] {
             assert!(is_primitive(tag), "{tag} should be a primitive");
         }
         assert!(!is_primitive("div"));
@@ -574,5 +907,127 @@ mod tests {
         let s = e.class_string();
         assert!(s.contains("flex"), "{s}");
         assert!(s.contains("flex-col"), "{s}");
+    }
+
+    // VUV-4: typed universal style kwargs.
+
+    #[test]
+    fn vuv_padding_kwargs_emit_tailwind() {
+        let e = resolve("row", &attrs(&[("pad_x", "4"), ("pad_y", "2")])).unwrap();
+        assert!(
+            e.base_classes.contains(&"px-4".to_string()),
+            "{:?}",
+            e.base_classes
+        );
+        assert!(
+            e.base_classes.contains(&"py-2".to_string()),
+            "{:?}",
+            e.base_classes
+        );
+    }
+
+    #[test]
+    fn vuv_margin_kwargs_emit_tailwind() {
+        let e = resolve("text", &attrs(&[("mb", "2"), ("mt", "4")])).unwrap();
+        assert!(e.base_classes.contains(&"mb-2".to_string()));
+        assert!(e.base_classes.contains(&"mt-4".to_string()));
+    }
+
+    #[test]
+    fn vuv_color_token_value_dashes_to_tailwind() {
+        // Token-shaped value `zinc.400` is converted to `zinc-400` and prefixed with `text-`.
+        let e = resolve("text", &attrs(&[("color", "zinc.400")])).unwrap();
+        assert!(
+            e.base_classes.contains(&"text-zinc-400".to_string()),
+            "{:?}",
+            e.base_classes
+        );
+    }
+
+    #[test]
+    fn vuv_bg_token_value_emits_bg_class() {
+        let e = resolve("panel", &attrs(&[("bg", "blue.600")])).unwrap();
+        assert!(
+            e.base_classes.contains(&"bg-blue-600".to_string()),
+            "{:?}",
+            e.base_classes
+        );
+    }
+
+    #[test]
+    fn vuv_radius_kwargs_emit_rounded_classes() {
+        let e = resolve("panel", &attrs(&[("radius", "2xl"), ("radius_br", "sm")])).unwrap();
+        assert!(
+            e.base_classes.contains(&"rounded-2xl".to_string()),
+            "{:?}",
+            e.base_classes
+        );
+        assert!(e.base_classes.contains(&"rounded-br-sm".to_string()));
+    }
+
+    #[test]
+    fn vuv_max_w_min_h_emit_size_classes() {
+        let e = resolve("panel", &attrs(&[("max_w", "xl"), ("min_h", "16")])).unwrap();
+        assert!(e.base_classes.contains(&"max-w-xl".to_string()));
+        assert!(e.base_classes.contains(&"min-h-16".to_string()));
+    }
+
+    #[test]
+    fn vuv_flex_1_and_shrink_0() {
+        let e = resolve("row", &attrs(&[("flex", "1"), ("shrink", "0")])).unwrap();
+        assert!(e.base_classes.contains(&"flex-1".to_string()));
+        assert!(e.base_classes.contains(&"shrink-0".to_string()));
+    }
+
+    #[test]
+    fn vuv_case_upper_emits_uppercase() {
+        let e = resolve("text", &attrs(&[("case", "upper")])).unwrap();
+        assert!(e.base_classes.contains(&"uppercase".to_string()));
+    }
+
+    #[test]
+    fn vuv_tracking_and_leading() {
+        let e = resolve(
+            "text",
+            &attrs(&[("tracking", "widest"), ("leading", "snug")]),
+        )
+        .unwrap();
+        assert!(e.base_classes.contains(&"tracking-widest".to_string()));
+        assert!(e.base_classes.contains(&"leading-snug".to_string()));
+    }
+
+    #[test]
+    fn vuv_justify_and_items_emit_flex_classes() {
+        let e = resolve(
+            "row",
+            &attrs(&[("justify", "between"), ("items", "center")]),
+        )
+        .unwrap();
+        assert!(e.base_classes.contains(&"justify-between".to_string()));
+        assert!(e.base_classes.contains(&"items-center".to_string()));
+    }
+
+    #[test]
+    fn vuv_raw_class_passes_value_verbatim() {
+        let e = resolve(
+            "panel",
+            &attrs(&[("raw_class", "border-white/10 backdrop-blur-md")]),
+        )
+        .unwrap();
+        assert!(e.base_classes.contains(&"border-white/10".to_string()));
+        assert!(e.base_classes.contains(&"backdrop-blur-md".to_string()));
+    }
+
+    #[test]
+    fn vuv_unknown_kwarg_passes_through_to_attrs() {
+        // An unknown kwarg should NOT be consumed here; it stays in attrs and (if not in
+        // PRIMITIVE_CONSUMED_PROPS) leaks through as an HTML attribute. This is the desired
+        // failure mode — typos surface as visible HTML rather than silently disappear.
+        let e = resolve("row", &attrs(&[("padd", "4")])).unwrap();
+        assert!(
+            !e.base_classes.iter().any(|c| c.contains("padd")),
+            "{:?}",
+            e.base_classes
+        );
     }
 }

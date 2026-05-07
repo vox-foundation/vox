@@ -53,7 +53,9 @@ pub(super) async fn http_eval(
         if state.public_eval_rate_limiter.check_key(&identity).is_err() {
             return (
                 StatusCode::TOO_MANY_REQUESTS,
-                Json(serde_json::json!({ "error": "rate limit exceeded for public eval (10/min)" })),
+                Json(
+                    serde_json::json!({ "error": "rate limit exceeded for public eval (10/min)" }),
+                ),
             )
                 .into_response();
         }
@@ -61,7 +63,7 @@ pub(super) async fn http_eval(
         if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
             return resp;
         }
-        
+
         let _role = match resolve_access_role(&state, &headers, Some(&connect.0)) {
             Ok(r) => r,
             Err(msg) => {
@@ -76,12 +78,15 @@ pub(super) async fn http_eval(
 
     let dir = match tempfile::tempdir() {
         Ok(d) => d,
-        Err(e) => return Json(EvalResponse {
-            success: false,
-            stdout: String::new(),
-            stderr: String::new(),
-            error: Some(format!("Failed to create tempdir: {}", e)),
-        }).into_response(),
+        Err(e) => {
+            return Json(EvalResponse {
+                success: false,
+                stdout: String::new(),
+                stderr: String::new(),
+                error: Some(format!("Failed to create tempdir: {}", e)),
+            })
+            .into_response();
+        }
     };
 
     let file_path = dir.path().join("eval.vox");
@@ -91,17 +96,19 @@ pub(super) async fn http_eval(
             stdout: String::new(),
             stderr: String::new(),
             error: Some(format!("Failed to write file: {}", e)),
-        }).into_response();
+        })
+        .into_response();
     }
 
-    let mut cmd = tokio::process::Command::new(std::env::current_exe().unwrap_or_else(|_| "vox".into()));
+    let mut cmd =
+        tokio::process::Command::new(std::env::current_exe().unwrap_or_else(|_| "vox".into()));
     // Use standard interpreter for pure computation (fastest)
     cmd.arg("run").arg("--interp").arg(&file_path);
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-    
+
     // Hard execution boundary: 5 seconds
     let exec = timeout(Duration::from_secs(5), cmd.output()).await;
-    
+
     let _ = dir.close();
 
     match exec {
@@ -113,24 +120,23 @@ pub(super) async fn http_eval(
                 stdout,
                 stderr,
                 error: None,
-            }).into_response()
+            })
+            .into_response()
         }
-        Ok(Err(e)) => {
-            Json(EvalResponse {
-                success: false,
-                stdout: String::new(),
-                stderr: String::new(),
-                error: Some(format!("Execution failed: {}", e)),
-            }).into_response()
-        }
-        Err(_) => {
-            Json(EvalResponse {
-                success: false,
-                stdout: String::new(),
-                stderr: String::new(),
-                error: Some("Execution timed out after 5 seconds.".to_string()),
-            }).into_response()
-        }
+        Ok(Err(e)) => Json(EvalResponse {
+            success: false,
+            stdout: String::new(),
+            stderr: String::new(),
+            error: Some(format!("Execution failed: {}", e)),
+        })
+        .into_response(),
+        Err(_) => Json(EvalResponse {
+            success: false,
+            stdout: String::new(),
+            stderr: String::new(),
+            error: Some("Execution timed out after 5 seconds.".to_string()),
+        })
+        .into_response(),
     }
 }
 
@@ -148,7 +154,9 @@ mod tests {
 
     #[test]
     fn eval_request_accepts_normal_code() {
-        let req = EvalRequest { code: "println!(\"hello\")".to_string() };
+        let req = EvalRequest {
+            code: "println!(\"hello\")".to_string(),
+        };
         let result = validate_eval_request(&req);
         assert!(result.is_ok(), "normal code must be accepted");
     }

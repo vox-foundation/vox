@@ -86,7 +86,7 @@ Open `http://localhost:3000` in your browser to view the application.
 |-----------|-------------|------------------|
 | `@table` | Defines a database table | Rust types + Codex migrations |
 | `@server fn` | Defines an API endpoint | Axum handler + TS service |
-| `@island` | Creates an interactive UI | React component (Vite) |
+| `component` | Defines a UI component | React/TSX component (Vite) |
 | `@query fn` | Read-only db operation | Optimized SQL query fn |
 | `@mutation fn`| Write-enabled db operation | SQL insert/update fn |
 | `@mcp.tool` | Exposes logic to agents | MCP Tool Definition |

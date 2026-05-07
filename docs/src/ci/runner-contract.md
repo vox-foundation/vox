@@ -2,7 +2,7 @@
 title: "CI runner contract"
 description: "Official documentation for CI runner contract for the Vox language. Detailed technical reference, architecture guides, and implementation"
 category: "reference"
-last_updated: "2026-04-12"
+last_updated: "2026-05-05"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -17,6 +17,21 @@ schema_type: "TechArticle"
 | Basic Linux | `[self-hosted, linux, x64]` |
 | Docker / Buildx | `[self-hosted, linux, x64, docker]` |
 | Playwright / browser | `[self-hosted, linux, x64, browser]` |
+| GPU / Mens train | `[self-hosted, linux, x64, gpu]` |
+
+Machines registered with **`linux`**, **`docker`**, **`browser`**, and **`gpu`** are **distinct capacity pools**, but each host still runs the same **GitHub Actions Runner** application version (the `actions-runner` service). Upgrade **every** self-hosted runner that serves this repository—not only the “basic” pool—when the runner app falls below the version floor below.
+
+## Actions Runner application version (self-hosted)
+
+Upstream JavaScript actions in this repo (for example **`actions/checkout@v6`**, **`actions/cache@v5`**, **`actions/setup-node@v6`**, Docker’s **`docker/*-action@v4+`**) use the **Node.js 24** Actions runtime where documented by each action release. GitHub documents a **minimum Actions Runner version of v2.327.1** for that runtime on self-hosted agents (see the [Actions Runner v2.327.1 release](https://github.com/actions/runner/releases/tag/v2.327.1) and each action’s README).
+
+**Operator checklist**
+
+- Keep **`actions-runner` at v2.327.1 or newer** on **all** self-hosted hosts (basic, docker, browser, **and** gpu pools).
+- Confirm from a job log line such as **“Current runner version: '…'"** at the start of a step, or upgrade proactively from [actions/runner releases](https://github.com/actions/runner/releases).
+- **GitHub-hosted** images (`ubuntu-latest`, `windows-latest`, `macos-latest`) are updated by GitHub; this requirement applies to **self-managed** fleets only.
+
+If a runner is too old, jobs fail early when invoking Node 24–based actions, or GitHub emits deprecation notices for obsolete Node runtimes—see GitHub’s [Actions runner changelog](https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/) for the Node 20 deprecation timeline.
 
 ## GitHub-hosted exceptions
 
@@ -37,7 +52,9 @@ Guard logic lives in **`vox ci`** (`crates/vox-cli/src/commands/ci`). Shell scri
 
 ## Pre-push validation (Linux CI mirror)
 
-For a **copy-paste subset** of the default [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml) job (`cargo fmt`, `cargo clippy --workspace`, `vox ci ssot-drift`, TOESTUB on touched paths, and merge-blocking **`check-codex-ssot` / `check-docs-ssot`**), see [Contributor hub — Pre-push local CI parity](../contributors/contributor-hub.md#pre-push-local-ci-parity).
+Use **`vox ci pre-push`** to run the merge-blocking subset locally
+(fmt-check, clippy, ssot-drift, line-endings, doc-inventory verify, scoped
+TOESTUB). See [local CI parity](../contributors/local-ci-pre-push.md).
 
 ## Line endings (cross-platform)
 
@@ -85,6 +102,16 @@ cargo nextest run -p vox-mcp --profile ci
 ```
 
 Individual async tests can still wrap work in **`tokio::time::timeout`** so plain **`cargo test`** fails instead of hanging indefinitely.
+
+## Targeted backend reruns
+
+For routing/telemetry/capability-policy changes, prefer narrow reruns before full workspace passes:
+
+- `cargo test -p vox-runtime`
+- `cargo test -p vox-db`
+- `cargo test -p vox-orchestrator`
+
+Use these focused lanes during iteration, then finish with `vox ci pre-push` (or CI lane equivalent) before merge.
 
 ## Workflow list
 

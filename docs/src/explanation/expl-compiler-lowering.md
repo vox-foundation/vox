@@ -11,6 +11,8 @@ schema_type: "TechArticle"
 
 Understand how the Vox compiler transforms high-level source code into optimized Rust and TypeScript output.
 
+**Operational summary (non-archive):** Parser → **HIR** → **WebIR** (with `lower_hir_to_web_ir` + `validate_web_ir`) → **`codegen_rust` / `codegen_ts`** inside [`vox-compiler`](../../../crates/vox-compiler). Milestones **`M1–M3`** and the operational catalog live in [`internal-web-ir-implementation-blueprint.md`](../architecture/internal-web-ir-implementation-blueprint.md). Archived research links below are **historical** context only.
+
 Implementation note: current production code keeps these stages under `crates/vox-compiler/src/` with explicit modules for parser, HIR lowering, typecheck, and dual-target emitters.
 
 ## 1. Syntax to AST (Abstract Syntax Tree)
@@ -21,19 +23,26 @@ The **parser** converts the raw `.vox` file into a tree of declarations. This ph
 
 The **Lowering** phase begins by transforming the AST into the HIR.
 - **Symbol Resolution**: Linking variable names to their definitions.
-- **Decorator Processing**: Expanding decorators like `@server` into their underlying architectural primitives (handlers, endpoints, clients).
+- **Decorator Processing**: Expanding decorators like `@endpoint(kind: server)` into their underlying architectural primitives (handlers, endpoints, clients).
 - **Type Inference**: Deducing types for all expressions.
 
 ## 3. HIR to WebIR and LIR (Low-level intermediate layers)
 
-[ADR 012](../adr/012-internal-web-ir-strategy.md) introduces **WebIR** (`crates/vox-compiler/src/web_ir/`) as the normative structured layer before React/TanStack printers. **`lower_hir_to_web_ir`** lowers reactive `view:` JSX (plus `routes {` contracts and behavior summaries) into **`WebIrModule`**; **`validate_web_ir`** checks DOM id references; **`emit_component_view_tsx`** is a JSX string preview used for parity tests.
+[ADR 012](../adr/012-internal-web-ir-strategy.md) introduces **WebIR** (`crates/vox-compiler/src/web_ir/`) as the normative structured layer before React/TanStack printers. **`lower_hir_to_web_ir`** lowers reactive `view:` trees (from view-call syntax) into **`WebIrModule`**; **`validate_web_ir`** checks DOM id references; **`emit_component_view_tsx`** provides WebIR TSX projection used by the reactive bridge.
 
 Current production behavior (important for migration planning):
 
 - `codegen_ts` still assembles production TS/TSX output on the primary path.
 - `VOX_WEBIR_VALIDATE=1` runs WebIR lower/validate as a fail-fast gate.
-- `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` enables reactive `view:` bridge output via WebIR preview emit only when parity checks pass.
+- `VOX_WEBIR_EMIT_REACTIVE_VIEWS=1` enables reactive `view:` bridge output via WebIR projection.
+- Parity mismatches no longer force fallback to legacy string emit; WebIR output now remains canonical while mismatch counts are tracked in bridge stats.
 - The two flags are related but not equivalent; validation can be enabled without switching reactive view emission.
+
+Migration milestones for deprecating legacy emit reliance:
+
+- **M1 (shipped):** WebIR validate gate defaults on.
+- **M2 (shipped):** Reactive bridge emits WebIR view output even when parity differs.
+- **M3 (pending):** Remove legacy parity comparison path once mismatch counters stay at zero across CI baselines.
 
 **Operations catalog + gates:** [WebIR operations catalog](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#operations-catalog-op-0001op-0320) and [acceptance gates G1–G6](../archive/research-2026-q1/internal-web-ir-implementation-blueprint.md#acceptance-gates-specific-filetest-thresholds) (includes supplemental **OP-S049–OP-S220** rustc/doc gates). **Roadmap link pass A (OP-S130, OP-S131, OP-S209–OP-S211):** keep lowering docs aligned when renaming validation stages.
 
@@ -43,7 +52,7 @@ Separately, **backend-oriented** lowering remains optimized for Rust emission (d
 
 Two additional HIR-derived contract layers are authoritative for non-UI emitters and orchestration:
 
-- `app_contract::project_app_contract` produces `AppContractModule` (HTTP routes, server/query/mutation functions, client routes, islands, server config).
+- `app_contract::project_app_contract` produces `AppContractModule` (HTTP routes, server/query/mutation functions, client routes, server config).
 - `runtime_projection::project_runtime_from_hir` produces `RuntimeProjectionModule` (DB planning policy snapshots and inferred task capability hints).
 
 These projections are generated from the same lowered HIR input as WebIR and are validated in parity tests to prevent split semantic ownership.

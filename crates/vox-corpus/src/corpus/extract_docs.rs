@@ -467,10 +467,10 @@ pub fn walk_and_extract_docs(config: &ExtractDocsConfig) -> anyhow::Result<Vec<D
                 if p.is_dir() {
                     // Try README.md
                     let readme = p.join("README.md");
-                    if readme.is_file() {
-                        if let Ok(pairs) = extract_from_md_file(&readme, config) {
-                            all.extend(pairs);
-                        }
+                    if readme.is_file()
+                        && let Ok(pairs) = extract_from_md_file(&readme, config)
+                    {
+                        all.extend(pairs);
                     }
                     // Try docs/ directory inside crate
                     let crate_docs = p.join("docs");

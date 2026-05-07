@@ -11,13 +11,19 @@ use crate::typeck::ty::Ty;
 
 fn relative_luminance(hex: &str) -> Option<f32> {
     let hex = hex.trim_start_matches('#');
-    if hex.len() != 6 { return None; }
+    if hex.len() != 6 {
+        return None;
+    }
     let r = u8::from_str_radix(&hex[0..2], 16).ok()? as f32 / 255.0;
     let g = u8::from_str_radix(&hex[2..4], 16).ok()? as f32 / 255.0;
     let b = u8::from_str_radix(&hex[4..6], 16).ok()? as f32 / 255.0;
 
     let f = |c: f32| -> f32 {
-        if c <= 0.03928 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
+        if c <= 0.03928 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
     };
 
     Some(0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b))
@@ -32,10 +38,16 @@ fn contrast_ratio(l1: f32, l2: f32) -> f32 {
 fn check_theme_decl(t: &crate::ast::decl::ui::ThemeDecl, diags: &mut Vec<Diagnostic>) {
     for (variant_name, variant_props) in [("light", &t.light), ("dark", &t.dark)] {
         let get_color = |name: &str| -> Option<f32> {
-            variant_props.iter().find(|(k, _)| k == name).and_then(|(_, v)| relative_luminance(v))
+            variant_props
+                .iter()
+                .find(|(k, _)| k == name)
+                .and_then(|(_, v)| relative_luminance(v))
         };
-        
-        let check_contrast = |bg_key: &str, fg_key: &str, alt_fg_key: &str, diags: &mut Vec<Diagnostic>| {
+
+        let check_contrast = |bg_key: &str,
+                              fg_key: &str,
+                              alt_fg_key: &str,
+                              diags: &mut Vec<Diagnostic>| {
             let bg = get_color(bg_key);
             let fg = get_color(fg_key).or_else(|| get_color(alt_fg_key));
             if let (Some(b), Some(f)) = (bg, fg) {
@@ -56,7 +68,12 @@ fn check_theme_decl(t: &crate::ast::decl::ui::ThemeDecl, diags: &mut Vec<Diagnos
         };
 
         check_contrast("--color-bg", "--color-text", "--color-fg", diags);
-        check_contrast("--color-btn-bg", "--color-btn-text", "--color-btn-fg", diags);
+        check_contrast(
+            "--color-btn-bg",
+            "--color-btn-text",
+            "--color-btn-fg",
+            diags,
+        );
     }
 }
 fn resolve_type(te: &TypeExpr, env: &TypeEnv) -> Ty {
@@ -377,7 +394,7 @@ fn lint_component_react_hooks(comp: &ComponentDecl) -> Vec<Diagnostic> {
                 context: None,
                 suggestions: vec![
                     "Use `state x = ...`, `derived`, `effect`, `mount`, `cleanup`, and `view:` instead of hooks where possible.".into(),
-                    "Keep advanced React-only logic in `@island` TypeScript under islands/.".into(),
+                    "Keep advanced React-only logic in TypeScript under your React project.".into(),
                 ],
                 category: DiagnosticCategory::Lint,
                 code: Some("lint.component_react_hook".into()),
@@ -454,7 +471,7 @@ pub fn lint_ast_declarations(module: &Module, source: &str) -> Vec<Diagnostic> {
                 "lint.retired_context",
             )),
             Decl::Hook(h) => Some((
-                "`@hook fn` is retired. Prefer Path C `component`, islands, or plain TS under `islands/`.",
+                "`@hook fn` is retired. Prefer Path C `component` or plain TS in your React project.",
                 h.func.span,
                 "lint.retired_hook_fn",
             )),
@@ -491,24 +508,22 @@ pub fn lint_ast_declarations(module: &Module, source: &str) -> Vec<Diagnostic> {
 
     for decl in &module.declarations {
         match decl {
-            Decl::Index(idx) => {
-                if env.lookup(&idx.table_name).is_none() {
-                    diags.push(Diagnostic {
-                        message: format!("@index references unknown table '{}'", idx.table_name),
-                        span: idx.span,
-                        severity: TypeckSeverity::Error,
-                        expected_type: None,
-                        found_type: None,
-                        context: None,
-                        suggestions: vec![],
-                        category: DiagnosticCategory::Lint,
-                        code: Some("lint.index_unknown_table".into()),
-                        fixes: vec![],
-                        line_col: None,
-                        missing_cases: vec![],
-                        ast_node_kind: None,
-                    });
-                }
+            Decl::Index(idx) if env.lookup(&idx.table_name).is_none() => {
+                diags.push(Diagnostic {
+                    message: format!("@index references unknown table '{}'", idx.table_name),
+                    span: idx.span,
+                    severity: TypeckSeverity::Error,
+                    expected_type: None,
+                    found_type: None,
+                    context: None,
+                    suggestions: vec![],
+                    category: DiagnosticCategory::Lint,
+                    code: Some("lint.index_unknown_table".into()),
+                    fixes: vec![],
+                    line_col: None,
+                    missing_cases: vec![],
+                    ast_node_kind: None,
+                });
             }
             Decl::SearchIndex(si) => check_search_index_decl(&env, si, &mut diags),
             Decl::Theme(t) => check_theme_decl(t, &mut diags),

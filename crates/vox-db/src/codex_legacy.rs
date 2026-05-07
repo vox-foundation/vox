@@ -11,9 +11,9 @@ use std::io::{BufRead, Write};
 use turso::Value as SqlValue;
 use turso::params;
 
+use crate::StoreError;
 use crate::schema::CODEX_REACTIVITY_TABLES;
 use crate::sql_util::validate_identifier;
-use crate::StoreError;
 
 /// Result of [`verify_legacy_store`].
 #[derive(Debug, Clone)]
@@ -88,9 +88,9 @@ impl LegacyImportSource {
 /// Tables never exported: Turso/Arca owns `schema_version` via [`crate::VoxDb::migrate`].
 /// A fresh target DB must already hold [`crate::schema::BASELINE_VERSION`] before [`import_legacy_jsonl`].
 pub const LEGACY_EXPORT_SKIP_TABLES: &[&str] = &[
-    "mesh_a2a_messages",   // transient mesh execution state
+    "mesh_a2a_messages",     // transient mesh execution state
     "mesh_dispatch_results", // transient mesh execution state
-    "mesh_exec_leases",    // transient mesh execution state
+    "mesh_exec_leases",      // transient mesh execution state
     "schema_version",
 ];
 

@@ -51,16 +51,14 @@ script-execution = [
     "dep:wasmtime-wasi",
     "dep:landlock",
     "dep:win32job",
-    "vox-build-meta/script-execution",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
-execution-api = ["script-execution", "dep:axum", "dep:tokio-stream", "vox-build-meta/execution-api"]
+execution-api = ["script-execution", "dep:axum", "dep:tokio-stream"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
     "dep:vox-toestub",
     "dep:dirs",
     "dep:vox-ludus",
-    "vox-build-meta/stub-check",
 ]
 # Merge `vox-toestub` victory-claim / premature-done heuristics into `vox ci completion-audit` (CI enables this).
 completion-toestub = ["dep:vox-toestub"]
@@ -93,9 +91,6 @@ coderabbit = [
     "dep:blake3",
     "dep:vox-toestub",
 ]
-# v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
-island = ["dep:dirs"]
-
 # Stub for non-functional inference server when refactoring or debugging.
 # Enables all social platform adapters for publication and diagnostics.
 scientia-social = [

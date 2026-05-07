@@ -96,7 +96,6 @@ fn is_word(t: &Token) -> bool {
             | Token::AtServer
             | Token::AtTable
             | Token::AtIndex
-            | Token::AtIsland
             | Token::AtPure
             | Token::AtScheduled
             | Token::AtDeprecated
@@ -129,7 +128,10 @@ mod tests {
         );
         assert!(compacted.contains('{'), "Should preserve LBrace");
         assert!(compacted.contains('}'), "Should preserve RBrace");
-        assert!(compacted.contains("return x"), "Should preserve return statement");
+        assert!(
+            compacted.contains("return x"),
+            "Should preserve return statement"
+        );
     }
 
     #[test]

@@ -67,7 +67,9 @@ fn settings_path() -> PathBuf {
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".vox").join("dashboard-settings.json")
+    PathBuf::from(home)
+        .join(".vox")
+        .join("dashboard-settings.json")
 }
 
 fn epoch_ms() -> u64 {
@@ -157,9 +159,7 @@ impl SettingsState {
 // Route handlers
 // ---------------------------------------------------------------------------
 
-async fn get_settings(
-    State(s): State<SettingsState>,
-) -> Json<Value> {
+async fn get_settings(State(s): State<SettingsState>) -> Json<Value> {
     let map = s.inner.read().await;
     Json(Value::Object(map.clone()))
 }

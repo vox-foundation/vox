@@ -114,12 +114,12 @@ fn run_fix_cuda_path() -> Result<()> {
             .arg("-Command")
             .arg(script)
             .status()?;
+        Ok(())
     }
     #[cfg(not(target_os = "windows"))]
     {
         anyhow::bail!("--fix-cuda-path is only supported on Windows.");
     }
-    Ok(())
 }
 
 #[cfg(test)]

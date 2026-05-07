@@ -20,7 +20,7 @@ pub fn emit_lark() -> String {
     g.push_str("    | http_route | table | index | test | forall\n");
     g.push_str("    | server_fn | query_fn | mutation_fn\n");
     g.push_str("    | mcp_tool | mcp_resource\n");
-    g.push_str("    | component | reactive_component | island | v0_component\n");
+    g.push_str("    | component | reactive_component | v0_component\n");
     g.push_str("    | routes | loading | agent | environment\n");
     g.push_str("    ;\n\n");
 
@@ -76,7 +76,7 @@ pub fn emit_lark() -> String {
     g.push_str("mcp_tool: \"@mcp.tool\" [STRING_LIT] \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n");
     g.push_str("mcp_resource: \"@mcp.resource\" [STRING_LIT] \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n\n");
 
-    // ── Components & Islands
+    // ── Components
     g.push_str(
         "component: \"@component\" \"fn\" IDENT \"(\" params? \")\" [\"to\" type_expr] block\n",
     );
@@ -88,8 +88,6 @@ pub fn emit_lark() -> String {
     g.push_str("effect_block: \"effect\" block\n");
     g.push_str("mount_block: \"mount\" block\n");
     g.push_str("cleanup_block: \"cleanup\" block\n");
-    g.push_str("island: \"@island\" IDENT \"{\" island_prop* \"}\"\n");
-    g.push_str("island_prop: IDENT [\"?\"] \":\" type_expr\n");
     g.push_str("v0_component: \"@v0\" STRING_LIT \"fn\" IDENT \"(\" \")\" \"to\" type_expr\n\n");
 
     // ── Routes & Loading
@@ -157,12 +155,14 @@ pub fn emit_lark() -> String {
     g.push_str("list_lit: \"[\" (expr (\",\" expr)*)? \"]\"\n");
     g.push_str("tuple_lit: \"(\" expr \",\" (expr (\",\" expr)*)? \")\"\n\n");
 
-    // ── JSX
-    g.push_str("jsx_expr: jsx_self_closing | jsx_element\n");
-    g.push_str("jsx_self_closing: \"<\" IDENT jsx_attr* \"/>\"\n");
-    g.push_str("jsx_element: \"<\" IDENT jsx_attr* \">\" jsx_child* \"</\" IDENT \">\"\n");
-    g.push_str("jsx_attr: IDENT \"=\" (STRING_LIT | \"{\" expr \"}\")\n");
-    g.push_str("jsx_child: jsx_expr | \"{\" expr \"}\" | TEXT\n\n");
+    // ── View-call surface (lowers to JSX-shaped HIR nodes)
+    g.push_str("jsx_expr: view_call_expr\n");
+    g.push_str("view_call_expr: view_call_block | view_call_self_closing\n");
+    g.push_str("view_call_block: IDENT \"(\" view_args? \")\" \"{\" expr* \"}\"\n");
+    g.push_str("view_call_self_closing: IDENT \"(\" view_args? \")\"\n");
+    g.push_str("view_args: view_arg (\",\" view_arg)*\n");
+    g.push_str("view_arg: IDENT \"=\" expr\n");
+    g.push_str("// angle-bracket JSX (<tag ...>) is retired at parser entry\n\n");
 
     // ── Type expressions
     g.push_str("type_expr: simple_type | generic_type | fn_type | tuple_type | \"Unit\"\n");

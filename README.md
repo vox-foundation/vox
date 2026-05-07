@@ -153,46 +153,41 @@ fn add_task(title: str, owner: str) to Id[Task] {
 
 > The three `kind:` values were separate decorators (`@query`, `@server`, `@mutation`) until recently; they collapsed into one `@endpoint` primitive in the April 2026 grammar unification.
 
-### Pillar 3: Islands, Not Hook Soup
+### Pillar 3: React Interop via Plain Components and Endpoints
 
-Interactive state is confined to explicit `@island` boundaries. The compiler generates the React component, lifecycle wiring, and typed client stub — none of it appears in the `.vox` source.<sup>[1](#ref1)</sup>
+Vox compiles `component` declarations to plain React/TSX components and `@endpoint` declarations to typed server functions plus a generated `vox-client.ts`. An external React, TanStack, or mobile app can either import the emitted components directly or call the endpoints over the generated RPC bridge — there is no island-mount harness to learn. See [`docs/src/architecture/external-frontend-interop-plan-2026.md`](docs/src/architecture/external-frontend-interop-plan-2026.md) for the full bidirectional interop story (server-only and fullstack build modes, Phase 5 React adapter).
 
 ```vox
-// [ @island ]
-// Marks the browser boundary.
-@island TaskList {
-    tasks: list[Task]
-    on_complete: fn(str) -> Unit
-}
-
 // [ component ]
-// Server-rendered; React hooks and lifecycles stay in the generated layer.
-component TaskPage() {
-    view: (
-        <div className="task-list">
-            <TaskList
-                tasks=[...]
-                on_complete={complete_task}
-            />
-        </div>
-    )
+// Compiles to a plain React/TSX tree; this example uses Vox GUI primitives (not raw JSX).
+component TaskPage(tasks: List[Task]) {
+    view: column(raw_class="task-list") {
+        tasks.map(fn(t) {
+            row() {
+                text() { t.title }
+            }
+        })
+    }
 }
 
 routes { "/" to TaskPage }
 ```
 
-> **v0.dev integration.** `vox island generate TaskDashboard "A minimal sidebar dashboard"` calls the v0.dev API (requires `V0_API_KEY`) and writes the result into `islands/src/TaskDashboard/`. The `@v0` build hook runs it automatically during `vox build`.
+> **v0.dev integration.** `@v0` is unchanged: scaffolds React components from a prompt during `vox build` (requires `V0_API_KEY`).
 
 ### Pillar 4: Durable State & Agent Interoperability
 
-Multi-agent pipelines crash, and external tools fail. Durable orchestration — checkpointing across node death, retries on transient faults, supervised restart — is provided by the `vox-workflow-runtime` host. The `.vox` surface for declaring durable steps is mid-redesign: the original `workflow` / `activity` / `actor` keywords were tombstoned in the parser as part of the April 2026 primitive collapse, and a unified `@durable(kind: …)` decorator (parallel to `@endpoint(kind: …)`) is queued behind a separate ADR.<sup>[2](#ref2), [3](#ref3)</sup>
+Multi-agent pipelines crash, and external tools fail. Checkpointing across node death, retries on transient faults, and supervised restart are provided by the `vox-workflow-runtime` host. In source, durability is expressed with **`@durable` on `fn`** and with bare **`workflow` / `activity` / `actor`** blocks — they lower to `HirFn` durability metadata (see [`AGENTS.md`](AGENTS.md), heading **Grammar Unification (Vox Source Syntax)**). Higher-level runtime wiring and distributed deployment are still pre-1.0.<sup>[2](#ref2), [3](#ref3)</sup>
 
-In the meantime, durable steps are written as ordinary `Result`-returning functions and registered with the runtime programmatically. The `@mcp.tool` decorator (unchanged) exposes any function to Anthropic's Model Context Protocol so external AI clients can call it directly.<sup>[4](#ref4)</sup>
+The **`@mcp.tool`** decorator exposes a function to MCP-compatible clients (for example VS Code or other Model Context Protocol hosts) so tools can be invoked directly from an agent session.<sup>[4](#ref4)</sup>
 
-<table width="100%">
+<!-- 50/50 split: equal-width columns so the loop asset and the snippet share the row on wide viewports. -->
+<table width="100%" style="table-layout: fixed;">
 <tr>
-<td width="50%" align="center" valign="middle">
-  <img src="docs/src/assets/durable_essentialist_loop.webp" width="100%">
+<td width="50%" valign="top" align="center">
+
+<img src="docs/src/assets/durable_essentialist_loop.webp" alt="Durable execution loop: commit, execute, recover, complete" width="100%">
+
 </td>
 <td width="50%" valign="top">
 
@@ -228,7 +223,7 @@ fn complete_purchase(amount: int) to str {
 </tr>
 </table>
 
-> Mirrors [`examples/golden/checkout_workflow.vox`](examples/golden/checkout_workflow.vox) and [`examples/golden/mcp_tools.vox`](examples/golden/mcp_tools.vox). The retired keywords are listed in the [`AGENTS.md` retired-surfaces table](AGENTS.md).
+> Mirrors [`examples/golden/checkout_workflow.vox`](examples/golden/checkout_workflow.vox) and [`examples/golden/mcp_tools.vox`](examples/golden/mcp_tools.vox). Orchestration keywords and decorators are summarized in [`AGENTS.md`](AGENTS.md) under **Grammar Unification**; **retired crates and APIs** are in the [`AGENTS.md`](AGENTS.md) retired-surfaces table (not the `workflow` / `activity` / `actor` blocks themselves).
 
 ### Pillar 5: Local Training (MENS)
 
@@ -284,21 +279,21 @@ Surfaces are tracked by how reproducibly an LLM can target them. Data, logic, an
 | Domain | Tier | What it covers |
 |:---|:---|:---|
 | Compiler engine | 🟢 Stable | AST, HIR, type checker, LSP, code generation pipeline. |
-| Surface syntax | 🟡 Preview | Primitive set is collapsing toward fewer, more orthogonal forms (`@endpoint(kind: …)` landed April 2026; `@durable(kind: …)` queued). |
+| Surface syntax | 🟡 Preview | Decorator + bare-keyword rules in [`AGENTS.md`](AGENTS.md): `@endpoint(kind: …)`, `@durable` on `fn`, and bare `workflow` / `activity` / `actor` blocks among the top-level forms. |
 | `@table` & data layer | 🟢 Stable | Schema, migrations, `db.*` query builder, wire types. |
 | Endpoints (`@endpoint`) | 🟡 Preview | Unified shape is new — `query`/`server`/`mutation` recently merged. |
 | Agent tooling | 🟢 Stable | `@mcp.tool` / `@mcp.resource` exposure, MCP protocol compliance. |
 | Stub detection / AI-laziness gates | 🟡 Preview | `vox stub-check` catches `todo!()` / `unimplemented!()` / hollow returns / "Done!" claims. The `ai_laziness` detector (rule 21) adds placeholder-string returns, "implement later" comments, mock-named functions, conditional stubs, and assertion-only bodies. |
 | RAG & knowledge curation | 🟡 Preview | `vox scientia` retrieval, Socrates guards. |
-| Durable execution | 🚧 Experimental | Parser keywords (`workflow`/`activity`/`actor`) tombstoned; replacement decorator pending ADR. Runtime works, but the source-language surface is in flux. |
+| Durable execution | 🟡 Preview | Grammar includes `workflow` / `activity` / `actor` and `@durable` on `fn`; `vox-workflow-runtime` behavior and distributed stories are still maturing pre-1.0. |
 | Local training (MENS) | 🟡 Preview | Hardware coverage is still expanding. |
-| Web UI & rendering | 🟡 Preview | Dual-track: Vox-native reactivity (`component` + `state_machine` + WebIR) for greenfield, `@island` / `@v0` / TSX emit reserved for explicit React/TanStack interop. Boundary docs in flight. |
+| Web UI & rendering | 🟡 Preview | Vox-native reactivity (`component` + `state_machine` + WebIR) for greenfield, plus React-interop via TSX emit and generated `vox-client.ts` (server-only and fullstack build modes). `@v0` unchanged. |
 | Distributed node mesh | 🚧 Experimental | Cross-machine routing is pre-1.0 design. |
 
-Vox is in active pre-1.0 development (workspace version `0.5.0` at the time of writing); treat this as a preview. The core of the language itself is still moving — the April 2026 grammar unification collapsed multiple decorators and tombstoned several keywords, and that work isn't finished. Notable changes land in [`CHANGELOG.md`](CHANGELOG.md), and the machine-verified v1.0 criteria, with per-domain verification pipelines, live at [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md).
+Vox is in active pre-1.0 development (workspace version `0.5.0` at the time of writing); treat this as a preview. Grammar and compiler work continue — decorator collapse (for example unified `@endpoint(kind: …)`) and GUI-native phases are tracked in [`CHANGELOG.md`](CHANGELOG.md) and the [GUI-native roadmap](docs/src/architecture/gui-native-roadmap-status-2026.md). Machine-verified v1.0 criteria live at [`docs/src/architecture/v1-release-criteria.md`](docs/src/architecture/v1-release-criteria.md).
 <!-- ANCHOR_END: tier_table -->
 
-Active work tracks against the [GUI-native roadmap](docs/src/architecture/gui-native-roadmap-status-2026.md), which carries the per-task status. Phase 0 (dashboard hardening) and Phase 2 (compiler primitive collapse) are largely complete; Phase 3 (grammar unification policy in `AGENTS.md`) is next, and Phases 4–8 are queued. The retired surfaces — symbols you may still see in older docs but should no longer use — are listed in the [`AGENTS.md` retired-surfaces table](AGENTS.md).
+Active work tracks against the [GUI-native roadmap](docs/src/architecture/gui-native-roadmap-status-2026.md). Phases 2–3 (primitive collapse and grammar-unification policy in `AGENTS.md`) and Phase 4–6 compiler/GUI milestones are complete; Phase 7 (dashboard re-author) is partially complete and later phases continue there. Symbols you must not use in new code — retired crates and APIs — are listed in the [`AGENTS.md` retired-surfaces table](AGENTS.md).
 
 ---
 
@@ -351,8 +346,6 @@ These aren't style suggestions — they fail CI. See [`AGENTS.md`](AGENTS.md) fo
 ---
 
 ## References
-
-<a id="ref1"></a>**[1]** Miller, J. (2020). *Islands Architecture*. JasonFormat. <https://jasonformat.com/islands-architecture/>
 
 <a id="ref2"></a>**[2]** Fateev, M., & Abbas, S. (2019). *Temporal*. Temporal Technologies. <https://temporal.io>
 

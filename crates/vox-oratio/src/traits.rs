@@ -57,7 +57,7 @@ fn contextual_bias_phrases_with_lex(
     let extra: Vec<String> =
         vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSessionHotwords)
             .expose()
-            .map(|s| crate::contextual_bias::parse_hotword_csv(&s))
+            .map(crate::contextual_bias::parse_hotword_csv)
             .unwrap_or_default();
     crate::contextual_bias::merge_bias_phrases(lex_phrases, &extra, max_phrases)
 }

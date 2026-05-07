@@ -16,8 +16,7 @@ pub(crate) fn for_each_db_table_op_in_module(
     f: &mut impl FnMut(DbTableOpSite<'_>),
 ) {
     for_each_hir_expr_in_module(module, &mut |expr| {
-        if let HirExpr::MethodCall(_, _, _, Some(plan), _) = expr
-        {
+        if let HirExpr::MethodCall(_, _, _, Some(plan), _) = expr {
             f(DbTableOpSite {
                 table: &plan.table,
                 op: plan.op,
@@ -140,7 +139,6 @@ fn walk_stmt(stmt: &HirStmt, f: &mut impl FnMut(&HirExpr)) {
 fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
     f(expr);
     match expr {
-
         HirExpr::ObjectLit(fields, _) => {
             for (_, v) in fields {
                 walk_expr(v, f);
@@ -262,7 +260,6 @@ fn walk_stmt_mut(stmt: &mut HirStmt, f: &mut impl FnMut(&mut HirExpr)) {
 fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
     f(expr);
     match expr {
-
         HirExpr::ObjectLit(fields, _) => {
             for (_, v) in fields {
                 walk_expr_mut(v, f);

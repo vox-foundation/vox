@@ -24,7 +24,6 @@
 //! [`crate::web_ir::DomNode::Expr`] prints raw TypeScript fragments from lowering; do not feed user
 //! text here without upstream policy (validator / sanitizer).
 
-use crate::codegen_ts::island_emit::escape_html_attr;
 use crate::web_ir::{DomNode, DomNodeId, WebIrModule};
 
 /// Counts nodes visited while emitting a view (OP-0104, parity dashboards).
@@ -129,30 +128,6 @@ fn emit_node(
                 .map(|c| emit_node(module, *c, indent + 1, stats))
                 .collect();
             format!("{pad}{{{iterator}.map(() => (\n{body_s}{pad}))}}\n")
-        }
-        DomNode::IslandMount {
-            island_name,
-            props,
-            ignored_child_count,
-            ..
-        } => {
-            let mut parts = vec![format!(
-                "data-vox-island=\"{}\"",
-                escape_html_attr(island_name)
-            )];
-            let mut props_sorted = props.to_vec();
-            props_sorted.sort_by(|a, b| a.0.cmp(&b.0));
-            for (k, v) in props_sorted {
-                parts.push(format!("{k}={{{v}}}"));
-            }
-            let inner = format!("<div {} />", parts.join(" "));
-            if *ignored_child_count == 0 {
-                format!("{pad}{inner}\n")
-            } else {
-                format!(
-                    "{pad}<>{{/* vox: @island `{island_name}` ignores {ignored_child_count} JSX child(ren); prefer `<{island_name} />` for clarity (OP-0100) */}}{inner}</>\n"
-                )
-            }
         }
         DomNode::Expr { ts, .. } => format!("{pad}{{{ts}}}\n"),
     }

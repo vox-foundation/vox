@@ -220,10 +220,10 @@ impl VoxConfig {
             }
         }
 
-        if let Some(build) = parsed.build {
-            if let Some(v) = build.target {
-                self.build_target = v;
-            }
+        if let Some(build) = parsed.build
+            && let Some(v) = build.target
+        {
+            self.build_target = v;
         }
     }
 
@@ -231,10 +231,10 @@ impl VoxConfig {
         if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxModel).expose() {
             self.model = v.to_string();
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBudgetUsd).expose() {
-            if let Ok(f) = v.parse() {
-                self.daily_budget_usd = f;
-            }
+        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBudgetUsd).expose()
+            && let Ok(f) = v.parse()
+        {
+            self.daily_budget_usd = f;
         }
         if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDataDir).expose() {
             self.data_dir = PathBuf::from(v.to_string());
@@ -294,8 +294,8 @@ fn merge_vox_toml_path_for_test(cfg: &mut VoxConfig, path: &Path) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::gamify_web::BuildTarget;
+    use super::*;
     use std::path::PathBuf;
 
     #[test]
@@ -453,19 +453,36 @@ db_extra = "de"
 
     #[test]
     fn build_target_from_str_parses_all_variants() {
-        assert_eq!(BuildTarget::from_str("fullstack"), Some(BuildTarget::Fullstack));
-        assert_eq!(BuildTarget::from_str("server"), Some(BuildTarget::Server));
-        assert_eq!(BuildTarget::from_str("client"), Some(BuildTarget::Client));
+        use std::str::FromStr;
+        assert_eq!(
+            "fullstack".parse::<BuildTarget>().unwrap(),
+            BuildTarget::Fullstack
+        );
+        assert_eq!(
+            "server".parse::<BuildTarget>().unwrap(),
+            BuildTarget::Server
+        );
+        assert_eq!(
+            "client".parse::<BuildTarget>().unwrap(),
+            BuildTarget::Client
+        );
         // case-insensitive
-        assert_eq!(BuildTarget::from_str("SERVER"), Some(BuildTarget::Server));
-        assert_eq!(BuildTarget::from_str("  Fullstack "), Some(BuildTarget::Fullstack));
+        assert_eq!(
+            "SERVER".parse::<BuildTarget>().unwrap(),
+            BuildTarget::Server
+        );
+        assert_eq!(
+            "  Fullstack ".parse::<BuildTarget>().unwrap(),
+            BuildTarget::Fullstack
+        );
     }
 
     #[test]
     fn build_target_from_str_unknown_is_none() {
-        assert_eq!(BuildTarget::from_str(""), None);
-        assert_eq!(BuildTarget::from_str("ios"), None);
-        assert_eq!(BuildTarget::from_str("backend"), None);
+        use std::str::FromStr;
+        assert!("".parse::<BuildTarget>().is_err());
+        assert!("ios".parse::<BuildTarget>().is_err());
+        assert!("backend".parse::<BuildTarget>().is_err());
     }
 
     #[test]

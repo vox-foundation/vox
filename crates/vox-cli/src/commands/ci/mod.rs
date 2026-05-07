@@ -12,6 +12,7 @@ mod command_compliance;
 mod command_sync;
 pub mod completion_quality;
 mod contracts_index;
+mod coolify_eval;
 pub mod data_storage_guard;
 mod dep_sprawl;
 pub mod deploy_status;
@@ -30,6 +31,7 @@ pub(crate) mod nomenclature_guard;
 mod openclaw_contract;
 mod operations_catalog;
 mod pm_provenance;
+mod pre_push;
 mod release_build;
 pub(crate) mod retired_symbol_check;
 mod scaling_audit;
@@ -37,8 +39,8 @@ mod scientia_heuristics_parity;
 mod scientia_novelty_ledger_contract;
 mod scientia_worthiness_contract;
 pub(crate) mod sync_ignore_files;
-pub mod workspace_artifacts;
 pub mod watch_run;
+pub mod workspace_artifacts;
 
 mod cmd_enums;
 mod constants;
@@ -51,8 +53,8 @@ use std::process::{Command, Stdio};
 use anyhow::Result;
 
 pub use cmd_enums::{
-    CiCmd, CoverageGateMode, DocInventoryCmd, EvalMatrixCmd, GrammarDriftEmit, MensScorecardCmd,
-    OperationsSyncTarget, ScalingAuditCmd,
+    CiCmd, CoolifyEvalCmd, CoverageGateMode, DocInventoryCmd, EvalMatrixCmd, GrammarDriftEmit,
+    MensScorecardCmd, OperationsSyncTarget, ScalingAuditCmd,
 };
 
 /// Resolve repository root: `VOX_REPO_ROOT`, else walk up from CWD for `AGENTS.md` + `Cargo.toml`.

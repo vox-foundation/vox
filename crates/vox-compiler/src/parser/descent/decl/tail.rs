@@ -35,7 +35,7 @@ impl Parser {
         }))
     }
 
-    /// Parse `@v0 "chat-id" Name { … }` or `@v0 from "design.png" Name { … }` (v0 island stub body).
+    /// Parse `@v0 "chat-id" Name { … }` or `@v0 from "design.png" Name { … }` (v0 stub body).
     #[allow(dead_code)]
     pub(crate) fn parse_v0_component(&mut self) -> Result<Decl, ()> {
         let start = self.span();
@@ -86,7 +86,7 @@ impl Parser {
             if matches!(self.peek(), Token::RBrace | Token::Eof) {
                 break;
             }
-            props.push(self.parse_island_prop_line()?);
+            props.push(self.parse_v0_prop_line()?);
             self.skip_newlines();
         }
         self.eat(&Token::RBrace);
@@ -312,9 +312,7 @@ impl Parser {
         loop {
             self.skip_newlines();
             match self.peek().clone() {
-                Token::Ident(ref vname) | Token::TypeIdent(ref vname)
-                    if !vname.is_empty() =>
-                {
+                Token::Ident(ref vname) | Token::TypeIdent(ref vname) if !vname.is_empty() => {
                     let var_start = self.span();
                     let vname = vname.clone();
                     self.advance();

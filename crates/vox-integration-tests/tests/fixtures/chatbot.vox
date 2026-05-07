@@ -11,21 +11,19 @@ component Chat() {
     let (messages, set_messages) = use_state([{role: "bot", text: ""}])
     let (input, set_input) = use_state("")
     let send = fn (_e) set_messages(messages.append({role: "user", text: input}))
-    view: (
-        <div class="chat_container">
-            <div class="messages">
-                for msg in messages {
-                    <div class="message">
-                        {msg.text}
-                    </div>
+    view: column(raw_class="chat_container") {
+        column(raw_class="messages") {
+            for msg in messages {
+                column(raw_class="message") {
+                    msg.text
                 }
-            </div>
-            <div class="input_area">
-                <input class="chat_input" bind={input} placeholder="Type a message..." />
-                <button class="send_btn" on_click={send}>"Send"</button>
-            </div>
-        </div>
-    )
+            }
+        }
+        row(raw_class="input_area") {
+            input(raw_class="chat_input", bind=input, placeholder="Type a message...")
+            button(raw_class="send_btn", on_click=send) { "Send" }
+        }
+    }
 }
 
 style {

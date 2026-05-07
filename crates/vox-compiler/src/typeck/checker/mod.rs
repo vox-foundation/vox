@@ -31,13 +31,11 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         | HirExpr::Unary(_, _, s)
         | HirExpr::Call(_, _, _, s)
         | HirExpr::MethodCall(_, _, _, _, s)
-        
         | HirExpr::FieldAccess(_, _, s)
         | HirExpr::Match(_, _, s)
         | HirExpr::If(_, _, _, s)
         | HirExpr::For(_, _, _, _, s)
         | HirExpr::Lambda(_, _, _, s)
-
         | HirExpr::Spawn(_, s)
         | HirExpr::With(_, _, s)
         | HirExpr::Block(_, s)
@@ -109,7 +107,6 @@ impl<'a> Checker<'a> {
             self.check_environment(e);
         }
     }
-
 
     fn check_function(&mut self, f: &mut HirFn) {
         let was_inferred = f.return_type.is_none();
@@ -324,10 +321,9 @@ impl<'a> Checker<'a> {
         for m in &c.members {
             match m {
                 crate::hir::HirReactiveMember::State(s) => {
-                    let ty = s
-                        .ty
-                        .as_ref()
-                        .map_or_else(|| self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
+                    let ty =
+                        s.ty.as_ref()
+                            .map_or_else(|| self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
                     // State is mutable: reactive components reassign it from
                     // event handlers (e.g. `on:click={count = count + 1}`).
                     // Derived stays immutable — it's a computed read.
@@ -338,10 +334,9 @@ impl<'a> Checker<'a> {
                     state_vars.push((s.name.clone(), ty));
                 }
                 crate::hir::HirReactiveMember::Derived(d) => {
-                    let ty = d
-                        .ty
-                        .as_ref()
-                        .map_or_else(|| self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
+                    let ty =
+                        d.ty.as_ref()
+                            .map_or_else(|| self.uf.fresh_var(), |t| resolve_hir_type(t, self.env));
                     self.env.define(
                         d.name.clone(),
                         Binding::new(ty.clone(), false, BindingKind::Variable),
@@ -383,10 +378,7 @@ impl<'a> Checker<'a> {
                     if let Some((_, decl_ty)) = derived_vars.get(derived_idx) {
                         if let Err(msg) = self.uf.unify(&expr_ty, decl_ty) {
                             self.diags.push(Diagnostic::error(
-                                format!(
-                                    "Type mismatch in `derived {}` expression: {msg}",
-                                    d.name
-                                ),
+                                format!("Type mismatch in `derived {}` expression: {msg}", d.name),
                                 d.span,
                                 self.source,
                             ));
@@ -470,7 +462,6 @@ impl<'a> Checker<'a> {
 
     fn contains_db_write_or_unsafe_in_expr(expr: &HirExpr) -> bool {
         match expr {
-
             HirExpr::ObjectLit(fields, _) => fields
                 .iter()
                 .any(|(_, v)| Self::contains_db_write_or_unsafe_in_expr(v)),
@@ -737,8 +728,7 @@ impl<'a> Checker<'a> {
                                 progress = true;
                             }
                             other => {
-                                if let Some(method_ty) =
-                                    self.builtins.lookup_method(&other, &method)
+                                if let Some(method_ty) = self.builtins.lookup_method(other, &method)
                                 {
                                     let method_instantiated = self.uf.instantiate(&method_ty);
                                     if let Ty::Fn(_params, ret) = &method_instantiated {

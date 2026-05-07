@@ -217,9 +217,8 @@ impl<'a> Checker<'a> {
             HirExpr::ListLit(elements, _span) => {
                 let mut expected_elem_ty = None;
                 if let Some(exp) = expected {
-                    match self.uf.resolve(exp) {
-                        Ty::List(inner) => expected_elem_ty = Some(inner.as_ref().clone()),
-                        _ => {}
+                    if let Ty::List(inner) = self.uf.resolve(exp) {
+                        expected_elem_ty = Some(inner.as_ref().clone())
                     }
                 }
 
@@ -299,9 +298,7 @@ impl<'a> Checker<'a> {
                 }
             }
             HirExpr::MethodCall(object, method, args, opt_plan, span) => {
-                if opt_plan.is_some()
-                    && matches!(method.as_str(), "limit" | "order_by")
-                {
+                if opt_plan.is_some() && matches!(method.as_str(), "limit" | "order_by") {
                     self.diags.push(Diagnostic::error(
                         format!(
                             "db query chaining via '.{method}(...)' is not supported yet; use typed db.Table operations directly"
@@ -411,7 +408,6 @@ impl<'a> Checker<'a> {
                     Ty::Error
                 }
             }
-
 
             HirExpr::FieldAccess(object, field, span) => {
                 self.check_expr_field_access(object, field.as_str(), *span)
@@ -549,8 +545,6 @@ impl<'a> Checker<'a> {
                 self.env.pop_scope();
                 Ty::Fn(param_tys, Box::new(ret_ty))
             }
-
-
 
             HirExpr::Spawn(inner, span) => {
                 let inner_ty = self.check_expr(inner, None);

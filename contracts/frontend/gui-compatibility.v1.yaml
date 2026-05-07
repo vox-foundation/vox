@@ -1,0 +1,35 @@
+x-vox-version: 1
+schema_version: 1
+
+gui_authoring:
+  parser_entrypoint: view-call
+  view_syntax:
+    block: "Tag(named=value) { child_exprs }"
+    self_closing: "Tag(named=value)"
+    args_policy: keyword_only
+  retired_source_forms:
+    - "<Tag attr=\"...\"> ... </Tag>"
+    - "<Tag attr={expr} />"
+
+react_attr_matrix:
+  class: className
+  className: className
+  on:click: onClick
+  on_click: onClick
+  on:change: onChange
+  on_change: onChange
+  on:input: onInput
+  on_input: onInput
+  on:submit: onSubmit
+  on_submit: onSubmit
+  on:keydown: onKeyDown
+  on_keydown: onKeyDown
+  on:keyup: onKeyUp
+  on_keyup: onKeyUp
+  on:mouseenter: onMouseEnter
+  on_mouseenter: onMouseEnter
+  on:mouseleave: onMouseLeave
+  on_mouseleave: onMouseLeave
+  for: htmlFor
+  tab_index: tabIndex
+  tabIndex: tabIndex

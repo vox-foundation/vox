@@ -74,7 +74,7 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
             }
         }
         ProviderType::HuggingFaceRouter => {
-            Ok("https://api-inference.huggingface.co/v1/chat/completions".to_string())
+            Ok(vox_config::inference::hf_router_chat_completions_url())
         }
         ProviderType::VoxLocal => {
             let url = std::env::var("VOX_LOCAL_ENDPOINT")

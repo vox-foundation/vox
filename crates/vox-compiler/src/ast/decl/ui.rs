@@ -10,8 +10,16 @@ pub struct V0ComponentDecl {
     #[serde(default)]
     pub image_path: Option<String>,
     pub name: String,
-    pub props: Vec<IslandProp>,
+    pub props: Vec<V0Prop>,
     pub span: Span,
+}
+
+/// Prop declaration for a v0 component.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct V0Prop {
+    pub name: String,
+    pub ty: TypeExpr,
+    pub is_optional: bool,
 }
 
 /// Client-side routing declaration.
@@ -134,19 +142,41 @@ pub struct PageDecl {
     pub span: Span,
 }
 
-/// React island component stub.
+/// Typed parametric fragment declaration (ADR-033).
+///
+/// `fragment Name(arg: T1, …) { <markup> }` declares a typed, multiply-renderable
+/// chunk of markup that can be passed as a prop and rendered with
+/// `<RenderFragment of={Name} args={(…)} />`. Parsed in Phase F slice 1; HIR
+/// lowering and codegen are gated on Phase 6 (TASK-6.1) typed-primitive
+/// stabilization per the ADR's status note.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct IslandDecl {
+pub struct FragmentDecl {
+    /// Fragment name (PascalCase by convention).
     pub name: String,
-    pub props: Vec<IslandProp>,
+    /// Typed parameters; same shape as a function or component parameter list.
+    pub params: Vec<crate::ast::expr::Param>,
+    /// Single markup body — currently parsed as a generic Expr; the codegen slice
+    /// will validate that it's a JSX/markup expression once Phase 6 primitives land.
+    pub body: crate::ast::expr::Expr,
+    /// Source span.
     pub span: Span,
 }
-/// Prop declaration for an island.
+
+/// `.vox.ui` reactive module declaration (ADR-032).
+///
+/// A top-level container for reactive members shared across components in the same file.
+/// Lowers to a generated React context provider + `use<Name>()` hook in TSX emit; the
+/// module's name is derived from the file basename (e.g. `counter.vox.ui` → `Counter`).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct IslandProp {
+pub struct ReactiveModuleDecl {
+    /// Module name, derived from the source file's basename. Used to name the generated
+    /// React context, provider component, and hook.
     pub name: String,
-    pub ty: TypeExpr,
-    pub is_optional: bool,
+    /// Reactive members declared at module scope: `state`, `derived`, `effect`,
+    /// `on mount`, `on cleanup`. Same shape as inside a [`ReactiveComponentDecl`].
+    pub members: Vec<ReactiveMemberDecl>,
+    /// Source span.
+    pub span: Span,
 }
 
 /// Reactive component declaration (Path C reactive model).

@@ -37,11 +37,11 @@ use crate::types::{AgentId, AgentIdGenerator, TaskId, TaskIdGenerator};
 
 pub mod accessors;
 pub mod comms;
+pub mod safety;
 pub mod task_dispatch;
 /// Error type for orchestrator operations.
 pub mod types;
 pub mod workflow_bridge;
-pub mod safety;
 
 #[cfg(test)]
 mod tests;

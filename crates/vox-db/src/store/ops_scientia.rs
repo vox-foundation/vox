@@ -53,6 +53,29 @@ impl crate::VoxDb {
             .await
     }
 
+    /// Aggregate Thompson arm stats `(successes, failures)` per `model_id` for a window.
+    pub async fn list_model_arm_stats(
+        &self,
+        window_days: i64,
+    ) -> Result<std::collections::HashMap<String, (u32, u32)>, StoreError> {
+        let rows = self.get_model_scoreboard(window_days).await?;
+        let mut map = std::collections::HashMap::<String, (u32, u32)>::new();
+        for r in rows {
+            let n = r.n_calls.max(0) as u64;
+            if n == 0 {
+                continue;
+            }
+            let sr = r.success_rate.clamp(0.0, 1.0);
+            let successes_u64 = (sr * n as f64).round() as u64;
+            let successes = successes_u64.min(n).min(u32::MAX as u64) as u32;
+            let failures = (n.min(u32::MAX as u64) as u32).saturating_sub(successes);
+            let e = map.entry(r.model_id).or_insert((0, 0));
+            e.0 = e.0.saturating_add(successes);
+            e.1 = e.1.saturating_add(failures);
+        }
+        Ok(map)
+    }
+
     /// Upsert a model scoreboard entry.
     pub async fn upsert_model_scoreboard(&self, row: ModelScoreboardRow) -> Result<(), StoreError> {
         let breaker = self.breaker.clone();
@@ -336,7 +359,7 @@ impl crate::VoxDb {
                             last_observed_at_ms = excluded.last_observed_at_ms,
                             updated_at_ms = excluded.updated_at_ms
                     "#;
-                    
+
                     let changes = conn.execute(sql, turso::params![now_ms]).await?;
                     Ok::<_, StoreError>(changes as usize)
                 }

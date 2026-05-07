@@ -103,7 +103,6 @@ fn assert_golden_file(path: &Path) {
                 "route_contract_ids_checked": validate_metrics.route_contract_ids_checked,
                 "behavior_nodes_checked": validate_metrics.behavior_nodes_checked,
                 "style_nodes_checked": validate_metrics.style_nodes_checked,
-                "island_mounts_checked": validate_metrics.island_mounts_checked,
                 "scheduled_jobs_checked": validate_metrics.scheduled_jobs_checked
             },
         }),

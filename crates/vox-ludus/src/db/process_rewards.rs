@@ -133,7 +133,7 @@ pub async fn process_event_rewards(
                 &base,
                 mode_mult,
                 streak_days,
-                profile.trust_tier.clone(),
+                profile.trust_tier,
                 event_type,
                 &mut session,
             );
@@ -248,7 +248,6 @@ pub async fn process_event_rewards(
             "peer_teach_session" => vec!["peer_teach_sessions"],
             "migration_applied" => vec!["migrations_applied"],
             "seed_completed" => vec!["seeds_run"],
-            "island_built" => vec!["islands_built"],
             "v0_import_complete" => vec!["v0_imports"],
             "scheduled_job_ran" => vec!["scheduled_jobs_run"],
             "turso_query_executed" => vec!["turso_queries"],

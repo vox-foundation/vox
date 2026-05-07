@@ -126,8 +126,6 @@ pub enum Token {
     AtIndex,
     #[token("@native")]
     AtNative,
-    #[token("@island")]
-    AtIsland,
     #[token("@loading")]
     AtLoading,
     #[token("@require")]
@@ -142,6 +140,16 @@ pub enum Token {
     AtFuzz,
     #[token("@pure")]
     AtPure,
+    /// `@reactive` — opt-in marker on a free `fn` declaring that its body's
+    /// reactive-binding reads should be tracked across calls by the auto-dep
+    /// inference pass (Phase E of the Svelte-mineable features plan).
+    #[token("@reactive")]
+    AtReactive,
+    /// `fragment` — typed parametric markup primitive (ADR-033). Body shape
+    /// mirrors `view:` (single markup expression). Parsed in Phase F slice 1;
+    /// codegen gated on Phase 6 (TASK-6.1) typed primitive surface.
+    #[token("fragment")]
+    Fragment,
     #[token("@scheduled")]
     AtScheduled,
     #[token("@deprecated")]
@@ -381,7 +389,6 @@ impl std::fmt::Display for Token {
             Token::AtTable => write!(f, "@table"),
             Token::AtIndex => write!(f, "@index"),
             Token::AtNative => write!(f, "@native"),
-            Token::AtIsland => write!(f, "@island"),
             Token::AtLoading => write!(f, "@loading"),
             Token::AtRequire => write!(f, "@require"),
             Token::AtEnsure => write!(f, "@ensure"),
@@ -389,6 +396,8 @@ impl std::fmt::Display for Token {
             Token::AtForall => write!(f, "@forall"),
             Token::AtFuzz => write!(f, "@fuzz"),
             Token::AtPure => write!(f, "@pure"),
+            Token::AtReactive => write!(f, "@reactive"),
+            Token::Fragment => write!(f, "fragment"),
             Token::AtScheduled => write!(f, "@scheduled"),
             Token::AtDeprecated => write!(f, "@deprecated"),
             Token::AtV0 => write!(f, "@v0"),

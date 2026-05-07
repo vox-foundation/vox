@@ -4,13 +4,12 @@ import { PipelineStage } from "./PipelineStage";
 
 export function PipelineView(): React.ReactElement {
   return (
-<row className={"h-full bg-zinc-950"}
->
-  <PipelineStage name={"Lexer"} desc={"Logos-based tokenization"} />
-  <PipelineStage name={"Parser"} desc={"Rowan GreenTree CST generation"} />
-  <PipelineStage name={"HIR"} desc={"High-level IR with name resolution"} />
-  <PipelineStage name={"TypeCheck"} desc={"Bidirectional unification logic"} />
-  <PipelineStage name={"CodeGen"} desc={"Rust and TypeScript emission"} />
-</row>
+    <div className={["flex", "flex-row", "h-full", "bg-zinc-950"].filter(Boolean).join(" ")}>
+      <PipelineStage desc={"Logos-based tokenization"} name={"Lexer"} />
+      <PipelineStage desc={"Rowan GreenTree CST generation"} name={"Parser"} />
+      <PipelineStage desc={"High-level IR with name resolution"} name={"HIR"} />
+      <PipelineStage desc={"Bidirectional unification logic"} name={"TypeCheck"} />
+      <PipelineStage desc={"Rust and TypeScript emission"} name={"CodeGen"} />
+    </div>
   );
 }

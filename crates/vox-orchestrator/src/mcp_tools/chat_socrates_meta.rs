@@ -1,6 +1,7 @@
 //! Socrates grounding snippets and telemetry for chat / inline / ghost tools.
 //!
-//! Rows written via [`spawn_socrates_telemetry_with_meta`] → [`vox_db::VoxDb::record_socrates_surface_event`] are **operator /
+//! Rows written via [`spawn_socrates_telemetry_with_meta`] → [`vox_db::VoxDb::record_socrates_surface_event`]
+//! (or [`spawn_socrates_telemetry_with_llm`] → [`vox_db::VoxDb::record_unified_llm_turn`]) are **operator /
 //! research diagnostics** (aggregated risk/confidence/contradiction — see `vox_db::socrates_telemetry` rustdoc), not end-user
 //! usage analytics. Questioning expansions use separate `question_*` tables.
 
@@ -14,6 +15,27 @@ use vox_socrates_policy::{
 
 use crate::mcp_tools::attention_policy::{channel_label, decision_label, evaluate_with_state};
 use crate::mcp_tools::server_state::ServerState;
+
+/// Optional LLM turn metrics recorded together with Socrates surface telemetry (single DB transaction).
+#[derive(Debug, Clone)]
+pub(crate) struct LlmSurfaceTelemetry {
+    pub session_id: String,
+    pub user_id: Option<String>,
+    pub prompt: String,
+    pub response: String,
+    pub model_id: String,
+    pub provider: String,
+    pub task_category: String,
+    pub strength_tag: String,
+    pub latency_ms: i64,
+    pub input_tokens: Option<i64>,
+    pub output_tokens: Option<i64>,
+    pub cache_read_tokens: Option<i64>,
+    pub trace_id: Option<String>,
+    pub success: bool,
+    pub cost_usd: Option<f64>,
+    pub quality_score: Option<f64>,
+}
 
 /// JSON shape of the `socrates` field returned to MCP clients (must match [`socrates_tool_meta`]).
 #[derive(Debug, Deserialize)]
@@ -81,7 +103,7 @@ pub(crate) fn spawn_socrates_telemetry(
     socrates_value: Value,
     model_used: Option<String>,
 ) {
-    spawn_socrates_telemetry_with_meta(state, surface, socrates_value, model_used, None);
+    spawn_socrates_telemetry_with_llm(state, surface, socrates_value, model_used, None, None);
 }
 
 #[must_use]
@@ -106,6 +128,25 @@ pub(crate) fn spawn_socrates_telemetry_with_meta(
     model_used: Option<String>,
     retrieval_meta: Option<Value>,
 ) {
+    spawn_socrates_telemetry_with_llm(
+        state,
+        surface,
+        socrates_value,
+        model_used,
+        retrieval_meta,
+        None,
+    );
+}
+
+/// Like [`spawn_socrates_telemetry_with_meta`], but optionally records [`LlmSurfaceTelemetry`] in the same transaction as Socrates.
+pub(crate) fn spawn_socrates_telemetry_with_llm(
+    state: &ServerState,
+    surface: &'static str,
+    socrates_value: Value,
+    model_used: Option<String>,
+    retrieval_meta: Option<Value>,
+    llm_turn: Option<LlmSurfaceTelemetry>,
+) {
     let Some(db) = state.db.clone() else {
         return;
     };
@@ -126,6 +167,62 @@ pub(crate) fn spawn_socrates_telemetry_with_meta(
                 return;
             }
         };
+
+        if let Some(l) = llm_turn {
+            let outcome = vox_db::store::types::ModelOutcome {
+                session_id: &l.session_id,
+                user_id: l.user_id.as_deref(),
+                prompt: &l.prompt,
+                response: &l.response,
+                model_id: &l.model_id,
+                provider: &l.provider,
+                task_category: &l.task_category,
+                strength_tag: &l.strength_tag,
+                latency_ms: Some(l.latency_ms),
+                input_tokens: l.input_tokens,
+                output_tokens: l.output_tokens,
+                cache_read_tokens: l.cache_read_tokens,
+                trace_id: l.trace_id.as_deref(),
+                context_utilization_pct: None,
+                success: l.success,
+                cost_usd: l.cost_usd,
+                quality_score: l.quality_score,
+            };
+            match db
+                .record_unified_llm_turn(
+                    outcome,
+                    Some((
+                        repository_id.clone(),
+                        surface.to_string(),
+                        meta.risk_decision,
+                        meta.confidence_estimate,
+                        meta.contradiction_ratio,
+                        model_used,
+                        retrieval_meta,
+                    )),
+                )
+                .await
+            {
+                Ok(ids) => {
+                    tracing::info!(
+                        target: "vox_socrates_telemetry",
+                        llm_row_id = ids.llm_interaction_rowid,
+                        socrates_row_id = ?ids.socrates_research_metric_rowid,
+                        surface,
+                        repository_id = %repository_id,
+                        decision = ?meta.risk_decision,
+                        "persisted unified llm + socrates_surface"
+                    );
+                }
+                Err(e) => tracing::warn!(
+                    error = %e,
+                    surface,
+                    "unified llm + socrates telemetry insert failed"
+                ),
+            }
+            return;
+        }
+
         match db
             .record_socrates_surface_event(
                 &repository_id,

@@ -42,6 +42,8 @@ pub struct ModelRegistry {
     premium_alias: HashMap<String, String>,
     /// Dynamic scores retrieved from `vox-db` `model_scoreboard` (keyed by model_id).
     scoreboard: HashMap<String, ModelScore>,
+    /// Thompson/Beta arm stats `(successes, failures)` from DB scoreboard aggregates.
+    arm_stats: HashMap<String, (u32, u32)>,
     /// In-memory penalty map for models that abstain (FIX-12).
     /// Key: (model_id, task_category). Value: Expiry time.
     penalty_map: HashMap<(String, TaskCategory), SystemTime>,
@@ -64,6 +66,15 @@ impl ModelRegistry {
 
     pub fn inject_scoreboard(&mut self, scores: HashMap<String, ModelScore>) {
         self.scoreboard = scores;
+    }
+
+    pub fn inject_arm_stats(&mut self, stats: HashMap<String, (u32, u32)>) {
+        self.arm_stats = stats;
+    }
+
+    #[must_use]
+    pub fn arm_stats_snapshot(&self) -> &HashMap<String, (u32, u32)> {
+        &self.arm_stats
     }
 
     pub fn inject_pricing_catalog(
@@ -125,8 +136,7 @@ impl ModelRegistry {
                     // Suffix fallback — only match when exactly one model ID ends with the
                     // bare name. If multiple models share the suffix the match is ambiguous
                     // and nondeterministic (HashMap ordering), so we skip and log instead.
-                    let mut matches =
-                        self.models.keys().filter(|k| k.ends_with(suffix));
+                    let mut matches = self.models.keys().filter(|k| k.ends_with(suffix));
                     match (matches.next().cloned(), matches.next()) {
                         (Some(key), None) => Some(key),
                         _ => {
@@ -142,8 +152,7 @@ impl ModelRegistry {
                 }
             } else {
                 // Same deterministic suffix fallback without provider prefix.
-                let mut matches =
-                    self.models.keys().filter(|k| k.ends_with(suffix));
+                let mut matches = self.models.keys().filter(|k| k.ends_with(suffix));
                 match (matches.next().cloned(), matches.next()) {
                     (Some(key), None) => Some(key),
                     _ => {
@@ -159,7 +168,9 @@ impl ModelRegistry {
             };
 
             let Some(key) = found_key else { continue };
-            let Some(spec) = self.models.get_mut(&key) else { continue };
+            let Some(spec) = self.models.get_mut(&key) else {
+                continue;
+            };
 
             // Telemetry is always the highest-trust source; never downgrade it.
             if spec.pricing_source == PricingSource::Telemetry {
@@ -372,6 +383,7 @@ impl ModelRegistry {
                         agent_overrides: HashMap::new(),
                         premium_alias: HashMap::new(),
                         scoreboard: HashMap::new(),
+                        arm_stats: HashMap::new(),
                         penalty_map: HashMap::new(),
                     };
                     tmp.apply_litellm_pricing(&litellm_entries);
@@ -434,6 +446,7 @@ impl ModelRegistry {
             agent_overrides: HashMap::new(),
             premium_alias: HashMap::new(),
             scoreboard: HashMap::new(),
+            arm_stats: HashMap::new(),
             penalty_map: HashMap::new(),
         };
 
@@ -441,8 +454,8 @@ impl ModelRegistry {
             config_path.push("models.toml");
             if config_path.exists() {
                 if let Ok(contents) = vox_bounded_fs::read_utf8_path_capped(&config_path) {
-                    let cfg: super::spec::ModelConfig =
-                        toml::from_str(&contents).unwrap_or_else(|_| super::spec::ModelConfig::default());
+                    let cfg: super::spec::ModelConfig = toml::from_str(&contents)
+                        .unwrap_or_else(|_| super::spec::ModelConfig::default());
                     registry.premium_alias = if cfg.premium_alias.is_empty() {
                         built_in_premium_alias()
                     } else {
@@ -467,7 +480,9 @@ impl ModelRegistry {
             .join("cache")
             .join("model-catalog.v1.json");
         if let Ok(contents) = std::fs::read_to_string(&cache_file) {
-            if let Ok(cached_models) = serde_json::from_str::<Vec<super::spec::ModelSpec>>(&contents) {
+            if let Ok(cached_models) =
+                serde_json::from_str::<Vec<super::spec::ModelSpec>>(&contents)
+            {
                 for m in cached_models {
                     registry.register(m);
                 }
@@ -484,6 +499,7 @@ impl ModelRegistry {
             agent_overrides: HashMap::new(),
             premium_alias: HashMap::new(),
             scoreboard: HashMap::new(),
+            arm_stats: HashMap::new(),
             penalty_map: HashMap::new(),
         };
 
@@ -731,6 +747,9 @@ impl ModelRegistry {
                 if preference == crate::config::CostPreference::Performance && m.is_free {
                     return false;
                 }
+                if !crate::route_policy::route_policy_allows_model(m) {
+                    return false;
+                }
                 Self::matches_strength(m, strength)
             })
             .cloned()
@@ -765,6 +784,21 @@ impl ModelRegistry {
         });
 
         candidates
+    }
+
+    /// Models rejected by [crate::route_policy] under current VOX_ROUTE_* env (stable sort by id).
+    #[must_use]
+    pub fn explain_route_policy_exclusions(&self) -> Vec<(String, &'static str)> {
+        let mut out: Vec<(String, &'static str)> = self
+            .models
+            .values()
+            .filter_map(|m| {
+                crate::route_policy::route_policy_exclusion_reason(m)
+                    .map(|reason| (m.id.clone(), reason))
+            })
+            .collect();
+        out.sort_by(|a, b| a.0.cmp(&b.0));
+        out
     }
 
     /// Return the best free model for a given task category.

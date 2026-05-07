@@ -1,0 +1,15 @@
+---
+source: crates/vox-compiler/tests/reactive_smoke_test.rs
+expression: f
+---
+import React, { useState } from "react";
+
+export function V(): React.ReactElement {
+  const [k, set_k] = useState(2);
+  return (
+<p className={"text-base"}
+>
+  {k}
+</p>
+  );
+}

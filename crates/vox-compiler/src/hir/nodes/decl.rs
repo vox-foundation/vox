@@ -18,8 +18,6 @@ pub enum HirFieldOwnership {
     AppContract,
 }
 
-
-
 /// A fully lowered Vox module: every declaration category is collected into its own vector.
 ///
 /// Empty vectors mean the construct was absent in source; there is no implicit ordering across
@@ -62,8 +60,6 @@ pub struct HirModule {
     pub environments: Vec<HirEnvironment>,
 
     // UI surfaces (AST-retained where needed for emit + WebIR projection)
-    /// Standalone islands.
-    pub islands: Vec<HirIsland>,
     /// Reactive components (Path C).
     pub components: Vec<HirReactiveComponent>,
     /// Client routing blocks (`routes { … }`).
@@ -75,10 +71,19 @@ pub struct HirModule {
     /// State machine declarations (`state_machine Name { … }`).
     pub state_machines: Vec<HirStateMachineDecl>,
 
+    /// Typed parametric fragments (`fragment Name(args) { … }`) per ADR-033.
+    /// Each fragment lowers to a typed React function component in the codegen
+    /// layer; consumer components reference fragments by name in `<RenderFragment>`.
+    #[serde(default)]
+    pub fragments: Vec<HirFragmentDecl>,
+
+    /// `.vox.ui` reactive modules (ADR-032). Each lowers to a generated React
+    /// context + provider + `use<Name>()` hook in TSX emit.
+    #[serde(default)]
+    pub reactive_modules: Vec<HirReactiveModule>,
+
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
-
-
 }
 
 /// Snapshot of a post-migration semantic-only HIR shape.
@@ -105,6 +110,8 @@ pub struct SemanticHirModule {
     pub environments: Vec<HirEnvironment>,
     pub components: Vec<HirReactiveComponent>,
     pub url_decls: Vec<HirUrlDecl>,
+    pub fragments: Vec<HirFragmentDecl>,
+    pub reactive_modules: Vec<HirReactiveModule>,
 }
 
 impl HirModule {
@@ -128,11 +135,11 @@ impl HirModule {
             ("mcp_resources", HirFieldOwnership::SemanticCore),
             ("agents", HirFieldOwnership::SemanticCore),
             ("environments", HirFieldOwnership::SemanticCore),
-            ("islands", HirFieldOwnership::AppContract),
-
             ("legacy_ast_nodes", HirFieldOwnership::MigrationOnly),
             ("components", HirFieldOwnership::SemanticCore),
             ("url_decls", HirFieldOwnership::SemanticCore),
+            ("fragments", HirFieldOwnership::SemanticCore),
+            ("reactive_modules", HirFieldOwnership::SemanticCore),
         ]
     }
 
@@ -158,6 +165,8 @@ impl HirModule {
             environments: self.environments.clone(),
             components: self.components.clone(),
             url_decls: self.url_decls.clone(),
+            fragments: self.fragments.clone(),
+            reactive_modules: self.reactive_modules.clone(),
         }
     }
 }
@@ -203,10 +212,6 @@ impl HirHttpMethod {
         }
     }
 }
-
-/// Island component lowered to HIR.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct HirIsland(pub crate::ast::decl::IslandDecl);
 
 /// A resolved import.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -264,6 +269,11 @@ pub struct HirFn {
     /// `@pure` — metadata for pipeline tooling (effect guarantees are not proven in HIR).
     #[serde(default)]
     pub is_pure: bool,
+    /// `@reactive` — opt-in marker that authorizes [`crate::codegen_ts::hir_emit::state_deps`]
+    /// to recurse into this function's body when computing reactive dependencies for a
+    /// caller's `derived` / `effect`. Without it, the dep walker stops at the call site.
+    #[serde(default)]
+    pub is_reactive: bool,
     /// Capabilities declared via `uses` clause. Empty = unannotated; `[Nothing]` = pure.
     #[serde(default)]
     pub capabilities: Vec<HirCapability>,
@@ -587,7 +597,9 @@ pub struct HirOnCleanup {
 /// A capability declared via the `uses` clause: `fn f() uses net, db { … }`.
 ///
 /// Distinct from [`HirEffect`] which is a reactive lifecycle effect (`effect { … }` block).
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub enum HirCapability {
     Net,
     Db,
@@ -656,6 +668,41 @@ pub struct HirUrlArg {
 
 // ── State machine HIR types (TASK-4.1) ────────────────────────────────────
 
+/// A `.vox.ui` reactive module lowered to HIR (ADR-032).
+///
+/// Members re-use the existing [`HirReactiveMember`] enum from reactive
+/// component lowering, so the inner shape (state / derived / effect / on-mount /
+/// on-cleanup) is identical to what a `component { }` body produces.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirReactiveModule {
+    /// Module name. Filled in by codegen from the source file basename
+    /// (the parser leaves it empty).
+    pub name: String,
+    /// Reactive members declared at module scope.
+    pub members: Vec<HirReactiveMember>,
+    /// Source span.
+    pub span: Span,
+}
+
+/// A `fragment Name(args) { … }` declaration lowered to HIR (ADR-033).
+///
+/// Fragments emit as typed React function components with a fixed `Args` prop
+/// shape derived from the parameter list, so consumers reference them via
+/// `<RenderFragment of={Name} args={(...)} />` and the compiler validates
+/// arity / types at the call site.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct HirFragmentDecl {
+    /// Fragment name (PascalCase by convention).
+    pub name: String,
+    /// Typed parameters; same shape as a function parameter list.
+    pub params: Vec<HirParam>,
+    /// Single markup body. Today a generic [`HirExpr`]; the codegen layer asserts
+    /// it's a markup-shaped expression (Phase 6 primitive call) at emit time.
+    pub body: HirExpr,
+    /// Source span.
+    pub span: Span,
+}
+
 /// A `state_machine Name { … }` lowered to HIR.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct HirStateMachineDecl {
@@ -715,8 +762,9 @@ mod tests {
                 && *own == HirFieldOwnership::MigrationOnly)
         );
         assert!(
-            map.iter()
-                .any(|(name, own)| *name == "endpoint_fns" && *own == HirFieldOwnership::AppContract)
+            map.iter().any(
+                |(name, own)| *name == "endpoint_fns" && *own == HirFieldOwnership::AppContract
+            )
         );
         assert!(
             map.iter()

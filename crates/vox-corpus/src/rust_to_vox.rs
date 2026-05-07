@@ -49,10 +49,7 @@ pub fn extract_translations(source: &str) -> Vec<TranslationPair> {
             if let Some(id_pos) = line.find(':') {
                 let fname = line[..id_pos].trim().trim_start_matches("pub").trim();
                 let ftype_part = line[id_pos + 1..].trim();
-                let ftype = ftype_part
-                    .split(|c| c == ',' || c == ' ' || c == '}')
-                    .next()
-                    .unwrap_or("");
+                let ftype = ftype_part.split([',', ' ', '}']).next().unwrap_or("");
 
                 let vtype = match ftype {
                     "u64" | "i64" | "usize" | "i32" | "u32" | "u16" | "i16" => "int",

@@ -165,10 +165,18 @@ pub enum Decl {
     Environment(EnvironmentDecl),
     /// Static page for SSG.
     Page(PageDecl),
-    /// React island stub (props only); implementation lives in `islands/` TSX.
-    Island(IslandDecl),
     /// Reactive component declaration (Path C).
     ReactiveComponent(ReactiveComponentDecl),
+    /// `.vox.ui` reactive module — a top-level container for reactive members
+    /// (`state` / `derived` / `effect` / `on mount` / `on cleanup`) shared across
+    /// components. Per ADR-032, only legal in files classified as
+    /// [`crate::module::FileKind::ReactiveModule`]. Lowers to a generated React
+    /// context + provider + `use<Name>()` hook.
+    ReactiveModule(ReactiveModuleDecl),
+    /// Typed parametric fragment (ADR-033). `fragment Name(arg: T) { <markup> }` —
+    /// passable as a prop, rendered with `<RenderFragment of={Name} args={(…)} />`.
+    /// Codegen gated on Phase 6 typed-primitive stabilization.
+    Fragment(FragmentDecl),
     /// Typed URL path declaration (`url Name { … }`).
     Url(UrlDecl),
     /// First-class state machine with exhaustiveness enforcement.
@@ -228,8 +236,9 @@ impl Decl {
             Decl::McpResource(m) => m.func.span,
             Decl::Environment(e) => e.span,
             Decl::Page(p) => p.span,
-            Decl::Island(i) => i.span,
             Decl::ReactiveComponent(r) => r.span,
+            Decl::ReactiveModule(r) => r.span,
+            Decl::Fragment(f) => f.span,
             Decl::Url(u) => u.span,
             Decl::StateMachine(s) => s.span,
             Decl::Workflow(w) => w.span,

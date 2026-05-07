@@ -22,7 +22,6 @@ pub mod command_catalog;
 pub mod commands;
 pub mod compilerd;
 pub mod config;
-pub mod telemetry_spool;
 /// External `vox-dei-d` RPC boundary (method id SSOT).
 pub mod dei_daemon;
 /// Colored CLI output helpers (`print_info`, `print_success`, …).
@@ -35,7 +34,6 @@ pub mod fs_utils;
 /// Fuzzy ranking for command catalog, MCP tool picker, and dashboard palette.
 /// Gated behind the `fuzzy-search` feature; falls back to identity ordering when disabled.
 pub mod fuzzy;
-mod island_paths;
 #[cfg(feature = "script-execution")]
 mod isolation;
 mod latin_cmd;
@@ -50,8 +48,7 @@ pub mod pipeline;
 mod process_supervision;
 /// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
 pub(crate) mod render;
-#[cfg(feature = "island")]
-mod table;
+pub mod telemetry_spool;
 pub mod templates;
 /// WASI preopen mode for `script-execution` / `execution-api` runners.
 #[cfg(any(feature = "script-execution", feature = "execution-api"))]
@@ -66,10 +63,8 @@ pub mod v0;
 /// Normalize v0.dev TSX for Vox `routes:` named imports.
 pub(crate) mod v0_tsx_normalize;
 /// Accessibility validator for v0.dev TSX output (TASK-5.4).
-#[cfg(feature = "island")]
 pub(crate) mod v0_tsx_validate;
 /// TASK-5.4: pre-flight validation of v0.dev TSX output (a11y + design-token checks).
-#[cfg(feature = "island")]
 pub(crate) mod v0_validate;
 
 pub use dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
@@ -285,11 +280,14 @@ pub enum Cli {
         #[command(flatten)]
         args: cli_args::SyncArgs,
     },
-    /// Deprecated: use `vox auth connect` instead.
-    #[command(hide = true)]
-    Login,
-    /// Deprecated: use `vox auth` instead.
-    #[command(hide = true)]
+    /// Sign in: configure cloud vault URL/token and Clavis profile (`canonical login`).
+    #[command(name = "login")]
+    Login {
+        #[command(flatten)]
+        args: commands::login_shared::LoginArgs,
+    },
+    /// Sign out: clear vault credentials from local keyring and `~/.vox/login.toml`.
+    #[command(name = "logout")]
     Logout,
     /// Share / search packages via local Arca index (`vox share`).
     Share {
@@ -501,14 +499,6 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: commands::review::ReviewCli,
     },
-    /// v0.dev React islands under `islands/` (`--features island`; needs `V0_API_KEY` for generate/upgrade).
-    #[cfg(feature = "island")]
-    Island {
-        /// Subcommand.
-        #[command(subcommand)]
-        cmd: cli_actions::IslandCli,
-    },
-
     /// Emergency stop the orchestrator (MCP/daemon local stop request)
     Stop {
         /// Reason for stopping

@@ -38,6 +38,8 @@ pub const METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY: &str = "workflow_journal_entry";
 pub const METRIC_TYPE_POPULI_CONTROL_EVENT: &str = "populi_control_event";
 pub const METRIC_TYPE_QUESTIONING_EVENT: &str = "questioning_event";
 pub const METRIC_TYPE_MEMORY_HYBRID_FUSION: &str = "memory_hybrid_fusion";
+/// Routing policy / capability-gate events from runtime/orchestrator.
+pub const METRIC_TYPE_MODEL_ROUTE_EVENT: &str = "model_route_event";
 /// Tool execution observation for time-budget calibration.
 /// Sensitivity: **S1 (OperationalTracing)**. Contains tool names + durations only.
 pub const METRIC_TYPE_AGENT_EXEC_TIME: &str = "agent_exec_time";
@@ -49,6 +51,7 @@ pub const SESSION_PREFIX_SYNTAXK: &str = "syntaxk:";
 pub const SESSION_PREFIX_MCP: &str = "mcp:";
 pub const SESSION_PREFIX_WORKFLOW: &str = "workflow:";
 pub const SESSION_PREFIX_MENS: &str = "mens:";
+pub const SESSION_PREFIX_ROUTE: &str = "route:";
 
 /// Hybrid retrieval telemetry uses a fixed session id (not `mcp:<repository_id>`).
 pub const SESSION_ID_MEMORY_HYBRID_FUSION: &str = "socrates:retrieval";
@@ -90,6 +93,11 @@ impl<'a> TelemetryWriteOptions<'a> {
     #[inline]
     pub fn session_mens(&self) -> String {
         format!("{SESSION_PREFIX_MENS}{}", self.repository_id)
+    }
+
+    #[inline]
+    pub fn session_route(&self) -> String {
+        format!("{SESSION_PREFIX_ROUTE}{}", self.repository_id)
     }
 }
 
@@ -139,6 +147,13 @@ pub fn validate_research_metric_row(
                 RESEARCH_METRICS_METADATA_JSON_MAX_BYTES
             )));
         }
+        if metric_type == METRIC_TYPE_MODEL_ROUTE_EVENT
+            && (!m.contains("\"trace_id\"") || !m.contains("\"route_policy_profile\""))
+        {
+            return Err(StoreError::Db(
+                "research_metrics: model_route_event metadata_json must include trace_id and route_policy_profile".into(),
+            ));
+        }
     }
     Ok(())
 }
@@ -180,5 +195,6 @@ mod tests {
         assert_eq!(o.session_mcp(), "mcp:rid42");
         assert_eq!(o.session_workflow(), "workflow:rid42");
         assert_eq!(o.session_mens(), "mens:rid42");
+        assert_eq!(o.session_route(), "route:rid42");
     }
 }

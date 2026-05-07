@@ -1,10 +1,11 @@
+//! CLI wiring / registry: handler key `commands::model::pricing` (`contracts/cli/command-registry.yaml`).
 use clap::{Parser, Subcommand};
 use comfy_table::Table;
 use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::presets::UTF8_FULL;
 use owo_colors::OwoColorize;
-use vox_orchestrator::models::{ModelRegistry, PricingSource, ProviderType};
 use vox_orchestrator::models::scoring::is_deepseek_off_peak;
+use vox_orchestrator::models::{ModelRegistry, PricingSource, ProviderType};
 use vox_orchestrator::orchestrator::catalog_refresh::run_foreground_refresh;
 
 #[derive(Parser)]
@@ -92,7 +93,11 @@ async fn run_show(model_filter: Option<String>) -> anyhow::Result<()> {
                 let source = format_pricing_source(&spec.pricing_source);
                 (cache_hit, caching, source)
             } else {
-                ("-".to_string(), "-".dimmed().to_string(), "-".dimmed().to_string())
+                (
+                    "-".to_string(),
+                    "-".dimmed().to_string(),
+                    "-".dimmed().to_string(),
+                )
             };
 
         let conf_colored = match row.confidence.as_str() {
@@ -128,7 +133,7 @@ async fn run_rollup() -> anyhow::Result<()> {
     println!("Rolling up observed telemetry into pricing catalog...");
 
     let changes = db.rollup_pricing_catalog().await?;
-    println!("{} {} updated.", changes.to_string().green(), "rows");
+    println!("{} rows updated.", changes.to_string().green());
 
     Ok(())
 }
@@ -144,10 +149,7 @@ async fn run_check() -> anyhow::Result<()> {
         .filter(|m| m.pricing_source == PricingSource::Bootstrap && !m.is_free)
         .collect();
 
-    let caching_ready: Vec<_> = all
-        .iter()
-        .filter(|m| m.supports_prompt_caching)
-        .collect();
+    let caching_ready: Vec<_> = all.iter().filter(|m| m.supports_prompt_caching).collect();
 
     if stale.is_empty() {
         println!("{}", "✓ No paid models on stale bootstrap pricing.".green());
@@ -212,7 +214,9 @@ async fn run_check() -> anyhow::Result<()> {
             let discount_str = if off_peak {
                 format!("{discount_pct} off").green().to_string()
             } else {
-                format!("{discount_pct} off when active").dimmed().to_string()
+                format!("{discount_pct} off when active")
+                    .dimmed()
+                    .to_string()
             };
             println!("  {} — {discount_str}", m.id.cyan());
         }

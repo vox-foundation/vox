@@ -203,8 +203,7 @@ impl LowerCtx {
                     span,
                 };
 
-                let mut err_body = Vec::new();
-                err_body.push(HirStmt::Return {
+                let err_body = vec![HirStmt::Return {
                     value: Some(HirExpr::Call(
                         Box::new(HirExpr::Ident("Err".into(), span)),
                         vec![HirArg {
@@ -215,7 +214,7 @@ impl LowerCtx {
                         span,
                     )),
                     span,
-                });
+                }];
 
                 let err_arm = HirMatchArm {
                     pattern: crate::hir::HirPattern::Constructor(

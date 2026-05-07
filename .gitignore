@@ -35,6 +35,10 @@ bundle_*.txt
 .claude/settings.local.json.bak
 .claude/worktrees/
 
+# Local agent worktrees / clones (machine-specific; never commit)
+.claire/
+.clone/
+
 # Editor / IDE artifacts (keep shared `settings.json` for terminal PATH / CUDA)
 .vscode/*
 !.vscode/settings.json
@@ -51,10 +55,6 @@ crates/vox-py/.venv/
 # CodeRabbit CLI worktrees and state (`vox review coderabbit`, `--features coderabbit`)
 .coderabbit/
 
-# Dist / JS Islands
-islands/
-# Hand-written React island wrappers in the dashboard are source, not build output
-!crates/vox-dashboard/src/components/islands/
 crates/*/pkg/
 dist/app/node_modules/
 

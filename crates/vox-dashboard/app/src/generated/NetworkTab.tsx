@@ -4,58 +4,43 @@ import { MeshLegend } from "./MeshLegend";
 
 export function NetworkTab(): React.ReactElement {
   return (
-<column className={"flex-1 overflow-hidden bg-zinc-950"}
->
-  <row className={"h-12 border-b border-zinc-800 px-6 items-center justify-between shrink-0"}
->
-  <column className={"gap-0"}
->
-  <text className={"text-sm font-black tracking-tighter text-white"}
->
-  {"NETWORK"}
-</text>
-  <text className={"text-xs text-zinc-500 tracking-widest"}
->
-  {"AGENT MESH TOPOLOGY"}
-</text>
-</column>
-  <row className={"gap-3 items-center"}
->
-  <text className={"text-xs text-zinc-500"}
->
-  {"0 nodes · 0 edges"}
-</text>
-  <button className={"px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-zinc-400"}
->
-  {"REFRESH"}
-</button>
-</row>
-</row>
-  <panel className={"flex-1 relative overflow-hidden"}
->
-  <column className={"flex-1 items-center justify-center gap-4 text-zinc-500"}
->
-  <panel className={"w-16 h-16 rounded-2xl border border-white/10 bg-zinc-900 items-center justify-center"}
->
-  <text className={"text-2xl"}
->
-  {"⬡"}
-</text>
-</panel>
-  <column className={"items-center gap-1"}
->
-  <text className={"text-sm font-bold uppercase tracking-widest"}
->
-  {"NO MESH DATA"}
-</text>
-  <text className={"text-xs"}
->
-  {"Agent graph renders here via @island NetworkGraph (Phase 2)."}
-</text>
-</column>
-</column>
-  <MeshLegend  />
-</panel>
-</column>
+    <div className={["flex", "flex-col", "flex-1", "overflow-hidden", "bg-zinc-950"].filter(Boolean).join(" ")}>
+      <div className={["flex", "flex-row", "h-12", "border-b-true", "border-zinc-800", "px-6", "flex items-center", "flex justify-between", "shrink-0"].filter(Boolean).join(" ")}>
+        <div className={["flex", "flex-col", "gap-0"].filter(Boolean).join(" ")}>
+          <p className={["text-sm", "text-white", "tracking-tighter"].filter(Boolean).join(" ")}>
+            {"NETWORK"}
+          </p>
+          <p className={["text-xs", "text-zinc-500", "tracking-widest"].filter(Boolean).join(" ")}>
+            {"AGENT MESH TOPOLOGY"}
+          </p>
+        </div>
+        <div className={["flex", "flex-row", "flex items-center", "gap-3"].filter(Boolean).join(" ")}>
+          <p className={["text-xs", "text-zinc-500"].filter(Boolean).join(" ")}>
+            {"0 nodes · 0 edges"}
+          </p>
+          <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "h-10", "px-3", "rounded-lg", "bg-white/5", "border", "border-white/10", "text-zinc-400", "py-1.5"].filter(Boolean).join(" ")}>
+            {"REFRESH"}
+          </button>
+        </div>
+      </div>
+      <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "flex-1", "relative", "overflow-hidden"].filter(Boolean).join(" ")} role={region}>
+        <div className={["flex", "flex-col", "flex-1", "flex items-center", "flex justify-center", "text-zinc-500", "gap-4"].filter(Boolean).join(" ")}>
+          <div className={["p-4", "w-16", "h-16", "rounded-2xl", "border", "border-white/10", "bg-zinc-900", "flex items-center", "flex justify-center"].filter(Boolean).join(" ")} role={region}>
+            <p className={"text-2xl"}>
+              {"⬡"}
+            </p>
+          </div>
+          <div className={["flex", "flex-col", "flex items-center", "gap-1"].filter(Boolean).join(" ")}>
+            <p className={["text-sm", "font-bold", "uppercase", "tracking-widest"].filter(Boolean).join(" ")}>
+              {"NO MESH DATA"}
+            </p>
+            <p className={"text-xs"}>
+              {"Agent graph renders here via React interop NetworkGraph (Phase 2)."}
+            </p>
+          </div>
+        </div>
+        <MeshLegend />
+      </div>
+    </div>
   );
 }

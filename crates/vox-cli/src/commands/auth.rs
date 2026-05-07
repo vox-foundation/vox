@@ -28,8 +28,12 @@ pub enum AuthCmd {
         /// The node ID to remove
         node_id: String,
     },
-    /// Connect a remote VoxDB (Turso) for cloud sync (formerly `login`).
-    Connect,
+    /// Connect a remote VoxDB (Turso) for cloud sync (canonical with `vox login`).
+    #[command(alias = "login")]
+    Connect {
+        #[command(flatten)]
+        args: super::login_shared::LoginArgs,
+    },
 }
 
 static ACTIVE_IDENTITY: OnceLock<Arc<Mutex<NodeIdentity>>> = OnceLock::new();
@@ -42,7 +46,7 @@ pub async fn run(cmd: AuthCmd) -> Result<()> {
         AuthCmd::Trust { pubkey_hex, label } => run_trust(pubkey_hex, label).await,
         AuthCmd::TrustList => run_trust_list().await,
         AuthCmd::Untrust { node_id } => run_untrust(node_id).await,
-        AuthCmd::Connect => run_connect().await,
+        AuthCmd::Connect { args } => super::login_shared::run_login(args.into()).await,
     }
 }
 
@@ -75,7 +79,7 @@ async fn run_init() -> Result<()> {
     println!("Node ID: {}", identity.node_id());
 
     let pubkey_bytes = vox_crypto::verifying_key_to_bytes(&identity.verifying_key);
-    println!("Public Key: {}", hex::encode(&pubkey_bytes));
+    println!("Public Key: {}", hex::encode(pubkey_bytes));
 
     // Cache it for the session
     ACTIVE_IDENTITY
@@ -111,7 +115,7 @@ async fn run_whoami() -> Result<()> {
 
     println!("Node ID: {}", identity.node_id());
     let pubkey_bytes = vox_crypto::verifying_key_to_bytes(&identity.verifying_key);
-    println!("Public Key: {}", hex::encode(&pubkey_bytes));
+    println!("Public Key: {}", hex::encode(pubkey_bytes));
 
     Ok(())
 }
@@ -165,36 +169,5 @@ async fn run_untrust(node_id: String) -> Result<()> {
     } else {
         println!("Node {} was not found in the trust registry.", node_id);
     }
-    Ok(())
-}
-
-async fn run_connect() -> Result<()> {
-    println!("Connecting zero-knowledge VoxDB Vault (formerly `vox auth login`)...");
-    print!("Vault DB URL: ");
-    io::stdout().flush()?;
-    let mut url = String::new();
-    io::stdin().read_line(&mut url)?;
-    let url = url.trim();
-
-    print!("Vault Auth Token: ");
-    io::stdout().flush()?;
-    let mut token = String::new();
-    io::stdin().read_line(&mut token)?;
-    let token = token.trim();
-
-    let keyring = keyring::Entry::new("vox-clavis-env", "turso-url")
-        .context("Failed to instantiate keyring for turso-url. Keyring may not be available.")?;
-    keyring
-        .set_password(url)
-        .context("Failed to set turso-url in keyring.")?;
-
-    let keyring_token = keyring::Entry::new("vox-clavis-env", "turso-token")
-        .context("Failed to instantiate keyring for turso-token.")?;
-    keyring_token
-        .set_password(token)
-        .context("Failed to set turso-token in keyring.")?;
-
-    println!("Vault configuration complete.");
-    println!("Run `vox config sync --pull` to synchronize configurations from the vault.");
     Ok(())
 }

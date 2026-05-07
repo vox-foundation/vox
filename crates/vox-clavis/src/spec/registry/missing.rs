@@ -2622,6 +2622,17 @@ pub const SPECS_MISSING: &[SecretSpec] = &[
         scope_description: "",
     },
     SecretSpec {
+        id: SecretId::VoxSearchChunkVectorWeight,
+        canonical_env: "VOX_SEARCH_CHUNK_VECTOR_WEIGHT",
+        aliases: &[],
+        deprecated_aliases: &[],
+        backend_key: None,
+        auth_registry: None,
+        policy: SecretPolicy::optional_skip(),
+        remediation: "",
+        scope_description: "",
+    },
+    SecretSpec {
         id: SecretId::VoxSearchVerificationQualityThreshold,
         canonical_env: "VOX_SEARCH_VERIFICATION_QUALITY_THRESHOLD",
         aliases: &[],

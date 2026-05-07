@@ -1,5 +1,7 @@
 //! Gamification and web run-mode enums for `VoxConfig`.
 
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 
 /// Gamification UX / reward tuning (consumed by `vox-ludus`).
@@ -66,20 +68,20 @@ pub enum BuildTarget {
     Client,
 }
 
-impl BuildTarget {
-    /// Parse from a lower-case string as found in `Vox.toml` or `VOX_BUILD_TARGET`.
-    ///
-    /// Returns `None` for unknown strings — callers should surface an error.
-    #[must_use]
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for BuildTarget {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_ascii_lowercase().as_str() {
-            "fullstack" => Some(Self::Fullstack),
-            "server" => Some(Self::Server),
-            "client" => Some(Self::Client),
-            _ => None,
+            "fullstack" => Ok(Self::Fullstack),
+            "server" => Ok(Self::Server),
+            "client" => Ok(Self::Client),
+            _ => Err(()),
         }
     }
+}
 
+impl BuildTarget {
     /// Lower-case slug persisted in `Vox.toml` `[build] target`.
     #[must_use]
     pub fn as_config_str(self) -> &'static str {

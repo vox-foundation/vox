@@ -83,7 +83,7 @@ fn classic_component_fn_is_parse_error() {
 
 #[test]
 fn test_parse_loading_decl() {
-    let m = parse_str("@loading fn RouteSpinner() to Element { return <div/> }");
+    let m = parse_str("@loading fn RouteSpinner() to Element { return column() }");
     assert!(matches!(
         &m.declarations[0],
         Decl::Loading(l) if l.func.name == "RouteSpinner"
@@ -92,7 +92,9 @@ fn test_parse_loading_decl() {
 
 #[test]
 fn test_parse_at_component_reactive_path_c_is_tombstoned() {
-    assert_parse_fails("@component Widget(x: int) {\n  state n: int = x\n  view: <span>{n}</span>\n}");
+    assert_parse_fails(
+        "@component Widget(x: int) {\n  state n: int = x\n  view: <span>{n}</span>\n}",
+    );
 }
 
 #[test]
@@ -290,32 +292,140 @@ fn test_parse_method_chain() {
     }
 }
 
+// JSX angle-bracket parser path retired (VUV). View calls now use the trailing-block form
+// (`Ident(kwargs) { children }` and `Capitalized()` / `primitive_name()`). See the
+// `test_parse_view_call_*` tests below for the canonical coverage.
+
 #[test]
-fn test_parse_jsx_self_closing() {
-    let m = parse_str("component App() { view: <input value=\"test\" /> }");
-    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
-        match &r.view {
-            Some(Expr::JsxSelfClosing(_)) => {}
-            other => panic!("Expected self-closing JSX in view, got {other:?}"),
-        }
-    } else {
-        panic!("Expected reactive component");
-    }
+fn test_parse_view_call_form_lowers_to_jsx() {
+    // VUV: view-call form `Ident(kwargs) { children }` parses as Expr::Jsx so HIR / web_ir / codegen
+    // are untouched. This test asserts the parser sugars the new shape into the existing JSX AST.
+    let m = parse_str(
+        r#"component A() {
+            view: row(gap=2) {
+                text(size="xs") { "hello" }
+            }
+        }"#,
+    );
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else {
+        panic!("Expected reactive component, got {:?}", m.declarations[0]);
+    };
+    let Some(Expr::Jsx(outer)) = &r.view else {
+        panic!(
+            "Expected outer view-call to lower to Expr::Jsx, got {:?}",
+            r.view
+        );
+    };
+    assert_eq!(outer.tag, "row");
+    assert_eq!(outer.attributes.len(), 1);
+    assert_eq!(outer.attributes[0].name, "gap");
+    assert_eq!(outer.children.len(), 1);
+    let Expr::Jsx(inner) = &outer.children[0] else {
+        panic!(
+            "Expected inner child to be Expr::Jsx, got {:?}",
+            outer.children[0]
+        );
+    };
+    assert_eq!(inner.tag, "text");
+    assert_eq!(inner.attributes.len(), 1);
+    assert_eq!(inner.attributes[0].name, "size");
+    assert_eq!(inner.children.len(), 1);
+    assert!(matches!(inner.children[0], Expr::StringLit { .. }));
 }
 
 #[test]
-fn test_parse_jsx_with_children() {
-    let m = parse_str("component A() { view: <div><span>hello</span></div> }");
-    if let Decl::ReactiveComponent(r) = &m.declarations[0] {
-        if let Some(Expr::Jsx(el)) = &r.view {
-            assert_eq!(el.tag, "div");
-            assert_eq!(el.children.len(), 1);
-        } else {
-            panic!("Expected JSX element in view");
+fn test_attr_prefix_strips_to_reserved_keyword_attribute_name() {
+    // VUV: `attr_type="checkbox"` parses and lowers to JsxAttribute name "type" so HTML
+    // attributes whose names are Vox keywords can still be expressed.
+    let m = parse_str(r#"component A() { view: input(attr_type="checkbox") }"#);
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else {
+        panic!();
+    };
+    let Some(Expr::JsxSelfClosing(el)) = &r.view else {
+        panic!("expected self-closing JSX, got {:?}", r.view);
+    };
+    assert_eq!(el.tag, "input");
+    assert_eq!(el.attributes.len(), 1);
+    assert_eq!(
+        el.attributes[0].name, "type",
+        "attr_ prefix should be stripped"
+    );
+}
+
+#[test]
+fn test_capitalized_call_no_block_lowers_to_self_closing_jsx() {
+    // VUV: `ComposerPanel()` (no trailing block, capitalized callee, no args or all-named)
+    // sugars to Expr::JsxSelfClosing. Lowercase callees and positional-arg calls do not.
+    let m = parse_str("component A() { view: ComposerPanel() }");
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else {
+        panic!("expected reactive component, got {:?}", m.declarations[0]);
+    };
+    let Some(Expr::JsxSelfClosing(el)) = &r.view else {
+        panic!("expected self-closing JSX, got {:?}", r.view);
+    };
+    assert_eq!(el.tag, "ComposerPanel");
+    assert!(el.attributes.is_empty());
+}
+
+#[test]
+fn test_capitalized_call_with_named_args_lowers_to_self_closing() {
+    let m = parse_str(r#"component A() { view: PipelineStage(name="Lexer", desc="tok") }"#);
+    let Decl::ReactiveComponent(r) = &m.declarations[0] else {
+        panic!();
+    };
+    let Some(Expr::JsxSelfClosing(el)) = &r.view else {
+        panic!("expected self-closing JSX, got {:?}", r.view);
+    };
+    assert_eq!(el.tag, "PipelineStage");
+    assert_eq!(el.attributes.len(), 2);
+}
+
+#[test]
+fn test_capitalized_call_with_positional_arg_stays_call() {
+    // Enum constructors (Some, Ok, Err) use positional args — must NOT be sugared to JSX.
+    let m = parse_str("fn f() -> int { let x = Some(42); return 1 }");
+    let Decl::Function(func) = &m.declarations[0] else {
+        panic!();
+    };
+    if let Stmt::Let {
+        value: Expr::Call { callee, .. },
+        ..
+    } = &func.body[0]
+    {
+        if let Expr::Ident { name, .. } = callee.as_ref() {
+            assert_eq!(name, "Some");
+            return;
         }
-    } else {
-        panic!("Expected reactive component");
     }
+    panic!(
+        "expected Some(42) to remain Expr::Call, got {:?}",
+        func.body[0]
+    );
+}
+
+#[test]
+fn test_view_call_positional_arg_does_not_sugar_to_jsx() {
+    // VUV view calls are keyword-only. A positional arg disqualifies the call from view-call
+    // sugar — it stays a regular `Expr::Call` so it can be evaluated as an ordinary function.
+    // Critically, this means `row(2)` (a hypothetical row constructor) does NOT silently
+    // become `<row 2 />`. The parser's view-call path must require all-named args.
+    let m = parse_str("fn build() -> int { return row(2) }");
+    let Decl::Function(func) = &m.declarations[0] else {
+        panic!("expected fn");
+    };
+    let Stmt::Return {
+        value: Some(Expr::Call { callee, args, .. }),
+        ..
+    } = &func.body[0]
+    else {
+        panic!("expected return Expr::Call, got {:?}", func.body[0]);
+    };
+    let Expr::Ident { name, .. } = callee.as_ref() else {
+        panic!("callee not Ident");
+    };
+    assert_eq!(name, "row");
+    assert_eq!(args.len(), 1);
+    assert!(args[0].name.is_none(), "positional arg name should be None");
 }
 
 #[test]
@@ -447,22 +557,7 @@ fn test_parse_v0_component_from_image() {
     }
 }
 
-// WebIR blueprint G1: parser-truth coverage for islands, server fns, routes, reactive surface.
-
-#[test]
-fn test_parse_island_optional_prop() {
-    let m = parse_str("@island DataChart {\n    title: str\n    data: str\n    width?: int\n}");
-    if let Decl::Island(island) = &m.declarations[0] {
-        assert_eq!(island.name, "DataChart");
-        assert_eq!(island.props.len(), 3);
-        assert!(!island.props[0].is_optional);
-        assert!(!island.props[1].is_optional);
-        assert!(island.props[2].is_optional);
-        assert_eq!(island.props[2].name, "width");
-    } else {
-        panic!("Expected Decl::Island, got {:?}", m.declarations[0]);
-    }
-}
+// WebIR blueprint G1: parser-truth coverage for server fns, routes, reactive surface.
 
 #[test]
 fn test_parse_server_fn_brace_shape() {
@@ -536,28 +631,8 @@ fn test_parse_std_http_dotted_path_and_import() {
 }
 
 #[test]
-fn test_parse_island_prop_requires_colon() {
-    assert_parse_fails("@island X {\n    title str\n}");
-}
-
-#[test]
 fn test_parse_reactive_rejects_misplaced_view_without_colon() {
     assert_parse_fails("@component Bad() {\n  view <div />\n}");
-}
-
-/// OP-0014: lexer token stream around optional island prop includes `?` and `:` markers.
-#[test]
-fn test_island_optional_prop_token_shape() {
-    let src = "@island X {\n    title: str\n    width?: int\n}";
-    let dbg = lex(src)
-        .into_iter()
-        .map(|s| format!("{:?}", s.token))
-        .collect::<Vec<_>>()
-        .join(" ");
-    assert!(
-        dbg.contains("Question") && dbg.contains("Colon"),
-        "unexpected token dbg: {dbg}"
-    );
 }
 
 /// OP-0028: [`RoutesDecl::parse_summary`] is stable for multi-entry blocks.
@@ -577,16 +652,12 @@ fn test_routes_parse_summary_matches_paths() {
     }
 }
 
-
 /// OP-0015: syntax inventory strings remain wired for tooling/docs extraction.
 #[test]
 fn test_web_surface_syntax_inventory_non_empty() {
     use crate::parser::WEB_SURFACE_SYNTAX_INVENTORY;
     let joined = WEB_SURFACE_SYNTAX_INVENTORY.join("\n");
-    assert!(
-        joined.contains("@island") && joined.contains("routes {"),
-        "{joined}"
-    );
+    assert!(joined.contains("routes {"), "{joined}");
 }
 
 #[test]
@@ -799,8 +870,89 @@ fn test_parse_no_uses_clause_is_empty() {
     let m = parse_str("fn pure_fn(x: int) to int { x + 1 }");
     match &m.declarations[0] {
         Decl::Function(f) => {
-            assert!(f.effects.is_empty(), "expected empty effects for unannotated fn");
+            assert!(
+                f.effects.is_empty(),
+                "expected empty effects for unannotated fn"
+            );
         }
         other => panic!("Expected Decl::Function, got {other:?}"),
+    }
+}
+
+// ── ADR-032: .vox.ui module-scope reactive members ──────────────────────────
+
+/// Source classification: regular `.vox` file rejects module-scope `state`.
+#[test]
+fn module_scope_state_in_source_file_is_a_parse_error() {
+    let tokens = lex("state count: int = 0");
+    assert!(
+        super::parse_with_kind(tokens, crate::module::FileKind::Source).is_err(),
+        "module-scope `state` must not parse in a regular .vox file"
+    );
+}
+
+/// `.vox.ui` classification: module-scope `state` parses cleanly into a
+/// ReactiveModuleDecl.
+#[test]
+fn module_scope_state_in_reactive_module_parses_into_reactive_module_decl() {
+    let tokens = lex("state count: int = 0\nstate flag: bool = true");
+    let module = super::parse_with_kind(tokens, crate::module::FileKind::ReactiveModule)
+        .expect("`.vox.ui` source should parse");
+    assert_eq!(module.declarations.len(), 1);
+    match &module.declarations[0] {
+        Decl::ReactiveModule(r) => {
+            assert_eq!(r.members.len(), 2);
+            assert!(matches!(
+                r.members[0],
+                crate::ast::decl::ReactiveMemberDecl::State(_)
+            ));
+        }
+        other => panic!("expected ReactiveModule, got {other:?}"),
+    }
+}
+
+/// `.vox.ui` files allow `derived` and `effect` at module scope alongside `state`.
+#[test]
+fn module_scope_derived_and_effect_in_reactive_module_parse() {
+    let tokens = lex("state count: int = 0\nderived doubled = count * 2\neffect: { print(count) }");
+    let module = super::parse_with_kind(tokens, crate::module::FileKind::ReactiveModule)
+        .expect("`.vox.ui` derived+effect should parse");
+    match &module.declarations[0] {
+        Decl::ReactiveModule(r) => {
+            assert_eq!(r.members.len(), 3);
+        }
+        other => panic!("expected ReactiveModule, got {other:?}"),
+    }
+}
+
+// ── ADR-033: typed parametric fragment primitive ────────────────────────────
+
+/// Fragment with no parameters — body is parsed as a Phase-6 primitive markup
+/// expression (raw JSX is removed from the parser as of TASK-6.1).
+#[test]
+fn fragment_decl_with_no_params_parses() {
+    let m = parse_str("fragment Greeting() { text() { \"hi\" } }");
+    assert_eq!(m.declarations.len(), 1);
+    match &m.declarations[0] {
+        Decl::Fragment(f) => {
+            assert_eq!(f.name, "Greeting");
+            assert!(f.params.is_empty());
+        }
+        other => panic!("expected Fragment, got {other:?}"),
+    }
+}
+
+/// Fragment with typed parameters parses; param names and types preserved.
+#[test]
+fn fragment_decl_with_params_parses() {
+    let m = parse_str("fragment Row(item: str, idx: int) { text() { \"row\" } }");
+    match &m.declarations[0] {
+        Decl::Fragment(f) => {
+            assert_eq!(f.name, "Row");
+            assert_eq!(f.params.len(), 2);
+            assert_eq!(f.params[0].name, "item");
+            assert_eq!(f.params[1].name, "idx");
+        }
+        other => panic!("expected Fragment, got {other:?}"),
     }
 }

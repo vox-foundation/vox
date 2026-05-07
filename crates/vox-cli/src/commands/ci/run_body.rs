@@ -73,6 +73,18 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::ScientiaHeuristicsParity => scientia_heuristics_parity::run(&root),
         CiCmd::ScientiaNoveltyLedgerContracts => scientia_novelty_ledger_contract::run(&root),
         CiCmd::SsotDrift => run_ssot_drift(&root),
+        CiCmd::PrePush {
+            quick,
+            full,
+            dry_run,
+        } => super::pre_push::run(
+            &root,
+            super::pre_push::PrePushOpts {
+                quick,
+                full,
+                dry_run,
+            },
+        ),
         CiCmd::SsotAudit => run_ssot_audit(&root).await,
         CiCmd::DataSsotGuards => run_data_ssot_guards(&root),
         CiCmd::DataStorageGuard(opts) => {
@@ -81,7 +93,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 println!("{}", serde_json::to_string_pretty(&report)?);
             }
             if !report.violations.is_empty() {
-                anyhow::bail!("DataStorageGuard failed with {} violations", report.violations.len());
+                anyhow::bail!(
+                    "DataStorageGuard failed with {} violations",
+                    report.violations.len()
+                );
             }
             Ok(())
         }
@@ -115,8 +130,8 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             // 2. Run Astro build
             let docs_dir = root.join("docs-astro");
             let pnpm = crate::frontend::pnpm_executable();
-            
-            let st = Command::new(&pnpm)
+
+            let st = Command::new(pnpm)
                 .current_dir(&docs_dir)
                 .args(["install", "--frozen-lockfile"])
                 .status()?;
@@ -124,7 +139,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
                 return Err(anyhow!("Astro pnpm install failed"));
             }
 
-            let st = Command::new(&pnpm)
+            let st = Command::new(pnpm)
                 .current_dir(&docs_dir)
                 .args(["run", "build"])
                 .status()?;
@@ -307,6 +322,34 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             println!("policy-smoke OK");
             Ok(())
         }
+        CiCmd::BackendTests => {
+            let cargo = cargo_bin();
+            let suites: &[(&[&str], &str)] = &[
+                (&["test", "-p", "vox-runtime"], "vox-runtime"),
+                (
+                    &["test", "-p", "vox-orchestrator", "model_route_policy"],
+                    "vox-orchestrator model_route_policy",
+                ),
+                (
+                    &["test", "-p", "vox-db", "research_metrics_contract"],
+                    "vox-db research_metrics_contract",
+                ),
+            ];
+            for (args, label) in suites {
+                let st = Command::new(&cargo)
+                    .current_dir(&root)
+                    .args(*args)
+                    .status()?;
+                if !st.success() {
+                    return Err(anyhow!(
+                        "backend-tests failed ({label}); rerun: cargo {}",
+                        args.join(" ")
+                    ));
+                }
+            }
+            println!("backend-tests OK");
+            Ok(())
+        }
         CiCmd::GuiSmoke => super::gui_smoke::run(&root),
         CiCmd::CoverageGates {
             summary_json,
@@ -341,11 +384,20 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::DepSprawl { cap } => dep_sprawl::run(&root, cap),
         CiCmd::DoctestMd { paths, strict } => doctest_md::run(paths, strict).await,
         CiCmd::DeployStatus { write_to } => super::deploy_status::run(write_to).await,
-        CiCmd::WatchRun { sha, timeout_secs, advisory, failures_only } => super::watch_run::run(super::watch_run::WatchRunArgs {
+        CiCmd::CoolifyEval { cmd } => super::coolify_eval::run(cmd).await,
+        CiCmd::WatchRun {
             sha,
             timeout_secs,
             advisory,
             failures_only,
-        }).await,
+        } => {
+            super::watch_run::run(super::watch_run::WatchRunArgs {
+                sha,
+                timeout_secs,
+                advisory,
+                failures_only,
+            })
+            .await
+        }
     }
 }

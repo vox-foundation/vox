@@ -41,7 +41,15 @@
       "Bash(pnpm build *)",
       "Bash(node scripts/setup-content.mjs)",
       "Bash(git -C /c/Users/Owner/vox/.claude/worktrees/gallant-shockley-587a69 log --oneline -1)",
-      "Bash(git -C /c/Users/Owner/vox/.claude/worktrees/gallant-shockley-587a69 ls-remote --exit-code origin claude/gallant-shockley-587a69)"
+      "Bash(git -C /c/Users/Owner/vox/.claude/worktrees/gallant-shockley-587a69 ls-remote --exit-code origin claude/gallant-shockley-587a69)",
+      "Bash(git commit -m 'refactor\\(compiler\\): scrub stale island references from doc-comments *)",
+      "Bash(git rm *)",
+      "Bash(git commit *)",
+      "Bash(git mv *)",
+      "Bash(grep -v \"^warning\\\\|^  -->\\\\|^   \\\\||$\")",
+      "Bash(echo \"EXIT:$?\")",
+      "WebSearch",
+      "Bash(xargs wc *)"
     ]
   }
 }

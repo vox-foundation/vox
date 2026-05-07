@@ -122,6 +122,20 @@ impl crate::orchestrator::Orchestrator {
             }
         }
 
+        match db.list_model_arm_stats(7).await {
+            Ok(arms) => {
+                let mut registry = self.models.write().unwrap();
+                registry.inject_arm_stats(arms);
+                tracing::debug!(
+                    "Refreshed model arm stats with {} model ids",
+                    registry.arm_stats_snapshot().len()
+                );
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to refresh model arm stats from database");
+            }
+        }
+
         match db.get_pricing_catalog().await {
             Ok(pricing) => {
                 let count = pricing.len();

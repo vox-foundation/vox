@@ -1,9 +1,9 @@
 use axum::{
+    Json,
     extract::{Request, State},
     http::{HeaderMap, StatusCode},
     middleware::Next,
     response::{IntoResponse, Response},
-    Json,
 };
 use serde_json::json;
 
@@ -139,12 +139,15 @@ mod tests {
     #[test]
     fn test_public_eval_exemptions() {
         let mut headers = HeaderMap::new();
-        headers.insert("origin", HeaderValue::from_static("https://some-remote.com"));
-        
+        headers.insert(
+            "origin",
+            HeaderValue::from_static("https://some-remote.com"),
+        );
+
         // Allowed if public_eval_enabled and path is /v1/eval or /health
         assert!(is_origin_allowed(true, "/v1/eval", &headers));
         assert!(is_origin_allowed(true, "/health", &headers));
-        
+
         // Not allowed for other endpoints even if public_eval is true
         assert!(!is_origin_allowed(true, "/v1/info", &headers));
     }
@@ -154,12 +157,18 @@ mod tests {
         // Origin pointing at a domain that merely *contains* "localhost"
         // must not pass the loopback gate.
         let mut headers = HeaderMap::new();
-        headers.insert("origin", HeaderValue::from_static("http://localhost.evil.com"));
+        headers.insert(
+            "origin",
+            HeaderValue::from_static("http://localhost.evil.com"),
+        );
         assert!(!is_origin_allowed(false, "/v1/info", &headers));
 
         // Same for 127.0.0.1 prefix attacks.
         let mut headers = HeaderMap::new();
-        headers.insert("origin", HeaderValue::from_static("http://127.0.0.1.evil.com"));
+        headers.insert(
+            "origin",
+            HeaderValue::from_static("http://127.0.0.1.evil.com"),
+        );
         assert!(!is_origin_allowed(false, "/v1/info", &headers));
     }
 
@@ -169,7 +178,7 @@ mod tests {
         headers.insert("upgrade", HeaderValue::from_static("websocket"));
         // No origin or host provided
         assert!(!is_origin_allowed(false, "/v1/ws", &headers));
-        
+
         let mut headers2 = HeaderMap::new();
         headers2.insert("upgrade", HeaderValue::from_static("websocket"));
         headers2.insert("origin", HeaderValue::from_static("http://localhost"));

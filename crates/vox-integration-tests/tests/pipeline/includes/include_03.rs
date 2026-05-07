@@ -278,37 +278,3 @@ fn pipeline_route_component_express_and_web_ir_gate() {
     );
 }
 
-/// OP-S045 / OP-S047 parity chain: routable `@component` + island (same source as `reactive_smoke` / `web_ir_lower_emit`).
-const OP_S_PARITY_CHAIN_FIXTURE: &str = r#"
-import react.use_state
-
-@island ParityP { label: str }
-
-component ParityPage() {
-    state s: str = "x"
-    view: (
-        <div class="parity-wrap">
-            <ParityP label={s} />
-        </div>
-    )
-}
-
-routes {
-    "/" to ParityPage
-}
-"#;
-
-/// OP-S047: extra parity fixture C — full pipeline emits V1 island mount on classic routed page.
-#[test]
-fn op_s047_extra_parity_fixture_pipeline_emits_island_mount() {
-    let tokens = lex(OP_S_PARITY_CHAIN_FIXTURE);
-    let module = parse(tokens).expect("parity parse");
-    let output = generate_without_express!(&module);
-    let ts = output
-        .files
-        .iter()
-        .find(|(f, _)| f == "ParityPage.tsx")
-        .map(|(_, c)| c.as_str())
-        .expect("ParityPage.tsx");
-    insta::assert_snapshot!("parity_page_tsx_island_mount_op_s047", ts);
-}

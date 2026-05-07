@@ -59,7 +59,6 @@ fn builtin_system_prompt() -> String {
 - `actor Name:` — message-passing actor with `state` and `on msg() -> T:`
 - `workflow name() -> Result[T]:` / `activity name() -> Result[T]:` — durable execution
 - `component Name(p: T) { state x = 0; view: <div>{x}</div> }` — Reactive UI (Path C)
-- `@island fn Name() -> Element:` — React ecosystem escape hatch
 - `state`, `derived`, `effect`, `mount`, `cleanup` — reactive primitives
 - `@table type Name:`, `@query`, `@mutation`, `@action` — data plane
 - `@mcp.tool(...) fn ...` / `@mcp.resource(...) fn ...` — MCP surfaces
