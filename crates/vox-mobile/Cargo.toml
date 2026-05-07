@@ -1,0 +1,32 @@
+[package]
+name = "vox-mobile"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Vox mobile build plugin: cross-compiles Vox apps for Android and iOS."
+keywords = ["vox", "mobile", "android", "ios"]
+categories = ["command-line-utilities"]
+default-run = "vox-mobile"
+
+[[bin]]
+name = "vox-mobile"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
+vox-pm = { workspace = true }
+workspace-hack = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
