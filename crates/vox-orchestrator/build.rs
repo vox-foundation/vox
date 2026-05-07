@@ -350,10 +350,7 @@ fn append_capability_intent_codegen(out: &mut String, yaml_content: &str) {
     out.push_str("#[derive(Debug, Clone, Copy, Default, serde::Serialize, serde::Deserialize)]\n");
     out.push_str("pub struct CapabilityFlags {\n");
     for c in &cap_names {
-        out.push_str(&format!(
-            "    #[serde(default)]\n    pub {}: bool,\n",
-            c
-        ));
+        out.push_str(&format!("    #[serde(default)]\n    pub {}: bool,\n", c));
     }
     out.push_str("}\n\n");
 
@@ -392,10 +389,18 @@ fn append_capability_intent_codegen(out: &mut String, yaml_content: &str) {
         }
         let checks = params
             .iter()
-            .map(|p| format!("has_param(\"{}\")", p.replace('\\', "\\\\").replace('"', "\\\"")))
+            .map(|p| {
+                format!(
+                    "has_param(\"{}\")",
+                    p.replace('\\', "\\\\").replace('"', "\\\"")
+                )
+            })
             .collect::<Vec<_>>()
             .join(" || ");
-        out.push_str(&format!("    if {} {{\n        out.{} = true;\n    }}\n", checks, cap));
+        out.push_str(&format!(
+            "    if {} {{\n        out.{} = true;\n    }}\n",
+            checks, cap
+        ));
     }
     for rule in mod_rules {
         let Some(cap) = rule.get("capability").and_then(|v| v.as_str()) else {
@@ -438,7 +443,9 @@ fn append_capability_intent_codegen(out: &mut String, yaml_content: &str) {
     out.push_str("}\n\n");
 
     out.push_str("#[must_use]\n");
-    out.push_str("pub fn intent_required_capabilities(intent: PromptIntent) -> &'static [Capability] {\n");
+    out.push_str(
+        "pub fn intent_required_capabilities(intent: PromptIntent) -> &'static [Capability] {\n",
+    );
     out.push_str("    match intent {\n");
     for k_str in &intent_keys {
         let Some(val) = intent_map.get(&Value::String(k_str.clone())) else {

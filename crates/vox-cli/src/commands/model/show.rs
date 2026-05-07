@@ -1,6 +1,6 @@
 //! Show one model from the on-disk registry cache.
 
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use clap::Parser;
 use vox_orchestrator::models::ModelRegistry;
 

@@ -76,7 +76,9 @@ fn cli_parses_auth_login_alias_of_connect() {
                 assert_eq!(args.vault_url.as_deref(), Some("libsql://x"));
                 assert_eq!(args.vault_token.as_deref(), Some("y"));
             }
-            _other => panic!("expected AuthCmd::Connect for alias login, got other auth subcommand"),
+            _other => {
+                panic!("expected AuthCmd::Connect for alias login, got other auth subcommand")
+            }
         },
         _other => panic!("expected Cli::Auth, got non-Auth variant"),
     }

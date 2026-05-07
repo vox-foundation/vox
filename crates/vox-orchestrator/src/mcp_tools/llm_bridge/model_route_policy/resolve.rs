@@ -210,20 +210,15 @@ pub fn resolve_mcp_chat_model_sync(
     }
 
     if res.free_tier_latency_critical {
-
         if let Some(m) = registry.best_free_for_with_filter(task, |m| {
-            caps_ok(m)
-                && mcp_local_model_allowed(m)
-                && routing_allows(m)
+            caps_ok(m) && mcp_local_model_allowed(m) && routing_allows(m)
         }) {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
         if res.allow_cheapest_fallback {
             if let Some(m) = registry.cheapest_free_with_filter(|m| {
-                caps_ok(m)
-                    && mcp_local_model_allowed(m)
-                    && routing_allows(m)
+                caps_ok(m) && mcp_local_model_allowed(m) && routing_allows(m)
             }) {
                 let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
                 return Ok((m.clone(), m.is_free));
@@ -252,9 +247,7 @@ pub fn resolve_mcp_chat_model_sync(
         .filter(caps_ok)
         .filter(mcp_local_model_allowed)
         .filter(|m| routing_allows(m))
-        .filter(|m| {
-            vox_local_route_preferred || !matches!(m.provider_type, ProviderType::VoxLocal)
-        })
+        .filter(|m| vox_local_route_preferred || !matches!(m.provider_type, ProviderType::VoxLocal))
         .collect();
     let arm_stats = registry.arm_stats_snapshot().clone();
     let novel_trials = crate::sync_lock::rw_read(&*orch.budget_handle())
@@ -287,18 +280,14 @@ pub fn resolve_mcp_chat_model_sync(
 
     if res.allow_cheapest_fallback {
         if let Some(m) = registry.cheapest_free_with_filter(|m| {
-            caps_ok(m)
-                && mcp_local_model_allowed(m)
-                && routing_allows(m)
+            caps_ok(m) && mcp_local_model_allowed(m) && routing_allows(m)
         }) {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }
-        if let Some(m) = registry.cheapest_with_filter(|m| {
-            caps_ok(m)
-                && mcp_local_model_allowed(m)
-                && routing_allows(m)
-        }) {
+        if let Some(m) = registry
+            .cheapest_with_filter(|m| caps_ok(m) && mcp_local_model_allowed(m) && routing_allows(m))
+        {
             let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;
             return Ok((m.clone(), m.is_free));
         }

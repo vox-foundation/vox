@@ -73,7 +73,9 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
                 Ok(format!("{trimmed}/v1{suffix}"))
             }
         }
-        ProviderType::HuggingFaceRouter => Ok(vox_config::inference::hf_router_chat_completions_url()),
+        ProviderType::HuggingFaceRouter => {
+            Ok(vox_config::inference::hf_router_chat_completions_url())
+        }
         ProviderType::VoxLocal => {
             let url = std::env::var("VOX_LOCAL_ENDPOINT")
                 .unwrap_or_else(|_| "http://127.0.0.1:7863".to_string());

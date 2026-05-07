@@ -147,7 +147,10 @@ pub fn emit_fn(func: &HirFn) -> String {
     out.push_str("{\n");
     if func.is_llm {
         let model_init = if let Some(m) = func.llm_model.as_deref() {
-            format!("\"{}\".to_string()", m.replace('\\', "\\\\").replace('"', "\\\""))
+            format!(
+                "\"{}\".to_string()",
+                m.replace('\\', "\\\\").replace('"', "\\\"")
+            )
         } else {
             "openrouter_chat_model_preference()".to_string()
         };

@@ -113,6 +113,7 @@ pub use writer_actor::{DbWriteCmd, VoxWriteHandle};
 pub mod paths;
 pub mod pool;
 pub use pool::VoxDbPool;
+pub mod outcome_recorder;
 /// Mens control-plane audit (`populi_control_event` in `research_metrics`).
 pub mod populi_control_telemetry;
 /// Opt-in mens local-registry publish rows (`VOX_MESH_CODEX_TELEMETRY`).
@@ -121,7 +122,6 @@ pub mod populi_registry_telemetry;
 pub mod preferences;
 pub mod project_store;
 mod questioning_telemetry;
-pub mod outcome_recorder;
 mod research;
 /// Hybrid retrieval helpers (vector / full-text fusion) for RAG-style pipelines.
 pub mod retrieval;

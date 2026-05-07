@@ -16,10 +16,7 @@ pub enum PreferencesCmd {
     /// Keys: `require_tool_use`, `require_reasoning`, `require_web_search`,
     /// `require_image_generation`, `prefer_reasoning`,
     /// `image_model`, `vision_model`, `codegen_model` (values are `true`/`false` or a model id).
-    Set {
-        key: String,
-        value: String,
-    },
+    Set { key: String, value: String },
     /// Clear all `VOX_CAPABILITY_*` vault entries (best-effort).
     Reset,
 }

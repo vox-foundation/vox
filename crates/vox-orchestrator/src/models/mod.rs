@@ -8,8 +8,8 @@ pub(crate) mod spec;
 mod tests;
 
 pub use generated::{
-    infer_capabilities, infer_prompt_intents, intent_required_capabilities, Capability,
-    CapabilityFlags, ModelTier, PromptIntent, StrengthTag, TaskCategory,
+    Capability, CapabilityFlags, ModelTier, PromptIntent, StrengthTag, TaskCategory,
+    infer_capabilities, infer_prompt_intents, intent_required_capabilities,
 };
 pub use registry::{ModelRegistry, ModelScore};
 pub use spec::{

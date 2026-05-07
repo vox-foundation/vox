@@ -13,11 +13,7 @@ pub fn sample_beta_thompson<R: Rng>(rng: &mut R, successes: u32, failures: u32) 
     let x: f64 = ga.sample(rng);
     let y: f64 = gb.sample(rng);
     let d = x + y;
-    if d <= f64::EPSILON {
-        0.5
-    } else {
-        x / d
-    }
+    if d <= f64::EPSILON { 0.5 } else { x / d }
 }
 
 #[cfg(test)]

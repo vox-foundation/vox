@@ -130,8 +130,7 @@ pub fn login_status_summary() -> String {
 fn write_login_profile(opts: &LoginOpts) -> Result<()> {
     let path = login_profile_path();
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("create {}", parent.display()))?;
+        std::fs::create_dir_all(parent).with_context(|| format!("create {}", parent.display()))?;
     }
     let profile = LoginProfileToml {
         account_id: opts.account_id.clone(),
@@ -140,7 +139,9 @@ fn write_login_profile(opts: &LoginOpts) -> Result<()> {
     let body = toml::to_string_pretty(&profile).context("serialize login.toml")?;
     std::fs::write(&path, body).with_context(|| format!("write {}", path.display()))?;
     println!("Wrote {}", path.display());
-    println!("Hint: export VOX_ACCOUNT_ID and VOX_CLAVIS_BACKEND from this file or merge into your shell profile.");
+    println!(
+        "Hint: export VOX_ACCOUNT_ID and VOX_CLAVIS_BACKEND from this file or merge into your shell profile."
+    );
     Ok(())
 }
 
@@ -175,8 +176,7 @@ pub async fn run_login(opts: LoginOpts) -> Result<()> {
 
     if opts.non_interactive {
         url = Some(
-            url
-                .filter(|s| !s.trim().is_empty())
+            url.filter(|s| !s.trim().is_empty())
                 .context("--non-interactive requires --vault-url")?,
         );
         token = Some(
@@ -233,7 +233,10 @@ pub async fn run_login(opts: LoginOpts) -> Result<()> {
 
 /// Best-effort logout: clear keyring entries and remove `login.toml`.
 pub async fn run_logout() -> Result<()> {
-    for (service, user) in [("vox-clavis-env", "turso-url"), ("vox-clavis-env", "turso-token")] {
+    for (service, user) in [
+        ("vox-clavis-env", "turso-url"),
+        ("vox-clavis-env", "turso-token"),
+    ] {
         if let Ok(e) = keyring::Entry::new(service, user) {
             let _ = e.delete_credential();
         }

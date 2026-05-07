@@ -86,8 +86,9 @@ pub fn run(checks: &mut Vec<Check>) {
         crate::commands::login_shared::login_status_summary(),
     ));
 
-    let cache_path =
-        vox_config::paths::dot_vox_user_dir().join("cache").join("model-catalog.v1.json");
+    let cache_path = vox_config::paths::dot_vox_user_dir()
+        .join("cache")
+        .join("model-catalog.v1.json");
     let cache_status = if cache_path.exists() {
         match std::fs::read_to_string(&cache_path) {
             Ok(raw) => match serde_json::from_str::<Vec<serde_json::Value>>(&raw) {
@@ -101,7 +102,10 @@ pub fn run(checks: &mut Vec<Check>) {
             Err(e) => format!("{} exists (read error: {e})", cache_path.display()),
         }
     } else {
-        format!("{} missing — run `vox model discover`", cache_path.display())
+        format!(
+            "{} missing — run `vox model discover`",
+            cache_path.display()
+        )
     };
     checks.push(Check::new(
         "LLM routing — model catalog cache",

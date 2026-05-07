@@ -7,8 +7,8 @@ use rand::SeedableRng;
 use rand::rngs::StdRng;
 
 use crate::config::CostPreference;
-use crate::models::ModelTier;
 use crate::models::ModelSpec;
+use crate::models::ModelTier;
 use crate::models::scoring::auto_score_model;
 use crate::types::TaskCategory;
 use crate::usage::RemainingBudget;
@@ -149,10 +149,12 @@ impl ModelSelectionEngine {
         if s + f < min_samples {
             return PickReason::PolicyExplore;
         }
-        if candidates
-            .iter()
-            .any(|m| m.id != best.id && arm_stats.get(&m.id).map_or(true, |&(a, b)| a + b < min_samples))
-        {
+        if candidates.iter().any(|m| {
+            m.id != best.id
+                && arm_stats
+                    .get(&m.id)
+                    .map_or(true, |&(a, b)| a + b < min_samples)
+        }) {
             return PickReason::PolicyExplore;
         }
         PickReason::PolicyExploit
@@ -162,8 +164,8 @@ impl ModelSelectionEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{ModelCapabilities, ModelSpec, ProviderType};
     use crate::models::spec::PricingSource;
+    use crate::models::{ModelCapabilities, ModelSpec, ProviderType};
 
     fn dummy_model(id: &str, cost: f64) -> ModelSpec {
         ModelSpec {

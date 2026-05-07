@@ -100,9 +100,8 @@ pub fn hf_chat_model_preference() -> Option<String> {
 /// Falls back to [`crate::bootstrap_inference::OPENROUTER_AUTO`] when unset.
 pub fn openrouter_chat_model_preference() -> String {
     crate::routing_migration::trace_openrouter_chat_env_migration_once();
-    let preferred = crate::clavis::clavis_str(vox_clavis::SecretId::VoxOpenRouterChatModel).or_else(
-        || crate::clavis::clavis_str(vox_clavis::SecretId::OpenRouterGeminiModel),
-    );
+    let preferred = crate::clavis::clavis_str(vox_clavis::SecretId::VoxOpenRouterChatModel)
+        .or_else(|| crate::clavis::clavis_str(vox_clavis::SecretId::OpenRouterGeminiModel));
     crate::routing_policy::resolve_openrouter_model(preferred)
 }
 
