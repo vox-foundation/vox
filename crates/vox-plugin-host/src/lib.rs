@@ -101,3 +101,27 @@ pub fn load_code_plugin(
     let dylib_path = entry.install_dir.join(filename);
     Loader::load(&entry.id, &entry.version, &dylib_path)
 }
+
+/// Cached singleton: load a code plugin once and reuse the handle process-wide.
+/// First call: discover + dlopen (tens of ms). Subsequent calls: O(1) HashMap lookup.
+///
+/// The plugin is leaked for the process lifetime (`Box::leak`) — code plugins are
+/// designed to never unload while the host is running. Designed for plugins called
+/// repeatedly (browser, mesh, ml backends).
+pub fn cached_code_plugin(
+    plugin_id: &'static str,
+) -> Result<&'static LoadedCodePlugin, errors::LoadError> {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    type Cache = Mutex<HashMap<&'static str, &'static LoadedCodePlugin>>;
+    static CACHE: OnceLock<Cache> = OnceLock::new();
+    let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    let mut guard = cache.lock().unwrap();
+    if let Some(p) = guard.get(plugin_id) {
+        return Ok(p);
+    }
+    let loaded = load_code_plugin_by_id(plugin_id)?;
+    let leaked: &'static LoadedCodePlugin = Box::leak(Box::new(loaded));
+    guard.insert(plugin_id, leaked);
+    Ok(leaked)
+}
