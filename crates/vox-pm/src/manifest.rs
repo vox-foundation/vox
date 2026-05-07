@@ -374,6 +374,7 @@ pub enum ManifestError {
     Parse(toml::de::Error),
     Serialize(toml::ser::Error),
     NotFound,
+    Validation(String),
 }
 
 impl std::fmt::Display for ManifestError {
@@ -383,6 +384,7 @@ impl std::fmt::Display for ManifestError {
             ManifestError::Parse(e) => write!(f, "Parse error: {e}"),
             ManifestError::Serialize(e) => write!(f, "Serialize error: {e}"),
             ManifestError::NotFound => write!(f, "Vox.toml not found"),
+            ManifestError::Validation(msg) => write!(f, "Validation error: {msg}"),
         }
     }
 }
@@ -398,7 +400,7 @@ pub struct BuildSection {
 }
 
 /// `[mobile]` section: mobile-specific build configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MobileSection {
     /// Platforms to build for; subset of {"android", "ios"}.
     #[serde(default)]
@@ -409,7 +411,7 @@ pub struct MobileSection {
     pub ios: Option<IosConfig>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AndroidConfig {
     pub min_sdk: Option<u32>,
     pub target_sdk: Option<u32>,
@@ -418,7 +420,7 @@ pub struct AndroidConfig {
     pub ndk_version: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct IosConfig {
     pub min_version: Option<String>,
     #[serde(default)]
@@ -427,18 +429,18 @@ pub struct IosConfig {
 
 /// Validate `[mobile]` semantically (after parse).
 /// Errors: unknown platform, empty `platforms` when target=mobile, etc.
-pub fn validate_mobile(manifest: &VoxManifest) -> Result<(), anyhow::Error> {
+pub fn validate_mobile(manifest: &VoxManifest) -> Result<(), ManifestError> {
     let Some(mobile) = manifest.mobile.as_ref() else {
         return Ok(());
     };
     const KNOWN: &[&str] = &["android", "ios"];
     for p in &mobile.platforms {
         if !KNOWN.contains(&p.as_str()) {
-            anyhow::bail!(
+            return Err(ManifestError::Validation(format!(
                 "[mobile.platforms] contains unknown platform '{}'. Known platforms: {}.",
                 p,
                 KNOWN.join(", ")
-            );
+            )));
         }
     }
     if mobile.platforms.is_empty()
@@ -448,9 +450,10 @@ pub fn validate_mobile(manifest: &VoxManifest) -> Result<(), anyhow::Error> {
             .and_then(|b| b.target.as_deref())
             == Some("mobile")
     {
-        anyhow::bail!(
+        return Err(ManifestError::Validation(
             "[build] target = \"mobile\" requires [mobile.platforms] to list at least one platform"
-        );
+                .to_string(),
+        ));
     }
     Ok(())
 }

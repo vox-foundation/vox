@@ -56,7 +56,29 @@ platforms = ["windows-mobile"]
 "#;
     let manifest: VoxManifest = toml::from_str(toml_src).unwrap();
     let result = validate_mobile(&manifest);
-    assert!(result.is_err(), "unknown platform should be rejected");
-    let msg = result.unwrap_err().to_string();
+    let err = result.expect_err("unknown platform should be rejected");
+    assert!(matches!(err, vox_pm::manifest::ManifestError::Validation(_)));
+    let msg = err.to_string();
     assert!(msg.contains("windows-mobile"), "error should name the offending platform; got: {msg}");
+}
+
+#[test]
+fn rejects_mobile_target_without_platforms() {
+    let toml_src = r#"
+[package]
+name = "x"
+
+[build]
+target = "mobile"
+
+[mobile]
+platforms = []
+"#;
+    let manifest: VoxManifest = toml::from_str(toml_src).unwrap();
+    let err = validate_mobile(&manifest)
+        .expect_err("[build] target = mobile with empty [mobile.platforms] should be rejected");
+    assert!(matches!(err, vox_pm::manifest::ManifestError::Validation(_)));
+    let msg = err.to_string();
+    assert!(msg.contains("[build]") && msg.contains("[mobile.platforms]"),
+        "error should reference both sections; got: {msg}");
 }
