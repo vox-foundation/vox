@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 /// Represents the full `Vox.toml` manifest.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct VoxManifest {
     pub package: PackageSection,
     #[serde(default)]
@@ -35,7 +35,7 @@ pub struct VoxManifest {
     pub mobile: Option<MobileSection>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PackageSection {
     pub name: String,
     #[serde(default = "default_version")]

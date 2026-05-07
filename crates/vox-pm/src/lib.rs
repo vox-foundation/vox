@@ -8,6 +8,8 @@
 
 /// Content-addressed artifact cache (`.vox-cache`).
 pub mod artifact_cache;
+/// Manifest-driven Cargo.toml emission (mobile / server / client targets).
+pub mod codegen;
 /// `[deploy.coolify]` manifest shapes (serde-only).
 pub mod deploy_coolify;
 /// `vox.lock` lockfile format.
