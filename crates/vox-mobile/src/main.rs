@@ -32,7 +32,11 @@ fn main() -> Result<()> {
                     build::android::build(&project_dir, android, release)?;
                 }
                 "ios" => {
-                    bail!("ios build not yet implemented (Task 6)");
+                    let ios = mobile
+                        .ios
+                        .as_ref()
+                        .ok_or_else(|| anyhow!("missing [mobile.ios] section"))?;
+                    build::ios::build(&project_dir, ios, release)?;
                 }
                 "all" => {
                     bail!("--platform=all not yet implemented (Task 7)");
