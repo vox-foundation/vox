@@ -12833,7 +12833,6 @@ dependencies = [
  "uuid",
  "vox-ars",
  "vox-bounded-fs",
- "vox-browser",
  "vox-capability-registry",
  "vox-clavis",
  "vox-compiler",

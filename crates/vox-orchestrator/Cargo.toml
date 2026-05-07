@@ -95,7 +95,6 @@ axum = { version = "0.8", default-features = false, features = ["http1", "json",
 governor = { workspace = true }
 tower-http = { workspace = true, features = ["cors"] }
 vox-grammar-export.workspace = true
-vox-browser.workspace = true
 axum-extra = { version = "0.12.5", features = ["typed-header"] }
 regex = "1"
 vox-corpus = { workspace = true, features = ["database"] }
