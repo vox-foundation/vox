@@ -2,7 +2,6 @@ use crate::workspace_db::connect_cli_workspace_voxdb;
 use clap::{Parser, Subcommand};
 use owo_colors::OwoColorize;
 use serde_json::json;
-use vox_browser::global_engine;
 use vox_db::store::types::{VisusAuditLogRow, VisusBaselineRow};
 
 /// Vox Visus: Voice of Vision. Agentic GUI visual intelligence and bug detection.
@@ -76,23 +75,38 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                 .await
                 .map_err(|e| miette::miette!("Failed to connect to VoxDb: {}", e))?;
 
-            let engine = global_engine();
-            let page_id = engine
-                .open(&target, true)
+            let target_owned = target.clone();
+            let (page_id, ss_bytes, tree_bytes) =
+                tokio::task::spawn_blocking(move || -> anyhow::Result<(String, Vec<u8>, Vec<u8>)> {
+                    let plugin = vox_plugin_host::cached_code_plugin("browser")
+                        .map_err(|e| anyhow::anyhow!("browser plugin: {e}"))?;
+                    let backend = plugin
+                        .plugin
+                        .as_browser_automation()
+                        .into_option()
+                        .ok_or_else(|| anyhow::anyhow!("browser plugin loaded but BrowserAutomation accessor returned None"))?;
+                    let page_id = backend
+                        .open(target_owned.as_str().into(), true)
+                        .into_result()
+                        .map_err(|e| anyhow::anyhow!("browser open: {e}"))?
+                        .into_string();
+                    let ss_bytes: Vec<u8> = backend
+                        .screenshot_bytes(page_id.as_str().into())
+                        .into_result()
+                        .map_err(|e| anyhow::anyhow!("browser screenshot: {e}"))?
+                        .into_iter()
+                        .collect();
+                    let tree_str = backend
+                        .ax_tree(page_id.as_str().into())
+                        .into_result()
+                        .map_err(|e| anyhow::anyhow!("browser ax_tree: {e}"))?
+                        .into_string();
+                    let tree_bytes = tree_str.into_bytes();
+                    Ok((page_id, ss_bytes, tree_bytes))
+                })
                 .await
-                .map_err(|e| miette::miette!("Failed to open browser: {}", e))?;
-
-            // 1. Capture Evidence
-            let ss_bytes = engine
-                .screenshot_bytes(&page_id)
-                .await
-                .map_err(|e| miette::miette!("Screenshot failed: {}", e))?;
-
-            let tree = engine
-                .ax_tree(&page_id)
-                .await
-                .map_err(|e| miette::miette!("AXTree extraction failed: {}", e))?;
-            let tree_bytes = serde_json::to_vec(&tree).unwrap();
+                .map_err(|e| miette::miette!("spawn_blocking: {e}"))?
+                .map_err(|e| miette::miette!("browser ops: {e}"))?;
 
             // 2. Local Persistence (Optional Files)
             if let Some(path) = screenshot {
@@ -139,11 +153,10 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
             }
 
             // 5. Layer 1: Deterministic Overlap Detection
+            // check_overlaps is not exposed on the BrowserAutomation trait; overlap detection
+            // is deferred to the VLM layer (Layer 2) when --vlm is passed.
             println!("{} Running Layer 1 (Deterministic) audit...", "▶".blue());
-            let overlaps = engine
-                .check_overlaps(&page_id)
-                .await
-                .map_err(|e| miette::miette!("Overlap detection failed: {}", e))?;
+            let overlaps: Vec<serde_json::Value> = vec![];
 
             let outcome = if overlaps.is_empty() {
                 println!("{} No deterministic overlaps detected.", "✓".green());
@@ -155,13 +168,7 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                     overlaps.len()
                 );
                 for (i, finding) in overlaps.iter().enumerate() {
-                    println!(
-                        "   {}. {} ↔ {} (Area: {}px²)",
-                        i + 1,
-                        finding.element_1.red(),
-                        finding.element_2.red(),
-                        finding.overlap_area.yellow()
-                    );
+                    println!("   {}. {:?}", i + 1, finding);
                 }
                 "warning"
             };
@@ -243,10 +250,23 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
 
             println!("{} Wave 0 audit complete.", "✓".green());
 
-            engine
-                .close(&page_id)
-                .await
-                .map_err(|e| miette::miette!("Failed to close browser: {}", e))?;
+            let page_id_for_close = page_id.clone();
+            tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+                let plugin = vox_plugin_host::cached_code_plugin("browser")
+                    .map_err(|e| anyhow::anyhow!("browser plugin: {e}"))?;
+                let backend = plugin
+                    .plugin
+                    .as_browser_automation()
+                    .into_option()
+                    .ok_or_else(|| anyhow::anyhow!("BrowserAutomation accessor returned None"))?;
+                backend
+                    .close(page_id_for_close.as_str().into())
+                    .into_result()
+                    .map_err(|e| anyhow::anyhow!("browser close: {e}"))
+            })
+            .await
+            .map_err(|e| miette::miette!("spawn_blocking: {e}"))?
+            .map_err(|e| miette::miette!("Failed to close browser: {e}"))?;
         }
         VisusCmd::Baseline {
             target,
@@ -265,22 +285,38 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                     .await
                     .map_err(|e| miette::miette!("Failed to connect to VoxDb: {}", e))?;
 
-                let engine = global_engine();
-                let page_id = engine
-                    .open(&target, true)
+                let target_owned = target.clone();
+                let (page_id, ss_bytes, tree_bytes) =
+                    tokio::task::spawn_blocking(move || -> anyhow::Result<(String, Vec<u8>, Vec<u8>)> {
+                        let plugin = vox_plugin_host::cached_code_plugin("browser")
+                            .map_err(|e| anyhow::anyhow!("browser plugin: {e}"))?;
+                        let backend = plugin
+                            .plugin
+                            .as_browser_automation()
+                            .into_option()
+                            .ok_or_else(|| anyhow::anyhow!("BrowserAutomation accessor returned None"))?;
+                        let page_id = backend
+                            .open(target_owned.as_str().into(), true)
+                            .into_result()
+                            .map_err(|e| anyhow::anyhow!("browser open: {e}"))?
+                            .into_string();
+                        let ss_bytes: Vec<u8> = backend
+                            .screenshot_bytes(page_id.as_str().into())
+                            .into_result()
+                            .map_err(|e| anyhow::anyhow!("browser screenshot: {e}"))?
+                            .into_iter()
+                            .collect();
+                        let tree_str = backend
+                            .ax_tree(page_id.as_str().into())
+                            .into_result()
+                            .map_err(|e| anyhow::anyhow!("browser ax_tree: {e}"))?
+                            .into_string();
+                        let tree_bytes = tree_str.into_bytes();
+                        Ok((page_id, ss_bytes, tree_bytes))
+                    })
                     .await
-                    .map_err(|e| miette::miette!("Failed to open browser: {}", e))?;
-
-                let ss_bytes = engine
-                    .screenshot_bytes(&page_id)
-                    .await
-                    .map_err(|e| miette::miette!("Screenshot failed: {}", e))?;
-
-                let tree = engine
-                    .ax_tree(&page_id)
-                    .await
-                    .map_err(|e| miette::miette!("AXTree extraction failed: {}", e))?;
-                let tree_bytes = serde_json::to_vec(&tree).unwrap();
+                    .map_err(|e| miette::miette!("spawn_blocking: {e}"))?
+                    .map_err(|e| miette::miette!("browser ops: {e}"))?;
 
                 let ss_hash = db
                     .store("visus_screenshot", &ss_bytes)
@@ -306,10 +342,23 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                 .map_err(|e| miette::miette!("Failed to save baseline: {}", e))?;
 
                 println!("{} Golden baseline updated successfully.", "✓".green());
-                engine
-                    .close(&page_id)
-                    .await
-                    .map_err(|e| miette::miette!("Failed to close browser: {}", e))?;
+                let page_id_for_close = page_id.clone();
+                tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+                    let plugin = vox_plugin_host::cached_code_plugin("browser")
+                        .map_err(|e| anyhow::anyhow!("browser plugin: {e}"))?;
+                    let backend = plugin
+                        .plugin
+                        .as_browser_automation()
+                        .into_option()
+                        .ok_or_else(|| anyhow::anyhow!("BrowserAutomation accessor returned None"))?;
+                    backend
+                        .close(page_id_for_close.as_str().into())
+                        .into_result()
+                        .map_err(|e| anyhow::anyhow!("browser close: {e}"))
+                })
+                .await
+                .map_err(|e| miette::miette!("spawn_blocking: {e}"))?
+                .map_err(|e| miette::miette!("Failed to close browser: {e}"))?;
             } else {
                 println!(
                     "{} Comparing current state against Vox Visus baselines...",

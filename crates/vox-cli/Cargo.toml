@@ -178,7 +178,6 @@ rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
 axum = { version = "0.8", optional = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
 vox-grammar-export = { workspace = true }
-vox-browser = { workspace = true }
 axum-extra = { version = "0.12.5", features = ["typed-header"] }
 notify = "7"
 tokio-stream = { version = "0.1", optional = true }

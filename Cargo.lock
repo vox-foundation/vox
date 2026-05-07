@@ -12051,6 +12051,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
+name = "vox-ars"
+version = "0.5.0"
+dependencies = [
+ "vox-skills",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-audio-ingress"
 version = "0.5.0"
 dependencies = [
@@ -12182,8 +12190,8 @@ dependencies = [
  "tracing-subscriber",
  "turso",
  "uuid",
+ "vox-ars",
  "vox-bounded-fs",
- "vox-browser",
  "vox-capability-registry",
  "vox-checksum-manifest",
  "vox-clavis",
@@ -12823,6 +12831,7 @@ dependencies = [
  "tracing-subscriber",
  "turso",
  "uuid",
+ "vox-ars",
  "vox-bounded-fs",
  "vox-browser",
  "vox-capability-registry",
@@ -13291,6 +13300,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "vox-ars",
  "vox-browser",
  "vox-clavis",
  "vox-config",
