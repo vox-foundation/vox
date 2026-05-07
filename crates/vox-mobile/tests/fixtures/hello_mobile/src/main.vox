@@ -1,0 +1,5 @@
+// vox:skip
+// Placeholder — Task 5 tests the cargo-ndk wrapper, not the Vox compiler.
+fn main() {
+    println("hello from mobile")
+}

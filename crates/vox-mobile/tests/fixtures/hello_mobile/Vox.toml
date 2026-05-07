@@ -1,0 +1,16 @@
+[package]
+name = "hello_mobile"
+version = "0.1.0"
+kind = "application"
+
+[build]
+target = "mobile"
+
+[mobile]
+platforms = ["android"]
+
+[mobile.android]
+min_sdk = 26
+target_sdk = 35
+abis = ["aarch64-linux-android"]
+ndk_version = "27.0.11902837"
