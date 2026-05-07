@@ -12,34 +12,26 @@ export interface RunsToolbarProps {
 
 export function RunsToolbar({ live_tail, on_toggle_live }: RunsToolbarProps): React.ReactElement {
   return (
-<row h={11} border_b={true} border_color={"zinc.800"} pad_x={4} items={"center"} gap={3} shrink={0} bg={"zinc.950"}
->
-  <panel flex={1} bg={"zinc.900"} border={true} border_color={"white/10"} radius={"lg"} pad_x={3} raw_class={"h-8 flex items-center"}
->
-  <text size={"sm"} color={"zinc.600"} italic={true}
->
-  {"Search runs…"}
-</text>
-</panel>
-  <row gap={2} items={"center"} shrink={0}
->
-  <button raw_class={"px-2 py-0.5 rounded-full text-xs font-mono bg-zinc-800 text-zinc-400 border border-white/10 hover:bg-zinc-700"}
->
-  {"all"}
-</button>
-  <button raw_class={"px-2 py-0.5 rounded-full text-xs font-mono bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 hover:bg-emerald-400/20"}
->
-  {"ok"}
-</button>
-  <button raw_class={"px-2 py-0.5 rounded-full text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20"}
->
-  {"error"}
-</button>
-</row>
-  <button raw_class={(live_tail ? "px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-500 shrink-0" : "px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800 shrink-0")} onClick={on_toggle_live}
->
-  {(live_tail ? "Live tail: on" : "Live tail: off")}
-</button>
-</row>
+    <div className={["flex", "flex-row", "h-11", "border-b-true", "border-zinc-800", "px-4", "flex items-center", "gap-3", "shrink-0", "bg-zinc-950"].filter(Boolean).join(" ")}>
+      <div className={["flex-1", "bg-zinc-900", "border", "border-white/10", "rounded-lg", "px-3", "h-8 flex items-center"].filter(Boolean).join(" ")} role={region}>
+        <p className={["text-sm", "text-zinc-600", "italic"].filter(Boolean).join(" ")}>
+          {"Search runs…"}
+        </p>
+      </div>
+      <div className={["flex", "flex-row", "gap-2", "flex items-center", "shrink-0"].filter(Boolean).join(" ")}>
+        <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "px-2 py-0.5 rounded-full text-xs font-mono bg-zinc-800 text-zinc-400 border border-white/10 hover:bg-zinc-700"].filter(Boolean).join(" ")}>
+          {"all"}
+        </button>
+        <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "px-2 py-0.5 rounded-full text-xs font-mono bg-emerald-400/10 text-emerald-400 border border-emerald-400/20 hover:bg-emerald-400/20"].filter(Boolean).join(" ")}>
+          {"ok"}
+        </button>
+        <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "px-2 py-0.5 rounded-full text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20"].filter(Boolean).join(" ")}>
+          {"error"}
+        </button>
+      </div>
+      <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", (live_tail ? "px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-500 shrink-0" : "px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800 shrink-0")].filter(Boolean).join(" ")} onClick={on_toggle_live}>
+        {(live_tail ? "Live tail: on" : "Live tail: off")}
+      </button>
+    </div>
   );
 }

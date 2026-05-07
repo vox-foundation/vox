@@ -13,23 +13,18 @@ export interface EventRowProps {
 
 export function EventRow({ kind, label, ts }: EventRowProps): React.ReactElement {
   return (
-<row items={"start"} gap={3} pad_y={1} border_b={true} border_color={"zinc.800/40"}
->
-  <text size={"xs"} fontFamily={"mono"} color={"zinc.700"} raw_class={"w-14 shrink-0 text-right"}
->
-  {ts}
-</text>
-  <column gap={0} flex={1}
->
-  <text size={"xs"} fontFamily={"mono"} color={"zinc.400"}
->
-  {kind}
-</text>
-  <text size={"xs"} color={"zinc.600"} raw_class={"leading-snug"}
->
-  {label}
-</text>
-</column>
-</row>
+    <div className={["flex", "flex-row", "flex items-start", "gap-3", "py-1", "border-b-true", "border-zinc-800/40"].filter(Boolean).join(" ")}>
+      <p className={["text-xs", "font-mono", "text-zinc-700", "w-14 shrink-0 text-right"].filter(Boolean).join(" ")}>
+        {ts}
+      </p>
+      <div className={["flex", "flex-col", "gap-0", "flex-1"].filter(Boolean).join(" ")}>
+        <p className={["text-xs", "font-mono", "text-zinc-400"].filter(Boolean).join(" ")}>
+          {kind}
+        </p>
+        <p className={["text-xs", "text-zinc-600", "leading-snug"].filter(Boolean).join(" ")}>
+          {label}
+        </p>
+      </div>
+    </div>
   );
 }

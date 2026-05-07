@@ -7,27 +7,22 @@ import React from "react";
 
 export function ActivityStrip(): React.ReactElement {
   return (
-<row h={20} border_t={true} border_color={"zinc.800"} pad_x={4} items={"center"} gap={3} shrink={0} bg={"zinc.950"}
->
-  <text size={"xs"} fontFamily={"mono"} color={"zinc.600"} raw_class={"w-10 shrink-0 text-right"}
->
-  {"tok/s"}
-</text>
-  <panel flex={1} raw_class={"h-10 relative overflow-hidden"}
->
-  <svg raw_class={"w-full h-full"} viewBox={"0 0 600 40"} preserveAspectRatio={"none"}
->
-  <rect x={0} y={36} width={8} height={4} fill={"#22c55e28"} />
-  <rect x={10} y={33} width={8} height={7} fill={"#22c55e38"} />
-  <rect x={20} y={29} width={8} height={11} fill={"#22c55e48"} />
-  <rect x={30} y={26} width={8} height={14} fill={"#22c55e58"} />
-  <rect x={40} y={22} width={8} height={18} fill={"#22c55e68"} />
-</svg>
-</panel>
-  <text size={"xs"} fontFamily={"mono"} color={"zinc.700"} raw_class={"w-10 shrink-0"}
->
-  {"-/s"}
-</text>
-</row>
+    <div className={["flex", "flex-row", "h-20", "border-t-true", "border-zinc-800", "px-4", "flex items-center", "gap-3", "shrink-0", "bg-zinc-950"].filter(Boolean).join(" ")}>
+      <p className={["text-xs", "font-mono", "text-zinc-600", "w-10 shrink-0 text-right"].filter(Boolean).join(" ")}>
+        {"tok/s"}
+      </p>
+      <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "flex-1", "h-10 relative overflow-hidden"].filter(Boolean).join(" ")} role={region}>
+        <svg className={"w-full h-full"} preserveAspectRatio={"none"} viewBox={"0 0 600 40"}>
+          <rect fill={"#22c55e28"} height={4} width={8} x={0} y={36} />
+          <rect fill={"#22c55e38"} height={7} width={8} x={10} y={33} />
+          <rect fill={"#22c55e48"} height={11} width={8} x={20} y={29} />
+          <rect fill={"#22c55e58"} height={14} width={8} x={30} y={26} />
+          <rect fill={"#22c55e68"} height={18} width={8} x={40} y={22} />
+        </svg>
+      </div>
+      <p className={["text-xs", "font-mono", "text-zinc-700", "w-10 shrink-0"].filter(Boolean).join(" ")}>
+        {"-/s"}
+      </p>
+    </div>
   );
 }

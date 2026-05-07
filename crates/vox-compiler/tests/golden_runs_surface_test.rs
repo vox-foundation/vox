@@ -186,11 +186,11 @@ fn run_row_emits_seven_columns() {
     insta::assert_snapshot!("run_row_tsx_runs_surface", ts);
 
     // 7 data columns: id / started / duration / model / status / cost / tokens
-    // Count text elements — there should be at least 6 text renders plus StateChip
-    let text_count = ts.matches("<text").count();
+    // Count <p> elements (text(...) lowers to <p>) — at least 6 text renders.
+    let text_count = ts.matches("<p ").count();
     assert!(
         text_count >= 6,
-        "RunRow must emit at least 6 <text elements, got {text_count}"
+        "RunRow must emit at least 6 <p> elements, got {text_count}"
     );
 }
 

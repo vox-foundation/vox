@@ -12,61 +12,58 @@ import { StateChip } from "./StateChip";
 export function MeshTopology(): React.ReactElement {
   const [selected, set_selected] = useState("");
   return (
-<row flex={1} min_h={0} overflow={"hidden"}
->
-  <panel flex={1} overflow={"hidden"} bg={"zinc.950"}
->
-  <svg raw_class={"w-full h-full"} viewBox={"0 0 800 480"}
->
-  <line x1={230} y1={260} x2={570} y2={260} stroke={"#1d4ed8"} strokeWidth={1} strokeDasharray={"6 3"} />
-  <line x1={230} y1={260} x2={130} y2={120} stroke={"#3f3f46"} strokeWidth={1} />
-  <line x1={230} y1={260} x2={230} y2={80} stroke={"#3f3f46"} strokeWidth={1} />
-  <line x1={230} y1={260} x2={330} y2={120} stroke={"#3f3f46"} strokeWidth={1} />
-  <line x1={570} y1={260} x2={470} y2={120} stroke={"#3f3f46"} strokeWidth={1} />
-  <line x1={570} y1={260} x2={670} y2={120} stroke={"#3f3f46"} strokeWidth={1} />
-  <OrchNode points={"262,260 246,288 214,288 198,260 214,232 246,232"} id={"orchestrator-7c2a"} selected={selected} orch_stroke={"#2563eb"} onClick={(() => ((() => {
-    set_selected("orchestrator-7c2a");
-  })()))} />
-  <OrchNode points={"602,260 586,288 554,288 538,260 554,232 586,232"} id={"orchestrator-3f1b"} selected={selected} orch_stroke={"#7c3aed"} onClick={(() => ((() => {
-    set_selected("orchestrator-3f1b");
-  })()))} />
-  <AgentNode cx={130} cy={120} id={"lex-2"} selected={selected} onClick={(() => ((() => {
-    set_selected("lex-2");
-  })()))} />
-  <AgentNode cx={230} cy={80} id={"parse-1"} selected={selected} onClick={(() => ((() => {
-    set_selected("parse-1");
-  })()))} />
-  <AgentNode cx={330} cy={120} id={"hir-3"} selected={selected} onClick={(() => ((() => {
-    set_selected("hir-3");
-  })()))} />
-  <AgentNode cx={470} cy={120} id={"typecheck-1"} selected={selected} onClick={(() => ((() => {
-    set_selected("typecheck-1");
-  })()))} />
-  <AgentNode cx={670} cy={120} id={"codegen-2"} selected={selected} onClick={(() => ((() => {
-    set_selected("codegen-2");
-  })()))} />
-</svg>
-</panel>
-  {(selected === "" ? <panel  /> : <column w={72} border_l={true} border_color={"zinc.800"} bg={"zinc.950"} shrink={0}
->
-  <row h={10} pad_x={4} items={"center"} justify={"between"} border_b={true} border_color={"zinc.800"}
->
-  <text size={"xs"} weight={"bold"} color={"white/80"} fontFamily={"mono"}
->
-  {selected}
-</text>
-  <button raw_class={"p-1 rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800"} onClick={(() => ((() => {
-    set_selected("");
-  })()))}
->
-  {"x"}
-</button>
-</row>
-  <column pad={4} gap={3}
->
-  <StateChip status={"idle"} label={"idle"} />
-</column>
-</column>)}
-</row>
+    <div className={["flex", "flex-row", "flex-1", "min-h-0", "overflow-hidden"].filter(Boolean).join(" ")}>
+      <div className={["rounded-lg", "border", "border-border", "p-4", "flex-1", "overflow-hidden", "bg-zinc-950"].filter(Boolean).join(" ")} role={region}>
+        <svg className={"w-full h-full"} viewBox={"0 0 800 480"}>
+          <line stroke={"#1d4ed8"} strokeDasharray={"6 3"} strokeWidth={1} x1={230} x2={570} y1={260} y2={260} />
+          <line stroke={"#3f3f46"} strokeWidth={1} x1={230} x2={130} y1={260} y2={120} />
+          <line stroke={"#3f3f46"} strokeWidth={1} x1={230} x2={230} y1={260} y2={80} />
+          <line stroke={"#3f3f46"} strokeWidth={1} x1={230} x2={330} y1={260} y2={120} />
+          <line stroke={"#3f3f46"} strokeWidth={1} x1={570} x2={470} y1={260} y2={120} />
+          <line stroke={"#3f3f46"} strokeWidth={1} x1={570} x2={670} y1={260} y2={120} />
+          <OrchNode id={"orchestrator-7c2a"} onClick={(() => ((() => {
+        set_selected("orchestrator-7c2a");
+      })()))} orch_stroke={"#2563eb"} points={"262,260 246,288 214,288 198,260 214,232 246,232"} selected={selected} />
+          <OrchNode id={"orchestrator-3f1b"} onClick={(() => ((() => {
+        set_selected("orchestrator-3f1b");
+      })()))} orch_stroke={"#7c3aed"} points={"602,260 586,288 554,288 538,260 554,232 586,232"} selected={selected} />
+          <AgentNode cx={130} cy={120} id={"lex-2"} onClick={(() => ((() => {
+        set_selected("lex-2");
+      })()))} selected={selected} />
+          <AgentNode cx={230} cy={80} id={"parse-1"} onClick={(() => ((() => {
+        set_selected("parse-1");
+      })()))} selected={selected} />
+          <AgentNode cx={330} cy={120} id={"hir-3"} onClick={(() => ((() => {
+        set_selected("hir-3");
+      })()))} selected={selected} />
+          <AgentNode cx={470} cy={120} id={"typecheck-1"} onClick={(() => ((() => {
+        set_selected("typecheck-1");
+      })()))} selected={selected} />
+          <AgentNode cx={670} cy={120} id={"codegen-2"} onClick={(() => ((() => {
+        set_selected("codegen-2");
+      })()))} selected={selected} />
+        </svg>
+      </div>
+      {(selected === "" ? <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4"].filter(Boolean).join(" ")} /> : <div className={["flex", "flex-col", "w-72", "border-l-true", "border-zinc-800", "bg-zinc-950", "shrink-0"].filter(Boolean).join(" ")}
+    >
+      <div className={["flex", "flex-row", "h-10", "px-4", "flex items-center", "flex justify-between", "border-b-true", "border-zinc-800"].filter(Boolean).join(" ")}
+    >
+      <p className={["text-xs", "font-bold", "text-white/80", "font-mono"].filter(Boolean).join(" ")}
+    >
+      {selected}
+    </p>
+      <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "p-1 rounded text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800"].filter(Boolean).join(" ")} onClick={(() => ((() => {
+        set_selected("");
+      })()))}
+    >
+      {"x"}
+    </button>
+    </div>
+      <div className={["flex", "flex-col", "p-4", "gap-3"].filter(Boolean).join(" ")}
+    >
+      <StateChip status={"idle"} label={"idle"} />
+    </div>
+    </div>)}
+    </div>
   );
 }

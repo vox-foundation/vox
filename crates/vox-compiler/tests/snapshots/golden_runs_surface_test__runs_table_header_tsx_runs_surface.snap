@@ -7,36 +7,28 @@ import React from "react";
 
 export function RunsTableHeader(): React.ReactElement {
   return (
-<row border_b={true} border_color={"zinc.700"} pad_x={4} pad_y={0} items={"center"} shrink={0} bg={"zinc.900/50"} raw_class={"h-8 sticky top-0 z-10"}
->
-  <text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.600"} raw_class={"w-24 shrink-0"}
->
-  {"ID"}
-</text>
-  <text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.600"} raw_class={"w-36 shrink-0"}
->
-  {"STARTED"}
-</text>
-  <text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.600"} raw_class={"w-20 shrink-0"}
->
-  {"DURATION"}
-</text>
-  <text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.600"} raw_class={"flex-1"}
->
-  {"MODEL"}
-</text>
-  <text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.600"} raw_class={"w-20 shrink-0"}
->
-  {"STATUS"}
-</text>
-  <text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.600"} raw_class={"w-20 shrink-0 text-right"}
->
-  {"COST"}
-</text>
-  <text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.600"} raw_class={"w-20 shrink-0 text-right pr-1"}
->
-  {"TOKENS"}
-</text>
-</row>
+    <div className={["flex", "flex-row", "border-b-true", "border-zinc-700", "px-4", "py-0", "flex items-center", "shrink-0", "bg-zinc-900/50", "h-8 sticky top-0 z-10"].filter(Boolean).join(" ")}>
+      <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-600", "w-24 shrink-0"].filter(Boolean).join(" ")}>
+        {"ID"}
+      </p>
+      <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-600", "w-36 shrink-0"].filter(Boolean).join(" ")}>
+        {"STARTED"}
+      </p>
+      <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-600", "w-20 shrink-0"].filter(Boolean).join(" ")}>
+        {"DURATION"}
+      </p>
+      <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-600", "flex-1"].filter(Boolean).join(" ")}>
+        {"MODEL"}
+      </p>
+      <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-600", "w-20 shrink-0"].filter(Boolean).join(" ")}>
+        {"STATUS"}
+      </p>
+      <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-600", "w-20 shrink-0 text-right"].filter(Boolean).join(" ")}>
+        {"COST"}
+      </p>
+      <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-600", "w-20 shrink-0 text-right pr-1"].filter(Boolean).join(" ")}>
+        {"TOKENS"}
+      </p>
+    </div>
   );
 }
