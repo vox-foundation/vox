@@ -21,7 +21,7 @@ vox-config.workspace = true
 vox-orchestrator-types.workspace = true
 vox-primitives.workspace = true
 vox-clavis = { workspace = true }
-vox-browser.workspace = true
+vox-plugin-host = { workspace = true }
 vox-skills.workspace = true
 vox-ars = { workspace = true }
 vox-db = { workspace = true, optional = true }
