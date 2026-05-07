@@ -27,7 +27,10 @@ pub use deploy_coolify::{
 };
 
 pub use lockfile::Lockfile;
-pub use manifest::{DependencySpec, DeploySection, DetailedDependency, ManifestError, VoxManifest};
+pub use manifest::{
+    AndroidConfig, BuildSection, DependencySpec, DeploySection, DetailedDependency, IosConfig,
+    ManifestError, MobileSection, VoxManifest, validate_mobile,
+};
 pub use registry::{
     DownloadResponse, PublishDependency, PublishRequest, RegistryClient, RegistryPackageInfo,
     SearchResult,

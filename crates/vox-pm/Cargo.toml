@@ -11,6 +11,7 @@ local = ["vox-db/local"]
 replication = ["vox-db/replication"]
 
 [dependencies]
+anyhow = { workspace = true }
 vox-db = { workspace = true }
 vox-compiler = { workspace = true }
 bincode = { workspace = true }
