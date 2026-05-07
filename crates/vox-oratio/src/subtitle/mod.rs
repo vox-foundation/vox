@@ -5,4 +5,5 @@ pub mod ffmpeg_extract;
 /// Subtitle generator formatting utilities (SRT).
 pub mod srt;
 
-pub use srt::{format_srt, generate_srt_file};
+pub use srt::format_srt;
+pub use srt::generate_srt_file;

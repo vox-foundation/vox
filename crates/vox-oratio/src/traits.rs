@@ -156,6 +156,15 @@ pub fn transcript_status() -> &'static str {
     return "Vox Oratio: built without `stt-candle` or `stt-sherpa`; only `.txt`/`.md` transcript passthrough is available.";
 }
 
+/// Apply the full deterministic refinement pipeline (lexicon + rerank) to a raw transcript string.
+///
+/// Used by callers that obtain the raw transcription from an external source (e.g., a plugin)
+/// and need the same correction pass as `transcribe_path_detailed`.
+pub fn refine_raw_text(raw_text: &str, ctx: &CorrectionContext) -> TranscribeDetail {
+    let refined = crate::refine::refine_transcript(raw_text, ctx);
+    finalize_after_refine(raw_text.to_string(), refined)
+}
+
 /// Transcribe `path` with explicit refinement context and optional Whisper language override.
 ///
 /// For `.txt` / `.md`, `language_hint` is ignored. For audio, it is forwarded to the Candle backend.
@@ -195,41 +204,50 @@ pub fn transcribe_path_detailed(
     );
 
     if is_audio_or_video {
-        let (pcm, sample_rate) = match crate::backends::audio_io::pcm_decode_to_16k_mono(path) {
-            Ok(res) => (res, 16_000),
-            Err(e) => {
-                // If symphonia fails, try ffmpeg fallback for video containers
-                if matches!(ext.as_str(), "mp4" | "mkv" | "avi" | "webm" | "mov") {
-                    tracing::info!("audio_io failed: {}, attempting ffmpeg fallback", e);
-                    match crate::subtitle::ffmpeg_extract::extract_audio_ffmpeg(path) {
-                        Ok(res) => (res, 16_000),
-                        Err(e2) => {
-                            anyhow::bail!("audio extraction failed: {} (ffmpeg failed: {})", e, e2)
+        #[cfg(feature = "stt-candle")]
+        {
+            let (pcm, sample_rate) = match crate::backends::audio_io::pcm_decode_to_16k_mono(path) {
+                Ok(res) => (res, 16_000u32),
+                Err(e) => {
+                    // If symphonia fails, try ffmpeg fallback for video containers
+                    if matches!(ext.as_str(), "mp4" | "mkv" | "avi" | "webm" | "mov") {
+                        tracing::info!("audio_io failed: {}, attempting ffmpeg fallback", e);
+                        match crate::subtitle::ffmpeg_extract::extract_audio_ffmpeg(path) {
+                            Ok(res) => (res, 16_000),
+                            Err(e2) => {
+                                anyhow::bail!("audio extraction failed: {} (ffmpeg failed: {})", e, e2)
+                            }
                         }
+                    } else {
+                        anyhow::bail!("audio decode failed: {}", e);
                     }
-                } else {
-                    anyhow::bail!("audio decode failed: {}", e);
                 }
-            }
-        };
+            };
 
-        // Allow acoustic preprocess via AsrBackend path
-        let budget_ms =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs)
-                .expose()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(25u64);
-        // Note: preprocess_audio_pcm_f32_reported returns (Vec<f32>, AcousticsPreprocessDiagnostics)
-        let (pcm, _diag) =
-            crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms);
+            // Allow acoustic preprocess via AsrBackend path
+            let budget_ms =
+                vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs)
+                    .expose()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(25u64);
+            let (pcm, _diag) =
+                crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms);
 
-        let (_diag, whisper_lang) = crate::language::prepare_language_hint(language_hint);
+            let (_diag, whisper_lang) = crate::language::prepare_language_hint(language_hint);
 
-        let backend = crate::backend_dispatch::create_backend()?;
-        let out = backend.transcribe_pcm(&pcm, sample_rate, whisper_lang.as_deref())?;
+            let backend = crate::backend_dispatch::create_backend()?;
+            let out = backend.transcribe_pcm(&pcm, sample_rate, whisper_lang.as_deref())?;
 
-        let refined = crate::refine::refine_transcript(&out.raw_text, ctx);
-        return Ok(finalize_after_refine(out.raw_text, refined));
+            let refined = crate::refine::refine_transcript(&out.raw_text, ctx);
+            return Ok(finalize_after_refine(out.raw_text, refined));
+        }
+
+        #[cfg(not(feature = "stt-candle"))]
+        anyhow::bail!(
+            "Vox Oratio: audio transcription requires stt-candle feature; \
+             file: {}. Use vox-plugin-oratio for plugin-dispatched transcription.",
+            path.display()
+        );
     }
 
     anyhow::bail!(

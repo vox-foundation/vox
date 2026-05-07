@@ -112,6 +112,7 @@ fn parse_srt_time(s: &str) -> Option<u64> {
 
 /// Generates an SRT file by processing audio from an input media path.
 /// Handles audio extraction, preprocessing, and speech-to-text inference.
+#[cfg(any(feature = "stt-candle", feature = "stt-sherpa"))]
 pub fn generate_srt_file(
     input_path: String,
     explicit_output: Option<String>,
@@ -241,4 +242,20 @@ pub fn generate_srt_file(
     }
 
     Ok(metrics)
+}
+
+#[cfg(not(any(feature = "stt-candle", feature = "stt-sherpa")))]
+pub fn generate_srt_file(
+    input_path: String,
+    _explicit_output: Option<String>,
+    _language: Option<String>,
+    _line_width: usize,
+    _max_lines: usize,
+    _ground_truth_srt: Option<String>,
+    _persist: bool,
+) -> anyhow::Result<Option<(f64, f64, f32)>> {
+    anyhow::bail!(
+        "generate_srt_file requires stt-candle or stt-sherpa feature; file: {}",
+        input_path
+    )
 }

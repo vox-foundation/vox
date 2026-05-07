@@ -1,7 +1,7 @@
 //! HTTP ingress for Oratio STT — aligns with [`contracts/codex-api.openapi.yaml`] `/api/audio/*` paths.
 //!
 //! **Design:** capture stays on the client (browser/CLI/mobile); this service resolves paths under
-//! `VOX_ORATIO_WORKSPACE` (or CWD) and runs `vox-oratio` transcription.
+//! `VOX_ORATIO_WORKSPACE` (or CWD) and runs transcription via the `oratio` plugin.
 //!
 //! Bind: `VOX_DASH_HOST` / `VOX_DASH_PORT` (default `127.0.0.1:3847`).
 
@@ -83,6 +83,60 @@ struct TranscribeResponse {
     n_best: Option<Vec<String>>,
 }
 
+/// Transcribe an audio file via the `oratio` plugin, then apply deterministic refinement.
+///
+/// For `.txt` / `.md` files, falls back to `vox_oratio::transcribe_path_detailed` which handles
+/// passthrough without invoking the candle backend.
+fn transcribe_path_via_plugin(
+    path: &Path,
+    ctx: &vox_oratio::refine::CorrectionContext,
+    language_hint: Option<&str>,
+) -> anyhow::Result<vox_oratio::TranscribeDetail> {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+
+    // Text/markdown passthrough: vox-oratio handles this without candle.
+    if matches!(ext.as_str(), "txt" | "md") {
+        return vox_oratio::transcribe_path_detailed(path, ctx, language_hint)
+            .map_err(|e| anyhow::anyhow!("{e}"));
+    }
+
+    // Audio: dispatch through the oratio plugin.
+    let plugin = vox_plugin_host::cached_code_plugin("oratio")
+        .map_err(|e| anyhow::anyhow!("oratio plugin load: {e}"))?;
+    let stt = plugin
+        .plugin
+        .as_speech_to_text()
+        .into_option()
+        .ok_or_else(|| anyhow::anyhow!("oratio plugin missing SpeechToText accessor"))?;
+
+    let path_str = path.to_string_lossy().to_string();
+    let config_json = serde_json::json!({
+        "language": language_hint,
+    })
+    .to_string();
+
+    let transcription_json = stt
+        .transcribe_path(path_str.as_str().into(), config_json.as_str().into())
+        .into_result()
+        .map_err(|e| anyhow::anyhow!("transcribe_path plugin: {e}"))?;
+
+    // Extract raw text from the plugin's JSON output.
+    let v: serde_json::Value = serde_json::from_str(transcription_json.as_str())
+        .map_err(|e| anyhow::anyhow!("plugin returned invalid JSON: {e}"))?;
+    let raw_text = v
+        .get("text")
+        .and_then(|t| t.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    // Apply the full deterministic refinement pipeline (lexicon + rerank).
+    Ok(vox_oratio::refine_raw_text(&raw_text, ctx))
+}
+
 async fn api_audio_transcribe_json(
     State(state): State<AppState>,
     Json(body): Json<TranscribeJsonBody>,
@@ -102,7 +156,7 @@ async fn api_audio_transcribe_json(
         false,
     );
     let detail =
-        match vox_oratio::transcribe_path_detailed(&full, &ctx, body.language_hint.as_deref()) {
+        match transcribe_path_via_plugin(&full, &ctx, body.language_hint.as_deref()) {
             Ok(d) => d,
             Err(e) => {
                 return (
@@ -211,7 +265,7 @@ async fn api_audio_transcribe_upload(
         vox_oratio::refine::OratioCorrectionProfile::Balanced,
         false,
     );
-    let detail = match vox_oratio::transcribe_path_detailed(&path, &ctx, language_hint.as_deref()) {
+    let detail = match transcribe_path_via_plugin(&path, &ctx, language_hint.as_deref()) {
         Ok(d) => d,
         Err(e) => {
             let _ = tokio::fs::remove_file(&path).await;
@@ -290,7 +344,7 @@ async fn transcribe_pcm_buffer(
             vox_oratio::refine::OratioCorrectionProfile::Balanced,
             false,
         );
-        let out = vox_oratio::transcribe_path_detailed(&wav, &ctx, language_hint.as_deref());
+        let out = transcribe_path_via_plugin(&wav, &ctx, language_hint.as_deref());
         let _ = std::fs::remove_file(&wav);
         out
     })

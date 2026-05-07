@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use byteorder::{LittleEndian, ReadBytesExt};
 use std::path::Path;
 use std::process::Command;
 
@@ -29,13 +28,12 @@ pub fn extract_audio_ffmpeg(path: &Path) -> Result<Vec<f32>> {
         anyhow::bail!("ffmpeg failed with status {}: {}", output.status, stderr);
     }
 
-    let mut pcm = Vec::new();
-    let mut cursor = std::io::Cursor::new(output.stdout);
-
-    // Read 32-bit floats
-    while let Ok(f) = cursor.read_f32::<LittleEndian>() {
-        pcm.push(f);
-    }
+    // Interpret raw bytes as little-endian f32 samples.
+    let pcm: Vec<f32> = output
+        .stdout
+        .chunks_exact(4)
+        .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .collect();
 
     Ok(pcm)
 }

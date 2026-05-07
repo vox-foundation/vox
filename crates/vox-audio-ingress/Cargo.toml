@@ -22,7 +22,8 @@ uuid = { workspace = true }
 hound = { workspace = true }
 
 vox-config = { workspace = true }
-vox-oratio = { workspace = true, features = ["stt-candle", "compiler-rerank"] }
+vox-oratio = { workspace = true, features = ["compiler-rerank"] }
+vox-plugin-host = { workspace = true }
 workspace-hack = { workspace = true }
 
 [lints]

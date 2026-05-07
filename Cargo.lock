@@ -12073,6 +12073,7 @@ dependencies = [
  "uuid",
  "vox-config",
  "vox-oratio",
+ "vox-plugin-host",
  "workspace-hack",
 ]
 
