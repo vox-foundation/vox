@@ -2,7 +2,7 @@
 
 use abi_stable::{sabi_trait, std_types::*};
 
-pub const SPEECH_TO_TEXT_REVISION: u32 = 1;
+pub const SPEECH_TO_TEXT_REVISION: u32 = 2;
 
 #[sabi_trait]
 pub trait SpeechToText: Send + Sync {
@@ -24,4 +24,18 @@ pub trait SpeechToText: Send + Sync {
 
     /// End a streaming session and return the final transcription JSON.
     fn end_stream(&self, session_id: RStr<'_>) -> RResult<RString, RBoxError>;
+
+    /// Transcribe an audio file at `path`. Plugin handles decoding internally.
+    /// Equivalent to vox-oratio's `transcribe_path_detailed`. Returns transcription JSON
+    /// matching `transcribe()`'s shape.
+    fn transcribe_path(
+        &self,
+        path: RStr<'_>,
+        config_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        let _ = (path, config_json);
+        RResult::RErr(RBoxError::new(std::io::Error::other(
+            "transcribe_path not implemented by this SpeechToText backend",
+        )))
+    }
 }
