@@ -538,6 +538,9 @@ pub enum CiCmd {
     /// Walk crates/ for skill/composite Plugin.toml files and assert skill-md exists, is non-empty, and tools.exposes is non-empty.
     #[command(name = "plugin-skill-parity")]
     PluginSkillParity,
+    /// Walk crates/vox-plugin-* for *.skill.md files and enforce AgentSkills frontmatter contract (name, description, format, directory match).
+    #[command(name = "agentskills-compliance")]
+    AgentSkillsCompliance,
     /// Poll GitHub Actions checks for the current HEAD (or a specific SHA) and print failures.
     #[command(name = "watch-run")]
     WatchRun {

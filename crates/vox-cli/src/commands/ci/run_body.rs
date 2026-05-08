@@ -392,6 +392,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::PluginCatalogParity => super::plugin_catalog_parity::run(),
         CiCmd::PluginAbiParity => super::plugin_abi_parity::run(),
         CiCmd::PluginSkillParity => super::plugin_skill_parity::run(),
+        CiCmd::AgentSkillsCompliance => super::agentskills_compliance::run(),
         CiCmd::CoolifyEval { cmd } => super::coolify_eval::run(cmd).await,
         CiCmd::WatchRun {
             sha,

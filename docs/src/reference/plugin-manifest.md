@@ -131,6 +131,20 @@ The `vox-skills` parser reads `metadata.vox-*` fields first, then falls back to 
 
 If neither `metadata.vox-id` nor the legacy `id` field is present, the parser derives the id from the `name` field.
 
+### CI enforcement
+
+The `vox ci agentskills-compliance` guard runs on every PR and enforces the AgentSkills frontmatter contract for all `*.skill.md` files under `crates/vox-plugin-*`:
+
+- Frontmatter block (`---` … `---`) must be present.
+- `name` must be present, match `^[a-z0-9][a-z0-9-]{0,63}$`, and equal the crate directory short-name (directory name with the `vox-plugin-` prefix stripped).
+- `description` must be present and ≤ 1024 chars.
+
+Run locally with:
+
+```
+vox ci agentskills-compliance
+```
+
 ## Validation
 
 The manifest is parsed at host startup and validated against this schema. Failures are reported by `vox plugin doctor` with the offending field path.
