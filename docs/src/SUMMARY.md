@@ -456,6 +456,7 @@ training_eligible: false
 - [scientia external discovery research 2026](archive/research-2026-q1/scientia-external-discovery-research-2026.md)
 - [scientia pipeline ssot 2026](archive/research-2026-q1/scientia-pipeline-ssot-2026.md)
 - [scientia socrates unification research 2026](archive/research-2026-q1/scientia-socrates-unification-research-2026.md)
+- [vox-container vs WASM Sandbox (2026-05-08)](architecture/vox-container-vs-wasm-2026-05-08.md)
 - [vox-tensor-pytorch-gap-audit.md](archive/research-2026-q1/vox-tensor-pytorch-gap-audit.md)
 - [Network Neuroscience Theory and AI Agent Orchestration (Research 2026)](archive/research-2026-q1/network-neuroscience-theory-research-2026.md)
 

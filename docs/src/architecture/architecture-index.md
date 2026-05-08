@@ -111,6 +111,7 @@ training_eligible: false
 - [Vox-Populi Extraction Follow-Up Plan (2026)](vox-populi-extraction-followup-plan-2026.md)
 - [Warp Terminal Research Findings (2026)](warp-research-findings-2026.md)
 - [Web App Archetype Coverage Map (2026)](web-app-archetype-coverage-2026.md)
+- [vox-container vs WASM Sandbox (2026-05-08)](vox-container-vs-wasm-2026-05-08.md)
 
 ## Status: Roadmap
 
