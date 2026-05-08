@@ -191,6 +191,122 @@ pub fn vox_regex_compile(pattern: &str) -> Result<VoxRegex, String> {
         .map_err(|e| e.to_string())
 }
 
+// ── JSON (std.json.parse + opaque Json with typed accessors) ────────
+
+/// Opaque JSON value handed back to Vox as `Result[Json]`. Wraps `serde_json::Value`.
+#[derive(Debug, Clone)]
+pub struct VoxJson(pub serde_json::Value);
+
+impl VoxJson {
+    pub fn get_str(&self, key: String) -> Result<String, String> {
+        let obj = self
+            .0
+            .as_object()
+            .ok_or_else(|| "json: receiver is not an object".to_string())?;
+        let v = obj
+            .get(&key)
+            .ok_or_else(|| format!("json: missing key '{key}'"))?;
+        v.as_str()
+            .map(|s| s.to_string())
+            .ok_or_else(|| format!("json: key '{key}' is not a string"))
+    }
+    pub fn get_int(&self, key: String) -> Result<i64, String> {
+        let obj = self
+            .0
+            .as_object()
+            .ok_or_else(|| "json: receiver is not an object".to_string())?;
+        let v = obj
+            .get(&key)
+            .ok_or_else(|| format!("json: missing key '{key}'"))?;
+        v.as_i64()
+            .ok_or_else(|| format!("json: key '{key}' is not an integer"))
+    }
+    pub fn get_float(&self, key: String) -> Result<f64, String> {
+        let obj = self
+            .0
+            .as_object()
+            .ok_or_else(|| "json: receiver is not an object".to_string())?;
+        let v = obj
+            .get(&key)
+            .ok_or_else(|| format!("json: missing key '{key}'"))?;
+        v.as_f64()
+            .ok_or_else(|| format!("json: key '{key}' is not a number"))
+    }
+    pub fn get_bool(&self, key: String) -> Result<bool, String> {
+        let obj = self
+            .0
+            .as_object()
+            .ok_or_else(|| "json: receiver is not an object".to_string())?;
+        let v = obj
+            .get(&key)
+            .ok_or_else(|| format!("json: missing key '{key}'"))?;
+        v.as_bool()
+            .ok_or_else(|| format!("json: key '{key}' is not a bool"))
+    }
+    pub fn get_object(&self, key: String) -> Result<VoxJson, String> {
+        let obj = self
+            .0
+            .as_object()
+            .ok_or_else(|| "json: receiver is not an object".to_string())?;
+        let v = obj
+            .get(&key)
+            .ok_or_else(|| format!("json: missing key '{key}'"))?;
+        if v.is_object() {
+            Ok(VoxJson(v.clone()))
+        } else {
+            Err(format!("json: key '{key}' is not an object"))
+        }
+    }
+    pub fn get_array(&self, key: String) -> Result<VoxJson, String> {
+        let obj = self
+            .0
+            .as_object()
+            .ok_or_else(|| "json: receiver is not an object".to_string())?;
+        let v = obj
+            .get(&key)
+            .ok_or_else(|| format!("json: missing key '{key}'"))?;
+        if v.is_array() {
+            Ok(VoxJson(v.clone()))
+        } else {
+            Err(format!("json: key '{key}' is not an array"))
+        }
+    }
+    pub fn is_null(&self) -> bool {
+        self.0.is_null()
+    }
+    pub fn length(&self) -> i64 {
+        self.0.as_array().map(|a| a.len() as i64).unwrap_or(0)
+    }
+    pub fn at(&self, idx: i64) -> Result<VoxJson, String> {
+        if idx < 0 {
+            return Err(format!("json: negative array index {idx}"));
+        }
+        let arr = self
+            .0
+            .as_array()
+            .ok_or_else(|| "json: receiver is not an array".to_string())?;
+        arr.get(idx as usize)
+            .map(|v| VoxJson(v.clone()))
+            .ok_or_else(|| format!("json: index {idx} out of bounds (len={})", arr.len()))
+    }
+    pub fn keys(&self) -> Vec<String> {
+        self.0
+            .as_object()
+            .map(|o| o.keys().cloned().collect())
+            .unwrap_or_default()
+    }
+    pub fn to_string(&self) -> String {
+        self.0.to_string()
+    }
+}
+
+/// Parse a JSON string into the opaque `VoxJson`. Returns `Err(message)` on bad JSON.
+pub fn vox_json_parse(s: &str) -> Result<VoxJson, String> {
+    serde_json::from_str::<serde_json::Value>(s)
+        .map(VoxJson)
+        .map_err(|e| e.to_string())
+}
+
 /// Read a process environment variable (`std.env.get` in Vox scripts).
 pub fn vox_env_get(key: &str) -> Option<String> {
     std::env::var(key).ok()

@@ -538,6 +538,55 @@ impl BuiltinTypes {
         );
         methods.insert("JsonModule".into(), json_methods);
 
+        // Json opaque value type — produced by std.json.parse and walked via
+        // typed accessors (object-shape methods + array methods + scalar reads).
+        let mut json_value_methods = std::collections::HashMap::new();
+        json_value_methods.insert(
+            "get_str".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+        );
+        json_value_methods.insert(
+            "get_int".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Int)))),
+        );
+        json_value_methods.insert(
+            "get_float".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Float)))),
+        );
+        json_value_methods.insert(
+            "get_bool".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool)))),
+        );
+        json_value_methods.insert(
+            "get_object".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            ),
+        );
+        json_value_methods.insert(
+            "get_array".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            ),
+        );
+        json_value_methods.insert("is_null".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        json_value_methods.insert("length".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        json_value_methods.insert(
+            "at".into(),
+            Ty::Fn(
+                vec![Ty::Int],
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            ),
+        );
+        json_value_methods.insert(
+            "keys".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))),
+        );
+        json_value_methods.insert("to_string".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        methods.insert("Json".into(), json_value_methods);
+
         // Process module methods
         let mut process_methods = std::collections::HashMap::new();
         let process_output = Ty::Record(vec![
