@@ -37,7 +37,7 @@ pub async fn install_discovered_skills(
             }
         };
         // VoxSkillBundle is the same type (vox-skills re-exports from vox-plugin-host).
-        match registry.install(&bundle).await {
+        match registry.install_bundle(&bundle).await {
             Ok(result) if result.already_installed => {
                 tracing::debug!(
                     skill = %skill_id,

@@ -150,7 +150,7 @@ impl OpenClawClient {
         let md = self.fetch_skill_md(slug).await?;
         let bundle = parse_skill_md(&md).map_err(|e| OpenClawError::Install(e.to_string()))?;
         registry
-            .install(&bundle)
+            .install_bundle(&bundle)
             .await
             .map_err(|e| OpenClawError::Install(e.to_string()))
     }
