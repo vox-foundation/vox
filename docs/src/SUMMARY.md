@@ -58,7 +58,6 @@ training_eligible: false
 
 ## Status: Current
 
-- [@py.import – Python Library Integration (`torch`, `numpy`, etc.)](how-to/how-to-pytorch.md)
 - [Bootstrap a Vox application outside the monorepo](how-to/external-app-bootstrap.md)
 - [Clinical export (app-owned)](how-to/clinical-export-from-vox-apps.md)
 - [Contributing — Mens native training](how-to/how-to-contribute-mens.md)
@@ -87,6 +86,7 @@ training_eligible: false
 - [Picking a Vox bundle](how-to/how-to-pick-a-vox-bundle.md)
 - [Point your AI coding assistant at the Vox MCP validator](how-to/how-to-mcp-vox-validate.md)
 - [Populi Quickstart](how-to/populi-quickstart.md)
+- [Python Library Integration (Retired)](how-to/how-to-pytorch.md)
 - [Scientia publication: what you type vs what the system derives](how-to/scientia-publication-operator-inputs.md)
 - [Troubleshooting FAQ](how-to/troubleshooting-faq.md)
 
@@ -190,6 +190,8 @@ training_eligible: false
 - [Anti-foot-gun planning standard](architecture/planning-meta/05-anti-foot-gun-planning-standard.md)
 - [Architecture Classification SSOT (2026)](archive/research-2026-q1/classification-ssot-2026.md)
 - [Architecture Index](architecture/architecture-index.md)
+- [Build-Time Baseline (2026-05-08)](architecture/build-time-baseline.md)
+- [Build-Time Log](architecture/build-time-log.md)
 - [CLI design rules SSOT](archive/research-2026-q1/cli-design-rules-ssot.md)
 - [CLI reachability SSOT](archive/research-2026-q1/cli-reachability-ssot.md)
 - [Case Study: First Production Deployment (v0.5 Preview Gate)](case-studies/v0.5-production-deployment.md)
@@ -240,6 +242,7 @@ training_eligible: false
 - [Mobile/Desktop Convergence & Language Extension Research 2026](archive/research-2026-q1/mobile-desktop-convergence-research-2026.md)
 - [Model Orchestration SSOT — Audit & Convergence Plan (2026-04-20)](architecture/model-orchestration-ssot-audit-2026.md)
 - [Multi-Agent VCS Replication — Landscape Research (2026-05-03)](architecture/multi-agent-vcs-replication-research-2026.md)
+- [Naming & Anti-Entanglement Guards (2026-05-08)](architecture/2026-05-08-naming-and-guards-design.md)
 - [News syndication: incident patterns and mitigations](archive/research-2026-q1/news_syndication_incident_patterns.md)
 - [Next-Generation AI Orchestrator: Systemic Flaws, Power User Demands, and Production Design Patterns](architecture/nextgen-orchestrator-research-2026.md)
 - [Nomenclature migration map (SSOT)](archive/research-2026-q1/nomenclature-migration-map.md)
@@ -314,7 +317,10 @@ training_eligible: false
 - [VoxDB connection policy (SSOT)](archive/research-2026-q1/voxdb-connect-policy.md)
 - [VoxGiantia publication architecture (beginner map)](archive/research-2026-q1/voxgiantia-publication-architecture.md)
 - [Weighted deep planning manual](architecture/planning-meta/03-weighted-deep-planning-manual.md)
+- [Where Things Live](architecture/where-things-live.md)
 - [Wire Format v1 SSOT](architecture/wire-format-v1-ssot.md)
+- [Workspace Reorg Outcome (2026-05-08)](architecture/2026-05-08-workspace-reorg-outcome.md)
+- [Workspace Reorg — Build-Time + Layered Architecture (2026-05-08)](architecture/2026-05-08-workspace-reorg-design.md)
 - [agent-planning-multimodal-ssot.md](archive/research-2026-q1/agent-planning-multimodal-ssot.md)
 - [visus-audit-grounding.v1.md](architecture/prompts/visus-audit-grounding.v1.md)
 - [vox-library-mode-ssot.md](archive/research-2026-q1/vox-library-mode-ssot.md)
@@ -383,6 +389,7 @@ training_eligible: false
 - [Evidence Base for Context Retrieval Policies](archive/research-2026-q1/research-agent-handoff-retrieval-policies-2026.md)
 - [Execution Time Budgeting and Agent Learning Research 2026](archive/research-2026-q1/execution-time-agent-budgeting-research-2026.md)
 - [FableForge to Vox Conversion Analysis](archive/research-2026-q1/fableforge-to-vox-conversion-research-2026.md)
+- [Frontend Convergence Findings (2026)](architecture/frontend-convergence-findings-2026.md)
 - [GRPO Reward Shaping for Code LLMs](archive/research-2026-q1/research-grpo-reward-shaping-2026.md)
 - [GRPO and VRAM Efficiency: Architectural Comparisons and Small-Batch Dynamics](archive/research-2026-q1/research-grpo-vram-small-batch-2026.md)
 - [Gap Analysis and Recommended Architectural Adjustments](archive/research-2026-q1/research-grpo-gaps-and-adjustments-2026.md)
