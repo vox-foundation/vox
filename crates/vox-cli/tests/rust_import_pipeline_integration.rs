@@ -1,6 +1,6 @@
 //! End-to-end: parse `.vox` with `import rust:…`, lower, script codegen includes `Cargo.toml` deps.
 
-use vox_compiler::codegen_rust::{ScriptTarget, generate_script_with_target};
+use vox_compiler_emit::codegen_rust::{ScriptTarget, generate_script_with_target};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;

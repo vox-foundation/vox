@@ -41,7 +41,7 @@ fn test_ir_emission_with_hashing_and_inference() {
     assert!(greet_fn.return_type.is_some());
 
     // Generate IR
-    let vox_ir = vox_compiler::vox_ir::lower::lower_hir_to_vox_ir(&res.hir, Some(source));
+    let vox_ir = vox_compiler_emit::vox_ir::lower::lower_hir_to_vox_ir(&res.hir, Some(source));
 
     // Check hash
     assert!(!vox_ir.metadata.source_hash.is_empty());
@@ -75,7 +75,7 @@ fn tick() -> Unit {
 "#;
     let res =
         vox_compiler::pipeline::run_frontend_str(source, "sched.vox").expect("frontend failed");
-    let vox_ir = vox_compiler::vox_ir::lower::lower_hir_to_vox_ir(&res.hir, Some(source));
+    let vox_ir = vox_compiler_emit::vox_ir::lower::lower_hir_to_vox_ir(&res.hir, Some(source));
     let ir: serde_json::Value = serde_json::to_value(&vox_ir).expect("VoxIrModule as JSON Value");
     let jobs = ir
         .pointer("/module/web_ir/scheduled_jobs")

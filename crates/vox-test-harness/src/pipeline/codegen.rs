@@ -3,8 +3,8 @@
 //! These eliminate the lex→parse→lower→generate boilerplate that every codegen
 //! test file previously re-declared as a local helper function.
 
-use vox_compiler::codegen_ts::emitter::CodegenOutput;
-use vox_compiler::codegen_ts::generate;
+use vox_compiler_emit::codegen_ts::emitter::CodegenOutput;
+use vox_compiler_emit::codegen_ts::generate;
 use vox_compiler::hir::{HirModule, lower_module};
 
 use crate::pipeline::parser::parse_str_unwrap;

@@ -1,6 +1,6 @@
 //! `generate_voxdb_schema` (AST) vs `generate_voxdb_schema_from_hir` must stay identical for DB declarations.
 
-use vox_compiler::codegen_ts::{generate_voxdb_schema, generate_voxdb_schema_from_hir};
+use vox_compiler_emit::codegen_ts::{generate_voxdb_schema, generate_voxdb_schema_from_hir};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;

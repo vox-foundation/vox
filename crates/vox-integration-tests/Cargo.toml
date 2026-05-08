@@ -18,6 +18,7 @@ vox-config = { workspace = true }
 vox-repository = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-compiler = { workspace = true }
+vox-compiler-emit = { workspace = true }
 vox-lsp = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-runtime = { workspace = true }

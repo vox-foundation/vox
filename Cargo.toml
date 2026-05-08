@@ -57,6 +57,7 @@ vox-clavis                = { path = "crates/vox-clavis" }
 vox-cli                   = { path = "crates/vox-cli" }
 vox-bounded-fs            = { path = "crates/vox-bounded-fs" }
 vox-compiler              = { path = "crates/vox-compiler" }
+vox-compiler-emit         = { path = "crates/vox-compiler-emit" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
 vox-deploy-codegen        = { path = "crates/vox-deploy-codegen" }

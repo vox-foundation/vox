@@ -2,7 +2,7 @@
 
 use std::ffi::OsString;
 use std::sync::Mutex;
-use vox_compiler::codegen_ts::{CodegenOptions, generate_with_options};
+use vox_compiler_emit::codegen_ts::{CodegenOptions, generate_with_options};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;

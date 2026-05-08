@@ -28,7 +28,7 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
 
     if args.emit_ir {
         let vox_ir =
-            vox_compiler::vox_ir::lower::lower_hir_to_vox_ir(&result.hir, Some(&result.source));
+            vox_compiler_emit::vox_ir::lower::lower_hir_to_vox_ir(&result.hir, Some(&result.source));
         let json_ir = serde_json::to_string_pretty(&vox_ir)?;
         let mut ir_path = file.clone();
         ir_path.set_extension("vox-ir.json");

@@ -4,7 +4,7 @@
 //! `_id` → `id` mapping. Expand mappings as the shared table-spec pathway grows.
 
 use vox_compiler::ast::span::Span;
-use vox_compiler::codegen_rust::emit::emit_table_ddl;
+use vox_compiler_emit::codegen_rust::emit::emit_table_ddl;
 use vox_compiler::hir::{DefId, HirTable, HirTableField, HirType};
 
 /// Column identity for parity (Arca `id` matches compiler `_id`).

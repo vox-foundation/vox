@@ -12,7 +12,7 @@
 
 /// Typed core IR v2 naming and version hooks (projection SSOT).
 pub mod core_ir;
-pub(crate) mod db_op_walk;
+pub mod db_op_walk;
 /// Name resolution maps (`use`, re-exports).
 pub mod def_map;
 /// AST → HIR lowering entrypoints.

@@ -8,7 +8,7 @@
 //!   cargo bench -p vox-compiler --bench compiler_pipeline
 
 use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
-use vox_compiler::codegen_ts::generate;
+use vox_compiler_emit::codegen_ts::generate;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;

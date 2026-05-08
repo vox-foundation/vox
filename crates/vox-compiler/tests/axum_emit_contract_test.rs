@@ -4,7 +4,7 @@
 //! failures to `Json(serde_json::json!({"error": e.to_string()}))`. `@query` and `@server` handlers
 //! are emitted as straight-line bodies without that wrapper — see `vox-fullstack-artifacts.md`.
 
-use vox_compiler::codegen_rust::emit::emit_main;
+use vox_compiler_emit::codegen_rust::emit::emit_main;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;

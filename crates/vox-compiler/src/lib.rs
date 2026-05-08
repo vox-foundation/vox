@@ -12,9 +12,6 @@ pub mod ast;
 pub mod ast_eval;
 pub mod builtin_registry;
 pub mod canonical_json;
-pub mod codegen_rust;
-pub mod codegen_shared;
-pub mod codegen_ts;
 pub mod lowering_shared;
 pub mod eval;
 pub mod fmt;
@@ -30,12 +27,9 @@ pub mod react_bridge;
 pub mod runtime_projection;
 pub mod rust_interop_support;
 pub mod serialization;
-pub mod syntax_k;
 pub mod tokens;
 pub mod typeck;
-pub mod vox_ir;
-pub mod web_ir;
-mod web_migration_env;
+pub mod web_migration_env;
 pub mod web_prefixes;
 
 /// Re-export of common types if needed.

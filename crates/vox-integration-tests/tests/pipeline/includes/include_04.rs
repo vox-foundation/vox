@@ -84,7 +84,7 @@ fn pipeline_mixed_surface_endpoint_fn_emit_contains_api_x() {
     let tokens = lex(MIXED_SURFACE_SRC);
     let module = parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
-    let server_ts = vox_compiler::codegen_ts::routes::generate_routes(&hir);
+    let server_ts = vox_compiler_emit::codegen_ts::routes::generate_routes(&hir);
     assert!(
         server_ts.contains("api_x") && server_ts.contains(".post("),
         "expected mutation endpoint api_x as POST in Express emit, got:\n{server_ts}"
@@ -95,12 +95,12 @@ fn pipeline_mixed_surface_endpoint_fn_emit_contains_api_x() {
 fn pipeline_reactive_view_whitespace_parity_legacy_vs_web_ir_env() {
     use std::collections::HashSet;
 
-    use vox_compiler::codegen_ts::hir_emit::emit_hir_expr;
+    use vox_compiler_emit::codegen_ts::hir_emit::emit_hir_expr;
 
     use vox_compiler::hir::HirReactiveMember;
-    use vox_compiler::web_ir::emit_tsx::emit_component_view_tsx;
-    use vox_compiler::web_ir::lower::lower_hir_to_web_ir;
-    use vox_compiler::web_ir::validate::validate_web_ir;
+    use vox_compiler_emit::web_ir::emit_tsx::emit_component_view_tsx;
+    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir;
+    use vox_compiler_emit::web_ir::validate::validate_web_ir;
 
     let src = r#"
 component T() {
@@ -126,8 +126,8 @@ component T() {
     assert!(validate_diags.is_empty(), "validate_web_ir: {validate_diags:?}");
     let preview = emit_component_view_tsx(&web, "T").expect("emit_component_view_tsx");
     assert_eq!(
-        vox_compiler::codegen_ts::reactive::normalize_reactive_view_jsx_ws(&legacy),
-        vox_compiler::codegen_ts::reactive::normalize_reactive_view_jsx_ws(&preview),
+        vox_compiler_emit::codegen_ts::reactive::normalize_reactive_view_jsx_ws(&legacy),
+        vox_compiler_emit::codegen_ts::reactive::normalize_reactive_view_jsx_ws(&preview),
         "legacy vs Web IR preview (whitespace-normalized):\n{legacy}\n{preview}"
     );
 
@@ -143,8 +143,8 @@ component T() {
 
 #[test]
 fn pipeline_web_ir_rejects_duplicate_route_contract_ids_from_two_routes_blocks() {
-    use vox_compiler::web_ir::lower::lower_hir_to_web_ir;
-    use vox_compiler::web_ir::validate::validate_web_ir;
+    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir;
+    use vox_compiler_emit::web_ir::validate::validate_web_ir;
 
     let tokens = lex(PIPELINE_DUP_CLIENT_ROUTE_BLOCKS_SRC);
     let module = parse(tokens).expect("parse dup routes");
@@ -161,8 +161,8 @@ fn pipeline_web_ir_rejects_duplicate_route_contract_ids_from_two_routes_blocks()
 
 #[test]
 fn pipeline_web_ir_validate_diagnostic_codes_use_dotted_prefix() {
-    use vox_compiler::web_ir::lower::lower_hir_to_web_ir;
-    use vox_compiler::web_ir::validate::validate_web_ir;
+    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir;
+    use vox_compiler_emit::web_ir::validate::validate_web_ir;
 
     let tokens = lex(PIPELINE_DUP_CLIENT_ROUTE_BLOCKS_SRC);
     let module = parse(tokens).expect("parse");
@@ -198,8 +198,8 @@ fn pipeline_codegen_fails_duplicate_client_routes_when_web_ir_validate_enabled()
 #[test]
 fn pipeline_web_ir_lower_validate_benchmark_smoke() {
     use std::time::Instant;
-    use vox_compiler::web_ir::lower::lower_hir_to_web_ir;
-    use vox_compiler::web_ir::validate::validate_web_ir;
+    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir;
+    use vox_compiler_emit::web_ir::validate::validate_web_ir;
 
     let tokens = lex(MIXED_SURFACE_SRC);
     let module = parse(tokens).expect("parse");
@@ -220,8 +220,8 @@ fn pipeline_web_ir_lower_validate_benchmark_smoke() {
 
 #[test]
 fn pipeline_web_ir_ops_gate_compose() {
-    use vox_compiler::web_ir::lower::lower_hir_to_web_ir;
-    use vox_compiler::web_ir::validate::validate_web_ir;
+    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir;
+    use vox_compiler_emit::web_ir::validate::validate_web_ir;
 
     let clean_tokens = lex(MIXED_SURFACE_SRC);
     let clean_mod = parse(clean_tokens).expect("parse mixed");

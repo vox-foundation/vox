@@ -8,7 +8,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use vox_bounded_fs::read_utf8_path_capped;
-use vox_compiler::codegen_ts::{CodegenOptions, generate, generate_with_options};
+use vox_compiler_emit::codegen_ts::{CodegenOptions, generate, generate_with_options};
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
 use vox_compiler::typeck::typecheck_module;

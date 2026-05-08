@@ -6,8 +6,8 @@ use std::path::Path;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
-use vox_compiler::syntax_k::{SyntaxKInput, canonical_web_ir_bytes, measure_syntax_k_event};
-use vox_compiler::web_ir::lower::lower_hir_to_web_ir;
+use vox_compiler_emit::syntax_k::{SyntaxKInput, canonical_web_ir_bytes, measure_syntax_k_event};
+use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct ComplexityBudget {

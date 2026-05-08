@@ -1,4 +1,4 @@
-use vox_compiler::codegen_ts::state_machine_emit::emit_state_machine_decls;
+use vox_compiler_emit::codegen_ts::state_machine_emit::emit_state_machine_decls;
 use vox_compiler::hir::lower::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
