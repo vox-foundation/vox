@@ -123,6 +123,31 @@ fn _is_superseded_in(check_id: str, rows: List[HealthEventLog]) to bool {
     return found
 }
 
+@test
+fn test_is_backdated_over_threshold() to Unit {
+    assert(_is_backdated("1000000", "1301000"))
+}
+
+@test
+fn test_is_backdated_under_threshold() to Unit {
+    assert(!_is_backdated("1000000", "1299999"))
+}
+
+@test
+fn test_is_backdated_zero_event_at() to Unit {
+    assert(!_is_backdated("0", "999999"))
+}
+
+@test
+fn test_csv_quote_plain() to Unit {
+    assert(_csv_quote("hello") is "\"hello\"")
+}
+
+@test
+fn test_csv_quote_inner_quotes() to Unit {
+    assert(_csv_quote("say \"hi\"") is "\"say \"\"hi\"\"\"")
+}
+
 /// Authoritative voice classifier (mirrors src/ts/intent_parser.ts). Returns a
 /// structured ParsedVoice; the UI / save flow pulls each field directly.
 @endpoint(kind: query) fn parse_voice(transcript: str) to ParsedVoice {
