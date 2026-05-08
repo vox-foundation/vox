@@ -12,7 +12,7 @@ use vox_db::VoxDb;
 /// - `mesh_heartbeats` (coordination schema)
 /// - `actor_state` (v21)
 ///
-/// Tables below are from `vox-ludus/src/schema.rs` and must be applied
+/// Tables below are from `vox-gamify/src/schema.rs` and must be applied
 /// manually in tests targeting `vox-package` CRUD methods.
 const GAMIFY_DDL: &str = "
 CREATE TABLE IF NOT EXISTS gamify_profiles (

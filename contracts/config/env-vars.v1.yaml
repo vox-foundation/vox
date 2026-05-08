@@ -860,7 +860,7 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_LUDUS_MAX_MESSAGES_PER_HOUR"
-    owner_crate: "vox-ludus"
+    owner_crate: "vox-gamify"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -872,7 +872,7 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_LUDUS_ROUTE_LOG_SAMPLE"
-    owner_crate: "vox-ludus"
+    owner_crate: "vox-gamify"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -896,7 +896,7 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_LUDUS_VERBOSITY"
-    owner_crate: "vox-ludus"
+    owner_crate: "vox-gamify"
     kind: "string"
     required: false
     introduced_in: "0.3.0"

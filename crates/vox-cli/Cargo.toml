@@ -56,7 +56,7 @@ execution-api = ["script-execution", "dep:axum", "dep:axum-extra", "dep:tokio-st
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
     "dep:vox-code-audit",
-    "dep:vox-ludus",
+    "dep:vox-gamify",
 ]
 # Merge `vox-code-audit` victory-claim / premature-done heuristics into `vox ci completion-audit` (CI enables this).
 completion-toestub = ["dep:vox-code-audit"]
@@ -65,8 +65,8 @@ completion-toestub = ["dep:vox-code-audit"]
 dashboard = ["dep:vox-dashboard"]
 # OpenClaw / skill registry (`openclaw`); ARS runtime types live in `vox-openclaw-runtime`; `vox-skills` is the marketplace registry.
 ars = ["dep:vox-skills", "dep:vox-openclaw-runtime"]
-# Ludus gamification CLI (`commands::extras::ludus`); implies `vox-ludus` (uses `vox-db`).
-extras-ludus = ["dep:vox-ludus", "dep:vox-code-audit"]
+# Ludus gamification CLI (`commands::extras::ludus`); implies `vox-gamify` (uses `vox-db`).
+extras-ludus = ["dep:vox-gamify", "dep:vox-code-audit"]
 # Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
 ludus-hud = ["extras-ludus"]
 # Terminal live event dashboard: `vox live` + `commands::live` (in-process `vox-orchestrator` demo bus).
@@ -128,7 +128,7 @@ vox-wasm-engine = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true, optional = true }
 vox-openclaw-runtime = { workspace = true, optional = true }
-vox-ludus = { workspace = true, optional = true }
+vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-clavis = { workspace = true }
 vox-db = { workspace = true }

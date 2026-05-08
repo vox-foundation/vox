@@ -2,7 +2,7 @@
 //!
 //! ## Persisted tool args (Ludus / raw `tool_call` rows)
 //! After each dispatch, when Codex is attached, stored payloads use
-//! [`vox_ludus::mcp_privacy::prepare_mcp_tool_args_for_storage`] for **both** Ludus-routed `mcp_tool_called` events and the
+//! [`vox_gamify::mcp_privacy::prepare_mcp_tool_args_for_storage`] for **both** Ludus-routed `mcp_tool_called` events and the
 //! fallback `insert_event` path. New DB persistence for MCP args must go through the same helper + env (`VOX_LUDUS_MCP_TOOL_ARGS`).
 
 use crate::params::ToolResult;
@@ -135,7 +135,7 @@ pub async fn handle_tool_call(
     // Ludus: canonical reward path when enabled; raw telemetry when gamification is off.
     if let Some(db) = &state.db {
         let aid = agent_id.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0u64);
-        let args_stored = vox_ludus::mcp_privacy::prepare_mcp_tool_args_for_storage(&args);
+        let args_stored = vox_gamify::mcp_privacy::prepare_mcp_tool_args_for_storage(&args);
         let mut route_ev = serde_json::json!({
             "type": "mcp_tool_called",
             "agent_id": aid,
@@ -151,8 +151,8 @@ pub async fn handle_tool_call(
         if let Some(ref tid) = trace_for_telemetry {
             route_ev["trace_id"] = serde_json::Value::String(tid.clone());
         }
-        if vox_ludus::config_gate::is_enabled() {
-            let _ = vox_ludus::event_router::route_event_auto_user(db, &route_ev).await;
+        if vox_gamify::config_gate::is_enabled() {
+            let _ = vox_gamify::event_router::route_event_auto_user(db, &route_ev).await;
         } else {
             let mut payload = serde_json::json!({
                 "type": "tool_call",
@@ -170,7 +170,7 @@ pub async fn handle_tool_call(
             }
             let agent_str = agent_id.unwrap_or("0");
             let _ =
-                vox_ludus::db::insert_event(db, agent_str, "tool_call", Some(&payload.to_string()))
+                vox_gamify::db::insert_event(db, agent_str, "tool_call", Some(&payload.to_string()))
                     .await;
         }
     }

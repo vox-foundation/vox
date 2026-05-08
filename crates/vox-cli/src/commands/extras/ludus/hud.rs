@@ -4,8 +4,8 @@ use anyhow::Result;
 use owo_colors::OwoColorize;
 use std::collections::HashMap;
 use tokio::time::{Duration, sleep};
-use vox_ludus::companion::{Companion, Interaction, render_multi_agent_status};
-use vox_ludus::db::canonical_user_id;
+use vox_gamify::companion::{Companion, Interaction, render_multi_agent_status};
+use vox_gamify::db::canonical_user_id;
 use vox_orchestrator::types::AgentMessage;
 use vox_orchestrator::{OrchestratorConfig, build_repo_scoped_orchestrator};
 
@@ -86,7 +86,7 @@ pub async fn run() -> Result<()> {
         println!("{}", render_multi_agent_status(&refs));
 
         for c in &refs {
-            let ascii = vox_ludus::sprite::generate_deterministic(&c.name, c.mood);
+            let ascii = vox_gamify::sprite::generate_deterministic(&c.name, c.mood);
             println!("{}\n", ascii.cyan());
         }
     }

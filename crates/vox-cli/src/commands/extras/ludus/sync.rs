@@ -2,7 +2,7 @@ use anyhow::Result;
 use owo_colors::OwoColorize;
 use serde::Deserialize;
 use serde_json::json;
-use vox_ludus::db::{process_event_rewards, try_claim_processed_event};
+use vox_gamify::db::{process_event_rewards, try_claim_processed_event};
 
 use crate::commands::extras::ludus::LudusContext;
 

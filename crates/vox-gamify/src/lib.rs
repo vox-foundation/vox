@@ -1,4 +1,4 @@
-//! # vox-ludus
+//! # vox-gamify
 //!
 //! Gamification layer for the Vox programming language.
 //!

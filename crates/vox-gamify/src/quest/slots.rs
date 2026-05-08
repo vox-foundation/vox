@@ -9,7 +9,7 @@ pub(crate) static CRATE_POOL: &[&str] = &[
     "vox-cli",
     "vox-db",
     "vox-dei",
-    "vox-ludus",
+    "vox-gamify",
     "vox-arca",
     "vox-typeck",
     "vox-codegen-rust",

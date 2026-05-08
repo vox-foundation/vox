@@ -7,7 +7,7 @@ use vox_config::config::GamifyMode;
 #[tokio::test]
 async fn ludus_orchestrator_dedupe_skips_duplicate_event_id() {
     let db = vox_db::VoxDb::open_memory().await.expect("db");
-    vox_ludus::db::apply_ludus_migrations(&db)
+    vox_gamify::db::apply_ludus_migrations(&db)
         .await
         .expect("migrations");
     let uid = "dedupe-orchestrator-user";
@@ -17,10 +17,10 @@ async fn ludus_orchestrator_dedupe_skips_duplicate_event_id() {
         "agent_id": 7u64,
         "ludus_dedupe_id": 9001u64,
     });
-    let r1 = vox_ludus::event_router::route_event(&db, uid, &ev)
+    let r1 = vox_gamify::event_router::route_event(&db, uid, &ev)
         .await
         .expect("r1");
-    let r2 = vox_ludus::event_router::route_event(&db, uid, &ev)
+    let r2 = vox_gamify::event_router::route_event(&db, uid, &ev)
         .await
         .expect("r2");
     let xp1 = r1.reward.map(|x| x.xp).unwrap_or(0);
@@ -35,11 +35,11 @@ async fn ludus_orchestrator_dedupe_skips_duplicate_event_id() {
 #[tokio::test]
 async fn ludus_policy_snapshot_rows_track_events() {
     let db = vox_db::VoxDb::open_memory().await.expect("db");
-    vox_ludus::db::apply_ludus_migrations(&db)
+    vox_gamify::db::apply_ludus_migrations(&db)
         .await
         .expect("migrations");
-    let uid = vox_ludus::db::canonical_user_id();
-    let before = vox_ludus::db::list_recent_policy_snapshots(&db, &uid, 500)
+    let uid = vox_gamify::db::canonical_user_id();
+    let before = vox_gamify::db::list_recent_policy_snapshots(&db, &uid, 500)
         .await
         .expect("list")
         .len();
@@ -48,10 +48,10 @@ async fn ludus_policy_snapshot_rows_track_events() {
         "success": true,
         "agent_id": 0u64,
     });
-    vox_ludus::event_router::route_event(&db, &uid, &ev)
+    vox_gamify::event_router::route_event(&db, &uid, &ev)
         .await
         .expect("route");
-    let after = vox_ludus::db::list_recent_policy_snapshots(&db, &uid, 500)
+    let after = vox_gamify::db::list_recent_policy_snapshots(&db, &uid, 500)
         .await
         .expect("list2")
         .len();
@@ -64,22 +64,22 @@ async fn ludus_policy_snapshot_rows_track_events() {
 #[tokio::test]
 async fn ludus_route_event_explicit_id_matches_auto_user_kpi() {
     let db = vox_db::VoxDb::open_memory().await.expect("db");
-    vox_ludus::db::apply_ludus_migrations(&db)
+    vox_gamify::db::apply_ludus_migrations(&db)
         .await
         .expect("migrations");
-    let uid = vox_ludus::db::canonical_user_id();
+    let uid = vox_gamify::db::canonical_user_id();
     let ev = serde_json::json!({
         "type": "check_completed",
         "success": true,
         "agent_id": 0u64,
     });
-    vox_ludus::event_router::route_event_auto_user(&db, &ev)
+    vox_gamify::event_router::route_event_auto_user(&db, &ev)
         .await
         .expect("auto");
-    vox_ludus::event_router::route_event(&db, &uid, &ev)
+    vox_gamify::event_router::route_event(&db, &uid, &ev)
         .await
         .expect("explicit");
-    let k = vox_ludus::db::load_kpi_summary(&db, &uid)
+    let k = vox_gamify::db::load_kpi_summary(&db, &uid)
         .await
         .expect("kpi");
     assert!(
@@ -98,7 +98,7 @@ fn ludus_validate_event_payload_rejects_oversize_json() {
         "blob": filler,
     });
     assert!(
-        vox_ludus::ingest::validate_event_payload(&ev).is_err(),
+        vox_gamify::ingest::validate_event_payload(&ev).is_err(),
         "expected oversize payload to fail validation"
     );
 }
@@ -107,7 +107,7 @@ fn ludus_validate_event_payload_rejects_oversize_json() {
 
 #[test]
 fn policy_streak_bonus_increases_reward() {
-    use vox_ludus::reward_policy::{BaseReward, SessionState, apply_policy};
+    use vox_gamify::reward_policy::{BaseReward, SessionState, apply_policy};
     let base = BaseReward {
         xp: 100,
         crystals: 10,
@@ -121,7 +121,7 @@ fn policy_streak_bonus_increases_reward() {
         &base,
         1.0,
         0,
-        vox_ludus::profile::TrustTier::Linked,
+        vox_gamify::profile::TrustTier::Linked,
         "task_completed",
         &mut s_no_streak,
     );
@@ -129,7 +129,7 @@ fn policy_streak_bonus_increases_reward() {
         &base,
         1.0,
         14,
-        vox_ludus::profile::TrustTier::Linked,
+        vox_gamify::profile::TrustTier::Linked,
         "task_completed",
         &mut s_streak,
     );
@@ -144,7 +144,7 @@ fn policy_streak_bonus_increases_reward() {
 
 #[test]
 fn policy_serious_mode_halves_rewards() {
-    use vox_ludus::reward_policy::{BaseReward, SessionState, apply_policy};
+    use vox_gamify::reward_policy::{BaseReward, SessionState, apply_policy};
     let base = BaseReward {
         xp: 100,
         crystals: 10,
@@ -158,7 +158,7 @@ fn policy_serious_mode_halves_rewards() {
         &base,
         1.0,
         0,
-        vox_ludus::profile::TrustTier::Linked,
+        vox_gamify::profile::TrustTier::Linked,
         "task_completed",
         &mut s_balanced,
     );
@@ -166,7 +166,7 @@ fn policy_serious_mode_halves_rewards() {
         &base,
         0.5,
         0,
-        vox_ludus::profile::TrustTier::Linked,
+        vox_gamify::profile::TrustTier::Linked,
         "task_completed",
         &mut s_serious,
     );
@@ -179,7 +179,7 @@ fn policy_serious_mode_halves_rewards() {
 
 #[test]
 fn policy_grind_cap_kicks_in() {
-    use vox_ludus::reward_policy::{BaseReward, GRIND_ZERO_THRESHOLD, SessionState, apply_policy};
+    use vox_gamify::reward_policy::{BaseReward, GRIND_ZERO_THRESHOLD, SessionState, apply_policy};
     let base = BaseReward {
         xp: 10,
         crystals: 2,
@@ -193,7 +193,7 @@ fn policy_grind_cap_kicks_in() {
             &base,
             1.0,
             0,
-            vox_ludus::profile::TrustTier::Linked,
+            vox_gamify::profile::TrustTier::Linked,
             "task_completed",
             &mut session,
         );
@@ -202,7 +202,7 @@ fn policy_grind_cap_kicks_in() {
         &base,
         1.0,
         0,
-        vox_ludus::profile::TrustTier::Linked,
+        vox_gamify::profile::TrustTier::Linked,
         "task_completed",
         &mut session,
     );
@@ -216,7 +216,7 @@ fn policy_grind_cap_kicks_in() {
 
 #[test]
 fn policy_novelty_bonus_for_new_event_type() {
-    use vox_ludus::reward_policy::{BaseReward, SessionState, apply_policy};
+    use vox_gamify::reward_policy::{BaseReward, SessionState, apply_policy};
     let base = BaseReward {
         xp: 50,
         crystals: 5,
@@ -230,7 +230,7 @@ fn policy_novelty_bonus_for_new_event_type() {
         &base,
         1.0,
         0,
-        vox_ludus::profile::TrustTier::Linked,
+        vox_gamify::profile::TrustTier::Linked,
         "conflict_resolved",
         &mut session,
     );
@@ -243,7 +243,7 @@ fn policy_novelty_bonus_for_new_event_type() {
 
 #[test]
 fn policy_overrides_take_precedence() {
-    use vox_ludus::reward_policy::{
+    use vox_gamify::reward_policy::{
         EventConfigOverrides, SessionState, apply_policy_with_overrides,
     };
     let mut overrides = EventConfigOverrides::default();
@@ -261,7 +261,7 @@ fn policy_overrides_take_precedence() {
 
 #[test]
 fn base_rewards_are_nonzero_for_known_events() {
-    use vox_ludus::reward_policy::base_reward;
+    use vox_gamify::reward_policy::base_reward;
     let events = [
         "task_completed",
         "task_submitted",
@@ -355,7 +355,7 @@ fn config_set_key_gamify_enabled_roundtrip() {
 
 #[test]
 fn teaching_serious_mode_suppresses_all_hints() {
-    use vox_ludus::teaching::{MistakeKind, TeachingProfile};
+    use vox_gamify::teaching::{MistakeKind, TeachingProfile};
     let mut profile = TeachingProfile::default();
     // serious mode = hint_frequency 0.0
     let req = profile.record_mistake(MistakeKind::SyntaxError, 0.0);
@@ -367,7 +367,7 @@ fn teaching_serious_mode_suppresses_all_hints() {
 
 #[test]
 fn teaching_learning_mode_always_hints_on_first_mistake() {
-    use vox_ludus::teaching::{MistakeKind, TeachingProfile};
+    use vox_gamify::teaching::{MistakeKind, TeachingProfile};
     let mut profile = TeachingProfile::default();
     let req = profile.record_mistake(MistakeKind::SyntaxError, 1.0);
     assert!(
@@ -378,7 +378,7 @@ fn teaching_learning_mode_always_hints_on_first_mistake() {
 
 #[test]
 fn teaching_cooldown_suppresses_repeat() {
-    use vox_ludus::teaching::{MistakeKind, TeachingProfile};
+    use vox_gamify::teaching::{MistakeKind, TeachingProfile};
     let mut profile = TeachingProfile::default();
     let first = profile.record_mistake(MistakeKind::TestFailure, 1.0);
     assert!(first.is_some(), "first TestFailure should hint");
@@ -393,7 +393,7 @@ fn teaching_cooldown_suppresses_repeat() {
 
 #[test]
 fn quest_engine_archetype_is_deterministic_for_user() {
-    use vox_ludus::quest_engine::QuestArchetype;
+    use vox_gamify::quest_engine::QuestArchetype;
     // Same user+day should always yield the same archetype
     let a1 = QuestArchetype::today_for_user("user-stable");
     let a2 = QuestArchetype::today_for_user("user-stable");
@@ -406,7 +406,7 @@ fn quest_engine_archetype_is_deterministic_for_user() {
 
 #[test]
 fn quest_engine_archetype_differs_by_user() {
-    use vox_ludus::quest_engine::QuestArchetype;
+    use vox_gamify::quest_engine::QuestArchetype;
     // Different users may (statistically) get different archetypes
     // With 4 archetypes over enough users, at least 2 must differ
     let users = ["user-a", "user-b", "user-c", "user-d", "user-e", "user-f"];

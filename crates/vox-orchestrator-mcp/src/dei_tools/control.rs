@@ -141,10 +141,10 @@ pub async fn rebalance(state: &ServerState) -> String {
     ToolResult::ok(format!("Rebalanced {} tasks", moved)).to_json()
 }
 
-/// Return historical [`vox_ludus::db::AgentEventRecord`] rows when Codex is configured.
+/// Return historical [`vox_gamify::db::AgentEventRecord`] rows when Codex is configured.
 pub async fn agent_events(state: &ServerState, params: AgentEventsParams) -> String {
     if let Some(db) = &state.db {
-        match vox_ludus::db::get_events(db, &params.agent_id.to_string(), None).await {
+        match vox_gamify::db::get_events(db, &params.agent_id.to_string(), None).await {
             Ok(events) => ToolResult::ok(events).to_json(),
             Err(e) => ToolResult::<String>::err_with_remediation(
                 format!("DB error: {}", e),
@@ -201,7 +201,7 @@ pub async fn cost_history(state: &ServerState, params: CostHistoryParams) -> Str
         }
 
         for id in ids {
-            if let Ok(records) = vox_ludus::db::list_cost_records(db, &id, limit).await {
+            if let Ok(records) = vox_gamify::db::list_cost_records(db, &id, limit).await {
                 all_records.extend(records);
             }
         }

@@ -78,7 +78,7 @@ vox-dashboard            = { layer = 3 }
 vox-webhook              = { layer = 3 }
 vox-code-audit           = { layer = 3 }
 vox-lsp                  = { layer = 3 }
-vox-ludus                = { layer = 3 }
+vox-gamify                = { layer = 3 }
 vox-skills               = { layer = 3 }
 vox-cli-core             = { layer = 3 }
 vox-orchestrator-mcp     = { layer = 3 } # Phase 4 extraction

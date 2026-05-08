@@ -1682,65 +1682,65 @@
   pattern: repo/ci
   file: by-crate/vox-lsp.md
 - id: SCALE-VOX_LUDUS-ASYNC-IO
-  crate: vox-ludus
+  crate: vox-gamify
   template: async-io
   pattern: scaling/blocking-in-async
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_LUDUS-MEMORY-SLURP
-  crate: vox-ludus
+  crate: vox-gamify
   template: memory-slurp
   pattern: scaling/unbounded-read
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_LUDUS-IO-CACHE-LOOP
-  crate: vox-ludus
+  crate: vox-gamify
   template: io-cache-loop
   pattern: scaling/cache-miss-hot-read
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_LUDUS-ENV-SSOT
-  crate: vox-ludus
+  crate: vox-gamify
   template: env-ssot
   pattern: scaling/env-default-duplication
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_LUDUS-REGEX-COMPILE
-  crate: vox-ludus
+  crate: vox-gamify
   template: regex-compile
   pattern: scaling/regex-new-hot
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_LUDUS-SQL-BOUNDS
-  crate: vox-ludus
+  crate: vox-gamify
   template: sql-bounds
   pattern: scaling/sql-no-limit
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_LUDUS-HTTP-TIMEOUTS
-  crate: vox-ludus
+  crate: vox-gamify
   template: http-timeouts
   pattern: scaling/http-client-no-timeout
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_LUDUS-PATH-SSOT
-  crate: vox-ludus
+  crate: vox-gamify
   template: path-ssot
   pattern: scaling/path-literal
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_LUDUS-NUMERIC-SSOT
-  crate: vox-ludus
+  crate: vox-gamify
   template: numeric-ssot
   pattern: scaling/magic-limit
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_LUDUS-INDEX-MEMORY
-  crate: vox-ludus
+  crate: vox-gamify
   template: index-memory
   pattern: scaling/large-in-memory-accumulator
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_LUDUS-CONCURRENCY-STRUCTURE
-  crate: vox-ludus
+  crate: vox-gamify
   template: concurrency-structure
   pattern: scaling/nested-pairwise-loop
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_LUDUS-CI-THROUGHPUT
-  crate: vox-ludus
+  crate: vox-gamify
   template: ci-throughput
   pattern: repo/ci
-  file: by-crate/vox-ludus.md
+  file: by-crate/vox-gamify.md
 - id: SCALE-VOX_MCP_META-ASYNC-IO
   crate: vox-mcp-meta
   template: async-io

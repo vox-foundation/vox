@@ -2,7 +2,7 @@ use crate::commands::extras::ludus::db_util;
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use std::path::Path;
-use vox_ludus::{LudusProfile, challenge, db as ludus_db};
+use vox_gamify::{LudusProfile, challenge, db as ludus_db};
 
 /// List active coding challenges.
 pub async fn challenge_list() -> Result<()> {
@@ -96,7 +96,7 @@ pub async fn challenge_start(id: &str) -> Result<()> {
 /// Submit code for a coding challenge.
 pub async fn challenge_submit(id: &str, code_file: &Path) -> Result<()> {
     let codex = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
     let mut profile = ludus_db::get_profile(&codex, &user_id)
         .await?
         .unwrap_or_else(|| LudusProfile::new_default(&user_id));

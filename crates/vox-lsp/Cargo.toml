@@ -15,7 +15,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 vox-compiler = { workspace = true }
 vox-db.workspace = true
-vox-ludus.workspace = true
+vox-gamify.workspace = true
 vox-bounded-fs = { workspace = true }
 vox-clavis.workspace = true
 anyhow = { workspace = true }

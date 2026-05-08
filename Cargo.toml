@@ -87,7 +87,7 @@ vox-git                   = { path = "crates/vox-git" }
 vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
 vox-grammar-export        = { path = "crates/vox-grammar-export" }
 vox-lsp                   = { path = "crates/vox-lsp" }
-vox-ludus                 = { path = "crates/vox-ludus" }
+vox-gamify                 = { path = "crates/vox-gamify" }
 vox-populi                = { path = "crates/vox-populi" }
 vox-ml-cli                  = { path = "crates/vox-ml-cli" }
 vox-mesh-types            = { path = "crates/vox-mesh-types" }

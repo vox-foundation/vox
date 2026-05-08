@@ -1,6 +1,6 @@
 //! Periodic reward condition probes for [`crate::VoxDb`] (Ludus / gamify tables).
 //!
-//! SQL lives here so `vox-ludus` does not call [`crate::VoxDb::query_all`](crate::VoxDb::query_all).
+//! SQL lives here so `vox-gamify` does not call [`crate::VoxDb::query_all`](crate::VoxDb::query_all).
 
 use turso::params;
 

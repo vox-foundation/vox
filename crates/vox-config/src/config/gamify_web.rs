@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-/// Gamification UX / reward tuning (consumed by `vox-ludus`).
+/// Gamification UX / reward tuning (consumed by `vox-gamify`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum GamifyMode {

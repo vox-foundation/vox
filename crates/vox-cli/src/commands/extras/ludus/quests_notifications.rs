@@ -4,7 +4,7 @@ use crate::commands::extras::ludus::LudusContext;
 
 use anyhow::Result;
 use owo_colors::OwoColorize;
-use vox_ludus::{db, quest};
+use vox_gamify::{db, quest};
 
 use super::db_util;
 use super::progress::render_progress_bar;
@@ -82,7 +82,7 @@ pub async fn quest_generate() -> Result<()> {
         .filter(|q| !q.completed && !q.is_expired())
         .count();
 
-    let dynamic = vox_ludus::quest_engine::generate_dynamic_quests(
+    let dynamic = vox_gamify::quest_engine::generate_dynamic_quests(
         &user_id,
         &workspace_root,
         active_count,
@@ -192,23 +192,23 @@ pub async fn notify_list(mark_read: bool) -> Result<()> {
     } else {
         for n in notifications {
             let icon = match n.notification_type {
-                vox_ludus::notifications::NotificationType::LevelUp => "🆙",
-                vox_ludus::notifications::NotificationType::AchievementUnlocked => "🏆",
-                vox_ludus::notifications::NotificationType::QuestCompleted => "📋",
-                vox_ludus::notifications::NotificationType::ChallengeCompleted => "⚔️",
-                vox_ludus::notifications::NotificationType::BattleWon => "🎉",
-                vox_ludus::notifications::NotificationType::BattleLost => "💔",
-                vox_ludus::notifications::NotificationType::ArenaJoined => "🏟️",
-                vox_ludus::notifications::NotificationType::CollegiumJoined => "🏫",
-                vox_ludus::notifications::NotificationType::CompanionCreated => "🐣",
-                vox_ludus::notifications::NotificationType::ItemPurchased => "🛍️",
-                vox_ludus::notifications::NotificationType::FeedbackReceived => "💬",
+                vox_gamify::notifications::NotificationType::LevelUp => "🆙",
+                vox_gamify::notifications::NotificationType::AchievementUnlocked => "🏆",
+                vox_gamify::notifications::NotificationType::QuestCompleted => "📋",
+                vox_gamify::notifications::NotificationType::ChallengeCompleted => "⚔️",
+                vox_gamify::notifications::NotificationType::BattleWon => "🎉",
+                vox_gamify::notifications::NotificationType::BattleLost => "💔",
+                vox_gamify::notifications::NotificationType::ArenaJoined => "🏟️",
+                vox_gamify::notifications::NotificationType::CollegiumJoined => "🏫",
+                vox_gamify::notifications::NotificationType::CompanionCreated => "🐣",
+                vox_gamify::notifications::NotificationType::ItemPurchased => "🛍️",
+                vox_gamify::notifications::NotificationType::FeedbackReceived => "💬",
                 _ => "ℹ️",
             };
             println!(
                 "  {} {}  {}",
                 icon,
-                vox_ludus::util::format_unix_time(n.created_at).dimmed(),
+                vox_gamify::util::format_unix_time(n.created_at).dimmed(),
                 if n.read {
                     n.message.dimmed().to_string()
                 } else {
@@ -239,11 +239,11 @@ pub async fn hint_show(context: Option<&str>) -> Result<()> {
     let ctx = LudusContext::load().await?;
     let db = &ctx.db;
     let user_id = &ctx.user_id;
-    let mut profile = vox_ludus::db::get_teaching_profile(db, user_id).await?;
-    let freq = vox_ludus::config_gate::mode().hint_frequency();
+    let mut profile = vox_gamify::db::get_teaching_profile(db, user_id).await?;
+    let freq = vox_gamify::config_gate::mode().hint_frequency();
     let kind = match context {
-        Some("build") => vox_ludus::teaching::MistakeKind::ArchitecturalIssue,
-        Some("test") | Some("tests") => vox_ludus::teaching::MistakeKind::TestFailure,
+        Some("build") => vox_gamify::teaching::MistakeKind::ArchitecturalIssue,
+        Some("test") | Some("tests") => vox_gamify::teaching::MistakeKind::TestFailure,
         Some("battle") => {
             println!(
                 "  💡 {} {}",
@@ -252,13 +252,13 @@ pub async fn hint_show(context: Option<&str>) -> Result<()> {
             );
             return Ok(());
         }
-        _ => vox_ludus::teaching::MistakeKind::TodoDebt,
+        _ => vox_gamify::teaching::MistakeKind::TodoDebt,
     };
     let req = profile.record_mistake(kind, freq);
-    vox_ludus::db::upsert_teaching_profile(db, &profile).await?;
+    vox_gamify::db::upsert_teaching_profile(db, &profile).await?;
 
     let hint = if let Some(ref r) = req {
-        let _ = vox_ludus::db::log_hint_event(
+        let _ = vox_gamify::db::log_hint_event(
             db,
             user_id,
             &format!("{:?}", r.kind),
@@ -266,10 +266,10 @@ pub async fn hint_show(context: Option<&str>) -> Result<()> {
             context,
         )
         .await;
-        vox_ludus::teaching::Hint::deterministic(r).body
+        vox_gamify::teaching::Hint::deterministic(r).body
     } else {
         let _ =
-            vox_ludus::db::log_hint_event(db, user_id, &format!("{kind:?}"), "suppressed", context)
+            vox_gamify::db::log_hint_event(db, user_id, &format!("{kind:?}"), "suppressed", context)
                 .await;
         match context {
             Some("build") => {
@@ -289,7 +289,7 @@ pub async fn glyph_list(unlocked_only: bool) -> Result<()> {
     let ctx = LudusContext::load().await?;
     let db = &ctx.db;
     let user_id = &ctx.user_id;
-    let tracker = vox_ludus::achievement::AchievementTracker::new();
+    let tracker = vox_gamify::achievement::AchievementTracker::new();
     let unlocked = db::list_unlocked_achievements(db, user_id).await?;
 
     println!("{}", "╔══════════════════════════════════╗".bright_white());

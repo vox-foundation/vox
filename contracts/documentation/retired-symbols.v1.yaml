@@ -13,8 +13,8 @@ symbols:
     rationale: "Crate retired; ARS runtime types live in vox-openclaw-runtime. (vox-openclaw-runtime itself is the canonical replacement and is not flagged.)"
   - id: vox-gamify-crate
     pattern: "\\bvox-gamify\\b"
-    replacement: "vox-ludus"
-    rationale: "Consolidated into vox-ludus crate."
+    replacement: "vox-gamify"
+    rationale: "Consolidated into vox-gamify crate."
   - id: vox-lexer-crate
     pattern: "\\bvox-lexer\\b"
     replacement: "vox-compiler"

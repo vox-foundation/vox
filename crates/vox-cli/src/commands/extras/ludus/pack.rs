@@ -21,7 +21,7 @@ pub async fn pack_list() -> Result<()> {
     println!();
 
     if pack_path.exists() {
-        match vox_ludus::lex_pack::load_lex_pack(&pack_path) {
+        match vox_gamify::lex_pack::load_lex_pack(&pack_path) {
             Ok(pack) => {
                 println!(
                     "  {} v{}",

@@ -671,7 +671,7 @@ jobs:
           - vox-orchestrator
           - vox-populi
           - vox-ml-cli
-          - vox-ludus
+          - vox-gamify
           - vox-oratio
           - vox-schola
           - vox-skills

@@ -9,8 +9,8 @@ use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use schemars::JsonSchema;
 use serde::Deserialize;
-use vox_ludus::companion::Companion;
-use vox_ludus::db::{list_companions, upsert_companion};
+use vox_gamify::companion::Companion;
+use vox_gamify::db::{list_companions, upsert_companion};
 
 const REM_LUDUS_DB: &str = "Configure VoxDb/Turso (`VOX_DB_PATH` / `VOX_DB_URL`) on the MCP server for Ludus/Codex-backed tools.";
 const REM_AGENT_QUEUE: &str =
@@ -43,7 +43,7 @@ pub struct CheckMoodParams {
 /// Return JSON companion record (persisted when DB is wired).
 pub async fn check_mood(state: &ServerState, params: CheckMoodParams) -> String {
     let id = format!("agent-{}", params.agent_id);
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
 
     if let Some(db) = &state.db {
         match list_companions(db, &user_id).await {
@@ -77,7 +77,7 @@ pub struct AgentStatusParams {
 /// Return markdown summarizing queue depth, completed tasks, and companion HP bar.
 pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> String {
     let id = format!("agent-{}", params.agent_id);
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
     let companion = if let Some(db) = &state.db {
         match list_companions(db, &user_id).await {
             Ok(comps) => comps.into_iter().find(|c: &Companion| c.id == id),
@@ -155,7 +155,7 @@ pub struct AgentAssessParams {
 /// Return human-readable pending/completed counts and rough ETA string.
 pub async fn agent_assess(state: &ServerState, params: AgentAssessParams) -> String {
     let mut ms_per_task: usize = 45_000;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
 
     if let Some(db) = &state.db {
         if let Ok(Some(pref)) = db.get_user_preference(&user_id, "task.estimate_ms").await {
@@ -365,9 +365,9 @@ pub async fn ludus_notifications_list(
         )
         .to_json();
     };
-    let uid = vox_ludus::db::canonical_user_id();
+    let uid = vox_gamify::db::canonical_user_id();
     let lim = params.limit.clamp(1, 100);
-    match vox_ludus::db::list_unread_notifications(db, &uid, lim).await {
+    match vox_gamify::db::list_unread_notifications(db, &uid, lim).await {
         Ok(n) => ToolResult::ok(serde_json::json!({ "notifications": n })).to_json(),
         Err(e) => {
             ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
@@ -395,7 +395,7 @@ pub async fn ludus_notification_ack(
         )
         .to_json();
     };
-    let uid = vox_ludus::db::canonical_user_id();
+    let uid = vox_gamify::db::canonical_user_id();
     let id = params.notification_id.trim();
     if id.is_empty() {
         return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -404,7 +404,7 @@ pub async fn ludus_notification_ack(
         )
         .to_json();
     }
-    match vox_ludus::db::mark_notification_read_for_user(db, &uid, id).await {
+    match vox_gamify::db::mark_notification_read_for_user(db, &uid, id).await {
         Ok(0) => ToolResult::<serde_json::Value>::err_with_remediation(
             "notification not found or already read for this user",
             REM_NOTIF_GONE,
@@ -431,8 +431,8 @@ pub async fn ludus_notifications_ack_all(state: &ServerState) -> String {
         )
         .to_json();
     };
-    let uid = vox_ludus::db::canonical_user_id();
-    match vox_ludus::db::mark_all_notifications_read(db, &uid).await {
+    let uid = vox_gamify::db::canonical_user_id();
+    match vox_gamify::db::mark_all_notifications_read(db, &uid).await {
         Ok(()) => ToolResult::ok(serde_json::json!({ "ack_all": true })).to_json(),
         Err(e) => {
             ToolResult::<serde_json::Value>::err_with_remediation(e.to_string(), REM_LUDUS_DB_QUERY)
@@ -477,12 +477,12 @@ pub async fn ludus_progress_snapshot(
         )
         .to_json();
     };
-    let uid = vox_ludus::db::canonical_user_id();
+    let uid = vox_gamify::db::canonical_user_id();
     let notif_lim = params.notification_limit.clamp(1, 100);
     let policy_lim = params.policy_limit.clamp(1, 500);
     let days = params.policy_days.clamp(1, 3660);
 
-    let kpi = match vox_ludus::db::load_kpi_summary(db, &uid).await {
+    let kpi = match vox_gamify::db::load_kpi_summary(db, &uid).await {
         Ok(k) => serde_json::to_value(k).unwrap_or(serde_json::Value::Null),
         Err(e) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -492,7 +492,7 @@ pub async fn ludus_progress_snapshot(
             .to_json();
         }
     };
-    let notifications = match vox_ludus::db::list_unread_notifications(db, &uid, notif_lim).await {
+    let notifications = match vox_gamify::db::list_unread_notifications(db, &uid, notif_lim).await {
         Ok(n) => serde_json::to_value(n).unwrap_or(serde_json::Value::Array(vec![])),
         Err(e) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -503,7 +503,7 @@ pub async fn ludus_progress_snapshot(
         }
     };
     let policy_recent =
-        match vox_ludus::db::list_policy_snapshots_since_days(db, &uid, days, policy_lim).await {
+        match vox_gamify::db::list_policy_snapshots_since_days(db, &uid, days, policy_lim).await {
             Ok(rows) => serde_json::to_value(rows).unwrap_or(serde_json::Value::Array(vec![])),
             Err(e) => {
                 return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -515,12 +515,12 @@ pub async fn ludus_progress_snapshot(
         };
 
     ToolResult::ok(serde_json::json!({
-        "ludus_enabled": vox_ludus::config_gate::is_enabled(),
-        "ludus_channel": format!("{:?}", vox_ludus::config_gate::ludus_channel()),
+        "ludus_enabled": vox_gamify::config_gate::is_enabled(),
+        "ludus_channel": format!("{:?}", vox_gamify::config_gate::ludus_channel()),
         "user_id": uid,
         "experiment": vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusExperiment).expose().unwrap_or("").to_string(),
-        "experiment_hint_multiplier": vox_ludus::config_gate::experiment_hint_frequency_multiplier(),
-        "experiment_reward_multiplier": vox_ludus::config_gate::experiment_reward_multiplier(),
+        "experiment_hint_multiplier": vox_gamify::config_gate::experiment_hint_frequency_multiplier(),
+        "experiment_reward_multiplier": vox_gamify::config_gate::experiment_reward_multiplier(),
         "kpi": kpi,
         "notifications": notifications,
         "policy_snapshots_recent": policy_recent,
@@ -550,9 +550,9 @@ pub async fn ludus_quest_list(state: &ServerState, params: LudusQuestListParams)
         )
         .to_json();
     };
-    let uid = vox_ludus::db::canonical_user_id();
+    let uid = vox_gamify::db::canonical_user_id();
     let lim = params.limit.clamp(1, 200) as usize;
-    match vox_ludus::db::list_quests(db, &uid).await {
+    match vox_gamify::db::list_quests(db, &uid).await {
         Ok(mut qs) => {
             qs.truncate(lim);
             ToolResult::ok(serde_json::json!({ "quests": qs })).to_json()
@@ -569,8 +569,8 @@ pub async fn ludus_quest_list(state: &ServerState, params: LudusQuestListParams)
 pub struct LudusShopCatalogParams {}
 
 pub async fn ludus_shop_catalog(_state: &ServerState, _params: LudusShopCatalogParams) -> String {
-    let items = vox_ludus::shop::default_shop_items();
-    let mode_mult = vox_ludus::config_gate::reward_multiplier();
+    let items = vox_gamify::shop::default_shop_items();
+    let mode_mult = vox_gamify::config_gate::reward_multiplier();
     let rows: Vec<serde_json::Value> = items
         .iter()
         .enumerate()
@@ -600,11 +600,11 @@ pub async fn ludus_shop_buy(state: &ServerState, params: LudusShopBuyParams) -> 
         )
         .to_json();
     };
-    let uid = vox_ludus::db::canonical_user_id();
+    let uid = vox_gamify::db::canonical_user_id();
     if let Some(ref key) = params.idempotency_key {
         if !key.trim().is_empty() {
             let dedupe = format!("ludus_shop:{}", key.trim());
-            match vox_ludus::db::try_claim_processed_event(db, &uid, &dedupe).await {
+            match vox_gamify::db::try_claim_processed_event(db, &uid, &dedupe).await {
                 Ok(true) => {}
                 Ok(false) => {
                     return ToolResult::ok(serde_json::json!({
@@ -623,7 +623,7 @@ pub async fn ludus_shop_buy(state: &ServerState, params: LudusShopBuyParams) -> 
             }
         }
     }
-    let mut profile = match vox_ludus::db::get_profile(db, &uid).await {
+    let mut profile = match vox_gamify::db::get_profile(db, &uid).await {
         Ok(Some(p)) => p,
         Ok(None) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -640,7 +640,7 @@ pub async fn ludus_shop_buy(state: &ServerState, params: LudusShopBuyParams) -> 
             .to_json();
         }
     };
-    let items = vox_ludus::shop::default_shop_items();
+    let items = vox_gamify::shop::default_shop_items();
     let idx = params.item_index.saturating_sub(1) as usize;
     let Some(item) = items.get(idx) else {
         return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -649,11 +649,11 @@ pub async fn ludus_shop_buy(state: &ServerState, params: LudusShopBuyParams) -> 
         )
         .to_json();
     };
-    let mode_mult = vox_ludus::config_gate::reward_multiplier();
+    let mode_mult = vox_gamify::config_gate::reward_multiplier();
     let mut abilities = Vec::new();
-    let result = vox_ludus::shop::purchase(&mut profile, item, mode_mult, &mut abilities);
+    let result = vox_gamify::shop::purchase(&mut profile, item, mode_mult, &mut abilities);
     if result.success {
-        let _ = vox_ludus::db::upsert_profile(db, &profile).await;
+        let _ = vox_gamify::db::upsert_profile(db, &profile).await;
     }
     ToolResult::ok(serde_json::to_value(result).unwrap_or(serde_json::Value::Null)).to_json()
 }
@@ -672,7 +672,7 @@ pub async fn ludus_collegium_join(state: &ServerState, params: LudusCollegiumJoi
         )
         .to_json();
     };
-    let uid = vox_ludus::db::canonical_user_id();
+    let uid = vox_gamify::db::canonical_user_id();
     let cid = params.collegium_id.trim();
     if cid.is_empty() {
         return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -681,7 +681,7 @@ pub async fn ludus_collegium_join(state: &ServerState, params: LudusCollegiumJoi
         )
         .to_json();
     }
-    if let Err(e) = vox_ludus::db::join_collegium(db, cid, &uid, "legionnaire").await {
+    if let Err(e) = vox_gamify::db::join_collegium(db, cid, &uid, "legionnaire").await {
         return ToolResult::<serde_json::Value>::err_with_remediation(
             e.to_string(),
             REM_LUDUS_DB_QUERY,
@@ -692,7 +692,7 @@ pub async fn ludus_collegium_join(state: &ServerState, params: LudusCollegiumJoi
         "type": "collegium_joined",
         "agent_id": 0u64,
     });
-    match vox_ludus::event_router::route_event(db, &uid, &ev).await {
+    match vox_gamify::event_router::route_event(db, &uid, &ev).await {
         Ok(res) => ToolResult::ok(serde_json::json!({
             "joined": true,
             "route": serde_json::to_value(res).unwrap_or_default()
@@ -726,15 +726,15 @@ pub async fn ludus_battle_start(state: &ServerState, params: LudusBattleStartPar
         )
         .to_json();
     };
-    let uid = vox_ludus::db::canonical_user_id();
-    let finding = vox_ludus::BattleFinding {
+    let uid = vox_gamify::db::canonical_user_id();
+    let finding = vox_gamify::BattleFinding {
         rule_id: params.rule_id,
         message: params.message,
         file_path: PathBuf::from(params.file_path.as_deref().unwrap_or(".")),
         line: params.line.unwrap_or(1).max(1),
         context: params.context,
     };
-    match vox_ludus::run_battle_start(db, &uid, &params.companion_name, &finding).await {
+    match vox_gamify::run_battle_start(db, &uid, &params.companion_name, &finding).await {
         Ok(Some(o)) => ToolResult::ok(serde_json::json!({
             "battle_id": o.battle.id,
             "companion": o.companion_name,
@@ -768,8 +768,8 @@ pub async fn ludus_battle_submit(state: &ServerState, params: LudusBattleSubmitP
         )
         .to_json();
     };
-    let uid = vox_ludus::db::canonical_user_id();
-    let r = vox_ludus::run_battle_submit(
+    let uid = vox_gamify::db::canonical_user_id();
+    let r = vox_gamify::run_battle_submit(
         db,
         &uid,
         &params.companion_name,
@@ -778,21 +778,21 @@ pub async fn ludus_battle_submit(state: &ServerState, params: LudusBattleSubmitP
     )
     .await;
     match r {
-        Ok(vox_ludus::BattleSubmitResult::Tired) => {
+        Ok(vox_gamify::BattleSubmitResult::Tired) => {
             ToolResult::<serde_json::Value>::err_with_remediation(
                 "companion out of battle energy",
                 REM_BATTLE_ENERGY,
             )
             .to_json()
         }
-        Ok(vox_ludus::BattleSubmitResult::NotFound) => {
+        Ok(vox_gamify::BattleSubmitResult::NotFound) => {
             ToolResult::<serde_json::Value>::err_with_remediation(
                 "no active battle for companion",
                 REM_BATTLE_ACTIVE,
             )
             .to_json()
         }
-        Ok(vox_ludus::BattleSubmitResult::Outcome(o)) => {
+        Ok(vox_gamify::BattleSubmitResult::Outcome(o)) => {
             ToolResult::ok(serde_json::json!({ "success": o.success, "battle_id": o.battle.id }))
                 .to_json()
         }

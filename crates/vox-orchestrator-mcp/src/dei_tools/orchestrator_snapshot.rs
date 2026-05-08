@@ -8,8 +8,8 @@ use crate::params::{AgentInfo, StatusResponse, ToolResult};
 use crate::server_state::ServerState;
 use crate::sync_poison::poison_rw_read;
 
-use vox_ludus::companion::Companion;
-use vox_ludus::db::list_companions;
+use vox_gamify::companion::Companion;
+use vox_gamify::db::list_companions;
 
 /// Get a full snapshot of the orchestrator's state.
 pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> {
@@ -168,7 +168,7 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         } else {
             None
         }
-        .unwrap_or_else(|| vox_ludus::companion::Companion::new(id, "user", "Vox DEI", "vox"));
+        .unwrap_or_else(|| vox_gamify::companion::Companion::new(id, "user", "Vox DEI", "vox"));
 
         comp.ascii_sprite = Some("🧑‍💻".to_string());
         Some(comp)

@@ -70,7 +70,7 @@ impl TaskProcessor for StubTaskProcessor {
 
 /// A real AI-powered task processor that streams tokens back to the event bus.
 pub struct AiTaskProcessor {
-    client: vox_ludus::ai::FreeAiClient,
+    client: vox_gamify::ai::FreeAiClient,
     event_bus: crate::events::EventBus,
     orchestrator: Arc<Orchestrator>,
     /// Provider name stored at construction time (e.g. "ollama", "google").
@@ -84,7 +84,7 @@ pub struct AiTaskProcessor {
 impl AiTaskProcessor {
     /// Create a new AI processor that auto-discovers providers.
     pub async fn new(event_bus: crate::events::EventBus, orchestrator: Arc<Orchestrator>) -> Self {
-        let client = vox_ludus::ai::FreeAiClient::auto_discover().await;
+        let client = vox_gamify::ai::FreeAiClient::auto_discover().await;
         // Reflect the active provider in costs/logs
         let (provider, model) = client.active_provider_info();
         Self {
@@ -98,13 +98,13 @@ impl AiTaskProcessor {
 
     async fn run_phase_stream(
         &self,
-        client: &vox_ludus::ai::FreeAiClient,
+        client: &vox_gamify::ai::FreeAiClient,
         agent_id: crate::types::AgentId,
         task: &crate::types::AgentTask,
         phase: crate::types::TaskPhase,
         usage_model: &str,
         prior_notes: &str,
-        route: vox_ludus::StreamRoute<'_>,
+        route: vox_gamify::StreamRoute<'_>,
     ) -> String {
         let mut history_block = String::new();
         if !task.transcript.is_empty() {
@@ -203,27 +203,27 @@ impl TaskProcessor for AiTaskProcessor {
             .as_deref()
             .filter(|s| !s.trim().is_empty())
         {
-            vox_ludus::StreamRoute::UserModelOverride(mo)
+            vox_gamify::StreamRoute::UserModelOverride(mo)
         } else if let Some(m) = routed.as_ref() {
             match route_backend_for_model(m) {
-                ModelRouteBackend::Ollama => vox_ludus::StreamRoute::Registry {
-                    backend: vox_ludus::LudusStreamBackend::Ollama,
+                ModelRouteBackend::Ollama => vox_gamify::StreamRoute::Registry {
+                    backend: vox_gamify::LudusStreamBackend::Ollama,
                     model: m.id.as_str(),
                 },
-                ModelRouteBackend::GeminiDirect => vox_ludus::StreamRoute::Registry {
-                    backend: vox_ludus::LudusStreamBackend::Gemini,
+                ModelRouteBackend::GeminiDirect => vox_gamify::StreamRoute::Registry {
+                    backend: vox_gamify::LudusStreamBackend::Gemini,
                     model: m.id.as_str(),
                 },
-                ModelRouteBackend::OpenRouter => vox_ludus::StreamRoute::Registry {
-                    backend: vox_ludus::LudusStreamBackend::OpenRouter,
+                ModelRouteBackend::OpenRouter => vox_gamify::StreamRoute::Registry {
+                    backend: vox_gamify::LudusStreamBackend::OpenRouter,
                     model: m.id.as_str(),
                 },
-                ModelRouteBackend::CascadeFallback => vox_ludus::StreamRoute::Cascade,
-                ModelRouteBackend::PopuliMesh => vox_ludus::StreamRoute::Cascade,
-                ModelRouteBackend::VoxLocal => vox_ludus::StreamRoute::Cascade,
+                ModelRouteBackend::CascadeFallback => vox_gamify::StreamRoute::Cascade,
+                ModelRouteBackend::PopuliMesh => vox_gamify::StreamRoute::Cascade,
+                ModelRouteBackend::VoxLocal => vox_gamify::StreamRoute::Cascade,
             }
         } else {
-            vox_ludus::StreamRoute::Cascade
+            vox_gamify::StreamRoute::Cascade
         };
 
         if let Some(db) = self.orchestrator.db() {

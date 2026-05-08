@@ -1,9 +1,9 @@
 //! Gamification CRUD for [`crate::store::VoxDb`] (Arca / Turso).
 //!
 //! All gamification tables live in the schema under the `gamify_*` prefix. This module provides
-//! the typed CRUD methods that `vox-ludus` consumes; SQL is owned by `vox-db` (`store/ops_*.rs`).
+//! the typed CRUD methods that `vox-gamify` consumes; SQL is owned by `vox-db` (`store/ops_*.rs`).
 //!
-//! **Do not** use `db.connection().execute(...)` from `vox-ludus` or other crates. Add a method
+//! **Do not** use `db.connection().execute(...)` from `vox-gamify` or other crates. Add a method
 //! here and call it via `VoxDb::<method>`.
 
 use turso::params;

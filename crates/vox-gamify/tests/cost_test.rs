@@ -1,4 +1,4 @@
-use vox_ludus::cost::{CostAggregator, CostRecord};
+use vox_gamify::cost::{CostAggregator, CostRecord};
 
 #[test]
 fn test_cost_tracker() {

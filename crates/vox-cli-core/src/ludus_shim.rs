@@ -37,14 +37,14 @@ async fn record_cli_event_inner(
     }
 
     // Ludus recording (only if enabled)
-    if vox_ludus::config_gate::is_enabled() {
-        let ludus_uid = vox_ludus::db::canonical_user_id();
+    if vox_gamify::config_gate::is_enabled() {
+        let ludus_uid = vox_gamify::db::canonical_user_id();
         let event_json = serde_json::json!({
             "type": event_type,
             "success": success,
             "agent_id": 0u64,
         });
-        let _ = vox_ludus::event_router::route_event(&db, &ludus_uid, &event_json).await;
+        let _ = vox_gamify::event_router::route_event(&db, &ludus_uid, &event_json).await;
     }
 
     Ok(())

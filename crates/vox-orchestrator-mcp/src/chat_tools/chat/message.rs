@@ -613,11 +613,11 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         if let Some(ev) = &retrieval_evidence {
             payload["retrieval"] = serde_json::to_value(ev).unwrap_or(Value::Null);
         }
-        if vox_ludus::config_gate::is_enabled() {
-            let _ = vox_ludus::event_router::route_event_auto_user(db, &payload).await;
+        if vox_gamify::config_gate::is_enabled() {
+            let _ = vox_gamify::event_router::route_event_auto_user(db, &payload).await;
         } else {
             let _ =
-                vox_ludus::db::insert_event(db, "0", "llm_turn", Some(&payload.to_string())).await;
+                vox_gamify::db::insert_event(db, "0", "llm_turn", Some(&payload.to_string())).await;
         }
     }
 

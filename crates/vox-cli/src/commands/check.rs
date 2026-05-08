@@ -38,10 +38,10 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
 
     #[cfg(feature = "extras-ludus")]
     {
-        if vox_ludus::config_gate::is_enabled() {
+        if vox_gamify::config_gate::is_enabled() {
             if let Ok(db) = crate::workspace_db::connect_cli_workspace_voxdb().await {
                 let key = format!("vox-check:{}", file.display());
-                vox_ludus::lsp_telemetry::after_cli_check_clean(&db, &key).await;
+                vox_gamify::lsp_telemetry::after_cli_check_clean(&db, &key).await;
             }
         }
     }

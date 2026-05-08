@@ -37,7 +37,7 @@ pub fn run(root: &Path, cap: usize) -> Result<()> {
         "vox-populi",
         "vox-ml-cli",
         "vox-dei",
-        "vox-ludus",
+        "vox-gamify",
     ];
 
     for pkg in packages {

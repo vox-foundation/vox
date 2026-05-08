@@ -10684,12 +10684,12 @@ dependencies = [
  "vox-eval",
  "vox-exec-grammar",
  "vox-forge",
+ "vox-gamify",
  "vox-git",
  "vox-grammar-export",
  "vox-identity",
  "vox-install-policy",
  "vox-jsonschema-util",
- "vox-ludus",
  "vox-mcp-registry",
  "vox-mesh-types",
  "vox-openclaw-runtime",
@@ -10738,7 +10738,7 @@ dependencies = [
  "tracing-subscriber",
  "vox-clavis",
  "vox-db",
- "vox-ludus",
+ "vox-gamify",
  "vox-repository",
 ]
 
@@ -11051,6 +11051,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-gamify"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "bytes",
+ "chrono",
+ "futures-util",
+ "owo-colors",
+ "rand 0.8.5",
+ "reqwest 0.12.28",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "toml 0.8.23",
+ "tracing",
+ "turso",
+ "vox-bounded-fs",
+ "vox-clavis",
+ "vox-config",
+ "vox-db",
+ "vox-openai-sse",
+ "vox-reqwest-defaults",
+ "workspace-hack",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "vox-git"
 version = "0.5.0"
 dependencies = [
@@ -11175,40 +11207,8 @@ dependencies = [
  "vox-clavis",
  "vox-compiler",
  "vox-db",
- "vox-ludus",
+ "vox-gamify",
  "workspace-hack",
-]
-
-[[package]]
-name = "vox-ludus"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "async-stream",
- "bytes",
- "chrono",
- "futures-util",
- "owo-colors",
- "rand 0.8.5",
- "reqwest 0.12.28",
- "schemars",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "toml 0.8.23",
- "tracing",
- "turso",
- "vox-bounded-fs",
- "vox-clavis",
- "vox-config",
- "vox-db",
- "vox-openai-sse",
- "vox-reqwest-defaults",
- "workspace-hack",
- "xxhash-rust",
 ]
 
 [[package]]
@@ -11423,8 +11423,8 @@ dependencies = [
  "vox-crypto",
  "vox-dashboard",
  "vox-db",
+ "vox-gamify",
  "vox-lsp",
- "vox-ludus",
  "vox-mesh-types",
  "vox-oratio",
  "vox-orchestrator-queue",
@@ -11513,9 +11513,9 @@ dependencies = [
  "vox-corpus",
  "vox-crypto",
  "vox-db",
+ "vox-gamify",
  "vox-grammar-export",
  "vox-lsp",
- "vox-ludus",
  "vox-mcp-registry",
  "vox-mesh-types",
  "vox-openai-wire",

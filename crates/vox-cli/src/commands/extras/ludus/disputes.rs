@@ -1,10 +1,10 @@
 use super::db_util::get_db;
 use anyhow::Result;
 use owo_colors::OwoColorize;
-use vox_ludus::db::{
+use vox_gamify::db::{
     appeal_dispute as db_appeal_dispute, cast_vote, file_dispute as db_file_dispute,
 };
-use vox_ludus::util::now_unix;
+use vox_gamify::util::now_unix;
 
 pub async fn dispute_file(
     target_user: &str,
@@ -12,7 +12,7 @@ pub async fn dispute_file(
     rationale: &str,
 ) -> Result<()> {
     let db = get_db().await?;
-    let accuser_id = vox_ludus::db::canonical_user_id();
+    let accuser_id = vox_gamify::db::canonical_user_id();
 
     // Simple dispute ID generation for CLI testing
     let dispute_id = format!("dsp-{}", now_unix());
@@ -41,7 +41,7 @@ pub async fn dispute_file(
 
 pub async fn dispute_vote(dispute_id: &str, verdict: &str, rationale: Option<&str>) -> Result<()> {
     let db = get_db().await?;
-    let juror_id = vox_ludus::db::canonical_user_id();
+    let juror_id = vox_gamify::db::canonical_user_id();
 
     cast_vote(&db, dispute_id, &juror_id, verdict, rationale).await?;
 
@@ -57,7 +57,7 @@ pub async fn dispute_vote(dispute_id: &str, verdict: &str, rationale: Option<&st
 
 pub async fn dispute_status(dispute_id: &str) -> Result<()> {
     // Basic status print for MVP since getting single dispute isn't explicitly implemented
-    // in vox_ludus DB layer yet outside of get_gamify_disputes_by_status.
+    // in vox_gamify DB layer yet outside of get_gamify_disputes_by_status.
     println!("{} {}", "ℹ".cyan().bold(), "Dispute Status Check".bold());
     println!("  Dispute ID: {}", dispute_id.cyan());
     println!("  (Detailed status fetching requires further VoxDb integration)");

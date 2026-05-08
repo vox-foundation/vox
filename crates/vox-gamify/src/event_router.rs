@@ -71,7 +71,7 @@ pub async fn route_event(
                 }
                 if h.finish().is_multiple_of(n) {
                     tracing::info!(
-                        target: "vox_ludus::route_event",
+                        target: "vox_gamify::route_event",
                         user_id = %user_id,
                         event_type = %event_json.get("type").and_then(|v| v.as_str()).unwrap_or(""),
                         "sampled route_event"

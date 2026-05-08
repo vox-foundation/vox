@@ -1,7 +1,7 @@
 use crate::commands::extras::ludus::LudusContext;
 use anyhow::Result;
 use owo_colors::OwoColorize;
-use vox_ludus::{LudusProfile, db as ludus_db, shop};
+use vox_gamify::{LudusProfile, db as ludus_db, shop};
 
 /// List available items in the shop.
 pub async fn shop_list() -> Result<()> {

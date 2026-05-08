@@ -113,7 +113,7 @@ fn agent_id_from_kind_json(v: &serde_json::Value) -> u64 {
     0
 }
 
-fn agent_event_to_record(ev: &vox_orchestrator::AgentEvent, repo_id: &str) -> vox_ludus::db::AgentEventRecord {
+fn agent_event_to_record(ev: &vox_orchestrator::AgentEvent, repo_id: &str) -> vox_gamify::db::AgentEventRecord {
     let mut kind_json = serde_json::to_value(&ev.kind).unwrap_or_default();
     let event_type = kind_json
         .get("type")
@@ -128,7 +128,7 @@ fn agent_event_to_record(ev: &vox_orchestrator::AgentEvent, repo_id: &str) -> vo
         );
     }
     let payload = serde_json::to_string(&kind_json).unwrap_or_default();
-    vox_ludus::db::AgentEventRecord {
+    vox_gamify::db::AgentEventRecord {
         id: ev.id.0 as i64,
         agent_id: agent_id.to_string(),
         event_type,
@@ -153,7 +153,7 @@ pub async fn poll_events(state: &ServerState, params: PollEventsParams) -> Strin
 
         for id in agent_ids {
             if let Ok(records) =
-                vox_ludus::db::get_events(db, &id.0.to_string(), Some(lim_i64)).await
+                vox_gamify::db::get_events(db, &id.0.to_string(), Some(lim_i64)).await
             {
                 all_events.extend(records);
             }
@@ -251,7 +251,7 @@ pub async fn record_cost(state: &ServerState, params: RecordCostParams) -> Strin
 
     if let Some(id) = target_id {
         if let Some(db) = &state.db {
-            let _ = vox_ludus::db::insert_cost_record(
+            let _ = vox_gamify::db::insert_cost_record(
                 db,
                 &id.0.to_string(),
                 Some(&params.session_id),

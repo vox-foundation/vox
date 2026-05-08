@@ -348,14 +348,14 @@ pub fn generate_negative_preference_pairs_expanded(
         (
             "Use Box<dyn Error> in a public Vox API",
             "vox_generate_code",
-            "Box<dyn std::error::Error> is banned in public crate APIs — use a typed error enum (e.g. vox_ludus::Error) per the 5.6 data architecture policy",
+            "Box<dyn std::error::Error> is banned in public crate APIs — use a typed error enum (e.g. vox_gamify::Error) per the 5.6 data architecture policy",
             json!({"prompt": "pub fn load() -> Result<Data, Box<dyn Error>>"}),
         ),
         (
             "Use parallel crates for the same domain",
             "vox_generate_code",
             "Creating two crates with overlapping purpose violates the 'No Parallel Crates for the Same Domain' rule (AGENTS.md 5.4) — add to the existing crate",
-            json!({"prompt": "create new crate vox-gamify alongside vox-ludus"}),
+            json!({"prompt": "create new crate vox-gamify alongside vox-gamify"}),
         ),
     ];
 

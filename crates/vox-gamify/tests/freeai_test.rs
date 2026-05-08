@@ -1,4 +1,4 @@
-use vox_ludus::{FreeAiClient, FreeAiProvider};
+use vox_gamify::{FreeAiClient, FreeAiProvider};
 
 #[tokio::test]
 async fn test_free_ai_client_deterministic() {
