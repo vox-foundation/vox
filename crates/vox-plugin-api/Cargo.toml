@@ -7,6 +7,7 @@ repository.workspace = true
 description = "Shared API surface for Vox plugins: ABI version, traits, manifest types, error types."
 
 [dependencies]
+vox-plugin-types = { workspace = true }
 abi_stable = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }

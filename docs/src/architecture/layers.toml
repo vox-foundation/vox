@@ -41,6 +41,7 @@ vox-exec-grammar         = { layer = 1 }
 vox-grammar-export       = { layer = 1 }
 vox-scaling-policy       = { layer = 1 }
 vox-plugin-api           = { layer = 1 } # type/trait surface only
+vox-plugin-types         = { layer = 1 } # pure-types L1 leaf (Phase 1)
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config               = { layer = 2 }
@@ -111,11 +112,6 @@ vox-integration-tests    = { layer = 5 }
 
 
 # ── Known transitional inversions (to be cleared by Phase 9) ──────────────────
-
-[[known_inversions]]
-from = "vox-plugin-host"
-to = "vox-db"
-reason = "Plugin host pulls vox-db for state. Phase 1: replace with PluginStateBackend trait."
 
 [[known_inversions]]
 from = "vox-cli"

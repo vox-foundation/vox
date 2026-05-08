@@ -6,8 +6,9 @@ use abi_stable::{erased_types::TD_Opaque, std_types::*};
 use vox_plugin_api::extensions::mesh_driver::{MeshDriver, MeshDriver_TO, MESH_DRIVER_REVISION};
 
 #[test]
-fn revision_constant_is_one() {
-    assert_eq!(MESH_DRIVER_REVISION, 1);
+fn revision_constant_is_current() {
+    // Bumped when the trait shape changes; sync with extensions/mesh_driver.rs.
+    assert_eq!(MESH_DRIVER_REVISION, 2);
 }
 
 struct DummyMesh;

@@ -9,6 +9,8 @@ vox-compiler-emit = { workspace = true }
 vox-config.workspace = true
 vox-db-types = { workspace = true }
 vox-orchestrator-types = { workspace = true }
+vox-plugin-types = { workspace = true }
+async-trait = "0.1.89"
 turso = { workspace = true }
 tokio = { workspace = true }
 thiserror = { workspace = true }

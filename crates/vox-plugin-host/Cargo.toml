@@ -19,7 +19,8 @@ walkdir = { workspace = true }
 dirs = { workspace = true }
 sha3 = { workspace = true }
 data-encoding = { workspace = true }
-vox-db = { workspace = true }
+vox-plugin-types = { workspace = true }
+async-trait = "0.1.89"
 tokio = { workspace = true }
 workspace-hack = { workspace = true }
 

@@ -18,6 +18,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tracing::{info, warn};
 use vox_plugin_api::skill::LoadedSkill;
+use vox_plugin_types::state_backend::PluginStateBackend;
 
 // ---------------------------------------------------------------------------
 // Public result types
@@ -75,34 +76,44 @@ pub enum SkillSource {
 // Registry
 // ---------------------------------------------------------------------------
 
-/// Unified in-memory skill registry with optional DB persistence.
+/// Unified in-memory skill registry with optional persistent backend.
 pub struct SkillRegistry {
     skills: Mutex<HashMap<String, RegisteredSkill>>,
-    db: Mutex<Option<Arc<vox_db::VoxDb>>>,
+    backend: Mutex<Option<Arc<dyn PluginStateBackend>>>,
 }
 
 impl SkillRegistry {
-    /// In-memory registry without Codex persistence.
+    /// In-memory registry without persistence.
     pub fn new() -> Self {
         Self {
             skills: Mutex::new(HashMap::new()),
-            db: Mutex::new(None),
+            backend: Mutex::new(None),
         }
     }
 
-    /// Fluent constructor: same as [`SkillRegistry::new`] then [`SkillRegistry::set_db`].
-    pub fn with_db(self, db: Arc<vox_db::VoxDb>) -> Self {
-        *self.db.lock().unwrap_or_else(|e| e.into_inner()) = Some(db);
+    /// Fluent constructor: same as [`SkillRegistry::new`] then [`SkillRegistry::set_state_backend`].
+    pub fn with_state_backend(self, backend: Arc<dyn PluginStateBackend>) -> Self {
+        *self.backend.lock().unwrap_or_else(|e| e.into_inner()) = Some(backend);
         self
     }
 
-    /// Attach **Codex** (`vox_db::VoxDb`) after construction (safe interior mutation).
-    pub fn set_db(&self, db: Arc<vox_db::VoxDb>) {
-        *self.db.lock().unwrap_or_else(|e| e.into_inner()) = Some(db);
+    /// Attach a persistent backend (e.g. `vox-db::VoxDb`) after construction.
+    pub fn set_state_backend(&self, backend: Arc<dyn PluginStateBackend>) {
+        *self.backend.lock().unwrap_or_else(|e| e.into_inner()) = Some(backend);
     }
 
-    fn get_db(&self) -> Option<Arc<vox_db::VoxDb>> {
-        self.db.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    /// Backwards-compat alias kept until Phase 7. Same as [`Self::with_state_backend`].
+    pub fn with_db(self, backend: Arc<dyn PluginStateBackend>) -> Self {
+        self.with_state_backend(backend)
+    }
+
+    /// Backwards-compat alias kept until Phase 7. Same as [`Self::set_state_backend`].
+    pub fn set_db(&self, backend: Arc<dyn PluginStateBackend>) {
+        self.set_state_backend(backend);
+    }
+
+    fn get_backend(&self) -> Option<Arc<dyn PluginStateBackend>> {
+        self.backend.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     // -----------------------------------------------------------------------
@@ -198,7 +209,7 @@ impl SkillRegistry {
         }
 
         // Persist to VoxDB (fire-and-forget, no lock held)
-        if let Some(db) = self.get_db() {
+        if let Some(db) = self.get_backend() {
             let manifest_json =
                 serde_json::to_string(&bundle.manifest).unwrap_or_default();
             let skill_md = bundle.skill_md.clone();
@@ -223,7 +234,7 @@ impl SkillRegistry {
         };
         if was_installed {
             info!(skill = %canonical, "Skill uninstalled");
-            if let Some(db) = self.get_db() {
+            if let Some(db) = self.get_backend() {
                 let id_owned = canonical.to_string();
                 tokio::spawn(async move {
                     let _ = db.unpublish_skill(&id_owned).await;
@@ -286,7 +297,7 @@ impl SkillRegistry {
 
     /// Load all skills from the Codex `skill_manifests` table into memory.
     pub async fn hydrate_from_db(&self) -> Result<usize, HydrateError> {
-        let db = match self.get_db() {
+        let db = match self.get_backend() {
             Some(db) => db,
             None => return Ok(0),
         };
@@ -465,8 +476,8 @@ mod tests {
     }
 
     #[test]
-    fn no_db_attached() {
+    fn no_backend_attached() {
         let reg = SkillRegistry::new();
-        assert!(reg.get_db().is_none());
+        assert!(reg.get_backend().is_none());
     }
 }

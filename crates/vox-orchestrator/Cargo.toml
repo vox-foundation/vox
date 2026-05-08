@@ -126,6 +126,10 @@ tempfile.workspace = true
 [[bin]]
 name = "vox-orchestrator-d"
 path = "src/bin/vox_orchestrator_d.rs"
+# The daemon binary uses crate::mcp_tools and vox-skills (gated under mcp-native).
+# Until Phase 4 relocates this to a vox-orchestrator-d package, declare the
+# requirement here so slim builds skip the binary instead of failing.
+required-features = ["mcp-native"]
 
 [build-dependencies]
 serde_yaml = { workspace = true }

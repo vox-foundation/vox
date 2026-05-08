@@ -10929,6 +10929,7 @@ dependencies = [
 name = "vox-db"
 version = "0.5.0"
 dependencies = [
+ "async-trait",
  "bincode",
  "blake3",
  "chrono",
@@ -10951,6 +10952,7 @@ dependencies = [
  "vox-db-types",
  "vox-mesh-types",
  "vox-orchestrator-types",
+ "vox-plugin-types",
  "vox-repository",
  "vox-test-harness",
  "workspace-hack",
@@ -11441,6 +11443,7 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "toml 0.8.23",
+ "vox-plugin-types",
  "workspace-hack",
 ]
 
@@ -11499,6 +11502,7 @@ name = "vox-plugin-host"
 version = "0.5.0"
 dependencies = [
  "abi_stable",
+ "async-trait",
  "data-encoding",
  "dirs",
  "libloading 0.8.9",
@@ -11511,8 +11515,8 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "tracing-test",
- "vox-db",
  "vox-plugin-api",
+ "vox-plugin-types",
  "walkdir",
  "workspace-hack",
 ]
@@ -11689,6 +11693,16 @@ version = "0.1.0"
 dependencies = [
  "abi_stable",
  "vox-plugin-api",
+]
+
+[[package]]
+name = "vox-plugin-types"
+version = "0.5.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "thiserror 1.0.69",
+ "workspace-hack",
 ]
 
 [[package]]

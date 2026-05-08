@@ -179,20 +179,16 @@ async fn run_native(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Resul
         "Starting native training"
     );
 
-    #[cfg(feature = "gpu")]
-    {
-        crate::training::native::run_training(data_dir, output_dir).await?;
-        crate::commands::mens::eval_gate::run_legacy_train_post_eval_gate(data_dir, output_dir)?;
-        crate::commands::corpus::run_benchmark_gate(data_dir, output_dir).await?;
-        Ok(())
-    }
-
-    #[cfg(not(feature = "gpu"))]
-    {
-        anyhow::bail!(
-            "Native training requires the gpu feature. Build with: cargo build -p vox-cli --features gpu"
-        );
-    }
+    // Native in-process training is currently delegated to the
+    // `vox-plugin-mens-candle-cuda` plugin (see docs/src/architecture/external-frontend-interop-plan-2026.md).
+    // The legacy `crate::training::native::run_training` stub never reached parity with the plugin path
+    // and was removed; suppress the unused-arg warning under `gpu` while keeping the stable bail-out.
+    let _ = data_dir;
+    let _ = output_dir;
+    anyhow::bail!(
+        "Native training is provided by the vox-plugin-mens-candle-cuda plugin. \
+         Install it via `cargo build -p vox-plugin-mens-candle-cuda` and run training through the plugin runtime."
+    );
 }
 
 fn ensure_train_jsonl(train_jsonl: &Path, data_dir: &Path) -> anyhow::Result<()> {

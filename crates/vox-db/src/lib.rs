@@ -144,6 +144,7 @@ pub mod workflow_journal;
 pub mod workspace_journey_store;
 
 pub mod oratio_eval;
+pub mod plugin_state_backend;
 
 pub use auto_migrate::AutoMigrator;
 pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
