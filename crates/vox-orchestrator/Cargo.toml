@@ -12,7 +12,7 @@ default = [
     "mcp-native",
 ]
 dashboard = ["dep:vox-dashboard"]
-mcp-native = ["dep:schemars", "dep:axum", "dep:rmcp", "dep:axum-extra", "dep:tower-http"]
+mcp-native = ["dep:schemars", "dep:axum", "dep:rmcp", "dep:axum-extra", "dep:tower-http", "dep:vox-compiler", "dep:vox-grammar-export"]
 # Populi HTTP mesh client (`vox-populi` transport). Disable for faster `cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate`.
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
 # `vox-oratio` speech-to-text / refinement tools.
@@ -90,7 +90,7 @@ rmcp = { version = "0.16", optional = true, features = ["server", "client", "tra
 axum = { version = "0.8", optional = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
 tower-http = { workspace = true, optional = true, features = ["cors"] }
-vox-grammar-export.workspace = true
+vox-grammar-export = { workspace = true, optional = true }
 axum-extra = { version = "0.12.5", optional = true, features = ["typed-header"] }
 regex = "1"
 vox-corpus = { workspace = true, features = ["database"] }
@@ -110,7 +110,7 @@ vox-mesh-types.workspace = true
 blake3.workspace = true
 crossbeam-queue = "0.3.12"
 workspace-hack = { workspace = true }
-vox-compiler.workspace = true
+vox-compiler = { workspace = true, optional = true }
 glob.workspace = true
 ignore = "0.4.25"
 rand_distr = "0.4"
