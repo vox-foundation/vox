@@ -1,0 +1,18 @@
+[package]
+name = "vox-layer-check"
+version.workspace = true
+edition.workspace = true
+description = "CI guard: enforces the workspace layered-architecture model. See docs/src/architecture/2026-05-08-workspace-reorg-design.md."
+
+[dependencies]
+cargo_metadata = "0.20"
+toml = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+anyhow.workspace = true
+
+[[bin]]
+name = "vox-layer-check"
+path = "src/main.rs"
+
+[lints]
+workspace = true

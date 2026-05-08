@@ -1,0 +1,133 @@
+# Workspace layered-architecture source of truth.
+# Read by tools/vox-layer-check (crates/vox-layer-check). See
+# docs/src/architecture/2026-05-08-workspace-reorg-design.md for the full design.
+#
+# Layers (descending — L5 may depend on L0..L4; L0 may depend only on L0):
+#   0 — Pure types (data only, no async runtime, no DB)
+#   1 — Primitives & utilities (incl. plugin-api type-only surface)
+#   2 — Domain libraries (pure-data domain logic)
+#   3 — Heavy runtimes (DBs, compilers, orchestrators, plugin-host)
+#   4 — Concrete plugins (cdylib consumers — loaded, not compiled-into-L0..L3)
+#   5 — Surfaces (binaries, integration)
+#
+# Within-layer deps are allowed. Lower→higher is an inversion (failure unless
+# explicitly listed under [[known_inversions]]).
+#
+# Special case: workspace-hack is layer-neutral (consumed by all layers); we
+# encode it as L0 because it's a pure-types-style aggregator.
+
+[crates]
+
+# ── L0 — pure types ───────────────────────────────────────────────────────────
+vox-orchestrator-types = { layer = 0 }
+vox-db-types           = { layer = 0 }
+vox-protocol           = { layer = 0 }
+vox-mesh-types         = { layer = 0 }
+vox-primitives         = { layer = 0 }
+workspace-hack         = { layer = 0 }
+vox-layer-check        = { layer = 0 }
+
+# ── L1 — primitives & utilities ───────────────────────────────────────────────
+vox-bounded-fs           = { layer = 1 }
+vox-crypto               = { layer = 1 }
+vox-clavis               = { layer = 1 }
+vox-jsonschema-util      = { layer = 1 }
+vox-checksum-manifest    = { layer = 1 }
+vox-identity             = { layer = 1 }
+vox-reqwest-defaults     = { layer = 1 }
+vox-openai-wire          = { layer = 1 }
+vox-openai-sse           = { layer = 1 }
+vox-exec-grammar         = { layer = 1 }
+vox-grammar-export       = { layer = 1 }
+vox-scaling-policy       = { layer = 1 }
+vox-plugin-api           = { layer = 1 } # type/trait surface only
+
+# ── L2 — domain libraries ─────────────────────────────────────────────────────
+vox-config               = { layer = 2 }
+vox-repository           = { layer = 2 }
+vox-mcp-registry         = { layer = 2 }
+vox-mcp-meta             = { layer = 2 }
+vox-capability-registry  = { layer = 2 }
+vox-install-policy       = { layer = 2 }
+vox-project-scaffold     = { layer = 2 }
+vox-skill-runtime        = { layer = 2 }
+vox-constrained-gen      = { layer = 2 }
+vox-doc-inventory        = { layer = 2 }
+vox-eval                 = { layer = 2 }
+vox-pm                   = { layer = 2 } # depends on compiler/db → really L3, see known_inversions
+
+# ── L3 — heavy runtimes ───────────────────────────────────────────────────────
+vox-db                   = { layer = 3 }
+vox-corpus               = { layer = 3 }
+vox-compiler             = { layer = 3 }
+vox-compiler-emit        = { layer = 3 }
+vox-mens                 = { layer = 3 }
+vox-publisher            = { layer = 3 }
+vox-orchestrator         = { layer = 3 }
+vox-runtime              = { layer = 3 }
+vox-populi               = { layer = 3 }
+vox-oratio               = { layer = 3 }
+vox-wasm-engine          = { layer = 3 }
+vox-container            = { layer = 3 }
+vox-forge                = { layer = 3 }
+vox-git                  = { layer = 3 }
+vox-ars-runtime          = { layer = 3 }
+vox-workflow-runtime     = { layer = 3 }
+vox-dashboard            = { layer = 3 }
+vox-webhook              = { layer = 3 }
+vox-toestub              = { layer = 3 }
+vox-lsp                  = { layer = 3 }
+vox-ludus                = { layer = 3 }
+vox-skills               = { layer = 3 }
+vox-cli-core             = { layer = 3 }
+vox-search               = { layer = 3 } # depends on db + runtime
+vox-scientia-ingest      = { layer = 3 }
+vox-ssg                  = { layer = 3 }
+vox-test-harness         = { layer = 3 }
+vox-doc-pipeline         = { layer = 3 }
+vox-deploy-codegen       = { layer = 3 }
+vox-tensor               = { layer = 3 } # depends on compiler + runtime
+vox-plugin-host          = { layer = 3 }
+vox-plugin-catalog       = { layer = 3 }
+
+# ── L4 — concrete plugins (cdylib only — never compile-time deps for L0..L3) ──
+vox-plugin-browser              = { layer = 4 }
+vox-plugin-cloud                = { layer = 4 }
+vox-plugin-grammar-export       = { layer = 4 }
+vox-plugin-mens-candle-cuda     = { layer = 4 }
+vox-plugin-nvml-probe           = { layer = 4 }
+vox-plugin-oratio               = { layer = 4 }
+vox-plugin-oratio-mic           = { layer = 4 }
+vox-plugin-populi-mesh          = { layer = 4 }
+vox-plugin-publication          = { layer = 4 }
+vox-plugin-runtime-container    = { layer = 4 }
+vox-plugin-runtime-wasm         = { layer = 4 }
+vox-plugin-script-execution     = { layer = 4 }
+vox-plugin-webhook              = { layer = 4 }
+
+# ── L5 — surfaces ─────────────────────────────────────────────────────────────
+vox-cli                  = { layer = 5 }
+vox-integration-tests    = { layer = 5 }
+
+
+# ── Known transitional inversions (to be cleared by Phase 9) ──────────────────
+
+[[known_inversions]]
+from = "vox-plugin-host"
+to = "vox-db"
+reason = "Plugin host pulls vox-db for state. Phase 1: replace with PluginStateBackend trait."
+
+[[known_inversions]]
+from = "vox-cli"
+to = "vox-orchestrator"
+reason = "CLI always pulls orchestrator. Phase 7: introduce OrchestratorClient trait + vox-cli-thin."
+
+[[known_inversions]]
+from = "vox-pm"
+to = "vox-compiler"
+reason = "vox-pm uses compiler for build. Will be re-tiered when vox-pm is split into vox-pm-types (L1) + vox-pm-build (L3) in a follow-up."
+
+[[known_inversions]]
+from = "vox-pm"
+to = "vox-db"
+reason = "Same as above — vox-pm has DB-backed state. Will be re-tiered."
