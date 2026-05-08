@@ -27,8 +27,8 @@ futures-util = { workspace = true }
 tokio-tungstenite = { workspace = true, default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
 semver       = { workspace = true }
 vox-container = { workspace = true }
-vox-skill-runtime = { workspace = true }
 vox-plugin-runtime-container = { workspace = true }
+vox-skill-runtime = { workspace = true }
 vox-clavis.workspace = true
 secrecy      = { workspace = true }
 workspace-hack = { workspace = true }
