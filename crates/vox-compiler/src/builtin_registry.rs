@@ -521,6 +521,10 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             Box::new(Ty::Result(Box::new(Ty::Unit))),
         ),
         ("process", "exit") => Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)),
+        ("json", "parse") => Ty::Fn(
+            vec![Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+        ),
         ("json", "read_str") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
             Box::new(Ty::Result(Box::new(Ty::Str))),

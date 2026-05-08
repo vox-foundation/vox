@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans.
 
+> **amended (2026-05-08):** Type-system foundation only. Codegen lowering (TS Part B, Rust Part C) and Part D app integration **deferred to a follow-up PR**. The Json opaque type is registered in `typeck/builtins.rs` with all 11 accessor signatures (get_str/get_int/get_float/get_bool/get_object/get_array, is_null, length, at, keys, to_string). `std.json.parse(str) → Result[Json]` is added to `builtin_registry::std_namespace_method_ty`. The existing `JsonModule.parse` (loose generic-typed) is left in place for backward compat — new code should use `std.json.parse` which returns the typed `Json`. Runtime + codegen for the accessors comes next: TS needs a `@vox/runtime/json` helper module; Rust needs `vox_json_parse` returning a `serde_json::Value` wrapper plus method specialization in `codegen_rust/emit/method_emit.rs`. Reference doc deferred.
+
 **Goal:** First-class JSON parsing and value access in Vox: `std.json.parse(s: str) to Result[Json]` plus typed accessors on the resulting value (`get_str`, `get_int`, `get_object`, `get_array`, `is_null`).
 
 **Why now:** Blocks the vox-mental-tracker app's Phase 2 voice flow and Phase 4 export bundle assembly. Today, Vox endpoints emit JSON via raw string concatenation and consumers can't read it back inside Vox at all — every cross-endpoint data path either re-classifies inputs from scratch or routes through TS. JSON is also the on-disk shape of `payload_json` in the HealthEventLog, so any Vox-side filter or rollup that needs to peek into `mood_score` etc. is currently impossible.
