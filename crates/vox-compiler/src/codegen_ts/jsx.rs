@@ -104,7 +104,10 @@ fn transform_view_kwargs(tag: &str, attrs: &[JsxAttribute]) -> ViewCallEmission 
     let html_tag = primitive_emission
         .as_ref()
         .map(|e| e.html_tag.to_string())
-        .unwrap_or_else(|| tag.to_string());
+        // Non-primitive fallback: route through map_jsx_tag so snake_case SVG forms
+        // (radial_gradient → radialGradient, fe_gaussian_blur → feGaussianBlur, etc.)
+        // emit canonical camelCase. Plain HTML/SVG tags pass through unchanged.
+        .unwrap_or_else(|| map_jsx_tag(tag).to_string());
     // Author kwarg names — used to suppress primitive base classes on the same Tailwind axis.
     let author_kwargs: Vec<&str> = attrs.iter().map(|a| a.name.as_str()).collect();
     let mut class_pieces: Vec<String> = primitive_emission

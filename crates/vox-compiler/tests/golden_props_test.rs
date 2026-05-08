@@ -1,168 +1,59 @@
-//! Golden tests for expression-valued JSX props (Task 0.4 + 0.4-review).
+//! Golden test for subscript / index expressions in JSX props and children.
 //!
-//! Verifies that `{expr}` in attribute values — arithmetic, object literals,
-//! variable refs, boolean expressions, subscripts, member access, negation,
-//! conditionals, and function-ref handlers — all compile and emit correctly.
+//! Validates the `Expr::Index` AST variant + HIR lowering: `items[0]`,
+//! `items[i]`, `items[i + 1]` all reach the emitted TSX intact.
 //!
-//! Fixture files:
-//! - `props/rich.vox`       — arithmetic and object-literal prop values
-//! - `props/edge_cases.vox` — boolean expression (`is`), mixed string+expr props
-//! - `props/subscript.vox`  — subscript expressions (`obj[idx]`)
-//! - `props/coverage.vox`   — member access, negation, conditional, function-ref
-
-
-use vox_compiler::codegen_ts::reactive::{ReactiveViewBridgeStats, generate_reactive_component};
-use vox_compiler::hir::lower::lower_module;
-use vox_compiler::lexer::lex;
-use vox_compiler::parser::parse;
-
-/// Strip trailing whitespace from each line (normalizes emitter quirks).
-fn normalize_ws(s: &str) -> String {
-    s.lines()
-        .map(|l| l.trim_end())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
+//! Coverage of generic JSX prop forms (member access, conditionals, function
+//! refs) is provided by main's `reactive_smoke_test` suite — only the subscript
+//! path is exercised here, since it was added on this branch.
 
 fn compile_components(src: &str) -> Vec<(String, String)> {
-    let tokens = lex(src);
-    let module = parse(tokens).expect("parse error");
-    let hir = lower_module(&module);
-    let mut stats = ReactiveViewBridgeStats::default();
-    hir.components
-        .iter()
-        .map(|rc| generate_reactive_component(&hir, rc, None, &mut stats))
-        .collect()
+    let tokens = vox_compiler::lexer::lex(src);
+    let module =
+        vox_compiler::parser::parse(tokens).unwrap_or_else(|e| panic!("parse failed: {e:?}"));
+    let hir = vox_compiler::hir::lower_module(&module);
+    let out = vox_compiler::codegen_ts::generate(&hir)
+        .unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
+    out.files.into_iter().collect()
 }
 
-fn get_component(files: &[(String, String)], name: &str) -> String {
+fn get_component<'a>(files: &'a [(String, String)], name: &str) -> &'a str {
+    let filename = format!("{name}.tsx");
     files
         .iter()
-        .find(|(f, _)| *f == format!("{name}.tsx"))
-        .map(|(_, c)| c.clone())
-        .unwrap_or_else(|| panic!("component {name}.tsx not found"))
+        .find(|(n, _)| n == &filename)
+        .map(|(_, c)| c.as_str())
+        .unwrap_or_else(|| panic!("{filename} not found in codegen output"))
 }
 
-/// Subscript expressions (`items[0]`, `items[i]`, `items[i + 1]`) in JSX children.
-#[test]
-#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
-fn subscript_props_emit() {
-    let src = std::fs::read_to_string(concat!(
+fn read_fixture(name: &str) -> String {
+    let path = format!(
+        "{}/tests/fixtures/props/{}",
         env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/props/subscript.vox"
-    ))
-    .unwrap();
-    let expected = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/props/subscript.expected.tsx"
-    ))
-    .unwrap();
-
-    let files = compile_components(&src);
-    let actual = get_component(&files, "Indexed");
-
-    assert_eq!(
-        normalize_ws(&actual).trim().to_string(),
-        normalize_ws(&expected).trim().to_string(),
-        "subscript props golden snapshot mismatch\nACTUAL:\n{actual}"
+        name
     );
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path}: {e}"))
 }
 
-// Known limitation (deferred): Closures with explicit parameters in JSX prop values
-// emit with IIFE wrapping that discards the parameter. Example:
-//
-//   <Btn on:click={fn(e) { e.preventDefault() }}/>
-//
-// Currently emits roughly:
-//   onClick={() => { ((e) => (() => { ... })())(); }}
-//
-// The inner (e) => ... lambda is immediately invoked with no arguments,
-// so `e` is undefined inside the body. This is a Lambda-in-Block emit issue,
-// not a prop-value parser issue. The dashboard surfaces (mesh, runs, models,
-// etc.) all use no-arg arrow handlers (`onClick={() => onSelect(id)}`), so
-// this gap doesn't block Phase 1+. Track as a follow-up before any surface
-// that needs `e.target` or `e.preventDefault()` is built.
-
-/// Coverage: member access, negation, conditional, function-ref.
 #[test]
-#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
-fn coverage_member_access() {
-    let src = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/props/coverage.vox"
-    ))
-    .unwrap();
-    let expected = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/props/coverage.expected.tsx"
-    ))
-    .unwrap();
-
+fn subscript_expressions_pass_through_to_tsx() {
+    let src = read_fixture("subscript.vox");
     let files = compile_components(&src);
-    let actual_ma = get_component(&files, "MemberAccess");
-    let actual_neg = get_component(&files, "Negation");
-    let actual_cond = get_component(&files, "Conditional");
-    let actual_fn = get_component(&files, "FunctionRef");
-    let actual = format!("{actual_ma}\n{actual_neg}\n{actual_cond}\n{actual_fn}");
+    let ts = get_component(&files, "Indexed");
 
-    assert_eq!(
-        normalize_ws(&actual).trim().to_string(),
-        normalize_ws(&expected).trim().to_string(),
-        "coverage props golden snapshot mismatch\nACTUAL:\n{actual}"
+    // Literal index
+    assert!(
+        ts.contains("items[0]"),
+        "Indexed.tsx must emit literal `items[0]`. got:\n{ts}"
     );
-}
-
-/// Arithmetic (`count * 16`) and object-literal (`{{ width: width, padding: 8 }}`) props.
-#[test]
-#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
-fn rich_props_compile() {
-    let src = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/props/rich.vox"
-    ))
-    .unwrap();
-    let expected = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/props/rich.expected.tsx"
-    ))
-    .unwrap();
-
-    let files = compile_components(&src);
-    let actual_box = get_component(&files, "Box");
-    let actual_page = get_component(&files, "Page");
-    let actual = format!("{actual_box}\n{actual_page}");
-
-    assert_eq!(
-        normalize_ws(&actual).trim().to_string(),
-        normalize_ws(&expected).trim().to_string(),
-        "rich props golden snapshot mismatch\nACTUAL:\n{actual}"
+    // Identifier index
+    assert!(
+        ts.contains("items[i]"),
+        "Indexed.tsx must emit identifier `items[i]`. got:\n{ts}"
     );
-}
-
-/// Boolean-expression props (`{i is stages}`), mixed string+expression props.
-#[test]
-#[ignore = "VUV-9 retired JSX angle-bracket syntax; view-call coverage lives in reactive_smoke_test"]
-fn edge_case_props_compile() {
-    let src = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/props/edge_cases.vox"
-    ))
-    .unwrap();
-    let expected = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/fixtures/props/edge_cases.expected.tsx"
-    ))
-    .unwrap();
-
-    let files = compile_components(&src);
-    let actual_pipeline = get_component(&files, "PipelineCard");
-    let actual_stages = get_component(&files, "Stages");
-    let actual_mixed = get_component(&files, "MixedProps");
-    let actual = format!("{actual_pipeline}\n{actual_stages}\n{actual_mixed}");
-
-    assert_eq!(
-        normalize_ws(&actual).trim().to_string(),
-        normalize_ws(&expected).trim().to_string(),
-        "edge-case props golden snapshot mismatch\nACTUAL:\n{actual}"
+    // Arithmetic index expression
+    assert!(
+        ts.contains("items[i + 1]") || ts.contains("items[(i + 1)]"),
+        "Indexed.tsx must emit arithmetic `items[i + 1]`. got:\n{ts}"
     );
 }

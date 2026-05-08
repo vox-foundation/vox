@@ -58,6 +58,7 @@ pub fn map_jsx_attr_name(name: &str) -> &str {
         "stop_color" => "stopColor",
         "stop_opacity" => "stopOpacity",
         "vector_effect" => "vectorEffect",
+        "std_deviation" => "stdDeviation",
         "font_family" => "fontFamily",
         "font_size" => "fontSize",
         "font_weight" => "fontWeight",

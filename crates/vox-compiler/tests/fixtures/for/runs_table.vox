@@ -1,12 +1,11 @@
-component RunsTable(rows: Array) {
-    view: (
-        <div class="table">
-            for r, i in rows {
-                <div class="row" key={r.id}>
-                    <span>{r.id}</span>
-                    <span>{r.duration}</span>
-                </div>
+// runs_table — for-loop with explicit index, key prop, multi-child rows.
+component RunsTable(rows: any) {
+    view: panel(class="table") {
+        for r, i in rows {
+            panel(class="row", key=r.id) {
+                span() { r.id }
+                span() { r.duration }
             }
-        </div>
-    )
+        }
+    }
 }

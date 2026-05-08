@@ -1,8 +1,0 @@
-component Pair(a: str, b: str) {
-    view: (
-        <>
-            <span>{a}</span>
-            <span>{b}</span>
-        </>
-    )
-}

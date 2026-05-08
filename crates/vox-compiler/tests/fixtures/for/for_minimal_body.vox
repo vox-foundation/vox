@@ -1,9 +1,9 @@
-component Empty(rows: Array) {
-    view: (
-        <div class="list">
-            for r in rows {
-                <span></span>
-            }
-        </div>
-    )
+// for_minimal_body — minimal for-loop body (no index, no children).
+// Validates that for r in rows { span() } lowers to rows.map((r, _i) => ...).
+component Empty(rows: any) {
+    view: panel(class="list") {
+        for r in rows {
+            span()
+        }
+    }
 }

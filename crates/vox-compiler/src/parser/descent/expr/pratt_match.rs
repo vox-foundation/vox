@@ -641,7 +641,7 @@ fn is_known_html_view_tag(tag: &str) -> bool {
         // (radial_gradient → radialGradient, etc.) at emit time.
         | "g" | "defs" | "path" | "circle" | "rect" | "ellipse" | "line" | "polyline"
         | "polygon" | "text" | "tspan" | "use" | "symbol" | "marker" | "mask"
-        | "pattern" | "stop"
+        | "pattern" | "stop" | "filter"
         | "radial_gradient" | "linear_gradient" | "clip_path" | "foreign_object"
         | "fe_gaussian_blur"
     )

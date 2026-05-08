@@ -1,9 +1,9 @@
-component Indexed(items: Array, i: int) {
-    view: (
-        <div>
-            <span>{items[0]}</span>
-            <span>{items[i]}</span>
-            <span>{items[i + 1]}</span>
-        </div>
-    )
+// subscript — index expressions on identifiers and arithmetic indices.
+// Validates Expr::Index lowering: `items[0]`, `items[i]`, `items[i + 1]`.
+component Indexed(items: any, i: int) {
+    view: panel() {
+        span() { items[0] }
+        span() { items[i] }
+        span() { items[i + 1] }
+    }
 }

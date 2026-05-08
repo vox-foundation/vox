@@ -1,9 +1,0 @@
-component Nested(x: str) {
-    view: (
-        <>
-            <>
-                <span>{x}</span>
-            </>
-        </>
-    )
-}
