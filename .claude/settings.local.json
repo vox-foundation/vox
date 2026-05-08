@@ -49,7 +49,25 @@
       "Bash(grep -v \"^warning\\\\|^  -->\\\\|^   \\\\||$\")",
       "Bash(echo \"EXIT:$?\")",
       "WebSearch",
-      "Bash(xargs wc *)"
+      "Bash(xargs wc *)",
+      "Bash(git checkout *)",
+      "Bash(cargo tree *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(ls \"C:/Users/Owner/.claude/projects/C--Users-Owner-vox--claude-worktrees-infallible-lalande-baf300/2c383e61-be6f-4ada-9969-1bb96c397a57/\" 2>/dev/null; ls \"C:/Users/Owner/AppData/Local/Temp/claude/C--Users-Owner-vox--claude-worktrees-infallible-lalande-baf300/\" 2>/dev/null)",
+      "Bash(echo \"Cargo check exit: $?\")",
+      "Bash(git ls-remote *)",
+      "Bash(git status *)",
+      "Bash(git log *)",
+      "Bash(git -C C:/Users/Owner/vox/.claude/worktrees/infallible-lalande-baf300 log --oneline -4 -- crates/__TRACKED_VAR__/)",
+      "Bash(cat crates/vox-plugin-mens-candle-cuda/Cargo.toml | head -60; echo \"===\"; ls \"C:/Program Files \\(x86\\)/Microsoft Visual Studio/2022/BuildTools/VC/Auxiliary/Build/vcvars64.bat\" 2>&1; echo \"===\"; ls crates/vox-plugin-mens-candle-cuda/build.rs 2>&1)",
+      "Bash(cmd.exe /c \"\\\\\"C:\\\\\\\\Program Files \\(x86\\)\\\\\\\\Microsoft Visual Studio\\\\\\\\2022\\\\\\\\BuildTools\\\\\\\\VC\\\\\\\\Auxiliary\\\\\\\\Build\\\\\\\\vcvars64.bat\\\\\" && echo OK_VCVARS\")",
+      "Bash(cmd.exe /c \"echo %PATH%\")",
+      "Bash(cmd.exe /c \"\\\\\"C:\\\\\\\\Program Files \\(x86\\)\\\\\\\\Microsoft Visual Studio\\\\\\\\2022\\\\\\\\BuildTools\\\\\\\\VC\\\\\\\\Auxiliary\\\\\\\\Build\\\\\\\\vcvars64.bat\\\\\" 2>&1 & echo EXITCODE=%ERRORLEVEL%\")",
+      "Bash(cargo metadata *)",
+      "Bash(grep -E \"\\\\-sys |openssl-sys|libsqlite|rocksdb|zstd-sys|lz4-sys|bzip2-sys|onnxruntime|ring$|libsodium\")",
+      "Bash(dir /s /b \"*.ptx\")",
+      "Bash(awk '{print $NF}')",
+      "Bash(ls /mnt/c/Users/Owner/vox/.claude/worktrees/infallible-lalande-baf300/crates/)"
     ]
   }
 }

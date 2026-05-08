@@ -54,7 +54,6 @@ vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-clavis                = { path = "crates/vox-clavis" }
 vox-cli                   = { path = "crates/vox-cli" }
 vox-bounded-fs            = { path = "crates/vox-bounded-fs" }
-vox-browser               = { path = "crates/vox-browser" }
 vox-compiler              = { path = "crates/vox-compiler" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
@@ -70,15 +69,11 @@ vox-crypto                = { path = "crates/vox-crypto" }
 vox-identity              = { path = "crates/vox-identity" }
 
 vox-ars                   = { path = "crates/vox-ars" }
-vox-audio-ingress         = { path = "crates/vox-audio-ingress" }
 vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
 vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }
 vox-mcp-meta              = { path = "crates/vox-mcp-meta" }
 vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
-vox-schola                = { path = "crates/vox-schola" }
-vox-scientia-core         = { path = "crates/vox-scientia-core" }
-vox-scientia-social       = { path = "crates/vox-scientia-social" }
 vox-scientia-ingest       = { path = "crates/vox-scientia-ingest" }
 vox-test-harness          = { path = "crates/vox-test-harness" }
 vox-tools                 = { path = "crates/vox-tools" }

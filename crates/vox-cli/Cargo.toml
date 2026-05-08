@@ -171,7 +171,6 @@ vox-constrained-gen = { workspace = true }
 rand = { workspace = true }
 
 uuid = { version = "1.22.0", features = ["v4"] }
-vox-spool = { path = "../vox-spool" }
 vox-mcp-registry = { path = "../vox-mcp-registry" }
 vox-capability-registry = { path = "../vox-capability-registry" }
 rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
