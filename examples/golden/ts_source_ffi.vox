@@ -1,6 +1,6 @@
 // ---
 // title: "TS-source FFI extern fn"
-// description: "extern fn name(args) to T = \"./module\" — declare a function implemented in a sibling .ts file (added 2026-05)."
+// description: "extern fn name(args) to T = \"./module\" — declare a function implemented in a sibling .ts file (added 2026-05). Tests against the local zod-backed helper so the golden survives any single app's lifecycle."
 // syntax_version: "0.8"
 // status: golden
 // category: example
@@ -10,11 +10,18 @@
 // training_weight: 1.0
 // ---
 // @training_prompt: Declare a Vox extern fn that bridges to a sibling TS module
-extern fn weeklyAggregate(events: List[str], now_ms: int, window_days: int) to int = "./ts/materializer"
+//
+// The sibling TS module (./ts_source_ffi_helper.ts) imports zod, which is
+// already a runtime dep of every vox-codegen-ts output (see zod_emit.rs).
+// Switching the test target away from app-specific TS keeps the golden
+// stable as apps come and go.
+extern fn isValidEmail(s: str) to bool = "./ts_source_ffi_helper"
 
-extern fn resolveCorrections(rows: List[str]) to List[str] = "./ts/materializer"
+extern fn clampPositive(n: int) to int = "./ts_source_ffi_helper"
 
-fn use_extern(rows: List[str]) to int {
-    let resolved = resolveCorrections(rows)
-    return weeklyAggregate(resolved, 1000, 7)
+fn use_externs(addr: str, raw: int) to int {
+    if isValidEmail(addr) {
+        return clampPositive(raw)
+    }
+    return 0
 }
