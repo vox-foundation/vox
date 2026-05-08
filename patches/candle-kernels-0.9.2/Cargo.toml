@@ -37,7 +37,7 @@ path = "src/lib.rs"
 [dependencies]
 
 [build-dependencies]
-bindgen_cuda = "0.1.6"
-cc = "1.0"
+# Pure-Rust build: no nvcc, no cl.exe, no bindgen_cuda, no cc.
+# PTX files are pre-compiled and bundled under src/ptx/.
 [workspace]
 
