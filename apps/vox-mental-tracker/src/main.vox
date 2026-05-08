@@ -98,6 +98,31 @@ fn _clamp(n: int, lo: int, hi: int) to int {
     return n
 }
 
+/// True when the event was recorded more than 5 min after it occurred.
+/// Ported from export_contract.ts `isBackdated` (§3.B).
+fn _is_backdated(event_at_ms: str, recorded_at_ms: str) to bool {
+    let ea = _parse_int_default(event_at_ms, 0)
+    let ra = _parse_int_default(recorded_at_ms, 0)
+    if ea is 0 { return false }
+    return (ra - ea) > 300000
+}
+
+/// CSV-quote a field: wrap in double-quotes, escape inner quotes.
+/// Ported from export_contract.ts `csvQuote` (§3.B).
+fn _csv_quote(s: str) to str {
+    return "\"" + s.replace("\"", "\"\"") + "\""
+}
+
+/// True when `check_id` appears as the `correction_of` of any row.
+/// O(n) scan; used inside the O(n²) effective-events pass (§3.A).
+fn _is_superseded_in(check_id: str, rows: List[HealthEventLog]) to bool {
+    let mut found = false
+    for r in rows {
+        if r.correction_of == check_id { found = true }
+    }
+    return found
+}
+
 /// Authoritative voice classifier (mirrors src/ts/intent_parser.ts). Returns a
 /// structured ParsedVoice; the UI / save flow pulls each field directly.
 @endpoint(kind: query) fn parse_voice(transcript: str) to ParsedVoice {
@@ -169,9 +194,8 @@ fn _clamp(n: int, lo: int, hi: int) to int {
     return "{\"kind\":\"" + p.kind + "\",\"payload\":" + p.payload_json + ",\"confidence\":" + str(p.confidence) + "}"
 }
 
-/// Per-kind weekly rollup. Counts effective (non-superseded) events per kind.
-/// Window filtering by event_at is done client-side via src/ts/materializer.ts
-/// (which also handles correction-chain collapse from the raw event log).
+/// Per-kind weekly rollup over effective (non-superseded) events.
+/// Ported correction-chain collapse from src/ts/materializer.ts (§3.A).
 @endpoint(kind: query) fn weekly_summary_json() to str {
     match db.HealthEventLog.all() {
         Ok(rows) => {
@@ -183,7 +207,7 @@ fn _clamp(n: int, lo: int, hi: int) to int {
             let mut exercises = 0
             let mut notes = 0
             for r in rows {
-                if r.correction_of == "" {
+                if !_is_superseded_in(r.event_id, rows) {
                     total = total + 1
                     if r.event_kind == "mood_recorded" { moods = moods + 1 }
                     if r.event_kind == "meal_recorded" { meals = meals + 1 }
@@ -193,25 +217,26 @@ fn _clamp(n: int, lo: int, hi: int) to int {
                     if r.event_kind == "note_recorded" { notes = notes + 1 }
                 }
             }
-            "{\"window_days\":7,\"note\":\"per_kind_unfiltered_uncollapsed_corrections\",\"total_events\":" + str(total) + ",\"per_kind\":{\"mood_recorded\":" + str(moods) + ",\"meal_recorded\":" + str(meals) + ",\"sleep_started\":" + str(sleep_starts) + ",\"sleep_ended\":" + str(sleep_ends) + ",\"exercise_recorded\":" + str(exercises) + ",\"note_recorded\":" + str(notes) + "}}"
+            "{\"window_days\":7,\"total_events\":" + str(total) + ",\"per_kind\":{\"mood_recorded\":" + str(moods) + ",\"meal_recorded\":" + str(meals) + ",\"sleep_started\":" + str(sleep_starts) + ",\"sleep_ended\":" + str(sleep_ends) + ",\"exercise_recorded\":" + str(exercises) + ",\"note_recorded\":" + str(notes) + "}}"
         }
         Error(_) => "{\"error\":\"db\"}"
     }
 }
 
-/// Emit all HealthEventLog rows as a JSON array suitable as input to the
-/// TS materializer (src/ts/materializer.ts). The materializer collapses
-/// correction chains, derives is_backdated, and groups by day. payload_json
-/// is escaped as a JSON string field; consumers JSON.parse it themselves.
+/// Effective HealthEventLog rows as JSON — superseded rows excluded, is_backdated included.
+/// Replaces the TS materializer client-side pass (§3.A); payload_json is JSON-escaped.
 @endpoint(kind: query) fn timeline_events_json() to str {
     match db.HealthEventLog.all() {
         Ok(rows) => {
             let mut out = "["
             let mut first = true
             for r in rows {
-                if first { first = false } else { out = out + "," }
-                let pj = r.payload_json.replace("\\", "\\\\").replace("\"", "\\\"")
-                out = out + "{\"event_id\":\"" + r.event_id + "\",\"event_kind\":\"" + r.event_kind + "\",\"schema_version\":" + str(r.schema_version) + ",\"payload_json\":\"" + pj + "\",\"event_at\":\"" + r.event_at + "\",\"recorded_at\":\"" + r.recorded_at + "\",\"recorded_at_monotonic\":" + str(r.recorded_at_monotonic) + ",\"tz_iana\":\"" + r.tz_iana + "\",\"tz_offset_minutes\":" + str(r.tz_offset_minutes) + ",\"source\":\"" + r.source + "\",\"raw_transcript_id\":\"" + r.raw_transcript_id + "\",\"correction_of\":\"" + r.correction_of + "\"}"
+                if !_is_superseded_in(r.event_id, rows) {
+                    if first { first = false } else { out = out + "," }
+                    let backdated = _is_backdated(r.event_at, r.recorded_at)
+                    let pj = r.payload_json.replace("\\", "\\\\").replace("\"", "\\\"")
+                    out = out + "{\"event_id\":\"" + r.event_id + "\",\"event_kind\":\"" + r.event_kind + "\",\"schema_version\":" + str(r.schema_version) + ",\"payload_json\":\"" + pj + "\",\"event_at\":\"" + r.event_at + "\",\"recorded_at\":\"" + r.recorded_at + "\",\"recorded_at_monotonic\":" + str(r.recorded_at_monotonic) + ",\"tz_iana\":\"" + r.tz_iana + "\",\"tz_offset_minutes\":" + str(r.tz_offset_minutes) + ",\"source\":\"" + r.source + "\",\"raw_transcript_id\":\"" + r.raw_transcript_id + "\",\"correction_of\":\"" + r.correction_of + "\",\"is_backdated\":" + str(backdated) + "}"
+                }
             }
             out + "]"
         }
@@ -219,29 +244,50 @@ fn _clamp(n: int, lo: int, hi: int) to int {
     }
 }
 
-/// Canonical header row — append row-level CSV via `src/ts/export_contract.ts` + client-side fetch of typed JSON once exposed.
+/// Full CSV export — header + one row per effective (non-superseded) event.
+/// Ported from export_contract.ts `buildHealthCsv` (§3.B).
 @endpoint(kind: query) fn export_health_csv() to str {
-    return "event_id,event_kind,schema_version,payload_json,event_at,recorded_at,recorded_at_monotonic,tz_iana,tz_offset_minutes,source,raw_transcript_id,correction_of,is_backdated"
+    let header = "event_id,event_kind,schema_version,payload_json,event_at,recorded_at,recorded_at_monotonic,tz_iana,tz_offset_minutes,source,raw_transcript_id,correction_of,is_backdated"
+    match db.HealthEventLog.all() {
+        Ok(rows) => {
+            let mut out = header
+            for r in rows {
+                if !_is_superseded_in(r.event_id, rows) {
+                    let backdated = _is_backdated(r.event_at, r.recorded_at)
+                    let mut row = _csv_quote(r.event_id) + "," + _csv_quote(r.event_kind) + "," + str(r.schema_version)
+                    row = row + "," + _csv_quote(r.payload_json) + "," + _csv_quote(r.event_at) + "," + _csv_quote(r.recorded_at)
+                    row = row + "," + str(r.recorded_at_monotonic) + "," + _csv_quote(r.tz_iana) + "," + str(r.tz_offset_minutes)
+                    row = row + "," + _csv_quote(r.source) + "," + _csv_quote(r.raw_transcript_id) + "," + _csv_quote(r.correction_of)
+                    row = row + "," + _csv_quote(str(backdated))
+                    out = out + "\n" + row
+                }
+            }
+            out
+        }
+        Error(_) => header
+    }
 }
 
+/// JSON bundle metadata with content SHA-256 of the full CSV export (§3.B).
 @endpoint(kind: query) fn export_health_json_bundle() to str {
     let csv_payload = export_health_csv()
     let hash = std.crypto.hash_secure(csv_payload)
     match db.HealthEventLog.all() {
-        Ok(rows) => "{\"schema\":\"vox.mental_tracker.export_bundle\",\"version\":1,\"generated_ms\":" + str(std.time.now_ms()) + ",\"content_sha256_header_only\":\"" + hash + "\",\"row_count\":" + str(len(rows)) + ",\"detail\":\"full_csv_rows_in_ts_export_contract\"}"
+        Ok(rows) => "{\"schema\":\"vox.mental_tracker.export_bundle\",\"version\":1,\"generated_ms\":" + str(std.time.now_ms()) + ",\"content_sha256\":\"" + hash + "\",\"row_count\":" + str(len(rows)) + "}"
         Error(_) => "{\"error\":\"db\"}"
     }
 }
 
+/// Clinician-shareable HTML report — full CSV + weekly summary (§3.C).
 @endpoint(kind: query) fn export_clinical_html() to str {
     let summary = weekly_summary_json()
     let csv_payload = export_health_csv()
     let hash = std.crypto.hash_secure(csv_payload)
-    let mut body = "<!doctype html><html><head><meta charset=\"utf-8\"/><title>Mental Health Tracker — clinical export</title><style>body{font-family:system-ui;margin:24px;}pre{white-space:pre-wrap;}</style></head><body>"
-    body = body + "<h1>Clinical summary</h1><p>Generated (UTC ms): " + str(std.time.now_ms()) + "</p><p>SHA256(header canonical): " + hash + "</p>"
-    body = body + "<h2>Weekly window</h2><pre>" + summary + "</pre>"
-    body = body + "<h2>Methodology</h2><p>Append-only event log with correction rows referencing prior event_id. Full CSV rows: TypeScript helper mirroring contracts/export (see app docs).</p>"
-    body = body + "<h2>CSV header</h2><pre>" + csv_payload + "</pre>"
+    let mut body = "<!doctype html><html><head><meta charset=\"utf-8\"/><title>Mental Health Tracker — clinical export</title><style>body{font-family:system-ui;margin:24px;}pre{white-space:pre-wrap;overflow-x:auto;font-size:12px;}</style></head><body>"
+    body = body + "<h1>Clinical export</h1><p>Generated (UTC ms): " + str(std.time.now_ms()) + "</p><p>Content SHA-256: <code>" + hash + "</code></p>"
+    body = body + "<h2>Weekly summary</h2><pre>" + summary + "</pre>"
+    body = body + "<h2>Methodology</h2><p>Append-only event log. Rows whose <code>correction_of</code> references a prior row supersede that row. <code>is_backdated</code> is set when <code>recorded_at − event_at &gt; 5 min</code>.</p>"
+    body = body + "<h2>CSV export</h2><pre>" + csv_payload + "</pre>"
     body = body + "</body></html>"
     return body
 }
