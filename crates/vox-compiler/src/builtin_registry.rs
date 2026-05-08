@@ -299,6 +299,15 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
         },
         BuiltinRegistryEntry {
             namespace: "std.mobile",
+            name: "transcribe_microphone",
+            arg_count: 0,
+            signature: "fn() -> Result[str]",
+            runtime_symbol: None,
+            arg_kinds: &[],
+            returns_unit: false,
+        },
+        BuiltinRegistryEntry {
+            namespace: "std.mobile",
             name: "accelerometer",
             arg_count: 0,
             signature: "fn() -> Result[str]",

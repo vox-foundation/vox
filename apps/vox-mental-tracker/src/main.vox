@@ -1,0 +1,286 @@
+// vox-mental-tracker — append-only HealthEventLog SSOT, exports (see src/ts/export_contract.ts for row projection), on-device STT via Capacitor.
+import std.mobile
+
+@table type HealthEventLog {
+    event_id: str
+    event_kind: str
+    schema_version: int
+    payload_json: str
+    event_at: str
+    recorded_at: str
+    recorded_at_monotonic: int
+    tz_iana: str
+    tz_offset_minutes: int
+    source: str
+    raw_transcript_id: str
+    correction_of: str
+}
+
+@table type RawTranscript {
+    transcript_id: str
+    captured_at: str
+    transcript_text: str
+    parser_decisions_json: str
+    confidence: float
+}
+
+@endpoint(kind: query) fn health_event_count() to int {
+    match db.HealthEventLog.all() {
+        Ok(rows) => len(rows)
+        Error(_) => 0
+    }
+}
+
+@endpoint(kind: mutation) fn record_health_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+    let eid = std.crypto.uuid()
+    let rec_ms = std.time.now_ms()
+    db.HealthEventLog.insert({
+        event_id: eid,
+        event_kind: event_kind,
+        schema_version: 1,
+        payload_json: payload_json,
+        event_at: event_at,
+        recorded_at: str(rec_ms),
+        recorded_at_monotonic: rec_ms,
+        tz_iana: tz_iana,
+        tz_offset_minutes: tz_offset_minutes,
+        source: source,
+        raw_transcript_id: raw_transcript_id,
+        correction_of: correction_of,
+    })?
+    return Ok(eid)
+}
+
+@endpoint(kind: mutation) fn record_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+    return record_health_event(event_kind, payload_json, event_at, source, raw_transcript_id, correction_of, tz_iana, tz_offset_minutes)
+}
+
+@endpoint(kind: mutation) fn record_correction(of_event_id: str, event_kind: str, payload_json: str, event_at: str, source: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+    return record_health_event(event_kind, payload_json, event_at, source, "", of_event_id, tz_iana, tz_offset_minutes)
+}
+
+@endpoint(kind: mutation) fn record_raw_transcript(transcript_text: str, parser_decisions_json: str, confidence: float) to Result[str] {
+    let tid = std.crypto.uuid()
+    let ms = std.time.now_ms()
+    db.RawTranscript.insert({
+        transcript_id: tid,
+        captured_at: str(ms),
+        transcript_text: transcript_text,
+        parser_decisions_json: parser_decisions_json,
+        confidence: confidence,
+    })?
+    return Ok(tid)
+}
+
+@endpoint(kind: query) fn preview_voice_parse(transcript: str) to str {
+    let t = transcript.trim().to_lower()
+    if t.contains("mood") {
+        return "{\"kind\":\"mood_recorded\",\"payload\":{\"mood_score\":3},\"confidence\":0.55}"
+    }
+    if t.contains("ate ") or t.contains("eating ") or t.contains("had ") {
+        return "{\"kind\":\"meal_recorded\",\"payload\":{\"description\":\"meal\",\"meal_type\":\"snack\"},\"confidence\":0.6}"
+    }
+    if t.contains("ran ") or t.contains("run ") or t.contains("jogged ") or t.contains("walked ") {
+        return "{\"kind\":\"exercise_recorded\",\"payload\":{\"activity\":\"cardio\",\"duration_minutes\":20},\"confidence\":0.65}"
+    }
+    if t.contains("sleep") or t.contains("bed") or t.contains("nap") {
+        return "{\"kind\":\"sleep_started\",\"payload\":{},\"confidence\":0.55}"
+    }
+    return "{\"kind\":\"note_recorded\",\"payload\":{\"body\":\"" + transcript.replace("\"", "'") + "\"},\"confidence\":0.4}"
+}
+
+/// Weekly rollup — counts rows only until typed row projection lands for date-range filters.
+@endpoint(kind: query) fn weekly_summary_json() to str {
+    match db.HealthEventLog.all() {
+        Ok(rows) => "{\"window_days\":7,\"note\":\"counts_total_only_until_row_projection\",\"total_events\":" + str(len(rows)) + "}"
+        Error(_) => "{\"error\":\"db\"}"
+    }
+}
+
+/// Canonical header row — append row-level CSV via `src/ts/export_contract.ts` + client-side fetch of typed JSON once exposed.
+@endpoint(kind: query) fn export_health_csv() to str {
+    return "event_id,event_kind,schema_version,payload_json,event_at,recorded_at,recorded_at_monotonic,tz_iana,tz_offset_minutes,source,raw_transcript_id,correction_of,is_backdated"
+}
+
+@endpoint(kind: query) fn export_health_json_bundle() to str {
+    let csv_payload = export_health_csv()
+    let hash = std.crypto.hash_secure(csv_payload)
+    match db.HealthEventLog.all() {
+        Ok(rows) => "{\"schema\":\"vox.mental_tracker.export_bundle\",\"version\":1,\"generated_ms\":" + str(std.time.now_ms()) + ",\"content_sha256_header_only\":\"" + hash + "\",\"row_count\":" + str(len(rows)) + ",\"detail\":\"full_csv_rows_in_ts_export_contract\"}"
+        Error(_) => "{\"error\":\"db\"}"
+    }
+}
+
+@endpoint(kind: query) fn export_clinical_html() to str {
+    let summary = weekly_summary_json()
+    let csv_payload = export_health_csv()
+    let hash = std.crypto.hash_secure(csv_payload)
+    let mut body = "<!doctype html><html><head><meta charset=\"utf-8\"/><title>Mental Health Tracker — clinical export</title><style>body{font-family:system-ui;margin:24px;}pre{white-space:pre-wrap;}</style></head><body>"
+    body = body + "<h1>Clinical summary</h1><p>Generated (UTC ms): " + str(std.time.now_ms()) + "</p><p>SHA256(header canonical): " + hash + "</p>"
+    body = body + "<h2>Weekly window</h2><pre>" + summary + "</pre>"
+    body = body + "<h2>Methodology</h2><p>Append-only event log with correction rows referencing prior event_id. Full CSV rows: TypeScript helper mirroring contracts/export (see app docs).</p>"
+    body = body + "<h2>CSV header</h2><pre>" + csv_payload + "</pre>"
+    body = body + "</body></html>"
+    return body
+}
+
+@endpoint(kind: server) fn health() to Result[str] {
+    return Ok("ok")
+}
+
+component NavBar() {
+    view: row(raw_class="mh-nav") {
+        link(href="/") { "Home" }
+        text(raw_class="mh-nav-dot") { " · " }
+        link(href="/timeline") { "Timeline" }
+        text(raw_class="mh-nav-dot") { " · " }
+        link(href="/weekly") { "Weekly" }
+        text(raw_class="mh-nav-dot") { " · " }
+        link(href="/export") { "Export" }
+        text(raw_class="mh-nav-dot") { " · " }
+        link(href="/voice") { "Voice" }
+    }
+}
+
+component Home() {
+    state saved: int = 0
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=1) { "Mental Health Tracker" }
+        text(raw_class="mh-sub") { "Local-first • append-only log • corrections via record_correction • on-device STT when the Capacitor plugin is registered" }
+        row(raw_class="mh-actions") {
+            button(on_click={fn() {
+                let ms = std.time.now_ms()
+                let _ = record_event("mood_recorded", "{\"mood_score\":3}", str(ms), "manual", "", "", "UTC", 0)
+                saved = saved + 1
+            }}) {
+                "Mood 3"
+            }
+            button(on_click={fn() {
+                let ms = std.time.now_ms()
+                let _ = record_event("meal_recorded", "{\"description\":\"snack\",\"meal_type\":\"snack\"}", str(ms), "manual", "", "", "UTC", 0)
+                saved = saved + 1
+            }}) {
+                "Snack"
+            }
+            button(on_click={fn() {
+                let ms = std.time.now_ms()
+                let _ = record_event("sleep_started", "{}", str(ms), "manual", "", "", "UTC", 0)
+                saved = saved + 1
+            }}) {
+                "Sleep start"
+            }
+            button(on_click={fn() {
+                let ms = std.time.now_ms()
+                let _ = record_event("sleep_ended", "{}", str(ms), "manual", "", "", "UTC", 0)
+                saved = saved + 1
+            }}) {
+                "Sleep end"
+            }
+            button(on_click={fn() {
+                let ms = std.time.now_ms()
+                let _ = record_event("exercise_recorded", "{\"activity\":\"walk\",\"duration_minutes\":15}", str(ms), "manual", "", "", "UTC", 0)
+                saved = saved + 1
+            }}) {
+                "Exercise 15m"
+            }
+        }
+        text(raw_class="mh-count") { "Quick-add taps (session): " + str(saved) }
+        button(on_click={fn() {
+            match Speech.transcribe_microphone() {
+                Ok(t) => {
+                    let _ = mobile.notify("Transcript", t)
+                }
+                Error(e) => {
+                    let _ = mobile.notify("STT", e)
+                }
+            }
+        }}) {
+            "Try on-device STT"
+        }
+    }
+}
+
+component TimelinePage() {
+    state total: int = 0
+    on mount: {
+        total = health_event_count()
+    }
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=2) { "Timeline" }
+        text(raw_class="mh-sub") { "Events stored: " + str(total) + " — open Export for CSV/HTML dump." }
+        link(href="/") { "← Home" }
+    }
+}
+
+component WeeklyPage() {
+    state blob: str = "{}"
+    on mount: {
+        blob = weekly_summary_json()
+    }
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=2) { "Weekly summary" }
+        text(raw_class="mh-pre") { blob }
+        link(href="/") { "← Home" }
+    }
+}
+
+component ExportPage() {
+    state csv: str = ""
+    state html: str = ""
+    on mount: {
+        csv = export_health_csv()
+        html = export_clinical_html()
+    }
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=2) { "Exports" }
+        text(raw_class="mh-sub") { "CSV header + clinical HTML (see apps/docs for full row export via TS contract helper)." }
+        text(raw_class="mh-pre") { csv }
+        text(raw_class="mh-sub") { "HTML clinical length (chars): " + str(html.length()) }
+        link(href="/") { "← Home" }
+    }
+}
+
+component VoicePage() {
+    state transcript_raw: str = ""
+    state parsed_preview: str = ""
+    state status: str = "Transcribe, then parse preview"
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=2) { "Voice → parse → save" }
+        text(raw_class="mh-sub") { status }
+        button(on_click={fn() {
+            match Speech.transcribe_microphone() {
+                Ok(t) => {
+                    transcript_raw = t
+                    status = "Transcript captured — tap Parse preview"
+                }
+                Error(e) => {
+                    status = e
+                }
+            }
+        }}) {
+            "Transcribe"
+        }
+        button(on_click={fn() {
+            parsed_preview = preview_voice_parse(transcript_raw)
+            status = "Parsed JSON ready — confirm payload before saving via record_event"
+        }}) {
+            "Parse preview"
+        }
+        text(raw_class="mh-pre") { "RAW: " + transcript_raw }
+        text(raw_class="mh-pre") { "PARSED: " + parsed_preview }
+        link(href="/") { "← Home" }
+    }
+}
+
+routes {
+    "/" to Home
+    "/timeline" to TimelinePage
+    "/weekly" to WeeklyPage
+    "/export" to ExportPage
+    "/voice" to VoicePage
+}

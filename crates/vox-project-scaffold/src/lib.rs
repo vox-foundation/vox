@@ -134,9 +134,9 @@ const AGENT_KIND: &str = "# A Vox AI agent\n\n@agent_def fn MyAgent(query: str) 
 const WORKFLOW_KIND: &str =
     "# A Vox Workflow\n\n@workflow_def fn DataPipeline() {\n    return\n}\n";
 
-const MOBILE_PWA_TEMPLATE: &str = r#"# Vox Mobile PWA — local-first + sync
+const MOBILE_PWA_TEMPLATE: &str = r#"# Vox Mobile PWA — Capacitor shell (Android/iOS) + browser
 
-import vox.mobile
+import std.mobile
 
 @table type Photo {
     url: str
@@ -145,18 +145,20 @@ import vox.mobile
 
 component App() {
     state photo: str = ""
-    let is_syncing = mobile.useWaitUntilSync()
-    view: <div class="app">
-        <h1>"Camera Test"</h1>
-        if is_syncing:
-            <div class="offline-badge">"Sync Pending..."</div>
-        <button on_click={|_| mobile.takePhoto().then(set_photo)}>
+    view: column(raw_class="app") {
+        heading(level=1) { "Camera Test" }
+        button(on_click={fn() {
+            match mobile.take_photo() {
+                Ok(uri) => { photo = uri }
+                Error(msg) => { let _ = mobile.notify("Camera Error", msg) }
+            }
+        }}) {
             "Take Photo"
-        </button>
-        if is_syncing {
-            <p>"Syncing to cloud..."</p>
         }
-    </div>
+        if len(photo) > 0 {
+            image(src=photo, alt="captured")
+        }
+    }
 }
 
 routes {

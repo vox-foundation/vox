@@ -59,6 +59,8 @@ training_eligible: false
 ## Status: Current
 
 - [@py.import – Python Library Integration (`torch`, `numpy`, etc.)](how-to/how-to-pytorch.md)
+- [Bootstrap a Vox application outside the monorepo](how-to/external-app-bootstrap.md)
+- [Clinical export (app-owned)](how-to/clinical-export-from-vox-apps.md)
 - [Contributing — Mens native training](how-to/how-to-contribute-mens.md)
 - [Contributing — Populi control plane](how-to/how-to-contribute-populi.md)
 - [Contributing — parser and HIR](how-to/how-to-contribute-parser-hir.md)

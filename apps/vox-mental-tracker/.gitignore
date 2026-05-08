@@ -1,0 +1,11 @@
+/dist/
+.vox_modules/
+node_modules/
+/android/
+/ios/
+.DS_Store
+*.keystore
+*.aab
+*.apk
+*.ipa
+/test-results/

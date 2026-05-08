@@ -515,6 +515,9 @@ pub fn emit_expr(expr: &Expr) -> String {
                         "((path: string) => {{ throw new Error(\"Speech.transcribe is backend-only (Vox Oratio / Candle Whisper). Use a @server function or POST /api/audio/transcribe with JSON {{ path }}; see examples/oratio/codexAudioTranscribe.ts.\"); }})({path_js} as string)"
                     );
                 }
+                if name == "Speech" && method == "transcribe_microphone" && args.is_empty() {
+                    return "mobile.transcribe_microphone()".to_string();
+                }
             }
             let obj = emit_expr(object);
             // Special case: list.append(x) -> [...list, x]

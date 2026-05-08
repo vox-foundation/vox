@@ -1,0 +1,46 @@
+name: vox-mental-tracker
+
+on:
+  push:
+    paths:
+      - "apps/vox-mental-tracker/**"
+      - ".github/workflows/vox-mental-tracker.yml"
+  pull_request:
+    paths:
+      - "apps/vox-mental-tracker/**"
+      - ".github/workflows/vox-mental-tracker.yml"
+
+defaults:
+  run:
+    working-directory: apps/vox-mental-tracker
+
+jobs:
+  vox-check:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cargo smoke (parent workspace)
+        run: cargo run -q -p vox-cli -- check apps/vox-mental-tracker/src/main.vox
+        working-directory: "."
+  vitest:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: apps/vox-mental-tracker/pnpm-lock.yaml
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/vox-mental-tracker
+      - name: Build Sherpa plugin package (declarations)
+        run: pnpm exec tsc -p plugins/vox-sherpa-transcribe/tsconfig.json
+        working-directory: apps/vox-mental-tracker
+      - name: Vitest
+        run: pnpm exec vitest run
+        working-directory: apps/vox-mental-tracker

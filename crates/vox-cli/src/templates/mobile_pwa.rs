@@ -39,6 +39,7 @@ export default config;
     "@capacitor/haptics": "^6.0.0",
     "@capacitor/geolocation": "^6.0.0",
     "@capacitor/clipboard": "^6.0.0",
+    "@capacitor/push-notifications": "^6.0.0",
     "workbox-window": "^7.0.0"
   }},
   "devDependencies": {{
