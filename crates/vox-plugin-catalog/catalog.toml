@@ -144,6 +144,14 @@ default-source = "github:vox-foundation/vox-plugin-skill-v0"
 bundled-in = ["vox-fullstack", "vox-edge"]
 
 [[plugin]]
+id = "webhook"
+payload-kind = "code"
+description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, GitLab, generic)."
+extension-points = ["HttpListener"]
+default-source = "local:crates/vox-plugin-webhook"
+bundled-in = ["vox-server", "vox-dev"]
+
+[[plugin]]
 id = "browser"
 payload-kind = "code"
 description = "Chrome DevTools Protocol browser automation via chromiumoxide."
@@ -212,7 +220,7 @@ plugins = ["populi-mesh", "cloud", "skill-orchestrator"]
 id = "vox-server"
 description = "Headless backend deployment: orchestrator + mesh, no GUI/ML."
 extends = "vox-base"
-plugins = ["populi-mesh", "cloud", "skill-orchestrator", "skill-memory"]
+plugins = ["populi-mesh", "cloud", "skill-orchestrator", "skill-memory", "webhook"]
 
 [[bundle]]
 id = "vox-edge"
@@ -233,5 +241,5 @@ extends = "vox-fullstack"
 plugins = [
     "tensor-burn-wgpu", "mens-candle-cuda", "nvml-probe",
     "populi-mesh", "cloud", "oratio", "oratio-mic",
-    "script-execution", "browser",
+    "script-execution", "browser", "webhook",
 ]
