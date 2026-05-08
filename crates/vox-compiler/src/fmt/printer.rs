@@ -65,7 +65,6 @@ impl Printer {
                 }
             }
             Decl::Function(f) => self.print_fn(f, ""),
-            Decl::Component(c) => self.print_fn(&c.func, "@component "),
             Decl::TypeDef(t) => self.print_typedef(t),
             Decl::Const(c) => {
                 self.write_indent();

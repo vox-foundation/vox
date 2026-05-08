@@ -258,8 +258,6 @@ pub struct HirFn {
     pub return_type: Option<HirType>,
     /// Body statements.
     pub body: Vec<HirStmt>,
-    /// Whether this is a `@component`.
-    pub is_component: bool,
     /// Async function.
     pub is_async: bool,
     /// Exported from module.

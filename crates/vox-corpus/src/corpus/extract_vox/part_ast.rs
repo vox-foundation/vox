@@ -37,7 +37,6 @@ fn http_method_label(m: vox_compiler::ast::decl::HttpMethod) -> &'static str {
 fn decl_kind_and_name(decl: &Decl) -> (String, String) {
     match decl {
         Decl::Function(f) => ("fn".into(), f.name.clone()),
-        Decl::Component(c) => ("component".into(), c.func.name.clone()),
         Decl::TypeDef(t) => ("type".into(), t.name.clone()),
         Decl::Import(_) => ("import".into(), "import".into()),
         Decl::PyImport(p) => ("py_import".into(), p.alias.clone()),

@@ -27,7 +27,6 @@ fn prop_sort_idempotent(list: list[int]) {
             params: vec![],
             return_type: None,
             body: vec![],
-            is_component: false,
             is_async: false,
             is_pub: false,
             is_mobile_native: false,

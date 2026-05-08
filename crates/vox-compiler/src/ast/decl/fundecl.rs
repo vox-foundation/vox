@@ -93,15 +93,6 @@ pub struct FnDecl {
     pub span: Span,
 }
 
-/// Component declaration (wraps a function with @component semantics).
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ComponentDecl {
-    /// The underlying function implementing the component.
-    pub func: FnDecl,
-    /// Scoped CSS styles associated with the component.
-    pub styles: Vec<StyleBlock>,
-}
-
 /// A scoped style block within a component.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct StyleBlock {

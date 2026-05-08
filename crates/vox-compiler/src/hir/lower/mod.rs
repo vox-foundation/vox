@@ -121,11 +121,7 @@ impl LowerCtx {
                     }
                 }
                 Decl::Function(f) => {
-                    hir.functions.push(self.lower_fn(f, false));
-                }
-                // AST-retained `@component fn` / legacy component: lowers to a plain function; WebIR adapters read the lowered `hir.functions` entry.
-                Decl::Component(c) => {
-                    hir.functions.push(self.lower_fn(&c.func, true));
+                    hir.functions.push(self.lower_fn(f));
                 }
                 Decl::TypeDef(t) => {
                     hir.types.push(self.lower_typedef(t));
@@ -134,14 +130,14 @@ impl LowerCtx {
                     hir.routes.push(self.lower_route(r));
                 }
                 Decl::McpTool(m) => {
-                    let func = self.lower_fn(&m.func, false);
+                    let func = self.lower_fn(&m.func);
                     hir.mcp_tools.push(HirMcpTool {
                         description: m.description.clone(),
                         func,
                     });
                 }
                 Decl::McpResource(m) => {
-                    let func = self.lower_fn(&m.func, false);
+                    let func = self.lower_fn(&m.func);
                     hir.mcp_resources.push(HirMcpResource {
                         uri: m.uri.clone(),
                         description: m.description.clone(),
@@ -150,11 +146,11 @@ impl LowerCtx {
                 }
                 Decl::Test(t) => {
                     if !self.config.strip_tests {
-                        hir.tests.push(self.lower_fn(&t.func, false));
+                        hir.tests.push(self.lower_fn(&t.func));
                     }
                 }
                 Decl::Forall(f) => {
-                    let func = self.lower_fn(&f.func, false);
+                    let func = self.lower_fn(&f.func);
                     hir.foralls.push(HirForall {
                         label: f.label.clone(),
                         iterations: f.iterations,
@@ -163,7 +159,7 @@ impl LowerCtx {
                 }
                 // `route_path` is the stable HTTP contract surface for WebIR `RouteNode` / client stubs.
                 Decl::ServerFn(s) => {
-                    let lowered = self.lower_fn(&s.func, false);
+                    let lowered = self.lower_fn(&s.func);
                     let route_path = format!("{SERVER_FN_API_PREFIX}{}", lowered.name);
                     hir.endpoint_fns.push(crate::hir::HirEndpointFn {
                         kind: crate::hir::HirEndpointKind::Server,
@@ -184,7 +180,7 @@ impl LowerCtx {
                 }
                 // Query / mutation RPC paths feed generated client helpers; WebIR target maps these on `RouteNode`.
                 Decl::Query(q) => {
-                    let lowered = self.lower_fn(&q.func, false);
+                    let lowered = self.lower_fn(&q.func);
                     let route_path = format!("{QUERY_FN_API_PREFIX}{}", lowered.name);
                     hir.endpoint_fns.push(crate::hir::HirEndpointFn {
                         kind: crate::hir::HirEndpointKind::Query,
@@ -204,7 +200,7 @@ impl LowerCtx {
                     });
                 }
                 Decl::Mutation(m) => {
-                    let lowered = self.lower_fn(&m.func, false);
+                    let lowered = self.lower_fn(&m.func);
                     let route_path = format!("{MUTATION_FN_API_PREFIX}{}", lowered.name);
                     hir.endpoint_fns.push(crate::hir::HirEndpointFn {
                         kind: crate::hir::HirEndpointKind::Mutation,
@@ -224,7 +220,7 @@ impl LowerCtx {
                     });
                 }
                 Decl::Endpoint(e) => {
-                    let lowered = self.lower_fn(&e.func, false);
+                    let lowered = self.lower_fn(&e.func);
                     let (kind, prefix) = match e.kind {
                         crate::ast::decl::EndpointKind::Query => {
                             (crate::hir::HirEndpointKind::Query, QUERY_FN_API_PREFIX)
@@ -411,7 +407,7 @@ impl LowerCtx {
                     hir.environments.push(self.lower_environment(e));
                 }
                 Decl::Scheduled(s) => {
-                    let mut lowered = self.lower_fn(&s.func, false);
+                    let mut lowered = self.lower_fn(&s.func);
                     lowered.schedule_interval = Some(s.interval.clone());
                     hir.functions.push(lowered);
                 }

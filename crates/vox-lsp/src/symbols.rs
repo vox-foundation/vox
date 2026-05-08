@@ -31,13 +31,6 @@ impl SymbolEngine {
                 vec![],
                 text,
             )),
-            Decl::Component(c) => Some(Self::make_symbol(
-                &c.func.name,
-                &c.func.span,
-                SymbolKind::INTERFACE,
-                vec![],
-                text,
-            )),
             Decl::TypeDef(t) => Some(Self::make_symbol(
                 &t.name,
                 &t.span,

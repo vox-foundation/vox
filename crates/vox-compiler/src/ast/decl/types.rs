@@ -80,8 +80,6 @@ pub struct PyImportDecl {
 pub enum Decl {
     /// Top-level or nested function.
     Function(FnDecl),
-    /// React-style `@component` UI function.
-    Component(ComponentDecl),
     /// Algebraic type, struct, or type alias.
     TypeDef(TypeDefDecl),
     /// ES-module style import list.
@@ -193,7 +191,6 @@ impl Decl {
     pub fn span(&self) -> Span {
         match self {
             Decl::Function(f) => f.span,
-            Decl::Component(c) => c.func.span,
             Decl::TypeDef(t) => t.span,
             Decl::Import(i) => i.span,
             Decl::PyImport(p) => p.span,

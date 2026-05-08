@@ -19,17 +19,6 @@ impl Decl {
                     f.cors = cors;
                 }
             }
-            Decl::Component(c) => {
-                if auth.is_some() {
-                    c.func.auth_provider = auth;
-                }
-                if !roles.is_empty() {
-                    c.func.roles.extend(roles);
-                }
-                if cors.is_some() {
-                    c.func.cors = cors;
-                }
-            }
             Decl::ServerFn(s) => {
                 if auth.is_some() {
                     s.func.auth_provider = auth;
@@ -170,14 +159,6 @@ impl Decl {
                 }
                 if is_mobile_native {
                     f.is_mobile_native = true;
-                }
-            }
-            Decl::Component(c) => {
-                if is_deprecated {
-                    c.func.is_deprecated = true;
-                }
-                if is_traced {
-                    c.func.is_traced = true;
                 }
             }
             Decl::Test(t) => {

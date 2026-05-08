@@ -1,10 +1,9 @@
 //! AST-only declaration checks not represented in HIR (`@search_index`, `@index`).
 
-use crate::ast::decl::{ComponentDecl, Decl, FnDecl, Module, SearchIndexDecl, TableDecl};
+use crate::ast::decl::{Decl, FnDecl, Module, SearchIndexDecl, TableDecl};
 use crate::ast::expr::{Expr, StringPart};
 use crate::ast::stmt::Stmt;
 use crate::ast::types::TypeExpr;
-use crate::react_bridge::{for_each_vox_hook_call_in_stmt, legacy_hook_lint_suppressed};
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 use crate::typeck::env::{Binding, BindingKind, TypeEnv};
 use crate::typeck::ty::Ty;
@@ -235,7 +234,6 @@ fn check_search_index_decl(env: &TypeEnv, si: &SearchIndexDecl, diags: &mut Vec<
 fn visit_fn_decl_in_decl(decl: &Decl, visit: &mut impl FnMut(&FnDecl)) {
     match decl {
         Decl::Function(f) => visit(f),
-        Decl::Component(c) => visit(&c.func),
         Decl::McpTool(m) => visit(&m.func),
         Decl::Test(t) => visit(&t.func),
         Decl::Forall(f) => visit(&f.func),
@@ -375,40 +373,9 @@ fn first_shallow_pure_violation_in_stmt(s: &Stmt) -> Option<crate::ast::span::Sp
     }
 }
 
-fn lint_component_react_hooks(comp: &ComponentDecl) -> Vec<Diagnostic> {
-    if legacy_hook_lint_suppressed() {
-        return Vec::new();
-    }
-    let mut diags = Vec::new();
-    let f = &comp.func;
-    for stmt in &f.body {
-        for_each_vox_hook_call_in_stmt(stmt, &mut |name, span| {
-            diags.push(Diagnostic {
-                severity: TypeckSeverity::Warning,
-                message: format!(
-                    "React-style hook `{name}` in @component — prefer Path C `component` / `@component Name(...) {{ state ... }}` for lower K-complexity"
-                ),
-                span,
-                expected_type: None,
-                found_type: None,
-                context: None,
-                suggestions: vec![
-                    "Use `state x = ...`, `derived`, `effect`, `mount`, `cleanup`, and `view:` instead of hooks where possible.".into(),
-                    "Keep advanced React-only logic in TypeScript under your React project.".into(),
-                ],
-                category: DiagnosticCategory::Lint,
-                code: Some("lint.component_react_hook".into()),
-                fixes: vec![],
-            line_col: None, missing_cases: vec![], ast_node_kind: None,
-});
-        });
-    }
-    diags
-}
-
 /// Run `@table` / `@index` / `@search_index` validation that stays on the AST surface.
 #[must_use]
-pub fn lint_ast_declarations(module: &Module, source: &str) -> Vec<Diagnostic> {
+pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
     let mut env = TypeEnv::new();
 
@@ -439,27 +406,6 @@ pub fn lint_ast_declarations(module: &Module, source: &str) -> Vec<Diagnostic> {
                 }
             }
             register_table(&mut env, t);
-        }
-    }
-
-    for decl in &module.declarations {
-        if let Decl::Component(c) = decl {
-            diags.push(Diagnostic {
-                severity: TypeckSeverity::Error,
-                message: "Classic `@component fn` syntax is retired. Use Path C `component Name() { ... }` instead.".to_string(),
-                span: c.func.span,
-                expected_type: None,
-                found_type: None,
-                context: Some(Diagnostic::capture_context(source, c.func.span)),
-                suggestions: vec![
-                    format!("component {}() {{ view: ... }}", c.func.name),
-                ],
-                category: DiagnosticCategory::Lint,
-                code: Some("lint.legacy_component_fn".into()),
-                fixes: vec![],
-                line_col: None, missing_cases: vec![], ast_node_kind: None,
-            });
-            diags.extend(lint_component_react_hooks(c));
         }
     }
 

@@ -6,7 +6,7 @@ use crate::hir::*;
 use super::LowerCtx;
 
 impl LowerCtx {
-    pub(crate) fn lower_fn(&mut self, f: &FnDecl, is_component: bool) -> HirFn {
+    pub(crate) fn lower_fn(&mut self, f: &FnDecl) -> HirFn {
         let id = self.def_map.define(f.name.clone());
         self.def_map.push_scope();
         let params = f.params.iter().map(|p| self.lower_param(p)).collect();
@@ -39,7 +39,6 @@ impl LowerCtx {
             params,
             return_type: f.return_type.as_ref().map(|t| self.lower_type(t)),
             body,
-            is_component,
             is_async: false,
             is_pub: f.is_pub,
             is_mobile_native: f.is_mobile_native,
@@ -360,7 +359,6 @@ impl LowerCtx {
             params,
             return_type: w.return_type.as_ref().map(|t| self.lower_type(t)),
             body,
-            is_component: false,
             is_async: false,
             is_pub: false,
             is_mobile_native: false,
@@ -393,7 +391,6 @@ impl LowerCtx {
             params,
             return_type: a.return_type.as_ref().map(|t| self.lower_type(t)),
             body,
-            is_component: false,
             is_async: false,
             is_pub: false,
             is_mobile_native: false,
@@ -434,7 +431,6 @@ impl LowerCtx {
             params: vec![],
             return_type: None,
             body: vec![],
-            is_component: false,
             is_async: false,
             is_pub: false,
             is_mobile_native: false,
@@ -478,7 +474,6 @@ impl LowerCtx {
                     params,
                     return_type: h.return_type.as_ref().map(|t| self.lower_type(t)),
                     body,
-                    is_component: false,
                     is_async: false,
                     is_pub: false,
                     is_mobile_native: false,

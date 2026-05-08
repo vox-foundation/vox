@@ -84,7 +84,7 @@ pub fn check_dead_code(module: &HirModule) -> Vec<(String, Span)> {
 
     // Now emit warnings for anything unused and not public
     for f in &module.functions {
-        if !f.is_pub && f.name != "main" && !f.is_component && !used.contains(&f.name) {
+        if !f.is_pub && f.name != "main" && !used.contains(&f.name) {
             warnings.push((format!("function `{}` is never used", f.name), f.span));
         }
     }

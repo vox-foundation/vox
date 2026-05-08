@@ -81,7 +81,7 @@ fn count_module_constructs(module: &Module) -> ConstructCounts {
     for decl in &module.declarations {
         let key = match decl {
             Decl::Function(_) => "fn",
-            Decl::Component(_) | Decl::ReactiveComponent(_) => "component",
+            Decl::ReactiveComponent(_) => "component",
             Decl::TypeDef(_) => "type",
             Decl::Import(_) | Decl::PyImport(_) => "import",
             Decl::HttpRoute(_) => "http",

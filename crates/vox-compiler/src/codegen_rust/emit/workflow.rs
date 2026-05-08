@@ -73,11 +73,8 @@ pub fn emit_lib(module: &HirModule) -> String {
         out.push_str(&emit_table_struct(table, projs));
     }
 
-    // Functions (skip components)
     for func in &module.functions {
-        if !func.is_component {
-            out.push_str(&emit_fn(func));
-        }
+        out.push_str(&emit_fn(func));
     }
 
     // MCP tools and resources — must be `pub` so `mcp_server` binary can `use crate::*`.
