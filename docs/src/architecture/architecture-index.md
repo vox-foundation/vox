@@ -113,6 +113,7 @@ training_eligible: false
 - [Phase 1: Build Target Split Spec (2026)](phase1-build-targets-spec-2026.md)
 - [Phase 3: HTTP Ergonomics Decorators Spec (2026)](phase3-http-ergonomics-spec-2026.md)
 - [Svelte-Mineable Features Implementation Plan (2026)](svelte-mineable-features-implementation-plan-2026.md)
+- [Vox Mobile Plugin Spec (2026)](vox-mobile-plugin-spec-2026.md)
 
 ## Status: Deprecated
 

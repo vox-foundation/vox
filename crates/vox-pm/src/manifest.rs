@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 /// Represents the full `Vox.toml` manifest.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct VoxManifest {
     pub package: PackageSection,
     #[serde(default)]
@@ -27,6 +27,12 @@ pub struct VoxManifest {
     /// Deployment configuration
     #[serde(default)]
     pub deploy: Option<DeploySection>,
+    /// `[build]` section — target output flavor.
+    #[serde(default)]
+    pub build: Option<BuildSection>,
+    /// `[mobile]` section — mobile platform configuration.
+    #[serde(default)]
+    pub mobile: Option<MobileSection>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -57,6 +63,23 @@ fn default_version() -> String {
 }
 fn default_kind() -> String {
     "library".to_string()
+}
+
+impl Default for PackageSection {
+    fn default() -> Self {
+        Self {
+            name: String::new(),
+            version: default_version(),
+            kind: default_kind(),
+            description: None,
+            license: None,
+            authors: Vec::new(),
+            repository: None,
+            homepage: None,
+            keywords: Vec::new(),
+            targets: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -346,6 +369,8 @@ impl VoxManifest {
             skills: BTreeMap::new(),
             orchestrator: None,
             deploy: None,
+            build: None,
+            mobile: None,
         }
     }
 
@@ -366,6 +391,7 @@ pub enum ManifestError {
     Parse(toml::de::Error),
     Serialize(toml::ser::Error),
     NotFound,
+    Validation(String),
 }
 
 impl std::fmt::Display for ManifestError {
@@ -375,11 +401,79 @@ impl std::fmt::Display for ManifestError {
             ManifestError::Parse(e) => write!(f, "Parse error: {e}"),
             ManifestError::Serialize(e) => write!(f, "Serialize error: {e}"),
             ManifestError::NotFound => write!(f, "Vox.toml not found"),
+            ManifestError::Validation(msg) => write!(f, "Validation error: {msg}"),
         }
     }
 }
 
 impl std::error::Error for ManifestError {}
+
+/// `[build]` section: target output flavor.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct BuildSection {
+    /// "fullstack" | "server" | "client" | "mobile"; None = manifest default.
+    #[serde(default)]
+    pub target: Option<String>,
+}
+
+/// `[mobile]` section: mobile-specific build configuration.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct MobileSection {
+    /// Platforms to build for; subset of {"android", "ios"}.
+    #[serde(default)]
+    pub platforms: Vec<String>,
+    #[serde(default)]
+    pub android: Option<AndroidConfig>,
+    #[serde(default)]
+    pub ios: Option<IosConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct AndroidConfig {
+    pub min_sdk: Option<u32>,
+    pub target_sdk: Option<u32>,
+    #[serde(default)]
+    pub abis: Vec<String>,
+    pub ndk_version: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct IosConfig {
+    pub min_version: Option<String>,
+    #[serde(default)]
+    pub archs: Vec<String>,
+}
+
+/// Validate `[mobile]` semantically (after parse).
+/// Errors: unknown platform, empty `platforms` when target=mobile, etc.
+pub fn validate_mobile(manifest: &VoxManifest) -> Result<(), ManifestError> {
+    let Some(mobile) = manifest.mobile.as_ref() else {
+        return Ok(());
+    };
+    const KNOWN: &[&str] = &["android", "ios"];
+    for p in &mobile.platforms {
+        if !KNOWN.contains(&p.as_str()) {
+            return Err(ManifestError::Validation(format!(
+                "[mobile.platforms] contains unknown platform '{}'. Known platforms: {}.",
+                p,
+                KNOWN.join(", ")
+            )));
+        }
+    }
+    if mobile.platforms.is_empty()
+        && manifest
+            .build
+            .as_ref()
+            .and_then(|b| b.target.as_deref())
+            == Some("mobile")
+    {
+        return Err(ManifestError::Validation(
+            "[build] target = \"mobile\" requires [mobile.platforms] to list at least one platform"
+                .to_string(),
+        ));
+    }
+    Ok(())
+}
 
 #[cfg(test)]
 mod tests {

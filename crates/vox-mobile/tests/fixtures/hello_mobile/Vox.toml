@@ -1,0 +1,20 @@
+[package]
+name = "hello_mobile"
+version = "0.1.0"
+kind = "application"
+
+[build]
+target = "mobile"
+
+[mobile]
+platforms = ["android", "ios"]
+
+[mobile.android]
+min_sdk = 26
+target_sdk = 35
+abis = ["aarch64-linux-android"]
+ndk_version = "27.0.11902837"
+
+[mobile.ios]
+min_version = "15.0"
+archs = ["aarch64-apple-ios"]    # one arch for fast tests

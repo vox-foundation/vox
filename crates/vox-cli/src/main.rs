@@ -96,6 +96,34 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
         }
+
+        // Delegate `vox mobile <args>` to the vox-mobile plugin binary.
+        let is_mobile = cmd == "mobile";
+        let is_ext_mobile = cmd == "ext" && args.len() > 2 && args[2].as_str() == "mobile";
+
+        if is_mobile || is_ext_mobile {
+            let binary = "vox-mobile";
+            let mut command = Command::new(binary);
+            // Strip the leading `mobile` (or `ext mobile`) token; the plugin
+            // binary's subcommands live below that namespace.
+            let forward_args = if is_ext_mobile { &args[3..] } else { &args[2..] };
+            command.args(forward_args);
+
+            match command.status() {
+                Ok(status) => {
+                    std::process::exit(status.code().unwrap_or(1));
+                }
+                Err(e) => {
+                    eprintln!("Error: {} is not installed or not in PATH.", binary);
+                    eprintln!(
+                        "The 'mobile' subsystem ships as a separate plugin binary."
+                    );
+                    eprintln!("Please run: cargo install --path crates/vox-mobile");
+                    eprintln!("Underlying error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
     }
 
     let root = vox_cli::VoxCliRoot::parse();

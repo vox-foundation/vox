@@ -70,11 +70,13 @@ subsystems ship as separate downloadable plugin binaries — `vox` discovers the
 |---|---|---|
 | `vox-mens` | `vox mens`, `vox oratio`, `vox speech`, `vox populi`, `vox train` | Pulls Candle / Whisper / Hugging Face hub — heavy ML deps |
 | `vox-schola` | `vox schola`, `vox scientia` | Research and capability-map subsystem |
+| `vox-mobile` | `vox mobile`, `vox mobile doctor`, `vox mobile build` | Cross-compiles Vox apps for Android (cargo-ndk) and iOS (XCFramework). Ships its own toolchain checks. |
 
 Each plugin ships as its own archive on the
 [Releases page](https://github.com/vox-foundation/vox/releases) — for example
-`vox-mens-<version>-<target>.tar.gz` / `.zip` and
-`vox-schola-<version>-<target>.tar.gz` / `.zip`. Drop the binary anywhere on
+`vox-mens-<version>-<target>.tar.gz` / `.zip`,
+`vox-schola-<version>-<target>.tar.gz` / `.zip`, and
+`vox-mobile-<version>-<target>.tar.gz` / `.zip`. Drop the binary anywhere on
 `PATH`; `vox` will dispatch automatically. If a plugin is missing, `vox`
 prints an actionable install hint.
 
