@@ -12,7 +12,12 @@ default = [
     "mcp-native",
 ]
 dashboard = ["dep:vox-dashboard"]
-mcp-native = ["dep:schemars", "dep:axum", "dep:rmcp", "dep:axum-extra", "dep:tower-http", "dep:vox-compiler", "dep:vox-grammar-export"]
+mcp-native = [
+    "dep:schemars", "dep:axum", "dep:rmcp", "dep:axum-extra", "dep:tower-http",
+    "dep:vox-compiler", "dep:vox-grammar-export",
+    "dep:vox-mcp-registry", "dep:vox-capability-registry",
+    "dep:vox-openai-wire", "dep:vox-project-scaffold",
+]
 # Populi HTTP mesh client (`vox-populi` transport). Disable for faster `cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate`.
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
 # `vox-oratio` speech-to-text / refinement tools.
@@ -75,7 +80,6 @@ vox-db.workspace = true
 vox-search.workspace = true
 vox-orchestrator-types.workspace = true
 vox-config.workspace = true
-vox-eval.workspace = true
 vox-repository.workspace = true
 vox-dashboard = { workspace = true, optional = true }
 vox-populi = { path = "../vox-populi", optional = true, default-features = false }
@@ -83,8 +87,8 @@ vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = "0.1.89"
 anyhow.workspace = true
 serde_yaml.workspace = true
-vox-mcp-registry.workspace = true
-vox-capability-registry.workspace = true
+vox-mcp-registry = { workspace = true, optional = true }
+vox-capability-registry = { workspace = true, optional = true }
 vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
 rmcp = { version = "0.16", optional = true, features = ["server", "client", "transport-io"] }
 axum = { version = "0.8", optional = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
@@ -114,9 +118,9 @@ vox-compiler = { workspace = true, optional = true }
 glob.workspace = true
 ignore = "0.4.25"
 rand_distr = "0.4"
-vox-openai-wire.workspace = true
+vox-openai-wire = { workspace = true, optional = true }
 async-stream.workspace = true
-vox-project-scaffold.workspace = true
+vox-project-scaffold = { workspace = true, optional = true }
 tempfile.workspace = true
 
 [[bin]]

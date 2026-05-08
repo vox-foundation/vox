@@ -11291,7 +11291,6 @@ dependencies = [
  "vox-crypto",
  "vox-dashboard",
  "vox-db",
- "vox-eval",
  "vox-grammar-export",
  "vox-lsp",
  "vox-ludus",
