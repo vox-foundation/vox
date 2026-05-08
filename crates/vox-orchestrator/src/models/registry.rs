@@ -561,6 +561,12 @@ impl ModelRegistry {
         self.models.insert(spec.id.clone(), spec);
     }
 
+    /// Remove all registered models. Useful in tests to isolate a clean registry from
+    /// any on-disk cache that `new()` seeds automatically.
+    pub fn clear(&mut self) {
+        self.models.clear();
+    }
+
     pub fn best_for_task(&self, task: &AgentTask, preference: CostPreference) -> Option<ModelSpec> {
         self.best_for_task_with_filter(task, preference, |_| true)
     }

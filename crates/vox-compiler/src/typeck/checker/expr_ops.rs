@@ -15,6 +15,8 @@ impl<'a> Checker<'a> {
             Ty::Map(k, v) => Ty::Tuple(vec![k.as_ref().clone(), v.as_ref().clone()]),
             Ty::Stream(inner) => inner.as_ref().clone(),
             Ty::Str => Ty::Char,
+            // `any` is an escape hatch — iterating over `any` yields `any` elements.
+            Ty::Named(ref n) if n == "any" => Ty::Named("any".to_string()),
             _ => self.uf.fresh_var(),
         }
     }

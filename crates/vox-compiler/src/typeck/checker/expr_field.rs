@@ -187,6 +187,9 @@ impl<'a> Checker<'a> {
                 );
                 ret_var
             }
+            // `any` is an escape hatch — field access always succeeds and
+            // produces another `any`. This mirrors TypeScript's semantics.
+            Ty::Named(n) if n == "any" => Ty::Named("any".to_string()),
             Ty::Error => Ty::Error,
             _ => {
                 self.diags.push(Diagnostic::error(

@@ -87,6 +87,17 @@ pub struct AgentEvent {
     pub kind: AgentEventKind,
 }
 
+/// Compiler stage identifier used in [`AgentEventKind::BuildStage`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BuildStageKind {
+    Lex,
+    Parse,
+    Hir,
+    Typecheck,
+    Codegen,
+}
+
 /// The different kinds of events the orchestrator can emit.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -565,6 +576,55 @@ pub enum AgentEventKind {
         agent_id: AgentId,
         iterations: usize,
         cost_usd: f64,
+    },
+
+    // -----------------------------------------------------------------------
+    // Dashboard live-data variants (Task 0.6)
+    // -----------------------------------------------------------------------
+
+    /// A compiler stage transitioned (lex → parse → hir → typecheck → codegen).
+    ///
+    /// Powers the Forge pipeline view on the dashboard.
+    BuildStage {
+        run_id: String,
+        stage: BuildStageKind,
+        status: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        duration_ms: Option<u64>,
+        diagnostic_count: u32,
+    },
+    /// Throttled ~1 Hz throughput tick for mesh activity / status-bar queue indicator.
+    ///
+    /// Powers the Mesh activity strip and status-bar queue indicator.
+    ThroughputTick {
+        ts_ms: u64,
+        tokens_per_sec: f32,
+        active_runs: u32,
+    },
+    /// Per-model cost tick emitted when cost crosses a batching boundary.
+    ///
+    /// Powers the Models cost horizon and status-bar cost display.
+    CostTick {
+        ts_ms: u64,
+        delta_usd: f64,
+        total_24h_usd: f64,
+        model: String,
+    },
+    /// A file's diagnostic counts changed.
+    ///
+    /// Powers the Code surface file-tree diagnostic dots.
+    FileDiagChanged {
+        path: String,
+        error_count: u32,
+        warn_count: u32,
+    },
+    /// Mesh topology changed: agents joined/left or an edge became active/inactive.
+    ///
+    /// Powers the Mesh topology re-render on the dashboard.
+    MeshTopologyChanged {
+        added_nodes: Vec<String>,
+        removed_nodes: Vec<String>,
+        changed_edges: u32,
     },
 }
 

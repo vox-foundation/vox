@@ -1,0 +1,13 @@
+// for_nested — nested for-loops with explicit indices.
+// `for row, i in matrix` and `for cell, j in row` should preserve both indices.
+component Matrix(matrix: any) {
+    view: panel(class="matrix") {
+        for row, i in matrix {
+            panel(class="row") {
+                for cell, j in row {
+                    span() { cell }
+                }
+            }
+        }
+    }
+}

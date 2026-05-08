@@ -4,6 +4,7 @@ use super::super::Parser;
 use crate::ast::expr::{
     Arg, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, MatchArm, UnOp,
 };
+use crate::ast::stmt::Stmt;
 use crate::lexer::token::Token;
 use crate::parser::error::{ParseError, ParseErrorClass};
 
@@ -280,14 +281,16 @@ impl Parser {
                         );
                         let starts_uppercase =
                             tag.chars().next().is_some_and(|c| c.is_ascii_uppercase());
-                        let is_view_callee =
-                            starts_uppercase || crate::web_ir::primitives::is_primitive(tag);
+                        let is_view_callee = starts_uppercase
+                            || crate::web_ir::primitives::is_primitive(tag)
+                            || is_known_html_view_tag(tag);
                         let all_named = args.iter().all(|a| a.name.is_some());
                         // Trailing-block-as-children sugar fires only when the call shape is
                         // unambiguously a view-call: callee is a recognized view-callee
-                        // (capitalized component or primitive), all args are named, AND a `{`
-                        // follows. Otherwise the `{` belongs to an outer construct (e.g.
-                        // `if !has_capability(cap) {`), and we must NOT consume it as children.
+                        // (capitalized component, primitive, or known HTML/SVG tag), all args
+                        // are named, AND a `{` follows. Otherwise the `{` belongs to an outer
+                        // construct (e.g. `if !has_capability(cap) {`), and we must NOT consume
+                        // it as children.
                         if is_brace_next && is_view_callee && all_named {
                             let tag = tag.clone();
                             let attributes = self.view_args_to_attrs(args)?;
@@ -351,6 +354,18 @@ impl Parser {
                             span: start.merge(self.span()),
                         };
                     }
+                }
+                Token::LBracket => {
+                    let start_span = expr.span();
+                    self.advance(); // consume [
+                    let index_expr = self.parse_expr()?;
+                    self.expect(&Token::RBracket)?;
+                    let end_span = self.span();
+                    expr = Expr::Index {
+                        object: Box::new(expr),
+                        index: Box::new(index_expr),
+                        span: start_span.merge(end_span),
+                    };
                 }
                 _ => break,
             }
@@ -530,8 +545,19 @@ impl Parser {
         let then_body = self.parse_block()?;
         self.skip_newlines();
         let else_body = if self.eat(&Token::Else) {
-            self.expect(&Token::LBrace)?;
-            Some(self.parse_block()?)
+            self.skip_newlines();
+            if matches!(self.peek(), Token::If) {
+                // `else if` chain: recurse and wrap as a single expression statement
+                let else_if_expr = self.parse_if()?;
+                let span = else_if_expr.span();
+                Some(vec![Stmt::Expr {
+                    expr: else_if_expr,
+                    span,
+                }])
+            } else {
+                self.expect(&Token::LBrace)?;
+                Some(self.parse_block()?)
+            }
         } else {
             None
         };
@@ -547,11 +573,18 @@ impl Parser {
         let start = self.span();
         self.advance(); // eat 'for'
         let binding = self.parse_ident_name()?;
+        // Optional index variable: `for x, i in ...`
+        let index = if self.eat(&Token::Comma) {
+            Some(self.parse_ident_name()?)
+        } else {
+            None
+        };
         self.expect(&Token::In)?;
         let iterable = self.parse_expr()?;
         let body = self.parse_expr()?;
         Ok(Expr::For {
             binding,
+            index,
             iterable: Box::new(iterable),
             body: Box::new(body),
             span: start.merge(self.span()),
@@ -603,6 +636,14 @@ fn is_known_html_view_tag(tag: &str) -> bool {
         | "figure" | "figcaption"
         // Embedded
         | "iframe" | "embed" | "object" | "param"
+        // SVG child elements (passthrough — no Tailwind base classes).
+        // snake_case forms are accepted here; map_jsx_tag normalises them to camelCase
+        // (radial_gradient → radialGradient, etc.) at emit time.
+        | "g" | "defs" | "path" | "circle" | "rect" | "ellipse" | "line" | "polyline"
+        | "polygon" | "text" | "tspan" | "use" | "symbol" | "marker" | "mask"
+        | "pattern" | "stop" | "filter"
+        | "radial_gradient" | "linear_gradient" | "clip_path" | "foreign_object"
+        | "fe_gaussian_blur"
     )
 }
 

@@ -1,0 +1,48 @@
+---
+source: crates/vox-compiler/tests/golden_runs_surface_test.rs
+assertion_line: 186
+expression: ts
+---
+import React from "react";
+
+import { StateChip } from "./StateChip";
+
+export interface RunRowProps {
+  id: string;
+  started: string;
+  duration: string;
+  model: string;
+  status: string;
+  cost: string;
+  tokens: string;
+  active: string;
+  on_click: any;
+}
+
+export function RunRow({ id, started, duration, model, status, cost, tokens, active, on_click }: RunRowProps): React.ReactElement {
+  return (
+    <div className={["flex", "flex-row", "border-b-true", "border-zinc-800/60", "px-4", "py-0", "flex items-center", (active === id ? "h-10 bg-blue-950/30 cursor-pointer border-l-2 border-l-blue-500" : "h-10 hover:bg-zinc-900/60 cursor-pointer")].filter(Boolean).join(" ")} onClick={on_click}>
+      <p className={["text-xs", "font-mono", "text-blue-400", "w-24 shrink-0 truncate"].filter(Boolean).join(" ")}>
+        {id}
+      </p>
+      <p className={["text-xs", "font-mono", "text-zinc-500", "w-36 shrink-0"].filter(Boolean).join(" ")}>
+        {started}
+      </p>
+      <p className={["text-xs", "font-mono", "text-zinc-300", "w-20 shrink-0"].filter(Boolean).join(" ")}>
+        {duration}
+      </p>
+      <p className={["text-xs", "font-mono", "text-zinc-400", "flex-1 truncate"].filter(Boolean).join(" ")}>
+        {model}
+      </p>
+      <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "w-20 shrink-0 flex items-center"].filter(Boolean).join(" ")} role={region}>
+        <StateChip label={status} status={status} />
+      </div>
+      <p className={["text-xs", "font-mono", "text-zinc-400", "w-20 shrink-0 text-right"].filter(Boolean).join(" ")}>
+        {cost}
+      </p>
+      <p className={["text-xs", "font-mono", "text-zinc-500", "w-20 shrink-0 text-right pr-1"].filter(Boolean).join(" ")}>
+        {tokens}
+      </p>
+    </div>
+  );
+}

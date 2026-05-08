@@ -34,13 +34,15 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         | HirExpr::FieldAccess(_, _, s)
         | HirExpr::Match(_, _, s)
         | HirExpr::If(_, _, _, s)
-        | HirExpr::For(_, _, _, s)
+        | HirExpr::For(_, _, _, _, s)
         | HirExpr::Lambda(_, _, _, s)
         | HirExpr::Spawn(_, s)
         | HirExpr::With(_, _, s)
-        | HirExpr::Block(_, s) => *s,
+        | HirExpr::Block(_, s)
+        | HirExpr::Index(_, _, s) => *s,
         HirExpr::JsxSelfClosing(el) => el.span,
         HirExpr::Jsx(el) => el.span,
+        HirExpr::JsxFragment(_, s) => *s,
         HirExpr::Try(t) => t.span,
         HirExpr::DecimalLit(_, s) => *s,
     }
@@ -352,12 +354,21 @@ impl<'a> Checker<'a> {
                 crate::hir::HirReactiveMember::State(s) => {
                     let init_ty = self.check_expr(&s.init, None);
                     if let Some((_, decl_ty)) = state_vars.get(state_idx) {
-                        if let Err(msg) = self.uf.unify(&init_ty, decl_ty) {
-                            self.diags.push(Diagnostic::error(
-                                format!("Type mismatch in `state {}` initializer: {msg}", s.name),
-                                s.span,
-                                self.source,
-                            ));
+                        // `any` is an escape hatch — skip unification and accept
+                        // any initializer value (mirrors TypeScript `any` semantics).
+                        let resolved_decl = self.uf.resolve(decl_ty);
+                        let is_any = matches!(&resolved_decl, Ty::Named(n) if n == "any");
+                        if !is_any {
+                            if let Err(msg) = self.uf.unify(&init_ty, decl_ty) {
+                                self.diags.push(Diagnostic::error(
+                                    format!(
+                                        "Type mismatch in `state {}` initializer: {msg}",
+                                        s.name
+                                    ),
+                                    s.span,
+                                    self.source,
+                                ));
+                            }
                         }
                     }
                     state_idx += 1;
@@ -487,7 +498,7 @@ impl<'a> Checker<'a> {
                         .as_ref()
                         .is_some_and(|body| Self::contains_db_write_or_unsafe_in_stmts(body))
             }
-            HirExpr::For(_, iter, body, _) => {
+            HirExpr::For(_, _, iter, body, _) => {
                 Self::contains_db_write_or_unsafe_in_expr(iter)
                     || Self::contains_db_write_or_unsafe_in_expr(body)
             }
@@ -518,7 +529,14 @@ impl<'a> Checker<'a> {
                 .attributes
                 .iter()
                 .any(|a| Self::contains_db_write_or_unsafe_in_expr(&a.value)),
+            HirExpr::JsxFragment(children, _) => children
+                .iter()
+                .any(Self::contains_db_write_or_unsafe_in_expr),
             HirExpr::Try(t) => Self::contains_db_write_or_unsafe_in_expr(t.target.as_ref()),
+            HirExpr::Index(obj, idx, _) => {
+                Self::contains_db_write_or_unsafe_in_expr(obj)
+                    || Self::contains_db_write_or_unsafe_in_expr(idx)
+            }
             HirExpr::IntLit(_, _)
             | HirExpr::FloatLit(_, _)
             | HirExpr::BoolLit(_, _)

@@ -1,0 +1,18 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+expression: ts
+---
+import React from "react";
+
+export interface LabelProps {
+  text: string;
+}
+
+export function Label({ text }: LabelProps): React.ReactElement {
+  return (
+<text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.500"}
+>
+  {text}
+</text>
+  );
+}

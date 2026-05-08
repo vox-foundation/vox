@@ -1,0 +1,20 @@
+---
+source: crates/vox-compiler/tests/golden_mesh_surface_test.rs
+assertion_line: 124
+expression: ts
+---
+import React from "react";
+
+export interface AgentNodeProps {
+  cx: number;
+  cy: number;
+  id: string;
+  selected: string;
+  on_click: any;
+}
+
+export function AgentNode({ cx, cy, id, selected, on_click }: AgentNodeProps): React.ReactElement {
+  return (
+    <circle className={"cursor-pointer"} cx={cx} cy={cy} fill={"#27272a"} onClick={on_click} r={20} stroke={(selected === id ? "#3b82f6" : "#52525b")} strokeWidth={(selected === id ? 2 : 1)} />
+  );
+}

@@ -189,6 +189,19 @@ fn collect_deps_and_calls(
                 );
             }
         }
+        HirExpr::JsxFragment(children, _) => {
+            for child in children {
+                collect_deps_and_calls(
+                    child,
+                    state_names,
+                    reactive_callees,
+                    visible_fn_names,
+                    visited,
+                    deps,
+                    unannotated,
+                );
+            }
+        }
         HirExpr::ObjectLit(fields, _) => {
             for (_, val) in fields {
                 collect_deps_and_calls(
@@ -344,7 +357,7 @@ fn collect_deps_and_calls(
                 }
             }
         }
-        HirExpr::For(_, iterable, body, _) => {
+        HirExpr::For(_, _, iterable, body, _) => {
             collect_deps_and_calls(
                 iterable,
                 state_names,
@@ -420,6 +433,26 @@ fn collect_deps_and_calls(
         HirExpr::Spawn(e, _) => {
             collect_deps_and_calls(
                 e,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
+        }
+        HirExpr::Index(obj, idx, _) => {
+            collect_deps_and_calls(
+                obj,
+                state_names,
+                reactive_callees,
+                visible_fn_names,
+                visited,
+                deps,
+                unannotated,
+            );
+            collect_deps_and_calls(
+                idx,
                 state_names,
                 reactive_callees,
                 visible_fn_names,

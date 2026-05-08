@@ -17,7 +17,7 @@ mod state_deps;
 use crate::hir::*;
 use std::collections::HashSet;
 
-pub use compat::{map_hir_type_to_ts, map_jsx_attr_name};
+pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag};
 pub(crate) use state_deps::extract_state_deps_with_diagnostics;
 
 /// Unwrap a single-expression block used as a JSX / attribute value (matches AST `unwrap_block`).
@@ -214,6 +214,14 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             }
             format!("<{} {} />", view.html_tag, attrs.join(" "))
         }
+        HirExpr::JsxFragment(children, _) => {
+            let mut child_strs = Vec::new();
+            for child in children {
+                let c = emit_hir_expr(child, state_names);
+                child_strs.push(wrap_jsx_hir_child_expr(c));
+            }
+            format!("<>\n  {}\n</>", child_strs.join("\n  "))
+        }
         HirExpr::ObjectLit(fields, _) => {
             let pairs: Vec<String> = fields
                 .iter()
@@ -296,10 +304,14 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             }
             format!("(({c}) ? (() => {{ {then_out} }})() : (() => {{ {else_out} }})())")
         }
-        HirExpr::For(name, iterable, body, _) => {
+        HirExpr::For(name, index, iterable, body, _) => {
             let iter = emit_hir_expr(iterable, state_names);
             let b = emit_hir_expr(body, state_names);
-            format!("{iter}.map(({name}) => ({b}))")
+            // Default index name when the user wrote `for x in arr` (no index binding).
+            // The leading underscore signals "unused" by JS convention and avoids clashing
+            // with a user-named `i` in an outer scope.
+            let idx = index.as_deref().unwrap_or("_i");
+            format!("{iter}.map(({name}, {idx}) => ({b}))")
         }
         HirExpr::Lambda(params, _, body, _) => {
             let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
@@ -331,6 +343,11 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             format!("new {t}()")
         }
         HirExpr::With(base, _, _) => emit_hir_expr(base, state_names),
+        HirExpr::Index(object, index, _) => {
+            let obj_str = emit_hir_expr(object, state_names);
+            let idx_str = emit_hir_expr(index, state_names);
+            format!("{obj_str}[{idx_str}]")
+        }
     }
 }
 
@@ -892,7 +909,10 @@ pub(crate) fn transform_hir_view_kwargs(
     let html_tag = primitive_emission
         .as_ref()
         .map(|e| e.html_tag.to_string())
-        .unwrap_or_else(|| tag.to_string());
+        // Non-primitive fallback: route through map_jsx_tag so snake_case SVG forms
+        // (radial_gradient → radialGradient, fe_gaussian_blur → feGaussianBlur, etc.)
+        // emit canonical camelCase. Plain HTML/SVG tags pass through unchanged.
+        .unwrap_or_else(|| map_jsx_tag(tag).to_string());
     // Author kwarg names — used to suppress primitive base classes on the same Tailwind axis.
     let author_kwargs: Vec<&str> = attrs.iter().map(|a| a.name.as_str()).collect();
     let mut class_pieces: Vec<String> = primitive_emission

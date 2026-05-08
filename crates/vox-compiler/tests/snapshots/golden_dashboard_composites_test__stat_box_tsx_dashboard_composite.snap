@@ -1,0 +1,31 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+expression: ts
+---
+import React from "react";
+
+export interface StatBoxProps {
+  key: string;
+  value: string;
+  sub: string;
+}
+
+export function StatBox({ key, value, sub }: StatBoxProps): React.ReactElement {
+  return (
+<column bg={"zinc.900"} border={true} border_color={"white/10"} radius={"xl"} pad={4} gap={1}
+>
+  <text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.500"} mb={1}
+>
+  {key}
+</text>
+  <text size={"2xl"} weight={"bold"} color={"white/90"} fontFamily={"mono"} tracking={"tight"}
+>
+  {value}
+</text>
+  {(sub === "" ? <panel  /> : <text size={"xs"} color={"zinc.600"}
+>
+  {sub}
+</text>)}
+</column>
+  );
+}

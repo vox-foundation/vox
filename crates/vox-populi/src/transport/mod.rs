@@ -21,7 +21,10 @@ mod router;
 pub mod store;
 
 pub use auth::{PopuliAuthContext, PopuliBearerRole, PopuliMeshAuthRuntime};
-pub use router::{PopuliHttpAuth, populi_http_app, populi_http_app_with_auth, router, serve};
+pub use router::{
+    PopuliHttpAuth, populi_http_app, populi_http_app_with_auth, router, serve,
+    serve_with_listener,
+};
 
 use std::path::PathBuf;
 use std::sync::Arc;

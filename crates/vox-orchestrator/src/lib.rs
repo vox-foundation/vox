@@ -244,7 +244,7 @@ pub use contract::{
     plan_tool_daemon_alignment_valid,
 };
 pub use entropy_scorer::{calculate_entropy, score_confidence};
-pub use events::{AgentActivity, AgentEvent, AgentEventKind, EventBus};
+pub use events::{AgentActivity, AgentEvent, AgentEventKind, BuildStageKind, EventBus};
 pub use gate::{BudgetGate, Gate, GateResult};
 pub use generated::agent_harness::{
     Adapter as HarnessAdapter, AgentHarnessSpec, CompletionGate as HarnessGate,

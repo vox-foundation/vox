@@ -215,11 +215,13 @@ impl LowerCtx {
             }),
             Expr::For {
                 binding,
+                index,
                 iterable,
                 body,
                 span,
             } => HirExpr::For(
                 binding.clone(),
+                index.clone(),
                 Box::new(self.lower_expr(iterable)),
                 Box::new(self.lower_expr(body)),
                 *span,
@@ -284,6 +286,10 @@ impl LowerCtx {
                     .collect(),
                 span: el.span,
             }),
+            Expr::JsxFragment { children, span } => HirExpr::JsxFragment(
+                children.iter().map(|c| self.lower_expr(c)).collect(),
+                *span,
+            ),
             Expr::StringInterp { parts, span } => {
                 // Convert string interpolation to template literal-style
                 // For now, represent as a string concat
@@ -312,6 +318,15 @@ impl LowerCtx {
             Expr::Block { stmts, span } => {
                 HirExpr::Block(stmts.iter().map(|s| self.lower_stmt(s)).collect(), *span)
             }
+            Expr::Index {
+                object,
+                index,
+                span,
+            } => HirExpr::Index(
+                Box::new(self.lower_expr(object)),
+                Box::new(self.lower_expr(index)),
+                *span,
+            ),
         }
     }
 }

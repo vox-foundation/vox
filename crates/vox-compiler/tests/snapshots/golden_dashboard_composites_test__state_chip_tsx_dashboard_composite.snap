@@ -1,0 +1,24 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+expression: ts
+---
+import React from "react";
+
+export interface StateChipProps {
+  status: string;
+  label: string;
+  dim: boolean;
+}
+
+export function StateChip({ status, label, dim }: StateChipProps): React.ReactElement {
+  return (
+<row items={"center"} gap={1} pad_x={2} pad_y={0} radius={"full"} bg={(dim ? "white/5" : (status === "running" || status === "ok" || status === "ready" ? "emerald.400/15" : (status === "warn" || status === "blocked" || status === "pending" ? "amber.400/15" : (status === "error" || status === "failed" || status === "errored" ? "rose.500/15" : "white/5"))))} raw_class={"h-5 inline-flex"}
+>
+  <panel w={1} h={1} radius={"full"} bg={(dim ? "zinc.600" : (status === "running" || status === "ok" || status === "ready" ? "emerald.400" : (status === "warn" || status === "blocked" || status === "pending" ? "amber.400" : (status === "error" || status === "failed" || status === "errored" ? "rose.500" : "zinc.600"))))} />
+  <text size={"xs"} fontFamily={"mono"} tracking={"widest"} case={"upper"} color={(dim ? "zinc.500" : (status === "running" || status === "ok" || status === "ready" ? "emerald.400" : (status === "warn" || status === "blocked" || status === "pending" ? "amber.400" : (status === "error" || status === "failed" || status === "errored" ? "rose.400" : "zinc.500"))))}
+>
+  {(label === "" ? status : label)}
+</text>
+</row>
+  );
+}

@@ -1,0 +1,33 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_surfaces_test.rs
+assertion_line: 139
+expression: ts
+---
+import React from "react";
+
+import { StateChip } from "./StateChip";
+import { SurfaceStub } from "./SurfaceStub";
+
+export function MeshSurface(): React.ReactElement {
+  return (
+<column flex={1} overflow={"hidden"} bg={"zinc.950"}
+>
+  <row h={10} border_b={true} border_color={"zinc.800"} pad_x={4} items={"center"} justify={"between"} shrink={0}
+>
+  <text size={"sm"} weight={"black"} tracking={"tight"} color={"white"}
+>
+  {"Mesh"}
+</text>
+  <row gap={2} items={"center"}
+>
+  <StateChip status={"idle"} label={"0 nodes"} />
+  <button raw_class={"px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800"}
+>
+  {"Refresh"}
+</button>
+</row>
+</row>
+  <SurfaceStub title={"Mesh"} desc={"Force-directed agent topology. Nodes show orchestrators; edges show active channels."} action={"Start an orchestrator"} />
+</column>
+  );
+}

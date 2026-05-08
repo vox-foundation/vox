@@ -253,7 +253,7 @@ fn check_expr(
                 check_stmt(s, caller_name, caller_set, cap_map, source, diags);
             }
         }
-        HirExpr::For(_, iterable, body, _) => {
+        HirExpr::For(_, _, iterable, body, _) => {
             check_expr(iterable, caller_name, caller_set, cap_map, source, diags);
             check_expr(body, caller_name, caller_set, cap_map, source, diags);
         }
@@ -293,6 +293,15 @@ fn check_expr(
         }
         HirExpr::Spawn(inner, _) => {
             check_expr(inner, caller_name, caller_set, cap_map, source, diags);
+        }
+        HirExpr::JsxFragment(children, _) => {
+            for child in children {
+                check_expr(child, caller_name, caller_set, cap_map, source, diags);
+            }
+        }
+        HirExpr::Index(obj, idx, _) => {
+            check_expr(obj, caller_name, caller_set, cap_map, source, diags);
+            check_expr(idx, caller_name, caller_set, cap_map, source, diags);
         }
         // Leaves.
         HirExpr::IntLit(..)

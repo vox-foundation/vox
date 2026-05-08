@@ -1,0 +1,30 @@
+---
+source: crates/vox-compiler/tests/golden_runs_surface_test.rs
+assertion_line: 236
+expression: ts
+---
+import React from "react";
+
+export interface EventRowProps {
+  kind: string;
+  label: string;
+  ts: string;
+}
+
+export function EventRow({ kind, label, ts }: EventRowProps): React.ReactElement {
+  return (
+    <div className={["flex", "flex-row", "flex items-start", "gap-3", "py-1", "border-b-true", "border-zinc-800/40"].filter(Boolean).join(" ")}>
+      <p className={["text-xs", "font-mono", "text-zinc-700", "w-14 shrink-0 text-right"].filter(Boolean).join(" ")}>
+        {ts}
+      </p>
+      <div className={["flex", "flex-col", "gap-0", "flex-1"].filter(Boolean).join(" ")}>
+        <p className={["text-xs", "font-mono", "text-zinc-400"].filter(Boolean).join(" ")}>
+          {kind}
+        </p>
+        <p className={["text-xs", "text-zinc-600", "leading-snug"].filter(Boolean).join(" ")}>
+          {label}
+        </p>
+      </div>
+    </div>
+  );
+}

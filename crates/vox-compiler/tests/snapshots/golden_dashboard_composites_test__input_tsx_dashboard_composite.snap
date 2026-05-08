@@ -1,0 +1,26 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+expression: ts
+---
+import React from "react";
+
+export interface InputProps {
+  value: string;
+  mono: boolean;
+  placeholder: string;
+}
+
+export function Input({ value, mono, placeholder }: InputProps): React.ReactElement {
+  return (
+<panel bg={"zinc.900"} border={true} border_color={"white/10"} radius={"lg"} pad_x={3} pad_y={2} raw_class={"flex items-center h-9"}
+>
+  {(value === "" ? <text size={"sm"} color={"zinc.600"} fontFamily={(mono ? "mono" : "sans")} italic={true}
+>
+  {placeholder}
+</text> : <text size={"sm"} color={"zinc.300"} fontFamily={(mono ? "mono" : "sans")}
+>
+  {value}
+</text>)}
+</panel>
+  );
+}

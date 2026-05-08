@@ -1,0 +1,35 @@
+---
+source: crates/vox-compiler/tests/golden_mesh_surface_test.rs
+assertion_line: 103
+expression: ts
+---
+import React from "react";
+
+import { MeshKpi } from "./MeshKpi";
+
+export interface MeshSummaryBarProps {
+  nodes: string;
+  active: string;
+  blocked: string;
+  errors: string;
+  tok_s: string;
+  cost_h: string;
+}
+
+export function MeshSummaryBar({ nodes, active, blocked, errors, tok_s, cost_h }: MeshSummaryBarProps): React.ReactElement {
+  return (
+    <div className={["flex", "flex-row", "py-1", "border-b-true", "border-zinc-800", "shrink-0", "bg-zinc-950"].filter(Boolean).join(" ")}>
+      <MeshKpi key={"NODES"} sub={"total"} value={nodes} />
+      <div className={["rounded-lg", "border", "border-border", "p-4", "w-1", "bg-zinc-800", "self-stretch my-2"].filter(Boolean).join(" ")} role={region} />
+      <MeshKpi key={"ACTIVE"} sub={"running"} value={active} />
+      <div className={["rounded-lg", "border", "border-border", "p-4", "w-1", "bg-zinc-800", "self-stretch my-2"].filter(Boolean).join(" ")} role={region} />
+      <MeshKpi key={"BLOCKED"} sub={"waiting"} value={blocked} />
+      <div className={["rounded-lg", "border", "border-border", "p-4", "w-1", "bg-zinc-800", "self-stretch my-2"].filter(Boolean).join(" ")} role={region} />
+      <MeshKpi key={"ERRORS"} value={errors} />
+      <div className={["rounded-lg", "border", "border-border", "p-4", "w-1", "bg-zinc-800", "self-stretch my-2"].filter(Boolean).join(" ")} role={region} />
+      <MeshKpi key={"TOK/S"} sub={"avg"} value={tok_s} />
+      <div className={["rounded-lg", "border", "border-border", "p-4", "w-1", "bg-zinc-800", "self-stretch my-2"].filter(Boolean).join(" ")} role={region} />
+      <MeshKpi key={"$/HR"} sub={"rate"} value={cost_h} />
+    </div>
+  );
+}

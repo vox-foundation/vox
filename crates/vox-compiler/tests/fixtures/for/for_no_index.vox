@@ -1,0 +1,9 @@
+// for_no_index — for loop without explicit index variable.
+// `for r in rows { ... }` should emit `(r, _i) => ...` (synthetic _i).
+component NoIndex(rows: any) {
+    view: panel(class="list") {
+        for r in rows {
+            span() { r.name }
+        }
+    }
+}

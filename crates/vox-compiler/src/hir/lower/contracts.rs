@@ -179,7 +179,7 @@ impl LowerCtx {
                     self.inject_postconditions_into_expr(&mut arm.body, post_stmts);
                 }
             }
-            HirExpr::For(_, it, body, _) => {
+            HirExpr::For(_, _, it, body, _) => {
                 self.inject_postconditions_into_expr(it, post_stmts);
                 self.inject_postconditions_into_expr(body, post_stmts);
             }
@@ -270,7 +270,16 @@ impl LowerCtx {
                     self.inject_postconditions_into_expr(&mut attr.value, post_stmts);
                 }
             }
+            HirExpr::JsxFragment(children, _) => {
+                for child in children {
+                    self.inject_postconditions_into_expr(child, post_stmts);
+                }
+            }
 
+            HirExpr::Index(obj, idx, _) => {
+                self.inject_postconditions_into_expr(obj, post_stmts);
+                self.inject_postconditions_into_expr(idx, post_stmts);
+            }
             // Lambdas create a new return context, so we do NOT inject postconditions into them.
             HirExpr::Lambda(..) => {}
             HirExpr::IntLit(..)
