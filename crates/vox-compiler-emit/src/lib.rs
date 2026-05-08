@@ -10,3 +10,4 @@ pub mod codegen_ts;
 pub mod syntax_k;
 pub mod vox_ir;
 pub mod web_ir;
+pub mod web_migration_env;

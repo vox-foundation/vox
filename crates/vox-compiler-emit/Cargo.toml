@@ -19,14 +19,10 @@ sha3 = { workspace = true }
 flate2 = "1.1.9"
 bzip2 = "0.6.1"
 zstd = "0.13.3"
-rust_decimal = { workspace = true }
 miette = { workspace = true }
-tokio = { workspace = true }
 vox-clavis = { workspace = true }
 vox-config = { workspace = true }
 vox-deploy-codegen = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
 
 [lints]
 workspace = true

@@ -89,7 +89,8 @@
       "Bash(find crates/vox-* -name \"lib.rs\" -o -name \"main.rs\")",
       "Bash(xargs -I {} sh -c 'echo \"\"; echo \"=== {} ===\"; head -20 {}')",
       "Bash(grep -n \"abi.stable.*workspace\\\\\\\\|\\\\\\\\[workspace\\\\\\\\]\" \"C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\lucid-shannon-93d00c\\\\Cargo.toml\")",
-      "Bash(grep -rhoE 'use crate::\\(ast|hir|lexer|parser|typeck|tokens|eval|ast_eval|fmt|lowering_shared|builtin|builtin_registry|generated_vox|llm_prompt|rust_interop_support|pipeline|module|language_surface|app_contract|serialization|react_bridge|runtime_projection|web_prefixes|web_migration_env|canonical_json\\)::[A-Za-z0-9_:{}, ]+' crates/vox-compiler/src/codegen_rust crates/vox-compiler/src/codegen_ts crates/vox-compiler/src/codegen_shared crates/vox-compiler/src/web_ir crates/vox-compiler/src/vox_ir crates/vox-compiler/src/syntax_k.rs)"
+      "Bash(grep -rhoE 'use crate::\\(ast|hir|lexer|parser|typeck|tokens|eval|ast_eval|fmt|lowering_shared|builtin|builtin_registry|generated_vox|llm_prompt|rust_interop_support|pipeline|module|language_surface|app_contract|serialization|react_bridge|runtime_projection|web_prefixes|web_migration_env|canonical_json\\)::[A-Za-z0-9_:{}, ]+' crates/vox-compiler/src/codegen_rust crates/vox-compiler/src/codegen_ts crates/vox-compiler/src/codegen_shared crates/vox-compiler/src/web_ir crates/vox-compiler/src/vox_ir crates/vox-compiler/src/syntax_k.rs)",
+      "Bash(git -C C:/Users/Owner/vox/.claude/worktrees/lucid-shannon-93d00c mv crates/vox-compiler/src/web_migration_env.rs crates/vox-compiler-emit/src/web_migration_env.rs)"
     ]
   }
 }

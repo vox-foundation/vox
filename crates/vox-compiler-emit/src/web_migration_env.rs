@@ -15,7 +15,7 @@ fn env_var_explicitly_disabled(res: Result<String, std::env::VarError>) -> bool 
 ///
 /// **Default:** validation is **on** (unset). Set `VOX_WEBIR_VALIDATE=0`, `false`, `no`, or `off` to skip.
 #[must_use]
-pub fn web_ir_validate_gate_enabled() -> bool {
+pub(crate) fn web_ir_validate_gate_enabled() -> bool {
     !env_var_explicitly_disabled(std::env::var("VOX_WEBIR_VALIDATE"))
 }
 
@@ -23,6 +23,6 @@ pub fn web_ir_validate_gate_enabled() -> bool {
 ///
 /// **Default:** **on** (unset). Set `VOX_WEBIR_EMIT_REACTIVE_VIEWS=0`, `false`, `no`, or `off` for legacy `emit_hir_expr` views only.
 #[must_use]
-pub fn web_ir_emit_reactive_views_enabled() -> bool {
+pub(crate) fn web_ir_emit_reactive_views_enabled() -> bool {
     !env_var_explicitly_disabled(std::env::var("VOX_WEBIR_EMIT_REACTIVE_VIEWS"))
 }

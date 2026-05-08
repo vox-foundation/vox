@@ -324,7 +324,7 @@ fn maybe_web_ir_validate(
     cached_web: Option<&crate::web_ir::WebIrModule>,
     registry: Option<&vox_compiler::tokens::TokenRegistry>,
 ) -> Result<(), String> {
-    if !vox_compiler::web_migration_env::web_ir_validate_gate_enabled() {
+    if !crate::web_migration_env::web_ir_validate_gate_enabled() {
         return Ok(());
     }
     let fallback;

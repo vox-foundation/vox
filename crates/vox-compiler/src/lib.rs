@@ -29,7 +29,6 @@ pub mod rust_interop_support;
 pub mod serialization;
 pub mod tokens;
 pub mod typeck;
-pub mod web_migration_env;
 pub mod web_prefixes;
 
 /// Re-export of common types if needed.

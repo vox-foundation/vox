@@ -27,7 +27,7 @@ use crate::web_ir::WebIrModule;
 use std::collections::HashSet;
 
 fn web_ir_reactive_views_env_enabled() -> bool {
-    vox_compiler::web_migration_env::web_ir_emit_reactive_views_enabled()
+    crate::web_migration_env::web_ir_emit_reactive_views_enabled()
 }
 
 fn web_ir_reactive_trace_enabled() -> bool {
