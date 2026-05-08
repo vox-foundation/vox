@@ -48,7 +48,6 @@ mens = [
     "dep:vox-db",
     "dep:vox-bounded-fs",
 ]
-mens-gpu = ["mens", "dep:burn", "vox-tensor/gpu", "dep:tokenizers", "dep:safetensors", "dep:wgpu", "dep:nvml-wrapper", "dep:windows"]
 mens-candle-qlora = [
     "mens",
     "dep:candle-core",
@@ -62,7 +61,7 @@ mens-candle-qlora-cuda = [
     "candle-core/cuda",
     "candle-nn/cuda",
 ]
-mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-compiler", "dep:vox-plugin-host"]
+mens-train = ["mens", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-compiler", "dep:vox-plugin-host"]
 mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
@@ -113,7 +112,6 @@ rand = { workspace = true, optional = true }
 vox-tensor = { workspace = true, optional = true }
 vox-corpus = { workspace = true, optional = true }
 vox-bounded-fs = { workspace = true, optional = true }
-burn = { workspace = true, optional = true, features = ["autodiff", "wgpu", "train"] }
 hf-hub = { workspace = true, optional = true }
 candle-core = { workspace = true, optional = true }
 candle-nn = { workspace = true, optional = true }
@@ -123,10 +121,6 @@ qlora-rs = { workspace = true, optional = true }
 futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
 vox-compiler = { workspace = true, optional = true }
-wgpu = { workspace = true, optional = true }
-nvml-wrapper = { workspace = true, optional = true }
-windows = { version = "0.58", features = ["Win32_Graphics_Dxgi", "Win32_Foundation"], optional = true }
-
 workspace-hack = { workspace = true }
 hex = "0.4.3"
 

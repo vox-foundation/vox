@@ -13,10 +13,6 @@ pub mod registry;
 #[cfg(test)]
 mod tests;
 pub mod types;
-#[cfg(feature = "mens-gpu")]
-pub mod wgpu_probe;
-#[cfg(all(target_os = "windows", feature = "mens-gpu"))]
-pub mod win_dxgi;
 
 /// Default probe cache TTL. Re-probes after 5 minutes by default.
 const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(300);

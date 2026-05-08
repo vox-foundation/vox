@@ -19,38 +19,14 @@ pub mod train_log;
 #[cfg(feature = "mens-train")]
 pub mod training_text;
 
-pub mod lora;
 pub mod vram_autodetect;
 
-#[cfg(feature = "mens-gpu")]
-pub mod burn_stack;
-#[cfg(feature = "mens-gpu")]
-pub mod optim;
-#[cfg(feature = "mens-gpu")]
-pub mod tensor;
-#[cfg(feature = "mens-gpu")]
-pub mod train;
-
-#[cfg(feature = "mens-gpu")]
-pub extern crate burn;
-
-#[cfg(feature = "mens-gpu")]
-pub use device::make_wgpu_device;
 pub use device::{
     DeviceKind, GpuInfo, TrainProfile, apply_backend_env, detect_gpu_vendor,
     estimate_training_vram_mb, estimate_training_vram_mb_qlora, normalize_device, oom_guidance,
     print_gpu_summary, print_gpu_summary_for, probe_gpu, recommend_config,
     recommend_config_for_profile, sample_vram_used_mb,
 };
-
-#[cfg(feature = "mens-gpu")]
-pub use lora::{LoraAttentionKvCache, LoraLinear, LoraTransformerKvCache, LoraVoxTransformer};
-pub use lora::{LoraConfig, lora_memory_estimate};
-
-#[cfg(feature = "mens-gpu")]
-pub use burn_stack::{IGNORE_INDEX, Sequential, VoxTransformer, cross_entropy_loss};
-#[cfg(feature = "mens-gpu")]
-pub use tensor::{ElementType, Tensor, TensorShape};
 
 // adapter_schema_v3 deleted: vox-mens/merge_qlora.rs holds inline serde types; plugin owns merge impl.
 #[cfg(feature = "mens-train")]
