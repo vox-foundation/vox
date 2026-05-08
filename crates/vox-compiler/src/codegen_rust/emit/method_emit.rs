@@ -440,14 +440,34 @@ where
     if method == "json" && o == "request" {
         return "request.clone()".into();
     }
+    // Vox str method lowering for Rust: snake_case names that don't exist directly on String.
+    let arg_exprs: Vec<String> = args.iter().map(|a| emit_expr(&a.value)).collect();
+    match method {
+        "slice" if arg_exprs.len() == 2 => {
+            return format!(
+                "({{ let __s: &str = ({}).as_ref(); let __start = ({}) as usize; let __end = ({}) as usize; let __cnt = __s.chars().count(); let __end = __end.min(__cnt); let __start = __start.min(__end); __s.chars().skip(__start).take(__end - __start).collect::<String>() }})",
+                o, arg_exprs[0], arg_exprs[1]
+            );
+        }
+        "char_at" if arg_exprs.len() == 1 => {
+            return format!(
+                "({{ let __s: &str = ({}).as_ref(); let __i = ({}) as usize; __s.chars().nth(__i).map(|c| c.to_string()) }})",
+                o, arg_exprs[0]
+            );
+        }
+        "index_of" if arg_exprs.len() == 1 => {
+            return format!(
+                "({{ let __s: &str = ({}).as_ref(); let __n: &str = ({}).as_ref(); __s.find(__n).map(|byte_pos| __s[..byte_pos].chars().count() as i64) }})",
+                o, arg_exprs[0]
+            );
+        }
+        _ => {}
+    }
     let call = format!(
         "{}.{}({})",
         o,
         method,
-        args.iter()
-            .map(|a| emit_expr(&a.value))
-            .collect::<Vec<_>>()
-            .join(", ")
+        arg_exprs.join(", ")
     );
     if method == "send" {
         format!("{}.await", call)

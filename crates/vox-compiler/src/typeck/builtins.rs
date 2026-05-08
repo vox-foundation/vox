@@ -628,6 +628,18 @@ impl BuiltinTypes {
             "starts_with".into(),
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
         );
+        str_methods.insert(
+            "slice".into(),
+            Ty::Fn(vec![Ty::Int, Ty::Int], Box::new(Ty::Str)),
+        );
+        str_methods.insert(
+            "char_at".into(),
+            Ty::Fn(vec![Ty::Int], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        str_methods.insert(
+            "index_of".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Int)))),
+        );
         methods.insert("Str".into(), str_methods);
 
         // HTTP module methods
