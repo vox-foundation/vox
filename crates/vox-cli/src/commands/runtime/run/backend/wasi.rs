@@ -3,7 +3,7 @@ use super::{RunBackend, ScriptOpts, parse_cargo_error};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
-use vox_wasm_host::{Preopen, PreopenMode, WasmExecOpts, WasmHost, WasmRunOutcome};
+use vox_wasm_engine::{Preopen, PreopenMode, WasmExecOpts, WasmHost, WasmRunOutcome};
 
 /// Backend for running WASI modules via Wasmtime.
 pub struct WasiBackend;
@@ -81,7 +81,7 @@ impl RunBackend for WasiBackend {
     }
 
     fn execute(&self, artifact: &Path, args: &[String], opts: &ScriptOpts) -> Result<ExitStatus> {
-        // Delegate to the vox-wasm-host SSOT for all Wasmtime engine + WASI wiring.
+        // Delegate to the vox-wasm-engine SSOT for all Wasmtime engine + WASI wiring.
         let host = WasmHost::new()?;
 
         let preopens = opts

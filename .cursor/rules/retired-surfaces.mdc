@@ -9,7 +9,7 @@ NEVER use these symbols — they cause broken integration:
 | Retired | Use instead |
 |---|---|
 | `vox-dei` (orchestrator crate) | `vox-orchestrator` |
-| `vox-ars` | `vox-skills` |
+| `vox-ars` | `vox-ars-runtime` |
 | `vox-gamify` | `vox-ludus` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` |
 | `@component fn Name()` | `component Name() {}` |

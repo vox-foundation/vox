@@ -2,6 +2,8 @@
 resolver = "2"
 members = ["crates/*","crates/workspace-hack"]
 exclude = [
+    "crates/vox-plugin-host/tests/fixtures/noop-code",
+    "crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi",
     "crates/vox-plugin-noop-skill",
     "crates/vox-plugin-skill-compiler",
     "crates/vox-plugin-skill-git",
@@ -70,7 +72,7 @@ vox-forge                 = { path = "crates/vox-forge" }
 vox-crypto                = { path = "crates/vox-crypto" }
 vox-identity              = { path = "crates/vox-identity" }
 
-vox-ars                   = { path = "crates/vox-ars" }
+vox-ars-runtime           = { path = "crates/vox-ars-runtime" }
 vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
 vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }
@@ -96,13 +98,11 @@ vox-openai-wire           = { path = "crates/vox-openai-wire" }
 vox-plugin-api            = { path = "crates/vox-plugin-api" }
 vox-plugin-catalog        = { path = "crates/vox-plugin-catalog" }
 vox-plugin-host           = { path = "crates/vox-plugin-host" }
-vox-plugin-noop-code      = { path = "crates/vox-plugin-noop-code" }
-vox-plugin-noop-code-bad-abi = { path = "crates/vox-plugin-noop-code-bad-abi" }
 vox-plugin-nvml-probe     = { path = "crates/vox-plugin-nvml-probe" }
 vox-plugin-runtime-container = { path = "crates/vox-plugin-runtime-container" }
 vox-plugin-runtime-wasm   = { path = "crates/vox-plugin-runtime-wasm" }
 vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
-vox-wasm-host             = { path = "crates/vox-wasm-host" }
+vox-wasm-engine           = { path = "crates/vox-wasm-engine" }
 vox-pm                    = { path = "crates/vox-pm" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }

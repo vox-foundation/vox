@@ -7,6 +7,7 @@ pub mod cloud_sync;
 pub mod hardware_probe;
 pub mod mesh_driver;
 pub mod ml_backend;
+pub mod publication;
 pub mod script_executor;
 pub mod speech_to_text;
 pub mod tensor_backend;

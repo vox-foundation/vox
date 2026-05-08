@@ -8,9 +8,9 @@ symbols:
     replacement: "vox-orchestrator"
     rationale: "Old large orchestrator crate. The new small vox-dei crate is for HITL only. If referring to HITL, ensure context is clear."
   - id: vox-ars-crate
-    pattern: "\\bvox-ars\\b"
-    replacement: "vox-skills"
-    rationale: "Crate renamed to vox-skills; vox-ars is now a CLI namespace only."
+    pattern: "\\bvox-ars(?:[^-\\w]|$)"
+    replacement: "vox-ars-runtime"
+    rationale: "Crate retired; ARS runtime types live in vox-ars-runtime. (vox-ars-runtime itself is the canonical replacement and is not flagged.)"
   - id: vox-gamify-crate
     pattern: "\\bvox-gamify\\b"
     replacement: "vox-ludus"

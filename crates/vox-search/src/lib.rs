@@ -40,6 +40,11 @@ pub use bundle::{
 pub use context::SearchRuntimeContext;
 pub use embedding_env::embedding_config_from_env;
 pub use embeddings::EmbeddingService;
+// Re-export `LlmConfig` so plugins (and other consumers that already depend on
+// `vox-search` for `EmbeddingService`) do not need to pull in `vox-runtime`
+// just to construct an embedding configuration. Plugin crates must not depend
+// on the core runtime; this re-export is the supported surface.
+pub use vox_runtime::llm::LlmConfig;
 pub use evaluation::{SearchBenchmarkQuery, SearchEvalReport, default_doc_nav_queries};
 pub use execution::{
     LexicalMemoryFallback, SearchExecution, execute_search_plan, repo_path_search,

@@ -189,7 +189,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | Retired / Deprecated | Canonical Replacement (Use Instead) |
 |---|---|
 | `vox-dei` (old large orchestrator crate) | `vox-orchestrator` |
-| `vox-ars` (crate) | `vox-skills` |
+| `vox-ars` (crate) | `vox-ars-runtime` |
 | `vox-gamify` | `vox-ludus` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |

@@ -50,7 +50,7 @@ toml = { workspace = true }
 vox-pm.workspace = true
 vox-ludus = { workspace = true }
 vox-skills = { workspace = true }
-vox-ars = { workspace = true }
+vox-ars-runtime = { workspace = true }
 vox-plugin-host = { workspace = true }
 vox-plugin-api = { workspace = true }
 dirs = { workspace = true }

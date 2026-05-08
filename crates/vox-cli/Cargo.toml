@@ -63,8 +63,8 @@ completion-toestub = ["dep:vox-toestub"]
 # No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to `vox-dei` (still do not add `vox-dei` as a dependency; see `vox ci no-vox-dei-import`).
 # Dashboard UX is the VS Code extension (see `docs/src/reference/cli.md`).
 dashboard = ["dep:vox-dashboard"]
-# OpenClaw / skill registry (`openclaw`); `vox-skills` carries the ARS shim; `vox-ars` is the migration facade.
-ars = ["dep:vox-skills", "dep:vox-ars"]
+# OpenClaw / skill registry (`openclaw`); ARS runtime types live in `vox-ars-runtime`; `vox-skills` is the marketplace registry.
+ars = ["dep:vox-skills", "dep:vox-ars-runtime"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-ludus` (uses `vox-db`).
 extras-ludus = ["dep:vox-ludus", "dep:vox-toestub"]
 # Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
@@ -125,16 +125,19 @@ base64 = { workspace = true }
 futures = { workspace = true }
 vox-pm = { workspace = true }
 vox-container = { workspace = true }
-vox-wasm-host = { workspace = true }
+vox-wasm-engine = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true, optional = true }
-vox-ars    = { workspace = true, optional = true }
+vox-ars-runtime = { workspace = true, optional = true }
 vox-ludus = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-clavis = { workspace = true }
 vox-db = { workspace = true }
 vox-search = { workspace = true }
-vox-plugin-publication = { workspace = true }
+# `vox-plugin-publication` is intentionally NOT a direct dep here. The CLI
+# routes `db/publication/ingest.rs` through `vox-plugin-host`'s ABI surface
+# (the `Publication` extension point on `VoxPlugin`) to keep the heavy
+# `feed-rs` / `vox-publisher` transitive deps out of the default CLI build.
 # Scholarly / DB-backed jobs only; Reddit/YouTube adapter code stays out of default CLI compile.
 vox-publisher = { workspace = true, default-features = false, features = ["scholarly-external-jobs"] }
 vox-doc-inventory = { workspace = true }
@@ -144,6 +147,9 @@ vox-doc-pipeline = { path = "../vox-doc-pipeline" }
 vox-orchestrator = { workspace = true }
 vox-plugin-catalog = { workspace = true }
 vox-plugin-host = { workspace = true }
+# Needed to construct ROption / RString when dispatching into plugin extension
+# trait methods (e.g. the Publication.ingest_tick signature).
+abi_stable = { workspace = true }
 vox-populi = { workspace = true }
 vox-mesh-types = { workspace = true }
 vox-workflow-runtime = { workspace = true, optional = true }

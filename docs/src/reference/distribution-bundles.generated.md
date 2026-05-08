@@ -15,13 +15,13 @@ First-party Vox distribution bundles. Each bundle is the same host binary plus a
 | bundle | extends | direct plugins | total resolved plugins |
 |--------|---------|----------------|------------------------|
 | `vox-base` | — | 0 | 0 |
-| `vox-fullstack` | — | 8 | 8 |
-| `vox-ml` | `vox-fullstack` | 3 | 11 |
+| `vox-fullstack` | — | 9 | 9 |
+| `vox-ml` | `vox-fullstack` | 2 | 11 |
 | `vox-mesh` | `vox-base` | 3 | 3 |
-| `vox-server` | `vox-base` | 4 | 4 |
-| `vox-edge` | `vox-base` | 3 | 3 |
+| `vox-server` | `vox-base` | 5 | 5 |
+| `vox-edge` | `vox-base` | 4 | 4 |
 | `vox-cloud-only` | `vox-base` | 3 | 3 |
-| `vox-dev` | `vox-fullstack` | 9 | 17 |
+| `vox-dev` | `vox-fullstack` | 10 | 19 |
 
 ## Per-bundle plugin lists
 
@@ -43,6 +43,7 @@ Default developer experience with all built-in skill plugins.
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-rag` — Agent-facing skill for retrieval-augmented generation.
 - `skill-v0` — Agent-facing skill providing legacy v0 compatibility surface.
+- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers).
 
 ### `vox-ml`
 
@@ -58,7 +59,7 @@ Extends: `vox-fullstack`
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-rag` — Agent-facing skill for retrieval-augmented generation.
 - `skill-v0` — Agent-facing skill providing legacy v0 compatibility surface.
-- `tensor-burn-wgpu` — Tensor backend on Burn + wgpu (cross-vendor GPU).
+- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers).
 - `mens-candle-cuda` — ML training backend using Candle with CUDA acceleration.
 - `nvml-probe` — NVIDIA GPU hardware probe via NVML (device count, VRAM, utilization, temperature).
 
@@ -82,6 +83,7 @@ Extends: `vox-base`
 - `cloud` — Cloud sync provider (Mens cloud + Populi cloud).
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-memory` — Agent-facing skill for memory and context management.
+- `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, GitLab, generic).
 
 ### `vox-edge`
 
@@ -92,6 +94,7 @@ Extends: `vox-base`
 - `skill-compiler` — Agent-facing skill describing the Vox compiler tools.
 - `skill-memory` — Agent-facing skill for memory and context management.
 - `skill-v0` — Agent-facing skill providing legacy v0 compatibility surface.
+- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers).
 
 ### `vox-cloud-only`
 
@@ -117,7 +120,7 @@ Extends: `vox-fullstack`
 - `skill-orchestrator` — Agent-facing skill for task submission, status, budget, multi-agent coordination.
 - `skill-rag` — Agent-facing skill for retrieval-augmented generation.
 - `skill-v0` — Agent-facing skill providing legacy v0 compatibility surface.
-- `tensor-burn-wgpu` — Tensor backend on Burn + wgpu (cross-vendor GPU).
+- `runtime-wasm` — Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers).
 - `mens-candle-cuda` — ML training backend using Candle with CUDA acceleration.
 - `nvml-probe` — NVIDIA GPU hardware probe via NVML (device count, VRAM, utilization, temperature).
 - `populi-mesh` — Populi mesh transport + the agent skill that documents it.
@@ -126,4 +129,6 @@ Extends: `vox-fullstack`
 - `oratio-mic` — Microphone input adapter for Oratio.
 - `script-execution` — Script execution sandbox for `.vox run` and similar.
 - `browser` — Chrome DevTools Protocol browser automation via chromiumoxide.
+- `webhook` — Inbound webhook HTTP listener with HMAC signature verification (GitHub, GitLab, generic).
+- `grammar-export` — Export Vox grammar in standard formats (Lark, EBNF, JSON Schema, XGrammar-2, SSOT-Markdown).
 

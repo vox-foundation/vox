@@ -7,8 +7,8 @@
 //! This is a **secondary** path. The primary path uses `vox-container` directly
 //! via [`crate::sandbox::runner::SandboxedSkillRunner`].
 
-use crate::ars_shim::manifest::ResourceLimits;
-use crate::ars_shim::openclaw_adapter::{
+use vox_ars_runtime::manifest::ResourceLimits;
+use vox_ars_runtime::openclaw_adapter::{
     DefaultOpenClawRuntimeAdapter, OpenClawAdapterError, OpenClawRuntimeAdapter,
     connect_default_runtime_adapter,
 };

@@ -12,6 +12,7 @@ use crate::extensions::cloud_sync::CloudSync_TO;
 use crate::extensions::hardware_probe::HardwareProbe_TO;
 use crate::extensions::mesh_driver::MeshDriver_TO;
 use crate::extensions::ml_backend::MlBackend_TO;
+use crate::extensions::publication::Publication_TO;
 use crate::extensions::script_executor::ScriptExecutor_TO;
 use crate::extensions::speech_to_text::SpeechToText_TO;
 use crate::extensions::tensor_backend::TensorBackend_TO;
@@ -102,6 +103,12 @@ pub trait VoxPlugin: Send + Sync {
     /// Optional accessor: if this plugin provides a SpeechToText implementation,
     /// return Some(trait object). Default impl returns None.
     fn as_speech_to_text(&self) -> ROption<SpeechToText_TO<'static, RBox<()>>> {
+        ROption::RNone
+    }
+
+    /// Optional accessor: if this plugin provides a Publication implementation,
+    /// return Some(trait object). Default impl returns None.
+    fn as_publication(&self) -> ROption<Publication_TO<'static, RBox<()>>> {
         ROption::RNone
     }
 }

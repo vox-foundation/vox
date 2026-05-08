@@ -79,7 +79,16 @@
       "Bash(xargs -I{} taskkill //F //PID {})",
       "Bash(grep -E \"^\\(vox-\\(plugin-\\)?\\(container|deploy-codegen|skill-runtime|wasm-host|plugin-runtime|grammar-export|webhook|publication\\)\\)$\")",
       "Bash(grep -E \"^\\(optim|tensor|train\\)\\\\.rs$\")",
-      "Bash(grep -v -E \"api$|catalog$|host$\")"
+      "Bash(grep -v -E \"api$|catalog$|host$\")",
+      "Bash(Get-ChildItem -Path \"crates\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(Sort-Object)",
+      "Bash(Get-ChildItem -Path . -Name)",
+      "Bash(grep -v \"^workspace-hack$\")",
+      "Bash(awk -F'=' '{print $1}')",
+      "Bash(find crates/vox-* -name \"lib.rs\" -o -name \"main.rs\")",
+      "Bash(xargs -I {} sh -c 'echo \"\"; echo \"=== {} ===\"; head -20 {}')",
+      "Bash(grep -n \"abi.stable.*workspace\\\\\\\\|\\\\\\\\[workspace\\\\\\\\]\" \"C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\lucid-shannon-93d00c\\\\Cargo.toml\")"
     ]
   }
 }

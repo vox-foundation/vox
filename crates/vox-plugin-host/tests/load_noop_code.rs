@@ -33,7 +33,7 @@ fn built_dylib(crate_name: &str) -> PathBuf {
         }
     }
     panic!(
-        "build {crate_name} first: `cargo build -p {crate_name}`. Looked for {filename} in target/debug and target/release.",
+        "build {crate_name} first: `cargo build --manifest-path crates/vox-plugin-host/tests/fixtures/noop-code/Cargo.toml`. Looked for {filename} in target/debug and target/release.",
     );
 }
 
@@ -47,7 +47,10 @@ fn end_to_end_load_noop_code() {
 
     let manifest_src = workspace_root()
         .join("crates")
-        .join("vox-plugin-noop-code")
+        .join("vox-plugin-host")
+        .join("tests")
+        .join("fixtures")
+        .join("noop-code")
         .join("Plugin.toml");
     std::fs::copy(&manifest_src, plugin_dir.join("Plugin.toml")).expect("copy manifest");
     let dylib_dest = plugin_dir.join(dylib_src.file_name().unwrap());

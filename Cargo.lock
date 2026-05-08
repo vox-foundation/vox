@@ -10486,10 +10486,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
-name = "vox-ars"
-version = "0.5.0"
+name = "vox-ars-runtime"
+version = "0.1.0"
 dependencies = [
- "vox-skills",
+ "anyhow",
+ "async-trait",
+ "data-encoding",
+ "futures-util",
+ "reqwest 0.12.28",
+ "secrecy",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha3",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-tungstenite 0.24.0",
+ "toml 0.8.23",
+ "tracing",
+ "uuid",
+ "vox-clavis",
+ "vox-db",
+ "vox-plugin-host",
+ "vox-reqwest-defaults",
  "workspace-hack",
 ]
 
@@ -10548,6 +10567,7 @@ dependencies = [
 name = "vox-cli"
 version = "0.5.0"
 dependencies = [
+ "abi_stable",
  "anyhow",
  "axum",
  "axum-extra",
@@ -10592,7 +10612,7 @@ dependencies = [
  "tracing-subscriber",
  "turso",
  "uuid",
- "vox-ars",
+ "vox-ars-runtime",
  "vox-bounded-fs",
  "vox-capability-registry",
  "vox-checksum-manifest",
@@ -10623,7 +10643,6 @@ dependencies = [
  "vox-orchestrator",
  "vox-plugin-catalog",
  "vox-plugin-host",
- "vox-plugin-publication",
  "vox-pm",
  "vox-populi",
  "vox-primitives",
@@ -10638,7 +10657,7 @@ dependencies = [
  "vox-skills",
  "vox-ssg",
  "vox-toestub",
- "vox-wasm-host",
+ "vox-wasm-engine",
  "vox-workflow-runtime",
  "walkdir",
  "wasmtime",
@@ -11249,7 +11268,7 @@ dependencies = [
  "tracing-subscriber",
  "turso",
  "uuid",
- "vox-ars",
+ "vox-ars-runtime",
  "vox-bounded-fs",
  "vox-capability-registry",
  "vox-clavis",
@@ -11411,22 +11430,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-plugin-noop-code"
-version = "0.1.0"
-dependencies = [
- "abi_stable",
- "vox-plugin-api",
-]
-
-[[package]]
-name = "vox-plugin-noop-code-bad-abi"
-version = "0.1.0"
-dependencies = [
- "abi_stable",
- "vox-plugin-api",
-]
-
-[[package]]
 name = "vox-plugin-nvml-probe"
 version = "0.5.0"
 dependencies = [
@@ -11524,7 +11527,6 @@ dependencies = [
  "vox-db",
  "vox-plugin-api",
  "vox-publisher",
- "vox-runtime",
  "vox-scientia-ingest",
  "vox-search",
  "workspace-hack",
@@ -11556,7 +11558,7 @@ dependencies = [
  "tracing",
  "vox-plugin-api",
  "vox-skill-runtime",
- "vox-wasm-host",
+ "vox-wasm-engine",
  "wasmtime",
  "wasmtime-wasi",
  "workspace-hack",
@@ -11778,7 +11780,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
- "vox-ars",
+ "vox-ars-runtime",
  "vox-clavis",
  "vox-config",
  "vox-db",
@@ -11865,22 +11867,15 @@ name = "vox-skills"
 version = "0.5.0"
 dependencies = [
  "anyhow",
- "async-trait",
- "data-encoding",
- "futures-util",
  "reqwest 0.12.28",
- "secrecy",
- "semver",
  "serde",
  "serde_json",
- "sha3",
  "thiserror 1.0.69",
  "tokio",
- "tokio-tungstenite 0.24.0",
  "toml 0.8.23",
  "tracing",
  "uuid",
- "vox-clavis",
+ "vox-ars-runtime",
  "vox-container",
  "vox-db",
  "vox-plugin-host",
@@ -11954,7 +11949,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-wasm-host"
+name = "vox-wasm-engine"
 version = "0.5.0"
 dependencies = [
  "anyhow",

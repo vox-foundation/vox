@@ -6,7 +6,7 @@
 //! 2. **Isolation gate** (`resolve_policy`): determines whether to run under the
 //!    container sandbox or the permissive (host-process) runtime.
 
-use crate::ars_shim::manifest::{SkillKind, TrustLevel};
+use vox_ars_runtime::manifest::{SkillKind, TrustLevel};
 
 /// Error returned when a pre-execution policy gate blocks execution.
 #[derive(Debug, thiserror::Error)]

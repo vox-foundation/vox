@@ -8,10 +8,10 @@ pub async fn eval_task(body: &str, input_json: Option<&str>) -> Result<()> {
     };
 
     println!("🚀 Evaluating ephemeral task in sandbox...");
-    let limits = vox_ars::manifest::ResourceLimits::default();
+    let limits = vox_ars_runtime::manifest::ResourceLimits::default();
 
     let result =
-        vox_ars::executor::execute_vox_task(body, &input, &limits, None).await?;
+        vox_ars_runtime::executor::execute_vox_task(body, &input, &limits, None).await?;
 
     println!("\nResult:");
     println!("{}", serde_json::to_string_pretty(&result).unwrap());
@@ -27,13 +27,13 @@ pub async fn promote_skill(session_id: &str, task_id: &str, name: &str) -> Resul
 
     let skill_id = promoted_skill_id(task_id);
     let description = format!("Promoted ephemeral task {task_id} from session {session_id}");
-    let mut manifest = vox_ars::SkillManifest::new(
+    let mut manifest = vox_ars_runtime::SkillManifest::new(
         skill_id.clone(),
         name.to_string(),
         "0.1.0".to_string(),
         session_id.to_string(),
         description.clone(),
-        vox_ars::SkillCategory::Custom("promoted".into()),
+        vox_ars_runtime::SkillCategory::Custom("promoted".into()),
     );
     manifest.tags = vec!["promoted".into(), format!("task:{task_id}")];
     let manifest_json =
