@@ -73,16 +73,13 @@ pub fn run_eval_local(
         system_prompt: None,
     };
 
+    // SP3 Unit 3: candle_inference_serve deleted from vox-populi; authoritative copy lives in
+    // vox-plugin-mens-candle-cuda/src/inference.rs.  vox-mens drives inference through the plugin
+    // host (MlBackend::generate / plugin dispatch).  Until the plugin-host wiring is plumbed into
+    // eval_local, the engine is unconditionally None.
     #[cfg(feature = "gpu")]
-    let mut engine = if model.exists() {
-        vox_populi::mens::tensor::candle_inference_serve::InferenceEngine::load(
-            &model,
-            &vox_populi::mens::DeviceKind::Cuda,
-        )
-        .ok()
-    } else {
-        None
-    };
+    #[allow(unused_mut)]
+    let mut engine: Option<()> = None;
 
     let mut results: Vec<serde_json::Value> = Vec::new();
     let mut passed_k = 0usize;
@@ -127,81 +124,20 @@ pub fn run_eval_local(
                     })],
                 )
             } else {
+                // SP3 Unit 3: InferenceEngine removed from vox-populi; engine is always None
+                // until vox-mens eval-local is rewired through the plugin host.
                 #[cfg(feature = "gpu")]
                 {
-                    if let Some(ref mut eng) = engine {
-                        let k = samples.max(1);
-                        let mut per_sample = Vec::with_capacity(k);
-                        for sample_idx in 0..k {
-                            let seed = seed_base
-                                .saturating_add((manifest_index as u64).saturating_mul(1_000))
-                                .saturating_add(sample_idx as u64);
-                            let seed_opt = if temperature > 0.0 { Some(seed) } else { None };
-                            // InferenceEngine currently accepts `top_p` rather than seed.
-                            // Keep seed in eval metadata for reproducibility bookkeeping.
-                            match eng.generate(
-                                &prompt,
-                                max_tokens,
-                                temperature as f64,
-                                None,
-                                &vox_constrained_gen::GrammarMode::None,
-                            ) {
-                                Ok(output) => {
-                                    let verify = verify_completion(
-                                        &output,
-                                        &bench,
-                                        &file,
-                                        &id,
-                                        manifest_index,
-                                        &semantic_expected_contains,
-                                    );
-                                    per_sample.push(serde_json::json!({
-                                        "sample_index": sample_idx,
-                                        "seed": seed_opt,
-                                        "pass": verify.pass,
-                                        "semantic_pass": verify.semantic_pass,
-                                        "anti_stub_pass": verify.anti_stub_pass,
-                                        "checks": verify.checks,
-                                        "completion_chars": output.len(),
-                                    }));
-                                }
-                                Err(e) => {
-                                    eprintln!(
-                                        "  {} Inference failed for {} sample {}: {}",
-                                        "⚠".yellow(),
-                                        id,
-                                        sample_idx,
-                                        e
-                                    );
-                                    per_sample.push(serde_json::json!({
-                                        "sample_index": sample_idx,
-                                        "seed": seed_opt,
-                                        "pass": false,
-                                        "error": e.to_string(),
-                                    }));
-                                }
-                            }
-                        }
-                        let pass1 = per_sample
-                            .first()
-                            .and_then(|v| v.get("pass"))
-                            .and_then(|v| v.as_bool())
-                            .unwrap_or(false);
-                        let passk = per_sample
-                            .iter()
-                            .any(|v| v.get("pass").and_then(|x| x.as_bool()).unwrap_or(false));
-                        (pass1, passk, per_sample)
-                    } else {
-                        (
-                            false,
-                            false,
-                            vec![serde_json::json!({
-                                "sample_index": 0,
-                                "pass": false,
-                                "error": "engine fail to load"
-                            })],
-                        )
-                    }
+                    let _ = &engine; // suppress unused warning
+                    (
+                        false,
+                        false,
+                        vec![serde_json::json!({
+                            "sample_index": 0,
+                            "pass": false,
+                            "error": "inference engine not yet wired to plugin host (SP3 Unit 3)"
+                        })],
+                    )
                 }
                 #[cfg(not(feature = "gpu"))]
                 {

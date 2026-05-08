@@ -102,8 +102,9 @@ pub(crate) fn get_chunk_id(path: &str) -> (u32, &'static str) {
     }
 
     // ── ML / Mens ──────────────────────────────────────────────────────
+    // candle_model_qwen.rs deleted (SP3 Unit 1); canonical copy in vox-plugin-mens-candle-cuda
     if p.starts_with("crates/vox-populi/src/mens/tensor/lora.rs")
-        || p.starts_with("crates/vox-populi/src/mens/tensor/candle_model_qwen.rs")
+        || p.starts_with("crates/vox-plugin-mens-candle-cuda/src/model.rs")
     {
         return (30, "07_populi_lora_model");
     }

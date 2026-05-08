@@ -11,10 +11,9 @@ pub mod model_card;
 pub mod telemetry;
 pub mod telemetry_schema;
 
-#[cfg(feature = "mens-candle-qlora")]
-pub mod candle_inference_serve;
-#[cfg(feature = "mens-candle-qlora")]
-pub mod candle_model_qwen;
+// SP3 Unit 1: candle_model_qwen deleted; canonical copy in vox-plugin-mens-candle-cuda/src/model.rs
+// SP3 Unit 3: candle_inference_serve deleted; canonical copy in vox-plugin-mens-candle-cuda/src/inference.rs
+// vox-mens eval-local is rewired to use Option<()> stub until plugin-host dispatch is plumbed.
 pub mod populi_train;
 pub mod train_log;
 #[cfg(feature = "mens-train")]
