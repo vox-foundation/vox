@@ -731,6 +731,10 @@ impl BuiltinTypes {
             "transcribe".into(),
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
         );
+        speech_methods.insert(
+            "transcribe_microphone".into(),
+            Ty::Fn(vec![], Box::new(Ty::Result(Box::new(Ty::Str)))),
+        );
         methods.insert("SpeechModule".into(), speech_methods);
 
         // Regex / Match (std.regex compile output and find result).

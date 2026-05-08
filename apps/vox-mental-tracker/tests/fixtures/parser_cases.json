@@ -1,0 +1,18 @@
+[
+  {
+    "transcript": "my mood is like a 4 today",
+    "expect_kind": "mood_recorded"
+  },
+  {
+    "transcript": "I ate scrambled eggs and toast",
+    "expect_kind": "meal_recorded"
+  },
+  {
+    "transcript": "I walked for 30 minutes",
+    "expect_kind": "exercise_recorded"
+  },
+  {
+    "transcript": "going to bed now",
+    "expect_kind": "sleep_started"
+  }
+]

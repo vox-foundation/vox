@@ -1,0 +1,16 @@
+# Stable column order for CSV exports (v1)
+version: 1
+health_event_log:
+  - event_id
+  - event_kind
+  - schema_version
+  - payload_json
+  - event_at
+  - recorded_at
+  - recorded_at_monotonic
+  - tz_iana
+  - tz_offset_minutes
+  - source
+  - raw_transcript_id
+  - correction_of
+  - is_backdated   # derived at export time when implemented

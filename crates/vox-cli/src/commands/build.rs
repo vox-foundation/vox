@@ -71,11 +71,18 @@ pub async fn run(
         .iter()
         .any(|(n, _)| n == "routes.manifest.ts" || n == "routes.manifest.json");
     if emitted_manifest {
+        let written_names: std::collections::HashSet<&str> =
+            ts_output.files.iter().map(|(n, _)| n.as_str()).collect();
         let mut to_remove = vec!["App.tsx", "VoxTanStackRouter.tsx", "serverFns.ts"];
         if mode == crate::cli_args::BuildMode::Library {
             to_remove.push("routes.manifest.ts");
         }
         for stale_name in to_remove {
+            // Do not delete artifacts emitted in this same build — stale cleanup targets only
+            // leftover files from prior scaffold/toolchain versions (see routes.manifest import graph).
+            if written_names.contains(stale_name) {
+                continue;
+            }
             let stale = out_dir.join(stale_name);
             if stale.is_file() {
                 fs::remove_file(&stale)
