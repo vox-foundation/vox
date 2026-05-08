@@ -1,18 +1,50 @@
 [
   {
     "transcript": "my mood is like a 4 today",
-    "expect_kind": "mood_recorded"
+    "expect_kind": "mood_recorded",
+    "expect_payload": { "mood_score": 4 }
+  },
+  {
+    "transcript": "I'm feeling like a 2",
+    "expect_kind": "mood_recorded",
+    "expect_payload": { "mood_score": 2 }
+  },
+  {
+    "transcript": "mood 7 super energized",
+    "expect_kind": "mood_recorded",
+    "note": "ts and vox both clamp to 5",
+    "expect_payload": { "mood_score": 5 }
   },
   {
     "transcript": "I ate scrambled eggs and toast",
-    "expect_kind": "meal_recorded"
+    "expect_kind": "meal_recorded",
+    "expect_payload": { "description": "scrambled eggs and toast" }
+  },
+  {
+    "transcript": "had pasta for lunch",
+    "expect_kind": "meal_recorded",
+    "expect_payload": { "description": "pasta for lunch" }
   },
   {
     "transcript": "I walked for 30 minutes",
-    "expect_kind": "exercise_recorded"
+    "expect_kind": "exercise_recorded",
+    "expect_payload": { "activity": "cardio", "duration_minutes": 30 }
+  },
+  {
+    "transcript": "ran 15 min along the river",
+    "expect_kind": "exercise_recorded",
+    "expect_payload": { "activity": "cardio", "duration_minutes": 15 }
   },
   {
     "transcript": "going to bed now",
     "expect_kind": "sleep_started"
+  },
+  {
+    "transcript": "taking a quick nap",
+    "expect_kind": "sleep_started"
+  },
+  {
+    "transcript": "remember to call mom",
+    "expect_kind": "note_recorded"
   }
 ]
