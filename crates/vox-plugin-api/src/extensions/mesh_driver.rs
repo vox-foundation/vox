@@ -3,7 +3,7 @@
 
 use abi_stable::{sabi_trait, std_types::*};
 
-pub const MESH_DRIVER_REVISION: u32 = 1;
+pub const MESH_DRIVER_REVISION: u32 = 2;
 
 #[sabi_trait]
 pub trait MeshDriver: Send + Sync {
@@ -26,4 +26,17 @@ pub trait MeshDriver: Send + Sync {
 
     /// List currently-registered nodes as a JSON array.
     fn list_nodes(&self) -> RResult<RString, RBoxError>;
+
+    /// Relay an A2A message to a specific peer node URL. Used by clavis broadcasts
+    /// and orchestrator A2A dispatch. Returns the peer's response JSON.
+    fn relay_a2a(
+        &self,
+        target_url: RStr<'_>,
+        request_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        let _ = (target_url, request_json);
+        RResult::RErr(RBoxError::new(std::io::Error::other(
+            "relay_a2a not implemented by this MeshDriver backend",
+        )))
+    }
 }
