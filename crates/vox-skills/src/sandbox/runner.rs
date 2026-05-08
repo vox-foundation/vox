@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use vox_container::ContainerRuntime;
-use vox_plugin_runtime_container::{detect_runtime, RuntimePreference};
+use vox_container::detect::{RuntimePreference, detect_runtime};
 
 use crate::ars_shim::manifest::ResourceLimits;
 

@@ -9,8 +9,7 @@ use vox_deploy_codegen::{
     BareMetalTarget, ComposeTarget, DeployTarget, KubernetesTarget,
     build_container_target, generate_systemd_unit, resolve_target_kind,
 };
-use vox_container::ContainerRuntime;
-use vox_plugin_runtime_container::detect_runtime;
+use vox_container::{ContainerRuntime, detect_runtime};
 use vox_pm::VoxManifest;
 
 /// `vox deploy` — build/push OCI images, run compose, apply Kubernetes manifests, or bare-metal systemd.
@@ -42,7 +41,7 @@ pub async fn run(args: DeployArgs) -> Result<()> {
 
     let target = match target_kind {
         "container" => {
-            let pref: vox_plugin_runtime_container::RuntimePreference = deploy
+            let pref: vox_container::detect::RuntimePreference = deploy
                 .runtime
                 .as_deref()
                 .or(args.runtime.as_deref())

@@ -58,7 +58,7 @@ pub async fn run(action: ContainerAction) -> Result<()> {
 
             let pref = runtime
                 .unwrap_or_else(|| "auto".to_string())
-                .parse::<vox_plugin_runtime_container::RuntimePreference>()
+                .parse::<vox_container::detect::RuntimePreference>()
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
 
             let cwd = std::env::current_dir()?;
@@ -70,7 +70,7 @@ pub async fn run(action: ContainerAction) -> Result<()> {
             };
 
             tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
-                let rt = vox_plugin_runtime_container::detect_runtime(pref).context(
+                let rt = vox_container::detect_runtime(pref).context(
                     "No container runtime available. Install Docker or Podman.",
                 )?;
                 let _ = rt.build(&opts).context("Container build failed")?;
@@ -87,7 +87,7 @@ pub async fn run(action: ContainerAction) -> Result<()> {
 
             let pref = runtime
                 .unwrap_or_else(|| "auto".to_string())
-                .parse::<vox_plugin_runtime_container::RuntimePreference>()
+                .parse::<vox_container::detect::RuntimePreference>()
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
 
             let opts = vox_container::RunOpts {
@@ -101,7 +101,7 @@ pub async fn run(action: ContainerAction) -> Result<()> {
             };
 
             tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
-                let rt = vox_plugin_runtime_container::detect_runtime(pref).context(
+                let rt = vox_container::detect_runtime(pref).context(
                     "No container runtime available. Install Docker or Podman.",
                 )?;
                 rt.run(&opts).context("Container run failed")?;
