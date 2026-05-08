@@ -36,7 +36,7 @@ fuzzy-search = ["dep:nucleo"]
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Native MCP server runtime previously in vox-mcp binary
-mcp-server = ["vox-orchestrator/mcp-native", "dep:axum"]
+mcp-server = ["vox-orchestrator/mcp-native", "dep:axum", "dep:rmcp"]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
 
@@ -52,7 +52,7 @@ script-execution = [
     "dep:win32job",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
-execution-api = ["script-execution", "dep:axum", "dep:tokio-stream"]
+execution-api = ["script-execution", "dep:axum", "dep:axum-extra", "dep:tokio-stream"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
     "dep:vox-toestub",
@@ -182,11 +182,11 @@ rand = { workspace = true }
 uuid = { version = "1.22.0", features = ["v4"] }
 vox-mcp-registry = { path = "../vox-mcp-registry" }
 vox-capability-registry = { path = "../vox-capability-registry" }
-rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
+rmcp = { version = "0.16", optional = true, features = ["server", "client", "transport-io"] }
 axum = { version = "0.8", optional = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
 vox-grammar-export = { workspace = true }
-axum-extra = { version = "0.12.5", features = ["typed-header"] }
+axum-extra = { version = "0.12.5", optional = true, features = ["typed-header"] }
 notify = "7"
 tokio-stream = { version = "0.1", optional = true }
 dirs = { version = "6" }

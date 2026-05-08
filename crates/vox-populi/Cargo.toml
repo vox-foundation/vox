@@ -148,5 +148,29 @@ required-features = ["transport"]
 name = "dispatch_persistence"
 required-features = ["transport"]
 
+[[test]]
+name = "probe_pipeline"
+required-features = ["mens"]
+
+[[test]]
+name = "probe_pipeline_live"
+required-features = ["mens"]
+
+[[test]]
+name = "lora_estimates"
+required-features = ["mens"]
+
+[[test]]
+name = "hf_load_config"
+required-features = ["mens"]
+
+[[test]]
+name = "qwen35_native_parity"
+required-features = ["mens"]
+
+[[test]]
+name = "training_presets_yaml_contract"
+required-features = ["mens"]
+
 [lints]
 workspace = true

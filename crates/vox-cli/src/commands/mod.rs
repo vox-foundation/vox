@@ -104,7 +104,7 @@ pub mod upgrade;
 #[cfg(feature = "extras-ludus")]
 pub use extras::ludus;
 /// AI-powered CodeRabbit review adapter (`vox review`).
-#[cfg(any(feature = "dei", feature = "coderabbit"))]
+#[cfg(feature = "coderabbit")]
 pub mod review;
 /// Native execution via local runtime execution (`vox run`).
 pub mod run;
