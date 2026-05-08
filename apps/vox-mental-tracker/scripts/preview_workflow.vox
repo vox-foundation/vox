@@ -1,0 +1,11 @@
+// Preview / desktop workflow — informational only (invoke commands from repo docs).
+// Build app TS:   vox build src/main.vox -o dist
+// Install/sync:   pnpm install && pnpm build:plugin && npx cap sync
+// Web preview:    serve dist/ with any static server after wiring Vite scaffold if applicable.
+
+fn main() {
+    println("Mental Tracker preview:");
+    println("1) vox build src/main.vox -o dist");
+    println("2) pnpm install && pnpm build:plugin && pnpm test && npx cap sync");
+    println("3) Android: pnpm cap:open:android — iOS: pnpm cap:open:ios");
+}

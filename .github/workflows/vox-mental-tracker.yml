@@ -1,0 +1,127 @@
+name: vox-mental-tracker
+
+on:
+  push:
+    paths:
+      - "apps/vox-mental-tracker/**"
+      - ".github/workflows/vox-mental-tracker.yml"
+  pull_request:
+    paths:
+      - "apps/vox-mental-tracker/**"
+      - ".github/workflows/vox-mental-tracker.yml"
+
+defaults:
+  run:
+    working-directory: apps/vox-mental-tracker
+
+jobs:
+  vox-check:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cargo smoke (parent workspace)
+        run: cargo run -q -p vox-cli -- check apps/vox-mental-tracker/src/main.vox
+        working-directory: "."
+
+  vitest:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: apps/vox-mental-tracker/pnpm-lock.yaml
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/vox-mental-tracker
+      - name: Build Sherpa plugin package (declarations)
+        run: pnpm exec tsc -p plugins/vox-sherpa-transcribe/tsconfig.json
+        working-directory: apps/vox-mental-tracker
+      - name: Vitest
+        run: pnpm exec vitest run
+        working-directory: apps/vox-mental-tracker
+
+  playwright:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: apps/vox-mental-tracker/pnpm-lock.yaml
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/vox-mental-tracker
+      - name: Resolve Playwright version
+        id: pw_version
+        shell: bash
+        run: |
+          ver=$(node -p "require('./apps/vox-mental-tracker/node_modules/@playwright/test/package.json').version")
+          echo "ver=$ver" >> "$GITHUB_OUTPUT"
+        working-directory: "."
+      - name: Cache Playwright browsers
+        id: pw_cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ steps.pw_version.outputs.ver }}-chromium
+          restore-keys: |
+            ms-playwright-${{ runner.os }}-${{ steps.pw_version.outputs.ver }}-
+            ms-playwright-${{ runner.os }}-
+      - name: Install Playwright browsers (cache miss)
+        if: steps.pw_cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install chromium
+        working-directory: apps/vox-mental-tracker
+      - name: Playwright
+        run: pnpm exec playwright test
+        working-directory: apps/vox-mental-tracker
+
+  contracts:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: JSON parse check on event-payload contracts
+        run: |
+          for f in apps/vox-mental-tracker/contracts/event-payloads/*.json; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1])); print('OK', sys.argv[1])" "$f"
+          done
+        working-directory: "."
+      - name: YAML parse check on export contracts
+        run: |
+          python3 - <<'PY'
+          import sys, yaml, glob
+          for path in sorted(glob.glob('apps/vox-mental-tracker/contracts/export/*.yaml')):
+              with open(path) as f:
+                  yaml.safe_load(f)
+              print('OK', path)
+          PY
+        working-directory: "."
+
+  app-summary:
+    needs: [vox-check, vitest, playwright, contracts]
+    runs-on: [self-hosted, linux, x64]
+    if: always()
+    steps:
+      - name: Aggregate
+        run: |
+          if [ "${{ needs.vox-check.result }}" != "success" ] \
+             || [ "${{ needs.vitest.result }}" != "success" ] \
+             || [ "${{ needs.playwright.result }}" != "success" ] \
+             || [ "${{ needs.contracts.result }}" != "success" ]; then
+            echo "One or more lanes failed:"
+            echo "  vox-check=${{ needs.vox-check.result }}"
+            echo "  vitest=${{ needs.vitest.result }}"
+            echo "  playwright=${{ needs.playwright.result }}"
+            echo "  contracts=${{ needs.contracts.result }}"
+            exit 1
+          fi
+          echo "All lanes green."

@@ -1,0 +1,524 @@
+// vox-mental-tracker — append-only HealthEventLog SSOT, exports (see src/ts/export_contract.ts for row projection), on-device STT via Capacitor.
+import std.mobile
+
+/// Structured parser output. Mirrors apps/vox-mental-tracker/src/ts/intent_parser.ts.
+type ParsedVoice {
+    kind: str,
+    payload_json: str,
+    confidence: float,
+}
+
+@table type HealthEventLog {
+    event_id: str
+    event_kind: str
+    schema_version: int
+    payload_json: str
+    event_at: str
+    recorded_at: str
+    recorded_at_monotonic: int
+    tz_iana: str
+    tz_offset_minutes: int
+    source: str
+    raw_transcript_id: str
+    correction_of: str
+}
+
+@table type RawTranscript {
+    transcript_id: str
+    captured_at: str
+    transcript_text: str
+    parser_decisions_json: str
+    confidence: float
+}
+
+@endpoint(kind: query) fn health_event_count() to int {
+    match db.HealthEventLog.all() {
+        Ok(rows) => len(rows)
+        Error(_) => 0
+    }
+}
+
+@endpoint(kind: mutation) fn record_health_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+    let eid = std.crypto.uuid()
+    let rec_ms = std.time.now_ms()
+    db.HealthEventLog.insert({
+        event_id: eid,
+        event_kind: event_kind,
+        schema_version: 1,
+        payload_json: payload_json,
+        event_at: event_at,
+        recorded_at: str(rec_ms),
+        recorded_at_monotonic: rec_ms,
+        tz_iana: tz_iana,
+        tz_offset_minutes: tz_offset_minutes,
+        source: source,
+        raw_transcript_id: raw_transcript_id,
+        correction_of: correction_of,
+    })?
+    return Ok(eid)
+}
+
+@endpoint(kind: mutation) fn record_event(event_kind: str, payload_json: str, event_at: str, source: str, raw_transcript_id: str, correction_of: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+    return record_health_event(event_kind, payload_json, event_at, source, raw_transcript_id, correction_of, tz_iana, tz_offset_minutes)
+}
+
+@endpoint(kind: mutation) fn record_correction(of_event_id: str, event_kind: str, payload_json: str, event_at: str, source: str, tz_iana: str, tz_offset_minutes: int) to Result[str] {
+    return record_health_event(event_kind, payload_json, event_at, source, "", of_event_id, tz_iana, tz_offset_minutes)
+}
+
+@endpoint(kind: mutation) fn record_raw_transcript(transcript_text: str, parser_decisions_json: str, confidence: float) to Result[str] {
+    let tid = std.crypto.uuid()
+    let ms = std.time.now_ms()
+    db.RawTranscript.insert({
+        transcript_id: tid,
+        captured_at: str(ms),
+        transcript_text: transcript_text,
+        parser_decisions_json: parser_decisions_json,
+        confidence: confidence,
+    })?
+    return Ok(tid)
+}
+
+/// Best-effort string-to-int. Uses std.json.parse for digit-string coercion;
+/// returns the supplied default on any parse failure.
+fn _parse_int_default(s: str, default_value: int) to int {
+    return match std.json.parse("{\"v\":" + s + "}") {
+        Ok(j) => match j.get_int("v") {
+            Ok(n) => n
+            Error(_) => default_value
+        }
+        Error(_) => default_value
+    }
+}
+
+/// Clamp `n` into [lo, hi].
+fn _clamp(n: int, lo: int, hi: int) to int {
+    if n < lo { return lo }
+    if n > hi { return hi }
+    return n
+}
+
+/// True when the event was recorded more than 5 min after it occurred.
+/// Ported from export_contract.ts `isBackdated` (§3.B).
+fn _is_backdated(event_at_ms: str, recorded_at_ms: str) to bool {
+    let ea = _parse_int_default(event_at_ms, 0)
+    let ra = _parse_int_default(recorded_at_ms, 0)
+    if ea is 0 { return false }
+    return (ra - ea) > 300000
+}
+
+/// CSV-quote a field: wrap in double-quotes, escape inner quotes.
+/// Ported from export_contract.ts `csvQuote` (§3.B).
+fn _csv_quote(s: str) to str {
+    return "\"" + s.replace("\"", "\"\"") + "\""
+}
+
+/// True when `check_id` appears as the `correction_of` of any row.
+/// O(n) scan; used inside the O(n²) effective-events pass (§3.A).
+fn _is_superseded_in(check_id: str, rows: List[HealthEventLog]) to bool {
+    let mut found = false
+    for r in rows {
+        if r.correction_of == check_id { found = true }
+    }
+    return found
+}
+
+@test
+fn test_is_backdated_over_threshold() to Unit {
+    assert(_is_backdated("1000000", "1301000"))
+}
+
+@test
+fn test_is_backdated_under_threshold() to Unit {
+    assert(!_is_backdated("1000000", "1299999"))
+}
+
+@test
+fn test_is_backdated_zero_event_at() to Unit {
+    assert(!_is_backdated("0", "999999"))
+}
+
+@test
+fn test_csv_quote_plain() to Unit {
+    assert(_csv_quote("hello") is "\"hello\"")
+}
+
+@test
+fn test_csv_quote_inner_quotes() to Unit {
+    assert(_csv_quote("say \"hi\"") is "\"say \"\"hi\"\"\"")
+}
+
+/// Authoritative voice classifier (mirrors src/ts/intent_parser.ts). Returns a
+/// structured ParsedVoice; the UI / save flow pulls each field directly.
+@endpoint(kind: query) fn parse_voice(transcript: str) to ParsedVoice {
+    let t = transcript.trim().to_lower()
+
+    // Mood: "I feel like a 3" / "mood is 4"
+    let mood_re = std.regex.compile("(?:mood|feeling).*?(\\d)")
+    match mood_re {
+        Ok(re) => match re.find(t) {
+            Some(m) => match m.group(1) {
+                Some(d) => {
+                    let raw = _parse_int_default(d, 3)
+                    let score = _clamp(raw, 1, 5)
+                    return { kind: "mood_recorded", payload_json: "{\"mood_score\":" + str(score) + "}", confidence: 0.75 }
+                }
+                None => "fallthrough"
+            }
+            None => "fallthrough"
+        }
+        Error(_) => "fallthrough"
+    }
+
+    // Exercise: "ran 30 min", "walked for 15 minutes"
+    let ex_re = std.regex.compile("(?:ran|run|jogged|walked)\\s+(?:for\\s+)?(\\d+)\\s*(?:min|minutes)")
+    match ex_re {
+        Ok(re) => match re.find(t) {
+            Some(m) => match m.group(1) {
+                Some(d) => {
+                    let mins = _parse_int_default(d, 0)
+                    return { kind: "exercise_recorded", payload_json: "{\"activity\":\"cardio\",\"duration_minutes\":" + str(mins) + "}", confidence: 0.7 }
+                }
+                None => "fallthrough"
+            }
+            None => "fallthrough"
+        }
+        Error(_) => "fallthrough"
+    }
+
+    // Meal: "ate X" / "had X" / "eating X" — capture the rest of the line
+    let meal_re = std.regex.compile("(?:ate|eating|had)\\s+(.+)")
+    match meal_re {
+        Ok(re) => match re.find(t) {
+            Some(m) => match m.group(1) {
+                Some(desc_raw) => {
+                    let desc = desc_raw.trim().replace("\"", "'")
+                    return { kind: "meal_recorded", payload_json: "{\"description\":\"" + desc + "\"}", confidence: 0.65 }
+                }
+                None => "fallthrough"
+            }
+            None => "fallthrough"
+        }
+        Error(_) => "fallthrough"
+    }
+
+    // Sleep: bed / sleep / slept / nap (substring check is sufficient)
+    if t.contains("bed") or t.contains("sleep") or t.contains("slept") or t.contains("nap") {
+        return { kind: "sleep_started", payload_json: "{}", confidence: 0.55 }
+    }
+
+    // Default — preserve the whole utterance as a note.
+    let body = transcript.replace("\"", "'")
+    return { kind: "note_recorded", payload_json: "{\"body\":\"" + body + "\"}", confidence: 0.4 }
+}
+
+/// Backward-compatible string facade over parse_voice. Kept so older UI /
+/// fixture consumers don't break; new code should call parse_voice directly.
+@endpoint(kind: query) fn preview_voice_parse(transcript: str) to str {
+    let p = parse_voice(transcript)
+    return "{\"kind\":\"" + p.kind + "\",\"payload\":" + p.payload_json + ",\"confidence\":" + str(p.confidence) + "}"
+}
+
+/// Per-kind weekly rollup over effective (non-superseded) events.
+/// Ported correction-chain collapse from src/ts/materializer.ts (§3.A).
+@endpoint(kind: query) fn weekly_summary_json() to str {
+    match db.HealthEventLog.all() {
+        Ok(rows) => {
+            let mut total = 0
+            let mut moods = 0
+            let mut meals = 0
+            let mut sleep_starts = 0
+            let mut sleep_ends = 0
+            let mut exercises = 0
+            let mut notes = 0
+            for r in rows {
+                if !_is_superseded_in(r.event_id, rows) {
+                    total = total + 1
+                    if r.event_kind == "mood_recorded" { moods = moods + 1 }
+                    if r.event_kind == "meal_recorded" { meals = meals + 1 }
+                    if r.event_kind == "sleep_started" { sleep_starts = sleep_starts + 1 }
+                    if r.event_kind == "sleep_ended" { sleep_ends = sleep_ends + 1 }
+                    if r.event_kind == "exercise_recorded" { exercises = exercises + 1 }
+                    if r.event_kind == "note_recorded" { notes = notes + 1 }
+                }
+            }
+            "{\"window_days\":7,\"total_events\":" + str(total) + ",\"per_kind\":{\"mood_recorded\":" + str(moods) + ",\"meal_recorded\":" + str(meals) + ",\"sleep_started\":" + str(sleep_starts) + ",\"sleep_ended\":" + str(sleep_ends) + ",\"exercise_recorded\":" + str(exercises) + ",\"note_recorded\":" + str(notes) + "}}"
+        }
+        Error(_) => "{\"error\":\"db\"}"
+    }
+}
+
+/// Effective HealthEventLog rows as JSON — superseded rows excluded, is_backdated included.
+/// Replaces the TS materializer client-side pass (§3.A); payload_json is JSON-escaped.
+@endpoint(kind: query) fn timeline_events_json() to str {
+    match db.HealthEventLog.all() {
+        Ok(rows) => {
+            let mut out = "["
+            let mut first = true
+            for r in rows {
+                if !_is_superseded_in(r.event_id, rows) {
+                    if first { first = false } else { out = out + "," }
+                    let backdated = _is_backdated(r.event_at, r.recorded_at)
+                    let pj = r.payload_json.replace("\\", "\\\\").replace("\"", "\\\"")
+                    out = out + "{\"event_id\":\"" + r.event_id + "\",\"event_kind\":\"" + r.event_kind + "\",\"schema_version\":" + str(r.schema_version) + ",\"payload_json\":\"" + pj + "\",\"event_at\":\"" + r.event_at + "\",\"recorded_at\":\"" + r.recorded_at + "\",\"recorded_at_monotonic\":" + str(r.recorded_at_monotonic) + ",\"tz_iana\":\"" + r.tz_iana + "\",\"tz_offset_minutes\":" + str(r.tz_offset_minutes) + ",\"source\":\"" + r.source + "\",\"raw_transcript_id\":\"" + r.raw_transcript_id + "\",\"correction_of\":\"" + r.correction_of + "\",\"is_backdated\":" + str(backdated) + "}"
+                }
+            }
+            out + "]"
+        }
+        Error(_) => "[]"
+    }
+}
+
+/// Full CSV export — header + one row per effective (non-superseded) event.
+/// Ported from export_contract.ts `buildHealthCsv` (§3.B).
+@endpoint(kind: query) fn export_health_csv() to str {
+    let header = "event_id,event_kind,schema_version,payload_json,event_at,recorded_at,recorded_at_monotonic,tz_iana,tz_offset_minutes,source,raw_transcript_id,correction_of,is_backdated"
+    match db.HealthEventLog.all() {
+        Ok(rows) => {
+            let mut out = header
+            for r in rows {
+                if !_is_superseded_in(r.event_id, rows) {
+                    let backdated = _is_backdated(r.event_at, r.recorded_at)
+                    let mut row = _csv_quote(r.event_id) + "," + _csv_quote(r.event_kind) + "," + str(r.schema_version)
+                    row = row + "," + _csv_quote(r.payload_json) + "," + _csv_quote(r.event_at) + "," + _csv_quote(r.recorded_at)
+                    row = row + "," + str(r.recorded_at_monotonic) + "," + _csv_quote(r.tz_iana) + "," + str(r.tz_offset_minutes)
+                    row = row + "," + _csv_quote(r.source) + "," + _csv_quote(r.raw_transcript_id) + "," + _csv_quote(r.correction_of)
+                    row = row + "," + _csv_quote(str(backdated))
+                    out = out + "\n" + row
+                }
+            }
+            out
+        }
+        Error(_) => header
+    }
+}
+
+/// JSON bundle metadata with content SHA-256 of the full CSV export (§3.B).
+@endpoint(kind: query) fn export_health_json_bundle() to str {
+    let csv_payload = export_health_csv()
+    let hash = std.crypto.hash_secure(csv_payload)
+    match db.HealthEventLog.all() {
+        Ok(rows) => "{\"schema\":\"vox.mental_tracker.export_bundle\",\"version\":1,\"generated_ms\":" + str(std.time.now_ms()) + ",\"content_sha256\":\"" + hash + "\",\"row_count\":" + str(len(rows)) + "}"
+        Error(_) => "{\"error\":\"db\"}"
+    }
+}
+
+/// Clinician-shareable HTML report — full CSV + weekly summary (§3.C).
+@endpoint(kind: query) fn export_clinical_html() to str {
+    let summary = weekly_summary_json()
+    let csv_payload = export_health_csv()
+    let hash = std.crypto.hash_secure(csv_payload)
+    let mut body = "<!doctype html><html><head><meta charset=\"utf-8\"/><title>Mental Health Tracker — clinical export</title><style>body{font-family:system-ui;margin:24px;}pre{white-space:pre-wrap;overflow-x:auto;font-size:12px;}</style></head><body>"
+    body = body + "<h1>Clinical export</h1><p>Generated (UTC ms): " + str(std.time.now_ms()) + "</p><p>Content SHA-256: <code>" + hash + "</code></p>"
+    body = body + "<h2>Weekly summary</h2><pre>" + summary + "</pre>"
+    body = body + "<h2>Methodology</h2><p>Append-only event log. Rows whose <code>correction_of</code> references a prior row supersede that row. <code>is_backdated</code> is set when <code>recorded_at − event_at &gt; 5 min</code>.</p>"
+    body = body + "<h2>CSV export</h2><pre>" + csv_payload + "</pre>"
+    body = body + "</body></html>"
+    return body
+}
+
+@endpoint(kind: server) fn health() to Result[str] {
+    return Ok("ok")
+}
+
+component NavBar() {
+    view: row(raw_class="mh-nav") {
+        link(href="/") { "Home" }
+        text(raw_class="mh-nav-dot") { " · " }
+        link(href="/timeline") { "Timeline" }
+        text(raw_class="mh-nav-dot") { " · " }
+        link(href="/weekly") { "Weekly" }
+        text(raw_class="mh-nav-dot") { " · " }
+        link(href="/export") { "Export" }
+        text(raw_class="mh-nav-dot") { " · " }
+        link(href="/voice") { "Voice" }
+    }
+}
+
+component Home() {
+    state saved: int = 0
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=1) { "Mental Health Tracker" }
+        text(raw_class="mh-sub") { "Local-first • append-only log • corrections via record_correction • on-device STT when the Capacitor plugin is registered" }
+        row(raw_class="mh-actions") {
+            button(on_click={fn() {
+                let ms = std.time.now_ms()
+                let _ = record_event("mood_recorded", "{\"mood_score\":3}", str(ms), "manual", "", "", "UTC", 0)
+                saved = saved + 1
+            }}) {
+                "Mood 3"
+            }
+            button(on_click={fn() {
+                let ms = std.time.now_ms()
+                let _ = record_event("meal_recorded", "{\"description\":\"snack\",\"meal_type\":\"snack\"}", str(ms), "manual", "", "", "UTC", 0)
+                saved = saved + 1
+            }}) {
+                "Snack"
+            }
+            button(on_click={fn() {
+                let ms = std.time.now_ms()
+                let _ = record_event("sleep_started", "{}", str(ms), "manual", "", "", "UTC", 0)
+                saved = saved + 1
+            }}) {
+                "Sleep start"
+            }
+            button(on_click={fn() {
+                let ms = std.time.now_ms()
+                let _ = record_event("sleep_ended", "{}", str(ms), "manual", "", "", "UTC", 0)
+                saved = saved + 1
+            }}) {
+                "Sleep end"
+            }
+            button(on_click={fn() {
+                let ms = std.time.now_ms()
+                let _ = record_event("exercise_recorded", "{\"activity\":\"walk\",\"duration_minutes\":15}", str(ms), "manual", "", "", "UTC", 0)
+                saved = saved + 1
+            }}) {
+                "Exercise 15m"
+            }
+        }
+        text(raw_class="mh-count") { "Quick-add taps (session): " + str(saved) }
+        button(on_click={fn() {
+            match Speech.transcribe_microphone() {
+                Ok(t) => {
+                    let _ = mobile.notify("Transcript", t)
+                }
+                Error(e) => {
+                    let _ = mobile.notify("STT", e)
+                }
+            }
+        }}) {
+            "Try on-device STT"
+        }
+    }
+}
+
+component TimelinePage() {
+    state total: int = 0
+    on mount: {
+        total = health_event_count()
+    }
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=2) { "Timeline" }
+        text(raw_class="mh-sub") { "Events stored: " + str(total) + " — open Export for CSV/HTML dump." }
+        link(href="/") { "← Home" }
+    }
+}
+
+component WeeklyPage() {
+    state blob: str = "{}"
+    on mount: {
+        blob = weekly_summary_json()
+    }
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=2) { "Weekly summary" }
+        text(raw_class="mh-pre") { blob }
+        link(href="/") { "← Home" }
+    }
+}
+
+component ExportPage() {
+    state csv: str = ""
+    state html: str = ""
+    on mount: {
+        csv = export_health_csv()
+        html = export_clinical_html()
+    }
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=2) { "Exports" }
+        text(raw_class="mh-sub") { "CSV header + clinical HTML (see apps/docs for full row export via TS contract helper)." }
+        text(raw_class="mh-pre") { csv }
+        text(raw_class="mh-sub") { "HTML clinical length (chars): " + str(html.length()) }
+        link(href="/") { "← Home" }
+    }
+}
+
+component VoicePage() {
+    state transcript_raw: str = ""
+    state parsed_kind: str = ""
+    state parsed_payload: str = ""
+    state parsed_confidence: float = 0.0
+    state parsed_summary: str = ""
+    state last_saved_event_id: str = ""
+    state status: str = "Tap Transcribe to start."
+    view: column(raw_class="mh-root") {
+        NavBar()
+        heading(level=2) { "Voice → parse → save" }
+        text(raw_class="mh-sub") { status }
+        button(on_click={fn() {
+            match Speech.transcribe_microphone() {
+                Ok(t) => {
+                    transcript_raw = t
+                    parsed_kind = ""
+                    parsed_payload = ""
+                    parsed_confidence = 0.0
+                    parsed_summary = ""
+                    status = "Transcript captured — tap Parse to classify."
+                }
+                Error(e) => { status = "Transcribe failed: " + e }
+            }
+        }}) {
+            "Transcribe"
+        }
+        button(on_click={fn() {
+            let p = parse_voice(transcript_raw)
+            parsed_kind = p.kind
+            parsed_payload = p.payload_json
+            parsed_confidence = p.confidence
+            parsed_summary = preview_voice_parse(transcript_raw)
+            status = "Parsed as " + p.kind + " — review the payload, then Save."
+        }}) {
+            "Parse"
+        }
+        button(on_click={fn() {
+            if parsed_kind == "" {
+                status = "Nothing parsed yet — tap Parse first."
+            } else {
+                let ms = std.time.now_ms()
+                match record_raw_transcript(transcript_raw, parsed_summary, parsed_confidence) {
+                    Ok(tid) => {
+                        match record_event(parsed_kind, parsed_payload, str(ms), "voice", tid, "", "UTC", 0) {
+                            Ok(eid) => {
+                                last_saved_event_id = eid
+                                status = "Saved " + parsed_kind + " (event " + eid + "). Use /timeline to view."
+                            }
+                            Error(e) => { status = "Event save failed: " + e }
+                        }
+                    }
+                    Error(e) => { status = "Transcript persist failed: " + e }
+                }
+            }
+        }}) {
+            "Save"
+        }
+        button(on_click={fn() {
+            transcript_raw = ""
+            parsed_kind = ""
+            parsed_payload = ""
+            parsed_confidence = 0.0
+            parsed_summary = ""
+            last_saved_event_id = ""
+            status = "Cleared. Tap Transcribe to start again."
+        }}) {
+            "Reset"
+        }
+        text(raw_class="mh-pre") { "RAW: " + transcript_raw }
+        text(raw_class="mh-pre") { "KIND: " + parsed_kind }
+        text(raw_class="mh-pre") { "PAYLOAD: " + parsed_payload }
+        text(raw_class="mh-pre") { "CONFIDENCE: " + str(parsed_confidence) }
+        text(raw_class="mh-sub") { "Last saved: " + last_saved_event_id }
+        link(href="/") { "← Home" }
+    }
+}
+
+routes {
+    "/" to Home
+    "/timeline" to TimelinePage
+    "/weekly" to WeeklyPage
+    "/export" to ExportPage
+    "/voice" to VoicePage
+}
