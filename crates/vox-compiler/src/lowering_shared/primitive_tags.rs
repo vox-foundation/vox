@@ -2,7 +2,7 @@
 //!
 //! This module holds ONLY the canonical list of primitive tag names and the
 //! `is_primitive` predicate. It contains no class-emission logic — that lives
-//! in `crate::web_ir::primitives` (codegen-shaped).
+//! in `vox_compiler_emit::web_ir::primitives` (codegen-shaped).
 //!
 //! Extracted from `web_ir::primitives` so analysis-side code (the parser, in
 //! particular) can disambiguate view-calls without depending on emit IR.

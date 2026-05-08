@@ -1,7 +1,7 @@
 //! Typed core IR v2 — semantic single source of truth before web/runtime projections.
 //!
 //! [`TypedCoreIR_v2`] is currently a type alias for [`super::HirModule`]. New code should name
-//! the lowered module as **core IR** when the distinction from [`crate::web_ir::WebProjectionIR`]
+//! the lowered module as **core IR** when the distinction from `vox_compiler_emit::web_ir::WebProjectionIR`
 //! matters (typecheck, runtime projection, orchestration manifests).
 
 /// Version tag for core IR layout and tooling contracts. Bump when serialized core snapshots change.

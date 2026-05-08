@@ -5,7 +5,7 @@
 //! `web_ir::lower` and `codegen_ts::hir_emit` can reach it without forming a
 //! cycle (ADR 012 Phase 0 partial-cycle relief).
 //!
-//! Re-exported from [`crate::codegen_ts::hir_emit::compat`] for back-compat with
+//! Re-exported from `vox_compiler_emit::codegen_ts::hir_emit::compat` for back-compat with
 //! existing call sites and integration tests.
 
 use crate::hir::HirType;

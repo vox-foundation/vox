@@ -11,6 +11,7 @@ pub mod app_contract;
 pub mod ast;
 pub mod ast_eval;
 pub mod builtin_registry;
+pub mod canonical_json;
 pub mod codegen_rust;
 pub mod codegen_shared;
 pub mod codegen_ts;

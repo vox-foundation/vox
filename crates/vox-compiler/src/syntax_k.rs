@@ -89,28 +89,11 @@ pub fn sha3_hex(bytes: &[u8]) -> String {
 }
 
 /// Recursively sort JSON object keys for cross-toolchain-stable canonical bytes.
-pub fn sort_json_value_keys(v: &mut serde_json::Value) {
-    match v {
-        serde_json::Value::Object(map) => {
-            let mut pairs: Vec<(String, serde_json::Value)> = map
-                .iter()
-                .map(|(k, val)| (k.clone(), val.clone()))
-                .collect();
-            pairs.sort_by(|a, b| a.0.cmp(&b.0));
-            map.clear();
-            for (k, mut val) in pairs {
-                sort_json_value_keys(&mut val);
-                map.insert(k, val);
-            }
-        }
-        serde_json::Value::Array(arr) => {
-            for item in arr {
-                sort_json_value_keys(item);
-            }
-        }
-        _ => {}
-    }
-}
+///
+/// Implementation lives in [`crate::canonical_json`] so analysis-side modules
+/// can use it without depending on the emit-side `syntax_k` module. Re-exported
+/// here for back-compat with existing callers (tests, CLI).
+pub use crate::canonical_json::sort_json_value_keys;
 
 /// Deterministic JSON bytes for WebIR (sorted keys at every object depth).
 pub fn canonical_web_ir_bytes(module: &WebIrModule) -> Result<Vec<u8>, serde_json::Error> {
