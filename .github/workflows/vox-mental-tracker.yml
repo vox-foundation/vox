@@ -23,6 +23,7 @@ jobs:
       - name: Cargo smoke (parent workspace)
         run: cargo run -q -p vox-cli -- check apps/vox-mental-tracker/src/main.vox
         working-directory: "."
+
   vitest:
     runs-on: [self-hosted, linux, x64]
     steps:
@@ -44,3 +45,66 @@ jobs:
       - name: Vitest
         run: pnpm exec vitest run
         working-directory: apps/vox-mental-tracker
+
+  playwright:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: apps/vox-mental-tracker/pnpm-lock.yaml
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+        working-directory: apps/vox-mental-tracker
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/vox-mental-tracker
+      - name: Playwright (no BASE_URL → tests self-skip; lane proves wiring)
+        run: pnpm exec playwright test
+        working-directory: apps/vox-mental-tracker
+
+  contracts:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: JSON parse check on event-payload contracts
+        run: |
+          for f in apps/vox-mental-tracker/contracts/event-payloads/*.json; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1])); print('OK', sys.argv[1])" "$f"
+          done
+        working-directory: "."
+      - name: YAML parse check on export contracts
+        run: |
+          python3 - <<'PY'
+          import sys, yaml, glob
+          for path in sorted(glob.glob('apps/vox-mental-tracker/contracts/export/*.yaml')):
+              with open(path) as f:
+                  yaml.safe_load(f)
+              print('OK', path)
+          PY
+        working-directory: "."
+
+  app-summary:
+    needs: [vox-check, vitest, playwright, contracts]
+    runs-on: [self-hosted, linux, x64]
+    if: always()
+    steps:
+      - name: Aggregate
+        run: |
+          if [ "${{ needs.vox-check.result }}" != "success" ] \
+             || [ "${{ needs.vitest.result }}" != "success" ] \
+             || [ "${{ needs.playwright.result }}" != "success" ] \
+             || [ "${{ needs.contracts.result }}" != "success" ]; then
+            echo "One or more lanes failed:"
+            echo "  vox-check=${{ needs.vox-check.result }}"
+            echo "  vitest=${{ needs.vitest.result }}"
+            echo "  playwright=${{ needs.playwright.result }}"
+            echo "  contracts=${{ needs.contracts.result }}"
+            exit 1
+          fi
+          echo "All lanes green."
