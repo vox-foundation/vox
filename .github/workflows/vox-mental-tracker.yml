@@ -61,10 +61,27 @@ jobs:
       - name: Install JS deps
         run: pnpm install --frozen-lockfile
         working-directory: apps/vox-mental-tracker
-      - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Resolve Playwright version
+        id: pw_version
+        shell: bash
+        run: |
+          ver=$(node -p "require('./apps/vox-mental-tracker/node_modules/@playwright/test/package.json').version")
+          echo "ver=$ver" >> "$GITHUB_OUTPUT"
+        working-directory: "."
+      - name: Cache Playwright browsers
+        id: pw_cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ms-playwright-${{ runner.os }}-${{ steps.pw_version.outputs.ver }}-chromium
+          restore-keys: |
+            ms-playwright-${{ runner.os }}-${{ steps.pw_version.outputs.ver }}-
+            ms-playwright-${{ runner.os }}-
+      - name: Install Playwright browsers (cache miss)
+        if: steps.pw_cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install chromium
         working-directory: apps/vox-mental-tracker
-      - name: Playwright (no BASE_URL → tests self-skip; lane proves wiring)
+      - name: Playwright
         run: pnpm exec playwright test
         working-directory: apps/vox-mental-tracker
 
