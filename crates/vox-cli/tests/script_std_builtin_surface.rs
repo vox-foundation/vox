@@ -16,7 +16,7 @@ fn glob_and_run_capture_exist_in_all_layers() {
     ));
     let builtins = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../vox-runtime/src/builtins/mod.rs"
+        "/../vox-actor-runtime/src/builtins/mod.rs"
     ));
 
     assert!(emit.contains("std_namespace_runtime_call"));
@@ -55,7 +55,7 @@ fn std_env_fs_path_process_core_methods_align() {
     ));
     let builtins = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../vox-runtime/src/builtins/mod.rs"
+        "/../vox-actor-runtime/src/builtins/mod.rs"
     ));
 
     assert!(emit.contains("std_namespace_runtime_call"));

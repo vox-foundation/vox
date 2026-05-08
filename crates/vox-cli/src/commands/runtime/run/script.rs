@@ -3,7 +3,7 @@
 //! Compiles a `.vox` file with a top-level `fn main()` to a Rust binary (or
 //! WASI module) and executes it. Results are cached by content hash in
 //! `~/.vox/script-cache/<hash>/`. All script builds share a single
-//! `~/.vox/script-target/` so `vox-runtime` and its transitive dependencies
+//! `~/.vox/script-target/` so `vox-actor-runtime` and its transitive dependencies
 //! are only compiled once.
 
 use anyhow::Result;

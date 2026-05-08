@@ -14,7 +14,7 @@ const DEFAULT_BULLETIN_CAPACITY: usize = 256;
 ///
 /// Agents publish messages (file changes, task completions, interrupts)
 /// and all other agents receive them. This follows the same pattern as
-/// `vox-runtime::SubscriptionManager` but for orchestrator-level events.
+/// `vox-actor-runtime::SubscriptionManager` but for orchestrator-level events.
 #[derive(Clone)]
 pub struct BulletinBoard {
     sender: broadcast::Sender<AgentMessage>,

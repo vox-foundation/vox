@@ -106,10 +106,10 @@ pub async fn companion_create(name: &str, code_file: &std::path::Path) -> Result
     let user_id = &ctx.user_id;
     let code = read_utf8_path_capped(code_file)?;
 
-    let id = vox_runtime::builtins::vox_uuid();
+    let id = vox_actor_runtime::builtins::vox_uuid();
 
     let mut companion = Companion::new(&id, user_id, name, "vox");
-    companion.code_hash = Some(vox_runtime::builtins::vox_hash_fast(&code));
+    companion.code_hash = Some(vox_actor_runtime::builtins::vox_hash_fast(&code));
     companion.description = Some(format!("Created from {}", code_file.display()));
 
     // Generate sprite (try AI, fall back to deterministic)

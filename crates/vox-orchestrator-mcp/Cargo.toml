@@ -53,7 +53,7 @@ vox-bounded-fs.workspace = true
 vox-protocol.workspace = true
 vox-mesh-types.workspace = true
 vox-crypto.workspace = true
-vox-runtime.workspace = true
+vox-actor-runtime.workspace = true
 vox-code-audit.workspace = true
 vox-lsp.workspace = true
 vox-populi = { workspace = true }

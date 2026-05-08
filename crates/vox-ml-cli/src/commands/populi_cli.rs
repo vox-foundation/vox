@@ -470,8 +470,8 @@ fn resolve_populi_control_base(url_override: Option<String>) -> anyhow::Result<S
 pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
     match cmd {
         PopuliCli::Init { force: _ } => {
-            let scope_id = format!("scope-{}", vox_runtime::simple_id::simple_hex_id());
-            let mesh_token = vox_runtime::simple_id::simple_hex_id();
+            let scope_id = format!("scope-{}", vox_actor_runtime::simple_id::simple_hex_id());
+            let mesh_token = vox_actor_runtime::simple_id::simple_hex_id();
 
             println!("Initializing Populi Mesh Environment...");
             println!("  VOX_MESH_SCOPE_ID={}", scope_id);
@@ -790,7 +790,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             let self_id = env
                 .node_id
                 .clone()
-                .unwrap_or_else(|| format!("local-{}", vox_runtime::simple_id::simple_hex_id()));
+                .unwrap_or_else(|| format!("local-{}", vox_actor_runtime::simple_id::simple_hex_id()));
             let self_record =
                 vox_populi::node_record_for_current_process(self_id, env.control_addr.clone());
             let as_json = json || global_json;

@@ -700,7 +700,7 @@ pub struct OrchestratorRuntimeProbe {
     pub honest_message: String,
     /// Number of registered agent queues.
     pub agent_count: usize,
-    /// [`Orchestrator::agent_handles`] entries (vox-runtime worker processes), if any.
+    /// [`Orchestrator::agent_handles`] entries (vox-actor-runtime worker processes), if any.
     pub registered_worker_processes: usize,
     /// `queue_only` or `workers_attached`.
     pub execution_mode: String,
@@ -798,11 +798,11 @@ pub struct StatusResponse {
     /// Persistence outbox lifecycle telemetry snapshot from orchestrator context.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub persistence_outbox_lifecycle: Option<serde_json::Value>,
-    /// `queue_only` unless at least one vox-runtime worker handle is registered.
+    /// `queue_only` unless at least one vox-actor-runtime worker handle is registered.
     pub execution_mode: String,
     /// True when `registered_worker_processes > 0`.
     pub worker_runtime_attached: bool,
-    /// Count of registered vox-runtime process handles.
+    /// Count of registered vox-actor-runtime process handles.
     pub registered_worker_processes: usize,
     /// Whether Codex / Turso (`VoxDb`) is attached to this MCP server.
     pub db_configured: bool,

@@ -11,7 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 #[cfg(feature = "jj-backend")]
-use vox_runtime::supervisor::spawn_supervised_infallible;
+use vox_actor_runtime::supervisor::spawn_supervised_infallible;
 
 use crate::snapshot::SnapshotId;
 use crate::types::AgentId;

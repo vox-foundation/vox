@@ -10564,6 +10564,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
 
 [[package]]
+name = "vox-actor-runtime"
+version = "0.5.0"
+dependencies = [
+ "async-stream",
+ "blake3",
+ "futures-util",
+ "glob",
+ "regex",
+ "reqwest 0.12.28",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "vox-config",
+ "vox-db",
+ "vox-openai-sse",
+ "vox-openai-wire",
+ "vox-openclaw-runtime",
+ "vox-orchestrator-types",
+ "vox-plugin-host",
+ "vox-primitives",
+ "vox-reqwest-defaults",
+ "vox-secrets",
+ "vox-skills",
+ "which 8.0.2",
+ "workspace-hack",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "vox-bounded-fs"
 version = "0.5.0"
 dependencies = [
@@ -10642,6 +10677,7 @@ dependencies = [
  "tracing-subscriber",
  "turso",
  "uuid",
+ "vox-actor-runtime",
  "vox-bounded-fs",
  "vox-capability-registry",
  "vox-checksum-manifest",
@@ -10683,7 +10719,6 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-reqwest-defaults",
- "vox-runtime",
  "vox-scaling-policy",
  "vox-search",
  "vox-secrets",
@@ -11127,6 +11162,7 @@ dependencies = [
  "tokio",
  "tower-lsp",
  "tower-lsp-server",
+ "vox-actor-runtime",
  "vox-bounded-fs",
  "vox-cli",
  "vox-codegen",
@@ -11136,7 +11172,6 @@ dependencies = [
  "vox-lsp",
  "vox-orchestrator",
  "vox-repository",
- "vox-runtime",
  "vox-scaling-policy",
  "vox-secrets",
  "vox-skills",
@@ -11242,6 +11277,7 @@ dependencies = [
  "tokio-stream",
  "tracing",
  "uuid",
+ "vox-actor-runtime",
  "vox-bounded-fs",
  "vox-cli-core",
  "vox-compiler",
@@ -11261,7 +11297,6 @@ dependencies = [
  "vox-protocol",
  "vox-repository",
  "vox-reqwest-defaults",
- "vox-runtime",
  "vox-scaling-policy",
  "vox-secrets",
  "vox-tensor",
@@ -11394,6 +11429,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "vox-actor-runtime",
  "vox-bounded-fs",
  "vox-code-audit",
  "vox-config",
@@ -11413,7 +11449,6 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-reqwest-defaults",
- "vox-runtime",
  "vox-search",
  "vox-secrets",
  "walkdir",
@@ -11483,6 +11518,7 @@ dependencies = [
  "tower-lsp-server",
  "tracing",
  "uuid",
+ "vox-actor-runtime",
  "vox-bounded-fs",
  "vox-capability-registry",
  "vox-code-audit",
@@ -11510,7 +11546,6 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-reqwest-defaults",
- "vox-runtime",
  "vox-search",
  "vox-secrets",
  "vox-skills",
@@ -12002,41 +12037,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-runtime"
-version = "0.5.0"
-dependencies = [
- "async-stream",
- "blake3",
- "futures-util",
- "glob",
- "regex",
- "reqwest 0.12.28",
- "rust_decimal",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tokio-stream",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "vox-config",
- "vox-db",
- "vox-openai-sse",
- "vox-openai-wire",
- "vox-openclaw-runtime",
- "vox-orchestrator-types",
- "vox-plugin-host",
- "vox-primitives",
- "vox-reqwest-defaults",
- "vox-secrets",
- "vox-skills",
- "which 8.0.2",
- "workspace-hack",
- "xxhash-rust",
-]
-
-[[package]]
 name = "vox-scaling-policy"
 version = "0.5.0"
 dependencies = [
@@ -12082,10 +12082,10 @@ dependencies = [
  "tokio",
  "tracing",
  "urlencoding",
+ "vox-actor-runtime",
  "vox-bounded-fs",
  "vox-config",
  "vox-db",
- "vox-runtime",
  "vox-secrets",
  "walkdir",
  "workspace-hack",
@@ -12162,8 +12162,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "vox-actor-runtime",
  "vox-compiler",
- "vox-runtime",
  "workspace-hack",
 ]
 

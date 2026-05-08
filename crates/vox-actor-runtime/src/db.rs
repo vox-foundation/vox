@@ -1,6 +1,6 @@
 //! Global **Codex** connection helper (`vox_db::VoxDb`).
 //!
-//! Enable with the `database` feature on `vox-runtime`.
+//! Enable with the `database` feature on `vox-actor-runtime`.
 //!
 //! # Environment (canonical)
 //!

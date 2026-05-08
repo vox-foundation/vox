@@ -391,7 +391,7 @@ fn emit_expr_with(expr: &HirExpr, is_route: bool, is_actor: bool, mutation_tx: b
     }
 }
 
-/// Raw `vox_runtime::builtins::…` invoke (`std.*` root calls).
+/// Raw `vox_actor_runtime::builtins::…` invoke (`std.*` root calls).
 fn emit_registry_runtime_call(namespace: &str, fn_name: &str, args: &[String]) -> Option<String> {
     let entry = lookup_builtin(namespace, fn_name, args.len())?;
     let symbol = entry.runtime_symbol?;

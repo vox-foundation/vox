@@ -1,6 +1,6 @@
-//! Resolve a default embedding [`vox_runtime::llm::LlmConfig`] from secrets / env (MCP parity).
+//! Resolve a default embedding [`vox_actor_runtime::llm::LlmConfig`] from secrets / env (MCP parity).
 
-use vox_runtime::llm::LlmConfig;
+use vox_actor_runtime::llm::LlmConfig;
 
 /// Build embedding configuration from well-known providers.
 #[must_use]

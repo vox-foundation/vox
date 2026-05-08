@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use vox_orchestrator::{AgentId, MessageGateway};
-use vox_runtime::prompt_canonical;
+use vox_actor_runtime::prompt_canonical;
 
 const REM_QA_LOCK: &str = "Retry; persistent poisoned-lock errors usually need an MCP restart.";
 const REM_QA_CORRELATION: &str = "Use the correlation id returned by `ask_agent`, or list `pending_questions` for the target agent.";

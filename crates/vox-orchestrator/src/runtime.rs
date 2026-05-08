@@ -1,11 +1,11 @@
-//! Tokio/`vox-runtime` bridge: actor agents, task processors, and fleet scaling hooks.
+//! Tokio/`vox-actor-runtime` bridge: actor agents, task processors, and fleet scaling hooks.
 //!
-//! [`AgentFleet`](crate::runtime::AgentFleet) keeps [`ProcessHandle`](vox_runtime::ProcessHandle) values aligned with [`Orchestrator`](crate::orchestrator::Orchestrator) registrations
+//! [`AgentFleet`](crate::runtime::AgentFleet) keeps [`ProcessHandle`](vox_actor_runtime::ProcessHandle) values aligned with [`Orchestrator`](crate::orchestrator::Orchestrator) registrations
 //! and applies [`ScalingAction`](crate::services::ScalingAction) decisions from the scaling service.
 
 use std::sync::{Arc, Mutex};
 
-use vox_runtime::{
+use vox_actor_runtime::{
     ProcessHandle, RegistryError, mailbox::MessagePayload, process::ProcessContext,
     scheduler::Scheduler, supervisor::ChildSpec, supervisor::RestartStrategy,
     supervisor::Supervisor,
@@ -234,7 +234,7 @@ impl TaskProcessor for AiTaskProcessor {
                 .map(str::trim)
                 .is_some_and(|s| !s.is_empty());
             let ludus_fallback = !has_model_override && routed.is_none();
-            let reason = vox_runtime::routing_telemetry::OrchestratorTaskRoutingReasonV1::new(
+            let reason = vox_actor_runtime::routing_telemetry::OrchestratorTaskRoutingReasonV1::new(
                 format!("{:?}", task.task_category),
                 task.estimated_complexity,
                 usage_provider.clone(),
@@ -242,15 +242,15 @@ impl TaskProcessor for AiTaskProcessor {
                 routed.is_some(),
                 format!("{:?}", cost_pref),
                 ludus_fallback,
-                vox_runtime::routing_telemetry::unified_routing_rollout_enabled(),
-                vox_runtime::route_capability_policy::RouteCapabilityPolicySnapshot::from_env()
+                vox_actor_runtime::routing_telemetry::unified_routing_rollout_enabled(),
+                vox_actor_runtime::route_capability_policy::RouteCapabilityPolicySnapshot::from_env()
                     .profile
                     .clone(),
                 Vec::new(),
                 task.id.0,
             );
             let reason_s = reason
-                .to_json_bounded(vox_runtime::routing_telemetry::ROUTING_REASON_JSON_MAX_BYTES);
+                .to_json_bounded(vox_actor_runtime::routing_telemetry::ROUTING_REASON_JSON_MAX_BYTES);
             if let Err(e) = db
                 .record_routing_decision(
                     None::<&str>,
@@ -439,7 +439,7 @@ impl TaskProcessor for AiTaskProcessor {
 /// Actor process wrapping an `AgentQueue`.
 ///
 /// Converts a reactive orchestrator queue into an active background worker
-/// using `vox-runtime` actor primitives.
+/// using `vox-actor-runtime` actor primitives.
 pub struct ActorAgent {
     /// Agent id managed by this process.
     pub agent_id: AgentId,
@@ -465,7 +465,7 @@ impl ActorAgent {
                 // Wait for commands
                 let msg = ctx.receive().await;
                 if let Some(envelope) = msg {
-                    if let vox_runtime::mailbox::Envelope::Message(msg) = envelope {
+                    if let vox_actor_runtime::mailbox::Envelope::Message(msg) = envelope {
                         if let MessagePayload::Json(json_data) = msg.payload {
                             if let Ok(cmd) = serde_json::from_str::<AgentCommand>(&json_data) {
                                 Self::handle_command(cmd, agent_id, &orchestrator, &processor)

@@ -17,7 +17,7 @@ use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use crate::session_identity::normalize_chat_session_id;
 use vox_orchestrator::session_context_envelope_key;
-use vox_runtime::prompt_canonical;
+use vox_actor_runtime::prompt_canonical;
 
 const REM_CHAT_CANONICAL: &str = "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
 const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";

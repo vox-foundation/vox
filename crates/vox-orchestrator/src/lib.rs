@@ -20,7 +20,7 @@
 //!
 //! ## Features
 //!
-//! - `runtime` — Actor-based agents using `vox-runtime` Scheduler/Supervisor
+//! - `runtime` — Actor-based agents using `vox-actor-runtime` Scheduler/Supervisor
 //! - `toestub-gate` — Post-task quality validation using TOESTUB (on by default)
 //! - `lsp` — LSP diagnostic integration for file ownership info
 //!

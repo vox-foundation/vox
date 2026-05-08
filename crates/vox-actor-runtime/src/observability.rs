@@ -44,11 +44,11 @@ fn generate_request_id() -> String {
     format!("vox-{ts}-{counter}")
 }
 
-/// Initializes structured JSON telemetry for the vox-runtime daemon.
+/// Initializes structured JSON telemetry for the vox-actor-runtime daemon.
 /// Safe to call multiple times (returns false if already initialized).
 pub fn init_structured_telemetry() -> bool {
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info,vox_runtime=debug"));
+        .unwrap_or_else(|_| EnvFilter::new("info,vox_actor_runtime=debug"));
 
     let subscriber = tracing_subscriber::registry()
         .with(filter)

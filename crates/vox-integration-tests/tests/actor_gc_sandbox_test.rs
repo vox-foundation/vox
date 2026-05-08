@@ -20,9 +20,9 @@ async fn test_infinite_loop_actor_yields_to_scheduler() {
     // In actual production, this block is the generated Rust emitted from:
     // `crates/vox-compiler/src/codegen_rust/emit/stmt_expr.rs` for `HirStmt::Loop`
     let actor_task = tokio::spawn(async move {
-        let (mailbox_tx, mailbox_rx) = vox_runtime::mailbox::new_mailbox(10);
+        let (mailbox_tx, mailbox_rx) = vox_actor_runtime::mailbox::new_mailbox(10);
         let mut ctx =
-            vox_runtime::process::ProcessContext::new(vox_runtime::pid::Pid::new(), mailbox_rx);
+            vox_actor_runtime::process::ProcessContext::new(vox_actor_runtime::pid::Pid::new(), mailbox_rx);
 
         // Simulated Emitted "While loop"
         loop {

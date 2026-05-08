@@ -65,7 +65,7 @@ vox-codegen        = { layer = 3 }
 vox-ml-cli                 = { layer = 3 }
 vox-publisher            = { layer = 3 }
 vox-orchestrator         = { layer = 3 }
-vox-runtime              = { layer = 3 }
+vox-actor-runtime              = { layer = 3 }
 vox-populi               = { layer = 3 }
 vox-oratio               = { layer = 3 }
 vox-wasm-engine          = { layer = 3 }

@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
-use vox_runtime::supervisor::spawn_supervised;
+use vox_actor_runtime::supervisor::spawn_supervised;
 
 /// A native function type that can process a fast-path MCP tool execution.
 pub type NativeToolFn = Box<

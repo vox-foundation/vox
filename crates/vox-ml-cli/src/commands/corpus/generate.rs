@@ -253,7 +253,7 @@ pub(super) async fn run_pairs(
 
                 // Dedup by content hash (XXH3)
                 let combined = format!("{}|||{}", instruction, code);
-                let h = vox_runtime::builtins::vox_hash_fast(&combined);
+                let h = vox_actor_runtime::builtins::vox_hash_fast(&combined);
                 if pair_hashes.contains(&h) {
                     continue;
                 }

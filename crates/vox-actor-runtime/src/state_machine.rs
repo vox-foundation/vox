@@ -38,7 +38,7 @@ pub type Reducer<S, E> = Arc<dyn Fn(&S, &E) -> S + Send + Sync>;
 ///
 /// ```
 /// use std::sync::Arc;
-/// use vox_runtime::state_machine::ReactiveStateMachine;
+/// use vox_actor_runtime::state_machine::ReactiveStateMachine;
 ///
 /// #[derive(Clone, Debug, PartialEq)]
 /// enum Light { On, Off }

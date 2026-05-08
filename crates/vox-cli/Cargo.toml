@@ -168,7 +168,7 @@ glob = { workspace = true }
 # `external_review_replay::extract_external_review_rows` is behind `database`; CLI `corpus review-export` needs it.
 vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
 
-vox-runtime = { workspace = true }
+vox-actor-runtime = { workspace = true }
 vox-primitives = { workspace = true }
 vox-exec-grammar = { workspace = true }
 vox-scaling-policy = { workspace = true }

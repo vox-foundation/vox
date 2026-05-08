@@ -130,7 +130,7 @@ ignored_paths:
 frozen_core_crates:
   - vox-db
   - vox-secrets
-  - vox-runtime
+  - vox-actor-runtime
   - vox-primitives
   - vox-observability
   - vox-schema

@@ -664,7 +664,7 @@ jobs:
           - vox-compiler
           - vox-codegen
           - vox-cli
-          - vox-runtime
+          - vox-actor-runtime
           - vox-db
           - vox-db-types
           - vox-secrets

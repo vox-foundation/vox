@@ -148,7 +148,7 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 turso = {{ version = "0.4", default-features = false }}
 vox-db = {{ path = "../../crates/vox-db" }}
-vox-runtime = {{ path = "../../crates/vox-runtime" }}
+vox-actor-runtime = {{ path = "../../crates/vox-actor-runtime" }}
 vox-oratio = {{ path = "../../crates/vox-oratio" }}
 {rust_import_deps}{mcp_bin}"#,
         rust_import_deps = rust_import_deps,

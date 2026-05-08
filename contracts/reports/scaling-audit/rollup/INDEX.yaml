@@ -3722,65 +3722,65 @@
   pattern: repo/ci
   file: by-crate/vox-reqwest-defaults.md
 - id: SCALE-VOX_RUNTIME-ASYNC-IO
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: async-io
   pattern: scaling/blocking-in-async
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_RUNTIME-MEMORY-SLURP
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: memory-slurp
   pattern: scaling/unbounded-read
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_RUNTIME-IO-CACHE-LOOP
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: io-cache-loop
   pattern: scaling/cache-miss-hot-read
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_RUNTIME-ENV-SSOT
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: env-ssot
   pattern: scaling/env-default-duplication
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_RUNTIME-REGEX-COMPILE
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: regex-compile
   pattern: scaling/regex-new-hot
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_RUNTIME-SQL-BOUNDS
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: sql-bounds
   pattern: scaling/sql-no-limit
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_RUNTIME-HTTP-TIMEOUTS
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: http-timeouts
   pattern: scaling/http-client-no-timeout
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_RUNTIME-PATH-SSOT
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: path-ssot
   pattern: scaling/path-literal
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_RUNTIME-NUMERIC-SSOT
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: numeric-ssot
   pattern: scaling/magic-limit
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_RUNTIME-INDEX-MEMORY
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: index-memory
   pattern: scaling/large-in-memory-accumulator
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_RUNTIME-CONCURRENCY-STRUCTURE
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: concurrency-structure
   pattern: scaling/nested-pairwise-loop
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_RUNTIME-CI-THROUGHPUT
-  crate: vox-runtime
+  crate: vox-actor-runtime
   template: ci-throughput
   pattern: repo/ci
-  file: by-crate/vox-runtime.md
+  file: by-crate/vox-actor-runtime.md
 - id: SCALE-VOX_SCALING_POLICY-ASYNC-IO
   crate: vox-scaling-policy
   template: async-io

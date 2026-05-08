@@ -1,6 +1,6 @@
 //! Bounded JSON shapes for `routing_decisions.reason_json` (orchestrator dequeue path).
 //!
-//! Kept in `vox-runtime` so embedders share a stable contract without pulling MCP or Ludus.
+//! Kept in `vox-actor-runtime` so embedders share a stable contract without pulling MCP or Ludus.
 
 use serde::Serialize;
 

@@ -6,7 +6,7 @@ pub(super) fn emit_with<F>(emit_expr: &F, operand: &HirExpr, options: &HirExpr) 
 where
     F: Fn(&HirExpr) -> String,
 {
-    let mut opts_builder = String::from("vox_runtime::ActivityOptions::new()");
+    let mut opts_builder = String::from("vox_actor_runtime::ActivityOptions::new()");
 
     if let HirExpr::ObjectLit(fields, _) = options {
         for (key, value) in fields {
@@ -17,7 +17,7 @@ where
                 "timeout" => match value {
                     HirExpr::StringLit(s, _) => {
                         opts_builder.push_str(&format!(
-                                ".with_timeout(vox_runtime::ActivityOptions::parse_duration(\"{}\").expect(\"vox codegen: activity timeout duration\"))",
+                                ".with_timeout(vox_actor_runtime::ActivityOptions::parse_duration(\"{}\").expect(\"vox codegen: activity timeout duration\"))",
                                 s
                             ));
                     }
@@ -29,7 +29,7 @@ where
                 "initial_backoff" => {
                     if let HirExpr::StringLit(s, _) = value {
                         opts_builder.push_str(&format!(
-                            ".with_initial_backoff(vox_runtime::ActivityOptions::parse_duration(\"{}\").expect(\"vox codegen: initial_backoff duration\"))",
+                            ".with_initial_backoff(vox_actor_runtime::ActivityOptions::parse_duration(\"{}\").expect(\"vox codegen: initial_backoff duration\"))",
                             s
                         ));
                     }
@@ -37,7 +37,7 @@ where
                 "max_backoff" => {
                     if let HirExpr::StringLit(s, _) = value {
                         opts_builder.push_str(&format!(
-                            ".with_max_backoff(vox_runtime::ActivityOptions::parse_duration(\"{}\").expect(\"vox codegen: max_backoff duration\"))",
+                            ".with_max_backoff(vox_actor_runtime::ActivityOptions::parse_duration(\"{}\").expect(\"vox codegen: max_backoff duration\"))",
                             s
                         ));
                     }
@@ -61,7 +61,7 @@ where
     let operand_str = emit_expr(operand);
     let activity_name = resolve_activity_name(operand);
     format!(
-        "vox_runtime::execute_activity_result(\"{name}\", &{opts}, || async {{ {call} }}).await",
+        "vox_actor_runtime::execute_activity_result(\"{name}\", &{opts}, || async {{ {call} }}).await",
         name = activity_name,
         opts = opts_builder,
         call = operand_str,

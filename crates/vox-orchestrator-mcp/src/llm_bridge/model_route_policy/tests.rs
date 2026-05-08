@@ -168,7 +168,7 @@ fn sticky_ollama_rejected_when_inference_profile_disallows() {
 
 #[test]
 fn mcp_openrouter_label_matches_runtime_route_telemetry() {
-    use vox_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
+    use vox_actor_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
     let route = ChatProviderRouteKind::OpenRouter {
         model: "openai/gpt-4o".into(),
     };
@@ -180,7 +180,7 @@ fn mcp_openrouter_label_matches_runtime_route_telemetry() {
 
 #[test]
 fn mcp_ollama_label_matches_runtime_populi_local_telemetry() {
-    use vox_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
+    use vox_actor_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
     let route = ChatProviderRouteKind::PopuliLocal {
         base_url: "http://127.0.0.1:11434".into(),
         model: "llama3.2".into(),
@@ -193,7 +193,7 @@ fn mcp_ollama_label_matches_runtime_populi_local_telemetry() {
 
 #[test]
 fn mcp_google_direct_label_matches_runtime_manual_gemini_route_telemetry() {
-    use vox_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
+    use vox_actor_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
     let route = ChatProviderRouteKind::ManualOpenAiCompatible {
         base_url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
             .into(),
@@ -208,7 +208,7 @@ fn mcp_google_direct_label_matches_runtime_manual_gemini_route_telemetry() {
 
 #[test]
 fn mcp_cascade_label_matches_runtime_hf_and_manual_byok_telemetry() {
-    use vox_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
+    use vox_actor_runtime::model_resolution::{ChatProviderRouteKind, route_telemetry_labels};
     let manual = ChatProviderRouteKind::ManualOpenAiCompatible {
         base_url: "https://api.custom/v1/chat/completions".into(),
         model: "m".into(),
@@ -218,7 +218,7 @@ fn mcp_cascade_label_matches_runtime_hf_and_manual_byok_telemetry() {
         route_telemetry_labels(&manual),
         mcp_provider_telemetry_labels(&ProviderType::Groq)
     );
-    let ep = vox_runtime::inference_env::resolve_huggingface_router("org/hf-model");
+    let ep = vox_actor_runtime::inference_env::resolve_huggingface_router("org/hf-model");
     let hf = ChatProviderRouteKind::HuggingFaceRouter(ep);
     assert_eq!(
         route_telemetry_labels(&hf),
@@ -228,7 +228,7 @@ fn mcp_cascade_label_matches_runtime_hf_and_manual_byok_telemetry() {
 
 #[test]
 fn orchestrator_route_backend_matches_runtime_chat_backend_for_four_lanes() {
-    use vox_runtime::model_resolution::{
+    use vox_actor_runtime::model_resolution::{
         ChatProviderRouteKind, ChatRouteBackend, route_backend_for_chat_route,
     };
 

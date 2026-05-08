@@ -6,7 +6,7 @@
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use vox_db::TrustObservationInput;
-use vox_runtime::supervisor::spawn_supervised_infallible;
+use vox_actor_runtime::supervisor::spawn_supervised_infallible;
 
 const REM_REPO_CATALOG: &str = "Add `.vox/repositories.yaml` under the current workspace root and keep local repo paths explicit.";
 const REM_REPO_QUERY: &str = "Ensure the repo catalog resolves local repositories successfully before running cross-repo queries.";

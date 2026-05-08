@@ -506,7 +506,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
     });
 
     // Prompt canonicalization: normalize and order-invariant pack to reduce order bias
-    let (description, canonical_info) = match vox_runtime::prompt_canonical::canonicalize_prompt(
+    let (description, canonical_info) = match vox_actor_runtime::prompt_canonical::canonicalize_prompt(
         &params.description,
         true, // order_invariant
         true, // run_safety_pass: reject injection attempts and surface in Trust & Safety

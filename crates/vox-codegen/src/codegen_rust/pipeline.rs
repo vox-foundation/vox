@@ -25,7 +25,7 @@ pub fn generate(module: &HirModule, package_name: &str) -> Result<CodegenOutput,
 /// Target for script-mode execution.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScriptTarget {
-    /// Native Rust binary (tokio, vox-runtime).
+    /// Native Rust binary (tokio, vox-actor-runtime).
     Native,
     /// WASI binary (wasm32-wasip1, vox-script-wasi, no tokio).
     Wasi,
@@ -37,8 +37,8 @@ pub enum ScriptTarget {
 /// rust-embed, metrics) and emits only the code needed to compile and run
 /// a `fn main()`.
 ///
-/// `runtime_path` should point to the vox-runtime crate directory (e.g. workspace
-/// `crates/vox-runtime`). If `None`, uses `VOX_RUNTIME_PATH` env or a fallback.
+/// `runtime_path` should point to the vox-actor-runtime crate directory (e.g. workspace
+/// `crates/vox-actor-runtime`). If `None`, uses `VOX_RUNTIME_PATH` env or a fallback.
 pub fn generate_script(
     module: &HirModule,
     package_name: &str,
@@ -103,7 +103,7 @@ pub fn generate_script_with_target(
     let runtime_path_str = runtime_path
         .map(|p| p.to_string_lossy().replace('\\', "/"))
         .or_else(|| std::env::var("VOX_RUNTIME_PATH").ok())
-        .unwrap_or_else(|| "../vox-runtime".to_string());
+        .unwrap_or_else(|| "../vox-actor-runtime".to_string());
 
     // ── WASI feature guardrail ──────────────────────────────────────────────
     // Jai-inspired: fail loudly and immediately with a clear diagnostic
@@ -170,7 +170,7 @@ edition = "{edition}"
 tokio = {{ version = "1", features = ["full"] }}
 serde = {{ version = "1", features = ["derive"] }}
 serde_json = "1"
-vox-runtime = {{ path = "{runtime_path_str}" }}
+vox-actor-runtime = {{ path = "{runtime_path_str}" }}
 {rust_import_deps}
 "#,
             package_name = package_name,

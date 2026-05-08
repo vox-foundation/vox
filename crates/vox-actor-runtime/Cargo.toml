@@ -1,5 +1,5 @@
 [package]
-name = "vox-runtime"
+name = "vox-actor-runtime"
 version.workspace = true
 edition.workspace = true
 

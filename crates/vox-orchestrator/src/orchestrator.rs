@@ -82,7 +82,7 @@ pub struct Orchestrator {
     /// Handles to the running agent processes.
     #[cfg(feature = "runtime")]
     pub agent_handles: std::sync::Arc<
-        std::sync::RwLock<std::collections::HashMap<AgentId, vox_runtime::ProcessHandle>>,
+        std::sync::RwLock<std::collections::HashMap<AgentId, vox_actor_runtime::ProcessHandle>>,
     >,
     pub heartbeat_monitor: std::sync::Arc<std::sync::RwLock<crate::heartbeat::HeartbeatMonitor>>,
     /// System resource monitor.

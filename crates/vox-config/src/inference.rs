@@ -1,7 +1,7 @@
 //! Environment resolution for **inference providers** (local Mens/Ollama and cloud keys).
 //!
 //! This module is the **SSOT** for reading env vars used across CLI, MCP, and runtime. Callers that
-//! need HTTP probes (health, model lists) use `vox_runtime::inference_env::probe_populi_capabilities`.
+//! need HTTP probes (health, model lists) use `vox_actor_runtime::inference_env::probe_populi_capabilities`.
 
 /// Where chat / completion traffic is expected to run (desktop daemon vs cloud vs on-device).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

@@ -259,13 +259,13 @@ protocol_families:
     wire_formats: [sse, http-stream]
     machine_contract_paths: []
     prose_reference_paths:
-      - docs/src/api/vox-runtime.md
+      - docs/src/api/vox-actor-runtime.md
       - docs/src/reference/communication-protocols.md
     primary_implementation_paths:
-      - crates/vox-runtime/src/transport.rs
-      - crates/vox-runtime/src/subscription.rs
+      - crates/vox-actor-runtime/src/transport.rs
+      - crates/vox-actor-runtime/src/subscription.rs
     telemetry_evidence_paths:
-      - crates/vox-runtime/src/subscription.rs
+      - crates/vox-actor-runtime/src/subscription.rs
     auth_model: Generated-service auth and endpoint policy.
     retirement_decision: keep
     coexistence_notes: Default app streaming surface; WebSocket remains reserved for genuinely bidirectional cases.

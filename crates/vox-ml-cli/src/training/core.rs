@@ -101,7 +101,7 @@ pub fn build_training_record(
     file: &Path,
     result: &vox_compiler::pipeline::FrontendResult,
 ) -> Result<serde_json::Value> {
-    let content_hash = vox_runtime::builtins::vox_hash_fast(&result.source);
+    let content_hash = vox_actor_runtime::builtins::vox_hash_fast(&result.source);
 
     let constructs = extract_constructs(&result.module);
     let difficulty = constructs

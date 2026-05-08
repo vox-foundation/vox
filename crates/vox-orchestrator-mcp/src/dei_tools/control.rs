@@ -388,7 +388,7 @@ pub async fn orchestrator_start(state: &ServerState) -> String {
 
     let mut honest_message = format!(
         "Embedded orchestrator is active with {agent_count} agent queue(s); \
-         {registered_worker_processes} vox-runtime worker process handle(s) registered."
+         {registered_worker_processes} vox-actor-runtime worker process handle(s) registered."
     );
     match (&daemon_reported_agent_count, &daemon_status_rpc_error) {
         (Some(dc), None) if (*dc as usize) != agent_count => {

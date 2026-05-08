@@ -93,7 +93,7 @@ impl Orchestrator {
 
             #[cfg(feature = "runtime")]
             {
-                use vox_runtime::llm::{LlmChatMessage, LlmConfig, infer_with_retry};
+                use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, infer_with_retry};
 
                 let combined_evidence = research_results.join("\n\n");
 
@@ -119,13 +119,13 @@ impl Orchestrator {
                 ];
 
                 match infer_with_retry(
-                    &vox_runtime::activity::ActivityOptions::default(),
+                    &vox_actor_runtime::activity::ActivityOptions::default(),
                     messages,
                     vec![config],
                 )
                 .await
                 {
-                    vox_runtime::ActivityResult::Ok(Ok((res, _cfg))) if !res.content.is_empty() => {
+                    vox_actor_runtime::ActivityResult::Ok(Ok((res, _cfg))) if !res.content.is_empty() => {
                         let text = res.content;
                         info!("Lane G synthesis completed successfully");
                         research_results.push(format!("[lane_g_synthesis] {}", text));

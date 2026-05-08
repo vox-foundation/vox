@@ -3,7 +3,7 @@ use vox_orchestrator::config::OrchestratorConfig;
 use vox_orchestrator::orchestrator::Orchestrator;
 use vox_orchestrator::runtime::AgentFleet;
 use vox_orchestrator::types::TaskPriority;
-use vox_runtime::scheduler::Scheduler;
+use vox_actor_runtime::scheduler::Scheduler;
 
 #[tokio::test]
 async fn test_dynamic_scaling_and_retirement() {

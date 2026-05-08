@@ -10,7 +10,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex as TokMutex;
 use tokio::sync::RwLock as TokRwLock;
-use vox_runtime::supervisor::spawn_supervised_infallible;
+use vox_actor_runtime::supervisor::spawn_supervised_infallible;
 use vox_skills::{SkillRegistry, install_builtins, new_registry_arc};
 
 #[derive(Debug, Clone)]

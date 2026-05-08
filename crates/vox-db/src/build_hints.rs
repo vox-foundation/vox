@@ -50,7 +50,7 @@ pub static BUILD_HINTS: &[BuildHint] = &[
     BuildHint {
         crate_pattern: "reqwest",
         warning_code: None,
-        suggestion: "reqwest re-links TLS on every crate that depends on it. Use a single shared HTTP client in vox-runtime rather than multiple reqwest instances",
+        suggestion: "reqwest re-links TLS on every crate that depends on it. Use a single shared HTTP client in vox-actor-runtime rather than multiple reqwest instances",
     },
     // ── Warning-code hints ────────────────────────────────────────────────
     BuildHint {

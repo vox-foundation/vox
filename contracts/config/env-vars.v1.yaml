@@ -2,25 +2,25 @@ x-vox-version: 1
 version: 1
 variables:
   - name: "VOX_ROUTE_POLICY_PROFILE"
-    owner_crate: "vox-runtime"
+    owner_crate: "vox-actor-runtime"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
     description: "Routing capability policy profile selector (for example balanced or restricted)."
   - name: "VOX_ROUTE_ALLOW_NET"
-    owner_crate: "vox-runtime"
+    owner_crate: "vox-actor-runtime"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
     description: "Override: allow outbound network usage for route selection and provider calls."
   - name: "VOX_ROUTE_ALLOW_PROVIDER_NETWORK"
-    owner_crate: "vox-runtime"
+    owner_crate: "vox-actor-runtime"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
     description: "Override: allow remote provider API network lanes during route resolution."
   - name: "VOX_ROUTE_ALLOW_LOCAL_MODEL_HTTP"
-    owner_crate: "vox-runtime"
+    owner_crate: "vox-actor-runtime"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -764,13 +764,13 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_HTTP_RETRY_BASE_DELAY_MS"
-    owner_crate: "vox-runtime"
+    owner_crate: "vox-actor-runtime"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_HTTP_RETRY_MAX_ATTEMPTS"
-    owner_crate: "vox-runtime"
+    owner_crate: "vox-actor-runtime"
     kind: "string"
     required: false
     introduced_in: "0.3.0"

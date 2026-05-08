@@ -103,7 +103,7 @@ pub fn strip_windows_verbatim_path(path: PathBuf) -> PathBuf {
     path
 }
 
-/// Path to the `vox-runtime` crate for generated script projects (`VOX_RUNTIME_PATH` or repo layout).
+/// Path to the `vox-actor-runtime` crate for generated script projects (`VOX_RUNTIME_PATH` or repo layout).
 pub fn resolve_vox_runtime_path() -> Option<PathBuf> {
     if let Ok(p) = std::env::var("VOX_RUNTIME_PATH") {
         let pb = PathBuf::from(p);
@@ -113,7 +113,7 @@ pub fn resolve_vox_runtime_path() -> Option<PathBuf> {
     }
     let start = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
     let ctx = vox_repository::discover_repository_or_fallback(&start);
-    let candidate = ctx.root.join("crates").join("vox-runtime");
+    let candidate = ctx.root.join("crates").join("vox-actor-runtime");
     if candidate.is_dir() {
         return Some(strip_windows_verbatim_path(candidate));
     }

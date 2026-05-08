@@ -921,21 +921,21 @@ impl ModelRegistry {
         self.agent_overrides.get(&agent_id).cloned()
     }
 
-    /// Builds a [`vox_runtime::llm::LlmConfig`] for the best matching model when the `runtime` feature is on.
+    /// Builds a [`vox_actor_runtime::llm::LlmConfig`] for the best matching model when the `runtime` feature is on.
     #[cfg(feature = "runtime")]
     pub fn get_llm_config(
         &self,
         task_type: TaskCategory,
         complexity: u8,
         preference: CostPreference,
-    ) -> Option<vox_runtime::llm::LlmConfig> {
+    ) -> Option<vox_actor_runtime::llm::LlmConfig> {
         self.best_for(task_type, complexity, preference)
             .map(|spec| {
                 let mut cfg = match spec.provider_type {
                     ProviderType::OpenRouter => {
-                        vox_runtime::llm::LlmConfig::openrouter(spec.id.clone())
+                        vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone())
                     }
-                    ProviderType::Ollama => vox_runtime::llm::LlmConfig {
+                    ProviderType::Ollama => vox_actor_runtime::llm::LlmConfig {
                         provider: "ollama".to_string(),
                         model: spec.id.clone(),
                         cost_per_1k: None,
@@ -959,7 +959,7 @@ impl ModelRegistry {
                         telemetry_attempt_number: None,
                         telemetry_skip_interaction: false,
                     },
-                    ProviderType::GoogleDirect => vox_runtime::llm::LlmConfig {
+                    ProviderType::GoogleDirect => vox_actor_runtime::llm::LlmConfig {
                         provider: "openrouter".to_string(),
                         model: spec.id.clone(),
                         cost_per_1k: None,
@@ -980,18 +980,18 @@ impl ModelRegistry {
                     },
                     ProviderType::HuggingFaceRouter => {
                         let mut cfg =
-                            vox_runtime::llm::LlmConfig::huggingface_router(spec.id.clone());
+                            vox_actor_runtime::llm::LlmConfig::huggingface_router(spec.id.clone());
                         cfg.telemetry_task_category = Some(task_type.to_string());
                         cfg.telemetry_strength_tag =
                             Some(task_category_strength(task_type).to_string());
                         cfg
                     }
                     ProviderType::VoxLocal => {
-                        // VoxLocal (7863) is not reachable via vox_runtime LlmConfig;
+                        // VoxLocal (7863) is not reachable via vox_actor_runtime LlmConfig;
                         // route through OpenRouter as an unreachable fallback so the task
                         // doesn't silently drop. MCP path (infer_via_provider_adapter) handles
                         // VoxLocal directly and doesn't go through this registry→LlmConfig path.
-                        let mut cfg = vox_runtime::llm::LlmConfig::openrouter(spec.id.clone());
+                        let mut cfg = vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
                         cfg.telemetry_task_category = Some(task_type.to_string());
                         cfg.telemetry_strength_tag =
                             Some(task_category_strength(task_type).to_string());
@@ -1005,7 +1005,7 @@ impl ModelRegistry {
                     | ProviderType::SambaNova
                     | ProviderType::Groq
                     | ProviderType::Cerebras => {
-                        let mut cfg = vox_runtime::llm::LlmConfig::openrouter(spec.id.clone());
+                        let mut cfg = vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
                         cfg.telemetry_task_category = Some(task_type.to_string());
                         cfg.telemetry_strength_tag =
                             Some(task_category_strength(task_type).to_string());

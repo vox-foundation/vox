@@ -24,7 +24,7 @@ news-publish = [
 ]
 # JSON Schema generation for repository types (consumed by vox-orchestrator-mcp).
 json-schema = ["vox-repository/json-schema"]
-runtime = ["vox-runtime", "vox-populi/mens"]
+runtime = ["vox-actor-runtime", "vox-populi/mens"]
 toestub-gate = ["vox-code-audit", "vox-lsp", "dep:tower-lsp-server", "dep:tower-lsp"]
 lsp = ["dep:tower-lsp-server"]
 system-metrics = ["dep:sysinfo"]
@@ -59,7 +59,7 @@ getrandom = "0.2"
 vox-crypto.workspace = true
 
 # Optional dependencies behind feature flags
-vox-runtime = { workspace = true, optional = true }
+vox-actor-runtime = { workspace = true, optional = true }
 vox-code-audit = { workspace = true, optional = true }
 vox-lsp = { workspace = true, optional = true }
 tower-lsp = { version = "0.20", optional = true }
@@ -112,7 +112,7 @@ serde = { workspace = true, features = ["derive"] }
 proptest = "1.10.0"
 serial_test = { workspace = true }
 tempfile = { workspace = true }
-vox-runtime = { workspace = true }
+vox-actor-runtime = { workspace = true }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
 tower = { version = "0.5", features = ["util"] }

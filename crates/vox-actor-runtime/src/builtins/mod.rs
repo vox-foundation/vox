@@ -129,19 +129,19 @@ pub fn vox_now_ms() -> u64 {
 }
 
 pub fn vox_log_debug(message: &str) {
-    tracing::debug!(target: "vox_runtime::builtins", "{message}");
+    tracing::debug!(target: "vox_actor_runtime::builtins", "{message}");
 }
 
 pub fn vox_log_info(message: &str) {
-    tracing::info!(target: "vox_runtime::builtins", "{message}");
+    tracing::info!(target: "vox_actor_runtime::builtins", "{message}");
 }
 
 pub fn vox_log_warn(message: &str) {
-    tracing::warn!(target: "vox_runtime::builtins", "{message}");
+    tracing::warn!(target: "vox_actor_runtime::builtins", "{message}");
 }
 
 pub fn vox_log_error(message: &str) {
-    tracing::error!(target: "vox_runtime::builtins", "{message}");
+    tracing::error!(target: "vox_actor_runtime::builtins", "{message}");
 }
 
 // ── Regex (std.regex) ───────────────────────────────────────────────

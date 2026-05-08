@@ -13,13 +13,13 @@ template_managed_dependencies:
     - tracing-subscriber
     - turso
     - vox-db
-    - vox-runtime
+    - vox-actor-runtime
     - vox-oratio
   script_native:
     - tokio
     - serde
     - serde_json
-    - vox-runtime
+    - vox-actor-runtime
   script_wasi:
     - serde
     - serde_json
@@ -37,7 +37,7 @@ wasi_unsupported_rust_imports:
   - sqlx
   - diesel
   - sea-orm
-  - vox-runtime
+  - vox-actor-runtime
   - chromiumoxide
   - chromiumoxide_cdp
   - vox-browser
@@ -120,7 +120,7 @@ support_entries:
     decision: internal_runtime_only
     notes: "Generated app transport internals; not a raw Vox-facing API surface."
 
-  - crate_family: vox-runtime
+  - crate_family: vox-actor-runtime
     product_lane: platform
     support_tier: tier0
     boundary_owner: RuntimeProjection

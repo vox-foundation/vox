@@ -19,7 +19,7 @@ pub enum DbConnectSurface {
     Mcp,
     /// Populi cloud resolver (throughput profiles; optional DB).
     PopuliCloudResolver,
-    /// `vox-runtime` and similar always-on services.
+    /// `vox-actor-runtime` and similar always-on services.
     Runtime,
     /// CLI paths that require Codex.
     CliStrict,

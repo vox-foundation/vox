@@ -98,7 +98,7 @@ impl AffinityGroupRegistry {
             },
             AffinityGroup {
                 name: "runtime-group".to_string(),
-                patterns: vec!["**/vox-runtime/**".to_string()],
+                patterns: vec!["**/vox-actor-runtime/**".to_string()],
                 default_agent: None,
             },
             AffinityGroup {

@@ -4,7 +4,7 @@
 //! RLHF training data collection and quality monitoring.
 //!
 //! ```no_run
-//! use vox_runtime::feedback::FeedbackCollector;
+//! use vox_actor_runtime::feedback::FeedbackCollector;
 //! use vox_db::VoxDb;
 //! use std::sync::Arc;
 //!
@@ -192,7 +192,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    #[ignore] // Requires libsql `local` feature; run with `cargo test -p vox-runtime -- --ignored`
+    #[ignore] // Requires libsql `local` feature; run with `cargo test -p vox-actor-runtime -- --ignored`
     async fn test_feedback_log_and_thumbs_up_round_trip() {
         // B-016: Integration test for FeedbackCollector::log + thumbs_up round-trip
         let path = std::env::temp_dir().join(format!(

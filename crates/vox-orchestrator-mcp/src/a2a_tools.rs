@@ -6,7 +6,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vox_runtime::supervisor::spawn_supervised_infallible;
+use vox_actor_runtime::supervisor::spawn_supervised_infallible;
 
 use vox_orchestrator::a2a::{A2ADeliveryPlane, A2AInboxPlane};
 use crate::attention_policy::{
