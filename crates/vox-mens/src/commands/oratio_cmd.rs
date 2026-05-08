@@ -2,8 +2,64 @@
 
 use anyhow::{Context as _, Result};
 use clap::Parser;
+use std::path::Path;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
+
+/// Transcribe an audio file via the `oratio` plugin + deterministic refinement.
+/// Falls back to `vox_oratio::transcribe_path_detailed` for .txt/.md files.
+fn transcribe_path_via_plugin(
+    path: &Path,
+    ctx: &vox_oratio::refine::CorrectionContext,
+    language_hint: Option<&str>,
+) -> anyhow::Result<vox_oratio::TranscribeDetail> {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+
+    if matches!(ext.as_str(), "txt" | "md") {
+        return vox_oratio::transcribe_path_detailed(path, ctx, language_hint)
+            .map_err(|e| anyhow::anyhow!("{e}"));
+    }
+
+    let plugin = vox_plugin_host::cached_code_plugin("oratio")
+        .map_err(|e| anyhow::anyhow!("oratio plugin load: {e}"))?;
+    let stt = plugin
+        .plugin
+        .as_speech_to_text()
+        .into_option()
+        .ok_or_else(|| anyhow::anyhow!("oratio plugin missing SpeechToText accessor"))?;
+
+    let path_str = path.to_string_lossy().to_string();
+    let config_json = serde_json::json!({ "language": language_hint }).to_string();
+
+    let transcription_json = stt
+        .transcribe_path(path_str.as_str().into(), config_json.as_str().into())
+        .into_result()
+        .map_err(|e| anyhow::anyhow!("transcribe_path plugin: {e}"))?;
+
+    let v: serde_json::Value = serde_json::from_str(transcription_json.as_str())
+        .map_err(|e| anyhow::anyhow!("plugin returned invalid JSON: {e}"))?;
+    let raw_text = v
+        .get("text")
+        .and_then(|t| t.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    Ok(vox_oratio::refine_raw_text(&raw_text, ctx))
+}
+
+/// Wrapper returning `Transcript` shape for simple transcribe commands.
+fn transcribe_path_simple_via_plugin(path: &Path) -> anyhow::Result<vox_oratio::Transcript> {
+    let ctx = vox_oratio::refine::CorrectionContext::default();
+    let d = transcribe_path_via_plugin(path, &ctx, None)?;
+    Ok(vox_oratio::Transcript {
+        raw_text: d.raw_text,
+        refined_text: Some(d.refined_text),
+    })
+}
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 pub enum CorrectionProfileCli {
@@ -280,7 +336,7 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
             refined,
         } => {
             let use_json = json || global_json;
-            let t = vox_oratio::transcribe_path(&path)?;
+            let t = transcribe_path_simple_via_plugin(&path)?;
             let text = if refined {
                 t.display_text().to_string()
             } else {
@@ -316,7 +372,7 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                 ),
             };
             crate::commands::oratio_mic::record_default_input_wav(&wav_path, seconds)?;
-            let t = vox_oratio::transcribe_path(&wav_path)?;
+            let t = transcribe_path_simple_via_plugin(&wav_path)?;
             let text = if refined {
                 t.display_text().to_string()
             } else {
@@ -575,7 +631,7 @@ pub async fn run(action: OratioAction, global_json: bool) -> Result<()> {
                     vox_oratio::refine::OratioCorrectionProfile::Balanced,
                     false,
                 );
-                let detail = vox_oratio::transcribe_path_detailed(p, &ctx, lang)?;
+                let detail = transcribe_path_via_plugin(p, &ctx, lang)?;
                 let actual = detail.refined_text;
 
                 let expected_words: Vec<&str> = expected.split_whitespace().collect();
