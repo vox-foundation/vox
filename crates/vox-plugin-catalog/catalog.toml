@@ -185,22 +185,6 @@ default-source = "local:crates/vox-plugin-grammar-export"
 bundled-in = ["vox-dev"]
 
 [[plugin]]
-id = "noop-code"
-payload-kind = "code"
-description = "Test fixture: no-op code plugin used by vox-plugin-host loader tests."
-extension-points = ["__noop__"]
-default-source = "local:crates/vox-plugin-noop-code"
-bundled-in = []
-
-[[plugin]]
-id = "noop-bad-abi"
-payload-kind = "code"
-description = "Test fixture: deliberately mismatched ABI version for abi_mismatch test."
-extension-points = ["__noop__"]
-default-source = "local:crates/vox-plugin-noop-code-bad-abi"
-bundled-in = []
-
-[[plugin]]
 id = "noop-skill"
 payload-kind = "skill"
 description = "Test fixture: no-op skill plugin used by vox-plugin-host discover tests."

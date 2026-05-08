@@ -35,7 +35,7 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
 
     if !has_manifest && auto_heal {
         println!("  [auto-heal] Scaffolding Vox.toml via vox init...");
-        let manifest = vox_pm::VoxManifest::scaffold("vox-app", "application");
+        let manifest = vox_package::VoxManifest::scaffold("vox-app", "application");
         if let Ok(s) = manifest.to_toml_string() {
             if tokio::fs::write("Vox.toml", s).await.is_ok() {
                 has_manifest = true;

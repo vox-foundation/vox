@@ -325,7 +325,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::BackendTests => {
             let cargo = cargo_bin();
             let suites: &[(&[&str], &str)] = &[
-                (&["test", "-p", "vox-runtime"], "vox-runtime"),
+                (&["test", "-p", "vox-actor-runtime"], "vox-actor-runtime"),
                 (
                     &["test", "-p", "vox-orchestrator", "model_route_policy"],
                     "vox-orchestrator model_route_policy",

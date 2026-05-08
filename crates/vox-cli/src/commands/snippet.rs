@@ -3,7 +3,7 @@
 use anyhow::Result;
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
-use vox_pm::{VoxDb, SnippetEntry};
+use vox_package::{VoxDb, SnippetEntry};
 
 async fn connect() -> Result<VoxDb> {
     crate::workspace_db::connect_cli_workspace_voxdb().await

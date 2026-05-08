@@ -457,7 +457,7 @@ pub fn call_builtin_method(
                             Err(_) => return Some(VoxValue::Null),
                         };
 
-                        let resolved = vox_clavis::resolve_secret_with_context(id, "script");
+                        let resolved = vox_secrets::resolve_secret_with_context(id, "script");
                         if let Some(val) = resolved.value {
                             Some(VoxValue::Str(val.expose_secret().to_string()))
                         } else {

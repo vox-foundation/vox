@@ -19,7 +19,7 @@ use super::policy::RoutingPolicy;
 fn prefer_reasoning_from_clavis() -> bool {
     static CELL: OnceLock<bool> = OnceLock::new();
     *CELL.get_or_init(|| {
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCapabilityPreferReasoning)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCapabilityPreferReasoning)
             .expose()
             .map(|s| s.trim().eq_ignore_ascii_case("true"))
             .unwrap_or(false)

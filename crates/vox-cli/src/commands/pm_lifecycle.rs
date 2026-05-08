@@ -3,9 +3,9 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 use vox_db::VoxDb;
-use vox_pm::lockfile::{Lockfile, PackageSource};
-use vox_pm::manifest::{DependencySpec, VoxManifest};
-use vox_pm::{SemVer, VersionReq, content_hash};
+use vox_package::lockfile::{Lockfile, PackageSource};
+use vox_package::manifest::{DependencySpec, VoxManifest};
+use vox_package::{SemVer, VersionReq, content_hash};
 
 /// Default static registry base URL (GitHub raw tree; overridable via `--registry` on PM commands).
 pub const DEFAULT_REGISTRY_BASE: &str =

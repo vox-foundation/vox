@@ -1,7 +1,7 @@
 //! Clavis-first LLM routing readiness (model prefs + at least one provider key).
 
 use super::super::common::{Check, redact_key};
-use vox_clavis::SecretId;
+use vox_secrets::SecretId;
 use vox_config::clavis_str;
 use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};
 
@@ -13,28 +13,28 @@ pub fn run(checks: &mut Vec<Check>) {
     });
 
     let mut keys: Vec<&'static str> = Vec::new();
-    if vox_clavis::resolve_secret(SecretId::OpenRouterApiKey)
+    if vox_secrets::resolve_secret(SecretId::OpenRouterApiKey)
         .expose()
         .filter(|s| !s.trim().is_empty())
         .is_some()
     {
         keys.push("OpenRouter");
     }
-    if vox_clavis::resolve_secret(SecretId::OpenaiApiKey)
+    if vox_secrets::resolve_secret(SecretId::OpenaiApiKey)
         .expose()
         .filter(|s| !s.trim().is_empty())
         .is_some()
     {
         keys.push("OpenAI");
     }
-    if vox_clavis::resolve_secret(SecretId::GeminiApiKey)
+    if vox_secrets::resolve_secret(SecretId::GeminiApiKey)
         .expose()
         .filter(|s| !s.trim().is_empty())
         .is_some()
     {
         keys.push("Gemini");
     }
-    if vox_clavis::resolve_secret(SecretId::AnthropicApiKey)
+    if vox_secrets::resolve_secret(SecretId::AnthropicApiKey)
         .expose()
         .filter(|s| !s.trim().is_empty())
         .is_some()
@@ -65,7 +65,7 @@ pub fn run(checks: &mut Vec<Check>) {
     }
 
     // Informational: confirm account id for vault sync (optional).
-    let acct = std::env::var(vox_clavis::OPERATOR_ACCOUNT_ID).unwrap_or_default();
+    let acct = std::env::var(vox_secrets::OPERATOR_ACCOUNT_ID).unwrap_or_default();
     if acct.trim().is_empty() {
         checks.push(Check::new(
             "LLM routing — VOX_ACCOUNT_ID",

@@ -1,7 +1,7 @@
 //! Write capability routing preferences to the Clavis vault.
 
 use clap::{Parser, Subcommand};
-use vox_clavis::SecretId;
+use vox_secrets::SecretId;
 
 #[derive(Parser)]
 pub struct PreferencesArgs {
@@ -42,7 +42,7 @@ pub async fn run(args: PreferencesArgs) -> anyhow::Result<()> {
         PreferencesCmd::Set { key, value } => {
             let id = secret_for_key(&key)?;
             let spec = id.spec();
-            let backend = vox_clavis::backend::vox_vault::VoxCloudBackend::new()
+            let backend = vox_secrets::backend::vox_vault::VoxCloudBackend::new()
                 .map_err(|e| anyhow::anyhow!("{e:?}"))?;
             backend
                 .write_secret(spec.canonical_env, value.trim())
@@ -50,7 +50,7 @@ pub async fn run(args: PreferencesArgs) -> anyhow::Result<()> {
             println!("wrote {} ({})", spec.canonical_env, spec.scope_description);
         }
         PreferencesCmd::Reset => {
-            let backend = vox_clavis::backend::vox_vault::VoxCloudBackend::new()
+            let backend = vox_secrets::backend::vox_vault::VoxCloudBackend::new()
                 .map_err(|e| anyhow::anyhow!("{e:?}"))?;
             for id in [
                 SecretId::VoxCapabilityRequireImageGeneration,

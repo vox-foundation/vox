@@ -20,7 +20,7 @@ pub enum ScholarlyAdapterKind {
 
 #[must_use]
 pub fn scholarly_adapter_from_env() -> ScholarlyAdapterKind {
-    let raw = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScholarlyAdapter)
+    let raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxScholarlyAdapter)
         .expose()
         .map(|s| s.trim().to_ascii_lowercase());
     match raw.as_deref() {

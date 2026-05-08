@@ -18,37 +18,8 @@ use crate::types::AgentId;
 // Identity
 // ---------------------------------------------------------------------------
 
-/// Unique snapshot identifier.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct SnapshotId(pub u64);
-
-impl fmt::Display for SnapshotId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "S-{:06}", self.0)
-    }
-}
-
-/// Thread-safe generator for [`SnapshotId`]s.
-#[derive(Debug)]
-pub struct SnapshotIdGenerator(AtomicU64);
-
-impl SnapshotIdGenerator {
-    /// Create a new generator starting at 1.
-    pub fn new() -> Self {
-        Self(AtomicU64::new(1))
-    }
-
-    /// Produce the next unique [`SnapshotId`].
-    pub fn next(&self) -> SnapshotId {
-        SnapshotId(self.0.fetch_add(1, Ordering::Relaxed))
-    }
-}
-
-impl Default for SnapshotIdGenerator {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// Identifiers moved to `vox-orchestrator-types` in 2026-05-08 reorg Phase 5.
+pub use vox_orchestrator_types::{SnapshotId, SnapshotIdGenerator};
 
 // ---------------------------------------------------------------------------
 // File-level snapshot entry

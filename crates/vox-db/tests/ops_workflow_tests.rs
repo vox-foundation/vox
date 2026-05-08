@@ -1,5 +1,5 @@
 #![allow(missing_docs)]
-//! Integration tests for vox-pm workflow execution storage.
+//! Integration tests for vox-package workflow execution storage.
 
 use vox_db::LogExecutionParams;
 use vox_db::VoxDb;

@@ -34,7 +34,7 @@ VOX ARCHITECTURE RULES:
 - Do NOT propose new pub items in modules marked as FROZEN.
 - Do NOT propose Python scripts in scripts/. Use Rust xtask tooling.
 - Every new struct or impl block must fit within 500 lines / 12 methods.
-- No new direct std::env::var reads for secrets. Use vox_clavis::resolve_secret().
+- No new direct std::env::var reads for secrets. Use vox_secrets::resolve_secret().
 - New migrations must use IF NOT EXISTS.
 "#;
 

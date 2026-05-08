@@ -37,7 +37,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build and package release artifacts (core + bootstrap + plugins)
-        # `--package all` produces: vox, vox-bootstrap, vox-mens, vox-schola
+        # `--package all` produces: vox, vox-bootstrap, vox-ml-cli, vox-schola
         # Each ships as its own archive so users opt into the heavy ML/scientia plugins.
         run: cargo run --locked -p vox-cli -- ci release-build --target ${{ matrix.target }} --version ${{ github.ref_name }} --out-dir dist --package all
 
@@ -58,10 +58,10 @@ jobs:
             tar -xzf "$f"
             ./vox-bootstrap --help >/dev/null
           done
-          for f in vox-mens-*.tar.gz; do
-            rm -f vox-mens
+          for f in vox-ml-cli-*.tar.gz; do
+            rm -f vox-ml-cli
             tar -xzf "$f"
-            ./vox-mens --help >/dev/null
+            ./vox-ml-cli --help >/dev/null
           done
           for f in vox-schola-*.tar.gz; do
             rm -f vox-schola
@@ -84,10 +84,10 @@ jobs:
             Expand-Archive -Path $_.FullName -DestinationPath _smoke_boot -Force
             & ".\_smoke_boot\vox-bootstrap.exe" --help | Out-Null
           }
-          Get-ChildItem -Filter 'vox-mens-*.zip' | ForEach-Object {
+          Get-ChildItem -Filter 'vox-ml-cli-*.zip' | ForEach-Object {
             if (Test-Path _smoke_mens) { Remove-Item -Recurse -Force _smoke_mens }
             Expand-Archive -Path $_.FullName -DestinationPath _smoke_mens -Force
-            & ".\_smoke_mens\vox-mens.exe" --help | Out-Null
+            & ".\_smoke_mens\vox-ml-cli.exe" --help | Out-Null
           }
           Get-ChildItem -Filter 'vox-schola-*.zip' | ForEach-Object {
             if (Test-Path _smoke_schola) { Remove-Item -Recurse -Force _smoke_schola }
@@ -102,7 +102,7 @@ jobs:
           path: |
             dist/vox-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/vox-bootstrap-${{ github.ref_name }}-${{ matrix.target }}.*
-            dist/vox-mens-${{ github.ref_name }}-${{ matrix.target }}.*
+            dist/vox-ml-cli-${{ github.ref_name }}-${{ matrix.target }}.*
             dist/vox-schola-${{ github.ref_name }}-${{ matrix.target }}.*
           if-no-files-found: error
 

@@ -22,7 +22,7 @@ const ZENODO_API_SANDBOX: &str = "https://sandbox.zenodo.org/api";
 
 #[must_use]
 fn zenodo_http_max_attempts() -> u32 {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoHttpMaxAttempts)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxZenodoHttpMaxAttempts)
         .expose()
         .and_then(|s| s.trim().parse().ok())
         .filter(|&n| (1..=10).contains(&n))
@@ -58,7 +58,7 @@ impl ZenodoHttpClient {
                 message: "Zenodo access token is empty".into(),
             });
         }
-        let base = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoApiBase)
+        let base = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxZenodoApiBase)
             .expose()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
@@ -549,7 +549,7 @@ pub(super) fn zenodo_from_clavis() -> Result<ZenodoAdapter, ScholarlyError> {
             reason: "VOX_SCHOLARLY_DISABLE_ZENODO is set".into(),
         });
     }
-    let token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoAccessToken)
+    let token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxZenodoAccessToken)
         .expose()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());

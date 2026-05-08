@@ -3,6 +3,7 @@
 mod bus;
 mod dispatch;
 mod envelope;
+#[cfg(feature = "populi-transport")]
 pub mod jwe;
 #[cfg(feature = "populi-transport")]
 mod remote_poller;

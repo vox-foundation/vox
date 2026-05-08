@@ -7,7 +7,7 @@ repository = "https://github.com/vox-foundation/vox"
 # Rust crate graph (build, `cargo metadata`, CI): **root `Cargo.toml` is authoritative**
 # (`members = ["crates/*"]`, `exclude` includes `crates/vox-codegen-html`, `crates/vox-dei`, `crates/vox-py`, `crates/vox-wasm`). `vox-codegen-html` was retired; use `vox-ssg` + React stack (ADR 010).
 #
-# This `[workspace]` section is only for `vox-pm::VoxWorkspace` discovery of optional per-crate
+# This `[workspace]` section is only for `vox-package::VoxWorkspace` discovery of optional per-crate
 # `crates/<name>/Vox.toml` manifests. The glob yields members when those files exist; it does not
 # replace Cargo workspace membership.
 [workspace]

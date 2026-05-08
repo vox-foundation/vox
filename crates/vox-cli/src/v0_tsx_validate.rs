@@ -28,7 +28,7 @@
 #![allow(dead_code)] // Staged v0.dev integration; exported for future `vox validate` wiring
 
 use regex::Regex;
-use vox_compiler::web_ir::{
+use vox_codegen::web_ir::{
     BehaviorNode, DomNode, DomNodeId, WebIrDiagnostic, WebIrDiagnosticSeverity, WebIrModule,
 };
 
@@ -44,7 +44,7 @@ use vox_compiler::web_ir::{
 pub fn validate_tsx_a11y(tsx: &str) -> Vec<WebIrDiagnostic> {
     let module = tsx_to_web_ir_module(tsx);
     let mut out = Vec::new();
-    vox_compiler::web_ir::validate_a11y::validate_a11y(&module, &mut out);
+    vox_codegen::web_ir::validate_a11y::validate_a11y(&module, &mut out);
     out.sort_by(|a, b| a.code.cmp(&b.code));
     out
 }
@@ -350,7 +350,7 @@ fn extract_element_text_content(inner: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use vox_compiler::web_ir::WebIrDiagnosticSeverity;
+    use vox_codegen::web_ir::WebIrDiagnosticSeverity;
 
     #[test]
     fn img_without_alt_is_caught() {

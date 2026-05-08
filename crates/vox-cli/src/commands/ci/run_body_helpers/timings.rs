@@ -38,9 +38,9 @@ fn load_build_timing_budgets(root: &Path) -> Result<std::collections::HashMap<St
 /// Soft budgets from `budgets.json`. `VOX_BUILD_TIMINGS_BUDGET_WARN=1` stderr for missing lane keys
 /// and over-budget lanes. `VOX_BUILD_TIMINGS_BUDGET_FAIL=1` fails if any lane exceeded its cap (warn not required).
 fn apply_build_timing_budgets(records: &[TimingRecord], root: &Path) -> Result<()> {
-    let warn_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBuildTimingsBudgetWarn);
+    let warn_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBuildTimingsBudgetWarn);
     let warn = warn_resolved.expose().unwrap_or_default() == "1";
-    let fail_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBuildTimingsBudgetFail);
+    let fail_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBuildTimingsBudgetFail);
     let fail = fail_resolved.expose().unwrap_or_default() == "1";
     if !warn && !fail {
         return Ok(());
@@ -115,7 +115,7 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
         ("check_vox_cli_default", &["check", "-p", "vox-cli"]),
         (
             "check_vox_cli_gpu_stub",
-            &["check", "-p", "vox-mens", "--features", "gpu,mens-qlora"],
+            &["check", "-p", "vox-ml-cli", "--features", "gpu,mens-qlora"],
         ),
     ];
 
@@ -147,7 +147,7 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
     }
 
     // Optional CUDA lane (same policy as `cuda-features`).
-    let skip_cuda_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::SkipCudaFeatureCheck);
+    let skip_cuda_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::SkipCudaFeatureCheck);
     if skip_cuda_resolved.expose().unwrap_or_default() != "1" {
         let nvcc_ok = nvcc_available();
         if nvcc_ok {
@@ -158,7 +158,7 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
                 &[
                     "check",
                     "-p",
-                    "vox-mens",
+                    "vox-ml-cli",
                     "--features",
                     "gpu,mens-candle-cuda",
                 ],
@@ -193,7 +193,7 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
             }
         }
         let skip_cuda_resolved =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::SkipCudaFeatureCheck);
+            vox_secrets::resolve_secret(vox_secrets::SecretId::SkipCudaFeatureCheck);
         if skip_cuda_resolved.expose().unwrap_or_default() == "1" {
             println!("  (CUDA lane skipped: SKIP_CUDA_FEATURE_CHECK=1)");
         } else if !records

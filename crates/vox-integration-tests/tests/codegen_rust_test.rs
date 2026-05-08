@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use vox_compiler::codegen_rust::emit::emit_lib;
+use vox_codegen::codegen_rust::emit::emit_lib;
 use vox_compiler::hir::lower_module;
 /// Integration tests for Rust code generation of durable execution features.
 use vox_compiler::lexer::cursor::lex;
@@ -97,7 +97,7 @@ fn codegen_table_emits_struct() {
 
 #[test]
 fn codegen_table_emits_ddl() {
-    use vox_compiler::codegen_rust::emit::emit_table_ddl;
+    use vox_codegen::codegen_rust::emit::emit_table_ddl;
 
     let src = r#"
 @table type Task {
@@ -117,7 +117,7 @@ fn codegen_table_emits_ddl() {
 
 #[test]
 fn codegen_index_emits_ddl() {
-    use vox_compiler::codegen_rust::emit::emit_index_ddl;
+    use vox_codegen::codegen_rust::emit::emit_index_ddl;
 
     let src = r#"
 @table type Task {
@@ -171,7 +171,7 @@ fn codegen_mcp_server_produces_file() {
     let tokens = lex(src);
     let module = parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
-    let output = vox_compiler::codegen_rust::generate(&hir, "my_mcp_tools").unwrap();
+    let output = vox_codegen::codegen_rust::generate(&hir, "my_mcp_tools").unwrap();
 
     assert!(
         output.files.contains_key("src/mcp_server.rs"),
@@ -199,7 +199,7 @@ fn codegen_mcp_server_input_schema() {
 
     assert_eq!(hir.mcp_tools.len(), 2, "Should have 2 MCP tools");
 
-    let mcp = vox_compiler::codegen_rust::emit::emit_mcp_server(&hir, "my_tools");
+    let mcp = vox_codegen::codegen_rust::emit::emit_mcp_server(&hir, "my_tools");
     insta::assert_snapshot!("mcp_server_multi_tool_schema_output", mcp);
 }
 
@@ -213,7 +213,7 @@ fn hello(name: str) to str {
     let tokens = lex(src);
     let module = parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
-    let output = vox_compiler::codegen_rust::generate(&hir, "test_no_mcp").unwrap();
+    let output = vox_codegen::codegen_rust::generate(&hir, "test_no_mcp").unwrap();
 
     assert!(
         !output.files.contains_key("src/mcp_server.rs"),
@@ -234,7 +234,7 @@ fn codegen_mcp_resource_emits_resources_handlers() {
     assert_eq!(hir.mcp_resources.len(), 1);
     assert_eq!(hir.mcp_resources[0].uri, "demo://x");
 
-    let output = vox_compiler::codegen_rust::generate(&hir, "with_res").unwrap();
+    let output = vox_codegen::codegen_rust::generate(&hir, "with_res").unwrap();
     assert!(output.files.contains_key("src/mcp_server.rs"));
 
     let mcp = output.files.get("src/mcp_server.rs").unwrap();
@@ -257,6 +257,6 @@ fn codegen_mcp_tool_list_schema_supports_list_param() {
     let tokens = lex(src);
     let module = parse(tokens).expect("Should parse");
     let hir = lower_module(&module);
-    let mcp = vox_compiler::codegen_rust::emit::emit_mcp_server(&hir, "lst");
+    let mcp = vox_codegen::codegen_rust::emit::emit_mcp_server(&hir, "lst");
     insta::assert_snapshot!("mcp_list_param_schema_output", mcp);
 }

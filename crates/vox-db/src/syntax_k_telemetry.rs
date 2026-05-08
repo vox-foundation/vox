@@ -18,7 +18,7 @@ pub struct SyntaxKEventMeta {
     pub repository_id: String,
     /// Fixture ID used by the compiler benchmark harness.
     pub fixture_id: String,
-    /// Structured event payload (usually `vox_compiler::syntax_k::SyntaxKEvent` JSON).
+    /// Structured event payload (usually `vox_codegen::syntax_k::SyntaxKEvent` JSON).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<serde_json::Value>,
 }

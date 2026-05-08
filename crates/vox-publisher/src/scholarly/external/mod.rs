@@ -29,7 +29,7 @@ pub struct ExternalJobsTickOutput {
 
 pub fn default_scholarly_job_lock_owner() -> String {
     if let Some(s) =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScholarlyJobLockOwner).expose()
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxScholarlyJobLockOwner).expose()
     {
         let t = s.trim();
         if !t.is_empty() {

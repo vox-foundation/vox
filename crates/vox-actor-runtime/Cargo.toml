@@ -1,0 +1,43 @@
+[package]
+name = "vox-actor-runtime"
+version.workspace = true
+edition.workspace = true
+
+[features]
+default = []
+## Enables [`crate::db`] — global **Codex** (`vox_db::VoxDb`) connection using `VOX_DB_*` (canonical) with legacy `TURSO_*` fallback.
+database = ["dep:vox-db"]
+
+[dependencies]
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+async-stream = { workspace = true }
+vox-openai-sse = { workspace = true }
+vox-openai-wire = { workspace = true }
+futures-util = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+vox-config.workspace = true
+vox-orchestrator-types.workspace = true
+vox-primitives.workspace = true
+vox-secrets = { workspace = true }
+vox-plugin-host = { workspace = true }
+vox-skills.workspace = true
+vox-openclaw-runtime = { workspace = true }
+vox-db = { workspace = true, optional = true }
+reqwest = { workspace = true, features = ["stream"] }
+vox-reqwest-defaults = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+glob = { workspace = true }
+which = "8"
+xxhash-rust = { workspace = true }
+blake3 = { workspace = true }
+rust_decimal = { workspace = true }
+workspace-hack = { workspace = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+uuid = { workspace = true, features = ["v4"] }
+regex = { workspace = true }
+
+[lints]
+workspace = true

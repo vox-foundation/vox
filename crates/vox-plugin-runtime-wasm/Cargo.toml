@@ -14,7 +14,7 @@ workspace = true
 [dependencies]
 vox-plugin-api.workspace = true
 vox-skill-runtime.workspace = true
-vox-wasm-host.workspace = true
+vox-wasm-engine.workspace = true
 abi_stable.workspace = true
 anyhow.workspace = true
 serde = { workspace = true, features = ["derive"] }

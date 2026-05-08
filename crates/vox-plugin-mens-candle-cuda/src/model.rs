@@ -9,7 +9,7 @@
 //!
 //! The forward/backward training code in `vox-populi` is deeply tangled with vox-populi
 //! types (`LoraTrainingConfig`, `QloraEmbedBundle`, `TrainingPair`, `CheckpointState`,
-//! `vox_tensor`, `vox_clavis`, VoxDB async channel, etc.). Untangling into the plugin's
+//! `vox_tensor`, `vox_secrets`, VoxDB async channel, etc.). Untangling into the plugin's
 //! `training.rs` / `checkpoint.rs` is deferred to a follow-up commit; those modules
 //! currently contain stubs that return `Err("not yet wired")`.
 //!

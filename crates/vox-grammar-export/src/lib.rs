@@ -1,3 +1,5 @@
+//! Grammar export schema + manifest types (TextMate, tree-sitter, EBNF targets).
+
 use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;

@@ -4,9 +4,7 @@
 //! migration flags stay aligned. See also `PLAN_TOOL_DAEMON_ALIGNMENT`.
 
 use serde::{Deserialize, Serialize};
-
-#[cfg(feature = "json-schema")]
-use schemars as _;
+// schemars usage moved with mcp_tools to vox-orchestrator-mcp.
 
 /// Version label for orchestration wire format (bump when breaking compatibility).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]

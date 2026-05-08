@@ -13,7 +13,7 @@ pub const HOTSPOT_TIER1: &[&str] = &[
     "crates/vox-orchestrator/src/orchestrator.rs",
     "crates/vox-orchestrator/src/session.rs",
     "crates/vox-orchestrator/src/types.rs",
-    "crates/vox-pm/src/store/types.rs",
+    "crates/vox-package/src/store/types.rs",
     "crates/vox-populi/src/mens/tensor/qlora_preflight.rs",
     "crates/vox-mcp/src/tools/input_schemas.rs",
     "docs/src/ci/rust-modernization-baseline.md",
@@ -25,7 +25,7 @@ pub const HOTSPOT_TIER2_RUST: &[&str] = &[
     "crates/vox-orchestrator/src/memory.rs",
     "crates/vox-db/src/lib.rs",
     "crates/vox-forge/src/types.rs",
-    "crates/vox-pm/src/store/ops.rs",
+    "crates/vox-package/src/store/ops.rs",
     "crates/vox-codegen-rust/src/emit.rs",
     "crates/vox-dei/src/research/orchestrator.rs",
     "crates/vox-gamify/src/db.rs",
@@ -52,7 +52,7 @@ pub const SYMBOL_HINT_PATHS: &[&str] = &[
     "crates/vox-orchestrator/src/orchestrator.rs",
     "crates/vox-orchestrator/src/session.rs",
     "crates/vox-orchestrator/src/types.rs",
-    "crates/vox-pm/src/store/types.rs",
+    "crates/vox-package/src/store/types.rs",
     "crates/vox-populi/src/mens/tensor/qlora_preflight.rs",
 ];
 

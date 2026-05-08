@@ -150,11 +150,11 @@ pub(crate) fn get_chunk_id(path: &str) -> (u32, &'static str) {
     }
 
     // ── Runtime / LSP ────────────────────────────────────────────────────
-    if p.contains("crates/vox-runtime/")
+    if p.contains("crates/vox-actor-runtime/")
         || p.contains("crates/vox-lsp/")
         || p.contains("crates/vox-dap/")
         || p.contains("crates/vox-fmt/")
-        || p.contains("crates/vox-toestub/")
+        || p.contains("crates/vox-code-audit/")
         || p.contains("crates/vox-doc-pipeline/")
     {
         return (65, "12_crate_runtime_lsp");

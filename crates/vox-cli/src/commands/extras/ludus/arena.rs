@@ -1,6 +1,6 @@
 use anyhow::Result;
 use owo_colors::OwoColorize;
-use vox_ludus::db as ludus_db;
+use vox_gamify::db as ludus_db;
 
 use crate::commands::extras::ludus::{db_util, render_progress_bar};
 
@@ -66,7 +66,7 @@ pub async fn arena_join() -> Result<()> {
             "type": "arena_joined",
             "arena_id": ev.id,
         });
-        let res = vox_ludus::event_router::route_event(&codex, &user_id, &event_json).await?;
+        let res = vox_gamify::event_router::route_event(&codex, &user_id, &event_json).await?;
         crate::commands::extras::ludus::print_route_result(&res);
     } else {
         println!("  ❌ No active arena events to join.");

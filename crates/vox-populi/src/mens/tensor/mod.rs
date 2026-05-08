@@ -13,7 +13,7 @@ pub mod telemetry_schema;
 
 // SP3 Unit 1: candle_model_qwen deleted; canonical copy in vox-plugin-mens-candle-cuda/src/model.rs
 // SP3 Unit 3: candle_inference_serve deleted; canonical copy in vox-plugin-mens-candle-cuda/src/inference.rs
-// vox-mens eval-local is rewired to use Option<()> stub until plugin-host dispatch is plumbed.
+// vox-ml-cli eval-local is rewired to use Option<()> stub until plugin-host dispatch is plumbed.
 pub mod populi_train;
 pub mod train_log;
 #[cfg(feature = "mens-train")]
@@ -28,7 +28,7 @@ pub use device::{
     recommend_config_for_profile, sample_vram_used_mb,
 };
 
-// adapter_schema_v3 deleted: vox-mens/merge_qlora.rs holds inline serde types; plugin owns merge impl.
+// adapter_schema_v3 deleted: vox-ml-cli/merge_qlora.rs holds inline serde types; plugin owns merge impl.
 #[cfg(feature = "mens-train")]
 pub mod artifact_bridge;
 #[cfg(feature = "mens-train")]
@@ -42,7 +42,7 @@ pub mod checkpoint_state;
 // to vox-plugin-mens-candle-cuda.
 // candle_model_qwen + candle_inference_serve deleted (SP3 Units 1+3).
 //
-// candle_qlora_merge deleted: plugin owns merge impl; vox-mens/merge_qlora.rs dispatches via plugin.
+// candle_qlora_merge deleted: plugin owns merge impl; vox-ml-cli/merge_qlora.rs dispatches via plugin.
 #[cfg(feature = "mens-train")]
 pub mod domain_profiles;
 pub mod domain_router;

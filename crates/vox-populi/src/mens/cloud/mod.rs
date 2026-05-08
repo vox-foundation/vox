@@ -22,7 +22,7 @@
 //! | `VOX_RUNPOD_API_KEY` | — | RunPod API key |
 //! | `VOX_CLOUD_MAX_BUDGET` | `10.00` | Global spend cap USD |
 //! | `VOX_CLOUD_PRICE_TTL` | `30` | Offer cache TTL seconds |
-//! | `VOX_CLOUD_IMAGE` | `ghcr.io/vox-foundation/vox-mens-cuda:latest` | Container image |
+//! | `VOX_CLOUD_IMAGE` | `ghcr.io/vox-foundation/vox-ml-cli-cuda:latest` | Container image |
 //! | `VOX_CLOUD_MAX_RUNTIME` | `3600` | Absolute hard cap seconds (any job kind) |
 
 pub mod budget;
@@ -107,7 +107,7 @@ impl JobKind {
 // ── Provider configuration ────────────────────────────────────────────────────
 
 /// Default Docker image for cloud GPU jobs.
-pub const DEFAULT_CLOUD_IMAGE: &str = "ghcr.io/vox-foundation/vox-mens-cuda:latest";
+pub const DEFAULT_CLOUD_IMAGE: &str = "ghcr.io/vox-foundation/vox-ml-cli-cuda:latest";
 
 /// Conservative fallback ms/step when no measured profile exists.
 /// At 200 ms/step a 5k-sample × 3-epoch run takes ~600s.
@@ -162,19 +162,19 @@ pub struct CloudProviderConfig {
 
 impl Default for CloudProviderConfig {
     fn default() -> Self {
-        let max_budget = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudMaxBudget)
+        let max_budget = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCloudMaxBudget)
             .expose()
             .and_then(|s| s.parse::<f64>().ok())
             .unwrap_or(10.0);
-        let cache_ttl = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudPriceTtl)
+        let cache_ttl = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCloudPriceTtl)
             .expose()
             .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(30_u64);
-        let image = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudImage)
+        let image = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCloudImage)
             .expose()
             .unwrap_or(DEFAULT_CLOUD_IMAGE)
             .to_string();
-        let abs_max = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCloudMaxRuntime)
+        let abs_max = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCloudMaxRuntime)
             .expose()
             .and_then(|s| s.parse::<u64>().ok())
             .unwrap_or(3600_u64);

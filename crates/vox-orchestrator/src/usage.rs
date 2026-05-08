@@ -451,20 +451,20 @@ impl<'a> UsageTracker<'a> {
                 "google" => has_google_key,
                 "openrouter" => has_openrouter_key,
                 "ollama" => has_ollama,
-                "groq" => vox_clavis::resolve_secret(vox_clavis::SecretId::GroqApiKey).is_present(),
+                "groq" => vox_secrets::resolve_secret(vox_secrets::SecretId::GroqApiKey).is_present(),
                 "cerebras" => {
-                    vox_clavis::resolve_secret(vox_clavis::SecretId::CerebrasApiKey).is_present()
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::CerebrasApiKey).is_present()
                 }
                 "mistral" => {
-                    vox_clavis::resolve_secret(vox_clavis::SecretId::MistralApiKey).is_present()
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::MistralApiKey).is_present()
                 }
                 "deepseek" => {
-                    vox_clavis::resolve_secret(vox_clavis::SecretId::DeepSeekApiKey).is_present()
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::DeepSeekApiKey).is_present()
                 }
                 "sambanova" => {
-                    vox_clavis::resolve_secret(vox_clavis::SecretId::SambaNovaApiKey).is_present()
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::SambaNovaApiKey).is_present()
                 }
-                "custom" => vox_clavis::resolve_secret(vox_clavis::SecretId::CustomOpenaiApiKey)
+                "custom" => vox_secrets::resolve_secret(vox_secrets::SecretId::CustomOpenaiApiKey)
                     .is_present(),
                 _ => false,
             }
@@ -485,7 +485,7 @@ impl<'a> UsageTracker<'a> {
             let default_model = match best.provider.as_str() {
                 "google" => "google/auto".to_string(),
                 "openrouter" => vox_config::OPENROUTER_AUTO.to_string(),
-                "ollama" => vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliModel)
+                "ollama" => vox_secrets::resolve_secret(vox_secrets::SecretId::PopuliModel)
                     .expose()
                     .map(|s: &str| s.to_string())
                     .filter(|s| !s.trim().is_empty())
@@ -501,7 +501,7 @@ impl<'a> UsageTracker<'a> {
         } else if has_ollama {
             Ok(ProviderRecommendation {
                 provider: "ollama".to_string(),
-                model: vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliModel)
+                model: vox_secrets::resolve_secret(vox_secrets::SecretId::PopuliModel)
                     .expose()
                     .map(|s: &str| s.to_string())
                     .filter(|s| !s.trim().is_empty())

@@ -1,11 +1,11 @@
-//! Tokio/`vox-runtime` bridge: actor agents, task processors, and fleet scaling hooks.
+//! Tokio/`vox-actor-runtime` bridge: actor agents, task processors, and fleet scaling hooks.
 //!
-//! [`AgentFleet`](crate::runtime::AgentFleet) keeps [`ProcessHandle`](vox_runtime::ProcessHandle) values aligned with [`Orchestrator`](crate::orchestrator::Orchestrator) registrations
+//! [`AgentFleet`](crate::runtime::AgentFleet) keeps [`ProcessHandle`](vox_actor_runtime::ProcessHandle) values aligned with [`Orchestrator`](crate::orchestrator::Orchestrator) registrations
 //! and applies [`ScalingAction`](crate::services::ScalingAction) decisions from the scaling service.
 
 use std::sync::{Arc, Mutex};
 
-use vox_runtime::{
+use vox_actor_runtime::{
     ProcessHandle, RegistryError, mailbox::MessagePayload, process::ProcessContext,
     scheduler::Scheduler, supervisor::ChildSpec, supervisor::RestartStrategy,
     supervisor::Supervisor,
@@ -70,7 +70,7 @@ impl TaskProcessor for StubTaskProcessor {
 
 /// A real AI-powered task processor that streams tokens back to the event bus.
 pub struct AiTaskProcessor {
-    client: vox_ludus::ai::FreeAiClient,
+    client: vox_gamify::ai::FreeAiClient,
     event_bus: crate::events::EventBus,
     orchestrator: Arc<Orchestrator>,
     /// Provider name stored at construction time (e.g. "ollama", "google").
@@ -84,7 +84,7 @@ pub struct AiTaskProcessor {
 impl AiTaskProcessor {
     /// Create a new AI processor that auto-discovers providers.
     pub async fn new(event_bus: crate::events::EventBus, orchestrator: Arc<Orchestrator>) -> Self {
-        let client = vox_ludus::ai::FreeAiClient::auto_discover().await;
+        let client = vox_gamify::ai::FreeAiClient::auto_discover().await;
         // Reflect the active provider in costs/logs
         let (provider, model) = client.active_provider_info();
         Self {
@@ -98,13 +98,13 @@ impl AiTaskProcessor {
 
     async fn run_phase_stream(
         &self,
-        client: &vox_ludus::ai::FreeAiClient,
+        client: &vox_gamify::ai::FreeAiClient,
         agent_id: crate::types::AgentId,
         task: &crate::types::AgentTask,
         phase: crate::types::TaskPhase,
         usage_model: &str,
         prior_notes: &str,
-        route: vox_ludus::StreamRoute<'_>,
+        route: vox_gamify::StreamRoute<'_>,
     ) -> String {
         let mut history_block = String::new();
         if !task.transcript.is_empty() {
@@ -203,27 +203,27 @@ impl TaskProcessor for AiTaskProcessor {
             .as_deref()
             .filter(|s| !s.trim().is_empty())
         {
-            vox_ludus::StreamRoute::UserModelOverride(mo)
+            vox_gamify::StreamRoute::UserModelOverride(mo)
         } else if let Some(m) = routed.as_ref() {
             match route_backend_for_model(m) {
-                ModelRouteBackend::Ollama => vox_ludus::StreamRoute::Registry {
-                    backend: vox_ludus::LudusStreamBackend::Ollama,
+                ModelRouteBackend::Ollama => vox_gamify::StreamRoute::Registry {
+                    backend: vox_gamify::LudusStreamBackend::Ollama,
                     model: m.id.as_str(),
                 },
-                ModelRouteBackend::GeminiDirect => vox_ludus::StreamRoute::Registry {
-                    backend: vox_ludus::LudusStreamBackend::Gemini,
+                ModelRouteBackend::GeminiDirect => vox_gamify::StreamRoute::Registry {
+                    backend: vox_gamify::LudusStreamBackend::Gemini,
                     model: m.id.as_str(),
                 },
-                ModelRouteBackend::OpenRouter => vox_ludus::StreamRoute::Registry {
-                    backend: vox_ludus::LudusStreamBackend::OpenRouter,
+                ModelRouteBackend::OpenRouter => vox_gamify::StreamRoute::Registry {
+                    backend: vox_gamify::LudusStreamBackend::OpenRouter,
                     model: m.id.as_str(),
                 },
-                ModelRouteBackend::CascadeFallback => vox_ludus::StreamRoute::Cascade,
-                ModelRouteBackend::PopuliMesh => vox_ludus::StreamRoute::Cascade,
-                ModelRouteBackend::VoxLocal => vox_ludus::StreamRoute::Cascade,
+                ModelRouteBackend::CascadeFallback => vox_gamify::StreamRoute::Cascade,
+                ModelRouteBackend::PopuliMesh => vox_gamify::StreamRoute::Cascade,
+                ModelRouteBackend::VoxLocal => vox_gamify::StreamRoute::Cascade,
             }
         } else {
-            vox_ludus::StreamRoute::Cascade
+            vox_gamify::StreamRoute::Cascade
         };
 
         if let Some(db) = self.orchestrator.db() {
@@ -234,7 +234,7 @@ impl TaskProcessor for AiTaskProcessor {
                 .map(str::trim)
                 .is_some_and(|s| !s.is_empty());
             let ludus_fallback = !has_model_override && routed.is_none();
-            let reason = vox_runtime::routing_telemetry::OrchestratorTaskRoutingReasonV1::new(
+            let reason = vox_actor_runtime::routing_telemetry::OrchestratorTaskRoutingReasonV1::new(
                 format!("{:?}", task.task_category),
                 task.estimated_complexity,
                 usage_provider.clone(),
@@ -242,15 +242,15 @@ impl TaskProcessor for AiTaskProcessor {
                 routed.is_some(),
                 format!("{:?}", cost_pref),
                 ludus_fallback,
-                vox_runtime::routing_telemetry::unified_routing_rollout_enabled(),
-                vox_runtime::route_capability_policy::RouteCapabilityPolicySnapshot::from_env()
+                vox_actor_runtime::routing_telemetry::unified_routing_rollout_enabled(),
+                vox_actor_runtime::route_capability_policy::RouteCapabilityPolicySnapshot::from_env()
                     .profile
                     .clone(),
                 Vec::new(),
                 task.id.0,
             );
             let reason_s = reason
-                .to_json_bounded(vox_runtime::routing_telemetry::ROUTING_REASON_JSON_MAX_BYTES);
+                .to_json_bounded(vox_actor_runtime::routing_telemetry::ROUTING_REASON_JSON_MAX_BYTES);
             if let Err(e) = db
                 .record_routing_decision(
                     None::<&str>,
@@ -439,7 +439,7 @@ impl TaskProcessor for AiTaskProcessor {
 /// Actor process wrapping an `AgentQueue`.
 ///
 /// Converts a reactive orchestrator queue into an active background worker
-/// using `vox-runtime` actor primitives.
+/// using `vox-actor-runtime` actor primitives.
 pub struct ActorAgent {
     /// Agent id managed by this process.
     pub agent_id: AgentId,
@@ -465,7 +465,7 @@ impl ActorAgent {
                 // Wait for commands
                 let msg = ctx.receive().await;
                 if let Some(envelope) = msg {
-                    if let vox_runtime::mailbox::Envelope::Message(msg) = envelope {
+                    if let vox_actor_runtime::mailbox::Envelope::Message(msg) = envelope {
                         if let MessagePayload::Json(json_data) = msg.payload {
                             if let Ok(cmd) = serde_json::from_str::<AgentCommand>(&json_data) {
                                 Self::handle_command(cmd, agent_id, &orchestrator, &processor)
@@ -812,7 +812,7 @@ impl AgentFleet {
 /// Disable with **`VOX_MCP_AGENT_FLEET`**=`0`, `false`, `no`, or `off`.
 #[must_use]
 pub fn agent_fleet_env_enabled() -> bool {
-    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpAgentFleet).expose() {
+    match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpAgentFleet).expose() {
         Some(v) => {
             let v = v.trim();
             if v.is_empty() {

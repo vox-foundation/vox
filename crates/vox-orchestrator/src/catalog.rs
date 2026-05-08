@@ -538,7 +538,7 @@ impl AnthropicDirectCatalog {
 #[async_trait::async_trait]
 impl ModelCatalog for AnthropicDirectCatalog {
     async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
-        let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey)
+        let api_key = vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicApiKey)
             .expose()
             .map(|s| s.to_string());
         let Some(key) = api_key else {
@@ -646,7 +646,7 @@ impl GoogleDirectCatalog {
 #[async_trait::async_trait]
 impl ModelCatalog for GoogleDirectCatalog {
     async fn refresh(&self) -> Result<Vec<ModelSpec>, anyhow::Error> {
-        let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+        let api_key = vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey)
             .expose()
             .map(|s| s.to_string());
         let Some(key) = api_key else {

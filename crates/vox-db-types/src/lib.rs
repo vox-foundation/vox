@@ -1,0 +1,23 @@
+//! # vox-db-types — Pure data types for [`vox-db`](../vox_db/index.html)
+//!
+//! Lightweight crate holding parameter and row structs used by the `vox-db` facade.
+//! Consumers that only need types (not connection-bearing operations) can depend on
+//! this crate to avoid pulling in `turso` and other heavy operational deps.
+//!
+//! `vox-db` re-exports everything here for back-compat: `vox_db::SaveSnippetParams`
+//! resolves the same as `vox_db_types::SaveSnippetParams`.
+
+#![allow(clippy::collapsible_if)]
+#![allow(missing_docs)] // many types here have crate-level docs in vox-db
+
+/// Parameters for [`crate::EvalRunParams`] (RLHF / dogfood eval-run recording).
+pub mod eval_params;
+pub use eval_params::EvalRunParams;
+
+/// Request parameters, row shapes, and MENS observation/training types
+/// (formerly `vox_db::store::types::*`).
+pub mod store_types;
+pub use store_types::*;
+
+/// Alias kept for back-compat (`vox_db::MemoryParams`).
+pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>;

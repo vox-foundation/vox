@@ -63,26 +63,26 @@ async fn synthesized_plan_nodes(
                     goal,
                     &depth_str,
                     |sys, user| {
-                        let sys_msg = vox_runtime::llm::LlmChatMessage {
+                        let sys_msg = vox_actor_runtime::llm::LlmChatMessage {
                             role: "system".into(),
                             content: sys.into(),
                         };
-                        let user_msg = vox_runtime::llm::LlmChatMessage {
+                        let user_msg = vox_actor_runtime::llm::LlmChatMessage {
                             role: "user".into(),
                             content: user.into(),
                         };
                         let cfg_clone = llm_cfg.clone();
                         async move {
-                            let opts = vox_runtime::ActivityOptions::new().with_timeout_secs(45);
-                            match vox_runtime::llm::llm_chat(
+                            let opts = vox_actor_runtime::ActivityOptions::new().with_timeout_secs(45);
+                            match vox_actor_runtime::llm::llm_chat(
                                 &opts,
                                 vec![sys_msg, user_msg],
                                 cfg_clone,
                             )
                             .await
                             {
-                                vox_runtime::ActivityResult::Ok(Ok(res)) => Ok(res.content),
-                                vox_runtime::ActivityResult::Ok(Err(e)) => Err(e),
+                                vox_actor_runtime::ActivityResult::Ok(Ok(res)) => Ok(res.content),
+                                vox_actor_runtime::ActivityResult::Ok(Err(e)) => Err(e),
                                 _ => Err("activity_failed".to_string()),
                             }
                         }

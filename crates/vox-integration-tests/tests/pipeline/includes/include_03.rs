@@ -165,7 +165,7 @@ fn pipeline_multi_route_rust_codegen() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    let output = vox_compiler::codegen_rust::generate(&hir, "multi_route_app").unwrap();
+    let output = vox_codegen::codegen_rust::generate(&hir, "multi_route_app").unwrap();
     let main_rs = output.files.get("src/main.rs").expect("main.rs");
     insta::assert_snapshot!("multi_route_rust_main_rs_emit", main_rs);
 }
@@ -173,7 +173,7 @@ fn pipeline_multi_route_rust_codegen() {
 /// `@endpoint(kind: query)` plus Path C components → Web IR summary (OP-0181).
 #[test]
 fn pipeline_web_ir_lower_summary_counts_http_and_classic() {
-    use vox_compiler::web_ir::lower::lower_hir_to_web_ir_with_summary;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary;
 
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).expect("multi_route");
@@ -196,8 +196,8 @@ fn pipeline_web_ir_lower_summary_counts_http_and_classic() {
 /// Chatbot Path C `component Chat` produces a `view_roots` entry and passes `validate_web_ir`.
 #[test]
 fn pipeline_chat_classic_web_ir_validate_clean() {
-    use vox_compiler::web_ir::lower::lower_hir_to_web_ir_with_summary;
-    use vox_compiler::web_ir::validate::validate_web_ir;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary;
+    use vox_codegen::web_ir::validate::validate_web_ir;
 
     let tokens = lex(CHATBOT_SRC);
     let module = parse(tokens).expect("chatbot parse");
@@ -219,7 +219,7 @@ fn pipeline_chat_classic_web_ir_validate_clean() {
     );
 }
 
-/// OP-S032: integration gate — AST [`vox_compiler::codegen_ts::jsx`] and HIR [`emit_hir`] share [`compat`] DOM edges.
+/// OP-S032: integration gate — AST [`vox_codegen::codegen_ts::jsx`] and HIR [`emit_hir`] share [`compat`] DOM edges.
 #[test]
 fn pipeline_compat_tag_gate_jsx_hir_emit_matrix() {
     let edges = [
@@ -229,10 +229,10 @@ fn pipeline_compat_tag_gate_jsx_hir_emit_matrix() {
     ];
     for (vox, react) in edges {
         assert_eq!(
-            vox_compiler::codegen_ts::hir_emit::map_jsx_attr_name(vox),
+            vox_codegen::codegen_ts::hir_emit::map_jsx_attr_name(vox),
             react
         );
-        assert_eq!(vox_compiler::codegen_ts::jsx::map_jsx_attr_name(vox), react);
+        assert_eq!(vox_codegen::codegen_ts::jsx::map_jsx_attr_name(vox), react);
     }
 }
 
@@ -242,7 +242,7 @@ fn pipeline_express_contract_mapper_fixture_validates_multi_route_hir() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    vox_compiler::codegen_ts::routes::validate_express_route_emit_input(&hir)
+    vox_codegen::codegen_ts::routes::validate_express_route_emit_input(&hir)
         .expect("MULTI_ROUTE_SRC express validation");
     assert!(
         hir.endpoint_fns
@@ -256,14 +256,14 @@ fn pipeline_express_contract_mapper_fixture_validates_multi_route_hir() {
 /// OP-S036: route + component gate — Express validation, Web IR validate clean, `routes.manifest.ts` present.
 #[test]
 fn pipeline_route_component_express_and_web_ir_gate() {
-    use vox_compiler::web_ir::validate::validate_web_ir;
+    use vox_codegen::web_ir::validate::validate_web_ir;
 
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    vox_compiler::codegen_ts::routes::validate_express_route_emit_input(&hir).expect("express");
+    vox_codegen::codegen_ts::routes::validate_express_route_emit_input(&hir).expect("express");
     let (web, summary) =
-        vox_compiler::web_ir::lower::lower_hir_to_web_ir_with_summary(&hir);
+        vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary(&hir);
     assert!(
         summary.client_route_trees >= 1,
         "expected client route trees, got {summary:?}"

@@ -71,7 +71,7 @@ pub struct VastClient {
 impl VastClient {
     /// Construct using `VOX_VAST_API_KEY` environment variable.
     pub fn from_env(config: Arc<CloudProviderConfig>) -> anyhow::Result<Self> {
-        let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxVastApiKey)
+        let api_key = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxVastApiKey)
             .expose()
             .map(std::string::ToString::to_string)
             .ok_or_else(|| {
@@ -255,7 +255,7 @@ impl CloudProvider for VastClient {
         };
 
         let body = serde_json::json!({
-            "client_id": "vox-mens",
+            "client_id": "vox-ml-cli",
             "image": spec.image_tag,
             "disk": self.config.disk_gb,
             "runtype": "ssh",

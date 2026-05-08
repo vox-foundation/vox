@@ -253,7 +253,7 @@ pub fn auto_score_model(
         + f64::from(w.balance) * balance_bias
         + f64::from(w.mobile) * mobile_score(m);
 
-    let prefer_mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingPreferMesh)
+    let prefer_mesh = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingPreferMesh)
         .expose()
         .map(|s: &str| s.trim() == "true")
         .unwrap_or(false);
@@ -274,7 +274,7 @@ pub fn auto_score_model(
     #[cfg(feature = "populi-transport")]
     if m.provider_type == crate::models::ProviderType::PopuliMesh {
         if let Some(json) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshDonationPolicyJson).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshDonationPolicyJson).expose()
         {
             if let Ok(policy) = serde_json::from_str::<vox_mesh_types::WorkerDonationPolicy>(json) {
                 if policy.public_mesh_opt_in {

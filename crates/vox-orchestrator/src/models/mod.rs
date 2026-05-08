@@ -3,7 +3,7 @@ pub mod key_guard;
 mod registry;
 pub mod routing_table;
 pub mod scoring;
-pub(crate) mod spec;
+pub mod spec;
 #[cfg(test)]
 mod tests;
 

@@ -1,3 +1,5 @@
+//! Pure-types L0 leaf for the populi/mesh subsystem (a2a envelopes, donation policy, federation, kudos).
+
 pub mod a2a;
 pub mod donation_policy;
 pub mod federation;

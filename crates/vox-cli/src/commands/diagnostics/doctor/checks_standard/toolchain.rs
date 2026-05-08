@@ -87,15 +87,15 @@ pub async fn run(auto_heal: bool, checks: &mut Vec<Check>) {
         },
     });
 
-    let mesh_mode = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshMode)
+    let mesh_mode = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshMode)
         .expose()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "lan".to_string());
-    let mesh_token_set = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+    let mesh_token_set = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
         .expose()
         .is_some_and(|v| !v.trim().is_empty());
-    let mesh_scope_set = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+    let mesh_scope_set = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshScopeId)
         .expose()
         .is_some_and(|v| !v.trim().is_empty());
     checks.push(Check {

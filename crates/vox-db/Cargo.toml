@@ -5,14 +5,18 @@ edition.workspace = true
 
 [dependencies]
 vox-compiler = { workspace = true }
+vox-codegen = { workspace = true }
 vox-config.workspace = true
+vox-db-types = { workspace = true }
 vox-orchestrator-types = { workspace = true }
+vox-plugin-types = { workspace = true }
+async-trait = "0.1.89"
 turso = { workspace = true }
 tokio = { workspace = true }
 thiserror = { workspace = true }
 sha3 = { workspace = true }
 bincode = { workspace = true }
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 vox-repository = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

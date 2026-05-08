@@ -93,7 +93,7 @@ impl Orchestrator {
 
             #[cfg(feature = "runtime")]
             {
-                use vox_runtime::llm::{LlmChatMessage, LlmConfig, infer_with_retry};
+                use vox_actor_runtime::llm::{LlmChatMessage, LlmConfig, infer_with_retry};
 
                 let combined_evidence = research_results.join("\n\n");
 
@@ -101,7 +101,7 @@ impl Orchestrator {
                 // In production, this might map to a custom local inference server or an external expert model.
                 let config = LlmConfig::openrouter("anthropic/claude-3.5-sonnet:beta");
                 if let Some(_key) =
-                    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken).expose()
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken).expose()
                 {
                     // Overwrite if hitting internal mesh. For now, we fallback to standard LLM pipeline.
                     tracing::debug!("Using specific Lane G auth");
@@ -119,13 +119,13 @@ impl Orchestrator {
                 ];
 
                 match infer_with_retry(
-                    &vox_runtime::activity::ActivityOptions::default(),
+                    &vox_actor_runtime::activity::ActivityOptions::default(),
                     messages,
                     vec![config],
                 )
                 .await
                 {
-                    vox_runtime::ActivityResult::Ok(Ok((res, _cfg))) if !res.content.is_empty() => {
+                    vox_actor_runtime::ActivityResult::Ok(Ok((res, _cfg))) if !res.content.is_empty() => {
                         let text = res.content;
                         info!("Lane G synthesis completed successfully");
                         research_results.push(format!("[lane_g_synthesis] {}", text));

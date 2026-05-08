@@ -3332,7 +3332,7 @@ operations:
   handler_rust: null
 - surface: internal-binary
   path:
-  - vox-mens
+  - vox-ml-cli
   status: active
   latin_ns: null
   product_lane: null

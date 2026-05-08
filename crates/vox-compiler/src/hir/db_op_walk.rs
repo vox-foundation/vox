@@ -26,7 +26,7 @@ pub(crate) fn for_each_db_table_op_in_module(
     });
 }
 
-pub(crate) fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut(&HirExpr)) {
+pub fn for_each_hir_expr_in_module(module: &HirModule, f: &mut impl FnMut(&HirExpr)) {
     for fd in &module.functions {
         walk_stmts(&fd.body, f);
     }
@@ -77,7 +77,7 @@ fn walk_reactive_member_mut(member: &mut HirReactiveMember, f: &mut impl FnMut(&
     }
 }
 
-pub(crate) fn for_each_hir_expr_in_module_mut(
+pub fn for_each_hir_expr_in_module_mut(
     module: &mut HirModule,
     f: &mut impl FnMut(&mut HirExpr),
 ) {

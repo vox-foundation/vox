@@ -148,8 +148,8 @@ pub const ROUTE_SIMULATION_ENV_KEYS: &[&str] = &[
 
 impl PublisherConfig {
     #[inline]
-    fn syndication_secret(id: vox_clavis::SecretId) -> Option<String> {
-        vox_clavis::resolve_secret(id)
+    fn syndication_secret(id: vox_secrets::SecretId) -> Option<String> {
+        vox_secrets::resolve_secret(id)
             .expose()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
@@ -169,13 +169,13 @@ impl PublisherConfig {
         youtube_repo_root: Option<std::path::PathBuf>,
         site: NewsSiteConfig,
     ) -> Self {
-        let env_opt = |k: vox_clavis::SecretId| {
-            vox_clavis::resolve_secret(k)
+        let env_opt = |k: vox_secrets::SecretId| {
+            vox_secrets::resolve_secret(k)
                 .expose()
                 .map(|v| v.trim().to_string())
                 .filter(|v| !v.is_empty())
         };
-        let env_usize = |k: vox_clavis::SecretId| {
+        let env_usize = |k: vox_secrets::SecretId| {
             env_opt(k).and_then(|v| match v.parse::<usize>() {
                 Ok(n) => Some(n),
                 Err(_) => {
@@ -191,70 +191,70 @@ impl PublisherConfig {
         };
         Self {
             twitter_bearer_token: Self::syndication_secret(
-                vox_clavis::SecretId::VoxNewsTwitterBearer,
+                vox_secrets::SecretId::VoxNewsTwitterBearer,
             ),
             mastodon_domain: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialMastodonDomain,
+                vox_secrets::SecretId::VoxSocialMastodonDomain,
             ),
             mastodon_access_token: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialMastodonToken,
+                vox_secrets::SecretId::VoxSocialMastodonToken,
             ),
-            bluesky_handle: Self::syndication_secret(vox_clavis::SecretId::VoxSocialBlueskyHandle),
+            bluesky_handle: Self::syndication_secret(vox_secrets::SecretId::VoxSocialBlueskyHandle),
             bluesky_password: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialBlueskyPassword,
+                vox_secrets::SecretId::VoxSocialBlueskyPassword,
             ),
             linkedin_access_token: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialLinkedinAccessToken,
+                vox_secrets::SecretId::VoxSocialLinkedinAccessToken,
             ),
-            forge_token: Self::syndication_secret(vox_clavis::SecretId::ForgeToken),
+            forge_token: Self::syndication_secret(vox_secrets::SecretId::ForgeToken),
             open_collective_token: Self::syndication_secret(
-                vox_clavis::SecretId::VoxNewsOpenCollectiveToken,
+                vox_secrets::SecretId::VoxNewsOpenCollectiveToken,
             ),
             twitter_summary_margin_chars: env_usize(
-                vox_clavis::SecretId::VoxSocialTwitterSummaryMarginChars,
+                vox_secrets::SecretId::VoxSocialTwitterSummaryMarginChars,
             ),
             reddit_selfpost_summary_max: env_usize(
-                vox_clavis::SecretId::VoxSocialRedditSelfpostSummaryMax,
+                vox_secrets::SecretId::VoxSocialRedditSelfpostSummaryMax,
             ),
             reddit_client_id: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialRedditClientId,
+                vox_secrets::SecretId::VoxSocialRedditClientId,
             ),
             reddit_client_secret: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialRedditClientSecret,
+                vox_secrets::SecretId::VoxSocialRedditClientSecret,
             ),
             reddit_refresh_token: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialRedditRefreshToken,
+                vox_secrets::SecretId::VoxSocialRedditRefreshToken,
             ),
             reddit_user_agent: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialRedditUserAgent,
+                vox_secrets::SecretId::VoxSocialRedditUserAgent,
             ),
             youtube_client_id: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialYoutubeClientId,
+                vox_secrets::SecretId::VoxSocialYoutubeClientId,
             ),
             youtube_client_secret: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialYoutubeClientSecret,
+                vox_secrets::SecretId::VoxSocialYoutubeClientSecret,
             ),
             youtube_refresh_token: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialYoutubeRefreshToken,
+                vox_secrets::SecretId::VoxSocialYoutubeRefreshToken,
             ),
-            hacker_news_mode: env_opt(vox_clavis::SecretId::VoxSocialHnMode),
+            hacker_news_mode: env_opt(vox_secrets::SecretId::VoxSocialHnMode),
             youtube_default_category_id: env_opt(
-                vox_clavis::SecretId::VoxSocialYoutubeDefaultCategoryId,
+                vox_secrets::SecretId::VoxSocialYoutubeDefaultCategoryId,
             ),
-            twitter_text_chunk_max: env_usize(vox_clavis::SecretId::VoxNewsTwitterTextChunkMax),
+            twitter_text_chunk_max: env_usize(vox_secrets::SecretId::VoxNewsTwitterTextChunkMax),
             twitter_truncation_suffix: env_opt(
-                vox_clavis::SecretId::VoxNewsTwitterTruncationSuffix,
+                vox_secrets::SecretId::VoxNewsTwitterTruncationSuffix,
             ),
-            twitter_api_base: env_opt(vox_clavis::SecretId::VoxSocialTwitterApiBase),
-            linkedin_api_base: env_opt(vox_clavis::SecretId::VoxSocialLinkedinApiBase),
-            reddit_api_base: env_opt(vox_clavis::SecretId::VoxSocialRedditApiBase),
-            discord_webhook_url: env_opt(vox_clavis::SecretId::VoxSocialDiscordWebhook),
+            twitter_api_base: env_opt(vox_secrets::SecretId::VoxSocialTwitterApiBase),
+            linkedin_api_base: env_opt(vox_secrets::SecretId::VoxSocialLinkedinApiBase),
+            reddit_api_base: env_opt(vox_secrets::SecretId::VoxSocialRedditApiBase),
+            discord_webhook_url: env_opt(vox_secrets::SecretId::VoxSocialDiscordWebhook),
             linkedin_author_urn: Self::syndication_secret(
-                vox_clavis::SecretId::VoxSocialLinkedinAuthorUrn,
+                vox_secrets::SecretId::VoxSocialLinkedinAuthorUrn,
             ),
-            bluesky_pds_url: Self::syndication_secret(vox_clavis::SecretId::VoxSocialBlueskyPdsUrl),
+            bluesky_pds_url: Self::syndication_secret(vox_secrets::SecretId::VoxSocialBlueskyPdsUrl),
             open_collective_slug: Self::syndication_secret(
-                vox_clavis::SecretId::VoxNewsOpenCollectiveSlug,
+                vox_secrets::SecretId::VoxNewsOpenCollectiveSlug,
             ),
             youtube_repo_root,
             dry_run,

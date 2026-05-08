@@ -3,7 +3,7 @@
 //! Shared by MCP model resolution and CLI/model explain surfaces.
 
 use crate::models::{ModelSpec, ProviderType};
-use vox_runtime::route_capability_policy::{
+use vox_actor_runtime::route_capability_policy::{
     RouteCapabilityPolicySnapshot, exclusion_reason_for_llm_lane,
 };
 

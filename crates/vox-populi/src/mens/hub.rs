@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use hf_hub::api::tokio::Api;
 
 fn normalize_hf_token_env() {
-    let token_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken);
+    let token_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::HuggingFaceToken);
     let token = token_resolved.expose();
 
     if let Some(token) = token {
@@ -135,7 +135,7 @@ mod tests {
         }
         super::normalize_hf_token_env();
         assert_eq!(
-            vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::HuggingFaceToken)
                 .expose()
                 .expect("hub token"),
             "from-hf-only"
@@ -156,7 +156,7 @@ mod tests {
         }
         super::normalize_hf_token_env();
         assert_eq!(
-            vox_clavis::resolve_secret(vox_clavis::SecretId::HuggingFaceToken)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::HuggingFaceToken)
                 .expose()
                 .expect("hf token"),
             "from-hub-only"

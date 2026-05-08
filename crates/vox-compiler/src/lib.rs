@@ -11,10 +11,9 @@ pub mod app_contract;
 pub mod ast;
 pub mod ast_eval;
 pub mod builtin_registry;
-pub mod codegen_rust;
-pub mod codegen_shared;
-pub mod codegen_ts;
+pub mod canonical_json;
 pub mod contract_ir;
+pub mod lowering_shared;
 pub mod eval;
 pub mod fmt;
 pub mod generated_vox;
@@ -29,21 +28,17 @@ pub mod react_bridge;
 pub mod runtime_projection;
 pub mod rust_interop_support;
 pub mod serialization;
-pub mod syntax_k;
 pub mod tokens;
 pub mod typeck;
-pub mod vox_ir;
-pub mod web_ir;
-mod web_migration_env;
 pub mod web_prefixes;
 
 /// Re-export of common types if needed.
 pub use ast::decl::Module;
+/// Re-export parser-backed AST evaluation (replaces regex-based vox-eval constructs).
+pub use ast_eval::{AstEvalReport, ast_eval};
 pub use hir::{HirModule, TypedCoreIR_v2};
 pub use typeck::checker::Checker;
 
-/// Re-export parser-backed AST evaluation (replaces regex-based vox-eval constructs).
-pub use ast_eval::{AstEvalReport, ast_eval};
 /// Re-export the canonical formatter so callers use `vox_compiler::format(src)`.
 pub use fmt::format;
 /// Re-export canonical compact serializer for deterministic `.vox` output.

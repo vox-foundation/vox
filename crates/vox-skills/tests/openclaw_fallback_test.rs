@@ -1,4 +1,4 @@
-use vox_skills::ars_shim::manifest::{SkillKind, TrustLevel};
+use vox_openclaw_runtime::manifest::{SkillKind, TrustLevel};
 use vox_skills::sandbox::fallback::{FallbackError, OpenClawSidecarSandbox};
 use vox_skills::sandbox::{SandboxPolicy, resolve_policy};
 
@@ -31,15 +31,15 @@ async fn test_openclaw_fallback_connection_failure() {
 async fn test_execute_skill_deny_by_default() {
     use serde_json::json;
     use std::sync::Arc;
-    use vox_skills::ars_shim::domain::ArsSkill;
-    use vox_skills::ars_shim::runtime::{ArsRuntime, ArsRuntimeError};
+    use vox_openclaw_runtime::domain::ArsSkill;
+    use vox_openclaw_runtime::runtime::{ArsRuntime, ArsRuntimeError};
 
     let db = Arc::new(
         vox_db::VoxDb::connect(vox_db::DbConfig::Memory)
             .await
             .unwrap(),
     );
-    let hooks = Arc::new(vox_skills::ars_shim::hooks::HookRegistry::new());
+    let hooks = Arc::new(vox_openclaw_runtime::hooks::HookRegistry::new());
     let runtime = ArsRuntime::new(db, hooks);
 
     let skill = ArsSkill {
@@ -51,9 +51,9 @@ async fn test_execute_skill_deny_by_default() {
         description: None,
         author: None,
         body: None,
-        kind: vox_skills::ars_shim::manifest::SkillKind::Tool,
-        trust: vox_skills::ars_shim::manifest::TrustLevel::Trusted,
-        resource_limits: vox_skills::ars_shim::manifest::ResourceLimits::default(),
+        kind: vox_openclaw_runtime::manifest::SkillKind::Tool,
+        trust: vox_openclaw_runtime::manifest::TrustLevel::Trusted,
+        resource_limits: vox_openclaw_runtime::manifest::ResourceLimits::default(),
         metadata: json!({
             "requested_secrets": ["FAKE_UNATHORIZED_KEY"]
         }),

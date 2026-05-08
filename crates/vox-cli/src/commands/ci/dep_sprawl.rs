@@ -30,14 +30,14 @@ pub fn run(root: &Path, cap: usize) -> Result<()> {
     let frozen_core = vec![
         "vox-compiler",
         "vox-cli",
-        "vox-runtime",
+        "vox-actor-runtime",
         "vox-db",
-        "vox-clavis",
+        "vox-secrets",
         "vox-orchestrator",
         "vox-populi",
-        "vox-mens",
+        "vox-ml-cli",
         "vox-dei",
-        "vox-ludus",
+        "vox-gamify",
     ];
 
     for pkg in packages {

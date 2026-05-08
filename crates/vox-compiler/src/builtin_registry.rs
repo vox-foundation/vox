@@ -17,7 +17,7 @@ pub struct BuiltinRegistryEntry {
     pub name: &'static str,
     pub arg_count: usize,
     pub signature: &'static str,
-    /// Fully-qualified runtime function symbol, if implemented by `vox-runtime`.
+    /// Fully-qualified runtime function symbol, if implemented by `vox-actor-runtime`.
     pub runtime_symbol: Option<&'static str>,
     /// Non-empty when arguments are not all `str` (must match [`Self::arg_count`]).
     pub arg_kinds: &'static [BuiltinArgKind],
@@ -72,7 +72,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "uuid",
             arg_count: 0,
             signature: "fn() -> str",
-            runtime_symbol: Some("vox_runtime::builtins::vox_uuid"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_uuid"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -81,7 +81,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "now_ms",
             arg_count: 0,
             signature: "fn() -> int",
-            runtime_symbol: Some("vox_runtime::builtins::vox_now_ms"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_now_ms"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -90,7 +90,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "hash_fast",
             arg_count: 1,
             signature: "fn(str) -> str",
-            runtime_symbol: Some("vox_runtime::builtins::vox_hash_fast"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_hash_fast"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -99,7 +99,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "hash_secure",
             arg_count: 1,
             signature: "fn(str) -> str",
-            runtime_symbol: Some("vox_runtime::builtins::vox_hash_secure"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_hash_secure"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -108,7 +108,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "get_text",
             arg_count: 1,
             signature: "fn(str) -> Result[str]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_http_get_text"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_http_get_text"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -117,7 +117,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "post_json",
             arg_count: 2,
             signature: "fn(str, str) -> Result[str]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_http_post_json"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_http_post_json"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -126,7 +126,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "list_skills",
             arg_count: 0,
             signature: "fn() -> Result[str]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_openclaw_list_skills"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_openclaw_list_skills"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -135,7 +135,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "call",
             arg_count: 2,
             signature: "fn(str, str) -> Result[str]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_openclaw_call"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_openclaw_call"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -144,7 +144,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "subscribe",
             arg_count: 1,
             signature: "fn(str) -> Result[str]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_openclaw_subscribe"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_openclaw_subscribe"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -153,7 +153,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "unsubscribe",
             arg_count: 1,
             signature: "fn(str) -> Result[str]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_openclaw_unsubscribe"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_openclaw_unsubscribe"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -162,7 +162,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "notify",
             arg_count: 2,
             signature: "fn(str, str) -> Result[str]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_openclaw_notify"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_openclaw_notify"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -172,7 +172,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "open",
             arg_count: 2,
             signature: "fn(str, bool) -> Result[str]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_browser_open"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_browser_open"),
             arg_kinds: &[BuiltinArgKind::Str, BuiltinArgKind::Bool],
             returns_unit: false,
         },
@@ -181,7 +181,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "close",
             arg_count: 1,
             signature: "fn(str) -> Result[unit]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_browser_close"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_browser_close"),
             arg_kinds: &[],
             returns_unit: true,
         },
@@ -190,7 +190,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "goto",
             arg_count: 2,
             signature: "fn(str, str) -> Result[unit]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_browser_goto"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_browser_goto"),
             arg_kinds: &[],
             returns_unit: true,
         },
@@ -199,7 +199,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "click",
             arg_count: 2,
             signature: "fn(str, str) -> Result[unit]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_browser_click"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_browser_click"),
             arg_kinds: &[],
             returns_unit: true,
         },
@@ -208,7 +208,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "fill",
             arg_count: 3,
             signature: "fn(str, str, str) -> Result[unit]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_browser_fill"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_browser_fill"),
             arg_kinds: &[],
             returns_unit: true,
         },
@@ -217,7 +217,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "wait_for",
             arg_count: 3,
             signature: "fn(str, str, int) -> Result[unit]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_browser_wait_for"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_browser_wait_for"),
             arg_kinds: &[
                 BuiltinArgKind::Str,
                 BuiltinArgKind::Str,
@@ -230,7 +230,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "text",
             arg_count: 2,
             signature: "fn(str, str) -> Result[str]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_browser_text"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_browser_text"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -239,7 +239,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "html",
             arg_count: 2,
             signature: "fn(str, str) -> Result[str]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_browser_html"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_browser_html"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -248,7 +248,7 @@ pub fn builtin_registry_entries() -> &'static [BuiltinRegistryEntry] {
             name: "screenshot",
             arg_count: 2,
             signature: "fn(str, str) -> Result[str]",
-            runtime_symbol: Some("vox_runtime::builtins::vox_browser_screenshot"),
+            runtime_symbol: Some("vox_actor_runtime::builtins::vox_browser_screenshot"),
             arg_kinds: &[],
             returns_unit: false,
         },
@@ -573,37 +573,37 @@ pub fn std_namespace_runtime_call(
 ) -> Option<String> {
     match (namespace, method) {
         ("crypto", "hash_fast") if !args.is_empty() => Some(format!(
-            "vox_runtime::builtins::vox_hash_fast(&{})",
+            "vox_actor_runtime::builtins::vox_hash_fast(&{})",
             args[0]
         )),
         ("crypto", "hash_secure") if !args.is_empty() => Some(format!(
-            "vox_runtime::builtins::vox_hash_secure(&{})",
+            "vox_actor_runtime::builtins::vox_hash_secure(&{})",
             args[0]
         )),
-        ("crypto", "uuid") => Some("vox_runtime::builtins::vox_uuid()".to_string()),
-        ("time", "now_ms") => Some("vox_runtime::builtins::vox_now_ms()".to_string()),
+        ("crypto", "uuid") => Some("vox_actor_runtime::builtins::vox_uuid()".to_string()),
+        ("time", "now_ms") => Some("vox_actor_runtime::builtins::vox_now_ms()".to_string()),
         ("log", "debug") if !args.is_empty() => Some(format!(
-            "vox_runtime::builtins::vox_log_debug(({}).as_str())",
+            "vox_actor_runtime::builtins::vox_log_debug(({}).as_str())",
             args[0]
         )),
         ("log", "info") if !args.is_empty() => Some(format!(
-            "vox_runtime::builtins::vox_log_info(({}).as_str())",
+            "vox_actor_runtime::builtins::vox_log_info(({}).as_str())",
             args[0]
         )),
         ("log", "warn") if !args.is_empty() => Some(format!(
-            "vox_runtime::builtins::vox_log_warn(({}).as_str())",
+            "vox_actor_runtime::builtins::vox_log_warn(({}).as_str())",
             args[0]
         )),
         ("log", "error") if !args.is_empty() => Some(format!(
-            "vox_runtime::builtins::vox_log_error(({}).as_str())",
+            "vox_actor_runtime::builtins::vox_log_error(({}).as_str())",
             args[0]
         )),
         ("fs", "read") if !args.is_empty() => Some(format!(
-            "::vox_runtime::builtins::vox_fs_read(({}).as_str())",
+            "::vox_actor_runtime::builtins::vox_fs_read(({}).as_str())",
             args[0]
         )),
         ("fs", "write") if args.len() >= 2 => Some(format!(
-            "::vox_runtime::builtins::vox_fs_write(({}).as_str(), ({}).as_str())",
+            "::vox_actor_runtime::builtins::vox_fs_write(({}).as_str(), ({}).as_str())",
             args[0], args[1]
         )),
         ("fs", "exists") if !args.is_empty() => {
@@ -632,7 +632,7 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("fs", "glob") if !args.is_empty() => Some(format!(
-            "::vox_runtime::builtins::vox_fs_glob(({}).as_str())",
+            "::vox_actor_runtime::builtins::vox_fs_glob(({}).as_str())",
             args[0]
         )),
         ("path", "join") if args.len() >= 2 => Some(format!(
@@ -652,90 +652,90 @@ pub fn std_namespace_runtime_call(
             args[0]
         )),
         ("env", "get") if !args.is_empty() => Some(format!(
-            "(vox_runtime::builtins::vox_env_get(({}).as_str()))",
+            "(vox_actor_runtime::builtins::vox_env_get(({}).as_str()))",
             args[0]
         )),
         ("process", "which") if !args.is_empty() => Some(format!(
-            "(vox_runtime::builtins::vox_process_which(({}).as_str()))",
+            "(vox_actor_runtime::builtins::vox_process_which(({}).as_str()))",
             args[0]
         )),
         ("process", "run") if args.len() >= 2 => Some(format!(
-            "(match vox_runtime::builtins::vox_process_run(({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_run(({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Error(m) }})",
             args[0], args[1]
         )),
         ("process", "run_ex") if args.len() >= 4 => Some(format!(
-            "(match vox_runtime::builtins::vox_process_run_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_run_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(c) => Ok(c as i64), Err(m) => Error(m) }})",
             args[0], args[1], args[2], args[3]
         )),
         ("process", "run_capture") if args.len() >= 2 => Some(format!(
-            "(match vox_runtime::builtins::vox_process_run_capture(({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_run_capture(({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
             args[0], args[1]
         )),
         ("process", "run_capture_ex") if args.len() >= 4 => Some(format!(
-            "(match vox_runtime::builtins::vox_process_run_capture_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_run_capture_ex(({}).as_str(), {}.as_slice(), ({}).as_str(), {}.as_slice()) {{ Ok(p) => Ok(serde_json::json!({{ \"exit\": p.exit as i64, \"stdout\": p.stdout, \"stderr\": p.stderr }})), Err(m) => Error(m) }})",
             args[0], args[1], args[2], args[3]
         )),
         ("process", "spawn_background") if args.len() >= 2 => Some(format!(
-            "(match vox_runtime::builtins::vox_process_spawn_background(({}).as_str(), {}.as_slice()) {{ Ok(id) => Ok(id), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_spawn_background(({}).as_str(), {}.as_slice()) {{ Ok(id) => Ok(id), Err(m) => Error(m) }})",
             args[0], args[1]
         )),
         ("process", "exec") if args.len() >= 2 => Some(format!(
-            "(match vox_runtime::builtins::vox_process_exec(({}).as_str(), {}.as_slice()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_exec(({}).as_str(), {}.as_slice()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
             args[0], args[1]
         )),
         ("process", "register_exit_command") if args.len() >= 2 => Some(format!(
-            "(match vox_runtime::builtins::vox_process_register_exit_command(({}).as_str(), {}.as_slice()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_process_register_exit_command(({}).as_str(), {}.as_slice()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
             args[0], args[1]
         )),
         ("process", "exit") if !args.is_empty() => {
             Some(format!("{{ std::process::exit({} as i32) }}", args[0]))
         }
         ("fs", "list_dir") if !args.is_empty() => Some(format!(
-            "(match vox_runtime::builtins::vox_list_dir(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_list_dir(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
             args[0]
         )),
         ("fs", "glob") if !args.is_empty() => Some(format!(
-            "(match vox_runtime::builtins::vox_fs_glob(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_fs_glob(({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
             args[0]
         )),
         ("fs", "remove_dir_all") if !args.is_empty() => Some(format!(
-            "(match vox_runtime::builtins::vox_fs_remove_dir_all(({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_fs_remove_dir_all(({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
             args[0]
         )),
         ("fs", "copy") if args.len() >= 2 => Some(format!(
-            "(match vox_runtime::builtins::vox_fs_copy(({}).as_str(), ({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_fs_copy(({}).as_str(), ({}).as_str()) {{ Ok(()) => Ok(()), Err(m) => Error(m) }})",
             args[0], args[1]
         )),
         ("path", "join_many") if !args.is_empty() => Some(format!(
-            "vox_runtime::builtins::vox_path_join_many({}.as_slice())",
+            "vox_actor_runtime::builtins::vox_path_join_many({}.as_slice())",
             args[0]
         )),
         ("json", "read_str") if args.len() >= 2 => Some(format!(
-            "(match vox_runtime::builtins::vox_json_read_str(({}).as_str(), ({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_json_read_str(({}).as_str(), ({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }})",
             args[0], args[1]
         )),
         ("json", "read_f64") if args.len() >= 2 => Some(format!(
-            "(match vox_runtime::builtins::vox_json_read_f64(({}).as_str(), ({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_json_read_f64(({}).as_str(), ({}).as_str()) {{ Ok(v) => Ok(v), Err(m) => Error(m) }})",
             args[0], args[1]
         )),
         ("json", "quote") if !args.is_empty() => Some(format!(
-            "vox_runtime::builtins::vox_json_quote(({}).as_str())",
+            "vox_actor_runtime::builtins::vox_json_quote(({}).as_str())",
             args[0]
         )),
         ("http", "get_text") if !args.is_empty() => Some(format!(
-            "({{ #[cfg(target_arch = \"wasm32\")] {{ Error(\"std.http.get_text is not supported in WASI scripts\".to_string()) }} #[cfg(not(target_arch = \"wasm32\"))] {{ match vox_runtime::builtins::vox_http_get_text(({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }} }} }})",
+            "({{ #[cfg(target_arch = \"wasm32\")] {{ Error(\"std.http.get_text is not supported in WASI scripts\".to_string()) }} #[cfg(not(target_arch = \"wasm32\"))] {{ match vox_actor_runtime::builtins::vox_http_get_text(({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }} }} }})",
             args[0]
         )),
         ("http", "post_json") if args.len() >= 2 => Some(format!(
-            "({{ #[cfg(target_arch = \"wasm32\")] {{ Error(\"std.http.post_json is not supported in WASI scripts\".to_string()) }} #[cfg(not(target_arch = \"wasm32\"))] {{ match vox_runtime::builtins::vox_http_post_json(({}).as_str(), ({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }} }} }})",
+            "({{ #[cfg(target_arch = \"wasm32\")] {{ Error(\"std.http.post_json is not supported in WASI scripts\".to_string()) }} #[cfg(not(target_arch = \"wasm32\"))] {{ match vox_actor_runtime::builtins::vox_http_post_json(({}).as_str(), ({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }} }} }})",
             args[0], args[1]
         )),
         ("regex", "compile") if !args.is_empty() => Some(format!(
-            "(match vox_runtime::builtins::vox_regex_compile(({}).as_str()) {{ Ok(r) => Ok(r), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_regex_compile(({}).as_str()) {{ Ok(r) => Ok(r), Err(m) => Error(m) }})",
             args[0]
         )),
         ("json", "parse") if !args.is_empty() => Some(format!(
-            "(match vox_runtime::builtins::vox_json_parse(({}).as_str()) {{ Ok(j) => Ok(j), Err(m) => Error(m) }})",
+            "(match vox_actor_runtime::builtins::vox_json_parse(({}).as_str()) {{ Ok(j) => Ok(j), Err(m) => Error(m) }})",
             args[0]
         )),
         _ => None,
@@ -763,7 +763,7 @@ mod browser_registry_tests {
                 .runtime_symbol
                 .unwrap_or_else(|| panic!("Browser.{} missing runtime_symbol", e.name));
             assert!(
-                sym.starts_with("vox_runtime::builtins::vox_browser_"),
+                sym.starts_with("vox_actor_runtime::builtins::vox_browser_"),
                 "unexpected symbol for Browser.{}: {sym}",
                 e.name
             );

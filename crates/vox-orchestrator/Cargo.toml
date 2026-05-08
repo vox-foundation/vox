@@ -8,27 +8,24 @@ edition.workspace = true
 default = [
     "toestub-gate",
     "runtime",
-    "news-publish",
     "json-schema",
-    "mcp-native",
 ]
 dashboard = ["dep:vox-dashboard"]
-mcp-native = ["dep:schemars"]
-# Populi HTTP mesh client (`vox-populi` transport). Disable for faster `cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate`.
-populi-transport = ["dep:vox-populi", "vox-populi/transport"]
+# Populi HTTP mesh client (`vox-populi` transport).
+populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
 # `vox-oratio` speech-to-text / refinement tools.
 oratio-rerank = ["dep:vox-oratio"]
-# `vox-publisher` syndication / scientia surfaces (`services::news`). Disable with `--no-default-features` slices.
+# `vox-publisher` syndication / scientia surfaces.
 news-publish = [
     "dep:vox-publisher",
     "vox-publisher/scientia-reddit",
     "vox-publisher/scientia-youtube",
     "vox-publisher/scholarly-external-jobs",
 ]
-# `TaskCapabilityHints` JSON Schema for MCP tool registration (`vox-mcp` enables this).
-json-schema = ["mcp-native", "vox-repository/json-schema"]
-runtime = ["vox-runtime", "vox-populi/mens"]
-toestub-gate = ["vox-toestub", "vox-lsp", "dep:tower-lsp-server", "dep:tower-lsp"]
+# JSON Schema generation for repository types (consumed by vox-orchestrator-mcp).
+json-schema = ["vox-repository/json-schema"]
+runtime = ["vox-actor-runtime", "vox-populi/mens"]
+toestub-gate = ["vox-code-audit", "vox-lsp", "dep:tower-lsp-server", "dep:tower-lsp"]
 lsp = ["dep:tower-lsp-server"]
 system-metrics = ["dep:sysinfo"]
 # Enable jj-lib as VCS backend. Pure Rust, no C. Pin to exact version for stability.
@@ -39,7 +36,6 @@ jj-backend = ["dep:jj-lib"]
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-schemars = { workspace = true, optional = true, features = ["derive"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
@@ -47,12 +43,8 @@ reqwest = { workspace = true, features = ["json"] }
 vox-reqwest-defaults.workspace = true
 globset = "0.4"
 toml = { workspace = true }
-vox-pm.workspace = true
-vox-ludus = { workspace = true }
-vox-skills = { workspace = true }
-vox-ars = { workspace = true }
-vox-plugin-host = { workspace = true }
-vox-plugin-api = { workspace = true }
+vox-package.workspace = true
+vox-gamify = { workspace = true }
 dirs = { workspace = true }
 parking_lot = "0.12"
 futures-util = { workspace = true }
@@ -67,16 +59,16 @@ getrandom = "0.2"
 vox-crypto.workspace = true
 
 # Optional dependencies behind feature flags
-vox-runtime = { workspace = true, optional = true }
-vox-toestub = { workspace = true, optional = true }
+vox-actor-runtime = { workspace = true, optional = true }
+vox-code-audit = { workspace = true, optional = true }
 vox-lsp = { workspace = true, optional = true }
 tower-lsp = { version = "0.20", optional = true }
 tower-lsp-server = { version = "0.23", optional = true }
 vox-db.workspace = true
 vox-search.workspace = true
 vox-orchestrator-types.workspace = true
+vox-orchestrator-queue.workspace = true
 vox-config.workspace = true
-vox-eval.workspace = true
 vox-repository.workspace = true
 vox-dashboard = { workspace = true, optional = true }
 vox-populi = { path = "../vox-populi", optional = true, default-features = false }
@@ -84,47 +76,33 @@ vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = "0.1.89"
 anyhow.workspace = true
 serde_yaml.workspace = true
-vox-mcp-registry.workspace = true
-vox-capability-registry.workspace = true
 vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
-rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
-axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
-tower-http = { workspace = true, features = ["cors"] }
-vox-grammar-export.workspace = true
-axum-extra = { version = "0.12.5", features = ["typed-header"] }
 regex = "1"
 vox-corpus = { workspace = true, features = ["database"] }
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.
 # See src/jj_backend.rs for the isolation wrapper. Use `--features jj-backend` to enable.
 jj-lib = { version = "=0.27.0", optional = true, default-features = false }
 uuid = { version = "1.22.0", features = ["v4"] }
-turso.workspace = true
 chrono = { workspace = true }
 walkdir.workspace = true
 vox-bounded-fs.workspace = true
 vox-protocol.workspace = true
-aes-gcm = "0.10.3"
+aes-gcm = { version = "0.10.3", optional = true }
 rand.workspace = true
 base64.workspace = true
-vox-clavis.workspace = true
+vox-secrets.workspace = true
 vox-mesh-types.workspace = true
 blake3.workspace = true
 crossbeam-queue = "0.3.12"
 workspace-hack = { workspace = true }
-vox-compiler.workspace = true
 glob.workspace = true
 ignore = "0.4.25"
-rmp-serde = { workspace = true }
 rand_distr = "0.4"
-vox-openai-wire.workspace = true
 async-stream.workspace = true
-vox-project-scaffold.workspace = true
 tempfile.workspace = true
 
-[[bin]]
-name = "vox-orchestrator-d"
-path = "src/bin/vox_orchestrator_d.rs"
+# Daemon binary moved to crates/vox-orchestrator-d/ in 2026-05-08 reorg Phase 4.
 
 [build-dependencies]
 serde_yaml = { workspace = true }
@@ -134,7 +112,7 @@ serde = { workspace = true, features = ["derive"] }
 proptest = "1.10.0"
 serial_test = { workspace = true }
 tempfile = { workspace = true }
-vox-runtime = { workspace = true }
+vox-actor-runtime = { workspace = true }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
 tower = { version = "0.5", features = ["util"] }

@@ -5,7 +5,7 @@
 /// Query available GPU VRAM in GiB.
 pub fn get_system_vram_gb() -> Option<f32> {
     // Priority 1: env override
-    if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxVramOverrideGb).expose()
+    if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxVramOverrideGb).expose()
         && let Ok(gb) = v.parse::<f32>()
         && gb > 0.0
     {

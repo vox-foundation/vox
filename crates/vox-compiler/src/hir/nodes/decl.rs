@@ -267,7 +267,7 @@ pub struct HirFn {
     /// `@pure` — metadata for pipeline tooling (effect guarantees are not proven in HIR).
     #[serde(default)]
     pub is_pure: bool,
-    /// `@reactive` — opt-in marker that authorizes [`crate::codegen_ts::hir_emit::state_deps`]
+    /// `@reactive` — opt-in marker that authorizes `vox_codegen::codegen_ts::hir_emit::state_deps`
     /// to recurse into this function's body when computing reactive dependencies for a
     /// caller's `derived` / `effect`. Without it, the dep walker stops at the call site.
     #[serde(default)]

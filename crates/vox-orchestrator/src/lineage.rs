@@ -1,7 +1,7 @@
 //! Repository discovery for VoxDb lineage rows (orchestrator ↔ workspace SSOT).
 
 use std::path::PathBuf;
-use vox_clavis::{SecretId, resolve_secret};
+use vox_secrets::{SecretId, resolve_secret};
 
 /// When `VOX_ORCH_LINEAGE_OFF` is truthy, skip `orchestration_lineage_events` writes (rollback toggle).
 pub(crate) fn orchestration_lineage_persist_enabled() -> bool {

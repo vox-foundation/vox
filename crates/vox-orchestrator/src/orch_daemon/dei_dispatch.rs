@@ -218,14 +218,14 @@ async fn handle_ai_check(id: &str, params: &Value) -> DispatchResponse {
     } else {
         path.as_path()
     };
-    let cfg = vox_toestub::ToestubConfig {
+    let cfg = vox_code_audit::ToestubConfig {
         roots: vec![root.to_path_buf()],
-        min_severity: vox_toestub::Severity::Info,
-        format: vox_toestub::OutputFormat::Json,
-        run_mode: vox_toestub::ToestubRunMode::Audit,
+        min_severity: vox_code_audit::Severity::Info,
+        format: vox_code_audit::OutputFormat::Json,
+        run_mode: vox_code_audit::ToestubRunMode::Audit,
         ..Default::default()
     };
-    let engine = vox_toestub::ToestubEngine::new(cfg);
+    let engine = vox_code_audit::ToestubEngine::new(cfg);
     let res = engine.run();
     let findings: Vec<Value> = res
         .findings
@@ -265,7 +265,7 @@ async fn handle_ai_fix(id: &str, params: &Value) -> DispatchResponse {
     let prompt = format!(
         "Fix the following source file. Path: {path}\n\nCompiler/linter output:\n{err_blob}\n\nSource:\n{code}\n\nReturn only the corrected full file contents, no markdown fences."
     );
-    let client = vox_ludus::ai::FreeAiClient::auto_discover().await;
+    let client = vox_gamify::ai::FreeAiClient::auto_discover().await;
     match client.generate(&prompt).await {
         Ok(text) => response_result(id, json!({ "fixed": text, "path": path })),
         Err(e) => response_err(id, format!("{e}")),
@@ -278,7 +278,7 @@ async fn handle_ai_review(id: &str, params: &Value) -> DispatchResponse {
     let prompt = format!(
         "Review this change. Path: {path}\n\nDiff or excerpt:\n{diff}\n\nSummarize risks and testing gaps in <= 20 lines."
     );
-    let client = vox_ludus::ai::FreeAiClient::auto_discover().await;
+    let client = vox_gamify::ai::FreeAiClient::auto_discover().await;
     match client.generate(&prompt).await {
         Ok(text) => response_result(id, json!({ "review": text })),
         Err(e) => response_err(id, format!("{e}")),
@@ -290,7 +290,7 @@ async fn handle_ai_generate(id: &str, params: &Value) -> DispatchResponse {
         Some(p) if !p.is_empty() => p,
         _ => return response_err(id, "params.prompt required"),
     };
-    let client = vox_ludus::ai::FreeAiClient::auto_discover().await;
+    let client = vox_gamify::ai::FreeAiClient::auto_discover().await;
     match client.generate(prompt).await {
         Ok(text) => response_result(id, json!({ "text": text })),
         Err(e) => response_err(id, format!("{e}")),

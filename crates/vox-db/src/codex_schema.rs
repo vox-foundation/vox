@@ -1,4 +1,4 @@
-//! Baseline-V1 schema readiness derived from the `vox-pm` manifest (capabilities, not numeric chains).
+//! Baseline-V1 schema readiness derived from the `vox-package` manifest (capabilities, not numeric chains).
 //!
 //! The Arca store records a single `schema_version` row (**1**) after baseline DDL; readiness checks
 //! required tables instead of comparing to historical V8…V15 numbers.

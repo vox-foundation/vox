@@ -725,7 +725,7 @@ impl crate::VoxDb {
         version: &str,
         artifact: &[u8],
     ) -> Result<String, StoreError> {
-        let hash = self.store("vox-pm-artifact", artifact).await?;
+        let hash = self.store("vox-package-artifact", artifact).await?;
         let name = name.to_string();
         let version = version.to_string();
         let h = hash.clone();

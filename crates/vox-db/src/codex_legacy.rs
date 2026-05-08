@@ -66,7 +66,7 @@ pub const PLANNED_CODEX_CLI: &[&str] = &[
 /// Documented import sources for future implementers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LegacyImportSource {
-    /// Current `vox-pm` / `VoxDb` dump.
+    /// Current `vox-package` / `VoxDb` dump.
     VoxPmSqliteTurso,
     /// Orchestrator file-first memory (`memory/*.md`, `MEMORY.md`).
     OrchestratorFileMemory,

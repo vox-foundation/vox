@@ -6,8 +6,6 @@
 //! Submodules carry detailed docs; the crate root re-exports stable types for embedders.
 #![allow(clippy::collapsible_if)]
 
-/// Compile-time and first-run installation of embedded skills.
-pub mod ars_shim;
 pub mod builtins;
 /// In-memory skill bundle (`VoxSkillBundle`) and JSON (de)serialization.
 pub mod bundle;

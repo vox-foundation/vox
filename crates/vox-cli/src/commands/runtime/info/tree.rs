@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
-use vox_pm::{Lockfile, VoxManifest};
+use vox_package::{Lockfile, VoxManifest};
 
 /// `vox tree` — display the dependency tree for the current project.
 pub fn run() -> Result<()> {

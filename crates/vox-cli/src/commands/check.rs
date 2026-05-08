@@ -28,7 +28,7 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
 
     if args.emit_ir {
         let vox_ir =
-            vox_compiler::vox_ir::lower::lower_hir_to_vox_ir(&result.hir, Some(&result.source));
+            vox_codegen::vox_ir::lower::lower_hir_to_vox_ir(&result.hir, Some(&result.source));
         let json_ir = serde_json::to_string_pretty(&vox_ir)?;
         let mut ir_path = file.clone();
         ir_path.set_extension("vox-ir.json");
@@ -38,10 +38,10 @@ pub async fn run(args: &CheckArgs) -> Result<()> {
 
     #[cfg(feature = "extras-ludus")]
     {
-        if vox_ludus::config_gate::is_enabled() {
+        if vox_gamify::config_gate::is_enabled() {
             if let Ok(db) = crate::workspace_db::connect_cli_workspace_voxdb().await {
                 let key = format!("vox-check:{}", file.display());
-                vox_ludus::lsp_telemetry::after_cli_check_clean(&db, &key).await;
+                vox_gamify::lsp_telemetry::after_cli_check_clean(&db, &key).await;
             }
         }
     }

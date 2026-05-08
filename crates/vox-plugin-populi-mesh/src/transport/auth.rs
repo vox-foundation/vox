@@ -136,30 +136,30 @@ impl PopuliMeshAuthRuntime {
         }
     }
 
-    /// Read tokens via [`vox_clavis::resolve_secret`] (same precedence as other mesh callers).
+    /// Read tokens via [`vox_secrets::resolve_secret`] (same precedence as other mesh callers).
     #[must_use]
     pub fn from_env() -> Self {
-        let mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+        let mesh = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
             .expose()
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(|s| Arc::from(s.to_string().into_boxed_str()));
-        let worker = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshWorkerToken)
+        let worker = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshWorkerToken)
             .expose()
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(|s| Arc::from(s.to_string().into_boxed_str()));
-        let submitter = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshSubmitterToken)
+        let submitter = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshSubmitterToken)
             .expose()
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(|s| Arc::from(s.to_string().into_boxed_str()));
-        let admin = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshAdminToken)
+        let admin = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshAdminToken)
             .expose()
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(|s| Arc::from(s.to_string().into_boxed_str()));
-        let jwt_hmac = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshJwtHmacSecret)
+        let jwt_hmac = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshJwtHmacSecret)
             .expose()
             .map(str::trim)
             .filter(|s| !s.is_empty())
@@ -270,7 +270,7 @@ impl PopuliMeshAuthRuntime {
 }
 
 pub(super) fn populi_control_token_from_env() -> Option<String> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
         .expose()
         .map(str::trim)
         .filter(|s| !s.is_empty())

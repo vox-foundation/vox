@@ -620,7 +620,7 @@ impl Decoder {
             };
             seek += segment_size;
             let no_speech_threshold =
-                vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioNoSpeechThreshold)
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioNoSpeechThreshold)
                     .expose()
                     .and_then(|s: &str| s.parse::<f64>().ok())
                     .unwrap_or(0.6);

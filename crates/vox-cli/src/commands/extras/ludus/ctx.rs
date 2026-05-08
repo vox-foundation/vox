@@ -4,7 +4,7 @@
 //! ## Before
 //! ```ignore
 //! let db = db_util::get_db().await?;
-//! let user_id = vox_ludus::db::canonical_user_id();
+//! let user_id = vox_gamify::db::canonical_user_id();
 //! let mut profile = db::get_profile(&db, &user_id)
 //!     .await.unwrap_or_default()
 //!     .unwrap_or_else(|| LudusProfile::new_default(&user_id));
@@ -17,7 +17,7 @@
 
 use anyhow::Result;
 use vox_db::Codex;
-use vox_ludus::{LudusProfile, db};
+use vox_gamify::{LudusProfile, db};
 
 use super::db_util;
 
@@ -38,7 +38,7 @@ impl LudusContext {
     /// so that time-based regeneration is always current.
     pub async fn load() -> Result<Self> {
         let db = db_util::get_db().await?;
-        let local_user_id = vox_ludus::db::canonical_user_id();
+        let local_user_id = vox_gamify::db::canonical_user_id();
 
         // 1. Resolve effective user ID (prefer GitHub identity for global sync)
         let effective_user_id = if let Ok(identities) = db.get_vox_identities(&local_user_id).await
@@ -78,16 +78,16 @@ impl LudusContext {
 
         // 3. Automated Trust Tier Escalation
         if effective_user_id.starts_with("gh:")
-            && profile.trust_tier < vox_ludus::profile::TrustTier::Linked
+            && profile.trust_tier < vox_gamify::profile::TrustTier::Linked
         {
             tracing::info!(
                 "escalating trust tier to Linked for user '{}'",
                 effective_user_id
             );
-            profile.trust_tier = vox_ludus::profile::TrustTier::Linked;
+            profile.trust_tier = vox_gamify::profile::TrustTier::Linked;
         }
 
-        if profile.trust_tier == vox_ludus::profile::TrustTier::Linked
+        if profile.trust_tier == vox_gamify::profile::TrustTier::Linked
             && profile.total_xp_earned >= 10_000
             && profile.lumens >= 100
         {
@@ -95,10 +95,10 @@ impl LudusContext {
                 "escalating trust tier to Proven for user '{}'",
                 effective_user_id
             );
-            profile.trust_tier = vox_ludus::profile::TrustTier::Proven;
+            profile.trust_tier = vox_gamify::profile::TrustTier::Proven;
         }
 
-        if profile.trust_tier == vox_ludus::profile::TrustTier::Proven
+        if profile.trust_tier == vox_gamify::profile::TrustTier::Proven
             && profile.total_xp_earned >= 50_000
             && profile.lumens >= 1_000
             && !profile.reward_suppressed
@@ -107,7 +107,7 @@ impl LudusContext {
                 "escalating trust tier to Master for user '{}'",
                 effective_user_id
             );
-            profile.trust_tier = vox_ludus::profile::TrustTier::Master;
+            profile.trust_tier = vox_gamify::profile::TrustTier::Master;
         }
 
         let _ = db::upsert_profile(&db, &profile).await;

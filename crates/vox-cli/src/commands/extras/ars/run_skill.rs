@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use vox_ars::hooks::HookRegistry;
-use vox_ars::runtime::ArsRuntime;
+use vox_openclaw_runtime::hooks::HookRegistry;
+use vox_openclaw_runtime::runtime::ArsRuntime;
 
 use super::registry::make_registry;
 
@@ -31,7 +31,7 @@ pub async fn run(id: &str, input_json: Option<&str>, workflow: bool) -> Result<(
         .get(id)
         .context(format!("Skill '{}' not found in registry", id))?;
 
-    let skill = vox_ars::domain::ArsSkill {
+    let skill = vox_openclaw_runtime::domain::ArsSkill {
         id: skill_manifest.id.clone(),
         namespace: "local".into(),
         name: skill_manifest.name.clone(),
@@ -40,10 +40,10 @@ pub async fn run(id: &str, input_json: Option<&str>, workflow: bool) -> Result<(
         description: Some(skill_manifest.description.clone()),
         author: Some(skill_manifest.author.clone()),
         metadata: serde_json::json!({}),
-        kind: vox_ars::manifest::SkillKind::Document,
+        kind: vox_openclaw_runtime::manifest::SkillKind::Document,
         body: None,
-        resource_limits: vox_ars::manifest::ResourceLimits::default(),
-        trust: vox_ars::manifest::TrustLevel::Trusted,
+        resource_limits: vox_openclaw_runtime::manifest::ResourceLimits::default(),
+        trust: vox_openclaw_runtime::manifest::TrustLevel::Trusted,
     };
 
     println!("🚀 Executing skill: {} v{}", skill.id, skill.version);

@@ -349,6 +349,14 @@ jobs:
           cargo test -p vox-workflow-runtime
           cargo check -p vox-cli --features mesh,workflow-runtime
 
+      - name: Orchestrator slim build (news-publish off, no populi-transport → minimal default)
+        run: cargo check -p vox-orchestrator --no-default-features --features runtime,mcp-native,toestub-gate
+
+      - name: Arch-check (layer + fan-in + LoC + orphan + docstring)
+        # Layer rule strict; the others warn-only by default. Source of truth:
+        # docs/src/architecture/layers.toml.
+        run: cargo run -p vox-arch-check --quiet
+
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
         with:
@@ -432,7 +440,7 @@ jobs:
           VOX_TOESTUB_MAX_RUST_PARSE_FAILURES: 3
         run: |
           set -euo pipefail
-          cargo run -p vox-toestub -q --bin toestub -- --mode audit --format json --min-severity info crates \
+          cargo run -p vox-code-audit -q --bin toestub -- --mode audit --format json --min-severity info crates \
             | python3 -c "import json,os,sys;m=int(os.environ['VOX_TOESTUB_MAX_RUST_PARSE_FAILURES']);v=json.load(sys.stdin);n=int(v.get('rust_parse_failures',0));((print(f'rust_parse_failures={n} exceeds cap {m}',file=sys.stderr),sys.exit(1)) if n>m else (print(f'rust_parse_failures={n} (cap {m}) OK'),sys.exit(0)))"
 
       - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
@@ -654,25 +662,28 @@ jobs:
       matrix:
         crate:
           - vox-compiler
+          - vox-codegen
           - vox-cli
-          - vox-runtime
+          - vox-actor-runtime
           - vox-db
-          - vox-clavis
+          - vox-db-types
+          - vox-secrets
           - vox-orchestrator
           - vox-populi
-          - vox-mens
-          - vox-ludus
+          - vox-ml-cli
+          - vox-gamify
           - vox-oratio
           - vox-schola
           - vox-skills
           - vox-scientia-ingest
           - vox-doc-pipeline
           - vox-mcp-registry
-          - vox-pm
+          - vox-package
           - vox-primitives
           - vox-config
           - vox-crypto
-          - vox-toestub
+          - vox-code-audit
+          - vox-openclaw-runtime
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable

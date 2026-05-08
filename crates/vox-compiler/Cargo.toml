@@ -21,7 +21,7 @@ bzip2 = "0.6.1"
 zstd = "0.13.3"
 rust_decimal = { workspace = true }
 chrono = { workspace = true }
-vox-clavis.workspace = true
+vox-secrets.workspace = true
 vox-config.workspace = true
 secrecy = { workspace = true }
 which = { workspace = true }
@@ -34,6 +34,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_yaml = { workspace = true }
 
 [dev-dependencies]
+vox-codegen = { workspace = true }
 serde_yaml = { workspace = true }
 jsonschema = { workspace = true }
 serial_test = { workspace = true }

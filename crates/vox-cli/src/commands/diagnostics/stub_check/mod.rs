@@ -7,8 +7,8 @@ use anyhow::Context;
 
 use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
 use owo_colors::OwoColorize;
-use vox_toestub::rules::{Language, Severity};
-use vox_toestub::{Finding, OutputFormat, ToestubConfig, ToestubEngine};
+use vox_code_audit::rules::{Language, Severity};
+use vox_code_audit::{Finding, OutputFormat, ToestubConfig, ToestubEngine};
 
 use vox_db::{
     Codex, add_suppression, load_baseline as db_load_baseline, load_latest_task_queue,
@@ -40,13 +40,13 @@ pub async fn run(
     // --task-list: show last saved queue from VoxDB and exit
     if task_list {
         if let Ok(db) = Codex::connect_default().await {
-            let user_id = vox_ludus::db::canonical_user_id();
+            let user_id = vox_gamify::db::canonical_user_id();
             if let Ok(Some((total_findings, fix_suggestions_json))) =
                 load_latest_task_queue(&db, &user_id).await
             {
-                let fix_suggestions: Vec<vox_toestub::task_queue::FixSuggestion> =
+                let fix_suggestions: Vec<vox_code_audit::task_queue::FixSuggestion> =
                     serde_json::from_str(&fix_suggestions_json).unwrap_or_default();
-                let queue = vox_toestub::TaskQueue {
+                let queue = vox_code_audit::TaskQueue {
                     total_findings: total_findings as usize,
                     fix_suggestions,
                 };
@@ -115,8 +115,8 @@ pub async fn run(
             let db = Codex::connect_default()
                 .await
                 .map_err(|e| anyhow::anyhow!("connect: {:?}", e))?;
-            let user_id = vox_ludus::db::canonical_user_id();
-            let task_queue = vox_toestub::TaskQueue::from_findings(&findings);
+            let user_id = vox_gamify::db::canonical_user_id();
+            let task_queue = vox_code_audit::TaskQueue::from_findings(&findings);
             let fix_suggestions_json = serde_json::to_string(&task_queue.fix_suggestions)
                 .unwrap_or_else(|_| "[]".to_string());
 
@@ -238,7 +238,7 @@ pub async fn run(
 
     // ── Save baseline / task queue to VoxDB ──
     if let Some(ref db) = db_opt {
-        let user_id = vox_ludus::db::canonical_user_id();
+        let user_id = vox_gamify::db::canonical_user_id();
         let run_scope = path.to_string_lossy().to_string();
 
         if let Some(name) = save_baseline {
@@ -398,13 +398,13 @@ pub async fn run(
 
     // ── Ludus: canonical router (clean-scan rewards + debt teaching) ──
     if let Some(ref db) = db_opt {
-        let user_id = vox_ludus::db::canonical_user_id();
+        let user_id = vox_gamify::db::canonical_user_id();
         if result.findings.is_empty() {
             let ev = serde_json::json!({
                 "type": "toestub_scan_clean",
                 "agent_id": 0u64,
             });
-            match vox_ludus::event_router::route_event_auto_user(db.as_ref(), &ev).await {
+            match vox_gamify::event_router::route_event_auto_user(db.as_ref(), &ev).await {
                 Ok(res) => print_stub_check_ludus_route(&res),
                 Err(e) => tracing::warn!(error = %e, "ludus route_event (toestub clean)"),
             }
@@ -429,7 +429,7 @@ pub async fn run(
                     "ludus_dedupe_id": dedupe,
                 });
                 if let Err(e) =
-                    vox_ludus::event_router::route_event_auto_user(db.as_ref(), &ev).await
+                    vox_gamify::event_router::route_event_auto_user(db.as_ref(), &ev).await
                 {
                     tracing::warn!(error = %e, "ludus route_event (stub_check_debt)");
                 }
@@ -466,7 +466,7 @@ fn stub_check_debt_dedupe_key(path: &std::path::Path, user_id: &str) -> u64 {
     h.finish()
 }
 
-fn print_stub_check_ludus_route(res: &vox_ludus::reward_policy::RouteResult) {
+fn print_stub_check_ludus_route(res: &vox_gamify::reward_policy::RouteResult) {
     use owo_colors::OwoColorize;
     let mut header = false;
     if let Some(reward) = &res.reward {

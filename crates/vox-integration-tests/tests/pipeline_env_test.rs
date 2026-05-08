@@ -42,7 +42,7 @@ macro_rules! generate_without_express {
             .lock()
             .expect("ENV_MUTEX poisoned");
         let hir = vox_compiler::hir::lower_module($module);
-        vox_compiler::codegen_ts::generate(&hir).expect("Should generate without errors")
+        vox_codegen::codegen_ts::generate(&hir).expect("Should generate without errors")
     }};
 }
 

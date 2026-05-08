@@ -51,7 +51,7 @@ pub async fn run(args: ExplainArgs) -> anyhow::Result<()> {
         description.italic()
     );
     println!("Category: {:?}, Complexity: {}", category, complexity);
-    let snap = vox_runtime::route_capability_policy::RouteCapabilityPolicySnapshot::from_env();
+    let snap = vox_actor_runtime::route_capability_policy::RouteCapabilityPolicySnapshot::from_env();
     println!(
         "Route policy profile: {} (net={}, provider_net={}, local_http={})",
         snap.profile, snap.allow_net, snap.allow_provider_network, snap.allow_local_model_http

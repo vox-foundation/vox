@@ -10,7 +10,7 @@ use vox_deploy_codegen::{
     build_container_target, generate_systemd_unit, resolve_target_kind,
 };
 use vox_container::{ContainerRuntime, detect_runtime};
-use vox_pm::VoxManifest;
+use vox_package::VoxManifest;
 
 /// `vox deploy` — build/push OCI images, run compose, apply Kubernetes manifests, or bare-metal systemd.
 pub async fn run(args: DeployArgs) -> Result<()> {
@@ -168,7 +168,7 @@ pub async fn run(args: DeployArgs) -> Result<()> {
             vox_deploy_codegen::DeployTarget::Coolify(vox_deploy_codegen::deploy_target::CoolifyTarget {
                 base_url: cfg.base_url.clone().unwrap_or_default(),
                 token: std::env::var(&cfg.token_env).unwrap_or_else(|_| {
-                    vox_clavis::resolve_secret(vox_clavis::SecretId::CoolifyToken)
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::CoolifyToken)
                         .expose()
                         .unwrap_or_default()
                         .to_string()

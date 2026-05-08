@@ -5,8 +5,8 @@
 
 /// Resolve a non-empty string secret (env, vault, auth.json per Clavis policy).
 #[must_use]
-pub fn clavis_str(id: vox_clavis::SecretId) -> Option<String> {
-    vox_clavis::resolve_secret(id)
+pub fn clavis_str(id: vox_secrets::SecretId) -> Option<String> {
+    vox_secrets::resolve_secret(id)
         .expose()
         .filter(|s| !s.trim().is_empty())
         .map(std::string::ToString::to_string)

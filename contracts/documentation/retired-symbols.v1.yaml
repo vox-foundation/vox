@@ -8,13 +8,13 @@ symbols:
     replacement: "vox-orchestrator"
     rationale: "Old large orchestrator crate. The new small vox-dei crate is for HITL only. If referring to HITL, ensure context is clear."
   - id: vox-ars-crate
-    pattern: "\\bvox-ars\\b"
-    replacement: "vox-skills"
-    rationale: "Crate renamed to vox-skills; vox-ars is now a CLI namespace only."
+    pattern: "\\bvox-ars(?:[^-\\w]|$)"
+    replacement: "vox-openclaw-runtime"
+    rationale: "Crate retired; ARS runtime types live in vox-openclaw-runtime. (vox-openclaw-runtime itself is the canonical replacement and is not flagged.)"
   - id: vox-gamify-crate
     pattern: "\\bvox-gamify\\b"
-    replacement: "vox-ludus"
-    rationale: "Consolidated into vox-ludus crate."
+    replacement: "vox-gamify"
+    rationale: "Consolidated into vox-gamify crate."
   - id: vox-lexer-crate
     pattern: "\\bvox-lexer\\b"
     replacement: "vox-compiler"
@@ -59,7 +59,7 @@ symbols:
     pattern: "persist_fact\\("
     replacement: "sync_to_db()"
     rationale: "Renamed to sync_to_db() for clarity."
-  - id: vox-mens-standalone
-    pattern: "vox-mens"
+  - id: vox-ml-cli-standalone
+    pattern: "vox-ml-cli"
     replacement: "vox-populi"
     rationale: "Now part of vox-populi."

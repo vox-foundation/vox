@@ -2,7 +2,7 @@
 
 use std::fs;
 
-use vox_compiler::codegen_ts::scaffold::write_scaffold_if_missing;
+use vox_codegen::codegen_ts::scaffold::write_scaffold_if_missing;
 
 #[test]
 fn scaffold_write_skips_existing_user_files() {

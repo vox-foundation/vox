@@ -94,7 +94,7 @@ pub enum RepoQueryCmd {
 }
 
 fn json_output_enabled() -> bool {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCliGlobalJson).expose() == Some("1")
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCliGlobalJson).expose() == Some("1")
 }
 
 fn print_value<T: Serialize>(value: &T) -> Result<()> {

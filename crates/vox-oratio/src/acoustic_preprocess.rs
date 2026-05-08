@@ -30,7 +30,7 @@ fn peak_abs(samples: &[f32]) -> f32 {
 }
 
 fn effective_mode() -> &'static str {
-    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocess)
+    match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioAcousticPreprocess)
         .expose()
         .map(|s| s.to_string())
     {
@@ -83,7 +83,7 @@ pub fn preprocess_audio_pcm_f32_reported(
 
     let out: Vec<f32> = if mode == "rms_normalize" {
         let target_rms_dbfs: f32 =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRmsTargetDbfs)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioRmsTargetDbfs)
                 .expose()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(-18.0_f32);

@@ -55,7 +55,7 @@ impl WebSearchDispatcher {
             // For brevity in this implementation, we'll assume the orchestrator handles the high-level fallback,
             // or we wire it here.
             // Given the plan says "Tavily retained as optional production fallback", we keep it.
-            let key = vox_clavis::resolve_secret(vox_clavis::SecretId::TavilyApiKey);
+            let key = vox_secrets::resolve_secret(vox_secrets::SecretId::TavilyApiKey);
             if key.is_present() {
                 debug!(redacted = %key.redacted(), "Falling back to Tavily API");
                 // ... call tavily ...

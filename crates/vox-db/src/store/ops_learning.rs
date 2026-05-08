@@ -462,7 +462,7 @@ impl crate::VoxDb {
 
     /// Join `llm_interactions` with `llm_feedback` to produce RLHF training pairs.
     ///
-    /// Called from `vox-db/src/learning.rs` and `vox-pm/src/feedback.rs`.
+    /// Called from `vox-db/src/learning.rs` and `vox-package/src/feedback.rs`.
     pub async fn get_training_data(&self, limit: i64) -> Result<Vec<TrainingPair>, StoreError> {
         let lim = limit.clamp(1, 50_000);
         let mut rows = self

@@ -1,0 +1,145 @@
+# Workspace architectural source of truth — read by `vox-arch-check`.
+# See docs/src/architecture/2026-05-08-workspace-reorg-design.md and
+# docs/src/architecture/2026-05-08-naming-and-guards-design.md.
+#
+# Layers (descending — L5 may depend on L0..L4; L0 may depend only on L0):
+#   0 — Pure types (data only, no async runtime, no DB)
+#   1 — Primitives & utilities (incl. plugin-api type-only surface)
+#   2 — Domain libraries (pure-data domain logic)
+#   3 — Heavy runtimes (DBs, compilers, orchestrators, plugin-host)
+#   4 — Concrete plugins (cdylib consumers — loaded, not compiled-into-L0..L3)
+#   5 — Surfaces (binaries, integration)
+#
+# Per-crate fields:
+#   layer           — required; integer 0..=5
+#   kind            — "library" | "plugin" | "binary" | "test-only"; default "library"
+#   max_dependents  — optional; warn if more in-tree consumers than this
+#   max_loc         — optional; warn if src/**/*.rs total exceeds this
+#
+# Within-layer deps are allowed. Lower→higher is an inversion (failure unless
+# explicitly listed under [[known_inversions]]).
+
+[guards]
+# Strictness per rule. Layer ordering is implicitly strict (override with
+# the --warn-only CLI flag). The other four default to warn.
+fan_in     = "warn"
+loc_budget = "warn"
+orphan     = "warn"
+docstring  = "warn"
+
+[crates]
+
+# ── L0 — pure types ───────────────────────────────────────────────────────────
+vox-orchestrator-types = { layer = 0 }
+vox-db-types           = { layer = 0 }
+vox-protocol           = { layer = 0 }
+vox-mesh-types         = { layer = 0 }
+vox-primitives         = { layer = 0 }
+workspace-hack         = { layer = 0, max_dependents = 80 }
+vox-arch-check         = { layer = 0, kind = "binary" }
+
+# ── L1 — primitives & utilities ───────────────────────────────────────────────
+vox-bounded-fs        = { layer = 1, max_dependents = 25 }
+vox-crypto            = { layer = 1 }
+vox-secrets           = { layer = 1, max_dependents = 25 }
+vox-jsonschema-util   = { layer = 1 }
+vox-checksum-manifest = { layer = 1 }
+vox-identity          = { layer = 1 }
+vox-reqwest-defaults  = { layer = 1 }
+vox-openai-wire       = { layer = 1 }
+vox-openai-sse        = { layer = 1 }
+vox-exec-grammar      = { layer = 1 }
+vox-grammar-export    = { layer = 1 }
+vox-scaling-policy    = { layer = 1 }
+vox-plugin-api        = { layer = 1 }                            # type/trait surface only
+vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
+
+# ── L2 — domain libraries ─────────────────────────────────────────────────────
+vox-config              = { layer = 2 }
+vox-repository          = { layer = 2 }
+vox-mcp-registry        = { layer = 2 }
+vox-mcp-meta            = { layer = 2 }
+vox-capability-registry = { layer = 2 }
+vox-install-policy      = { layer = 2 }
+vox-project-scaffold    = { layer = 2 }
+vox-skill-runtime       = { layer = 2 }
+vox-constrained-gen     = { layer = 2 }
+vox-doc-inventory       = { layer = 2 }
+vox-eval                = { layer = 2 }
+vox-package             = { layer = 2 }                          # has known inversion to vox-compiler/db
+
+# ── L3 — heavy runtimes ───────────────────────────────────────────────────────
+vox-db                  = { layer = 3, max_dependents = 25, max_loc = 40_000 }
+vox-corpus              = { layer = 3, max_loc = 15_000 }
+vox-compiler            = { layer = 3, max_dependents = 25, max_loc = 35_000 }
+vox-codegen             = { layer = 3, max_loc = 20_000 }
+vox-ml-cli              = { layer = 3, kind = "binary", max_loc = 20_000 }
+vox-publisher           = { layer = 3, max_loc = 20_000 }
+vox-orchestrator        = { layer = 3, max_dependents = 30, max_loc = 60_000 }
+vox-actor-runtime       = { layer = 3, max_loc = 15_000 }
+vox-populi              = { layer = 3, max_loc = 20_000 }
+vox-oratio              = { layer = 3 }
+vox-wasm-engine         = { layer = 3 }
+vox-container           = { layer = 3 }
+vox-forge               = { layer = 3 }
+vox-git                 = { layer = 3 }
+vox-openclaw-runtime    = { layer = 3 }
+vox-workflow-runtime    = { layer = 3 }
+vox-dashboard           = { layer = 3 }
+vox-webhook             = { layer = 3 }
+vox-code-audit          = { layer = 3, max_loc = 15_000 }
+vox-lsp                 = { layer = 3 }
+vox-gamify              = { layer = 3, max_loc = 20_000 }
+vox-skills              = { layer = 3 }
+vox-cli-core            = { layer = 3 }
+vox-orchestrator-mcp    = { layer = 3, max_loc = 40_000 }        # Phase 4 extraction
+vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extraction
+vox-search              = { layer = 3 }
+vox-scientia-ingest     = { layer = 3 }
+vox-ssg                 = { layer = 3 }
+vox-test-harness        = { layer = 3 }
+vox-doc-pipeline        = { layer = 3 }
+vox-deploy-codegen      = { layer = 3 }
+vox-tensor              = { layer = 3 }
+vox-plugin-host         = { layer = 3 }
+vox-plugin-catalog      = { layer = 3 }
+
+# ── L4 — concrete plugins (cdylib only — never compile-time deps for L0..L3) ──
+vox-plugin-browser           = { layer = 4, kind = "plugin" }
+vox-plugin-cloud             = { layer = 4, kind = "plugin" }
+vox-plugin-grammar-export    = { layer = 4, kind = "plugin" }
+vox-plugin-mens-candle-cuda  = { layer = 4, kind = "plugin" }
+vox-plugin-nvml-probe        = { layer = 4, kind = "plugin" }
+vox-plugin-oratio            = { layer = 4, kind = "plugin" }
+vox-plugin-oratio-mic        = { layer = 4, kind = "plugin" }
+vox-plugin-populi-mesh       = { layer = 4, kind = "plugin" }
+vox-plugin-publication       = { layer = 4, kind = "plugin" }
+vox-plugin-runtime-container = { layer = 4, kind = "plugin" }
+vox-plugin-runtime-wasm      = { layer = 4, kind = "plugin" }
+vox-plugin-script-execution  = { layer = 4, kind = "plugin" }
+vox-plugin-webhook           = { layer = 4, kind = "plugin" }
+
+# ── L5 — surfaces ─────────────────────────────────────────────────────────────
+vox-cli               = { layer = 5, kind = "binary", max_loc = 70_000 }
+vox-integration-tests = { layer = 5, kind = "test-only" }
+vox-orchestrator-d    = { layer = 5, kind = "binary" }
+
+
+# ── Permitted inversions ──────────────────────────────────────────────────────
+# Layer-check tolerates these specific lower-to-higher edges. Each entry
+# documents WHY and what would be required to remove it.
+
+[[known_inversions]]
+from   = "vox-cli"
+to     = "vox-orchestrator"
+reason = "CLI ↔ orchestrator coupling is load-bearing for runtime/observability surfaces (vox status, vox attention, vox model *, vox dei, vox live). See build-time-log.md Phase 7 audit."
+
+[[known_inversions]]
+from   = "vox-package"
+to     = "vox-compiler"
+reason = "vox-package uses compiler for build. Will be re-tiered when vox-package is split into vox-package-types (L1) + vox-package-build (L3) in a follow-up."
+
+[[known_inversions]]
+from   = "vox-package"
+to     = "vox-db"
+reason = "Same as above — vox-package has DB-backed state. Will be re-tiered."

@@ -3,7 +3,7 @@
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use vox_config::GamifyMode;
-use vox_ludus::{db, profile::LudusProfile};
+use vox_gamify::{db, profile::LudusProfile};
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
@@ -11,12 +11,12 @@ use super::db_util;
 
 /// Show the daily gamification digest.
 pub async fn morning_digest() -> Result<()> {
-    if !vox_ludus::config_gate::is_enabled() {
+    if !vox_gamify::config_gate::is_enabled() {
         return Ok(());
     }
     if matches!(
-        vox_ludus::config_gate::ludus_channel(),
-        vox_ludus::config_gate::LudusChannel::DigestPriority
+        vox_gamify::config_gate::ludus_channel(),
+        vox_gamify::config_gate::LudusChannel::DigestPriority
     ) {
         // Prefer `vox ludus digest-weekly` for digest-first users.
         return Ok(());
@@ -25,7 +25,7 @@ pub async fn morning_digest() -> Result<()> {
         Ok(db) => db,
         Err(_) => return Ok(()),
     };
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
 
     let mut profile = db::get_profile(&db, &user_id)
         .await
@@ -99,7 +99,7 @@ pub async fn record_activity() -> Result<()> {
         Err(_) => return Ok(()),
     };
 
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
     let mut profile = match db::get_profile(&db, &user_id).await.unwrap_or(None) {
         Some(p) => p,
         None => {
@@ -114,8 +114,8 @@ pub async fn record_activity() -> Result<()> {
 
     let _ = db::upsert_profile(&db, &profile).await;
 
-    use vox_ludus::streak::StreakResult;
-    if vox_ludus::output_policy::should_emit_cli_celebration() {
+    use vox_gamify::streak::StreakResult;
+    if vox_gamify::output_policy::should_emit_cli_celebration() {
         match result {
             StreakResult::Continued { streak, bonus_xp } if streak > 1 => {
                 println!(
@@ -197,11 +197,11 @@ async fn record_cli_event_inner(
             .await;
     }
 
-    if !vox_ludus::config_gate::is_enabled() {
+    if !vox_gamify::config_gate::is_enabled() {
         return Ok(());
     }
 
-    let ludus_uid = vox_ludus::db::canonical_user_id();
+    let ludus_uid = vox_gamify::db::canonical_user_id();
 
     // Single authority: `process_event_rewards` (via route_event) performs daily activity + profile XP.
     let event_json = serde_json::json!({
@@ -209,7 +209,7 @@ async fn record_cli_event_inner(
         "success": success,
         "agent_id": 0u64,
     });
-    let _ = vox_ludus::event_router::route_event(&db, &ludus_uid, &event_json).await;
+    let _ = vox_gamify::event_router::route_event(&db, &ludus_uid, &event_json).await;
 
     Ok(())
 }
@@ -257,7 +257,7 @@ pub async fn status() -> Result<()> {
     );
     println!();
 
-    let title = vox_ludus::full_title(profile.level, profile.prestige_level);
+    let title = vox_gamify::full_title(profile.level, profile.prestige_level);
     println!(
         "  🏅 {}       Level {}  •  {} XP to next level",
         title.bright_yellow().bold(),
@@ -279,7 +279,7 @@ pub async fn status() -> Result<()> {
     }
     println!();
 
-    let client = vox_ludus::FreeAiClient::auto_discover().await;
+    let client = vox_gamify::FreeAiClient::auto_discover().await;
     println!("  🤖 AI providers:");
     for provider in client.providers() {
         println!("    • {}", provider.name().bright_blue());
@@ -332,15 +332,15 @@ pub async fn feedback_rate(
     example: Option<&std::path::Path>,
 ) -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
 
-    let mut feedback = vox_ludus::feedback::AiFeedback::new(
+    let mut feedback = vox_gamify::feedback::AiFeedback::new(
         uuid::Uuid::new_v4().to_string(),
         &user_id,
         session_id,
         response_id,
         thumbs_up,
-        vox_ludus::util::now_unix(),
+        vox_gamify::util::now_unix(),
     );
 
     if let Some(c) = comment {
@@ -353,12 +353,12 @@ pub async fn feedback_rate(
         feedback = feedback.with_example(code);
     }
 
-    let should_contribute = vox_ludus::feedback::should_auto_contribute(&feedback);
+    let should_contribute = vox_gamify::feedback::should_auto_contribute(&feedback);
     if should_contribute {
         feedback = feedback.mark_corpus_contributed();
     }
 
-    vox_ludus::db::insert_feedback(&db, &feedback).await?;
+    vox_gamify::db::insert_feedback(&db, &feedback).await?;
 
     let event_type = if thumbs_up {
         "ai_thumbs_up"
@@ -385,10 +385,10 @@ pub async fn feedback_rate(
             "agent_id": 0u64,
             "feedback_id": feedback.id,
         });
-        let _ = vox_ludus::event_router::route_event(&db, &user_id, &corpus_event).await;
+        let _ = vox_gamify::event_router::route_event(&db, &user_id, &corpus_event).await;
     }
 
-    let _ = vox_ludus::event_router::route_event(&db, &user_id, &event_json).await;
+    let _ = vox_gamify::event_router::route_event(&db, &user_id, &event_json).await;
 
     Ok(())
 }
@@ -396,11 +396,11 @@ pub async fn feedback_rate(
 /// Claim available daily or weekly periodic rewards.
 pub async fn reward_claim() -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
 
-    let weekly_reward = vox_ludus::periodic_reward::current_weekly_reward(&user_id);
+    let weekly_reward = vox_gamify::periodic_reward::current_weekly_reward(&user_id);
 
-    let existing = vox_ludus::db::get_reward_claim(&db, &user_id, &weekly_reward.id).await?;
+    let existing = vox_gamify::db::get_reward_claim(&db, &user_id, &weekly_reward.id).await?;
     if let Some(mut claim) = existing {
         if claim.redeemed {
             println!(
@@ -410,7 +410,7 @@ pub async fn reward_claim() -> Result<()> {
             return Ok(());
         }
         claim.claim();
-        vox_ludus::db::upsert_periodic_reward(&db, &claim, &user_id).await?;
+        vox_gamify::db::upsert_periodic_reward(&db, &claim, &user_id).await?;
 
         let event = serde_json::json!({
             "type": "periodic_reward_claimed",
@@ -420,7 +420,7 @@ pub async fn reward_claim() -> Result<()> {
             "xp_bonus": claim.xp_bonus,
             "crystal_bonus": claim.crystal_bonus,
         });
-        let _ = vox_ludus::event_router::route_event(&db, &user_id, &event).await;
+        let _ = vox_gamify::event_router::route_event(&db, &user_id, &event).await;
 
         println!(
             "  🎁 Claimed weekly reward: {}",
@@ -432,7 +432,7 @@ pub async fn reward_claim() -> Result<()> {
             claim.xp_bonus.to_string().bright_cyan()
         );
     } else {
-        let eligible = vox_ludus::periodic_reward::evaluate_condition(
+        let eligible = vox_gamify::periodic_reward::evaluate_condition(
             &db,
             &user_id,
             &weekly_reward.unlock_condition,
@@ -441,7 +441,7 @@ pub async fn reward_claim() -> Result<()> {
         if eligible {
             let mut claim = weekly_reward.clone();
             claim.claim();
-            vox_ludus::db::upsert_periodic_reward(&db, &claim, &user_id).await?;
+            vox_gamify::db::upsert_periodic_reward(&db, &claim, &user_id).await?;
 
             let event = serde_json::json!({
                 "type": "periodic_reward_claimed",
@@ -451,7 +451,7 @@ pub async fn reward_claim() -> Result<()> {
                 "xp_bonus": claim.xp_bonus,
                 "crystal_bonus": claim.crystal_bonus,
             });
-            let _ = vox_ludus::event_router::route_event(&db, &user_id, &event).await;
+            let _ = vox_gamify::event_router::route_event(&db, &user_id, &event).await;
 
             println!(
                 "  🎁 Claimed weekly reward: {}",
@@ -476,7 +476,7 @@ pub async fn reward_claim() -> Result<()> {
 
 /// View or change the gamification mode (`effective`: include session env overlay).
 pub async fn mode_command(set: Option<&str>, effective: bool) -> Result<()> {
-    let mut cfg = vox_ludus::config_gate::load_disk();
+    let mut cfg = vox_gamify::config_gate::load_disk();
 
     if let Some(mode_str) = set {
         match mode_str.to_lowercase().as_str() {
@@ -512,7 +512,7 @@ pub async fn mode_command(set: Option<&str>, effective: bool) -> Result<()> {
         };
         println!("  On-disk mode: {}", status);
         if effective {
-            let eff = vox_ludus::config_gate::load_effective();
+            let eff = vox_gamify::config_gate::load_effective();
             let eff_s = if eff.gamify_enabled {
                 eff.gamify_mode.as_config_str().bright_cyan().to_string()
             } else {
@@ -539,7 +539,7 @@ pub async fn mode_command(set: Option<&str>, effective: bool) -> Result<()> {
 
 /// Persist-enable Ludus (keeps current mode).
 pub async fn enable_ludus() -> Result<()> {
-    let mut cfg = vox_ludus::config_gate::load_disk();
+    let mut cfg = vox_gamify::config_gate::load_disk();
     cfg.gamify_enabled = true;
     cfg.save()
         .map_err(|e| anyhow::anyhow!("Failed to save config: {}", e))?;
@@ -549,7 +549,7 @@ pub async fn enable_ludus() -> Result<()> {
 
 /// Persist-disable Ludus.
 pub async fn disable_ludus() -> Result<()> {
-    let mut cfg = vox_ludus::config_gate::load_disk();
+    let mut cfg = vox_gamify::config_gate::load_disk();
     cfg.gamify_enabled = false;
     cfg.save()
         .map_err(|e| anyhow::anyhow!("Failed to save config: {}", e))?;
@@ -609,7 +609,7 @@ pub async fn audit_show(limit: usize) -> Result<()> {
 /// Local KPI summary from policy snapshots + hint telemetry.
 pub async fn metrics_show() -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
     let k = db::load_kpi_summary(&db, &user_id).await?;
     println!("{}", "Ludus metrics (local user)".bright_cyan().bold());
     println!("  Events (policy rows): {}", k.events_recorded);
@@ -627,7 +627,7 @@ pub async fn metrics_show() -> Result<()> {
 /// Short post-session digest: profile + KPI headliners.
 pub async fn session_digest() -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
     let k = db::load_kpi_summary(&db, &user_id).await?;
     let profile = db::get_profile(&db, &user_id)
         .await?
@@ -650,7 +650,7 @@ pub async fn session_digest() -> Result<()> {
 /// Rolling 7-day digest: KPI, unread notifications, recent policy awards.
 pub async fn digest_weekly() -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
     let k = db::load_kpi_summary(&db, &user_id).await?;
     let policy = db::list_policy_snapshots_since_days(&db, &user_id, 7, 48).await?;
     let notes = db::list_unread_notifications(&db, &user_id, 20).await?;
@@ -687,7 +687,7 @@ pub async fn digest_weekly() -> Result<()> {
 /// Use a streak shield to protect your daily streak.
 pub async fn shield_use() -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
     let mut profile = db::get_profile(&db, &user_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("Profile not found"))?;

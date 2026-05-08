@@ -2,7 +2,7 @@
 //!
 //! ## Operator config precedence (`PublisherConfig::from_operator_environment`)
 //!
-//! 1. **Clavis** resolves syndication credentials via `vox_clavis::resolve_secret` (see `SecretId`
+//! 1. **Clavis** resolves syndication credentials via `vox_secrets::resolve_secret` (see `SecretId`
 //!    variants such as `VoxNewsTwitterBearer`). Resolution covers canonical env keys, aliases, auth JSON,
 //!    and optional Infisical/Vault backends when enabled.
 //! 2. **Plain env** remains for non-secret knobs: `VOX_SOCIAL_TWITTER_SUMMARY_MARGIN_CHARS`,
@@ -62,7 +62,7 @@ impl NewsSiteConfig {
     /// Apply `VOX_NEWS_SITE_BASE_URL` and `VOX_NEWS_RSS_FEED_PATH` when non-empty.
     pub fn merge_operator_env_overrides(&mut self) {
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsSiteBaseUrl).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxNewsSiteBaseUrl).expose()
         {
             let t = v.trim().trim_end_matches('/').to_string();
             if !t.is_empty() {
@@ -70,7 +70,7 @@ impl NewsSiteConfig {
             }
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsRssFeedPath).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxNewsRssFeedPath).expose()
         {
             let t = v.trim();
             if !t.is_empty() {

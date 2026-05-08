@@ -243,7 +243,7 @@ pub fn scaffold_vox_project_at(
         anyhow::bail!("Vox.toml already exists in this directory");
     }
 
-    let manifest = vox_pm::VoxManifest::scaffold(project_name, package_kind);
+    let manifest = vox_package::VoxManifest::scaffold(project_name, package_kind);
     let mut toml_content = manifest
         .to_toml_string()
         .map_err(|e| anyhow::anyhow!("{e}"))?;

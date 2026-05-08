@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
 use std::path::Path;
-use vox_pm::VoxWorkspace;
+use vox_package::VoxWorkspace;
 
 #[cfg(feature = "stub-check")]
-use vox_toestub::{ToestubConfig, ToestubEngine, rules::Severity};
+use vox_code_audit::{ToestubConfig, ToestubEngine, rules::Severity};
 
 /// Dispatch `vox architect` subcommands (check, fix-sprawl, analyze).
 pub async fn run(action: crate::cli_actions::ArchitectAction) -> Result<()> {

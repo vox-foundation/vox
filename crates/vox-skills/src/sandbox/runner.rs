@@ -14,7 +14,7 @@ use std::time::Instant;
 use vox_container::ContainerRuntime;
 use vox_container::detect::{RuntimePreference, detect_runtime};
 
-use crate::ars_shim::manifest::ResourceLimits;
+use vox_openclaw_runtime::manifest::ResourceLimits;
 
 use super::image::{SANDBOX_IMAGE_TAG, ensure_sandbox_image};
 

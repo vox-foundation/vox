@@ -390,7 +390,7 @@ impl Backend {
                 let Some(db) = cached_project_db().await else {
                     return;
                 };
-                vox_ludus::lsp_telemetry::after_diagnostic_publish(
+                vox_gamify::lsp_telemetry::after_diagnostic_publish(
                     db.as_ref(),
                     &uri_s,
                     err_n,

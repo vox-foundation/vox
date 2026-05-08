@@ -263,7 +263,7 @@ mod tests {
             std::env::set_var("VOX_CLAVIS_BACKEND", "vox_cloud");
             std::env::set_var("VOX_CLAVIS_PROFILE", "dev");
             std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
-            let tmp = std::env::temp_dir().join("vox-clavis-publisher-strict-lenient.db");
+            let tmp = std::env::temp_dir().join("vox-secrets-publisher-strict-lenient.db");
             std::env::set_var(
                 "VOX_CLAVIS_CLOUDLESS_DB_PATH",
                 tmp.to_string_lossy().to_string(),

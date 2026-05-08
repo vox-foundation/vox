@@ -56,8 +56,8 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
         TelemetryCmd::Status { spool } => {
             let root = resolve_spool(spool);
             let pending_n = telemetry_spool::pending_count(&root);
-            let url_r = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxTelemetryUploadUrl);
-            let tok_r = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxTelemetryUploadToken);
+            let url_r = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTelemetryUploadUrl);
+            let tok_r = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTelemetryUploadToken);
             println!("spool_root: {}", root.display());
             println!("pending_files: {pending_n}");
             println!(
@@ -109,12 +109,12 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
             let url_str = if let Some(u) = url.filter(|s| !s.trim().is_empty()) {
                 u
             } else {
-                let r = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxTelemetryUploadUrl);
+                let r = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTelemetryUploadUrl);
                 r.expose()
                     .map(str::to_owned)
                     .ok_or_else(|| anyhow!("{}", r.remediation))?
             };
-            let bearer = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxTelemetryUploadToken)
+            let bearer = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTelemetryUploadToken)
                 .expose()
                 .map(str::to_owned);
             let (ok, fail) =

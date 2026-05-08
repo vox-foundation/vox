@@ -62,7 +62,7 @@ pub mod scientia_worthiness_enrich;
 pub use extras::ars;
 /// AST formatting and canonicalization (`vox fmt`).
 pub mod fmt;
-/// `vox info` — package metadata from registry / local Arca store (`vox-pm`).
+/// `vox info` — package metadata from registry / local Arca store (`vox-package`).
 pub mod info;
 /// `vox init` — scaffold `Vox.toml` / `src/main.vox` / skill markdown.
 pub mod init;
@@ -104,7 +104,7 @@ pub mod upgrade;
 #[cfg(feature = "extras-ludus")]
 pub use extras::ludus;
 /// AI-powered CodeRabbit review adapter (`vox review`).
-#[cfg(any(feature = "dei", feature = "coderabbit"))]
+#[cfg(feature = "coderabbit")]
 pub mod review;
 /// Native execution via local runtime execution (`vox run`).
 pub mod run;

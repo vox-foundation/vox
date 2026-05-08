@@ -44,7 +44,7 @@ pub fn spawn_populi_federation_poller(
     let populi_replay_queued_routes_on_remote_schedulable_drop =
         orchestrator_config.populi_replay_queued_routes_on_remote_schedulable_drop;
     let reconcile_exec_leases =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshExecLeaseReconcile)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorMeshExecLeaseReconcile)
             .expose()
             .map(|v: &str| {
                 let t = v.trim();
@@ -52,7 +52,7 @@ pub fn spawn_populi_federation_poller(
             })
             .unwrap_or(false);
     let auto_revoke_exec_leases =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshExecLeaseAutoRevoke)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorMeshExecLeaseAutoRevoke)
             .expose()
             .map(|v: &str| {
                 let t = v.trim();
@@ -60,7 +60,7 @@ pub fn spawn_populi_federation_poller(
             })
             .unwrap_or(false);
     let codex_mesh_telemetry =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshCodexTelemetry)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshCodexTelemetry)
             .expose()
             .map(|v: &str| {
                 let t = v.trim();

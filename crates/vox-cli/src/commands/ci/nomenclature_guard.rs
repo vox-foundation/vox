@@ -38,16 +38,16 @@ const LATIN_STRUCTURAL_DENYLIST: &[(&str, &str)] = &[
 /// Do not add new entries here without a policy proposal.
 const HISTORICAL_ALLOWLIST: &[&str] = &[
     "vox-dei",          // grandfathered — being migrated to vox-orchestrator (Phase 3)
-    "vox-ars",          // grandfathered — being migrated to vox-skills (Phase 4)
-    "vox-clavis",       // canonical secret manager — name IS its Latin identity (policy exception)
+    "vox-openclaw-runtime",  // grandfathered — ARS runtime extracted from vox-skills::ars_shim; canonical replacement for retired vox-ars
+    "vox-secrets",       // canonical secret manager — name IS its Latin identity (policy exception)
     "vox-orchestrator", // canonical English — permitted
     "vox-skills",       // canonical English — permitted
-    "vox-ludus",        // grandfathered — being migrated to vox-gamification
+    "vox-gamify",        // grandfathered — being migrated to vox-gamification
     "vox-oratio",       // grandfathered — being migrated to vox-speech
     "vox-populi",       // grandfathered — being migrated to vox-ml
     "vox-schola",       // grandfathered — being migrated to vox-tutorial
     "vox-codex-api",    // grandfathered — database abstraction layer (Phase 2)
-    "vox-mens",         // grandfathered — ML subsystem (Phase 2)
+    "vox-ml-cli",         // grandfathered — ML subsystem (Phase 2)
 ];
 
 #[derive(Serialize)]
@@ -153,8 +153,8 @@ mod tests {
     #[test]
     fn historical_allowlist_contains_grandfathered_crates() {
         assert!(HISTORICAL_ALLOWLIST.contains(&"vox-dei"));
-        assert!(HISTORICAL_ALLOWLIST.contains(&"vox-ars"));
-        assert!(HISTORICAL_ALLOWLIST.contains(&"vox-clavis"));
+        assert!(HISTORICAL_ALLOWLIST.contains(&"vox-openclaw-runtime"));
+        assert!(HISTORICAL_ALLOWLIST.contains(&"vox-secrets"));
     }
 
     #[test]
@@ -163,7 +163,7 @@ mod tests {
             .ancestors()
             .nth(2)
             .expect("repo root");
-        // Should pass because vox-dei and vox-ars are in the historical allowlist
+        // Should pass because vox-dei and vox-openclaw-runtime are in the historical allowlist
         run(repo_root, false).expect("nomenclature guard must pass on current repo");
     }
 }

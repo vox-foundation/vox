@@ -248,7 +248,7 @@ pub(crate) async fn execute_on_worker(
     }
 
     // Phase 4: Policy Gating
-    let secret = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshExecPolicy);
+    let secret = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshExecPolicy);
     let policy = secret.expose().unwrap_or("permissive");
     if req.is_bundle && policy == "source-only" {
         return Err(ResponseErr(
@@ -399,7 +399,7 @@ pub(crate) async fn execute_on_worker(
                 } else {
                     Some(format!("Exit code: {:?}", out.status.code()))
                 },
-                node_id: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
+                node_id: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshNodeId)
                     .expose()
                     .unwrap_or("unknown")
                     .to_string(),
@@ -413,7 +413,7 @@ pub(crate) async fn execute_on_worker(
             duration_ms,
             exit_code: None,
             error: Some(format!("Failed to execute vox: {}", e)),
-            node_id: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
+            node_id: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshNodeId)
                 .expose()
                 .unwrap_or("unknown")
                 .to_string(),

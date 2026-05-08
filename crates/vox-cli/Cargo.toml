@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description = "Vox command-line interface: compile, run, bundle, and workspace diagnostics."
-# `cargo run -p vox-cli` without `--bin` (binaries: `vox`, `vox-compilerd`, `vox-mens` when `mens-base`).
+# `cargo run -p vox-cli` without `--bin` (binaries: `vox`, `vox-compilerd`, `vox-ml-cli` when `mens-base`).
 default-run = "vox"
 
 [package.metadata.wix]
@@ -36,7 +36,7 @@ fuzzy-search = ["dep:nucleo"]
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Native MCP server runtime previously in vox-mcp binary
-mcp-server = ["vox-orchestrator/mcp-native", "dep:axum"]
+mcp-server = ["vox-orchestrator/populi-transport", "dep:axum", "dep:rmcp"]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
 
@@ -52,21 +52,21 @@ script-execution = [
     "dep:win32job",
 ]
 # Axum inference server (`vox mens serve`) + REST execution API; implies `script-execution`.
-execution-api = ["script-execution", "dep:axum", "dep:tokio-stream"]
+execution-api = ["script-execution", "dep:axum", "dep:axum-extra", "dep:tokio-stream"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
-    "dep:vox-toestub",
-    "dep:vox-ludus",
+    "dep:vox-code-audit",
+    "dep:vox-gamify",
 ]
-# Merge `vox-toestub` victory-claim / premature-done heuristics into `vox ci completion-audit` (CI enables this).
-completion-toestub = ["dep:vox-toestub"]
+# Merge `vox-code-audit` victory-claim / premature-done heuristics into `vox ci completion-audit` (CI enables this).
+completion-toestub = ["dep:vox-code-audit"]
 # No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to `vox-dei` (still do not add `vox-dei` as a dependency; see `vox ci no-vox-dei-import`).
 # Dashboard UX is the VS Code extension (see `docs/src/reference/cli.md`).
 dashboard = ["dep:vox-dashboard"]
-# OpenClaw / skill registry (`openclaw`); `vox-skills` carries the ARS shim; `vox-ars` is the migration facade.
-ars = ["dep:vox-skills", "dep:vox-ars"]
-# Ludus gamification CLI (`commands::extras::ludus`); implies `vox-ludus` (uses `vox-db`).
-extras-ludus = ["dep:vox-ludus", "dep:vox-toestub"]
+# OpenClaw / skill registry (`openclaw`); ARS runtime types live in `vox-openclaw-runtime`; `vox-skills` is the marketplace registry.
+ars = ["dep:vox-skills", "dep:vox-openclaw-runtime"]
+# Ludus gamification CLI (`commands::extras::ludus`); implies `vox-gamify` (uses `vox-db`).
+extras-ludus = ["dep:vox-gamify", "dep:vox-code-audit"]
 # Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
 ludus-hud = ["extras-ludus"]
 # Terminal live event dashboard: `vox live` + `commands::live` (in-process `vox-orchestrator` demo bus).
@@ -85,11 +85,8 @@ coderabbit = [
     "dep:vox-forge",
     "dep:vox-git",
     "dep:blake3",
-    "dep:vox-toestub",
+    "dep:vox-code-audit",
 ]
-# v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
-island = []
-
 # Stub for non-functional inference server when refactoring or debugging.
 # Enables all social platform adapters for publication and diagnostics.
 scientia-social = [
@@ -100,12 +97,14 @@ scientia-social = [
     "vox-publisher/scientia-bluesky",
     "vox-publisher/scientia-discord",
     "vox-publisher/scientia-opencollective",
-    "vox-publisher/live-api-canary"
+    "vox-publisher/live-api-canary",
+    "vox-orchestrator/news-publish",
 ]
 broken_inference_stub = []
 
 [dependencies]
 vox-compiler = { workspace = true }
+vox-codegen = { workspace = true }
 vox-ssg = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }
@@ -123,27 +122,34 @@ tokio = { workspace = true, features = ["io-std"] }
 vox-cli-core = { workspace = true }
 base64 = { workspace = true }
 futures = { workspace = true }
-vox-pm = { workspace = true }
+vox-package = { workspace = true }
 vox-container = { workspace = true }
-vox-wasm-host = { workspace = true }
+vox-wasm-engine = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true, optional = true }
-vox-ars    = { workspace = true, optional = true }
-vox-ludus = { workspace = true, optional = true }
+vox-openclaw-runtime = { workspace = true, optional = true }
+vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 vox-db = { workspace = true }
 vox-search = { workspace = true }
-vox-plugin-publication = { workspace = true }
+# `vox-plugin-publication` is intentionally NOT a direct dep here. The CLI
+# routes `db/publication/ingest.rs` through `vox-plugin-host`'s ABI surface
+# (the `Publication` extension point on `VoxPlugin`) to keep the heavy
+# `feed-rs` / `vox-publisher` transitive deps out of the default CLI build.
 # Scholarly / DB-backed jobs only; Reddit/YouTube adapter code stays out of default CLI compile.
 vox-publisher = { workspace = true, default-features = false, features = ["scholarly-external-jobs"] }
 vox-doc-inventory = { workspace = true }
-vox-toestub = { workspace = true, optional = true }
+vox-code-audit = { workspace = true, optional = true }
 toml = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
 vox-orchestrator = { workspace = true }
+vox-orchestrator-mcp = { workspace = true }
 vox-plugin-catalog = { workspace = true }
 vox-plugin-host = { workspace = true }
+# Needed to construct ROption / RString when dispatching into plugin extension
+# trait methods (e.g. the Publication.ingest_tick signature).
+abi_stable = { workspace = true }
 vox-populi = { workspace = true }
 vox-mesh-types = { workspace = true }
 vox-workflow-runtime = { workspace = true, optional = true }
@@ -162,7 +168,7 @@ glob = { workspace = true }
 # `external_review_replay::extract_external_review_rows` is behind `database`; CLI `corpus review-export` needs it.
 vox-corpus = { workspace = true, features = ["database", "ast-extract"] }
 
-vox-runtime = { workspace = true }
+vox-actor-runtime = { workspace = true }
 vox-primitives = { workspace = true }
 vox-exec-grammar = { workspace = true }
 vox-scaling-policy = { workspace = true }
@@ -175,11 +181,11 @@ rand = { workspace = true }
 uuid = { version = "1.22.0", features = ["v4"] }
 vox-mcp-registry = { path = "../vox-mcp-registry" }
 vox-capability-registry = { path = "../vox-capability-registry" }
-rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
+rmcp = { version = "0.16", optional = true, features = ["server", "client", "transport-io"] }
 axum = { version = "0.8", optional = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
 vox-grammar-export = { workspace = true }
-axum-extra = { version = "0.12.5", features = ["typed-header"] }
+axum-extra = { version = "0.12.5", optional = true, features = ["typed-header"] }
 notify = "7"
 tokio-stream = { version = "0.1", optional = true }
 dirs = { version = "6" }

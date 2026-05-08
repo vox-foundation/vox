@@ -49,7 +49,7 @@ pub use simulation::run_monte_carlo_sweep;
 pub use sync::sync_command;
 
 /// Print a formatted terminal toast for gamification rewards and level-ups.
-pub fn print_route_result(res: &vox_ludus::reward_policy::RouteResult) {
+pub fn print_route_result(res: &vox_gamify::reward_policy::RouteResult) {
     if let Some(reward) = &res.reward {
         if reward.xp > 0 || reward.crystals > 0 || reward.lumens != 0 {
             let mut parts = Vec::new();

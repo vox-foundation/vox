@@ -36,7 +36,7 @@ If `vox` is explicitly omitted from terminal `$PATH`, use the dev scripts:
 | Retired / Deprecated | Canonical Replacement (Use Instead) |
 |---|---|
 | `vox-dei` (orchestrating logic) | `vox-orchestrator` |
-| `vox-ars` | `vox-skills` |
+| `vox-ars` | `vox-ars-runtime` |
 | `vox-gamify` | `vox-ludus` |
 | `vox-lexer`, `vox-parser`, `vox-hir` | `vox-compiler` |
 | `@component fn Name()` | `component Name() {}` |

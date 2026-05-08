@@ -735,7 +735,7 @@ pub(crate) fn check_project_pm_commands_no_toolchain_lane(repo_root: &Path) -> R
         for needle in FORBIDDEN {
             if s.contains(needle) {
                 return Err(anyhow!(
-                    "{}: project PM command file must not reference toolchain upgrade / install-policy (`{needle}`) — use only `vox_pm` / `pm_lifecycle` (WP5)",
+                    "{}: project PM command file must not reference toolchain upgrade / install-policy (`{needle}`) — use only `vox_package` / `pm_lifecycle` (WP5)",
                     p.display()
                 ));
             }
@@ -749,7 +749,7 @@ pub(crate) fn check_upgrade_toolchain_only(repo_root: &Path) -> Result<()> {
     let p = repo_root.join("crates/vox-cli/src/commands/upgrade.rs");
     let s = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
     for needle in [
-        "vox_pm::",
+        "vox_package::",
         "VoxManifest",
         "Lockfile",
         "open_local_pm_store",

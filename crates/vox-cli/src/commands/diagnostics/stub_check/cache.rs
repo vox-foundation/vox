@@ -2,8 +2,8 @@
 
 use std::collections::HashMap;
 
-use vox_toestub::Finding;
-use vox_toestub::rules::Severity;
+use vox_code_audit::Finding;
+use vox_code_audit::rules::Severity;
 
 use super::fix_pipeline;
 

@@ -1,3 +1,5 @@
+//! Pure-types L0 leaf for the orchestrator daemon wire protocol (dispatch request/payload shapes, method ids).
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 

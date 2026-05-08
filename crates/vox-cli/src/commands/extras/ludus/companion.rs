@@ -3,7 +3,7 @@
 use crate::commands::extras::ludus::LudusContext;
 use anyhow::Result;
 use owo_colors::OwoColorize;
-use vox_ludus::{Companion, FreeAiClient, companion::Mood, db, quest, sprite};
+use vox_gamify::{Companion, FreeAiClient, companion::Mood, db, quest, sprite};
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
@@ -106,10 +106,10 @@ pub async fn companion_create(name: &str, code_file: &std::path::Path) -> Result
     let user_id = &ctx.user_id;
     let code = read_utf8_path_capped(code_file)?;
 
-    let id = vox_runtime::builtins::vox_uuid();
+    let id = vox_actor_runtime::builtins::vox_uuid();
 
     let mut companion = Companion::new(&id, user_id, name, "vox");
-    companion.code_hash = Some(vox_runtime::builtins::vox_hash_fast(&code));
+    companion.code_hash = Some(vox_actor_runtime::builtins::vox_hash_fast(&code));
     companion.description = Some(format!("Created from {}", code_file.display()));
 
     // Generate sprite (try AI, fall back to deterministic)
@@ -122,7 +122,7 @@ pub async fn companion_create(name: &str, code_file: &std::path::Path) -> Result
     // Increment Quests
     let mut profile = match db::get_profile(db_conn, user_id).await? {
         Some(p) => p,
-        None => vox_ludus::LudusProfile::new_default(user_id),
+        None => vox_gamify::LudusProfile::new_default(user_id),
     };
     let mut quests = db::list_quests(db_conn, user_id).await?;
     for q in &mut quests {
@@ -162,12 +162,12 @@ pub async fn companion_create(name: &str, code_file: &std::path::Path) -> Result
     Ok(())
 }
 
-fn parse_interaction(s: &str) -> Option<vox_ludus::Interaction> {
+fn parse_interaction(s: &str) -> Option<vox_gamify::Interaction> {
     match s.to_lowercase().as_str() {
-        "feed" => Some(vox_ludus::Interaction::Feed),
-        "play" => Some(vox_ludus::Interaction::Play),
-        "rest" => Some(vox_ludus::Interaction::Rest),
-        "train" => Some(vox_ludus::Interaction::TaskAssigned),
+        "feed" => Some(vox_gamify::Interaction::Feed),
+        "play" => Some(vox_gamify::Interaction::Play),
+        "rest" => Some(vox_gamify::Interaction::Rest),
+        "train" => Some(vox_gamify::Interaction::TaskAssigned),
         _ => None,
     }
 }
@@ -184,7 +184,7 @@ pub async fn companion_interact_str(name: &str, interaction: &str) -> Result<()>
 }
 
 /// Interact with a companion.
-pub async fn companion_interact(name: &str, interaction: vox_ludus::Interaction) -> Result<()> {
+pub async fn companion_interact(name: &str, interaction: vox_gamify::Interaction) -> Result<()> {
     let ctx = LudusContext::load().await?;
     let db_conn = &ctx.db;
     let user_id = &ctx.user_id;
@@ -226,9 +226,9 @@ pub async fn companion_interact(name: &str, interaction: vox_ludus::Interaction)
     db::upsert_companion(db_conn, &companion).await?;
 
     match interaction {
-        vox_ludus::Interaction::Feed => println!("  🍔 You fed {}!", companion.name),
-        vox_ludus::Interaction::Play => println!("  🎾 You played with {}!", companion.name),
-        vox_ludus::Interaction::Rest => println!("  💤 {} took a rest.", companion.name),
+        vox_gamify::Interaction::Feed => println!("  🍔 You fed {}!", companion.name),
+        vox_gamify::Interaction::Play => println!("  🎾 You played with {}!", companion.name),
+        vox_gamify::Interaction::Rest => println!("  💤 {} took a rest.", companion.name),
         _ => println!("  ⚙️ System event triggered for {}.", companion.name),
     }
 

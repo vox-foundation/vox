@@ -47,7 +47,7 @@ pub async fn status() -> anyhow::Result<()> {
     println!("{:<15} {}", "DuckDuckGo:", ddg_status);
 
     // Check Tavily (optional)
-    let tavily_res = vox_clavis::resolve_secret(vox_clavis::SecretId::TavilyApiKey);
+    let tavily_res = vox_secrets::resolve_secret(vox_secrets::SecretId::TavilyApiKey);
     let tavily_key = tavily_res.expose();
     let tavily_status = if tavily_key.is_some() {
         "CONFIGURED (API Key Detected)".green().bold().to_string()

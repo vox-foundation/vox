@@ -3,7 +3,7 @@
 //! Guards against regressions in order invariance, conflict detection,
 //! and prompt injection containment (safety pass).
 
-use vox_runtime::prompt_canonical::{
+use vox_actor_runtime::prompt_canonical::{
     canonicalize_prompt, detect_conflicts, order_invariant_pack, payload_hash, safety_pass,
 };
 

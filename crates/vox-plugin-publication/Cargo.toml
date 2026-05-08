@@ -13,7 +13,9 @@ vox-plugin-api = { workspace = true }
 vox-scientia-ingest = { workspace = true }
 vox-publisher = { workspace = true, features = ["scientia-reddit", "scientia-youtube", "scholarly-external-jobs"] }
 vox-db = { workspace = true }
-vox-runtime = { workspace = true }
+# NOTE: `vox-actor-runtime` is intentionally NOT a dependency. Plugins must not pull
+# the core agent runtime. The `LlmConfig` type used in `ingest.rs` is reached
+# through `vox-search`'s re-export.
 vox-search = { workspace = true }
 abi_stable = { workspace = true }
 anyhow = { workspace = true }

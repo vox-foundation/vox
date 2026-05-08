@@ -305,7 +305,7 @@ fn pipeline_table_rust_codegen_e2e() {
     let tokens = lex(DATA_LAYER_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    let output = vox_compiler::codegen_rust::generate(&hir, "test_data").unwrap();
+    let output = vox_codegen::codegen_rust::generate(&hir, "test_data").unwrap();
 
     let lib_rs = output.files.get("src/lib.rs").expect("lib.rs");
     insta::assert_snapshot!("table_task_lib_rs_emit", lib_rs);
@@ -654,8 +654,8 @@ fn pipeline_mixed_declarations_lower_without_panic() {
 
 #[test]
 fn pipeline_mixed_declarations_hir_counts_and_web_ir_validate() {
-    use vox_compiler::web_ir::lower::lower_hir_to_web_ir;
-    use vox_compiler::web_ir::validate::validate_web_ir;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
+    use vox_codegen::web_ir::validate::validate_web_ir;
 
     let tokens = lex(MIXED_SURFACE_SRC);
     let module = parse(tokens).expect("parse");

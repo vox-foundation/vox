@@ -8455,7 +8455,7 @@ curated:
   mcp_tool: vox_test_decision
   cli_path: null
   parameters: null
-- id: mcp.vox_toestub_findings_upsert
+- id: mcp.vox_code_audit_findings_upsert
   title: Toestub Findings Upsert
   description_human: null
   description_model: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
@@ -8468,7 +8468,7 @@ curated:
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
-  mcp_tool: vox_toestub_findings_upsert
+  mcp_tool: vox_code_audit_findings_upsert
   cli_path: null
   parameters: null
 - id: mcp.vox_transfer_file

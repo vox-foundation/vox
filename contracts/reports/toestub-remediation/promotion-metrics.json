@@ -6,45 +6,87 @@
   "findings_by_family": [
     [
       "scaling",
-      432
-    ],
-    [
-      "unresolved-ref",
-      128
-    ],
-    [
-      "rust",
-      71
-    ],
-    [
-      "cross-platform",
-      29
+      847
     ],
     [
       "arch",
-      1
+      789
+    ],
+    [
+      "ai-laziness",
+      769
+    ],
+    [
+      "unresolved-ref",
+      477
+    ],
+    [
+      "rust",
+      192
+    ],
+    [
+      "skeleton",
+      26
+    ],
+    [
+      "victory-claim",
+      16
     ],
     [
       "dry-violation",
+      12
+    ],
+    [
+      "stub",
+      7
+    ],
+    [
+      "magic-value",
+      5
+    ],
+    [
+      "empty-body",
+      2
+    ],
+    [
+      "security",
       1
     ]
   ],
   "findings_top_rules": {
-    "arch/organization": 1,
-    "cross-platform/crlf": 29,
-    "dry-violation/duplicate-block": 1,
-    "rust/unwrap-call": 71,
-    "scaling/blocking-in-async": 97,
-    "scaling/cache-miss-hot-read": 22,
-    "scaling/http-client-no-timeout": 36,
-    "scaling/magic-limit": 48,
-    "scaling/nested-pairwise-loop": 3,
-    "scaling/regex-new-hot": 98,
-    "scaling/unbounded-read": 128,
-    "unresolved-ref/fn-call": 128
+    "ai-laziness/assertion-only-body": 501,
+    "ai-laziness/conditional-stub": 35,
+    "ai-laziness/custom-type-default-return": 9,
+    "ai-laziness/early-return-only": 179,
+    "ai-laziness/implement-later-comment": 35,
+    "ai-laziness/mock-named-fn": 6,
+    "ai-laziness/placeholder-return": 4,
+    "arch/god_object": 787,
+    "arch/organization": 2,
+    "dry-violation/duplicate-block": 12,
+    "empty-body": 2,
+    "magic-value/ip": 2,
+    "magic-value/path": 1,
+    "magic-value/port": 2,
+    "rust/unwrap-call": 192,
+    "scaling/blocking-in-async": 201,
+    "scaling/cache-miss-hot-read": 59,
+    "scaling/http-client-no-timeout": 54,
+    "scaling/magic-limit": 85,
+    "scaling/nested-pairwise-loop": 2,
+    "scaling/regex-new-hot": 140,
+    "scaling/unbounded-read": 306,
+    "security/hardcoded-secret": 1,
+    "skeleton/hollow-fn": 26,
+    "stub/todo-comment": 7,
+    "unresolved-ref/fn-call": 477,
+    "victory-claim/fixme": 1,
+    "victory-claim/hack": 4,
+    "victory-claim/premature": 9,
+    "victory-claim/todo-leftover": 2
   },
-  "findings_total_latest": 662,
-  "generated_at": "2026-03-27T03:37:54.332484200+00:00",
+  "findings_total_latest": 3143,
+  "generated_at": "2026-05-08T08:35:38.035526500+00:00",
   "remediation_delta_snapshot": {
     "baseline_total": 6091,
     "current_by_rule_family": {

@@ -14,7 +14,7 @@ Vox uses `AGENTS.md` in the repository root as its single source of truth for cr
 
 1. **Retired Surfaces (LLM Guard):**
    - Use `vox-orchestrator`, NOT `vox-dei`.
-   - Use `vox-skills`, NOT `vox-ars`.
+   - Use `vox-ars-runtime`, NOT `vox-ars`.
    - Use `vox-ludus`, NOT `vox-gamify`.
    - Use `vox-compiler`, NOT `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck`.
    - Use `component Name() {}`, NOT `@component fn Name()`.

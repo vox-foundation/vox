@@ -193,6 +193,6 @@ pub fn canonical_runtime_projection_bytes(
     module: &RuntimeProjectionModule,
 ) -> Result<Vec<u8>, serde_json::Error> {
     let mut v = serde_json::to_value(module)?;
-    crate::syntax_k::sort_json_value_keys(&mut v);
+    crate::canonical_json::sort_json_value_keys(&mut v);
     serde_json::to_vec(&v)
 }

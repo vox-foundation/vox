@@ -1,6 +1,6 @@
-//! Resolve a default embedding [`vox_runtime::llm::LlmConfig`] from secrets / env (MCP parity).
+//! Resolve a default embedding [`vox_actor_runtime::llm::LlmConfig`] from secrets / env (MCP parity).
 
-use vox_runtime::llm::LlmConfig;
+use vox_actor_runtime::llm::LlmConfig;
 
 /// Build embedding configuration from well-known providers.
 #[must_use]
@@ -27,7 +27,7 @@ pub fn embedding_config_from_env() -> Option<LlmConfig> {
             telemetry_skip_interaction: false,
         });
     }
-    let openai_key = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiApiKey)
+    let openai_key = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiApiKey)
         .expose()
         .unwrap_or_default()
         .to_string();
@@ -53,7 +53,7 @@ pub fn embedding_config_from_env() -> Option<LlmConfig> {
             telemetry_skip_interaction: false,
         });
     }
-    let openrouter_key = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+    let openrouter_key = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
         .expose()
         .unwrap_or_default()
         .to_string();

@@ -4,7 +4,7 @@ use std::fs;
 use std::path::PathBuf;
 
 pub async fn run(write_to: Option<PathBuf>) -> Result<()> {
-    let token = vox_clavis::resolve_secret(vox_clavis::SecretId::ForgeToken)
+    let token = vox_secrets::resolve_secret(vox_secrets::SecretId::ForgeToken)
         .expose()
         .unwrap_or_default()
         .to_string();

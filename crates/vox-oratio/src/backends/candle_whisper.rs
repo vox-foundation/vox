@@ -43,7 +43,7 @@ fn cache() -> &'static Mutex<Option<Session>> {
 }
 
 fn pick_device() -> Result<Device> {
-    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioCuda).expose() == Some("1") {
+    if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioCuda).expose() == Some("1") {
         #[cfg(feature = "cuda")]
         {
             return Device::new_cuda(0).map_err(|e| anyhow::anyhow!("CUDA: {e}"));
@@ -205,16 +205,16 @@ fn ensure_session(model_id: &str, revision: &str) -> Result<()> {
 
 /// JSON-friendly status for CLI / tools (weights path is HF cache, not printed).
 pub fn candle_backend_status_json() -> serde_json::Value {
-    let model = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioModel)
+    let model = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioModel)
         .expose()
         .unwrap_or("openai/whisper-tiny.en")
         .to_string();
-    let rev_secret = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRevision);
+    let rev_secret = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioRevision);
     let rev = rev_secret
         .expose()
         .unwrap_or_else(|| default_revision_for_model(&model));
     let cuda_requested =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioCuda).expose() == Some("1");
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioCuda).expose() == Some("1");
     let cuda_feature = cfg!(feature = "cuda");
     let inference_note = if cuda_feature && !cuda_requested {
         Some(format!(
@@ -251,7 +251,7 @@ impl LanguageEnvOverride {
     /// transcription should run per process at a time, or callers must serialize access.
     #[must_use]
     pub fn set(language: Option<&str>) -> Self {
-        let previous = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage)
+        let previous = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioLanguage)
             .expose()
             .map(|s| s.to_string());
         // SAFETY: single-threaded Whisper session lock is held for the duration of
@@ -430,7 +430,7 @@ fn build_decoder(
 pub fn transcribe_audio_file(path: &Path) -> Result<String> {
     let pcm = pcm_decode_to_16k_mono(path)?;
     let budget_ms =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioAcousticPreprocessBudgetMs)
             .expose()
             .and_then(|s: &str| s.parse().ok())
             .unwrap_or(25u64);
@@ -447,7 +447,7 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
         anyhow::bail!("no audio samples decoded from {}", path.display());
     }
 
-    let language_override = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage);
+    let language_override = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioLanguage);
     let (text, _) = transcribe_pcm_internal(&pcm, language_override.expose())?;
     Ok(text)
 }
@@ -457,30 +457,30 @@ pub fn transcribe_pcm_internal(
     pcm: &[f32],
     language_override: Option<&str>,
 ) -> Result<(String, Vec<crate::backends::asr_backend::TimedSegment>)> {
-    let model_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioModel)
+    let model_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioModel)
         .expose()
         .unwrap_or("openai/whisper-tiny.en")
         .to_string();
-    let rev_secret = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRevision);
+    let rev_secret = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioRevision);
     let revision = rev_secret
         .expose()
         .unwrap_or_else(|| default_revision_for_model(&model_id))
         .to_string();
 
-    let chunk_sec_requested = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioChunkSec)
+    let chunk_sec_requested = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioChunkSec)
         .expose()
         .and_then(|s: &str| s.parse::<f64>().ok())
         .filter(|&x| x > 0.0);
 
     let chunk_overlap_sec =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioChunkOverlapSec)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioChunkOverlapSec)
             .expose()
             .and_then(|s| s.parse().ok())
             .filter(|&x| x >= 0.0)
             .unwrap_or(0.5);
 
     let emit_partial: Option<std::path::PathBuf> =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioEmitPartialPath)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioEmitPartialPath)
             .expose()
             .filter(|s| !s.trim().is_empty())
             .map(|s| std::path::PathBuf::from(s.trim().to_string()));
@@ -512,7 +512,7 @@ pub fn transcribe_pcm_internal(
 
     let multilingual = model_is_multilingual(&model_id);
     let lang = language_override.map(|s| s.to_string()).or_else(|| {
-        let res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioLanguage);
+        let res = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioLanguage);
         res.expose().map(String::from)
     });
 
@@ -584,14 +584,14 @@ pub fn transcribe_pcm_internal(
         }
     };
 
-    let seed: u64 = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSeed)
+    let seed: u64 = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioSeed)
         .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(299_792_458);
     let verbose =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioVerbose).expose() == Some("1");
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioVerbose).expose() == Some("1");
 
-    let task = match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioTask).expose() {
+    let task = match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioTask).expose() {
         Some(v) if v.trim() == "translate" => Some(DecodeTask::Translate),
         Some(v) if v.trim() == "transcribe" || v.trim().is_empty() => Some(DecodeTask::Transcribe),
         None => Some(DecodeTask::Transcribe),
@@ -603,7 +603,7 @@ pub fn transcribe_pcm_internal(
 
     let tokenizer_clone = sess.tokenizer.clone();
     let emit_tokens = matches!(
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioStreamTokens).expose(),
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioStreamTokens).expose(),
         Some(s) if s == "1" || s.eq_ignore_ascii_case("true")
     );
 
@@ -811,7 +811,7 @@ mod chunk_tests {
     fn test_silence_hallucination_prevention() {
         // A dummy test representing the silence hallucination test requested.
         // It provides completely silent PCM f32 array -> Expects no text due to thresholding.
-        let prev = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioNoSpeechThreshold)
+        let prev = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioNoSpeechThreshold)
             .expose()
             .map(|s| s.to_string());
         unsafe {
@@ -859,7 +859,7 @@ impl AsrBackend for CandleWhisperBackend {
             );
         }
         let budget_ms =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioAcousticPreprocessBudgetMs)
                 .expose()
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(25u64);

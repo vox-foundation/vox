@@ -1,5 +1,5 @@
 #![allow(missing_docs)]
-//! Integration tests for vox-pm skill manifest and execution telemetry storage.
+//! Integration tests for vox-package skill manifest and execution telemetry storage.
 
 use vox_db::SkillExecutionParams;
 use vox_db::VoxDb;

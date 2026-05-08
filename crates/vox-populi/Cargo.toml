@@ -14,7 +14,7 @@ nvml-gpu-probe = []
 # Enable live-hardware integration tests (requires real GPU hardware; do not enable on CI).
 hw-probe-live-test = []
 # DEPRECATED: HTTP control plane code extracted to vox-plugin-populi-mesh; rewire of
-# vox-cli/vox-mens/vox-orchestrator callsites is pending (Unit 2 follow-up).
+# vox-cli/vox-ml-cli/vox-orchestrator callsites is pending (Unit 2 follow-up).
 # Keep this feature until all callers are rewired through MeshDriver.
 transport = [
     "dep:axum",
@@ -33,7 +33,7 @@ transport = [
     "dep:vox-db",
     "dep:turso",
 ]
-# Mens ML — core deps (absorbed former `vox-mens` crate).
+# Mens ML — core deps (absorbed former `vox-ml-cli` crate).
 mens = [
     "dep:anyhow",
     "dep:serde_yaml",
@@ -78,7 +78,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 vox-repository = { workspace = true }
 vox-primitives = { workspace = true }
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 vox-plugin-host = { workspace = true, optional = true }
 vox-constrained-gen = { workspace = true }
 vox-grammar-export = { workspace = true }
@@ -147,6 +147,26 @@ required-features = ["transport"]
 [[test]]
 name = "dispatch_persistence"
 required-features = ["transport"]
+
+[[test]]
+name = "probe_pipeline"
+required-features = ["mens"]
+
+[[test]]
+name = "probe_pipeline_live"
+required-features = ["mens"]
+
+[[test]]
+name = "hf_load_config"
+required-features = ["mens"]
+
+[[test]]
+name = "qwen35_native_parity"
+required-features = ["mens"]
+
+[[test]]
+name = "training_presets_yaml_contract"
+required-features = ["mens"]
 
 [lints]
 workspace = true

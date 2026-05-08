@@ -3,7 +3,7 @@
 //! Compiles a `.vox` file with a top-level `fn main()` to a Rust binary (or
 //! WASI module) and executes it. Results are cached by content hash in
 //! `~/.vox/script-cache/<hash>/`. All script builds share a single
-//! `~/.vox/script-target/` so `vox-runtime` and its transitive dependencies
+//! `~/.vox/script-target/` so `vox-actor-runtime` and its transitive dependencies
 //! are only compiled once.
 
 use anyhow::Result;
@@ -270,11 +270,11 @@ pub(crate) async fn compile(
 
         // Optional GC on miss
         let max_entries =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScriptCacheMaxEntries)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxScriptCacheMaxEntries)
                 .expose()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(100usize);
-        let max_mb = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScriptCacheMaxSizeMb)
+        let max_mb = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxScriptCacheMaxSizeMb)
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(500u64);

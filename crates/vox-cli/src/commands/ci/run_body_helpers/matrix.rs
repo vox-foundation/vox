@@ -475,14 +475,14 @@ pub(crate) fn run_toestub_self_apply(repo: &Path) -> Result<()> {
     let cargo = cargo_bin();
     let st = Command::new(&cargo)
         .current_dir(repo)
-        .args(["build", "-p", "vox-toestub", "--release"])
+        .args(["build", "-p", "vox-code-audit", "--release"])
         .status()?;
     if !st.success() {
-        return Err(anyhow!("cargo build -p vox-toestub --release failed"));
+        return Err(anyhow!("cargo build -p vox-code-audit --release failed"));
     }
     let st = Command::new(&cargo)
         .current_dir(repo)
-        .args(["run", "-q", "-p", "vox-toestub", "--bin", "toestub"])
+        .args(["run", "-q", "-p", "vox-code-audit", "--bin", "toestub"])
         .status()?;
     if !st.success() {
         return Err(anyhow!("toestub self-apply run failed"));
@@ -503,7 +503,7 @@ pub(crate) fn run_toestub_scoped(repo: &Path, scan_root: &Path, mode: ToestubCiM
     let mut c = Command::new(&cargo);
     c.current_dir(repo)
         .env("CARGO_TARGET_DIR", &nested_target)
-        .args(["run", "-p", "vox-toestub", "--bin", "toestub", "--"]);
+        .args(["run", "-p", "vox-code-audit", "--bin", "toestub", "--"]);
     if mode != ToestubCiMode::Legacy {
         c.arg("--mode").arg(mode.as_cli_str());
     }

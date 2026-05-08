@@ -27,7 +27,7 @@ magic_numeric_hints:
   - 65536
 
 per_crate_overrides:
-  - crate_name: "vox-toestub"
+  - crate_name: "vox-code-audit"
     allow_blocking_fs_in_async: true
     notes: "Scanner uses sync read_to_string by design."
   - crate_name: "vox-integration-tests"

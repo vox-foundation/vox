@@ -30,7 +30,7 @@ fn built_dylib(crate_name: &str) -> PathBuf {
             return p;
         }
     }
-    panic!("build {crate_name} first: `cargo build -p {crate_name}`");
+    panic!("build {crate_name} first: `cargo build --manifest-path crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi/Cargo.toml`");
 }
 
 #[test]
@@ -40,7 +40,7 @@ fn rejects_mismatched_abi() {
     match result {
         Err(LoadError::AbiMismatch(e)) => {
             assert_eq!(e.plugin_abi, 999_999);
-            assert_eq!(e.host_abi, 11);
+            assert_eq!(e.host_abi, 12);
         }
         Ok(_) => panic!("expected AbiMismatch, got Ok"),
         Err(other) => panic!("expected AbiMismatch, got {other:?}"),

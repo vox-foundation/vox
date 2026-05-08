@@ -1,7 +1,7 @@
 //! `vox agent` — register, list, and inspect AI agent definitions.
 
 use anyhow::Result;
-use vox_pm::{AgentDefEntry, VoxDb};
+use vox_package::{AgentDefEntry, VoxDb};
 
 async fn connect() -> Result<VoxDb> {
     crate::workspace_db::connect_cli_workspace_voxdb().await

@@ -51,7 +51,7 @@ pub enum DiagCmd {
 /// `vox ars …` — craft / skills lane (snippet, share, skill, openclaw, ludus).
 #[derive(Subcommand)]
 pub enum ArsCmd {
-    /// Snippet helpers (local `vox-pm` store)
+    /// Snippet helpers (local `vox-package` store)
     Snippet {
         #[command(subcommand)]
         cmd: crate::commands::extras::snippet_cli::SnippetCli,

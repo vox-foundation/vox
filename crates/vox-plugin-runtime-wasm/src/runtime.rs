@@ -1,6 +1,6 @@
 //! Wasmtime-based WASI sandbox runtime for skill execution.
 //!
-//! Implements [`SkillRuntime`] by delegating to [`vox_wasm_host::WasmHost`] — the
+//! Implements [`SkillRuntime`] by delegating to [`vox_wasm_engine::WasmHost`] — the
 //! single-source-of-truth Wasmtime engine + WASI wiring shared with `vox run --backend wasi`.
 //!
 //! # Capabilities
@@ -12,13 +12,13 @@
 
 use anyhow::Result;
 use vox_skill_runtime::{BuildOpts, RunOpts, RunOutcome, SkillRuntime};
-use vox_wasm_host::{Preopen, PreopenMode, WasmExecOpts, WasmHost};
+use vox_wasm_engine::{Preopen, PreopenMode, WasmExecOpts, WasmHost};
 use wasmtime::Module;
 
 /// Wasmtime-based WASI sandbox runtime.
 ///
 /// Delegates all Wasmtime engine construction, WASI context wiring, and
-/// module execution to [`vox_wasm_host::WasmHost`].
+/// module execution to [`vox_wasm_engine::WasmHost`].
 pub struct WasmRuntime {
     host: WasmHost,
 }
@@ -99,7 +99,7 @@ impl SkillRuntime for WasmRuntime {
         tracing::info!(
             target: "wasm-runtime",
             path = ?artifact,
-            "Executing WASM module via vox-wasm-host"
+            "Executing WASM module via vox-wasm-engine"
         );
 
         // Map RunOpts volumes → WasmHost preopens (read-write by default for skills).

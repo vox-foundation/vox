@@ -19,6 +19,8 @@ Keep it short, stable, and implementation-oriented.
 
 Primary navigation:
 
+- **Where does this code go?** [`docs/src/architecture/where-things-live.md`](docs/src/architecture/where-things-live.md) — flat lookup table from concept to crate. Consult this **before** adding code. If your concept isn't listed, add the row in the same PR.
+- **Architectural rules:** [`docs/src/architecture/layers.toml`](docs/src/architecture/layers.toml) — layer assignments, fan-in / LoC budgets, allowed inversions. Enforced by `cargo run -p vox-arch-check`.
 - Contributor entry point: [`docs/src/contributors/contributor-hub.md`](docs/src/contributors/contributor-hub.md)
 - Documentation authority map: [`docs/src/contributors/documentation-governance.md`](docs/src/contributors/documentation-governance.md)
 - Architecture map: [`docs/src/architecture/architecture-index.md`](docs/src/architecture/architecture-index.md)
@@ -189,7 +191,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | Retired / Deprecated | Canonical Replacement (Use Instead) |
 |---|---|
 | `vox-dei` (old large orchestrator crate) | `vox-orchestrator` |
-| `vox-ars` (crate) | `vox-skills` |
+| `vox-ars` (crate) | `vox-ars-runtime` |
 | `vox-gamify` | `vox-ludus` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |

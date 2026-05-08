@@ -2,7 +2,7 @@
 //!
 //! Writes **TypeScript** into `out_dir` and **Rust** under `target/generated/` (Axum-style backend).
 //! Optional **`--scaffold`** (or `VOX_WEB_EMIT_SCAFFOLD=1`) writes user-owned Vite/app files via
-//! [`vox_compiler::codegen_ts::scaffold`]. `@v0` uses `V0_API_KEY` when set — see `crate::v0::generate_component`.
+//! [`vox_codegen::codegen_ts::scaffold`]. `@v0` uses `V0_API_KEY` when set — see `crate::v0::generate_component`.
 
 use anyhow::{Context, Result};
 use std::fs;
@@ -12,7 +12,7 @@ use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
 /// Run the build pipeline for `file`, writing TS to `out_dir` and Rust to `target/generated`.
 ///
-/// `emit_scaffold`: write [`vox_compiler::codegen_ts::scaffold`] files when missing (or set `VOX_WEB_EMIT_SCAFFOLD=1`).
+/// `emit_scaffold`: write [`vox_codegen::codegen_ts::scaffold`] files when missing (or set `VOX_WEB_EMIT_SCAFFOLD=1`).
 pub async fn run(
     file: &Path,
     out_dir: &Path,
@@ -37,21 +37,21 @@ pub async fn run(
     let crate::pipeline::FrontendResult { module, hir, .. } = frontend;
 
     // 5. Generate TypeScript (Frontend)
-    let ts_opts = vox_compiler::codegen_ts::CodegenOptions {
+    let ts_opts = vox_codegen::codegen_ts::CodegenOptions {
         tanstack_start: vox_config::VoxConfig::load().web_tanstack_start,
         target: target.clone(),
         mode: match mode {
-            crate::cli_args::BuildMode::App => vox_compiler::codegen_ts::emitter::BuildMode::App,
+            crate::cli_args::BuildMode::App => vox_codegen::codegen_ts::emitter::BuildMode::App,
             crate::cli_args::BuildMode::Library => {
-                vox_compiler::codegen_ts::emitter::BuildMode::Library
+                vox_codegen::codegen_ts::emitter::BuildMode::Library
             }
         },
     };
-    let ts_output = vox_compiler::codegen_ts::generate_with_options(&hir, ts_opts)
+    let ts_output = vox_codegen::codegen_ts::generate_with_options(&hir, ts_opts)
         .map_err(|e| anyhow::anyhow!("TypeScript codegen error: {}", e))?;
 
     // 6. Generate Rust (Backend)
-    let rust_output = vox_compiler::codegen_rust::generate(&hir, "vox_generated_app")
+    let rust_output = vox_codegen::codegen_rust::generate(&hir, "vox_generated_app")
         .map_err(|e| anyhow::anyhow!("Rust code generation failed: {e}"))?;
 
     // 7. Write output files
@@ -97,7 +97,7 @@ pub async fn run(
         .unwrap_or(false);
     if emit_scaffold || scaffold_env {
         let project_root = out_dir.parent().unwrap_or(out_dir);
-        vox_compiler::codegen_ts::scaffold::write_scaffold_if_missing(project_root, "vox-app")
+        vox_codegen::codegen_ts::scaffold::write_scaffold_if_missing(project_root, "vox-app")
             .with_context(|| "Failed to write web scaffold files")?;
     }
 
@@ -199,7 +199,7 @@ pub async fn run(
     }
 
     if emit_ir {
-        let web_ir = vox_compiler::web_ir::lower::lower_hir_to_web_ir(&hir);
+        let web_ir = vox_codegen::web_ir::lower::lower_hir_to_web_ir(&hir);
         let ir_json =
             serde_json::to_string_pretty(&web_ir).context("Failed to serialize WebIR to JSON")?;
         let ir_path = out_dir.join("web-ir.v1.json");

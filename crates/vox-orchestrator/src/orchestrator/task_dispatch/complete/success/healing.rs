@@ -45,7 +45,7 @@ impl Orchestrator {
                                         "Fix these Vox compiler errors:\n{}\n\nCode:\n```vox\n{}\n```\n\nReturn only the fixed code, no extra text.",
                                         errs.join("\n"), src
                                     );
-                                    let client = vox_ludus::ai::FreeAiClient::auto_discover().await;
+                                    let client = vox_gamify::ai::FreeAiClient::auto_discover().await;
                                     let raw = client.generate(&prompt).await.unwrap_or_default();
 
                                     let mut cleaned = raw;

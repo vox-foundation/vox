@@ -24,7 +24,7 @@ pub(crate) fn parse_github_owner_repo(url: &str) -> Option<(String, String)> {
 
 /// Resolve Forge token: `FORGE_TOKEN` / `GITHUB_TOKEN`.
 pub(crate) fn forge_token() -> Result<String> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::ForgeToken)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::ForgeToken)
         .expose()
         .map(std::string::ToString::to_string)
         .context("Forge token required: set FORGE_TOKEN, GITHUB_TOKEN, or GITLAB_TOKEN.")

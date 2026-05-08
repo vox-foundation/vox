@@ -43,7 +43,7 @@ pub async fn probe_bluesky(_cfg: &PublisherConfig) -> HeartbeatStatus {
 #[cfg(feature = "live-api-canary")]
 pub async fn probe_discord(_cfg: &PublisherConfig) -> HeartbeatStatus {
     let webhook_url =
-        match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialDiscordWebhook).expose() {
+        match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSocialDiscordWebhook).expose() {
             Some(s) => s.to_string(),
             None => {
                 return HeartbeatStatus::AuthFailure {
@@ -62,7 +62,7 @@ pub async fn probe_discord(_cfg: &PublisherConfig) -> HeartbeatStatus {
 #[cfg(feature = "live-api-canary")]
 pub async fn probe_twitter(cfg: &PublisherConfig) -> HeartbeatStatus {
     let token = match cfg.twitter_bearer_token.clone().or_else(|| {
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsTwitterBearer)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxNewsTwitterBearer)
             .expose()
             .map(String::from)
     }) {
@@ -89,7 +89,7 @@ pub async fn probe_twitter(cfg: &PublisherConfig) -> HeartbeatStatus {
 #[cfg(feature = "live-api-canary")]
 pub async fn probe_linkedin(cfg: &PublisherConfig) -> HeartbeatStatus {
     let token = match cfg.linkedin_access_token.clone().or_else(|| {
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialLinkedinAccessToken)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSocialLinkedinAccessToken)
             .expose()
             .map(String::from)
     }) {
@@ -116,7 +116,7 @@ pub async fn probe_linkedin(cfg: &PublisherConfig) -> HeartbeatStatus {
 
 #[cfg(feature = "live-api-canary")]
 pub async fn probe_zenodo(_cfg: &PublisherConfig) -> HeartbeatStatus {
-    let secret = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoAccessToken);
+    let secret = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxZenodoAccessToken);
     let token = match secret.expose() {
         Some(t) => t,
         None => {
@@ -142,7 +142,7 @@ pub async fn probe_zenodo(_cfg: &PublisherConfig) -> HeartbeatStatus {
 #[cfg(feature = "live-api-canary")]
 pub async fn probe_opencollective(cfg: &PublisherConfig) -> HeartbeatStatus {
     let token = match cfg.open_collective_token.clone().or_else(|| {
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsOpenCollectiveToken)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxNewsOpenCollectiveToken)
             .expose()
             .map(String::from)
     }) {

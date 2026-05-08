@@ -11,7 +11,7 @@
 //! | **[`VoxDb`]** | Stable **Rust type** for this facade; use it in signatures and tests. |
 //! | **[`Codex`]** | **Type alias** for `VoxDb` — same type, product-facing name in docs/UI. |
 //! | **Arca** | Internal name for **schema + SQL** owned by this crate (`crates/vox-db/src/schema/`). |
-//! | **`vox-pm`** | Package registry / artifacts — **not** the SQL schema SSOT. |
+//! | **`vox-package`** | Package registry / artifacts — **not** the SQL schema SSOT. |
 //!
 //! Use [`VoxDb::store`] (async method) for content-addressed blob writes (`ops_cas`); it is not a getter.
 //!
@@ -94,8 +94,7 @@ mod config;
 pub mod data_flow;
 pub mod ddl;
 pub mod error_enrichment;
-/// Parameters for [`VoxDb::record_eval_run`].
-mod eval_params;
+// `eval_params` types moved to `vox-db-types`; re-exported below.
 pub mod exec_time_telemetry;
 pub mod sql_util;
 pub use exec_time_telemetry::{ExecOutcome, ExecTimeRecord, TimedExecution, ToolLatencyProfile};
@@ -145,6 +144,7 @@ pub mod workflow_journal;
 pub mod workspace_journey_store;
 
 pub mod oratio_eval;
+pub mod plugin_state_backend;
 
 pub use auto_migrate::AutoMigrator;
 pub use canonical_store::{resolve_canonical_config, user_global_sqlite_path};
@@ -162,7 +162,7 @@ pub use connect_policy::{
 pub use data_flow::{DataFlowMap, build_data_flow};
 pub use ddl::{SchemaDiff, diff_schemas, table_to_ddl, tables_to_ddl};
 pub use error_enrichment::{EnrichedDbError, enrich_error};
-pub use eval_params::EvalRunParams;
+pub use vox_db_types::EvalRunParams;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
 pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalSampleRecord};

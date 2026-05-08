@@ -147,7 +147,7 @@ impl ContinuationEngine {
         };
 
         #[cfg(feature = "runtime")]
-        let prompt_text = vox_runtime::prompt_canonical::canonicalize_simple(&prompt_text);
+        let prompt_text = vox_actor_runtime::prompt_canonical::canonicalize_simple(&prompt_text);
 
         let timestamp_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

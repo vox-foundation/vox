@@ -18,15 +18,16 @@ vox-config = { workspace = true }
 vox-repository = { workspace = true }
 vox-orchestrator = { workspace = true }
 vox-compiler = { workspace = true }
+vox-codegen = { workspace = true }
 vox-lsp = { workspace = true }
 vox-bounded-fs = { workspace = true }
-vox-runtime = { workspace = true }
+vox-actor-runtime = { workspace = true }
 vox-workflow-runtime = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true }
 vox-cli = { workspace = true }
 vox-scaling-policy = { workspace = true }
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 
 
 [lints]

@@ -118,7 +118,7 @@ async fn process_one_envelope(
     // environment; task-scoped propagation to the execution path is an S2 concern.
     // Key derivation mirrors the sender in dispatch/mesh.rs: BLAKE3(VoxMeshJwtHmacSecret).
     if let Some(jwe) = msg.jwe_payload.as_deref() {
-        let mesh_secret = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshJwtHmacSecret);
+        let mesh_secret = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshJwtHmacSecret);
         if let Some(mesh_val) = mesh_secret.expose() {
             let derived = blake3::hash(mesh_val.as_bytes());
             match super::jwe::decrypt_jwe_compact(jwe, derived.as_bytes()) {
@@ -383,7 +383,7 @@ async fn run_remote_worker_tick(
         return;
     };
 
-    let node_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
+    let node_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshNodeId)
         .expose()
         .map(str::to_string)
         .unwrap_or_else(|| "vox-orch-worker".to_string());

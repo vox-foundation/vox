@@ -34,7 +34,7 @@ pub async fn install(path: &PathBuf) -> Result<()> {
     let content = read_utf8_path_capped(path)
         .with_context(|| format!("Failed to read skill file: {}", path.display()))?;
 
-    let bundle = vox_ars::parser::parse_skill_md(&content)
+    let bundle = vox_openclaw_runtime::parser::parse_skill_md(&content)
         .map_err(|e| anyhow::anyhow!("Failed to parse skill file: {e}"))?;
 
     let result = registry.install_bundle(&bundle).await?;

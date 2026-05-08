@@ -1,7 +1,7 @@
 //! `vox share` — share artifacts (workflows, skills, code) via the Vox marketplace.
 
 use anyhow::{Context, Result};
-use vox_pm::{ArtifactEntry, VoxDb};
+use vox_package::{ArtifactEntry, VoxDb};
 
 async fn connect() -> Result<VoxDb> {
     vox_db::open_project_db()

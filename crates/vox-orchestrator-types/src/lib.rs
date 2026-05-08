@@ -1,6 +1,18 @@
+//! Pure-types L0 leaf for vox-orchestrator: agent/task IDs, file affinity, switch actions, provider catalogs.
+//!
+//! No async runtime, no DB. Consumers wanting just the wire/data shape depend
+//! here instead of pulling in the full orchestrator.
+
 // AUTO-GENERATED parts included below.
 
+pub mod agent_types;
 pub mod socrates_policy;
+
+pub use agent_types::{
+    AccessKind, AgentId, AgentIdGenerator, BatchId, ChangeId, CorrelationId,
+    CorrelationIdGenerator, FileAffinity, IdParseError, LockToken, SnapshotId, SnapshotIdGenerator,
+    SwitchAccessMode, SwitchAction, SwitchActionType, TaskId, TaskIdGenerator,
+};
 
 include!(concat!(env!("OUT_DIR"), "/generated_providers.rs"));
 

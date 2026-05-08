@@ -1,10 +1,10 @@
-//! Bug battle commands — thin wrappers over vox_ludus orchestration.
+//! Bug battle commands — thin wrappers over vox_gamify orchestration.
 
 use anyhow::Result;
 use owo_colors::OwoColorize;
-use vox_ludus::{BattleFinding, run_battle_start, run_battle_submit};
-use vox_toestub::rules::Severity;
-use vox_toestub::{ToestubConfig, ToestubEngine};
+use vox_gamify::{BattleFinding, run_battle_start, run_battle_submit};
+use vox_code_audit::rules::Severity;
+use vox_code_audit::{ToestubConfig, ToestubEngine};
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 
@@ -13,7 +13,7 @@ use super::db_util;
 /// Start a bug battle.
 pub async fn battle_start(companion_name: &str) -> Result<()> {
     let db = db_util::get_db().await?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
 
     println!("  {} Searching for bugs in the rift...", "🔍".bright_blue());
 
@@ -115,14 +115,14 @@ pub async fn battle_start(companion_name: &str) -> Result<()> {
 pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) -> Result<()> {
     let db = db_util::get_db().await?;
     let code = read_utf8_path_capped(code_file)?;
-    let user_id = vox_ludus::db::canonical_user_id();
+    let user_id = vox_gamify::db::canonical_user_id();
 
     let is_success = !code.contains("todo!()") && !code.is_empty(); // toestub-ignore(stub)
 
     let result = run_battle_submit(&db, &user_id, companion_name, code, is_success).await?;
 
     match result {
-        vox_ludus::BattleSubmitResult::Tired => {
+        vox_gamify::BattleSubmitResult::Tired => {
             println!(
                 "  {} {} is too tired to battle! Try resting them.",
                 "💤".bright_blue(),
@@ -130,7 +130,7 @@ pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) ->
             );
             return Ok(());
         }
-        vox_ludus::BattleSubmitResult::NotFound => {
+        vox_gamify::BattleSubmitResult::NotFound => {
             println!(
                 "  ❌ No active battle found for {}. Start one with {}!",
                 companion_name.bright_white().bold(),
@@ -138,7 +138,7 @@ pub async fn battle_submit(companion_name: &str, code_file: &std::path::Path) ->
             );
             return Ok(());
         }
-        vox_ludus::BattleSubmitResult::Outcome(o) => {
+        vox_gamify::BattleSubmitResult::Outcome(o) => {
             println!("{}", "╔══════════════════════════════════╗".bright_green());
             println!("{}", "║      🏆  Battle Result!         ║".bright_green());
             println!("{}", "╚══════════════════════════════════╝".bright_green());

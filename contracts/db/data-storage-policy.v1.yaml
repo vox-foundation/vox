@@ -19,24 +19,24 @@ tiers:
     store: libsql
     owners:
       - vox-db
-      - vox-clavis
+      - vox-secrets
     allow_direct_access:
       - vox-db
-      - vox-clavis
+      - vox-secrets
       - vox-test-harness
-    # vox-pm listed until M-26 completes; remove thereafter.
+    # vox-package listed until M-26 completes; remove thereafter.
     temporary_exceptions:
-      - vox-pm
+      - vox-package
     # Additional libSQL files that M-26/M-67 fold away. Listed so the guard
     # ignores them until the migration lands; each line must be deleted in the
     # same PR that removes the corresponding file from disk.
     temporary_file_exceptions:
       - path: .vox_modules/local_store.db
-        owner: vox-pm
+        owner: vox-package
         retired_by: M-67
         expiry: "2026-Q3"
       - path: vox_hardened.db
-        owner: vox-clavis
+        owner: vox-secrets
         retired_by: M-26
         expiry: "2026-Q3"
 
@@ -129,8 +129,8 @@ ignored_paths:
 # Keep this list in lockstep with crates/_frozen.md (F62, M-68).
 frozen_core_crates:
   - vox-db
-  - vox-clavis
-  - vox-runtime
+  - vox-secrets
+  - vox-actor-runtime
   - vox-primitives
   - vox-observability
   - vox-schema

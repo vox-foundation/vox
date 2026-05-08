@@ -5,7 +5,7 @@ use vox_compiler::parser::parse;
 use vox_compiler::runtime_projection::{
     canonical_runtime_projection_bytes, project_runtime_from_core,
 };
-use vox_compiler::syntax_k::{canonical_web_ir_bytes, sha3_hex, sort_json_value_keys};
+use vox_codegen::syntax_k::{canonical_web_ir_bytes, sha3_hex, sort_json_value_keys};
 
 fn lower_src(src: &str) -> vox_compiler::hir::TypedCoreIR_v2 {
     let tokens = vox_compiler::lexer::lex(src);
@@ -28,7 +28,7 @@ routes {
 }
 "#;
     let hir = lower_src(src);
-    let web = vox_compiler::web_ir::lower::project_web_from_core(&hir);
+    let web = vox_codegen::web_ir::lower::project_web_from_core(&hir);
     let a = sha3_hex(&canonical_web_ir_bytes(&web).expect("web ir json"));
     let b = sha3_hex(&canonical_web_ir_bytes(&web).expect("web ir json"));
     assert_eq!(a, b, "canonical web IR hash must be stable across calls");

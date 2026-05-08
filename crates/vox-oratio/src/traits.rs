@@ -17,14 +17,14 @@ fn try_load_lexicon_path(path: &Path) -> Option<crate::speech_lexicon::SpeechLex
 fn load_lexicon_from_env() -> Option<crate::speech_lexicon::SpeechLexicon> {
     let mut acc = crate::speech_lexicon::SpeechLexicon::default();
     if let Some(p) =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSpeechLexiconPath).expose()
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioSpeechLexiconPath).expose()
     {
         let path = Path::new(p.trim());
         if let Some(lex) = try_load_lexicon_path(path) {
             acc.merge_from(lex);
         }
     }
-    let repo_root_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot);
+    let repo_root_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot);
     let repo_root = repo_root_resolved.expose();
     if let Some(root) = repo_root {
         let candidate = Path::new(root.trim()).join(".vox/speech_lexicon.json");
@@ -40,12 +40,12 @@ fn contextual_bias_phrases_with_lex(
 ) -> Vec<String> {
     const DEFAULT_MAX: usize = 256;
     let max_phrases: usize =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioMaxBiasPhrases)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioMaxBiasPhrases)
             .expose()
             .and_then(|s| s.parse().ok())
             .unwrap_or(DEFAULT_MAX);
     let contextual_on = !matches!(
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioContextualBias).expose(),
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioContextualBias).expose(),
         Some(s) if s == "0" || s.eq_ignore_ascii_case("false")
     );
     if !contextual_on {
@@ -55,7 +55,7 @@ fn contextual_bias_phrases_with_lex(
         .map(|l| l.bias_phrases_sorted(max_phrases))
         .unwrap_or_default();
     let extra: Vec<String> =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioSessionHotwords)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioSessionHotwords)
             .expose()
             .map(crate::contextual_bias::parse_hotword_csv)
             .unwrap_or_default();
@@ -226,7 +226,7 @@ pub fn transcribe_path_detailed(
 
             // Allow acoustic preprocess via AsrBackend path
             let budget_ms =
-                vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs)
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioAcousticPreprocessBudgetMs)
                     .expose()
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(25u64);

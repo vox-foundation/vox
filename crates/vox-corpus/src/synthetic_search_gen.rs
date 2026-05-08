@@ -126,7 +126,7 @@ pub fn generate_search_traces(out: &mut impl Write) -> anyhow::Result<usize> {
         (
             "How does the actor system work in Vox?",
             "actor mailbox runtime tokio",
-            "crates/vox-runtime/src/actor.rs",
+            "crates/vox-actor-runtime/src/actor.rs",
             "Every `actor` declaration compiles to a Tokio task with an `mpsc` channel mailbox. Messages are dispatched via pattern matching on message types. State is isolated per actor instance, preventing data races.",
         ),
         (

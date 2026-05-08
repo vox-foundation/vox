@@ -7,7 +7,7 @@ use vox_orchestrator::{AffinityGroupRegistry, load_from_config};
 fn test_default_affinity_resolution() {
     let reg = AffinityGroupRegistry::defaults();
 
-    let p1 = Path::new("crates/vox-pm/src/main.rs");
+    let p1 = Path::new("crates/vox-package/src/main.rs");
     let g1 = reg.resolve(p1).unwrap();
     assert_eq!(g1.name, "pm-group");
 

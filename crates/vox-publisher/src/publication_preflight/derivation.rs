@@ -3,7 +3,7 @@ pub(super) fn collect_destination_readiness(
     manifest: &PublicationManifest,
 ) -> Vec<DestinationReadinessEntry> {
     let mut out = Vec::new();
-    let zenodo_tok = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoAccessToken)
+    let zenodo_tok = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxZenodoAccessToken)
         .expose()
         .is_some_and(|s| !s.trim().is_empty());
     out.push(DestinationReadinessEntry {
@@ -18,13 +18,13 @@ pub(super) fn collect_destination_readiness(
         credential_present: Some(zenodo_tok),
     });
 
-    let or_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewAccessToken)
+    let or_token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewAccessToken)
         .expose()
         .is_some_and(|s| !s.trim().is_empty());
-    let or_email = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewEmail)
+    let or_email = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewEmail)
         .expose()
         .is_some_and(|s| !s.trim().is_empty());
-    let or_pass = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewPassword)
+    let or_pass = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewPassword)
         .expose()
         .is_some_and(|s| !s.trim().is_empty());
     let openreview_ready = or_token || (or_email && or_pass);
@@ -41,7 +41,7 @@ pub(super) fn collect_destination_readiness(
     });
 
     let scholarly_adapter_configured =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScholarlyAdapter)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxScholarlyAdapter)
             .expose()
             .is_some_and(|s| !s.trim().is_empty());
     out.push(DestinationReadinessEntry {

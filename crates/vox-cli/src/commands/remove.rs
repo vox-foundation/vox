@@ -4,7 +4,7 @@ use std::path::PathBuf;
 /// `vox remove <dep>` — remove a dependency from Vox.toml.
 pub async fn run(dep_name: &str) -> Result<()> {
     let manifest_path = PathBuf::from("Vox.toml");
-    let mut manifest = vox_pm::VoxManifest::load(&manifest_path)
+    let mut manifest = vox_package::VoxManifest::load(&manifest_path)
         .map_err(|e| anyhow::anyhow!("{e}"))
         .with_context(|| "No Vox.toml found. Run `vox init` first.")?;
 

@@ -48,20 +48,20 @@ fn now_ms() -> i64 {
 }
 
 pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
-    let mut ms: std::collections::BTreeMap<vox_clavis::SecretId, Vec<&'static str>> =
+    let mut ms: std::collections::BTreeMap<vox_secrets::SecretId, Vec<&'static str>> =
         std::collections::BTreeMap::new();
-    for spec in vox_clavis::all_specs() {
+    for spec in vox_secrets::all_specs() {
         ms.insert(spec.id, Vec::new());
     }
 
-    for &b in vox_clavis::SecretBundle::variants() {
-        let reqs = vox_clavis::requirements_for_bundle(b);
+    for &b in vox_secrets::SecretBundle::variants() {
+        let reqs = vox_secrets::requirements_for_bundle(b);
         let b_name = b.doc_name();
         let mut ids = std::collections::BTreeSet::new();
         for r in &reqs.blocking {
             match r {
-                vox_clavis::RequirementSet::AllOf(list)
-                | vox_clavis::RequirementSet::AnyOf(list) => {
+                vox_secrets::RequirementSet::AllOf(list)
+                | vox_secrets::RequirementSet::AnyOf(list) => {
                     for &id in *list {
                         ids.insert(id);
                     }
@@ -78,7 +78,7 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
         }
     }
 
-    let specs: Vec<_> = vox_clavis::all_specs()
+    let specs: Vec<_> = vox_secrets::all_specs()
         .iter()
         .map(|s| ContractRow {
             id: format!("{:?}", s.id),
@@ -87,14 +87,14 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
             deprecated_aliases: s.deprecated_aliases.iter().map(|a| a.to_string()).collect(),
             class: format!("{:?}", s.id.metadata().class),
             material_kind: format!("{:?}", s.id.metadata().material_kind),
-            capabilities: vox_clavis::capabilities_for_secret(s.id)
+            capabilities: vox_secrets::capabilities_for_secret(s.id)
                 .iter()
                 .map(|c| format!("{c:?}"))
                 .collect(),
         })
         .collect();
 
-    let cap_rows: Vec<_> = vox_clavis::all_specs()
+    let cap_rows: Vec<_> = vox_secrets::all_specs()
         .iter()
         .map(|s| CapabilityRow {
             id: format!("{:?}", s.id),
@@ -102,7 +102,7 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
             aliases: s.aliases.iter().map(|a| a.to_string()).collect(),
             class: format!("{:?}", s.id.metadata().class),
             auth_registry: s.auth_registry.map(|x| x.to_string()),
-            capabilities: vox_clavis::capabilities_for_secret(s.id)
+            capabilities: vox_secrets::capabilities_for_secret(s.id)
                 .iter()
                 .map(|c| format!("{c:?}"))
                 .collect(),
@@ -117,7 +117,7 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
         .collect();
 
     let mut all_operator_envs: std::collections::BTreeSet<String> =
-        vox_clavis::OPERATOR_TUNING_ENVS
+        vox_secrets::OPERATOR_TUNING_ENVS
             .iter()
             .map(|s| s.to_string())
             .collect();
@@ -151,18 +151,18 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
     fs::write(&cap_out, serde_json::to_string_pretty(&cap_manifest)?)?;
 
     let mut md_lines = Vec::new();
-    let mut names: Vec<String> = vox_clavis::managed_secret_env_names()
+    let mut names: Vec<String> = vox_secrets::managed_secret_env_names()
         .into_iter()
         .map(|s| s.to_string())
         .collect();
     names.sort();
     names.dedup();
     for name in names {
-        let is_deprecated = vox_clavis::all_specs()
+        let is_deprecated = vox_secrets::all_specs()
             .iter()
             .any(|s| s.deprecated_aliases.contains(&name.as_str()));
         if is_deprecated {
-            let canon = vox_clavis::all_specs()
+            let canon = vox_secrets::all_specs()
                 .iter()
                 .find(|s| s.deprecated_aliases.contains(&name.as_str()))
                 .unwrap()

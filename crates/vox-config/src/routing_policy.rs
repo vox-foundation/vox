@@ -10,7 +10,7 @@ pub enum AutoModelStrategy {
 impl AutoModelStrategy {
     #[must_use]
     pub fn from_env() -> Self {
-        let raw = crate::clavis::clavis_str(vox_clavis::SecretId::VoxAutoModelStrategy)
+        let raw = crate::clavis::clavis_str(vox_secrets::SecretId::VoxAutoModelStrategy)
             .unwrap_or_else(|| "provider_auto".to_string());
         match raw.trim().to_ascii_lowercase().as_str() {
             "preferred_model" | "preferred" => Self::PreferredModel,
@@ -66,7 +66,7 @@ impl Default for AutoRoutingPriority {
 impl AutoRoutingPriority {
     #[must_use]
     pub fn from_env() -> Self {
-        let Some(raw) = crate::clavis::clavis_str(vox_clavis::SecretId::VoxAutoRoutingPriority)
+        let Some(raw) = crate::clavis::clavis_str(vox_secrets::SecretId::VoxAutoRoutingPriority)
         else {
             return Self::default();
         };
@@ -102,7 +102,7 @@ pub enum GeminiRoutePolicy {
 impl GeminiRoutePolicy {
     #[must_use]
     pub fn from_env() -> Self {
-        let raw = crate::clavis::clavis_str(vox_clavis::SecretId::VoxGeminiRoutePolicy)
+        let raw = crate::clavis::clavis_str(vox_secrets::SecretId::VoxGeminiRoutePolicy)
             .unwrap_or_else(|| "openrouter_first".to_string());
         match raw.trim().to_ascii_lowercase().as_str() {
             "registry_default" | "default" => Self::RegistryDefault,
@@ -121,11 +121,11 @@ pub struct GeminiRouteTargets {
 #[must_use]
 pub fn gemini_route_targets_from_env() -> GeminiRouteTargets {
     GeminiRouteTargets {
-        openrouter_model: vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterGeminiModel)
+        openrouter_model: vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterGeminiModel)
             .expose()
             .map(std::string::ToString::to_string)
             .unwrap_or_else(|| "google/gemini-2.5-flash".to_string()),
-        google_direct_model: vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiDirectModel)
+        google_direct_model: vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiDirectModel)
             .expose()
             .map(std::string::ToString::to_string)
             .unwrap_or_else(|| "gemini-2.5-flash".to_string()),

@@ -8,7 +8,7 @@ pub fn summarize_for_social(raw: &str, max_chars: usize) -> String {
 
 #[must_use]
 pub fn syndication_template_profile_enabled() -> bool {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSyndicationTemplateProfile)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSyndicationTemplateProfile)
         .expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)

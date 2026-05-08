@@ -99,44 +99,44 @@ impl Default for SearchPolicy {
                 "dist".to_string(),
                 "build".to_string(),
             ],
-            qdrant_url: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchQdrantUrl)
+            qdrant_url: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchQdrantUrl)
                 .expose()
                 .filter(|s| !s.trim().is_empty())
                 .map(|s| s.trim().to_string()),
-            qdrant_collection: vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxSearchQdrantCollection,
+            qdrant_collection: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchQdrantCollection,
             )
             .expose()
             .unwrap_or("vox_docs")
             .to_string(),
-            qdrant_vector_name: vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxSearchQdrantVectorName,
+            qdrant_vector_name: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchQdrantVectorName,
             )
             .expose()
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty()),
-            tantivy_index_root: vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxSearchTantivyRoot,
+            tantivy_index_root: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchTantivyRoot,
             )
             .expose()
             .filter(|s| !s.trim().is_empty())
             .map(std::path::PathBuf::from),
-            prefer_rrf_merge: parse_truthy_env(vox_clavis::SecretId::VoxSearchPreferRrf),
-            tavily_enabled: parse_truthy_env(vox_clavis::SecretId::VoxSearchTavilyEnabled),
-            tavily_search_depth: vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxSearchTavilyDepth,
+            prefer_rrf_merge: parse_truthy_env(vox_secrets::SecretId::VoxSearchPreferRrf),
+            tavily_enabled: parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyEnabled),
+            tavily_search_depth: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchTavilyDepth,
             )
             .expose()
             .unwrap_or("basic")
             .to_string(),
-            tavily_max_results: vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxSearchTavilyMaxResults,
+            tavily_max_results: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchTavilyMaxResults,
             )
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(5),
-            tavily_fire_on_empty: match vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxSearchTavilyOnEmpty,
+            tavily_fire_on_empty: match vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchTavilyOnEmpty,
             )
             .expose()
             {
@@ -149,25 +149,25 @@ impl Default for SearchPolicy {
                 }
                 None => true,
             },
-            tavily_fire_on_weak: parse_truthy_env(vox_clavis::SecretId::VoxSearchTavilyOnWeak),
-            tavily_credit_budget_per_session: vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxSearchTavilyBudget,
+            tavily_fire_on_weak: parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyOnWeak),
+            tavily_credit_budget_per_session: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchTavilyBudget,
             )
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(50),
-            searxng_url: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchSearxngUrl)
+            searxng_url: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngUrl)
                 .expose()
                 .filter(|s| !s.trim().is_empty())
                 .map(|s| s.to_string()),
-            searxng_max_results: vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxSearchSearxngMaxResults,
+            searxng_max_results: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchSearxngMaxResults,
             )
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(5),
-            searxng_max_urls_to_scrape: vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxSearchSearxngMaxScrape,
+            searxng_max_urls_to_scrape: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchSearxngMaxScrape,
             )
             .expose()
             .and_then(|v| v.parse().ok())
@@ -175,24 +175,24 @@ impl Default for SearchPolicy {
             searxng_engines: searxng_embedded.engines.clone(),
             searxng_language: searxng_embedded.language.clone(),
             duckduckgo_fallback_enabled: !parse_falsy_env(
-                vox_clavis::SecretId::VoxSearchDdgFallbackDisabled,
+                vox_secrets::SecretId::VoxSearchDdgFallbackDisabled,
             ),
-            scraper_timeout_ms: vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxSearchScraperTimeout,
+            scraper_timeout_ms: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchScraperTimeout,
             )
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(5000),
             scraper_robots_txt_respect: parse_truthy_env(
-                vox_clavis::SecretId::VoxSearchScraperRobotsRespect,
+                vox_secrets::SecretId::VoxSearchScraperRobotsRespect,
             ),
-            scraper_min_text_density: vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxSearchScraperMinDensity,
+            scraper_min_text_density: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchScraperMinDensity,
             )
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(0.15),
-            web_search_max_hops: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchMaxHops)
+            web_search_max_hops: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchMaxHops)
                 .expose()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(3),
@@ -206,38 +206,38 @@ impl SearchPolicy {
     pub fn from_env() -> Self {
         let mut p = Self::default();
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchPolicyVersion).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchPolicyVersion).expose()
             && let Ok(n) = v.parse::<u32>()
         {
             p.version = n;
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchMemoryVectorWeight).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchMemoryVectorWeight).expose()
             && let Ok(w) = v.parse::<f32>()
         {
             p.memory_vector_fusion_weight = w.clamp(0.0, 1.0);
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchChunkVectorWeight).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchChunkVectorWeight).expose()
             && let Ok(w) = v.parse::<f32>()
         {
             p.chunk_vector_fusion_weight = w.clamp(0.0, 1.0);
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchVerificationQualityThreshold)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchVerificationQualityThreshold)
                 .expose()
             && let Ok(t) = v.parse::<f64>()
         {
             p.verification_weak_evidence_threshold = t.clamp(0.0, 1.0);
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchRepoMaxFiles).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchRepoMaxFiles).expose()
             && let Ok(n) = v.parse::<usize>()
         {
             p.repo_inventory_max_files = n.max(100);
         }
         if let Some(raw) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchRepoSkipDirs).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchRepoSkipDirs).expose()
         {
             let dirs: Vec<String> = raw
                 .split(',')
@@ -248,48 +248,48 @@ impl SearchPolicy {
                 p.repo_inventory_skip_dirs = dirs;
             }
         }
-        if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchTavilyEnabled)
+        if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyEnabled)
             .expose()
             .is_some()
         {
-            p.tavily_enabled = parse_truthy_env(vox_clavis::SecretId::VoxSearchTavilyEnabled);
+            p.tavily_enabled = parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyEnabled);
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchTavilyDepth).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyDepth).expose()
         {
             p.tavily_search_depth = v.to_string();
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchTavilyMaxResults).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyMaxResults).expose()
             && let Ok(n) = v.parse::<usize>()
         {
             p.tavily_max_results = n;
         }
-        if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchTavilyOnEmpty)
+        if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyOnEmpty)
             .expose()
             .is_some()
         {
-            p.tavily_fire_on_empty = parse_truthy_env(vox_clavis::SecretId::VoxSearchTavilyOnEmpty);
+            p.tavily_fire_on_empty = parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyOnEmpty);
         }
-        if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchTavilyOnWeak)
+        if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyOnWeak)
             .expose()
             .is_some()
         {
-            p.tavily_fire_on_weak = parse_truthy_env(vox_clavis::SecretId::VoxSearchTavilyOnWeak);
+            p.tavily_fire_on_weak = parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyOnWeak);
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchTavilyBudget).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyBudget).expose()
             && let Ok(n) = v.parse::<usize>()
         {
             p.tavily_credit_budget_per_session = n;
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchMaxHops).expose()
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchMaxHops).expose()
             && let Ok(n) = v.parse::<u8>()
         {
             p.web_search_max_hops = n;
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchSearxngEngines).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngEngines).expose()
         {
             if let Some(norm) = normalize_searxng_engines_csv(v) {
                 p.searxng_engines = norm;
@@ -301,7 +301,7 @@ impl SearchPolicy {
             }
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchSearxngLanguage).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchSearxngLanguage).expose()
         {
             if let Some(norm) = normalize_searxng_language_tag(v) {
                 p.searxng_language = norm;
@@ -366,8 +366,8 @@ fn normalize_searxng_language_tag(raw: &str) -> Option<String> {
     Some(t.to_string())
 }
 
-fn parse_truthy_env(id: vox_clavis::SecretId) -> bool {
-    match vox_clavis::resolve_secret(id).expose() {
+fn parse_truthy_env(id: vox_secrets::SecretId) -> bool {
+    match vox_secrets::resolve_secret(id).expose() {
         Some(v) => {
             let v = v.trim();
             v == "1"
@@ -379,8 +379,8 @@ fn parse_truthy_env(id: vox_clavis::SecretId) -> bool {
     }
 }
 
-fn parse_falsy_env(id: vox_clavis::SecretId) -> bool {
-    match vox_clavis::resolve_secret(id).expose() {
+fn parse_falsy_env(id: vox_secrets::SecretId) -> bool {
+    match vox_secrets::resolve_secret(id).expose() {
         Some(v) => {
             let v = v.trim();
             v == "0"

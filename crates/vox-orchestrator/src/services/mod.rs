@@ -26,7 +26,7 @@
 
 pub mod discovery_gate;
 pub mod gateway;
-pub mod routes;
+// `pub mod routes;` moved to vox-orchestrator-mcp crate in 2026-05-08 reorg Phase 4.
 #[cfg(feature = "news-publish")]
 pub mod news;
 pub mod policy;

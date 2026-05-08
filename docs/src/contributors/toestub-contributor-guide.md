@@ -198,7 +198,7 @@ with a short reason comment.
 | Found | Replace with |
 |---|---|
 | `vox-dei` (as large orchestrator) | `vox-orchestrator` |
-| `vox-ars` | `vox-skills` |
+| `vox-ars` | `vox-ars-runtime` |
 | `vox-gamify` | `vox-ludus` |
 | `recall()` | `recall_async()` |
 | `TURSO_URL` env var | `VOX_DB_URL` |

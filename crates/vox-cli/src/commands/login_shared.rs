@@ -72,12 +72,12 @@ fn login_profile_path() -> PathBuf {
 }
 
 fn keyring_has_vault_config() -> bool {
-    let url_ok = keyring::Entry::new("vox-clavis-env", "turso-url")
+    let url_ok = keyring::Entry::new("vox-secrets-env", "turso-url")
         .ok()
         .and_then(|e| e.get_password().ok())
         .filter(|s| !s.trim().is_empty())
         .is_some();
-    let tok_ok = keyring::Entry::new("vox-clavis-env", "turso-token")
+    let tok_ok = keyring::Entry::new("vox-secrets-env", "turso-token")
         .ok()
         .and_then(|e| e.get_password().ok())
         .filter(|s| !s.trim().is_empty())
@@ -102,7 +102,7 @@ pub fn login_status_summary() -> String {
         .filter(|s| !s.is_empty())
         .map(String::from)
         .or_else(|| {
-            std::env::var(vox_clavis::OPERATOR_ACCOUNT_ID)
+            std::env::var(vox_secrets::OPERATOR_ACCOUNT_ID)
                 .ok()
                 .filter(|s| !s.trim().is_empty())
         });
@@ -114,7 +114,7 @@ pub fn login_status_summary() -> String {
         .map(String::from);
 
     let vault_ok = keyring_has_vault_config();
-    let handshake = match vox_clavis::backend::vox_vault::VoxCloudBackend::new() {
+    let handshake = match vox_secrets::backend::vox_vault::VoxCloudBackend::new() {
         Ok(_) => "reachable".to_string(),
         Err(e) => format!("unreachable ({e:?})"),
     };
@@ -147,7 +147,7 @@ fn write_login_profile(opts: &LoginOpts) -> Result<()> {
 
 /// Vault handshake: ensures local cloudless schema exists when backend is cloud-capable.
 fn validate_vault_handshake() -> Result<()> {
-    let _ = vox_clavis::backend::vox_vault::VoxCloudBackend::new()
+    let _ = vox_secrets::backend::vox_vault::VoxCloudBackend::new()
         .map_err(|e| anyhow::anyhow!("Clavis vault handshake failed: {e:?}"))?;
     Ok(())
 }
@@ -208,13 +208,13 @@ pub async fn run_login(opts: LoginOpts) -> Result<()> {
         anyhow::bail!("Vault URL and token must be non-empty");
     }
 
-    let keyring = keyring::Entry::new("vox-clavis-env", "turso-url")
+    let keyring = keyring::Entry::new("vox-secrets-env", "turso-url")
         .context("Failed to instantiate keyring for turso-url. Keyring may not be available.")?;
     keyring
         .set_password(url)
         .context("Failed to set turso-url in keyring.")?;
 
-    let keyring_token = keyring::Entry::new("vox-clavis-env", "turso-token")
+    let keyring_token = keyring::Entry::new("vox-secrets-env", "turso-token")
         .context("Failed to instantiate keyring for turso-token.")?;
     keyring_token
         .set_password(token)
@@ -234,8 +234,8 @@ pub async fn run_login(opts: LoginOpts) -> Result<()> {
 /// Best-effort logout: clear keyring entries and remove `login.toml`.
 pub async fn run_logout() -> Result<()> {
     for (service, user) in [
-        ("vox-clavis-env", "turso-url"),
-        ("vox-clavis-env", "turso-token"),
+        ("vox-secrets-env", "turso-url"),
+        ("vox-secrets-env", "turso-token"),
     ] {
         if let Ok(e) = keyring::Entry::new(service, user) {
             let _ = e.delete_credential();

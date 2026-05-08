@@ -10,7 +10,7 @@
 //! - **`ResearchMetadata.session_id`** — Opaque numeric session handle for this pipeline run (created
 //!   when a Codex handle is present). Progress and completion metrics are written through the same
 //!   Codex surface; the underlying `research_metrics.session_id` column is **TEXT** (see
-//!   `vox_pm::store` `append_research_metric`).
+//!   `vox_package::store` `append_research_metric`).
 //! - **Agent memory bridge** — `vox_db::MemoryParams.session_id` is set to
 //!   `format!("research_{}", session_id)` with `memory_type` `research_result` so MCP memory tools
 //!   can recall past answers (matches content keyed in this module).

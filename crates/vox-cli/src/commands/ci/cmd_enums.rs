@@ -178,10 +178,10 @@ pub enum CiCmd {
         #[arg(long)]
         gate_log_file: Option<PathBuf>,
     },
-    /// Full-repo TOESTUB: `cargo build -p vox-toestub --release` then `cargo run -p vox-toestub --bin toestub` (replaces `scripts/toestub_self_apply.*`).
+    /// Full-repo TOESTUB: `cargo build -p vox-code-audit --release` then `cargo run -p vox-code-audit --bin toestub` (replaces `scripts/toestub_self_apply.*`).
     #[command(name = "toestub-self-apply")]
     ToestubSelfApply,
-    /// Scoped TOESTUB: `cargo run -p vox-toestub --bin toestub -- <ROOT>`.
+    /// Scoped TOESTUB: `cargo run -p vox-code-audit --bin toestub -- <ROOT>`.
     #[command(name = "toestub-scoped")]
     ToestubScoped {
         /// Root path for structural scope testing.
@@ -346,7 +346,7 @@ pub enum CiCmd {
     /// Fast local smoke: orchestrator compile + command-compliance + rust ecosystem policy.
     #[command(name = "policy-smoke")]
     PolicySmoke,
-    /// Targeted backend tests (`vox-runtime` + orchestrator routing policy modules).
+    /// Targeted backend tests (`vox-actor-runtime` + orchestrator routing policy modules).
     #[command(name = "backend-tests")]
     BackendTests,
     /// GUI smoke: `web_ir_lower_emit` always; optional Vite (`VOX_WEB_VITE_SMOKE=1`) and Playwright (`VOX_GUI_PLAYWRIGHT=1`) lanes.

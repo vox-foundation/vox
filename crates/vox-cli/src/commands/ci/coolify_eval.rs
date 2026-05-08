@@ -10,35 +10,35 @@ use std::path::{Path, PathBuf};
 use super::CoolifyEvalCmd;
 use super::repo_root;
 
-fn require_secret(id: vox_clavis::SecretId) -> Result<String> {
-    let r = vox_clavis::resolve_secret(id);
+fn require_secret(id: vox_secrets::SecretId) -> Result<String> {
+    let r = vox_secrets::resolve_secret(id);
     let v = r.expose().filter(|s| !s.is_empty());
     v.map(str::to_string)
         .with_context(|| format!("missing or empty secret {:?}", id))
 }
 
 fn base_url() -> Result<String> {
-    require_secret(vox_clavis::SecretId::CoolifyBaseUrl)
+    require_secret(vox_secrets::SecretId::CoolifyBaseUrl)
         .map(|s| s.trim_end_matches('/').to_string())
 }
 
 fn bearer_read() -> Result<String> {
-    let read = vox_clavis::resolve_secret(vox_clavis::SecretId::CoolifyReadToken)
+    let read = vox_secrets::resolve_secret(vox_secrets::SecretId::CoolifyReadToken)
         .expose()
         .filter(|s| !s.is_empty())
         .map(str::to_string);
     if let Some(t) = read {
         return Ok(t);
     }
-    require_secret(vox_clavis::SecretId::CoolifyToken)
+    require_secret(vox_secrets::SecretId::CoolifyToken)
 }
 
 fn bearer_write() -> Result<String> {
-    require_secret(vox_clavis::SecretId::CoolifyToken)
+    require_secret(vox_secrets::SecretId::CoolifyToken)
 }
 
 fn default_app_uuid() -> Result<String> {
-    require_secret(vox_clavis::SecretId::CoolifyAppUuid)
+    require_secret(vox_secrets::SecretId::CoolifyAppUuid)
 }
 
 fn applications_slice(body: &Value) -> Vec<&Value> {

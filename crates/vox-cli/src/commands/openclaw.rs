@@ -9,7 +9,7 @@
 
 use clap::Subcommand;
 use vox_install_policy::OPENCLAW_SIDECAR_BIN_BASENAME;
-use vox_ars::{
+use vox_openclaw_runtime::{
     DefaultOpenClawRuntimeAdapter, OpenClawClient, OpenClawConnectionOverrides,
     OpenClawDiscoveryOverrides, OpenClawRemoteConfig, OpenClawRuntimeAdapter,
     connect_runtime_adapter_with_overrides, resolve_openclaw_endpoints,
@@ -337,7 +337,7 @@ pub async fn run(action: OpenClawAction, json_output: bool) -> anyhow::Result<()
 
 fn resolve_openclaw_token(override_token: Option<String>) -> Option<String> {
     override_token.or_else(|| {
-        vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
             .expose()
             .map(std::string::ToString::to_string)
     })
@@ -386,7 +386,7 @@ async fn cmd_import(
     json: bool,
 ) -> anyhow::Result<()> {
     let mut adapter = make_adapter(gateway.clone(), None, token.clone()).await?;
-    let skill: vox_ars::ArsSkill = adapter
+    let skill: vox_openclaw_runtime::ArsSkill = adapter
         .import_skill(&slug)
         .await
         .map_err(|e| anyhow::anyhow!("Import failed: {e}"))?;
@@ -460,7 +460,7 @@ async fn cmd_list_remote(
     json: bool,
 ) -> anyhow::Result<()> {
     let mut adapter = make_adapter(gateway, None, token).await?;
-    let skills: Vec<vox_ars::OpenClawSkillSpec> =
+    let skills: Vec<vox_openclaw_runtime::OpenClawSkillSpec> =
         adapter
             .list_remote_skills()
             .await
@@ -499,7 +499,7 @@ async fn cmd_config(
         explicit_well_known_url: None,
     })
     .await;
-    let token_set = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken).is_present();
+    let token_set = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken).is_present();
 
     if json {
         println!(
@@ -729,13 +729,13 @@ async fn cmd_search_remote(
     json: bool,
 ) -> anyhow::Result<()> {
     let mut adapter = make_adapter(gateway, None, token).await?;
-    let skills: Vec<vox_ars::OpenClawSkillSpec> =
+    let skills: Vec<vox_openclaw_runtime::OpenClawSkillSpec> =
         adapter
             .list_remote_skills()
             .await
             .map_err(|e| anyhow::anyhow!("Search failed: {e}"))?;
     let q = query.to_lowercase();
-    let matches: Vec<vox_ars::OpenClawSkillSpec> = skills
+    let matches: Vec<vox_openclaw_runtime::OpenClawSkillSpec> = skills
         .into_iter()
         .filter(|s| {
             s.name.to_lowercase().contains(&q)

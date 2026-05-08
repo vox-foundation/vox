@@ -100,7 +100,7 @@ pub fn resolve_model_with_registry_fallbacks(
             "Model override '{id}' is not in the registry; clear the override or pick a valid id from the model list"
         ));
     }
-    if let Some(pin) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingHardPinModel).expose()
+    if let Some(pin) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingHardPinModel).expose()
     {
         let p = pin.trim();
         if !p.is_empty() {

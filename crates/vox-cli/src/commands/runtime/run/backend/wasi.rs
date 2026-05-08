@@ -3,7 +3,7 @@ use super::{RunBackend, ScriptOpts, parse_cargo_error};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
-use vox_wasm_host::{Preopen, PreopenMode, WasmExecOpts, WasmHost, WasmRunOutcome};
+use vox_wasm_engine::{Preopen, PreopenMode, WasmExecOpts, WasmHost, WasmRunOutcome};
 
 /// Backend for running WASI modules via Wasmtime.
 pub struct WasiBackend;
@@ -22,11 +22,11 @@ impl RunBackend for WasiBackend {
     ) -> Result<PathBuf> {
         let per_entry_wasm = cache_dir.join("vox-script.wasm");
 
-        let output = vox_compiler::codegen_rust::generate_script_with_target(
+        let output = vox_codegen::codegen_rust::generate_script_with_target(
             hir,
             "vox-script",
             crate::fs_utils::resolve_vox_runtime_path().as_deref(),
-            vox_compiler::codegen_rust::ScriptTarget::Wasi,
+            vox_codegen::codegen_rust::ScriptTarget::Wasi,
         )
         .map_err(|e| anyhow::anyhow!("WASI codegen failed: {e}"))?;
 
@@ -81,7 +81,7 @@ impl RunBackend for WasiBackend {
     }
 
     fn execute(&self, artifact: &Path, args: &[String], opts: &ScriptOpts) -> Result<ExitStatus> {
-        // Delegate to the vox-wasm-host SSOT for all Wasmtime engine + WASI wiring.
+        // Delegate to the vox-wasm-engine SSOT for all Wasmtime engine + WASI wiring.
         let host = WasmHost::new()?;
 
         let preopens = opts

@@ -10,7 +10,7 @@
 use std::path::{Path, PathBuf};
 
 use criterion::{BatchSize, BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
-use vox_compiler::codegen_ts::generate;
+use vox_codegen::codegen_ts::generate;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;

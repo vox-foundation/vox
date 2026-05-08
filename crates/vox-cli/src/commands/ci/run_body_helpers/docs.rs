@@ -306,7 +306,7 @@ fn check_stale_doc_and_workflow_refs(root: &Path) -> Result<()> {
     const NOMENCLATURE_DOC_BANNED: &[&str] = &[
         "reference/mens.md",
         "reference/mens-ssot.md",
-        "crates/vox-mens/",
+        "crates/vox-ml-cli/",
         "crates/vox-codex-api/",
     ];
     const DOC_PATH_BANNED: &[&str] = &["docs/how-to-ai-agents.md", "docs/src/how-to-ai-agents.md"];

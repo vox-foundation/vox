@@ -14,9 +14,9 @@ tavily = ["dep:tavily"]
 anyhow = { workspace = true }
 urlencoding = "2"
 vox-db = { workspace = true, features = ["local"] }
-vox-runtime = { workspace = true }
+vox-actor-runtime = { workspace = true }
 vox-bounded-fs = { workspace = true }
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 vox-config = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }

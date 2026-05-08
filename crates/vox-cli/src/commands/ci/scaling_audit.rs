@@ -189,7 +189,7 @@ fn findings_array_to_pretty(findings: &JsonValue) -> Result<String> {
 /// Upper bound for `rust_parse_failures` in the TOESTUB JSON envelope (`toestub --format json`).
 /// Unset or non-numeric ⇒ no limit. Documented in `docs/src/reference/env-vars.md`.
 fn toestub_rust_parse_failure_limit_from_env() -> u64 {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxToestubMaxRustParseFailures)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxToestubMaxRustParseFailures)
         .expose()
         .and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(u64::MAX)
@@ -296,7 +296,7 @@ fn emit_promotion_metrics(repo_root: &Path) -> Result<()> {
         "remediation_delta_snapshot": delta_val,
         "canary_rollout": {
             "cli_flags": "toestub --canary-crates vox-cli,vox-mcp --feature-flags unwired-graph",
-            "strictness_promotion_gate": "`vox ci scaling-audit verify` + `cargo test -p vox-toestub --test gold_dataset`",
+            "strictness_promotion_gate": "`vox ci scaling-audit verify` + `cargo test -p vox-code-audit --test gold_dataset`",
         },
     });
 
@@ -322,7 +322,7 @@ fn run_toestub_json_snapshot(repo_root: &Path) -> Result<()> {
     fs::create_dir_all(out_path.parent().unwrap()).ok();
     let output = std::process::Command::new(&cargo)
         .current_dir(repo_root)
-        .args(["run", "-q", "-p", "vox-toestub", "--bin", "toestub", "--"])
+        .args(["run", "-q", "-p", "vox-code-audit", "--bin", "toestub", "--"])
         .arg("--mode")
         .arg("audit")
         .arg("--format")
