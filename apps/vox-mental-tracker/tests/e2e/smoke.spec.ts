@@ -1,11 +1,12 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Requires a running preview server (`vite` / static dist). Set `BASE_URL` when running locally or in CI.
+ * Home page boots. The Playwright webServer block in playwright.config.ts
+ * auto-launches `vite preview` against the bundled web-dist/ when BASE_URL
+ * isn't externally provided, so this runs out of the box on `pnpm e2e`.
  */
 test("home loads", async ({ page }) => {
-  test.skip(!process.env.BASE_URL, "Set BASE_URL to run browser smoke (e.g. http://127.0.0.1:5173)");
-  await page.goto(process.env.BASE_URL!);
+  await page.goto("/");
   await expect(page.getByRole("heading", { name: /Mental Health Tracker/i })).toBeVisible({
     timeout: 30_000,
   });
