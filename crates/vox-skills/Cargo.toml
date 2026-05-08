@@ -7,6 +7,7 @@ authors.workspace = true
 description = "Skill marketplace and plugin architecture for the Vox agent system"
 
 [dependencies]
+vox-plugin-host = { workspace = true }
 vox-db       = { workspace = true }
 vox-pm       = { workspace = true }
 serde        = { workspace = true }
