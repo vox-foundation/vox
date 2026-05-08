@@ -86,7 +86,7 @@ fn collect_query_plans_expr(
                 }
             }
         }
-        HirExpr::For(_, it, body, _) => {
+        HirExpr::For(_, _, it, body, _) => {
             collect_query_plans_expr(it, out);
             collect_query_plans_expr(body, out);
         }
@@ -115,6 +115,15 @@ fn collect_query_plans_expr(
             }
         }
         HirExpr::Try(t) => collect_query_plans_expr(t.target.as_ref(), out),
+        HirExpr::JsxFragment(children, _) => {
+            for c in children {
+                collect_query_plans_expr(c, out);
+            }
+        }
+        HirExpr::Index(obj, idx, _) => {
+            collect_query_plans_expr(obj, out);
+            collect_query_plans_expr(idx, out);
+        }
         HirExpr::IntLit(_, _)
         | HirExpr::FloatLit(_, _)
         | HirExpr::DecimalLit(_, _)

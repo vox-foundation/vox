@@ -26,6 +26,7 @@
 
 pub mod discovery_gate;
 pub mod gateway;
+pub mod routes;
 #[cfg(feature = "news-publish")]
 pub mod news;
 pub mod policy;

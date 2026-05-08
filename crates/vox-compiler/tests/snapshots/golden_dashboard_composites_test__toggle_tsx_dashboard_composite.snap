@@ -1,0 +1,27 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+expression: ts
+---
+import React from "react";
+
+export interface ToggleProps {
+  checked: boolean;
+  label: string;
+  on_change: any;
+}
+
+export function Toggle({ checked, label, on_change }: ToggleProps): React.ReactElement {
+  return (
+<row items={"center"} gap={3} raw_class={"cursor-pointer"} onClick={on_change}
+>
+  <panel w={9} h={5} radius={"full"} bg={(checked ? "blue.600" : "zinc.700")} pad={0} raw_class={"relative flex items-center transition-colors duration-150"}
+>
+  <panel w={4} h={4} radius={"full"} bg={"white"} raw_class={(checked ? "absolute right-0.5 transition-all duration-150" : "absolute left-0.5 transition-all duration-150")} />
+</panel>
+  {(label === "" ? <panel  /> : <text size={"sm"} color={"zinc.300"}
+>
+  {label}
+</text>)}
+</row>
+  );
+}

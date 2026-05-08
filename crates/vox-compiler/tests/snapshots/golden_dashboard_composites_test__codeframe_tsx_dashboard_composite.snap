@@ -1,0 +1,33 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+expression: ts
+---
+import React from "react";
+
+export interface CodeframeProps {
+  file: string;
+  line: number;
+  col: number;
+  excerpt: string;
+  caret: string;
+}
+
+export function Codeframe({ file, line, col, excerpt, caret }: CodeframeProps): React.ReactElement {
+  return (
+<panel bg={"zinc.900"} border={true} border_color={"white/10"} radius={"lg"} pad={3} gap={1}
+>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.500"}
+>
+  {file}
+</text>
+  <text size={"xs"} fontFamily={"mono"} color={"white/70"} leading={"relaxed"}
+>
+  {excerpt}
+</text>
+  <text size={"xs"} fontFamily={"mono"} color={"rose.400"}
+>
+  {caret}
+</text>
+</panel>
+  );
+}

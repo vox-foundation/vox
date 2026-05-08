@@ -284,6 +284,7 @@ training_eligible: false
 - [Unified News Syndication Security & Safety](archive/research-2026-q1/news_syndication_security.md)
 - [Vox Architectural Organization & Governance](archive/research-2026-q1/vox-organization.md)
 - [Vox Configuration Architecture (SSOT)](archive/research-2026-q1/config-ssot.md)
+- [Vox Dashboard — Design Brief for Anthropic Labs Design (2026)](architecture/vox-dashboard-design-brief-2026.md)
 - [Vox Docker-backed portability implementation plan 2026](archive/research-2026-q1/vox-docker-dotvox-portability-implementation-plan-2026.md)
 - [Vox Docker-backed portability research 2026](archive/research-2026-q1/vox-docker-dotvox-portability-research-2026.md)
 - [Vox Docs Portal: Astro Starlight Strategy 2026](architecture/starlight-site-strategy-2026.md)

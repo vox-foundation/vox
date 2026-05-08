@@ -275,13 +275,16 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
             }
             Err(EvalError::AssertionFailed("No match arm found".into()))
         }
-        HirExpr::For(binding, iterable, body, _) => {
+        HirExpr::For(binding, index, iterable, body, _) => {
             let c = eval_expr(interp, iterable)?;
             let mut results = Vec::new();
             if let VoxValue::List(ls) = c {
                 interp.scope.push_frame();
-                for l in ls {
+                for (i, l) in ls.into_iter().enumerate() {
                     interp.scope.set(binding.clone(), l);
+                    if let Some(idx_name) = index {
+                        interp.scope.set(idx_name.clone(), VoxValue::Int(i as i64));
+                    }
                     results.push(eval_expr(interp, body)?);
                 }
                 interp.scope.pop_frame();
@@ -308,6 +311,21 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                     expected: "Object",
                     found: "other".into(),
                 })
+            }
+        }
+        HirExpr::Index(object, index, _) => {
+            let obj_val = eval_expr(interp, object)?;
+            let idx_val = eval_expr(interp, index)?;
+            match (obj_val, idx_val) {
+                (VoxValue::List(items), VoxValue::Int(i)) => {
+                    let idx = if i < 0 {
+                        items.len().saturating_sub((-i) as usize)
+                    } else {
+                        i as usize
+                    };
+                    Ok(items.into_iter().nth(idx).unwrap_or(VoxValue::Null))
+                }
+                _ => Ok(VoxValue::Null),
             }
         }
         _ => Ok(VoxValue::Null),

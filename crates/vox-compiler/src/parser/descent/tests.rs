@@ -223,6 +223,48 @@ fn test_parse_if_else() {
 }
 
 #[test]
+fn test_parse_else_if_chain() {
+    // Verify `else if` chains parse as nested Expr::If rather than requiring
+    // the workaround `else { if … }` form.
+    let src = r#"fn classify(x) {
+  if x > 10 { return "big"
+  } else if x > 5 { return "medium"
+  } else if x > 0 { return "small"
+  } else { return "none"
+  }
+}"#;
+    let m = parse_str(src);
+    if let Decl::Function(f) = &m.declarations[0] {
+        if let Stmt::Expr {
+            expr:
+                Expr::If {
+                    else_body: Some(else_body),
+                    ..
+                },
+            ..
+        } = &f.body[0]
+        {
+            // The else branch should be a single `Stmt::Expr` wrapping another `Expr::If`
+            assert_eq!(else_body.len(), 1, "else body should have exactly one statement");
+            if let Stmt::Expr {
+                expr: Expr::If { else_body: Some(inner_else), .. },
+                ..
+            } = &else_body[0]
+            {
+                // Inner else is another if (or the final else block)
+                assert_eq!(inner_else.len(), 1);
+            } else {
+                panic!("Expected nested Expr::If in else branch");
+            }
+        } else {
+            panic!("Expected if/else-if chain");
+        }
+    } else {
+        panic!("Expected function declaration");
+    }
+}
+
+#[test]
 fn test_parse_mutable_let() {
     let m = parse_str("fn f() { let mut x = 0\n x = 1\n return x }");
     if let Decl::Function(f) = &m.declarations[0] {

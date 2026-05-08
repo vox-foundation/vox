@@ -29,6 +29,7 @@ fn has_async_expr(e: &HirExpr) -> bool {
         | HirExpr::DecimalLit(..)
         | HirExpr::Jsx(..)
         | HirExpr::JsxSelfClosing(..) => false,
+        HirExpr::JsxFragment(children, _) => children.iter().any(has_async_expr),
         HirExpr::ListLit(elements, _) | HirExpr::TupleLit(elements, _) => {
             elements.iter().any(has_async_expr)
         }
@@ -57,11 +58,12 @@ fn has_async_expr(e: &HirExpr) -> bool {
                 || has_async_stmts(then_b)
                 || else_b.as_ref().is_some_and(|b| has_async_stmts(b))
         }
-        HirExpr::For(_, iter, body, _) => has_async_expr(iter) || has_async_expr(body),
+        HirExpr::For(_, _, iter, body, _) => has_async_expr(iter) || has_async_expr(body),
         HirExpr::Lambda(..) => false,
 
         HirExpr::With(l, r, _) => has_async_expr(l) || has_async_expr(r),
         HirExpr::Block(stmts, _) => has_async_stmts(stmts),
         HirExpr::Try(t) => has_async_expr(t.target.as_ref()),
+        HirExpr::Index(obj, idx, _) => has_async_expr(obj) || has_async_expr(idx),
     }
 }

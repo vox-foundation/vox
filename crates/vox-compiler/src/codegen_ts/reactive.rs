@@ -363,7 +363,7 @@ fn scan_hir_expr_for_react_imports(
                 );
             }
         }
-        HirExpr::For(_, it, body, _) => {
+        HirExpr::For(_, _, it, body, _) => {
             scan_hir_expr_for_react_imports(
                 it,
                 need_state,
@@ -413,6 +413,36 @@ fn scan_hir_expr_for_react_imports(
         HirExpr::Try(t) => {
             scan_hir_expr_for_react_imports(
                 t.target.as_ref(),
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
+        }
+        HirExpr::JsxFragment(children, _) => {
+            for child in children {
+                scan_hir_expr_for_react_imports(
+                    child,
+                    need_state,
+                    need_effect,
+                    need_memo,
+                    need_ref,
+                    need_callback,
+                );
+            }
+        }
+        HirExpr::Index(obj, idx, _) => {
+            scan_hir_expr_for_react_imports(
+                obj,
+                need_state,
+                need_effect,
+                need_memo,
+                need_ref,
+                need_callback,
+            );
+            scan_hir_expr_for_react_imports(
+                idx,
                 need_state,
                 need_effect,
                 need_memo,
@@ -676,9 +706,14 @@ fn collect_jsx_component_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut
                 collect_jsx_component_refs_stmt(s, known, out);
             }
         }
-        HirExpr::For(_, iter, body, _) => {
+        HirExpr::For(_, _, iter, body, _) => {
             collect_jsx_component_refs(iter, known, out);
             collect_jsx_component_refs(body, known, out);
+        }
+        HirExpr::JsxFragment(children, _) => {
+            for child in children {
+                collect_jsx_component_refs(child, known, out);
+            }
         }
         _ => {}
     }

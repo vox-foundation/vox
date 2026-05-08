@@ -112,7 +112,7 @@ where
         HirExpr::Binary(crate::hir::HirBinOp::Pipe, left, right, _) => {
             format!("({})({})", emit(right), emit(left))
         }
-        HirExpr::For(name, iter, body, _) => {
+        HirExpr::For(name, _, iter, body, _) => {
             let mut s = format!("for {} in {} {{\n", name, emit(iter));
             if let HirExpr::Block(stmts, _) = &**body {
                 for stmt in stmts {
@@ -130,7 +130,7 @@ where
             s.push_str("}\n");
             s
         }
-        HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) => {
+        HirExpr::Jsx(_) | HirExpr::JsxSelfClosing(_) | HirExpr::JsxFragment(_, _) => {
             "panic!(\"JSX cannot be rendered via the Rust backend yet\")".into()
         }
 

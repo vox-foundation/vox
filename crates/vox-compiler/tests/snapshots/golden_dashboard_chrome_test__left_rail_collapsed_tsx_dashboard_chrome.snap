@@ -1,0 +1,49 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_chrome_test.rs
+expression: ts
+---
+import React from "react";
+
+import { NavItem } from "./NavItem";
+
+export interface LeftRailProps {
+  active: string;
+  collapsed: boolean;
+}
+
+export function LeftRail({ active, collapsed }: LeftRailProps): React.ReactElement {
+  return (
+<column raw_class={(collapsed ? "w-14 shrink-0" : "w-[200px] shrink-0")} border_r={true} border_color={"zinc.800"} pad={2} gap={1} bg={"zinc.950"}
+>
+  <row h={12} items={"center"} shrink={0} raw_class={(collapsed ? "justify-center px-1" : "gap-2 px-2")}
+>
+  <panel w={6} h={6} radius={"md"} bg={"blue.600"} raw_class={"flex items-center justify-center shrink-0"}
+>
+  <text size={"xs"} weight={"bold"} color={"white"} fontFamily={"mono"}
+>
+  {"V"}
+</text>
+</panel>
+  {(collapsed ? <panel  /> : <text size={"sm"} weight={"bold"} color={"white/90"} tracking={"tight"}
+>
+  {"Vox"}
+</text>)}
+</row>
+  <NavItem label={"Speak"} surface_key={"speak"} active={active} collapsed={collapsed} />
+  <NavItem label={"Mesh"} surface_key={"mesh"} active={active} collapsed={collapsed} />
+  <NavItem label={"Forge"} surface_key={"forge"} active={active} collapsed={collapsed} />
+  <NavItem label={"Code"} surface_key={"code"} active={active} collapsed={collapsed} />
+  <NavItem label={"Models"} surface_key={"models"} active={active} collapsed={collapsed} />
+  <NavItem label={"Runs"} surface_key={"runs"} active={active} collapsed={collapsed} />
+  <panel flex={1} />
+  <NavItem label={"Settings"} surface_key={"settings"} active={active} collapsed={collapsed} />
+  {(collapsed ? <panel  /> : <row pad_x={2} pad_y={2} shrink={0}
+>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.700"}
+>
+  {"v0.14.2 · main"}
+</text>
+</row>)}
+</column>
+  );
+}

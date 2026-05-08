@@ -18,7 +18,7 @@ use crate::ast::expr::{BinOp, Expr, JsxAttribute, JsxElement, JsxSelfClosingElem
 use crate::ast::stmt::Stmt;
 use crate::codegen_ts::hir_emit::wrap_jsx_hir_child_expr;
 
-pub use crate::codegen_ts::hir_emit::compat::map_jsx_attr_name;
+pub use crate::codegen_ts::hir_emit::compat::{map_jsx_attr_name, map_jsx_tag};
 
 /// Emit a JSX element with children to TypeScript.
 ///
@@ -104,7 +104,10 @@ fn transform_view_kwargs(tag: &str, attrs: &[JsxAttribute]) -> ViewCallEmission 
     let html_tag = primitive_emission
         .as_ref()
         .map(|e| e.html_tag.to_string())
-        .unwrap_or_else(|| tag.to_string());
+        // Non-primitive fallback: route through map_jsx_tag so snake_case SVG forms
+        // (radial_gradient → radialGradient, fe_gaussian_blur → feGaussianBlur, etc.)
+        // emit canonical camelCase. Plain HTML/SVG tags pass through unchanged.
+        .unwrap_or_else(|| map_jsx_tag(tag).to_string());
     // Author kwarg names — used to suppress primitive base classes on the same Tailwind axis.
     let author_kwargs: Vec<&str> = attrs.iter().map(|a| a.name.as_str()).collect();
     let mut class_pieces: Vec<String> = primitive_emission
@@ -301,6 +304,17 @@ fn expand_bind_attribute(expr: &Expr) -> (String, String) {
     }
 }
 
+/// Emit a JSX fragment `<>children</>`.
+pub fn emit_jsx_fragment(children: &[Expr], indent: usize) -> String {
+    let pad = "  ".repeat(indent);
+    let mut out = format!("{pad}<>\n");
+    for child in children {
+        out.push_str(&emit_jsx_child(child, indent + 1));
+    }
+    out.push_str(&format!("{pad}</>\n"));
+    out
+}
+
 /// Emit a JSX child expression.
 fn emit_jsx_child(expr: &Expr, indent: usize) -> String {
     let pad = "  ".repeat(indent);
@@ -308,15 +322,21 @@ fn emit_jsx_child(expr: &Expr, indent: usize) -> String {
     match unwrapped {
         Expr::Jsx(el) => emit_jsx_element(el, indent),
         Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, indent),
+        Expr::JsxFragment { children, .. } => emit_jsx_fragment(children, indent),
         Expr::For {
             binding,
+            index,
             iterable,
             body,
             ..
         } => {
             let iter_str = emit_expr(iterable);
             let body_str = emit_jsx_child(body, indent + 1);
-            format!("{pad}{{{iter_str}.map(({binding}, _i) => (\n{body_str}{pad}))}}\n")
+            // Default index name when the user wrote `for x in arr` (no index binding).
+            // The leading underscore signals "unused" by JS convention and avoids clashing
+            // with a user-named `i` in an outer scope.
+            let idx = index.as_deref().unwrap_or("_i");
+            format!("{pad}{{{iter_str}.map(({binding}, {idx}) => (\n{body_str}{pad}))}}\n")
         }
         Expr::If {
             condition,
@@ -342,7 +362,9 @@ fn jsx_branch_to_ternary_str(stmts: &[Stmt], indent: usize) -> String {
     if let [Stmt::Expr { expr, .. }] = stmts {
         let u = unwrap_block(expr);
         return match u {
-            Expr::JsxSelfClosing(_) | Expr::Jsx(_) => emit_jsx_child(u, indent).trim().to_string(),
+            Expr::JsxSelfClosing(_) | Expr::Jsx(_) | Expr::JsxFragment { .. } => {
+                emit_jsx_child(u, indent).trim().to_string()
+            }
             Expr::If {
                 condition,
                 then_body,
@@ -546,14 +568,20 @@ pub fn emit_expr(expr: &Expr) -> String {
         }
         Expr::Jsx(el) => emit_jsx_element(el, 0),
         Expr::JsxSelfClosing(el) => emit_jsx_self_closing(el, 0),
+        Expr::JsxFragment { children, .. } => emit_jsx_fragment(children, 0),
         Expr::For {
             binding,
+            index,
             iterable,
             body,
             ..
         } => {
+            // Default index name when the user wrote `for x in arr` (no index binding).
+            // The leading underscore signals "unused" by JS convention and avoids clashing
+            // with a user-named `i` in an outer scope.
+            let idx = index.as_deref().unwrap_or("_i");
             format!(
-                "{}.map(({binding}) => {})",
+                "{}.map(({binding}, {idx}) => {})",
                 emit_expr(iterable),
                 emit_expr(body)
             )
@@ -597,6 +625,9 @@ pub fn emit_expr(expr: &Expr) -> String {
             format!(
                 "(() => {{ const _v = {inner}; if (_v._tag === \"Ok\") return _v.value; throw _v; }})()"
             )
+        }
+        Expr::Index { object, index, .. } => {
+            format!("{}[{}]", emit_expr(object), emit_expr(index))
         }
     }
 }

@@ -273,10 +273,12 @@ pub enum Expr {
         /// Span covering `?`.
         span: Span,
     },
-    /// For expression (used in JSX): `for x in list: <elem>`
+    /// For expression (used in JSX): `for x in list: <elem>` or `for x, i in list: <elem>`
     For {
         /// Loop binding name.
         binding: String,
+        /// Optional index variable (the `, i` in `for x, i in list`).
+        index: Option<String>,
         /// Iterable expression.
         iterable: Box<Expr>,
         /// Body expression (often JSX).
@@ -324,6 +326,22 @@ pub enum Expr {
     Jsx(JsxElement),
     /// Self-closing JSX element: `<input .../>`
     JsxSelfClosing(JsxSelfClosingElement),
+    /// JSX fragment: `<>children</>`
+    JsxFragment {
+        /// Child expressions / nested elements.
+        children: Vec<Expr>,
+        /// Span covering `<>` through `</>`.
+        span: Span,
+    },
+    /// Subscript / index expression: `obj[index]`
+    Index {
+        /// Base expression being indexed.
+        object: Box<Expr>,
+        /// Index expression.
+        index: Box<Expr>,
+        /// Span covering `object[index]`.
+        span: Span,
+    },
     /// String interpolation: `"text {expr} more"`
     StringInterp {
         /// Alternating literal and interpolation segments.
@@ -370,9 +388,11 @@ impl Expr {
             | Expr::With { span, .. }
             | Expr::Try { span, .. }
             | Expr::StringInterp { span, .. }
-            | Expr::Block { span, .. } => *span,
+            | Expr::Block { span, .. }
+            | Expr::Index { span, .. } => *span,
             Expr::Jsx(el) => el.span,
             Expr::JsxSelfClosing(el) => el.span,
+            Expr::JsxFragment { span, .. } => *span,
         }
     }
 }

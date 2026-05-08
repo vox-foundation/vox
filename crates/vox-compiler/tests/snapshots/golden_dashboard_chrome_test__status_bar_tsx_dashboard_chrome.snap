@@ -1,0 +1,90 @@
+---
+source: crates/vox-compiler/tests/golden_dashboard_chrome_test.rs
+expression: ts
+---
+import React from "react";
+
+import { StatusSegment } from "./StatusSegment";
+
+export interface StatusBarProps {
+  active: string;
+}
+
+export function StatusBar({ active }: StatusBarProps): React.ReactElement {
+    const mesh_nodes = "12";
+    const queue_count = "3";
+    const error_count = "2";
+    const model_name = "sonnet-4.6";
+    const build_state = "idle";
+    const cost_used = "$4.82";
+    const cost_cap = "$50.00";
+    const utc_time = "UTC 14:32";
+  return (
+<row raw_class={"h-[26px] shrink-0"} border_t={true} border_color={"zinc.800"} pad_x={4} items={"center"} justify={"between"} bg={"zinc.950"}
+>
+  <row items={"center"} gap={3}
+>
+  <StatusSegment label={"mesh"} value={mesh_nodes} dot_color={"emerald.400"} highlighted={(active === "mesh" ? true : false)} />
+  <text size={"xs"} color={"zinc.700"}
+>
+  {"·"}
+</text>
+  <StatusSegment label={"queue"} value={queue_count} dot_color={"emerald.400"} highlighted={(active === "runs" ? true : false)} />
+  <text size={"xs"} color={"zinc.700"}
+>
+  {"·"}
+</text>
+  <StatusSegment label={"errors"} value={error_count} dot_color={"rose.500"} highlighted={(active === "code" ? true : false)} />
+  <text size={"xs"} color={"zinc.700"}
+>
+  {"·"}
+</text>
+  <StatusSegment label={"model"} value={model_name} dot_color={"emerald.400"} highlighted={(active === "models" ? true : false)} />
+  <text size={"xs"} color={"zinc.700"}
+>
+  {"·"}
+</text>
+  <StatusSegment label={"build"} value={build_state} dot_color={"zinc.600"} highlighted={(active === "forge" ? true : false)} />
+</row>
+  <row items={"center"} gap={2}
+>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.600"}
+>
+  {"cost"}
+</text>
+  <text size={"xs"} color={"zinc.700"}
+>
+  {"·"}
+</text>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.500"}
+>
+  {cost_used}
+</text>
+  <text size={"xs"} color={"zinc.700"}
+>
+  {"/"}
+</text>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.600"}
+>
+  {cost_cap}
+</text>
+  <text size={"xs"} color={"zinc.700"}
+>
+  {"·"}
+</text>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.600"}
+>
+  {"24h"}
+</text>
+  <text size={"xs"} color={"zinc.700"}
+>
+  {"·"}
+</text>
+  <text size={"xs"} fontFamily={"mono"} color={"zinc.600"}
+>
+  {utc_time}
+</text>
+</row>
+</row>
+  );
+}

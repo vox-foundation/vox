@@ -26,7 +26,7 @@ use crate::ast::decl::FnDecl;
 use crate::ast::expr::Expr;
 use crate::ast::scalar_mapping::VoxScalar;
 use crate::ast::stmt::Stmt;
-use crate::codegen_ts::jsx::{emit_expr, emit_jsx_element, emit_jsx_self_closing, emit_stmt};
+use crate::codegen_ts::jsx::{emit_expr, emit_jsx_element, emit_jsx_fragment, emit_jsx_self_closing, emit_stmt};
 use crate::react_bridge::{for_each_vox_hook_call_in_stmt, react_hook_export_for_vox_ident};
 use std::collections::BTreeSet;
 
@@ -104,7 +104,7 @@ pub fn generate_component_from_web_ir(
                 out.push_str(&emit_component_stmt(stmt));
             }
             Stmt::Expr { expr, .. } => match expr {
-                Expr::Jsx(_) | Expr::JsxSelfClosing(_) => {}
+                Expr::Jsx(_) | Expr::JsxSelfClosing(_) | Expr::JsxFragment { .. } => {}
                 Expr::Call { .. } | Expr::MethodCall { .. } => {
                     out.push_str(&emit_component_stmt(stmt));
                 }
@@ -235,6 +235,9 @@ pub fn generate_component(func: &FnDecl, has_styles: bool) -> (String, String) {
                     }
                     Expr::JsxSelfClosing(el) => {
                         jsx_return = Some(emit_jsx_self_closing(el, 2));
+                    }
+                    Expr::JsxFragment { children, .. } => {
+                        jsx_return = Some(emit_jsx_fragment(children, 2));
                     }
                     Expr::Call { .. } | Expr::MethodCall { .. } => {
                         out.push_str(&emit_component_stmt(stmt));

@@ -183,7 +183,7 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
                 walk_stmts(else_stmts, f);
             }
         }
-        HirExpr::For(_, it, body, _) => {
+        HirExpr::For(_, _, it, body, _) => {
             walk_expr(it.as_ref(), f);
             walk_expr(body.as_ref(), f);
         }
@@ -206,8 +206,17 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
                 walk_expr(&a.value, f);
             }
         }
+        HirExpr::JsxFragment(children, _) => {
+            for c in children {
+                walk_expr(c, f);
+            }
+        }
         HirExpr::Block(stmts, _) => walk_stmts(stmts, f),
         HirExpr::Try(t) => walk_expr(t.target.as_ref(), f),
+        HirExpr::Index(obj, idx, _) => {
+            walk_expr(obj.as_ref(), f);
+            walk_expr(idx.as_ref(), f);
+        }
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
         | HirExpr::StringLit(..)
@@ -295,7 +304,7 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
                 walk_stmts_mut(else_stmts, f);
             }
         }
-        HirExpr::For(_, it, body, _) => {
+        HirExpr::For(_, _, it, body, _) => {
             walk_expr_mut(it.as_mut(), f);
             walk_expr_mut(body.as_mut(), f);
         }
@@ -319,8 +328,17 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
                 walk_expr_mut(&mut a.value, f);
             }
         }
+        HirExpr::JsxFragment(children, _) => {
+            for c in children {
+                walk_expr_mut(c, f);
+            }
+        }
         HirExpr::Block(stmts, _) => walk_stmts_mut(stmts, f),
         HirExpr::Try(t) => walk_expr_mut(t.target.as_mut(), f),
+        HirExpr::Index(obj, idx, _) => {
+            walk_expr_mut(obj.as_mut(), f);
+            walk_expr_mut(idx.as_mut(), f);
+        }
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)
         | HirExpr::StringLit(..)

@@ -1,0 +1,20 @@
+---
+source: crates/vox-compiler/tests/golden_mesh_surface_test.rs
+assertion_line: 143
+expression: ts
+---
+import React from "react";
+
+export interface OrchNodeProps {
+  points: string;
+  id: string;
+  selected: string;
+  orch_stroke: string;
+  on_click: any;
+}
+
+export function OrchNode({ points, id, selected, orch_stroke, on_click }: OrchNodeProps): React.ReactElement {
+  return (
+    <polygon className={"cursor-pointer"} fill={"#0c1631"} onClick={on_click} points={points} stroke={(selected === id ? "#60a5fa" : orch_stroke)} strokeWidth={(selected === id ? 2 : 1.5)} />
+  );
+}
