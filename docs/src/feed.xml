@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 08 May 2026 03:33:28 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 08 May 2026 04:05:57 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -18,10 +18,28 @@
   </item>
 
   <item>
+    <title>Crate Classification Audit (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/crate-classification-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/crate-classification-2026-05-08.html</guid>
+    <description>Classification of every workspace crate as CORE, PLUGIN, SHARED, DEAD, or MISPLACED. Identifies extraction candidates and deletion candidates.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
     <title>Plugin System Audit (2026-05-08)</title>
     <link>https://vox-lang.org/architecture/plugin-system-audit-2026-05-08.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-audit-2026-05-08.html</guid>
     <description>Audit of the plugin system after major slim-core extractions — ABI drift, SP7 scaffolds, duplicate code paths, dead deps, and build/distribution optimization.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Plugin System Deep Audit (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/plugin-system-deep-audit-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-deep-audit-2026-05-08.html</guid>
+    <description>Second-pass audit covering ABI completeness, discovery, sandbox model, cross-cutting concerns, and distribution.</description>
     <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -60,6 +78,16 @@
     <description>Decision guide for choosing the right Vox distribution bundle for your use case.</description>
     <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
     <category>How-To</category>
+  </item>
+
+  <item>
+    <title>Mens native training SSOT (Candle QLoRA–first; Burn LoRA deprecated in dispatch)</title>
+    <link>https://vox-lang.org/reference/mens-training.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/mens-training.html</guid>
+    <description>Official documentation for Mens native fine-tuning: contract-first Candle QLoRA, legacy Burn paths, merge/serve matrix.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>
@@ -210,36 +238,6 @@
     <description>Official documentation for Vox full-stack web UI — single source of truth for the Vox language. Detailed technical reference, architectur</description>
     <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 010 — TanStack as the Vox web spine</title>
-    <link>https://vox-lang.org/adr/010-tanstack-web-spine.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/010-tanstack-web-spine.html</guid>
-    <description>Official documentation for ADR 010 — TanStack as the Vox web spine for the Vox language. Detailed technical reference, architecture guide</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 012 — Internal Web IR strategy for Vox</title>
-    <link>https://vox-lang.org/adr/012-internal-web-ir-strategy.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/012-internal-web-ir-strategy.html</guid>
-    <description>Official documentation for ADR 012 — Internal Web IR strategy for Vox for the Vox language. Detailed technical reference, architecture gu</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 032 — `.vox.ui` reactive modules</title>
-    <link>https://vox-lang.org/adr/032-vox-ui-reactive-modules.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/032-vox-ui-reactive-modules.html</guid>
-    <description>Introduces a `.vox.ui` file-suffix convention that allows module-scope `state` / `derived` / `effect` / `on mount` / `on cleanup` reactive members. Lowers to a…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
   </item>
 

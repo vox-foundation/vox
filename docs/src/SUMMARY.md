@@ -366,6 +366,7 @@ training_eligible: false
 - [Crate Classification Audit (2026-05-08)](architecture/crate-classification-2026-05-08.md)
 - [Cross-Agent Evidence Sharing in A2A Protocol Implementations](archive/research-2026-q1/research-agent-handoff-a2a-evidence-sharing-2026.md)
 - [Custom Model Pretraining vs Qwen Fine-Tuning Research](archive/research-2026-q1/custom-model-pretraining-research-2026.md)
+- [Dead Crate Fate Plan (2026-05-08)](architecture/dead-crate-fate-plan-2026-05-08.md)
 - [Dependency Sprawl Audit and Resolution (2026)](archive/research-2026-q1/dependency-sprawl-research-2026.md)
 - [Design Pattern Recommendations for Platform Gaps](archive/research-2026-q1/research-agent-handoff-design-patterns-2026.md)
 - [Diagnostic questioning — research synthesis 2026](archive/research-2026-q1/research-diagnostic-questioning-2026.md)
