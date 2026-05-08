@@ -28,9 +28,10 @@ use std::collections::HashSet;
 use serde_json::json;
 
 use crate::codegen_ts::hir_emit::{
-    emit_hir_expr, emit_hir_expr_attr_value, expand_bind_hir_attribute, map_hir_type_to_ts,
-    map_jsx_attr_name, transform_hir_view_kwargs, unwrap_inline_hir_block_expr,
+    emit_hir_expr, emit_hir_expr_attr_value, expand_bind_hir_attribute, transform_hir_view_kwargs,
+    unwrap_inline_hir_block_expr,
 };
+use crate::lowering_shared::jsx::{map_hir_type_to_ts, map_jsx_attr_name};
 use crate::hir::{
     HirEndpointFn, HirEndpointKind, HirExpr, HirJsxAttr, HirJsxElement, HirJsxSelfClosing,
     HirModule, HirParam, HirPattern, HirReactiveMember, HirStmt,

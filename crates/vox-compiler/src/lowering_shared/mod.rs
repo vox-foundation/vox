@@ -2,3 +2,4 @@
 //! (web_ir validation, codegen) without belonging to any single backend.
 
 pub mod css_props;
+pub mod jsx;
