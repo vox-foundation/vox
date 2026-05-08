@@ -168,6 +168,14 @@ default-source = "local:crates/vox-plugin-publication"
 bundled-in = []
 
 [[plugin]]
+id = "grammar-export"
+payload-kind = "code"
+description = "Export Vox grammar in standard formats (Lark, EBNF, JSON Schema, XGrammar-2, SSOT-Markdown)."
+extension-points = ["GrammarExport"]
+default-source = "local:crates/vox-plugin-grammar-export"
+bundled-in = ["vox-dev"]
+
+[[plugin]]
 id = "noop-code"
 payload-kind = "code"
 description = "Test fixture: no-op code plugin used by vox-plugin-host loader tests."
@@ -242,4 +250,5 @@ plugins = [
     "tensor-burn-wgpu", "mens-candle-cuda", "nvml-probe",
     "populi-mesh", "cloud", "oratio", "oratio-mic",
     "script-execution", "browser", "webhook",
+    "grammar-export",
 ]
