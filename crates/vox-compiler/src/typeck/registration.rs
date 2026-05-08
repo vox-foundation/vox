@@ -308,9 +308,15 @@ pub fn register_hir_typedef(env: &mut TypeEnv, td: &HirTypeDef) {
                 .collect(),
         })
         .collect();
+    let struct_fields: Vec<(String, Ty)> = td
+        .fields
+        .iter()
+        .map(|f| (f.0.clone(), resolve_hir_type(&f.1, env)))
+        .collect();
     env.register_type(AdtDef {
         name: td.name.clone(),
         variants,
+        fields: struct_fields,
     });
 }
 
@@ -331,6 +337,7 @@ pub fn register_hir_url_decl(env: &mut TypeEnv, u: &HirUrlDecl) {
     env.register_type(AdtDef {
         name: u.name.clone(),
         variants,
+        fields: vec![],
     });
 }
 

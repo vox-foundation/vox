@@ -319,8 +319,11 @@ pub struct HirTypeDef {
     pub id: DefId,
     /// Type name.
     pub name: String,
-    /// Variants for sum types; empty for aliases/structs handled elsewhere.
+    /// Variants for sum types; empty for struct types and aliases.
     pub variants: Vec<HirVariant>,
+    /// Struct fields for product types; empty for sum types and aliases.
+    #[serde(default)]
+    pub fields: Vec<(String, HirType)>,
     /// Exported type.
     pub is_pub: bool,
     /// Span covering the definition.

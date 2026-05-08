@@ -12,10 +12,25 @@ pub fn generate_types(hir: &HirModule) -> String {
     out
 }
 
-/// Generate a TypeScript discriminated union from a Vox ADT.
+/// Generate a TypeScript discriminated union from a Vox ADT,
+/// or a plain type alias for a struct typedef.
 fn generate_adt(typedef: &HirTypeDef) -> String {
     let mut out = String::new();
     let name = &typedef.name;
+
+    // Struct typedef (`type Foo { f: T, ... }`) → `export type Foo = { f: T, ... }`.
+    if typedef.variants.is_empty() && !typedef.fields.is_empty() {
+        let fields: Vec<String> = typedef
+            .fields
+            .iter()
+            .map(|(fname, ftype)| format!("readonly {}: {}", fname, map_type_to_ts(ftype)))
+            .collect();
+        out.push_str(&format!(
+            "export type {name} = {{ {} }};\n",
+            fields.join("; ")
+        ));
+        return out;
+    }
 
     // Generate the union type
     out.push_str(&format!("export type {name} =\n"));

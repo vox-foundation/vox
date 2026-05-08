@@ -38,6 +38,7 @@ impl BuiltinTypes {
                     fields: vec![],
                 },
             ],
+            fields: vec![],
         });
 
         // Some(value: T) → Option[T]
@@ -77,6 +78,7 @@ impl BuiltinTypes {
                     fields: vec![("message".into(), Ty::Str)],
                 },
             ],
+            fields: vec![],
         });
 
         // Ok(value: T) → Result[T]

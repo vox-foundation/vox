@@ -65,11 +65,16 @@ pub enum BindingKind {
 }
 
 /// Registered ADT (Algebraic Data Type) with its variants.
+///
+/// For struct types (product types declared as `type Foo { f: T, ... }`),
+/// `variants` is empty and `fields` carries the declared shape.
 #[derive(Debug, Clone)]
 pub struct AdtDef {
     pub name: String,
     /// Each variant: (variant_name, [(field_name, field_type)])
     pub variants: Vec<VariantDef>,
+    /// Struct fields when this typedef is a product type. Empty for sum types.
+    pub fields: Vec<(String, Ty)>,
 }
 
 /// A single variant of an ADT.
@@ -360,6 +365,7 @@ mod tests {
                     fields: vec![],
                 },
             ],
+            fields: vec![],
         });
 
         // ADT is registered
@@ -392,6 +398,7 @@ mod tests {
                     fields: vec![("message".into(), Ty::Str)],
                 },
             ],
+            fields: vec![],
         });
 
         let names = env.variant_names("Result");
