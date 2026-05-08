@@ -177,10 +177,7 @@ impl ProbePipeline {
         {
             pipeline = pipeline.with_probe(Box::new(crate::mens::hardware::wgpu_probe::WgpuProbe));
         }
-        #[cfg(feature = "nvml-gpu-probe")]
-        {
-            pipeline = pipeline.with_probe(Box::new(crate::mens::hardware::nvml::NvmlProbe));
-        }
+        // nvml.rs deleted: NVML probing is owned by vox-plugin-nvml-probe.
 
         pipeline
     }

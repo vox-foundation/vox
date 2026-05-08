@@ -22,6 +22,7 @@ gpu = [
     "vox-populi/mens-hf-hub",
     "dep:vox-tensor",
     "vox-tensor/train",
+    "dep:vox-plugin-host",
 ]
 mens-qlora = ["gpu"]
 mens-candle-cuda = ["gpu", "vox-populi/mens-candle-qlora-cuda"]

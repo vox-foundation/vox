@@ -210,10 +210,6 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
 
     use safetensors::SafeTensors;
     use safetensors::tensor::{Dtype, TensorView};
-    use vox_populi::mens::tensor::adapter_schema_v3::{
-        AdapterProvenanceFields, PopuliAdapterManifestV3,
-    };
-    use vox_populi::mens::tensor::finetune_contract::{AdapterMethod, BaseQuantMode};
 
     let dir = tempfile::tempdir().expect("tempdir");
     let d = 3usize;
@@ -261,32 +257,31 @@ fn merge_qlora_cli_roundtrip_lm_head_subset_adapter_manifest_v3() {
     let ad_path = dir.path().join("adapter.safetensors");
     std::fs::write(&ad_path, safetensors::serialize(&ad_map, &None).unwrap()).unwrap();
 
-    let mut base_key_map = HashMap::new();
-    base_key_map.insert("lm_head".into(), "wte.weight".into());
-    let provenance = AdapterProvenanceFields {
-        base_family: Some("kimi-k2.5".into()),
-        upstream_model_id: Some("moonshotai/Kimi-K2.5".into()),
-        license_class: Some("modified-mit".into()),
-        attribution_required: true,
-    };
-    let v3 = PopuliAdapterManifestV3::new(
-        AdapterMethod::Qlora,
-        BaseQuantMode::Nf4,
-        true,
-        base_key_map,
-        vec!["lm_head".into()],
-        vocab,
-        d,
-        rank,
-        alpha,
-        Some("Qwen/Qwen3.5-4B".into()),
-        Some(provenance.clone()),
-    );
-    assert_eq!(v3.provenance, Some(provenance));
+    // Build a v3 manifest JSON directly (no typed enum imports from vox-populi needed).
+    let v3_json = serde_json::json!({
+        "format": "vox_mens_adapter",
+        "version": 3,
+        "adapter_method": "qlora",
+        "base_quant": "nf4",
+        "double_quant": true,
+        "base_key_map": { "lm_head": "wte.weight" },
+        "layer_order": ["lm_head"],
+        "vocab": vocab,
+        "d_model": d,
+        "rank": rank,
+        "alpha": alpha,
+        "base_model": "Qwen/Qwen3.5-4B",
+        "provenance": {
+            "base_family": "kimi-k2.5",
+            "upstream_model_id": "moonshotai/Kimi-K2.5",
+            "license_class": "modified-mit",
+            "attribution_required": true
+        }
+    });
     let meta_path = dir.path().join("meta_v3.json");
     std::fs::write(
         &meta_path,
-        serde_json::to_string_pretty(&v3).expect("serialize v3 manifest"),
+        serde_json::to_string_pretty(&v3_json).expect("serialize v3 manifest"),
     )
     .unwrap();
 

@@ -52,8 +52,7 @@ pub use burn_stack::{IGNORE_INDEX, Sequential, VoxTransformer, cross_entropy_los
 #[cfg(feature = "mens-gpu")]
 pub use tensor::{ElementType, Tensor, TensorShape};
 
-#[cfg(feature = "mens-train")]
-pub mod adapter_schema_v3;
+// adapter_schema_v3 deleted: vox-mens/merge_qlora.rs holds inline serde types; plugin owns merge impl.
 #[cfg(feature = "mens-train")]
 pub mod artifact_bridge;
 #[cfg(feature = "mens-train")]
@@ -67,16 +66,7 @@ pub mod checkpoint_state;
 // to vox-plugin-mens-candle-cuda.
 // candle_model_qwen + candle_inference_serve deleted (SP3 Units 1+3).
 //
-// candle_qlora_merge + adapter_schema_v3 remain here (SP3 Unit 2 deferred):
-//   - Canonical copies exist in vox-plugin-mens-candle-cuda/src/{merge,adapter_schema_v3}.rs
-//   - vox-mens/schola/merge_qlora.rs imports these types; rewiring requires either:
-//     (a) adding vox-plugin-mens-candle-cuda as optional dep to vox-mens (pulls CUDA), or
-//     (b) extracting shared types to a new thin crate (vox-adapter-types or similar)
-//   - Until one of those paths is taken, vox-populi retains these files as the API surface
-//     consumed by vox-mens. They compile only with feature "mens-train" and do not affect
-//     default or CI builds.
-#[cfg(feature = "mens-train")]
-pub mod candle_qlora_merge;
+// candle_qlora_merge deleted: plugin owns merge impl; vox-mens/merge_qlora.rs dispatches via plugin.
 #[cfg(feature = "mens-train")]
 pub mod domain_profiles;
 pub mod domain_router;
