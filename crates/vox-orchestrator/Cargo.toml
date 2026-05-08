@@ -14,7 +14,7 @@ default = [
 dashboard = ["dep:vox-dashboard"]
 mcp-native = ["dep:schemars", "dep:axum", "dep:rmcp", "dep:axum-extra", "dep:tower-http"]
 # Populi HTTP mesh client (`vox-populi` transport). Disable for faster `cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate`.
-populi-transport = ["dep:vox-populi", "vox-populi/transport"]
+populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
 # `vox-oratio` speech-to-text / refinement tools.
 oratio-rerank = ["dep:vox-oratio"]
 # `vox-publisher` syndication / scientia surfaces (`services::news`). Disable with `--no-default-features` slices.
@@ -102,7 +102,7 @@ chrono = { workspace = true }
 walkdir.workspace = true
 vox-bounded-fs.workspace = true
 vox-protocol.workspace = true
-aes-gcm = "0.10.3"
+aes-gcm = { version = "0.10.3", optional = true }
 rand.workspace = true
 base64.workspace = true
 vox-clavis.workspace = true
