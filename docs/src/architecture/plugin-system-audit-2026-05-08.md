@@ -4,6 +4,7 @@ description: "Audit of the plugin system after major slim-core extractions — A
 category: "architecture"
 status: "research"
 training_eligible: true
+training_rationale: "Audit findings on plugin system architecture, ABI versioning discipline, duplicate code paths, and build optimization — useful context for future plugin work."
 ---
 
 # Plugin System Audit (2026-05-08)
