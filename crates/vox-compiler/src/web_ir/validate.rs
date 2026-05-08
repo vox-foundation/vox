@@ -315,7 +315,7 @@ fn validate_styles_with_registry(
                         });
                     }
 
-                    if !crate::codegen_shared::css_property_allowlist::is_allowed_css_property(
+                    if !crate::lowering_shared::css_props::is_allowed_css_property(
                         &css_prop,
                     ) {
                         out.push(WebIrDiagnostic {
