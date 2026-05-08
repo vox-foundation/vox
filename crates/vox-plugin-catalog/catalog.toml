@@ -226,6 +226,7 @@ description = "Default developer experience with all built-in skill plugins."
 plugins = [
     "skill-compiler", "skill-testing", "skill-testing-validate", "skill-memory",
     "skill-git", "skill-orchestrator", "skill-rag", "skill-v0",
+    "runtime-wasm",
 ]
 
 [[bundle]]
@@ -250,7 +251,7 @@ plugins = ["populi-mesh", "cloud", "skill-orchestrator", "skill-memory", "webhoo
 id = "vox-edge"
 description = "Edge / on-device deployment: lightweight runtime + local skills, no cloud or mesh."
 extends = "vox-base"
-plugins = ["skill-compiler", "skill-memory", "skill-v0"]
+plugins = ["skill-compiler", "skill-memory", "skill-v0", "runtime-wasm"]
 
 [[bundle]]
 id = "vox-cloud-only"
