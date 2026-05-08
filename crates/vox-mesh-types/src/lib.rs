@@ -1,3 +1,4 @@
+pub mod a2a;
 pub mod donation_policy;
 pub mod federation;
 pub mod kudos;
@@ -7,6 +8,7 @@ pub mod secret_sync;
 pub mod task;
 pub mod trace;
 
+pub use a2a::A2ADeliverRequest;
 pub use donation_policy::*;
 pub use federation::*;
 pub use kudos::*;
