@@ -101,3 +101,16 @@ vox bundle build vox-base --out my-custom-bundle.tar.gz
 # Cross-compile for a different platform
 vox bundle build vox-server --target x86_64-unknown-linux-gnu --out vox-server-linux.tar.gz
 ```
+
+## Building distribution binaries from source
+
+For CI ship artifacts, use the `dist` profile. It enables fat LTO,
+single codegen unit, and full symbol stripping — producing the smallest
+and fastest `vox-cli` binary:
+
+```bash
+cargo build --profile dist -p vox-cli
+```
+
+The output lands in `target/dist/vox-cli[.exe]`. Use `cargo build --release`
+for fast local dev builds (thin LTO, no symbol stripping).
