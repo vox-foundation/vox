@@ -243,14 +243,7 @@ fn visit_fn_decl_in_decl(decl: &Decl, visit: &mut impl FnMut(&FnDecl)) {
         Decl::Skill(s) => visit(&s.func),
         Decl::AgentDef(ad) => visit(&ad.func),
         Decl::Scheduled(s) => visit(&s.func),
-        Decl::Hook(h) => visit(&h.func),
-        Decl::Provider(p) => visit(&p.func),
-        Decl::Fixture(f) => visit(&f.func),
-        Decl::Layout(l) => visit(&l.func),
         Decl::Loading(l) => visit(&l.func),
-        Decl::NotFound(n) => visit(&n.func),
-        Decl::ErrorBoundary(e) => visit(&e.func),
-        Decl::Mock(m) => visit(&m.func),
         Decl::McpResource(m) => visit(&m.func),
         _ => {}
     }
@@ -406,49 +399,6 @@ pub fn lint_ast_declarations(module: &Module, _source: &str) -> Vec<Diagnostic> 
                 }
             }
             register_table(&mut env, t);
-        }
-    }
-
-    for decl in &module.declarations {
-        let retired: Option<(&str, crate::ast::span::Span, &str)> = match decl {
-            Decl::Context(c) => Some((
-                "`context` declarations are retired. Define React Context in user-owned `app/App.tsx` (see react-interop migration charter).",
-                c.span,
-                "lint.retired_context",
-            )),
-            Decl::Hook(h) => Some((
-                "`@hook fn` is retired. Prefer Path C `component` or plain TS in your React project.",
-                h.func.span,
-                "lint.retired_hook_fn",
-            )),
-            Decl::Provider(p) => Some((
-                "`@provider fn` is retired. Add providers in user-owned `app/App.tsx`.",
-                p.span,
-                "lint.retired_provider_fn",
-            )),
-            Decl::Page(pg) => Some((
-                "`page:` / static Page declarations are retired for the web stack. Use `routes { ... }` and Path C components.",
-                pg.span,
-                "lint.retired_page_decl",
-            )),
-            _ => None,
-        };
-        if let Some((message, span, code)) = retired {
-            diags.push(Diagnostic {
-                severity: TypeckSeverity::Error,
-                message: message.to_string(),
-                span,
-                expected_type: None,
-                found_type: None,
-                context: None,
-                suggestions: vec![],
-                category: DiagnosticCategory::Lint,
-                code: Some(code.to_string()),
-                fixes: vec![],
-                line_col: None,
-                missing_cases: vec![],
-                ast_node_kind: None,
-            });
         }
     }
 

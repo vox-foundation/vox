@@ -69,60 +69,10 @@ pub struct RouteEntry {
     pub span: Span,
 }
 
-/// Frontend React Context wrapper.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ContextDecl {
-    pub name: String,
-    pub state_type: Option<TypeExpr>,
-    pub default_expr: Option<crate::ast::expr::Expr>,
-    pub span: Span,
-}
-
-/// A frontend provider component declaration.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ProviderDecl {
-    pub context_name: String,
-    pub func: FnDecl,
-    pub span: Span,
-}
-
-/// Layout component wrapper — wraps child routes with shared UI.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct LayoutDecl {
-    pub func: FnDecl,
-}
-
 /// Loading state component — shown during route suspense.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct LoadingDecl {
     pub func: FnDecl,
-}
-
-/// 404 / not-found page component.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct NotFoundDecl {
-    pub func: FnDecl,
-}
-
-/// Error boundary component — catches render errors.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ErrorBoundaryDecl {
-    pub func: FnDecl,
-}
-
-/// CSS keyframes declaration.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct KeyframeDecl {
-    pub name: String,
-    pub steps: Vec<KeyframeStep>,
-    pub span: Span,
-}
-
-/// A single keyframe step (e.g., `from:`, `to:`, `50%:`).
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct KeyframeStep {
-    pub selector: String,
-    pub properties: Vec<(String, String)>,
 }
 
 /// Theme declaration with light/dark variants.

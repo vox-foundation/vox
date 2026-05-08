@@ -10,7 +10,7 @@ training_rationale: "Records the canonical GUI authoring shape MENS should learn
 
 # GUI Authoring Syntax (2026): Vox UI as Values (VUV)
 
-**Status:** roadmap (design accepted 2026-05-02; implementation phased — see §Implementation Phasing).
+**Status:** **VUV-1 through VUV-6 implemented** (2026-05-08). VUV-7 in progress; VUV-8 in this commit. See [§Implementation Status](#implementation-status-2026-05-08) for per-phase landing details.
 **Scope:** authoring surface only. Web IR ([`crates/vox-compiler/src/web_ir/mod.rs`](../../../crates/vox-compiler/src/web_ir/mod.rs)) and the TSX backend ([`crates/vox-compiler/src/web_ir/emit_tsx.rs`](../../../crates/vox-compiler/src/web_ir/emit_tsx.rs)) keep their contracts. This note changes how source lowers *into* `DomNode` and how style is expressed.
 
 ## Motivation
@@ -156,6 +156,21 @@ This is the phasing the codebase change must follow. Each phase is independently
 | **VUV-8** Doc + tutorial sweep | Update `gui-native-roadmap-status-2026.md` Phase 6 description, contributor docs, any `.vox` blocks in markdown. Run `vox-doc-pipeline`. | `docs/src/`, generated indices | small | `vox-doc-pipeline --check` green |
 
 **Atomicity:** the JSX form and VUV form must not coexist in the corpus long-term — that confuses MENS. VUV-1 through VUV-5 land additively; VUV-6 is the atomic cutover; VUV-7/8 are mop-up.
+
+## Implementation status (2026-05-08)
+
+| Phase | Status | Notes |
+|---|---|---|
+| **VUV-1** Token vocabulary | ✅ Done | Phase 4.4 + Phase 6 (TASK-6.1/6.3) of the GUI-native roadmap. `web_ir/primitives/mod.rs` ships 14 primitives + `UNIVERSAL_STYLE_KWARGS`. |
+| **VUV-2** Trailing-block parser | ✅ Done | [parser/descent/expr/pratt_match.rs](../../../crates/vox-compiler/src/parser/descent/expr/pratt_match.rs) lines ~262–308: `Ident(args) { children }` lowers to `Expr::Jsx`. Trigger: capitalized callee, recognized primitive, or HTML allowlist. |
+| **VUV-3** Lowering trailing-block → DomNode | ✅ Done | View-call form lowers through `Expr::Jsx` → `web_ir::DomNode`. Same Web IR contract; emit_tsx unchanged. |
+| **VUV-4** Typed style kwargs | ✅ Done | [web_ir/primitives/mod.rs](../../../crates/vox-compiler/src/web_ir/primitives/mod.rs) `UNIVERSAL_STYLE_KWARGS`. Style axes (`color`, `pad`, `gap`, …) lower to Tailwind via `tokens_emit`. `raw_class()` escape hatch preserved. |
+| **VUV-5** Typed event handler kwargs | ✅ Done | [codegen_ts/hir_emit/compat.rs](../../../crates/vox-compiler/src/codegen_ts/hir_emit/compat.rs) `map_jsx_attr_name` normalizes `on_click`/`on:click` → `onClick`, etc. **No `.vox` source uses the colon form** — `on_click` is canonical; the `on:` aliases remain as compatibility for future Svelte-mineable directive families (`bind:`, `class:`, `style:`). |
+| **VUV-6** Dashboard cutover | ✅ Done | Angle-bracket JSX parser entry retired (parser/descent/expr/mod.rs comment: "pratt_jsx retired"). Dashboard `.vox` files (`app.vox`, all 4 tabs) authored on the view-call form (TASK-7.1/7.2). `Expr::Jsx` AST node retained as internal sugar from view-calls — no longer parsed from `<>`. |
+| **VUV-7** Golden corpus + MENS | 🟡 Partial | Corpus already migrated (TASK-8.1, commit `135b7591`). MENS retraining run pending operator action (TASK-8.2). |
+| **VUV-8** Docs sweep | ✅ Done | This block. |
+
+**Companion cleanup (commit on the same branch):** removed 11 dead `Decl` variants (`Context`, `Hook`, `Provider`, `Layout`, `ErrorBoundary`, `NotFound`, `Trait`, `Impl`, `Mock`, `Fixture`, `Keyframes`) that the parser never produced. The retired-React-shapes group (`Context`/`Hook`/`Provider`/`Layout`/`ErrorBoundary`/`NotFound`) was the React-context surface VUV-6 supersedes. The non-UI group (`Trait`/`Impl`/`Mock`/`Fixture`/`Keyframes`) was vestigial AST sprawl from earlier prototypes; their structs and ~50 match arms across the workspace are gone.
 
 ## Open questions
 

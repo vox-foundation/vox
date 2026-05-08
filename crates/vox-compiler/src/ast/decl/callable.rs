@@ -75,17 +75,6 @@ impl Decl {
                     t.cors = cors;
                 }
             }
-            Decl::Layout(l) => {
-                if auth.is_some() {
-                    l.func.auth_provider = auth;
-                }
-                if !roles.is_empty() {
-                    l.func.roles.extend(roles);
-                }
-                if cors.is_some() {
-                    l.func.cors = cors;
-                }
-            }
             Decl::Loading(l) => {
                 if auth.is_some() {
                     l.func.auth_provider = auth;
@@ -95,28 +84,6 @@ impl Decl {
                 }
                 if cors.is_some() {
                     l.func.cors = cors;
-                }
-            }
-            Decl::NotFound(n) => {
-                if auth.is_some() {
-                    n.func.auth_provider = auth;
-                }
-                if !roles.is_empty() {
-                    n.func.roles.extend(roles);
-                }
-                if cors.is_some() {
-                    n.func.cors = cors;
-                }
-            }
-            Decl::ErrorBoundary(e) => {
-                if auth.is_some() {
-                    e.func.auth_provider = auth;
-                }
-                if !roles.is_empty() {
-                    e.func.roles.extend(roles);
-                }
-                if cors.is_some() {
-                    e.func.cors = cors;
                 }
             }
             Decl::Page(p) => {
@@ -253,9 +220,6 @@ impl Decl {
             Decl::Table(t) if is_deprecated => {
                 t.is_deprecated = true;
             }
-            Decl::Trait(t) if is_deprecated => {
-                t.is_deprecated = true;
-            }
             Decl::TypeDef(t) if is_deprecated => {
                 t.is_deprecated = true;
             }
@@ -274,36 +238,12 @@ impl Decl {
             Decl::Message(m) if is_deprecated => {
                 m.is_deprecated = true;
             }
-            Decl::Layout(l) => {
-                if is_deprecated {
-                    l.func.is_deprecated = true;
-                }
-                if is_traced {
-                    l.func.is_traced = true;
-                }
-            }
             Decl::Loading(l) => {
                 if is_deprecated {
                     l.func.is_deprecated = true;
                 }
                 if is_traced {
                     l.func.is_traced = true;
-                }
-            }
-            Decl::NotFound(n) => {
-                if is_deprecated {
-                    n.func.is_deprecated = true;
-                }
-                if is_traced {
-                    n.func.is_traced = true;
-                }
-            }
-            Decl::ErrorBoundary(e) => {
-                if is_deprecated {
-                    e.func.is_deprecated = true;
-                }
-                if is_traced {
-                    e.func.is_traced = true;
                 }
             }
             _ => {}

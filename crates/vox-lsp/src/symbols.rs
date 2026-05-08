@@ -38,30 +38,6 @@ impl SymbolEngine {
                 vec![],
                 text,
             )),
-            Decl::Trait(t) => Some(Self::make_symbol(
-                &t.name,
-                &t.span,
-                SymbolKind::INTERFACE,
-                vec![],
-                text,
-            )),
-            Decl::Impl(i) => {
-                let name = format!(
-                    "impl {}",
-                    if i.trait_name.is_empty() {
-                        "Anonymous"
-                    } else {
-                        &i.trait_name
-                    }
-                );
-                Some(Self::make_symbol(
-                    &name,
-                    &i.span,
-                    SymbolKind::CLASS,
-                    vec![],
-                    text,
-                ))
-            }
             Decl::Const(c) => Some(Self::make_symbol(
                 &c.name,
                 &c.span,

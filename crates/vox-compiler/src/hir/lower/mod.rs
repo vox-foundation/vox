@@ -290,15 +290,8 @@ impl LowerCtx {
                 Decl::Routes(r) => {
                     hir.client_routes.push(r.clone());
                 }
-                Decl::V0Component(_)
-                | Decl::Layout(_)
-                | Decl::Page(_)
-                | Decl::Context(_)
-                | Decl::Hook(_)
-                | Decl::ErrorBoundary(_)
-                | Decl::Loading(_)
-                | Decl::NotFound(_) => {
-                    // Path B UI surfaces deleted
+                Decl::V0Component(_) | Decl::Page(_) | Decl::Loading(_) => {
+                    // Retired/legacy UI declarations: silently dropped from HIR.
                 }
                 Decl::Url(u) => {
                     hir.url_decls.push(self.lower_url_decl(u));

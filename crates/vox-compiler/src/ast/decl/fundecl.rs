@@ -205,31 +205,6 @@ pub struct McpResourceDecl {
     pub func: FnDecl,
 }
 
-/// Mock declaration for testing.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct MockDecl {
-    /// The target function/service to mock.
-    pub target: String,
-    /// The mock implementation function.
-    pub func: FnDecl,
-}
-
-/// A frontend hook function declaration.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct HookDecl {
-    /// The underlying function implementing the hook.
-    pub func: FnDecl,
-}
-
-/// Fixture declaration: setup code for tests.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct FixtureDecl {
-    /// The underlying function implementing the fixture.
-    pub func: FnDecl,
-    /// Source location.
-    pub span: Span,
-}
-
 /// Task declaration — a trust-gated, capability-checked execution unit (Wave 4).
 ///
 /// Syntax:

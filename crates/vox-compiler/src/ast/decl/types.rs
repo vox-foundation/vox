@@ -114,10 +114,6 @@ pub enum Decl {
     V0Component(V0ComponentDecl),
     /// Client-side route table.
     Routes(RoutesDecl),
-    /// Trait (interface) definition.
-    Trait(TraitDecl),
-    /// Trait implementation block.
-    Impl(ImplDecl),
     /// Read-only data access function.
     Query(QueryDecl),
     /// Transactional write function.
@@ -137,28 +133,10 @@ pub enum Decl {
     Scheduled(ScheduledDecl),
     /// Typed configuration block.
     Config(ConfigDecl),
-    /// React context provider shape.
-    Context(ContextDecl),
-    /// React hook binding.
-    Hook(HookDecl),
-    /// Context provider component.
-    Provider(ProviderDecl),
-    /// Test fixture setup.
-    Fixture(FixtureDecl),
-    /// Nested route layout shell.
-    Layout(LayoutDecl),
     /// Route loading / suspense UI.
     Loading(LoadingDecl),
-    /// 404 handler component.
-    NotFound(NotFoundDecl),
-    /// Error boundary component.
-    ErrorBoundary(ErrorBoundaryDecl),
-    /// CSS `@keyframes` block.
-    Keyframes(KeyframeDecl),
     /// Design-token theme (light/dark).
     Theme(ThemeDecl),
-    /// Test double / stub implementation.
-    Mock(MockDecl),
     /// Container / deployment environment spec.
     Environment(EnvironmentDecl),
     /// Static page for SSG.
@@ -206,8 +184,6 @@ impl Decl {
             Decl::SearchIndex(s) => s.span,
             Decl::V0Component(v) => v.span,
             Decl::Routes(r) => r.span,
-            Decl::Trait(t) => t.span,
-            Decl::Impl(i) => i.span,
             Decl::Query(q) => q.func.span,
             Decl::Mutation(m) => m.func.span,
             Decl::Endpoint(e) => e.func.span,
@@ -219,17 +195,8 @@ impl Decl {
             Decl::Scheduled(s) => s.func.span,
             Decl::Const(c) => c.span,
             Decl::Config(c) => c.span,
-            Decl::Context(c) => c.span,
-            Decl::Hook(h) => h.func.span,
-            Decl::Provider(p) => p.func.span,
-            Decl::Fixture(f) => f.func.span,
-            Decl::Layout(l) => l.func.span,
             Decl::Loading(l) => l.func.span,
-            Decl::NotFound(n) => n.func.span,
-            Decl::ErrorBoundary(e) => e.func.span,
-            Decl::Keyframes(k) => k.span,
             Decl::Theme(t) => t.span,
-            Decl::Mock(m) => m.func.span,
             Decl::McpResource(m) => m.func.span,
             Decl::Environment(e) => e.span,
             Decl::Page(p) => p.span,

@@ -131,7 +131,6 @@ impl Printer {
                 self.print_fn_body(&s.func.params, &s.func.return_type, &s.func.body);
             }
             Decl::Test(t) => self.print_fn(&t.func, "@test "),
-            Decl::Hook(h) => self.print_fn(&h.func, "@hook "),
             Decl::McpTool(m) => {
                 self.write_indent();
                 self.out

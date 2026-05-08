@@ -39,31 +39,3 @@ pub struct TypeDefDecl {
     pub span: Span,
 }
 
-/// Trait declaration.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct TraitDecl {
-    pub name: String,
-    pub methods: Vec<TraitMethod>,
-    pub is_deprecated: bool,
-    pub span: Span,
-}
-
-/// A method signature within a trait.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct TraitMethod {
-    pub name: String,
-    pub params: Vec<Param>,
-    pub return_type: Option<TypeExpr>,
-    pub is_deprecated: bool,
-    pub span: Span,
-}
-
-/// Trait implementation for a specific type.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ImplDecl {
-    pub trait_name: String,
-    pub target_type: TypeExpr,
-    pub methods: Vec<FnDecl>,
-    pub is_deprecated: bool,
-    pub span: Span,
-}
