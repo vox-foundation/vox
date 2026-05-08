@@ -3226,12 +3226,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deflate64"
-version = "0.1.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ac6b926516df9c60bfa16e107b21086399f8285a44ca9711344b9e553c5146e2"
-
-[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4592,12 +4586,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0de51e6874e94e7bf76d726fc5d13ba782deca734ff60d5bb2fb2607c7406555"
 dependencies = [
  "cfg-if",
- "js-sys",
  "libc",
  "r-efi 6.0.0",
  "wasip2",
  "wasip3",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -6858,15 +6850,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "373f5eceeeab7925e0c1098212f2fbc4d416adec9d35051a6ab251e824c1854a"
 
 [[package]]
-name = "lzma-rust2"
-version = "0.16.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47bb1e988e6fb779cf720ad431242d3f03167c1b3f2b1aae7f1a94b2495b36ae"
-dependencies = [
- "sha2",
-]
-
-[[package]]
 name = "mac"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7907,16 +7890,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b867cad97c0791bbd3aaa6472142568c6c9e8f71937e98379f584cfb0cf35bec"
 
 [[package]]
-name = "pbkdf2"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
-dependencies = [
- "digest",
- "hmac",
-]
-
-[[package]]
 name = "peft-rs"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8243,12 +8216,6 @@ name = "powerfmt"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "439ee305def115ba05938db6eb1644ff94165c5ab5e9420d1c1bcedbba909391"
-
-[[package]]
-name = "ppmd-rust"
-version = "1.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "efca4c95a19a79d1c98f791f10aebd5c1363b473244630bb7dbde1dc98455a24"
 
 [[package]]
 name = "ppv-lite86"
@@ -10794,7 +10761,6 @@ checksum = "743bd48c283afc0388f9b8827b976905fb217ad9e647fae3a379a9283c4def2c"
 dependencies = [
  "deranged",
  "itoa",
- "js-sys",
  "num-conv",
  "powerfmt",
  "serde_core",
@@ -12925,14 +12891,6 @@ version = "0.1.0"
 dependencies = [
  "abi_stable",
  "vox-plugin-api",
-]
-
-[[package]]
-name = "vox-plugin-cuda-spike"
-version = "0.1.0"
-dependencies = [
- "candle-core",
- "libloading 0.8.9",
 ]
 
 [[package]]
@@ -15241,6 +15199,7 @@ dependencies = [
  "bit-set 0.8.0",
  "bit-vec 0.8.0",
  "bitflags 2.11.0",
+ "blake2",
  "borrow-or-share",
  "bstr",
  "bumpalo",
@@ -15248,17 +15207,22 @@ dependencies = [
  "bytes",
  "cc",
  "chrono",
- "cipher",
- "constant_time_eq",
- "crc32fast",
+ "clap",
+ "clap_builder",
+ "console 0.16.3",
+ "core_extensions",
+ "crossbeam-epoch",
  "crossbeam-utils",
  "crypto-common",
+ "ctrlc",
  "cubecl-common",
  "data-encoding",
  "deranged",
  "derive_more 2.1.1",
  "digest",
  "either",
+ "errno",
+ "event-listener",
  "fastrand",
  "flate2",
  "fnv",
@@ -15277,19 +15241,25 @@ dependencies = [
  "hashbrown 0.14.5",
  "hashbrown 0.15.5",
  "hashbrown 0.16.1",
- "hmac",
  "hyper",
+ "hyper-rustls",
  "hyper-util",
  "idna",
  "indexmap",
  "itertools 0.12.1",
+ "itertools 0.13.0",
  "jsonschema",
+ "libc",
+ "linux-raw-sys 0.12.1",
+ "linux-raw-sys 0.4.15",
  "lock_api",
  "log",
  "memchr",
  "memmap2",
  "miette",
  "mime_guess",
+ "miniz_oxide",
+ "mio",
  "nom",
  "num-complex",
  "num-integer",
@@ -15313,7 +15283,12 @@ dependencies = [
  "rand_distr 0.5.1",
  "regex",
  "regex-automata",
+ "regex-syntax",
  "reqwest 0.12.28",
+ "ring",
+ "rustc-hash 1.1.0",
+ "rustix 0.38.44",
+ "rustix 1.1.4",
  "rustls",
  "rustls-webpki",
  "schemars",
@@ -15324,12 +15299,14 @@ dependencies = [
  "serde_json",
  "sha2",
  "simd-adler32",
+ "similar",
  "slab",
  "smallvec",
  "spin 0.10.0",
  "stable_deref_trait",
  "subtle",
  "syn 2.0.117",
+ "sync_wrapper",
  "thiserror 2.0.18",
  "time",
  "tokio",
@@ -15338,19 +15315,26 @@ dependencies = [
  "toml_edit 0.22.27",
  "toml_parser",
  "tower 0.5.3",
+ "tower-http",
  "tracing",
  "tracing-core",
+ "tracing-subscriber",
+ "ureq 2.12.1",
  "url",
  "uuid",
  "wasm-encoder 0.244.0",
  "wasmtime-environ",
  "wasmtime-internal-core",
+ "winapi",
+ "windows-core 0.62.2",
+ "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
  "winnow 1.0.1",
  "yoke 0.8.2",
  "zerocopy",
  "zerofrom",
  "zeroize",
- "zip 8.5.1",
  "zstd",
  "zstd-safe",
  "zstd-sys",
@@ -15595,25 +15579,12 @@ version = "8.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcab981e19633ebcf0b001ddd37dd802996098bc1864f90b7c5d970ce76c1d59"
 dependencies = [
- "aes",
- "bzip2 0.6.1",
- "constant_time_eq",
  "crc32fast",
- "deflate64",
  "flate2",
- "getrandom 0.4.2",
- "hmac",
  "indexmap",
- "lzma-rust2",
  "memchr",
- "pbkdf2",
- "ppmd-rust",
- "sha1",
- "time",
  "typed-path",
- "zeroize",
  "zopfli",
- "zstd",
 ]
 
 [[package]]
