@@ -14,6 +14,7 @@ pub mod builtin_registry;
 pub mod codegen_rust;
 pub mod codegen_shared;
 pub mod codegen_ts;
+pub mod contract_ir;
 pub mod eval;
 pub mod fmt;
 pub mod generated_vox;

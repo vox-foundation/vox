@@ -188,6 +188,15 @@ pub fn generate_with_options(
         files.push((VOX_CLIENT_FILENAME.to_string(), emit_vox_client(hir)));
     }
 
+    // OpenAPI 3.1 spec — emitted when the module declares any user types or
+    // endpoints. Reads through Contract IR; conforms to wire-format-v1. See
+    // [`crate::codegen_ts::openapi_emit`] and Phase 2 of the external frontend
+    // interop plan.
+    if has_schemas || has_api_fns {
+        let openapi = crate::codegen_ts::openapi_emit::generate_openapi(hir, "vox-app", "0.1.0");
+        files.push(("openapi.json".to_string(), openapi));
+    }
+
     // Load vox.tokens.json via TokenRegistry: emits typed CSS + TS and validates token refs.
     let token_registry = crate::tokens::TokenRegistry::load_from_str(
         &std::fs::read_to_string("vox.tokens.json").unwrap_or_default(),

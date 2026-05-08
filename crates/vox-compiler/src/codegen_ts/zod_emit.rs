@@ -1,88 +1,118 @@
-use crate::hir::{HirModule, HirType, HirTypeDef};
+//! Zod schema emit driven by Contract IR.
+//!
+//! This module reads [`crate::contract_ir::ContractIr`] rather than walking HIR
+//! directly. The wire-format-v1 rules (Decimal/BigInt → string, Option →
+//! optional, sum types → `_tag`-discriminated unions) live in
+//! [`crate::contract_ir::project`] — Zod, OpenAPI, JSON Schema, and the TS
+//! client SDK all share that single projection.
 
-/// Generate TypeScript Zod schema definitions from Vox ADTs.
+use crate::contract_ir::{
+    ContractIr, ContractType, ContractTypeKind, ContractVariant, WireType,
+};
+use crate::hir::{HirModule, HirType};
+
+/// Generate TypeScript Zod schema definitions from a Vox HIR module.
 pub fn generate_zod_schemas(hir: &HirModule) -> String {
-    let mut out = String::new();
     if hir.types.is_empty() && hir.tables.is_empty() {
+        return String::new();
+    }
+    let ir = crate::contract_ir::project(hir);
+    emit_from_contract(&ir)
+}
+
+fn emit_from_contract(ir: &ContractIr) -> String {
+    let mut out = String::new();
+    if ir.types.is_empty() {
         return out;
     }
-
     out.push_str("import { z } from \"zod\";\n\n");
-
-    for typedef in &hir.types {
-        out.push_str(&generate_zod_schema(typedef));
+    for t in &ir.types {
+        out.push_str(&emit_type(t));
         out.push('\n');
     }
-
     out
 }
 
-fn generate_zod_schema(typedef: &HirTypeDef) -> String {
+fn emit_type(t: &ContractType) -> String {
     let mut out = String::new();
-    let name = &typedef.name;
+    match &t.kind {
+        ContractTypeKind::Struct { fields } if fields.is_empty() => {
+            // Distinguish a declared empty struct from a sum type.
+            out.push_str(&format!("export const {}Schema = z.object({{}});\n", t.name));
+        }
+        ContractTypeKind::Struct { fields } => {
+            out.push_str(&format!("export const {}Schema = z.object({{\n", t.name));
+            for f in fields {
+                out.push_str(&format!("  {}: {},\n", f.name, field_zod(&f.ty, f.optional)));
+            }
+            out.push_str("});\n");
+        }
+        ContractTypeKind::Sum { variants } => {
+            out.push_str(&emit_sum(&t.name, variants));
+        }
+    }
+    out
+}
 
-    // Struct typedef → flat z.object with declared fields.
-    if typedef.variants.is_empty() && !typedef.fields.is_empty() {
+fn emit_sum(name: &str, variants: &[ContractVariant]) -> String {
+    let mut out = String::new();
+    if variants.len() == 1 {
+        let v = &variants[0];
         out.push_str(&format!("export const {}Schema = z.object({{\n", name));
-        for (fname, ftype) in &typedef.fields {
-            out.push_str(&format!("  {}: {},\n", fname, map_type_to_zod(ftype)));
+        out.push_str(&format!("  _tag: z.literal(\"{}\"),\n", v.tag));
+        for f in &v.fields {
+            out.push_str(&format!("  {}: {},\n", f.name, field_zod(&f.ty, f.optional)));
         }
         out.push_str("});\n");
         return out;
     }
-
-    if typedef.variants.is_empty() {
-        return format!("export const {}Schema = z.object({{}});\n", name);
-    }
-
-    if typedef.variants.len() == 1 {
-        let variant = &typedef.variants[0];
-        out.push_str(&format!("export const {}Schema = z.object({{\n", name));
-        out.push_str(&format!("  _tag: z.literal(\"{}\"),\n", variant.name));
-        for (fname, ftype) in &variant.fields {
-            out.push_str(&format!("  {}: {},\n", fname, map_type_to_zod(ftype)));
-        }
-        out.push_str("});\n");
-    } else {
+    out.push_str(&format!(
+        "export const {}Schema = z.discriminatedUnion(\"_tag\", [\n",
+        name
+    ));
+    for v in variants {
         out.push_str(&format!(
-            "export const {}Schema = z.discriminatedUnion(\"_tag\", [\n",
-            name
+            "  z.object({{\n    _tag: z.literal(\"{}\"),\n",
+            v.tag
         ));
-        for variant in &typedef.variants {
-            out.push_str(&format!(
-                "  z.object({{\n    _tag: z.literal(\"{}\"),\n",
-                variant.name
-            ));
-            for (fname, ftype) in &variant.fields {
-                out.push_str(&format!("    {}: {},\n", fname, map_type_to_zod(ftype)));
-            }
-            out.push_str("  }),\n");
+        for f in &v.fields {
+            out.push_str(&format!("    {}: {},\n", f.name, field_zod(&f.ty, f.optional)));
         }
-        out.push_str("]);\n");
+        out.push_str("  }),\n");
     }
-
+    out.push_str("]);\n");
     out
 }
 
-pub fn map_type_to_zod(ty: &HirType) -> String {
+fn field_zod(ty: &WireType, optional: bool) -> String {
+    let base = wire_zod(ty);
+    if optional { format!("{}.optional()", base) } else { base }
+}
+
+fn wire_zod(ty: &WireType) -> String {
     match ty {
-        HirType::Named(name) => match name.as_str() {
-            "int" | "float" => "z.number()".to_string(),
-            "str" => "z.string()".to_string(),
-            "bool" => "z.boolean()".to_string(),
-            // Recursive references will use lazy evaluation in a more robust implementation,
-            // but for now we assume linear references.
-            other => format!("{}Schema", other),
-        },
-        HirType::Generic(name, args) => {
-            if name == "Option" && args.len() == 1 {
-                format!("{}.optional()", map_type_to_zod(&args[0]))
-            } else if (name == "list" || name == "Vec" || name == "Array") && args.len() == 1 {
-                format!("z.array({})", map_type_to_zod(&args[0]))
-            } else {
-                "z.any()".to_string()
-            }
+        WireType::Number => "z.number()".into(),
+        WireType::String => "z.string()".into(),
+        WireType::Bool => "z.boolean()".into(),
+        // Wire-format-v1: these encode as strings on the wire. Zod validates the
+        // string at the boundary; transformation to runtime value (Decimal /
+        // BigInt / Date) is a downstream step the TS client owns.
+        WireType::DecimalString => "z.string()".into(),
+        WireType::BigIntString => "z.string()".into(),
+        WireType::DateTimeString => "z.string().datetime({ offset: true })".into(),
+        WireType::Array(inner) => format!("z.array({})", wire_zod(inner)),
+        WireType::Tuple(elems) => {
+            let inner: Vec<String> = elems.iter().map(wire_zod).collect();
+            format!("z.tuple([{}])", inner.join(", "))
         }
-        _ => "z.any()".to_string(),
+        WireType::Ref(name) => format!("{}Schema", name),
+        WireType::Unit => "z.void()".into(),
+        WireType::Unknown => "z.any()".into(),
     }
+}
+
+/// Legacy helper kept for callers that still hand-build Zod from `HirType`.
+/// Prefer routing through Contract IR.
+pub fn map_type_to_zod(ty: &HirType) -> String {
+    wire_zod(&crate::contract_ir::project_type(ty))
 }

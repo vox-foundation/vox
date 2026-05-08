@@ -9,6 +9,9 @@ pub mod adt;
 pub mod component;
 /// Main HIR → TypeScript emitter ([`generate`]).
 pub mod emitter;
+/// OpenAPI 3.1 specification emit (driven by Contract IR; per Phase 2 of the
+/// external frontend interop plan).
+pub mod openapi_emit;
 /// `fragment` declaration → typed React function components in `fragments.tsx`
 /// (Phase F of the Svelte-mineable features plan; per ADR-033).
 pub mod fragment_emit;
