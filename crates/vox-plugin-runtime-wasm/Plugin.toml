@@ -1,0 +1,27 @@
+[plugin]
+id = "runtime-wasm"
+name = "WASM Skill Runtime"
+version = "0.1.0"
+description = "Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills). Faster cold start than containers, no external daemon."
+license = "Apache-2.0"
+
+[plugin.host]
+min-vox-version = "0.5.0"
+
+[plugin.payload]
+kind = "code"
+abi-version = 11
+
+[plugin.payload.provides]
+extension-points = ["SkillRuntime"]
+
+[plugin.payload.requires]
+os = ["linux", "macos", "windows"]
+arch = ["x86_64", "aarch64"]
+
+[plugin.payload.artifacts]
+"windows-x86_64" = "vox_plugin_runtime_wasm.dll"
+"linux-x86_64"   = "libvox_plugin_runtime_wasm.so"
+"linux-aarch64"  = "libvox_plugin_runtime_wasm.so"
+"macos-x86_64"   = "libvox_plugin_runtime_wasm.dylib"
+"macos-aarch64"  = "libvox_plugin_runtime_wasm.dylib"

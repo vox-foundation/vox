@@ -100,6 +100,7 @@ vox-plugin-noop-code      = { path = "crates/vox-plugin-noop-code" }
 vox-plugin-noop-code-bad-abi = { path = "crates/vox-plugin-noop-code-bad-abi" }
 vox-plugin-nvml-probe     = { path = "crates/vox-plugin-nvml-probe" }
 vox-plugin-runtime-container = { path = "crates/vox-plugin-runtime-container" }
+vox-plugin-runtime-wasm   = { path = "crates/vox-plugin-runtime-wasm" }
 vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
 vox-pm                    = { path = "crates/vox-pm" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }

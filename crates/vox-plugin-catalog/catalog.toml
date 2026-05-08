@@ -160,6 +160,14 @@ default-source = "github:vox-foundation/vox-plugin-browser"
 bundled-in = ["vox-dev"]
 
 [[plugin]]
+id = "runtime-wasm"
+payload-kind = "code"
+description = "Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers)."
+extension-points = ["SkillRuntime"]
+default-source = "local:crates/vox-plugin-runtime-wasm"
+bundled-in = ["vox-fullstack", "vox-edge", "vox-dev"]
+
+[[plugin]]
 id = "runtime-container"
 payload-kind = "code"
 description = "Skill-runtime plugin: Docker and Podman OCI sandbox backends (fallback for subprocess/GPU skills)."

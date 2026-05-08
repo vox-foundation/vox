@@ -35,7 +35,6 @@ impl WasmRuntime {
     /// Create a new WasmRuntime with a fuel-enabled engine.
     pub fn new() -> Result<Self> {
         let mut cfg = Config::new();
-        cfg.async_support(false);
         // Fuel enables bounded execution / timeout enforcement.
         cfg.consume_fuel(true);
         let engine = Engine::new(&cfg)?;
