@@ -105,6 +105,41 @@ pub(crate) fn wrap_jsx_hir_child_expr(emit: String) -> String {
     }
 }
 
+/// Bug D: inline-replace `std.<namespace>.<method>(args)` calls with native JS equivalents
+/// when the receiver is the literal `std` global. Returns `Some(emit)` if the call matched a
+/// known `std.*` shim; `None` otherwise.
+///
+/// Browser-side components have no `std` runtime — these replacements emit code that uses
+/// the platform's native APIs (`Date.now()` for `std.time.now_ms()`, etc.).
+fn lower_std_namespace_call(
+    obj: &HirExpr,
+    method: &str,
+    args: &[crate::hir::HirArg],
+    state_names: &HashSet<String>,
+) -> Option<String> {
+    // Receiver must be `std.<ns>` (FieldAccess(Ident("std"), ns)).
+    let HirExpr::FieldAccess(root, ns, _) = obj else {
+        return None;
+    };
+    let HirExpr::Ident(root_name, _) = root.as_ref() else {
+        return None;
+    };
+    if root_name != "std" {
+        return None;
+    }
+    let args_str: Vec<String> = args
+        .iter()
+        .map(|a| emit_hir_expr(&a.value, state_names))
+        .collect();
+    match (ns.as_str(), method) {
+        ("time", "now_ms") => Some("Date.now()".to_string()),
+        ("time", "now_iso") => Some("new Date().toISOString()".to_string()),
+        ("json", "stringify") => Some(format!("JSON.stringify({})", args_str.join(", "))),
+        ("json", "parse") => Some(format!("JSON.parse({})", args_str.join(", "))),
+        _ => None,
+    }
+}
+
 /// Emit a HIR expression as TypeScript/JSX with optional reactive `state` names (for `set_x` rewriting).
 ///
 /// **Phase:** compat-legacy (OP-0138). Prefer [`crate::web_ir::emit_tsx`] for structural parity and
@@ -248,6 +283,11 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             format!("{callee_str}({})", args_str.join(", "))
         }
         HirExpr::MethodCall(obj, method, args, plan, _) => {
+            // Bug D: inline-replace `std.<ns>.<method>(...)` calls with their JS equivalents
+            // so emitted component files don't reference an unresolved `std` global.
+            if let Some(replacement) = lower_std_namespace_call(obj, method, args, state_names) {
+                return replacement;
+            }
             let obj_str = emit_hir_expr(obj, state_names);
             let args_str: Vec<String> = args
                 .iter()

@@ -673,6 +673,107 @@ fn react_import_line(members: &[HirReactiveMember]) -> String {
     )
 }
 
+/// Walk an HIR expression tree and collect names of free-fn calls that match a known
+/// set of identifiers (used for @endpoint imports — see [`generate_reactive_component`]).
+fn collect_callee_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSet<String>) {
+    match expr {
+        HirExpr::Call(callee, args, _, _) => {
+            if let HirExpr::Ident(name, _) = callee.as_ref() {
+                if known.contains(name) {
+                    out.insert(name.clone());
+                }
+            }
+            collect_callee_refs(callee, known, out);
+            for arg in args {
+                collect_callee_refs(&arg.value, known, out);
+            }
+        }
+        HirExpr::MethodCall(obj, _, args, _, _) => {
+            collect_callee_refs(obj, known, out);
+            for arg in args {
+                collect_callee_refs(&arg.value, known, out);
+            }
+        }
+        HirExpr::Binary(_, l, r, _) => {
+            collect_callee_refs(l, known, out);
+            collect_callee_refs(r, known, out);
+        }
+        HirExpr::Unary(_, e, _) => collect_callee_refs(e, known, out),
+        HirExpr::Block(stmts, _) => {
+            for s in stmts {
+                collect_callee_refs_stmt(s, known, out);
+            }
+        }
+        HirExpr::If(c, t, e, _) => {
+            collect_callee_refs(c, known, out);
+            for s in t {
+                collect_callee_refs_stmt(s, known, out);
+            }
+            if let Some(stmts) = e {
+                for s in stmts {
+                    collect_callee_refs_stmt(s, known, out);
+                }
+            }
+        }
+        HirExpr::For(_, _, iter, body, _) => {
+            collect_callee_refs(iter, known, out);
+            collect_callee_refs(body, known, out);
+        }
+        HirExpr::Match(subj, arms, _) => {
+            collect_callee_refs(subj, known, out);
+            for arm in arms {
+                collect_callee_refs(&arm.body, known, out);
+            }
+        }
+        HirExpr::Lambda(_, _, body, _) => collect_callee_refs(body, known, out),
+        HirExpr::Index(o, i, _) => {
+            collect_callee_refs(o, known, out);
+            collect_callee_refs(i, known, out);
+        }
+        HirExpr::FieldAccess(o, _, _) => collect_callee_refs(o, known, out),
+        HirExpr::Jsx(el) => {
+            for attr in &el.attributes {
+                collect_callee_refs(&attr.value, known, out);
+            }
+            for child in &el.children {
+                collect_callee_refs(child, known, out);
+            }
+        }
+        HirExpr::JsxSelfClosing(el) => {
+            for attr in &el.attributes {
+                collect_callee_refs(&attr.value, known, out);
+            }
+        }
+        HirExpr::JsxFragment(children, _) => {
+            for c in children {
+                collect_callee_refs(c, known, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn collect_callee_refs_stmt(stmt: &HirStmt, known: &HashSet<String>, out: &mut HashSet<String>) {
+    match stmt {
+        HirStmt::Expr { expr, .. }
+        | HirStmt::Let { value: expr, .. }
+        | HirStmt::Assign { value: expr, .. } => collect_callee_refs(expr, known, out),
+        HirStmt::Return { value: Some(v), .. } => collect_callee_refs(v, known, out),
+        HirStmt::While { condition, body, .. } => {
+            collect_callee_refs(condition, known, out);
+            for s in body {
+                collect_callee_refs_stmt(s, known, out);
+            }
+        }
+        HirStmt::Loop { body, .. } => {
+            for s in body {
+                collect_callee_refs_stmt(s, known, out);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Walk an HIR expression tree and collect uppercase JSX tag names that correspond
 /// to known Vox components. Used to emit cross-component import statements.
 fn collect_jsx_component_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSet<String>) {
@@ -785,6 +886,28 @@ pub fn generate_reactive_component(
     }
     if !sorted_refs.is_empty() {
         out.push('\n');
+    }
+
+    // Bug D: emit import for every @endpoint fn referenced from this component.
+    // Endpoint fns are exported from `vox-client.ts` (see [`crate::codegen_ts::vox_client`]).
+    let endpoint_names: HashSet<String> =
+        hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
+    let mut endpoint_refs: HashSet<String> = HashSet::new();
+    if let Some(view_expr) = &rc.view {
+        collect_callee_refs(view_expr, &endpoint_names, &mut endpoint_refs);
+    }
+    for m in &rc.members {
+        if let HirReactiveMember::Stmt(s) = m {
+            collect_callee_refs_stmt(s, &endpoint_names, &mut endpoint_refs);
+        }
+    }
+    if !endpoint_refs.is_empty() {
+        let mut sorted: Vec<String> = endpoint_refs.into_iter().collect();
+        sorted.sort();
+        out.push_str(&format!(
+            "import {{ {} }} from \"./vox-client\";\n\n",
+            sorted.join(", ")
+        ));
     }
 
     if !rc.styles.is_empty() {

@@ -43,11 +43,20 @@ fn endpoint_calls_emit_imports() {
         .expect("VoicePage emitted");
     eprintln!("=== VoicePage ===\n{voice}");
     assert!(
-        voice.contains("parse_voice") && voice.contains("import"),
-        "Bug D: VoicePage references parse_voice but emits no import statement"
+        voice.contains("parse_voice"),
+        "fixture should reference parse_voice"
     );
+    // Either the endpoint fn is imported or it's a generated local helper.
+    let imports_endpoint = voice.contains("import { parse_voice")
+        || voice.contains("from \"./vox-client\"")
+        || voice.contains("from \"./endpoints\"");
     assert!(
-        !voice.contains("std.time.now_ms()") || voice.contains("import"),
-        "Bug D: std.time references need either an import or inline replacement"
+        imports_endpoint,
+        "Bug D: VoicePage references @endpoint fns (parse_voice, record_event) but emits no import. body:\n{voice}"
+    );
+    let std_handled = !voice.contains("std.time.now_ms()") || voice.contains("Date.now()");
+    assert!(
+        std_handled,
+        "Bug D: std.time.now_ms() must be replaced or imported. body:\n{voice}"
     );
 }
