@@ -17,6 +17,52 @@ fn resolve_audio_path(state: &ServerState, path: &str) -> PathBuf {
     workspace_path::resolve_under_repository_root(state, path)
 }
 
+/// Transcribe an audio file via the `oratio` plugin + deterministic refinement.
+/// Falls back to `vox_oratio::transcribe_path_detailed` for .txt/.md files.
+pub(crate) fn transcribe_path_via_plugin(
+    path: &std::path::Path,
+    ctx: &vox_oratio::refine::CorrectionContext,
+    language_hint: Option<&str>,
+) -> anyhow::Result<vox_oratio::TranscribeDetail> {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_ascii_lowercase();
+
+    // Text/markdown passthrough: vox-oratio handles these without candle.
+    if matches!(ext.as_str(), "txt" | "md") {
+        return vox_oratio::transcribe_path_detailed(path, ctx, language_hint)
+            .map_err(|e| anyhow::anyhow!("{e}"));
+    }
+
+    let plugin = vox_plugin_host::cached_code_plugin("oratio")
+        .map_err(|e| anyhow::anyhow!("oratio plugin load: {e}"))?;
+    let stt = plugin
+        .plugin
+        .as_speech_to_text()
+        .into_option()
+        .ok_or_else(|| anyhow::anyhow!("oratio plugin missing SpeechToText accessor"))?;
+
+    let path_str = path.to_string_lossy().to_string();
+    let config_json = serde_json::json!({ "language": language_hint }).to_string();
+
+    let transcription_json = stt
+        .transcribe_path(path_str.as_str().into(), config_json.as_str().into())
+        .into_result()
+        .map_err(|e| anyhow::anyhow!("transcribe_path plugin: {e}"))?;
+
+    let v: serde_json::Value = serde_json::from_str(transcription_json.as_str())
+        .map_err(|e| anyhow::anyhow!("plugin returned invalid JSON: {e}"))?;
+    let raw_text = v
+        .get("text")
+        .and_then(|t| t.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    Ok(vox_oratio::refine_raw_text(&raw_text, ctx))
+}
+
 pub(crate) fn parse_profile(args: &Value) -> vox_oratio::refine::OratioCorrectionProfile {
     match args
         .get("profile")
@@ -61,7 +107,7 @@ pub fn transcribe(state: &ServerState, args: Value) -> anyhow::Result<String> {
     let rtc = vox_oratio::OratioRuntimeConfig::resolve();
     let ctx =
         vox_oratio::refine::CorrectionContext::from_runtime(&rtc, profile, debug_parser_payload);
-    let detail = vox_oratio::transcribe_path_detailed(&full, &ctx, language_hint.as_deref())?;
+    let detail = transcribe_path_via_plugin(&full, &ctx, language_hint.as_deref())?;
     let correlation_id = vox_oratio::trace::new_correlation_id();
     let mut out = json!({
         "path": full,
