@@ -1,3 +1,5 @@
+//! Scientia ingest: RSS crawling + dedup for the scholarly-external-jobs pipeline.
+
 use serde::{Deserialize, Serialize};
 
 pub mod deduplicator;

@@ -1,3 +1,5 @@
+//! Secret resolution + redaction (env, vault, infisical, vox-vault backends).
+
 pub mod backend;
 pub mod errors;
 pub mod policy;
