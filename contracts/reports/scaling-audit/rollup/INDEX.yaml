@@ -1862,65 +1862,65 @@
   pattern: repo/ci
   file: by-crate/vox-mcp-registry.md
 - id: SCALE-VOX_MENS-ASYNC-IO
-  crate: vox-mens
+  crate: vox-ml-cli
   template: async-io
   pattern: scaling/blocking-in-async
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MENS-MEMORY-SLURP
-  crate: vox-mens
+  crate: vox-ml-cli
   template: memory-slurp
   pattern: scaling/unbounded-read
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MENS-IO-CACHE-LOOP
-  crate: vox-mens
+  crate: vox-ml-cli
   template: io-cache-loop
   pattern: scaling/cache-miss-hot-read
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MENS-ENV-SSOT
-  crate: vox-mens
+  crate: vox-ml-cli
   template: env-ssot
   pattern: scaling/env-default-duplication
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MENS-REGEX-COMPILE
-  crate: vox-mens
+  crate: vox-ml-cli
   template: regex-compile
   pattern: scaling/regex-new-hot
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MENS-SQL-BOUNDS
-  crate: vox-mens
+  crate: vox-ml-cli
   template: sql-bounds
   pattern: scaling/sql-no-limit
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MENS-HTTP-TIMEOUTS
-  crate: vox-mens
+  crate: vox-ml-cli
   template: http-timeouts
   pattern: scaling/http-client-no-timeout
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MENS-PATH-SSOT
-  crate: vox-mens
+  crate: vox-ml-cli
   template: path-ssot
   pattern: scaling/path-literal
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MENS-NUMERIC-SSOT
-  crate: vox-mens
+  crate: vox-ml-cli
   template: numeric-ssot
   pattern: scaling/magic-limit
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MENS-INDEX-MEMORY
-  crate: vox-mens
+  crate: vox-ml-cli
   template: index-memory
   pattern: scaling/large-in-memory-accumulator
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MENS-CONCURRENCY-STRUCTURE
-  crate: vox-mens
+  crate: vox-ml-cli
   template: concurrency-structure
   pattern: scaling/nested-pairwise-loop
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MENS-CI-THROUGHPUT
-  crate: vox-mens
+  crate: vox-ml-cli
   template: ci-throughput
   pattern: repo/ci
-  file: by-crate/vox-mens.md
+  file: by-crate/vox-ml-cli.md
 - id: SCALE-VOX_MESH_TYPES-ASYNC-IO
   crate: vox-mesh-types
   template: async-io

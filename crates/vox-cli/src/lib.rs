@@ -517,22 +517,22 @@ pub enum Cli {
         /// Reason for stopping
         reason: Option<String>,
     },
-    /// ML/AI domain: train, serve, probe (Delegated to `vox-mens`).
+    /// ML/AI domain: train, serve, probe (Delegated to `vox-ml-cli`).
     #[command(
         name = "mens",
-        long_about = "ML/AI domain: train, serve, probe (Delegated to `vox-mens`).\n\nQuick-start:\n  vox mens train   — run MENS fine-tuning on the current corpus\n  vox mens serve   — launch the local inference endpoint\n  vox mens probe   — run eval probes against the live model"
+        long_about = "ML/AI domain: train, serve, probe (Delegated to `vox-ml-cli`).\n\nQuick-start:\n  vox mens train   — run MENS fine-tuning on the current corpus\n  vox mens serve   — launch the local inference endpoint\n  vox mens probe   — run eval probes against the live model"
     )]
     Mens {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Mesh coordination: join, status, admin (Delegated to `vox-mens`).
+    /// Mesh coordination: join, status, admin (Delegated to `vox-ml-cli`).
     #[command(name = "populi")]
     Populi {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Speech-to-Code: transcribe, listen (Delegated to `vox-mens`).
+    /// Speech-to-Code: transcribe, listen (Delegated to `vox-ml-cli`).
     #[command(name = "oratio", visible_alias = "speech")]
     Oratio {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]

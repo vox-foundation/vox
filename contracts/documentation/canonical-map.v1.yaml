@@ -15,8 +15,8 @@ domains:
     aliases: []
     owning_crate_globs:
       - crates/vox-populi/src/mens/**/*.rs
-      - crates/vox-mens/src/commands/mens/**/*.rs
-      - crates/vox-mens/src/commands/ai/train.rs
+      - crates/vox-ml-cli/src/commands/mens/**/*.rs
+      - crates/vox-ml-cli/src/commands/ai/train.rs
     notes: Canonical operator behavior is vox mens train (Candle QLoRA dispatch).
 
   - id: cli-surface

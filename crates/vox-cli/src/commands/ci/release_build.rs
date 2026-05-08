@@ -23,7 +23,7 @@ pub enum ReleasePackage {
     Bootstrap,
     /// `vox` core + `vox-bootstrap` (legacy "Both" tier — pre-plugin packaging).
     Both,
-    /// `vox-mens` plugin: ML/oratio/speech/populi/train subcommands (heavy: Candle).
+    /// `vox-ml-cli` plugin: ML/oratio/speech/populi/train subcommands (heavy: Candle).
     Mens,
     /// `vox-schola` plugin: scientia/schola subcommands.
     Schola,
@@ -94,15 +94,15 @@ pub fn run(
         checksum_lines.push(checksum_line(&digest, &artifact_name));
     }
     if want_mens {
-        let mens_bin = plugin_executable_name(target, "vox-mens");
+        let mens_bin = plugin_executable_name(target, "vox-ml-cli");
         let artifact_name = build_and_package_binary(
             repo_root,
             out_dir_abs.as_path(),
             target,
             artifact_version,
-            "vox-mens",
+            "vox-ml-cli",
             &mens_bin,
-            "vox-mens",
+            "vox-ml-cli",
         )?;
         let digest = sha256_file(&out_dir_abs.join(&artifact_name))?;
         checksum_lines.push(checksum_line(&digest, &artifact_name));
@@ -160,7 +160,7 @@ fn bootstrap_executable_name(target: &str) -> &'static str {
     }
 }
 
-/// Plugin binary name resolution for `vox-mens` / `vox-schola` archives.
+/// Plugin binary name resolution for `vox-ml-cli` / `vox-schola` archives.
 ///
 /// Returns an owned `String` rather than `&'static str` because plugin names
 /// are dynamic (any `vox-<name>` pattern), unlike the fixed core/bootstrap names.
@@ -317,12 +317,12 @@ mod tests {
             "vox-bootstrap"
         );
         assert_eq!(
-            plugin_executable_name("x86_64-pc-windows-msvc", "vox-mens"),
-            "vox-mens.exe"
+            plugin_executable_name("x86_64-pc-windows-msvc", "vox-ml-cli"),
+            "vox-ml-cli.exe"
         );
         assert_eq!(
-            plugin_executable_name("x86_64-unknown-linux-gnu", "vox-mens"),
-            "vox-mens"
+            plugin_executable_name("x86_64-unknown-linux-gnu", "vox-ml-cli"),
+            "vox-ml-cli"
         );
         assert_eq!(
             plugin_executable_name("aarch64-apple-darwin", "vox-schola"),

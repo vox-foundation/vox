@@ -12,7 +12,7 @@ pub(super) fn spawn_training_db_writer(
 
     let db_run_id = run_id.clone();
     let spawn_result = std::thread::Builder::new()
-        .name("vox-mens-voxdb".into())
+        .name("vox-ml-cli-voxdb".into())
         .spawn(move || {
             let rt = match tokio::runtime::Builder::new_current_thread()
                 .enable_all()

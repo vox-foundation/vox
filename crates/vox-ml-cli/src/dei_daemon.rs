@@ -1,4 +1,4 @@
-//! Simplified DeI JSON-line RPC integration boundary for vox-mens.
+//! Simplified DeI JSON-line RPC integration boundary for vox-ml-cli.
 //! Used primarily for AI-assisted corpus curation via vox-orchestrator-d.
 
 use serde_json::Value;

@@ -239,7 +239,7 @@ fn run_provider_secret_parity_guard(root: &Path) -> Result<()> {
 
 /// Run file-based checks that do not require a full workspace `cargo test`.
 pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
-    let watch = root.join("crates/vox-mens/src/commands/mens/watch_telemetry.rs");
+    let watch = root.join("crates/vox-ml-cli/src/commands/mens/watch_telemetry.rs");
     let watch_txt =
         read_utf8_path_capped(&watch).with_context(|| format!("read {}", watch.display()))?;
     if !watch_txt.contains("eta_seconds_remaining") {

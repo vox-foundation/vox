@@ -22,7 +22,7 @@
 //! | `VOX_RUNPOD_API_KEY` | — | RunPod API key |
 //! | `VOX_CLOUD_MAX_BUDGET` | `10.00` | Global spend cap USD |
 //! | `VOX_CLOUD_PRICE_TTL` | `30` | Offer cache TTL seconds |
-//! | `VOX_CLOUD_IMAGE` | `ghcr.io/vox-foundation/vox-mens-cuda:latest` | Container image |
+//! | `VOX_CLOUD_IMAGE` | `ghcr.io/vox-foundation/vox-ml-cli-cuda:latest` | Container image |
 //! | `VOX_CLOUD_MAX_RUNTIME` | `3600` | Absolute hard cap seconds (any job kind) |
 
 pub mod budget;
@@ -107,7 +107,7 @@ impl JobKind {
 // ── Provider configuration ────────────────────────────────────────────────────
 
 /// Default Docker image for cloud GPU jobs.
-pub const DEFAULT_CLOUD_IMAGE: &str = "ghcr.io/vox-foundation/vox-mens-cuda:latest";
+pub const DEFAULT_CLOUD_IMAGE: &str = "ghcr.io/vox-foundation/vox-ml-cli-cuda:latest";
 
 /// Conservative fallback ms/step when no measured profile exists.
 /// At 200 ms/step a 5k-sample × 3-epoch run takes ~600s.

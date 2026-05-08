@@ -46,7 +46,7 @@ pub struct AppState {
 pub async fn health() -> impl IntoResponse {
     (
         StatusCode::OK,
-        Json(serde_json::json!({"status": "ok", "service": "vox-mens"})),
+        Json(serde_json::json!({"status": "ok", "service": "vox-ml-cli"})),
     )
 }
 
@@ -56,7 +56,7 @@ pub async fn health() -> impl IntoResponse {
 pub async fn ready() -> impl IntoResponse {
     (
         StatusCode::OK,
-        Json(serde_json::json!({"ready": true, "service": "vox-mens"})),
+        Json(serde_json::json!({"ready": true, "service": "vox-ml-cli"})),
     )
 }
 
@@ -67,7 +67,7 @@ pub async fn list_models(State(state): State<AppState>) -> impl IntoResponse {
         "data": [{
             "id": &*state.model_name,
             "object": "model",
-            "owned_by": "vox-mens"
+            "owned_by": "vox-ml-cli"
         }]
     }))
 }

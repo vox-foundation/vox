@@ -11230,7 +11230,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-mens"
+name = "vox-mesh-types"
+version = "0.5.0"
+dependencies = [
+ "rand 0.8.5",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "vox-ml-cli"
 version = "0.5.0"
 dependencies = [
  "anyhow",
@@ -11281,15 +11290,6 @@ dependencies = [
  "walkdir",
  "which 7.0.3",
  "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "vox-mesh-types"
-version = "0.5.0"
-dependencies = [
- "rand 0.8.5",
- "serde",
- "serde_json",
 ]
 
 [[package]]

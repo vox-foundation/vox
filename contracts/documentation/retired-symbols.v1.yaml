@@ -59,7 +59,7 @@ symbols:
     pattern: "persist_fact\\("
     replacement: "sync_to_db()"
     rationale: "Renamed to sync_to_db() for clarity."
-  - id: vox-mens-standalone
-    pattern: "vox-mens"
+  - id: vox-ml-cli-standalone
+    pattern: "vox-ml-cli"
     replacement: "vox-populi"
     rationale: "Now part of vox-populi."

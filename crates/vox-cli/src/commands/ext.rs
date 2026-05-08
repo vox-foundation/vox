@@ -27,31 +27,31 @@ pub enum ExtCmd {
         #[command(subcommand)]
         cmd: crate::latin_cmd::ArsCmd,
     },
-    /// Mens: train, serve, corpus, eval (delegated to vox-mens)
+    /// Mens: train, serve, corpus, eval (delegated to vox-ml-cli)
     #[command(hide = true)]
     Mens {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Oratio: speech-to-text / transcripts (delegated to vox-mens)
+    /// Oratio: speech-to-text / transcripts (delegated to vox-ml-cli)
     #[command(hide = true)]
     Oratio {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Training tools (delegated to vox-mens)
+    /// Training tools (delegated to vox-ml-cli)
     #[command(hide = true)]
     Schola {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Populi registry + HTTP control plane (delegated to vox-mens)
+    /// Populi registry + HTTP control plane (delegated to vox-ml-cli)
     #[command(hide = true)]
     Populi {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Fine-tune: legacy entry (delegated to vox-mens)
+    /// Fine-tune: legacy entry (delegated to vox-ml-cli)
     #[command(hide = true)]
     Train {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]

@@ -50,19 +50,19 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_ACTIVE_FILE"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_ACTIVE_LINE"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_ACTIVE_SYMBOL"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -134,7 +134,7 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_BACKEND"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -152,7 +152,7 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_BENCHMARK"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -164,13 +164,13 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_BENCHMARK_MIN_PASS_RATE"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_BENCHMARK_MODEL"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -542,7 +542,7 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_DEI_MODE_PROFILE"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -674,19 +674,19 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_GEN_KPI_JSONL"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_GEN_MAX_TOKENS"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_GEN_TIMEOUT_SECS"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -1040,7 +1040,7 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_MCP_TOOL_ARG_SCHEMA_VALIDATE"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -1196,7 +1196,7 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_MESH_FEDERATION_BOOTSTRAP_PEERS"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -2792,19 +2792,19 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_PLAN_NODE_ID"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_PLAN_SESSION_ID"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_PLAN_VERSION"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"
@@ -2948,7 +2948,7 @@ variables:
     introduced_in: "0.3.0"
     description: "TODO"
   - name: "VOX_REPOSITORY_ID"
-    owner_crate: "vox-mens"
+    owner_crate: "vox-ml-cli"
     kind: "string"
     required: false
     introduced_in: "0.3.0"

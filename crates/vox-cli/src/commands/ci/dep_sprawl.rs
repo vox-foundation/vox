@@ -35,7 +35,7 @@ pub fn run(root: &Path, cap: usize) -> Result<()> {
         "vox-clavis",
         "vox-orchestrator",
         "vox-populi",
-        "vox-mens",
+        "vox-ml-cli",
         "vox-dei",
         "vox-ludus",
     ];

@@ -47,7 +47,7 @@ use std::process::Command;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // Intercept ML commands and delegate to vox-mens
+    // Intercept ML commands and delegate to vox-ml-cli
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 1 {
         let cmd = args[1].as_str();
@@ -67,12 +67,12 @@ async fn main() -> anyhow::Result<()> {
             let binary = if primary_cmd == "schola" || primary_cmd == "scientia" {
                 "vox-schola"
             } else {
-                "vox-mens"
+                "vox-ml-cli"
             };
 
             let mut command = Command::new(binary);
             if primary_cmd == "train" {
-                // `vox train` -> `vox-mens mens train`
+                // `vox train` -> `vox-ml-cli mens train`
                 command.arg("mens");
             }
 

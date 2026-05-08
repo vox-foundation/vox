@@ -255,7 +255,7 @@ impl CloudProvider for VastClient {
         };
 
         let body = serde_json::json!({
-            "client_id": "vox-mens",
+            "client_id": "vox-ml-cli",
             "image": spec.image_tag,
             "disk": self.config.disk_gb,
             "runtype": "ssh",

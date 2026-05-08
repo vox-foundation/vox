@@ -74,7 +74,7 @@ pub fn run_eval_local(
     };
 
     // SP3 Unit 3: candle_inference_serve deleted from vox-populi; authoritative copy lives in
-    // vox-plugin-mens-candle-cuda/src/inference.rs.  vox-mens drives inference through the plugin
+    // vox-plugin-mens-candle-cuda/src/inference.rs.  vox-ml-cli drives inference through the plugin
     // host (MlBackend::generate / plugin dispatch).  Until the plugin-host wiring is plumbed into
     // eval_local, the engine is unconditionally None.
     #[cfg(feature = "gpu")]
@@ -125,7 +125,7 @@ pub fn run_eval_local(
                 )
             } else {
                 // SP3 Unit 3: InferenceEngine removed from vox-populi; engine is always None
-                // until vox-mens eval-local is rewired through the plugin host.
+                // until vox-ml-cli eval-local is rewired through the plugin host.
                 #[cfg(feature = "gpu")]
                 {
                     let _ = &engine; // suppress unused warning

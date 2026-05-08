@@ -62,7 +62,7 @@ vox-db                   = { layer = 3 }
 vox-corpus               = { layer = 3 }
 vox-compiler             = { layer = 3 }
 vox-compiler-emit        = { layer = 3 }
-vox-mens                 = { layer = 3 }
+vox-ml-cli                 = { layer = 3 }
 vox-publisher            = { layer = 3 }
 vox-orchestrator         = { layer = 3 }
 vox-runtime              = { layer = 3 }

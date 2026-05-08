@@ -1,12 +1,12 @@
 [package]
-name = "vox-mens"
+name = "vox-ml-cli"
 version.workspace = true
 edition.workspace = true
 description = "Vox ML, AI, and Telemetry command-line interface."
-default-run = "vox-mens"
+default-run = "vox-ml-cli"
 
 [[bin]]
-name = "vox-mens"
+name = "vox-ml-cli"
 path = "src/main.rs"
 
 [features]

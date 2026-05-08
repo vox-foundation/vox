@@ -101,7 +101,7 @@ fn run_serve_inner(config: &ServeConfig) -> Result<()> {
         .model_path
         .file_stem()
         .and_then(|s| s.to_str())
-        .unwrap_or("vox-mens-model")
+        .unwrap_or("vox-ml-cli-model")
         .to_string();
 
     let system_prompt = config

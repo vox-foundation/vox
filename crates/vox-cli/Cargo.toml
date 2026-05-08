@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 description = "Vox command-line interface: compile, run, bundle, and workspace diagnostics."
-# `cargo run -p vox-cli` without `--bin` (binaries: `vox`, `vox-compilerd`, `vox-mens` when `mens-base`).
+# `cargo run -p vox-cli` without `--bin` (binaries: `vox`, `vox-compilerd`, `vox-ml-cli` when `mens-base`).
 default-run = "vox"
 
 [package.metadata.wix]

@@ -394,8 +394,8 @@ fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
 fn registry_with_vox_local_and_openrouter() -> ModelRegistry {
     let mut r = ModelRegistry::default();
     r.register(ModelSpec {
-        id: "vox-mens-v1".into(),
-        canonical_slug: "local/vox-mens-v1".into(),
+        id: "vox-ml-cli-v1".into(),
+        canonical_slug: "local/vox-ml-cli-v1".into(),
         provider: "vox".into(),
         provider_type: ProviderType::VoxLocal,
         max_tokens: 8192,

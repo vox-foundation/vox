@@ -2,7 +2,7 @@
 //!
 //! Used by:
 //! - `vox-corpus` for corpus extraction
-//! - `vox-mens` for training data preparation
+//! - `vox-ml-cli` for training data preparation
 //! - `vox-plugin-mens-candle-cuda` for QLoRA training data ingestion
 
 /// Pure-Rust tokenizer and JSONL DataLoader — always compiled, no GPU required.

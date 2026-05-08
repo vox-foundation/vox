@@ -670,7 +670,7 @@ jobs:
           - vox-clavis
           - vox-orchestrator
           - vox-populi
-          - vox-mens
+          - vox-ml-cli
           - vox-ludus
           - vox-oratio
           - vox-schola

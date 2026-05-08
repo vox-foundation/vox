@@ -265,7 +265,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-container/",
         "crates/vox-crypto/",
         "crates/vox-dashboard/",
-        "crates/vox-mens/",
+        "crates/vox-ml-cli/",
         "crates/vox-mesh-types/",
         "crates/vox-spool/",
     ];
@@ -300,7 +300,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-container/",
         "crates/vox-crypto/",
         "crates/vox-dashboard/",
-        "crates/vox-mens/",
+        "crates/vox-ml-cli/",
         "crates/vox-mesh-types/",
         "crates/vox-spool/",
     ];
