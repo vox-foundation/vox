@@ -93,7 +93,6 @@ training_eligible: false
 ## Status: Research
 
 - [Agent Shell Fluency Eval Design (2026)](agent-shell-fluency-eval-design-2026.md)
-- [Burn Framework Necessity Audit (2026-05-08)](burn-necessity-audit-2026-05-08.md)
 - [Crate Classification Audit (2026-05-08)](crate-classification-2026-05-08.md)
 - [Dead Crate Deep Dive (2026-05-08)](dead-crate-deep-dive-2026-05-08.md)
 - [Dead Crate Fate Plan (2026-05-08)](dead-crate-fate-plan-2026-05-08.md)
@@ -131,5 +130,6 @@ training_eligible: false
 
 ## Status: Deprecated
 
+- [Burn Framework Necessity Audit (2026-05-08)](burn-necessity-audit-2026-05-08.md)
 - [Populi Mesh — A2A Durability Spec (S1, 2026-05-01)](populi-mesh-a2a-durability-spec-2026.md)
 
