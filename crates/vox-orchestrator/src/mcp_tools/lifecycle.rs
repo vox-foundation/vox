@@ -76,6 +76,7 @@ pub async fn run_stdio_server_blocking() -> anyhow::Result<()> {
         );
     }
 
+    #[cfg(feature = "populi-transport")]
     crate::mcp_tools::populi_startup::publish_mesh_on_mcp_start(&state).await;
 
     state

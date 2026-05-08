@@ -107,6 +107,7 @@ pub use mcp_client as client;
 pub mod dei_ipc;
 pub mod http_gateway;
 pub mod journey_envelope;
+#[cfg(feature = "populi-transport")]
 pub mod populi_startup;
 pub mod speech_constraints;
 

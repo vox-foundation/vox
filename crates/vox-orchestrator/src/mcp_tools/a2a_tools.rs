@@ -499,29 +499,32 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
         A2ADeliveryPlane::RemoteMesh => {
             relay_ok = false;
             relay_attempted = false;
-            if let Some(base) = vox_populi::http_lifecycle::populi_http_control_base_from_env()
-                && !base.trim().is_empty()
+            #[cfg(feature = "populi-transport")]
             {
-                relay_attempted = true;
-                let client = vox_populi::http_client::PopuliHttpClient::new(base).with_env_token();
-                relay_ok = client
-                    .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
-                        sender_agent_id: params.sender_id.to_string(),
-                        receiver_agent_id: params.receiver_id.to_string(),
-                        message_type: msg_type_wire(&msg_type),
-                        payload: params.payload.clone(),
-                        idempotency_key: Some(idem.clone()),
-                        privacy_class: None,
-                        payload_blake3_hex: None,
-                        worker_ed25519_sig_b64: None,
-                        jwe_payload: None,
-                        task_kind: None,
-                        model_id: None,
-                        traceparent: None,
-                        priority: 128,
-                    })
-                    .await
-                    .is_ok();
+                if let Some(base) = vox_populi::http_lifecycle::populi_http_control_base_from_env()
+                    && !base.trim().is_empty()
+                {
+                    relay_attempted = true;
+                    let client = vox_populi::http_client::PopuliHttpClient::new(base).with_env_token();
+                    relay_ok = client
+                        .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
+                            sender_agent_id: params.sender_id.to_string(),
+                            receiver_agent_id: params.receiver_id.to_string(),
+                            message_type: msg_type_wire(&msg_type),
+                            payload: params.payload.clone(),
+                            idempotency_key: Some(idem.clone()),
+                            privacy_class: None,
+                            payload_blake3_hex: None,
+                            worker_ed25519_sig_b64: None,
+                            jwe_payload: None,
+                            task_kind: None,
+                            model_id: None,
+                            traceparent: None,
+                            priority: 128,
+                        })
+                        .await
+                        .is_ok();
+                }
             }
             route_ok = relay_ok;
         }
@@ -604,6 +607,7 @@ pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String {
     };
     let mut remote_attempted = false;
     let mut remote_ok = false;
+    #[cfg(feature = "populi-transport")]
     if source != A2AInboxPlane::Local
         && let Some(base) = vox_populi::http_lifecycle::populi_http_control_base_from_env()
     {
@@ -710,6 +714,7 @@ pub async fn a2a_ack(state: &ServerState, params: A2AAckParams) -> String {
     let local_success = orch.message_bus_mut().acknowledge(agent_id, message_id);
     let mut remote_attempted = false;
     let mut remote_success = false;
+    #[cfg(feature = "populi-transport")]
     if let Some(base) = vox_populi::http_lifecycle::populi_http_control_base_from_env() {
         if !base.trim().is_empty() {
             remote_attempted = true;

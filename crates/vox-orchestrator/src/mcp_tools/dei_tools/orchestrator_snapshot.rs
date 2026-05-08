@@ -111,6 +111,7 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
             .and_then(|s| s.trim().parse().ok())
             .filter(|n| *n > 0);
 
+    #[cfg(feature = "populi-transport")]
     let mesh_snapshot = if let Some(url) = populi_control_url
         .as_ref()
         .filter(|s: &&String| !s.trim().is_empty())
@@ -136,6 +137,8 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
     } else {
         None
     };
+    #[cfg(not(feature = "populi-transport"))]
+    let mesh_snapshot: Option<serde_json::Value> = None;
 
     if let Some(ref snap) = mesh_snapshot {
         persist_mesh_snapshot_codex_opt(state, snap).await;
