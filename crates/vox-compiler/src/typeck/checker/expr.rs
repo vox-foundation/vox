@@ -387,6 +387,7 @@ impl<'a> Checker<'a> {
                         "StdCryptoNs" => Some("crypto"),
                         "StdTimeNs" => Some("time"),
                         "StdMobileNs" => Some("mobile"),
+                        "StdRegexNs" => Some("regex"),
                         _ => None,
                     };
                     if let Some(ns) = ns {

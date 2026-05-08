@@ -1,0 +1,30 @@
+// ---
+// title: "Regex stdlib (std.regex)"
+// description: "Compile a pattern, test, find with capture groups (added 2026-05)."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [std.regex, regex, capture]
+// last_validated: 2026-05-08
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Use std.regex to compile a pattern and extract a capture group
+fn extract_mood(transcript: str) to Option[str] {
+    let compiled = std.regex.compile("(?:mood|feeling).*?(\\d)")
+    return match compiled {
+        Ok(re) => match re.find(transcript) {
+            Some(m) => m.group(1)
+            None => None
+        }
+        Error(_) => None
+    }
+}
+
+fn is_phone(s: str) to bool {
+    let compiled = std.regex.compile("^\\d{3}-\\d{4}$")
+    return match compiled {
+        Ok(re) => re.matches(s)
+        Error(_) => false
+    }
+}

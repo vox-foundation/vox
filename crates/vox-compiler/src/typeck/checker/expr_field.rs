@@ -130,6 +130,15 @@ impl<'a> Checker<'a> {
                     ));
                     Ty::Error
                 }),
+            Ty::Named(n) if n == "StdRegexNs" => std_namespace_method_ty("regex", field)
+                .unwrap_or_else(|| {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown std.regex method '{field}'"),
+                        span,
+                        self.source,
+                    ));
+                    Ty::Error
+                }),
             Ty::Named(n) if n.starts_with("RustCrate::") => {
                 let crate_name = n.trim_start_matches("RustCrate::");
                 let support = classify_rust_crate(crate_name).as_label();

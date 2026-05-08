@@ -144,6 +144,53 @@ pub fn vox_log_error(message: &str) {
     tracing::error!(target: "vox_runtime::builtins", "{message}");
 }
 
+// ── Regex (std.regex) ───────────────────────────────────────────────
+
+/// Compiled regex value handed back to Vox as `Result[Regex]`.
+#[derive(Debug, Clone)]
+pub struct VoxRegex(pub regex::Regex);
+
+/// One match in a haystack — exposes captures via `group(idx)`.
+#[derive(Debug, Clone)]
+pub struct VoxMatch {
+    pub groups: Vec<Option<String>>,
+}
+
+impl VoxRegex {
+    pub fn matches(&self, text: &str) -> bool {
+        self.0.is_match(text)
+    }
+    pub fn find(&self, text: &str) -> Option<VoxMatch> {
+        self.0.captures(text).map(captures_to_match)
+    }
+    pub fn find_all(&self, text: &str) -> Vec<VoxMatch> {
+        self.0.captures_iter(text).map(captures_to_match).collect()
+    }
+}
+
+impl VoxMatch {
+    pub fn group(&self, idx: i64) -> Option<String> {
+        if idx < 0 {
+            return None;
+        }
+        self.groups.get(idx as usize).cloned().flatten()
+    }
+}
+
+fn captures_to_match(caps: regex::Captures<'_>) -> VoxMatch {
+    let groups = (0..caps.len())
+        .map(|i| caps.get(i).map(|m| m.as_str().to_string()))
+        .collect();
+    VoxMatch { groups }
+}
+
+/// Compile a Vox regex pattern. Returns `Err(message)` on invalid pattern.
+pub fn vox_regex_compile(pattern: &str) -> Result<VoxRegex, String> {
+    regex::Regex::new(pattern)
+        .map(VoxRegex)
+        .map_err(|e| e.to_string())
+}
+
 /// Read a process environment variable (`std.env.get` in Vox scripts).
 pub fn vox_env_get(key: &str) -> Option<String> {
     std::env::var(key).ok()
