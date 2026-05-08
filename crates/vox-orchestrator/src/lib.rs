@@ -40,7 +40,7 @@
 
 pub mod attachment_manifest;
 pub mod dei_shim;
-pub mod sync_lock;
+pub use vox_orchestrator_queue::sync_lock;
 
 // mcp_tools/ moved to crate `vox-orchestrator-mcp` in 2026-05-08 reorg Phase 4.
 // Use `vox_orchestrator_mcp::*` instead of `vox_orchestrator::mcp_tools::*`.
@@ -58,7 +58,7 @@ pub mod routing;
 /// Agent-to-agent messaging types and helpers.
 pub mod a2a;
 /// File and task affinity groups for routing work to the right agent.
-pub mod affinity;
+pub use vox_orchestrator_queue::affinity;
 /// Developer attention budget tracking — treats pilot attention as a first-class resource (Phase 15).
 pub mod attention;
 /// VoxDB persistence layer for attention events and agent trust scores (Phase 15).
@@ -116,7 +116,7 @@ pub mod jj_backend;
 /// Cross-model consensus and judge logic.
 pub mod judge_model;
 /// Per-file lock manager for exclusive writer access.
-pub mod locks;
+pub use vox_orchestrator_queue::locks;
 /// Long-term and daily agent memory backed by Codex when enabled.
 pub mod memory;
 /// Populi control-plane poll loop shared by MCP and `vox-orchestrator-d`.
@@ -132,7 +132,7 @@ pub mod monitor;
 /// File and task observer: real-time structural health evaluation (Wave 2).
 pub mod observer;
 /// Append-only operation log for durable orchestration history.
-pub mod oplog;
+pub use vox_orchestrator_queue::oplog;
 /// TCP JSON-line orchestrator daemon (`vox-orchestrator-d`) and client helpers.
 pub mod orch_daemon;
 /// Core multi-agent orchestrator implementation.

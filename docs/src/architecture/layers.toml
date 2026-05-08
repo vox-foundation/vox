@@ -82,6 +82,7 @@ vox-ludus                = { layer = 3 }
 vox-skills               = { layer = 3 }
 vox-cli-core             = { layer = 3 }
 vox-orchestrator-mcp     = { layer = 3 } # Phase 4 extraction
+vox-orchestrator-queue   = { layer = 3 } # Phase 5 extraction (locks/oplog/affinity/sync_lock)
 vox-orchestrator-d       = { layer = 5 } # daemon binary package (Phase 4)
 vox-search               = { layer = 3 } # depends on db + runtime
 vox-scientia-ingest      = { layer = 3 }

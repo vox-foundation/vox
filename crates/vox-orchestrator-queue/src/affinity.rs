@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use crate::sync_lock;
-use crate::types::AgentId;
+use vox_orchestrator_types::AgentId;
 
 /// Thread-safe map tracking which agent "owns" each file path.
 ///
@@ -131,7 +131,7 @@ impl FileAffinityMap {
     /// Returns `(file_path, current_owner)` pairs for each conflict.
     pub fn conflicts(
         &self,
-        manifest: &[crate::types::FileAffinity],
+        manifest: &[vox_orchestrator_types::FileAffinity],
         requesting_agent: AgentId,
     ) -> Vec<(PathBuf, AgentId)> {
         let map = sync_lock::rw_read(&*self.inner);
@@ -258,7 +258,7 @@ mod tests {
 
     #[test]
     fn conflicts_detection() {
-        use crate::types::FileAffinity;
+        use vox_orchestrator_types::FileAffinity;
         let map = FileAffinityMap::new();
         map.assign(Path::new("owned.rs"), AgentId(1));
 
@@ -273,7 +273,7 @@ mod tests {
 
     #[test]
     fn conflicts_no_self_conflict() {
-        use crate::types::FileAffinity;
+        use vox_orchestrator_types::FileAffinity;
         let map = FileAffinityMap::new();
         map.assign(Path::new("mine.rs"), AgentId(1));
 

@@ -67,6 +67,7 @@ tower-lsp-server = { version = "0.23", optional = true }
 vox-db.workspace = true
 vox-search.workspace = true
 vox-orchestrator-types.workspace = true
+vox-orchestrator-queue.workspace = true
 vox-config.workspace = true
 vox-repository.workspace = true
 vox-dashboard = { workspace = true, optional = true }

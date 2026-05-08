@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::types::AgentId;
+use vox_orchestrator_types::AgentId;
 
 /// Kind of lock an agent holds on a file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

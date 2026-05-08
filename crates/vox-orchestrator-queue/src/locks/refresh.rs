@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::sync_lock;
-use crate::types::AgentId;
+use vox_orchestrator_types::AgentId;
 
 use super::{FileLock, FileLockManager, LockConflict, LockEntry, LockKind};
 

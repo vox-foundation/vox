@@ -3,9 +3,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use sha3::{Digest, Sha3_256};
 
-use crate::snapshot::SnapshotId;
-use crate::types::AgentId;
-use crate::workspace::ChangeId;
+use vox_orchestrator_types::SnapshotId;
+use vox_orchestrator_types::AgentId;
+use vox_orchestrator_types::ChangeId;
 
 use super::{OpLog, OperationEntry, OperationId, OperationKind};
 

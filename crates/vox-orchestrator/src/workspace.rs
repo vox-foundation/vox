@@ -41,16 +41,8 @@ pub enum WorkspaceEntry {
 // Change tracking (Feature 5)
 // ---------------------------------------------------------------------------
 
-/// Stable identifier for a logical unit of work that survives rebases
-/// and amendments — inspired by Jujutsu's Change IDs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ChangeId(pub u64);
-
-impl fmt::Display for ChangeId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "CH-{:06}", self.0)
-    }
-}
+// `ChangeId` moved to `vox-orchestrator-types` in 2026-05-08 reorg Phase 5.
+pub use vox_orchestrator_types::ChangeId;
 
 /// Status of a logical change.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

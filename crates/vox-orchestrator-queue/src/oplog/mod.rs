@@ -12,9 +12,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
 
-use crate::snapshot::SnapshotId;
-use crate::types::AgentId;
-use crate::workspace::ChangeId;
+use vox_orchestrator_types::SnapshotId;
+use vox_orchestrator_types::AgentId;
+use vox_orchestrator_types::ChangeId;
 
 // ---------------------------------------------------------------------------
 // Identity

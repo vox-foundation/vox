@@ -1,4 +1,4 @@
-use crate::types::AgentId;
+use vox_orchestrator_types::AgentId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;

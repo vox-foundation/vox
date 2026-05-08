@@ -1,7 +1,7 @@
 use sha3::Digest;
 
-use crate::types::AgentId;
-use crate::workspace::ChangeId;
+use vox_orchestrator_types::AgentId;
+use vox_orchestrator_types::ChangeId;
 
 use super::{OpLog, OperationEntry, OperationId, OperationKind};
 
@@ -111,7 +111,7 @@ impl OpLog {
     pub fn find_task_snapshots(
         &self,
         task_id: u64,
-    ) -> (Option<crate::snapshot::SnapshotId>, Option<u64>) {
+    ) -> (Option<vox_orchestrator_types::SnapshotId>, Option<u64>) {
         for entry in self.entries.iter().rev() {
             if let OperationKind::TaskSubmit { task_id: id } = entry.kind {
                 if id == task_id {

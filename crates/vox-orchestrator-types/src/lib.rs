@@ -3,6 +3,12 @@
 pub mod agent_types;
 pub mod socrates_policy;
 
+pub use agent_types::{
+    AccessKind, AgentId, AgentIdGenerator, BatchId, ChangeId, CorrelationId,
+    CorrelationIdGenerator, FileAffinity, IdParseError, LockToken, SnapshotId, SnapshotIdGenerator,
+    SwitchAccessMode, SwitchAction, SwitchActionType, TaskId, TaskIdGenerator,
+};
+
 include!(concat!(env!("OUT_DIR"), "/generated_providers.rs"));
 
 /// Pinned **Inference Endpoint** (dedicated deployment) with an explicit OpenAI-compatible chat URL.
