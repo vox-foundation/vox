@@ -257,6 +257,7 @@ training_eligible: false
 - [Populi Mesh — Probe Correctness Implementation Plan (S1, 2026-05-01)](architecture/populi-mesh-probe-correctness-plan-2026.md)
 - [Populi Mesh — Probe Correctness Spec (S1, 2026-05-01)](architecture/populi-mesh-probe-correctness-spec-2026.md)
 - [Populi node lifecycle, drain, and GPU hotplug](archive/research-2026-q1/populi-node-lifecycle-hotplug.md)
+- [Pure-Rust Build — Eliminating C/MSVC Dependencies (2026-05-08)](architecture/no-c-no-msvc-2026-05-08.md)
 - [Question gate standard for planning](architecture/planning-meta/12-question-gate-standard.md)
 - [Qwen 3.6 integration research (groundwork)](archive/research-2026-q1/qwen36-integration-research.md)
 - [Qwen3.5 Multimodal Phase 2 Backlog](archive/research-2026-q1/qwen35-multimodal-phase2-backlog.md)

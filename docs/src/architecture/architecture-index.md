@@ -67,6 +67,7 @@ training_eligible: false
 - [Populi Mesh — Local Observability Spec (S1, 2026-05-01)](populi-mesh-local-observability-spec-2026.md)
 - [Populi Mesh — Probe Correctness Implementation Plan (S1, 2026-05-01)](populi-mesh-probe-correctness-plan-2026.md)
 - [Populi Mesh — Probe Correctness Spec (S1, 2026-05-01)](populi-mesh-probe-correctness-spec-2026.md)
+- [Pure-Rust Build — Eliminating C/MSVC Dependencies (2026-05-08)](no-c-no-msvc-2026-05-08.md)
 - [Question gate standard for planning](planning-meta/12-question-gate-standard.md)
 - [Research baseline and source-of-truth map](planning-meta/00-research-baseline-source-map.md)
 - [Scientia × Mesh/Model-Routing Integration Research (2026)](scientia-mesh-integration-research-2026.md)

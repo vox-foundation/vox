@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 08 May 2026 04:05:57 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 08 May 2026 04:43:12 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -13,7 +13,16 @@
     <link>https://vox-lang.org/architecture/architecture-index.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
     <description>Auto-generated architecture index.</description>
-    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Dead Crate Fate Plan (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/dead-crate-fate-plan-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/dead-crate-fate-plan-2026-05-08.html</guid>
+    <description>Per-crate recommendation for the 17 DEAD and 3 MISPLACED workspace crates: delete, wire up, extract to plugin, or freeze.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
 
@@ -229,16 +238,6 @@
     <description>Canonical ownership and lifecycle policy for Vox frontend surfaces.</description>
     <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
-  </item>
-
-  <item>
-    <title>Vox full-stack web UI — single source of truth</title>
-    <link>https://vox-lang.org/reference/vox-web-stack.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/vox-web-stack.html</guid>
-    <description>Official documentation for Vox full-stack web UI — single source of truth for the Vox language. Detailed technical reference, architectur</description>
-    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>
