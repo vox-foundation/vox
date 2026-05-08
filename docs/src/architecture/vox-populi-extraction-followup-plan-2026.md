@@ -15,6 +15,8 @@ training_rationale: "Honest accounting of what plugin extractions are still pend
 
 **Predecessor work:** SP1–SP8 implementation plans + the SP3 sub-batches A–D, NVML extraction, and mesh scaffold all landed on the `claude/infallible-lalande-baf300` branch (~70 commits). This follow-up plan picks up where they stopped.
 
+> **Status update (2026-05-08):** Browser, oratio, and transport extractions all landed end-to-end in this session. Verified slim-core: `chromiumoxide`, `symphonia`, `rubato`, `candle-core`, `burn`, `wgpu`, `nvml-wrapper` are all OUT of `cargo tree -p vox-cli` for default builds. `populi-transport` is now opt-in (vox-orchestrator's default no longer pulls axum's mesh router, JWT, dashmap, blake3, ed25519-dalek, turso). vox-skills retirement is partial: parser/bundle/manifest types moved to `vox-plugin-host::skill_*`; `SkillRegistry` (DB-backed install/search/hydrate) remains in vox-skills as it has different semantics. Remaining work: vox-populi mens/tensor candle module cleanup (still feature-gated, kept for the in-tree merge CLI's adapter-schema bridge), full `SkillRegistry` unification.
+
 ## Honest accounting of what landed vs. what's deferred
 
 The foundation is sound: ABI-versioned `vox-plugin-host` loader works end-to-end (proven by 11 host integration tests + the candle-cuda gating spike), seven extension-point traits exist, the SSOT catalog is enforced by build-time + runtime validators, and `vox plugin` / `vox bundle` CLI commands work for install / remove / build / verify. But several "extraction complete" claims overstated reality. This plan corrects the record and scopes what remains.

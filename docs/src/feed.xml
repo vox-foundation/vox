@@ -5,8 +5,139 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Thu, 07 May 2026 22:18:31 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 08 May 2026 01:37:09 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Architecture Index</title>
+    <link>https://vox-lang.org/architecture/architecture-index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
+    <description>Auto-generated architecture index.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Migrating from Cargo Feature Flags</title>
+    <link>https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</guid>
+    <description>Mapping from `cargo --features` invocations to the runtime plugin system.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
+  </item>
+
+  <item>
+    <title>Eval sandbox deployment (Coolify)</title>
+    <link>https://vox-lang.org/architecture/eval-sandbox-deployment.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/eval-sandbox-deployment.html</guid>
+    <description>Public MCP HTTP eval gateway at eval.vox-lang.org — image, compose, DNS, Coolify API sync.</description>
+    <pubDate>Wed, 06 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>cli</title>
+    <link>https://vox-lang.org/reference/cli.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/cli.html</guid>
+    <description>Documentation for cli.md</description>
+    <pubDate>Wed, 06 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Data Storage Lint &amp; CI Spec (2026)</title>
+    <link>https://vox-lang.org/architecture/data-storage-lint-and-ci-spec-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/data-storage-lint-and-ci-spec-2026.html</guid>
+    <description>Concrete lint and CI rules — clippy.toml additions, deny.toml bans, grep checks, a new `vox ci data-storage-guard` subcommand, and diffs against the *real*…</description>
+    <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Search &amp; Retrieval SSOT (2026)</title>
+    <link>https://vox-lang.org/architecture/search-retrieval-ssot-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/search-retrieval-ssot-2026.html</guid>
+    <description>Single baseline for how agent-facing retrieval works across vox-db contracts, vox-search execution, orchestrator MCP tools, and dashboard transport — including…</description>
+    <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>v1-release-criteria</title>
+    <link>https://vox-lang.org/architecture/v1-release-criteria.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/v1-release-criteria.html</guid>
+    <description>v1-release-criteria</description>
+    <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Changelog</title>
+    <link>https://vox-lang.org/reference/changelog.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/changelog.html</guid>
+    <description>Official documentation for Changelog for the Vox language. Detailed technical reference, architecture guides, and implementation patterns</description>
+    <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>CLI command surface (generated)</title>
+    <link>https://vox-lang.org/reference/cli-command-surface.generated.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/cli-command-surface.generated.html</guid>
+    <description>Auto-generated table of vox command paths and metadata; CLI rows are generated from contracts/operations/catalog.v1.yaml into command-registry.yaml — use vox…</description>
+    <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Telemetry and research_metrics contract</title>
+    <link>https://vox-lang.org/reference/telemetry-metric-contract.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/telemetry-metric-contract.html</guid>
+    <description>research_metrics row shape, write validation, session_id prefix conventions, key metric_type semantics, Mens telemetry.jsonl envelope and KPI tiers…</description>
+    <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Vox portability SSOT</title>
+    <link>https://vox-lang.org/reference/vox-portability-ssot.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/vox-portability-ssot.html</guid>
+    <description>Normative portability contract for Docker/OCI-backed `.vox` deployment, source-of-truth boundaries, and conformance expectations.</description>
+    <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)</title>
+    <link>https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</guid>
+    <description>Splits Vox&apos;s UI primitives into a Vox-native reactivity track and an explicit React/TanStack interop track, with a sharp boundary so each track stays coherent…</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Svelte-Mineable Features Implementation Plan (2026)</title>
+    <link>https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</guid>
+    <description>Phased implementation plan for the Svelte 5/6-inspired Vox compiler and MCP improvements identified in the comparative research. Concrete file changes, scope…</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Svelte 5/6 vs React Meta-Frameworks — Comparative Research and Mineable Ideas for Vox (2026)</title>
+    <link>https://vox-lang.org/architecture/svelte-vs-react-frameworks-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/svelte-vs-react-frameworks-research-2026.html</guid>
+    <description>Comparative analysis of Svelte 5/6, Next.js 15/16, and TanStack Start as competitors and idea sources for Vox&apos;s GUI authoring layer. Frames Vox&apos;s React-emit…</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>Vox-Populi Extraction Follow-Up Plan (2026)</title>
@@ -15,6 +146,35 @@
     <description>Plan for the remaining code-motion work after the plugin system foundation landed. Covers vox-populi mens/tensor residual, vox-populi transport, vox-tensor…</description>
     <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Explanation: Compiler Lowering Phases</title>
+    <link>https://vox-lang.org/explanation/expl-compiler-lowering.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-compiler-lowering.html</guid>
+    <description>Official documentation for Explanation: Compiler Lowering Phases for the Vox language. Detailed technical reference, architecture guides,</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Explanation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Frontend Surface Ownership</title>
+    <link>https://vox-lang.org/reference/frontend-surface-ownership.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/frontend-surface-ownership.html</guid>
+    <description>Canonical ownership and lifecycle policy for Vox frontend surfaces.</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
+
+  <item>
+    <title>Vox full-stack web UI — single source of truth</title>
+    <link>https://vox-lang.org/reference/vox-web-stack.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/vox-web-stack.html</guid>
+    <description>Official documentation for Vox full-stack web UI — single source of truth for the Vox language. Detailed technical reference, architectur</description>
+    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>
@@ -35,15 +195,6 @@
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)</title>
-    <link>https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/027-dual-track-ui-surfaces.html</guid>
-    <description>Splits Vox&apos;s UI primitives into a Vox-native reactivity track and an explicit React/TanStack interop track, with a sharp boundary so each track stays coherent…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>
@@ -87,161 +238,12 @@
   </item>
 
   <item>
-    <title>Architecture Index</title>
-    <link>https://vox-lang.org/architecture/architecture-index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
-    <description>Auto-generated architecture index.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
     <title>External Frontend Interop Plan (2026)</title>
     <link>https://vox-lang.org/architecture/external-frontend-interop-plan-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/external-frontend-interop-plan-2026.html</guid>
     <description>Five-phase plan to make Vox interoperable with the React/TS ecosystem in both directions: keep Vox&apos;s GUI authoring (TS/React emission), add bidirectional…</description>
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>GUI Authoring Syntax (2026): Vox UI as Values (VUV)</title>
-    <link>https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</guid>
-    <description>Replaces JSX-shaped view bodies and Tailwind class strings with typed function-call views. No tags, no class strings, no CSS files in user code. Lowers to…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Multi-Agent VCS Replication — Phase 1 Implementation Plan (2026-05-03)</title>
-    <link>https://vox-lang.org/architecture/multi-agent-vcs-replication-impl-plan-phase1-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/multi-agent-vcs-replication-impl-plan-phase1-2026.html</guid>
-    <description>Step-by-step TDD implementation plan for Phase 1 of the multi-agent VCS replication architecture: local-only op-log gossip between agents on one machine. 16…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Multi-Agent VCS Replication — Landscape Research (2026-05-03)</title>
-    <link>https://vox-lang.org/architecture/multi-agent-vcs-replication-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/multi-agent-vcs-replication-research-2026.html</guid>
-    <description>Survey of version-control and CRDT systems evaluated for a multi-agent code-collaboration substrate. Finds no off-the-shelf project provides codebase-scale…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Multi-Agent VCS Replication — Architecture Spec (2026-05-03)</title>
-    <link>https://vox-lang.org/architecture/multi-agent-vcs-replication-spec-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/multi-agent-vcs-replication-spec-2026.html</guid>
-    <description>Architecture spec for op-log gossip on top of jj-lib and the Populi mesh. Defines the AgentChange / OpFragment / Convergence Set primitives, the gossip wire…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Plugin System Redesign (2026)</title>
-    <link>https://vox-lang.org/architecture/plugin-system-redesign-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-2026.html</guid>
-    <description>Design spec for unifying Vox&apos;s modularity surfaces — Cargo features, vox-skills, and capability registries — into a single runtime-loadable plugin system that…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Plugin System Redesign — SP1 Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp1-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp1-plan-2026.html</guid>
-    <description>Step-by-step implementation plan for Sub-Project 1 of the plugin system redesign: plugin manifest schemas, the vox-plugin-catalog SSOT crate, hand-rolled and…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Plugin System Redesign — SP2 Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp2-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp2-plan-2026.html</guid>
-    <description>Step-by-step implementation plan for Sub-Project 2: vox-plugin-api shared types, vox-plugin-host loader for both code and skill payloads, dual-payload…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Plugin System Redesign — SP3 Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp3-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp3-plan-2026.html</guid>
-    <description>Step-by-step implementation plan for Sub-Project 3: define the MlBackend extension-point trait, extract candle-cuda from vox-populi into a standalone…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Plugin System Redesign — SP4 Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/plugin-system-redesign-sp4-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-redesign-sp4-plan-2026.html</guid>
-    <description>Step-by-step implementation plan for Sub-Project 4: migrate the vox.compiler skill from vox-skills&apos;s compile-time builtins to a standalone skill-payload plugin…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Svelte-Mineable Features Implementation Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</guid>
-    <description>Phased implementation plan for the Svelte 5/6-inspired Vox compiler and MCP improvements identified in the comparative research. Concrete file changes, scope…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>The Vox Contribution Loop</title>
-    <link>https://vox-lang.org/contributors/contribution-loop.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/contribution-loop.html</guid>
-    <description>How Vox contributions feed the MENS training pipeline, why quality gates matter doubly, and what makes code training-eligible.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Contributor hub</title>
-    <link>https://vox-lang.org/contributors/contributor-hub.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/contributor-hub.html</guid>
-    <description>Start here for contributor-facing Vox documentation, governance, inventories, and review checklists.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Local CI parity (pre-push)</title>
-    <link>https://vox-lang.org/contributors/local-ci-pre-push.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/local-ci-pre-push.html</guid>
-    <description>Run the merge-blocking subset locally before every push via `vox ci pre-push`.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Golden Examples: Working Vox Code</title>
-    <link>https://vox-lang.org/examples/golden.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/examples/golden.html</guid>
-    <description>Complete, validated Vox code examples demonstrating server functions, actors, workflows, MCP tools, and UI components in the Vox programming language.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Compiler Architecture</title>
-    <link>https://vox-lang.org/explanation/expl-architecture.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-architecture.html</guid>
-    <description>Official documentation for Compiler Architecture for the Vox language. Detailed technical reference, architecture guides, and implementat</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Explanation</category>
-    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>

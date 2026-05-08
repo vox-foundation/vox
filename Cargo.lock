@@ -12940,9 +12940,12 @@ name = "vox-plugin-host"
 version = "0.5.0"
 dependencies = [
  "abi_stable",
+ "data-encoding",
  "dirs",
  "libloading 0.8.9",
  "serde",
+ "serde_json",
+ "sha3",
  "tempfile",
  "thiserror 1.0.69",
  "toml 0.8.23",
@@ -13442,6 +13445,7 @@ dependencies = [
  "vox-clavis",
  "vox-container",
  "vox-db",
+ "vox-plugin-host",
  "vox-pm",
  "vox-reqwest-defaults",
  "workspace-hack",
