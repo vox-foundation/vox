@@ -1,15 +1,15 @@
-//! Bridge between the webhook broadcast channel and the Orchestrator Scheduler.
+//! Bridge between the webhook broadcast channel and a [`WebhookEventSink`].
 //!
 //! Subscribes to the `broadcast::Receiver<WebhookEvent>` emitted by the Axum
-//! webhook router and converts each event into an `OrchestratorInboxItem` that is
-//! forwarded to the orchestrator's task queue.
+//! webhook router and forwards each event to a [`WebhookEventSink`] (e.g. the
+//! Orchestrator or any other consumer that implements the trait).
 //!
 //! ## Wiring
 //!
 //! ```text
 //! WebhookState.event_sink  →  WebhookOrchestratorBridge::run()
-//!                          →  mpsc::Sender<OrchestratorInboxItem>
-//!                          →  Orchestrator Scheduler
+//!                          →  Arc<dyn WebhookEventSink>
+//!                          →  consumer (Orchestrator, test harness, …)
 //! ```
 //!
 //! Start the bridge with [`WebhookOrchestratorBridge::spawn`] to drive it on a
@@ -18,9 +18,9 @@
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{debug, error, warn};
-use vox_orchestrator::Orchestrator;
 
 use crate::handler::WebhookEvent;
+use crate::sink::WebhookEventSink;
 
 /// A task dispatched from an inbound webhook event.
 ///
@@ -66,21 +66,26 @@ impl OrchestratorInboxItem {
     }
 }
 
-/// Bridges the webhook broadcast channel into the orchestrator's task queue.
+/// Bridges the webhook broadcast channel into a [`WebhookEventSink`].
 ///
-/// Drives a `broadcast::Receiver` loop that converts each [`WebhookEvent`] into
-/// an agent task directly via [`Orchestrator::submit_task_with_agent`].
+/// Drives a `broadcast::Receiver` loop that forwards each [`WebhookEvent`] to
+/// the sink. The sink is responsible for further routing (e.g. the Orchestrator
+/// submitting an agent task).
+///
+/// Previously depended directly on `Arc<Orchestrator>`; now decoupled via the
+/// [`WebhookEventSink`] trait — the orchestrator should implement that trait and
+/// pass `Arc<OrchestratorWebhookSink>` here.
 pub struct WebhookOrchestratorBridge {
     rx: broadcast::Receiver<WebhookEvent>,
-    orch: Arc<Orchestrator>,
+    sink: Arc<dyn WebhookEventSink>,
 }
 
 impl WebhookOrchestratorBridge {
-    /// Create a bridge that subscribes to `event_sink` and delegates to `orch`.
-    pub fn new(event_sink: &broadcast::Sender<WebhookEvent>, orch: Arc<Orchestrator>) -> Self {
+    /// Create a bridge that subscribes to `event_source` and dispatches to `sink`.
+    pub fn new(event_source: &broadcast::Sender<WebhookEvent>, sink: Arc<dyn WebhookEventSink>) -> Self {
         Self {
-            rx: event_sink.subscribe(),
-            orch,
+            rx: event_source.subscribe(),
+            sink,
         }
     }
 
@@ -99,29 +104,10 @@ impl WebhookOrchestratorBridge {
             match self.rx.recv().await {
                 Ok(event) => {
                     let item = OrchestratorInboxItem::from_webhook(event.clone());
-                    debug!(kind = ?item.kind, source = %event.source, "Forwarding webhook event to orchestrator");
+                    debug!(kind = ?item.kind, source = %event.source, "Forwarding webhook event to sink");
 
-                    let prompt = format!(
-                        "Process incoming webhook event from source {}. Event type: {}. Payload: {}",
-                        event.source,
-                        event.event_type,
-                        serde_json::to_string(&event.payload).unwrap_or_default()
-                    );
-
-                    if let Err(e) = self
-                        .orch
-                        .submit_task_with_agent(
-                            prompt,
-                            vec![],
-                            Some(vox_orchestrator::types::TaskPriority::Normal),
-                            None,
-                            None,
-                            None,
-                            None,
-                        )
-                        .await
-                    {
-                        error!("Failed to submit webhook task to orchestrator: {}", e);
+                    if let Err(e) = self.sink.dispatch(event).await {
+                        error!("WebhookEventSink::dispatch failed: {}", e);
                     }
                 }
                 Err(broadcast::error::RecvError::Lagged(n)) => {

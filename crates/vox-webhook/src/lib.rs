@@ -6,8 +6,10 @@
 //! Public re-exports are thin facades; see submodule files for behavior.
 #![allow(unused)]
 
-/// Bridge: routes broadcast webhook events into the orchestrator inbox.
+/// Bridge: routes broadcast webhook events into a WebhookEventSink.
 pub mod bridge;
+/// Abstract event sink trait — decouples the library from any concrete consumer.
+pub mod sink;
 /// Channel adapters (Discord, Slack, …).
 pub mod channel;
 /// Outbound webhook delivery and retries.
@@ -20,6 +22,7 @@ pub mod router;
 pub mod signing;
 
 pub use bridge::{InboxItemKind, OrchestratorInboxItem, WebhookOrchestratorBridge};
+pub use sink::WebhookEventSink;
 
 pub use channel::{Channel, ChannelEvent, ChannelKind, ChannelManager};
 pub use delivery::{OutboundWebhook, WebhookDelivery, WebhookDeliveryResult};
