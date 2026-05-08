@@ -3,7 +3,7 @@
 //! Podman runs rootless by default, making it ideal for userspace containers
 //! without requiring elevated privileges or a daemon process.
 
-use crate::runtime::{BuildOpts, ContainerRuntime, RunOpts};
+use vox_container::{BuildOpts, ContainerRuntime, RunOpts};
 use std::process::Command;
 
 /// Podman-backed container runtime.
@@ -100,7 +100,7 @@ impl ContainerRuntime for PodmanRuntime {
 
         cmd.arg(&opts.image);
 
-        crate::log_exec_risk(&opts.image);
+        vox_container::log_exec_risk(&opts.image);
         tracing::info!("Running: podman run {} ...", opts.image);
         let status = cmd
             .status()

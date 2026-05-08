@@ -1,27 +1,19 @@
 //! # vox-container
 //!
-//! OCI-compatible container runtime abstraction for the Vox toolchain.
+//! OCI container runtime trait and types for the Vox toolchain.
 //!
-//! Provides a unified [`ContainerRuntime`] trait over Docker and Podman,
-//! and automatic runtime detection (preferring rootless Podman).
+//! This crate provides the [`ContainerRuntime`] trait, [`BuildOpts`], and [`RunOpts`]
+//! used by deploy-facing code (`vox-deploy-codegen`, `vox-cli`).
 //!
-//! **Deployment artifact codegen** (Dockerfile, Compose, K8s, Fly, Coolify, systemd)
-//! has moved to `vox-deploy-codegen`.
-//!
-//! This crate now contains only:
-//! - [`ContainerRuntime`] trait + [`BuildOpts`] / [`RunOpts`]
-//! - Docker and Podman runtime implementations
-//! - Runtime auto-detection
+//! **Docker and Podman implementations** have moved to `vox-plugin-runtime-container`.
+//! **Deployment artifact codegen** has moved to `vox-deploy-codegen`.
+//! **Abstract skill runtime trait** is in `vox-skill-runtime`.
+//! **Runtime detection** (`detect_runtime`) has moved to `vox-plugin-runtime-container`.
 
 #![allow(clippy::collapsible_if)]
 
-pub mod detect;
-pub mod docker;
-pub mod podman;
-
 mod runtime;
 
-pub use detect::detect_runtime;
 pub use runtime::{BuildOpts, ContainerRuntime, RunOpts};
 
 /// Classify the exec risk of a container image or command string and log the result.
@@ -49,4 +41,51 @@ pub fn log_exec_risk(raw_command: &str) {
             );
         }
     }
+}
+
+/// Runtime preference (kept here for backward compat; callers migrating to
+/// `vox-plugin-runtime-container::detect::RuntimePreference`).
+pub mod detect {
+    /// Preferred container runtime selection strategy.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+    pub enum RuntimePreference {
+        /// Prefer Podman, fall back to Docker.
+        #[default]
+        Auto,
+        /// Use Docker only.
+        Docker,
+        /// Use Podman only.
+        Podman,
+    }
+
+    impl std::str::FromStr for RuntimePreference {
+        type Err = anyhow::Error;
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match s.to_lowercase().as_str() {
+                "auto" => Ok(Self::Auto),
+                "docker" => Ok(Self::Docker),
+                "podman" => Ok(Self::Podman),
+                other => anyhow::bail!(
+                    "Unknown runtime preference: {other:?}. Use auto, docker, or podman."
+                ),
+            }
+        }
+    }
+}
+
+/// Detect and return the best available container runtime (Podman preferred).
+///
+/// Delegates to `vox-plugin-runtime-container` for actual instantiation.
+/// Kept here for backward compatibility; long-term callers should use
+/// `vox_plugin_runtime_container::detect_runtime()` directly.
+pub use detect::RuntimePreference;
+
+/// Backward-compat re-export. Callers can use
+/// `vox_plugin_runtime_container::detect_runtime()` directly.
+///
+/// Returns the best available OCI runtime (Podman first, then Docker).
+pub fn detect_runtime(
+    preference: detect::RuntimePreference,
+) -> anyhow::Result<Box<dyn ContainerRuntime>> {
+    vox_plugin_runtime_container::detect_runtime(preference)
 }

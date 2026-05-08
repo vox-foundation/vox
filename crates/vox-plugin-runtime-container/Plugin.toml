@@ -1,0 +1,25 @@
+[plugin]
+id = "runtime-container"
+name = "Container Skill Runtime"
+version = "0.1.0"
+description = "Skill-runtime plugin: Docker and Podman backends for sandboxed skill execution."
+license = "Apache-2.0"
+
+[plugin.host]
+min-vox-version = "0.5.0"
+
+[plugin.payload]
+kind = "code"
+abi-version = 11
+
+[plugin.payload.provides]
+extension-points = ["SkillRuntime"]
+
+[plugin.payload.requires]
+os = ["linux", "macos", "windows"]
+
+[plugin.payload.artifacts]
+"windows-x86_64" = "vox_plugin_runtime_container.dll"
+"linux-x86_64"   = "libvox_plugin_runtime_container.so"
+"macos-x86_64"   = "libvox_plugin_runtime_container.dylib"
+"macos-aarch64"  = "libvox_plugin_runtime_container.dylib"

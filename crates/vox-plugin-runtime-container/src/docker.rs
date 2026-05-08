@@ -3,7 +3,7 @@
 //! This implementation is **synchronous** (`std::process::Command`). When calling from async
 //! code, wrap `build` / `run` in [`tokio::task::spawn_blocking`] so the runtime thread is not blocked.
 
-use crate::runtime::{BuildOpts, ContainerRuntime, RunOpts};
+use vox_container::{BuildOpts, ContainerRuntime, RunOpts};
 use std::process::Command;
 
 /// Docker-backed container runtime.
@@ -97,7 +97,7 @@ impl ContainerRuntime for DockerRuntime {
 
         cmd.arg(&opts.image);
 
-        crate::log_exec_risk(&opts.image);
+        vox_container::log_exec_risk(&opts.image);
         tracing::info!("Running: docker run {} ...", opts.image);
         let status = cmd
             .status()
