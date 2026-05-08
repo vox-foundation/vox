@@ -4,7 +4,9 @@
 //! at its crate root for back-compat.
 
 pub mod mens;
+pub mod oratio;
 pub mod params;
+pub mod research;
 pub mod rows_core;
 pub mod rows_extended;
 
