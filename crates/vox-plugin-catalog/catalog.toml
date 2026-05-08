@@ -152,6 +152,14 @@ default-source = "github:vox-foundation/vox-plugin-browser"
 bundled-in = ["vox-dev"]
 
 [[plugin]]
+id = "publication"
+payload-kind = "code"
+description = "RSS/Atom ingest with semantic dedup; multi-platform publish (Reddit, YouTube, scholarly feeds)."
+extension-points = ["Publication"]
+default-source = "local:crates/vox-plugin-publication"
+bundled-in = []
+
+[[plugin]]
 id = "noop-code"
 payload-kind = "code"
 description = "Test fixture: no-op code plugin used by vox-plugin-host loader tests."
