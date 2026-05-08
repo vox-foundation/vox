@@ -352,10 +352,10 @@ jobs:
       - name: Orchestrator slim build (news-publish off, no populi-transport → minimal default)
         run: cargo check -p vox-orchestrator --no-default-features --features runtime,mcp-native,toestub-gate
 
-      - name: Layer-check (strict — Phase 9 onward)
-        # Fails the build on any unknown layer inversion. Source of truth:
-        # docs/src/architecture/layers.toml. See 2026-05-08-workspace-reorg-design.md.
-        run: cargo run -p vox-layer-check --quiet
+      - name: Arch-check (layer + fan-in + LoC + orphan + docstring)
+        # Layer rule strict; the others warn-only by default. Source of truth:
+        # docs/src/architecture/layers.toml.
+        run: cargo run -p vox-arch-check --quiet
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2

@@ -10599,6 +10599,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-arch-check"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "cargo_metadata",
+ "serde",
+ "toml 0.8.23",
+]
+
+[[package]]
 name = "vox-bounded-fs"
 version = "0.5.0"
 dependencies = [
@@ -11193,16 +11203,6 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "workspace-hack",
-]
-
-[[package]]
-name = "vox-layer-check"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "cargo_metadata",
- "serde",
- "toml 0.8.23",
 ]
 
 [[package]]

@@ -37,7 +37,7 @@ workspace-members = [
     "vox-mesh-types",
     "vox-primitives",
     "vox-plugin-types",
-    "vox-layer-check",
+    "vox-arch-check",
 ]
 
 [final-excludes]
@@ -57,5 +57,5 @@ workspace-members = [
     "vox-mesh-types",
     "vox-primitives",
     "vox-plugin-types",
-    "vox-layer-check",
+    "vox-arch-check",
 ]

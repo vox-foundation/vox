@@ -1,5 +1,5 @@
 [package]
-name = "vox-layer-check"
+name = "vox-arch-check"
 version.workspace = true
 edition.workspace = true
 description = "CI guard: enforces the workspace layered-architecture model. See docs/src/architecture/2026-05-08-workspace-reorg-design.md."
@@ -11,7 +11,7 @@ serde = { workspace = true, features = ["derive"] }
 anyhow.workspace = true
 
 [[bin]]
-name = "vox-layer-check"
+name = "vox-arch-check"
 path = "src/main.rs"
 
 [lints]
