@@ -16,7 +16,7 @@
 
 use crate::ast::expr::{BinOp, Expr, JsxAttribute, JsxElement, JsxSelfClosingElement, UnOp};
 use crate::ast::stmt::Stmt;
-use crate::codegen_ts::hir_emit::wrap_jsx_hir_child_expr;
+use crate::codegen_ts::hir_emit::{ts_string_literal, wrap_jsx_hir_child_expr};
 
 pub use crate::codegen_ts::hir_emit::compat::{map_jsx_attr_name, map_jsx_tag};
 
@@ -282,7 +282,7 @@ fn emit_jsx_attr_value(expr: &Expr) -> String {
                 let template = value.replace('{', "${").to_string();
                 format!("`{template}`")
             } else {
-                format!("\"{value}\"")
+                ts_string_literal(value)
             }
         }
         Expr::Ident { name, .. } => name.clone(),
@@ -431,9 +431,9 @@ pub fn emit_expr(expr: &Expr) -> String {
     match expr {
         Expr::IntLit { value, .. } => value.to_string(),
         Expr::FloatLit { value, .. } => value.to_string(),
-        Expr::StringLit { value, .. } => format!("\"{value}\""),
+        Expr::StringLit { value, .. } => ts_string_literal(value),
         Expr::BoolLit { value, .. } => value.to_string(),
-        Expr::DecimalLit { value, .. } => format!("\"{value}\""),
+        Expr::DecimalLit { value, .. } => ts_string_literal(value),
         Expr::Ident { name, .. } => name.clone(),
         Expr::ObjectLit { fields, .. } => {
             let pairs: Vec<String> = fields

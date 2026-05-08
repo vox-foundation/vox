@@ -17,7 +17,7 @@ mod state_deps;
 use crate::hir::*;
 use std::collections::HashSet;
 
-pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag};
+pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag, ts_string_literal};
 pub(crate) use state_deps::extract_state_deps_with_diagnostics;
 
 /// Unwrap a single-expression block used as a JSX / attribute value (matches AST `unwrap_block`).
@@ -105,6 +105,41 @@ pub(crate) fn wrap_jsx_hir_child_expr(emit: String) -> String {
     }
 }
 
+/// Bug D: inline-replace `std.<namespace>.<method>(args)` calls with native JS equivalents
+/// when the receiver is the literal `std` global. Returns `Some(emit)` if the call matched a
+/// known `std.*` shim; `None` otherwise.
+///
+/// Browser-side components have no `std` runtime — these replacements emit code that uses
+/// the platform's native APIs (`Date.now()` for `std.time.now_ms()`, etc.).
+fn lower_std_namespace_call(
+    obj: &HirExpr,
+    method: &str,
+    args: &[crate::hir::HirArg],
+    state_names: &HashSet<String>,
+) -> Option<String> {
+    // Receiver must be `std.<ns>` (FieldAccess(Ident("std"), ns)).
+    let HirExpr::FieldAccess(root, ns, _) = obj else {
+        return None;
+    };
+    let HirExpr::Ident(root_name, _) = root.as_ref() else {
+        return None;
+    };
+    if root_name != "std" {
+        return None;
+    }
+    let args_str: Vec<String> = args
+        .iter()
+        .map(|a| emit_hir_expr(&a.value, state_names))
+        .collect();
+    match (ns.as_str(), method) {
+        ("time", "now_ms") => Some("Date.now()".to_string()),
+        ("time", "now_iso") => Some("new Date().toISOString()".to_string()),
+        ("json", "stringify") => Some(format!("JSON.stringify({})", args_str.join(", "))),
+        ("json", "parse") => Some(format!("JSON.parse({})", args_str.join(", "))),
+        _ => None,
+    }
+}
+
 /// Emit a HIR expression as TypeScript/JSX with optional reactive `state` names (for `set_x` rewriting).
 ///
 /// **Phase:** compat-legacy (OP-0138). Prefer [`crate::web_ir::emit_tsx`] for structural parity and
@@ -114,7 +149,7 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
         HirExpr::FloatLit(v, _) => v.to_string(),
-        HirExpr::StringLit(v, _) => format!("\"{v}\""),
+        HirExpr::StringLit(v, _) => compat::ts_string_literal(v),
         HirExpr::BoolLit(v, _) => v.to_string(),
         HirExpr::Ident(name, _) => name.clone(),
         HirExpr::Binary(op, left, right, _) => {
@@ -248,6 +283,11 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             format!("{callee_str}({})", args_str.join(", "))
         }
         HirExpr::MethodCall(obj, method, args, plan, _) => {
+            // Bug D: inline-replace `std.<ns>.<method>(...)` calls with their JS equivalents
+            // so emitted component files don't reference an unresolved `std` global.
+            if let Some(replacement) = lower_std_namespace_call(obj, method, args, state_names) {
+                return replacement;
+            }
             let obj_str = emit_hir_expr(obj, state_names);
             let args_str: Vec<String> = args
                 .iter()
@@ -333,24 +373,107 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             format!("(({}) => ({}))", param_names.join(", "), b)
         }
         HirExpr::Match(subject, arms, _) => {
+            // ADT-shaped values (Result/Option/user-defined) carry a `_tag` discriminator
+            // (see crates/vox-compiler/src/codegen_ts/adt.rs). Dispatch on `_val._tag` and
+            // bind constructor fields by destructuring; fall back to wildcard / literal /
+            // ident-bind cases for non-ADT subjects.
             let s = emit_hir_expr(subject, state_names);
-            let mut arms_out = Vec::new();
-            for arm in arms {
-                let pat = emit_hir_pattern(&arm.pattern);
-                let body = emit_hir_expr(&arm.body, state_names);
-                arms_out.push(format!("case {pat}: return {body};"));
+            let all_constructor_or_wild = arms.iter().all(|a| {
+                matches!(
+                    &a.pattern,
+                    HirPattern::Constructor(_, _, _) | HirPattern::Wildcard(_)
+                )
+            });
+            if all_constructor_or_wild
+                && arms
+                    .iter()
+                    .any(|a| matches!(&a.pattern, HirPattern::Constructor(_, _, _)))
+            {
+                let mut arms_out = Vec::new();
+                let mut has_default = false;
+                for arm in arms {
+                    let body = emit_hir_expr(&arm.body, state_names);
+                    match &arm.pattern {
+                        HirPattern::Constructor(name, fields, _) => {
+                            // Fields bind by name where the inner pattern is `Ident`; nested
+                            // patterns (rare for Result/Option) fall back to wildcard names.
+                            let binders: Vec<String> = fields
+                                .iter()
+                                .enumerate()
+                                .map(|(i, p)| match p {
+                                    HirPattern::Ident(n, _) => n.clone(),
+                                    HirPattern::Wildcard(_) => format!("_f{i}"),
+                                    _ => format!("_f{i}"),
+                                })
+                                .collect();
+                            // Constructor field order in HIR matches the ADT decl, but ADT codegen
+                            // uses named fields (e.g. `{ _tag: "Ok", value }`). For the built-in
+                            // `Result`/`Option`, the single payload field is conventionally
+                            // accessed positionally — synthesize `_p0/_p1/...` accessors that work
+                            // both for built-ins (positional) and user ADTs (named).
+                            let destructure = if binders.is_empty() {
+                                String::new()
+                            } else {
+                                let parts: Vec<String> = binders
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, b)| format!("const {b} = (_val as any)._p{i} ?? (_val as any).value;"))
+                                    .collect();
+                                parts.join(" ")
+                            };
+                            arms_out.push(format!(
+                                "case \"{name}\": {{ {destructure} return {body}; }}"
+                            ));
+                        }
+                        HirPattern::Wildcard(_) => {
+                            has_default = true;
+                            arms_out.push(format!("default: return {body};"));
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                if !has_default {
+                    arms_out.push("default: return undefined;".to_string());
+                }
+                format!(
+                    "((_val) => {{ switch((_val as any)._tag) {{ {} }} }})({s})",
+                    arms_out.join(" ")
+                )
+            } else {
+                let mut arms_out = Vec::new();
+                for arm in arms {
+                    let body = emit_hir_expr(&arm.body, state_names);
+                    match &arm.pattern {
+                        HirPattern::Literal(_, _) => {
+                            let pat = emit_hir_pattern(&arm.pattern);
+                            arms_out.push(format!("case {pat}: return {body};"));
+                        }
+                        HirPattern::Wildcard(_) => {
+                            arms_out.push(format!("default: return {body};"));
+                        }
+                        HirPattern::Ident(name, _) => {
+                            arms_out.push(format!(
+                                "default: {{ const {name} = _val; return {body}; }}"
+                            ));
+                        }
+                        HirPattern::Tuple(_, _) | HirPattern::Constructor(_, _, _) => {
+                            let pat = emit_hir_pattern(&arm.pattern);
+                            arms_out.push(format!("case {pat}: return {body};"));
+                        }
+                    }
+                }
+                format!(
+                    "((_val) => {{ switch(_val) {{ {} }} }})({s})",
+                    arms_out.join(" ")
+                )
             }
-            format!(
-                "((_val) => {{ switch(_val) {{ {} }} }})({s})",
-                arms_out.join(" ")
-            )
         }
         HirExpr::Try(h) => {
             // No direct equivalent of `?` in TS unless it's a specific pattern, but we'll try to emulate or just emit `await`/direct expression for now since it's just TS generation.
             // A common TS code pattern is to just emit the target since actual error bubbling requires explicit branching. For basic TS compat we'll emit the unwrapped expression.
             emit_hir_expr(h.target.as_ref(), state_names)
         }
-        HirExpr::DecimalLit(v, _) => format!("\"{v}\""),
+        HirExpr::DecimalLit(v, _) => compat::ts_string_literal(v),
 
         HirExpr::Spawn(target, _) => {
             let t = emit_hir_expr(target, state_names);
@@ -498,7 +621,7 @@ pub(crate) fn emit_hir_pattern(pattern: &HirPattern) -> String {
         HirPattern::Literal(lit, _) => match lit.as_ref() {
             HirExpr::IntLit(v, _) => v.to_string(),
             HirExpr::FloatLit(v, _) => v.to_string(),
-            HirExpr::StringLit(s, _) => format!("\"{s}\""),
+            HirExpr::StringLit(s, _) => compat::ts_string_literal(s),
             HirExpr::BoolLit(b, _) => b.to_string(),
             _ => "_".to_string(),
         },
