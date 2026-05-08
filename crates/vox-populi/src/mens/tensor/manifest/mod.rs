@@ -4,8 +4,13 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use super::lora::{DEFAULT_D_MODEL, DEFAULT_N_HEADS, DEFAULT_N_LAYERS};
 use vox_tensor::data::VOCAB_SIZE;
+
+// Legacy Burn scratch-model defaults (used only for ArchParams::default fallback).
+// QLoRA on HF models does not use these — see docs/src/reference/mens-training.md.
+const DEFAULT_D_MODEL: usize = 512;
+const DEFAULT_N_HEADS: usize = 8;
+const DEFAULT_N_LAYERS: usize = 6;
 
 /// Bumped when new required semantics appear; readers use [`load_manifest`] (serde defaults).
 pub const TRAINING_MANIFEST_SCHEMA_VERSION: u32 = 5;
