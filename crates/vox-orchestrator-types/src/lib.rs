@@ -1,5 +1,6 @@
 // AUTO-GENERATED parts included below.
 
+pub mod agent_types;
 pub mod socrates_policy;
 
 include!(concat!(env!("OUT_DIR"), "/generated_providers.rs"));

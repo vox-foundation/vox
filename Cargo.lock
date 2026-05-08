@@ -11345,6 +11345,7 @@ version = "0.5.0"
 dependencies = [
  "serde",
  "serde_yaml",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
