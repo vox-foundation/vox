@@ -30,4 +30,12 @@ The TS materializer remains the SSOT for any consumer needing full correction-ch
 
 ## Views / exports
 
-CSV/PDF exports are specified under **`contracts/export/`** (incremental). The CSV row projection in `src/ts/export_contract.ts` consumes materialized events when writing rows.
+CSV/JSON/HTML exports are specified under **`contracts/export/`** (incremental). The full clinician export pipeline lives in **`src/ts/export_pipeline.ts`** and composes:
+
+1. raw rows (from `db.HealthEventLog.all()` → `timeline_events_json`)
+2. → `resolveCorrections` (collapses correction chains)
+3. → `buildHealthCsv` (deterministic CSV row projection)
+4. → `sha256Hex(csv)` (WebCrypto content hash)
+5. → JSON bundle + clinical HTML (with weekly aggregate table + daily timeline)
+
+`buildExportBundle(rows, generatedMs)` returns `{csv, json, html, content_sha256, row_count_raw, row_count_effective}` — fully deterministic for the same inputs. Vox endpoint wiring (so `ExportPage` can drive the pipeline) is tracked in the Phase 4 plan; until that lands, consumers (tests, future React integration, CLI export commands) call the pipeline directly.
