@@ -157,10 +157,6 @@ name = "probe_pipeline_live"
 required-features = ["mens"]
 
 [[test]]
-name = "lora_estimates"
-required-features = ["mens"]
-
-[[test]]
 name = "hf_load_config"
 required-features = ["mens"]
 

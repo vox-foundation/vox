@@ -1,0 +1,16 @@
+[package]
+name = "vox-db-types"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+workspace-hack = { workspace = true }
+
+[lints]
+workspace = true
+
+[package.metadata.cargo-shear]
+ignored = ["workspace-hack"]

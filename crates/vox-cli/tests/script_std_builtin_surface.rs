@@ -12,7 +12,7 @@ fn glob_and_run_capture_exist_in_all_layers() {
     ));
     let emit = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../vox-compiler/src/codegen_rust/emit/stmt_expr.rs"
+        "/../vox-compiler-emit/src/codegen_rust/emit/stmt_expr.rs"
     ));
     let builtins = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -51,7 +51,7 @@ fn std_env_fs_path_process_core_methods_align() {
     ));
     let emit = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
-        "/../vox-compiler/src/codegen_rust/emit/stmt_expr.rs"
+        "/../vox-compiler-emit/src/codegen_rust/emit/stmt_expr.rs"
     ));
     let builtins = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),

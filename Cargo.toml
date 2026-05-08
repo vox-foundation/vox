@@ -67,6 +67,7 @@ vox-install-policy        = { path = "crates/vox-install-policy" }
 vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }
 vox-corpus                = { path = "crates/vox-corpus" }
 vox-db                    = { path = "crates/vox-db" }
+vox-db-types              = { path = "crates/vox-db-types" }
 vox-eval                  = { path = "crates/vox-eval" }
 vox-exec-grammar          = { path = "crates/vox-exec-grammar" }
 vox-forge                 = { path = "crates/vox-forge" }

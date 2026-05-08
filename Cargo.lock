@@ -10870,10 +10870,21 @@ dependencies = [
  "vox-compiler",
  "vox-compiler-emit",
  "vox-config",
+ "vox-db-types",
  "vox-mesh-types",
  "vox-orchestrator-types",
  "vox-repository",
  "vox-test-harness",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-db-types"
+version = "0.5.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
  "workspace-hack",
 ]
 

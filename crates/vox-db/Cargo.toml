@@ -7,6 +7,7 @@ edition.workspace = true
 vox-compiler = { workspace = true }
 vox-compiler-emit = { workspace = true }
 vox-config.workspace = true
+vox-db-types = { workspace = true }
 vox-orchestrator-types = { workspace = true }
 turso = { workspace = true }
 tokio = { workspace = true }
