@@ -281,6 +281,39 @@ impl MeshDriver for PopuliMeshPlugin {
         }
     }
 
+    /// Relay an A2A message directly to a specific peer node URL.
+    ///
+    /// `target_url` is the base URL of the remote node (e.g. `http://10.0.0.5:9847`).
+    /// `request_json` is a JSON-serialised [`vox_mesh_types::A2ADeliverRequest`].
+    fn relay_a2a(
+        &self,
+        target_url: RStr<'_>,
+        request_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
+        let url = target_url.to_string();
+        let payload = request_json.to_string();
+
+        let result: Result<String, String> = (|| {
+            let request: vox_mesh_types::A2ADeliverRequest =
+                serde_json::from_str(&payload).map_err(|e| {
+                    format!("invalid A2ADeliverRequest JSON: {e}")
+                })?;
+            let response = self.block_on(async move {
+                let client =
+                    crate::http_client::PopuliHttpClient::new(&url).with_env_token();
+                client.relay_a2a(&request).await
+            });
+            response
+                .map(|_| r#"{"ok":true}"#.to_string())
+                .map_err(|e| format!("relay_a2a: {e}"))
+        })();
+
+        match result {
+            Ok(s) => RResult::ROk(RString::from(s)),
+            Err(e) => RResult::RErr(RBoxError::new(std::io::Error::other(e))),
+        }
+    }
+
     /// Return the current node list from `GET /v1/populi/nodes` as a JSON array.
     ///
     /// Falls back to `[]` when transport is not started (caller degrades gracefully).
