@@ -16,6 +16,8 @@ training_rationale: "Honest accounting of what plugin extractions are still pend
 **Predecessor work:** SP1–SP8 implementation plans + the SP3 sub-batches A–D, NVML extraction, and mesh scaffold all landed on the `claude/infallible-lalande-baf300` branch (~70 commits). This follow-up plan picks up where they stopped.
 
 > **Status update (2026-05-08):** Browser, oratio, and transport extractions all landed end-to-end in this session. Verified slim-core: `chromiumoxide`, `symphonia`, `rubato`, `candle-core`, `burn`, `wgpu`, `nvml-wrapper` are all OUT of `cargo tree -p vox-cli` for default builds. `populi-transport` is now opt-in (vox-orchestrator's default no longer pulls axum's mesh router, JWT, dashmap, blake3, ed25519-dalek, turso). vox-skills retirement is partial: parser/bundle/manifest types moved to `vox-plugin-host::skill_*`; `SkillRegistry` (DB-backed install/search/hydrate) remains in vox-skills as it has different semantics. Remaining work: vox-populi mens/tensor candle module cleanup (still feature-gated, kept for the in-tree merge CLI's adapter-schema bridge), full `SkillRegistry` unification.
+>
+> **Status update (2026-05-07):** Completed candle/NVML extraction from vox-populi mens: deleted `candle_qlora_merge.rs`, `adapter_schema_v3.rs`, `hardware/nvml.rs`. Migrated `vox-mens schola merge-qlora` CLI to `cached_code_plugin("mens-candle-cuda")` dispatch. Inline serde-only v2/v3 schema in CLI (no candle deps). Burn/wgpu files (`burn_stack.rs`, `lora/`) remain — they are `mens-gpu` feature-gated and not candle (Unit 3 scope). All 3 CI gates pass; `cargo tree -p vox-cli` shows no candle/burn/wgpu/nvml.
 
 ## Honest accounting of what landed vs. what's deferred
 
@@ -43,7 +45,7 @@ The foundation is sound: ABI-versioned `vox-plugin-host` loader works end-to-end
 
 ### What's *partially extracted*
 
-- **vox-populi mens residual**: ~7,852 LOC in `vox-populi/src/mens/tensor/` still references candle-core/candle-nn directly (`candle_model_qwen.rs` 764 LOC, `candle_inference_serve.rs` 494 LOC, `candle_qlora_merge.rs` 389 LOC, plus burn_stack and lora). Feature-gated by `mens-candle-qlora`/`mens-gpu` — kept out of default builds, but architecturally still there.
+- **vox-populi mens residual**: Candle files deleted in this session (2026-05-07): `candle_qlora_merge.rs`, `adapter_schema_v3.rs` removed from `vox-populi/src/mens/tensor/`; `nvml.rs` removed from `vox-populi/src/mens/hardware/`. `vox-mens` `schola merge-qlora` CLI now dispatches via `cached_code_plugin("mens-candle-cuda")`. Remaining in `mens/tensor/`: Burn/wgpu files (`burn_stack.rs`, `lora/`, `optim.rs`, `train.rs`, `tensor.rs`) are feature-gated by `mens-gpu` and are NOT candle — they belong to the Burn/wgpu training path (Unit 3 scope). `backend_candle_qlora.rs` remains but is 100% plugin dispatch (no direct candle dep).
 
 ### What's not a plugin yet but probably should be
 
