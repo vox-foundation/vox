@@ -356,6 +356,7 @@ training_eligible: false
 - [Architecture Decision Checklist for Implementing Agent Handoff Continuity](archive/research-2026-q1/research-agent-handoff-checklist-2026.md)
 - [Architecture: ASR Speech-to-Code](archive/research-2026-q1/asr-speech-to-code-architecture-2026.md)
 - [Automated Testing Research for the Vox Language](archive/research-2026-q1/automated-testing-research-2026.md)
+- [Burn Framework Necessity Audit (2026-05-08)](architecture/burn-necessity-audit-2026-05-08.md)
 - [Catastrophic Forgetting in QLoRA Fine-Tuning](archive/research-2026-q1/research-cl-qlora-catastrophic-forgetting-2026.md)
 - [Clavis as a one-stop secrets manager: research findings 2026](archive/research-2026-q1/clavis-one-stop-secrets-research-2026.md)
 - [Clavis secrets, env vars, and API key strategy research 2026](archive/research-2026-q1/clavis-secrets-env-research-2026.md)
