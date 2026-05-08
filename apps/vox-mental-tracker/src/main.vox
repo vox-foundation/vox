@@ -89,11 +89,53 @@ import std.mobile
     return "{\"kind\":\"note_recorded\",\"payload\":{\"body\":\"" + transcript.replace("\"", "'") + "\"},\"confidence\":0.4}"
 }
 
-/// Weekly rollup — counts rows only until typed row projection lands for date-range filters.
+/// Per-kind weekly rollup. Counts effective (non-superseded) events per kind.
+/// Window filtering by event_at is done client-side via src/ts/materializer.ts
+/// (which also handles correction-chain collapse from the raw event log).
 @endpoint(kind: query) fn weekly_summary_json() to str {
     match db.HealthEventLog.all() {
-        Ok(rows) => "{\"window_days\":7,\"note\":\"counts_total_only_until_row_projection\",\"total_events\":" + str(len(rows)) + "}"
+        Ok(rows) => {
+            let mut total = 0
+            let mut moods = 0
+            let mut meals = 0
+            let mut sleep_starts = 0
+            let mut sleep_ends = 0
+            let mut exercises = 0
+            let mut notes = 0
+            for r in rows {
+                if r.correction_of == "" {
+                    total = total + 1
+                    if r.event_kind == "mood_recorded" { moods = moods + 1 }
+                    if r.event_kind == "meal_recorded" { meals = meals + 1 }
+                    if r.event_kind == "sleep_started" { sleep_starts = sleep_starts + 1 }
+                    if r.event_kind == "sleep_ended" { sleep_ends = sleep_ends + 1 }
+                    if r.event_kind == "exercise_recorded" { exercises = exercises + 1 }
+                    if r.event_kind == "note_recorded" { notes = notes + 1 }
+                }
+            }
+            "{\"window_days\":7,\"note\":\"per_kind_unfiltered_uncollapsed_corrections\",\"total_events\":" + str(total) + ",\"per_kind\":{\"mood_recorded\":" + str(moods) + ",\"meal_recorded\":" + str(meals) + ",\"sleep_started\":" + str(sleep_starts) + ",\"sleep_ended\":" + str(sleep_ends) + ",\"exercise_recorded\":" + str(exercises) + ",\"note_recorded\":" + str(notes) + "}}"
+        }
         Error(_) => "{\"error\":\"db\"}"
+    }
+}
+
+/// Emit all HealthEventLog rows as a JSON array suitable as input to the
+/// TS materializer (src/ts/materializer.ts). The materializer collapses
+/// correction chains, derives is_backdated, and groups by day. payload_json
+/// is escaped as a JSON string field; consumers JSON.parse it themselves.
+@endpoint(kind: query) fn timeline_events_json() to str {
+    match db.HealthEventLog.all() {
+        Ok(rows) => {
+            let mut out = "["
+            let mut first = true
+            for r in rows {
+                if first { first = false } else { out = out + "," }
+                let pj = r.payload_json.replace("\\", "\\\\").replace("\"", "\\\"")
+                out = out + "{\"event_id\":\"" + r.event_id + "\",\"event_kind\":\"" + r.event_kind + "\",\"schema_version\":" + str(r.schema_version) + ",\"payload_json\":\"" + pj + "\",\"event_at\":\"" + r.event_at + "\",\"recorded_at\":\"" + r.recorded_at + "\",\"recorded_at_monotonic\":" + str(r.recorded_at_monotonic) + ",\"tz_iana\":\"" + r.tz_iana + "\",\"tz_offset_minutes\":" + str(r.tz_offset_minutes) + ",\"source\":\"" + r.source + "\",\"raw_transcript_id\":\"" + r.raw_transcript_id + "\",\"correction_of\":\"" + r.correction_of + "\"}"
+            }
+            out + "]"
+        }
+        Error(_) => "[]"
     }
 }
 

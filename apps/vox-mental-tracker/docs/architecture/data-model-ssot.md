@@ -22,7 +22,11 @@ The append-only log is the only authoritative store. **Derived state — correct
 - **`is_backdated`:** computed via `export_contract.isBackdated` (recorded_at − event_at > 5 min) and propagated onto materialized events.
 - **Window aggregation:** `weeklyAggregate(events, nowMs, windowDays = 7)` returns total + per-kind counts.
 
-Wiring the Vox UI to call the materializer is **blocked on compiler row-projection support** (the `weekly_summary_json` endpoint counts total rows only until that lands). Until then, the materializer is the authoritative reference for any export pipeline running outside Vox.
+The Vox compiler **does** support row iteration and typed field access (probed against `db.HealthEventLog.all()`), so the Vox endpoints can do partial materialization themselves:
+- `weekly_summary_json` returns total + per-kind counts (filters out rows with non-empty `correction_of`; full chain collapse is a TS-side concern).
+- `timeline_events_json` returns a JSON array shaped for `materializer.resolveCorrections` — consumers (export pipelines, future React surfaces) feed it into the TS materializer for chain collapse, day grouping, and is_backdated derivation.
+
+The TS materializer remains the SSOT for any consumer needing full correction-chain semantics or daily/weekly bucketing with deterministic ordering.
 
 ## Views / exports
 
