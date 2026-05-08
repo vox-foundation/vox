@@ -26,8 +26,6 @@ pub(crate) mod eval_gate;
 mod eval_local;
 mod eval_local_prompt;
 #[cfg(feature = "gpu")]
-mod merge_weights;
-#[cfg(feature = "gpu")]
 pub mod models;
 #[cfg(feature = "mens-base")]
 mod pipeline;

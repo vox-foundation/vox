@@ -1,5 +1,4 @@
 use crate::commands::mens::eval_local;
-use crate::commands::mens::merge_weights;
 use crate::commands::mens::probe;
 use crate::commands::mens::status;
 use crate::commands::schola::merge_qlora;
@@ -43,40 +42,6 @@ fn status_json_missing_dir() {
         false,
     ));
     assert!(result.is_ok());
-}
-
-#[test]
-fn merge_weights_missing_checkpoint_errors() {
-    let result = merge_weights::run_merge_weights(
-        PathBuf::from("/nonexistent/model.bin"),
-        None,
-        16,
-        32.0,
-    );
-    assert!(result.is_err());
-    let msg = result.unwrap_err().to_string();
-    assert!(
-        msg.contains("not found") || msg.contains("Checkpoint"),
-        "expected checkpoint error: {msg}"
-    );
-}
-
-#[test]
-fn merge_weights_rejects_candle_qlora_adapter_file() {
-    let dir = tempfile::tempdir().expect("tempdir");
-    let p = dir.path().join("candle_qlora_adapter.safetensors");
-    std::fs::write(&p, []).expect("touch adapter");
-    let result = merge_weights::run_merge_weights(p, None, 8, 16.0);
-    assert!(result.is_err(), "expected rejection of Candle adapter path");
-    let msg = result.unwrap_err().to_string();
-    assert!(
-        msg.contains("Candle") && msg.contains("merge"),
-        "expected Candle merge guard: {msg}"
-    );
-    assert!(
-        msg.contains("merge-qlora"),
-        "expected pointer to merge-qlora: {msg}"
-    );
 }
 
 #[test]

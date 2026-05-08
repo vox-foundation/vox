@@ -17,7 +17,7 @@ use crate::commands::mens::status;
 
 use crate::commands::mens::probe;
 #[cfg(feature = "gpu")]
-use crate::commands::mens::{eval_local, merge_weights};
+use crate::commands::mens::eval_local;
 #[cfg(feature = "gpu")]
 use crate::commands::schola::merge_qlora;
 
@@ -408,11 +408,6 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             meta,
             output,
         } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output),
-
-        #[cfg(feature = "gpu")]
-        PopuliAction::MergeWeights { checkpoint, output } => {
-            merge_weights::run_merge_weights(checkpoint, output, 0, 0.0)
-        }
 
         #[cfg(feature = "mens-dei")]
         PopuliAction::Generate {

@@ -399,17 +399,6 @@ pub enum PopuliAction {
         output: PathBuf,
     },
 
-    /// Merge a **Burn** LoRA checkpoint (`*.bin`) into dense `model_merged.bin` (needs `training_manifest.json` in the run directory).
-    #[cfg(feature = "gpu")]
-    #[command(name = "merge-weights")]
-    MergeWeights {
-        /// Burn LoRA checkpoint path (`Checkpoint` / `*.bin` from `--backend lora`).
-        checkpoint: PathBuf,
-        /// Output path (default: `<checkpoint_dir>/model_merged.bin`).
-        #[arg(long, short = 'o')]
-        output: Option<PathBuf>,
-    },
-
     /// AI-powered code generation from a natural language prompt
     #[cfg(feature = "mens-dei")]
     Generate {
