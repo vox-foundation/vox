@@ -3,6 +3,8 @@
 .*medium\.com/.*
 # OpenCollective returns 403 to bots; link is valid
 .*opencollective\.com/.*
+# Ink & Switch newsletter returns intermittent 500s; link is valid
+.*inkandswitch\.com/.*
 .*opentelemetry\.io.*
 .*linkedin\.com.*
 .*cursor\.com/.*
