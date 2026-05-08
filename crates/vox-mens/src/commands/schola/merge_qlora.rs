@@ -1,11 +1,8 @@
 //! `vox schola merge-qlora` — fold QLoRA adapter tensors into base f32 weights.
 //!
 //! Dispatches to the `mens-candle-cuda` plugin via `MlBackend::merge_adapter`.
-//! v2/v3 metadata parsing is done here (serde-only, no candle deps) so that the
-//! plugin's `merge_qlora_adapter` entry point can find an `adapter_meta_v2.json`
-//! next to the adapter safetensors file.
+//! The adapter directory must contain `adapter_manifest.json` (v3) written by training.
 
-use std::collections::HashMap;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -16,31 +13,10 @@ use vox_populi::mens::MERGE_QLORA_REJECTS_BURN_BIN;
 
 // ---------------------------------------------------------------------------
 // Inline serde-only schema types (no candle deps).
-// These match the on-disk JSON layouts produced by vox-plugin-mens-candle-cuda.
+// These match the on-disk JSON layout produced by vox-plugin-mens-candle-cuda.
 // ---------------------------------------------------------------------------
 
-/// On-disk sidecar format v2 (legacy).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct QloraAdapterMetaV2 {
-    pub format: String,
-    pub version: u32,
-    pub embed_key: String,
-    pub vocab: usize,
-    pub d_model: usize,
-    pub rank: usize,
-    pub alpha: usize,
-    pub layer_order: Vec<String>,
-    pub base_key_map: HashMap<String, String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub base_model: Option<String>,
-}
-
-impl QloraAdapterMetaV2 {
-    const FORMAT: &'static str = "vox_mens_qlora_lora_only_v2";
-    const VERSION: u32 = 2;
-}
-
-/// On-disk adapter bundle descriptor v3 (current).
+/// On-disk adapter bundle descriptor v3 (current, canonical).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PopuliAdapterManifestV3 {
     pub format: String,
@@ -49,7 +25,7 @@ pub struct PopuliAdapterManifestV3 {
     pub base_quant: String,
     #[serde(default = "default_true")]
     pub double_quant: bool,
-    pub base_key_map: HashMap<String, String>,
+    pub base_key_map: std::collections::HashMap<String, String>,
     pub layer_order: Vec<String>,
     pub vocab: usize,
     pub d_model: usize,
@@ -63,25 +39,6 @@ pub struct PopuliAdapterManifestV3 {
 
 fn default_true() -> bool {
     true
-}
-
-fn v3_to_v2(v3: &PopuliAdapterManifestV3) -> anyhow::Result<QloraAdapterMetaV2> {
-    let embed_key = v3.base_key_map.get("lm_head").cloned().unwrap_or_default();
-    if embed_key.is_empty() {
-        anyhow::bail!("adapter manifest v3: base_key_map missing `lm_head` → HF embed key");
-    }
-    Ok(QloraAdapterMetaV2 {
-        format: QloraAdapterMetaV2::FORMAT.to_string(),
-        version: QloraAdapterMetaV2::VERSION,
-        embed_key,
-        vocab: v3.vocab,
-        d_model: v3.d_model,
-        rank: v3.rank,
-        alpha: v3.alpha,
-        layer_order: v3.layer_order.clone(),
-        base_key_map: v3.base_key_map.clone(),
-        base_model: v3.base_model.clone(),
-    })
 }
 
 pub fn run_merge_qlora(
@@ -112,29 +69,23 @@ pub fn run_merge_qlora(
         anyhow::bail!("meta JSON not found: {}", meta.display());
     }
 
-    // Parse meta (v2 or v3) and normalise to v2.
+    // Parse v3 manifest (validate it's readable before dispatching to plugin).
     let raw = read_utf8_path_capped(&meta).with_context(|| format!("read {}", meta.display()))?;
-    let meta_v2: QloraAdapterMetaV2 =
-        if let Ok(m) = serde_json::from_str::<QloraAdapterMetaV2>(&raw) {
-            m
-        } else {
-            let v3: PopuliAdapterManifestV3 = serde_json::from_str(&raw)
-                .with_context(|| format!("parse meta as v2 or v3 {}", meta.display()))?;
-            v3_to_v2(&v3).with_context(|| "adapter manifest v3 → v2 bridge")?
-        };
+    let manifest: PopuliAdapterManifestV3 = serde_json::from_str(&raw)
+        .with_context(|| format!("parse adapter manifest v3 from {}", meta.display()))?;
 
-    // The plugin's merge_qlora_adapter reads `adapter_meta_v2.json` (or `meta.json`)
-    // from the adapter's parent directory and scans the base_path directory for shards.
-    // We write the v2 meta next to the adapter so the plugin can find it.
+    // Ensure adapter_manifest.json exists next to the adapter .safetensors so
+    // the plugin can find it. If the user pointed --meta at a file in the adapter
+    // dir with a different name, copy it as adapter_manifest.json.
     let adapter_dir = adapter
         .parent()
         .map(std::path::Path::to_path_buf)
         .unwrap_or_else(|| std::path::PathBuf::from("."));
-    let sidecar_path = adapter_dir.join("adapter_meta_v2.json");
-    let sidecar_json =
-        serde_json::to_string_pretty(&meta_v2).context("serialize adapter meta v2")?;
-    std::fs::write(&sidecar_path, &sidecar_json)
-        .with_context(|| format!("write {}", sidecar_path.display()))?;
+    let canonical_manifest = adapter_dir.join("adapter_manifest.json");
+    if meta.canonicalize().ok() != canonical_manifest.canonicalize().ok() {
+        std::fs::write(&canonical_manifest, &raw)
+            .with_context(|| format!("write {}", canonical_manifest.display()))?;
+    }
 
     // Use the parent directory of the first shard as the base model directory.
     let base_dir = base_shards[0]
@@ -161,13 +112,10 @@ pub fn run_merge_qlora(
             .map_err(|e| anyhow::anyhow!("merge_adapter: {e}"))
     })();
 
-    // Clean up the sidecar we wrote regardless of outcome.
-    let _ = std::fs::remove_file(&sidecar_path);
-
     result?;
 
     eprintln!("Wrote merged tensors (subset) to {}", output.display());
-    let base = meta_v2
+    let base = manifest
         .base_model
         .as_deref()
         .filter(|s| !s.trim().is_empty())

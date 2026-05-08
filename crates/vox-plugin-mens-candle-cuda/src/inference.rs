@@ -22,7 +22,7 @@ use crate::model::{
     Qwen35LinearAttention, Qwen35Model,
 };
 use crate::hf_layout::HfArchitecture;
-use crate::merge::QloraAdapterMetaV2;
+use crate::adapter_schema_v3::PopuliAdapterManifestV3;
 
 pub struct InferenceEngine {
     pub model: InferenceModel,
@@ -34,14 +34,10 @@ pub enum InferenceModel {
     Qwen35(Qwen35Model),
 }
 
-fn resolve_adapter_meta_path(model_dir: &Path) -> Option<std::path::PathBuf> {
-    let meta_v2 = model_dir.join("adapter_meta_v2.json");
-    if meta_v2.is_file() {
-        return Some(meta_v2);
-    }
-    let meta_legacy = model_dir.join("meta.json");
-    if meta_legacy.is_file() {
-        return Some(meta_legacy);
+fn resolve_adapter_manifest_path(model_dir: &Path) -> Option<std::path::PathBuf> {
+    let manifest = model_dir.join("adapter_manifest.json");
+    if manifest.is_file() {
+        return Some(manifest);
     }
     None
 }
@@ -64,19 +60,19 @@ impl InferenceEngine {
         };
 
         let adapter_path = model_dir.join("candle_qlora_adapter.safetensors");
-        let meta_path = resolve_adapter_meta_path(model_dir)
-            .unwrap_or_else(|| model_dir.join("adapter_meta_v2.json"));
+        let meta_path = resolve_adapter_manifest_path(model_dir)
+            .unwrap_or_else(|| model_dir.join("adapter_manifest.json"));
 
         if !adapter_path.is_file() || !meta_path.is_file() {
             anyhow::bail!(
-                "LoRA adapter or adapter_meta_v2.json/meta.json not found in {}",
+                "LoRA adapter or adapter_manifest.json not found in {}",
                 model_dir.display()
             );
         }
 
         let meta_raw = std::fs::read_to_string(&meta_path)
-            .map_err(|e| anyhow::anyhow!("read meta {}: {e}", meta_path.display()))?;
-        let meta: QloraAdapterMetaV2 = serde_json::from_str(&meta_raw)?;
+            .map_err(|e| anyhow::anyhow!("read manifest {}: {e}", meta_path.display()))?;
+        let meta: PopuliAdapterManifestV3 = serde_json::from_str(&meta_raw)?;
 
         // Resolve base shards — local directory only; hub download is deferred (see module doc).
         let base_shards = if let Some(ref base) = meta.base_model {
@@ -94,13 +90,13 @@ impl InferenceEngine {
             } else {
                 anyhow::bail!(
                     "base_model '{}' is not a local directory. Hub download is not supported in \
-                     the plugin; pre-download the model to a local path and update adapter_meta_v2.json.",
+                     the plugin; pre-download the model to a local path and update adapter_manifest.json.",
                     base
                 );
             }
         } else {
             anyhow::bail!(
-                "adapter metadata missing `base_model` reference (adapter_meta_v2.json/meta.json). Cannot load frozen weights."
+                "adapter manifest missing `base_model` reference. Cannot load frozen weights."
             );
         };
 
@@ -452,25 +448,18 @@ pub fn run(model_dir: &str, prompt_json: &str) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_adapter_meta_path;
+    use super::resolve_adapter_manifest_path;
 
     #[test]
-    fn resolve_adapter_meta_prefers_v2_then_legacy() {
+    fn resolve_adapter_manifest_finds_v3() {
         let d = tempfile::tempdir().expect("tempdir");
-        assert!(resolve_adapter_meta_path(d.path()).is_none());
+        assert!(resolve_adapter_manifest_path(d.path()).is_none());
 
-        let legacy = d.path().join("meta.json");
-        std::fs::write(&legacy, "{}").expect("legacy");
+        let manifest = d.path().join("adapter_manifest.json");
+        std::fs::write(&manifest, "{}").expect("manifest");
         assert_eq!(
-            resolve_adapter_meta_path(d.path()).as_deref(),
-            Some(legacy.as_path())
-        );
-
-        let v2 = d.path().join("adapter_meta_v2.json");
-        std::fs::write(&v2, "{}").expect("v2");
-        assert_eq!(
-            resolve_adapter_meta_path(d.path()).as_deref(),
-            Some(v2.as_path())
+            resolve_adapter_manifest_path(d.path()).as_deref(),
+            Some(manifest.as_path())
         );
     }
 }

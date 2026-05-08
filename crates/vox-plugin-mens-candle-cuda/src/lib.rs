@@ -32,7 +32,6 @@ pub mod external_serving_handoff;
 pub mod finetune_contract;
 pub mod manifest;
 pub mod model_card;
-pub mod qlora_adapter_meta;
 pub mod telemetry;
 pub mod telemetry_schema;
 pub mod train_jsonl_preflight;

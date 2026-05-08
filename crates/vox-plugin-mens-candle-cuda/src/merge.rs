@@ -1,6 +1,6 @@
-//! Merge exported Candle QLoRA adapter (v2) into base f32 weights.
+//! Merge exported Candle QLoRA adapter into base f32 weights.
 //!
-//! Ported verbatim from `vox-populi/src/mens/tensor/candle_qlora_merge.rs`.
+//! Reads the v3 adapter manifest (`adapter_manifest.json`) written by training.
 //! The `vox_bounded_fs::read_utf8_path_capped` calls are replaced with plain
 //! `std::fs::read_to_string` to avoid pulling `vox-scaling-policy` into the plugin.
 
@@ -12,30 +12,8 @@ use candle_core::{DType, Device, Tensor};
 use safetensors::SafeTensors;
 use safetensors::serialize;
 use safetensors::tensor::{Dtype, TensorView};
-use serde::{Deserialize, Serialize};
 
-/// Sidecar written next to `candle_qlora_adapter.safetensors` for format v2.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QloraAdapterMetaV2 {
-    pub format: String,
-    pub version: u32,
-    pub embed_key: String,
-    pub vocab: usize,
-    pub d_model: usize,
-    pub rank: usize,
-    pub alpha: usize,
-    /// Adapter logical names in training order (`mid0`, …, `lm_head`).
-    pub layer_order: Vec<String>,
-    /// Maps adapter name → base safetensors key for that frozen weight.
-    pub base_key_map: HashMap<String, String>,
-    /// Base model repo ID or path (used during inference to auto-resolve shards).
-    pub base_model: Option<String>,
-}
-
-impl QloraAdapterMetaV2 {
-    pub const FORMAT: &'static str = "vox_mens_qlora_lora_only_v2";
-    pub const VERSION: u32 = 2;
-}
+use crate::adapter_schema_v3::PopuliAdapterManifestV3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum AdapterFamily {
@@ -121,17 +99,17 @@ fn load_f32_tensor_from_shards(
 }
 
 /// Merge adapter LoRA tensors into base weights; write only merged keys (f32).
-pub fn merge_qlora_v2_into_base_subset(
+pub fn merge_qlora_into_base_subset(
     base_paths: &[std::path::PathBuf],
     adapter_path: &Path,
-    meta: &QloraAdapterMetaV2,
+    meta: &PopuliAdapterManifestV3,
     out_path: &Path,
 ) -> anyhow::Result<()> {
-    if meta.format != QloraAdapterMetaV2::FORMAT {
+    if meta.format != PopuliAdapterManifestV3::FORMAT {
         anyhow::bail!(
-            "unsupported adapter meta format {:?}, expected {}",
+            "unsupported adapter manifest format {:?}, expected {}",
             meta.format,
-            QloraAdapterMetaV2::FORMAT
+            PopuliAdapterManifestV3::FORMAT
         );
     }
 
@@ -226,22 +204,20 @@ pub fn merge_qlora_adapter(
     let adapter_p = std::path::Path::new(adapter_path);
     let out_p = std::path::Path::new(dest_path);
 
-    // Load metadata from adapter directory (sibling of adapter .safetensors)
+    // Load v3 manifest from adapter directory (sibling of adapter .safetensors)
     let meta_dir = adapter_p.parent().unwrap_or(std::path::Path::new("."));
-    let meta_path = if meta_dir.join("adapter_meta_v2.json").is_file() {
-        meta_dir.join("adapter_meta_v2.json")
-    } else if meta_dir.join("meta.json").is_file() {
-        meta_dir.join("meta.json")
+    let meta_path = if meta_dir.join("adapter_manifest.json").is_file() {
+        meta_dir.join("adapter_manifest.json")
     } else {
         anyhow::bail!(
-            "adapter metadata (adapter_meta_v2.json or meta.json) not found in {}",
+            "adapter manifest (adapter_manifest.json) not found in {}",
             meta_dir.display()
         );
     };
     let meta_raw = std::fs::read_to_string(&meta_path)
         .with_context(|| format!("read {}", meta_path.display()))?;
-    let meta: QloraAdapterMetaV2 = serde_json::from_str(&meta_raw)
-        .with_context(|| "parse adapter metadata JSON")?;
+    let meta: PopuliAdapterManifestV3 = serde_json::from_str(&meta_raw)
+        .with_context(|| "parse adapter manifest JSON")?;
 
     // Collect base shards from base_path directory
     let mut base_shards = Vec::new();
@@ -257,7 +233,7 @@ pub fn merge_qlora_adapter(
     }
     base_shards.sort();
 
-    merge_qlora_v2_into_base_subset(&base_shards, adapter_p, &meta, out_p)
+    merge_qlora_into_base_subset(&base_shards, adapter_p, &meta, out_p)
 }
 
 #[cfg(test)]
@@ -329,20 +305,21 @@ mod tests {
 
         let mut base_key_map = HashMap::new();
         base_key_map.insert("lm_head".into(), "wte.weight".into());
-        let meta = QloraAdapterMetaV2 {
-            format: QloraAdapterMetaV2::FORMAT.to_string(),
-            version: QloraAdapterMetaV2::VERSION,
-            embed_key: "wte.weight".into(),
+        let meta = PopuliAdapterManifestV3::new(
+            crate::finetune_contract::AdapterMethod::Qlora,
+            crate::finetune_contract::BaseQuantMode::Nf4,
+            true,
+            base_key_map,
+            vec!["lm_head".into()],
             vocab,
-            d_model: d,
+            d,
             rank,
             alpha,
-            layer_order: vec!["lm_head".into()],
-            base_key_map,
-            base_model: None,
-        };
+            None,
+            None,
+        );
         let out_path = dir.path().join("merged.safetensors");
-        merge_qlora_v2_into_base_subset(&[base_path], &ad_path, &meta, &out_path).expect("merge");
+        merge_qlora_into_base_subset(&[base_path], &ad_path, &meta, &out_path).expect("merge");
 
         let bytes = std::fs::read(&out_path).unwrap();
         let st = SafeTensors::deserialize(&bytes).unwrap();

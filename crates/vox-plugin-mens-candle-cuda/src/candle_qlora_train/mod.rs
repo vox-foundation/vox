@@ -21,7 +21,6 @@ use rand::SeedableRng;
 use rand::seq::SliceRandom;
 use tokenizers::Tokenizer;
 
-pub(super) use crate::qlora_adapter_meta::QloraAdapterMetaV2;
 use crate::device::DeviceKind;
 use crate::hf_layout::HfArchitecture;
 use crate::qlora_preflight::preflight_native_qlora;

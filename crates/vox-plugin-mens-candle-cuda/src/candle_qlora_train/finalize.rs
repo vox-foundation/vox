@@ -8,7 +8,7 @@ use std::time::Instant;
 use anyhow::{Context, Result};
 use qlora_rs::training::QLoraTrainer;
 
-use super::{QloraAdapterMetaV2, TrainingDbEvent, TrainingLoopStats};
+use super::{TrainingDbEvent, TrainingLoopStats};
 use crate::{
     adapter_schema_v3::{AdapterProvenanceFields, PopuliAdapterManifestV3},
     config::LoraTrainingConfig,
@@ -125,21 +125,6 @@ pub(super) fn finalize_training_run(
         ));
     }
 
-    let meta = QloraAdapterMetaV2 {
-        format: QloraAdapterMetaV2::FORMAT.to_string(),
-        version: QloraAdapterMetaV2::VERSION,
-        embed_key: bundle.embed_key.clone(),
-        vocab: bundle.vocab,
-        d_model: bundle.d_model,
-        rank: config.rank,
-        alpha: config.alpha as usize,
-        layer_order: adapter_layer_order.to_vec(),
-        base_key_map: base_key_map.clone(),
-        base_model: config.base_model.clone(),
-    };
-    let meta_json = serde_json::to_string_pretty(&meta)?;
-    std::fs::write(out.join("adapter_meta_v2.json"), &meta_json)?;
-    std::fs::write(out.join("meta.json"), &meta_json)?;
     let adapter_manifest_v3 = build_adapter_manifest_v3(
         bundle.vocab,
         bundle.d_model,
@@ -149,10 +134,8 @@ pub(super) fn finalize_training_run(
         adapter_layer_order,
         base_key_map,
     );
-    std::fs::write(
-        out.join("populi_adapter_manifest_v3.json"),
-        serde_json::to_string_pretty(&adapter_manifest_v3)?,
-    )?;
+    let manifest_json = serde_json::to_string_pretty(&adapter_manifest_v3)?;
+    std::fs::write(out.join("adapter_manifest.json"), &manifest_json)?;
 
     CheckpointState::delete(out);
 
