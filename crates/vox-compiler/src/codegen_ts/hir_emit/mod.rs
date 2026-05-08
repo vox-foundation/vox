@@ -17,7 +17,7 @@ mod state_deps;
 use crate::hir::*;
 use std::collections::HashSet;
 
-pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag};
+pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag, ts_string_literal};
 pub(crate) use state_deps::extract_state_deps_with_diagnostics;
 
 /// Unwrap a single-expression block used as a JSX / attribute value (matches AST `unwrap_block`).
@@ -114,7 +114,7 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
     match expr {
         HirExpr::IntLit(v, _) => v.to_string(),
         HirExpr::FloatLit(v, _) => v.to_string(),
-        HirExpr::StringLit(v, _) => format!("\"{v}\""),
+        HirExpr::StringLit(v, _) => compat::ts_string_literal(v),
         HirExpr::BoolLit(v, _) => v.to_string(),
         HirExpr::Ident(name, _) => name.clone(),
         HirExpr::Binary(op, left, right, _) => {
@@ -350,7 +350,7 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             // A common TS code pattern is to just emit the target since actual error bubbling requires explicit branching. For basic TS compat we'll emit the unwrapped expression.
             emit_hir_expr(h.target.as_ref(), state_names)
         }
-        HirExpr::DecimalLit(v, _) => format!("\"{v}\""),
+        HirExpr::DecimalLit(v, _) => compat::ts_string_literal(v),
 
         HirExpr::Spawn(target, _) => {
             let t = emit_hir_expr(target, state_names);
@@ -498,7 +498,7 @@ pub(crate) fn emit_hir_pattern(pattern: &HirPattern) -> String {
         HirPattern::Literal(lit, _) => match lit.as_ref() {
             HirExpr::IntLit(v, _) => v.to_string(),
             HirExpr::FloatLit(v, _) => v.to_string(),
-            HirExpr::StringLit(s, _) => format!("\"{s}\""),
+            HirExpr::StringLit(s, _) => compat::ts_string_literal(s),
             HirExpr::BoolLit(b, _) => b.to_string(),
             _ => "_".to_string(),
         },

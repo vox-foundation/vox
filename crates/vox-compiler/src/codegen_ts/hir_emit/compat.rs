@@ -5,6 +5,16 @@
 
 use crate::hir::HirType;
 
+/// Quote a Vox string for emission as a TypeScript/JavaScript double-quoted string literal.
+///
+/// Uses `serde_json::to_string`, which produces a string that's simultaneously valid JSON
+/// and valid JS/TS — escapes inner `"`, `\`, and control characters. Falls back to a naive
+/// quote on the (impossible-in-practice) serde_json failure path.
+#[must_use]
+pub fn ts_string_literal(s: &str) -> String {
+    serde_json::to_string(s).unwrap_or_else(|_| format!("\"{s}\""))
+}
+
 #[must_use]
 pub fn map_hir_type_to_ts(ty: &HirType) -> String {
     match ty {
@@ -81,5 +91,30 @@ pub fn map_jsx_tag(tag: &str) -> &str {
         "foreign_object" => "foreignObject",
         "fe_gaussian_blur" => "feGaussianBlur",
         _ => tag,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ts_string_literal_escapes_inner_double_quotes() {
+        // Bug C: emitting `{"k":"v"}` as a TS literal must escape inner quotes.
+        let out = ts_string_literal(r#"{"mood_score":3}"#);
+        assert_eq!(out, r#""{\"mood_score\":3}""#);
+    }
+
+    #[test]
+    fn ts_string_literal_escapes_backslashes_and_controls() {
+        assert_eq!(ts_string_literal("a\\b"), r#""a\\b""#);
+        assert_eq!(ts_string_literal("a\nb"), r#""a\nb""#);
+        assert_eq!(ts_string_literal("a\tb"), r#""a\tb""#);
+    }
+
+    #[test]
+    fn ts_string_literal_plain_strings_unchanged() {
+        assert_eq!(ts_string_literal("hello"), r#""hello""#);
+        assert_eq!(ts_string_literal(""), r#""""#);
     }
 }
