@@ -6,9 +6,49 @@ use crate::lexer::token::Token;
 
 impl Parser {
     pub(crate) fn parse_typedef(&mut self, is_pub: bool) -> Result<Decl, ()> {
+        // After the type name, peek to disambiguate:
+        //   `type Foo { f: T, ... }` — struct (product type, brace body)
+        //   `type Foo = | A | B(...)` — ADT / alias (existing path)
         let start = self.span();
         self.advance(); // eat 'type'
         let name = self.parse_ident_name()?;
+
+        // Struct branch: `type Name { f: T, ... }`
+        if matches!(self.peek(), Token::LBrace) {
+            self.advance(); // eat `{`
+            let mut struct_fields = Vec::new();
+            loop {
+                self.skip_newlines();
+                if self.eat(&Token::RBrace) {
+                    break;
+                }
+                if matches!(self.peek(), Token::Eof) {
+                    break;
+                }
+                let fstart = self.span();
+                let fname = self.parse_ident_name()?;
+                self.expect(&Token::Colon)?;
+                let ftype = self.parse_type_expr()?;
+                struct_fields.push(VariantField {
+                    name: fname,
+                    type_ann: ftype,
+                    span: fstart.merge(self.span()),
+                });
+                self.eat(&Token::Comma);
+            }
+            return Ok(Decl::TypeDef(TypeDefDecl {
+                name,
+                generics: vec![],
+                variants: vec![],
+                fields: struct_fields,
+                type_alias: None,
+                json_layout: None,
+                is_pub,
+                is_deprecated: false,
+                span: start.merge(self.span()),
+            }));
+        }
+
         self.expect(&Token::Eq)?;
         self.skip_newlines();
         // Variants may appear inline (| A | B) or on separate lines

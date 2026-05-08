@@ -122,6 +122,11 @@ impl LowerCtx {
                     span: v.span,
                 })
                 .collect(),
+            fields: t
+                .fields
+                .iter()
+                .map(|f| (f.name.clone(), self.lower_type(&f.type_ann)))
+                .collect(),
             is_pub: t.is_pub,
             span: t.span,
         }
