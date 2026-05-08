@@ -12,7 +12,7 @@ default = [
     "mcp-native",
 ]
 dashboard = ["dep:vox-dashboard"]
-mcp-native = ["dep:schemars"]
+mcp-native = ["dep:schemars", "dep:axum", "dep:rmcp", "dep:axum-extra", "dep:tower-http"]
 # Populi HTTP mesh client (`vox-populi` transport). Disable for faster `cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate`.
 populi-transport = ["dep:vox-populi", "vox-populi/transport"]
 # `vox-oratio` speech-to-text / refinement tools.
@@ -86,12 +86,12 @@ serde_yaml.workspace = true
 vox-mcp-registry.workspace = true
 vox-capability-registry.workspace = true
 vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
-rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
-axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio", "ws"] }
+rmcp = { version = "0.16", optional = true, features = ["server", "client", "transport-io"] }
+axum = { version = "0.8", optional = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
-tower-http = { workspace = true, features = ["cors"] }
+tower-http = { workspace = true, optional = true, features = ["cors"] }
 vox-grammar-export.workspace = true
-axum-extra = { version = "0.12.5", features = ["typed-header"] }
+axum-extra = { version = "0.12.5", optional = true, features = ["typed-header"] }
 regex = "1"
 vox-corpus = { workspace = true, features = ["database"] }
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.

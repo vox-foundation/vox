@@ -349,8 +349,8 @@ jobs:
           cargo test -p vox-workflow-runtime
           cargo check -p vox-cli --features mesh,workflow-runtime
 
-      - name: Orchestrator no-default-features (news-publish off)
-        run: cargo check -p vox-orchestrator --no-default-features --features runtime,json-schema,mcp-native,toestub-gate
+      - name: Orchestrator slim build (news-publish + mcp-native off → no axum/rmcp)
+        run: cargo check -p vox-orchestrator --no-default-features --features runtime,json-schema,toestub-gate
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
