@@ -30,7 +30,7 @@ pub enum LudusChannel {
 
 /// Effective Ludus UX channel (`VOX_LUDUS_CHANNEL` overrides, else derived from mode).
 pub fn ludus_channel() -> LudusChannel {
-    if let Some(raw) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusChannel).expose() {
+    if let Some(raw) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusChannel).expose() {
         match raw.to_lowercase().as_str() {
             "off" => return LudusChannel::Off,
             "serious" => return LudusChannel::Serious,
@@ -64,7 +64,7 @@ pub enum McpToolArgsStorage {
 /// `VOX_LUDUS_MCP_TOOL_ARGS`: `full` (default) | `hash` | `omit`.
 #[must_use]
 pub fn mcp_tool_args_storage() -> McpToolArgsStorage {
-    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusMcpToolArgs)
+    match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusMcpToolArgs)
         .expose()
         .unwrap_or_default()
         .to_lowercase()
@@ -78,7 +78,7 @@ pub fn mcp_tool_args_storage() -> McpToolArgsStorage {
 
 /// When `VOX_LUDUS_EXPERIMENT` is set, scales teaching hint frequency for measurable A/B arms (see policy snapshots).
 pub fn experiment_hint_frequency_multiplier() -> f64 {
-    let exp_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusExperiment);
+    let exp_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusExperiment);
     let Some(exp) = exp_resolved.expose() else {
         return 1.0;
     };
@@ -105,7 +105,7 @@ pub fn load() -> VoxConfig {
 /// Effective config: disk + session env overrides + emergency kill-switch.
 pub fn load_effective() -> VoxConfig {
     let mut c = VoxConfig::load();
-    let emergency_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusEmergencyOff);
+    let emergency_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusEmergencyOff);
     if matches!(
         emergency_resolved
             .expose()
@@ -118,13 +118,13 @@ pub fn load_effective() -> VoxConfig {
         return c;
     }
     let session_enabled_resolved =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusSessionEnabled);
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusSessionEnabled);
     if let Some(v) = session_enabled_resolved.expose() {
         let low = v.to_lowercase();
         c.gamify_enabled = matches!(low.as_str(), "1" | "true" | "yes");
     }
     let session_mode_resolved =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusSessionMode);
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusSessionMode);
     if let Some(v) = session_mode_resolved.expose() {
         match v.to_lowercase().as_str() {
             "serious" => c.gamify_mode = GamifyMode::Serious,
@@ -150,7 +150,7 @@ pub fn mode() -> GamifyMode {
 /// Label persisted on policy snapshots; appends non-empty `VOX_LUDUS_EXPERIMENT` for A/B tagging.
 pub fn policy_snapshot_mode_label() -> String {
     let base = format!("{:?}", mode());
-    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusExperiment).expose() {
+    match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusExperiment).expose() {
         Some(exp) => {
             let t = exp.trim();
             if t.is_empty() {
@@ -171,7 +171,7 @@ pub fn reward_multiplier() -> f64 {
 /// Second experiment knob: multiply policy XP/crystals when `VOX_LUDUS_EXPERIMENT_REWARD_MULT` is a finite positive number (default `1.0`).
 #[must_use]
 pub fn experiment_reward_multiplier() -> f64 {
-    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusExperimentRewardMult).expose() {
+    match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusExperimentRewardMult).expose() {
         Some(s) => {
             let t = s.trim();
             if t.is_empty() {

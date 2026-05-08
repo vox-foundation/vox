@@ -39,7 +39,7 @@ const LATIN_STRUCTURAL_DENYLIST: &[(&str, &str)] = &[
 const HISTORICAL_ALLOWLIST: &[&str] = &[
     "vox-dei",          // grandfathered — being migrated to vox-orchestrator (Phase 3)
     "vox-openclaw-runtime",  // grandfathered — ARS runtime extracted from vox-skills::ars_shim; canonical replacement for retired vox-ars
-    "vox-clavis",       // canonical secret manager — name IS its Latin identity (policy exception)
+    "vox-secrets",       // canonical secret manager — name IS its Latin identity (policy exception)
     "vox-orchestrator", // canonical English — permitted
     "vox-skills",       // canonical English — permitted
     "vox-gamify",        // grandfathered — being migrated to vox-gamification
@@ -154,7 +154,7 @@ mod tests {
     fn historical_allowlist_contains_grandfathered_crates() {
         assert!(HISTORICAL_ALLOWLIST.contains(&"vox-dei"));
         assert!(HISTORICAL_ALLOWLIST.contains(&"vox-openclaw-runtime"));
-        assert!(HISTORICAL_ALLOWLIST.contains(&"vox-clavis"));
+        assert!(HISTORICAL_ALLOWLIST.contains(&"vox-secrets"));
     }
 
     #[test]

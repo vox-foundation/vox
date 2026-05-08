@@ -419,7 +419,7 @@ pub async fn bench_build_run(
             )
             .await;
             let benchmark_telemetry_resolved =
-                vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBenchmarkTelemetry);
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBenchmarkTelemetry);
             if benchmark_telemetry_resolved
                 .expose()
                 .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"))

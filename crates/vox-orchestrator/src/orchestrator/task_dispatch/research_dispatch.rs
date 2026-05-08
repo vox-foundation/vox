@@ -101,7 +101,7 @@ impl Orchestrator {
                 // In production, this might map to a custom local inference server or an external expert model.
                 let config = LlmConfig::openrouter("anthropic/claude-3.5-sonnet:beta");
                 if let Some(_key) =
-                    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken).expose()
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken).expose()
                 {
                     // Overwrite if hitting internal mesh. For now, we fallback to standard LLM pipeline.
                     tracing::debug!("Using specific Lane G auth");

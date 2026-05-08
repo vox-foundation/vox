@@ -34,7 +34,7 @@ impl PlacementReasonCode {
 /// Resolve a stable Populi node id used by orchestrator lease calls.
 #[must_use]
 pub fn lease_claimer_node_id(cfg: &OrchestratorConfig) -> String {
-    let preferred = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
+    let preferred = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshNodeId)
         .expose()
         .map(std::string::ToString::to_string)
         .or_else(|| cfg.populi_scope_id.clone())

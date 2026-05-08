@@ -20,7 +20,7 @@ tracing = { workspace = true }
 vox-config.workspace = true
 vox-orchestrator-types.workspace = true
 vox-primitives.workspace = true
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 vox-plugin-host = { workspace = true }
 vox-skills.workspace = true
 vox-openclaw-runtime = { workspace = true }

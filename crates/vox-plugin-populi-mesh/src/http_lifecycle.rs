@@ -33,7 +33,7 @@ pub enum PopuliHttpJoinSpawnOutcome {
 /// `VOX_MESH_HTTP_JOIN` `0` / `false` disables join and heartbeat.
 #[must_use]
 pub fn populi_http_join_disabled_from_env() -> bool {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshHttpJoin)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshHttpJoin)
         .expose()
         .map(|v| {
             let v = v.trim();
@@ -46,7 +46,7 @@ pub fn populi_http_join_disabled_from_env() -> bool {
 #[must_use]
 pub fn populi_http_control_base_from_env() -> Option<String> {
     if let Some(v) =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshControlUrl).expose()
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorMeshControlUrl).expose()
     {
         let t = v.trim();
         if !t.is_empty() {
@@ -55,7 +55,7 @@ pub fn populi_http_control_base_from_env() -> Option<String> {
             }
         }
     }
-    if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshControlAddr).expose() {
+    if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshControlAddr).expose() {
         let t = v.trim();
         if !t.is_empty() {
             if let Some(b) = crate::normalize_http_control_base(t) {
@@ -69,7 +69,7 @@ pub fn populi_http_control_base_from_env() -> Option<String> {
 /// Request timeout for populi HTTP client (**`VOX_ORCHESTRATOR_MESH_HTTP_TIMEOUT_MS`**, min 500, default 15000).
 #[must_use]
 pub fn populi_http_timeout_ms_from_env() -> u64 {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshHttpTimeoutMs)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorMeshHttpTimeoutMs)
         .expose()
         .and_then(|s| s.trim().parse().ok())
         .filter(|n| *n >= 500)
@@ -79,7 +79,7 @@ pub fn populi_http_timeout_ms_from_env() -> u64 {
 /// Heartbeat interval (**`VOX_MESH_HTTP_HEARTBEAT_SECS`**, default 30; `0` = join only).
 #[must_use]
 pub fn populi_heartbeat_interval_secs_from_env() -> u64 {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshHttpHeartbeatSecs)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshHttpHeartbeatSecs)
         .expose()
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(30)

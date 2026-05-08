@@ -1,11 +1,11 @@
 //! Cutover + deprecation helpers for Clavis-first LLM routing.
 //!
-//! `VOX_CLAVIS_CUTOVER_PHASE` is defined in `vox-clavis`; routing code uses this module to decide
+//! `VOX_CLAVIS_CUTOVER_PHASE` is defined in `vox-secrets`; routing code uses this module to decide
 //! when legacy env-only configuration should hard-fail vs warn.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use vox_clavis::{OPERATOR_CLAVIS_CUTOVER_PHASE, OPERATOR_CLAVIS_MIGRATION_PHASE, SecretId};
+use vox_secrets::{OPERATOR_CLAVIS_CUTOVER_PHASE, OPERATOR_CLAVIS_MIGRATION_PHASE, SecretId};
 
 static OPENROUTER_CHAT_ENV_WARN_EMITTED: AtomicBool = AtomicBool::new(false);
 

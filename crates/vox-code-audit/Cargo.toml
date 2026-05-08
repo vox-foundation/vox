@@ -23,7 +23,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 vox-scaling-policy = { workspace = true }
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 vox-config = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-orchestrator-types = { workspace = true }

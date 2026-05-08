@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 vox-plugin-api = { workspace = true }
 vox-tensor = { workspace = true }
 vox-db = { workspace = true }
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 vox-eval = { workspace = true }
 vox-compiler = { workspace = true }
 abi_stable = { workspace = true }

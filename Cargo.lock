@@ -10594,27 +10594,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-clavis"
-version = "0.5.0"
-dependencies = [
- "aes-gcm",
- "aho-corasick",
- "blake3",
- "keyring",
- "rand 0.8.5",
- "secrecy",
- "serde",
- "serde_json",
- "strum",
- "thiserror 1.0.69",
- "tokio",
- "turso",
- "vox-bounded-fs",
- "vox-crypto",
- "workspace-hack",
-]
-
-[[package]]
 name = "vox-cli"
 version = "0.5.0"
 dependencies = [
@@ -10666,7 +10645,6 @@ dependencies = [
  "vox-bounded-fs",
  "vox-capability-registry",
  "vox-checksum-manifest",
- "vox-clavis",
  "vox-cli-core",
  "vox-code-audit",
  "vox-compiler",
@@ -10708,6 +10686,7 @@ dependencies = [
  "vox-runtime",
  "vox-scaling-policy",
  "vox-search",
+ "vox-secrets",
  "vox-skills",
  "vox-ssg",
  "vox-wasm-engine",
@@ -10736,10 +10715,10 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "vox-clavis",
  "vox-db",
  "vox-gamify",
  "vox-repository",
+ "vox-secrets",
 ]
 
 [[package]]
@@ -10762,12 +10741,12 @@ dependencies = [
  "thiserror 1.0.69",
  "tracing",
  "vox-bounded-fs",
- "vox-clavis",
  "vox-config",
  "vox-jsonschema-util",
  "vox-orchestrator-types",
  "vox-reqwest-defaults",
  "vox-scaling-policy",
+ "vox-secrets",
  "walkdir",
  "workspace-hack",
 ]
@@ -10795,7 +10774,6 @@ dependencies = [
  "sha3",
  "thiserror 1.0.69",
  "tokio",
- "vox-clavis",
  "vox-compiler-emit",
  "vox-config",
  "vox-deploy-codegen",
@@ -10803,6 +10781,7 @@ dependencies = [
  "vox-grammar-export",
  "vox-jsonschema-util",
  "vox-repository",
+ "vox-secrets",
  "vox-test-harness",
  "which 7.0.3",
  "workspace-hack",
@@ -10820,10 +10799,10 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
- "vox-clavis",
  "vox-compiler",
  "vox-config",
  "vox-deploy-codegen",
+ "vox-secrets",
  "workspace-hack",
  "zstd",
 ]
@@ -10837,7 +10816,7 @@ dependencies = [
  "tempfile",
  "toml 0.8.23",
  "tracing",
- "vox-clavis",
+ "vox-secrets",
  "workspace-hack",
 ]
 
@@ -10949,7 +10928,6 @@ dependencies = [
  "tracing",
  "turso",
  "uuid",
- "vox-clavis",
  "vox-compiler",
  "vox-compiler-emit",
  "vox-config",
@@ -10958,6 +10936,7 @@ dependencies = [
  "vox-orchestrator-types",
  "vox-plugin-types",
  "vox-repository",
+ "vox-secrets",
  "vox-test-harness",
  "workspace-hack",
 ]
@@ -11073,11 +11052,11 @@ dependencies = [
  "tracing",
  "turso",
  "vox-bounded-fs",
- "vox-clavis",
  "vox-config",
  "vox-db",
  "vox-openai-sse",
  "vox-reqwest-defaults",
+ "vox-secrets",
  "workspace-hack",
  "xxhash-rust",
 ]
@@ -11149,7 +11128,6 @@ dependencies = [
  "tower-lsp",
  "tower-lsp-server",
  "vox-bounded-fs",
- "vox-clavis",
  "vox-cli",
  "vox-compiler",
  "vox-compiler-emit",
@@ -11160,6 +11138,7 @@ dependencies = [
  "vox-repository",
  "vox-runtime",
  "vox-scaling-policy",
+ "vox-secrets",
  "vox-skills",
  "vox-test-harness",
  "vox-workflow-runtime",
@@ -11204,10 +11183,10 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "vox-bounded-fs",
- "vox-clavis",
  "vox-compiler",
  "vox-db",
  "vox-gamify",
+ "vox-secrets",
  "workspace-hack",
 ]
 
@@ -11264,7 +11243,6 @@ dependencies = [
  "tracing",
  "uuid",
  "vox-bounded-fs",
- "vox-clavis",
  "vox-cli-core",
  "vox-compiler",
  "vox-config",
@@ -11285,6 +11263,7 @@ dependencies = [
  "vox-reqwest-defaults",
  "vox-runtime",
  "vox-scaling-policy",
+ "vox-secrets",
  "vox-tensor",
  "vox-workflow-runtime",
  "walkdir",
@@ -11329,10 +11308,10 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "uuid",
- "vox-clavis",
  "vox-db",
  "vox-plugin-host",
  "vox-reqwest-defaults",
+ "vox-secrets",
  "workspace-hack",
 ]
 
@@ -11361,10 +11340,10 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "uuid",
- "vox-clavis",
  "vox-compiler",
  "vox-populi",
  "vox-reqwest-defaults",
+ "vox-secrets",
  "workspace-hack",
 ]
 
@@ -11416,7 +11395,6 @@ dependencies = [
  "tracing-subscriber",
  "uuid",
  "vox-bounded-fs",
- "vox-clavis",
  "vox-code-audit",
  "vox-config",
  "vox-corpus",
@@ -11437,6 +11415,7 @@ dependencies = [
  "vox-reqwest-defaults",
  "vox-runtime",
  "vox-search",
+ "vox-secrets",
  "walkdir",
  "workspace-hack",
  "xxhash-rust",
@@ -11452,12 +11431,12 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "vox-clavis",
  "vox-config",
  "vox-db",
  "vox-orchestrator",
  "vox-orchestrator-mcp",
  "vox-repository",
+ "vox-secrets",
  "vox-skills",
  "workspace-hack",
 ]
@@ -11506,7 +11485,6 @@ dependencies = [
  "uuid",
  "vox-bounded-fs",
  "vox-capability-registry",
- "vox-clavis",
  "vox-code-audit",
  "vox-compiler",
  "vox-config",
@@ -11534,6 +11512,7 @@ dependencies = [
  "vox-reqwest-defaults",
  "vox-runtime",
  "vox-search",
+ "vox-secrets",
  "vox-skills",
  "walkdir",
  "workspace-hack",
@@ -11698,11 +11677,11 @@ dependencies = [
  "tokenizers",
  "tokio",
  "tracing",
- "vox-clavis",
  "vox-compiler",
  "vox-db",
  "vox-eval",
  "vox-plugin-api",
+ "vox-secrets",
  "vox-tensor",
 ]
 
@@ -11741,8 +11720,8 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "uuid",
- "vox-clavis",
  "vox-plugin-api",
+ "vox-secrets",
  "workspace-hack",
 ]
 
@@ -11779,7 +11758,6 @@ dependencies = [
  "tracing",
  "turso",
  "vox-bounded-fs",
- "vox-clavis",
  "vox-crypto",
  "vox-db",
  "vox-mesh-types",
@@ -11788,6 +11766,7 @@ dependencies = [
  "vox-primitives",
  "vox-repository",
  "vox-reqwest-defaults",
+ "vox-secrets",
  "workspace-hack",
 ]
 
@@ -11915,7 +11894,6 @@ dependencies = [
  "tracing-test",
  "turso",
  "vox-bounded-fs",
- "vox-clavis",
  "vox-compiler",
  "vox-constrained-gen",
  "vox-corpus",
@@ -11928,6 +11906,7 @@ dependencies = [
  "vox-primitives",
  "vox-repository",
  "vox-reqwest-defaults",
+ "vox-secrets",
  "vox-tensor",
  "workspace-hack",
 ]
@@ -11984,12 +11963,12 @@ dependencies = [
  "tracing",
  "unicode-segmentation",
  "vox-bounded-fs",
- "vox-clavis",
  "vox-config",
  "vox-db",
  "vox-forge",
  "vox-primitives",
  "vox-reqwest-defaults",
+ "vox-secrets",
  "wiremock",
  "workspace-hack",
 ]
@@ -12041,7 +12020,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
- "vox-clavis",
  "vox-config",
  "vox-db",
  "vox-openai-sse",
@@ -12051,6 +12029,7 @@ dependencies = [
  "vox-plugin-host",
  "vox-primitives",
  "vox-reqwest-defaults",
+ "vox-secrets",
  "vox-skills",
  "which 8.0.2",
  "workspace-hack",
@@ -12104,11 +12083,32 @@ dependencies = [
  "tracing",
  "urlencoding",
  "vox-bounded-fs",
- "vox-clavis",
  "vox-config",
  "vox-db",
  "vox-runtime",
+ "vox-secrets",
  "walkdir",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-secrets"
+version = "0.5.0"
+dependencies = [
+ "aes-gcm",
+ "aho-corasick",
+ "blake3",
+ "keyring",
+ "rand 0.8.5",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "strum",
+ "thiserror 1.0.69",
+ "tokio",
+ "turso",
+ "vox-bounded-fs",
+ "vox-crypto",
  "workspace-hack",
 ]
 

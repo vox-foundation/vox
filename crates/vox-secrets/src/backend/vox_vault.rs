@@ -1098,7 +1098,7 @@ fn compute_account_secret_checksum(
 }
 
 fn derive_master_key() -> Result<[u8; 32], SecretError> {
-    let entry = keyring::Entry::new("vox-clavis-vault", "master")
+    let entry = keyring::Entry::new("vox-secrets-vault", "master")
         .map_err(|e| SecretError::BackendMisconfigured(e.to_string()))?;
     let password = match entry.get_password() {
         Ok(value) if !value.is_empty() => value,

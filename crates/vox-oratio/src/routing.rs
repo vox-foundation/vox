@@ -236,11 +236,11 @@ impl Default for RoutingSessionRecord {
 fn routing_session_cap_ttl() -> (usize, Duration) {
     const DEF_CAP: usize = 4096;
     const DEF_TTL_SECS: u64 = 86_400;
-    let cap = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRoutingSessionCap)
+    let cap = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioRoutingSessionCap)
         .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEF_CAP);
-    let ttl_secs = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioRoutingSessionTtlSecs)
+    let ttl_secs = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioRoutingSessionTtlSecs)
         .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEF_TTL_SECS);

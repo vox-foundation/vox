@@ -77,8 +77,8 @@ pub async fn relay_remote_task_envelope(
             let mut resolved_map = std::collections::HashMap::new();
             for sec in arr {
                 if let Some(sec_str) = sec.as_str() {
-                    if let Ok(id) = sec_str.parse::<vox_clavis::spec::SecretId>() {
-                        let res = vox_clavis::resolve_secret(id);
+                    if let Ok(id) = sec_str.parse::<vox_secrets::spec::SecretId>() {
+                        let res = vox_secrets::resolve_secret(id);
                         if let Some(val) = res.expose() {
                             resolved_map.insert(sec_str.to_string(), val.to_string());
                         }
@@ -87,7 +87,7 @@ pub async fn relay_remote_task_envelope(
             }
             if !resolved_map.is_empty() {
                 let mesh_secret_res =
-                    vox_clavis::resolve_secret(vox_clavis::spec::SecretId::VoxMeshJwtHmacSecret);
+                    vox_secrets::resolve_secret(vox_secrets::spec::SecretId::VoxMeshJwtHmacSecret);
                 if let Some(mesh_val) = mesh_secret_res.expose() {
                     let derived = blake3::hash(mesh_val.as_bytes());
                     if let Ok(secret_json) = serde_json::to_string(&resolved_map) {

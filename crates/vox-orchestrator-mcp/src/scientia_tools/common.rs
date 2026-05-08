@@ -68,7 +68,7 @@ pub fn worthiness_score_for_row(row: &vox_db::PublicationManifestRow) -> Option<
 
 pub fn mcp_social_worthiness_enforce(state: &ServerState) -> bool {
     state.orchestrator_config.news.worthiness_enforce
-        || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialWorthinessEnforce)
+        || vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSocialWorthinessEnforce)
             .expose()
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false)
@@ -80,7 +80,7 @@ pub fn mcp_social_worthiness_score_min(state: &ServerState) -> f64 {
         .news
         .worthiness_score_min
         .or_else(|| {
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialWorthinessScoreMin)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSocialWorthinessScoreMin)
                 .expose()
                 .and_then(|v| v.parse().ok())
         })

@@ -473,7 +473,7 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
                 )
                 .to_json();
             };
-            let repository_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot)
+            let repository_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot)
                 .expose()
                 .unwrap_or("default")
                 .to_string();

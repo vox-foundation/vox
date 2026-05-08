@@ -18,7 +18,7 @@ pub async fn run_observer_loop(orch: Arc<Orchestrator>) {
     let repository_id =
         vox_repository::discover_repository_or_fallback(std::path::Path::new(".")).repository_id;
 
-    let node_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshNodeId)
+    let node_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshNodeId)
         .expose()
         .map(|s| s.trim().to_string());
 

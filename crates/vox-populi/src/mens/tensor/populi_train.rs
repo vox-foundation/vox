@@ -16,14 +16,14 @@ pub struct MeshTrainConfig {
 
 pub fn is_mesh_mode() -> bool {
     // Check environment; default to false (single-node)
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshTrain)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshTrain)
         .expose()
         .map(|v: &str| v == "1")
         .unwrap_or(false)
 }
 
 pub fn get_mesh_rank() -> usize {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshRank)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshRank)
         .expose()
         .and_then(|v: &str| v.parse().ok())
         .unwrap_or(0)

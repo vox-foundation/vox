@@ -130,7 +130,7 @@ pub fn validate_document_with_hir(text: &str) -> Vec<Diagnostic> {
 }
 
 fn vox_populi_enabled_from_env() -> bool {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshEnabled)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshEnabled)
         .expose()
         .map(|v: &str| {
             let v = v.trim();

@@ -221,8 +221,8 @@ impl ModelRegistry {
     }
 
     fn min_refresh_interval() -> Duration {
-        let secs = vox_clavis::resolve_secret(
-            vox_clavis::SecretId::VoxOpenRouterCatalogMinRefreshIntervalSecs,
+        let secs = vox_secrets::resolve_secret(
+            vox_secrets::SecretId::VoxOpenRouterCatalogMinRefreshIntervalSecs,
         )
         .expose()
         .and_then(|v| v.parse::<u64>().ok())
@@ -231,7 +231,7 @@ impl ModelRegistry {
     }
 
     fn jitter_ms() -> u64 {
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenRouterCatalogRefreshJitterMs)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenRouterCatalogRefreshJitterMs)
             .expose()
             .and_then(|v| v.parse::<u64>().ok())
             .unwrap_or(0)
@@ -315,9 +315,9 @@ impl ModelRegistry {
 
                 #[cfg(feature = "populi-transport")]
                 {
-                    let mut control_url_opt = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshControlUrl).expose().map(|s| s.to_string());
+                    let mut control_url_opt = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorMeshControlUrl).expose().map(|s| s.to_string());
                     if control_url_opt.is_none() {
-                        control_url_opt = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshControlAddr).expose().map(|s| s.to_string());
+                        control_url_opt = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshControlAddr).expose().map(|s| s.to_string());
                     }
                     if let Some(control_url) = control_url_opt {
                         let client = vox_populi::http_client::PopuliHttpClient::new(control_url.trim()).with_env_token();
@@ -713,8 +713,8 @@ impl ModelRegistry {
                             .unwrap_or(2000);
 
                         a_lat.cmp(&b_lat).then_with(|| {
-                            let prefer_mesh = vox_clavis::resolve_secret(
-                                vox_clavis::SecretId::VoxRoutingPreferMesh,
+                            let prefer_mesh = vox_secrets::resolve_secret(
+                                vox_secrets::SecretId::VoxRoutingPreferMesh,
                             )
                             .expose()
                             .map(|s: &str| s.trim() == "true")
@@ -939,7 +939,7 @@ impl ModelRegistry {
                         provider: "ollama".to_string(),
                         model: spec.id.clone(),
                         cost_per_1k: None,
-                        base_url: vox_clavis::resolve_secret(vox_clavis::SecretId::OllamaUrl)
+                        base_url: vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaUrl)
                             .expose()
                             .filter(|s: &&str| !s.trim().is_empty())
                             .map(|u: &str| {

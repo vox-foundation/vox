@@ -99,7 +99,7 @@ impl QdrantSemanticClient {
         });
 
         let mut req = self.client.post(&url).json(&body);
-        if let Some(key) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSearchQdrantApiKey)
+        if let Some(key) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchQdrantApiKey)
             .expose()
             .map(str::trim)
             .filter(|k| !k.is_empty())

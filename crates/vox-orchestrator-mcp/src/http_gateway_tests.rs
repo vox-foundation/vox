@@ -380,25 +380,25 @@ mod tests {
         unsafe {
             std::env::set_var("VOX_MCP_HTTP_BEARER_TOKEN", "gateway-env-token");
         }
-        let resolver = vox_clavis::resolver::SecretResolver::new(vox_clavis::backend::NoopBackend);
+        let resolver = vox_secrets::resolver::SecretResolver::new(vox_secrets::backend::NoopBackend);
         let lenient = resolver.resolve(
-            vox_clavis::SecretId::VoxMcpHttpBearerToken,
-            &vox_clavis::resolver::ResolveOptions {
+            vox_secrets::SecretId::VoxMcpHttpBearerToken,
+            &vox_secrets::resolver::ResolveOptions {
                 include_env: true,
                 include_auth_json: false,
                 include_populi_env: false,
-                profile: vox_clavis::ResolveProfile::DevLenient,
+                profile: vox_secrets::ResolveProfile::DevLenient,
             },
         );
         assert_eq!(lenient.expose(), Some("gateway-env-token"));
 
         let strict = resolver.resolve(
-            vox_clavis::SecretId::VoxMcpHttpBearerToken,
-            &vox_clavis::resolver::ResolveOptions {
+            vox_secrets::SecretId::VoxMcpHttpBearerToken,
+            &vox_secrets::resolver::ResolveOptions {
                 include_env: false,
                 include_auth_json: false,
                 include_populi_env: false,
-                profile: vox_clavis::ResolveProfile::HardCutStrict,
+                profile: vox_secrets::ResolveProfile::HardCutStrict,
             },
         );
         assert!(strict.expose().is_none());

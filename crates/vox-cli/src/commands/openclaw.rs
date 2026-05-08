@@ -337,7 +337,7 @@ pub async fn run(action: OpenClawAction, json_output: bool) -> anyhow::Result<()
 
 fn resolve_openclaw_token(override_token: Option<String>) -> Option<String> {
     override_token.or_else(|| {
-        vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
             .expose()
             .map(std::string::ToString::to_string)
     })
@@ -499,7 +499,7 @@ async fn cmd_config(
         explicit_well_known_url: None,
     })
     .await;
-    let token_set = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken).is_present();
+    let token_set = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken).is_present();
 
     if json {
         println!(

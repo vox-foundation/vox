@@ -283,7 +283,7 @@ pub struct ModelConfig {
 
 impl Default for ModelConfig {
     fn default() -> Self {
-        let local_model = vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliModel)
+        let local_model = vox_secrets::resolve_secret(vox_secrets::SecretId::PopuliModel)
             .expose()
             .filter(|s: &&str| !s.trim().is_empty())
             .unwrap_or("default-model")

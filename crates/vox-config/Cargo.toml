@@ -9,7 +9,7 @@ serde       = { workspace = true, features = ["derive"] }
 toml.workspace = true
 serde_json  = { workspace = true }
 tracing     = { workspace = true }
-vox-clavis  = { workspace = true }
+vox-secrets  = { workspace = true }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]

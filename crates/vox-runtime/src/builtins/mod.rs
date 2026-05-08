@@ -603,7 +603,7 @@ pub fn vox_openclaw_notify(domain: &str, message: &str) -> Result<String, String
 }
 
 async fn connect_openclaw_adapter() -> Result<DefaultOpenClawRuntimeAdapter, String> {
-    let clavis_token = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken)
+    let clavis_token = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
         .expose()
         .map(std::string::ToString::to_string);
     connect_default_runtime_adapter(clavis_token)

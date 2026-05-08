@@ -143,7 +143,7 @@ impl ReviewClient {
                 model,
                 site_url,
             } => {
-                let key = resolve_key(api_key, vox_clavis::SecretId::OpenRouterApiKey);
+                let key = resolve_key(api_key, vox_secrets::SecretId::OpenRouterApiKey);
                 if key.is_empty() {
                     return Err("No OpenRouter API key".to_string());
                 }
@@ -162,7 +162,7 @@ impl ReviewClient {
                 model,
                 base_url,
             } => {
-                let key = resolve_key(api_key, vox_clavis::SecretId::OpenaiApiKey);
+                let key = resolve_key(api_key, vox_secrets::SecretId::OpenaiApiKey);
                 if key.is_empty() {
                     return Err("No OpenAI API key".to_string());
                 }
@@ -171,7 +171,7 @@ impl ReviewClient {
                     .await
             }
             ReviewProvider::Gemini { api_key, model } => {
-                let key = resolve_key(api_key, vox_clavis::SecretId::GeminiApiKey);
+                let key = resolve_key(api_key, vox_secrets::SecretId::GeminiApiKey);
                 if key.is_empty() {
                     return Err("No Gemini API key".to_string());
                 }
@@ -391,9 +391,9 @@ impl ReviewClient {
     }
 }
 
-fn resolve_key(stored: &str, secret_id: vox_clavis::SecretId) -> String {
+fn resolve_key(stored: &str, secret_id: vox_secrets::SecretId) -> String {
     if stored.is_empty() {
-        vox_clavis::resolve_secret(secret_id)
+        vox_secrets::resolve_secret(secret_id)
             .expose()
             .map(|s| s.to_string())
             .unwrap_or_default()

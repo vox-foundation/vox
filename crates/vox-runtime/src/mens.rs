@@ -64,18 +64,18 @@ impl MensConfig {
     pub fn from_env() -> Self {
         Self {
             base_url: vox_config::inference::local_ollama_populi_base_url(),
-            api_key: vox_clavis::resolve_secret(vox_clavis::SecretId::PopuliApiKey)
+            api_key: vox_secrets::resolve_secret(vox_secrets::SecretId::PopuliApiKey)
                 .expose()
                 .map(|s| s.to_string()),
-            model: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPopuliModel)
+            model: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxPopuliModel)
                 .expose()
                 .unwrap_or("default-model")
                 .to_string(),
-            temperature: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPopuliTemperature)
+            temperature: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxPopuliTemperature)
                 .expose()
                 .and_then(|s: &str| s.parse().ok())
                 .unwrap_or(0.7),
-            max_tokens: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPopuliMaxTokens)
+            max_tokens: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxPopuliMaxTokens)
                 .expose()
                 .and_then(|s: &str| s.parse().ok())
                 .unwrap_or(2048),

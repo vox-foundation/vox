@@ -30,7 +30,7 @@ vox-layer-check        = { layer = 0 }
 # ── L1 — primitives & utilities ───────────────────────────────────────────────
 vox-bounded-fs           = { layer = 1 }
 vox-crypto               = { layer = 1 }
-vox-clavis               = { layer = 1 }
+vox-secrets               = { layer = 1 }
 vox-jsonschema-util      = { layer = 1 }
 vox-checksum-manifest    = { layer = 1 }
 vox-identity             = { layer = 1 }

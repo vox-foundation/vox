@@ -82,7 +82,7 @@ pub struct RunPodClient {
 impl RunPodClient {
     /// Construct from `VOX_RUNPOD_API_KEY`.
     pub fn from_env(config: Arc<CloudProviderConfig>) -> anyhow::Result<Self> {
-        let key = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRunpodApiKey)
+        let key = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRunpodApiKey)
             .expose()
             .map(std::string::ToString::to_string)
             .ok_or_else(|| {

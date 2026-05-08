@@ -554,13 +554,13 @@ impl PopuliTransportState {
         {
             s.dispatch_results_store_path = dispatch_results_store_path;
         }
-        s.bootstrap_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshBootstrapToken)
+        s.bootstrap_token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshBootstrapToken)
             .expose()
             .map(|v| v.trim().to_string())
             .filter(|v| !v.is_empty())
             .map(Arc::from);
         s.bootstrap_expires_unix_ms =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshBootstrapExpiresUnixMs)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshBootstrapExpiresUnixMs)
                 .expose()
                 .and_then(|v| v.trim().parse::<u64>().ok())
                 .filter(|ms| *ms > crate::now_ms());
@@ -671,7 +671,7 @@ impl PopuliTransportState {
 
             // Resolve signing key from Clavis
             let signing_key =
-                vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey)
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshFederationSigningKey)
                     .expose()
                     .and_then(|s| {
                         let bytes = data_encoding::BASE64.decode(s.trim().as_bytes()).ok()?;
@@ -787,7 +787,7 @@ impl PopuliTransportState {
 }
 
 fn worker_result_verify_key_resolved() -> Option<[u8; 32]> {
-    let resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshWorkerResultVerifyKey);
+    let resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshWorkerResultVerifyKey);
     let raw = resolved.expose()?;
     let t = raw.trim();
     if t.is_empty() {
@@ -809,7 +809,7 @@ fn worker_result_verify_key_resolved() -> Option<[u8; 32]> {
 /// many milliseconds from [`crate::now_ms`]. Unset or `0` = no pruning (default).
 #[must_use]
 pub(super) fn server_stale_prune_ms() -> Option<u64> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshServerStalePruneMs)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshServerStalePruneMs)
         .expose()
         .and_then(|s| s.trim().parse().ok())
         .filter(|&n| n > 0)
@@ -822,7 +822,7 @@ pub(super) fn a2a_in_memory_cap() -> usize {
     /// Allow small caps for tests and single-node dev; operators should still use ≥100 in prod.
     const MIN: usize = 1;
     const MAX: usize = 500_000;
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshA2aMaxMessages)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshA2aMaxMessages)
         .expose()
         .and_then(|s| s.trim().parse::<usize>().ok())
         .map(|n| n.clamp(MIN, MAX))
@@ -872,7 +872,7 @@ pub(super) fn a2a_lease_duration_ms() -> u64 {
     const DEFAULT: u64 = 120_000;
     const MIN: u64 = 1_000;
     const MAX: u64 = 3_600_000;
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshA2aLeaseMs)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshA2aLeaseMs)
         .expose()
         .and_then(|s| s.trim().parse::<u64>().ok())
         .map(|n| n.clamp(MIN, MAX))

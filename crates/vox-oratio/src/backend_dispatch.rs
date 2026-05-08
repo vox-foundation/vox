@@ -14,7 +14,7 @@ use crate::backends::candle_whisper::CandleWhisperBackend;
 /// - `VOX_ORATIO_BACKEND=whisper` — always Candle Whisper
 /// - `VOX_ORATIO_BACKEND=sherpa` — always Sherpa (returns error if feature not compiled)
 pub fn create_backend() -> anyhow::Result<Box<dyn AsrBackend>> {
-    let backend_env = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioBackend)
+    let backend_env = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioBackend)
         .expose()
         .map(|s| s.to_string())
         .unwrap_or_else(|| "auto".to_string());

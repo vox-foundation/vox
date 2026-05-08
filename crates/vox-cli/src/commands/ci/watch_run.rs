@@ -36,7 +36,7 @@ impl Default for WatchRunArgs {
 }
 
 pub async fn run(args: WatchRunArgs) -> Result<()> {
-    let token = vox_clavis::resolve_secret(vox_clavis::SecretId::ForgeToken)
+    let token = vox_secrets::resolve_secret(vox_secrets::SecretId::ForgeToken)
         .expose()
         .unwrap_or_default()
         .to_string();

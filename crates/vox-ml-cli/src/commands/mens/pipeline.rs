@@ -208,7 +208,7 @@ pub async fn run(
             PipelineStage::ReviewIngest => {
                 if !dry_run {
                     let repo_id_resolved =
-                        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxReviewRepositoryId);
+                        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxReviewRepositoryId);
                     let repo_id = repo_id_resolved
                         .expose()
                         .unwrap_or("vox-foundation/vox")

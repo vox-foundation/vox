@@ -36,7 +36,7 @@ async fn connect_adapter_uncached() -> Result<BoxedOpenClawAdapter, String> {
 }
 
 fn resolve_clavis_token() -> Option<String> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
         .expose()
         .map(std::string::ToString::to_string)
 }

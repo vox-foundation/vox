@@ -21,7 +21,7 @@ bzip2 = "0.6.1"
 zstd = "0.13.3"
 rust_decimal = { workspace = true }
 chrono = { workspace = true }
-vox-clavis.workspace = true
+vox-secrets.workspace = true
 vox-config.workspace = true
 secrecy = { workspace = true }
 which = { workspace = true }

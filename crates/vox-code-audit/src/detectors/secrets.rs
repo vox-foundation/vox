@@ -82,7 +82,7 @@ impl SecretDetector {
             || upper.contains("ENV_VAR")
             || line.contains("std::env::var")
             || line.contains("env::var")
-            || line.contains("vox_clavis::resolve_secret")
+            || line.contains("vox_secrets::resolve_secret")
             || line.contains("resolve_secret")
             || line.contains("dotenv")
             || line.contains("process.env.")

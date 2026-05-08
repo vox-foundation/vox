@@ -193,7 +193,7 @@ impl LocalRegistry {
     /// Prefer `VOX_MESH_REGISTRY_PATH`, else [`LocalRegistry::default_path`].
     #[must_use]
     pub fn resolved_default_path() -> PathBuf {
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshRegistryPath)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshRegistryPath)
             .expose()
             .map(PathBuf::from)
             .filter(|p| !p.as_os_str().is_empty())

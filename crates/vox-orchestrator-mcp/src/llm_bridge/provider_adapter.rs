@@ -87,7 +87,7 @@ impl ProviderAdapter for GoogleDirectAdapter {
     ) -> Pin<Box<dyn Future<Output = Result<ProviderInferResult, HttpInferError>> + Send + 'a>>
     {
         Box::pin(async move {
-            let resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey);
+            let resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey);
             let key = resolved.expose().ok_or_else(|| HttpInferError {
                 status: 0,
                 message: "GEMINI_API_KEY is not set (required for Google-direct models)".into(),
@@ -143,7 +143,7 @@ impl ProviderAdapter for OllamaAdapter {
 impl ProviderAdapter for AnthropicNativeAdapter {
     fn supports(&self, provider_type: &ProviderType) -> bool {
         matches!(provider_type, ProviderType::Anthropic)
-            && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxAnthropicDirect)
+            && vox_secrets::resolve_secret(vox_secrets::SecretId::VoxAnthropicDirect)
                 .expose()
                 .unwrap_or("")
                 == "1"

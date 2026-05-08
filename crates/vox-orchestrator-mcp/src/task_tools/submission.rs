@@ -348,7 +348,7 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
     }
 
     let bypass_questioning_gate =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSubmitTaskBypassQuestioningGate)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSubmitTaskBypassQuestioningGate)
             .expose()
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false);

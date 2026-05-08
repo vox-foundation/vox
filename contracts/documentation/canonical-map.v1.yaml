@@ -48,7 +48,7 @@ domains:
       - docs/src/ref/env-vars-ssot.md
       - docs/src/ref/env-vars.md
     owning_crate_globs:
-      - crates/vox-clavis/src/**/*.rs
+      - crates/vox-secrets/src/**/*.rs
       - crates/vox-db/src/**/*.rs
       - crates/vox-orchestrator/src/**/*.rs
 

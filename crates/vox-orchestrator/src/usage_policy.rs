@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use vox_clavis::{SecretId, resolve_secret};
+use vox_secrets::{SecretId, resolve_secret};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProviderLimitOwned {

@@ -97,7 +97,7 @@ struct GhReviewComment {
 const GITHUB_PER_PAGE_DEFAULT: u32 = 100;
 
 fn github_per_page() -> u32 {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCoderabbitGithubPerPage)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCoderabbitGithubPerPage)
         .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(GITHUB_PER_PAGE_DEFAULT)
@@ -782,7 +782,7 @@ pub async fn run_ingest(
     }
 
     if persist_db {
-        let commit_sha_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGithubSha);
+        let commit_sha_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGithubSha);
         let commit_sha = commit_sha_resolved.expose();
         let run_id = persist_items_to_db(
             &owner,

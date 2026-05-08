@@ -63,7 +63,7 @@ impl LlmConfig {
             model: model.into(),
             cost_per_1k: None,
             base_url: Some(vox_config::OPENROUTER_CHAT_COMPLETIONS_URL.to_string()),
-            api_key: vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+            api_key: vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
                 .expose()
                 .map(std::string::ToString::to_string),
             temperature: None,
@@ -87,7 +87,7 @@ impl LlmConfig {
             model: model.into(),
             cost_per_1k: None,
             base_url: Some(vox_config::OPENAI_CHAT_COMPLETIONS_URL.into()),
-            api_key: vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiApiKey)
+            api_key: vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiApiKey)
                 .expose()
                 .map(std::string::ToString::to_string),
             temperature: None,
@@ -139,13 +139,13 @@ impl LlmConfig {
             .get(alias)
             .ok_or_else(|| format!("Unknown model alias: {}", alias))?;
         let api_key = match entry.provider.as_str() {
-            "openrouter" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+            "openrouter" => vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
                 .expose()
                 .map(std::string::ToString::to_string),
-            "openai" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiApiKey)
+            "openai" => vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiApiKey)
                 .expose()
                 .map(std::string::ToString::to_string),
-            "anthropic" => vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey)
+            "anthropic" => vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicApiKey)
                 .expose()
                 .map(std::string::ToString::to_string),
             "hf_router" | "huggingface" | "hf_endpoint" => {
@@ -306,7 +306,7 @@ mod tests {
                 .map(|d| d.as_nanos())
                 .unwrap_or(0);
             let tmp =
-                std::env::temp_dir().join(format!("vox-clavis-runtime-strict-lenient-{unique}.db"));
+                std::env::temp_dir().join(format!("vox-secrets-runtime-strict-lenient-{unique}.db"));
             std::env::set_var(
                 "VOX_CLAVIS_CLOUDLESS_DB_PATH",
                 tmp.to_string_lossy().to_string(),

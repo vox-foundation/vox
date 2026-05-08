@@ -15,11 +15,11 @@ impl ServiceAuthConfig {
     /// - `VOX_BEARER_TOKEN`
     /// - `VOX_ALLOW_UNAUTHENTICATED` (`true`/`false`, defaults to `true` when no key/token set)
     pub fn from_env() -> Self {
-        let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxApiKey)
+        let api_key = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxApiKey)
             .expose()
             .map(std::string::ToString::to_string)
             .filter(|v| !v.is_empty());
-        let bearer_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBearerToken)
+        let bearer_token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBearerToken)
             .expose()
             .map(std::string::ToString::to_string)
             .filter(|v| !v.is_empty());

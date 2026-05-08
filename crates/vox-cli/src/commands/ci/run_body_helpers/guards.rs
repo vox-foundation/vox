@@ -234,7 +234,7 @@ fn sql_connection_path_allowed(rel: &str, allow: &[String]) -> bool {
 
 fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bool {
     const LENIENT_ALLOWLIST: &[&str] = &[
-        "crates/vox-clavis/",
+        "crates/vox-secrets/",
         "crates/vox-config/src/inference.rs",
         "crates/vox-db/src/config.rs",
         "crates/vox-bootstrap/",
@@ -270,7 +270,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-spool/",
     ];
     const HARD_CUT_ALLOWLIST: &[&str] = &[
-        "crates/vox-clavis/",
+        "crates/vox-secrets/",
         "crates/vox-db/src/config.rs",
         "crates/vox-bootstrap/",
         "crates/vox-cli/",
@@ -373,7 +373,7 @@ impl ClavisCutoverPhase {
 }
 
 pub(crate) fn run_operator_env_guard(root: &Path, all: bool) -> Result<()> {
-    let mut names: std::collections::BTreeSet<String> = vox_clavis::managed_secret_env_names()
+    let mut names: std::collections::BTreeSet<String> = vox_secrets::managed_secret_env_names()
         .into_iter()
         .map(str::to_string)
         .collect();
@@ -439,7 +439,7 @@ pub(crate) fn run_operator_env_guard(root: &Path, all: bool) -> Result<()> {
         offenders.sort();
         offenders.dedup();
         return Err(anyhow!(
-            "operator-env-guard: found {} usage(s) of unregistered environment variables:\n{}\n\nRegister in `crates/vox-clavis/src/spec.rs` (secrets) or `crates/vox-config/src/operator_registry.rs` (tuning).",
+            "operator-env-guard: found {} usage(s) of unregistered environment variables:\n{}\n\nRegister in `crates/vox-secrets/src/spec.rs` (secrets) or `crates/vox-config/src/operator_registry.rs` (tuning).",
             offenders.len(),
             offenders.join("\n")
         ));
@@ -461,7 +461,7 @@ struct ClavisCutoverAuditReport {
 }
 
 fn managed_secret_env_regex() -> Result<regex::Regex> {
-    let mut names: Vec<String> = vox_clavis::managed_secret_env_names()
+    let mut names: Vec<String> = vox_secrets::managed_secret_env_names()
         .into_iter()
         .map(regex::escape)
         .collect();
@@ -706,7 +706,7 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
             })
             .filter(|n| !n.is_empty())
             .collect();
-        let live_names: BTreeSet<String> = vox_clavis::managed_secret_env_names()
+        let live_names: BTreeSet<String> = vox_secrets::managed_secret_env_names()
             .into_iter()
             .map(str::to_string)
             .collect();
@@ -727,7 +727,7 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
             .filter_map(|v| v.as_str())
             .map(str::to_string)
             .collect();
-        let mut live_tuning_names: BTreeSet<String> = vox_clavis::OPERATOR_TUNING_ENVS
+        let mut live_tuning_names: BTreeSet<String> = vox_secrets::OPERATOR_TUNING_ENVS
             .iter()
             .map(|&s| s.to_string())
             .collect();
@@ -767,7 +767,7 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
     }
     let content = read_utf8_path_capped(&docs)?;
 
-    let missing_bundles: Vec<&str> = vox_clavis::all_bundle_doc_names()
+    let missing_bundles: Vec<&str> = vox_secrets::all_bundle_doc_names()
         .iter()
         .copied()
         .filter(|name| !content.contains(name))
@@ -1007,7 +1007,7 @@ mod sql_surface_tests {
     #[ignore]
     fn secret_env_allowlist_tightens_in_hard_cut_mode() {
         assert!(super::path_is_allowed_for_secret_guard(
-            "crates/vox-clavis/src/lib.rs",
+            "crates/vox-secrets/src/lib.rs",
             true
         ));
         assert!(super::path_is_allowed_for_secret_guard(

@@ -10,8 +10,8 @@ const SAMBANOVA_URL: &str = "https://api.sambanova.ai/v1/chat/completions";
 const ANTHROPIC_PROXY_URL: &str = "http://127.0.0.1:4000/v1/chat/completions";
 const ANTHROPIC_MESSAGES_URL: &str = "https://api.anthropic.com/v1/messages";
 
-fn env_or_default(id: vox_clavis::SecretId, default_value: &str) -> String {
-    vox_clavis::resolve_secret(id)
+fn env_or_default(id: vox_secrets::SecretId, default_value: &str) -> String {
+    vox_secrets::resolve_secret(id)
         .expose()
         .filter(|v| !v.trim().is_empty())
         .map(|s| s.to_string())
@@ -24,28 +24,28 @@ pub(crate) fn endpoint_for(model: &ModelSpec) -> Result<String, HttpInferError> 
             Ok(vox_config::inference::OPENROUTER_CHAT_COMPLETIONS_URL.to_string())
         }
         ProviderType::Groq => Ok(env_or_default(
-            vox_clavis::SecretId::VoxGroqChatCompletionsUrl,
+            vox_secrets::SecretId::VoxGroqChatCompletionsUrl,
             GROQ_URL,
         )),
         ProviderType::Cerebras => Ok(env_or_default(
-            vox_clavis::SecretId::VoxCerebrasChatCompletionsUrl,
+            vox_secrets::SecretId::VoxCerebrasChatCompletionsUrl,
             CEREBRAS_URL,
         )),
         ProviderType::Mistral => Ok(env_or_default(
-            vox_clavis::SecretId::VoxMistralChatCompletionsUrl,
+            vox_secrets::SecretId::VoxMistralChatCompletionsUrl,
             MISTRAL_URL,
         )),
         ProviderType::DeepSeek => Ok(env_or_default(
-            vox_clavis::SecretId::VoxDeepseekChatCompletionsUrl,
+            vox_secrets::SecretId::VoxDeepseekChatCompletionsUrl,
             DEEPSEEK_URL,
         )),
         ProviderType::SambaNova => Ok(env_or_default(
-            vox_clavis::SecretId::VoxSambanovaChatCompletionsUrl,
+            vox_secrets::SecretId::VoxSambanovaChatCompletionsUrl,
             SAMBANOVA_URL,
         )),
         ProviderType::Anthropic => Ok(env_or_default(
-            vox_clavis::SecretId::VoxAnthropicChatCompletionsUrl,
-            if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxAnthropicDirect)
+            vox_secrets::SecretId::VoxAnthropicChatCompletionsUrl,
+            if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxAnthropicDirect)
                 .expose()
                 .unwrap_or("")
                 == "1"

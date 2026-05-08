@@ -242,65 +242,65 @@
   pattern: repo/ci
   file: by-crate/vox-checksum-manifest.md
 - id: SCALE-VOX_CLAVIS-ASYNC-IO
-  crate: vox-clavis
+  crate: vox-secrets
   template: async-io
   pattern: scaling/blocking-in-async
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLAVIS-MEMORY-SLURP
-  crate: vox-clavis
+  crate: vox-secrets
   template: memory-slurp
   pattern: scaling/unbounded-read
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLAVIS-IO-CACHE-LOOP
-  crate: vox-clavis
+  crate: vox-secrets
   template: io-cache-loop
   pattern: scaling/cache-miss-hot-read
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLAVIS-ENV-SSOT
-  crate: vox-clavis
+  crate: vox-secrets
   template: env-ssot
   pattern: scaling/env-default-duplication
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLAVIS-REGEX-COMPILE
-  crate: vox-clavis
+  crate: vox-secrets
   template: regex-compile
   pattern: scaling/regex-new-hot
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLAVIS-SQL-BOUNDS
-  crate: vox-clavis
+  crate: vox-secrets
   template: sql-bounds
   pattern: scaling/sql-no-limit
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLAVIS-HTTP-TIMEOUTS
-  crate: vox-clavis
+  crate: vox-secrets
   template: http-timeouts
   pattern: scaling/http-client-no-timeout
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLAVIS-PATH-SSOT
-  crate: vox-clavis
+  crate: vox-secrets
   template: path-ssot
   pattern: scaling/path-literal
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLAVIS-NUMERIC-SSOT
-  crate: vox-clavis
+  crate: vox-secrets
   template: numeric-ssot
   pattern: scaling/magic-limit
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLAVIS-INDEX-MEMORY
-  crate: vox-clavis
+  crate: vox-secrets
   template: index-memory
   pattern: scaling/large-in-memory-accumulator
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLAVIS-CONCURRENCY-STRUCTURE
-  crate: vox-clavis
+  crate: vox-secrets
   template: concurrency-structure
   pattern: scaling/nested-pairwise-loop
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLAVIS-CI-THROUGHPUT
-  crate: vox-clavis
+  crate: vox-secrets
   template: ci-throughput
   pattern: repo/ci
-  file: by-crate/vox-clavis.md
+  file: by-crate/vox-secrets.md
 - id: SCALE-VOX_CLI-ASYNC-IO
   crate: vox-cli
   template: async-io

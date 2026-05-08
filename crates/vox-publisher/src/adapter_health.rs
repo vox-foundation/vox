@@ -79,8 +79,8 @@ pub async fn report_health(
     adapters.push(AdapterHealthEntry {
         name: "discord",
         feature_enabled: cfg!(feature = "scientia-discord"),
-        credentials_present: vox_clavis::resolve_secret(
-            vox_clavis::SecretId::VoxSocialDiscordWebhook,
+        credentials_present: vox_secrets::resolve_secret(
+            vox_secrets::SecretId::VoxSocialDiscordWebhook,
         )
         .expose()
         .is_some(),
@@ -104,7 +104,7 @@ pub async fn report_health(
         name: "twitter",
         feature_enabled: cfg!(feature = "scientia-twitter"),
         credentials_present: cfg.twitter_bearer_token.is_some()
-            || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsTwitterBearer)
+            || vox_secrets::resolve_secret(vox_secrets::SecretId::VoxNewsTwitterBearer)
                 .expose()
                 .is_some(),
         heartbeat_status: if live && cfg!(feature = "scientia-twitter") {
@@ -129,7 +129,7 @@ pub async fn report_health(
         name: "linkedin",
         feature_enabled: cfg!(feature = "scientia-linkedin"),
         credentials_present: cfg.linkedin_access_token.is_some()
-            || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialLinkedinAccessToken)
+            || vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSocialLinkedinAccessToken)
                 .expose()
                 .is_some(),
         heartbeat_status: if live && cfg!(feature = "scientia-linkedin") {
@@ -154,7 +154,7 @@ pub async fn report_health(
         name: "opencollective",
         feature_enabled: cfg!(feature = "scientia-opencollective"),
         credentials_present: cfg.open_collective_token.is_some()
-            || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsOpenCollectiveToken)
+            || vox_secrets::resolve_secret(vox_secrets::SecretId::VoxNewsOpenCollectiveToken)
                 .expose()
                 .is_some(),
         heartbeat_status: if live && cfg!(feature = "scientia-opencollective") {
@@ -179,7 +179,7 @@ pub async fn report_health(
         name: "reddit",
         feature_enabled: cfg!(feature = "scientia-reddit"),
         credentials_present: cfg.reddit_refresh_token.is_some()
-            || vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialRedditRefreshToken)
+            || vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSocialRedditRefreshToken)
                 .expose()
                 .is_some(),
         heartbeat_status: Some(HeartbeatStatus::Skipped {
@@ -192,7 +192,7 @@ pub async fn report_health(
     adapters.push(AdapterHealthEntry {
         name: "zenodo",
         feature_enabled: true, // usually enabled if scholarly
-        credentials_present: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxZenodoAccessToken)
+        credentials_present: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxZenodoAccessToken)
             .expose()
             .is_some(),
         heartbeat_status: if live {
@@ -216,10 +216,10 @@ pub async fn report_health(
     adapters.push(AdapterHealthEntry {
         name: "openreview",
         feature_enabled: true,
-        credentials_present: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewEmail)
+        credentials_present: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewEmail)
             .expose()
             .is_some()
-            && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewPassword)
+            && vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewPassword)
                 .expose()
                 .is_some(),
         heartbeat_status: None, // No probe yet

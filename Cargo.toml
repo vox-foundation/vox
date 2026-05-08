@@ -53,7 +53,7 @@ workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
 
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
-vox-clavis                = { path = "crates/vox-clavis" }
+vox-secrets                = { path = "crates/vox-secrets" }
 vox-cli                   = { path = "crates/vox-cli" }
 vox-bounded-fs            = { path = "crates/vox-bounded-fs" }
 vox-compiler              = { path = "crates/vox-compiler" }

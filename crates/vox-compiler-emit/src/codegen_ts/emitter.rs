@@ -55,7 +55,7 @@ impl CodegenOptions {
     #[must_use]
     pub fn from_env() -> Self {
         let tanstack_start_resolved =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxWebTanstackStart);
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWebTanstackStart);
         Self {
             tanstack_start: tanstack_start_resolved
                 .expose()
@@ -150,7 +150,7 @@ pub fn generate_with_options(
     if options.mode != BuildMode::Library {
         let routes_content = generate_routes(hir);
         let emit_express_resolved =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEmitExpressServer);
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxEmitExpressServer);
         if !routes_content.is_empty()
             && emit_express_resolved
                 .expose()

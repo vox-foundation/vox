@@ -101,8 +101,8 @@ impl ConstrainedDecodePolicy {
     /// Resolve from env `VOX_MCP_GRAMMAR_MASK=1` or `VOX_MCP_DECODE_POLICY=rigid`.
     #[must_use]
     pub fn from_env() -> Self {
-        let mask_env = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpGrammarMask);
-        let policy_env = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpDecodePolicy);
+        let mask_env = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpGrammarMask);
+        let policy_env = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpDecodePolicy);
 
         let p = policy_env.expose().map(|s| s.to_ascii_lowercase());
         match p.as_deref() {

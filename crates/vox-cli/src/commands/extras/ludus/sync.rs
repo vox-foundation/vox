@@ -25,7 +25,7 @@ struct GitHubRepo {
 pub async fn sync_command() -> Result<()> {
     let ctx = LudusContext::load().await?;
 
-    let token = match vox_clavis::get_registry_token("github.com") {
+    let token = match vox_secrets::get_registry_token("github.com") {
         Some(t) if !t.is_empty() => t,
         _ => {
             println!("{}", "Error: No GitHub account linked.".bright_red());

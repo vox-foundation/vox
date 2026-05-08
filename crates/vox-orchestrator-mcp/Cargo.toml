@@ -48,7 +48,7 @@ vox-repository = { workspace = true, features = ["json-schema"] }
 vox-package.workspace = true
 vox-gamify.workspace = true
 vox-corpus = { workspace = true, features = ["database"] }
-vox-clavis.workspace = true
+vox-secrets.workspace = true
 vox-bounded-fs.workspace = true
 vox-protocol.workspace = true
 vox-mesh-types.workspace = true

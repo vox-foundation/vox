@@ -812,7 +812,7 @@ impl AgentFleet {
 /// Disable with **`VOX_MCP_AGENT_FLEET`**=`0`, `false`, `no`, or `off`.
 #[must_use]
 pub fn agent_fleet_env_enabled() -> bool {
-    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpAgentFleet).expose() {
+    match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpAgentFleet).expose() {
         Some(v) => {
             let v = v.trim();
             if v.is_empty() {

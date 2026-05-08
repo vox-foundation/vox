@@ -5,7 +5,7 @@ pub(crate) fn resolve_gemini_key(explicit: &str) -> String {
     if !explicit.trim().is_empty() {
         return explicit.to_string();
     }
-    vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey)
         .expose()
         .map(std::string::ToString::to_string)
         .unwrap_or_default()
@@ -16,7 +16,7 @@ pub(crate) fn resolve_openrouter_key(explicit: &str) -> String {
     if !explicit.trim().is_empty() {
         return explicit.to_string();
     }
-    vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
         .expose()
         .map(std::string::ToString::to_string)
         .unwrap_or_default()

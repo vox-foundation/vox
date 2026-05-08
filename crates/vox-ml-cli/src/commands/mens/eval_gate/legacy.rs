@@ -26,11 +26,11 @@ pub(crate) fn run_legacy_train_post_eval_gate(
         return Ok(());
     }
 
-    let min_parse_rate = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEvalMinParseRate)
+    let min_parse_rate = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxEvalMinParseRate)
         .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(LEGACY_TRAIN_POST_EVAL_DEFAULT_MIN_PARSE_RATE);
-    let min_coverage = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEvalMinCoverage)
+    let min_coverage = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxEvalMinCoverage)
         .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(LEGACY_TRAIN_POST_EVAL_DEFAULT_MIN_COVERAGE);
@@ -101,7 +101,7 @@ pub(crate) fn run_legacy_train_post_eval_gate(
             .unwrap_or(data_dir)
             .join("eval_gate_failed.json");
         std::fs::write(&marker, serde_json::to_string_pretty(&gate_result)?).ok();
-        let strict = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxEvalStrict)
+        let strict = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxEvalStrict)
             .expose()
             .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));
         if strict {

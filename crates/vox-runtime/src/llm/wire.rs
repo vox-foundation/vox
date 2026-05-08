@@ -25,15 +25,15 @@ pub(super) fn resolve_chat_api_key(config: &LlmConfig) -> String {
         .api_key
         .clone()
         .unwrap_or_else(|| match config.provider.as_str() {
-            "openrouter" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+            "openrouter" => vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
                 .expose()
                 .unwrap_or_default()
                 .to_string(),
-            "openai" => vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiApiKey)
+            "openai" => vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiApiKey)
                 .expose()
                 .unwrap_or_default()
                 .to_string(),
-            "anthropic" => vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey)
+            "anthropic" => vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicApiKey)
                 .expose()
                 .unwrap_or_default()
                 .to_string(),

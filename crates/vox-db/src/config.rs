@@ -32,7 +32,7 @@ pub enum DbConfig {
     },
 }
 
-use vox_clavis::SecretId;
+use vox_secrets::SecretId;
 
 static LEGACY_TURSO_ENV_WARN: std::sync::Once = std::sync::Once::new();
 
@@ -53,16 +53,16 @@ fn try_remote_from_compat_env() -> Option<DbConfig> {
         return None;
     }
 
-    let res_url = vox_clavis::resolve_secret(SecretId::VoxDbUrl);
-    let res_token = vox_clavis::resolve_secret(SecretId::VoxDbToken);
+    let res_url = vox_secrets::resolve_secret(SecretId::VoxDbUrl);
+    let res_token = vox_secrets::resolve_secret(SecretId::VoxDbToken);
 
     if let (Some(url), Some(token)) = (res_url.expose(), res_token.expose()) {
         if matches!(
             res_url.status,
-            vox_clavis::ResolutionStatus::DeprecatedAliasUsed
+            vox_secrets::ResolutionStatus::DeprecatedAliasUsed
         ) || matches!(
             res_token.status,
-            vox_clavis::ResolutionStatus::DeprecatedAliasUsed
+            vox_secrets::ResolutionStatus::DeprecatedAliasUsed
         ) {
             LEGACY_TURSO_ENV_WARN.call_once(|| {
                 tracing::warn!(
@@ -114,10 +114,10 @@ impl DbConfig {
     /// Read config from `VOX_DB_URL` + `VOX_DB_TOKEN` (remote), or `VOX_DB_PATH` (local), or all
     /// three for embedded replica when `replication` is enabled. Empty env + `local` → [`Self::Memory`].
     pub fn from_env() -> Result<Self, String> {
-        let url = vox_clavis::resolve_secret(SecretId::VoxDbUrl)
+        let url = vox_secrets::resolve_secret(SecretId::VoxDbUrl)
             .expose()
             .map(String::from);
-        let token = vox_clavis::resolve_secret(SecretId::VoxDbToken)
+        let token = vox_secrets::resolve_secret(SecretId::VoxDbToken)
             .expose()
             .map(String::from);
         let path = std::env::var("VOX_DB_PATH").ok();
@@ -242,10 +242,10 @@ impl DbConfig {
     /// - If only `VOX_DB_URL` + `VOX_DB_TOKEN` are set, use [`Self::Remote`].
     /// - Otherwise, fall back to [`Self::resolve_standalone`] (local file).
     pub fn resolve_for_mesh() -> Result<Self, String> {
-        let url = vox_clavis::resolve_secret(SecretId::VoxDbUrl)
+        let url = vox_secrets::resolve_secret(SecretId::VoxDbUrl)
             .expose()
             .map(String::from);
-        let token = vox_clavis::resolve_secret(SecretId::VoxDbToken)
+        let token = vox_secrets::resolve_secret(SecretId::VoxDbToken)
             .expose()
             .map(String::from);
         let path = std::env::var("VOX_DB_PATH").ok();
@@ -276,7 +276,7 @@ impl DbConfig {
 mod tests {
     use super::{DbConfig, try_remote_from_compat_env};
     use std::sync::Mutex;
-    use vox_clavis::SecretId;
+    use vox_secrets::SecretId;
 
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 

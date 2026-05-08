@@ -79,7 +79,7 @@ fn persist_maps(path: &Path, maps: &MeshReplayMaps) -> Result<(), PopuliRegistry
 
 #[must_use]
 pub(super) fn mesh_replay_persist_path(a2a_store: Option<&PathBuf>) -> Option<PathBuf> {
-    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshReplayPersist)
+    if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshReplayPersist)
         .expose()
         .is_some_and(|v: &str| {
             let t = v.trim();
@@ -89,7 +89,7 @@ pub(super) fn mesh_replay_persist_path(a2a_store: Option<&PathBuf>) -> Option<Pa
         return None;
     }
     if let Some(v) =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshReplayStatePath).expose()
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshReplayStatePath).expose()
     {
         let t = v.trim();
         if !t.is_empty() {

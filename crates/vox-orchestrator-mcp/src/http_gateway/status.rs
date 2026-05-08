@@ -32,13 +32,13 @@ pub(super) async fn http_info(
     if let Err(resp) = enforce_request_guards(&state, &connect.0, &headers).await {
         return resp;
     }
-    let bind_host = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpHost)
+    let bind_host = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpHost)
         .expose()
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .unwrap_or(DEFAULT_BIND_HOST)
         .to_string();
-    let bind_port = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpPort)
+    let bind_port = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpPort)
         .expose()
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(DEFAULT_BIND_PORT);

@@ -234,7 +234,7 @@ Do not explain your reasoning. Only output findings or CLEAN."#,
                 let key_owned: String;
                 let clavis_res;
                 let key = if api_key.is_empty() {
-                    clavis_res = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey);
+                    clavis_res = vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey);
                     clavis_res.expose().unwrap_or_default()
                 } else {
                     key_owned = api_key.clone();

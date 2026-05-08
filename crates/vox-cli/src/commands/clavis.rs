@@ -44,7 +44,7 @@ pub enum DoctorModeArg {
     Cloud,
 }
 
-impl From<DoctorModeArg> for vox_clavis::RequirementMode {
+impl From<DoctorModeArg> for vox_secrets::RequirementMode {
     fn from(value: DoctorModeArg) -> Self {
         match value {
             DoctorModeArg::Auto => Self::Auto,
@@ -63,7 +63,7 @@ pub enum BundleArg {
     MeshRoles,
 }
 
-impl From<BundleArg> for vox_clavis::SecretBundle {
+impl From<BundleArg> for vox_secrets::SecretBundle {
     fn from(value: BundleArg) -> Self {
         match value {
             BundleArg::MinimalLocalDev => Self::MinimalLocalDev,
@@ -93,7 +93,7 @@ pub enum ProfileArg {
     Prod,
 }
 
-impl From<WorkflowArg> for vox_clavis::Workflow {
+impl From<WorkflowArg> for vox_secrets::Workflow {
     fn from(value: WorkflowArg) -> Self {
         match value {
             WorkflowArg::Chat => Self::Chat,
@@ -106,7 +106,7 @@ impl From<WorkflowArg> for vox_clavis::Workflow {
     }
 }
 
-impl From<ProfileArg> for vox_clavis::Profile {
+impl From<ProfileArg> for vox_secrets::Profile {
     fn from(value: ProfileArg) -> Self {
         match value {
             ProfileArg::Dev => Self::Dev,
@@ -194,13 +194,13 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
             token,
             username,
         } => {
-            let path = vox_clavis::set_registry_token(&registry, &token, username)
+            let path = vox_secrets::set_registry_token(&registry, &token, username)
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             println!("Stored token for `{registry}` in {}", path.display());
             Ok(())
         }
         ClavisCmd::Get { registry } => {
-            match vox_clavis::get_registry_token(&registry) {
+            match vox_secrets::get_registry_token(&registry) {
                 Some(token) => {
                     println!("{registry}: {}", redact_value(&token));
                 }
@@ -209,11 +209,11 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
             Ok(())
         }
         ClavisCmd::BackendStatus => {
-            let mode = vox_clavis::BackendMode::from_env();
+            let mode = vox_secrets::BackendMode::from_env();
             println!("clavis backend mode: {mode:?}");
-            for spec in vox_clavis::all_specs() {
-                let res = vox_clavis::resolve_secret(spec.id);
-                if matches!(res.status, vox_clavis::ResolutionStatus::BackendUnavailable) {
+            for spec in vox_secrets::all_specs() {
+                let res = vox_secrets::resolve_secret(spec.id);
+                if matches!(res.status, vox_secrets::ResolutionStatus::BackendUnavailable) {
                     println!(
                         "backend status: unavailable ({})",
                         res.detail.unwrap_or_else(|| "no detail".to_string())
@@ -225,7 +225,7 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
             Ok(())
         }
         ClavisCmd::MigrateAuthStore => {
-            let moved = vox_clavis::migrate_auth_store_to_secure_store()
+            let moved = vox_secrets::migrate_auth_store_to_secure_store()
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             println!("migrated {moved} auth entries to secure store");
             Ok(())
@@ -247,7 +247,7 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
                 None
             } else {
                 Some(
-                    vox_clavis::backend::vox_vault::VoxCloudBackend::new()
+                    vox_secrets::backend::vox_vault::VoxCloudBackend::new()
                         .map_err(|e| anyhow::anyhow!("{:?}", e))?,
                 )
             };
@@ -262,7 +262,7 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
                     let key = key.trim();
                     let val = val.trim().trim_matches(|c| c == '"' || c == '\'');
                     // Find if this key is managed
-                    if let Some(spec) = vox_clavis::all_specs().iter().find(|s| {
+                    if let Some(spec) = vox_secrets::all_specs().iter().find(|s| {
                         s.canonical_env == key
                             || s.aliases.contains(&key)
                             || s.deprecated_aliases.contains(&key)
@@ -309,20 +309,20 @@ async fn run_doctor(
     bundle: Option<BundleArg>,
     format: OutputFormat,
 ) -> Result<()> {
-    let wf = vox_clavis::Workflow::from(workflow);
-    let profile = vox_clavis::Profile::from(profile_arg);
+    let wf = vox_secrets::Workflow::from(workflow);
+    let profile = vox_secrets::Profile::from(profile_arg);
     let resolved_mode = match mode {
         DoctorModeArg::Auto if local_inference_allows_no_cloud_key() => DoctorModeArg::Local,
         DoctorModeArg::Auto => DoctorModeArg::Cloud,
         m => m,
     };
     let requirements = if let Some(bundle) = bundle {
-        vox_clavis::requirements_for_bundle(vox_clavis::SecretBundle::from(bundle))
+        vox_secrets::requirements_for_bundle(vox_secrets::SecretBundle::from(bundle))
     } else {
-        vox_clavis::requirements_for_profile_mode(
+        vox_secrets::requirements_for_profile_mode(
             wf,
             profile,
-            vox_clavis::RequirementMode::from(resolved_mode),
+            vox_secrets::RequirementMode::from(resolved_mode),
         )
     };
 
@@ -368,30 +368,30 @@ struct DoctorSecretRow {
 }
 
 fn emit_doctor_json_v1(
-    workflow: vox_clavis::Workflow,
-    profile: vox_clavis::Profile,
+    workflow: vox_secrets::Workflow,
+    profile: vox_secrets::Profile,
     mode: DoctorModeArg,
     _resolved_mode: DoctorModeArg,
 ) -> Result<()> {
     let mut secrets = Vec::new();
-    let _bundles = vox_clavis::all_bundle_doc_names();
+    let _bundles = vox_secrets::all_bundle_doc_names();
 
     // Mapping from SecretId to list of bundle doc names they belong to
-    let mut ms: std::collections::BTreeMap<vox_clavis::SecretId, Vec<&'static str>> =
+    let mut ms: std::collections::BTreeMap<vox_secrets::SecretId, Vec<&'static str>> =
         std::collections::BTreeMap::new();
-    for spec in vox_clavis::all_specs() {
+    for spec in vox_secrets::all_specs() {
         ms.insert(spec.id, Vec::new());
     }
 
-    for &b in vox_clavis::SecretBundle::variants() {
-        let reqs = vox_clavis::requirements_for_bundle(b);
+    for &b in vox_secrets::SecretBundle::variants() {
+        let reqs = vox_secrets::requirements_for_bundle(b);
         let b_name = b.doc_name();
 
         let mut ids = std::collections::BTreeSet::new();
         for r in &reqs.blocking {
             match r {
-                vox_clavis::RequirementSet::AllOf(list)
-                | vox_clavis::RequirementSet::AnyOf(list) => {
+                vox_secrets::RequirementSet::AllOf(list)
+                | vox_secrets::RequirementSet::AnyOf(list) => {
                     for &id in *list {
                         ids.insert(id);
                     }
@@ -409,8 +409,8 @@ fn emit_doctor_json_v1(
         }
     }
 
-    for spec in vox_clavis::all_specs() {
-        let resolved = vox_clavis::resolve_secret(spec.id);
+    for spec in vox_secrets::all_specs() {
+        let resolved = vox_secrets::resolve_secret(spec.id);
 
         let memberships = ms
             .get(&spec.id)
@@ -422,7 +422,7 @@ fn emit_doctor_json_v1(
 
         let is_deprecated_alias = matches!(
             resolved.status,
-            vox_clavis::ResolutionStatus::DeprecatedAliasUsed
+            vox_secrets::ResolutionStatus::DeprecatedAliasUsed
         );
 
         secrets.push(DoctorSecretRow {
@@ -432,7 +432,7 @@ fn emit_doctor_json_v1(
             source: format!("{:?}", resolved.source),
             class: format!("{:?}", spec.id.metadata().class),
             material_kind: format!("{:?}", spec.id.metadata().material_kind),
-            capabilities: vox_clavis::capabilities_for_secret(spec.id)
+            capabilities: vox_secrets::capabilities_for_secret(spec.id)
                 .iter()
                 .map(|c| format!("{:?}", c))
                 .collect(),
@@ -451,12 +451,12 @@ fn emit_doctor_json_v1(
             },
             feature_gate_missing: matches!(
                 resolved.status,
-                vox_clavis::ResolutionStatus::BackendUnavailable
+                vox_secrets::ResolutionStatus::BackendUnavailable
             ),
         });
     }
 
-    let account_id = std::env::var(vox_clavis::OPERATOR_ACCOUNT_ID).unwrap_or_default();
+    let account_id = std::env::var(vox_secrets::OPERATOR_ACCOUNT_ID).unwrap_or_default();
     let account_warning = if account_id == "default-account" || account_id.is_empty() {
         Some("VOX_ACCOUNT_ID is using a default or empty value. This can cause multi-device vault conflicts.".to_string())
     } else {
@@ -472,12 +472,12 @@ fn emit_doctor_json_v1(
             }
             if let Some((key, _)) = line.split_once('=') {
                 let key = key.trim();
-                if let Some(spec) = vox_clavis::all_specs()
+                if let Some(spec) = vox_secrets::all_specs()
                     .iter()
                     .find(|s| s.canonical_env == key || s.aliases.contains(&key))
                 {
-                    let res = vox_clavis::resolve_secret(spec.id);
-                    if !matches!(res.source, Some(vox_clavis::SecretSource::SecureStore)) {
+                    let res = vox_secrets::resolve_secret(spec.id);
+                    if !matches!(res.source, Some(vox_secrets::SecretSource::SecureStore)) {
                         suggested_migrations.push(format!(
                             "migrate `{}` from .env to secure vault via `vox clavis import-env`",
                             key
@@ -497,9 +497,9 @@ fn emit_doctor_json_v1(
         workflow: format!("{:?}", workflow),
         profile: format!("{:?}", profile),
         mode: format!("{:?}", mode),
-        vault_diagnostic: vox_clavis::backend::vox_vault::cloudless_vault_env_diagnostic()
+        vault_diagnostic: vox_secrets::backend::vox_vault::cloudless_vault_env_diagnostic()
             .to_string(),
-        backend_mode: format!("{:?}", vox_clavis::BackendMode::from_env()),
+        backend_mode: format!("{:?}", vox_secrets::BackendMode::from_env()),
         rollout_flags: vox_config::rollout_flag_snapshot(),
         secrets,
         account_warning,
@@ -515,16 +515,16 @@ fn emit_doctor_human(
     profile: ProfileArg,
     resolved_mode: DoctorModeArg,
     bundle: Option<BundleArg>,
-    requirements: vox_clavis::WorkflowRequirements,
+    requirements: vox_secrets::WorkflowRequirements,
 ) -> Result<()> {
     println!("clavis doctor ({workflow:?}, {profile:?})");
     println!(
         "cloudless_vault_store: {}",
-        vox_clavis::backend::vox_vault::cloudless_vault_env_diagnostic()
+        vox_secrets::backend::vox_vault::cloudless_vault_env_diagnostic()
     );
     println!("active_mode: {resolved_mode:?}");
 
-    let account_id = std::env::var(vox_clavis::OPERATOR_ACCOUNT_ID)
+    let account_id = std::env::var(vox_secrets::OPERATOR_ACCOUNT_ID)
         .unwrap_or_else(|_| "default-account".to_string());
     if account_id == "default-account" {
         println!(
@@ -541,12 +541,12 @@ fn emit_doctor_human(
             }
             if let Some((key, _)) = line.split_once('=') {
                 let key = key.trim();
-                if let Some(spec) = vox_clavis::all_specs()
+                if let Some(spec) = vox_secrets::all_specs()
                     .iter()
                     .find(|s| s.canonical_env == key || s.aliases.contains(&key))
                 {
-                    let res = vox_clavis::resolve_secret(spec.id);
-                    if !matches!(res.source, Some(vox_clavis::SecretSource::SecureStore)) {
+                    let res = vox_secrets::resolve_secret(spec.id);
+                    if !matches!(res.source, Some(vox_secrets::SecretSource::SecureStore)) {
                         if count == 0 {
                             println!("suggested migrations (unmanaged .env keys detected):");
                         }
@@ -564,10 +564,10 @@ fn emit_doctor_human(
     println!("blocking_requirements:");
     for req in requirements.blocking {
         match req {
-            vox_clavis::RequirementSet::AllOf(ids) => {
+            vox_secrets::RequirementSet::AllOf(ids) => {
                 let mut ok = true;
                 for id in ids {
-                    let resolved = vox_clavis::resolve_secret(*id);
+                    let resolved = vox_secrets::resolve_secret(*id);
                     println!(
                         "  - {:?}: {:?} via {:?} {}",
                         id,
@@ -588,11 +588,11 @@ fn emit_doctor_human(
                     if ok { "satisfied" } else { "missing" }
                 );
             }
-            vox_clavis::RequirementSet::AnyOf(ids) => {
+            vox_secrets::RequirementSet::AnyOf(ids) => {
                 let mut ok = false;
-                let mut any_present: Option<vox_clavis::SecretId> = None;
+                let mut any_present: Option<vox_secrets::SecretId> = None;
                 for id in ids {
-                    let resolved = vox_clavis::resolve_secret(*id);
+                    let resolved = vox_secrets::resolve_secret(*id);
                     println!(
                         "  - {:?}: {:?} via {:?} {}",
                         id,
@@ -608,7 +608,7 @@ fn emit_doctor_human(
                     }
                     if matches!(
                         resolved.status,
-                        vox_clavis::ResolutionStatus::DeprecatedAliasUsed
+                        vox_secrets::ResolutionStatus::DeprecatedAliasUsed
                     ) {
                         println!(
                             "    warning: deprecated alias in use; migrate to `{}`",
@@ -635,7 +635,7 @@ fn emit_doctor_human(
     if !requirements.optional.is_empty() {
         println!("optional_capabilities:");
         for id in requirements.optional {
-            let resolved = vox_clavis::resolve_secret(id);
+            let resolved = vox_secrets::resolve_secret(id);
             println!(
                 "  - {:?}: {:?} via {:?} {}",
                 id,
@@ -645,7 +645,7 @@ fn emit_doctor_human(
             );
             if matches!(
                 resolved.status,
-                vox_clavis::ResolutionStatus::DeprecatedAliasUsed
+                vox_secrets::ResolutionStatus::DeprecatedAliasUsed
             ) {
                 println!(
                     "    warning: deprecated alias in use; migrate to `{}`",
@@ -685,9 +685,9 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
 
     println!("clavis sync: identifying shareable secrets...");
     let mut shareable_secrets = Vec::new();
-    for spec in vox_clavis::all_specs() {
+    for spec in vox_secrets::all_specs() {
         if spec.id.metadata().shareable {
-            let res = vox_clavis::resolve_secret(spec.id);
+            let res = vox_secrets::resolve_secret(spec.id);
             if let Some(val) = res.expose() {
                 shareable_secrets.push((spec, val.to_string()));
             }

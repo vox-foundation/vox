@@ -168,7 +168,7 @@ pub async fn run(args: DeployArgs) -> Result<()> {
             vox_deploy_codegen::DeployTarget::Coolify(vox_deploy_codegen::deploy_target::CoolifyTarget {
                 base_url: cfg.base_url.clone().unwrap_or_default(),
                 token: std::env::var(&cfg.token_env).unwrap_or_else(|_| {
-                    vox_clavis::resolve_secret(vox_clavis::SecretId::CoolifyToken)
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::CoolifyToken)
                         .expose()
                         .unwrap_or_default()
                         .to_string()

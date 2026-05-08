@@ -244,7 +244,7 @@ pub fn run_candle_qlora_train(
         .unwrap_or_else(|| data_dir.join("train.jsonl"));
     let _ = preflight_train_jsonl(&train_path, 1_000_000)?;
     let jsonl_strict_resolved =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMensTrainJsonlStrict);
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMensTrainJsonlStrict);
     let jsonl_policy = if jsonl_strict_resolved.expose().is_some_and(|s| s == "1") {
         vox_tensor::data::MalformedJsonlPolicy::FailFast
     } else {

@@ -176,7 +176,7 @@ mod legacy {
 
     pub fn a2a_store_path_from_env() -> Option<PathBuf> {
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshA2aStorePath).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshA2aStorePath).expose()
         {
             let t = v.trim();
             if !t.is_empty() {
@@ -201,7 +201,7 @@ mod legacy {
 
     pub fn exec_lease_store_path_from_env(a2a: Option<&PathBuf>) -> Option<PathBuf> {
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshExecLeaseStorePath).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshExecLeaseStorePath).expose()
         {
             let t = v.trim();
             if !t.is_empty() {
@@ -231,7 +231,7 @@ mod legacy {
 
     pub fn dispatch_results_store_path_from_env(a2a: Option<&PathBuf>) -> Option<PathBuf> {
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshDispatchStorePath).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshDispatchStorePath).expose()
         {
             let t = v.trim();
             if !t.is_empty() {

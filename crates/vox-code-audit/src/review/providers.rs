@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use vox_clavis::{SecretId, resolve_secret};
+use vox_secrets::{SecretId, resolve_secret};
 
 /// AI provider for code review — superset of `AiProvider`, with OpenRouter
 /// and OpenAI-compatible endpoints added.

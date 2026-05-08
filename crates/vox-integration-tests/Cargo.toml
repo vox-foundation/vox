@@ -27,7 +27,7 @@ vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true }
 vox-cli = { workspace = true }
 vox-scaling-policy = { workspace = true }
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 
 
 [lints]

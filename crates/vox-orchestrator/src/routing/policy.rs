@@ -239,7 +239,7 @@ impl RoutingPolicy {
             serde_yaml::from_str(YAML).expect("parse embedded model-routing.v1.yaml");
         let mut exploration = parsed.exploration;
         if let Some(eps) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingExplorationEpsilon).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingExplorationEpsilon).expose()
         {
             if let Ok(v) = eps.parse::<f64>() {
                 if (0.0..=1.0).contains(&v) {
@@ -248,19 +248,19 @@ impl RoutingPolicy {
             }
         }
         let provider_allowlist = parse_csv_lower(
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingProviderAllowlist).expose(),
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingProviderAllowlist).expose(),
         );
         let provider_denylist = parse_csv_lower(
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingProviderDenylist).expose(),
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingProviderDenylist).expose(),
         );
         let hard_pin_model_id =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingHardPinModel)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingHardPinModel)
                 .expose()
                 .map(str::trim)
                 .filter(|s| !s.is_empty())
                 .map(std::string::ToString::to_string);
         let max_spend_usd_per_session =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRoutingMaxSpendUsdPerSession)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingMaxSpendUsdPerSession)
                 .expose()
                 .and_then(|s| s.trim().parse::<f64>().ok())
                 .filter(|v| *v > 0.0);

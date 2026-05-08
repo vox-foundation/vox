@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use vox_clavis::{SecretId, resolve_secret};
+use vox_secrets::{SecretId, resolve_secret};
 
 /// Thread-safe atomic credit counter for one MCP/CLI session.
 #[derive(Debug, Clone)]

@@ -13,7 +13,7 @@ use crate::server_state::ServerState;
 use serde::Deserialize;
 
 fn summary_max_chars() -> usize {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBrowserLlmContextChars)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBrowserLlmContextChars)
         .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(24_000)

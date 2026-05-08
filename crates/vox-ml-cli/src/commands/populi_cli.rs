@@ -454,7 +454,7 @@ fn resolve_populi_control_base(url_override: Option<String>) -> anyhow::Result<S
     let raw = if let Some(u) = url_override {
         u
     } else if let Some(u) =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorMeshControlUrl).expose()
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorMeshControlUrl).expose()
     {
         u.trim().to_string()
     } else {
@@ -493,7 +493,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
         PopuliCli::Identity { cmd } => match cmd {
             PopuliIdentityCmd::Show => {
                 let sk_b64 =
-                    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey)
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshFederationSigningKey)
                         .expose()
                         .map(|s| s.to_string());
                 if let Some(s) = sk_b64 {
@@ -520,7 +520,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             }
             PopuliIdentityCmd::Export => {
                 let sk_b64 =
-                    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshFederationSigningKey)
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshFederationSigningKey)
                         .expose()
                         .map(|s| s.to_string());
                 if let Some(s) = sk_b64 {
@@ -541,14 +541,14 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                         valid_modes
                     );
                 }
-                let auth_path = vox_clavis::set_registry_token("mesh_visibility", &mode, None)?;
+                let auth_path = vox_secrets::set_registry_token("mesh_visibility", &mode, None)?;
                 println!("Updated mesh visibility to '{}'", mode);
                 println!("Wrote to Clavis auth store at: {}", auth_path.display());
                 Ok(())
             }
             PopuliIdentityCmd::PreferMesh { enabled } => {
                 let val = if enabled { "true" } else { "false" };
-                let auth_path = vox_clavis::set_registry_token("routing_prefer_mesh", val, None)?;
+                let auth_path = vox_secrets::set_registry_token("routing_prefer_mesh", val, None)?;
                 println!("Updated mesh routing preference to '{}'", val);
                 println!("Wrote to Clavis auth store at: {}", auth_path.display());
                 Ok(())
@@ -560,7 +560,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                         .map_err(|e| anyhow::anyhow!("Invalid WorkerDonationPolicy JSON: {}", e))?;
 
                 let auth_path =
-                    vox_clavis::set_registry_token("mesh_donation_policy", &json_payload, None)?;
+                    vox_secrets::set_registry_token("mesh_donation_policy", &json_payload, None)?;
                 println!("Updated mesh donation policy (valid JSON).");
                 println!("Wrote to Clavis auth store at: {}", auth_path.display());
                 Ok(())
@@ -616,7 +616,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     );
                 }
 
-                let auth_path = vox_clavis::set_registry_token(
+                let auth_path = vox_secrets::set_registry_token(
                     "mesh_federation_signing_key",
                     &new_sk_b64,
                     None,
@@ -858,7 +858,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 .get(MESH_TOKEN_KEY)
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
-            let resolved_mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+            let resolved_mesh = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
                 .expose()
                 .map(|s| s.to_string())
                 .or(saved_mesh);
@@ -970,7 +970,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
 
                     // Token source
                     let token_source =
-                        if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+                        if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
                             .expose()
                             .is_some()
                         {
@@ -1003,7 +1003,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     let ok = true;
                     println!("Checking mesh configuration...");
 
-                    let has_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+                    let has_token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
                         .expose()
                         .is_some()
                         || cfg.values.contains_key(MESH_TOKEN_KEY);

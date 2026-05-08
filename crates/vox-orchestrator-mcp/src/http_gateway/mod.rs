@@ -197,8 +197,8 @@ struct WsMessageOut {
 
 /// Returns true when `VOX_MCP_HTTP_ENABLED` is truthy.
 pub fn http_gateway_enabled() -> bool {
-    let result = read_bool_env(vox_clavis::SecretId::VoxMcpHttpEnabled).unwrap_or(false);
-    let resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpEnabled);
+    let result = read_bool_env(vox_secrets::SecretId::VoxMcpHttpEnabled).unwrap_or(false);
+    let resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpEnabled);
     // Use tracing so this debug info honors RUST_LOG filters and never
     // corrupts stdout for callers piping the gateway output.
     tracing::debug!(
@@ -255,29 +255,29 @@ pub fn spawn_http_gateway_if_enabled(
         return Ok(None);
     }
 
-    let bind_host = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpHost)
+    let bind_host = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpHost)
         .expose()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| DEFAULT_BIND_HOST.to_string());
-    let bind_port = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpPort)
+    let bind_port = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpPort)
         .expose()
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(DEFAULT_BIND_PORT);
     #[allow(unused_mut)]
-    let mut bearer_token = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpBearerToken)
+    let mut bearer_token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpBearerToken)
         .expose()
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(str::to_string);
     let read_bearer_token =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpReadBearerToken)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpReadBearerToken)
             .expose()
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(str::to_string);
     let allow_unauthenticated =
-        read_bool_env(vox_clavis::SecretId::VoxMcpHttpAllowUnauthenticated).unwrap_or(false);
+        read_bool_env(vox_secrets::SecretId::VoxMcpHttpAllowUnauthenticated).unwrap_or(false);
 
     #[cfg(feature = "dashboard")]
     let mut dashboard_token: Option<token::DashboardToken> = None;
@@ -285,7 +285,7 @@ pub fn spawn_http_gateway_if_enabled(
     let dashboard_token: Option<token::DashboardToken> = None;
     #[cfg(feature = "dashboard")]
     if bind_host == DEFAULT_BIND_HOST
-        && vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashboardEnabled)
+        && vox_secrets::resolve_secret(vox_secrets::SecretId::VoxDashboardEnabled)
             .expose()
             .map(|s| s.trim() == "1")
             .unwrap_or(false)
@@ -300,7 +300,7 @@ pub fn spawn_http_gateway_if_enabled(
     }
 
     let public_eval_enabled =
-        read_bool_env(vox_clavis::SecretId::VoxMcpHttpPublicEvalEnabled).unwrap_or(false);
+        read_bool_env(vox_secrets::SecretId::VoxMcpHttpPublicEvalEnabled).unwrap_or(false);
     let public_eval_rate_limiter = new_identity_rate_limiter(10);
 
     if bearer_token.is_none()
@@ -313,13 +313,13 @@ pub fn spawn_http_gateway_if_enabled(
         );
     }
     let require_forwarded_https =
-        read_bool_env(vox_clavis::SecretId::VoxMcpHttpRequireForwardedHttps).unwrap_or(false);
+        read_bool_env(vox_secrets::SecretId::VoxMcpHttpRequireForwardedHttps).unwrap_or(false);
     let health_auth_required =
-        read_bool_env(vox_clavis::SecretId::VoxMcpHttpHealthAuth).unwrap_or(false);
+        read_bool_env(vox_secrets::SecretId::VoxMcpHttpHealthAuth).unwrap_or(false);
     let trust_forwarded_for =
-        read_bool_env(vox_clavis::SecretId::VoxMcpHttpTrustXForwardedFor).unwrap_or(false);
+        read_bool_env(vox_secrets::SecretId::VoxMcpHttpTrustXForwardedFor).unwrap_or(false);
     let calls_per_minute =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpRateLimitPerMinute)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpRateLimitPerMinute)
             .expose()
             .and_then(|s| s.parse::<u32>().ok())
             .filter(|n| *n > 0)
@@ -437,14 +437,14 @@ pub(super) fn enforce_rate_limit(
 
 pub(super) fn parse_allowed_tools() -> Result<HashSet<String>> {
     parse_allowed_tools_from_value(
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpAllowedTools)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpAllowedTools)
             .expose()
             .as_deref(),
     )
 }
 
 pub(super) fn parse_read_role_allowed_tools_override() -> Result<Option<HashSet<String>>> {
-    let explicit = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpHttpReadRoleAllowedTools)
+    let explicit = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpReadRoleAllowedTools)
         .expose()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
@@ -619,8 +619,8 @@ mod tests {
     }
 }
 
-pub(super) fn read_bool_env(id: vox_clavis::SecretId) -> Option<bool> {
-    vox_clavis::resolve_secret(id).expose().map(|v| {
+pub(super) fn read_bool_env(id: vox_secrets::SecretId) -> Option<bool> {
+    vox_secrets::resolve_secret(id).expose().map(|v| {
         let t = v.trim();
         t == "1"
             || t.eq_ignore_ascii_case("true")

@@ -280,7 +280,7 @@ fn resolve_secret_internal(id: SecretId, options: ResolveOptions) -> ResolvedSec
             {
                 return resolve_vault(id, profile, &options.caller_context);
             }
-            if let Ok(entry) = keyring::Entry::new("vox-clavis-vault", "master")
+            if let Ok(entry) = keyring::Entry::new("vox-secrets-vault", "master")
                 && entry.get_password().is_ok()
             {
                 return resolve_vox_cloud(id, options);

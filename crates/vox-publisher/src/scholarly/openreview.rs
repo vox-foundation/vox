@@ -19,7 +19,7 @@ const DEFAULT_API_BASE: &str = "https://api2.openreview.net";
 
 #[must_use]
 fn openreview_http_max_attempts() -> u32 {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewHttpMaxAttempts)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewHttpMaxAttempts)
         .expose()
         .and_then(|s| s.trim().parse().ok())
         .filter(|&n| (1..=10).contains(&n))
@@ -50,11 +50,11 @@ struct OpenReviewConfig {
 fn merge_openreview_config(
     manifest: &PublicationManifest,
 ) -> Result<OpenReviewConfig, ScholarlyError> {
-    let mut invitation = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewInvitation)
+    let mut invitation = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewInvitation)
         .expose()
         .unwrap_or_default()
         .to_string();
-    let mut signature = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewSignature)
+    let mut signature = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewSignature)
         .expose()
         .unwrap_or_default()
         .to_string();
@@ -140,7 +140,7 @@ pub fn export_openreview_submit_profile(
 }
 
 fn api_base() -> String {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewApiBase)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewApiBase)
         .expose()
         .unwrap_or(DEFAULT_API_BASE)
         .to_string()
@@ -190,13 +190,13 @@ async fn resolve_bearer_async(
     http: &reqwest::Client,
     base: &str,
 ) -> Result<String, ScholarlyError> {
-    let token_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewAccessToken);
+    let token_res = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewAccessToken);
     if let Some(t) = token_res.expose() {
         return Ok(t.to_string());
     }
-    let email_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewEmail);
+    let email_res = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewEmail);
     let email = email_res.expose();
-    let password_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenReviewPassword);
+    let password_res = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewPassword);
     let password = password_res.expose();
     let (Some(email), Some(password)) = (email, password) else {
         return Err(ScholarlyError::Config {

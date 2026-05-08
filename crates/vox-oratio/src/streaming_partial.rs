@@ -27,13 +27,13 @@ impl StreamingStabilizationConfig {
     pub fn from_env() -> Self {
         let mut c = Self::default();
         if let Some(s) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioStreamPartialQuietMs).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioStreamPartialQuietMs).expose()
             && let Ok(v) = s.parse::<u64>()
         {
             c.partial_quiet_ms = v.max(50);
         }
         if let Some(s) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioStreamMaxWaitMs).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioStreamMaxWaitMs).expose()
             && let Ok(v) = s.parse::<u64>()
         {
             c.max_wait_ms = v.max(200);

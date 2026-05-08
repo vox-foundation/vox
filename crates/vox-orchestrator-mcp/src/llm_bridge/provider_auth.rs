@@ -5,10 +5,10 @@ use vox_orchestrator::models::{ModelSpec, ProviderType};
 use super::error::HttpInferError;
 
 fn required_secret(
-    id: vox_clavis::SecretId,
+    id: vox_secrets::SecretId,
     provider_label: &str,
 ) -> Result<String, HttpInferError> {
-    let resolved = vox_clavis::resolve_secret(id);
+    let resolved = vox_secrets::resolve_secret(id);
     let value = resolved.expose().unwrap_or_default().to_string();
     if value.trim().is_empty() {
         return Err(HttpInferError {
@@ -26,23 +26,23 @@ fn required_secret(
 pub(crate) fn bearer_for(model: &ModelSpec) -> Result<String, HttpInferError> {
     match model.provider_type {
         ProviderType::OpenRouter => {
-            required_secret(vox_clavis::SecretId::OpenRouterApiKey, "OpenRouter")
+            required_secret(vox_secrets::SecretId::OpenRouterApiKey, "OpenRouter")
         }
-        ProviderType::Groq => required_secret(vox_clavis::SecretId::GroqApiKey, "Groq"),
-        ProviderType::Cerebras => required_secret(vox_clavis::SecretId::CerebrasApiKey, "Cerebras"),
-        ProviderType::Mistral => required_secret(vox_clavis::SecretId::MistralApiKey, "Mistral"),
-        ProviderType::DeepSeek => required_secret(vox_clavis::SecretId::DeepSeekApiKey, "DeepSeek"),
+        ProviderType::Groq => required_secret(vox_secrets::SecretId::GroqApiKey, "Groq"),
+        ProviderType::Cerebras => required_secret(vox_secrets::SecretId::CerebrasApiKey, "Cerebras"),
+        ProviderType::Mistral => required_secret(vox_secrets::SecretId::MistralApiKey, "Mistral"),
+        ProviderType::DeepSeek => required_secret(vox_secrets::SecretId::DeepSeekApiKey, "DeepSeek"),
         ProviderType::SambaNova => {
-            required_secret(vox_clavis::SecretId::SambaNovaApiKey, "SambaNova")
+            required_secret(vox_secrets::SecretId::SambaNovaApiKey, "SambaNova")
         }
         ProviderType::Anthropic => {
-            required_secret(vox_clavis::SecretId::AnthropicApiKey, "Anthropic")
+            required_secret(vox_secrets::SecretId::AnthropicApiKey, "Anthropic")
         }
         ProviderType::Custom(_) => {
-            required_secret(vox_clavis::SecretId::CustomOpenaiApiKey, "Custom OpenAI")
+            required_secret(vox_secrets::SecretId::CustomOpenaiApiKey, "Custom OpenAI")
         }
         ProviderType::HuggingFaceRouter => {
-            required_secret(vox_clavis::SecretId::HuggingFaceToken, "HuggingFace")
+            required_secret(vox_secrets::SecretId::HuggingFaceToken, "HuggingFace")
         }
         ProviderType::GoogleDirect
         | ProviderType::Ollama
@@ -67,14 +67,14 @@ pub(crate) fn extra_headers_for(model: &ModelSpec) -> HashMap<String, String> {
     let mut headers = HashMap::new();
     if matches!(model.provider_type, ProviderType::OpenRouter) {
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenrouterHttpReferer).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenrouterHttpReferer).expose()
         {
             if !v.trim().is_empty() {
                 headers.insert("HTTP-Referer".to_string(), v.to_string());
             }
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenrouterAppTitle).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenrouterAppTitle).expose()
         {
             if !v.trim().is_empty() {
                 headers.insert("X-Title".to_string(), v.to_string());
@@ -97,7 +97,7 @@ pub(crate) fn extra_headers_for(model: &ModelSpec) -> HashMap<String, String> {
 /// Falls back to `Fallback` (resilience-first) when unset or unknown.
 fn openrouter_route_hint_from_env() -> vox_config::OpenRouterRouteHint {
     use vox_config::{OpenRouterRouteHint, RouteCostPreference, derive_openrouter_route_hint};
-    let raw = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenrouterRouteHint)
+    let raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenrouterRouteHint)
         .expose()
         .unwrap_or("")
         .to_string();
@@ -107,7 +107,7 @@ fn openrouter_route_hint_from_env() -> vox_config::OpenRouterRouteHint {
         "fallback" | "resilience" => OpenRouterRouteHint::Fallback,
         // Derive from orchestrator cost preference env when explicit hint absent.
         _ => {
-            let pref_raw = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxCostPreference)
+            let pref_raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCostPreference)
                 .expose()
                 .unwrap_or("")
                 .to_string();

@@ -61,7 +61,7 @@ pub async fn auth_command(provider: &str) -> Result<()> {
 
     // Resolve Client ID from Clavis
     let client_id =
-        match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGithubClientId).expose() {
+        match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGithubClientId).expose() {
             Some(id) if !id.is_empty() => id.to_string(),
             _ => {
                 // Fallback for development if not configured
@@ -175,7 +175,7 @@ pub async fn auth_command(provider: &str) -> Result<()> {
     let gh_user: GitHubUser = user_res.json().await?;
 
     // 4. Save to Clavis and DB
-    vox_clavis::set_registry_token("github.com", &access_token, Some(gh_user.login.clone()))?;
+    vox_secrets::set_registry_token("github.com", &access_token, Some(gh_user.login.clone()))?;
 
     ctx.db
         .upsert_vox_identity(

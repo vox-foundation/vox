@@ -228,36 +228,36 @@ impl VoxConfig {
     }
 
     fn apply_env(&mut self) {
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxModel).expose() {
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxModel).expose() {
             self.model = v.to_string();
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBudgetUsd).expose()
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBudgetUsd).expose()
             && let Ok(f) = v.parse()
         {
             self.daily_budget_usd = f;
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDataDir).expose() {
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxDataDir).expose() {
             self.data_dir = PathBuf::from(v.to_string());
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDbUrl).expose() {
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxDbUrl).expose() {
             self.db_url = Some(v.to_string());
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpBinary).expose() {
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpBinary).expose() {
             self.mcp_binary = Some(PathBuf::from(v.to_string()));
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGamifyEnabled).expose()
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGamifyEnabled).expose()
         {
             let low = v.to_lowercase();
             self.gamify_enabled = matches!(low.as_str(), "1" | "true" | "yes");
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGamifyMode).expose() {
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGamifyMode).expose() {
             self.gamify_mode = match v.to_lowercase().as_str() {
                 "serious" => GamifyMode::Serious,
                 "learning" => GamifyMode::Learning,
                 _ => GamifyMode::Balanced,
             };
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxWebRunMode).expose() {
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWebRunMode).expose() {
             self.web_run_mode = match v.to_lowercase().as_str() {
                 "app" => WebRunMode::App,
                 "script" => WebRunMode::Script,
@@ -265,22 +265,22 @@ impl VoxConfig {
             };
         }
         if let Some(v) =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxWebTanstackStart).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWebTanstackStart).expose()
         {
             let low = v.to_lowercase();
             self.web_tanstack_start = matches!(low.as_str(), "1" | "true" | "yes");
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey).expose()
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey).expose()
         {
             self.openrouter_key = Some(v.to_string());
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiApiKey).expose() {
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiApiKey).expose() {
             self.openai_key = Some(v.to_string());
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey).expose() {
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey).expose() {
             self.gemini_key = Some(v.to_string());
         }
-        if let Some(v) = vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicApiKey).expose()
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicApiKey).expose()
         {
             self.anthropic_key = Some(v.to_string());
         }

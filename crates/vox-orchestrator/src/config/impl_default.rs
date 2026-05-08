@@ -89,8 +89,8 @@ impl Default for OrchestratorConfig {
             planning_router_enabled: default_false(),
             planning_replan_enabled: default_false(),
             planning_workflow_handoff_enabled: default_false(),
-            planning_llm_synthesis_enabled: vox_clavis::resolve_secret(
-                vox_clavis::SecretId::VoxOrchestratorPlanningLlmSynthesisEnabled,
+            planning_llm_synthesis_enabled: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxOrchestratorPlanningLlmSynthesisEnabled,
             )
             .expose()
             .map(|v| v != "0" && v.to_ascii_lowercase() != "false")

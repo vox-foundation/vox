@@ -32,19 +32,19 @@ pub struct OpenClawConnectionOverrides {
 
 impl OpenClawAdapterConfig {
     pub fn from_env_defaults() -> Self {
-        let http_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenClawUrl);
+        let http_res = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenClawUrl);
         let http_gateway_url = http_res
             .expose()
             .unwrap_or("http://127.0.0.1:3000")
             .to_string();
 
-        let ws_res = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenClawWsUrl);
+        let ws_res = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenClawWsUrl);
         let ws_gateway_url = ws_res
             .expose()
             .unwrap_or("ws://127.0.0.1:18789")
             .to_string();
 
-        let auth_res = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken);
+        let auth_res = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken);
         let auth_token = auth_res.expose().map(str::to_string);
 
         Self {
@@ -98,7 +98,7 @@ pub async fn resolve_adapter_config(
         }
     });
     let auth_token = explicit_token.or_else(|| {
-        vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
             .expose()
             .map(str::to_string)
     });

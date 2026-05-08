@@ -423,7 +423,7 @@ pub async fn vox_news_simulate_publish_gate(
         orchestrator_dry_run: state.orchestrator_config.news.dry_run,
         item_dry_run: item.syndication.dry_run,
         publish_armed_config: state.orchestrator_config.news.publish_armed,
-        publish_armed_env: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxNewsPublishArmed)
+        publish_armed_env: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxNewsPublishArmed)
             .expose()
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false),

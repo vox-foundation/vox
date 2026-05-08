@@ -66,7 +66,7 @@ pub const LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT: &str = "http://localhost:11434";
 ///
 /// Precedence: **`VOX_POPULI_LOCAL_OLLAMA_URL`** → **`POPULI_URL`** → **`OLLAMA_URL`** → `http://localhost:11434`.
 pub fn local_ollama_populi_base_url() -> String {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPopuliLocalOllamaUrl)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxPopuliLocalOllamaUrl)
         .expose()
         .map(std::string::ToString::to_string)
         .or_else(|| std::env::var("POPULI_URL").ok())
@@ -78,21 +78,21 @@ pub fn local_ollama_populi_base_url() -> String {
 ///
 /// Precedence: **`HF_TOKEN`** → **`HUGGING_FACE_HUB_TOKEN`**.
 pub fn huggingface_hub_token() -> Option<String> {
-    vox_clavis::resolve_env_only(vox_clavis::SecretId::HuggingFaceToken)
+    vox_secrets::resolve_env_only(vox_secrets::SecretId::HuggingFaceToken)
         .expose()
         .map(std::string::ToString::to_string)
 }
 
 /// OpenRouter API key (`OPENROUTER_API_KEY`).
 pub fn openrouter_api_key() -> Option<String> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
         .expose()
         .map(std::string::ToString::to_string)
 }
 
 /// Preferred Hugging Face **router** model id for chat when policy selects HF (`HF_CHAT_MODEL`).
 pub fn hf_chat_model_preference() -> Option<String> {
-    crate::clavis::clavis_str(vox_clavis::SecretId::VoxHfChatModel)
+    crate::clavis::clavis_str(vox_secrets::SecretId::VoxHfChatModel)
 }
 
 /// Preferred OpenRouter model id when policy selects OpenRouter (`OPENROUTER_CHAT_MODEL`).
@@ -100,26 +100,26 @@ pub fn hf_chat_model_preference() -> Option<String> {
 /// Falls back to [`crate::bootstrap_inference::OPENROUTER_AUTO`] when unset.
 pub fn openrouter_chat_model_preference() -> String {
     crate::routing_migration::trace_openrouter_chat_env_migration_once();
-    let preferred = crate::clavis::clavis_str(vox_clavis::SecretId::VoxOpenRouterChatModel)
-        .or_else(|| crate::clavis::clavis_str(vox_clavis::SecretId::OpenRouterGeminiModel));
+    let preferred = crate::clavis::clavis_str(vox_secrets::SecretId::VoxOpenRouterChatModel)
+        .or_else(|| crate::clavis::clavis_str(vox_secrets::SecretId::OpenRouterGeminiModel));
     crate::routing_policy::resolve_openrouter_model(preferred)
 }
 
 /// OpenAI-compatible chat completions URL for a **pinned** Hugging Face Inference Endpoint
 /// (`HF_DEDICATED_CHAT_URL`), when policy should prefer dedicated over the shared router.
 pub fn hf_dedicated_chat_completions_url() -> Option<String> {
-    crate::clavis::clavis_str(vox_clavis::SecretId::VoxHfDedicatedChatUrl)
+    crate::clavis::clavis_str(vox_secrets::SecretId::VoxHfDedicatedChatUrl)
 }
 
 /// Model id sent in the JSON body for [`hf_dedicated_chat_completions_url`] (`HF_DEDICATED_CHAT_MODEL`).
 pub fn hf_dedicated_chat_model() -> Option<String> {
-    crate::clavis::clavis_str(vox_clavis::SecretId::VoxHfDedicatedChatModel)
+    crate::clavis::clavis_str(vox_secrets::SecretId::VoxHfDedicatedChatModel)
 }
 
 /// Canonical HF Inference Providers router chat completions URL (override via Clavis `VOX_HF_ROUTER_CHAT_COMPLETIONS_URL`).
 #[must_use]
 pub fn hf_router_chat_completions_url() -> String {
-    crate::clavis::clavis_str(vox_clavis::SecretId::VoxHfRouterChatCompletionsUrl)
+    crate::clavis::clavis_str(vox_secrets::SecretId::VoxHfRouterChatCompletionsUrl)
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| "https://router.huggingface.co/v1/chat/completions".to_string())
 }
@@ -135,77 +135,77 @@ pub fn sanitize_chatml(input: &str) -> String {
 
 /// Temperature for Together AI inference.
 pub fn together_tuning_temperature() -> Option<f32> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::TogetherTuningTemperature)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::TogetherTuningTemperature)
         .expose()
         .and_then(|s| s.parse::<f32>().ok())
 }
 
 /// Top-P for Together AI inference.
 pub fn together_tuning_top_p() -> Option<f32> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::TogetherTuningTopP)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::TogetherTuningTopP)
         .expose()
         .and_then(|s| s.parse::<f32>().ok())
 }
 
 /// Temperature for Gemini inference.
 pub fn gemini_tuning_temperature() -> Option<f32> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiTuningTemperature)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiTuningTemperature)
         .expose()
         .and_then(|s| s.parse::<f32>().ok())
 }
 
 /// Top-P for Gemini inference.
 pub fn gemini_tuning_top_p() -> Option<f32> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiTuningTopP)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiTuningTopP)
         .expose()
         .and_then(|s| s.parse::<f32>().ok())
 }
 
 /// Temperature for Ollama inference.
 pub fn ollama_tuning_temperature() -> Option<f32> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::OllamaTuningTemperature)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaTuningTemperature)
         .expose()
         .and_then(|s| s.parse::<f32>().ok())
 }
 
 /// Top-P for Ollama inference.
 pub fn ollama_tuning_top_p() -> Option<f32> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::OllamaTuningTopP)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaTuningTopP)
         .expose()
         .and_then(|s| s.parse::<f32>().ok())
 }
 
 /// Temperature for OpenAI inference.
 pub fn openai_tuning_temperature() -> Option<f32> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiTuningTemperature)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiTuningTemperature)
         .expose()
         .and_then(|s| s.parse::<f32>().ok())
 }
 
 /// Top-P for OpenAI inference.
 pub fn openai_tuning_top_p() -> Option<f32> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::OpenaiTuningTopP)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::OpenaiTuningTopP)
         .expose()
         .and_then(|s| s.parse::<f32>().ok())
 }
 
 /// Temperature for Anthropic inference.
 pub fn anthropic_tuning_temperature() -> Option<f32> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicTuningTemperature)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicTuningTemperature)
         .expose()
         .and_then(|s| s.parse::<f32>().ok())
 }
 
 /// Top-P for Anthropic inference.
 pub fn anthropic_tuning_top_p() -> Option<f32> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::AnthropicTuningTopP)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicTuningTopP)
         .expose()
         .and_then(|s| s.parse::<f32>().ok())
 }
 
 /// Context size for Ollama inference.
 pub fn ollama_tuning_num_ctx() -> Option<i32> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::OllamaTuningNumCtx)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::OllamaTuningNumCtx)
         .expose()
         .and_then(|s| s.parse::<i32>().ok())
 }

@@ -18,8 +18,8 @@ fn provider_allowed_by_route_policy(model: &ModelSpec) -> bool {
 }
 
 #[inline]
-fn clavis_truthy(id: vox_clavis::SecretId) -> bool {
-    vox_clavis::resolve_secret(id)
+fn clavis_truthy(id: vox_secrets::SecretId) -> bool {
+    vox_secrets::resolve_secret(id)
         .expose()
         .map(|s| s.trim().eq_ignore_ascii_case("true"))
         .unwrap_or(false)
@@ -27,7 +27,7 @@ fn clavis_truthy(id: vox_clavis::SecretId) -> bool {
 
 fn clavis_required_capabilities() -> Vec<vox_orchestrator::models::Capability> {
     use vox_orchestrator::models::Capability;
-    use vox_clavis::SecretId;
+    use vox_secrets::SecretId;
     let mut v = Vec::new();
     if clavis_truthy(SecretId::VoxCapabilityRequireToolUse) {
         v.push(Capability::SupportsToolUse);
@@ -50,9 +50,9 @@ fn clavis_capability_pin_model_id(
     prompt: &str,
 ) -> Option<String> {
     use vox_orchestrator::models::{Capability, PromptIntent};
-    use vox_clavis::SecretId;
+    use vox_secrets::SecretId;
     let pick = |id: SecretId| {
-        vox_clavis::resolve_secret(id)
+        vox_secrets::resolve_secret(id)
             .expose()
             .map(str::trim)
             .filter(|s| !s.is_empty())

@@ -36,7 +36,7 @@ impl TrainingBackend for CandleQloraBackend {
         tracing::debug!(backend = "candle_qlora", "Candle qlora backend run (plugin dispatch)");
         if config.optimizer_experiment_mode != OptimizerExperimentMode::Off {
             let optimizer_resolved =
-                vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMensExperimentalOptimizer);
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMensExperimentalOptimizer);
             let enabled = optimizer_resolved
                 .expose()
                 .is_some_and(|v| v == "1" || v.eq_ignore_ascii_case("true"));

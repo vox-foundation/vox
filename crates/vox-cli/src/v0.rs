@@ -69,7 +69,7 @@ async fn fetch_v0_tsx(
     user_instruction: &str,
     image_path: Option<&Path>,
 ) -> Result<String> {
-    let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::V0ApiKey)
+    let api_key = vox_secrets::resolve_secret(vox_secrets::SecretId::V0ApiKey)
         .expose()
         .map(std::string::ToString::to_string)
         .ok_or_else(|| {
@@ -217,12 +217,12 @@ mod v0_wiremock_tests {
 
         let url = format!("{}/v1/chats", server.uri());
         let prev_url = std::env::var("VOX_V0_API_URL").ok();
-        let prev_key = std::env::var(vox_clavis::SecretId::V0ApiKey.spec().canonical_env).ok();
+        let prev_key = std::env::var(vox_secrets::SecretId::V0ApiKey.spec().canonical_env).ok();
         // SAFETY: paired with `restore_env` below; serialized by `#[serial]`.
         unsafe {
             std::env::set_var("VOX_V0_API_URL", url.as_str());
             std::env::set_var(
-                vox_clavis::SecretId::V0ApiKey.spec().canonical_env,
+                vox_secrets::SecretId::V0ApiKey.spec().canonical_env,
                 "test-key",
             );
         }
@@ -234,7 +234,7 @@ mod v0_wiremock_tests {
 
         restore_env("VOX_V0_API_URL", prev_url);
         restore_env(
-            vox_clavis::SecretId::V0ApiKey.spec().canonical_env,
+            vox_secrets::SecretId::V0ApiKey.spec().canonical_env,
             prev_key,
         );
     }

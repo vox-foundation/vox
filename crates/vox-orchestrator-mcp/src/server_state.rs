@@ -205,8 +205,8 @@ impl ServerState {
         }
     }
 
-    fn mcp_env_truthy(id: vox_clavis::SecretId) -> bool {
-        let resolved = vox_clavis::resolve_secret(id);
+    fn mcp_env_truthy(id: vox_secrets::SecretId) -> bool {
+        let resolved = vox_secrets::resolve_secret(id);
         resolved.expose().is_some_and(|v| {
             let t = v.trim();
             t == "1" || t.eq_ignore_ascii_case("true") || t.eq_ignore_ascii_case("yes")
@@ -238,12 +238,12 @@ impl ServerState {
     }
 
     pub fn mcp_agent_fleet_env_enabled() -> bool {
-        Self::mcp_env_truthy(vox_clavis::SecretId::VoxMcpAgentFleet)
+        Self::mcp_env_truthy(vox_secrets::SecretId::VoxMcpAgentFleet)
     }
 
     pub fn record_attention_event(&self, mut event: vox_orchestrator::AttentionEvent) {
         let disable_mirror_resolved =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxQuestioningMirrorGlobalAttention);
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxQuestioningMirrorGlobalAttention);
         let disable_mirror = disable_mirror_resolved
             .expose()
             .is_some_and(|v| v == "0" || v.eq_ignore_ascii_case("false"));
@@ -292,7 +292,7 @@ impl ServerState {
             .get(session_key)
             .unwrap_or(&0);
         let max_res =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxQuestioningMaxAttentionMs);
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxQuestioningMaxAttentionMs);
         let max = max_res
             .expose()
             .and_then(|s| s.parse().ok())
@@ -302,7 +302,7 @@ impl ServerState {
 
     pub async fn probe_external_orchestrator_daemon_if_configured(&self) {
         let raw_resolved =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket);
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket);
         let Some(raw) = raw_resolved.expose() else {
             return;
         };
@@ -313,8 +313,8 @@ impl ServerState {
         if vox_orchestrator::orch_daemon::is_stdio_transport(addr) {
             return;
         }
-        let strict_repo_resolved = vox_clavis::resolve_secret(
-            vox_clavis::SecretId::VoxMcpOrchestratorDaemonRepositoryIdStrict,
+        let strict_repo_resolved = vox_secrets::resolve_secret(
+            vox_secrets::SecretId::VoxMcpOrchestratorDaemonRepositoryIdStrict,
         );
         let strict_repo = strict_repo_resolved
             .expose()
@@ -370,7 +370,7 @@ impl ServerState {
     }
 
     pub fn dogfood_trace_path_for(&self, name: &str) -> Option<std::path::PathBuf> {
-        let resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDogfoodTracePath);
+        let resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxDogfoodTracePath);
         let base = resolved.expose()?;
         if base.is_empty() {
             return None;

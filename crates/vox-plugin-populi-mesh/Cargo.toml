@@ -22,7 +22,7 @@ hex = "0.4.3"
 
 # Transport heavy deps (moved from vox-populi transport feature)
 vox-populi = { workspace = true }
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 vox-crypto = { workspace = true }
 vox-mesh-types = { workspace = true }
 vox-db = { workspace = true }

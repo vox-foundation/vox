@@ -175,7 +175,7 @@ pub fn generate_srt_file(
     };
 
     let budget_ms =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOratioAcousticPreprocessBudgetMs)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioAcousticPreprocessBudgetMs)
             .expose()
             .and_then(|s: &str| s.parse().ok())
             .unwrap_or(25u64);

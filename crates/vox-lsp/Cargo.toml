@@ -17,7 +17,7 @@ vox-compiler = { workspace = true }
 vox-db.workspace = true
 vox-gamify.workspace = true
 vox-bounded-fs = { workspace = true }
-vox-clavis.workspace = true
+vox-secrets.workspace = true
 anyhow = { workspace = true }
 workspace-hack = { workspace = true }
 

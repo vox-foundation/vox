@@ -4,14 +4,14 @@ use std::sync::OnceLock;
 use vox_db::{DbConfig, VoxDb};
 
 fn telemetry_enabled() -> bool {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBenchmarkTelemetry)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBenchmarkTelemetry)
         .expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
 }
 
 fn telemetry_discovery_start() -> std::path::PathBuf {
-    if let Some(p) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxRepositoryRoot).expose() {
+    if let Some(p) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot).expose() {
         let p = p.trim();
         if !p.is_empty() {
             return std::path::PathBuf::from(p);

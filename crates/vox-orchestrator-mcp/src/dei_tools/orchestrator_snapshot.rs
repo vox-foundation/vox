@@ -106,7 +106,7 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
     .ok();
 
     let max_stale_ms: Option<u64> =
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshMaxStaleMs)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshMaxStaleMs)
             .expose()
             .and_then(|s| s.trim().parse().ok())
             .filter(|n| *n > 0);
@@ -296,7 +296,7 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
 }
 
 fn mesh_codex_telemetry_enabled() -> bool {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshCodexTelemetry)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshCodexTelemetry)
         .expose()
         .map(|v| {
             let v = v.trim();

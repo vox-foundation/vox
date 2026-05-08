@@ -270,11 +270,11 @@ pub(crate) async fn compile(
 
         // Optional GC on miss
         let max_entries =
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScriptCacheMaxEntries)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxScriptCacheMaxEntries)
                 .expose()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(100usize);
-        let max_mb = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScriptCacheMaxSizeMb)
+        let max_mb = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxScriptCacheMaxSizeMb)
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(500u64);

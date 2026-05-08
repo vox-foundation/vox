@@ -11,7 +11,7 @@ use crate::{DbConfig, VoxDb};
 /// True when **`VOX_MESH_CODEX_TELEMETRY`** is `1` or `true`.
 #[must_use]
 pub fn mesh_codex_telemetry_enabled() -> bool {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshCodexTelemetry)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshCodexTelemetry)
         .expose()
         .map(|v| {
             let v = v.trim();
@@ -45,7 +45,7 @@ pub async fn record_local_registry_publish_opt(
         );
         return;
     };
-    let scope_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+    let scope_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshScopeId)
         .expose()
         .filter(|s| !s.trim().is_empty())
         .map(|s| s.trim().to_string());
@@ -93,7 +93,7 @@ pub async fn record_populi_http_join_opt(
         );
         return;
     };
-    let scope_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+    let scope_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshScopeId)
         .expose()
         .filter(|s| !s.trim().is_empty())
         .map(|s| s.trim().to_string());
@@ -138,7 +138,7 @@ pub async fn record_hardware_telemetry_opt(
     let Ok(db) = VoxDb::connect(cfg).await else {
         return;
     };
-    let scope_id = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshScopeId)
+    let scope_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshScopeId)
         .expose()
         .filter(|s| !s.trim().is_empty())
         .map(|s| s.trim().to_string());

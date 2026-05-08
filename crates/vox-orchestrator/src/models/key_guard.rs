@@ -1,7 +1,7 @@
 //! Utilities to check whether provider API keys are present.
 
 use super::ProviderType;
-use vox_clavis::SecretId;
+use vox_secrets::SecretId;
 
 /// Checks if the primary required secret for a given provider type is currently available.
 #[must_use]
@@ -24,5 +24,5 @@ pub fn provider_secret_is_available(ptype: &ProviderType) -> bool {
         }
     };
 
-    vox_clavis::resolve_secret(secret_id).expose().is_some()
+    vox_secrets::resolve_secret(secret_id).expose().is_some()
 }

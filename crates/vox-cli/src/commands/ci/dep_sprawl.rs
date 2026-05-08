@@ -32,7 +32,7 @@ pub fn run(root: &Path, cap: usize) -> Result<()> {
         "vox-cli",
         "vox-runtime",
         "vox-db",
-        "vox-clavis",
+        "vox-secrets",
         "vox-orchestrator",
         "vox-populi",
         "vox-ml-cli",

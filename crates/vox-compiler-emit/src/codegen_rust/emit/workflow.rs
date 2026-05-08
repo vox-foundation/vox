@@ -9,7 +9,7 @@ pub fn emit_lib(module: &HirModule) -> String {
     out.push_str("use serde::{Serialize, Deserialize};\n");
 
     if module.functions.iter().any(|f| f.is_llm) {
-        out.push_str("use vox_clavis::{SecretId, resolve_secret};\n");
+        out.push_str("use vox_secrets::{SecretId, resolve_secret};\n");
         out.push_str(
             "use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};\n",
         );

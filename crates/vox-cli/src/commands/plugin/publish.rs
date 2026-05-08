@@ -5,8 +5,8 @@
 //! and version come from Plugin.toml. Authentication resolves in this order:
 //!
 //! 1. `--api-key` flag passed on the command line
-//! 2. `OPENCLAW_API_KEY` (or alias `CLAWHUB_API_KEY`) via vox-clavis
-//! 3. `OPENCLAW_TOKEN` via vox-clavis (existing session token)
+//! 2. `OPENCLAW_API_KEY` (or alias `CLAWHUB_API_KEY`) via vox-secrets
+//! 3. `OPENCLAW_TOKEN` via vox-secrets (existing session token)
 //!
 //! On success, the gateway-assigned slug and canonical URL are printed.
 
@@ -75,13 +75,13 @@ pub async fn run(
         Some(k)
     } else {
         // Try publish-specific key first, fall back to existing session token.
-        let publish_key = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawApiKey)
+        let publish_key = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawApiKey)
             .expose()
             .map(str::to_string);
         if publish_key.is_some() {
             publish_key
         } else {
-            vox_clavis::resolve_secret(vox_clavis::SecretId::OpenClawToken)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
                 .expose()
                 .map(str::to_string)
         }
@@ -90,7 +90,7 @@ pub async fn run(
     if api_key.is_none() {
         bail!(
             "No OpenClaw API key found. Set OPENCLAW_API_KEY env var, \
-             pass --api-key, or configure it in vox-clavis."
+             pass --api-key, or configure it in vox-secrets."
         );
     }
 

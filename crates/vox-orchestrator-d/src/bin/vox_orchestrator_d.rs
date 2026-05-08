@@ -52,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .try_init();
 
-    let bind_raw = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOrchestratorDaemonSocket)
+    let bind_raw = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOrchestratorDaemonSocket)
         .expose()
         .ok_or_else(|| {
             anyhow::anyhow!(

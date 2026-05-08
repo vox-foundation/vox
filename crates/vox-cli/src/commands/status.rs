@@ -19,11 +19,11 @@ pub async fn run(json_output: bool) -> Result<()> {
         vox_db::workspace_journey_diagnostics_json(&repo.root, &repo.repository_id);
 
     // Detect configured providers
-    let google_key = vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+    let google_key = vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey)
         .expose()
         .map(std::string::ToString::to_string);
 
-    let openrouter_key = vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+    let openrouter_key = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
         .expose()
         .map(std::string::ToString::to_string);
 

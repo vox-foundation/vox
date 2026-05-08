@@ -66,8 +66,8 @@ async fn run_probe_internal() -> ProbeReport {
     // Clavis override: if the operator has set VoxGpuModel + VoxGpuVramMb, skip probing.
     use crate::mens::hardware::types::{ComputeBackend, vendor_from_model};
     if let (Some(model), Some(vram_s)) = (
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGpuModel).expose(),
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGpuVramMb).expose(),
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGpuModel).expose(),
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGpuVramMb).expose(),
     ) && let Ok(vram_mb) = vram_s.parse::<u64>()
     {
         let summary = HardwareSummary {

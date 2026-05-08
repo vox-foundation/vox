@@ -80,7 +80,7 @@ pub(crate) async fn auth_registry_token(registry: &str) -> Option<String> {
 }
 
 fn resolved_google_key_sync() -> Option<String> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey)
         .expose()
         .map(std::string::ToString::to_string)
 }
@@ -93,7 +93,7 @@ pub(crate) async fn resolved_google_key() -> Option<String> {
 }
 
 fn resolved_openrouter_key_sync() -> Option<String> {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::OpenRouterApiKey)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey)
         .expose()
         .map(std::string::ToString::to_string)
 }

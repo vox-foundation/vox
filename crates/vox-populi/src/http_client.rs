@@ -136,7 +136,7 @@ impl PopuliHttpClient {
     /// If **`VOX_MESH_TOKEN`** is set and non-empty, same as [`Self::with_bearer`] with that value.
     #[must_use]
     pub fn with_env_token(self) -> Self {
-        if let Some(token) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+        if let Some(token) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
             .expose()
             .map(str::trim)
             .filter(|t| !t.is_empty())
@@ -150,7 +150,7 @@ impl PopuliHttpClient {
     /// Bearer for **`POST /v1/populi/a2a/deliver`**: first non-empty among mesh, submitter, then admin tokens.
     #[must_use]
     pub fn with_env_deliver_token(self) -> Self {
-        let mesh = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshToken)
+        let mesh = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
             .expose()
             .map(str::trim)
             .filter(|t| !t.is_empty())
@@ -158,7 +158,7 @@ impl PopuliHttpClient {
         if let Some(t) = mesh {
             return self.with_bearer(t);
         }
-        let sub = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshSubmitterToken)
+        let sub = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshSubmitterToken)
             .expose()
             .map(str::trim)
             .filter(|t| !t.is_empty())
@@ -166,7 +166,7 @@ impl PopuliHttpClient {
         if let Some(t) = sub {
             return self.with_bearer(t);
         }
-        let adm = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshAdminToken)
+        let adm = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshAdminToken)
             .expose()
             .map(str::trim)
             .filter(|t| !t.is_empty())

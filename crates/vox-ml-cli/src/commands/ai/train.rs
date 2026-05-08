@@ -105,7 +105,7 @@ async fn run_together(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Res
             p.display()
         );
     }
-    let api_key = vox_clavis::resolve_secret(vox_clavis::SecretId::TogetherApiKey)
+    let api_key = vox_secrets::resolve_secret(vox_secrets::SecretId::TogetherApiKey)
         .expose()
         .map(std::string::ToString::to_string)
         .ok_or_else(|| {
@@ -139,7 +139,7 @@ async fn run_together(data_dir: &Path, output_dir: Option<&Path>) -> anyhow::Res
         .get("id")
         .and_then(|x| x.as_str())
         .ok_or_else(|| anyhow::anyhow!("Together response missing id: {}", text))?;
-    let model = vox_clavis::resolve_secret(vox_clavis::SecretId::TogetherFinetuneModel)
+    let model = vox_secrets::resolve_secret(vox_secrets::SecretId::TogetherFinetuneModel)
         .expose()
         .map(std::string::ToString::to_string)
         .unwrap_or_else(|| DEFAULT_TOGETHER_MODEL.to_string());

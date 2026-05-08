@@ -94,13 +94,13 @@ pub(super) async fn publication_preflight_report_for_row(
     }
 }
 pub(super) fn cli_social_worthiness_enforce() -> bool {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialWorthinessEnforce)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSocialWorthinessEnforce)
         .expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
 }
 pub(super) fn cli_social_worthiness_score_min() -> f64 {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxSocialWorthinessScoreMin)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSocialWorthinessScoreMin)
         .expose()
         .and_then(|v| v.parse().ok())
         .unwrap_or(0.85)

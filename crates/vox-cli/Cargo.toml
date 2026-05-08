@@ -130,7 +130,7 @@ vox-skills = { workspace = true, optional = true }
 vox-openclaw-runtime = { workspace = true, optional = true }
 vox-gamify = { workspace = true, optional = true }
 vox-config = { workspace = true }
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 vox-db = { workspace = true }
 vox-search = { workspace = true }
 # `vox-plugin-publication` is intentionally NOT a direct dep here. The CLI

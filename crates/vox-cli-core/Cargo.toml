@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 vox-db = { workspace = true }
-vox-clavis = { workspace = true }
+vox-secrets = { workspace = true }
 vox-repository = { workspace = true }
 vox-gamify = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }

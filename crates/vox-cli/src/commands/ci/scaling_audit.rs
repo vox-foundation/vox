@@ -189,7 +189,7 @@ fn findings_array_to_pretty(findings: &JsonValue) -> Result<String> {
 /// Upper bound for `rust_parse_failures` in the TOESTUB JSON envelope (`toestub --format json`).
 /// Unset or non-numeric ⇒ no limit. Documented in `docs/src/reference/env-vars.md`.
 fn toestub_rust_parse_failure_limit_from_env() -> u64 {
-    vox_clavis::resolve_secret(vox_clavis::SecretId::VoxToestubMaxRustParseFailures)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::VoxToestubMaxRustParseFailures)
         .expose()
         .and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(u64::MAX)

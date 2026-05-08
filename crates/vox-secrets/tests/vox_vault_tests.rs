@@ -1,7 +1,7 @@
 use secrecy::ExposeSecret;
-use vox_clavis::backend::SecretBackend;
-use vox_clavis::backend::vox_vault::VoxCloudBackend;
-use vox_clavis::spec::{SecretId, SecretSpec};
+use vox_secrets::backend::SecretBackend;
+use vox_secrets::backend::vox_vault::VoxCloudBackend;
+use vox_secrets::spec::{SecretId, SecretSpec};
 
 #[test]
 fn test_vox_vault_encryption_decryption_cycle() {
@@ -22,7 +22,7 @@ fn test_vox_vault_encryption_decryption_cycle() {
         deprecated_aliases: &[],
         backend_key: None,
         auth_registry: None,
-        policy: vox_clavis::policy::SecretPolicy::required_fail(),
+        policy: vox_secrets::policy::SecretPolicy::required_fail(),
         remediation: "",
         scope_description: "",
     };
@@ -116,7 +116,7 @@ fn test_rewrap_rotation_across_secret_material_kinds() {
             deprecated_aliases: &[],
             backend_key: None,
             auth_registry: None,
-            policy: vox_clavis::policy::SecretPolicy::required_fail(),
+            policy: vox_secrets::policy::SecretPolicy::required_fail(),
             remediation: "",
             scope_description: "",
         };

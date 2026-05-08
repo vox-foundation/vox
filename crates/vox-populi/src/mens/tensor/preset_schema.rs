@@ -277,9 +277,9 @@ pub fn resolve_effective_profile(
     sample_count: Option<usize>,
     overrides: CliOverrides,
 ) -> TrainPresetProfile {
-    let model_hint_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxBaseModel);
+    let model_hint_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBaseModel);
     let model_hint = model_hint_resolved.expose();
-    let env_p_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxTrainProfile);
+    let env_p_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTrainProfile);
     let env_p = env_p_resolved.expose();
     let name = normalize_preset_name(preset.or(env_p).unwrap_or(DEFAULT_PRESET));
 

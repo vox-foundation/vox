@@ -370,7 +370,7 @@ pub async fn run_research(
         && answer.len() >= 200
     {
         use std::path::Path;
-        if let Ok(root_str) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxWorkspaceRoot) {
+        if let Ok(root_str) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWorkspaceRoot) {
             let root = Path::new(&root_str);
             let slug = super::super::persistence::slug_from_query(&query.query);
             let _ = super::super::persistence::write_research_doc(

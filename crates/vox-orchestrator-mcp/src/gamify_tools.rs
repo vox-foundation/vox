@@ -518,7 +518,7 @@ pub async fn ludus_progress_snapshot(
         "ludus_enabled": vox_gamify::config_gate::is_enabled(),
         "ludus_channel": format!("{:?}", vox_gamify::config_gate::ludus_channel()),
         "user_id": uid,
-        "experiment": vox_clavis::resolve_secret(vox_clavis::SecretId::VoxLudusExperiment).expose().unwrap_or("").to_string(),
+        "experiment": vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusExperiment).expose().unwrap_or("").to_string(),
         "experiment_hint_multiplier": vox_gamify::config_gate::experiment_hint_frequency_multiplier(),
         "experiment_reward_multiplier": vox_gamify::config_gate::experiment_reward_multiplier(),
         "kpi": kpi,

@@ -65,8 +65,8 @@ impl ArsRuntime {
         {
             for req in req_secrets {
                 if let Some(sec_str) = req.as_str() {
-                    if let Ok(id) = sec_str.parse::<vox_clavis::spec::SecretId>() {
-                        let res = vox_clavis::resolve_secret(id);
+                    if let Ok(id) = sec_str.parse::<vox_secrets::spec::SecretId>() {
+                        let res = vox_secrets::resolve_secret(id);
                         if res.is_present() {
                             if let Some(val) = res.expose() {
                                 _injected_secrets.insert(sec_str.to_string(), val.to_string());

@@ -667,7 +667,7 @@ jobs:
           - vox-runtime
           - vox-db
           - vox-db-types
-          - vox-clavis
+          - vox-secrets
           - vox-orchestrator
           - vox-populi
           - vox-ml-cli

@@ -43,7 +43,7 @@ regex = { workspace = true }
 pulldown-cmark = "0.13"
 vox-bounded-fs = { workspace = true }
 vox-primitives = { workspace = true }
-vox-clavis = { path = "../vox-clavis" }
+vox-secrets = { path = "../vox-secrets" }
 vox-config = { path = "../vox-config" }
 unicode-segmentation = { workspace = true }
 vox-db = { path = "../vox-db", optional = true }

@@ -18,7 +18,7 @@ pub struct RegistryAuth {
     pub username: Option<String>,
 }
 
-const SECURE_SERVICE: &str = "vox-clavis";
+const SECURE_SERVICE: &str = "vox-secrets";
 const SECURE_SENTINEL: &str = "__clavis_keyring__";
 
 #[must_use]
@@ -193,10 +193,10 @@ mod tests {
     fn auth_path_uses_override() {
         let _g = ENV_LOCK.lock().expect("env lock");
         unsafe {
-            std::env::set_var("VOX_CLAVIS_AUTH_PATH", "/tmp/vox-clavis-auth.json");
+            std::env::set_var("VOX_CLAVIS_AUTH_PATH", "/tmp/vox-secrets-auth.json");
         }
         let got = auth_path();
-        assert!(got.to_string_lossy().contains("vox-clavis-auth.json"));
+        assert!(got.to_string_lossy().contains("vox-secrets-auth.json"));
         unsafe {
             std::env::remove_var("VOX_CLAVIS_AUTH_PATH");
         }

@@ -424,7 +424,7 @@ pub async fn fetch_prior_art_federated(
         .mailto_for_crossref
         .map(std::string::ToString::to_string)
         .or_else(|| {
-            vox_clavis::resolve_secret(vox_clavis::SecretId::VoxScientiaCrossrefMailto)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxScientiaCrossrefMailto)
                 .expose()
                 .map(std::string::ToString::to_string)
         })

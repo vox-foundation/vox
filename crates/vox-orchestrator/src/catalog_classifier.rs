@@ -19,7 +19,7 @@ struct ClassificationResponse {
 /// For now, we simulate this layer by enriching known missing data fields with heuristic health checks.
 pub async fn classify_models(models: &mut [ModelSpec]) {
     // If the user explicitly disabled the classifier, no-op.
-    if vox_clavis::resolve_secret(vox_clavis::SecretId::VoxOpenRouterClassifierEnabled)
+    if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenRouterClassifierEnabled)
         .expose()
         .unwrap_or("1")
         == "0"

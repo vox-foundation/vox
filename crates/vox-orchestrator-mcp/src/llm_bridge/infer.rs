@@ -40,7 +40,7 @@ pub struct McpInferRouting<'a> {
 
 /// Whether to emit [`vox_orchestrator::AgentEventKind::CostIncurred`] after LLM success (see module docs for `VOX_MCP_LLM_COST_EVENTS` precedence).
 fn should_emit_llm_cost_events(state: &ServerState) -> bool {
-    match vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMcpLlmCostEvents).expose() {
+    match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpLlmCostEvents).expose() {
         Some(v) => {
             let v = v.trim();
             if v == "0" || v.eq_ignore_ascii_case("false") {
@@ -141,7 +141,7 @@ async fn best_non_ollama_model_except(
 fn model_has_available_credentials(model: &ModelSpec) -> bool {
     match model.provider_type {
         ProviderType::GoogleDirect => {
-            vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+            vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey)
                 .expose()
                 .is_some_and(|s| !s.trim().is_empty())
         }
@@ -165,7 +165,7 @@ fn google_direct_fallback_for_gemini(
     if vox_config::GeminiRoutePolicy::from_env() != vox_config::GeminiRoutePolicy::OpenRouterFirst {
         return None;
     }
-    vox_clavis::resolve_secret(vox_clavis::SecretId::GeminiApiKey)
+    vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey)
         .expose()
         .filter(|s| !s.trim().is_empty())?;
     let targets = vox_config::gemini_route_targets_from_env();

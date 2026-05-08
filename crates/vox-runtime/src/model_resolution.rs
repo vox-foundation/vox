@@ -50,7 +50,7 @@ impl Default for RouteResolutionInput {
             manual_bearer: None,
             prefer_populi_when_gpu: true,
             populi_probe: None,
-            mens_chat_model: vox_clavis::resolve_secret(vox_clavis::SecretId::VoxPopuliModel)
+            mens_chat_model: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxPopuliModel)
                 .expose()
                 .filter(|s: &&str| !s.trim().is_empty())
                 .map(|s: &str| s.to_string())

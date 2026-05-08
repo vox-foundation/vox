@@ -10,7 +10,7 @@ use vox_cli::frontend;
 #[tokio::test]
 #[ignore = "set VOX_GUI_PLAYWRIGHT=1; run `pnpm install` + `pnpm exec playwright install chromium` in crates/vox-integration-tests"]
 async fn golden_route_screenshot_and_a11y() {
-    let playwright_resolved = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGuiPlaywright);
+    let playwright_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGuiPlaywright);
     assert_eq!(
         playwright_resolved.expose().as_deref(),
         Some("1"),

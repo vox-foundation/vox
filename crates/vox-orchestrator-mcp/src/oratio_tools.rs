@@ -491,11 +491,11 @@ pub async fn listen(state: &ServerState, args: Value) -> anyhow::Result<String> 
 }
 
 fn stream_ws_url() -> String {
-    let host = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashHost)
+    let host = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxDashHost)
         .expose()
         .map(String::from)
         .unwrap_or_else(|| "127.0.0.1".into());
-    let port = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxDashPort)
+    let port = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxDashPort)
         .expose()
         .map(String::from)
         .unwrap_or_else(|| "3847".into());

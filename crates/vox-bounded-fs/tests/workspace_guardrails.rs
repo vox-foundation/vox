@@ -31,7 +31,7 @@ fn bounded_fs_wrapper_modules_stay_removed_in_converged_crates() {
         "crates/vox-gamify/src/bounded_fs.rs",
         "crates/vox-git/src/bounded_fs.rs",
         "crates/vox-repository/src/bounded_fs.rs",
-        "crates/vox-clavis/src/bounded_fs.rs",
+        "crates/vox-secrets/src/bounded_fs.rs",
         "crates/vox-populi/src/bounded_fs.rs",
         "crates/vox-corpus/src/bounded_fs.rs",
         "crates/vox-lsp/src/bounded_fs.rs",

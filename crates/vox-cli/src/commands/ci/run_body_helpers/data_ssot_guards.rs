@@ -205,7 +205,7 @@ fn run_provider_secret_parity_guard(root: &Path) -> Result<()> {
         .and_then(serde_yaml::Value::as_sequence)
         .ok_or_else(|| anyhow!("{} must define providers[]", providers_path.display()))?;
 
-    let known_ids: std::collections::BTreeSet<String> = vox_clavis::all_specs()
+    let known_ids: std::collections::BTreeSet<String> = vox_secrets::all_specs()
         .iter()
         .map(|s| format!("{:?}", s.id))
         .collect();
@@ -227,7 +227,7 @@ fn run_provider_secret_parity_guard(root: &Path) -> Result<()> {
             && !known_ids.contains(secret_id)
         {
             return Err(anyhow!(
-                "{} provider `{}` uses unknown secret_id `{}` (not present in vox_clavis::all_specs)",
+                "{} provider `{}` uses unknown secret_id `{}` (not present in vox_secrets::all_specs)",
                 providers_path.display(),
                 provider_name,
                 secret_id

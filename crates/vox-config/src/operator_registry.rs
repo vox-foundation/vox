@@ -2,7 +2,7 @@
 //!
 //! This serves as the SSOT for CI guards to distinguish between intentional
 //! tuning knobs and potential "secret-shaped" leaks that should have been
-//! registered in `vox-clavis`.
+//! registered in `vox-secrets`.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigClass {
