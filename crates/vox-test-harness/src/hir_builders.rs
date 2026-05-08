@@ -43,6 +43,7 @@ pub fn hir_fn(name: impl Into<String>) -> HirFn {
         actor_state_fields: vec![],
         postconditions: vec![],
         capabilities: vec![],
+        ts_extern_module: None,
         span: dummy_span(),
     }
 }

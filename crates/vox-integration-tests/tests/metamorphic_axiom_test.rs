@@ -41,6 +41,7 @@ fn prop_sort_idempotent(list: list[int]) {
             actor_state_fields: vec![],
             postconditions: vec![],
             capabilities: vec![],
+            ts_extern_module: None,
             span: vox_compiler::ast::Span::new(0, 0),
         },
     };

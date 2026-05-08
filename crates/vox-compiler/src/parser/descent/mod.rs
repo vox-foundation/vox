@@ -287,6 +287,7 @@ impl Parser {
                 verify_mode: VerifyMode::Off,
                 test_strategy: None,
                 is_mobile_native: false,
+                ts_extern_module: None,
                 effects: vec![],
                 span: script_start.merge(script_end),
             };
@@ -387,6 +388,7 @@ impl Parser {
         }
         match self.peek().clone() {
             Token::Import => self.parse_import(),
+            Token::Extern => self.parse_extern_fn(),
             Token::Component => self.parse_reactive_component(),
             Token::Fragment => self.parse_fragment_decl(),
             Token::AtV0 => self.parse_v0_component(),
