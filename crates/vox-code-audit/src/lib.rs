@@ -1,4 +1,4 @@
-//! # vox-toestub
+//! # vox-code-audit
 //!
 //! **T**odo, **O**mitted wiring, **E**mpty bodies, **S**tub functions,
 //! **T**oo-early victory, **U**nresolved references, **B**roken DRY — detector.

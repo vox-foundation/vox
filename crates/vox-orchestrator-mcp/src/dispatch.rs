@@ -1154,7 +1154,7 @@ async fn handle_tool_call_inner(
         "vox_benchmark_record" => {
             Ok(benchmark_tools::benchmark_record(state, serde_json::from_value(args)?).await)
         }
-        "vox_toestub_findings_upsert" => {
+        "vox_code_audit_findings_upsert" => {
             Ok(toestub_tools::toestub_findings_upsert(state, serde_json::from_value(args)?).await)
         }
         _ => {

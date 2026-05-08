@@ -7,11 +7,11 @@ use crate::server_state::ServerState;
 
 const REM_TOESTUB_IO: &str = "Ensure `.vox/` is writable and `toestub_findings.jsonl` is not locked by another process (AV, sync).";
 
-/// Arguments for `vox_toestub_findings_upsert`.
+/// Arguments for `vox_code_audit_findings_upsert`.
 #[derive(Debug, Deserialize)]
 pub struct ToestubFindingsParams {
     /// List of findings to upsert.
-    pub findings: Vec<vox_toestub::rules::Finding>,
+    pub findings: Vec<vox_code_audit::rules::Finding>,
     /// Optional session ID to associate with these findings.
     pub session_id: Option<String>,
 }

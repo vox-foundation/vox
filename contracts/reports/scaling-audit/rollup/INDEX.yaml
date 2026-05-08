@@ -4262,65 +4262,65 @@
   pattern: repo/ci
   file: by-crate/vox-test-harness.md
 - id: SCALE-VOX_TOESTUB-ASYNC-IO
-  crate: vox-toestub
+  crate: vox-code-audit
   template: async-io
   pattern: scaling/blocking-in-async
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_TOESTUB-MEMORY-SLURP
-  crate: vox-toestub
+  crate: vox-code-audit
   template: memory-slurp
   pattern: scaling/unbounded-read
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_TOESTUB-IO-CACHE-LOOP
-  crate: vox-toestub
+  crate: vox-code-audit
   template: io-cache-loop
   pattern: scaling/cache-miss-hot-read
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_TOESTUB-ENV-SSOT
-  crate: vox-toestub
+  crate: vox-code-audit
   template: env-ssot
   pattern: scaling/env-default-duplication
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_TOESTUB-REGEX-COMPILE
-  crate: vox-toestub
+  crate: vox-code-audit
   template: regex-compile
   pattern: scaling/regex-new-hot
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_TOESTUB-SQL-BOUNDS
-  crate: vox-toestub
+  crate: vox-code-audit
   template: sql-bounds
   pattern: scaling/sql-no-limit
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_TOESTUB-HTTP-TIMEOUTS
-  crate: vox-toestub
+  crate: vox-code-audit
   template: http-timeouts
   pattern: scaling/http-client-no-timeout
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_TOESTUB-PATH-SSOT
-  crate: vox-toestub
+  crate: vox-code-audit
   template: path-ssot
   pattern: scaling/path-literal
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_TOESTUB-NUMERIC-SSOT
-  crate: vox-toestub
+  crate: vox-code-audit
   template: numeric-ssot
   pattern: scaling/magic-limit
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_TOESTUB-INDEX-MEMORY
-  crate: vox-toestub
+  crate: vox-code-audit
   template: index-memory
   pattern: scaling/large-in-memory-accumulator
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_TOESTUB-CONCURRENCY-STRUCTURE
-  crate: vox-toestub
+  crate: vox-code-audit
   template: concurrency-structure
   pattern: scaling/nested-pairwise-loop
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_TOESTUB-CI-THROUGHPUT
-  crate: vox-toestub
+  crate: vox-code-audit
   template: ci-throughput
   pattern: repo/ci
-  file: by-crate/vox-toestub.md
+  file: by-crate/vox-code-audit.md
 - id: SCALE-VOX_WASM_ENGINE-ASYNC-IO
   crate: vox-wasm-engine
   template: async-io

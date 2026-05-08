@@ -10696,6 +10696,7 @@ dependencies = [
  "vox-checksum-manifest",
  "vox-clavis",
  "vox-cli-core",
+ "vox-code-audit",
  "vox-compiler",
  "vox-compiler-emit",
  "vox-config",
@@ -10736,7 +10737,6 @@ dependencies = [
  "vox-search",
  "vox-skills",
  "vox-ssg",
- "vox-toestub",
  "vox-wasm-engine",
  "vox-workflow-runtime",
  "walkdir",
@@ -10767,6 +10767,36 @@ dependencies = [
  "vox-db",
  "vox-ludus",
  "vox-repository",
+]
+
+[[package]]
+name = "vox-code-audit"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "globset",
+ "miette",
+ "owo-colors",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "similar",
+ "syn 2.0.117",
+ "thiserror 1.0.69",
+ "tracing",
+ "vox-bounded-fs",
+ "vox-clavis",
+ "vox-config",
+ "vox-jsonschema-util",
+ "vox-orchestrator-types",
+ "vox-reqwest-defaults",
+ "vox-scaling-policy",
+ "walkdir",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -11387,6 +11417,7 @@ dependencies = [
  "uuid",
  "vox-bounded-fs",
  "vox-clavis",
+ "vox-code-audit",
  "vox-config",
  "vox-corpus",
  "vox-crypto",
@@ -11406,7 +11437,6 @@ dependencies = [
  "vox-reqwest-defaults",
  "vox-runtime",
  "vox-search",
- "vox-toestub",
  "walkdir",
  "workspace-hack",
  "xxhash-rust",
@@ -11478,6 +11508,7 @@ dependencies = [
  "vox-bounded-fs",
  "vox-capability-registry",
  "vox-clavis",
+ "vox-code-audit",
  "vox-compiler",
  "vox-config",
  "vox-corpus",
@@ -11504,7 +11535,6 @@ dependencies = [
  "vox-runtime",
  "vox-search",
  "vox-skills",
- "vox-toestub",
  "walkdir",
  "workspace-hack",
  "xxhash-rust",
@@ -12147,36 +12177,6 @@ dependencies = [
  "tokio",
  "vox-compiler",
  "vox-compiler-emit",
- "workspace-hack",
-]
-
-[[package]]
-name = "vox-toestub"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "clap",
- "globset",
- "miette",
- "owo-colors",
- "proc-macro2",
- "quote",
- "regex",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "similar",
- "syn 2.0.117",
- "thiserror 1.0.69",
- "tracing",
- "vox-bounded-fs",
- "vox-clavis",
- "vox-config",
- "vox-jsonschema-util",
- "vox-orchestrator-types",
- "vox-reqwest-defaults",
- "vox-scaling-policy",
- "walkdir",
  "workspace-hack",
 ]
 

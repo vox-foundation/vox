@@ -3,8 +3,8 @@
 use std::path::Path;
 
 use anyhow::Result;
-use vox_toestub::rules::{Finding, Severity};
-use vox_toestub::task_queue::{Priority, TaskQueue};
+use vox_code_audit::rules::{Finding, Severity};
+use vox_code_audit::task_queue::{Priority, TaskQueue};
 
 use super::ingest::NormalizedReviewItem;
 
@@ -57,7 +57,7 @@ fn build_task_queue(items: &[NormalizedReviewItem]) -> TaskQueue {
                 .as_deref()
                 .unwrap_or("Apply the suggested fix if available.")
         );
-        fix_suggestions.push(vox_toestub::task_queue::FixSuggestion {
+        fix_suggestions.push(vox_code_audit::task_queue::FixSuggestion {
             rule_id: f.rule_id.clone(),
             location: format!("{}:{}", f.file.display(), f.line),
             prompt,

@@ -353,7 +353,7 @@ pub async fn lint_crate(state: &ServerState, crate_name: Option<&str>) -> String
         repo_root.clone()
     };
 
-    use vox_toestub::{Severity, ToestubConfig, ToestubEngine};
+    use vox_code_audit::{Severity, ToestubConfig, ToestubEngine};
 
     let ts_report = match tokio::task::spawn_blocking(move || {
         let ts_config = ToestubConfig {

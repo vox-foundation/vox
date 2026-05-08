@@ -3,8 +3,8 @@
 use anyhow::Result;
 use owo_colors::OwoColorize;
 use vox_ludus::{BattleFinding, run_battle_start, run_battle_submit};
-use vox_toestub::rules::Severity;
-use vox_toestub::{ToestubConfig, ToestubEngine};
+use vox_code_audit::rules::Severity;
+use vox_code_audit::{ToestubConfig, ToestubEngine};
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
 

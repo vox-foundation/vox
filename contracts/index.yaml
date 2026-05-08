@@ -1034,10 +1034,10 @@ contracts:
     path: contracts/toestub/gold-dataset.v1.json
     owner: platform-ci
     kind: json
-    description: Seed gold cases for TOESTUB harness (`cargo test -p vox-toestub --test gold_dataset`).
+    description: Seed gold cases for TOESTUB harness (`cargo test -p vox-code-audit --test gold_dataset`).
     enforced_by:
       - vox ci scaling-audit verify
-      - cargo test -p vox-toestub gold_dataset
+      - cargo test -p vox-code-audit gold_dataset
 
   - id: scaling-audit-findings-array-v1-schema
     path: contracts/reports/scaling-audit/findings-array.v1.schema.json

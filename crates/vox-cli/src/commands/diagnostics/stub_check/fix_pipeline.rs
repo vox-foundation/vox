@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::commands::ci::bounded_read::read_utf8_path_capped;
-use vox_toestub::Finding;
+use vox_code_audit::Finding;
 
 /// Verify frontmatter parses and body is unchanged; restore original on failure.
 fn verify_and_restore_on_failure(full: &Path, original: &str, op: &str) -> anyhow::Result<()> {

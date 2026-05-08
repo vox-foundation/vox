@@ -76,7 +76,7 @@ vox-ars-runtime          = { layer = 3 }
 vox-workflow-runtime     = { layer = 3 }
 vox-dashboard            = { layer = 3 }
 vox-webhook              = { layer = 3 }
-vox-toestub              = { layer = 3 }
+vox-code-audit           = { layer = 3 }
 vox-lsp                  = { layer = 3 }
 vox-ludus                = { layer = 3 }
 vox-skills               = { layer = 3 }

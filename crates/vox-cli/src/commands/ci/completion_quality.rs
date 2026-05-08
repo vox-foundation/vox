@@ -413,7 +413,7 @@ fn append_toestub_findings(
     findings: &mut Vec<AuditFinding>,
     scan_roots: &[PathBuf],
 ) -> Result<()> {
-    use vox_toestub::{
+    use vox_code_audit::{
         Language, OutputFormat, Severity, ToestubConfig, ToestubEngine, ToestubRunMode,
     };
 

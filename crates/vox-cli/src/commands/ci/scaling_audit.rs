@@ -296,7 +296,7 @@ fn emit_promotion_metrics(repo_root: &Path) -> Result<()> {
         "remediation_delta_snapshot": delta_val,
         "canary_rollout": {
             "cli_flags": "toestub --canary-crates vox-cli,vox-mcp --feature-flags unwired-graph",
-            "strictness_promotion_gate": "`vox ci scaling-audit verify` + `cargo test -p vox-toestub --test gold_dataset`",
+            "strictness_promotion_gate": "`vox ci scaling-audit verify` + `cargo test -p vox-code-audit --test gold_dataset`",
         },
     });
 
@@ -322,7 +322,7 @@ fn run_toestub_json_snapshot(repo_root: &Path) -> Result<()> {
     fs::create_dir_all(out_path.parent().unwrap()).ok();
     let output = std::process::Command::new(&cargo)
         .current_dir(repo_root)
-        .args(["run", "-q", "-p", "vox-toestub", "--bin", "toestub", "--"])
+        .args(["run", "-q", "-p", "vox-code-audit", "--bin", "toestub", "--"])
         .arg("--mode")
         .arg("audit")
         .arg("--format")

@@ -1188,7 +1188,7 @@ tools:
   product_lane: ai
   http_read_role_eligible: true
   tier: core
-- name: vox_toestub_findings_upsert
+- name: vox_code_audit_findings_upsert
   description: Record or update TOESTUB anti-pattern findings from external reviews (GitHub/CodeRabbit).
   product_lane: platform
   http_read_role_eligible: false

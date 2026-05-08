@@ -54,7 +54,7 @@ vox-protocol.workspace = true
 vox-mesh-types.workspace = true
 vox-crypto.workspace = true
 vox-runtime.workspace = true
-vox-toestub.workspace = true
+vox-code-audit.workspace = true
 vox-lsp.workspace = true
 vox-populi = { workspace = true }
 tower-lsp = "0.20"

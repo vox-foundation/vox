@@ -440,7 +440,7 @@ jobs:
           VOX_TOESTUB_MAX_RUST_PARSE_FAILURES: 3
         run: |
           set -euo pipefail
-          cargo run -p vox-toestub -q --bin toestub -- --mode audit --format json --min-severity info crates \
+          cargo run -p vox-code-audit -q --bin toestub -- --mode audit --format json --min-severity info crates \
             | python3 -c "import json,os,sys;m=int(os.environ['VOX_TOESTUB_MAX_RUST_PARSE_FAILURES']);v=json.load(sys.stdin);n=int(v.get('rust_parse_failures',0));((print(f'rust_parse_failures={n} exceeds cap {m}',file=sys.stderr),sys.exit(1)) if n>m else (print(f'rust_parse_failures={n} (cap {m}) OK'),sys.exit(0)))"
 
       - name: vox-cli build timings (default + GPU/stub + per-crate lanes; wall-clock)
@@ -682,7 +682,7 @@ jobs:
           - vox-primitives
           - vox-config
           - vox-crypto
-          - vox-toestub
+          - vox-code-audit
           - vox-ars-runtime
     steps:
       - uses: actions/checkout@v6

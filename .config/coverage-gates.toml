@@ -23,4 +23,4 @@ vox-orchestrator  = 40.0  # A2A/agent routing; well-tested orchestrator layer
 vox-populi        = 28.0  # ML control plane; CUDA/GPU paths excluded from coverage
 vox-tensor        = 25.0  # Native ML pipeline; mostly GPU-gated, CPU paths only
 vox-search        = 30.0  # RAG/BM25/FTS5; DB-backed paths skip without creds
-vox-toestub       = 35.0  # Architecture validation; many env-gated guard paths
+vox-code-audit       = 35.0  # Architecture validation; many env-gated guard paths

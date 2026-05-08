@@ -3,9 +3,9 @@
 use std::path::PathBuf;
 
 use serde::Deserialize;
-use vox_toestub::analysis::RustFileContext;
-use vox_toestub::detectors;
-use vox_toestub::rules::{DetectionRule, SourceFile};
+use vox_code_audit::analysis::RustFileContext;
+use vox_code_audit::detectors;
+use vox_code_audit::rules::{DetectionRule, SourceFile};
 
 #[derive(Debug, Deserialize)]
 struct GoldFile {
@@ -89,7 +89,7 @@ fn gold_cases_precision_harness() {
         };
         let path = PathBuf::from(&case.path);
         let file = SourceFile::new(path, snippet.clone());
-        let rust_ctx = if file.language == vox_toestub::rules::Language::Rust {
+        let rust_ctx = if file.language == vox_code_audit::rules::Language::Rust {
             Some(RustFileContext::parse(snippet))
         } else {
             None
@@ -145,7 +145,7 @@ fn gold_eval_precision_recall_by_rule_prefix() {
         };
         let path = PathBuf::from(&case.path);
         let file = SourceFile::new(path, snippet.clone());
-        let rust_ctx = if file.language == vox_toestub::rules::Language::Rust {
+        let rust_ctx = if file.language == vox_code_audit::rules::Language::Rust {
             Some(RustFileContext::parse(snippet))
         } else {
             None

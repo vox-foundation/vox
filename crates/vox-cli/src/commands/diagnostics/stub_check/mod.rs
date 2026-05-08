@@ -7,8 +7,8 @@ use anyhow::Context;
 
 use crate::commands::ci::bounded_read::{read_utf8_path_capped, read_utf8_path_capped_async};
 use owo_colors::OwoColorize;
-use vox_toestub::rules::{Language, Severity};
-use vox_toestub::{Finding, OutputFormat, ToestubConfig, ToestubEngine};
+use vox_code_audit::rules::{Language, Severity};
+use vox_code_audit::{Finding, OutputFormat, ToestubConfig, ToestubEngine};
 
 use vox_db::{
     Codex, add_suppression, load_baseline as db_load_baseline, load_latest_task_queue,
@@ -44,9 +44,9 @@ pub async fn run(
             if let Ok(Some((total_findings, fix_suggestions_json))) =
                 load_latest_task_queue(&db, &user_id).await
             {
-                let fix_suggestions: Vec<vox_toestub::task_queue::FixSuggestion> =
+                let fix_suggestions: Vec<vox_code_audit::task_queue::FixSuggestion> =
                     serde_json::from_str(&fix_suggestions_json).unwrap_or_default();
-                let queue = vox_toestub::TaskQueue {
+                let queue = vox_code_audit::TaskQueue {
                     total_findings: total_findings as usize,
                     fix_suggestions,
                 };
@@ -116,7 +116,7 @@ pub async fn run(
                 .await
                 .map_err(|e| anyhow::anyhow!("connect: {:?}", e))?;
             let user_id = vox_ludus::db::canonical_user_id();
-            let task_queue = vox_toestub::TaskQueue::from_findings(&findings);
+            let task_queue = vox_code_audit::TaskQueue::from_findings(&findings);
             let fix_suggestions_json = serde_json::to_string(&task_queue.fix_suggestions)
                 .unwrap_or_else(|_| "[]".to_string());
 

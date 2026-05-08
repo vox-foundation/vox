@@ -1,5 +1,5 @@
 [package]
-name = "vox-toestub"
+name = "vox-code-audit"
 description = "AI code quality stub detector — finds stubs, magic values, empty bodies, missing references, and DRY violations"
 version.workspace = true
 edition.workspace = true

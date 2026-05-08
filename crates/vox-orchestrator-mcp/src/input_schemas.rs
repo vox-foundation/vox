@@ -510,7 +510,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         "vox_benchmark_record" => parse_obj(
             r#"{"type":"object","properties":{"name":{"type":"string","minLength":1,"maxLength":512,"description":"Benchmark name (e.g. build_time, eval_p95)"},"fixture_id":{"type":"string","maxLength":512},"metric_type":{"type":"string","enum":["benchmark_event","syntax_k_event"]},"value":{"type":"number","description":"Optional metric value"},"details":{"description":"Optional structured JSON details"}},"required":["name"],"additionalProperties":false}"#,
         ),
-        "vox_toestub_findings_upsert" => parse_obj(
+        "vox_code_audit_findings_upsert" => parse_obj(
             r#"{"type":"object","properties":{"findings":{"type":"array","minItems":1,"items":{"type":"object","properties":{"rule_id":{"type":"string","minLength":1},"rule_name":{"type":"string","minLength":1},"severity":{"type":"string","enum":["Info","Warning","Error","Critical"]},"file":{"type":"string","minLength":1},"line":{"type":"integer","minimum":1},"column":{"type":"integer","minimum":0},"message":{"type":"string","minLength":1},"suggestion":{"type":"string"},"context":{"type":"string"}},"required":["rule_id","rule_name","severity","file","line","column","message"],"additionalProperties":false}},"session_id":{"type":"string","maxLength":2048}},"required":["findings"],"additionalProperties":false}"#,
         ),
         "vox_schola_submit" => parse_obj(

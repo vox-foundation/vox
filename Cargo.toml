@@ -123,7 +123,7 @@ vox-scaling-policy        = { path = "crates/vox-scaling-policy" }
 vox-skills                = { path = "crates/vox-skills" }
 vox-ssg                   = { path = "crates/vox-ssg" }
 vox-tensor                = { path = "crates/vox-tensor" }
-vox-toestub               = { path = "crates/vox-toestub" }
+vox-code-audit               = { path = "crates/vox-code-audit" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
 vox-dashboard             = { path = "crates/vox-dashboard" }

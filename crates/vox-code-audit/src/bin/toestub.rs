@@ -6,9 +6,9 @@
 use std::path::PathBuf;
 
 use clap::{Parser, ValueEnum};
-use vox_toestub::engine::ToestubRunMode;
-use vox_toestub::rules::Severity;
-use vox_toestub::{OutputFormat, ToestubConfig, ToestubEngine, ToestubTestsMode};
+use vox_code_audit::engine::ToestubRunMode;
+use vox_code_audit::rules::Severity;
+use vox_code_audit::{OutputFormat, ToestubConfig, ToestubEngine, ToestubTestsMode};
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum CliMode {

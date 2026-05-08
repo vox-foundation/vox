@@ -1,12 +1,12 @@
-use vox_toestub::detectors::hollow_fn::HollowFnDetector;
-use vox_toestub::rules::{DetectionRule, Language, SourceFile};
+use vox_code_audit::detectors::hollow_fn::HollowFnDetector;
+use vox_code_audit::rules::{DetectionRule, Language, SourceFile};
 fn main() {
     let f = SourceFile::new(
         std::path::PathBuf::from("test.rs"),
         "fn get_items() -> Vec<Item> {\n    Vec::new()\n}".to_string(),
     );
     let rust_ctx = if f.language == Language::Rust {
-        Some(vox_toestub::analysis::RustFileContext::parse(&f.content))
+        Some(vox_code_audit::analysis::RustFileContext::parse(&f.content))
     } else {
         None
     };

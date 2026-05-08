@@ -218,14 +218,14 @@ async fn handle_ai_check(id: &str, params: &Value) -> DispatchResponse {
     } else {
         path.as_path()
     };
-    let cfg = vox_toestub::ToestubConfig {
+    let cfg = vox_code_audit::ToestubConfig {
         roots: vec![root.to_path_buf()],
-        min_severity: vox_toestub::Severity::Info,
-        format: vox_toestub::OutputFormat::Json,
-        run_mode: vox_toestub::ToestubRunMode::Audit,
+        min_severity: vox_code_audit::Severity::Info,
+        format: vox_code_audit::OutputFormat::Json,
+        run_mode: vox_code_audit::ToestubRunMode::Audit,
         ..Default::default()
     };
-    let engine = vox_toestub::ToestubEngine::new(cfg);
+    let engine = vox_code_audit::ToestubEngine::new(cfg);
     let res = engine.run();
     let findings: Vec<Value> = res
         .findings

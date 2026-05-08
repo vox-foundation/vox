@@ -267,7 +267,7 @@ pub const QUEST_TEMPLATES: &[QuestTemplate] = &[
         target: 1,
         base_xp: 130,
         base_crystals: 40,
-        hint_template: "Run `cargo run -p vox-toestub -- -p {CRATE}` to see violations",
+        hint_template: "Run `cargo run -p vox-code-audit -- -p {CRATE}` to see violations",
     },
     QuestTemplate {
         quest_type: QuestType::ToestubFix,
@@ -283,7 +283,7 @@ pub const QUEST_TEMPLATES: &[QuestTemplate] = &[
         target: 5,
         base_xp: 350,
         base_crystals: 90,
-        hint_template: "Track your fixes with `cargo run -p vox-toestub -- --diff`",
+        hint_template: "Track your fixes with `cargo run -p vox-code-audit -- --diff`",
     },
     // ── Testing ───────────────────────────────────────
     QuestTemplate {

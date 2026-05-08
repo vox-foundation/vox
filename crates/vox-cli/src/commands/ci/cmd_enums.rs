@@ -178,10 +178,10 @@ pub enum CiCmd {
         #[arg(long)]
         gate_log_file: Option<PathBuf>,
     },
-    /// Full-repo TOESTUB: `cargo build -p vox-toestub --release` then `cargo run -p vox-toestub --bin toestub` (replaces `scripts/toestub_self_apply.*`).
+    /// Full-repo TOESTUB: `cargo build -p vox-code-audit --release` then `cargo run -p vox-code-audit --bin toestub` (replaces `scripts/toestub_self_apply.*`).
     #[command(name = "toestub-self-apply")]
     ToestubSelfApply,
-    /// Scoped TOESTUB: `cargo run -p vox-toestub --bin toestub -- <ROOT>`.
+    /// Scoped TOESTUB: `cargo run -p vox-code-audit --bin toestub -- <ROOT>`.
     #[command(name = "toestub-scoped")]
     ToestubScoped {
         /// Root path for structural scope testing.

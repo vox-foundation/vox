@@ -24,7 +24,7 @@ fn bounded_fs_wrapper_modules_stay_removed_in_converged_crates() {
     let removed = [
         "crates/vox-orchestrator/src/bounded_fs.rs",
         "crates/vox-mcp/src/bounded_fs.rs",
-        "crates/vox-toestub/src/bounded_fs.rs",
+        "crates/vox-code-audit/src/bounded_fs.rs",
         "crates/vox-doc-inventory/src/bounded_fs.rs",
         "crates/vox-doc-pipeline/src/pipeline/bounded_fs.rs",
         "crates/vox-publisher/src/bounded_fs.rs",
