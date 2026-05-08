@@ -64,9 +64,17 @@ mod backend_candle_qlora;
 #[cfg(feature = "mens-train")]
 pub mod checkpoint_state;
 // SP3-D: candle_qlora_train, candle_qlora_weights, qlora_preflight, candle_qlora_graph extracted
-// to vox-plugin-mens-candle-cuda. candle_qlora_merge and candle_inference_serve also extracted
-// (Unit 1 follow-up) but kept here because adapter_schema_v3 + lora/part_block + lora/part_vox
-// depend on the types. TODO: rewire those callers through the plugin host.
+// to vox-plugin-mens-candle-cuda.
+// candle_model_qwen + candle_inference_serve deleted (SP3 Units 1+3).
+//
+// candle_qlora_merge + adapter_schema_v3 remain here (SP3 Unit 2 deferred):
+//   - Canonical copies exist in vox-plugin-mens-candle-cuda/src/{merge,adapter_schema_v3}.rs
+//   - vox-mens/schola/merge_qlora.rs imports these types; rewiring requires either:
+//     (a) adding vox-plugin-mens-candle-cuda as optional dep to vox-mens (pulls CUDA), or
+//     (b) extracting shared types to a new thin crate (vox-adapter-types or similar)
+//   - Until one of those paths is taken, vox-populi retains these files as the API surface
+//     consumed by vox-mens. They compile only with feature "mens-train" and do not affect
+//     default or CI builds.
 #[cfg(feature = "mens-train")]
 pub mod candle_qlora_merge;
 #[cfg(feature = "mens-train")]
