@@ -17,6 +17,7 @@ mcp-native = [
     "dep:vox-compiler", "dep:vox-grammar-export",
     "dep:vox-mcp-registry", "dep:vox-capability-registry",
     "dep:vox-openai-wire", "dep:vox-project-scaffold",
+    "dep:vox-skills", "dep:vox-ars-runtime", "dep:vox-plugin-host",
 ]
 # Populi HTTP mesh client (`vox-populi` transport). Disable for faster `cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate`.
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
@@ -53,10 +54,9 @@ globset = "0.4"
 toml = { workspace = true }
 vox-pm.workspace = true
 vox-ludus = { workspace = true }
-vox-skills = { workspace = true }
-vox-ars-runtime = { workspace = true }
-vox-plugin-host = { workspace = true }
-vox-plugin-api = { workspace = true }
+vox-skills = { workspace = true, optional = true }
+vox-ars-runtime = { workspace = true, optional = true }
+vox-plugin-host = { workspace = true, optional = true }
 dirs = { workspace = true }
 parking_lot = "0.12"
 futures-util = { workspace = true }
