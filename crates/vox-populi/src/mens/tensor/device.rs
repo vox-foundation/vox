@@ -203,12 +203,6 @@ pub fn recommend_config_for_profile(preset_name: &str) -> TrainProfile {
     }
 }
 
-#[cfg(feature = "mens-gpu")]
-#[must_use]
-pub fn make_wgpu_device() -> burn::backend::wgpu::WgpuDevice {
-    burn::backend::wgpu::WgpuDevice::default()
-}
-
 #[cfg(test)]
 mod vram_estimate_tests {
     use super::*;

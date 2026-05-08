@@ -67,7 +67,19 @@
       "Bash(grep -E \"\\\\-sys |openssl-sys|libsqlite|rocksdb|zstd-sys|lz4-sys|bzip2-sys|onnxruntime|ring$|libsodium\")",
       "Bash(dir /s /b \"*.ptx\")",
       "Bash(awk '{print $NF}')",
-      "Bash(ls /mnt/c/Users/Owner/vox/.claude/worktrees/infallible-lalande-baf300/crates/)"
+      "Bash(ls /mnt/c/Users/Owner/vox/.claude/worktrees/infallible-lalande-baf300/crates/)",
+      "Bash(tasklist)",
+      "Bash(powershell -c 'Get-Process | Where-Object {$_.Name -like '\\\\''*vox*'\\\\'' -or $_.Name -like '\\\\''*cargo*'\\\\''} | Select-Object Id,Name')",
+      "Bash(taskkill //F //PID 900452 //PID 1179820 //PID 853372 //PID 464216)",
+      "Bash(cmd /c \"dir C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\infallible-lalande-baf300\\\\crates /b\")",
+      "Bash(findstr /i plugin)",
+      "PowerShell(New-Item -ItemType Directory -Path \"C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\infallible-lalande-baf300\\\\crates\\\\vox-plugin-grammar-export\\\\src\" -Force)",
+      "Bash(git pull *)",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs -I{} taskkill //F //PID {})",
+      "Bash(grep -E \"^\\(vox-\\(plugin-\\)?\\(container|deploy-codegen|skill-runtime|wasm-host|plugin-runtime|grammar-export|webhook|publication\\)\\)$\")",
+      "Bash(grep -E \"^\\(optim|tensor|train\\)\\\\.rs$\")",
+      "Bash(grep -v -E \"api$|catalog$|host$\")"
     ]
   }
 }

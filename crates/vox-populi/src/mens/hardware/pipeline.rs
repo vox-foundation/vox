@@ -152,16 +152,12 @@ impl ProbePipeline {
     /// Returns the platform-default probe order.
     ///
     /// On Windows: DXGI → wgpu → NVML (feature-gated).
-    /// On Linux: DRM → wgpu → NVML (feature-gated).
-    /// On macOS: Metal → wgpu.
+    /// On Linux: DRM probe.
+    /// On macOS: Metal probe.
     pub fn default_for_platform() -> Self {
         #[allow(unused_mut)]
         let mut pipeline = Self::empty();
 
-        #[cfg(all(target_os = "windows", feature = "mens-gpu"))]
-        {
-            pipeline = pipeline.with_probe(Box::new(crate::mens::hardware::win_dxgi::WinDxgiProbe));
-        }
         #[cfg(target_os = "linux")]
         {
             pipeline =
@@ -173,11 +169,8 @@ impl ProbePipeline {
                 crate::mens::hardware::macos_metal::MacosMetalProbe,
             ));
         }
-        #[cfg(feature = "mens-gpu")]
-        {
-            pipeline = pipeline.with_probe(Box::new(crate::mens::hardware::wgpu_probe::WgpuProbe));
-        }
         // nvml.rs deleted: NVML probing is owned by vox-plugin-nvml-probe.
+        // wgpu_probe deleted: Burn/wgpu removed.
 
         pipeline
     }

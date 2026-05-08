@@ -58,12 +58,12 @@ fn merge_qlora_rejects_burn_bin_adapter() {
     assert!(result.is_err(), "expected rejection of Burn bin adapter");
     let msg = result.unwrap_err().to_string();
     assert!(
-        msg.contains("merge-weights"),
-        "expected pointer to merge-weights: {msg}"
-    );
-    assert!(
         msg.contains("safetensors") || msg.contains("Candle"),
         "expected Candle safetensors hint: {msg}"
+    );
+    assert!(
+        msg.contains("retired") || msg.contains("Burn"),
+        "expected Burn-retired notice: {msg}"
     );
 }
 
