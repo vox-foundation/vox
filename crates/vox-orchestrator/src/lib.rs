@@ -42,8 +42,8 @@ pub mod attachment_manifest;
 pub mod dei_shim;
 pub mod sync_lock;
 
-#[cfg(feature = "mcp-native")]
-pub mod mcp_tools;
+// mcp_tools/ moved to crate `vox-orchestrator-mcp` in 2026-05-08 reorg Phase 4.
+// Use `vox_orchestrator_mcp::*` instead of `vox_orchestrator::mcp_tools::*`.
 
 /// JSON-shaped VCS / workspace views for MCP and CLI parity.
 pub mod json_vcs_facade;

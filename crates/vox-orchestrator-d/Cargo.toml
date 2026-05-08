@@ -1,0 +1,29 @@
+[package]
+name = "vox-orchestrator-d"
+description = "Vox orchestrator daemon binary. Extracted from vox-orchestrator in 2026-05-08 reorg Phase 4."
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+vox-orchestrator = { workspace = true }
+vox-orchestrator-mcp = { workspace = true }
+vox-skills.workspace = true
+vox-db.workspace = true
+vox-clavis.workspace = true
+vox-config.workspace = true
+vox-repository.workspace = true
+dirs.workspace = true
+
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow.workspace = true
+clap = { workspace = true, features = ["derive"] }
+workspace-hack = { workspace = true }
+
+[[bin]]
+name = "vox-orchestrator-d"
+path = "src/bin/vox_orchestrator_d.rs"
+
+[lints]
+workspace = true

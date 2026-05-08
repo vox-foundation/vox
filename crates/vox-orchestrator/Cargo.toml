@@ -9,29 +9,21 @@ default = [
     "toestub-gate",
     "runtime",
     "json-schema",
-    "mcp-native",
 ]
 dashboard = ["dep:vox-dashboard"]
-mcp-native = [
-    "dep:schemars", "dep:axum", "dep:rmcp", "dep:axum-extra", "dep:tower-http",
-    "dep:vox-compiler", "dep:vox-grammar-export",
-    "dep:vox-mcp-registry", "dep:vox-capability-registry",
-    "dep:vox-openai-wire", "dep:vox-project-scaffold",
-    "dep:vox-skills", "dep:vox-ars-runtime", "dep:vox-plugin-host",
-]
-# Populi HTTP mesh client (`vox-populi` transport). Disable for faster `cargo check -p vox-orchestrator --no-default-features --features runtime,toestub-gate`.
+# Populi HTTP mesh client (`vox-populi` transport).
 populi-transport = ["dep:vox-populi", "vox-populi/transport", "dep:aes-gcm"]
 # `vox-oratio` speech-to-text / refinement tools.
 oratio-rerank = ["dep:vox-oratio"]
-# `vox-publisher` syndication / scientia surfaces (`services::news`). Disable with `--no-default-features` slices.
+# `vox-publisher` syndication / scientia surfaces.
 news-publish = [
     "dep:vox-publisher",
     "vox-publisher/scientia-reddit",
     "vox-publisher/scientia-youtube",
     "vox-publisher/scholarly-external-jobs",
 ]
-# `TaskCapabilityHints` JSON Schema for MCP tool registration (`vox-mcp` enables this).
-json-schema = ["mcp-native", "vox-repository/json-schema"]
+# JSON Schema generation for repository types (consumed by vox-orchestrator-mcp).
+json-schema = ["vox-repository/json-schema"]
 runtime = ["vox-runtime", "vox-populi/mens"]
 toestub-gate = ["vox-toestub", "vox-lsp", "dep:tower-lsp-server", "dep:tower-lsp"]
 lsp = ["dep:tower-lsp-server"]
@@ -44,7 +36,6 @@ jj-backend = ["dep:jj-lib"]
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-schemars = { workspace = true, optional = true, features = ["derive"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
@@ -54,9 +45,6 @@ globset = "0.4"
 toml = { workspace = true }
 vox-pm.workspace = true
 vox-ludus = { workspace = true }
-vox-skills = { workspace = true, optional = true }
-vox-ars-runtime = { workspace = true, optional = true }
-vox-plugin-host = { workspace = true, optional = true }
 dirs = { workspace = true }
 parking_lot = "0.12"
 futures-util = { workspace = true }
@@ -87,15 +75,8 @@ vox-publisher = { workspace = true, optional = true, default-features = false }
 async-trait = "0.1.89"
 anyhow.workspace = true
 serde_yaml.workspace = true
-vox-mcp-registry = { workspace = true, optional = true }
-vox-capability-registry = { workspace = true, optional = true }
 vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
-rmcp = { version = "0.16", optional = true, features = ["server", "client", "transport-io"] }
-axum = { version = "0.8", optional = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
-tower-http = { workspace = true, optional = true, features = ["cors"] }
-vox-grammar-export = { workspace = true, optional = true }
-axum-extra = { version = "0.12.5", optional = true, features = ["typed-header"] }
 regex = "1"
 vox-corpus = { workspace = true, features = ["database"] }
 # jj-lib: optional VCS backend. Pure Rust (gix-backed, no C). Pinned for stability.
@@ -114,22 +95,13 @@ vox-mesh-types.workspace = true
 blake3.workspace = true
 crossbeam-queue = "0.3.12"
 workspace-hack = { workspace = true }
-vox-compiler = { workspace = true, optional = true }
 glob.workspace = true
 ignore = "0.4.25"
 rand_distr = "0.4"
-vox-openai-wire = { workspace = true, optional = true }
 async-stream.workspace = true
-vox-project-scaffold = { workspace = true, optional = true }
 tempfile.workspace = true
 
-[[bin]]
-name = "vox-orchestrator-d"
-path = "src/bin/vox_orchestrator_d.rs"
-# The daemon binary uses crate::mcp_tools and vox-skills (gated under mcp-native).
-# Until Phase 4 relocates this to a vox-orchestrator-d package, declare the
-# requirement here so slim builds skip the binary instead of failing.
-required-features = ["mcp-native"]
+# Daemon binary moved to crates/vox-orchestrator-d/ in 2026-05-08 reorg Phase 4.
 
 [build-dependencies]
 serde_yaml = { workspace = true }

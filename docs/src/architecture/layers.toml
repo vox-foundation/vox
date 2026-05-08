@@ -81,6 +81,8 @@ vox-lsp                  = { layer = 3 }
 vox-ludus                = { layer = 3 }
 vox-skills               = { layer = 3 }
 vox-cli-core             = { layer = 3 }
+vox-orchestrator-mcp     = { layer = 3 } # Phase 4 extraction
+vox-orchestrator-d       = { layer = 5 } # daemon binary package (Phase 4)
 vox-search               = { layer = 3 } # depends on db + runtime
 vox-scientia-ingest      = { layer = 3 }
 vox-ssg                  = { layer = 3 }

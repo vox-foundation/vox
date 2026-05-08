@@ -96,7 +96,7 @@ async fn run_via_orchestrator(
     eprintln!("🔮 Generating Vox code via orchestrator...");
     eprintln!("   Prompt: {}", prompt);
 
-    let result = vox_orchestrator::mcp_tools::llm_bridge::vox_local_generate(
+    let result = vox_orchestrator_mcp::llm_bridge::vox_local_generate(
         client,
         prompt,
         validate,
