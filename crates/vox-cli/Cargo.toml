@@ -36,7 +36,7 @@ fuzzy-search = ["dep:nucleo"]
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Does **not** include Oratio (Candle Whisper stack) — use **`oratio`** for **`vox oratio`** / **`vox speech`**.
 # Native MCP server runtime previously in vox-mcp binary
-mcp-server = ["vox-orchestrator/mcp-native", "dep:axum", "dep:rmcp"]
+mcp-server = ["vox-orchestrator/mcp-native", "vox-orchestrator/populi-transport", "dep:axum", "dep:rmcp"]
 # Enables Arca telemetry replay and persistent DB features (shared with vox-corpus).
 database = ["vox-corpus/database"]
 
@@ -87,9 +87,6 @@ coderabbit = [
     "dep:blake3",
     "dep:vox-toestub",
 ]
-# v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
-island = []
-
 # Stub for non-functional inference server when refactoring or debugging.
 # Enables all social platform adapters for publication and diagnostics.
 scientia-social = [
