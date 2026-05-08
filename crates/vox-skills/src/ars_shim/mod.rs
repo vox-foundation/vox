@@ -17,7 +17,7 @@ pub mod parser {
 pub use crate::manifest::{SkillCategory, SkillManifest, SkillPermission};
 pub use crate::{SkillRegistry, install_builtins};
 pub use domain::ArsSkill;
-pub use openclaw::{OpenClawClient, OpenClawRemoteConfig, OpenClawSkillSpec};
+pub use openclaw::{OpenClawClient, OpenClawError, OpenClawRemoteConfig, OpenClawSkillSpec, PublishResult};
 pub use openclaw_adapter::{
     DefaultOpenClawRuntimeAdapter, OpenClawAdapterConfig, OpenClawAdapterError,
     OpenClawConnectionOverrides, OpenClawRuntimeAdapter, adapter_config_with_token_override,

@@ -85,3 +85,15 @@ pub enum SkillError {
     #[error("Hook error: {0}")]
     Hook(String),
 }
+
+impl From<vox_plugin_host::skill_bundle::SkillBundleError> for SkillError {
+    fn from(e: vox_plugin_host::skill_bundle::SkillBundleError) -> Self {
+        match e {
+            vox_plugin_host::skill_bundle::SkillBundleError::Json(je) => SkillError::Json(je),
+            vox_plugin_host::skill_bundle::SkillBundleError::InvalidManifest(s) => {
+                SkillError::InvalidManifest(s)
+            }
+            vox_plugin_host::skill_bundle::SkillBundleError::Toml(s) => SkillError::Toml(s),
+        }
+    }
+}

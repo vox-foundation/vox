@@ -34,10 +34,10 @@ pub async fn install(path: &PathBuf) -> Result<()> {
     let content = read_utf8_path_capped(path)
         .with_context(|| format!("Failed to read skill file: {}", path.display()))?;
 
-    let bundle = vox_skills::ars_shim::parser::parse_skill_md(&content)
+    let bundle = vox_ars::parser::parse_skill_md(&content)
         .map_err(|e| anyhow::anyhow!("Failed to parse skill file: {e}"))?;
 
-    let result = registry.install(&bundle).await?;
+    let result = registry.install_bundle(&bundle).await?;
     if result.already_installed {
         println!(
             "✓ Skill '{}' (v{}) already installed",

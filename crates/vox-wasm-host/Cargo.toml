@@ -1,0 +1,20 @@
+[package]
+name = "vox-wasm-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+description = "Single-source-of-truth Wasmtime engine + WASI execution for Vox programs and skill plugins."
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+bytes.workspace = true
+tracing.workspace = true
+wasmtime.workspace = true
+wasmtime-wasi.workspace = true
+workspace-hack = { workspace = true }

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
-use vox_container::{run_py_setup, PySetupOpts};
+use vox_deploy_codegen::{run_py_setup, PySetupOpts};
 use vox_compiler::ast::decl::Decl;
 
 /// Manage Vox OCI images (Rust build/run). **`container init`** for `@py.import` is retired.

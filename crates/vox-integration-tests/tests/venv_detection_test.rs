@@ -10,7 +10,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use vox_container::env::PythonEnv;
+use vox_deploy_codegen::env::PythonEnv;
 
 /// `VIRTUAL_ENV` / `UV_PROJECT_ENVIRONMENT` are process-global; serialize tests that touch them.
 static VENV_ENV_LOCK: Mutex<()> = Mutex::new(());

@@ -1,7 +1,7 @@
 pub mod route_telemetry;
 
 pub mod research_policy {
-    pub use vox_socrates_policy::ConfidencePolicy;
+    pub use vox_orchestrator_types::socrates_policy::ConfidencePolicy;
 
     #[must_use]
     pub const fn persist_min_confidence() -> f64 {

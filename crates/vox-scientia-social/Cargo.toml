@@ -1,9 +1,0 @@
-[package]
-name = "vox-scientia-social"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-
-[dependencies]
-vox-publisher = { path = "../vox-publisher", default-features = false }
-workspace-hack = { workspace = true }

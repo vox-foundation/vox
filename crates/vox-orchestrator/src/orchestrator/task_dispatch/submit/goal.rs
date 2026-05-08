@@ -233,11 +233,11 @@ impl Orchestrator {
         }
 
         let band =
-            vox_socrates_policy::SocratesComplexityJudge::estimate_complexity(description, None);
+            vox_orchestrator_types::socrates_policy::SocratesComplexityJudge::estimate_complexity(description, None);
         let mut route = crate::retrieval::crag::CragRouter::evaluate_query(description);
-        if let vox_socrates_policy::ComplexityBand::Moderate
-        | vox_socrates_policy::ComplexityBand::Complex
-        | vox_socrates_policy::ComplexityBand::MultiHop = band
+        if let vox_orchestrator_types::socrates_policy::ComplexityBand::Moderate
+        | vox_orchestrator_types::socrates_policy::ComplexityBand::Complex
+        | vox_orchestrator_types::socrates_policy::ComplexityBand::MultiHop = band
         {
             route = crate::retrieval::crag::CragRoute::WebSearch;
             tracing::info!("Query complexity is Moderate+, forcing autonomous research");

@@ -6,12 +6,16 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = ["mens-gpu"]
-# NVIDIA NVML probe → Populi `NodeRecord` gpu_* fields (optional; requires NVML at runtime).
-nvml-gpu-probe = ["vox-repository/nvml-probe"]
+default = []
+# NVIDIA NVML probe → Populi hardware pipeline (optional; requires NVML at runtime).
+# NVML probing has moved to vox-plugin-nvml-probe; this feature now only gates the
+# in-process fallback via mens/hardware/nvml.rs (used when the plugin is not loaded).
+nvml-gpu-probe = []
 # Enable live-hardware integration tests (requires real GPU hardware; do not enable on CI).
 hw-probe-live-test = []
-# HTTP control plane (join / heartbeat / list) for multi-node loopback or LAN (TLS in ops layer).
+# DEPRECATED: HTTP control plane code extracted to vox-plugin-populi-mesh; rewire of
+# vox-cli/vox-mens/vox-orchestrator callsites is pending (Unit 2 follow-up).
+# Keep this feature until all callers are rewired through MeshDriver.
 transport = [
     "dep:axum",
     "dep:tokio",
@@ -44,7 +48,6 @@ mens = [
     "dep:vox-db",
     "dep:vox-bounded-fs",
 ]
-mens-gpu = ["mens", "dep:burn", "vox-tensor/gpu", "dep:tokenizers", "dep:safetensors", "dep:wgpu", "dep:nvml-wrapper", "dep:windows"]
 mens-candle-qlora = [
     "mens",
     "dep:candle-core",
@@ -52,15 +55,13 @@ mens-candle-qlora = [
     "dep:safetensors",
     "dep:tokenizers",
     "dep:qlora-rs",
-    "dep:peft-rs",
-    "dep:memmap2",
 ]
 mens-candle-qlora-cuda = [
     "mens-candle-qlora",
     "candle-core/cuda",
     "candle-nn/cuda",
 ]
-mens-train = ["mens-gpu", "vox-tensor/train", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-compiler"]
+mens-train = ["mens", "mens-candle-qlora", "mens-hf-hub", "dep:vox-eval", "dep:vox-compiler", "dep:vox-plugin-host"]
 mens-hf-hub = ["mens", "dep:hf-hub", "tokio/rt-multi-thread"]
 mens-cloud = [
     "mens",
@@ -78,6 +79,7 @@ tracing = { workspace = true }
 vox-repository = { workspace = true }
 vox-primitives = { workspace = true }
 vox-clavis = { workspace = true }
+vox-plugin-host = { workspace = true, optional = true }
 vox-constrained-gen = { workspace = true }
 vox-grammar-export = { workspace = true }
 vox-crypto = { workspace = true }
@@ -110,22 +112,15 @@ rand = { workspace = true, optional = true }
 vox-tensor = { workspace = true, optional = true }
 vox-corpus = { workspace = true, optional = true }
 vox-bounded-fs = { workspace = true, optional = true }
-burn = { workspace = true, optional = true, features = ["autodiff", "wgpu", "train"] }
 hf-hub = { workspace = true, optional = true }
 candle-core = { workspace = true, optional = true }
 candle-nn = { workspace = true, optional = true }
 safetensors = { workspace = true, optional = true }
 tokenizers = { workspace = true, optional = true }
 qlora-rs = { workspace = true, optional = true }
-peft-rs = { workspace = true, optional = true }
 futures = { workspace = true }
 vox-eval = { workspace = true, optional = true }
 vox-compiler = { workspace = true, optional = true }
-memmap2 = { workspace = true, optional = true }
-wgpu = { workspace = true, optional = true }
-nvml-wrapper = { workspace = true, optional = true }
-windows = { version = "0.58", features = ["Win32_Graphics_Dxgi", "Win32_Foundation"], optional = true }
-
 workspace-hack = { workspace = true }
 hex = "0.4.3"
 

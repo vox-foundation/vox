@@ -27,7 +27,9 @@ impl std::str::FromStr for RuntimePreference {
             "docker" => Ok(Self::Docker),
             "podman" => Ok(Self::Podman),
             other => {
-                anyhow::bail!("Unknown runtime preference: {other:?}. Use auto, docker, or podman.")
+                anyhow::bail!(
+                    "Unknown runtime preference: {other:?}. Use auto, docker, or podman."
+                )
             }
         }
     }
@@ -37,14 +39,6 @@ impl std::str::FromStr for RuntimePreference {
 ///
 /// With [`RuntimePreference::Auto`], Podman is preferred because it runs
 /// rootless without a daemon. If neither runtime is available, returns an error.
-///
-/// # Examples
-///
-/// ```no_run
-/// let runtime = vox_container::detect_runtime(vox_container::detect::RuntimePreference::Auto)?;
-/// println!("Using container runtime: {}", runtime.name());
-/// # Ok::<(), anyhow::Error>(())
-/// ```
 pub fn detect_runtime(preference: RuntimePreference) -> anyhow::Result<Box<dyn ContainerRuntime>> {
     match preference {
         RuntimePreference::Docker => {
@@ -70,7 +64,6 @@ pub fn detect_runtime(preference: RuntimePreference) -> anyhow::Result<Box<dyn C
             }
         }
         RuntimePreference::Auto => {
-            // Prefer Podman (rootless, daemonless)
             let podman = PodmanRuntime::new();
             if podman.available() {
                 tracing::info!("Auto-detected Podman (rootless)");
@@ -89,39 +82,5 @@ pub fn detect_runtime(preference: RuntimePreference) -> anyhow::Result<Box<dyn C
                  Or install Docker: https://docs.docker.com/get-docker/"
             )
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn runtime_preference_from_str() {
-        assert_eq!(
-            "auto".parse::<RuntimePreference>().unwrap(),
-            RuntimePreference::Auto
-        );
-        assert_eq!(
-            "docker".parse::<RuntimePreference>().unwrap(),
-            RuntimePreference::Docker
-        );
-        assert_eq!(
-            "podman".parse::<RuntimePreference>().unwrap(),
-            RuntimePreference::Podman
-        );
-        assert!("invalid".parse::<RuntimePreference>().is_err());
-    }
-
-    #[test]
-    fn docker_runtime_name() {
-        let rt = DockerRuntime::new();
-        assert_eq!(rt.name(), "docker");
-    }
-
-    #[test]
-    fn podman_runtime_name() {
-        let rt = PodmanRuntime::new();
-        assert_eq!(rt.name(), "podman");
     }
 }

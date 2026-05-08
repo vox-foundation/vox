@@ -11,32 +11,16 @@ pub mod model_card;
 pub mod telemetry;
 pub mod telemetry_schema;
 
-#[cfg(feature = "mens-candle-qlora")]
-pub mod candle_inference_serve;
-#[cfg(feature = "mens-candle-qlora")]
-pub mod candle_model_qwen;
+// SP3 Unit 1: candle_model_qwen deleted; canonical copy in vox-plugin-mens-candle-cuda/src/model.rs
+// SP3 Unit 3: candle_inference_serve deleted; canonical copy in vox-plugin-mens-candle-cuda/src/inference.rs
+// vox-mens eval-local is rewired to use Option<()> stub until plugin-host dispatch is plumbed.
 pub mod populi_train;
 pub mod train_log;
 #[cfg(feature = "mens-train")]
 pub mod training_text;
 
-pub mod lora;
 pub mod vram_autodetect;
 
-#[cfg(feature = "mens-gpu")]
-pub mod burn_stack;
-#[cfg(feature = "mens-gpu")]
-pub mod optim;
-#[cfg(feature = "mens-gpu")]
-pub mod tensor;
-#[cfg(feature = "mens-gpu")]
-pub mod train;
-
-#[cfg(feature = "mens-gpu")]
-pub extern crate burn;
-
-#[cfg(feature = "mens-gpu")]
-pub use device::make_wgpu_device;
 pub use device::{
     DeviceKind, GpuInfo, TrainProfile, apply_backend_env, detect_gpu_vendor,
     estimate_training_vram_mb, estimate_training_vram_mb_qlora, normalize_device, oom_guidance,
@@ -44,17 +28,7 @@ pub use device::{
     recommend_config_for_profile, sample_vram_used_mb,
 };
 
-#[cfg(feature = "mens-gpu")]
-pub use lora::{LoraAttentionKvCache, LoraLinear, LoraTransformerKvCache, LoraVoxTransformer};
-pub use lora::{LoraConfig, lora_memory_estimate};
-
-#[cfg(feature = "mens-gpu")]
-pub use burn_stack::{IGNORE_INDEX, Sequential, VoxTransformer, cross_entropy_loss};
-#[cfg(feature = "mens-gpu")]
-pub use tensor::{ElementType, Tensor, TensorShape};
-
-#[cfg(feature = "mens-train")]
-pub mod adapter_schema_v3;
+// adapter_schema_v3 deleted: vox-mens/merge_qlora.rs holds inline serde types; plugin owns merge impl.
 #[cfg(feature = "mens-train")]
 pub mod artifact_bridge;
 #[cfg(feature = "mens-train")]
@@ -64,15 +38,11 @@ pub mod backend;
 mod backend_candle_qlora;
 #[cfg(feature = "mens-train")]
 pub mod checkpoint_state;
-// QLoRA stack needs `LoraTrainingConfig` / preflight; `train` implies `candle-qlora` in this crate.
-#[cfg(feature = "mens-train")]
-mod candle_qlora_graph;
-#[cfg(feature = "mens-train")]
-pub mod candle_qlora_merge;
-#[cfg(feature = "mens-train")]
-mod candle_qlora_train;
-#[cfg(feature = "mens-train")]
-mod candle_qlora_weights;
+// SP3-D: candle_qlora_train, candle_qlora_weights, qlora_preflight, candle_qlora_graph extracted
+// to vox-plugin-mens-candle-cuda.
+// candle_model_qwen + candle_inference_serve deleted (SP3 Units 1+3).
+//
+// candle_qlora_merge deleted: plugin owns merge impl; vox-mens/merge_qlora.rs dispatches via plugin.
 #[cfg(feature = "mens-train")]
 pub mod domain_profiles;
 pub mod domain_router;
@@ -93,21 +63,16 @@ pub mod preflight_train;
 #[cfg(any(feature = "mens-train", feature = "mens-cloud"))]
 pub mod preset_schema;
 #[cfg(feature = "mens-train")]
-mod qlora_preflight;
-#[cfg(feature = "mens-train")]
 pub mod train_backend;
 #[cfg(feature = "mens-train")]
 pub mod train_jsonl_preflight;
 #[cfg(feature = "mens-train")]
 pub mod training_config;
 
-// Private QLoRA modules are referenced from sibling `.rs` files; anchor for unwired-module scans.
+// Private backend dispatch; anchor for unwired-module scans.
 #[cfg(feature = "mens-train")]
 #[allow(unused_imports)]
-use self::{
-    backend_candle_qlora as _, candle_qlora_graph as _, candle_qlora_train as _,
-    candle_qlora_weights as _, qlora_preflight as _,
-};
+use self::backend_candle_qlora as _;
 
 #[cfg(feature = "mens-train")]
 pub use execution_planner::{ExecutionPlan, ExecutionPlanner};

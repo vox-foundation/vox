@@ -1,4 +1,8 @@
-//! Core trait and types for container runtime abstraction.
+//! Core trait and types for OCI container runtime abstraction.
+//!
+//! This is the deploy-facing container runtime trait, distinct from
+//! `vox_skill_runtime::SkillRuntime` (which abstracts over WASM + container
+//! runtimes for skill sandboxing).
 
 use std::path::PathBuf;
 

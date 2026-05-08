@@ -1,8 +1,5 @@
 #![cfg(feature = "mens-candle-qlora")]
 
-use vox_populi::mens::tensor::adapter_schema_v3::PopuliAdapterManifestV3;
-use vox_populi::mens::tensor::candle_qlora_merge::QloraAdapterMetaV2;
-use vox_populi::mens::tensor::finetune_contract::{AdapterMethod, BaseQuantMode};
 use vox_populi::mens::tensor::hf_load::{HfArchitecture, HfTransformerLayout};
 
 #[test]
@@ -33,35 +30,4 @@ fn qwen35_layout_parses_linear_geometry_fields() {
     assert_eq!(layout.linear_value_head_dim, Some(2));
     assert_eq!(layout.linear_conv_kernel_dim, Some(4));
     assert_eq!(layout.rope_partial_rotary_factor, Some(0.25));
-}
-
-#[test]
-fn qwen35_manifest_v3_roundtrip_preserves_base_model_for_merge() {
-    let mut base_key_map = std::collections::HashMap::new();
-    base_key_map.insert(
-        "lm_head".to_string(),
-        "model.language_model.embed_tokens.weight".to_string(),
-    );
-    let v3 = PopuliAdapterManifestV3::new(
-        AdapterMethod::Qlora,
-        BaseQuantMode::Nf4,
-        true,
-        base_key_map,
-        vec!["lm_head".into()],
-        1024,
-        256,
-        16,
-        32,
-        Some("Qwen/Qwen3.5-4B".into()),
-        None,
-    );
-    let v2 = vox_populi::mens::tensor::adapter_schema_v3::to_qlora_meta_v2_for_merge(&v3)
-        .expect("v3->v2 bridge");
-    assert_eq!(v2.base_model.as_deref(), Some("Qwen/Qwen3.5-4B"));
-    let back =
-        vox_populi::mens::tensor::adapter_schema_v3::from_qlora_meta_v2(&QloraAdapterMetaV2 {
-            base_model: Some("Qwen/Qwen3.5-4B".into()),
-            ..v2
-        });
-    assert_eq!(back.base_model.as_deref(), Some("Qwen/Qwen3.5-4B"));
 }

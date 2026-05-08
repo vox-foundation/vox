@@ -45,7 +45,6 @@ database = ["vox-corpus/database"]
 
 # Inline `vox run` script compilation (native / WASI + Wasmtime) and OS sandbox helpers.
 script-execution = [
-    "dep:dirs",
     "dep:xxhash-rust",
     "dep:wasmtime",
     "dep:wasmtime-wasi",
@@ -57,7 +56,6 @@ execution-api = ["script-execution", "dep:axum", "dep:tokio-stream"]
 # TOESTUB + `commands::diagnostics` (`vox stub-check` shim, architect/clean/compact, Codex persistence in stub_check).
 stub-check = [
     "dep:vox-toestub",
-    "dep:dirs",
     "dep:vox-ludus",
 ]
 # Merge `vox-toestub` victory-claim / premature-done heuristics into `vox ci completion-audit` (CI enables this).
@@ -65,8 +63,8 @@ completion-toestub = ["dep:vox-toestub"]
 # No-op reserved flag: legacy `vox mens` agent/dei/chat/learn and `runtime/info/status` referred to `vox-dei` (still do not add `vox-dei` as a dependency; see `vox ci no-vox-dei-import`).
 # Dashboard UX is the VS Code extension (see `docs/src/reference/cli.md`).
 dashboard = ["dep:vox-dashboard"]
-# OpenClaw / skill registry (`openclaw`); `vox-skills` carries the ARS shim.
-ars = ["dep:vox-skills"]
+# OpenClaw / skill registry (`openclaw`); `vox-skills` carries the ARS shim; `vox-ars` is the migration facade.
+ars = ["dep:vox-skills", "dep:vox-ars"]
 # Ludus gamification CLI (`commands::extras::ludus`); implies `vox-ludus` (uses `vox-db`).
 extras-ludus = ["dep:vox-ludus", "dep:vox-toestub"]
 # Ludus terminal HUD over the in-process orchestrator bulletin (`vox ludus hud`).
@@ -80,9 +78,7 @@ mens-dei = ["dei", "database"]
 # Interpreted workflow journal + activities.
 workflow-runtime = ["mens-dei", "dep:vox-workflow-runtime"]
 # BYOK / config slices in `mens status`, extended `vox doctor`, scope checks (`vox_eval`).
-codex = [
-    "dep:dirs",
-]
+codex = []
 
 # GitHub CodeRabbit batch PRs (`vox review coderabbit …`).
 coderabbit = [
@@ -91,6 +87,9 @@ coderabbit = [
     "dep:blake3",
     "dep:vox-toestub",
 ]
+# v0.dev React islands: `vox island generate|upgrade|list|add|cache` (`islands/`, `V0_API_KEY`).
+island = []
+
 # Stub for non-functional inference server when refactoring or debugging.
 # Enables all social platform adapters for publication and diagnostics.
 scientia-social = [
@@ -126,22 +125,26 @@ base64 = { workspace = true }
 futures = { workspace = true }
 vox-pm = { workspace = true }
 vox-container = { workspace = true }
+vox-wasm-host = { workspace = true }
+vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true, optional = true }
+vox-ars    = { workspace = true, optional = true }
 vox-ludus = { workspace = true, optional = true }
 vox-config = { workspace = true }
 vox-clavis = { workspace = true }
 vox-db = { workspace = true }
 vox-search = { workspace = true }
-vox-scientia-ingest = { workspace = true }
+vox-plugin-publication = { workspace = true }
 # Scholarly / DB-backed jobs only; Reddit/YouTube adapter code stays out of default CLI compile.
 vox-publisher = { workspace = true, default-features = false, features = ["scholarly-external-jobs"] }
 vox-doc-inventory = { workspace = true }
 vox-toestub = { workspace = true, optional = true }
 toml = { workspace = true }
-vox-build-meta = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
 vox-orchestrator = { workspace = true }
-vox-populi = { workspace = true, features = ["transport"] }
+vox-plugin-catalog = { workspace = true }
+vox-plugin-host = { workspace = true }
+vox-populi = { workspace = true }
 vox-mesh-types = { workspace = true }
 vox-workflow-runtime = { workspace = true, optional = true }
 vox-dashboard = { workspace = true, optional = true }
@@ -170,18 +173,16 @@ vox-constrained-gen = { workspace = true }
 rand = { workspace = true }
 
 uuid = { version = "1.22.0", features = ["v4"] }
-vox-spool = { path = "../vox-spool" }
 vox-mcp-registry = { path = "../vox-mcp-registry" }
 vox-capability-registry = { path = "../vox-capability-registry" }
 rmcp = { version = "0.16", features = ["server", "client", "transport-io"] }
 axum = { version = "0.8", optional = true, default-features = false, features = ["http1", "json", "tokio", "ws"] }
 governor = { workspace = true }
 vox-grammar-export = { workspace = true }
-vox-browser = { workspace = true }
 axum-extra = { version = "0.12.5", features = ["typed-header"] }
 notify = "7"
 tokio-stream = { version = "0.1", optional = true }
-dirs = { version = "6", optional = true }
+dirs = { version = "6" }
 walkdir = "2"
 sysinfo = { workspace = true }
 vox-eval = { workspace = true }
@@ -210,6 +211,7 @@ vox-identity.workspace = true
 vox-crypto.workspace = true
 hex = "0.4.3"
 nucleo = { workspace = true, optional = true }
+tempfile = { workspace = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 landlock = { version = "0.4.4", optional = true }

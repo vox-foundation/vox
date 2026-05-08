@@ -5,7 +5,7 @@ use crate::mcp_tools::params::{
     OpenClawSearchParams, ToolResult,
 };
 use crate::mcp_tools::server_state::ServerState;
-use vox_skills::ars_shim::{
+use vox_ars::{
     OpenClawClient, OpenClawConnectionOverrides, OpenClawDiscoveryOverrides, OpenClawRemoteConfig,
     OpenClawRuntimeAdapter, connect_runtime_adapter_with_overrides, resolve_openclaw_endpoints,
 };
@@ -403,7 +403,7 @@ mod tests {
     use std::future::Future;
     use std::pin::Pin;
     use std::sync::Arc;
-    use vox_skills::ars_shim::{OpenClawAdapterError, OpenClawSkillSpec};
+    use vox_ars::{OpenClawAdapterError, OpenClawSkillSpec};
 
     struct MockAdapter;
 
@@ -422,7 +422,7 @@ mod tests {
         async fn import_skill(
             &mut self,
             _slug: &str,
-        ) -> Result<vox_skills::ars_shim::ArsSkill, OpenClawAdapterError> {
+        ) -> Result<vox_ars::ArsSkill, OpenClawAdapterError> {
             Err(OpenClawAdapterError::Other(
                 "unused in this module".to_string(),
             ))

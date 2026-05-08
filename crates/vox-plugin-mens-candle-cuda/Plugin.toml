@@ -1,0 +1,28 @@
+[plugin]
+id = "mens-candle-cuda"
+name = "Mens (Candle + CUDA)"
+version = "0.1.0"
+description = "ML training backend using Candle with CUDA acceleration."
+license = "Apache-2.0"
+
+[plugin.host]
+min-vox-version = "0.5.0"
+
+[plugin.payload]
+kind = "code"
+abi-version = 11
+
+[plugin.payload.provides]
+extension-points = ["MlBackend"]
+
+[plugin.payload.requires]
+os = ["windows", "linux"]
+arch = ["x86_64"]
+native-libs = [
+    { name = "cudart", min-version = "12.0" },
+    { name = "cublas" },
+]
+
+[plugin.payload.artifacts]
+"windows-x86_64" = "vox_plugin_mens_candle_cuda.dll"
+"linux-x86_64"   = "libvox_plugin_mens_candle_cuda.so"

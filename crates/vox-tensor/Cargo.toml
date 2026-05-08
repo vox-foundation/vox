@@ -3,14 +3,7 @@ name = "vox-tensor"
 version.workspace = true
 edition.workspace = true
 
-[features]
-default = []
-gpu = ["dep:burn"]
-train = ["gpu"]
-lstm = ["gpu"]
-
 [dependencies]
-burn = { workspace = true, optional = true, features = ["wgpu", "autodiff", "train"] }
 vox-compiler = { workspace = true }
 vox-runtime = { workspace = true }
 serde = { workspace = true }
@@ -21,5 +14,5 @@ workspace-hack = { workspace = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 
-# Burn is available in tests via the 'gpu' feature (declared optional in [dependencies]).
-# Run GPU/Burn tests with: cargo test -p vox-tensor --features gpu
+[lints]
+workspace = true

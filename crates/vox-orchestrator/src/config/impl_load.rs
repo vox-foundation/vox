@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use vox_socrates_policy::ConfidencePolicy;
+use vox_orchestrator_types::socrates_policy::ConfidencePolicy;
 
 use super::errors::ConfigError;
 use super::merge_populi::apply_vox_populi_toml;

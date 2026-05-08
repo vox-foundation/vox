@@ -24,9 +24,6 @@ pub mod cloud;
 /// Default HuggingFace model for Mens training and serving (VoxMens QLoRA SSOT).
 pub const DEFAULT_MODEL_ID: &str = "Qwen/Qwen3.5-4B";
 
-#[cfg(feature = "mens-gpu")]
-pub use burn;
-
 pub use tensor::{
     DeviceKind, GpuInfo, apply_backend_env, detect_gpu_vendor, estimate_training_vram_mb,
     estimate_training_vram_mb_qlora, normalize_device, print_gpu_summary, print_gpu_summary_for,

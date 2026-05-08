@@ -1,5 +1,6 @@
 //! `vox ci` — repository guard checks (SSOT, manifests, feature matrix) without shell/Python.
 
+mod agentskills_compliance;
 mod attention_ledger_parity;
 mod attention_parity;
 pub(crate) mod bounded_read;
@@ -21,6 +22,7 @@ mod doctest_md;
 mod eval_matrix;
 mod exec_policy_contract;
 mod frozen_crates;
+mod generate_plugin_catalog_docs;
 mod grammar_ssot_parity;
 mod gui_smoke;
 mod install_hooks;
@@ -30,6 +32,9 @@ mod mens_scorecard;
 pub(crate) mod nomenclature_guard;
 mod openclaw_contract;
 mod operations_catalog;
+mod plugin_abi_parity;
+mod plugin_catalog_parity;
+mod plugin_skill_parity;
 mod pm_provenance;
 mod pre_push;
 mod release_build;

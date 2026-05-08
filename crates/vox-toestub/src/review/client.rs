@@ -4,7 +4,7 @@ use super::providers::{ReviewProvider, auto_discover_providers};
 use super::types::ReviewFinding;
 use crate::rules::{Finding, Language, SourceFile};
 use std::time::Duration;
-use vox_socrates_policy::ConfidencePolicy;
+use vox_orchestrator_types::socrates_policy::ConfidencePolicy;
 
 /// Performs AI-powered code review using the configured provider cascade.
 pub struct ReviewClient {

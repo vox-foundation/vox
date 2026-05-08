@@ -6,7 +6,7 @@ edition.workspace = true
 [dependencies]
 vox-compiler = { workspace = true }
 vox-config.workspace = true
-vox-socrates-policy = { workspace = true }
+vox-orchestrator-types = { workspace = true }
 turso = { workspace = true }
 tokio = { workspace = true }
 thiserror = { workspace = true }
@@ -23,7 +23,6 @@ data-encoding = { workspace = true }
 keyring = { workspace = true }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 vox-mesh-types = { workspace = true }
-vox-orchestrator-types = { workspace = true }
 workspace-hack = { workspace = true }
 
 [features]

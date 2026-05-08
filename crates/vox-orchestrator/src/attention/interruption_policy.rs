@@ -45,7 +45,7 @@ pub struct InterruptionSignals {
     pub pending_clarification_backlog: u32,
     /// Zero-based clarification turn index in this session.
     pub clarification_turn_index: u32,
-    /// Max clarification turns (e.g. from [`vox_socrates_policy::QuestioningPolicy`]).
+    /// Max clarification turns (e.g. from [`vox_orchestrator_types::socrates_policy::QuestioningPolicy`]).
     pub max_clarification_turns: u32,
     /// Irreversible, policy-sensitive, or high blast-radius action pending.
     pub irreversible_or_high_risk: bool,

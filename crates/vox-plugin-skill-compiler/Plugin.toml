@@ -1,0 +1,17 @@
+[plugin]
+id = "skill-compiler"
+name = "Vox Compiler Skill"
+version = "0.1.0"
+description = "Agent-facing skill describing the Vox compiler tools."
+license = "Apache-2.0"
+
+[plugin.host]
+min-vox-version = "0.5.0"
+
+[plugin.payload]
+kind = "skill"
+format-version = 1
+skill-md = "compiler.skill.md"
+
+[plugin.payload.tools]
+exposes = ["vox_validate_file", "vox_run_tests", "vox_check_workspace"]

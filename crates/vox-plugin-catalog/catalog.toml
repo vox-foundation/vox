@@ -1,0 +1,264 @@
+# vox-plugin-catalog SSOT
+#
+# Every first-party Vox plugin and distribution bundle is declared here.
+# After editing: `cargo build -p vox-plugin-catalog` validates the file.
+# Regenerate the human-readable docs with:
+#     vox ci generate-plugin-catalog-docs
+#
+# See: docs/src/architecture/plugin-system-redesign-2026.md
+# See: docs/src/reference/plugin-catalog.md
+
+[[plugin]]
+id = "nvml-probe"
+payload-kind = "code"
+description = "NVIDIA GPU hardware probe via NVML (device count, VRAM, utilization, temperature)."
+extension-points = ["HardwareProbe"]
+requires-tag = "nvidia-gpu"
+default-source = "local:crates/vox-plugin-nvml-probe"
+bundled-in = ["vox-ml", "vox-dev"]
+
+[[plugin]]
+id = "mens-candle-cuda"
+payload-kind = "code"
+description = "ML training backend using Candle with CUDA acceleration."
+extension-points = ["MlBackend"]
+requires-tag = "nvidia-gpu"
+default-source = "github:vox-foundation/vox-plugin-mens-candle-cuda"
+bundled-in = ["vox-ml", "vox-dev"]
+
+
+[[plugin]]
+id = "oratio"
+payload-kind = "code"
+description = "Audio capture + speech-to-text (Candle Whisper)."
+extension-points = ["AudioCapture", "SpeechToText"]
+default-source = "github:vox-foundation/vox-plugin-oratio"
+bundled-in = ["vox-dev"]
+
+[[plugin]]
+id = "oratio-mic"
+payload-kind = "code"
+description = "Microphone input adapter for Oratio."
+extension-points = ["AudioCapture"]
+default-source = "github:vox-foundation/vox-plugin-oratio-mic"
+bundled-in = ["vox-dev"]
+
+[[plugin]]
+id = "cloud"
+payload-kind = "code"
+description = "Cloud sync provider (Mens cloud + Populi cloud)."
+extension-points = ["CloudSync"]
+default-source = "github:vox-foundation/vox-plugin-cloud"
+bundled-in = ["vox-mesh", "vox-cloud-only", "vox-dev"]
+
+[[plugin]]
+id = "populi-mesh"
+payload-kind = "composite"
+description = "Populi mesh transport + the agent skill that documents it."
+extension-points = ["MeshDriver"]
+exposes-tools = ["vox_populi_join", "vox_populi_dispatch"]
+default-source = "github:vox-foundation/vox-plugin-populi-mesh"
+bundled-in = ["vox-mesh", "vox-server", "vox-dev"]
+
+[[plugin]]
+id = "script-execution"
+payload-kind = "code"
+description = "Script execution sandbox for `.vox run` and similar."
+extension-points = ["ScriptExecutor"]
+default-source = "github:vox-foundation/vox-plugin-script-execution"
+bundled-in = ["vox-dev"]
+
+# execution-api and stub-check removed 2026-05-08: no crate exists for either;
+# placeholder entries with bundled-in=[] provided no value and pointed to non-existent repos.
+# Restore if/when the actual plugin crates are created.
+
+[[plugin]]
+id = "skill-compiler"
+payload-kind = "skill"
+description = "Agent-facing skill describing the Vox compiler tools."
+exposes-tools = ["vox_validate_file", "vox_run_tests", "vox_check_workspace"]
+default-source = "github:vox-foundation/vox-plugin-skill-compiler"
+bundled-in = ["vox-fullstack", "vox-ml", "vox-dev"]
+
+[[plugin]]
+id = "skill-git"
+payload-kind = "skill"
+description = "Agent-facing skill describing Vox git integration tools."
+exposes-tools = ["vox_git_status", "vox_git_diff", "vox_git_resolve_conflict"]
+default-source = "github:vox-foundation/vox-plugin-skill-git"
+bundled-in = ["vox-fullstack", "vox-dev"]
+
+[[plugin]]
+id = "skill-memory"
+payload-kind = "skill"
+description = "Agent-facing skill for memory and context management."
+exposes-tools = ["vox_memory_get", "vox_memory_set", "vox_memory_search"]
+default-source = "github:vox-foundation/vox-plugin-skill-memory"
+bundled-in = ["vox-fullstack", "vox-edge", "vox-cloud-only", "vox-server", "vox-dev"]
+
+[[plugin]]
+id = "skill-orchestrator"
+payload-kind = "skill"
+description = "Agent-facing skill for task submission, status, budget, multi-agent coordination."
+exposes-tools = ["vox_orchestrator_submit", "vox_orchestrator_status", "vox_orchestrator_budget"]
+default-source = "github:vox-foundation/vox-plugin-skill-orchestrator"
+bundled-in = ["vox-fullstack", "vox-cloud-only", "vox-server", "vox-mesh", "vox-dev"]
+
+[[plugin]]
+id = "skill-rag"
+payload-kind = "skill"
+description = "Agent-facing skill for retrieval-augmented generation."
+exposes-tools = ["vox_rag_query", "vox_rag_index"]
+default-source = "github:vox-foundation/vox-plugin-skill-rag"
+bundled-in = ["vox-fullstack", "vox-dev"]
+
+[[plugin]]
+id = "skill-testing"
+payload-kind = "skill"
+description = "Agent-facing skill for test-runner integration."
+exposes-tools = ["vox_test_run", "vox_test_select"]
+default-source = "github:vox-foundation/vox-plugin-skill-testing"
+bundled-in = ["vox-fullstack", "vox-dev"]
+
+[[plugin]]
+id = "skill-testing-validate"
+payload-kind = "skill"
+description = "Agent-facing skill for test validation diagnostics."
+exposes-tools = ["vox_test_validate"]
+default-source = "github:vox-foundation/vox-plugin-skill-testing-validate"
+bundled-in = ["vox-fullstack", "vox-dev"]
+
+[[plugin]]
+id = "skill-v0"
+payload-kind = "skill"
+description = "Agent-facing skill providing legacy v0 compatibility surface."
+exposes-tools = ["vox_v0_compat"]
+default-source = "github:vox-foundation/vox-plugin-skill-v0"
+bundled-in = ["vox-fullstack", "vox-edge"]
+
+[[plugin]]
+id = "webhook"
+payload-kind = "code"
+description = "Inbound webhook HTTP listener with HMAC signature verification (GitHub, GitLab, generic)."
+extension-points = ["HttpListener"]
+default-source = "local:crates/vox-plugin-webhook"
+bundled-in = ["vox-server", "vox-dev"]
+
+[[plugin]]
+id = "browser"
+payload-kind = "code"
+description = "Chrome DevTools Protocol browser automation via chromiumoxide."
+extension-points = ["BrowserAutomation"]
+default-source = "github:vox-foundation/vox-plugin-browser"
+bundled-in = ["vox-dev"]
+
+[[plugin]]
+id = "runtime-wasm"
+payload-kind = "code"
+description = "Skill-runtime plugin: wasmtime-based WASI sandbox (default for pure-compute skills; faster + smaller than containers)."
+extension-points = ["SkillRuntime"]
+default-source = "local:crates/vox-plugin-runtime-wasm"
+bundled-in = ["vox-fullstack", "vox-edge", "vox-dev"]
+
+[[plugin]]
+id = "runtime-container"
+payload-kind = "code"
+description = "Skill-runtime plugin: Docker and Podman OCI sandbox backends (fallback for subprocess/GPU skills)."
+extension-points = ["SkillRuntime"]
+default-source = "local:crates/vox-plugin-runtime-container"
+bundled-in = []
+
+[[plugin]]
+id = "publication"
+payload-kind = "code"
+description = "RSS/Atom ingest with semantic dedup; multi-platform publish (Reddit, YouTube, scholarly feeds)."
+extension-points = ["Publication"]
+default-source = "local:crates/vox-plugin-publication"
+bundled-in = []
+
+[[plugin]]
+id = "grammar-export"
+payload-kind = "code"
+description = "Export Vox grammar in standard formats (Lark, EBNF, JSON Schema, XGrammar-2, SSOT-Markdown)."
+extension-points = ["GrammarExport"]
+default-source = "local:crates/vox-plugin-grammar-export"
+bundled-in = ["vox-dev"]
+
+[[plugin]]
+id = "noop-code"
+payload-kind = "code"
+description = "Test fixture: no-op code plugin used by vox-plugin-host loader tests."
+extension-points = ["__noop__"]
+default-source = "local:crates/vox-plugin-noop-code"
+bundled-in = []
+
+[[plugin]]
+id = "noop-bad-abi"
+payload-kind = "code"
+description = "Test fixture: deliberately mismatched ABI version for abi_mismatch test."
+extension-points = ["__noop__"]
+default-source = "local:crates/vox-plugin-noop-code-bad-abi"
+bundled-in = []
+
+[[plugin]]
+id = "noop-skill"
+payload-kind = "skill"
+description = "Test fixture: no-op skill plugin used by vox-plugin-host discover tests."
+exposes-tools = ["noop_tool"]
+default-source = "local:crates/vox-plugin-noop-skill"
+bundled-in = []
+
+[[bundle]]
+id = "vox-base"
+description = "Bare host binary, no plugins."
+plugins = []
+
+[[bundle]]
+id = "vox-fullstack"
+description = "Default developer experience with all built-in skill plugins."
+plugins = [
+    "skill-compiler", "skill-testing", "skill-testing-validate", "skill-memory",
+    "skill-git", "skill-orchestrator", "skill-rag", "skill-v0",
+    "runtime-wasm",
+]
+
+[[bundle]]
+id = "vox-ml"
+description = "Fullstack plus ML/GPU code plugins (NVIDIA CUDA stack)."
+extends = "vox-fullstack"
+plugins = ["mens-candle-cuda", "nvml-probe"]
+
+[[bundle]]
+id = "vox-mesh"
+description = "Server-side mesh deployment with cloud sync."
+extends = "vox-base"
+plugins = ["populi-mesh", "cloud", "skill-orchestrator"]
+
+[[bundle]]
+id = "vox-server"
+description = "Headless backend deployment: orchestrator + mesh, no GUI/ML."
+extends = "vox-base"
+plugins = ["populi-mesh", "cloud", "skill-orchestrator", "skill-memory", "webhook"]
+
+[[bundle]]
+id = "vox-edge"
+description = "Edge / on-device deployment: lightweight runtime + local skills, no cloud or mesh."
+extends = "vox-base"
+plugins = ["skill-compiler", "skill-memory", "skill-v0", "runtime-wasm"]
+
+[[bundle]]
+id = "vox-cloud-only"
+description = "Cloud-managed deployment: cloud sync only, no local ML or mesh transport."
+extends = "vox-base"
+plugins = ["cloud", "skill-orchestrator", "skill-memory"]
+
+[[bundle]]
+id = "vox-dev"
+description = "Contributor / power-user development environment: fullstack + ML + mesh + audio."
+extends = "vox-fullstack"
+plugins = [
+    "mens-candle-cuda", "nvml-probe",
+    "populi-mesh", "cloud", "oratio", "oratio-mic",
+    "script-execution", "browser", "webhook",
+    "grammar-export",
+]

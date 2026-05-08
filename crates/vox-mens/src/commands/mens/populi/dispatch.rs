@@ -17,7 +17,7 @@ use crate::commands::mens::status;
 
 use crate::commands::mens::probe;
 #[cfg(feature = "gpu")]
-use crate::commands::mens::{eval_local, merge_weights};
+use crate::commands::mens::eval_local;
 #[cfg(feature = "gpu")]
 use crate::commands::schola::merge_qlora;
 
@@ -260,9 +260,11 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
         PopuliAction::TrainStub { .. }
         | PopuliAction::DogfoodStub { .. }
         | PopuliAction::ServeStub { .. } => {
-            vox_build_meta::require("gpu", "cargo build -p vox-cli --features gpu")
-                .map_err(|e| anyhow::anyhow!("{e}"))?;
-            unreachable!()
+            anyhow::bail!(
+                "This Vox capability requires the 'gpu' plugin, which is not installed.\n\n\
+                 To install it, run:\n\n  vox plugin install tensor-burn-wgpu\n\n\
+                 See: docs/src/reference/plugins.md"
+            );
         }
 
         #[cfg(feature = "gpu")]
@@ -406,11 +408,6 @@ pub async fn run(action: PopuliAction, _global_json: bool, _global_verbose: bool
             meta,
             output,
         } => merge_qlora::run_merge_qlora(base_shard, adapter, meta, output),
-
-        #[cfg(feature = "gpu")]
-        PopuliAction::MergeWeights { checkpoint, output } => {
-            merge_weights::run_merge_weights(checkpoint, output, 0, 0.0)
-        }
 
         #[cfg(feature = "mens-dei")]
         PopuliAction::Generate {

@@ -1,7 +1,7 @@
 //! Integration tests for the Vox deployment pipeline.
 //! Verifies manifest generation for Kubernetes, Docker, and Bare-metal.
 
-use vox_container::generate::{
+use vox_deploy_codegen::generate::{
     EnvironmentSpec, generate_dockerfile_from_spec, generate_kubernetes_manifests,
 };
 

@@ -71,7 +71,7 @@ pub async fn speech_to_code(state: &ServerState, args: Value) -> anyhow::Result<
                 debug_parser,
             );
             let detail =
-                vox_oratio::transcribe_path_detailed(&full, &ctx, language_hint.as_deref())?;
+                super::oratio_tools::transcribe_path_via_plugin(&full, &ctx, language_hint.as_deref())?;
             (
                 detail.raw_text,
                 detail.refined_text,

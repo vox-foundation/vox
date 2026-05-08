@@ -1,0 +1,111 @@
+name: Build Distribution Bundles
+
+# Triggered on published releases and manually via workflow_dispatch.
+# Produces one tarball per (bundle-id x platform) matrix cell, verifies
+# each with `vox bundle verify`, and uploads as release artifacts.
+#
+# Matrix: 8 bundles x 2 platforms = 16 jobs per run.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  build-bundles:
+    name: ${{ matrix.bundle }} @ ${{ matrix.target }}
+    runs-on: ${{ fromJson(matrix.runs_on) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        bundle:
+          - vox-base
+          - vox-fullstack
+          - vox-ml
+          - vox-mesh
+          - vox-server
+          - vox-edge
+          - vox-cloud-only
+          - vox-dev
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-pc-windows-msvc
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runs_on: '["self-hosted","linux","x64","docker"]'
+          - target: x86_64-pc-windows-msvc
+            runs_on: '["windows-latest"]'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Cargo Registry & Target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-bundle-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-bundle-
+            ${{ runner.os }}-cargo-
+
+      - name: Build vox CLI
+        run: cargo build --release --locked -p vox-cli --target ${{ matrix.target }}
+
+      - name: Apply bundle (install plugins into VOX_PLUGINS_DIR)
+        # For bundles with plugins, pre-install them into a local dir so
+        # `vox bundle build` can find them.  vox-base has no plugins and
+        # this step is a no-op for it.
+        env:
+          VOX_PLUGINS_DIR: ${{ github.workspace }}/bundle-plugins
+        run: |
+          cargo run --release --locked -p vox-cli -- bundle apply ${{ matrix.bundle }} --yes
+        shell: bash
+        continue-on-error: true   # warn but proceed; build step reports missing plugins
+
+      - name: Build bundle tarball
+        env:
+          VOX_PLUGINS_DIR: ${{ github.workspace }}/bundle-plugins
+        run: |
+          cargo run --release --locked -p vox-cli -- \
+            bundle build ${{ matrix.bundle }} \
+            --out bundle.tar.gz
+        shell: bash
+
+      - name: Verify bundle integrity
+        env:
+          VOX_PLUGINS_DIR: ${{ github.workspace }}/bundle-plugins
+        run: cargo run --release --locked -p vox-cli -- bundle verify bundle.tar.gz
+        shell: bash
+
+      - name: Report tarball size
+        run: ls -lh bundle.tar.gz
+        shell: bash
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.bundle }}-${{ matrix.target }}
+          path: bundle.tar.gz
+          retention-days: 30
+
+      - name: Attach to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bundle.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

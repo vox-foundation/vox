@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use vox_socrates_policy::ConfidencePolicy;
+use vox_orchestrator_types::socrates_policy::ConfidencePolicy;
 
 use crate::services::embeddings::EmbeddingService;
 

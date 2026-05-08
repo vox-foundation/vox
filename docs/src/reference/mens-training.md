@@ -368,8 +368,8 @@ Recommended rollout order: shadow (`routing_experimental`), then training scorin
 | Command / artifact | Status |
 |--------------------|--------|
 | **`vox mens merge-weights`** | Merges **Burn** LoRA checkpoints (`*.bin` from `--backend lora`) into `model_merged.bin`. Requires **`gpu`**. |
-| **`candle_qlora_adapter.safetensors`** | **LoRA A/B per logical layer** (`mid0`…`lm_head`); sidecar **`candle_qlora_adapter_meta.json`** format **`vox_mens_qlora_lora_only_v2`** (`QloraAdapterMetaV2`). |
-| **`vox schola merge-qlora`** (alias **`merge-adapter`**) | **Candle QLoRA path only:** merges v2 or **v3** adapter meta + LoRA tensors into **f32** base shards for keys in `base_key_map` (subset output safetensors). Distinct from **`merge-weights`** and from Burn **`*.bin`** checkpoints. There is **no** supported conversion from Burn **`*.bin`** LoRA checkpoints into Candle adapter safetensors for this command — use **`merge-weights`** for Burn → `model_merged.bin`. |
+| **`candle_qlora_adapter.safetensors`** | **LoRA A/B per logical layer** (`mid0`…`lm_head`); manifest **`adapter_manifest.json`** format **`vox_mens_adapter`** v3 (`PopuliAdapterManifestV3`). |
+| **`vox schola merge-qlora`** (alias **`merge-adapter`**) | **Candle QLoRA path only:** reads **v3** adapter manifest + LoRA tensors and merges into **f32** base shards for keys in `base_key_map` (subset output safetensors). Distinct from **`merge-weights`** and from Burn **`*.bin`** checkpoints. There is **no** supported conversion from Burn **`*.bin`** LoRA checkpoints into Candle adapter safetensors for this command — use **`merge-weights`** for Burn → `model_merged.bin`. |
 | **`vox mens serve` (`cloud=local`)** | Spawns **`vox-schola serve`**: QLoRA **run directory** (adapter + tokenizer). |
 | **`vox mens serve` (Burn, `execution-api`)** | Loads **Burn** checkpoints: LoRA `*.bin` **or** merged **`model_merged.bin`** from **`merge-weights`**. Does **not** apply to Candle **`merge-qlora`** output safetensors. |
 | **`populi_adapter_manifest_v3.json`** | Unified adapter manifest (method + quant + layer order + `base_key_map`); written beside v2 meta on Candle runs. |

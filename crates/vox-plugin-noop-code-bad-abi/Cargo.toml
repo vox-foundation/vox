@@ -1,0 +1,13 @@
+[package]
+name = "vox-plugin-noop-code-bad-abi"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+description = "Test fixture: a code plugin with a deliberately wrong ABI version for rejection tests."
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+vox-plugin-api = { workspace = true }
+abi_stable = { workspace = true }

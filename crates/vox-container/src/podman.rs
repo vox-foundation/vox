@@ -100,6 +100,7 @@ impl ContainerRuntime for PodmanRuntime {
 
         cmd.arg(&opts.image);
 
+        crate::log_exec_risk(&opts.image);
         tracing::info!("Running: podman run {} ...", opts.image);
         let status = cmd
             .status()

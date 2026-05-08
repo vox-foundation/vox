@@ -110,6 +110,23 @@ impl ServerState {
             let _ = install_builtins(&registry_for_builtins).await;
         });
 
+        // Bridge plugin-host discovered skills into the vox-skills registry.
+        let install_dir = std::env::var("VOX_PLUGINS_DIR")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| {
+                dirs::data_local_dir()
+                    .map(|p| p.join("vox").join("plugins"))
+                    .unwrap_or_else(|| std::path::PathBuf::from("./vox-plugins"))
+            });
+        let registry_for_plugins = registry.clone();
+        spawn_supervised_infallible("install_plugin_skills", async move {
+            crate::mcp_tools::plugin_skills_bridge::install_discovered_skills(
+                &registry_for_plugins,
+                &install_dir,
+            )
+            .await;
+        });
+
         let http_client = vox_reqwest_defaults::client_builder()
             .timeout(std::time::Duration::from_secs(120))
             .build()

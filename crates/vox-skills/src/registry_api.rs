@@ -92,7 +92,7 @@ impl SkillsRegistryClient {
             .text()
             .await
             .map_err(|e| SkillError::Http(e.to_string()))?;
-        VoxSkillBundle::from_json(&json)
+        VoxSkillBundle::from_json(&json).map_err(Into::into)
     }
 
     /// Publish a skill bundle to the registry.

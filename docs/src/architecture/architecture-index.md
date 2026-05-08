@@ -67,6 +67,7 @@ training_eligible: false
 - [Populi Mesh — Local Observability Spec (S1, 2026-05-01)](populi-mesh-local-observability-spec-2026.md)
 - [Populi Mesh — Probe Correctness Implementation Plan (S1, 2026-05-01)](populi-mesh-probe-correctness-plan-2026.md)
 - [Populi Mesh — Probe Correctness Spec (S1, 2026-05-01)](populi-mesh-probe-correctness-spec-2026.md)
+- [Pure-Rust Build — Eliminating C/MSVC Dependencies (2026-05-08)](no-c-no-msvc-2026-05-08.md)
 - [Question gate standard for planning](planning-meta/12-question-gate-standard.md)
 - [Research baseline and source-of-truth map](planning-meta/00-research-baseline-source-map.md)
 - [Scientia × Mesh/Model-Routing Integration Research (2026)](scientia-mesh-integration-research-2026.md)
@@ -92,13 +93,25 @@ training_eligible: false
 ## Status: Research
 
 - [Agent Shell Fluency Eval Design (2026)](agent-shell-fluency-eval-design-2026.md)
+- [Crate Classification Audit (2026-05-08)](crate-classification-2026-05-08.md)
+- [Dead Crate Deep Dive (2026-05-08)](dead-crate-deep-dive-2026-05-08.md)
+- [Dead Crate Fate Plan (2026-05-08)](dead-crate-fate-plan-2026-05-08.md)
 - [Legacy URL Redirects on GitHub Pages](github-pages-redirects.md)
 - [Ludus Identity Federation & GitHub Integration](ludus-identity-github-integration-research-2026.md)
 - [Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan](orchestrator-companion-audit-findings-2026.md)
+- [Plugin System Audit (2026-05-08)](plugin-system-audit-2026-05-08.md)
+- [Plugin System Deep Audit (2026-05-08)](plugin-system-deep-audit-2026-05-08.md)
+- [Plugin System Redesign (2026)](plugin-system-redesign-2026.md)
+- [Plugin System Redesign — SP1 Implementation Plan (2026)](plugin-system-redesign-sp1-plan-2026.md)
+- [Plugin System Redesign — SP2 Implementation Plan (2026)](plugin-system-redesign-sp2-plan-2026.md)
+- [Plugin System Redesign — SP3 Implementation Plan (2026)](plugin-system-redesign-sp3-plan-2026.md)
+- [Plugin System Redesign — SP4 Implementation Plan (2026)](plugin-system-redesign-sp4-plan-2026.md)
 - [Shiki, mdBook & Documentation Platform Evaluation (2026)](shiki-mdbook-doc-platform-research-2026.md)
 - [Svelte 5/6 vs React Meta-Frameworks — Comparative Research and Mineable Ideas for Vox (2026)](svelte-vs-react-frameworks-research-2026.md)
+- [Vox-Populi Extraction Follow-Up Plan (2026)](vox-populi-extraction-followup-plan-2026.md)
 - [Warp Terminal Research Findings (2026)](warp-research-findings-2026.md)
 - [Web App Archetype Coverage Map (2026)](web-app-archetype-coverage-2026.md)
+- [vox-container vs WASM Sandbox (2026-05-08)](vox-container-vs-wasm-2026-05-08.md)
 
 ## Status: Roadmap
 
@@ -117,5 +130,6 @@ training_eligible: false
 
 ## Status: Deprecated
 
+- [Burn Framework Necessity Audit (2026-05-08)](burn-necessity-audit-2026-05-08.md)
 - [Populi Mesh — A2A Durability Spec (S1, 2026-05-01)](populi-mesh-a2a-durability-spec-2026.md)
 

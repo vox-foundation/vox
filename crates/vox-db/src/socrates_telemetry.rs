@@ -14,7 +14,7 @@ use crate::research_metrics_contract::{
 use crate::store::StoreError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use vox_socrates_policy::RiskDecision;
+use vox_orchestrator_types::socrates_policy::RiskDecision;
 
 use crate::VoxDb;
 
@@ -528,7 +528,7 @@ mod db_tests {
     use crate::store::StoreError;
     use crate::{DbConfig, VoxDb};
     use serde_json::json;
-    use vox_socrates_policy::RiskDecision;
+    use vox_orchestrator_types::socrates_policy::RiskDecision;
 
     #[tokio::test]
     async fn socrates_surface_round_trip_and_aggregate() {

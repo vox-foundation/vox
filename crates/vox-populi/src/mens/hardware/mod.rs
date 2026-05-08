@@ -6,18 +6,13 @@ pub mod linux_drm;
 pub mod macos_metal;
 #[cfg(test)]
 mod mock;
-#[cfg(feature = "nvml-gpu-probe")]
-pub mod nvml;
+// nvml.rs deleted: NVML probing is owned by vox-plugin-nvml-probe.
 pub mod pipeline;
 pub mod probe;
 pub mod registry;
 #[cfg(test)]
 mod tests;
 pub mod types;
-#[cfg(feature = "mens-gpu")]
-pub mod wgpu_probe;
-#[cfg(all(target_os = "windows", feature = "mens-gpu"))]
-pub mod win_dxgi;
 
 /// Default probe cache TTL. Re-probes after 5 minutes by default.
 const DEFAULT_CACHE_TTL: Duration = Duration::from_secs(300);
@@ -38,15 +33,9 @@ impl HardwareRegistry {
     }
 
     /// Monitors real-time telemetry (not cached).
+    /// NVML telemetry is owned by vox-plugin-nvml-probe.
     pub fn monitor() -> Option<types::GpuTelemetry> {
-        #[cfg(feature = "nvml-gpu-probe")]
-        {
-            nvml::monitor_nvml()
-        }
-        #[cfg(not(feature = "nvml-gpu-probe"))]
-        {
-            None
-        }
+        None
     }
 
     /// Invalidates the cache, forcing the next [`Self::probe`] call to re-probe.

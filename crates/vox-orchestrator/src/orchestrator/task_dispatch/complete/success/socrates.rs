@@ -161,7 +161,7 @@ impl Orchestrator {
 
         if (socrates_enforce || bypass_disallowed)
             && !trust_relax_gates
-            && (outcome.decision != vox_socrates_policy::RiskDecision::Answer
+            && (outcome.decision != vox_orchestrator_types::socrates_policy::RiskDecision::Answer
                 || !research_results.is_empty()
                 || bypass_disallowed)
             && task.debug_iterations < max_socrates_debug_iterations

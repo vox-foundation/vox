@@ -1,15 +1,45 @@
-//! `vox schola merge-qlora` — fold v2 Candle QLoRA LoRA tensors into base f32 weights (subset).
+//! `vox schola merge-qlora` — fold QLoRA adapter tensors into base f32 weights.
+//!
+//! Dispatches to the `mens-candle-cuda` plugin via `MlBackend::merge_adapter`.
+//! The adapter directory must contain `adapter_manifest.json` (v3) written by training.
 
 use std::path::PathBuf;
 
 use anyhow::Context;
+use serde::{Deserialize, Serialize};
 
 use vox_bounded_fs::read_utf8_path_capped;
 use vox_populi::mens::MERGE_QLORA_REJECTS_BURN_BIN;
-use vox_populi::mens::tensor::adapter_schema_v3::PopuliAdapterManifestV3;
-use vox_populi::mens::tensor::candle_qlora_merge::{
-    QloraAdapterMetaV2, merge_qlora_v2_into_base_subset,
-};
+
+// ---------------------------------------------------------------------------
+// Inline serde-only schema types (no candle deps).
+// These match the on-disk JSON layout produced by vox-plugin-mens-candle-cuda.
+// ---------------------------------------------------------------------------
+
+/// On-disk adapter bundle descriptor v3 (current, canonical).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PopuliAdapterManifestV3 {
+    pub format: String,
+    pub version: u32,
+    pub adapter_method: String,
+    pub base_quant: String,
+    #[serde(default = "default_true")]
+    pub double_quant: bool,
+    pub base_key_map: std::collections::HashMap<String, String>,
+    pub layer_order: Vec<String>,
+    pub vocab: usize,
+    pub d_model: usize,
+    pub rank: usize,
+    pub alpha: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provenance: Option<serde_json::Value>,
+}
+
+fn default_true() -> bool {
+    true
+}
 
 pub fn run_merge_qlora(
     base_shards: Vec<PathBuf>,
@@ -38,19 +68,54 @@ pub fn run_merge_qlora(
     if !meta.is_file() {
         anyhow::bail!("meta JSON not found: {}", meta.display());
     }
+
+    // Parse v3 manifest (validate it's readable before dispatching to plugin).
     let raw = read_utf8_path_capped(&meta).with_context(|| format!("read {}", meta.display()))?;
-    let meta_v2: QloraAdapterMetaV2 =
-        if let Ok(m) = serde_json::from_str::<QloraAdapterMetaV2>(&raw) {
-            m
-        } else {
-            let v3: PopuliAdapterManifestV3 = serde_json::from_str(&raw)
-                .with_context(|| format!("parse meta as v2 or v3 {}", meta.display()))?;
-            vox_populi::mens::tensor::adapter_schema_v3::to_qlora_meta_v2_for_merge(&v3)
-                .with_context(|| "adapter manifest v3 → merge bridge")?
-        };
-    merge_qlora_v2_into_base_subset(&base_shards, &adapter, &meta_v2, &output)?;
+    let manifest: PopuliAdapterManifestV3 = serde_json::from_str(&raw)
+        .with_context(|| format!("parse adapter manifest v3 from {}", meta.display()))?;
+
+    // Ensure adapter_manifest.json exists next to the adapter .safetensors so
+    // the plugin can find it. If the user pointed --meta at a file in the adapter
+    // dir with a different name, copy it as adapter_manifest.json.
+    let adapter_dir = adapter
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+    let canonical_manifest = adapter_dir.join("adapter_manifest.json");
+    if meta.canonicalize().ok() != canonical_manifest.canonicalize().ok() {
+        std::fs::write(&canonical_manifest, &raw)
+            .with_context(|| format!("write {}", canonical_manifest.display()))?;
+    }
+
+    // Use the parent directory of the first shard as the base model directory.
+    let base_dir = base_shards[0]
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+
+    // Dispatch to the plugin.
+    let result = (|| -> anyhow::Result<()> {
+        let plugin = vox_plugin_host::cached_code_plugin("mens-candle-cuda")
+            .context("mens-candle-cuda plugin not found — install vox-plugin-mens-candle-cuda")?;
+        let backend = plugin
+            .plugin
+            .as_ml_backend()
+            .into_option()
+            .ok_or_else(|| anyhow::anyhow!("mens-candle-cuda plugin does not provide MlBackend"))?;
+        backend
+            .merge_adapter(
+                base_dir.to_string_lossy().as_ref().into(),
+                adapter.to_string_lossy().as_ref().into(),
+                output.to_string_lossy().as_ref().into(),
+            )
+            .into_result()
+            .map_err(|e| anyhow::anyhow!("merge_adapter: {e}"))
+    })();
+
+    result?;
+
     eprintln!("Wrote merged tensors (subset) to {}", output.display());
-    let base = meta_v2
+    let base = manifest
         .base_model
         .as_deref()
         .filter(|s| !s.trim().is_empty())

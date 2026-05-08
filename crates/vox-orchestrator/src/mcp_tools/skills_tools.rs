@@ -76,7 +76,7 @@ pub async fn skill_install(state: &ServerState, params: SkillInstallParams) -> S
         }
     };
     // Arc<SkillRegistry> — interior mutability, no Mutex needed
-    match state.skill_registry.install(&bundle).await {
+    match state.skill_registry.install_bundle(&bundle).await {
         Ok(res) => {
             if res.already_installed {
                 ToolResult::ok(format!(

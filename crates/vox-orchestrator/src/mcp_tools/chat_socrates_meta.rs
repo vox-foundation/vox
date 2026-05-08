@@ -8,7 +8,7 @@
 use serde::Deserialize;
 use serde_json::Value;
 use vox_runtime::supervisor::spawn_supervised_infallible;
-use vox_socrates_policy::{
+use vox_orchestrator_types::socrates_policy::{
     ClarificationStopReason, ConfidencePolicy, QuestionCandidate, QuestionKind, QuestioningPolicy,
     RiskDecision,
 };

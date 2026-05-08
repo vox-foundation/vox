@@ -42,6 +42,7 @@ These files are regenerated from source markdown by `vox-doc-pipeline` and simil
 - `docs/src/architecture/architecture-index.md` — auto-rolled architecture index. Same regenerator.
 - `docs/src/feed.xml` — RSS feed. Same regenerator.
 - `docs/src/reference/cli-command-surface.generated.md`, `docs/src/reference/mens-train-defaults.generated.md` — generated reference (filename suffix `.generated.md` marks them).
+- `docs/src/reference/plugin-catalog.generated.md`, `docs/src/reference/distribution-bundles.generated.md` — generated reference rolled from `crates/vox-plugin-catalog/catalog.toml`. Regenerate with `cargo run -p vox-cli -- ci generate-plugin-catalog-docs`. CI guard: `cargo run -p vox-cli -- ci generate-plugin-catalog-docs --check`.
 - `.cursorignore`, `.aiignore`, `.aiexclude` — derived from `.voxignore`; regenerate with `vox ci sync-ignore-files`.
 
 To add an entry to `SUMMARY.md`: add or edit the target markdown's YAML frontmatter (`title`, `category`, `sort_order`) or H1, then rerun `cargo run -p vox-doc-pipeline`. Do not touch `SUMMARY.md` itself.

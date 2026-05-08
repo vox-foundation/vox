@@ -384,6 +384,15 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::DepSprawl { cap } => dep_sprawl::run(&root, cap),
         CiCmd::DoctestMd { paths, strict } => doctest_md::run(paths, strict).await,
         CiCmd::DeployStatus { write_to } => super::deploy_status::run(write_to).await,
+        CiCmd::GeneratePluginCatalogDocs {
+            catalog_out,
+            bundles_out,
+            check,
+        } => super::generate_plugin_catalog_docs::run(catalog_out, bundles_out, check),
+        CiCmd::PluginCatalogParity => super::plugin_catalog_parity::run(),
+        CiCmd::PluginAbiParity => super::plugin_abi_parity::run(),
+        CiCmd::PluginSkillParity => super::plugin_skill_parity::run(),
+        CiCmd::AgentSkillsCompliance => super::agentskills_compliance::run(),
         CiCmd::CoolifyEval { cmd } => super::coolify_eval::run(cmd).await,
         CiCmd::WatchRun {
             sha,

@@ -10,7 +10,7 @@ use rust_decimal::prelude::FromStr;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
-use vox_skills::ars_shim::{
+use vox_ars::{
     DefaultOpenClawRuntimeAdapter, OpenClawRuntimeAdapter, connect_default_runtime_adapter,
 };
 
@@ -847,237 +847,154 @@ async fn handle_openclaw_op(
     }
 }
 
-// ── Browser (CDP / chromiumoxide; native host thread) ───────────────────────
+// ── Browser (CDP / chromiumoxide; dispatches through vox-plugin-host) ─────────
+//
+// The BrowserAutomation sabi trait is synchronous — the plugin manages its own
+// tokio runtime internally. We no longer need a dedicated background thread or
+// channel machinery here.
 
-enum BrowserOp {
-    Open {
-        url: String,
-        headless: bool,
-    },
-    Close {
-        page_id: String,
-    },
-    Goto {
-        page_id: String,
-        url: String,
-    },
-    Click {
-        page_id: String,
-        target: String,
-    },
-    Fill {
-        page_id: String,
-        target: String,
-        value: String,
-    },
-    WaitFor {
-        page_id: String,
-        target: String,
-        timeout_secs: u64,
-    },
-    Text {
-        page_id: String,
-        target: String,
-    },
-    Html {
-        page_id: String,
-        target: String,
-    },
-    Screenshot {
-        page_id: String,
-        path: String,
-    },
-}
-
-enum BrowserReply {
-    Unit,
-    Str(String),
-}
-
-struct BrowserRequest {
-    op: BrowserOp,
-    reply_tx: std::sync::mpsc::Sender<Result<BrowserReply, String>>,
-}
-
-struct BrowserWorker {
-    tx: std::sync::mpsc::Sender<BrowserRequest>,
-}
-
-fn browser_worker() -> &'static BrowserWorker {
-    static WORKER: OnceLock<BrowserWorker> = OnceLock::new();
-    WORKER.get_or_init(|| {
-        let (tx, rx) = std::sync::mpsc::channel::<BrowserRequest>();
-        std::thread::Builder::new()
-            .name("vox-browser-runtime".to_string())
-            .spawn(move || {
-                let runtime = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .map_err(|e| format!("browser runtime init failed: {e}"));
-                match runtime {
-                    Ok(rt) => {
-                        let eng = vox_browser::global_engine();
-                        while let Ok(req) = rx.recv() {
-                            let result = rt.block_on(handle_browser_op(&eng, req.op));
-                            let _ = req.reply_tx.send(result);
-                        }
-                    }
-                    Err(err) => {
-                        while let Ok(req) = rx.recv() {
-                            let _ = req.reply_tx.send(Err(err.clone()));
-                        }
-                    }
-                }
-            })
-            .expect("spawn browser runtime worker");
-        BrowserWorker { tx }
-    })
-}
-
-fn run_browser_op(op: BrowserOp) -> Result<BrowserReply, String> {
-    let worker = browser_worker();
-    let (reply_tx, reply_rx) = std::sync::mpsc::channel();
-    worker
-        .tx
-        .send(BrowserRequest { op, reply_tx })
-        .map_err(|e| format!("browser worker send failed: {e}"))?;
-    reply_rx
-        .recv()
-        .map_err(|e| format!("browser worker recv failed: {e}"))?
-}
-
-async fn handle_browser_op(
-    eng: &std::sync::Arc<vox_browser::BrowserEngine>,
-    op: BrowserOp,
-) -> Result<BrowserReply, String> {
-    match op {
-        BrowserOp::Open { url, headless } => eng.open(&url, headless).await.map(BrowserReply::Str),
-        BrowserOp::Close { page_id } => eng.close(&page_id).await.map(|_| BrowserReply::Unit),
-        BrowserOp::Goto { page_id, url } => {
-            eng.goto(&page_id, &url).await.map(|_| BrowserReply::Unit)
-        }
-        BrowserOp::Click { page_id, target } => eng
-            .click(&page_id, &target)
-            .await
-            .map(|_| BrowserReply::Unit),
-        BrowserOp::Fill {
-            page_id,
-            target,
-            value,
-        } => eng
-            .fill(&page_id, &target, &value)
-            .await
-            .map(|_| BrowserReply::Unit),
-        BrowserOp::WaitFor {
-            page_id,
-            target,
-            timeout_secs,
-        } => eng
-            .wait_for(&page_id, &target, timeout_secs)
-            .await
-            .map(|_| BrowserReply::Unit),
-        BrowserOp::Text { page_id, target } => {
-            eng.text(&page_id, &target).await.map(BrowserReply::Str)
-        }
-        BrowserOp::Html { page_id, target } => {
-            eng.html(&page_id, &target).await.map(BrowserReply::Str)
-        }
-        BrowserOp::Screenshot { page_id, path } => {
-            eng.screenshot(&page_id, &path).await.map(BrowserReply::Str)
-        }
+fn with_browser_backend<F, T>(f: F) -> Result<T, String>
+where
+    F: FnOnce(&vox_plugin_host::loader::LoadedCodePlugin) -> Result<T, String>,
+{
+    let plugin = vox_plugin_host::cached_code_plugin("browser")
+        .map_err(|e| format!("browser plugin load: {e}"))?;
+    if plugin.plugin.as_browser_automation().into_option().is_none() {
+        return Err("browser plugin loaded but BrowserAutomation accessor returned None".into());
     }
+    f(plugin)
+}
+
+macro_rules! browser_call {
+    ($result:expr) => {
+        $result
+            .into_result()
+            .map_err(|e| format!("browser: {e}"))
+    };
 }
 
 /// `Browser.open` — returns opaque `page_id` (`Result[str]` in Vox).
 pub fn vox_browser_open(url: &str, headless: bool) -> Result<String, String> {
-    match run_browser_op(BrowserOp::Open {
-        url: url.to_string(),
-        headless,
-    })? {
-        BrowserReply::Str(s) => Ok(s),
-        BrowserReply::Unit => Err("browser: unexpected Unit reply for open".into()),
-    }
+    let url = url.to_string();
+    with_browser_backend(|p| {
+        let b = p
+            .plugin
+            .as_browser_automation()
+            .into_option()
+            .expect("checked above");
+        browser_call!(b.open(url.as_str().into(), headless)).map(|s| s.into_string())
+    })
 }
 
 pub fn vox_browser_close(page_id: &str) -> Result<(), String> {
-    match run_browser_op(BrowserOp::Close {
-        page_id: page_id.to_string(),
-    })? {
-        BrowserReply::Unit => Ok(()),
-        BrowserReply::Str(_) => Err("browser: unexpected Str reply for close".into()),
-    }
+    let page_id = page_id.to_string();
+    with_browser_backend(|p| {
+        let b = p
+            .plugin
+            .as_browser_automation()
+            .into_option()
+            .expect("checked above");
+        browser_call!(b.close(page_id.as_str().into()))
+    })
 }
 
 pub fn vox_browser_goto(page_id: &str, url: &str) -> Result<(), String> {
-    match run_browser_op(BrowserOp::Goto {
-        page_id: page_id.to_string(),
-        url: url.to_string(),
-    })? {
-        BrowserReply::Unit => Ok(()),
-        BrowserReply::Str(_) => Err("browser: unexpected Str reply for goto".into()),
-    }
+    let page_id = page_id.to_string();
+    let url = url.to_string();
+    with_browser_backend(|p| {
+        let b = p
+            .plugin
+            .as_browser_automation()
+            .into_option()
+            .expect("checked above");
+        browser_call!(b.goto(page_id.as_str().into(), url.as_str().into()))
+    })
 }
 
 pub fn vox_browser_click(page_id: &str, target: &str) -> Result<(), String> {
-    match run_browser_op(BrowserOp::Click {
-        page_id: page_id.to_string(),
-        target: target.to_string(),
-    })? {
-        BrowserReply::Unit => Ok(()),
-        BrowserReply::Str(_) => Err("browser: unexpected Str reply for click".into()),
-    }
+    let page_id = page_id.to_string();
+    let target = target.to_string();
+    with_browser_backend(|p| {
+        let b = p
+            .plugin
+            .as_browser_automation()
+            .into_option()
+            .expect("checked above");
+        browser_call!(b.click(page_id.as_str().into(), target.as_str().into()))
+    })
 }
 
 pub fn vox_browser_fill(page_id: &str, target: &str, value: &str) -> Result<(), String> {
-    match run_browser_op(BrowserOp::Fill {
-        page_id: page_id.to_string(),
-        target: target.to_string(),
-        value: value.to_string(),
-    })? {
-        BrowserReply::Unit => Ok(()),
-        BrowserReply::Str(_) => Err("browser: unexpected Str reply for fill".into()),
-    }
+    let page_id = page_id.to_string();
+    let target = target.to_string();
+    let value = value.to_string();
+    with_browser_backend(|p| {
+        let b = p
+            .plugin
+            .as_browser_automation()
+            .into_option()
+            .expect("checked above");
+        browser_call!(b.fill(
+            page_id.as_str().into(),
+            target.as_str().into(),
+            value.as_str().into()
+        ))
+    })
 }
 
 pub fn vox_browser_wait_for(page_id: &str, target: &str, timeout_secs: u64) -> Result<(), String> {
-    match run_browser_op(BrowserOp::WaitFor {
-        page_id: page_id.to_string(),
-        target: target.to_string(),
-        timeout_secs,
-    })? {
-        BrowserReply::Unit => Ok(()),
-        BrowserReply::Str(_) => Err("browser: unexpected Str reply for wait_for".into()),
-    }
+    let page_id = page_id.to_string();
+    let target = target.to_string();
+    with_browser_backend(|p| {
+        let b = p
+            .plugin
+            .as_browser_automation()
+            .into_option()
+            .expect("checked above");
+        browser_call!(b.wait_for(page_id.as_str().into(), target.as_str().into(), timeout_secs))
+    })
 }
 
 pub fn vox_browser_text(page_id: &str, target: &str) -> Result<String, String> {
-    match run_browser_op(BrowserOp::Text {
-        page_id: page_id.to_string(),
-        target: target.to_string(),
-    })? {
-        BrowserReply::Str(s) => Ok(s),
-        BrowserReply::Unit => Err("browser: unexpected Unit reply for text".into()),
-    }
+    let page_id = page_id.to_string();
+    let target = target.to_string();
+    with_browser_backend(|p| {
+        let b = p
+            .plugin
+            .as_browser_automation()
+            .into_option()
+            .expect("checked above");
+        browser_call!(b.text(page_id.as_str().into(), target.as_str().into()))
+            .map(|s| s.into_string())
+    })
 }
 
 pub fn vox_browser_html(page_id: &str, target: &str) -> Result<String, String> {
-    match run_browser_op(BrowserOp::Html {
-        page_id: page_id.to_string(),
-        target: target.to_string(),
-    })? {
-        BrowserReply::Str(s) => Ok(s),
-        BrowserReply::Unit => Err("browser: unexpected Unit reply for html".into()),
-    }
+    let page_id = page_id.to_string();
+    let target = target.to_string();
+    with_browser_backend(|p| {
+        let b = p
+            .plugin
+            .as_browser_automation()
+            .into_option()
+            .expect("checked above");
+        browser_call!(b.html(page_id.as_str().into(), target.as_str().into()))
+            .map(|s| s.into_string())
+    })
 }
 
 pub fn vox_browser_screenshot(page_id: &str, path: &str) -> Result<String, String> {
-    match run_browser_op(BrowserOp::Screenshot {
-        page_id: page_id.to_string(),
-        path: path.to_string(),
-    })? {
-        BrowserReply::Str(s) => Ok(s),
-        BrowserReply::Unit => Err("browser: unexpected Unit reply for screenshot".into()),
-    }
+    let page_id = page_id.to_string();
+    let path = path.to_string();
+    with_browser_backend(|p| {
+        let b = p
+            .plugin
+            .as_browser_automation()
+            .into_option()
+            .expect("checked above");
+        browser_call!(b.screenshot(page_id.as_str().into(), path.as_str().into()))
+            .map(|s| s.into_string())
+    })
 }
 
 /// Expand a glob pattern and return sorted paths as strings (`std.fs.glob`).

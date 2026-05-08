@@ -1,0 +1,29 @@
+[plugin]
+id = "populi-mesh"
+name = "Populi Mesh"
+version = "0.1.0"
+description = "Populi mesh transport (HTTP control plane, A2A dispatch) + agent skill."
+license = "Apache-2.0"
+
+[plugin.host]
+min-vox-version = "0.5.0"
+
+[plugin.payload]
+kind = "composite"
+
+[plugin.payload.code]
+abi-version = 11
+
+[plugin.payload.code.provides]
+extension-points = ["MeshDriver"]
+
+[plugin.payload.code.artifacts]
+"windows-x86_64" = "vox_plugin_populi_mesh.dll"
+"linux-x86_64"   = "libvox_plugin_populi_mesh.so"
+
+[plugin.payload.skill]
+format-version = 1
+skill-md = "populi.skill.md"
+
+[plugin.payload.skill.tools]
+exposes = ["vox_populi_join", "vox_populi_dispatch"]

@@ -258,7 +258,7 @@ pub fn generate_with_options(
     }
 
     for env in &hir.environments {
-        let spec = vox_container::generate::EnvironmentSpec {
+        let spec = vox_deploy_codegen::generate::EnvironmentSpec {
             base_image: env
                 .base_image
                 .clone()
@@ -273,7 +273,7 @@ pub fn generate_with_options(
             cmd: env.cmd.clone(),
             entrypoint: Vec::new(),
         };
-        let dockerfile = vox_container::generate::generate_dockerfile_from_spec(&spec);
+        let dockerfile = vox_deploy_codegen::generate::generate_dockerfile_from_spec(&spec);
         files.push((format!("Dockerfile.{}", env.name), dockerfile));
     }
 

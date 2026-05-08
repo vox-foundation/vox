@@ -35,7 +35,7 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         | Cli::Test { .. }
         | Cli::Run { .. }
         | Cli::Dev { .. }
-        | Cli::Bundle { .. }
+        | Cli::BundleApp { .. }
         | Cli::Fmt { .. } => {
             std::unreachable!("top-level fabrica shims are routed before this match")
         }
@@ -138,12 +138,11 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         }
         #[cfg(not(feature = "script-execution"))]
         Cli::ScriptStub { .. } => {
-            vox_build_meta::require(
-                "script-execution",
-                "cargo build -p vox-cli --features script-execution",
-            )
-            .map_err(|e| anyhow::anyhow!("{e}"))?;
-            unreachable!()
+            anyhow::bail!(
+                "This Vox capability requires the 'script-execution' plugin, which is not installed.\n\n\
+                 To install it, run:\n\n  vox plugin install script-execution\n\n\
+                 See: docs/src/reference/plugins.md"
+            );
         }
         #[cfg(feature = "live")]
         Cli::Live => {
@@ -361,6 +360,16 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         #[cfg(feature = "coderabbit")]
         Cli::Review { cmd } => {
             run_review_subcommand(cmd).await?;
+        }
+        #[cfg(feature = "island")]
+        Cli::Island { cmd } => {
+            crate::commands::island::run(cmd).await?;
+        }
+        Cli::Plugin { cmd } => {
+            crate::commands::plugin::run(cmd).await?;
+        }
+        Cli::Bundle { cmd } => {
+            crate::commands::plugin_bundle::run(cmd).await?;
         }
         Cli::Telemetry { cmd } => {
             crate::commands::telemetry::run(cmd).await?;

@@ -53,48 +53,9 @@ pub struct LeaveRequest {
 }
 
 /// Request to deliver an A2A message to a local agent.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct A2ADeliverRequest {
-    /// Sender agent id: non-empty **decimal digit** string after trim (orchestrator `AgentId` / `u64` wire form).
-    pub sender_agent_id: String,
-    /// Receiver agent id: same constraints as [`Self::sender_agent_id`].
-    pub receiver_agent_id: String,
-    /// The message type/schema name.
-    pub message_type: String,
-    /// The JSON or raw payload.
-    pub payload: String,
-    /// Idempotency key: duplicate delivers return the same `message_id` while pending. If omitted, each
-    /// request gets a new `message_id` (server does **not** synthesize a default; see Populi / MCP docs).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub idempotency_key: Option<String>,
-    /// Privacy / isolation class for claim-side policy (e.g. `public`, `private`, `trusted`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub privacy_class: Option<String>,
-    /// BLAKE3 digest of UTF-8 [`Self::payload`] as **64 hex** chars (`job_result` / `job_fail`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub payload_blake3_hex: Option<String>,
-    /// Ed25519 signature (Standard base64, 64 bytes) over raw 32-byte BLAKE3 digest.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub worker_ed25519_sig_b64: Option<String>,
-    /// JWE (JSON Web Encryption) block containing forwarded Clavis secrets.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub jwe_payload: Option<String>,
-    /// Task priority (0=lowest, 255=highest).
-    #[serde(default = "default_priority")]
-    pub priority: u8,
-    /// Task kind for donation policy filtering.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub task_kind: Option<String>,
-    /// Optional target model id.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model_id: Option<String>,
-    /// W3C `traceparent` (e.g. `"00-{32hex}-{16hex}-01"`).
-    ///
-    /// When present the receiver SHOULD continue the trace (S2).
-    /// S1 attaches it to the handler span as `vox.mesh.trace_id` only.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub traceparent: Option<String>,
-}
+///
+/// Type is defined in `vox-mesh-types` and re-exported here for backwards compatibility.
+pub use vox_mesh_types::A2ADeliverRequest;
 
 /// Persisted A2A delivery envelope in the control plane.
 #[derive(Debug, Clone, Serialize, Deserialize)]

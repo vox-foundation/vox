@@ -22,7 +22,7 @@ vox-lsp = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-runtime = { workspace = true }
 vox-workflow-runtime = { workspace = true }
-vox-container = { workspace = true }
+vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true }
 vox-cli = { workspace = true }
 vox-scaling-policy = { workspace = true }

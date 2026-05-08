@@ -4,9 +4,6 @@
 //! template generation. Used by `vox check --emit-training-jsonl` and
 //! `vox corpus` subcommands.
 
-#[cfg(feature = "gpu")]
-pub mod native;
-
 pub mod core;
 mod instruction;
 mod multiturn;

@@ -516,6 +516,31 @@ pub enum CiCmd {
         #[arg(long)]
         write_to: Option<PathBuf>,
     },
+    /// Regenerate plugin catalog and distribution bundles reference docs from `catalog.toml`.
+    #[command(name = "generate-plugin-catalog-docs")]
+    GeneratePluginCatalogDocs {
+        /// Output path for the plugin catalog Markdown (default: `docs/src/reference/plugin-catalog.generated.md`).
+        #[arg(long)]
+        catalog_out: Option<PathBuf>,
+        /// Output path for the distribution bundles Markdown (default: `docs/src/reference/distribution-bundles.generated.md`).
+        #[arg(long)]
+        bundles_out: Option<PathBuf>,
+        /// Fail if either file is out of date instead of regenerating.
+        #[arg(long)]
+        check: bool,
+    },
+    /// Verify every in-tree `Plugin.toml` has a matching entry in the plugin catalog. Passes trivially when no Plugin.toml files exist (SP1).
+    #[command(name = "plugin-catalog-parity")]
+    PluginCatalogParity,
+    /// Walk crates/ for code/composite Plugin.toml files and assert ABI matches the host. Skips intentionally-broken `noop-bad-*` fixtures.
+    #[command(name = "plugin-abi-parity")]
+    PluginAbiParity,
+    /// Walk crates/ for skill/composite Plugin.toml files and assert skill-md exists, is non-empty, and tools.exposes is non-empty.
+    #[command(name = "plugin-skill-parity")]
+    PluginSkillParity,
+    /// Walk crates/vox-plugin-* for *.skill.md files and enforce AgentSkills frontmatter contract (name, description, format, directory match).
+    #[command(name = "agentskills-compliance")]
+    AgentSkillsCompliance,
     /// Poll GitHub Actions checks for the current HEAD (or a specific SHA) and print failures.
     #[command(name = "watch-run")]
     WatchRun {

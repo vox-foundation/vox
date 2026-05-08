@@ -147,16 +147,10 @@ pub fn print_gpu_summary_for(prefix: &str) {
 }
 
 /// VRAM currently in use — not available without driver APIs.
+/// NVML probing moved to vox-plugin-nvml-probe.
 #[must_use]
 pub fn sample_vram_used_mb() -> Option<u64> {
-    #[cfg(feature = "nvml-gpu-probe")]
-    {
-        crate::mens::hardware::nvml::monitor_nvml().map(|t| t.memory_used_mb)
-    }
-    #[cfg(not(feature = "nvml-gpu-probe"))]
-    {
-        None
-    }
+    None
 }
 
 /// User-facing hint when OOM / allocation fails.
@@ -207,12 +201,6 @@ pub fn recommend_config_for_profile(preset_name: &str) -> TrainProfile {
         "a100" => recommend_config(40_000),
         _ => recommend_config(16_000),
     }
-}
-
-#[cfg(feature = "mens-gpu")]
-#[must_use]
-pub fn make_wgpu_device() -> burn::backend::wgpu::WgpuDevice {
-    burn::backend::wgpu::WgpuDevice::default()
 }
 
 #[cfg(test)]

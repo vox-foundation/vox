@@ -127,6 +127,12 @@ pub mod research;
 /// Manual plan bridging via PlanningOrchestrator
 pub mod plan;
 
+/// `vox plugin` — install, remove, list, and inspect Vox plugins.
+pub mod plugin;
+
+/// `vox bundle` — list, build, and apply plugin distribution bundles.
+pub mod plugin_bundle;
+
 /// LLM-native context and prompt generation tools
 pub mod llm;
 

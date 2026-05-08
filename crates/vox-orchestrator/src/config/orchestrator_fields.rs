@@ -6,7 +6,7 @@ use crate::memory::MemoryConfig;
 use crate::scope::ScopeEnforcement;
 use crate::session::SessionConfig;
 use crate::types::TaskPriority;
-use vox_socrates_policy::ConfidencePolicyOverride;
+use vox_orchestrator_types::socrates_policy::ConfidencePolicyOverride;
 
 use super::defaults::*;
 use super::enums::{CostPreference, OverflowStrategy, ScalingProfile};

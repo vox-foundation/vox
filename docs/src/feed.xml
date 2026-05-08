@@ -5,8 +5,135 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 08 May 2026 00:33:50 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 08 May 2026 07:17:56 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Architecture Index</title>
+    <link>https://vox-lang.org/architecture/architecture-index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
+    <description>Auto-generated architecture index.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Dead Crate Deep Dive (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/dead-crate-deep-dive-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/dead-crate-deep-dive-2026-05-08.html</guid>
+    <description>Code-level investigation of uncertain DEAD crates: what&apos;s unique, what&apos;s obviated, where unique code should be preserved.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Dead Crate Fate Plan (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/dead-crate-fate-plan-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/dead-crate-fate-plan-2026-05-08.html</guid>
+    <description>Per-crate recommendation for the 17 DEAD and 3 MISPLACED workspace crates: delete, wire up, extract to plugin, or freeze.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Pure-Rust Build — Eliminating C/MSVC Dependencies (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/no-c-no-msvc-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/no-c-no-msvc-2026-05-08.html</guid>
+    <description>Pure-Rust Build — Eliminating C/MSVC Dependencies (2026-05-08)</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>vox-container vs WASM Sandbox (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/vox-container-vs-wasm-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-container-vs-wasm-2026-05-08.html</guid>
+    <description>Audit of vox-container&apos;s two distinct roles (deployment-codegen vs runtime sandbox) and an evaluation of WASM as a replacement for the runtime path.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Crate Classification Audit (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/crate-classification-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/crate-classification-2026-05-08.html</guid>
+    <description>Classification of every workspace crate as CORE, PLUGIN, SHARED, DEAD, or MISPLACED. Identifies extraction candidates and deletion candidates.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Plugin System Audit (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/plugin-system-audit-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-audit-2026-05-08.html</guid>
+    <description>Audit of the plugin system after major slim-core extractions — ABI drift, SP7 scaffolds, duplicate code paths, dead deps, and build/distribution optimization.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Plugin System Deep Audit (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/plugin-system-deep-audit-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-deep-audit-2026-05-08.html</guid>
+    <description>Second-pass audit covering ABI completeness, discovery, sandbox model, cross-cutting concerns, and distribution.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Vox Dashboard — Design Brief for Anthropic Labs Design (2026)</title>
+    <link>https://vox-lang.org/architecture/vox-dashboard-design-brief-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-dashboard-design-brief-2026.html</guid>
+    <description>Screen-by-screen spec for the Vox dashboard redesign. VUV-form code examples, primitive inventory, token map, anti-patterns.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Vox-Populi Extraction Follow-Up Plan (2026)</title>
+    <link>https://vox-lang.org/architecture/vox-populi-extraction-followup-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-populi-extraction-followup-plan-2026.html</guid>
+    <description>Plan for the remaining code-motion work after the plugin system foundation landed. Covers vox-populi mens/tensor residual, vox-populi transport, vox-tensor…</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Migrating from Cargo Feature Flags</title>
+    <link>https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</guid>
+    <description>Mapping from `cargo --features` invocations to the runtime plugin system.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
+  </item>
+
+  <item>
+    <title>Picking a Vox bundle</title>
+    <link>https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</guid>
+    <description>Decision guide for choosing the right Vox distribution bundle for your use case.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
+  </item>
+
+  <item>
+    <title>Mens native training SSOT (Candle QLoRA–first; Burn LoRA deprecated in dispatch)</title>
+    <link>https://vox-lang.org/reference/mens-training.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/mens-training.html</guid>
+    <description>Official documentation for Mens native fine-tuning: contract-first Candle QLoRA, legacy Burn paths, merge/serve matrix.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Plugin Manifest (Plugin.toml)</title>
+    <link>https://vox-lang.org/reference/plugin-manifest.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/plugin-manifest.html</guid>
+    <description>Schema for the Plugin.toml file every Vox plugin ships.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+  </item>
 
   <item>
     <title>Eval sandbox deployment (Coolify)</title>
@@ -25,15 +152,6 @@
     <pubDate>Wed, 06 May 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Architecture Index</title>
-    <link>https://vox-lang.org/architecture/architecture-index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
-    <description>Auto-generated architecture index.</description>
-    <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>
@@ -118,131 +236,6 @@
     <guid isPermaLink="true">https://vox-lang.org/architecture/svelte-mineable-features-implementation-plan-2026.html</guid>
     <description>Phased implementation plan for the Svelte 5/6-inspired Vox compiler and MCP improvements identified in the comparative research. Concrete file changes, scope…</description>
     <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Svelte 5/6 vs React Meta-Frameworks — Comparative Research and Mineable Ideas for Vox (2026)</title>
-    <link>https://vox-lang.org/architecture/svelte-vs-react-frameworks-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/svelte-vs-react-frameworks-research-2026.html</guid>
-    <description>Comparative analysis of Svelte 5/6, Next.js 15/16, and TanStack Start as competitors and idea sources for Vox&apos;s GUI authoring layer. Frames Vox&apos;s React-emit…</description>
-    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Explanation: Compiler Lowering Phases</title>
-    <link>https://vox-lang.org/explanation/expl-compiler-lowering.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-compiler-lowering.html</guid>
-    <description>Official documentation for Explanation: Compiler Lowering Phases for the Vox language. Detailed technical reference, architecture guides,</description>
-    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
-    <category>Explanation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Frontend Surface Ownership</title>
-    <link>https://vox-lang.org/reference/frontend-surface-ownership.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/frontend-surface-ownership.html</guid>
-    <description>Canonical ownership and lifecycle policy for Vox frontend surfaces.</description>
-    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-  </item>
-
-  <item>
-    <title>Vox full-stack web UI — single source of truth</title>
-    <link>https://vox-lang.org/reference/vox-web-stack.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/vox-web-stack.html</guid>
-    <description>Official documentation for Vox full-stack web UI — single source of truth for the Vox language. Detailed technical reference, architectur</description>
-    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 010 — TanStack as the Vox web spine</title>
-    <link>https://vox-lang.org/adr/010-tanstack-web-spine.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/010-tanstack-web-spine.html</guid>
-    <description>Official documentation for ADR 010 — TanStack as the Vox web spine for the Vox language. Detailed technical reference, architecture guide</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 012 — Internal Web IR strategy for Vox</title>
-    <link>https://vox-lang.org/adr/012-internal-web-ir-strategy.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/012-internal-web-ir-strategy.html</guid>
-    <description>Official documentation for ADR 012 — Internal Web IR strategy for Vox for the Vox language. Detailed technical reference, architecture gu</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 032 — `.vox.ui` reactive modules</title>
-    <link>https://vox-lang.org/adr/032-vox-ui-reactive-modules.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/032-vox-ui-reactive-modules.html</guid>
-    <description>Introduces a `.vox.ui` file-suffix convention that allows module-scope `state` / `derived` / `effect` / `on mount` / `on cleanup` reactive members. Lowers to a…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 033 — Typed parametric fragment primitive</title>
-    <link>https://vox-lang.org/adr/033-typed-fragment-primitive.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/033-typed-fragment-primitive.html</guid>
-    <description>Introduces a `fragment` bare-keyword scope for typed parametric markup blocks that are passable as props, callable multiple times with different arguments, and…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Architecture Decision Records (ADR)</title>
-    <link>https://vox-lang.org/adr/index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/index.html</guid>
-    <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Known Documentation Gaps &amp; Backlog</title>
-    <link>https://vox-lang.org/api/DOC_GAPS.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/DOC_GAPS.html</guid>
-    <description>Living checklist of documentation gaps, backlog items, and recently completed doc work for contributors.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>External Frontend Interop Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/external-frontend-interop-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/external-frontend-interop-plan-2026.html</guid>
-    <description>Five-phase plan to make Vox interoperable with the React/TS ecosystem in both directions: keep Vox&apos;s GUI authoring (TS/React emission), add bidirectional…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>GUI Authoring Syntax (2026): Vox UI as Values (VUV)</title>
-    <link>https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</guid>
-    <description>Replaces JSX-shaped view bodies and Tailwind class strings with typed function-call views. No tags, no class strings, no CSS files in user code. Lowers to…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Multi-Agent VCS Replication — Phase 1 Implementation Plan (2026-05-03)</title>
-    <link>https://vox-lang.org/architecture/multi-agent-vcs-replication-impl-plan-phase1-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/multi-agent-vcs-replication-impl-plan-phase1-2026.html</guid>
-    <description>Step-by-step TDD implementation plan for Phase 1 of the multi-agent VCS replication architecture: local-only op-log gossip between agents on one machine. 16…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
 

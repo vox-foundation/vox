@@ -1,0 +1,22 @@
+[package]
+name = "vox-plugin-webhook"
+version = "0.1.0"
+edition.workspace = true
+publish = false
+description = "Webhook plugin: HTTP listener with HMAC signature verification (GitHub, GitLab, generic)"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+vox-plugin-api = { workspace = true }
+vox-webhook    = { path = "../vox-webhook" }
+abi_stable     = { workspace = true }
+anyhow         = { workspace = true }
+async-trait    = { workspace = true }
+serde_json     = { workspace = true }
+tokio          = { workspace = true, features = ["rt-multi-thread", "sync", "net"] }
+tracing        = { workspace = true }
+
+[lints]
+workspace = true

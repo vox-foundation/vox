@@ -1,5 +1,7 @@
 //! Unified tool registry and dispatcher for the Vox MCP server.
 
+/// `<TOOL_CALLS>` XML fallback for LLM providers without native function-call support.
+pub mod chat_fallback_tools;
 pub mod params;
 pub mod server_state;
 
@@ -107,6 +109,7 @@ pub use mcp_client as client;
 pub mod dei_ipc;
 pub mod http_gateway;
 pub mod journey_envelope;
+#[cfg(feature = "populi-transport")]
 pub mod populi_startup;
 pub mod speech_constraints;
 
@@ -117,6 +120,7 @@ pub use dispatch::handle_tool_call;
 pub use registry::tool_registry;
 pub use tool_aliases::canonical_tool_name;
 pub mod lifecycle;
+pub mod plugin_skills_bridge;
 pub mod server;
 
 pub use lifecycle::{load_config, mcp_agent_fleet_env_enabled, run_stdio_server_blocking};

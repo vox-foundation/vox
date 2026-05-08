@@ -1,6 +1,17 @@
 [workspace]
 resolver = "2"
 members = ["crates/*","crates/workspace-hack"]
+exclude = [
+    "crates/vox-plugin-noop-skill",
+    "crates/vox-plugin-skill-compiler",
+    "crates/vox-plugin-skill-git",
+    "crates/vox-plugin-skill-memory",
+    "crates/vox-plugin-skill-orchestrator",
+    "crates/vox-plugin-skill-rag",
+    "crates/vox-plugin-skill-testing",
+    "crates/vox-plugin-skill-testing-validate",
+    "crates/vox-plugin-skill-v0",
+]
 default-members = ["crates/vox-cli"]
 
 [workspace.package]
@@ -43,10 +54,11 @@ vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-clavis                = { path = "crates/vox-clavis" }
 vox-cli                   = { path = "crates/vox-cli" }
 vox-bounded-fs            = { path = "crates/vox-bounded-fs" }
-vox-browser               = { path = "crates/vox-browser" }
 vox-compiler              = { path = "crates/vox-compiler" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
+vox-deploy-codegen        = { path = "crates/vox-deploy-codegen" }
+vox-skill-runtime         = { path = "crates/vox-skill-runtime" }
 vox-checksum-manifest     = { path = "crates/vox-checksum-manifest" }
 vox-install-policy        = { path = "crates/vox-install-policy" }
 vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }
@@ -58,19 +70,14 @@ vox-forge                 = { path = "crates/vox-forge" }
 vox-crypto                = { path = "crates/vox-crypto" }
 vox-identity              = { path = "crates/vox-identity" }
 
-vox-audio-ingress         = { path = "crates/vox-audio-ingress" }
-vox-build-meta            = { path = "crates/vox-build-meta" }
+vox-ars                   = { path = "crates/vox-ars" }
 vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
 vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }
 vox-mcp-meta              = { path = "crates/vox-mcp-meta" }
 vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
-vox-schola                = { path = "crates/vox-schola" }
-vox-scientia-core         = { path = "crates/vox-scientia-core" }
-vox-scientia-social       = { path = "crates/vox-scientia-social" }
 vox-scientia-ingest       = { path = "crates/vox-scientia-ingest" }
 vox-test-harness          = { path = "crates/vox-test-harness" }
-vox-tools                 = { path = "crates/vox-tools" }
 vox-webhook               = { path = "crates/vox-webhook" }
 vox-git                   = { path = "crates/vox-git" }
 vox-constrained-gen       = { path = "crates/vox-constrained-gen" }
@@ -86,6 +93,16 @@ vox-orchestrator          = { path = "crates/vox-orchestrator" }
 vox-orchestrator-types    = { path = "crates/vox-orchestrator-types" }
 vox-openai-sse            = { path = "crates/vox-openai-sse" }
 vox-openai-wire           = { path = "crates/vox-openai-wire" }
+vox-plugin-api            = { path = "crates/vox-plugin-api" }
+vox-plugin-catalog        = { path = "crates/vox-plugin-catalog" }
+vox-plugin-host           = { path = "crates/vox-plugin-host" }
+vox-plugin-noop-code      = { path = "crates/vox-plugin-noop-code" }
+vox-plugin-noop-code-bad-abi = { path = "crates/vox-plugin-noop-code-bad-abi" }
+vox-plugin-nvml-probe     = { path = "crates/vox-plugin-nvml-probe" }
+vox-plugin-runtime-container = { path = "crates/vox-plugin-runtime-container" }
+vox-plugin-runtime-wasm   = { path = "crates/vox-plugin-runtime-wasm" }
+vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
+vox-wasm-host             = { path = "crates/vox-wasm-host" }
 vox-pm                    = { path = "crates/vox-pm" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }
@@ -98,7 +115,6 @@ vox-repository            = { path = "crates/vox-repository" }
 vox-runtime               = { path = "crates/vox-runtime" }
 vox-scaling-policy        = { path = "crates/vox-scaling-policy" }
 vox-skills                = { path = "crates/vox-skills" }
-vox-socrates-policy       = { path = "crates/vox-socrates-policy" }
 vox-ssg                   = { path = "crates/vox-ssg" }
 vox-tensor                = { path = "crates/vox-tensor" }
 vox-toestub               = { path = "crates/vox-toestub" }
@@ -107,6 +123,7 @@ vox-search                = { path = "crates/vox-search" }
 vox-dashboard             = { path = "crates/vox-dashboard" }
 
 # External dependencies (centralized versions)
+abi_stable         = "0.11"
 logos              = "0.16"
 clap               = { version = "4.5", features = ["derive"] }
 clap_complete      = { version = "4.5" }
@@ -121,7 +138,7 @@ tokio              = { version = "1", features = ["rt", "macros", "sync", "time"
 tokio-stream       = { version = "0.1", default-features = false }
 tracing            = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-tracing-test       = "0.2"
+tracing-test       = { version = "0.2", features = ["no-env-filter"] }
 anyhow             = "1"
 reqwest            = { version = "0.12", features = ["json", "rustls-tls", "stream"], default-features = false }
 bsky-sdk = { version = "0.1", default-features = false, features = ["atrium-xrpc-client", "rich-text", "default-client"] }
@@ -138,7 +155,7 @@ regex              = "1"
 comfy-table        = "7"
 tempfile           = "3"
 turso              = { version = "0.4", default-features = false, features = ["sync"] }
-blake3             = "1"
+blake3             = { version = "1", features = ["pure"] }
 jsonwebtoken       = { version = "9", default-features = false }
 ed25519-dalek      = { version = "2", default-features = false }
 x25519-dalek       = { version = "2", default-features = false, features = ["static_secrets"] }
@@ -157,11 +174,10 @@ sysinfo            = "0.38"
 walkdir            = "2"
 rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
-burn               = { version = "0.19", default-features = false, features = ["std", "ndarray"] }
 candle-core        = { version = "0.9", default-features = false }
 candle-nn          = { version = "0.9", default-features = false }
 safetensors        = "0.4"
-tokenizers         = "0.21"
+tokenizers         = { version = "0.21", default-features = false, features = ["fancy-regex"] }
 memmap2            = "0.9"
 # 0.4+ resolves Hugging Face relative `Location` redirects in tokio metadata (0.3 breaks with `relative URL without a base`).
 hf-hub             = { version = "0.4" }
@@ -207,7 +223,7 @@ win32job           = "2"
 windows-sys        = "0.59"
 tavily             = "2.1.0"
 quick-xml          = "0.31"
-flate2             = "1"
+flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
 tokio-tungstenite  = { version = "0.24", default-features = false }
 rubato             = "0.15.0"
 symphonia          = "0.5.4"
@@ -218,13 +234,13 @@ semver             = "1"
 secrecy            = "0.10"
 rmcp               = "0.16"
 rmp-serde          = "1"
+libloading         = "0.8"
 lru                = "0.13"
 futures-core       = "0.3"
 quote              = "1"
 similar            = "2"
 globset            = "0.4"
 which              = "7"
-wgpu               = "26"
 ctrlc              = "3.4"
 
 
@@ -244,5 +260,16 @@ strip = "debuginfo"
 inherits = "release"
 lto = "thin"
 strip = "debuginfo"
+
+# Distribution profile: fat LTO + single codegen unit + symbol stripping.
+# Produces the smallest, fastest binaries for shipping.
+# Use: cargo build --profile dist -p vox-cli
+# (Keep --release for fast local builds; --profile dist is for CI ship artifacts.)
+[profile.dist]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
 
 
