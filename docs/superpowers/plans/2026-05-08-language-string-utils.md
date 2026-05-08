@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans.
 
+> **amended (2026-05-08):** Scope reduced. `split`, `starts_with`, `ends_with` were already registered in `typeck/builtins.rs` and lowered in `eval/builtins.rs` before this plan; only `slice`, `char_at`, `index_of` were actually missing and were added. The `builtin_registry/**` step in "File Structure" did not apply — `Str` methods are registered directly in `typeck/builtins.rs` and not routed through `builtin_registry`. The `docs/src/reference/stdlib-str.md` reference does not exist in the repo; A5 deferred to a follow-up. `char_at` returns `Option[str]` (not `Optional[str]` — Vox uses `Option`); `index_of` uses char-index semantics (not byte-index) for cross-target consistency. TS codegen wraps `charAt`/`indexOf` to convert sentinel values (`""`, `-1`) to `null` for the Vox `Option` shape. Rust codegen lowers all three with char-aware logic (`chars().skip().take()`, `chars().nth()`, `find()` + char-count translation).
+
 **Goal:** Add the missing common string helpers to Vox's `str` type:
 - `split(separator: str) to List[str]`
 - `slice(start: int, end: int) to str`
