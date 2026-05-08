@@ -4,7 +4,7 @@
 //! `runtime_projection`) do not need to depend on the emit-side `syntax_k`
 //! module (which itself transitively depends on `web_ir`). Keeping this
 //! helper crate-local avoids an analysis→emit cycle once `syntax_k` moves
-//! to `vox-compiler-emit`.
+//! to `vox-codegen`.
 
 /// Recursively sort JSON object keys for cross-toolchain-stable canonical bytes.
 pub fn sort_json_value_keys(v: &mut serde_json::Value) {

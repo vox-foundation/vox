@@ -104,7 +104,7 @@ broken_inference_stub = []
 
 [dependencies]
 vox-compiler = { workspace = true }
-vox-compiler-emit = { workspace = true }
+vox-codegen = { workspace = true }
 vox-ssg = { workspace = true }
 clap = { workspace = true }
 clap_complete = { workspace = true }

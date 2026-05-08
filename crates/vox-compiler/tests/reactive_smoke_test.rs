@@ -38,7 +38,7 @@ fn reactive_smoke_assert_derived_harness_in_d_tsx() {
     ))
     .expect("parse");
     let hir = vox_compiler::hir::lower_module(&m);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("gen");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("gen");
     let body = out
         .files
         .iter()
@@ -121,12 +121,12 @@ fn jsx_and_hir_emit_share_compat_attr_matrix() {
     ];
     for a in sample {
         assert_eq!(
-            vox_compiler_emit::codegen_ts::hir_emit::map_jsx_attr_name(a),
-            vox_compiler_emit::codegen_ts::hir_emit::compat::map_jsx_attr_name(a)
+            vox_codegen::codegen_ts::hir_emit::map_jsx_attr_name(a),
+            vox_codegen::codegen_ts::hir_emit::compat::map_jsx_attr_name(a)
         );
         assert_eq!(
-            vox_compiler_emit::codegen_ts::jsx::map_jsx_attr_name(a),
-            vox_compiler_emit::codegen_ts::hir_emit::compat::map_jsx_attr_name(a)
+            vox_codegen::codegen_ts::jsx::map_jsx_attr_name(a),
+            vox_codegen::codegen_ts::hir_emit::compat::map_jsx_attr_name(a)
         );
     }
 }
@@ -144,9 +144,9 @@ fn op_s030_compat_tag_fixture_dom_and_a11y_edges() {
         ("class", "className"),
     ];
     for (vox, react) in edges {
-        let h = vox_compiler_emit::codegen_ts::hir_emit::map_jsx_attr_name(vox);
-        let j = vox_compiler_emit::codegen_ts::jsx::map_jsx_attr_name(vox);
-        let c = vox_compiler_emit::codegen_ts::hir_emit::compat::map_jsx_attr_name(vox);
+        let h = vox_codegen::codegen_ts::hir_emit::map_jsx_attr_name(vox);
+        let j = vox_codegen::codegen_ts::jsx::map_jsx_attr_name(vox);
+        let c = vox_codegen::codegen_ts::hir_emit::compat::map_jsx_attr_name(vox);
         assert_eq!(h, react, "{vox}");
         assert_eq!(h, j, "{vox}");
         assert_eq!(h, c, "{vox}");
@@ -173,20 +173,20 @@ fn gui_compatibility_contract_matches_attr_mapping_matrix() {
         serde_yaml::from_str(&raw).expect("parse gui compatibility contract");
 
     for (vox_attr, react_attr) in contract.react_attr_matrix {
-        let mapped = vox_compiler_emit::codegen_ts::hir_emit::compat::map_jsx_attr_name(&vox_attr);
+        let mapped = vox_codegen::codegen_ts::hir_emit::compat::map_jsx_attr_name(&vox_attr);
         assert_eq!(
             mapped, react_attr,
             "contract drift for `{}`: compat map = `{}` but contract = `{}`",
             vox_attr, mapped, react_attr
         );
         assert_eq!(
-            vox_compiler_emit::codegen_ts::jsx::map_jsx_attr_name(&vox_attr),
+            vox_codegen::codegen_ts::jsx::map_jsx_attr_name(&vox_attr),
             react_attr,
             "jsx alias drift for `{}`",
             vox_attr
         );
         assert_eq!(
-            vox_compiler_emit::codegen_ts::hir_emit::map_jsx_attr_name(&vox_attr),
+            vox_codegen::codegen_ts::hir_emit::map_jsx_attr_name(&vox_attr),
             react_attr,
             "hir_emit re-export drift for `{}`",
             vox_attr
@@ -229,7 +229,7 @@ component T() {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse T");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen");
     let stats = out.reactive_stats;
     assert!(
         stats.legacy_env_disabled >= 1,
@@ -269,7 +269,7 @@ component Counter(initial: int) {
     }
     let module = vox_compiler::parser::parse(tokens).expect("Parsing failed");
     let hir = vox_compiler::hir::lower_module(&module);
-    let output = vox_compiler_emit::codegen_ts::generate(&hir).expect("Codegen failed");
+    let output = vox_codegen::codegen_ts::generate(&hir).expect("Codegen failed");
 
     let ts = output
         .files
@@ -299,7 +299,7 @@ component Tick() {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse Tick fixture");
     let hir_once = |m: &_| vox_compiler::hir::lower_module(m);
-    let emit = |hir: &_| vox_compiler_emit::codegen_ts::generate(hir).expect("codegen");
+    let emit = |hir: &_| vox_codegen::codegen_ts::generate(hir).expect("codegen");
 
     let a = emit(&hir_once(&module));
     let b = emit(&hir_once(&module));
@@ -325,8 +325,8 @@ component Tick() {
 #[serial_test::serial]
 #[test]
 fn web_ir_preview_emit_maps_class_attr_to_class_name() {
-    use vox_compiler_emit::web_ir::emit_tsx::emit_component_view_tsx;
-    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir;
+    use vox_codegen::web_ir::emit_tsx::emit_component_view_tsx;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
 
     let source = r#"
 component T() {
@@ -387,7 +387,7 @@ component Counter(initial: int) {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
-    let output = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen");
+    let output = vox_codegen::codegen_ts::generate(&hir).expect("codegen");
     let ts = output
         .files
         .iter()
@@ -430,7 +430,7 @@ component C() {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse C");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen");
     let after = out.reactive_stats;
     assert!(
         after.legacy_env_disabled >= 1,
@@ -481,7 +481,7 @@ component Counter(initial: int) {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen");
     let after = out.reactive_stats;
     assert_eq!(
         after.legacy_env_disabled, 0,
@@ -517,17 +517,17 @@ fn reactive_smoke_branch_registry_fixture_parses_and_lowers() {
     let tokens = vox_compiler::lexer::lex(K_METRIC_BRANCH_REGISTRY_FIXTURE);
     let module = vox_compiler::parser::parse(tokens).expect("branch-registry fixture parse");
     let hir = vox_compiler::hir::lower_module(&module);
-    let web = vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir(&hir);
-    let diags = vox_compiler_emit::web_ir::validate::validate_web_ir(&web);
+    let web = vox_codegen::web_ir::lower::lower_hir_to_web_ir(&hir);
+    let diags = vox_codegen::web_ir::validate::validate_web_ir(&web);
     let error_diags: Vec<_> = diags
         .iter()
-        .filter(|d| !vox_compiler_emit::web_ir::validate::is_advisory_diagnostic(d))
+        .filter(|d| !vox_codegen::web_ir::validate::is_advisory_diagnostic(d))
         .collect();
     assert!(
         error_diags.is_empty(),
         "fixture should have no blocking errors after lower; {error_diags:?}"
     );
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen branch-registry");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen branch-registry");
     assert!(
         out.files.iter().any(|(n, _)| n == "Shell.tsx"),
         "expected Shell.tsx in {:?}",
@@ -591,7 +591,7 @@ component Clicky() {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen");
     let ts = out
         .files
         .iter()
@@ -628,7 +628,7 @@ raw_css {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse Box style");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen");
     let css = out
         .files
         .iter()
@@ -676,7 +676,7 @@ component V() {
 "#;
     let m = vox_compiler::parser::parse(vox_compiler::lexer::lex(source)).expect("parse");
     let hir = vox_compiler::hir::lower_module(&m);
-    let ts = vox_compiler_emit::codegen_ts::generate(&hir).expect("gen");
+    let ts = vox_codegen::codegen_ts::generate(&hir).expect("gen");
     let f = ts
         .files
         .iter()
@@ -704,7 +704,7 @@ component Clicky() {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen");
     let ts = out
         .files
         .iter()
@@ -749,7 +749,7 @@ raw_css {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse Box style");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen");
     assert!(out.files.iter().any(|(n, _)| n == "Box.css"));
 }
 
@@ -762,8 +762,8 @@ fn reactive_smoke_op_s170_hir_wrapper_fixture_b() {
         .lock()
         .expect("REACTIVE_SMOKE_SERIAL poisoned");
     assert_eq!(
-        vox_compiler_emit::codegen_ts::hir_emit::map_jsx_attr_name("on:click"),
-        vox_compiler_emit::codegen_ts::jsx::map_jsx_attr_name("on_click")
+        vox_codegen::codegen_ts::hir_emit::map_jsx_attr_name("on:click"),
+        vox_codegen::codegen_ts::jsx::map_jsx_attr_name("on_click")
     );
 }
 
@@ -800,7 +800,7 @@ component Counter(initial: int) {
     let module =
         vox_compiler::parser::parse(vox_compiler::lexer::lex(source)).expect("Parsing failed");
     let hir = vox_compiler::hir::lower_module(&module);
-    let output = vox_compiler_emit::codegen_ts::generate(&hir).expect("Codegen failed");
+    let output = vox_codegen::codegen_ts::generate(&hir).expect("Codegen failed");
     let ts = output
         .files
         .iter()
@@ -825,12 +825,12 @@ fn reactive_smoke_op_s218_final_reactive_parity_fixture() {
 fn reactive_smoke_legacy_vs_web_ir_view_whitespace_parity() {
     use std::collections::HashSet;
 
-    use vox_compiler_emit::codegen_ts::hir_emit::emit_hir_expr;
-    use vox_compiler_emit::codegen_ts::reactive::normalize_reactive_view_jsx_ws;
+    use vox_codegen::codegen_ts::hir_emit::emit_hir_expr;
+    use vox_codegen::codegen_ts::reactive::normalize_reactive_view_jsx_ws;
     use vox_compiler::hir::HirReactiveMember;
-    use vox_compiler_emit::web_ir::emit_tsx::emit_component_view_tsx;
-    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir;
-    use vox_compiler_emit::web_ir::validate::validate_web_ir;
+    use vox_codegen::web_ir::emit_tsx::emit_component_view_tsx;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
+    use vox_codegen::web_ir::validate::validate_web_ir;
 
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()

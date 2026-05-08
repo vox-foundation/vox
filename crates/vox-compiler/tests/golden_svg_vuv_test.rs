@@ -26,7 +26,7 @@ component Layout() {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse Layout");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen Layout");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen Layout");
     let ts = out
         .files
         .iter()
@@ -68,7 +68,7 @@ component PlayIcon() {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse PlayIcon");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen PlayIcon");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen PlayIcon");
     let ts = out
         .files
         .iter()
@@ -119,7 +119,7 @@ component HaloRect() {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse HaloRect");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen HaloRect");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen HaloRect");
     let ts = out
         .files
         .iter()
@@ -198,7 +198,7 @@ component MeshNode() {
     let tokens = vox_compiler::lexer::lex(source);
     let module = vox_compiler::parser::parse(tokens).expect("parse MeshNode");
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_compiler_emit::codegen_ts::generate(&hir).expect("codegen MeshNode");
+    let out = vox_codegen::codegen_ts::generate(&hir).expect("codegen MeshNode");
     let ts = out
         .files
         .iter()

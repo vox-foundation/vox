@@ -1,6 +1,6 @@
 #![allow(missing_docs)]
 
-use vox_compiler_emit::codegen_rust::{emit::emit_api_client, generate as generate_rust};
+use vox_codegen::codegen_rust::{emit::emit_api_client, generate as generate_rust};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;

@@ -9,7 +9,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 vox-compiler = { workspace = true }
-vox-compiler-emit = { workspace = true }
+vox-codegen = { workspace = true }
 tokio = { workspace = true }
 workspace-hack = { workspace = true }
 

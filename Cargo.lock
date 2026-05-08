@@ -10647,8 +10647,8 @@ dependencies = [
  "vox-checksum-manifest",
  "vox-cli-core",
  "vox-code-audit",
+ "vox-codegen",
  "vox-compiler",
- "vox-compiler-emit",
  "vox-config",
  "vox-constrained-gen",
  "vox-container",
@@ -10752,6 +10752,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-codegen"
+version = "0.5.0"
+dependencies = [
+ "bzip2 0.6.1",
+ "chrono",
+ "flate2",
+ "miette",
+ "serde",
+ "serde_json",
+ "sha3",
+ "vox-compiler",
+ "vox-config",
+ "vox-deploy-codegen",
+ "vox-secrets",
+ "workspace-hack",
+ "zstd",
+]
+
+[[package]]
 name = "vox-compiler"
 version = "0.5.0"
 dependencies = [
@@ -10774,7 +10793,7 @@ dependencies = [
  "sha3",
  "thiserror 1.0.69",
  "tokio",
- "vox-compiler-emit",
+ "vox-codegen",
  "vox-config",
  "vox-deploy-codegen",
  "vox-eval",
@@ -10784,25 +10803,6 @@ dependencies = [
  "vox-secrets",
  "vox-test-harness",
  "which 7.0.3",
- "workspace-hack",
- "zstd",
-]
-
-[[package]]
-name = "vox-compiler-emit"
-version = "0.5.0"
-dependencies = [
- "bzip2 0.6.1",
- "chrono",
- "flate2",
- "miette",
- "serde",
- "serde_json",
- "sha3",
- "vox-compiler",
- "vox-config",
- "vox-deploy-codegen",
- "vox-secrets",
  "workspace-hack",
  "zstd",
 ]
@@ -10928,8 +10928,8 @@ dependencies = [
  "tracing",
  "turso",
  "uuid",
+ "vox-codegen",
  "vox-compiler",
- "vox-compiler-emit",
  "vox-config",
  "vox-db-types",
  "vox-mesh-types",
@@ -11129,8 +11129,8 @@ dependencies = [
  "tower-lsp-server",
  "vox-bounded-fs",
  "vox-cli",
+ "vox-codegen",
  "vox-compiler",
- "vox-compiler-emit",
  "vox-config",
  "vox-deploy-codegen",
  "vox-lsp",
@@ -12175,8 +12175,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "vox-codegen",
  "vox-compiler",
- "vox-compiler-emit",
  "workspace-hack",
 ]
 

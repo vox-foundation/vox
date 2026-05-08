@@ -1,6 +1,6 @@
 //! Lower AST [`Module`] to [`HirModule`] / [`crate::hir::TypedCoreIR_v2`].
 //!
-//! This module is the **HIR boundary** before `vox_compiler_emit::web_ir::lower::project_web_from_core`.
+//! This module is the **HIR boundary** before `vox_codegen::web_ir::lower::project_web_from_core`.
 //! Declaration arms here define what structured data reaches WebIR (`HirRoutes`,
 //! reactive components, server/query/mutation `route_path` contracts). See internal Web IR
 //! implementation blueprint (lane P → S).

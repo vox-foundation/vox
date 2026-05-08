@@ -34,7 +34,7 @@ impl RunBackend for NativeBackend {
         };
         let per_entry_binary = cache_dir.join(binary_name);
 
-        let output = vox_compiler_emit::codegen_rust::generate_script(
+        let output = vox_codegen::codegen_rust::generate_script(
             hir,
             "vox-script",
             crate::fs_utils::resolve_vox_runtime_path().as_deref(),

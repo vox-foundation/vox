@@ -22,11 +22,11 @@ impl RunBackend for WasiBackend {
     ) -> Result<PathBuf> {
         let per_entry_wasm = cache_dir.join("vox-script.wasm");
 
-        let output = vox_compiler_emit::codegen_rust::generate_script_with_target(
+        let output = vox_codegen::codegen_rust::generate_script_with_target(
             hir,
             "vox-script",
             crate::fs_utils::resolve_vox_runtime_path().as_deref(),
-            vox_compiler_emit::codegen_rust::ScriptTarget::Wasi,
+            vox_codegen::codegen_rust::ScriptTarget::Wasi,
         )
         .map_err(|e| anyhow::anyhow!("WASI codegen failed: {e}"))?;
 

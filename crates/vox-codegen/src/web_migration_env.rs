@@ -11,7 +11,7 @@ fn env_var_explicitly_disabled(res: Result<String, std::env::VarError>) -> bool 
     }
 }
 
-/// Web IR lower + validate runs at the end of `vox_compiler_emit::codegen_ts::generate` unless disabled.
+/// Web IR lower + validate runs at the end of `vox_codegen::codegen_ts::generate` unless disabled.
 ///
 /// **Default:** validation is **on** (unset). Set `VOX_WEBIR_VALIDATE=0`, `false`, `no`, or `off` to skip.
 #[must_use]

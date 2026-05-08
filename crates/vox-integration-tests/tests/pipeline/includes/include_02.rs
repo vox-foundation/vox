@@ -101,9 +101,9 @@ fn pipeline_hooks_demo_codegen() {
 #[test]
 fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
 
-    use vox_compiler_emit::web_ir::emit_tsx::emit_component_view_tsx;
-    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir;
-    use vox_compiler_emit::web_ir::validate::validate_web_ir;
+    use vox_codegen::web_ir::emit_tsx::emit_component_view_tsx;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
+    use vox_codegen::web_ir::validate::validate_web_ir;
 
     let tokens = lex(HOOKS_DEMO_SRC);
     let module = parse(tokens).unwrap();

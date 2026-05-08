@@ -1,4 +1,4 @@
-use vox_compiler_emit::codegen_rust::emit::emit_lib;
+use vox_codegen::codegen_rust::emit::emit_lib;
 use vox_compiler::hir::lower_module;
 
 /// Validates that the Vox compiler successfully drops the `@forall` metamorphic annotations

@@ -71,7 +71,7 @@ fn op_s_read_chatbot_fixture() -> String {
 /// OP-S060: style block lowers to Web IR `style_nodes` and emits `.css` from codegen.
 #[test]
 fn op_s060_style_bridge_gate_chatbot_fixture_css_and_webir_styles() {
-    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir_with_summary;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary;
     let src = op_s_read_chatbot_fixture();
     let module = parse(lex(&src)).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
@@ -94,13 +94,13 @@ fn op_s062_server_contract_fixture_multi_route_has_get_stats() {
         hir.endpoint_fns.iter().any(|s| s.name == "get_stats"),
         "expected @server fn get_stats in fixture"
     );
-    vox_compiler_emit::codegen_ts::routes::validate_express_route_emit_input(&hir).expect("express ok");
+    vox_codegen::codegen_ts::routes::validate_express_route_emit_input(&hir).expect("express ok");
 }
 
 /// OP-S076: mixed surface lowers behaviors + reactive view roots (Path C); classic views optional.
 #[test]
 fn op_s076_behavior_view_map_gate_mixed_surface_summary() {
-    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir_with_summary;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary;
     let tokens = lex(MIXED_SURFACE_SRC);
     let module = parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
@@ -130,8 +130,8 @@ fn op_s080_wrapper_inventory_gate_mixed_surface_has_app_router() {
 /// OP-S081–S084: dual-run — legacy generate vs Web IR validate both succeed on mixed surface.
 #[test]
 fn op_s081_084_dual_run_diff_extension_gate_mixed_surface() {
-    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir;
-    use vox_compiler_emit::web_ir::validate::validate_web_ir;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
+    use vox_codegen::web_ir::validate::validate_web_ir;
     let tokens = lex(MIXED_SURFACE_SRC);
     let module = parse(tokens).expect("parse");
     let hir = vox_compiler::hir::lower_module(&module);
@@ -189,7 +189,7 @@ fn op_s116_behavior_component_gate_mixed_typechecks() {
 /// OP-S118: route contracts lowered for client trees.
 #[test]
 fn op_s118_route_contract_fixture_client_trees() {
-    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir_with_summary;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary;
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
@@ -198,8 +198,8 @@ fn op_s118_route_contract_fixture_client_trees() {
 }
 
 fn op_s_pack_gate_inner(src: &'static str, label: &str) {
-    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir;
-    use vox_compiler_emit::web_ir::validate::validate_web_ir;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
+    use vox_codegen::web_ir::validate::validate_web_ir;
     let module = parse(lex(src)).expect(label);
     let hir = vox_compiler::hir::lower_module(&module);
     let web = lower_hir_to_web_ir(&hir);
@@ -238,7 +238,7 @@ fn op_s148_fixture_pack_e_gate() {
 /// OP-S160 route/data bridge gate B — HTTP loaders in multi-route Web IR.
 #[test]
 fn op_s160_route_data_bridge_gate_b() {
-    use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir_with_summary;
+    use vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary;
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);

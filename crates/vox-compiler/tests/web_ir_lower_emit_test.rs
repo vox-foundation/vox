@@ -6,24 +6,24 @@ use std::path::{Path, PathBuf};
 
 use vox_compiler::ast::decl::{Decl, ThemeDecl};
 use vox_compiler::ast::span::Span;
-use vox_compiler_emit::codegen_ts::hir_emit::emit_hir_expr;
-use vox_compiler_emit::codegen_ts::{CodegenOptions, generate_with_options};
+use vox_codegen::codegen_ts::hir_emit::emit_hir_expr;
+use vox_codegen::codegen_ts::{CodegenOptions, generate_with_options};
 use vox_compiler::hir::{HirModule, HirReactiveMember, lower_module};
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
 use vox_compiler::runtime_projection::{
     RUNTIME_PROJECTION_SCHEMA_VERSION, canonical_runtime_projection_bytes, project_runtime_from_hir,
 };
-use vox_compiler_emit::syntax_k::{
+use vox_codegen::syntax_k::{
     RepresentabilityPayload, SyntaxKInput, canonical_emitted_files_bytes, canonical_web_ir_bytes,
     enrich_syntax_k_support_metrics, measure_syntax_k_event, sha3_hex,
 };
-use vox_compiler_emit::web_ir::emit_tsx::{emit_component_view_tsx, emit_component_view_tsx_with_stats};
-use vox_compiler_emit::web_ir::lower::{lower_hir_to_web_ir, lower_hir_to_web_ir_with_summary};
-use vox_compiler_emit::web_ir::validate::{
+use vox_codegen::web_ir::emit_tsx::{emit_component_view_tsx, emit_component_view_tsx_with_stats};
+use vox_codegen::web_ir::lower::{lower_hir_to_web_ir, lower_hir_to_web_ir_with_summary};
+use vox_codegen::web_ir::validate::{
     format_web_ir_validate_failure, validate_web_ir, validate_web_ir_with_metrics,
 };
-use vox_compiler_emit::web_ir::{
+use vox_codegen::web_ir::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, MutationContract,
     RouteContract, RouteNode, ServerFnContract, StyleDeclarationValue, StyleNode, StyleSelector,
     WebIrModule, WebIrVersion,
@@ -470,9 +470,9 @@ fn web_ir_interop_nodes_serialize_deterministically() {
 
 #[test]
 fn web_ir_span_table_ids_match_get() {
-    use vox_compiler_emit::web_ir::SourceSpan;
+    use vox_codegen::web_ir::SourceSpan;
 
-    let mut t = vox_compiler_emit::web_ir::SourceSpanTable::default();
+    let mut t = vox_codegen::web_ir::SourceSpanTable::default();
     let id0 = t.push_span(SourceSpan {
         file_id: 0,
         start: 1,
@@ -617,7 +617,7 @@ http post "/api/ping" to int { return 1 }
 #[test]
 fn web_ir_validate_rejects_duplicate_route_contract_ids() {
     use serde_json::json;
-    use vox_compiler_emit::web_ir::{RouteContract, RouteNode, WebIrModule, WebIrVersion};
+    use vox_codegen::web_ir::{RouteContract, RouteNode, WebIrModule, WebIrVersion};
 
     let mut m = WebIrModule {
         version: WebIrVersion::V0_1,
@@ -648,7 +648,7 @@ fn web_ir_validate_rejects_duplicate_route_contract_ids() {
 
 #[test]
 fn web_ir_validate_required_state_without_initial() {
-    use vox_compiler_emit::web_ir::{BehaviorNode, FieldOptionality, WebIrModule, WebIrVersion};
+    use vox_codegen::web_ir::{BehaviorNode, FieldOptionality, WebIrModule, WebIrVersion};
 
     let mut m = WebIrModule {
         version: WebIrVersion::V0_1,
@@ -672,7 +672,7 @@ fn web_ir_validate_required_state_without_initial() {
 /// OP-0262 / OP-0275: `Optional` / `Defaulted` state rows pass validate without `initial` (stage handoff contract).
 #[test]
 fn web_ir_validate_optional_and_defaulted_state_allow_missing_initial() {
-    use vox_compiler_emit::web_ir::{BehaviorNode, FieldOptionality, WebIrModule, WebIrVersion};
+    use vox_codegen::web_ir::{BehaviorNode, FieldOptionality, WebIrModule, WebIrVersion};
 
     for opt in [FieldOptionality::Optional, FieldOptionality::Defaulted] {
         let mut m = WebIrModule {
@@ -942,7 +942,7 @@ component T() {
 /// Migration OP-0138/0139: `hir_emit::compat` stays reachable alongside `emit_hir_expr` for parity tests.
 #[test]
 fn hir_emit_public_exports_include_compat_module() {
-    use vox_compiler_emit::codegen_ts::hir_emit::{compat, emit_hir_expr, map_jsx_attr_name};
+    use vox_codegen::codegen_ts::hir_emit::{compat, emit_hir_expr, map_jsx_attr_name};
 
     assert_eq!(
         map_jsx_attr_name("on:click"),
@@ -1479,7 +1479,7 @@ fn web_ir_validate_style_rejects_color_variant() {
         selector: StyleSelector::Class("c".into()),
         declarations: vec![(
             "background".into(),
-            StyleDeclarationValue::Color(vox_compiler_emit::web_ir::CssColor::Hex("#abc".into())),
+            StyleDeclarationValue::Color(vox_codegen::web_ir::CssColor::Hex("#abc".into())),
         )],
         is_raw_css: false,
         span: None,
@@ -1500,7 +1500,7 @@ fn web_ir_validate_style_rejects_literal_dimension() {
         selector: StyleSelector::Class("c".into()),
         declarations: vec![(
             "padding".into(),
-            StyleDeclarationValue::Length(16.0, vox_compiler_emit::web_ir::LengthUnit::Px),
+            StyleDeclarationValue::Length(16.0, vox_codegen::web_ir::LengthUnit::Px),
         )],
         is_raw_css: false,
         span: None,
@@ -1873,7 +1873,7 @@ fn normal_style_block_literal_color_still_errors() {
         selector: StyleSelector::Class("bad".into()),
         declarations: vec![(
             "color".into(),
-            StyleDeclarationValue::Color(vox_compiler_emit::web_ir::CssColor::Hex("#ff0000".into())),
+            StyleDeclarationValue::Color(vox_codegen::web_ir::CssColor::Hex("#ff0000".into())),
         )],
         is_raw_css: false,
         span: None,
@@ -1906,7 +1906,7 @@ raw_css {
     let web = lower_hir_to_web_ir(&hir);
 
     let raw_css_rule = web.style_nodes.iter().find(|n| {
-        if let vox_compiler_emit::web_ir::StyleNode::Rule { is_raw_css, .. } = n {
+        if let vox_codegen::web_ir::StyleNode::Rule { is_raw_css, .. } = n {
             *is_raw_css
         } else {
             false
@@ -1940,7 +1940,7 @@ raw_css {
 #[test]
 fn surface_known_name_no_error() {
     use vox_compiler::tokens::TokenRegistry;
-    use vox_compiler_emit::web_ir::validate::validate_web_ir_with_registry;
+    use vox_codegen::web_ir::validate::validate_web_ir_with_registry;
 
     let tokens_json = r##"{
         "color": { "background": "#ffffff", "primary": "#3a86ff", "text": { "value": "#1d3557" } },
@@ -1971,7 +1971,7 @@ fn surface_known_name_no_error() {
 #[test]
 fn surface_unknown_name_fires_error() {
     use vox_compiler::tokens::TokenRegistry;
-    use vox_compiler_emit::web_ir::validate::validate_web_ir_with_registry;
+    use vox_codegen::web_ir::validate::validate_web_ir_with_registry;
 
     let tokens_json = r##"{
         "surface": {
@@ -2100,7 +2100,7 @@ component Layout() {
 /// Duplicate z-index on overlay children fires a diagnostic.
 #[test]
 fn overlay_duplicate_z_integration() {
-    use vox_compiler_emit::web_ir::validate_overlay::validate_overlay;
+    use vox_codegen::web_ir::validate_overlay::validate_overlay;
 
     let mut m = WebIrModule::default();
     // overlay root at index 0

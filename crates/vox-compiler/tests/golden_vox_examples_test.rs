@@ -10,13 +10,13 @@ use vox_compiler::parser::parse;
 use vox_compiler::runtime_projection::{
     RUNTIME_PROJECTION_SCHEMA_VERSION, canonical_runtime_projection_bytes, project_runtime_from_hir,
 };
-use vox_compiler_emit::syntax_k::{
+use vox_codegen::syntax_k::{
     RepresentabilityPayload, SyntaxKInput, canonical_emitted_files_bytes, canonical_web_ir_bytes,
     enrich_syntax_k_support_metrics, measure_syntax_k_event, sha3_hex,
 };
-use vox_compiler_emit::web_ir::emit_tsx::emit_component_view_tsx;
-use vox_compiler_emit::web_ir::lower::lower_hir_to_web_ir_with_summary;
-use vox_compiler_emit::web_ir::validate::{is_advisory_diagnostic, validate_web_ir_with_metrics};
+use vox_codegen::web_ir::emit_tsx::emit_component_view_tsx;
+use vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary;
+use vox_codegen::web_ir::validate::{is_advisory_diagnostic, validate_web_ir_with_metrics};
 
 fn syntax_k_output_root() -> PathBuf {
     if let Ok(dir) = std::env::var("CARGO_TARGET_DIR")

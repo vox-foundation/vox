@@ -662,7 +662,7 @@ jobs:
       matrix:
         crate:
           - vox-compiler
-          - vox-compiler-emit
+          - vox-codegen
           - vox-cli
           - vox-runtime
           - vox-db

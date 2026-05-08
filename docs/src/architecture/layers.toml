@@ -61,7 +61,7 @@ vox-package                   = { layer = 2 } # depends on compiler/db → reall
 vox-db                   = { layer = 3 }
 vox-corpus               = { layer = 3 }
 vox-compiler             = { layer = 3 }
-vox-compiler-emit        = { layer = 3 }
+vox-codegen        = { layer = 3 }
 vox-ml-cli                 = { layer = 3 }
 vox-publisher            = { layer = 3 }
 vox-orchestrator         = { layer = 3 }
