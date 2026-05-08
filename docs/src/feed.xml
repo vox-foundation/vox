@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 08 May 2026 04:43:12 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 08 May 2026 04:56:15 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -18,10 +18,28 @@
   </item>
 
   <item>
+    <title>Dead Crate Deep Dive (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/dead-crate-deep-dive-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/dead-crate-deep-dive-2026-05-08.html</guid>
+    <description>Code-level investigation of uncertain DEAD crates: what&apos;s unique, what&apos;s obviated, where unique code should be preserved.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
     <title>Dead Crate Fate Plan (2026-05-08)</title>
     <link>https://vox-lang.org/architecture/dead-crate-fate-plan-2026-05-08.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/dead-crate-fate-plan-2026-05-08.html</guid>
     <description>Per-crate recommendation for the 17 DEAD and 3 MISPLACED workspace crates: delete, wire up, extract to plugin, or freeze.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Pure-Rust Build — Eliminating C/MSVC Dependencies (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/no-c-no-msvc-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/no-c-no-msvc-2026-05-08.html</guid>
+    <description>Pure-Rust Build — Eliminating C/MSVC Dependencies (2026-05-08)</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -219,25 +237,6 @@
     <description>Comparative analysis of Svelte 5/6, Next.js 15/16, and TanStack Start as competitors and idea sources for Vox&apos;s GUI authoring layer. Frames Vox&apos;s React-emit…</description>
     <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Explanation: Compiler Lowering Phases</title>
-    <link>https://vox-lang.org/explanation/expl-compiler-lowering.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/explanation/expl-compiler-lowering.html</guid>
-    <description>Official documentation for Explanation: Compiler Lowering Phases for the Vox language. Detailed technical reference, architecture guides,</description>
-    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
-    <category>Explanation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Frontend Surface Ownership</title>
-    <link>https://vox-lang.org/reference/frontend-surface-ownership.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/frontend-surface-ownership.html</guid>
-    <description>Canonical ownership and lifecycle policy for Vox frontend surfaces.</description>
-    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
   </item>
 
   <item>

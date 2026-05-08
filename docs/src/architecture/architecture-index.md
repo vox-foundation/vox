@@ -94,6 +94,7 @@ training_eligible: false
 
 - [Agent Shell Fluency Eval Design (2026)](agent-shell-fluency-eval-design-2026.md)
 - [Crate Classification Audit (2026-05-08)](crate-classification-2026-05-08.md)
+- [Dead Crate Deep Dive (2026-05-08)](dead-crate-deep-dive-2026-05-08.md)
 - [Dead Crate Fate Plan (2026-05-08)](dead-crate-fate-plan-2026-05-08.md)
 - [Legacy URL Redirects on GitHub Pages](github-pages-redirects.md)
 - [Ludus Identity Federation & GitHub Integration](ludus-identity-github-integration-research-2026.md)
