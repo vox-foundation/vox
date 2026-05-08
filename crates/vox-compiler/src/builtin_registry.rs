@@ -725,6 +725,10 @@ pub fn std_namespace_runtime_call(
             "(match vox_runtime::builtins::vox_regex_compile(({}).as_str()) {{ Ok(r) => Ok(r), Err(m) => Error(m) }})",
             args[0]
         )),
+        ("json", "parse") if !args.is_empty() => Some(format!(
+            "(match vox_runtime::builtins::vox_json_parse(({}).as_str()) {{ Ok(j) => Ok(j), Err(m) => Error(m) }})",
+            args[0]
+        )),
         _ => None,
     }
 }
