@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans.
 
+> **amended (2026-05-08):** Implementation is much smaller than the plan suggested. `Expr::Block` and brace-block parsing already existed; `parse_brace_expr` correctly disambiguates blocks from object literals. The only missing piece was the parser refusing `return` / `break` / `continue` as match-arm bodies (those are statement keywords, not expressions). Fix: in `parse_match`, before the existing `parse_expr()` for the arm body, peek for `Token::Return | Break | Continue` and parse a single statement wrapped in `Expr::Block` if present. AST/HIR shape is unchanged — `MatchArm.body` stays `Box<Expr>`. Codegen is unchanged — Block was already emitted as a thunk in TS / a block in Rust. No HIR walker / typeck / codegen changes were required. A6 (reference doc update) deferred — `docs/src/reference/syntax-and-semantics.md` doesn't exist.
+
 **Goal:** Allow `match` arms to contain statement-level constructs — `return`, `break`, multi-statement blocks — not just expressions.
 
 **Why now:** Hit during vox-mental-tracker development. Today writing:
