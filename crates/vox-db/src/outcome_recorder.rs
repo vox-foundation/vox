@@ -4,7 +4,7 @@
 //! and `socrates_surface` (+ trust observations) to avoid partial failures.
 
 use serde_json::Value;
-use vox_socrates_policy::RiskDecision;
+use vox_orchestrator_types::socrates_policy::RiskDecision;
 
 use crate::store::types::{ModelOutcome, StoreError};
 

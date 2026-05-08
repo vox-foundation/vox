@@ -1,5 +1,5 @@
-use crate::confidence_override::ConfidencePolicyOverride;
-use crate::policy_types::{
+use super::confidence_override::ConfidencePolicyOverride;
+use super::policy_types::{
     ClarificationStopReason, ConfidencePolicy, QuestionCandidate, QuestionSelection,
     QuestioningPolicy, RiskBand, RiskDecision, SocratesResearchDecision,
 };

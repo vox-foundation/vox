@@ -151,7 +151,7 @@ mod routing_tests {
     use super::ghost_text::ghost_grounding_score;
     use super::params::{ChatMessageParams, GhostTextParams, PlanTask};
     use crate::mcp_tools::llm_bridge::clamp_http_max_output_tokens;
-    use vox_socrates_policy::ConfidencePolicy;
+    use vox_orchestrator_types::socrates_policy::ConfidencePolicy;
 
     #[test]
     fn clamp_http_max_output_respects_bounds() {

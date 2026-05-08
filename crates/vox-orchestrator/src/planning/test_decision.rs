@@ -1,7 +1,7 @@
 use crate::socrates::OrientReport;
 use crate::types::{AgentTask, TaskCategory};
 use serde::{Deserialize, Serialize};
-use vox_socrates_policy::RiskBand;
+use vox_orchestrator_types::socrates_policy::RiskBand;
 
 /// Formal testing requirement for a task.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

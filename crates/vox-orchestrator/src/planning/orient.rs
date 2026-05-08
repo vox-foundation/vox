@@ -47,7 +47,7 @@ impl OrientPhase {
     pub fn orient_phase(
         description: &str,
         ctx: &SocratesTaskContext,
-        policy: &vox_socrates_policy::ConfidencePolicy,
+        policy: &vox_orchestrator_types::socrates_policy::ConfidencePolicy,
     ) -> OrientReport {
         let evidence_gap = if ctx.required_citations == 0 {
             0.0

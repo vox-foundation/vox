@@ -471,7 +471,7 @@ async fn record_and_query_exec_time() {
 
 #[tokio::test]
 async fn unified_llm_turn_writes_llm_and_socrates() {
-    use vox_socrates_policy::RiskDecision;
+    use vox_orchestrator_types::socrates_policy::RiskDecision;
 
     let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
     let outcome = crate::store::types::ModelOutcome {

@@ -1,5 +1,7 @@
 // AUTO-GENERATED parts included below.
 
+pub mod socrates_policy;
+
 include!(concat!(env!("OUT_DIR"), "/generated_providers.rs"));
 
 /// Pinned **Inference Endpoint** (dedicated deployment) with an explicit OpenAI-compatible chat URL.

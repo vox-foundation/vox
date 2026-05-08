@@ -76,7 +76,6 @@ vox-db.workspace = true
 vox-search.workspace = true
 vox-orchestrator-types.workspace = true
 vox-config.workspace = true
-vox-socrates-policy.workspace = true
 vox-eval.workspace = true
 vox-repository.workspace = true
 vox-dashboard = { workspace = true, optional = true }

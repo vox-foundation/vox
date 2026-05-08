@@ -57,6 +57,7 @@ vox-bounded-fs            = { path = "crates/vox-bounded-fs" }
 vox-compiler              = { path = "crates/vox-compiler" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
+vox-deploy-codegen        = { path = "crates/vox-deploy-codegen" }
 vox-checksum-manifest     = { path = "crates/vox-checksum-manifest" }
 vox-install-policy        = { path = "crates/vox-install-policy" }
 vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }
@@ -97,6 +98,7 @@ vox-plugin-host           = { path = "crates/vox-plugin-host" }
 vox-plugin-noop-code      = { path = "crates/vox-plugin-noop-code" }
 vox-plugin-noop-code-bad-abi = { path = "crates/vox-plugin-noop-code-bad-abi" }
 vox-plugin-nvml-probe     = { path = "crates/vox-plugin-nvml-probe" }
+vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
 vox-pm                    = { path = "crates/vox-pm" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }
@@ -109,7 +111,6 @@ vox-repository            = { path = "crates/vox-repository" }
 vox-runtime               = { path = "crates/vox-runtime" }
 vox-scaling-policy        = { path = "crates/vox-scaling-policy" }
 vox-skills                = { path = "crates/vox-skills" }
-vox-socrates-policy       = { path = "crates/vox-socrates-policy" }
 vox-ssg                   = { path = "crates/vox-ssg" }
 vox-tensor                = { path = "crates/vox-tensor" }
 vox-toestub               = { path = "crates/vox-toestub" }

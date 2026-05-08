@@ -1,6 +1,6 @@
 //! Complexity tracking for Socrates
 
-use crate::policy_types::ComplexityBand;
+use super::policy_types::ComplexityBand;
 use serde::{Deserialize, Serialize};
 
 /// Socrates-driven complexity evaluation.
