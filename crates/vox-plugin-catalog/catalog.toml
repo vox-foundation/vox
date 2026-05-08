@@ -160,6 +160,14 @@ default-source = "github:vox-foundation/vox-plugin-browser"
 bundled-in = ["vox-dev"]
 
 [[plugin]]
+id = "runtime-container"
+payload-kind = "code"
+description = "Skill-runtime plugin: Docker and Podman OCI sandbox backends (fallback for subprocess/GPU skills)."
+extension-points = ["SkillRuntime"]
+default-source = "local:crates/vox-plugin-runtime-container"
+bundled-in = []
+
+[[plugin]]
 id = "publication"
 payload-kind = "code"
 description = "RSS/Atom ingest with semantic dedup; multi-platform publish (Reddit, YouTube, scholarly feeds)."

@@ -126,6 +126,7 @@ futures = { workspace = true }
 vox-pm = { workspace = true }
 vox-container = { workspace = true }
 vox-deploy-codegen = { workspace = true }
+vox-plugin-runtime-container = { workspace = true }
 vox-skills = { workspace = true, optional = true }
 vox-ars    = { workspace = true, optional = true }
 vox-ludus = { workspace = true, optional = true }

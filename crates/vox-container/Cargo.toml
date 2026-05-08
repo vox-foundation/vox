@@ -12,9 +12,6 @@ workspace = true
 
 [dependencies]
 vox-exec-grammar.workspace = true
-# Docker/Podman implementations live in the plugin; vox-container re-exports detect_runtime
-# for backward compat by instantiating impls directly (rlib feature).
-vox-plugin-runtime-container.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 serde = { workspace = true }
