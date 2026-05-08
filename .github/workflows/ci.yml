@@ -349,6 +349,9 @@ jobs:
           cargo test -p vox-workflow-runtime
           cargo check -p vox-cli --features mesh,workflow-runtime
 
+      - name: Orchestrator no-default-features (news-publish off)
+        run: cargo check -p vox-orchestrator --no-default-features --features runtime,json-schema,mcp-native,toestub-gate
+
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
         with:
@@ -654,9 +657,11 @@ jobs:
       matrix:
         crate:
           - vox-compiler
+          - vox-compiler-emit
           - vox-cli
           - vox-runtime
           - vox-db
+          - vox-db-types
           - vox-clavis
           - vox-orchestrator
           - vox-populi
@@ -673,6 +678,7 @@ jobs:
           - vox-config
           - vox-crypto
           - vox-toestub
+          - vox-ars-runtime
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
