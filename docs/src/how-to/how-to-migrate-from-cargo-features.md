@@ -1,3 +1,8 @@
+---
+title: "Migrating from Cargo Feature Flags"
+description: "Mapping from `cargo --features` invocations to the runtime plugin system."
+---
+
 # Migrating from Cargo Feature Flags
 
 Vox no longer uses Cargo `--features` for optional capabilities. Each
