@@ -21,7 +21,7 @@ fn build_ios_produces_xcframework() {
         .assert()
         .success();
 
-    let xcf = fixture_dir().join("target/mobile/ios/VoxApp.xcframework");
+    let xcf = fixture_dir().join("target/mobile/ios/hello_mobile.xcframework");
     assert!(xcf.exists(), "expected {} to exist", xcf.display());
     let info = xcf.join("Info.plist");
     assert!(info.exists(), "expected XCFramework Info.plist");

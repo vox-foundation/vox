@@ -46,7 +46,7 @@ Exits 0 if at least one platform is fully configured; exits 1 otherwise.
 Cross-compile for the specified platform(s).
 
 - `--platform android` — runs `cargo-ndk` per ABI; outputs `target/mobile/android/<abi>/lib<crate>.so`.
-- `--platform ios` — macOS only; runs `cargo build --target=<arch> --lib` per arch + `xcodebuild -create-xcframework`; outputs `target/mobile/ios/VoxApp.xcframework`.
+- `--platform ios` — macOS only; runs `cargo build --target=<arch> --lib` per arch + `xcodebuild -create-xcframework`; outputs `target/mobile/ios/<crate>.xcframework` (where `<crate>` is the project's Cargo `[package].name`).
 - `--platform all` (default) — runs every platform listed in `[mobile.platforms]`. Skips iOS with a warning on non-macOS. A platform-specific failure is logged but does not abort sibling platforms; the orchestrator only exits non-zero when *every attempted platform* fails.
 
 The `--release` flag enables optimized builds (passes `--release` to cargo-ndk and to per-arch `cargo build`).

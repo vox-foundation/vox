@@ -64,7 +64,8 @@ pub fn build(project_dir: &Path, ios: &IosConfig, release: bool) -> Result<()> {
     // Assemble the XCFramework. Note: out_root holds the assembled XCFramework;
     // per-arch staticlibs stay in cargo's target/<arch>/<profile>/ tree (asymmetric
     // with the Android path, where out_root holds per-arch artifacts directly).
-    let xcf_path = out_root.join("VoxApp.xcframework");
+    let xcf_filename = format!("{crate_name}.xcframework");
+    let xcf_path = out_root.join(&xcf_filename);
     if xcf_path.exists() {
         std::fs::remove_dir_all(&xcf_path).context("clearing previous XCFramework")?;
     }
