@@ -76,7 +76,6 @@ vox-mcp-meta              = { path = "crates/vox-mcp-meta" }
 vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
 vox-scientia-ingest       = { path = "crates/vox-scientia-ingest" }
 vox-test-harness          = { path = "crates/vox-test-harness" }
-vox-tools                 = { path = "crates/vox-tools" }
 vox-webhook               = { path = "crates/vox-webhook" }
 vox-git                   = { path = "crates/vox-git" }
 vox-constrained-gen       = { path = "crates/vox-constrained-gen" }

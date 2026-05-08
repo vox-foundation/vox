@@ -1,5 +1,7 @@
 //! Unified tool registry and dispatcher for the Vox MCP server.
 
+/// `<TOOL_CALLS>` XML fallback for LLM providers without native function-call support.
+pub mod chat_fallback_tools;
 pub mod params;
 pub mod server_state;
 
