@@ -1,4 +1,8 @@
 # Ignored dynamically for rate limit / anti-bot
+# Medium returns 403 to bots; link is valid
+.*medium\.com/.*
+# OpenCollective returns 403 to bots; link is valid
+.*opencollective\.com/.*
 .*opentelemetry\.io.*
 .*linkedin\.com.*
 .*cursor\.com/.*
