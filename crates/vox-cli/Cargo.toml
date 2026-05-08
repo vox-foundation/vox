@@ -97,7 +97,8 @@ scientia-social = [
     "vox-publisher/scientia-bluesky",
     "vox-publisher/scientia-discord",
     "vox-publisher/scientia-opencollective",
-    "vox-publisher/live-api-canary"
+    "vox-publisher/live-api-canary",
+    "vox-orchestrator/news-publish",
 ]
 broken_inference_stub = []
 

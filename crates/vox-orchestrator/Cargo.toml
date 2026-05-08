@@ -8,7 +8,6 @@ edition.workspace = true
 default = [
     "toestub-gate",
     "runtime",
-    "news-publish",
     "json-schema",
     "mcp-native",
 ]

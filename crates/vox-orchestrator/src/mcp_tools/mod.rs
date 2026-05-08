@@ -38,6 +38,7 @@ pub mod input_schemas;
 pub mod introspection_tools;
 pub mod llm_bridge;
 /// Unified News Publishing System tools
+#[cfg(feature = "news-publish")]
 pub mod news_tools;
 /// OpenClaw native gateway and skill tools.
 pub mod openclaw_tools;
@@ -60,6 +61,7 @@ pub mod repo_catalog_tools;
 /// Bounded repo walk + on-disk JSON cache under `.vox/cache/repos/...`.
 pub mod repo_index;
 /// Scientia publication lifecycle tools (manifest, approval, submission).
+#[cfg(feature = "news-publish")]
 pub mod scientia_tools;
 pub mod scope_guard;
 pub mod session_identity;
@@ -71,6 +73,7 @@ pub mod sync_poison;
 pub mod task_tools;
 pub(crate) mod text_normalization;
 /// TOESTUB (Todo/Stubs/Empty) finding ingestion and queue management.
+#[cfg(feature = "toestub-gate")]
 pub mod toestub_tools;
 pub mod tool_aliases;
 /// Training-intent submission via orchestrator (Mens CLI remains canonical executor).

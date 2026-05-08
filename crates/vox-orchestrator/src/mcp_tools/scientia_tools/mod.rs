@@ -14,6 +14,7 @@ mod media;
 mod novelty;
 mod preflight;
 mod scholar;
+#[cfg(feature = "news-publish")]
 mod syndication;
 
 pub use assist::*;
@@ -24,4 +25,5 @@ pub use media::*;
 pub use novelty::*;
 pub use preflight::*;
 pub use scholar::*;
+#[cfg(feature = "news-publish")]
 pub use syndication::*;

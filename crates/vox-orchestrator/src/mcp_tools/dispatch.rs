@@ -11,10 +11,12 @@ use crate::mcp_tools::server_state::ServerState;
 use crate::mcp_tools::{
     benchmark_tools, browser_tools, chat_tools, clavis_tools, code_validator, codex_tools,
     compiler_tools, db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools,
-    news_tools, openclaw_tools, persistence_tools, populi_tools, project_init_tools,
-    questioning_tools, rag_tools, repo_catalog_tools, repo_index, scientia_tools, task_tools,
+    openclaw_tools, persistence_tools, populi_tools, project_init_tools,
+    questioning_tools, rag_tools, repo_catalog_tools, repo_index, task_tools,
     toestub_tools, tool_aliases, training_tools, trust_tools, vcs_tools, visus_tools,
 };
+#[cfg(feature = "news-publish")]
+use crate::mcp_tools::{news_tools, scientia_tools};
 
 #[cfg(feature = "oratio-rerank")]
 use crate::mcp_tools::{oratio_tools, speech_pipeline_tools};
@@ -494,34 +496,42 @@ async fn handle_tool_call_inner(
             Ok(training_tools::train_submit(state, serde_json::from_value(args)?).await)
         }
 
+        #[cfg(feature = "news-publish")]
         "vox_news_test_syndicate" => {
             Ok(news_tools::vox_news_test_syndicate(state, serde_json::from_value(args)?).await)
         }
 
+        #[cfg(feature = "news-publish")]
         "vox_news_draft_research" => {
             Ok(news_tools::vox_news_draft_research(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_news_approve" => {
             Ok(news_tools::vox_news_approve(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_news_approval_status" => {
             Ok(news_tools::vox_news_approval_status(state, serde_json::from_value(args)?).await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_news_simulate_publish_gate" => Ok(news_tools::vox_news_simulate_publish_gate(
             state,
             serde_json::from_value(args)?,
         )
         .await),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_prepare" => Ok(scientia_tools::vox_scientia_publication_prepare(
             state,
             serde_json::from_value(args)?,
         )
         .await),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_approve" => Ok(scientia_tools::vox_scientia_publication_approve(
             state,
             serde_json::from_value(args)?,
         )
         .await),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_submit_local" => {
             Ok(scientia_tools::vox_scientia_publication_submit_local(
                 state,
@@ -529,11 +539,13 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_status" => Ok(scientia_tools::vox_scientia_publication_status(
             state,
             serde_json::from_value(args)?,
         )
         .await),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_scholarly_remote_status" => Ok(
             scientia_tools::vox_scientia_publication_scholarly_remote_status(
                 state,
@@ -541,6 +553,7 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_scholarly_remote_status_sync_all" => Ok(
             scientia_tools::vox_scientia_publication_scholarly_remote_status_sync_all(
                 state,
@@ -548,6 +561,7 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_scholarly_remote_status_sync_batch" => Ok(
             scientia_tools::vox_scientia_publication_scholarly_remote_status_sync_batch(
                 state,
@@ -555,6 +569,7 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_arxiv_handoff_record" => Ok(
             scientia_tools::vox_scientia_publication_arxiv_handoff_record(
                 state,
@@ -562,6 +577,7 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_scholarly_staging_export" => Ok(
             scientia_tools::vox_scientia_publication_scholarly_staging_export(
                 state,
@@ -569,6 +585,7 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_external_jobs_due" => {
             Ok(scientia_tools::vox_scientia_publication_external_jobs_due(
                 state,
@@ -576,6 +593,7 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_external_jobs_dead_letter" => Ok(
             scientia_tools::vox_scientia_publication_external_jobs_dead_letter(
                 state,
@@ -583,6 +601,7 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_external_jobs_replay" => Ok(
             scientia_tools::vox_scientia_publication_external_jobs_replay(
                 state,
@@ -590,6 +609,7 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_external_jobs_tick" => {
             Ok(scientia_tools::vox_scientia_publication_external_jobs_tick(
                 state,
@@ -597,6 +617,7 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_external_pipeline_metrics" => Ok(
             scientia_tools::vox_scientia_publication_external_pipeline_metrics(
                 state,
@@ -604,6 +625,7 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_scholarly_pipeline_run" => Ok(
             scientia_tools::vox_scientia_publication_scholarly_pipeline_run(
                 state,
@@ -611,6 +633,7 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_media_upsert" => {
             Ok(scientia_tools::vox_scientia_publication_media_upsert(
                 state,
@@ -618,6 +641,7 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_media_list" => {
             Ok(scientia_tools::vox_scientia_publication_media_list(
                 state,
@@ -625,6 +649,7 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_media_delete" => {
             Ok(scientia_tools::vox_scientia_publication_media_delete(
                 state,
@@ -632,6 +657,7 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_route_simulate" => {
             Ok(scientia_tools::vox_scientia_publication_route_simulate(
                 state,
@@ -639,11 +665,13 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_publish" => Ok(scientia_tools::vox_scientia_publication_publish(
             state,
             serde_json::from_value(args)?,
         )
         .await),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_retry_failed" => {
             Ok(scientia_tools::vox_scientia_publication_retry_failed(
                 state,
@@ -651,6 +679,7 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_preflight" => {
             Ok(scientia_tools::vox_scientia_publication_preflight(
                 state,
@@ -658,11 +687,13 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_worthiness_evaluate" => Ok(scientia_tools::vox_scientia_worthiness_evaluate(
             state,
             serde_json::from_value(args)?,
         )
         .await),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_discovery_scan" => {
             Ok(scientia_tools::vox_scientia_publication_discovery_scan(
                 state,
@@ -670,6 +701,7 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_discovery_explain" => {
             Ok(scientia_tools::vox_scientia_publication_discovery_explain(
                 state,
@@ -677,6 +709,7 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_discovery_refresh_evidence" => Ok(
             scientia_tools::vox_scientia_publication_discovery_refresh_evidence(
                 state,
@@ -684,6 +717,7 @@ async fn handle_tool_call_inner(
             )
             .await,
         ),
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_novelty_fetch" => {
             Ok(scientia_tools::vox_scientia_publication_novelty_fetch(
                 state,
@@ -691,6 +725,7 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_decision_explain" => {
             Ok(scientia_tools::vox_scientia_publication_decision_explain(
                 state,
@@ -698,6 +733,7 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_publication_novelty_happy_path" => {
             Ok(scientia_tools::vox_scientia_publication_novelty_happy_path(
                 state,
@@ -705,6 +741,7 @@ async fn handle_tool_call_inner(
             )
             .await)
         }
+        #[cfg(feature = "news-publish")]
         "vox_scientia_assist_suggestions" => Ok(scientia_tools::vox_scientia_assist_suggestions(
             state,
             serde_json::from_value(args)?,

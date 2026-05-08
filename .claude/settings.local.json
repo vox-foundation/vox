@@ -93,7 +93,16 @@
       "Bash(git -C C:/Users/Owner/vox/.claude/worktrees/lucid-shannon-93d00c mv crates/vox-compiler/src/web_migration_env.rs crates/vox-compiler-emit/src/web_migration_env.rs)",
       "Bash(cat)",
       "Bash(chmod +x /tmp/classify.sh)",
-      "Bash(bash /tmp/classify.sh)"
+      "Bash(bash /tmp/classify.sh)",
+      "Bash(chmod +x /tmp/check_db_ops.sh)",
+      "Bash(/tmp/check_db_ops.sh)",
+      "Bash(chmod +x /tmp/verify_type_only.sh)",
+      "Bash(/tmp/verify_type_only.sh)",
+      "Bash(chmod +x /tmp/final_audit.sh)",
+      "Bash(/tmp/final_audit.sh)",
+      "Bash(bash /tmp/analyze_modules.sh)",
+      "Bash(bash /tmp/deps_analysis.sh)",
+      "Bash(bash /tmp/module_deps.sh)"
     ]
   }
 }
