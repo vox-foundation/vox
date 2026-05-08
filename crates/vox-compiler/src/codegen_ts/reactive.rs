@@ -19,7 +19,7 @@
 
 use crate::codegen_ts::hir_emit::{
     emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps_with_diagnostics,
-    map_hir_type_to_ts,
+    map_hir_type_to_ts, EmitCtx,
 };
 use crate::hir::*;
 use crate::react_bridge::react_exports::{USE_CALLBACK, USE_EFFECT, USE_MEMO, USE_REF, USE_STATE};
@@ -105,14 +105,14 @@ fn emit_reactive_view_body(
     component_name: &str,
     hir: &HirModule,
     rc: &HirReactiveComponent,
-    state_names: &HashSet<String>,
+    ctx: &EmitCtx<'_>,
     web_projection: Option<&WebIrModule>,
     stats: &mut ReactiveViewBridgeStats,
 ) -> String {
     let Some(view) = &rc.view else {
         return String::new();
     };
-    let legacy = emit_hir_expr(view, state_names);
+    let legacy = emit_hir_expr(view, ctx);
     if !web_ir_reactive_views_env_enabled() {
         stats.record_pathway(ReactiveViewEmitPathway::LegacyEnvDisabled);
         if web_ir_reactive_trace_enabled() {
@@ -938,17 +938,22 @@ pub fn generate_reactive_component(
         ));
     }
 
+    // §1.A.2: build an emit context that threads endpoint (async) fn names into handler emission,
+    // so calls to @endpoint fns inside onClick/onChange etc. receive `await`.
+    let plain_ctx = EmitCtx::new(&state_names);
+    let view_ctx = EmitCtx::with_async(&state_names, &endpoint_names);
+
     for member in &rc.members {
         match member {
             HirReactiveMember::State(s) => {
-                let init = emit_hir_expr(&s.init, &state_names);
+                let init = emit_hir_expr(&s.init, &plain_ctx);
                 out.push_str(&format!(
                     "  const [{}, set_{}] = useState({});\n",
                     s.name, s.name, init
                 ));
             }
             HirReactiveMember::Derived(d) => {
-                let expr = emit_hir_expr(&d.expr, &state_names);
+                let expr = emit_hir_expr(&d.expr, &plain_ctx);
                 let analysis = extract_state_deps_with_diagnostics(
                     &d.expr,
                     &state_names,
@@ -963,7 +968,7 @@ pub fn generate_reactive_component(
                 ));
             }
             HirReactiveMember::Effect(e) => {
-                let stmts_str = emit_block_stmts(&e.body, &state_names, 2);
+                let stmts_str = emit_block_stmts(&e.body, &plain_ctx, 2);
                 let analysis = extract_state_deps_with_diagnostics(
                     &e.body,
                     &state_names,
@@ -978,24 +983,24 @@ pub fn generate_reactive_component(
                 ));
             }
             HirReactiveMember::OnMount(m) => {
-                let stmts_str = emit_block_stmts(&m.body, &state_names, 2);
+                let stmts_str = emit_block_stmts(&m.body, &plain_ctx, 2);
                 out.push_str(&format!("  useEffect(() => {{\n{}  }}, []);\n", stmts_str));
             }
             HirReactiveMember::OnCleanup(c) => {
-                let stmts_str = emit_block_stmts(&c.body, &state_names, 2);
+                let stmts_str = emit_block_stmts(&c.body, &plain_ctx, 2);
                 out.push_str(&format!(
                     "  useEffect(() => () => {{\n{}  }}, []);\n",
                     stmts_str
                 ));
             }
             HirReactiveMember::Stmt(s) => {
-                out.push_str(&emit_hir_stmt(s, &state_names, 2));
+                out.push_str(&emit_hir_stmt(s, &plain_ctx, 2));
             }
         }
     }
 
     if rc.view.is_some() {
-        let view_js = emit_reactive_view_body(name, hir, rc, &state_names, web_projection, stats);
+        let view_js = emit_reactive_view_body(name, hir, rc, &view_ctx, web_projection, stats);
         out.push_str(&format!("  return (\n{}\n  );\n", view_js));
     }
 

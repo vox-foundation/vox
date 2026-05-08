@@ -14,7 +14,7 @@
 //! empty (the typical case — the parser doesn't know the source path), the
 //! emitter falls back to the filename basename it's writing the module under.
 
-use crate::codegen_ts::hir_emit::{emit_block_stmts, emit_hir_expr};
+use crate::codegen_ts::hir_emit::{emit_block_stmts, emit_hir_expr, EmitCtx};
 use crate::hir::{
     HirDerived, HirEffect, HirModule, HirOnCleanup, HirOnMount, HirReactiveMember,
     HirReactiveModule, HirState,
@@ -151,15 +151,16 @@ fn emit_one(pascal: &str, rm: &HirReactiveModule) -> String {
 }
 
 fn emit_member(m: &HirReactiveMember, state_names: &HashSet<String>, out: &mut String) {
+    let ctx = EmitCtx::new(state_names);
     match m {
         HirReactiveMember::State(HirState { name, init, .. }) => {
-            let init_str = emit_hir_expr(init, state_names);
+            let init_str = emit_hir_expr(init, &ctx);
             out.push_str(&format!(
                 "  const [{name}, set_{name}] = useState({init_str});\n"
             ));
         }
         HirReactiveMember::Derived(HirDerived { name, expr, .. }) => {
-            let expr_str = emit_hir_expr(expr, state_names);
+            let expr_str = emit_hir_expr(expr, &ctx);
             // Conservative dep array: every state name visible in the module.
             // A future slice can re-use extract_state_deps_with_diagnostics
             // for tighter tracking.
@@ -169,16 +170,16 @@ fn emit_member(m: &HirReactiveMember, state_names: &HashSet<String>, out: &mut S
             ));
         }
         HirReactiveMember::Effect(HirEffect { body, .. }) => {
-            let stmts = emit_block_stmts(body, state_names, 2);
+            let stmts = emit_block_stmts(body, &ctx, 2);
             let deps = state_names.iter().cloned().collect::<Vec<_>>().join(", ");
             out.push_str(&format!("  useEffect(() => {{\n{stmts}  }}, [{deps}]);\n"));
         }
         HirReactiveMember::OnMount(HirOnMount { body, .. }) => {
-            let stmts = emit_block_stmts(body, state_names, 2);
+            let stmts = emit_block_stmts(body, &ctx, 2);
             out.push_str(&format!("  useEffect(() => {{\n{stmts}  }}, []);\n"));
         }
         HirReactiveMember::OnCleanup(HirOnCleanup { body, .. }) => {
-            let stmts = emit_block_stmts(body, state_names, 2);
+            let stmts = emit_block_stmts(body, &ctx, 2);
             out.push_str(&format!("  useEffect(() => () => {{\n{stmts}  }}, []);\n"));
         }
         HirReactiveMember::Stmt(_) => {

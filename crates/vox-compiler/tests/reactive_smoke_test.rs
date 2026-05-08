@@ -825,7 +825,7 @@ fn reactive_smoke_op_s218_final_reactive_parity_fixture() {
 fn reactive_smoke_legacy_vs_web_ir_view_whitespace_parity() {
     use std::collections::HashSet;
 
-    use vox_compiler::codegen_ts::hir_emit::emit_hir_expr;
+    use vox_compiler::codegen_ts::hir_emit::{emit_hir_expr, EmitCtx};
     use vox_compiler::codegen_ts::reactive::normalize_reactive_view_jsx_ws;
     use vox_compiler::hir::HirReactiveMember;
     use vox_compiler::web_ir::emit_tsx::emit_component_view_tsx;
@@ -850,7 +850,8 @@ component ParityT() {
         HirReactiveMember::State(s) => s.name.clone(),
         _ => panic!("expected state member"),
     };
-    let legacy = emit_hir_expr(view, &HashSet::from([state_name]));
+    let sn = HashSet::from([state_name]);
+    let legacy = emit_hir_expr(view, &EmitCtx::new(&sn));
     let web = lower_hir_to_web_ir(&hir);
     assert!(
         validate_web_ir(&web).is_empty(),

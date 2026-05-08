@@ -320,7 +320,7 @@ component T() {
         _ => panic!("expected state member"),
     };
     let state_names = HashSet::from([state_name]);
-    let direct = emit_hir_expr(view, &state_names);
+    let direct = emit_hir_expr(view, &vox_compiler::codegen_ts::hir_emit::EmitCtx::new(&state_names));
     let web = lower_hir_to_web_ir(&hir);
     let via = emit_component_view_tsx(&web, "T").expect("emit");
     assert_eq!(
@@ -948,7 +948,7 @@ fn hir_emit_public_exports_include_compat_module() {
         map_jsx_attr_name("on:click"),
         compat::map_jsx_attr_name("on_click")
     );
-    let _ptr: fn(&vox_compiler::hir::HirExpr, &HashSet<String>) -> String = emit_hir_expr;
+    let _ptr: fn(&vox_compiler::hir::HirExpr, &vox_compiler::codegen_ts::hir_emit::EmitCtx<'_>) -> String = emit_hir_expr;
 }
 
 /// Parity chain fixture (post-@island retirement).

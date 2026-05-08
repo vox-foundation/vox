@@ -30,7 +30,7 @@
 //! }
 //! ```
 
-use crate::codegen_ts::hir_emit::{emit_hir_expr, map_hir_type_to_ts};
+use crate::codegen_ts::hir_emit::{emit_hir_expr, map_hir_type_to_ts, EmitCtx};
 use crate::hir::{HirFragmentDecl, HirModule};
 use std::collections::HashSet;
 
@@ -83,7 +83,7 @@ fn emit_one(frag: &HirFragmentDecl, out: &mut String) {
     // Body — emit the markup expression. Param names are visible to the body
     // (no `state_names` rewriting needed; fragments don't host reactive state).
     let empty_state: HashSet<String> = HashSet::new();
-    let body = emit_hir_expr(&frag.body, &empty_state);
+    let body = emit_hir_expr(&frag.body, &EmitCtx::new(&empty_state));
     out.push_str(&format!("  return ({body});\n"));
     out.push_str("}\n");
 }

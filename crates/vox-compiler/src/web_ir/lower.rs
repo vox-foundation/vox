@@ -29,7 +29,7 @@ use serde_json::json;
 
 use crate::codegen_ts::hir_emit::{
     emit_hir_expr, emit_hir_expr_attr_value, expand_bind_hir_attribute, map_hir_type_to_ts,
-    map_jsx_attr_name, transform_hir_view_kwargs, unwrap_inline_hir_block_expr,
+    map_jsx_attr_name, transform_hir_view_kwargs, unwrap_inline_hir_block_expr, EmitCtx,
 };
 use crate::hir::{
     HirEndpointFn, HirEndpointKind, HirExpr, HirJsxAttr, HirJsxElement, HirJsxSelfClosing,
@@ -144,7 +144,7 @@ impl DomArena {
             }),
             _ => {
                 self.expr_fallback_count += 1;
-                let ts = emit_hir_expr(expr, state_names);
+                let ts = emit_hir_expr(expr, &EmitCtx::new(state_names));
                 self.push(DomNode::Expr { ts, span: None })
             }
         }
@@ -190,7 +190,7 @@ fn fold_primitive_web_ir_element(
     hir_attrs: &[HirJsxAttr],
     state_names: &HashSet<String>,
 ) -> (String, Vec<(String, String)>) {
-    let view = transform_hir_view_kwargs(tag, hir_attrs, state_names);
+    let view = transform_hir_view_kwargs(tag, hir_attrs, &EmitCtx::new(state_names));
     let mut attrs: Vec<(String, String)> = Vec::new();
     if let Some(class_expr) = view.class_expr {
         attrs.push(("className".to_string(), class_expr));
@@ -294,14 +294,14 @@ fn inject_primitive_dom_markers(
 /// `bind={…}` expands to `value` + `onChange` like [`crate::codegen_ts::jsx::expand_bind_attribute`].
 fn lower_jsx_attr_pair(attr: &HirJsxAttr, state_names: &HashSet<String>) -> Vec<(String, String)> {
     if attr.name == "bind" {
-        let (value_str, onchange_str) = expand_bind_hir_attribute(&attr.value, state_names);
+        let (value_str, onchange_str) = expand_bind_hir_attribute(&attr.value, &EmitCtx::new(state_names));
         return vec![
             ("value".to_string(), value_str),
             ("onChange".to_string(), onchange_str),
         ];
     }
     let name = map_jsx_attr_name(&attr.name).to_string();
-    let val = emit_hir_expr_attr_value(&attr.value, state_names, &name);
+    let val = emit_hir_expr_attr_value(&attr.value, &EmitCtx::new(state_names), &name);
     vec![(name, val)]
 }
 
@@ -648,10 +648,11 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
     for rc in &hir.components {
         let state_names = reactive_component_name_set_for_web_ir(rc);
 
+        let mem_ctx = EmitCtx::new(&state_names);
         for mem in &rc.members {
             match mem {
                 HirReactiveMember::State(s) => {
-                    let initial = emit_hir_expr(&s.init, &state_names);
+                    let initial = emit_hir_expr(&s.init, &mem_ctx);
                     m.behavior_nodes.push(BehaviorNode::StateDecl {
                         name: qualify(&rc.name, &s.name),
                         initial: Some(initial),
@@ -660,7 +661,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
                     });
                 }
                 HirReactiveMember::Derived(d) => {
-                    let expr = emit_hir_expr(&d.expr, &state_names);
+                    let expr = emit_hir_expr(&d.expr, &mem_ctx);
                     m.behavior_nodes.push(BehaviorNode::DerivedDecl {
                         name: qualify(&rc.name, &d.name),
                         expr,
@@ -668,7 +669,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
                     });
                 }
                 HirReactiveMember::Effect(e) => {
-                    let body = emit_hir_expr(&e.body, &state_names);
+                    let body = emit_hir_expr(&e.body, &mem_ctx);
                     m.behavior_nodes.push(BehaviorNode::EffectDecl {
                         deps: vec![],
                         body,
@@ -676,7 +677,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
                     });
                 }
                 HirReactiveMember::OnMount(om) => {
-                    let body = emit_hir_expr(&om.body, &state_names);
+                    let body = emit_hir_expr(&om.body, &mem_ctx);
                     m.behavior_nodes.push(BehaviorNode::EffectDecl {
                         deps: vec![qualify(&rc.name, "mount")],
                         body,
@@ -684,7 +685,7 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
                     });
                 }
                 HirReactiveMember::OnCleanup(oc) => {
-                    let body = emit_hir_expr(&oc.body, &state_names);
+                    let body = emit_hir_expr(&oc.body, &mem_ctx);
                     m.behavior_nodes.push(BehaviorNode::EffectDecl {
                         deps: vec![qualify(&rc.name, "cleanup")],
                         body,
