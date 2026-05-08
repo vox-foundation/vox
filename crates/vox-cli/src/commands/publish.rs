@@ -4,7 +4,7 @@ use std::path::PathBuf;
 /// `vox publish` — publish the current package to the VoxPM registry.
 pub async fn run(registry_url: Option<&str>) -> Result<()> {
     let manifest_path = PathBuf::from("Vox.toml");
-    let manifest = vox_pm::VoxManifest::load(&manifest_path)
+    let manifest = vox_package::VoxManifest::load(&manifest_path)
         .map_err(|e| anyhow::anyhow!("{e}"))
         .with_context(|| "No Vox.toml found. Nothing to publish.")?;
 
@@ -16,7 +16,7 @@ pub async fn run(registry_url: Option<&str>) -> Result<()> {
         .with_context(|| "Not logged in. Run `vox login` first.")?;
     let token = token.trim();
 
-    let client = vox_pm::RegistryClient::with_auth(url, token);
+    let client = vox_package::RegistryClient::with_auth(url, token);
 
     println!(
         "Publishing {}@{} ({})...",
@@ -29,18 +29,18 @@ pub async fn run(registry_url: Option<&str>) -> Result<()> {
         .map_err(|e| anyhow::anyhow!("{e}"))?
         .into_bytes();
 
-    let content_hash = vox_pm::hash::content_hash(&data);
+    let content_hash = vox_package::hash::content_hash(&data);
 
-    let deps: Vec<vox_pm::registry::PublishDependency> = manifest
+    let deps: Vec<vox_package::registry::PublishDependency> = manifest
         .dependencies
         .iter()
-        .map(|(name, spec)| vox_pm::registry::PublishDependency {
+        .map(|(name, spec)| vox_package::registry::PublishDependency {
             name: name.clone(),
             version_req: spec.version_req().unwrap_or("*").to_string(),
         })
         .collect();
 
-    let req = vox_pm::registry::PublishRequest {
+    let req = vox_package::registry::PublishRequest {
         name: manifest.package.name.clone(),
         version: manifest.package.version.clone(),
         kind: manifest.package.kind.clone(),

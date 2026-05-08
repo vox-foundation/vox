@@ -108,7 +108,7 @@ impl AffinityGroupRegistry {
             },
             AffinityGroup {
                 name: "pm-group".to_string(),
-                patterns: vec!["**/vox-pm/**".to_string()],
+                patterns: vec!["**/vox-package/**".to_string()],
                 default_agent: None,
             },
             AffinityGroup {

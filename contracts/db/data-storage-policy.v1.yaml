@@ -24,15 +24,15 @@ tiers:
       - vox-db
       - vox-clavis
       - vox-test-harness
-    # vox-pm listed until M-26 completes; remove thereafter.
+    # vox-package listed until M-26 completes; remove thereafter.
     temporary_exceptions:
-      - vox-pm
+      - vox-package
     # Additional libSQL files that M-26/M-67 fold away. Listed so the guard
     # ignores them until the migration lands; each line must be deleted in the
     # same PR that removes the corresponding file from disk.
     temporary_file_exceptions:
       - path: .vox_modules/local_store.db
-        owner: vox-pm
+        owner: vox-package
         retired_by: M-67
         expiry: "2026-Q3"
       - path: vox_hardened.db

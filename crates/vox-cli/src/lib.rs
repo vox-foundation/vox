@@ -313,7 +313,7 @@ pub enum Cli {
         #[arg(allow_hyphen_values = true, trailing_var_arg = true)]
         args: Vec<String>,
     },
-    /// Snippet helpers (local `vox-pm` store).
+    /// Snippet helpers (local `vox-package` store).
     Snippet {
         #[command(subcommand)]
         cmd: crate::commands::extras::snippet_cli::SnippetCli,

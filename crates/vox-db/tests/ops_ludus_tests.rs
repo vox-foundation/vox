@@ -3,7 +3,7 @@
 use turso::params;
 use vox_db::VoxDb;
 
-/// Gamification DDL not included in the vox-pm baseline or coordination schema.
+/// Gamification DDL not included in the vox-package baseline or coordination schema.
 ///
 /// Tables already created by `open_memory()`:
 /// - `a2a_messages` (coordination schema)
@@ -13,7 +13,7 @@ use vox_db::VoxDb;
 /// - `actor_state` (v21)
 ///
 /// Tables below are from `vox-ludus/src/schema.rs` and must be applied
-/// manually in tests targeting `vox-pm` CRUD methods.
+/// manually in tests targeting `vox-package` CRUD methods.
 const GAMIFY_DDL: &str = "
 CREATE TABLE IF NOT EXISTS gamify_profiles (
     user_id TEXT PRIMARY KEY,

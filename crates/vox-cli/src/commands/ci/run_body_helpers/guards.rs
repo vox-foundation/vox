@@ -141,7 +141,7 @@ pub(crate) fn source_contains_turso_path_prefix(text: &str) -> bool {
 fn load_turso_import_allowlist(root: &Path) -> Result<Vec<String>> {
     let mut out = vec![
         "crates/vox-db/".to_string(),
-        "crates/vox-pm/".to_string(),
+        "crates/vox-package/".to_string(),
         "crates/vox-compiler/".to_string(),
     ];
     let p = root.join("docs/agents/turso-import-allowlist.txt");
@@ -192,7 +192,7 @@ pub(crate) fn run_turso_import_guard(root: &Path, all: bool) -> Result<()> {
     }
     if !offenders.is_empty() {
         return Err(anyhow!(
-            "turso-import-guard: disallowed Turso crate path prefix outside allowlist in {} file(s): {} — keep Turso usage in vox-db / vox-pm or extend docs/agents/turso-import-allowlist.txt while migrating (see docs/agents/codex-turso-allowlist.md)",
+            "turso-import-guard: disallowed Turso crate path prefix outside allowlist in {} file(s): {} — keep Turso usage in vox-db / vox-package or extend docs/agents/turso-import-allowlist.txt while migrating (see docs/agents/codex-turso-allowlist.md)",
             offenders.len(),
             offenders.join(", ")
         ));
@@ -253,7 +253,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-dei/",
         "crates/vox-publisher/",
         "crates/vox-oratio/",
-        "crates/vox-pm/",
+        "crates/vox-package/",
         "crates/vox-project-scaffold/",
         "crates/vox-mcp/",
         "crates/vox-db/",
@@ -288,7 +288,7 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
         "crates/vox-dei/",
         "crates/vox-publisher/",
         "crates/vox-oratio/",
-        "crates/vox-pm/",
+        "crates/vox-package/",
         "crates/vox-project-scaffold/",
         "crates/vox-mcp/",
         "crates/vox-db/",

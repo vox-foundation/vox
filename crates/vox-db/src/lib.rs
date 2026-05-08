@@ -11,7 +11,7 @@
 //! | **[`VoxDb`]** | Stable **Rust type** for this facade; use it in signatures and tests. |
 //! | **[`Codex`]** | **Type alias** for `VoxDb` — same type, product-facing name in docs/UI. |
 //! | **Arca** | Internal name for **schema + SQL** owned by this crate (`crates/vox-db/src/schema/`). |
-//! | **`vox-pm`** | Package registry / artifacts — **not** the SQL schema SSOT. |
+//! | **`vox-package`** | Package registry / artifacts — **not** the SQL schema SSOT. |
 //!
 //! Use [`VoxDb::store`] (async method) for content-addressed blob writes (`ops_cas`); it is not a getter.
 //!

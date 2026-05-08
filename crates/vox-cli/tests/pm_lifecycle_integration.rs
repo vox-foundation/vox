@@ -13,8 +13,8 @@ use tokio::net::TcpListener;
 use vox_cli::commands::pm::{self, PmCli};
 use vox_cli::commands::{add, lock, remove, sync, update};
 use vox_db::VoxDb;
-use vox_pm::lockfile::PackageSource;
-use vox_pm::{DownloadResponse, Lockfile, SemVer, content_hash};
+use vox_package::lockfile::PackageSource;
+use vox_package::{DownloadResponse, Lockfile, SemVer, content_hash};
 
 static PM_WORKDIR_GUARD: Mutex<()> = Mutex::new(());
 
@@ -183,7 +183,7 @@ async fn pm_registry_sync_downloads_locked_artifact() {
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("Vox.toml"), MINIMAL_VOX_TOML).unwrap();
 
-    let artifact: &[u8] = b"vox-pm-registry-integration-artifact-bytes";
+    let artifact: &[u8] = b"vox-package-registry-integration-artifact-bytes";
     let h = content_hash(artifact);
     let mut lock = Lockfile::new();
     lock.add(

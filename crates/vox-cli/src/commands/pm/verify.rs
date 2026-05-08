@@ -3,8 +3,8 @@
 use crate::commands::pm_lifecycle::{self, DEFAULT_REGISTRY_BASE};
 use anyhow::{Context, Result};
 use std::fs;
-use vox_pm::lockfile::PackageSource;
-use vox_pm::{Lockfile, RegistryClient, content_hash};
+use vox_package::lockfile::PackageSource;
+use vox_package::{Lockfile, RegistryClient, content_hash};
 
 fn registry_client_for_verify(registry_url: Option<&str>) -> RegistryClient {
     let base = registry_url.unwrap_or(DEFAULT_REGISTRY_BASE);

@@ -55,7 +55,7 @@ vox-skill-runtime        = { layer = 2 }
 vox-constrained-gen      = { layer = 2 }
 vox-doc-inventory        = { layer = 2 }
 vox-eval                 = { layer = 2 }
-vox-pm                   = { layer = 2 } # depends on compiler/db → really L3, see known_inversions
+vox-package                   = { layer = 2 } # depends on compiler/db → really L3, see known_inversions
 
 # ── L3 — heavy runtimes ───────────────────────────────────────────────────────
 vox-db                   = { layer = 3 }
@@ -127,11 +127,11 @@ to = "vox-orchestrator"
 reason = "CLI ↔ orchestrator coupling is load-bearing for runtime/observability surfaces (vox status, vox attention, vox model *, vox dei, vox live). See docs/src/architecture/build-time-log.md Phase 7 audit."
 
 [[known_inversions]]
-from = "vox-pm"
+from = "vox-package"
 to = "vox-compiler"
-reason = "vox-pm uses compiler for build. Will be re-tiered when vox-pm is split into vox-pm-types (L1) + vox-pm-build (L3) in a follow-up."
+reason = "vox-package uses compiler for build. Will be re-tiered when vox-package is split into vox-package-types (L1) + vox-package-build (L3) in a follow-up."
 
 [[known_inversions]]
-from = "vox-pm"
+from = "vox-package"
 to = "vox-db"
-reason = "Same as above — vox-pm has DB-backed state. Will be re-tiered."
+reason = "Same as above — vox-package has DB-backed state. Will be re-tiered."

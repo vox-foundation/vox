@@ -4,9 +4,9 @@ use crate::commands::pm_lifecycle::{self, DEFAULT_REGISTRY_BASE};
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::PathBuf;
-use vox_pm::RegistryClient;
-use vox_pm::lockfile::PackageSource;
-use vox_pm::{Lockfile, VoxManifest, content_hash};
+use vox_package::RegistryClient;
+use vox_package::lockfile::PackageSource;
+use vox_package::{Lockfile, VoxManifest, content_hash};
 
 fn registry_client_for_sync(registry_url: Option<&str>) -> RegistryClient {
     let base = registry_url.unwrap_or(DEFAULT_REGISTRY_BASE);

@@ -1,5 +1,5 @@
 [package]
-name = "vox-pm"
+name = "vox-package"
 version.workspace = true
 edition.workspace = true
 

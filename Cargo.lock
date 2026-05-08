@@ -10695,9 +10695,9 @@ dependencies = [
  "vox-openclaw-runtime",
  "vox-orchestrator",
  "vox-orchestrator-mcp",
+ "vox-package",
  "vox-plugin-catalog",
  "vox-plugin-host",
- "vox-pm",
  "vox-populi",
  "vox-primitives",
  "vox-project-scaffold",
@@ -11429,7 +11429,7 @@ dependencies = [
  "vox-oratio",
  "vox-orchestrator-queue",
  "vox-orchestrator-types",
- "vox-pm",
+ "vox-package",
  "vox-populi",
  "vox-protocol",
  "vox-publisher",
@@ -11523,9 +11523,9 @@ dependencies = [
  "vox-oratio",
  "vox-orchestrator",
  "vox-orchestrator-types",
+ "vox-package",
  "vox-plugin-host",
  "vox-plugin-types",
- "vox-pm",
  "vox-populi",
  "vox-project-scaffold",
  "vox-protocol",
@@ -11565,6 +11565,27 @@ dependencies = [
  "serde",
  "serde_yaml",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "vox-package"
+version = "0.5.0"
+dependencies = [
+ "bincode",
+ "data-encoding",
+ "glob",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "toml 0.8.23",
+ "turso",
+ "vox-compiler",
+ "vox-db",
+ "vox-reqwest-defaults",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -11852,27 +11873,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vox-pm"
-version = "0.5.0"
-dependencies = [
- "bincode",
- "data-encoding",
- "glob",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "toml 0.8.23",
- "turso",
- "vox-compiler",
- "vox-db",
- "vox-reqwest-defaults",
- "workspace-hack",
-]
-
-[[package]]
 name = "vox-populi"
 version = "0.5.0"
 dependencies = [
@@ -11943,7 +11943,7 @@ dependencies = [
  "anyhow",
  "serde",
  "tempfile",
- "vox-pm",
+ "vox-package",
  "vox-repository",
  "workspace-hack",
 ]
@@ -12139,8 +12139,8 @@ dependencies = [
  "vox-container",
  "vox-db",
  "vox-openclaw-runtime",
+ "vox-package",
  "vox-plugin-host",
- "vox-pm",
  "vox-reqwest-defaults",
  "vox-skill-runtime",
  "workspace-hack",

@@ -1,7 +1,7 @@
 /// Configuration for opening **Codex** / [`crate::VoxDb`] (Turso or libSQL).
 #[derive(Debug, Clone)]
 pub enum DbConfig {
-    /// Remote Turso / libSQL (sync client; see `vox-pm` `open_remote`).
+    /// Remote Turso / libSQL (sync client; see `vox-package` `open_remote`).
     Remote {
         /// Database URL (e.g. `libsql://...`).
         url: String,

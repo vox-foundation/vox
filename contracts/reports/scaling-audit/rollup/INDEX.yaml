@@ -3242,65 +3242,65 @@
   pattern: repo/ci
   file: by-crate/vox-plugin-webhook.md
 - id: SCALE-VOX_PM-ASYNC-IO
-  crate: vox-pm
+  crate: vox-package
   template: async-io
   pattern: scaling/blocking-in-async
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_PM-MEMORY-SLURP
-  crate: vox-pm
+  crate: vox-package
   template: memory-slurp
   pattern: scaling/unbounded-read
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_PM-IO-CACHE-LOOP
-  crate: vox-pm
+  crate: vox-package
   template: io-cache-loop
   pattern: scaling/cache-miss-hot-read
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_PM-ENV-SSOT
-  crate: vox-pm
+  crate: vox-package
   template: env-ssot
   pattern: scaling/env-default-duplication
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_PM-REGEX-COMPILE
-  crate: vox-pm
+  crate: vox-package
   template: regex-compile
   pattern: scaling/regex-new-hot
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_PM-SQL-BOUNDS
-  crate: vox-pm
+  crate: vox-package
   template: sql-bounds
   pattern: scaling/sql-no-limit
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_PM-HTTP-TIMEOUTS
-  crate: vox-pm
+  crate: vox-package
   template: http-timeouts
   pattern: scaling/http-client-no-timeout
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_PM-PATH-SSOT
-  crate: vox-pm
+  crate: vox-package
   template: path-ssot
   pattern: scaling/path-literal
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_PM-NUMERIC-SSOT
-  crate: vox-pm
+  crate: vox-package
   template: numeric-ssot
   pattern: scaling/magic-limit
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_PM-INDEX-MEMORY
-  crate: vox-pm
+  crate: vox-package
   template: index-memory
   pattern: scaling/large-in-memory-accumulator
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_PM-CONCURRENCY-STRUCTURE
-  crate: vox-pm
+  crate: vox-package
   template: concurrency-structure
   pattern: scaling/nested-pairwise-loop
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_PM-CI-THROUGHPUT
-  crate: vox-pm
+  crate: vox-package
   template: ci-throughput
   pattern: repo/ci
-  file: by-crate/vox-pm.md
+  file: by-crate/vox-package.md
 - id: SCALE-VOX_POPULI-ASYNC-IO
   crate: vox-populi
   template: async-io

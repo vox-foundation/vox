@@ -2,7 +2,7 @@
 //!
 //! Covers two V3/agents-domain table groups:
 //! - **`agent_sessions`** — lifecycle tracking: create, close, query.
-//! - **`llm_interactions`** + **`llm_feedback`** — RLHF data pipeline used by `vox-pm/feedback.rs`.
+//! - **`llm_interactions`** + **`llm_feedback`** — RLHF data pipeline used by `vox-package/feedback.rs`.
 
 use turso::params;
 
@@ -116,7 +116,7 @@ impl crate::VoxDb {
 
     /// Append a row to `llm_interactions`. Returns the inserted `rowid`.
     ///
-    /// Called from `vox-pm/src/feedback.rs` `FeedbackCollector::persist_to_store`.
+    /// Called from `vox-package/src/feedback.rs` `FeedbackCollector::persist_to_store`.
     pub async fn log_interaction(
         &self,
         session_id: &str,
@@ -257,7 +257,7 @@ impl crate::VoxDb {
 
     /// Append a `llm_feedback` row linked to an `llm_interactions` rowid.
     ///
-    /// Called from `vox-pm/src/feedback.rs` `FeedbackCollector::persist_to_store`.
+    /// Called from `vox-package/src/feedback.rs` `FeedbackCollector::persist_to_store`.
     pub async fn submit_feedback(
         &self,
         interaction_id: i64,

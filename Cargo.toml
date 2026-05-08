@@ -109,7 +109,7 @@ vox-plugin-runtime-container = { path = "crates/vox-plugin-runtime-container" }
 vox-plugin-runtime-wasm   = { path = "crates/vox-plugin-runtime-wasm" }
 vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
 vox-wasm-engine           = { path = "crates/vox-wasm-engine" }
-vox-pm                    = { path = "crates/vox-pm" }
+vox-package                    = { path = "crates/vox-package" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }
 

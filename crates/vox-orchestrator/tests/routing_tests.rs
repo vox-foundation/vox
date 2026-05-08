@@ -26,7 +26,7 @@ async fn test_routing_service_affinity_assignment() {
     q1.capabilities.labels.push("research".to_string());
     agents.insert(a1, std::sync::Arc::new(std::sync::RwLock::new(q1)));
 
-    let task_manifest = vec![FileAffinity::write("crates/vox-pm/src/lib.rs")];
+    let task_manifest = vec![FileAffinity::write("crates/vox-package/src/lib.rs")];
     let caps = TaskCapabilityHints {
         labels: vec!["research".to_string()],
         ..Default::default()

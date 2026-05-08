@@ -28,7 +28,7 @@ struct Vulnerability {
 /// `vox audit` — audit dependencies for known issues.
 pub async fn run() -> Result<()> {
     let manifest_path = PathBuf::from("Vox.toml");
-    let manifest = vox_pm::VoxManifest::load(&manifest_path)
+    let manifest = vox_package::VoxManifest::load(&manifest_path)
         .map_err(|e| anyhow::anyhow!("{e}"))
         .with_context(|| "No Vox.toml found. Run `vox init` first.")?;
 

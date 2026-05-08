@@ -5,8 +5,8 @@ use crate::commands::pm_lifecycle::{
 };
 use anyhow::{Context, Result};
 use std::path::PathBuf;
-use vox_pm::Lockfile;
-use vox_pm::VoxManifest;
+use vox_package::Lockfile;
+use vox_package::VoxManifest;
 
 /// `vox lock [--locked]` — refresh lockfile; `--locked` verifies existing lock matches manifest.
 pub async fn run(verify_only: bool) -> Result<()> {

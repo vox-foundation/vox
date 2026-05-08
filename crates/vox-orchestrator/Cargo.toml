@@ -43,7 +43,7 @@ reqwest = { workspace = true, features = ["json"] }
 vox-reqwest-defaults.workspace = true
 globset = "0.4"
 toml = { workspace = true }
-vox-pm.workspace = true
+vox-package.workspace = true
 vox-ludus = { workspace = true }
 dirs = { workspace = true }
 parking_lot = "0.12"

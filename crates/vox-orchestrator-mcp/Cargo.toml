@@ -45,7 +45,7 @@ vox-db.workspace = true
 vox-search.workspace = true
 vox-config.workspace = true
 vox-repository = { workspace = true, features = ["json-schema"] }
-vox-pm.workspace = true
+vox-package.workspace = true
 vox-ludus.workspace = true
 vox-corpus = { workspace = true, features = ["database"] }
 vox-clavis.workspace = true

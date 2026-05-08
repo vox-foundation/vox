@@ -4,7 +4,7 @@ use std::path::PathBuf;
 /// `vox tree` — display the dependency tree for the current project.
 pub async fn run() -> Result<()> {
     let manifest_path = PathBuf::from("Vox.toml");
-    let manifest = vox_pm::VoxManifest::load(&manifest_path)
+    let manifest = vox_package::VoxManifest::load(&manifest_path)
         .map_err(|e| anyhow::anyhow!("{e}"))
         .with_context(|| "No Vox.toml found. Run `vox init` first.")?;
 
@@ -35,7 +35,7 @@ pub async fn run() -> Result<()> {
         // If we have a lockfile, show resolved version
         let lock_path = PathBuf::from("vox.lock");
         if lock_path.exists() {
-            if let Ok(lockfile) = vox_pm::Lockfile::load(&lock_path) {
+            if let Ok(lockfile) = vox_package::Lockfile::load(&lock_path) {
                 if let Some(locked_ver) = lockfile.get_locked_version(name) {
                     let indent = if is_last { "    " } else { "│   " };
                     println!("{indent}→ resolved: {locked_ver}");

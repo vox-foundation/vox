@@ -8,7 +8,7 @@ use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::fs;
 use std::path::{Path, PathBuf};
-use vox_pm::{PublishDependency, PublishRequest, RegistryClient, content_hash};
+use vox_package::{PublishDependency, PublishRequest, RegistryClient, content_hash};
 
 /// Advanced PM subcommands (registry, cache, verification).
 #[derive(Subcommand)]
@@ -146,7 +146,7 @@ pub async fn run(cmd: PmCli) -> Result<()> {
             let content_hash_val = content_hash(&data);
             let manifest_path = PathBuf::from("Vox.toml");
             let deps = if manifest_path.exists() {
-                let m = vox_pm::VoxManifest::load(&manifest_path)
+                let m = vox_package::VoxManifest::load(&manifest_path)
                     .map_err(|e| anyhow::anyhow!("{e}"))?;
                 m.dependencies
                     .iter()

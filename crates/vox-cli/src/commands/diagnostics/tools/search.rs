@@ -4,7 +4,7 @@ use anyhow::Result;
 pub async fn run(query: &str, registry_url: Option<&str>) -> Result<()> {
     let url = registry_url
         .unwrap_or("https://raw.githubusercontent.com/vox-foundation/vox/main/registry");
-    let client = vox_pm::RegistryClient::new(url);
+    let client = vox_package::RegistryClient::new(url);
 
     println!("Searching for `{query}`...\n");
 
