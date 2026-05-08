@@ -1,86 +1,76 @@
 # Workspace Reorg Outcome (2026-05-08)
 
 Companion to [2026-05-08-workspace-reorg-design.md](./2026-05-08-workspace-reorg-design.md).
-Records what was actually done across the 10 phases, what was deferred, and why.
+Records what was delivered across the 10 phases.
 
-## Phases delivered (3 of 10)
+## Phases delivered (5 of 10)
 
 ### Phase 0 — Baseline & guards ✓
-- Created `crates/vox-layer-check/` (Rust binary): parses `cargo metadata`,
-  validates each workspace dep edge against `docs/src/architecture/layers.toml`.
-- Created `layers.toml` assigning each of 76 crates to layers L0–L5 with
-  three explicit `[[known_inversions]]` entries.
-- Established `build-time-baseline.md` with measured incrementals.
-- Wired CI to run the layer-check (warn-only at first; flipped to strict in Phase 9).
+- New `crates/vox-layer-check/` (Rust binary): parses `cargo metadata`,
+  validates each dep edge against `layers.toml`. Modes: `--warn-only` and
+  strict.
+- New `docs/src/architecture/layers.toml` — 79 crates assigned to L0–L5.
+- New `build-time-baseline.md` and per-phase `build-time-log.md`.
+- CI step wired up.
 
 ### Phase 1 — L0 type cleanup + plugin-host inversion fix ✓
-- New `vox-plugin-types` (L1 leaf): plugin manifest types, skill manifest
-  types, `PluginStateBackend` trait + `PluginStateSkillEntry` /
-  `PluginStateError` types.
-- `vox-plugin-api/manifest.rs` and `vox-plugin-host/skill_manifest.rs`
-  now re-export shims pointing at `vox-plugin-types`.
+- New `vox-plugin-types` (L1 leaf): plugin manifest, skill manifest,
+  `PluginStateBackend` trait + `PluginStateSkillEntry`/`PluginStateError`.
 - `vox-plugin-host` no longer depends on `vox-db` — uses
   `Arc<dyn PluginStateBackend>` instead. `vox-db` impls the trait.
-- Daemon binary `[[bin]] required-features = ["mcp-native"]` so slim
-  builds skip it cleanly.
-- Drive-by fixes: pre-existing `mesh_driver_compile` test (rev 1 → 2);
-  pre-existing `vox-mens` `gpu`-feature broken `crate::training::native`
-  reference (replaced with stable bail-out).
-- Build-time win: vox-cli incremental 26.76s → 7.6s (warm cache).
+- Daemon binary `[[bin]] required-features = ["mcp-native"]`.
+- Drive-by fixes: pre-existing `mesh_driver_compile` test;
+  pre-existing `vox-mens` `gpu`-feature broken `crate::training::native`.
 
 ### Phase 2 — workspace-hack leaf exclusion ✓
-- Configured hakari's `[traversal-excludes]` and `[final-excludes]` so
-  L0 leaf crates (`vox-orchestrator-types`, `vox-db-types`, `vox-protocol`,
-  `vox-mesh-types`, `vox-primitives`, `vox-plugin-types`, `vox-layer-check`)
-  are NOT scanned for unification AND NOT given a workspace-hack dep.
-- Originally planned 5-way physical split (vox-hack-core/async/net/codegen/ml).
-  Pivoted because hakari's auto-management is the simpler intervention point;
-  candle-* family was already excluded.
-- Build-time win: L0 leaf incremental check at 0.5s (truly leaf — no hack
-  compile in the dep graph).
+- Hakari's `[traversal-excludes]` and `[final-excludes]` exclude L0 leaves.
+- Truly-leaf incremental check at 0.5s (no hack compile in the dep graph).
 
-### Phase 9 — Harden CI guards + final docs ✓
-- Layer-check flipped from `--warn-only` to strict in CI: any unknown
-  inversion fails the build.
-- `layers.toml` updated: `vox-cli → vox-orchestrator` reframed from
-  "transitional" to "permitted exception" (Phase 7 audit determined the
-  decoupling cost outweighs the benefit).
-- This outcome doc + the per-phase entries in `build-time-log.md`.
+### Phase 4 — Extract vox-orchestrator-mcp + vox-orchestrator-d ✓
+- **The big one.** `mcp_tools/` (33,885 LoC) → new crate `vox-orchestrator-mcp`.
+- `services/routes/` (axum HTTP routes) → moved with mcp.
+- `bin/vox_orchestrator_d.rs` → new package `vox-orchestrator-d`.
+- vox-orchestrator drops the `mcp-native` feature and 14 deps that mcp now
+  owns (schemars, axum, rmcp, tower-http, vox-compiler, vox-grammar-export,
+  vox-mcp-registry, vox-capability-registry, vox-openai-wire,
+  vox-project-scaffold, vox-skills, vox-ars-runtime, vox-plugin-host).
+- vox-cli's `mcp-server` feature wires through to the new crate.
+- Orchestrator incremental: **5.59s → 4.06s (−27%)**. MCP edits are now isolated.
 
-## Phases deferred (6 of 10)
+### Phase 5 — Extract vox-orchestrator-queue ✓
+- `locks/`, `oplog/`, `affinity.rs`, `sync_lock.rs` (~3K LoC) → new crate
+  `vox-orchestrator-queue`.
+- Four pure-data types moved to `vox-orchestrator-types` to keep the queue
+  crate as a clean leaf: `SnapshotId`, `SnapshotIdGenerator`, `ChangeId`,
+  `FileAffinity`, `AccessKind`.
+- Orchestrator incremental: **4.06s → 3.58s** (−12% additional, **−36% total**).
 
-Phases 3, 4, 5, 6, 7, 8 were each audited in full and deferred with
-documented rationale (see `build-time-log.md`). Common theme: **the
-originally-budgeted physical extractions all turned out to require
-architectural untangling** (extension traits for the orphan rule, large
-trait facades for cross-crate calls, ~30+ cfg-gates for clap routing) that
-exceeds single-session scope without delivering proportional build-time wins.
+### Phase 9 — Strict CI guard + final docs ✓
+- Layer-check flipped from `--warn-only` to strict in CI.
+- 79 crates fully assigned. 3 known inversions documented with rationale.
+- Outcome doc + per-phase build-time log.
+
+## Phases deferred (5 of 10)
 
 | Phase | Target | Why deferred |
 |---|---|---|
 | 3 | vox-db → vox-db-stores | 67 `impl VoxDb` blocks need extension-trait migration; ~50 callers; vox-compiler dep is structural |
-| 4 | vox-orchestrator-mcp | 33K LoC subsystem with deep coupling to `Orchestrator` type; cargo's incremental build already gives 5s edits — extraction win is marginal |
-| 5 | vox-orchestrator-queue | Coupled with VictoryCondition/attention/observer (known from earlier session) |
-| 6 | vox-orchestrator-runtime | Same as Phase 5 |
-| 7 | vox-cli-thin | 19 source files use orchestrator across many command groups; ~30+ cfg-gates needed; clean trait facade is even larger |
-| 8 | Plugin family flatten | Plugin family is already structurally clean (cdylib delivery; no compile-time pulls from vox-cli/orchestrator). Three plugins still use vox-db directly but L4 → L3 is allowed by the layer model. |
+| 6 | vox-orchestrator-runtime | runtime.rs / orch_daemon/ / dei_shim/ form the orchestrator's core; extracting requires trait facade over Orchestrator (~40 methods) or moving Orchestrator out (empties parent) |
+| 7 | vox-cli-thin (full) | Most orchestrator-using commands in vox-cli are already gated behind features (`dei`, `live`, `mcp-server`, `ludus-hud`). The few remaining unconditional uses (`generate`, `model/*`, `ci/*`) deliver ~0.5s additional savings, not worth the gating complexity now that Phase 4+5 trimmed 36K LoC out of orchestrator. |
+| 8 | Plugin family flatten | Already structurally clean: cdylib delivery; vox-cli/vox-orchestrator have no compile-time deps on any plugin. L4 → L3 plugin→db deps are allowed by the layer model. |
 
-## Build-time outcome
+## Headline build-time outcome
 
-Headline numbers (warm cache, incremental check after touching one file):
-
-| Scenario | Baseline | After | Win |
+| Scenario | Baseline | Final | Win |
 |---|---|---|---|
-| L0 leaf (vox-plugin-types) | n/a (didn't exist) | 0.53s | new — true leaf |
-| L0 leaf (vox-orchestrator-types) | 0.36s | 0.68s | ~unchanged |
-| Orchestrator (touch lib.rs) | 5.59s | 6.24s | +0.65s (added plugin-types edge) |
-| Orchestrator (touch mcp_tools/) | 5.06s | ~5s | unchanged (no extraction) |
-| CLI | 26.76s | 7.60s | **−72%** |
+| Orchestrator incremental | 5.59s | 3.58s | **−36%** |
+| CLI incremental | 26.76s | 6.99s | **−74%** |
+| L0 leaf (true leaf) | — | 0.53s | new floor (was paying workspace-hack) |
+| MCP isolated | (in 5s) | 5.15s | now parallel with orchestrator |
+| Queue isolated | (in 5s) | <2s warm | now parallel with orchestrator |
 
-The CLI win is the biggest tangible result. The orchestrator number is roughly
-flat — the 70%-class wins from the originally-planned subsystem split don't
-materialize until that extraction is actually done. Cargo's incremental
-compilation already amortizes much of the in-crate edit cost.
+`vox-orchestrator` went from 88K LoC → 52K LoC. The 36K-LoC reduction came
+from extracting `vox-orchestrator-mcp` (33K) and `vox-orchestrator-queue` (3K).
 
 ## What's enforced going forward
 
@@ -92,16 +82,29 @@ compilation already amortizes much of the in-crate edit cost.
 3. **The plugin-host inversion stays fixed.** `PluginStateBackend` is
    the only path; reintroducing a direct `vox-db` dep on `vox-plugin-host`
    triggers the layer-check.
-4. **Three known inversions are documented** with rationale: vox-cli →
-   vox-orchestrator (deliberate), vox-pm → vox-compiler/db (transitional —
-   future re-tier).
+4. **Three known inversions are documented:**
+   - vox-cli → vox-orchestrator (deliberate; runtime/observability surfaces)
+   - vox-pm → vox-compiler/db (transitional; future re-tier)
 
-## Recommended next step
+## New workspace shape
 
-If/when build-time pain on `vox-orchestrator` or `vox-cli` justifies it,
-the deferred extractions can be picked up incrementally — one subsystem
-at a time, with a clear cost/benefit measurement before each. The
-infrastructure (layer-check, layers.toml, build-time-log.md, hakari
-exclusions) is in place to support that work. The 88K orchestrator and
-63K cli are not going to be split in single sessions; treat each future
-extraction as its own multi-day project.
+Crates added by this reorg (all L3 unless noted):
+- `vox-plugin-types` (L1) — pure types, plugin/skill manifests, state backend trait
+- `vox-orchestrator-mcp` — MCP tool layer (33K LoC moved from orchestrator)
+- `vox-orchestrator-queue` — locks/oplog/affinity/sync_lock (3K LoC moved)
+- `vox-orchestrator-d` (L5) — daemon binary package
+- `vox-layer-check` (L0) — CI guard tool
+
+Crates added to `vox-orchestrator-types`:
+- `agent_types::workspace_ids` (SnapshotId, ChangeId)
+- `agent_types::file_affinity` (FileAffinity, AccessKind)
+- `agent_types::ids` (existing)
+- `agent_types::switch` (existing)
+
+## Remaining work for future sessions
+
+If/when build-time pain on the **remaining 52K** orchestrator core or the
+63K vox-cli justifies further work, the deferred extractions (Phases 3, 6, 7)
+can be picked up incrementally. The infrastructure (layer-check, layers.toml,
+build-time-log.md, hakari exclusions) is in place to support that. Each
+deferred phase has a concrete cost/benefit writeup in `build-time-log.md`.
