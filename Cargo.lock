@@ -12707,6 +12707,7 @@ dependencies = [
  "vox-mesh-types",
  "vox-oratio",
  "vox-orchestrator",
+ "vox-plugin-host",
  "vox-populi",
  "vox-primitives",
  "vox-protocol",
@@ -13540,6 +13541,7 @@ dependencies = [
  "serde_json",
  "vox-capability-registry",
  "vox-oratio",
+ "vox-plugin-host",
  "workspace-hack",
 ]
 
