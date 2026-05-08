@@ -25,7 +25,16 @@ pub(super) fn select_candle_device(
 
     let (device, label) = match kind {
         DeviceKind::Cpu => (Device::Cpu, "cpu".into()),
-        DeviceKind::Cuda => (Device::new_cuda(0)?, "cuda:0".into()),
+        DeviceKind::Cuda => {
+            #[cfg(feature = "cuda")]
+            {
+                (Device::new_cuda(0)?, "cuda:0".into())
+            }
+            #[cfg(not(feature = "cuda"))]
+            {
+                anyhow::bail!("Plugin built without the `cuda` feature — recompile with `--features cuda`");
+            }
+        }
         DeviceKind::Metal => (Device::new_metal(0)?, "metal:0".into()),
         DeviceKind::Best => {
             let g = crate::device::probe_gpu();

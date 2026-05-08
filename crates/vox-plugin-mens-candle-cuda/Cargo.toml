@@ -16,8 +16,9 @@ vox-clavis = { workspace = true }
 vox-eval = { workspace = true }
 vox-compiler = { workspace = true }
 abi_stable = { workspace = true }
-candle-core = { workspace = true, features = ["cuda"] }
-candle-nn = { workspace = true, features = ["cuda"] }
+candle-core = { workspace = true }
+candle-nn = { workspace = true }
+
 qlora-rs = { workspace = true }
 peft-rs = { workspace = true }
 safetensors = { workspace = true }
@@ -33,6 +34,13 @@ ctrlc = { workspace = true }
 owo-colors = { workspace = true }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "sync"] }
+
+[features]
+default = []
+# Opt-in CUDA kernel compilation. Requires working nvcc + MSVC toolchain.
+# Without this feature, the plugin compiles against CPU candle and GPU-only
+# ops return a clear runtime error.
+cuda = ["candle-core/cuda", "candle-nn/cuda"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
