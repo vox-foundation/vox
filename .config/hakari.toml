@@ -25,6 +25,21 @@ platforms = [
 # Write out exact versions rather than a semver range. (Defaults to false.)
 # exact-versions = true
 
+# L0 pure-types crates: keep them out of workspace-hack so they don't pull in
+# the unified feature floor (tokio[full], reqwest, axum, hyper, wasmtime, ...).
+# These crates have only serde/thiserror-style deps and benefit nothing from
+# unification. See docs/src/architecture/2026-05-08-workspace-reorg-design.md Phase 2.
+[traversal-excludes]
+workspace-members = [
+    "vox-orchestrator-types",
+    "vox-db-types",
+    "vox-protocol",
+    "vox-mesh-types",
+    "vox-primitives",
+    "vox-plugin-types",
+    "vox-layer-check",
+]
+
 [final-excludes]
 third-party = [
     { name = "candle-core" },
@@ -32,4 +47,15 @@ third-party = [
     { name = "candle-transformers" },
     { name = "float8" },
     { name = "cudarc" }
+]
+# Don't add `workspace-hack = ...` to these — they're truly leaf and shouldn't
+# pay the workspace-hack compile cost.
+workspace-members = [
+    "vox-orchestrator-types",
+    "vox-db-types",
+    "vox-protocol",
+    "vox-mesh-types",
+    "vox-primitives",
+    "vox-plugin-types",
+    "vox-layer-check",
 ]

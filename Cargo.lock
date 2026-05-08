@@ -10965,7 +10965,6 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
- "workspace-hack",
 ]
 
 [[package]]
@@ -11702,7 +11701,6 @@ dependencies = [
  "async-trait",
  "serde",
  "thiserror 1.0.69",
- "workspace-hack",
 ]
 
 [[package]]
@@ -11803,9 +11801,6 @@ dependencies = [
 [[package]]
 name = "vox-primitives"
 version = "0.5.0"
-dependencies = [
- "workspace-hack",
-]
 
 [[package]]
 name = "vox-project-scaffold"
@@ -11825,7 +11820,6 @@ version = "0.5.0"
 dependencies = [
  "serde",
  "serde_json",
- "workspace-hack",
 ]
 
 [[package]]
