@@ -1,6 +1,13 @@
 // vox-mental-tracker — append-only HealthEventLog SSOT, exports (see src/ts/export_contract.ts for row projection), on-device STT via Capacitor.
 import std.mobile
 
+/// Structured parser output. Mirrors apps/vox-mental-tracker/src/ts/intent_parser.ts.
+type ParsedVoice {
+    kind: str,
+    payload_json: str,
+    confidence: float,
+}
+
 @table type HealthEventLog {
     event_id: str
     event_kind: str
@@ -72,21 +79,94 @@ import std.mobile
     return Ok(tid)
 }
 
-@endpoint(kind: query) fn preview_voice_parse(transcript: str) to str {
+/// Best-effort string-to-int. Uses std.json.parse for digit-string coercion;
+/// returns the supplied default on any parse failure.
+fn _parse_int_default(s: str, default_value: int) to int {
+    return match std.json.parse("{\"v\":" + s + "}") {
+        Ok(j) => match j.get_int("v") {
+            Ok(n) => n
+            Error(_) => default_value
+        }
+        Error(_) => default_value
+    }
+}
+
+/// Clamp `n` into [lo, hi].
+fn _clamp(n: int, lo: int, hi: int) to int {
+    if n < lo { return lo }
+    if n > hi { return hi }
+    return n
+}
+
+/// Authoritative voice classifier (mirrors src/ts/intent_parser.ts). Returns a
+/// structured ParsedVoice; the UI / save flow pulls each field directly.
+@endpoint(kind: query) fn parse_voice(transcript: str) to ParsedVoice {
     let t = transcript.trim().to_lower()
-    if t.contains("mood") {
-        return "{\"kind\":\"mood_recorded\",\"payload\":{\"mood_score\":3},\"confidence\":0.55}"
+
+    // Mood: "I feel like a 3" / "mood is 4"
+    let mood_re = std.regex.compile("(?:mood|feeling).*?(\\d)")
+    match mood_re {
+        Ok(re) => match re.find(t) {
+            Some(m) => match m.group(1) {
+                Some(d) => {
+                    let raw = _parse_int_default(d, 3)
+                    let score = _clamp(raw, 1, 5)
+                    return { kind: "mood_recorded", payload_json: "{\"mood_score\":" + str(score) + "}", confidence: 0.75 }
+                }
+                None => "fallthrough"
+            }
+            None => "fallthrough"
+        }
+        Error(_) => "fallthrough"
     }
-    if t.contains("ate ") or t.contains("eating ") or t.contains("had ") {
-        return "{\"kind\":\"meal_recorded\",\"payload\":{\"description\":\"meal\",\"meal_type\":\"snack\"},\"confidence\":0.6}"
+
+    // Exercise: "ran 30 min", "walked for 15 minutes"
+    let ex_re = std.regex.compile("(?:ran|run|jogged|walked)\\s+(?:for\\s+)?(\\d+)\\s*(?:min|minutes)")
+    match ex_re {
+        Ok(re) => match re.find(t) {
+            Some(m) => match m.group(1) {
+                Some(d) => {
+                    let mins = _parse_int_default(d, 0)
+                    return { kind: "exercise_recorded", payload_json: "{\"activity\":\"cardio\",\"duration_minutes\":" + str(mins) + "}", confidence: 0.7 }
+                }
+                None => "fallthrough"
+            }
+            None => "fallthrough"
+        }
+        Error(_) => "fallthrough"
     }
-    if t.contains("ran ") or t.contains("run ") or t.contains("jogged ") or t.contains("walked ") {
-        return "{\"kind\":\"exercise_recorded\",\"payload\":{\"activity\":\"cardio\",\"duration_minutes\":20},\"confidence\":0.65}"
+
+    // Meal: "ate X" / "had X" / "eating X" — capture the rest of the line
+    let meal_re = std.regex.compile("(?:ate|eating|had)\\s+(.+)")
+    match meal_re {
+        Ok(re) => match re.find(t) {
+            Some(m) => match m.group(1) {
+                Some(desc_raw) => {
+                    let desc = desc_raw.trim().replace("\"", "'")
+                    return { kind: "meal_recorded", payload_json: "{\"description\":\"" + desc + "\"}", confidence: 0.65 }
+                }
+                None => "fallthrough"
+            }
+            None => "fallthrough"
+        }
+        Error(_) => "fallthrough"
     }
-    if t.contains("sleep") or t.contains("bed") or t.contains("nap") {
-        return "{\"kind\":\"sleep_started\",\"payload\":{},\"confidence\":0.55}"
+
+    // Sleep: bed / sleep / slept / nap (substring check is sufficient)
+    if t.contains("bed") or t.contains("sleep") or t.contains("slept") or t.contains("nap") {
+        return { kind: "sleep_started", payload_json: "{}", confidence: 0.55 }
     }
-    return "{\"kind\":\"note_recorded\",\"payload\":{\"body\":\"" + transcript.replace("\"", "'") + "\"},\"confidence\":0.4}"
+
+    // Default — preserve the whole utterance as a note.
+    let body = transcript.replace("\"", "'")
+    return { kind: "note_recorded", payload_json: "{\"body\":\"" + body + "\"}", confidence: 0.4 }
+}
+
+/// Backward-compatible string facade over parse_voice. Kept so older UI /
+/// fixture consumers don't break; new code should call parse_voice directly.
+@endpoint(kind: query) fn preview_voice_parse(transcript: str) to str {
+    let p = parse_voice(transcript)
+    return "{\"kind\":\"" + p.kind + "\",\"payload\":" + p.payload_json + ",\"confidence\":" + str(p.confidence) + "}"
 }
 
 /// Per-kind weekly rollup. Counts effective (non-superseded) events per kind.
@@ -288,8 +368,12 @@ component ExportPage() {
 
 component VoicePage() {
     state transcript_raw: str = ""
-    state parsed_preview: str = ""
-    state status: str = "Transcribe, then parse preview"
+    state parsed_kind: str = ""
+    state parsed_payload: str = ""
+    state parsed_confidence: float = 0.0
+    state parsed_summary: str = ""
+    state last_saved_event_id: str = ""
+    state status: str = "Tap Transcribe to start."
     view: column(raw_class="mh-root") {
         NavBar()
         heading(level=2) { "Voice → parse → save" }
@@ -298,23 +382,64 @@ component VoicePage() {
             match Speech.transcribe_microphone() {
                 Ok(t) => {
                     transcript_raw = t
-                    status = "Transcript captured — tap Parse preview"
+                    parsed_kind = ""
+                    parsed_payload = ""
+                    parsed_confidence = 0.0
+                    parsed_summary = ""
+                    status = "Transcript captured — tap Parse to classify."
                 }
-                Error(e) => {
-                    status = e
-                }
+                Error(e) => { status = "Transcribe failed: " + e }
             }
         }}) {
             "Transcribe"
         }
         button(on_click={fn() {
-            parsed_preview = preview_voice_parse(transcript_raw)
-            status = "Parsed JSON ready — confirm payload before saving via record_event"
+            let p = parse_voice(transcript_raw)
+            parsed_kind = p.kind
+            parsed_payload = p.payload_json
+            parsed_confidence = p.confidence
+            parsed_summary = preview_voice_parse(transcript_raw)
+            status = "Parsed as " + p.kind + " — review the payload, then Save."
         }}) {
-            "Parse preview"
+            "Parse"
+        }
+        button(on_click={fn() {
+            if parsed_kind == "" {
+                status = "Nothing parsed yet — tap Parse first."
+            } else {
+                let ms = std.time.now_ms()
+                match record_raw_transcript(transcript_raw, parsed_summary, parsed_confidence) {
+                    Ok(tid) => {
+                        match record_event(parsed_kind, parsed_payload, str(ms), "voice", tid, "", "UTC", 0) {
+                            Ok(eid) => {
+                                last_saved_event_id = eid
+                                status = "Saved " + parsed_kind + " (event " + eid + "). Use /timeline to view."
+                            }
+                            Error(e) => { status = "Event save failed: " + e }
+                        }
+                    }
+                    Error(e) => { status = "Transcript persist failed: " + e }
+                }
+            }
+        }}) {
+            "Save"
+        }
+        button(on_click={fn() {
+            transcript_raw = ""
+            parsed_kind = ""
+            parsed_payload = ""
+            parsed_confidence = 0.0
+            parsed_summary = ""
+            last_saved_event_id = ""
+            status = "Cleared. Tap Transcribe to start again."
+        }}) {
+            "Reset"
         }
         text(raw_class="mh-pre") { "RAW: " + transcript_raw }
-        text(raw_class="mh-pre") { "PARSED: " + parsed_preview }
+        text(raw_class="mh-pre") { "KIND: " + parsed_kind }
+        text(raw_class="mh-pre") { "PAYLOAD: " + parsed_payload }
+        text(raw_class="mh-pre") { "CONFIDENCE: " + str(parsed_confidence) }
+        text(raw_class="mh-sub") { "Last saved: " + last_saved_event_id }
         link(href="/") { "← Home" }
     }
 }
