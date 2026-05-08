@@ -75,21 +75,9 @@ extension-points = ["ScriptExecutor"]
 default-source = "github:vox-foundation/vox-plugin-script-execution"
 bundled-in = ["vox-dev"]
 
-[[plugin]]
-id = "execution-api"
-payload-kind = "code"
-description = "Programmatic execution API surface for embedders."
-extension-points = ["ScriptExecutor"]
-default-source = "github:vox-foundation/vox-plugin-execution-api"
-bundled-in = []
-
-[[plugin]]
-id = "stub-check"
-payload-kind = "code"
-description = "Stub-validation diagnostics for the executor."
-extension-points = ["ScriptExecutor"]
-default-source = "github:vox-foundation/vox-plugin-stub-check"
-bundled-in = []
+# execution-api and stub-check removed 2026-05-08: no crate exists for either;
+# placeholder entries with bundled-in=[] provided no value and pointed to non-existent repos.
+# Restore if/when the actual plugin crates are created.
 
 [[plugin]]
 id = "skill-compiler"
