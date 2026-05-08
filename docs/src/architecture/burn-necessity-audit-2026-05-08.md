@@ -2,12 +2,14 @@
 title: "Burn Framework Necessity Audit (2026-05-08)"
 description: "Does the Vox codebase need Burn at all? Production fine-tuning uses Candle; Burn is legacy NdArray dogfood + 4,526 LOC of LoRA scaffolding behind a feature flag. Recommendation: delete unless cross-vendor GPU is a roadmap commitment."
 category: "architecture"
-status: "research"
+status: "executed"
 training_eligible: true
 training_rationale: "Snapshot of ML framework usage; clarifies Burn vs Candle roles and proposes a deletion path with an explicit fork point for cross-vendor GPU."
 ---
 
 # Burn Framework Necessity Audit
+
+> **Status: EXECUTED 2026-05-08.** Burn deleted from the codebase per Option A. See commit history on `claude/infallible-lalande-baf300` for the deletion sequence. Deleted: `vox-plugin-tensor-burn-wgpu`, Burn parity tests, `vox-populi` Burn LoRA + `burn_stack`, `vox-mens` native trainer + `merge-weights` CLI, all Burn modules in `vox-tensor` (~4,550 LOC removed). The `vox-tensor` crate now contains only pure-CPU data loaders. Workspace deps `burn` and `wgpu` removed.
 
 > User question: *"Audit if we even need burn for anything really in this code base. We started out with fine tuning QWEN 3.5 and I think that mostly just uses Candle. Do we need anything for burn now or in the future?"*
 
