@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 08 May 2026 02:42:14 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 08 May 2026 03:33:28 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -22,6 +22,15 @@
     <link>https://vox-lang.org/architecture/plugin-system-audit-2026-05-08.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-audit-2026-05-08.html</guid>
     <description>Audit of the plugin system after major slim-core extractions — ABI drift, SP7 scaffolds, duplicate code paths, dead deps, and build/distribution optimization.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Vox Dashboard — Design Brief for Anthropic Labs Design (2026)</title>
+    <link>https://vox-lang.org/architecture/vox-dashboard-design-brief-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-dashboard-design-brief-2026.html</guid>
+    <description>Screen-by-screen spec for the Vox dashboard redesign. VUV-form code examples, primitive inventory, token map, anti-patterns.</description>
     <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -229,16 +238,6 @@
     <link>https://vox-lang.org/adr/032-vox-ui-reactive-modules.html</link>
     <guid isPermaLink="true">https://vox-lang.org/adr/032-vox-ui-reactive-modules.html</guid>
     <description>Introduces a `.vox.ui` file-suffix convention that allows module-scope `state` / `derived` / `effect` / `on mount` / `on cleanup` reactive members. Lowers to a…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 033 — Typed parametric fragment primitive</title>
-    <link>https://vox-lang.org/adr/033-typed-fragment-primitive.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/033-typed-fragment-primitive.html</guid>
-    <description>Introduces a `fragment` bare-keyword scope for typed parametric markup blocks that are passable as props, callable multiple times with different arguments, and…</description>
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
