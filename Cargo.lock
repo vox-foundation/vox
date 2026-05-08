@@ -12155,6 +12155,7 @@ dependencies = [
  "vox-skills",
  "vox-ssg",
  "vox-toestub",
+ "vox-wasm-host",
  "vox-workflow-runtime",
  "walkdir",
  "wasmtime",
@@ -12211,7 +12212,6 @@ dependencies = [
  "tokio",
  "vox-clavis",
  "vox-config",
- "vox-container",
  "vox-deploy-codegen",
  "vox-eval",
  "vox-grammar-export",
@@ -12503,7 +12503,6 @@ dependencies = [
  "vox-cli",
  "vox-compiler",
  "vox-config",
- "vox-container",
  "vox-deploy-codegen",
  "vox-lsp",
  "vox-orchestrator",
@@ -13049,6 +13048,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-plugin-runtime-container"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tracing",
+ "vox-container",
+ "vox-plugin-api",
+ "vox-skill-runtime",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-plugin-runtime-wasm"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tracing",
+ "vox-plugin-api",
+ "vox-skill-runtime",
+ "vox-wasm-host",
+ "wasmtime",
+ "wasmtime-wasi",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-plugin-script-execution"
 version = "0.1.0"
 dependencies = [
@@ -13387,6 +13418,7 @@ dependencies = [
  "vox-plugin-host",
  "vox-pm",
  "vox-reqwest-defaults",
+ "vox-skill-runtime",
  "workspace-hack",
 ]
 
@@ -13451,6 +13483,18 @@ dependencies = [
  "vox-reqwest-defaults",
  "vox-scaling-policy",
  "walkdir",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-wasm-host"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "tracing",
+ "wasmtime",
+ "wasmtime-wasi",
  "workspace-hack",
 ]
 

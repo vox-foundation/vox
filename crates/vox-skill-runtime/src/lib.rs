@@ -20,5 +20,5 @@
 pub mod detect;
 pub mod runtime;
 
-pub use detect::{RuntimePreference, detect_runtime};
+pub use detect::{RuntimeChoice, RuntimePreference, detect_choice, detect_runtime};
 pub use runtime::{BuildOpts, RunOpts, RunOutcome, SkillRuntime};

@@ -1,8 +1,7 @@
 //! Wasmtime-based WASI sandbox runtime for skill execution.
 //!
-//! Implements [`SkillRuntime`] using wasmtime with WASI preview-1/preview-2
-//! capability-bound sandboxing. This is the default runtime for pure-compute skills
-//! (no subprocess, no GPU, no native libs).
+//! Implements [`SkillRuntime`] by delegating to [`vox_wasm_host::WasmHost`] — the
+//! single-source-of-truth Wasmtime engine + WASI wiring shared with `vox run --backend wasi`.
 //!
 //! # Capabilities
 //! - Pure-compute: ✅ (text transforms, JSON, regex, parsing, classification)
@@ -10,35 +9,38 @@
 //! - File IO: ✅ (via WASI preopens — restricted to declared directories)
 //! - Subprocess exec: ❌ (not in WASI — use runtime-container)
 //! - GPU access: ❌ (not addressable in WASM — use runtime-container)
-//! - Threads: ⚠️ (wasi-threads exists but immature)
-//!
-//! # Status: SCAFFOLD
-//! The engine construction and module loading work. Full WASI preopen plumbing,
-//! fuel-based timeouts, and wasi-http wiring are TODO items tracked in
-//! `docs/src/architecture/vox-container-vs-wasm-2026-05-08.md` Phase 4.
 
 use anyhow::Result;
-use std::path::PathBuf;
 use vox_skill_runtime::{BuildOpts, RunOpts, RunOutcome, SkillRuntime};
-use wasmtime::{Config, Engine, Module, Store};
-use wasmtime_wasi::WasiCtxBuilder;
+use vox_wasm_host::{Preopen, PreopenMode, WasmExecOpts, WasmHost};
+use wasmtime::Module;
 
 /// Wasmtime-based WASI sandbox runtime.
 ///
-/// Provides the fastest cold-start (~µs) and smallest footprint (~5MB embedded)
-/// of all `SkillRuntime` implementations. No external daemon required.
+/// Delegates all Wasmtime engine construction, WASI context wiring, and
+/// module execution to [`vox_wasm_host::WasmHost`].
 pub struct WasmRuntime {
-    engine: Engine,
+    host: WasmHost,
 }
 
 impl WasmRuntime {
-    /// Create a new WasmRuntime with a fuel-enabled engine.
+    /// Create a new `WasmRuntime` with a fuel-enabled engine.
     pub fn new() -> Result<Self> {
-        let mut cfg = Config::new();
-        // Fuel enables bounded execution / timeout enforcement.
-        cfg.consume_fuel(true);
-        let engine = Engine::new(&cfg)?;
-        Ok(Self { engine })
+        // Default fuel: 1 billion instructions (~seconds of compute on modern hardware).
+        let host = WasmHost::with_fuel(1_000_000_000)?;
+        Ok(Self { host })
+    }
+
+    /// Create a `WasmRuntime` with a custom fuel limit.
+    pub fn with_fuel(fuel: u64) -> Result<Self> {
+        let host = WasmHost::with_fuel(fuel)?;
+        Ok(Self { host })
+    }
+}
+
+impl Default for WasmRuntime {
+    fn default() -> Self {
+        Self::new().expect("Failed to create WasmRuntime")
     }
 }
 
@@ -53,8 +55,6 @@ impl SkillRuntime for WasmRuntime {
     }
 
     fn build(&self, opts: &BuildOpts) -> Result<()> {
-        // For WASM: no image build step. Validate the artifact is a .wasm.
-        // Optionally precompile with Module::serialize for faster subsequent loads.
         let artifact = opts
             .artifact_path
             .as_ref()
@@ -68,12 +68,12 @@ impl SkillRuntime for WasmRuntime {
                 "WASM artifact not found at expected path; \
                  skill must be pre-compiled to .wasm before execution"
             );
-            // Not a hard error at build time — the artifact may not exist yet.
             return Ok(());
         }
 
-        // Validate it's a valid WASM module.
-        let _module = Module::from_file(&self.engine, &artifact).map_err(|e| {
+        // Validate it's a parseable WASM module using a plain engine (no fuel needed for validation).
+        let engine = wasmtime::Engine::default();
+        let _module = Module::from_file(&engine, &artifact).map_err(|e| {
             anyhow::anyhow!("WASM artifact {:?} is not a valid WASM module: {e}", artifact)
         })?;
 
@@ -99,46 +99,35 @@ impl SkillRuntime for WasmRuntime {
         tracing::info!(
             target: "wasm-runtime",
             path = ?artifact,
-            "Loading WASM module"
+            "Executing WASM module via vox-wasm-host"
         );
 
-        let module = Module::from_file(&self.engine, artifact)?;
+        // Map RunOpts volumes → WasmHost preopens (read-write by default for skills).
+        let preopens = opts
+            .volumes
+            .iter()
+            .map(|(host_path, guest_path)| Preopen {
+                host: host_path.into(),
+                guest: guest_path.clone(),
+                mode: PreopenMode::ReadWrite,
+            })
+            .collect();
 
-        // Build a WASI context with capability-bound preopens.
-        // TODO: map opts.volumes into WasiCtxBuilder preopened_dir entries.
-        // TODO: map opts.env into WasiCtxBuilder envs.
-        // TODO: wire wasi-http for outbound HTTP (wasi-http preview-2).
-        let wasi = WasiCtxBuilder::new()
-            .inherit_stdio() // Prototype: capture in future iteration
-            .build_p1();     // WASI preview-1 for broad compat
+        let exec_opts = WasmExecOpts {
+            args: Vec::new(), // Skills don't take CLI args; invocation is via stdin/env.
+            preopens,
+            fuel_override: opts.cpu_limit_fuel,
+            stdin: None,
+            env: opts.env.clone(),
+        };
 
-        let mut store = Store::new(&self.engine, wasi);
+        let outcome = self.host.execute(artifact, &exec_opts)?;
 
-        // Apply fuel limit for bounded execution.
-        let fuel = opts.cpu_limit_fuel.unwrap_or(1_000_000_000);
-        store.set_fuel(fuel)?;
-
-        // TODO: full WASI linker + function instantiation + entry-point call.
-        // The linker setup requires wasmtime_wasi::add_to_linker which needs
-        // the full component model or preview-1 adapter depending on target.
-        //
-        // For now, return a "not yet fully wired" error.
-        // The wiring is tracked in docs/src/architecture/vox-container-vs-wasm-2026-05-08.md.
-        let _ = module; // suppress unused warning; module is loaded and validated above
-
-        tracing::warn!(
-            target: "wasm-runtime",
-            "WasmRuntime::run: WASI linker + entry-point wiring is TODO (scaffold). \
-             Module loaded and validated; execution plumbing deferred to next batch."
-        );
-
-        // Return scaffold outcome to avoid panicking.
-        // TODO: replace with actual execution result once linker is wired.
-        anyhow::bail!(
-            "WasmRuntime::run: WASI execution not yet fully wired (scaffold). \
-             See docs/src/architecture/vox-container-vs-wasm-2026-05-08.md for next steps. \
-             Artifact: {:?}",
-            artifact
-        )
+        Ok(RunOutcome {
+            exit_code: outcome.exit_code,
+            stdout: outcome.stdout_str().into_owned(),
+            stderr: outcome.stderr_str().into_owned(),
+            wall_ms: outcome.wall_ms,
+        })
     }
 }

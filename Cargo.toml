@@ -102,6 +102,7 @@ vox-plugin-nvml-probe     = { path = "crates/vox-plugin-nvml-probe" }
 vox-plugin-runtime-container = { path = "crates/vox-plugin-runtime-container" }
 vox-plugin-runtime-wasm   = { path = "crates/vox-plugin-runtime-wasm" }
 vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
+vox-wasm-host             = { path = "crates/vox-wasm-host" }
 vox-pm                    = { path = "crates/vox-pm" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }

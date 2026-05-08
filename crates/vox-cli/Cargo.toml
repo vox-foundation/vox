@@ -125,6 +125,7 @@ base64 = { workspace = true }
 futures = { workspace = true }
 vox-pm = { workspace = true }
 vox-container = { workspace = true }
+vox-wasm-host = { workspace = true }
 vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true, optional = true }
 vox-ars    = { workspace = true, optional = true }

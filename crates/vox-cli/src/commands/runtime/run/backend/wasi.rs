@@ -3,6 +3,8 @@ use super::{RunBackend, ScriptOpts, parse_cargo_error};
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
+use vox_wasm_host::{Preopen, PreopenMode, WasmExecOpts, WasmHost, WasmRunOutcome};
+
 /// Backend for running WASI modules via Wasmtime.
 pub struct WasiBackend;
 
@@ -78,84 +80,47 @@ impl RunBackend for WasiBackend {
         Ok(per_entry_wasm)
     }
 
-    fn execute(&self, artifact: &Path, args: &[String], _opts: &ScriptOpts) -> Result<ExitStatus> {
-        #[cfg(feature = "script-execution")]
+    fn execute(&self, artifact: &Path, args: &[String], opts: &ScriptOpts) -> Result<ExitStatus> {
+        // Delegate to the vox-wasm-host SSOT for all Wasmtime engine + WASI wiring.
+        let host = WasmHost::new()?;
+
+        let preopens = opts
+            .wasi_dirs
+            .iter()
+            .map(|(host_path, guest, mode)| Preopen {
+                host: host_path.clone(),
+                guest: guest.clone(),
+                mode: match mode {
+                    WasiDirMode::ReadOnly => PreopenMode::ReadOnly,
+                    WasiDirMode::ReadWrite => PreopenMode::ReadWrite,
+                },
+            })
+            .collect();
+
+        let exec_opts = WasmExecOpts {
+            args: args.to_vec(),
+            preopens,
+            fuel_override: None,
+            stdin: None,
+            env: Vec::new(),
+        };
+
+        let outcome: WasmRunOutcome = host.execute(artifact, &exec_opts)?;
+
+        // Print captured output to real stdio.
+        print!("{}", outcome.stdout_str());
+        eprint!("{}", outcome.stderr_str());
+
+        // Map exit_code to ExitStatus.
+        #[cfg(target_family = "unix")]
         {
-            // Inline Wasmtime execution (`--features script-execution`)
-            let stdout_pipe = wasmtime_wasi::p2::pipe::MemoryOutputPipe::new(64 * 1024);
-            let stderr_pipe = wasmtime_wasi::p2::pipe::MemoryOutputPipe::new(64 * 1024);
-
-            let engine = wasmtime::Engine::default();
-            let module = wasmtime::Module::from_file(&engine, artifact)?;
-
-            let mut linker: wasmtime::Linker<wasmtime_wasi::p1::WasiP1Ctx> =
-                wasmtime::Linker::new(&engine);
-            wasmtime_wasi::p1::add_to_linker_sync(&mut linker, |t| t)?;
-            let pre = linker.instantiate_pre(&module)?;
-
-            let mut builder = wasmtime_wasi::WasiCtxBuilder::new();
-            builder
-                .stdout(stdout_pipe.clone())
-                .stderr(stderr_pipe.clone());
-
-            // Pass host args to guest (P2: properly populates argv)
-            let mut guest_args = vec!["vox-script".to_string()];
-            guest_args.extend(args.iter().cloned());
-            builder.args(&guest_args);
-
-            for (host, guest, mode) in &_opts.wasi_dirs {
-                let (dp, fp) = match mode {
-                    WasiDirMode::ReadOnly => (
-                        wasmtime_wasi::DirPerms::READ,
-                        wasmtime_wasi::FilePerms::READ,
-                    ),
-                    WasiDirMode::ReadWrite => (
-                        wasmtime_wasi::DirPerms::all(),
-                        wasmtime_wasi::FilePerms::all(),
-                    ),
-                };
-                builder.preopened_dir(host, guest, dp, fp)?;
-            }
-
-            let wasi_ctx = builder.build_p1();
-            let mut store = wasmtime::Store::new(&engine, wasi_ctx);
-            let instance = pre.instantiate(&mut store)?;
-            let func = instance.get_typed_func::<(), ()>(&mut store, "_start")?;
-
-            let exit_code = match func.call(&mut store, ()) {
-                Ok(()) => 0,
-                Err(e) => {
-                    if let Some(exit) = e.downcast_ref::<wasmtime_wasi::I32Exit>() {
-                        exit.0
-                    } else {
-                        return Err(e.into());
-                    }
-                }
-            };
-
-            let stdout = String::from_utf8_lossy(stdout_pipe.contents().as_ref()).to_string();
-            let stderr = String::from_utf8_lossy(stderr_pipe.contents().as_ref()).to_string();
-            print!("{}", stdout);
-            eprint!("{}", stderr);
-
-            // Correctly map exit_code to ExitStatus
-            #[cfg(target_family = "unix")]
-            {
-                use std::os::unix::process::ExitStatusExt;
-                Ok(ExitStatus::from_raw(exit_code << 8))
-            }
-            #[cfg(target_family = "windows")]
-            {
-                use std::os::windows::process::ExitStatusExt;
-                Ok(ExitStatus::from_raw(exit_code as u32))
-            }
+            use std::os::unix::process::ExitStatusExt;
+            Ok(ExitStatus::from_raw(outcome.exit_code << 8))
         }
-
-        #[cfg(not(feature = "script-execution"))]
+        #[cfg(target_family = "windows")]
         {
-            let mut cmd = Command::new("wasmtime");
-            cmd.arg(artifact).args(args);
-            Ok(cmd.status()?)
+            use std::os::windows::process::ExitStatusExt;
+            Ok(ExitStatus::from_raw(outcome.exit_code as u32))
         }
     }
 }
