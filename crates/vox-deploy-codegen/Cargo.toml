@@ -1,0 +1,22 @@
+[package]
+name = "vox-deploy-codegen"
+description = "Deployment artifact codegen: Dockerfile, Compose, K8s, Fly, Coolify, systemd. Pure text generation."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# vox-container is a temporary Phase 1 dep: deploy_target.rs uses ContainerRuntime trait
+# for OCI build/push/tag/login operations. Removed in Phase 5 when vox-container is deleted.
+vox-container.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+tracing.workspace = true
+workspace-hack = { workspace = true }

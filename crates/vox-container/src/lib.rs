@@ -3,42 +3,26 @@
 //! OCI-compatible container runtime abstraction for the Vox toolchain.
 //!
 //! Provides a unified [`ContainerRuntime`] trait over Docker and Podman,
-//! automatic runtime detection (preferring rootless Podman), and Dockerfile /
-//! Compose file generation from Vox `environment` declarations.
+//! and automatic runtime detection (preferring rootless Podman).
 //!
-//! Legacy Python module paths (`pyproject`, `python_dockerfile`, `run_py_setup`) remain for
-//! embedders; **`run_py_setup`** and **`PythonEnv::uv_sync` / `uv_add_packages`** hard-error.
-//! [`generate_pyproject_toml`](crate::generate_pyproject_toml) emits a **retired** placeholder only.
+//! **Deployment artifact codegen** (Dockerfile, Compose, K8s, Fly, Coolify, systemd)
+//! has moved to `vox-deploy-codegen`.
 //!
-//! Submodules document their own `pub` items; the facade re-exports ergonomic names for CLI/embedders.
+//! This crate now contains only:
+//! - [`ContainerRuntime`] trait + [`BuildOpts`] / [`RunOpts`]
+//! - Docker and Podman runtime implementations
+//! - Runtime auto-detection
 
 #![allow(clippy::collapsible_if)]
 
-/// Support for bare metal deployments (systemd, etc.)
-pub mod bare_metal;
-pub mod deploy_target;
 pub mod detect;
 pub mod docker;
-pub mod env;
-pub mod generate;
 pub mod podman;
-pub mod pyproject;
-pub mod python_dockerfile;
-pub mod setup;
 
 mod runtime;
 
-pub use bare_metal::generate_systemd_unit;
-pub use deploy_target::{
-    BareMetalTarget, ComposeTarget, ContainerTarget, DeployTarget, KubernetesTarget,
-    build_container_target, resolve_target_kind,
-};
 pub use detect::detect_runtime;
-pub use env::PythonEnv;
-pub use pyproject::generate_pyproject_toml;
-pub use python_dockerfile::generate_python_dockerfile;
 pub use runtime::{BuildOpts, ContainerRuntime, RunOpts};
-pub use setup::{PySetupOpts, run_py_setup};
 
 /// Classify the exec risk of a container image or command string and log the result.
 ///

@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use crate::BuildOpts;
-use crate::runtime::ContainerRuntime;
+use crate::ContainerRuntime;
 
 /// A fully-resolved deployment target for a Vox application.
 ///

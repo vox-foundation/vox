@@ -125,6 +125,7 @@ base64 = { workspace = true }
 futures = { workspace = true }
 vox-pm = { workspace = true }
 vox-container = { workspace = true }
+vox-deploy-codegen = { workspace = true }
 vox-skills = { workspace = true, optional = true }
 vox-ars    = { workspace = true, optional = true }
 vox-ludus = { workspace = true, optional = true }
@@ -132,7 +133,7 @@ vox-config = { workspace = true }
 vox-clavis = { workspace = true }
 vox-db = { workspace = true }
 vox-search = { workspace = true }
-vox-scientia-ingest = { workspace = true }
+vox-plugin-publication = { workspace = true }
 # Scholarly / DB-backed jobs only; Reddit/YouTube adapter code stays out of default CLI compile.
 vox-publisher = { workspace = true, default-features = false, features = ["scholarly-external-jobs"] }
 vox-doc-inventory = { workspace = true }
