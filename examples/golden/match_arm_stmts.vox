@@ -1,0 +1,33 @@
+// ---
+// title: "Match-arm statement bodies"
+// description: "Match arms accept return/break and brace blocks alongside bare expressions (added 2026-05)."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [match, return, block]
+// last_validated: 2026-05-08
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Use match-arm statement bodies in Vox: return inside an arm, multi-stmt block, and a bare expression
+fn classify(code: int) to str {
+    return match code {
+        0 => "ok"
+        404 => return "not_found"
+        500 => {
+            let prefix = "server"
+            prefix + "_error"
+        }
+        _ => "other"
+    }
+}
+
+fn early_exit(values: List[int]) to int {
+    for v in values {
+        let _ = match v {
+            0 => return 0
+            _ => "skip"
+        }
+    }
+    return -1
+}

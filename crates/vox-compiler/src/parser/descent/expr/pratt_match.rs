@@ -520,7 +520,21 @@ impl Parser {
             } else {
                 self.expect(&Token::FatArrow)?;
             }
-            let body = self.parse_expr()?;
+            // Match-arm bodies accept statement-leading constructs (return / break /
+            // continue) by wrapping a single statement in an `Expr::Block`. The
+            // expression path is unchanged. Regular `{ ... }` blocks are picked up
+            // by the existing `parse_brace_expr` route via `parse_expr`.
+            let body_start = self.span();
+            let body = match self.peek() {
+                Token::Return | Token::Break | Token::Continue => {
+                    let stmt = self.parse_stmt()?;
+                    Expr::Block {
+                        stmts: vec![stmt],
+                        span: body_start.merge(self.span()),
+                    }
+                }
+                _ => self.parse_expr()?,
+            };
             arms.push(MatchArm {
                 pattern,
                 guard: None,
