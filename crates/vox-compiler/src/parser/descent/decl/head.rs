@@ -1005,9 +1005,72 @@ impl Parser {
             verify_mode: crate::ast::decl::fundecl::VerifyMode::Off,
             test_strategy: None,
             is_mobile_native,
+            ts_extern_module: None,
             effects,
             span: start.merge(self.span()),
         })
+    }
+
+    /// Parse `extern fn name(args) to T = "./module"` (TS-source FFI, plan 6).
+    /// The body is empty; codegen-TS emits `import { name } from "./module"`.
+    pub(crate) fn parse_extern_fn(&mut self) -> Result<crate::ast::decl::Decl, ()> {
+        use crate::parser::error::{ParseError, ParseErrorClass};
+        let start = self.span();
+        self.advance(); // eat `extern`
+        self.expect(&Token::Fn)?;
+        let name = self.parse_ident_name()?;
+        self.expect(&Token::LParen)?;
+        let params = self.parse_params()?;
+        self.expect(&Token::RParen)?;
+        let return_type = if self.eat_return_arrow() {
+            Some(self.parse_type_expr()?)
+        } else {
+            None
+        };
+        self.expect(&Token::Eq)?;
+        let module = match self.peek().clone() {
+            Token::StringLit(s) | Token::SingleStringLit(s) => {
+                self.advance();
+                s
+            }
+            other => {
+                self.errors.push(ParseError::classified(
+                    self.span(),
+                    "Expected string literal module path after `=` in extern fn",
+                    vec!["\"./module\"".into()],
+                    Some(other.to_string()),
+                    ParseErrorClass::Declaration,
+                ));
+                return Err(());
+            }
+        };
+        Ok(crate::ast::decl::Decl::Function(FnDecl {
+            name,
+            generics: vec![],
+            params,
+            return_type,
+            body: vec![],
+            is_async: false,
+            is_deprecated: false,
+            is_pure: false,
+            is_reactive: false,
+            effects: vec![],
+            is_traced: false,
+            is_llm: false,
+            llm_model: None,
+            is_pub: true,
+            auth_provider: None,
+            roles: vec![],
+            cors: None,
+            preconditions: vec![],
+            postconditions: vec![],
+            invariants: vec![],
+            verify_mode: crate::ast::decl::fundecl::VerifyMode::Off,
+            test_strategy: None,
+            is_mobile_native: false,
+            ts_extern_module: Some(module),
+            span: start.merge(self.span()),
+        }))
     }
 
     pub(crate) fn parse_ident_name(&mut self) -> Result<String, ()> {

@@ -60,6 +60,7 @@ impl LowerCtx {
                     fallback: p.fallback.clone(),
                 })
                 .collect(),
+            ts_extern_module: f.ts_extern_module.clone(),
             span: f.span,
         }
     }
@@ -373,6 +374,7 @@ impl LowerCtx {
             actor_state_fields: vec![],
             capabilities: vec![],
             postconditions: vec![],
+            ts_extern_module: None,
             span: w.span,
         }
     }
@@ -405,6 +407,7 @@ impl LowerCtx {
             actor_state_fields: vec![],
             capabilities: vec![],
             postconditions: vec![],
+            ts_extern_module: None,
             span: a.span,
         }
     }
@@ -445,6 +448,7 @@ impl LowerCtx {
             actor_state_fields,
             capabilities: vec![],
             postconditions: vec![],
+            ts_extern_module: None,
             span: a.span,
         }
     }
@@ -488,6 +492,7 @@ impl LowerCtx {
                     actor_state_fields: vec![],
                     capabilities: vec![],
                     postconditions: vec![],
+                    ts_extern_module: None,
                     span: h.span,
                 }
             })

@@ -1,0 +1,20 @@
+// ---
+// title: "TS-source FFI extern fn"
+// description: "extern fn name(args) to T = \"./module\" — declare a function implemented in a sibling .ts file (added 2026-05)."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [extern, fn, ffi]
+// last_validated: 2026-05-08
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Declare a Vox extern fn that bridges to a sibling TS module
+extern fn weeklyAggregate(events: List[str], now_ms: int, window_days: int) to int = "./ts/materializer"
+
+extern fn resolveCorrections(rows: List[str]) to List[str] = "./ts/materializer"
+
+fn use_extern(rows: List[str]) to int {
+    let resolved = resolveCorrections(rows)
+    return weeklyAggregate(resolved, 1000, 7)
+}

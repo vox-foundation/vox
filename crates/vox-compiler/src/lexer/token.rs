@@ -46,6 +46,8 @@ pub enum Token {
     Dec,
     #[token("import")]
     Import,
+    #[token("extern")]
+    Extern,
     #[token("actor")]
     Actor,
     #[token("workflow")]
@@ -351,6 +353,7 @@ impl std::fmt::Display for Token {
             Token::TypeKw => write!(f, "type"),
             Token::Dec => write!(f, "dec"),
             Token::Import => write!(f, "import"),
+            Token::Extern => write!(f, "extern"),
             Token::Actor => write!(f, "actor"),
             Token::Workflow => write!(f, "workflow"),
             Token::Activity => write!(f, "activity"),

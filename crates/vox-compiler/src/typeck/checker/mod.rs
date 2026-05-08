@@ -109,6 +109,12 @@ impl<'a> Checker<'a> {
     }
 
     fn check_function(&mut self, f: &mut HirFn) {
+        // Extern (TS-source FFI) functions have no Vox body to check — the body
+        // lives in a sibling .ts file. Skip body unification but still consume
+        // params/return type so call sites resolve correctly.
+        if f.ts_extern_module.is_some() {
+            return;
+        }
         let was_inferred = f.return_type.is_none();
         let mut ret_ty = f
             .return_type

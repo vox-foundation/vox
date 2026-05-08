@@ -299,6 +299,10 @@ pub struct HirFn {
     /// Postconditions to check at runtime (used for @ai repair/fallback).
     #[serde(default)]
     pub postconditions: Vec<HirPostCondition>,
+    /// `extern fn name(...) to T = "./module"` — TS-source FFI module path.
+    /// When `Some`, body is empty and codegen-TS emits an import for the function.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ts_extern_module: Option<String>,
     /// Span covering the declaration.
     pub span: Span,
 }
