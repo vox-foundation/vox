@@ -1,79 +1,110 @@
-//! Core trait and types for container runtime abstraction.
+//! Abstract skill runtime trait for sandboxed skill execution.
+//!
+//! `SkillRuntime` is the single abstraction over all execution backends:
+//! - WASM (wasmtime-based, default for pure-compute skills)
+//! - Container (Docker/Podman, fallback for skills requiring subprocess/GPU)
+//! - Bare-metal (trusted process fork, for host-level skills)
+//!
+//! Implementations are shipped as plugins (`vox-plugin-runtime-container`,
+//! `vox-plugin-runtime-wasm`).
 
 use std::path::PathBuf;
 
-/// Options for building an OCI container image.
+/// Options for the "build" phase of a skill runtime.
+///
+/// For container runtimes: builds an OCI image.
+/// For WASM runtimes: validates or precompiles the `.wasm` artifact.
+/// For bare-metal: no-op.
 #[derive(Debug, Clone)]
 pub struct BuildOpts {
-    /// Directory containing the build context (usually where the Dockerfile lives).
+    /// Directory containing the build context (or the `.wasm` file for WASM runtimes).
     pub context_dir: PathBuf,
-    /// Path to the Dockerfile. If `None`, uses `context_dir/Dockerfile`.
-    pub dockerfile: Option<PathBuf>,
-    /// Image tag, e.g. `"my-app:latest"`.
+    /// Path to an explicit Dockerfile or WASM artifact. If `None`, auto-detected.
+    pub artifact_path: Option<PathBuf>,
+    /// Image tag or artifact label (used by container runtimes).
     pub tag: String,
-    /// `--build-arg` key-value pairs.
+    /// Key-value build arguments (used by container runtimes; ignored by WASM).
     pub build_args: Vec<(String, String)>,
 }
 
-/// Options for running an OCI container.
+/// Options for running a skill in its sandbox.
 #[derive(Debug, Clone)]
 pub struct RunOpts {
-    /// Image to run (tag or ID).
-    pub image: String,
-    /// Port mappings as `(host, container)`.
+    /// Image tag (container), path to `.wasm` artifact (WASM), or command (bare-metal).
+    pub artifact_path: PathBuf,
+    /// Port mappings as `(host, container)`. Ignored by WASM.
     pub ports: Vec<(u16, u16)>,
     /// Environment variables.
     pub env: Vec<(String, String)>,
-    /// Volume mounts as `(host_path, container_path)`.
+    /// Volume mounts as `(host_path, container_path)`. Ignored by WASM (uses preopens).
     pub volumes: Vec<(String, String)>,
-    /// Run in detached mode.
+    /// Run in detached/background mode.
     pub detach: bool,
-    /// Container name.
+    /// Container/process name.
     pub name: Option<String>,
-    /// Remove container after exit.
+    /// Remove container after exit (container runtimes only).
     pub rm: bool,
+    /// CPU fuel limit for WASM runtimes (in wasmtime fuel units).
+    /// `None` means use the runtime's default.
+    pub cpu_limit_fuel: Option<u64>,
 }
 
 impl Default for RunOpts {
     fn default() -> Self {
         Self {
-            image: String::new(),
+            artifact_path: PathBuf::new(),
             ports: Vec::new(),
             env: Vec::new(),
             volumes: Vec::new(),
             detach: false,
             name: None,
             rm: true,
+            cpu_limit_fuel: None,
         }
     }
 }
 
-/// Unified interface for OCI-compatible container runtimes.
+/// The captured outcome of a skill execution.
+#[derive(Debug, Clone)]
+pub struct RunOutcome {
+    /// Process exit code (0 = success).
+    pub exit_code: i32,
+    /// Captured stdout.
+    pub stdout: String,
+    /// Captured stderr.
+    pub stderr: String,
+    /// Wall-clock execution time in milliseconds.
+    pub wall_ms: u64,
+}
+
+impl RunOutcome {
+    /// Returns `true` if the skill exited successfully (exit code 0).
+    pub fn success(&self) -> bool {
+        self.exit_code == 0
+    }
+}
+
+/// Abstract sandbox runtime for skill execution.
 ///
-/// Implementations exist for Docker ([`crate::docker::DockerRuntime`]) and
-/// Podman ([`crate::podman::PodmanRuntime`]).
-pub trait ContainerRuntime: Send + Sync {
-    /// Human-readable runtime name (`"docker"` or `"podman"`).
+/// Implementations exist for:
+/// - WASM (`vox-plugin-runtime-wasm`, the default for pure-compute skills)
+/// - Docker/Podman (`vox-plugin-runtime-container`, fallback for subprocess/GPU skills)
+///
+/// The runtime is selected by `vox-skill-runtime::detect::detect_runtime()` based
+/// on the skill's declared requirements.
+pub trait SkillRuntime: Send + Sync {
+    /// Human-readable runtime name (e.g. `"wasm"`, `"docker"`, `"podman"`).
     fn name(&self) -> &str;
 
-    /// Returns `true` when the runtime CLI is installed and reachable.
+    /// Returns `true` when this runtime is installed and reachable.
     fn available(&self) -> bool;
 
-    /// Returns the CLI version string, or an error if not available.
-    fn version(&self) -> anyhow::Result<String>;
+    /// Build or prepare the skill artifact for execution.
+    ///
+    /// For container runtimes: builds an OCI image.
+    /// For WASM runtimes: validates or precompiles; typically a no-op.
+    fn build(&self, opts: &BuildOpts) -> anyhow::Result<()>;
 
-    /// Build an OCI image from a Dockerfile. Returns the image ID on success.
-    fn build(&self, opts: &BuildOpts) -> anyhow::Result<String>;
-
-    /// Run a container from an image.
-    fn run(&self, opts: &RunOpts) -> anyhow::Result<()>;
-
-    /// Push an image to a registry.
-    fn push(&self, tag: &str) -> anyhow::Result<()>;
-
-    /// Tag an image with a new name.
-    fn tag(&self, source: &str, target: &str) -> anyhow::Result<()>;
-
-    /// Log into a container registry.
-    fn login(&self, registry: &str, username: &str, token: &str) -> anyhow::Result<()>;
+    /// Run the skill in its sandbox and return the outcome.
+    fn run(&self, opts: &RunOpts) -> anyhow::Result<RunOutcome>;
 }
