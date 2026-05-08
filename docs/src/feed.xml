@@ -5,8 +5,27 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Tue, 05 May 2026 17:17:36 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 08 May 2026 00:33:50 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Eval sandbox deployment (Coolify)</title>
+    <link>https://vox-lang.org/architecture/eval-sandbox-deployment.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/eval-sandbox-deployment.html</guid>
+    <description>Public MCP HTTP eval gateway at eval.vox-lang.org — image, compose, DNS, Coolify API sync.</description>
+    <pubDate>Wed, 06 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>cli</title>
+    <link>https://vox-lang.org/reference/cli.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/cli.html</guid>
+    <description>Documentation for cli.md</description>
+    <pubDate>Wed, 06 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
 
   <item>
     <title>Architecture Index</title>
@@ -62,16 +81,6 @@
     <description>Auto-generated table of vox command paths and metadata; CLI rows are generated from contracts/operations/catalog.v1.yaml into command-registry.yaml — use vox…</description>
     <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
     <category>Reference</category>
-  </item>
-
-  <item>
-    <title>cli</title>
-    <link>https://vox-lang.org/reference/cli.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/reference/cli.html</guid>
-    <description>Documentation for cli.md</description>
-    <pubDate>Tue, 05 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>
@@ -233,15 +242,6 @@
     <link>https://vox-lang.org/architecture/multi-agent-vcs-replication-impl-plan-phase1-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/multi-agent-vcs-replication-impl-plan-phase1-2026.html</guid>
     <description>Step-by-step TDD implementation plan for Phase 1 of the multi-agent VCS replication architecture: local-only op-log gossip between agents on one machine. 16…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Multi-Agent VCS Replication — Landscape Research (2026-05-03)</title>
-    <link>https://vox-lang.org/architecture/multi-agent-vcs-replication-research-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/multi-agent-vcs-replication-research-2026.html</guid>
-    <description>Survey of version-control and CRDT systems evaluated for a multi-agent code-collaboration substrate. Finds no off-the-shelf project provides codebase-scale…</description>
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>

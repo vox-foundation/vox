@@ -43,10 +43,15 @@ The existing shell at `crates/vox-dashboard/app/src/app.vox` has real bones — 
 
 ```vox
 // current app.vox — these must go
-button(raw_class="tab-btn", on_click={tab = "speak"})   { "LOQUELA" }
-button(raw_class="tab-btn", on_click={tab = "command"}) { "IMPERIUM" }
-button(raw_class="tab-btn", on_click={tab = "network"}) { "RETE" }
-button(raw_class="tab-btn", on_click={tab = "forge"})   { "FABRICA" }
+component LatinTabs() {
+    state tab: str = "speak"
+    view: row(gap=2) {
+        button(raw_class="tab-btn", on_click=fn() { tab = "speak" })   { "LOQUELA" }
+        button(raw_class="tab-btn", on_click=fn() { tab = "command" }) { "IMPERIUM" }
+        button(raw_class="tab-btn", on_click=fn() { tab = "network" }) { "RETE" }
+        button(raw_class="tab-btn", on_click=fn() { tab = "forge" })   { "FABRICA" }
+    }
+}
 ```
 
 The route names (`speak`, `command`, `network`, `forge`) are already English internally. The surface labels shown to users are the only thing to change. **Fix:** `Speak / Mesh / Forge / Code / Models / Runs / Settings`. Latin is permitted only as a small-caps subtitle or internal route key — never as a navigation label.
@@ -55,9 +60,11 @@ The route names (`speak`, `command`, `network`, `forge`) are already English int
 
 ```vox
 // current NetworkTab empty state
-column(flex=1, items="center", justify="center", color="zinc.500", gap=4) {
-    text(size="sm", weight="bold", case="upper", tracking="widest") { "NO MESH DATA" }
-    text(size="xs") { "Agent graph renders here via React interop NetworkGraph (Phase 2)." }
+component EmptyMesh() {
+    view: column(flex=1, items="center", justify="center", color="zinc.500", gap=4) {
+        text(size="sm", weight="bold", case="upper", tracking="widest") { "NO MESH DATA" }
+        text(size="xs") { "Agent graph renders here via React interop NetworkGraph (Phase 2)." }
+    }
 }
 ```
 
@@ -225,9 +232,7 @@ A registry, not a dropdown. Card-grid view grouped by `Hosted` and `Local`. Each
 Top of page: a small horizon chart of cost across the last 24h; a budget bar with a soft-cap line (reads from `budget.soft_cap_usd` in SettingsState).
 
 ```vox
-component ModelCard(name: str, provider: str, ctx_k: int,
-                    cost_in: float, cost_out: float,
-                    latency_p50_ms: int, load_pct: int) {
+component ModelCard(name: str, provider: str, ctx_k: int, cost_in: float, cost_out: float, latency_p50_ms: int, load_pct: int) {
     view: panel(
         bg="zinc.900", border=true, border_color="white/10",
         radius="xl", pad=5, gap=4
@@ -268,9 +273,7 @@ component ModelCard(name: str, provider: str, ctx_k: int,
 A persistent log of every orchestrator run. Table view with columns: started, duration, orchestrator, model, status, cost, tokens. Row click → drawer (full event tree). Filters across the top: status pill set, model multi-select, time range. Live-tail toggle in the corner.
 
 ```vox
-component RunRow(run_id: str, started: str, duration: str,
-                 orchestrator: str, model: str, status: str,
-                 cost_usd: float, tokens: int, on_click: fn() -> ()) {
+component RunRow(run_id: str, started: str, duration: str, orchestrator: str, model: str, status: str, cost_usd: float, tokens: int, on_click: fn() = fn() {}) {
     view: row(
         pad_x=4, pad_y=3, border_b=true, border_color="white/5",
         items="center", gap=4, raw_class="hover:bg-white/5 cursor-pointer",

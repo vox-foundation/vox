@@ -72,6 +72,7 @@ training_eligible: false
 - [Scientia × Mesh/Model-Routing Integration Research (2026)](scientia-mesh-integration-research-2026.md)
 - [Task catalog authoring spec](planning-meta/07-task-catalog-authoring-spec.md)
 - [Terminal Exec Policy SSOT (2026)](terminal-exec-policy-ssot.md)
+- [Vox Dashboard — Design Brief for Anthropic Labs Design (2026)](vox-dashboard-design-brief-2026.md)
 - [Vox Docs Portal: Astro Starlight Strategy 2026](starlight-site-strategy-2026.md)
 - [Vox GUI-Native Language Roadmap (April 2026)](vox-gui-native-roadmap-2026.md)
 - [Weighted deep planning manual](planning-meta/03-weighted-deep-planning-manual.md)
