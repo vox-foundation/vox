@@ -8,7 +8,7 @@ This index ties together the language/compiler plans surfaced during vox-mental-
 | 2 | [JSON parse + access stdlib](./2026-05-08-language-json-stdlib.md) | App Phase 2 (consume parser output); App Phase 4 (export bundle assembly) | Needed by app Phase 2; depends on nothing else. Pairs naturally with structs (D1 of struct plan does the typed wrapping). |
 | 3 | [match-arm statement bodies](./2026-05-08-language-match-arm-statements.md) — [landed in #74](https://github.com/vox-foundation/vox/pull/74) | Ergonomic everywhere; called out in the tracker code today | Tiny, ergonomic, removes repeated workarounds. Land any time. |
 | 4 | [string utilities (split / slice / char_at / index_of / starts_with / ends_with)](./2026-05-08-language-string-utils.md) — [landed in #72](https://github.com/vox-foundation/vox/pull/72) | Ad-hoc parsing, content sniffing, future Phase 4 export glue | Tiny pure additions; land any time. |
-| 5 | [regex stdlib](./2026-05-08-language-regex-stdlib.md) | App Phase 2 parser parity (Vox `preview_voice_parse` matches the TS `intent_parser`'s richer extraction) | After string utils so the test fixtures share infrastructure. |
+| 5 | [regex stdlib](./2026-05-08-language-regex-stdlib.md) — [landed in #75](https://github.com/vox-foundation/vox/pull/75) | App Phase 2 parser parity (Vox `preview_voice_parse` matches the TS `intent_parser`'s richer extraction) | After string utils so the test fixtures share infrastructure. |
 | 6 | [TS-source FFI from Vox components](./2026-05-08-language-ts-source-ffi.md) | UI consumption of `src/ts/materializer.ts` (WeeklyPage / TimelinePage rendering true materialized rollups) | After structs (5) so extern signatures can use rich types. |
 
 ## App phases and which plans they need

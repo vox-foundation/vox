@@ -684,6 +684,35 @@ impl BuiltinTypes {
         );
         methods.insert("SpeechModule".into(), speech_methods);
 
+        // Regex / Match (std.regex compile output and find result).
+        let mut regex_methods = std::collections::HashMap::new();
+        regex_methods.insert(
+            "matches".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
+        );
+        regex_methods.insert(
+            "find".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Option(Box::new(Ty::Named("Match".into())))),
+            ),
+        );
+        regex_methods.insert(
+            "find_all".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::List(Box::new(Ty::Named("Match".into())))),
+            ),
+        );
+        methods.insert("Regex".into(), regex_methods);
+
+        let mut match_methods = std::collections::HashMap::new();
+        match_methods.insert(
+            "group".into(),
+            Ty::Fn(vec![Ty::Int], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        methods.insert("Match".into(), match_methods);
+
         // OpenClaw module methods come from shared builtin registry entries.
         let mut openclaw_methods = std::collections::HashMap::new();
         for entry in builtin_registry_entries()
