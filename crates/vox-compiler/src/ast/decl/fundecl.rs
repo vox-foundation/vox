@@ -83,6 +83,12 @@ pub struct FnDecl {
     pub test_strategy: Option<String>,
     /// Whether this function is a mobile native implementation bridge.
     pub is_mobile_native: bool,
+    /// When `Some`, this function is a TS-source FFI extern: the body is empty
+    /// and codegen-TS emits an `import { name } from "<module>"` instead of
+    /// generating a body. Codegen-Rust treats calls to such functions as an
+    /// error (see plan 6).
+    #[serde(default)]
+    pub ts_extern_module: Option<String>,
     /// Source location.
     pub span: Span,
 }

@@ -21,6 +21,16 @@ fn generate_zod_schema(typedef: &HirTypeDef) -> String {
     let mut out = String::new();
     let name = &typedef.name;
 
+    // Struct typedef → flat z.object with declared fields.
+    if typedef.variants.is_empty() && !typedef.fields.is_empty() {
+        out.push_str(&format!("export const {}Schema = z.object({{\n", name));
+        for (fname, ftype) in &typedef.fields {
+            out.push_str(&format!("  {}: {},\n", fname, map_type_to_zod(ftype)));
+        }
+        out.push_str("});\n");
+        return out;
+    }
+
     if typedef.variants.is_empty() {
         return format!("export const {}Schema = z.object({{}});\n", name);
     }

@@ -1,0 +1,23 @@
+// ---
+// title: "String utility methods"
+// description: "Demonstrates slice, char_at, and index_of on str (added 2026-05)."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [fn, str, slice, char_at, index_of]
+// last_validated: 2026-05-08
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Use Vox string utility methods slice, char_at, and index_of
+fn first_three(s: str) to str {
+    return s.slice(0, 3)
+}
+
+fn at(s: str, i: int) to Option[str] {
+    return s.char_at(i)
+}
+
+fn find(haystack: str, needle: str) to Option[int] {
+    return haystack.index_of(needle)
+}

@@ -178,6 +178,45 @@ pub fn call_builtin_method(
             }
             "chars_count" => Some(VoxValue::Int(s.chars().count() as i64)),
             "to_str" | "to_string" => Some(VoxValue::Str(s.clone())),
+            "slice" => {
+                let mut it = args.into_iter();
+                let start = match it.next() {
+                    Some(VoxValue::Int(n)) => n.max(0) as usize,
+                    _ => 0,
+                };
+                let end = match it.next() {
+                    Some(VoxValue::Int(n)) => n.max(0) as usize,
+                    _ => s.chars().count(),
+                };
+                let end = end.min(s.chars().count());
+                let start = start.min(end);
+                let out: String = s.chars().skip(start).take(end - start).collect();
+                Some(VoxValue::Str(out))
+            }
+            "char_at" => {
+                let idx = match args.into_iter().next() {
+                    Some(VoxValue::Int(n)) if n >= 0 => n as usize,
+                    _ => return Some(VoxValue::Option(None)),
+                };
+                match s.chars().nth(idx) {
+                    Some(c) => Some(VoxValue::Option(Some(Box::new(VoxValue::Str(c.to_string()))))),
+                    None => Some(VoxValue::Option(None)),
+                }
+            }
+            "index_of" => {
+                let needle = match args.into_iter().next() {
+                    Some(VoxValue::Str(n)) => n,
+                    _ => return Some(VoxValue::Option(None)),
+                };
+                match s.find(&*needle) {
+                    Some(byte_pos) => {
+                        // Convert byte position to char index for Vox semantics.
+                        let char_idx = s[..byte_pos].chars().count() as i64;
+                        Some(VoxValue::Option(Some(Box::new(VoxValue::Int(char_idx)))))
+                    }
+                    None => Some(VoxValue::Option(None)),
+                }
+            }
             _ => None,
         },
 

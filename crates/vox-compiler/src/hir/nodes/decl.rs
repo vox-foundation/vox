@@ -299,6 +299,10 @@ pub struct HirFn {
     /// Postconditions to check at runtime (used for @ai repair/fallback).
     #[serde(default)]
     pub postconditions: Vec<HirPostCondition>,
+    /// `extern fn name(...) to T = "./module"` — TS-source FFI module path.
+    /// When `Some`, body is empty and codegen-TS emits an import for the function.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ts_extern_module: Option<String>,
     /// Span covering the declaration.
     pub span: Span,
 }
@@ -319,8 +323,11 @@ pub struct HirTypeDef {
     pub id: DefId,
     /// Type name.
     pub name: String,
-    /// Variants for sum types; empty for aliases/structs handled elsewhere.
+    /// Variants for sum types; empty for struct types and aliases.
     pub variants: Vec<HirVariant>,
+    /// Struct fields for product types; empty for sum types and aliases.
+    #[serde(default)]
+    pub fields: Vec<(String, HirType)>,
     /// Exported type.
     pub is_pub: bool,
     /// Span covering the definition.

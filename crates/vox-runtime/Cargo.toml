@@ -37,6 +37,7 @@ rust_decimal = { workspace = true }
 workspace-hack = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { workspace = true, features = ["v4"] }
+regex = { workspace = true }
 
 [lints]
 workspace = true

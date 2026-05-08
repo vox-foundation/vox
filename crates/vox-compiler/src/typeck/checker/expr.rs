@@ -192,13 +192,26 @@ impl<'a> Checker<'a> {
 
             HirExpr::ObjectLit(fields, _span) => {
                 let mut expected_fields = std::collections::HashMap::new();
+                let mut struct_name: Option<String> = None;
                 if let Some(exp) = expected {
-                    match self.uf.resolve(exp) {
-                        Ty::Record(ref fds)
-                        | Ty::Table(_, ref fds)
-                        | Ty::Collection(_, ref fds) => {
+                    let resolved = self.uf.resolve(exp);
+                    match &resolved {
+                        Ty::Record(fds) | Ty::Table(_, fds) | Ty::Collection(_, fds) => {
                             for (n, t) in fds {
                                 expected_fields.insert(n.clone(), t.clone());
+                            }
+                        }
+                        Ty::Named(n) => {
+                            // Struct type: pull declared fields from the env so an anonymous
+                            // record literal `{ f: e, ... }` ascribed to `Named(Foo)` checks
+                            // against the struct's shape and unifies with `Named(Foo)`.
+                            if let Some(adt) = self.env.lookup_adt(n) {
+                                if !adt.fields.is_empty() {
+                                    for (fname, fty) in &adt.fields {
+                                        expected_fields.insert(fname.clone(), fty.clone());
+                                    }
+                                    struct_name = Some(n.clone());
+                                }
                             }
                         }
                         _ => {}
@@ -212,7 +225,11 @@ impl<'a> Checker<'a> {
                         (name.clone(), self.check_expr(expr, field_expected))
                     })
                     .collect();
-                Ty::Record(typed_fields)
+                if let Some(name) = struct_name {
+                    Ty::Named(name)
+                } else {
+                    Ty::Record(typed_fields)
+                }
             }
             HirExpr::ListLit(elements, _span) => {
                 let mut expected_elem_ty = None;
@@ -370,6 +387,7 @@ impl<'a> Checker<'a> {
                         "StdCryptoNs" => Some("crypto"),
                         "StdTimeNs" => Some("time"),
                         "StdMobileNs" => Some("mobile"),
+                        "StdRegexNs" => Some("regex"),
                         _ => None,
                     };
                     if let Some(ns) = ns {

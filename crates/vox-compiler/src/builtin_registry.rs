@@ -434,6 +434,7 @@ pub fn std_root_field_ty(field: &str) -> Option<Ty> {
         "time" => Ty::Named("StdTimeNs".into()),
         "log" => Ty::Named("StdLogNs".into()),
         "mobile" => Ty::Named("StdMobileNs".into()),
+        "regex" => Ty::Named("StdRegexNs".into()),
         "uuid" => Ty::Fn(vec![], Box::new(Ty::Str)),
         "now_ms" => Ty::Fn(vec![], Box::new(Ty::Int)),
         "hash_fast" | "hash_secure" => Ty::Fn(vec![Ty::Str], Box::new(Ty::Str)),
@@ -520,6 +521,10 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
             Box::new(Ty::Result(Box::new(Ty::Unit))),
         ),
         ("process", "exit") => Ty::Fn(vec![Ty::Int], Box::new(Ty::Never)),
+        ("json", "parse") => Ty::Fn(
+            vec![Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+        ),
         ("json", "read_str") => Ty::Fn(
             vec![Ty::Str, Ty::Str],
             Box::new(Ty::Result(Box::new(Ty::Str))),
@@ -542,6 +547,10 @@ pub fn std_namespace_method_ty(namespace: &str, method: &str) -> Option<Ty> {
         ("log", "debug") | ("log", "info") | ("log", "warn") | ("log", "error") => {
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Unit))
         }
+        ("regex", "compile") => Ty::Fn(
+            vec![Ty::Str],
+            Box::new(Ty::Result(Box::new(Ty::Named("Regex".into())))),
+        ),
         _ => return None,
     })
 }
@@ -711,6 +720,14 @@ pub fn std_namespace_runtime_call(
         ("http", "post_json") if args.len() >= 2 => Some(format!(
             "({{ #[cfg(target_arch = \"wasm32\")] {{ Error(\"std.http.post_json is not supported in WASI scripts\".to_string()) }} #[cfg(not(target_arch = \"wasm32\"))] {{ match vox_runtime::builtins::vox_http_post_json(({}).as_str(), ({}).as_str()) {{ Ok(s) => Ok(s), Err(m) => Error(m) }} }} }})",
             args[0], args[1]
+        )),
+        ("regex", "compile") if !args.is_empty() => Some(format!(
+            "(match vox_runtime::builtins::vox_regex_compile(({}).as_str()) {{ Ok(r) => Ok(r), Err(m) => Error(m) }})",
+            args[0]
+        )),
+        ("json", "parse") if !args.is_empty() => Some(format!(
+            "(match vox_runtime::builtins::vox_json_parse(({}).as_str()) {{ Ok(j) => Ok(j), Err(m) => Error(m) }})",
+            args[0]
         )),
         _ => None,
     }

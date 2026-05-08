@@ -27,13 +27,26 @@ pub fn emit_lib(module: &HirModule) -> String {
     out.push_str("    if let Some(s) = val.as_str() { s.to_string() } else { val.to_string() }\n");
     out.push_str("}\n\n");
 
-    // Re-export variants
+    // Re-export variants (only for sum types — struct typedefs are top-level structs).
     for typedef in &module.types {
-        out.push_str(&format!("pub use self::{}::*;\n", typedef.name));
+        if !typedef.variants.is_empty() {
+            out.push_str(&format!("pub use self::{}::*;\n", typedef.name));
+        }
     }
 
     // Types
     for typedef in &module.types {
+        // Struct typedef → `pub struct Foo { pub f: T, ... }`.
+        if typedef.variants.is_empty() && !typedef.fields.is_empty() {
+            out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
+            out.push_str(&format!("pub struct {} {{\n", typedef.name));
+            for (fname, ftype) in &typedef.fields {
+                out.push_str(&format!("    pub {}: {},\n", fname, emit_type(ftype)));
+            }
+            out.push_str("}\n\n");
+            continue;
+        }
+        // Sum type / ADT.
         out.push_str("#[derive(Debug, Clone, Serialize, Deserialize)]\n");
         out.push_str(&format!("pub enum {} {{\n", typedef.name));
         for variant in &typedef.variants {

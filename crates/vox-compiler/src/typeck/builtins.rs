@@ -38,6 +38,7 @@ impl BuiltinTypes {
                     fields: vec![],
                 },
             ],
+            fields: vec![],
         });
 
         // Some(value: T) → Option[T]
@@ -77,6 +78,7 @@ impl BuiltinTypes {
                     fields: vec![("message".into(), Ty::Str)],
                 },
             ],
+            fields: vec![],
         });
 
         // Ok(value: T) → Result[T]
@@ -536,6 +538,55 @@ impl BuiltinTypes {
         );
         methods.insert("JsonModule".into(), json_methods);
 
+        // Json opaque value type — produced by std.json.parse and walked via
+        // typed accessors (object-shape methods + array methods + scalar reads).
+        let mut json_value_methods = std::collections::HashMap::new();
+        json_value_methods.insert(
+            "get_str".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
+        );
+        json_value_methods.insert(
+            "get_int".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Int)))),
+        );
+        json_value_methods.insert(
+            "get_float".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Float)))),
+        );
+        json_value_methods.insert(
+            "get_bool".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Bool)))),
+        );
+        json_value_methods.insert(
+            "get_object".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            ),
+        );
+        json_value_methods.insert(
+            "get_array".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            ),
+        );
+        json_value_methods.insert("is_null".into(), Ty::Fn(vec![], Box::new(Ty::Bool)));
+        json_value_methods.insert("length".into(), Ty::Fn(vec![], Box::new(Ty::Int)));
+        json_value_methods.insert(
+            "at".into(),
+            Ty::Fn(
+                vec![Ty::Int],
+                Box::new(Ty::Result(Box::new(Ty::Named("Json".into())))),
+            ),
+        );
+        json_value_methods.insert(
+            "keys".into(),
+            Ty::Fn(vec![], Box::new(Ty::List(Box::new(Ty::Str)))),
+        );
+        json_value_methods.insert("to_string".into(), Ty::Fn(vec![], Box::new(Ty::Str)));
+        methods.insert("Json".into(), json_value_methods);
+
         // Process module methods
         let mut process_methods = std::collections::HashMap::new();
         let process_output = Ty::Record(vec![
@@ -628,6 +679,18 @@ impl BuiltinTypes {
             "starts_with".into(),
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
         );
+        str_methods.insert(
+            "slice".into(),
+            Ty::Fn(vec![Ty::Int, Ty::Int], Box::new(Ty::Str)),
+        );
+        str_methods.insert(
+            "char_at".into(),
+            Ty::Fn(vec![Ty::Int], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        str_methods.insert(
+            "index_of".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Int)))),
+        );
         methods.insert("Str".into(), str_methods);
 
         // HTTP module methods
@@ -669,6 +732,35 @@ impl BuiltinTypes {
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Result(Box::new(Ty::Str)))),
         );
         methods.insert("SpeechModule".into(), speech_methods);
+
+        // Regex / Match (std.regex compile output and find result).
+        let mut regex_methods = std::collections::HashMap::new();
+        regex_methods.insert(
+            "matches".into(),
+            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
+        );
+        regex_methods.insert(
+            "find".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::Option(Box::new(Ty::Named("Match".into())))),
+            ),
+        );
+        regex_methods.insert(
+            "find_all".into(),
+            Ty::Fn(
+                vec![Ty::Str],
+                Box::new(Ty::List(Box::new(Ty::Named("Match".into())))),
+            ),
+        );
+        methods.insert("Regex".into(), regex_methods);
+
+        let mut match_methods = std::collections::HashMap::new();
+        match_methods.insert(
+            "group".into(),
+            Ty::Fn(vec![Ty::Int], Box::new(Ty::Option(Box::new(Ty::Str)))),
+        );
+        methods.insert("Match".into(), match_methods);
 
         // OpenClaw module methods come from shared builtin registry entries.
         let mut openclaw_methods = std::collections::HashMap::new();

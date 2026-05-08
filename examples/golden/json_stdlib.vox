@@ -1,0 +1,28 @@
+// ---
+// title: "JSON parse + access (std.json)"
+// description: "Parse a JSON string and walk the resulting opaque Json value with typed accessors (added 2026-05)."
+// syntax_version: "0.8"
+// status: golden
+// category: example
+// constructs: [std.json, json, get_str, get_int]
+// last_validated: 2026-05-08
+// training_eligible: true
+// training_weight: 1.0
+// ---
+// @training_prompt: Use std.json.parse and typed accessors to read fields from a JSON string
+fn read_kind(payload_json: str) to Result[str] {
+    return match std.json.parse(payload_json) {
+        Ok(j) => j.get_str("kind")
+        Error(m) => Error("parse failed: " + m)
+    }
+}
+
+fn read_score(payload_json: str) to Result[int] {
+    return match std.json.parse(payload_json) {
+        Ok(j) => match j.get_object("payload") {
+            Ok(p) => p.get_int("mood_score")
+            Error(m) => Error(m)
+        }
+        Error(m) => Error("parse: " + m)
+    }
+}

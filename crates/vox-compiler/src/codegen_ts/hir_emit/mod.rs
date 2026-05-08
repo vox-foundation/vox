@@ -253,7 +253,21 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
                 .iter()
                 .map(|a| emit_hir_expr(&a.value, state_names))
                 .collect();
-            let mut base = format!("{obj_str}.{method}({})", args_str.join(", "));
+            // Map Vox snake_case Str methods to JS String.prototype names where they differ.
+            // char_at/index_of return Optional in Vox; JS returns "" / -1, so we wrap.
+            let mut base = match method.as_str() {
+                "char_at" => format!(
+                    "((__i) => {{ const __c = ({}).charAt(__i); return __c === \"\" ? null : __c; }})({})",
+                    obj_str,
+                    args_str.first().map(String::as_str).unwrap_or("0")
+                ),
+                "index_of" => format!(
+                    "((__n) => {{ const __i = ({}).indexOf(__n); return __i < 0 ? null : __i; }})({})",
+                    obj_str,
+                    args_str.first().map(String::as_str).unwrap_or("\"\"")
+                ),
+                _ => format!("{obj_str}.{method}({})", args_str.join(", ")),
+            };
             if let Some(p) = plan {
                 if p.capabilities.requires_sync {
                     base.push_str(".sync()");

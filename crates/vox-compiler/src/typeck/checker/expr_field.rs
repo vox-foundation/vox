@@ -130,6 +130,15 @@ impl<'a> Checker<'a> {
                     ));
                     Ty::Error
                 }),
+            Ty::Named(n) if n == "StdRegexNs" => std_namespace_method_ty("regex", field)
+                .unwrap_or_else(|| {
+                    self.diags.push(Diagnostic::error(
+                        format!("Unknown std.regex method '{field}'"),
+                        span,
+                        self.source,
+                    ));
+                    Ty::Error
+                }),
             Ty::Named(n) if n.starts_with("RustCrate::") => {
                 let crate_name = n.trim_start_matches("RustCrate::");
                 let support = classify_rust_crate(crate_name).as_label();
@@ -154,6 +163,27 @@ impl<'a> Checker<'a> {
                     ));
                     Ty::Error
                 }),
+            // Struct types declared as `type Foo { f: T, ... }` register an AdtDef
+            // with non-empty `fields` and empty `variants`. Field access on a value
+            // of `Ty::Named(Foo)` resolves to the declared field type.
+            Ty::Named(n)
+                if self
+                    .env
+                    .lookup_adt(n)
+                    .is_some_and(|a| !a.fields.is_empty()) =>
+            {
+                let adt = self.env.lookup_adt(n).unwrap();
+                if let Some((_, t)) = adt.fields.iter().find(|(fn_, _)| fn_ == field) {
+                    t.clone()
+                } else {
+                    self.diags.push(Diagnostic::error(
+                        format!("Field '{field}' not found on struct {n}"),
+                        span,
+                        self.source,
+                    ));
+                    Ty::Error
+                }
+            }
             Ty::Database => {
                 if let Some(binding) = self.env.lookup(field) {
                     if binding.kind == BindingKind::Table {

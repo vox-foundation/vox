@@ -109,6 +109,12 @@ impl<'a> Checker<'a> {
     }
 
     fn check_function(&mut self, f: &mut HirFn) {
+        // Extern (TS-source FFI) functions have no Vox body to check — the body
+        // lives in a sibling .ts file. Skip body unification but still consume
+        // params/return type so call sites resolve correctly.
+        if f.ts_extern_module.is_some() {
+            return;
+        }
         let was_inferred = f.return_type.is_none();
         let mut ret_ty = f
             .return_type
@@ -616,9 +622,14 @@ impl<'a> Checker<'a> {
                 Ty::Unit
             }
             HirStmt::Return { value, span } => {
-                let val_ty = value
-                    .as_ref()
-                    .map_or(Ty::Unit, |v| self.check_expr(v, None));
+                // Pass the function's declared return type as an expected hint so that
+                // anonymous record literals (`return { x: 0, y: 0 }`) can be typed against
+                // the declared struct shape and resolve to `Ty::Named(StructName)` rather
+                // than the looser `Ty::Record`, which won't unify with the declared type.
+                let expected_ret = self.env.current_return_type().cloned();
+                let val_ty = value.as_ref().map_or(Ty::Unit, |v| {
+                    self.check_expr(v, expected_ret.as_ref())
+                });
                 if let Some(expected) = self.env.current_return_type() {
                     if let Err(msg) = self.uf.unify(&val_ty, expected) {
                         self.diags.push(Diagnostic::error(
