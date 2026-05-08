@@ -6,7 +6,7 @@ The app's CI workflow at `.github/workflows/vox-mental-tracker.yml` runs four pa
 |---|---|---|
 | `vox-check` | `vox check apps/vox-mental-tracker/src/main.vox` passes against the parent workspace's compiler. | ~3 min (cold cargo build dominates) |
 | `vitest` | All `tests/*.test.ts` pass under `pnpm exec vitest run`. Includes the Sherpa plugin TS declaration build as a precondition. | ~30 s |
-| `playwright` | `tests/e2e/**` runs under Chromium. Tests self-skip when `BASE_URL` is unset, so the lane proves the wiring (browser install, Playwright config validity) on every push and runs the full suite when a preview server is provided via env. | ~2 min |
+| `playwright` | `tests/e2e/**` runs under Chromium. The lane resolves `@playwright/test`'s pinned version, restores `~/.cache/ms-playwright` (key: OS × version × `chromium`), and only runs `playwright install chromium` on cache miss — hot cache shaves ~30 s and ~110 MB per push. Tests self-skip when `BASE_URL` is unset, so the lane proves browser availability on every push and runs the full e2e suite once a preview server is provided. The preview server itself depends on the Vite scaffold plan ([`docs/superpowers/plans/2026-05-08-codegen-ts-bugs-blocking-tracker.md`](../../../../docs/superpowers/plans/2026-05-08-codegen-ts-bugs-blocking-tracker.md) → unblocks app-side Vite work). | ~30 s warm, ~2 min cold |
 | `contracts` | Validates each file under `contracts/event-payloads/` parses as JSON and each `contracts/export/*.yaml` parses as YAML. | ~10 s |
 | `app-summary` | `needs: [vox-check, vitest, playwright, contracts]`; fails if any required lane failed. The required check for branch protection. | ~5 s |
 
