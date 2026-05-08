@@ -1,5 +1,6 @@
 ---
 source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+assertion_line: 108
 expression: ts
 ---
 import React from "react";
@@ -12,13 +13,11 @@ export interface StateChipProps {
 
 export function StateChip({ status, label, dim }: StateChipProps): React.ReactElement {
   return (
-<row items={"center"} gap={1} pad_x={2} pad_y={0} radius={"full"} bg={(dim ? "white/5" : (status === "running" || status === "ok" || status === "ready" ? "emerald.400/15" : (status === "warn" || status === "blocked" || status === "pending" ? "amber.400/15" : (status === "error" || status === "failed" || status === "errored" ? "rose.500/15" : "white/5"))))} raw_class={"h-5 inline-flex"}
->
-  <panel w={1} h={1} radius={"full"} bg={(dim ? "zinc.600" : (status === "running" || status === "ok" || status === "ready" ? "emerald.400" : (status === "warn" || status === "blocked" || status === "pending" ? "amber.400" : (status === "error" || status === "failed" || status === "errored" ? "rose.500" : "zinc.600"))))} />
-  <text size={"xs"} fontFamily={"mono"} tracking={"widest"} case={"upper"} color={(dim ? "zinc.500" : (status === "running" || status === "ok" || status === "ready" ? "emerald.400" : (status === "warn" || status === "blocked" || status === "pending" ? "amber.400" : (status === "error" || status === "failed" || status === "errored" ? "rose.400" : "zinc.500"))))}
->
-  {(label === "" ? status : label)}
-</text>
-</row>
+    <div className={["flex", "flex-row", "items-center", "gap-1", "px-2", "py-0", "rounded-full", (dim ? "bg-white/5" : (status === "running" || status === "ok" || status === "ready" ? "bg-emerald-400/15" : (status === "warn" || status === "blocked" || status === "pending" ? "bg-amber-400/15" : (status === "error" || status === "failed" || status === "errored" ? "bg-rose-500/15" : "bg-white/5")))), "h-5 inline-flex"].filter(Boolean).join(" ")}>
+      <div className={["border", "border-border", "p-4", "w-1", "h-1", "rounded-full", (dim ? "bg-zinc-600" : (status === "running" || status === "ok" || status === "ready" ? "bg-emerald-400" : (status === "warn" || status === "blocked" || status === "pending" ? "bg-amber-400" : (status === "error" || status === "failed" || status === "errored" ? "bg-rose-500" : "bg-zinc-600"))))].filter(Boolean).join(" ")} role={"region"} />
+      <p className={["text-xs", "font-mono", "tracking-widest", "uppercase", (dim ? "text-zinc-500" : (status === "running" || status === "ok" || status === "ready" ? "text-emerald-400" : (status === "warn" || status === "blocked" || status === "pending" ? "text-amber-400" : (status === "error" || status === "failed" || status === "errored" ? "text-rose-400" : "text-zinc-500"))))].filter(Boolean).join(" ")}>
+        {(label === "" ? status : label)}
+      </p>
+    </div>
   );
 }

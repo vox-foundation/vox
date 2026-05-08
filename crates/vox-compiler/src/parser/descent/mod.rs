@@ -201,9 +201,6 @@ impl Parser {
                     | Token::AtLoading
                     | Token::AtTest
                     | Token::AtV0
-                    | Token::AtServer
-                    | Token::AtQuery
-                    | Token::AtMutation
                     | Token::AtEndpoint
                     | Token::AtForall
                     | Token::AtScheduled
@@ -337,9 +334,6 @@ impl Parser {
                 | Token::Workflow
                 | Token::Http
                 | Token::AtTest
-                | Token::AtServer
-                | Token::AtQuery
-                | Token::AtMutation
                 | Token::AtEndpoint
                 | Token::AtTable
                 | Token::TypeKw
@@ -394,9 +388,6 @@ impl Parser {
             Token::AtV0 => self.parse_v0_component(),
             Token::AtLoading => self.parse_loading(),
             Token::AtTest => self.parse_test(),
-            Token::AtServer => self.parse_server_fn(),
-            Token::AtQuery => self.parse_query_fn(),
-            Token::AtMutation => self.parse_mutation_fn(),
             Token::AtEndpoint => self.parse_endpoint(),
             Token::AtForall => self.parse_forall(),
             Token::AtScheduled => self.parse_scheduled(),

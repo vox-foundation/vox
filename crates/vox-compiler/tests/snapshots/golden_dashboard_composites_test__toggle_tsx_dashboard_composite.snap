@@ -1,5 +1,6 @@
 ---
 source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+assertion_line: 308
 expression: ts
 ---
 import React from "react";
@@ -12,16 +13,14 @@ export interface ToggleProps {
 
 export function Toggle({ checked, label, on_change }: ToggleProps): React.ReactElement {
   return (
-<row items={"center"} gap={3} raw_class={"cursor-pointer"} onClick={on_change}
->
-  <panel w={9} h={5} radius={"full"} bg={(checked ? "blue.600" : "zinc.700")} pad={0} raw_class={"relative flex items-center transition-colors duration-150"}
->
-  <panel w={4} h={4} radius={"full"} bg={"white"} raw_class={(checked ? "absolute right-0.5 transition-all duration-150" : "absolute left-0.5 transition-all duration-150")} />
-</panel>
-  {(label === "" ? <panel  /> : <text size={"sm"} color={"zinc.300"}
->
-  {label}
-</text>)}
-</row>
+    <div className={["flex", "flex-row", "items-center", "gap-3", "cursor-pointer"].filter(Boolean).join(" ")} onClick={on_change}>
+      <div className={["border", "border-border", "w-9", "h-5", "rounded-full", (checked ? "bg-blue-600" : "bg-zinc-700"), "p-0", "relative flex items-center transition-colors duration-150"].filter(Boolean).join(" ")} role={"region"}>
+        <div className={["border", "border-border", "p-4", "w-4", "h-4", "rounded-full", "bg-white", (checked ? "absolute right-0.5 transition-all duration-150" : "absolute left-0.5 transition-all duration-150")].filter(Boolean).join(" ")} role={"region"} />
+      </div>
+      {(label === "" ? <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4"].filter(Boolean).join(" ")} /> : <p className={["text-sm", "text-zinc-300"].filter(Boolean).join(" ")}
+    >
+      {label}
+    </p>)}
+    </div>
   );
 }

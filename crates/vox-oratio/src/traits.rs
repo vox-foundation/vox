@@ -171,7 +171,7 @@ pub fn refine_raw_text(raw_text: &str, ctx: &CorrectionContext) -> TranscribeDet
 pub fn transcribe_path_detailed(
     path: &Path,
     ctx: &CorrectionContext,
-    language_hint: Option<&str>,
+    #[cfg_attr(not(feature = "stt-candle"), allow(unused_variables))] language_hint: Option<&str>,
 ) -> Result<TranscribeDetail> {
     let ext = path
         .extension()

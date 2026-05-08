@@ -560,14 +560,20 @@ fn test_parse_v0_component_from_image() {
 // WebIR blueprint G1: parser-truth coverage for server fns, routes, reactive surface.
 
 #[test]
-fn test_parse_server_fn_brace_shape() {
-    let m = parse_str("@server fn echo(x: str) to str {\n    return x\n}");
-    if let Decl::ServerFn(s) = &m.declarations[0] {
-        assert_eq!(s.func.name, "echo");
-        assert_eq!(s.func.params.len(), 1);
-        assert_eq!(s.func.params[0].name, "x");
+fn test_parse_endpoint_server_fn_brace_shape() {
+    let m = parse_str(
+        "@endpoint(kind: server) fn echo(x: str) to str {\n    return x\n}",
+    );
+    if let Decl::Endpoint(e) = &m.declarations[0] {
+        assert_eq!(e.func.name, "echo");
+        assert_eq!(e.func.params.len(), 1);
+        assert_eq!(e.func.params[0].name, "x");
+        assert!(matches!(
+            e.kind,
+            crate::ast::decl::EndpointKind::Server
+        ));
     } else {
-        panic!("Expected Decl::ServerFn, got {:?}", m.declarations[0]);
+        panic!("Expected Decl::Endpoint, got {:?}", m.declarations[0]);
     }
 }
 

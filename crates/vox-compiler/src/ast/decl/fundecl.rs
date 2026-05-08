@@ -127,27 +127,6 @@ pub struct ForallDecl {
     pub func: FnDecl,
 }
 
-/// Server function declaration (wraps a function with @server semantics).
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct ServerFnDecl {
-    /// The underlying function implementing the server logic.
-    pub func: FnDecl,
-}
-
-/// Query declaration: a read-only database function.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct QueryDecl {
-    /// The underlying function implementing the query.
-    pub func: FnDecl,
-}
-
-/// Mutation declaration: a write database function with transaction semantics.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct MutationDecl {
-    /// The underlying function implementing the mutation.
-    pub func: FnDecl,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum EndpointKind {
     Query,

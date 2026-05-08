@@ -248,13 +248,6 @@ const CONSTRUCT_PROMPTS: &[(&str, &[&str])] = &[
             "Configure agent `{name}` in Vox",
         ],
     ),
-    (
-        "py_import",
-        &[
-            "Map Python interop import `{name}` in Vox",
-            "Add a `py_import` alias `{name}`",
-        ],
-    ),
 ];
 
 include!("part_helpers.rs");

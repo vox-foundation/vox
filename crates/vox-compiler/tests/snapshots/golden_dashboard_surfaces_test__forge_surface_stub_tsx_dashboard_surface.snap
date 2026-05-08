@@ -10,31 +10,25 @@ import { SurfaceStub } from "./SurfaceStub";
 export function ForgeSurface(): React.ReactElement {
   const [panel, set_panel] = useState("pipeline");
   return (
-<column flex={1} overflow={"hidden"} bg={"zinc.950"}
->
-  <row h={10} border_b={true} border_color={"zinc.800"} pad_x={4} items={"center"} gap={4} shrink={0}
->
-  <text size={"sm"} weight={"black"} tracking={"tight"} color={"white"}
->
-  {"Forge"}
-</text>
-  <row gap={1}
->
-  <button raw_class={(panel === "pipeline" ? "px-3 py-1 rounded-lg bg-white/8 text-xs text-white font-medium" : "px-3 py-1 rounded-lg text-xs text-zinc-500 hover:text-zinc-300")} onClick={(() => ((() => {
-    set_panel("pipeline");
-  })()))}
->
-  {"Pipeline"}
-</button>
-  <button raw_class={(panel === "timeline" ? "px-3 py-1 rounded-lg bg-white/8 text-xs text-white font-medium" : "px-3 py-1 rounded-lg text-xs text-zinc-500 hover:text-zinc-300")} onClick={(() => ((() => {
-    set_panel("timeline");
-  })()))}
->
-  {"Time Travel"}
-</button>
-</row>
-</row>
-  {(panel === "pipeline" ? <SurfaceStub title={"Pipeline"} desc={"Lex to Codegen. Each stage shows duration, status, and diagnostics."} action={"Run build"} /> : <SurfaceStub title={"Time Travel"} desc={"Scrub the workflow event timeline to inspect durable state at any past instant."} action={"Load a workflow"} />)}
-</column>
+    <div className={["flex", "flex-col", "flex-1", "overflow-hidden", "bg-zinc-950"].filter(Boolean).join(" ")}>
+      <div className={["flex", "flex-row", "h-10", "border-b", "border-zinc-800", "px-4", "items-center", "gap-4", "shrink-0"].filter(Boolean).join(" ")}>
+        <p className={["text-sm", "tracking-tight", "text-white"].filter(Boolean).join(" ")}>
+          {"Forge"}
+        </p>
+        <div className={["flex", "flex-row", "gap-1"].filter(Boolean).join(" ")}>
+          <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", (panel === "pipeline" ? "px-3 py-1 rounded-lg bg-white/8 text-xs text-white font-medium" : "px-3 py-1 rounded-lg text-xs text-zinc-500 hover:text-zinc-300")].filter(Boolean).join(" ")} onClick={(() => ((() => {
+        set_panel("pipeline");
+      })()))}>
+            {"Pipeline"}
+          </button>
+          <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", (panel === "timeline" ? "px-3 py-1 rounded-lg bg-white/8 text-xs text-white font-medium" : "px-3 py-1 rounded-lg text-xs text-zinc-500 hover:text-zinc-300")].filter(Boolean).join(" ")} onClick={(() => ((() => {
+        set_panel("timeline");
+      })()))}>
+            {"Time Travel"}
+          </button>
+        </div>
+      </div>
+      {(panel === "pipeline" ? <SurfaceStub title={"Pipeline"} desc={"Lex to Codegen. Each stage shows duration, status, and diagnostics."} action={"Run build"} /> : <SurfaceStub title={"Time Travel"} desc={"Scrub the workflow event timeline to inspect durable state at any past instant."} action={"Load a workflow"} />)}
+    </div>
   );
 }

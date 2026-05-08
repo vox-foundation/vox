@@ -2012,8 +2012,10 @@ component Page() {
 
     let has_surface = web.dom_nodes.iter().any(|n| {
         if let DomNode::Element { tag, attrs, .. } = n {
+            // Attr values are TS expression strings: data-vox-surface is a JSON-encoded
+            // string literal, style is a CSSProperties object expression.
             tag == "div"  // panel → div
-                && attrs.iter().any(|(k, v)| k == "data-vox-surface" && v == "primary")
+                && attrs.iter().any(|(k, v)| k == "data-vox-surface" && v == "\"primary\"")
                 && attrs.iter().any(|(k, v)| k == "style" && v.contains("--vox-surface-primary-fg"))
         } else {
             false
@@ -2064,12 +2066,14 @@ component Layout() {
     let hir = vox_compiler::hir::lower_module(&module);
     let web = lower_hir_to_web_ir(&hir);
 
+    // DomNode attr values are stored as TS expression strings (emit_tsx wraps them
+    // in `{...}`), so plain string-literal markers are JSON-encoded with quotes.
     let overlay_elem = web.dom_nodes.iter().find(|n| {
         if let DomNode::Element { tag, attrs, .. } = n {
             tag == "div"
                 && attrs
                     .iter()
-                    .any(|(k, v)| k == "data-vox-overlay" && v == "true")
+                    .any(|(k, v)| k == "data-vox-overlay" && v == "\"true\"")
         } else {
             false
         }
@@ -2082,10 +2086,12 @@ component Layout() {
 
     let toast_elem = web.dom_nodes.iter().find(|n| {
         if let DomNode::Element { attrs, .. } = n {
-            attrs.iter().any(|(k, v)| k == "data-vox-z" && v == "100")
+            attrs
+                .iter()
+                .any(|(k, v)| k == "data-vox-z" && v == "\"100\"")
                 && attrs
                     .iter()
-                    .any(|(k, v)| k == "data-vox-pos" && v == "top_right")
+                    .any(|(k, v)| k == "data-vox-pos" && v == "\"top_right\"")
         } else {
             false
         }

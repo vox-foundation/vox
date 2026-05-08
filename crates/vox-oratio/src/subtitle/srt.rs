@@ -1,9 +1,3 @@
-use std::fs::File;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-
-use anyhow::Context;
-
 use crate::backends::asr_backend::TimedSegment;
 
 /// Formats a list of segments into an SRT subtitle string.
@@ -244,6 +238,8 @@ pub fn generate_srt_file(
     Ok(metrics)
 }
 
+/// Stub used when no STT backend feature is enabled — returns an error indicating
+/// `stt-candle` (or another STT feature) must be enabled to generate SRT files.
 #[cfg(not(any(feature = "stt-candle", feature = "stt-sherpa")))]
 pub fn generate_srt_file(
     input_path: String,

@@ -13,7 +13,7 @@ export interface EventRowProps {
 
 export function EventRow({ kind, label, ts }: EventRowProps): React.ReactElement {
   return (
-    <div className={["flex", "flex-row", "flex items-start", "gap-3", "py-1", "border-b-true", "border-zinc-800/40"].filter(Boolean).join(" ")}>
+    <div className={["flex", "flex-row", "items-start", "gap-3", "py-1", "border-b", "border-zinc-800/40"].filter(Boolean).join(" ")}>
       <p className={["text-xs", "font-mono", "text-zinc-700", "w-14 shrink-0 text-right"].filter(Boolean).join(" ")}>
         {ts}
       </p>

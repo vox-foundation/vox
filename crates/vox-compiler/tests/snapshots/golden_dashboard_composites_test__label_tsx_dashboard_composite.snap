@@ -1,5 +1,6 @@
 ---
 source: crates/vox-compiler/tests/golden_dashboard_composites_test.rs
+assertion_line: 206
 expression: ts
 ---
 import React from "react";
@@ -10,9 +11,8 @@ export interface LabelProps {
 
 export function Label({ text }: LabelProps): React.ReactElement {
   return (
-<text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.500"}
->
-  {text}
-</text>
+    <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-500"].filter(Boolean).join(" ")}>
+      {text}
+    </p>
   );
 }

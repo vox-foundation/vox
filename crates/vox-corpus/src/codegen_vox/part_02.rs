@@ -439,14 +439,6 @@ fn generate_for_taxonomy_entry(tag: &str, rng: &mut Rng, variant: usize) -> Opti
             format!("component {type_name}Widget() {{\n    // @v0(\"https://v0.dev/t/example\")\n    view: <div></div>\n}}"),
             format!("Define a Vox v0.dev component `{type_name}Widget`"),
         ),
-        "py_import" => {
-            let libs = ["torch", "numpy", "pandas", "transformers"];
-            let lib = libs[variant % libs.len()];
-            (
-                format!("@py.import {lib} as {lib}"),
-                format!("Import Python `{lib}` in Vox"),
-            )
-        }
         _ => {
             // Unknown taxonomy entry — generate a generic function tagged with the construct
             let body = gen_body(rng, "str", complexity, &mut tags);

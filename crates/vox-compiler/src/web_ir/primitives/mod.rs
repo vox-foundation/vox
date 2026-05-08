@@ -663,14 +663,39 @@ pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> 
         "color" => vec![format!("text-{}", v_dashed)],
         "border" => match v {
             "" | "true" | "1" => vec!["border".to_string()],
+            "false" | "0" => return Some(vec![]),
             _ => vec![format!("border-{v}")],
         },
-        "border_x" => vec![format!("border-x-{v}")],
-        "border_y" => vec![format!("border-y-{v}")],
-        "border_t" => vec![format!("border-t-{v}")],
-        "border_b" => vec![format!("border-b-{v}")],
-        "border_l" => vec![format!("border-l-{v}")],
-        "border_r" => vec![format!("border-r-{v}")],
+        "border_x" => match v {
+            "" | "true" | "1" => vec!["border-x".to_string()],
+            "false" | "0" => return Some(vec![]),
+            _ => vec![format!("border-x-{v}")],
+        },
+        "border_y" => match v {
+            "" | "true" | "1" => vec!["border-y".to_string()],
+            "false" | "0" => return Some(vec![]),
+            _ => vec![format!("border-y-{v}")],
+        },
+        "border_t" => match v {
+            "" | "true" | "1" => vec!["border-t".to_string()],
+            "false" | "0" => return Some(vec![]),
+            _ => vec![format!("border-t-{v}")],
+        },
+        "border_b" => match v {
+            "" | "true" | "1" => vec!["border-b".to_string()],
+            "false" | "0" => return Some(vec![]),
+            _ => vec![format!("border-b-{v}")],
+        },
+        "border_l" => match v {
+            "" | "true" | "1" => vec!["border-l".to_string()],
+            "false" | "0" => return Some(vec![]),
+            _ => vec![format!("border-l-{v}")],
+        },
+        "border_r" => match v {
+            "" | "true" | "1" => vec!["border-r".to_string()],
+            "false" | "0" => return Some(vec![]),
+            _ => vec![format!("border-r-{v}")],
+        },
         "border_color" => vec![format!("border-{}", v_dashed)],
         "radius" => vec![format!("rounded-{v}")],
         "radius_t" => vec![format!("rounded-t-{v}")],
@@ -696,13 +721,13 @@ pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> 
             "0" => vec!["grow-0".to_string()],
             _ => vec![format!("grow-{v}")],
         },
-        // `justify`/`items` only have an effect on flex containers. Auto-include `flex` so
-        // the kwarg works on any primitive (`panel(items="center")`, `card(justify="end")`,
-        // …), not just row/column. Tailwind happily ignores duplicate `flex` if the
-        // primitive's base classes already include it; on non-flex primitives this turns the
-        // class into the intended layout instead of a silent no-op.
-        "justify" => vec!["flex".to_string(), format!("justify-{v}")],
-        "items" => vec!["flex".to_string(), format!("items-{v}")],
+        // `justify`/`items` only have an effect on flex containers. The primitive base
+        // classes (`row`/`column`/`stack` already include `flex`); on non-flex primitives
+        // (`panel`, `card`) callers should add `flex=true` explicitly. We emit the bare
+        // utility class and let the primitive own the `flex` decision — duplicating `flex`
+        // here produces ugly className arrays without semantic gain.
+        "justify" => vec![format!("justify-{v}")],
+        "items" => vec![format!("items-{v}")],
         "tracking" => vec![format!("tracking-{v}")],
         "leading" => vec![format!("leading-{v}")],
         "case" => match v {

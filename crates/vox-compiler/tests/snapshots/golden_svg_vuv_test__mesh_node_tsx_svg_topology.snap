@@ -1,26 +1,23 @@
 ---
 source: crates/vox-compiler/tests/golden_svg_vuv_test.rs
+assertion_line: 240
 expression: ts
 ---
 import React from "react";
 
 export function MeshNode(): React.ReactElement {
   return (
-<svg viewBox={"0 0 100 100"}
->
-  <defs 
->
-  <radialGradient id={"halo"} cx={0.5} cy={0.5} r={0.5}
->
-  <stop offset={"0%"} stopColor={"#34d399"} stopOpacity={0.4} />
-  <stop offset={"100%"} stopColor={"#34d399"} stopOpacity={0} />
-</radialGradient>
-</defs>
-  <g transform={"translate(50, 50)"}
->
-  <circle r={8} fill={"url(#halo)"} />
-  <circle r={3} fill={"#34d399"} />
-</g>
-</svg>
+    <svg viewBox={"0 0 100 100"}>
+      <defs>
+        <radialGradient cx={0.5} cy={0.5} id={"halo"} r={0.5}>
+          <stop offset={"0%"} stopColor={"#34d399"} stopOpacity={0.4} />
+          <stop offset={"100%"} stopColor={"#34d399"} stopOpacity={0} />
+        </radialGradient>
+      </defs>
+      <g transform={"translate(50, 50)"}>
+        <circle fill={"url(#halo)"} r={8} />
+        <circle fill={"#34d399"} r={3} />
+      </g>
+    </svg>
   );
 }

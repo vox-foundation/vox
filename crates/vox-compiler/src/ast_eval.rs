@@ -83,7 +83,7 @@ fn count_module_constructs(module: &Module) -> ConstructCounts {
             Decl::Function(_) => "fn",
             Decl::ReactiveComponent(_) => "component",
             Decl::TypeDef(_) => "type",
-            Decl::Import(_) | Decl::PyImport(_) => "import",
+            Decl::Import(_) => "import",
             Decl::HttpRoute(_) => "http",
             Decl::McpTool(_) => "mcp_tool",
             Decl::McpResource(_) => "mcp_resource",
@@ -91,9 +91,6 @@ fn count_module_constructs(module: &Module) -> ConstructCounts {
                 has_tests = true;
                 "test"
             }
-            Decl::ServerFn(_) => "server",
-            Decl::Query(_) => "query",
-            Decl::Mutation(_) => "mutation",
             Decl::Table(_) => "table",
             Decl::Collection(_) => "collection",
             Decl::Index(_) | Decl::VectorIndex(_) | Decl::SearchIndex(_) => "index",

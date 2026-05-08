@@ -21,7 +21,6 @@ const MCP_ROADMAP_DECORATORS: &[&str] = &[
     "@metric",
     "@agent_def",
     "@skill",
-    "@py_import",
     "@theme",
     "@keyframes",
 ];

@@ -41,9 +41,7 @@
     "@component",
     "@mcp.tool",
     "@test",
-    "@server",
-    "@query",
-    "@mutation",
+    "@endpoint",
     "@table",
     "@index",
     "@v0"

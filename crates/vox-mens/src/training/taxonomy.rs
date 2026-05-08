@@ -32,7 +32,6 @@ pub const TAXONOMY: &[&str] = &[
     "not_found",
     "page",
     "provider",
-    "py_import",
     "query",
     "routes",
     "scheduled",
@@ -54,7 +53,7 @@ pub const TAXONOMY: &[&str] = &[
 pub fn construct_difficulty(construct: &str) -> u8 {
     match construct {
         // Tier 0: basic building blocks
-        "const" | "import" | "py_import" => 1,
+        "const" | "import" => 1,
         // Tier 1: simple declarations
         "type" | "function" | "test" | "fixture" | "mock" => 2,
         // Tier 2: UI and data

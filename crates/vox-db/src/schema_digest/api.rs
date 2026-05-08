@@ -71,12 +71,15 @@ pub fn generate_schema_digest(module: &Module, vcs_snapshot_id: Option<String>) 
                     filter_fields: sidx.filter_fields.clone(),
                 });
             }
-            Decl::Query(q) => {
-                queries.push(extract_function_info(&q.func, &table_names));
-            }
-            Decl::Mutation(m) => {
-                mutations.push(extract_function_info(&m.func, &table_names));
-            }
+            Decl::Endpoint(e) => match e.kind {
+                vox_compiler::ast::decl::EndpointKind::Query => {
+                    queries.push(extract_function_info(&e.func, &table_names));
+                }
+                vox_compiler::ast::decl::EndpointKind::Mutation => {
+                    mutations.push(extract_function_info(&e.func, &table_names));
+                }
+                vox_compiler::ast::decl::EndpointKind::Server => {}
+            },
 
             _ => {}
         }

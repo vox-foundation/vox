@@ -1,6 +1,5 @@
 use std::cmp::Ord;
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::catalog::{ModelCatalog, OpenRouterCatalog};

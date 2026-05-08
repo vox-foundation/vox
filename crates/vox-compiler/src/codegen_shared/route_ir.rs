@@ -14,8 +14,8 @@ use crate::hir::{HirEndpointFn, HirHttpMethod, HirModule, HirParam, HirRoute};
 
 /// Unified HTTP route contract used by Rust and TypeScript backends.
 ///
-/// Every HTTP endpoint derivable from a Vox module (explicit `route`, `@server fn`,
-/// `@query fn`, `@mutation fn`) maps to one `RouteIR` entry.
+/// Every HTTP endpoint derivable from a Vox module (explicit `route` or `@endpoint`)
+/// maps to one `RouteIR` entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouteIR {
     /// HTTP method.
@@ -194,7 +194,7 @@ mod tests {
     #[test]
     fn lower_module_routes_yields_stable_order() {
         let src = r#"
-@server fn greet(name: str) to str {
+@endpoint(kind: server) fn greet(name: str) to str {
     return name
 }
 "#;
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn route_ir_contract_key_matches_hir_contract() {
         let src = r#"
-@server fn ping() to str {
+@endpoint(kind: server) fn ping() to str {
     return "pong"
 }
 "#;
@@ -237,7 +237,7 @@ mod tests {
     #[test]
     fn route_ir_query_uses_get_contract_key() {
         let src = r#"
-@query fn items() to int {
+@endpoint(kind: query) fn items() to int {
     return 0
 }
 "#;

@@ -142,6 +142,12 @@ fn transform_view_kwargs(tag: &str, attrs: &[JsxAttribute]) -> ViewCallEmission 
             class_pieces.push(piece);
             continue;
         }
+        // Universal style kwargs that resolve to no class (e.g. `border=false`,
+        // `italic=false`) are intentionally consumed by the lowering — passing them
+        // through would emit invalid JSX (`<div border={false}>`).
+        if crate::web_ir::primitives::UNIVERSAL_STYLE_KWARGS.contains(&name) {
+            continue;
+        }
         passthrough.push(attr.clone());
     }
 
@@ -193,25 +199,40 @@ fn kwarg_to_class_expr(kwarg: &str, expr: &Expr) -> Option<String> {
     match unwrap_block(expr) {
         Expr::StringLit { value, .. } => {
             let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, value)?;
+            if classes.is_empty() {
+                return None;
+            }
             Some(format!("\"{}\"", classes.join(" ")))
         }
         Expr::BoolLit { value, .. } => {
             let v = value.to_string();
             let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            if classes.is_empty() {
+                return None;
+            }
             Some(format!("\"{}\"", classes.join(" ")))
         }
         Expr::IntLit { value, .. } => {
             let v = value.to_string();
             let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            if classes.is_empty() {
+                return None;
+            }
             Some(format!("\"{}\"", classes.join(" ")))
         }
         Expr::FloatLit { value, .. } => {
             let v = value.to_string();
             let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            if classes.is_empty() {
+                return None;
+            }
             Some(format!("\"{}\"", classes.join(" ")))
         }
         Expr::DecimalLit { value, .. } => {
             let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, value)?;
+            if classes.is_empty() {
+                return None;
+            }
             Some(format!("\"{}\"", classes.join(" ")))
         }
         Expr::If {

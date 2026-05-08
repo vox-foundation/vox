@@ -958,6 +958,11 @@ pub(crate) fn transform_hir_view_kwargs(
             class_pieces.push(piece);
             continue;
         }
+        if crate::web_ir::primitives::UNIVERSAL_STYLE_KWARGS.contains(&name) {
+            // Recognized style kwarg with no class to emit (e.g. `border=false`).
+            // Drop instead of passing through to prevent invalid JSX attrs.
+            continue;
+        }
         passthrough.push(attr.clone());
     }
 
@@ -987,21 +992,33 @@ fn hir_kwarg_to_class_expr(
     match unwrap_inline_hir_block_expr(expr) {
         HirExpr::StringLit(value, _) => {
             let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, value)?;
+            if classes.is_empty() {
+                return None;
+            }
             Some(format!("\"{}\"", classes.join(" ")))
         }
         HirExpr::BoolLit(value, _) => {
             let v = value.to_string();
             let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            if classes.is_empty() {
+                return None;
+            }
             Some(format!("\"{}\"", classes.join(" ")))
         }
         HirExpr::IntLit(value, _) => {
             let v = value.to_string();
             let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            if classes.is_empty() {
+                return None;
+            }
             Some(format!("\"{}\"", classes.join(" ")))
         }
         HirExpr::FloatLit(value, _) => {
             let v = value.to_string();
             let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, &v)?;
+            if classes.is_empty() {
+                return None;
+            }
             Some(format!("\"{}\"", classes.join(" ")))
         }
         HirExpr::If(cond, then_stmts, else_stmts, _) => {

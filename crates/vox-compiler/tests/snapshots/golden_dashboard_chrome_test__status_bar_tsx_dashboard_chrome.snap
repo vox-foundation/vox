@@ -1,5 +1,6 @@
 ---
 source: crates/vox-compiler/tests/golden_dashboard_chrome_test.rs
+assertion_line: 342
 expression: ts
 ---
 import React from "react";
@@ -20,71 +21,55 @@ export function StatusBar({ active }: StatusBarProps): React.ReactElement {
     const cost_cap = "$50.00";
     const utc_time = "UTC 14:32";
   return (
-<row raw_class={"h-[26px] shrink-0"} border_t={true} border_color={"zinc.800"} pad_x={4} items={"center"} justify={"between"} bg={"zinc.950"}
->
-  <row items={"center"} gap={3}
->
-  <StatusSegment label={"mesh"} value={mesh_nodes} dot_color={"emerald.400"} highlighted={(active === "mesh" ? true : false)} />
-  <text size={"xs"} color={"zinc.700"}
->
-  {"·"}
-</text>
-  <StatusSegment label={"queue"} value={queue_count} dot_color={"emerald.400"} highlighted={(active === "runs" ? true : false)} />
-  <text size={"xs"} color={"zinc.700"}
->
-  {"·"}
-</text>
-  <StatusSegment label={"errors"} value={error_count} dot_color={"rose.500"} highlighted={(active === "code" ? true : false)} />
-  <text size={"xs"} color={"zinc.700"}
->
-  {"·"}
-</text>
-  <StatusSegment label={"model"} value={model_name} dot_color={"emerald.400"} highlighted={(active === "models" ? true : false)} />
-  <text size={"xs"} color={"zinc.700"}
->
-  {"·"}
-</text>
-  <StatusSegment label={"build"} value={build_state} dot_color={"zinc.600"} highlighted={(active === "forge" ? true : false)} />
-</row>
-  <row items={"center"} gap={2}
->
-  <text size={"xs"} fontFamily={"mono"} color={"zinc.600"}
->
-  {"cost"}
-</text>
-  <text size={"xs"} color={"zinc.700"}
->
-  {"·"}
-</text>
-  <text size={"xs"} fontFamily={"mono"} color={"zinc.500"}
->
-  {cost_used}
-</text>
-  <text size={"xs"} color={"zinc.700"}
->
-  {"/"}
-</text>
-  <text size={"xs"} fontFamily={"mono"} color={"zinc.600"}
->
-  {cost_cap}
-</text>
-  <text size={"xs"} color={"zinc.700"}
->
-  {"·"}
-</text>
-  <text size={"xs"} fontFamily={"mono"} color={"zinc.600"}
->
-  {"24h"}
-</text>
-  <text size={"xs"} color={"zinc.700"}
->
-  {"·"}
-</text>
-  <text size={"xs"} fontFamily={"mono"} color={"zinc.600"}
->
-  {utc_time}
-</text>
-</row>
-</row>
+    <div className={["flex", "flex-row", "h-[26px] shrink-0", "border-t", "border-zinc-800", "px-4", "items-center", "justify-between", "bg-zinc-950"].filter(Boolean).join(" ")}>
+      <div className={["flex", "flex-row", "items-center", "gap-3"].filter(Boolean).join(" ")}>
+        <StatusSegment dot_color={"emerald.400"} highlighted={(active === "mesh" ? true : false)} label={"mesh"} value={mesh_nodes} />
+        <p className={["text-xs", "text-zinc-700"].filter(Boolean).join(" ")}>
+          {"·"}
+        </p>
+        <StatusSegment dot_color={"emerald.400"} highlighted={(active === "runs" ? true : false)} label={"queue"} value={queue_count} />
+        <p className={["text-xs", "text-zinc-700"].filter(Boolean).join(" ")}>
+          {"·"}
+        </p>
+        <StatusSegment dot_color={"rose.500"} highlighted={(active === "code" ? true : false)} label={"errors"} value={error_count} />
+        <p className={["text-xs", "text-zinc-700"].filter(Boolean).join(" ")}>
+          {"·"}
+        </p>
+        <StatusSegment dot_color={"emerald.400"} highlighted={(active === "models" ? true : false)} label={"model"} value={model_name} />
+        <p className={["text-xs", "text-zinc-700"].filter(Boolean).join(" ")}>
+          {"·"}
+        </p>
+        <StatusSegment dot_color={"zinc.600"} highlighted={(active === "forge" ? true : false)} label={"build"} value={build_state} />
+      </div>
+      <div className={["flex", "flex-row", "items-center", "gap-2"].filter(Boolean).join(" ")}>
+        <p className={["text-xs", "font-mono", "text-zinc-600"].filter(Boolean).join(" ")}>
+          {"cost"}
+        </p>
+        <p className={["text-xs", "text-zinc-700"].filter(Boolean).join(" ")}>
+          {"·"}
+        </p>
+        <p className={["text-xs", "font-mono", "text-zinc-500"].filter(Boolean).join(" ")}>
+          {cost_used}
+        </p>
+        <p className={["text-xs", "text-zinc-700"].filter(Boolean).join(" ")}>
+          {"/"}
+        </p>
+        <p className={["text-xs", "font-mono", "text-zinc-600"].filter(Boolean).join(" ")}>
+          {cost_cap}
+        </p>
+        <p className={["text-xs", "text-zinc-700"].filter(Boolean).join(" ")}>
+          {"·"}
+        </p>
+        <p className={["text-xs", "font-mono", "text-zinc-600"].filter(Boolean).join(" ")}>
+          {"24h"}
+        </p>
+        <p className={["text-xs", "text-zinc-700"].filter(Boolean).join(" ")}>
+          {"·"}
+        </p>
+        <p className={["text-xs", "font-mono", "text-zinc-600"].filter(Boolean).join(" ")}>
+          {utc_time}
+        </p>
+      </div>
+    </div>
   );
 }

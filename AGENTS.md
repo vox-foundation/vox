@@ -193,6 +193,8 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 | `vox-gamify` | `vox-ludus` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |
+| `@server fn`, `@query fn`, `@mutation fn` | `@endpoint(kind: server\|query\|mutation) fn` |
+| `@py.import` (Python interop) | Removed — Python is no longer a Vox glue surface (see §VoxScript-First Glue Code) |
 | `TURSO_URL` / `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |
 | `recall()` (synchronous memory read) | `recall_async(query_spec)` |
 | `persist_fact()` | `sync_to_db()` |

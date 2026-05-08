@@ -804,7 +804,7 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
                 .context("Failed to serialize A2ADeliverRequest")?;
 
             let url_for_task = url_owned.clone();
-            let spec_env = spec.canonical_env.clone();
+            let spec_env: String = spec.canonical_env.to_string();
             let dispatch_result = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
                 let plugin = vox_plugin_host::cached_code_plugin("populi-mesh")
                     .map_err(|e| anyhow::anyhow!("populi-mesh plugin: {e}"))?;

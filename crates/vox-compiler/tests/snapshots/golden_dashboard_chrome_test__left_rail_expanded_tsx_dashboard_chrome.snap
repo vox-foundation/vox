@@ -1,5 +1,6 @@
 ---
 source: crates/vox-compiler/tests/golden_dashboard_chrome_test.rs
+assertion_line: 215
 expression: ts
 ---
 import React from "react";
@@ -13,37 +14,33 @@ export interface LeftRailProps {
 
 export function LeftRail({ active, collapsed }: LeftRailProps): React.ReactElement {
   return (
-<column raw_class={(collapsed ? "w-14 shrink-0" : "w-[200px] shrink-0")} border_r={true} border_color={"zinc.800"} pad={2} gap={1} bg={"zinc.950"}
->
-  <row h={12} items={"center"} shrink={0} raw_class={(collapsed ? "justify-center px-1" : "gap-2 px-2")}
->
-  <panel w={6} h={6} radius={"md"} bg={"blue.600"} raw_class={"flex items-center justify-center shrink-0"}
->
-  <text size={"xs"} weight={"bold"} color={"white"} fontFamily={"mono"}
->
-  {"V"}
-</text>
-</panel>
-  {(collapsed ? <panel  /> : <text size={"sm"} weight={"bold"} color={"white/90"} tracking={"tight"}
->
-  {"Vox"}
-</text>)}
-</row>
-  <NavItem label={"Speak"} surface_key={"speak"} active={active} collapsed={collapsed} />
-  <NavItem label={"Mesh"} surface_key={"mesh"} active={active} collapsed={collapsed} />
-  <NavItem label={"Forge"} surface_key={"forge"} active={active} collapsed={collapsed} />
-  <NavItem label={"Code"} surface_key={"code"} active={active} collapsed={collapsed} />
-  <NavItem label={"Models"} surface_key={"models"} active={active} collapsed={collapsed} />
-  <NavItem label={"Runs"} surface_key={"runs"} active={active} collapsed={collapsed} />
-  <panel flex={1} />
-  <NavItem label={"Settings"} surface_key={"settings"} active={active} collapsed={collapsed} />
-  {(collapsed ? <panel  /> : <row pad_x={2} pad_y={2} shrink={0}
->
-  <text size={"xs"} fontFamily={"mono"} color={"zinc.700"}
->
-  {"v0.14.2 · main"}
-</text>
-</row>)}
-</column>
+    <div className={["flex", "flex-col", (collapsed ? "w-14 shrink-0" : "w-[200px] shrink-0"), "border-r", "border-zinc-800", "p-2", "gap-1", "bg-zinc-950"].filter(Boolean).join(" ")}>
+      <div className={["flex", "flex-row", "h-12", "items-center", "shrink-0", (collapsed ? "justify-center px-1" : "gap-2 px-2")].filter(Boolean).join(" ")}>
+        <div className={["border", "border-border", "p-4", "w-6", "h-6", "rounded-md", "bg-blue-600", "flex items-center justify-center shrink-0"].filter(Boolean).join(" ")} role={"region"}>
+          <p className={["text-xs", "font-bold", "text-white", "font-mono"].filter(Boolean).join(" ")}>
+            {"V"}
+          </p>
+        </div>
+        {(collapsed ? <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4"].filter(Boolean).join(" ")} /> : <p className={["text-sm", "font-bold", "text-white/90", "tracking-tight"].filter(Boolean).join(" ")}
+    >
+      {"Vox"}
+    </p>)}
+      </div>
+      <NavItem active={active} collapsed={collapsed} label={"Speak"} surface_key={"speak"} />
+      <NavItem active={active} collapsed={collapsed} label={"Mesh"} surface_key={"mesh"} />
+      <NavItem active={active} collapsed={collapsed} label={"Forge"} surface_key={"forge"} />
+      <NavItem active={active} collapsed={collapsed} label={"Code"} surface_key={"code"} />
+      <NavItem active={active} collapsed={collapsed} label={"Models"} surface_key={"models"} />
+      <NavItem active={active} collapsed={collapsed} label={"Runs"} surface_key={"runs"} />
+      <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "flex-1"].filter(Boolean).join(" ")} role={"region"} />
+      <NavItem active={active} collapsed={collapsed} label={"Settings"} surface_key={"settings"} />
+      {(collapsed ? <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4"].filter(Boolean).join(" ")} /> : <div className={["flex", "flex-row", "px-2", "py-2", "shrink-0"].filter(Boolean).join(" ")}
+    >
+      <p className={["text-xs", "font-mono", "text-zinc-700"].filter(Boolean).join(" ")}
+    >
+      {"v0.14.2 · main"}
+    </p>
+    </div>)}
+    </div>
   );
 }

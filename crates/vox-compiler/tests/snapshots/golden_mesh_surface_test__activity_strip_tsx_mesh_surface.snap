@@ -7,11 +7,11 @@ import React from "react";
 
 export function ActivityStrip(): React.ReactElement {
   return (
-    <div className={["flex", "flex-row", "h-20", "border-t-true", "border-zinc-800", "px-4", "flex items-center", "gap-3", "shrink-0", "bg-zinc-950"].filter(Boolean).join(" ")}>
+    <div className={["flex", "flex-row", "h-20", "border-t", "border-zinc-800", "px-4", "items-center", "gap-3", "shrink-0", "bg-zinc-950"].filter(Boolean).join(" ")}>
       <p className={["text-xs", "font-mono", "text-zinc-600", "w-10 shrink-0 text-right"].filter(Boolean).join(" ")}>
         {"tok/s"}
       </p>
-      <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "flex-1", "h-10 relative overflow-hidden"].filter(Boolean).join(" ")} role={region}>
+      <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "flex-1", "h-10 relative overflow-hidden"].filter(Boolean).join(" ")} role={"region"}>
         <svg className={"w-full h-full"} preserveAspectRatio={"none"} viewBox={"0 0 600 40"}>
           <rect fill={"#22c55e28"} height={4} width={8} x={0} y={36} />
           <rect fill={"#22c55e38"} height={7} width={8} x={10} y={33} />

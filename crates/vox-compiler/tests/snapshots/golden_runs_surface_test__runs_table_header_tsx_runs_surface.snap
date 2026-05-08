@@ -7,7 +7,7 @@ import React from "react";
 
 export function RunsTableHeader(): React.ReactElement {
   return (
-    <div className={["flex", "flex-row", "border-b-true", "border-zinc-700", "px-4", "py-0", "flex items-center", "shrink-0", "bg-zinc-900/50", "h-8 sticky top-0 z-10"].filter(Boolean).join(" ")}>
+    <div className={["flex", "flex-row", "border-b", "border-zinc-700", "px-4", "py-0", "items-center", "shrink-0", "bg-zinc-900/50", "h-8 sticky top-0 z-10"].filter(Boolean).join(" ")}>
       <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-600", "w-24 shrink-0"].filter(Boolean).join(" ")}>
         {"ID"}
       </p>

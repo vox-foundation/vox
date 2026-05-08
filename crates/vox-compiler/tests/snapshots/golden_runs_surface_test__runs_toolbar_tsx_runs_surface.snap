@@ -12,13 +12,13 @@ export interface RunsToolbarProps {
 
 export function RunsToolbar({ live_tail, on_toggle_live }: RunsToolbarProps): React.ReactElement {
   return (
-    <div className={["flex", "flex-row", "h-11", "border-b-true", "border-zinc-800", "px-4", "flex items-center", "gap-3", "shrink-0", "bg-zinc-950"].filter(Boolean).join(" ")}>
-      <div className={["flex-1", "bg-zinc-900", "border", "border-white/10", "rounded-lg", "px-3", "h-8 flex items-center"].filter(Boolean).join(" ")} role={region}>
+    <div className={["flex", "flex-row", "h-11", "border-b", "border-zinc-800", "px-4", "items-center", "gap-3", "shrink-0", "bg-zinc-950"].filter(Boolean).join(" ")}>
+      <div className={["flex-1", "bg-zinc-900", "border", "border-white/10", "rounded-lg", "px-3", "h-8 flex items-center"].filter(Boolean).join(" ")} role={"region"}>
         <p className={["text-sm", "text-zinc-600", "italic"].filter(Boolean).join(" ")}>
           {"Search runs…"}
         </p>
       </div>
-      <div className={["flex", "flex-row", "gap-2", "flex items-center", "shrink-0"].filter(Boolean).join(" ")}>
+      <div className={["flex", "flex-row", "gap-2", "items-center", "shrink-0"].filter(Boolean).join(" ")}>
         <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "px-2 py-0.5 rounded-full text-xs font-mono bg-zinc-800 text-zinc-400 border border-white/10 hover:bg-zinc-700"].filter(Boolean).join(" ")}>
           {"all"}
         </button>

@@ -3,9 +3,9 @@
 use super::super::Parser;
 use crate::ast::decl::{
     Decl, EffectDecl, EndpointDecl, EndpointKind, FnDecl, ForallDecl, ImportDecl, ImportPath,
-    ImportPathKind, LoadingDecl, McpResourceDecl, McpToolDecl, MutationDecl, OnCleanupDecl,
-    OnMountDecl, PostCondition, QueryDecl, ReactiveComponentDecl, ReactiveMemberDecl,
-    RustCrateImport, ScheduledDecl, ServerFnDecl, TestDecl,
+    ImportPathKind, LoadingDecl, McpResourceDecl, McpToolDecl, OnCleanupDecl,
+    OnMountDecl, PostCondition, ReactiveComponentDecl, ReactiveMemberDecl,
+    RustCrateImport, ScheduledDecl, TestDecl,
 };
 use crate::ast::span::Span;
 use crate::lexer::token::Token;
@@ -779,45 +779,6 @@ impl Parser {
         self.skip_newlines();
         let f = self.parse_fn_decl(false)?;
         Ok(Decl::Scheduled(ScheduledDecl { interval, func: f }))
-    }
-
-    pub(crate) fn parse_server_fn(&mut self) -> Result<Decl, ()> {
-        let span = self.span();
-        self.advance(); // eat @server
-        self.errors.push(ParseError::warning(
-            span,
-            "The `@server` decorator is deprecated. Use `@endpoint(kind: server)` instead.",
-            ParseErrorClass::Tombstoned,
-        ));
-        self.skip_newlines();
-        let f = self.parse_fn_decl(false)?;
-        Ok(Decl::ServerFn(ServerFnDecl { func: f }))
-    }
-
-    pub(crate) fn parse_query_fn(&mut self) -> Result<Decl, ()> {
-        let span = self.span();
-        self.advance(); // eat @query
-        self.errors.push(ParseError::warning(
-            span,
-            "The `@query` decorator is deprecated. Use `@endpoint(kind: query)` instead.",
-            ParseErrorClass::Tombstoned,
-        ));
-        self.skip_newlines();
-        let f = self.parse_fn_decl(false)?;
-        Ok(Decl::Query(QueryDecl { func: f }))
-    }
-
-    pub(crate) fn parse_mutation_fn(&mut self) -> Result<Decl, ()> {
-        let span = self.span();
-        self.advance(); // eat @mutation
-        self.errors.push(ParseError::warning(
-            span,
-            "The `@mutation` decorator is deprecated. Use `@endpoint(kind: mutation)` instead.",
-            ParseErrorClass::Tombstoned,
-        ));
-        self.skip_newlines();
-        let f = self.parse_fn_decl(false)?;
-        Ok(Decl::Mutation(MutationDecl { func: f }))
     }
 
     pub(crate) fn parse_endpoint(&mut self) -> Result<Decl, ()> {

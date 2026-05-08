@@ -53,9 +53,6 @@ pub fn token_to_semantic_type(token: &Token) -> Option<u32> {
         | Token::AtTool
         | Token::AtResource
         | Token::AtTest
-        | Token::AtServer
-        | Token::AtQuery
-        | Token::AtMutation
         | Token::AtTable
         | Token::AtIndex
         | Token::AtNative

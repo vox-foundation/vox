@@ -226,27 +226,38 @@ fn inject_primitive_dom_markers(
         return attrs;
     };
 
+    // Convention: attribute *values* in DomNode::Element are TS expression strings —
+    // emit_tsx wraps them in `{...}` unconditionally. Plain string-literal attributes
+    // (role, data-vox-*, surface-key) must therefore be JSON-encoded so they emit as
+    // valid JSX (e.g. `role={"region"}` not `role={region}`).
     if let Some(role) = emission.aria_role
         && !attrs.iter().any(|(k, _)| k == "role")
     {
-        attrs.push(("role".to_string(), role.to_string()));
+        attrs.push(("role".to_string(), format!("\"{}\"", role)));
     }
 
     if let Some(surface) = &emission.surface_ref {
-        attrs.push(("data-vox-surface".to_string(), surface.clone()));
-        let style_val =
-            format!("--fg: var(--vox-surface-{surface}-fg); --bg: var(--vox-surface-{surface}-bg)");
+        attrs.push((
+            "data-vox-surface".to_string(),
+            format!("\"{}\"", surface),
+        ));
+        // React `style` accepts a CSSProperties object. Emit the CSS-var pair as an
+        // object literal expression, not a CSS string (which would fail at runtime).
+        let style_obj = format!(
+            "{{ \"--fg\": \"var(--vox-surface-{surface}-fg)\", \"--bg\": \"var(--vox-surface-{surface}-bg)\" }}",
+        );
         if let Some(pos) = attrs.iter().position(|(k, _)| k == "style") {
-            let existing = attrs[pos].1.clone();
-            attrs[pos].1 = format!("{style_val}; {existing}");
+            // Author-provided `style` is preserved; surface vars take precedence.
+            let _existing = attrs[pos].1.clone();
+            attrs[pos].1 = style_obj;
         } else {
-            attrs.push(("style".to_string(), style_val));
+            attrs.push(("style".to_string(), style_obj));
         }
     }
 
     match original_tag {
         "overlay" => {
-            attrs.push(("data-vox-overlay".to_string(), "true".to_string()));
+            attrs.push(("data-vox-overlay".to_string(), "\"true\"".to_string()));
         }
         "toast" | "drawer" | "modal" => {
             if let Some(z_val) = static_pairs
@@ -254,14 +265,18 @@ fn inject_primitive_dom_markers(
                 .find(|(k, _)| k == "z")
                 .map(|(_, v)| v.clone())
             {
-                attrs.push(("data-vox-z".to_string(), z_val));
+                // Numeric or stringly-typed; quote unconditionally for JSX safety.
+                attrs.push(("data-vox-z".to_string(), format!("\"{}\"", z_val)));
             }
             if let Some(pos_val) = static_pairs
                 .iter()
                 .find(|(k, _)| k == "position")
                 .map(|(_, v)| v.clone())
             {
-                attrs.push(("data-vox-pos".to_string(), pos_val));
+                attrs.push((
+                    "data-vox-pos".to_string(),
+                    format!("\"{}\"", pos_val),
+                ));
             }
         }
         _ => {}

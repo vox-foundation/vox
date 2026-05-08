@@ -21,7 +21,7 @@ export interface RunRowProps {
 
 export function RunRow({ id, started, duration, model, status, cost, tokens, active, on_click }: RunRowProps): React.ReactElement {
   return (
-    <div className={["flex", "flex-row", "border-b-true", "border-zinc-800/60", "px-4", "py-0", "flex items-center", (active === id ? "h-10 bg-blue-950/30 cursor-pointer border-l-2 border-l-blue-500" : "h-10 hover:bg-zinc-900/60 cursor-pointer")].filter(Boolean).join(" ")} onClick={on_click}>
+    <div className={["flex", "flex-row", "border-b", "border-zinc-800/60", "px-4", "py-0", "items-center", (active === id ? "h-10 bg-blue-950/30 cursor-pointer border-l-2 border-l-blue-500" : "h-10 hover:bg-zinc-900/60 cursor-pointer")].filter(Boolean).join(" ")} onClick={on_click}>
       <p className={["text-xs", "font-mono", "text-blue-400", "w-24 shrink-0 truncate"].filter(Boolean).join(" ")}>
         {id}
       </p>
@@ -34,7 +34,7 @@ export function RunRow({ id, started, duration, model, status, cost, tokens, act
       <p className={["text-xs", "font-mono", "text-zinc-400", "flex-1 truncate"].filter(Boolean).join(" ")}>
         {model}
       </p>
-      <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "w-20 shrink-0 flex items-center"].filter(Boolean).join(" ")} role={region}>
+      <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4", "w-20 shrink-0 flex items-center"].filter(Boolean).join(" ")} role={"region"}>
         <StateChip label={status} status={status} />
       </div>
       <p className={["text-xs", "font-mono", "text-zinc-400", "w-20 shrink-0 text-right"].filter(Boolean).join(" ")}>

@@ -9,11 +9,11 @@
     created_at: str
 }
 
-@query fn list_items() to list[Item] {
+@endpoint(kind: query) fn list_items() to list[Item] {
     return []
 }
 
-@mutation fn add_item(name: str, value: int) to Result[str] {
+@endpoint(kind: mutation) fn add_item(name: str, value: int) to Result[str] {
     return Ok("Added: {name}")
 }
 

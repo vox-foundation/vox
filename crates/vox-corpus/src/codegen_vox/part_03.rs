@@ -196,7 +196,7 @@ pub fn compute_variety_requirements() -> Vec<(&'static str, usize)> {
                 // Low: structural / declarative with little variation
                 "import" | "const" | "message" | "table" | "collection" | "index"
                 | "vector_index" | "search_index" | "keyframes" | "theme" | "environment"
-                | "routes" | "py_import" => 3,
+                | "routes" => 3,
                 // Unknown new construct — conservative default
                 _ => 5,
             };

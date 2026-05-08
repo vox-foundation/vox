@@ -22,7 +22,7 @@ export function AppShell(): React.ReactElement {
       })()))} on_speak={(() => ((() => {
         set_active("speak");
       })()))} />
-        <div className={["rounded-lg", "border", "border-border", "p-4", "flex-1", "min-w-0", "overflow-hidden", "bg-zinc-950", "flex flex-col"].filter(Boolean).join(" ")} role={region}>
+        <div className={["rounded-lg", "border", "border-border", "p-4", "flex-1", "min-w-0", "overflow-hidden", "bg-zinc-950", "flex flex-col"].filter(Boolean).join(" ")} role={"region"}>
           {(active === "speak" ? <SpeakSurface  /> : (active === "mesh" ? <MeshSurface  /> : (active === "forge" ? <ForgeSurface  /> : (active === "code" ? <CodeSurface  /> : (active === "models" ? <ModelsSurface  /> : (active === "runs" ? <RunsSurface  /> : <SettingsSurface  />))))))}
         </div>
       </div>

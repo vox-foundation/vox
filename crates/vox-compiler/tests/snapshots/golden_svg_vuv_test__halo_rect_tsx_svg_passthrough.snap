@@ -1,22 +1,20 @@
 ---
 source: crates/vox-compiler/tests/golden_svg_vuv_test.rs
+assertion_line: 169
 expression: ts
 ---
 import React from "react";
 
 export function HaloRect(): React.ReactElement {
   return (
-<svg viewBox={"0 0 100 60"} preserveAspectRatio={"xMidYMid meet"}
->
-  <defs 
->
-  <radialGradient id={"halo"} cx={0.5} cy={0.5} r={0.5}
->
-  <stop offset={"0%"} stopColor={"#34d399"} stopOpacity={0.4} />
-  <stop offset={"100%"} stopColor={"#34d399"} stopOpacity={0} />
-</radialGradient>
-</defs>
-  <rect width={100} height={60} fill={"url(#halo)"} />
-</svg>
+    <svg preserveAspectRatio={"xMidYMid meet"} viewBox={"0 0 100 60"}>
+      <defs>
+        <radialGradient cx={0.5} cy={0.5} id={"halo"} r={0.5}>
+          <stop offset={"0%"} stopColor={"#34d399"} stopOpacity={0.4} />
+          <stop offset={"100%"} stopColor={"#34d399"} stopOpacity={0} />
+        </radialGradient>
+      </defs>
+      <rect fill={"url(#halo)"} height={60} width={100} />
+    </svg>
   );
 }

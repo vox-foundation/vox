@@ -19,37 +19,15 @@ impl Decl {
                     f.cors = cors;
                 }
             }
-            Decl::ServerFn(s) => {
+            Decl::Endpoint(e) => {
                 if auth.is_some() {
-                    s.func.auth_provider = auth;
+                    e.func.auth_provider = auth;
                 }
                 if !roles.is_empty() {
-                    s.func.roles.extend(roles);
+                    e.func.roles.extend(roles);
                 }
                 if cors.is_some() {
-                    s.func.cors = cors;
-                }
-            }
-            Decl::Query(q) => {
-                if auth.is_some() {
-                    q.func.auth_provider = auth;
-                }
-                if !roles.is_empty() {
-                    q.func.roles.extend(roles);
-                }
-                if cors.is_some() {
-                    q.func.cors = cors;
-                }
-            }
-            Decl::Mutation(m) => {
-                if auth.is_some() {
-                    m.func.auth_provider = auth;
-                }
-                if !roles.is_empty() {
-                    m.func.roles.extend(roles);
-                }
-                if cors.is_some() {
-                    m.func.cors = cors;
+                    e.func.cors = cors;
                 }
             }
 
@@ -136,28 +114,12 @@ impl Decl {
                     t.func.is_traced = true;
                 }
             }
-            Decl::ServerFn(s) => {
+            Decl::Endpoint(e) => {
                 if is_deprecated {
-                    s.func.is_deprecated = true;
+                    e.func.is_deprecated = true;
                 }
                 if is_traced {
-                    s.func.is_traced = true;
-                }
-            }
-            Decl::Query(q) => {
-                if is_deprecated {
-                    q.func.is_deprecated = true;
-                }
-                if is_traced {
-                    q.func.is_traced = true;
-                }
-            }
-            Decl::Mutation(m) => {
-                if is_deprecated {
-                    m.func.is_deprecated = true;
-                }
-                if is_traced {
-                    m.func.is_traced = true;
+                    e.func.is_traced = true;
                 }
             }
 

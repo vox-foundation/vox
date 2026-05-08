@@ -605,7 +605,9 @@ pub async fn a2a_inbox(state: &ServerState, params: A2AInboxParams) -> String {
             })
             .collect()
     };
+    #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
     let mut remote_attempted = false;
+    #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
     let mut remote_ok = false;
     #[cfg(feature = "populi-transport")]
     if source != A2AInboxPlane::Local
@@ -712,7 +714,9 @@ pub async fn a2a_ack(state: &ServerState, params: A2AAckParams) -> String {
 
     // Need mutable access to message_bus for ack
     let local_success = orch.message_bus_mut().acknowledge(agent_id, message_id);
+    #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
     let mut remote_attempted = false;
+    #[cfg_attr(not(feature = "populi-transport"), allow(unused_mut))]
     let mut remote_success = false;
     #[cfg(feature = "populi-transport")]
     if let Some(base) = vox_populi::http_lifecycle::populi_http_control_base_from_env() {

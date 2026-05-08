@@ -158,67 +158,6 @@ impl LowerCtx {
                     });
                 }
                 // `route_path` is the stable HTTP contract surface for WebIR `RouteNode` / client stubs.
-                Decl::ServerFn(s) => {
-                    let lowered = self.lower_fn(&s.func);
-                    let route_path = format!("{SERVER_FN_API_PREFIX}{}", lowered.name);
-                    hir.endpoint_fns.push(crate::hir::HirEndpointFn {
-                        kind: crate::hir::HirEndpointKind::Server,
-                        id: lowered.id,
-                        name: lowered.name.clone(),
-                        params: lowered.params.clone(),
-                        return_type: lowered.return_type.clone(),
-                        body: lowered.body.clone(),
-                        route_path,
-                        is_pure: lowered.is_pure,
-                        effects: lowered
-                            .capabilities
-                            .iter()
-                            .filter_map(cap_to_effect_kind)
-                            .collect(),
-                        span: lowered.span,
-                    });
-                }
-                // Query / mutation RPC paths feed generated client helpers; WebIR target maps these on `RouteNode`.
-                Decl::Query(q) => {
-                    let lowered = self.lower_fn(&q.func);
-                    let route_path = format!("{QUERY_FN_API_PREFIX}{}", lowered.name);
-                    hir.endpoint_fns.push(crate::hir::HirEndpointFn {
-                        kind: crate::hir::HirEndpointKind::Query,
-                        id: lowered.id,
-                        name: lowered.name.clone(),
-                        params: lowered.params.clone(),
-                        return_type: lowered.return_type.clone(),
-                        body: lowered.body.clone(),
-                        route_path,
-                        is_pure: lowered.is_pure,
-                        effects: lowered
-                            .capabilities
-                            .iter()
-                            .filter_map(cap_to_effect_kind)
-                            .collect(),
-                        span: lowered.span,
-                    });
-                }
-                Decl::Mutation(m) => {
-                    let lowered = self.lower_fn(&m.func);
-                    let route_path = format!("{MUTATION_FN_API_PREFIX}{}", lowered.name);
-                    hir.endpoint_fns.push(crate::hir::HirEndpointFn {
-                        kind: crate::hir::HirEndpointKind::Mutation,
-                        id: lowered.id,
-                        name: lowered.name.clone(),
-                        params: lowered.params.clone(),
-                        return_type: lowered.return_type.clone(),
-                        body: lowered.body.clone(),
-                        route_path,
-                        is_pure: lowered.is_pure,
-                        effects: lowered
-                            .capabilities
-                            .iter()
-                            .filter_map(cap_to_effect_kind)
-                            .collect(),
-                        span: lowered.span,
-                    });
-                }
                 Decl::Endpoint(e) => {
                     let lowered = self.lower_fn(&e.func);
                     let (kind, prefix) = match e.kind {
@@ -676,11 +615,11 @@ fn f() to Unit {
     }
 
     #[test]
-    fn hir_lowering_maps_query_and_mutation_decls() {
+    fn hir_lowering_maps_endpoint_query_and_mutation_decls() {
         let src = r#"
 @table type User { name: str active: bool }
-@query fn q1() to int { return 0 }
-@mutation fn m1() to Unit {
+@endpoint(kind: query) fn q1() to int { return 0 }
+@endpoint(kind: mutation) fn m1() to Unit {
     db.User.insert({ name: "a", active: true })
 }
 "#;

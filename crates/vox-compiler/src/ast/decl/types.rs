@@ -61,20 +61,6 @@ pub struct ImportDecl {
     pub span: Span,
 }
 
-/// Python library import: `@py.import torch` or `@py.import torch as tc`
-///
-/// Causes the Rust codegen to emit a `VoxPyRuntime` lazy-static bridge for
-/// the named Python module. The alias is used as the binding name in Vox code.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct PyImportDecl {
-    /// The Python module to import (e.g. `"torch"`, `"torch.nn"`).
-    pub module: String,
-    /// The binding name in Vox scope. Defaults to the module's last segment.
-    pub alias: String,
-    /// Source span of the `@py.import` directive.
-    pub span: Span,
-}
-
 /// One item in a [`Module`]: any construct that can appear at column 0 (after indentation) in a file.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Decl {
@@ -84,8 +70,6 @@ pub enum Decl {
     TypeDef(TypeDefDecl),
     /// ES-module style import list.
     Import(ImportDecl),
-    /// Native Python library import (`@py.import module [as alias]`).
-    PyImport(PyImportDecl),
     /// Immutable constant (`const` / `@const`).
     Const(ConstDecl),
     /// HTTP handler bound to a method and path.
@@ -96,8 +80,6 @@ pub enum Decl {
     McpResource(McpResourceDecl),
     /// Unit test entrypoint.
     Test(TestDecl),
-    /// Server-only RPC / RSC-style function.
-    ServerFn(ServerFnDecl),
     /// Property-based test declaration.
     Forall(ForallDecl),
     /// Codex table schema.
@@ -114,10 +96,6 @@ pub enum Decl {
     V0Component(V0ComponentDecl),
     /// Client-side route table.
     Routes(RoutesDecl),
-    /// Read-only data access function.
-    Query(QueryDecl),
-    /// Transactional write function.
-    Mutation(MutationDecl),
     /// Unified endpoint function (`@endpoint`).
     Endpoint(EndpointDecl),
 
@@ -171,12 +149,10 @@ impl Decl {
             Decl::Function(f) => f.span,
             Decl::TypeDef(t) => t.span,
             Decl::Import(i) => i.span,
-            Decl::PyImport(p) => p.span,
             Decl::HttpRoute(h) => h.span,
             Decl::McpTool(m) => m.func.span,
             Decl::Test(t) => t.func.span,
             Decl::Forall(f) => f.func.span,
-            Decl::ServerFn(s) => s.func.span,
             Decl::Table(t) => t.span,
             Decl::Collection(c) => c.span,
             Decl::Index(i) => i.span,
@@ -184,8 +160,6 @@ impl Decl {
             Decl::SearchIndex(s) => s.span,
             Decl::V0Component(v) => v.span,
             Decl::Routes(r) => r.span,
-            Decl::Query(q) => q.func.span,
-            Decl::Mutation(m) => m.func.span,
             Decl::Endpoint(e) => e.func.span,
 
             Decl::Skill(s) => s.func.span,

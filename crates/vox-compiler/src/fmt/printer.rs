@@ -37,7 +37,7 @@ impl Printer {
     pub(crate) fn print_module(&mut self, module: &Module) {
         let mut last_was_import = false;
         for (i, decl) in module.declarations.iter().enumerate() {
-            let is_import = matches!(decl, Decl::Import(_) | Decl::PyImport(_));
+            let is_import = matches!(decl, Decl::Import(_));
 
             if i > 0 {
                 if is_import && last_was_import {
@@ -55,15 +55,6 @@ impl Printer {
     pub(crate) fn print_decl(&mut self, decl: &Decl) {
         match decl {
             Decl::Import(i) => self.print_import(i),
-            Decl::PyImport(p) => {
-                self.write_indent();
-                self.out.push_str("@py.import ");
-                self.out.push_str(&p.module);
-                if p.alias != p.module.split('.').next_back().unwrap_or(p.module.as_str()) {
-                    self.out.push_str(" as ");
-                    self.out.push_str(&p.alias);
-                }
-            }
             Decl::Function(f) => self.print_fn(f, ""),
             Decl::TypeDef(t) => self.print_typedef(t),
             Decl::Const(c) => {
@@ -116,9 +107,6 @@ impl Printer {
                 self.write_indent();
                 self.out.push('}');
             }
-            Decl::ServerFn(s) => self.print_fn(&s.func, "@server "),
-            Decl::Query(q) => self.print_fn(&q.func, "@query "),
-            Decl::Mutation(m) => self.print_fn(&m.func, "@mutation "),
 
             Decl::Skill(s) => self.print_fn(&s.func, "@skill "),
             Decl::AgentDef(a) => self.print_fn(&a.func, "@agent_def "),
