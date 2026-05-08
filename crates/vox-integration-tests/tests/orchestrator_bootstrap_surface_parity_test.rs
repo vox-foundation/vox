@@ -5,7 +5,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use serial_test::serial;
-use vox_orchestrator::mcp_tools::ServerState;
+use vox_orchestrator_mcp::ServerState;
 use vox_orchestrator::{OrchestratorConfig, build_repo_scoped_orchestrator};
 
 struct RestoreCwd(PathBuf);

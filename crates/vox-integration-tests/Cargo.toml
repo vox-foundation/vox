@@ -17,6 +17,7 @@ tower-lsp-server = "0.23"
 vox-config = { workspace = true }
 vox-repository = { workspace = true }
 vox-orchestrator = { workspace = true }
+vox-orchestrator-mcp = { workspace = true }
 vox-compiler = { workspace = true }
 vox-codegen = { workspace = true }
 vox-lsp = { workspace = true }

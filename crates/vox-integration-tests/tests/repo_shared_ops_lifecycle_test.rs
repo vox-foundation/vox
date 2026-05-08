@@ -2,8 +2,8 @@
 
 use serde_json::json;
 use tempfile::TempDir;
-use vox_orchestrator::mcp_tools::ServerState;
-use vox_orchestrator::mcp_tools::handle_tool_call as tools;
+use vox_orchestrator_mcp::ServerState;
+use vox_orchestrator_mcp::handle_tool_call as tools;
 
 #[tokio::test]
 async fn mcp_vox_repo_status_returns_repository_id() {

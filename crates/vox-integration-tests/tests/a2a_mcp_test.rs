@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use vox_orchestrator::OrchestratorConfig;
-use vox_orchestrator::mcp_tools::{ServerState, handle_tool_call as tools};
+use vox_orchestrator_mcp::{ServerState, handle_tool_call as tools};
 
 #[tokio::test]
 async fn test_a2a_mcp_roundtrip() {

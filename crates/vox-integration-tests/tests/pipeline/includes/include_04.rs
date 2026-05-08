@@ -95,7 +95,7 @@ fn pipeline_mixed_surface_endpoint_fn_emit_contains_api_x() {
 fn pipeline_reactive_view_whitespace_parity_legacy_vs_web_ir_env() {
     use std::collections::HashSet;
 
-    use vox_codegen::codegen_ts::hir_emit::emit_hir_expr;
+    use vox_codegen::codegen_ts::hir_emit::{EmitCtx, emit_hir_expr};
 
     use vox_compiler::hir::HirReactiveMember;
     use vox_codegen::web_ir::emit_tsx::emit_component_view_tsx;
@@ -120,7 +120,8 @@ component T() {
         HirReactiveMember::State(s) => s.name.clone(),
         _ => panic!("expected state member"),
     };
-    let legacy = emit_hir_expr(view, &HashSet::from([state_name]));
+    let state_set = HashSet::from([state_name]);
+    let legacy = emit_hir_expr(view, &EmitCtx::new(&state_set));
     let web = lower_hir_to_web_ir(&hir);
     let validate_diags = validate_web_ir(&web);
     assert!(validate_diags.is_empty(), "validate_web_ir: {validate_diags:?}");

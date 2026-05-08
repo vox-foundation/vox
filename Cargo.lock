@@ -11181,6 +11181,7 @@ dependencies = [
  "vox-deploy-codegen",
  "vox-lsp",
  "vox-orchestrator",
+ "vox-orchestrator-mcp",
  "vox-repository",
  "vox-scaling-policy",
  "vox-secrets",
