@@ -97,6 +97,7 @@ impl ContainerRuntime for DockerRuntime {
 
         cmd.arg(&opts.image);
 
+        crate::log_exec_risk(&opts.image);
         tracing::info!("Running: docker run {} ...", opts.image);
         let status = cmd
             .status()
