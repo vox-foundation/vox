@@ -264,4 +264,15 @@ inherits = "release"
 lto = "thin"
 strip = "debuginfo"
 
+# Distribution profile: fat LTO + single codegen unit + symbol stripping.
+# Produces the smallest, fastest binaries for shipping.
+# Use: cargo build --profile dist -p vox-cli
+# (Keep --release for fast local builds; --profile dist is for CI ship artifacts.)
+[profile.dist]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+strip = "symbols"
+panic = "abort"
+
 
