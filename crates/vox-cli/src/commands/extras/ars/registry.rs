@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-pub(super) async fn make_registry() -> Arc<vox_ars_runtime::SkillRegistry> {
+pub(super) async fn make_registry() -> Arc<vox_openclaw_runtime::SkillRegistry> {
     let registry = vox_skills::new_registry_arc();
     if let Ok(db) = vox_db::Codex::connect_default().await {
         let db_arc = Arc::new(db);

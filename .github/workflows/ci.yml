@@ -683,7 +683,7 @@ jobs:
           - vox-config
           - vox-crypto
           - vox-code-audit
-          - vox-ars-runtime
+          - vox-openclaw-runtime
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable

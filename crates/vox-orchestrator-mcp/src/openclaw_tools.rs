@@ -5,7 +5,7 @@ use crate::params::{
     OpenClawSearchParams, ToolResult,
 };
 use crate::server_state::ServerState;
-use vox_ars_runtime::{
+use vox_openclaw_runtime::{
     OpenClawClient, OpenClawConnectionOverrides, OpenClawDiscoveryOverrides, OpenClawRemoteConfig,
     OpenClawRuntimeAdapter, connect_runtime_adapter_with_overrides, resolve_openclaw_endpoints,
 };
@@ -403,7 +403,7 @@ mod tests {
     use std::future::Future;
     use std::pin::Pin;
     use std::sync::Arc;
-    use vox_ars_runtime::{OpenClawAdapterError, OpenClawSkillSpec};
+    use vox_openclaw_runtime::{OpenClawAdapterError, OpenClawSkillSpec};
 
     struct MockAdapter;
 
@@ -422,7 +422,7 @@ mod tests {
         async fn import_skill(
             &mut self,
             _slug: &str,
-        ) -> Result<vox_ars_runtime::ArsSkill, OpenClawAdapterError> {
+        ) -> Result<vox_openclaw_runtime::ArsSkill, OpenClawAdapterError> {
             Err(OpenClawAdapterError::Other(
                 "unused in this module".to_string(),
             ))

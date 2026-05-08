@@ -74,7 +74,7 @@ vox-forge                 = { path = "crates/vox-forge" }
 vox-crypto                = { path = "crates/vox-crypto" }
 vox-identity              = { path = "crates/vox-identity" }
 
-vox-ars-runtime           = { path = "crates/vox-ars-runtime" }
+vox-openclaw-runtime           = { path = "crates/vox-openclaw-runtime" }
 vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
 vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }

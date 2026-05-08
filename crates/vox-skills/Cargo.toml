@@ -8,7 +8,7 @@ description = "Skill marketplace and plugin architecture for the Vox agent syste
 
 [dependencies]
 vox-plugin-host = { workspace = true }
-vox-ars-runtime = { workspace = true }
+vox-openclaw-runtime = { workspace = true }
 vox-db       = { workspace = true }
 vox-pm       = { workspace = true }
 serde        = { workspace = true }

@@ -72,7 +72,7 @@ vox-wasm-engine          = { layer = 3 }
 vox-container            = { layer = 3 }
 vox-forge                = { layer = 3 }
 vox-git                  = { layer = 3 }
-vox-ars-runtime          = { layer = 3 }
+vox-openclaw-runtime          = { layer = 3 }
 vox-workflow-runtime     = { layer = 3 }
 vox-dashboard            = { layer = 3 }
 vox-webhook              = { layer = 3 }

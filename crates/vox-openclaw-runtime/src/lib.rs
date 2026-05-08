@@ -1,4 +1,4 @@
-//! # vox-ars-runtime — Agent Runtime System (ARS)
+//! # vox-openclaw-runtime — Agent Runtime System (ARS)
 //!
 //! Sandbox isolation, trust classification, OpenClaw skill marketplace
 //! integration, runtime context bundles, hook registry, and the lightweight
@@ -6,7 +6,7 @@
 //!
 //! Extracted from `vox-skills::ars_shim` (now retired). Consumers that
 //! previously imported `vox_skills::ars_shim::*` or `vox_ars::*` should
-//! import from `vox_ars_runtime::*`.
+//! import from `vox_openclaw_runtime::*`.
 #![allow(clippy::collapsible_if)]
 
 pub mod context;

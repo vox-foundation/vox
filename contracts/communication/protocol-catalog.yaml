@@ -346,8 +346,8 @@ protocol_families:
       - docs/src/adr/013-openclaw-ws-native-strategy.md
       - docs/src/reference/communication-protocols.md
     primary_implementation_paths:
-      - crates/vox-ars-runtime/src/openclaw_gateway_ws.rs
-      - crates/vox-ars-runtime/src/openclaw_protocol.rs
+      - crates/vox-openclaw-runtime/src/openclaw_gateway_ws.rs
+      - crates/vox-openclaw-runtime/src/openclaw_protocol.rs
     telemetry_evidence_paths: []
     auth_model: Upstream OpenClaw gateway auth and session handshake.
     retirement_decision: keep

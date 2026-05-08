@@ -38,7 +38,7 @@ const LATIN_STRUCTURAL_DENYLIST: &[(&str, &str)] = &[
 /// Do not add new entries here without a policy proposal.
 const HISTORICAL_ALLOWLIST: &[&str] = &[
     "vox-dei",          // grandfathered — being migrated to vox-orchestrator (Phase 3)
-    "vox-ars-runtime",  // grandfathered — ARS runtime extracted from vox-skills::ars_shim; canonical replacement for retired vox-ars
+    "vox-openclaw-runtime",  // grandfathered — ARS runtime extracted from vox-skills::ars_shim; canonical replacement for retired vox-ars
     "vox-clavis",       // canonical secret manager — name IS its Latin identity (policy exception)
     "vox-orchestrator", // canonical English — permitted
     "vox-skills",       // canonical English — permitted
@@ -153,7 +153,7 @@ mod tests {
     #[test]
     fn historical_allowlist_contains_grandfathered_crates() {
         assert!(HISTORICAL_ALLOWLIST.contains(&"vox-dei"));
-        assert!(HISTORICAL_ALLOWLIST.contains(&"vox-ars-runtime"));
+        assert!(HISTORICAL_ALLOWLIST.contains(&"vox-openclaw-runtime"));
         assert!(HISTORICAL_ALLOWLIST.contains(&"vox-clavis"));
     }
 
@@ -163,7 +163,7 @@ mod tests {
             .ancestors()
             .nth(2)
             .expect("repo root");
-        // Should pass because vox-dei and vox-ars-runtime are in the historical allowlist
+        // Should pass because vox-dei and vox-openclaw-runtime are in the historical allowlist
         run(repo_root, false).expect("nomenclature guard must pass on current repo");
     }
 }

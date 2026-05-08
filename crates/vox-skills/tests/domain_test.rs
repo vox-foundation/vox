@@ -5,9 +5,9 @@
 //! and in-process runtime surfaces are covered here.
 
 use serde_json::json;
-use vox_ars_runtime::ArsSkill;
-use vox_ars_runtime::manifest::{ResourceLimits, SkillKind};
-use vox_ars_runtime::openclaw::OpenClawSkillSpec;
+use vox_openclaw_runtime::ArsSkill;
+use vox_openclaw_runtime::manifest::{ResourceLimits, SkillKind};
+use vox_openclaw_runtime::openclaw::OpenClawSkillSpec;
 
 // ─── Domain model round-trip ─────────────────────────────────────────────────
 
@@ -22,7 +22,7 @@ fn sample_skill(id: &str) -> ArsSkill {
         author: Some("Test".to_string()),
         metadata: json!({}),
         kind: SkillKind::Document,
-        trust: vox_ars_runtime::manifest::TrustLevel::Community,
+        trust: vox_openclaw_runtime::manifest::TrustLevel::Community,
         body: Some("# SKILL.md\n---\n".to_string()),
         resource_limits: ResourceLimits::default(),
     }

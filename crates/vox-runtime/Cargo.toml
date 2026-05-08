@@ -23,7 +23,7 @@ vox-primitives.workspace = true
 vox-clavis = { workspace = true }
 vox-plugin-host = { workspace = true }
 vox-skills.workspace = true
-vox-ars-runtime = { workspace = true }
+vox-openclaw-runtime = { workspace = true }
 vox-db = { workspace = true, optional = true }
 reqwest = { workspace = true, features = ["stream"] }
 vox-reqwest-defaults = { workspace = true }
