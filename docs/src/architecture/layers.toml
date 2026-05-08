@@ -111,12 +111,17 @@ vox-cli                  = { layer = 5 }
 vox-integration-tests    = { layer = 5 }
 
 
-# ── Known transitional inversions (to be cleared by Phase 9) ──────────────────
+# ── Permitted inversions ──────────────────────────────────────────────────────
+# These were originally framed as "transitional", but Phase 7 audit concluded
+# the decoupling cost outweighs the benefit (CLI uses orchestrator across 19
+# files for runtime/observability commands; ~30+ cfg-gates needed to make it
+# optional). Treated as a deliberate exception, documented here so the
+# layer-check guard knows it's intentional.
 
 [[known_inversions]]
 from = "vox-cli"
 to = "vox-orchestrator"
-reason = "CLI always pulls orchestrator. Phase 7: introduce OrchestratorClient trait + vox-cli-thin."
+reason = "CLI ↔ orchestrator coupling is load-bearing for runtime/observability surfaces (vox status, vox attention, vox model *, vox dei, vox live). See docs/src/architecture/build-time-log.md Phase 7 audit."
 
 [[known_inversions]]
 from = "vox-pm"
