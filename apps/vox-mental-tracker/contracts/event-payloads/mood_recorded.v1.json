@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/schemas/mental-tracker/mood_recorded.v1.json",
+  "type": "object",
+  "required": ["mood_score"],
+  "properties": {
+    "mood_score": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "activities": { "type": "array", "items": { "type": "string" } },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": false
+}

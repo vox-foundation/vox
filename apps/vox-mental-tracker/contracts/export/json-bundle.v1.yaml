@@ -1,0 +1,11 @@
+# JSON export bundle shape (v1) — mirrors TS buildJsonBundle / server bundle metadata
+version: 1
+schema: vox.mental_tracker.export_bundle
+required_fields:
+  - schema
+  - version
+  - generated_ms
+  - row_count
+optional_fields:
+  - content_sha256
+  - rows

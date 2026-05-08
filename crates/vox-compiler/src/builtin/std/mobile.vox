@@ -12,3 +12,8 @@ pub fn vibrate() -> Result[unit] { }
 
 @mobile.native
 pub fn take_photo() -> Result[str] { }
+
+/// On-device speech-to-text via native Sherpa-ONNX / Capacitor plugin (`VoxSherpaTranscribe`).
+/// Browser tier returns `Error` unless a compatible plugin is registered.
+@mobile.native
+pub fn transcribe_microphone() -> Result[str] { }
