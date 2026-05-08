@@ -3,8 +3,7 @@ use clap::{Subcommand, ValueEnum};
 use tracing::{error, info};
 use vox_identity::trust::TrustedNodeRegistry;
 use vox_mesh_types::ClavisSyncEnvelope;
-use vox_populi::http_client::PopuliHttpClient;
-use vox_populi::transport::A2ADeliverRequest;
+use vox_mesh_types::A2ADeliverRequest;
 
 fn redact_value(value: &str) -> String {
     if value.chars().count() > 6 {
@@ -761,7 +760,7 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
             .context("Failed to decode node public key")?;
         let pk = vox_crypto::facades::encryption_public_key_from_bytes(pk_bytes);
 
-        let client = PopuliHttpClient::new(url).with_env_token();
+        let url_owned = url.to_string();
 
         for (spec, secret_val) in &shareable_secrets {
             if dry_run {
@@ -801,25 +800,52 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
                 traceparent: None,
             };
 
-            match client.relay_a2a(&deliver_req).await {
+            let request_json = serde_json::to_string(&deliver_req)
+                .context("Failed to serialize A2ADeliverRequest")?;
+
+            let url_for_task = url_owned.clone();
+            let spec_env = spec.canonical_env.clone();
+            let dispatch_result = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+                let plugin = vox_plugin_host::cached_code_plugin("populi-mesh")
+                    .map_err(|e| anyhow::anyhow!("populi-mesh plugin: {e}"))?;
+                let driver = plugin
+                    .plugin
+                    .as_mesh_driver()
+                    .into_option()
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("populi-mesh plugin missing MeshDriver accessor")
+                    })?;
+                driver
+                    .relay_a2a(
+                        url_for_task.as_str().into(),
+                        request_json.as_str().into(),
+                    )
+                    .into_result()
+                    .map(|s| s.to_string())
+                    .map_err(|e| anyhow::anyhow!("relay_a2a: {e}"))
+            })
+            .await
+            .map_err(|e| anyhow::anyhow!("spawn_blocking join: {e}"))?;
+
+            match dispatch_result {
                 Ok(_) => {
                     success_count += 1;
                     info!(
                         target_node = %node.node_id,
-                        secret = %spec.canonical_env,
+                        secret = %spec_env,
                         "Clavis secret sync successful"
                     );
                 }
                 Err(e) => {
                     error!(
                         target_node = %node.node_id,
-                        secret = %spec.canonical_env,
+                        secret = %spec_env,
                         error = %e,
                         "Clavis secret sync failed"
                     );
                     println!(
                         "    error: failed to deliver {} to {}: {}",
-                        spec.canonical_env, url, e
+                        spec_env, url_owned, e
                     );
                     fail_count += 1;
                 }
