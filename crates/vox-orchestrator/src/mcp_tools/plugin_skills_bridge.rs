@@ -1,6 +1,7 @@
-//! Bridges newly-discovered plugin-host skills into the existing
-//! vox-skills SkillRegistry. Transitional — SP6 will retire vox-skills
-//! entirely and route all skill lookups through vox-plugin-host directly.
+//! Bridges newly-discovered plugin-host skills into the vox-skills SkillRegistry.
+//!
+//! Parsing is done via `vox_plugin_host::skill_parser` — the canonical home
+//! for `parse_skill_md` after vox-skills retirement (SP6).
 
 use std::path::Path;
 use std::sync::Arc;
@@ -26,7 +27,7 @@ pub async fn install_discovered_skills(
         };
         // `loaded.body` contains the full SKILL.md (frontmatter + body) as written
         // to disk; parse_skill_md reconstructs a typed VoxSkillBundle from it.
-        let bundle = match vox_skills::parser::parse_skill_md(&loaded.body) {
+        let bundle = match vox_plugin_host::skill_parser::parse_skill_md(&loaded.body) {
             Ok(b) => b,
             Err(e) => {
                 tracing::warn!(
@@ -35,6 +36,7 @@ pub async fn install_discovered_skills(
                 continue;
             }
         };
+        // VoxSkillBundle is the same type (vox-skills re-exports from vox-plugin-host).
         match registry.install(&bundle).await {
             Ok(result) if result.already_installed => {
                 tracing::debug!(

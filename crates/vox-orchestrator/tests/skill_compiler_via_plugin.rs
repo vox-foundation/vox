@@ -3,7 +3,8 @@
 //! must contain the compiler skill (registered via the plugin-host bridge).
 //!
 //! The skill id registered comes from parsing the SKILL.md frontmatter via
-//! `vox_skills::parser::parse_skill_md`, which reads `id = "vox.compiler"`.
+//! `vox_plugin_host::skill_parser::parse_skill_md` (canonical location after SP6),
+//! which reads `id = "vox.compiler"`.
 //! The plugin-host discover step uses `manifest.plugin.id = "skill-compiler"`
 //! as the lookup key, but the bridge re-parses the body so vox-skills ends up
 //! with the frontmatter id "vox.compiler".
@@ -28,23 +29,16 @@ async fn compiler_skill_loaded_via_plugin_bridge() {
             .unwrap_or_else(|e| panic!("copy {f}: {e}"));
     }
 
-    // Build a fresh registry, install builtins (7 skills, no compiler),
-    // then bridge in plugin-host skills from the tempdir.
+    // Build a fresh registry. install_builtins is a no-op and removed.
     let registry: Arc<vox_skills::SkillRegistry> = vox_skills::new_registry_arc();
-    let builtin_count = vox_skills::install_builtins(&registry)
-        .await
-        .expect("install_builtins");
-    // vox.compiler was removed from builtins in SP4 batch 1; expect exactly 7.
-    assert!(
-        builtin_count <= 7,
-        "expected ≤7 builtins (compiler removed), got {builtin_count}"
-    );
+
     assert!(
         registry.get("vox.compiler").is_none(),
-        "vox.compiler should NOT be in builtins after SP4 batch 1"
+        "vox.compiler should NOT be in a fresh registry"
     );
 
     // Bridge: discover plugins from tempdir and install into registry.
+    // Parsing is done via vox_plugin_host::skill_parser::parse_skill_md internally.
     vox_orchestrator::mcp_tools::plugin_skills_bridge::install_discovered_skills(
         &registry,
         tmp.path(),

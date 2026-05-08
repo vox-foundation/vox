@@ -123,11 +123,8 @@ async fn main() -> anyhow::Result<()> {
     let session_manager = vox_orchestrator::SessionManager::new(session_cfg)
         .context("session manager initialization failed")?;
 
+    // Skills are discovered from plugins below; install_builtins is a no-op and removed.
     let registry = vox_skills::new_registry_arc();
-    let registry_for_builtins = registry.clone();
-    tokio::spawn(async move {
-        let _ = vox_skills::install_builtins(&registry_for_builtins).await;
-    });
 
     // Bridge plugin-host discovered skills into the vox-skills registry.
     let install_dir = std::env::var("VOX_PLUGINS_DIR")
