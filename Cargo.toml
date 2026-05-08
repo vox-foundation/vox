@@ -174,7 +174,6 @@ sysinfo            = "0.38"
 walkdir            = "2"
 rayon              = "1.10"
 rand               = { version = "0.8", features = ["small_rng", "std_rng"] }
-burn               = { version = "0.19", default-features = false, features = ["std", "ndarray"] }
 candle-core        = { version = "0.9", default-features = false }
 candle-nn          = { version = "0.9", default-features = false }
 safetensors        = "0.4"
@@ -242,7 +241,6 @@ quote              = "1"
 similar            = "2"
 globset            = "0.4"
 which              = "7"
-wgpu               = "26"
 ctrlc              = "3.4"
 
 
