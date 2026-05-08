@@ -26,13 +26,6 @@ requires-tag = "nvidia-gpu"
 default-source = "github:vox-foundation/vox-plugin-mens-candle-cuda"
 bundled-in = ["vox-ml", "vox-dev"]
 
-[[plugin]]
-id = "tensor-burn-wgpu"
-payload-kind = "code"
-description = "Tensor backend on Burn + wgpu (cross-vendor GPU)."
-extension-points = ["TensorBackend"]
-default-source = "github:vox-foundation/vox-plugin-tensor-burn-wgpu"
-bundled-in = ["vox-ml", "vox-dev"]
 
 [[plugin]]
 id = "oratio"
@@ -233,7 +226,7 @@ plugins = [
 id = "vox-ml"
 description = "Fullstack plus ML/GPU code plugins (NVIDIA CUDA stack)."
 extends = "vox-fullstack"
-plugins = ["tensor-burn-wgpu", "mens-candle-cuda", "nvml-probe"]
+plugins = ["mens-candle-cuda", "nvml-probe"]
 
 [[bundle]]
 id = "vox-mesh"
@@ -264,7 +257,7 @@ id = "vox-dev"
 description = "Contributor / power-user development environment: fullstack + ML + mesh + audio."
 extends = "vox-fullstack"
 plugins = [
-    "tensor-burn-wgpu", "mens-candle-cuda", "nvml-probe",
+    "mens-candle-cuda", "nvml-probe",
     "populi-mesh", "cloud", "oratio", "oratio-mic",
     "script-execution", "browser", "webhook",
     "grammar-export",
