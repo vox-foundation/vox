@@ -3,3 +3,4 @@
 
 pub mod css_props;
 pub mod jsx;
+pub mod primitive_tags;

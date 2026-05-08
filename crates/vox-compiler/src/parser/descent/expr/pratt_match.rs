@@ -282,7 +282,7 @@ impl Parser {
                         let starts_uppercase =
                             tag.chars().next().is_some_and(|c| c.is_ascii_uppercase());
                         let is_view_callee = starts_uppercase
-                            || crate::web_ir::primitives::is_primitive(tag)
+                            || crate::lowering_shared::primitive_tags::is_primitive(tag)
                             || is_known_html_view_tag(tag);
                         let all_named = args.iter().all(|a| a.name.is_some());
                         // Trailing-block-as-children sugar fires only when the call shape is
@@ -306,7 +306,7 @@ impl Parser {
                             });
                             continue;
                         } else if (starts_uppercase
-                            || crate::web_ir::primitives::is_primitive(tag)
+                            || crate::lowering_shared::primitive_tags::is_primitive(tag)
                             || is_known_html_view_tag(tag))
                             && args.iter().all(|a| a.name.is_some())
                         {

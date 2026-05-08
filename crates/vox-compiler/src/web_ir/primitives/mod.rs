@@ -390,10 +390,11 @@ pub fn resolve(tag: &str, attrs: &[(String, String)]) -> Option<PrimitiveEmissio
 }
 
 /// Returns `true` if the tag is in the known primitive set.
-#[must_use]
-pub fn is_primitive(tag: &str) -> bool {
-    resolve(tag, &[]).is_some()
-}
+///
+/// Back-compat shim — the canonical implementation lives in
+/// `crate::lowering_shared::primitive_tags::is_primitive` so analysis-side
+/// callers (parser) don't need to depend on emit IR.
+pub use crate::lowering_shared::primitive_tags::is_primitive;
 
 // ---------------------------------------------------------------------------
 // Prop-to-class helpers
