@@ -13,34 +13,31 @@ export interface NodeBadgeProps {
 
 export function NodeBadge({ id, status, role, dim }: NodeBadgeProps): React.ReactElement {
   return (
-<row pad_x={3} pad_y={2} bg={"zinc.900"} border={true} border_color={"white/10"} radius={"xl"} items={"center"} gap={3}
->
-  <panel w={2} h={2} radius={"full"} bg={(dim ? "zinc.600" : (status === "running" || status === "ok" || status === "ready" ? "emerald.400" : (status === "warn" || status === "blocked" || status === "pending" ? "amber.400" : (status === "error" || status === "failed" || status === "errored" ? "rose.500" : "zinc.600"))))} />
-  <column gap={0}
->
-  <text size={"xs"} fontFamily={"mono"} color={"white/80"}
->
-  {id}
-</text>
-  {(role === "" ? <text size={"xs"} color={"zinc.500"}
->
-  {status}
-</text> : <row items={"center"} gap={1}
->
-  <text size={"xs"} color={"zinc.500"}
->
-  {status}
-</text>
-  <text size={"xs"} color={"zinc.700"}
->
-  {"·"}
-</text>
-  <text size={"xs"} color={"zinc.600"} fontFamily={"mono"}
->
-  {role}
-</text>
-</row>)}
-</column>
-</row>
+    <div className={["flex", "flex-row", "px-3", "py-2", "bg-zinc-900", "border", "border-white/10", "rounded-xl", "flex items-center", "gap-3"].filter(Boolean).join(" ")}>
+      <div className={["border", "border-border", "p-4", "w-2", "h-2", "rounded-full", (dim ? "bg-zinc-600" : (status === "running" || status === "ok" || status === "ready" ? "bg-emerald-400" : (status === "warn" || status === "blocked" || status === "pending" ? "bg-amber-400" : (status === "error" || status === "failed" || status === "errored" ? "bg-rose-500" : "bg-zinc-600"))))].filter(Boolean).join(" ")} role={region} />
+      <div className={["flex", "flex-col", "gap-0"].filter(Boolean).join(" ")}>
+        <p className={["text-xs", "font-mono", "text-white/80"].filter(Boolean).join(" ")}>
+          {id}
+        </p>
+        {(role === "" ? <p className={["text-xs", "text-zinc-500"].filter(Boolean).join(" ")}
+    >
+      {status}
+    </p> : <div className={["flex", "flex-row", "flex items-center", "gap-1"].filter(Boolean).join(" ")}
+    >
+      <p className={["text-xs", "text-zinc-500"].filter(Boolean).join(" ")}
+    >
+      {status}
+    </p>
+      <p className={["text-xs", "text-zinc-700"].filter(Boolean).join(" ")}
+    >
+      {"·"}
+    </p>
+      <p className={["text-xs", "text-zinc-600", "font-mono"].filter(Boolean).join(" ")}
+    >
+      {role}
+    </p>
+    </div>)}
+      </div>
+    </div>
   );
 }

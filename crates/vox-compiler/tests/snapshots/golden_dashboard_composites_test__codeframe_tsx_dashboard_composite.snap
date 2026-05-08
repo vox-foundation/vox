@@ -14,20 +14,16 @@ export interface CodeframeProps {
 
 export function Codeframe({ file, line, col, excerpt, caret }: CodeframeProps): React.ReactElement {
   return (
-<panel bg={"zinc.900"} border={true} border_color={"white/10"} radius={"lg"} pad={3} gap={1}
->
-  <text size={"xs"} fontFamily={"mono"} color={"zinc.500"}
->
-  {file}
-</text>
-  <text size={"xs"} fontFamily={"mono"} color={"white/70"} leading={"relaxed"}
->
-  {excerpt}
-</text>
-  <text size={"xs"} fontFamily={"mono"} color={"rose.400"}
->
-  {caret}
-</text>
-</panel>
+    <div className={["bg-zinc-900", "border", "border-white/10", "rounded-lg", "p-3", "gap-1"].filter(Boolean).join(" ")} role={region}>
+      <p className={["text-xs", "font-mono", "text-zinc-500"].filter(Boolean).join(" ")}>
+        {file}
+      </p>
+      <p className={["text-xs", "font-mono", "text-white/70", "leading-relaxed"].filter(Boolean).join(" ")}>
+        {excerpt}
+      </p>
+      <p className={["text-xs", "font-mono", "text-rose-400"].filter(Boolean).join(" ")}>
+        {caret}
+      </p>
+    </div>
   );
 }

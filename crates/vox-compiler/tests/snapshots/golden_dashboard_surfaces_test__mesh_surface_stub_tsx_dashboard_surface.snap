@@ -1,6 +1,5 @@
 ---
 source: crates/vox-compiler/tests/golden_dashboard_surfaces_test.rs
-assertion_line: 139
 expression: ts
 ---
 import React from "react";
@@ -10,24 +9,19 @@ import { SurfaceStub } from "./SurfaceStub";
 
 export function MeshSurface(): React.ReactElement {
   return (
-<column flex={1} overflow={"hidden"} bg={"zinc.950"}
->
-  <row h={10} border_b={true} border_color={"zinc.800"} pad_x={4} items={"center"} justify={"between"} shrink={0}
->
-  <text size={"sm"} weight={"black"} tracking={"tight"} color={"white"}
->
-  {"Mesh"}
-</text>
-  <row gap={2} items={"center"}
->
-  <StateChip status={"idle"} label={"0 nodes"} />
-  <button raw_class={"px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800"}
->
-  {"Refresh"}
-</button>
-</row>
-</row>
-  <SurfaceStub title={"Mesh"} desc={"Force-directed agent topology. Nodes show orchestrators; edges show active channels."} action={"Start an orchestrator"} />
-</column>
+    <div className={["flex", "flex-col", "flex-1", "overflow-hidden", "bg-zinc-950"].filter(Boolean).join(" ")}>
+      <div className={["flex", "flex-row", "h-10", "border-b-true", "border-zinc-800", "px-4", "flex items-center", "flex justify-between", "shrink-0"].filter(Boolean).join(" ")}>
+        <p className={["text-sm", "tracking-tight", "text-white"].filter(Boolean).join(" ")}>
+          {"Mesh"}
+        </p>
+        <div className={["flex", "flex-row", "gap-2", "flex items-center"].filter(Boolean).join(" ")}>
+          <StateChip label={"0 nodes"} status={"idle"} />
+          <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "px-3 py-1 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-400 hover:bg-zinc-800"].filter(Boolean).join(" ")}>
+            {"Refresh"}
+          </button>
+        </div>
+      </div>
+      <SurfaceStub action={"Start an orchestrator"} desc={"Force-directed agent topology. Nodes show orchestrators; edges show active channels."} title={"Mesh"} />
+    </div>
   );
 }

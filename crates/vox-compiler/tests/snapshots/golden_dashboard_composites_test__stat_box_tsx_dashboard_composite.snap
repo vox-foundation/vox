@@ -12,20 +12,17 @@ export interface StatBoxProps {
 
 export function StatBox({ key, value, sub }: StatBoxProps): React.ReactElement {
   return (
-<column bg={"zinc.900"} border={true} border_color={"white/10"} radius={"xl"} pad={4} gap={1}
->
-  <text size={"xs"} weight={"bold"} case={"upper"} tracking={"widest"} color={"zinc.500"} mb={1}
->
-  {key}
-</text>
-  <text size={"2xl"} weight={"bold"} color={"white/90"} fontFamily={"mono"} tracking={"tight"}
->
-  {value}
-</text>
-  {(sub === "" ? <panel  /> : <text size={"xs"} color={"zinc.600"}
->
-  {sub}
-</text>)}
-</column>
+    <div className={["flex", "flex-col", "bg-zinc-900", "border", "border-white/10", "rounded-xl", "p-4", "gap-1"].filter(Boolean).join(" ")}>
+      <p className={["text-xs", "font-bold", "uppercase", "tracking-widest", "text-zinc-500", "mb-1"].filter(Boolean).join(" ")}>
+        {key}
+      </p>
+      <p className={["text-2xl", "font-bold", "text-white/90", "font-mono", "tracking-tight"].filter(Boolean).join(" ")}>
+        {value}
+      </p>
+      {(sub === "" ? <div className={["bg-background", "rounded-lg", "border", "border-border", "p-4"].filter(Boolean).join(" ")} /> : <p className={["text-xs", "text-zinc-600"].filter(Boolean).join(" ")}
+    >
+      {sub}
+    </p>)}
+    </div>
   );
 }

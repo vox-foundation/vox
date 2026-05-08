@@ -12,12 +12,10 @@ export interface IconBtnProps {
 
 export function IconBtn({ icon, size, on_click }: IconBtnProps): React.ReactElement {
   return (
-<button size={"icon"} w={size} h={size} radius={"lg"} bg={"white/5"} color={"zinc.400"} border={true} border_color={"white/10"} raw_class={"flex items-center justify-center hover:bg-white/10"} onClick={on_click}
->
-  <text size={"xs"} fontFamily={"mono"}
->
-  {icon}
-</text>
-</button>
+    <button className={["inline-flex", "items-center", "justify-center", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "rounded-lg", "bg-white/5", "text-zinc-400", "border", "border-white/10", "flex items-center justify-center hover:bg-white/10"].filter(Boolean).join(" ")} h={size} onClick={on_click} w={size}>
+      <p className={["text-xs", "font-mono"].filter(Boolean).join(" ")}>
+        {icon}
+      </p>
+    </button>
   );
 }

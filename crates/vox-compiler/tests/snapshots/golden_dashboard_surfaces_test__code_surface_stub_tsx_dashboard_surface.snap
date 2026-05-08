@@ -1,6 +1,5 @@
 ---
 source: crates/vox-compiler/tests/golden_dashboard_surfaces_test.rs
-assertion_line: 317
 expression: ts
 ---
 import React from "react";
@@ -10,17 +9,14 @@ import { SurfaceStub } from "./SurfaceStub";
 
 export function CodeSurface(): React.ReactElement {
   return (
-<column flex={1} overflow={"hidden"} bg={"zinc.950"}
->
-  <row h={10} border_b={true} border_color={"zinc.800"} pad_x={4} items={"center"} justify={"between"} shrink={0}
->
-  <text size={"sm"} weight={"black"} tracking={"tight"} color={"white"}
->
-  {"Code"}
-</text>
-  <StateChip status={"idle"} label={"no file"} />
-</row>
-  <SurfaceStub title={"Code"} desc={"Scoped file editor for .vox, Rust, and TypeScript. File tree on the left; diagnostics and agent activity on the right."} action={"Open a file"} />
-</column>
+    <div className={["flex", "flex-col", "flex-1", "overflow-hidden", "bg-zinc-950"].filter(Boolean).join(" ")}>
+      <div className={["flex", "flex-row", "h-10", "border-b-true", "border-zinc-800", "px-4", "flex items-center", "flex justify-between", "shrink-0"].filter(Boolean).join(" ")}>
+        <p className={["text-sm", "tracking-tight", "text-white"].filter(Boolean).join(" ")}>
+          {"Code"}
+        </p>
+        <StateChip label={"no file"} status={"idle"} />
+      </div>
+      <SurfaceStub action={"Open a file"} desc={"Scoped file editor for .vox, Rust, and TypeScript. File tree on the left; diagnostics and agent activity on the right."} title={"Code"} />
+    </div>
   );
 }
