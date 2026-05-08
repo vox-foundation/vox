@@ -156,7 +156,7 @@ regex              = "1"
 comfy-table        = "7"
 tempfile           = "3"
 turso              = { version = "0.4", default-features = false, features = ["sync"] }
-blake3             = "1"
+blake3             = { version = "1", features = ["pure"] }
 jsonwebtoken       = { version = "9", default-features = false }
 ed25519-dalek      = { version = "2", default-features = false }
 x25519-dalek       = { version = "2", default-features = false, features = ["static_secrets"] }
@@ -179,7 +179,7 @@ burn               = { version = "0.19", default-features = false, features = ["
 candle-core        = { version = "0.9", default-features = false }
 candle-nn          = { version = "0.9", default-features = false }
 safetensors        = "0.4"
-tokenizers         = "0.21"
+tokenizers         = { version = "0.21", default-features = false, features = ["fancy-regex"] }
 memmap2            = "0.9"
 # 0.4+ resolves Hugging Face relative `Location` redirects in tokio metadata (0.3 breaks with `relative URL without a base`).
 hf-hub             = { version = "0.4" }
@@ -225,7 +225,7 @@ win32job           = "2"
 windows-sys        = "0.59"
 tavily             = "2.1.0"
 quick-xml          = "0.31"
-flate2             = "1"
+flate2             = { version = "1", default-features = false, features = ["rust_backend"] }
 tokio-tungstenite  = { version = "0.24", default-features = false }
 rubato             = "0.15.0"
 symphonia          = "0.5.4"

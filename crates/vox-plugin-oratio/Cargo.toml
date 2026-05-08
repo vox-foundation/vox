@@ -42,7 +42,7 @@ candle-core   = { version = "0.9.1", optional = true, default-features = false }
 candle-nn     = { version = "0.9.1", optional = true, default-features = false }
 candle-transformers = { version = "0.9.1", optional = true, default-features = false }
 hf-hub        = { workspace = true, optional = true }
-tokenizers    = { version = "0.21", optional = true }
+tokenizers    = { workspace = true, optional = true }
 symphonia     = { version = "0.5.4", optional = true, default-features = false, features = [
     "aac", "alac", "flac", "mp3", "ogg", "pcm", "vorbis", "wav",
 ] }
