@@ -58,6 +58,7 @@ vox-compiler              = { path = "crates/vox-compiler" }
 vox-config                = { path = "crates/vox-config" }
 vox-container             = { path = "crates/vox-container" }
 vox-deploy-codegen        = { path = "crates/vox-deploy-codegen" }
+vox-skill-runtime         = { path = "crates/vox-skill-runtime" }
 vox-checksum-manifest     = { path = "crates/vox-checksum-manifest" }
 vox-install-policy        = { path = "crates/vox-install-policy" }
 vox-jsonschema-util       = { path = "crates/vox-jsonschema-util" }

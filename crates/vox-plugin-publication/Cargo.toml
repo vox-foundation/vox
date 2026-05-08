@@ -12,6 +12,9 @@ crate-type = ["cdylib", "rlib"]
 vox-plugin-api = { workspace = true }
 vox-scientia-ingest = { workspace = true }
 vox-publisher = { workspace = true, features = ["scientia-reddit", "scientia-youtube", "scholarly-external-jobs"] }
+vox-db = { workspace = true }
+vox-runtime = { workspace = true }
+vox-search = { workspace = true }
 abi_stable = { workspace = true }
 anyhow = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

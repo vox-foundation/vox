@@ -12123,6 +12123,7 @@ dependencies = [
  "vox-crypto",
  "vox-dashboard",
  "vox-db",
+ "vox-deploy-codegen",
  "vox-doc-inventory",
  "vox-doc-pipeline",
  "vox-eval",
@@ -12139,6 +12140,7 @@ dependencies = [
  "vox-orchestrator",
  "vox-plugin-catalog",
  "vox-plugin-host",
+ "vox-plugin-publication",
  "vox-pm",
  "vox-populi",
  "vox-primitives",
@@ -12149,7 +12151,6 @@ dependencies = [
  "vox-reqwest-defaults",
  "vox-runtime",
  "vox-scaling-policy",
- "vox-scientia-ingest",
  "vox-search",
  "vox-skills",
  "vox-ssg",
@@ -12211,6 +12212,7 @@ dependencies = [
  "vox-clavis",
  "vox-config",
  "vox-container",
+ "vox-deploy-codegen",
  "vox-eval",
  "vox-grammar-export",
  "vox-jsonschema-util",
@@ -12347,8 +12349,20 @@ dependencies = [
  "vox-mesh-types",
  "vox-orchestrator-types",
  "vox-repository",
- "vox-socrates-policy",
  "vox-test-harness",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-deploy-codegen"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tracing",
+ "vox-container",
  "workspace-hack",
 ]
 
@@ -12490,6 +12504,7 @@ dependencies = [
  "vox-compiler",
  "vox-config",
  "vox-container",
+ "vox-deploy-codegen",
  "vox-lsp",
  "vox-orchestrator",
  "vox-repository",
@@ -12783,7 +12798,6 @@ dependencies = [
  "vox-runtime",
  "vox-search",
  "vox-skills",
- "vox-socrates-policy",
  "vox-toestub",
  "walkdir",
  "workspace-hack",
@@ -12844,6 +12858,20 @@ version = "0.1.0"
 dependencies = [
  "abi_stable",
  "vox-plugin-api",
+]
+
+[[package]]
+name = "vox-plugin-grammar-export"
+version = "0.1.0"
+dependencies = [
+ "abi_stable",
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tracing",
+ "vox-grammar-export",
+ "vox-plugin-api",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -13011,9 +13039,12 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "vox-db",
  "vox-plugin-api",
  "vox-publisher",
+ "vox-runtime",
  "vox-scientia-ingest",
+ "vox-search",
  "workspace-hack",
 ]
 
@@ -13320,6 +13351,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "vox-skill-runtime"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "thiserror 1.0.69",
+ "tracing",
+ "workspace-hack",
+]
+
+[[package]]
 name = "vox-skills"
 version = "0.5.0"
 dependencies = [
@@ -13345,14 +13387,6 @@ dependencies = [
  "vox-plugin-host",
  "vox-pm",
  "vox-reqwest-defaults",
- "workspace-hack",
-]
-
-[[package]]
-name = "vox-socrates-policy"
-version = "0.5.0"
-dependencies = [
- "serde",
  "workspace-hack",
 ]
 
@@ -13413,22 +13447,10 @@ dependencies = [
  "vox-clavis",
  "vox-config",
  "vox-jsonschema-util",
+ "vox-orchestrator-types",
  "vox-reqwest-defaults",
  "vox-scaling-policy",
- "vox-socrates-policy",
  "walkdir",
- "workspace-hack",
-]
-
-[[package]]
-name = "vox-tools"
-version = "0.5.0"
-dependencies = [
- "anyhow",
- "serde_json",
- "vox-capability-registry",
- "vox-oratio",
- "vox-plugin-host",
  "workspace-hack",
 ]
 

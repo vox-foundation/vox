@@ -19,6 +19,9 @@ use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 // without depending on those crates directly.
 pub use vox_scientia_ingest::{FeedCrawler, FeedSource, InboundItem, IngestDeduplicator};
 
+pub mod ingest;
+pub use ingest::ingest_tick;
+
 #[export_root_module]
 fn root_module() -> VoxPluginRootRef {
     VoxPluginRoot {
