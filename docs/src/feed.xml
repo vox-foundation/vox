@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 08 May 2026 01:37:09 GMT</lastBuildDate>
+  <lastBuildDate>Fri, 08 May 2026 02:32:39 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -18,12 +18,48 @@
   </item>
 
   <item>
+    <title>Plugin System Audit (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/plugin-system-audit-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/plugin-system-audit-2026-05-08.html</guid>
+    <description>Audit of the plugin system after major slim-core extractions — ABI drift, SP7 scaffolds, duplicate code paths, dead deps, and build/distribution optimization.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Vox-Populi Extraction Follow-Up Plan (2026)</title>
+    <link>https://vox-lang.org/architecture/vox-populi-extraction-followup-plan-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-populi-extraction-followup-plan-2026.html</guid>
+    <description>Plan for the remaining code-motion work after the plugin system foundation landed. Covers vox-populi mens/tensor residual, vox-populi transport, vox-tensor…</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
     <title>Migrating from Cargo Feature Flags</title>
     <link>https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</link>
     <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</guid>
     <description>Mapping from `cargo --features` invocations to the runtime plugin system.</description>
     <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
     <category>How-To</category>
+  </item>
+
+  <item>
+    <title>Picking a Vox bundle</title>
+    <link>https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</guid>
+    <description>Decision guide for choosing the right Vox distribution bundle for your use case.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
+  </item>
+
+  <item>
+    <title>Plugin Manifest (Plugin.toml)</title>
+    <link>https://vox-lang.org/reference/plugin-manifest.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/reference/plugin-manifest.html</guid>
+    <description>Schema for the Plugin.toml file every Vox plugin ships.</description>
+    <pubDate>Thu, 07 May 2026 00:00:00 GMT</pubDate>
+    <category>Reference</category>
   </item>
 
   <item>
@@ -140,15 +176,6 @@
   </item>
 
   <item>
-    <title>Vox-Populi Extraction Follow-Up Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/vox-populi-extraction-followup-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/vox-populi-extraction-followup-plan-2026.html</guid>
-    <description>Plan for the remaining code-motion work after the plugin system foundation landed. Covers vox-populi mens/tensor residual, vox-populi transport, vox-tensor…</description>
-    <pubDate>Mon, 04 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
     <title>Explanation: Compiler Lowering Phases</title>
     <link>https://vox-lang.org/explanation/expl-compiler-lowering.html</link>
     <guid isPermaLink="true">https://vox-lang.org/explanation/expl-compiler-lowering.html</guid>
@@ -215,35 +242,6 @@
     <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Architecture Decision Records (ADR)</title>
-    <link>https://vox-lang.org/adr/index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/index.html</guid>
-    <description>Official documentation for Architecture Decision Records (ADR) for the Vox language. Detailed technical reference, architecture guides, a</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Known Documentation Gaps &amp; Backlog</title>
-    <link>https://vox-lang.org/api/DOC_GAPS.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/api/DOC_GAPS.html</guid>
-    <description>Living checklist of documentation gaps, backlog items, and recently completed doc work for contributors.</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Reference</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>External Frontend Interop Plan (2026)</title>
-    <link>https://vox-lang.org/architecture/external-frontend-interop-plan-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/external-frontend-interop-plan-2026.html</guid>
-    <description>Five-phase plan to make Vox interoperable with the React/TS ecosystem in both directions: keep Vox&apos;s GUI authoring (TS/React emission), add bidirectional…</description>
-    <pubDate>Sun, 03 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
   </item>
 
   <item>

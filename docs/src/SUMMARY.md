@@ -394,6 +394,7 @@ training_eligible: false
 - [Minimum Viable Corpus Size for QLoRA Domain Adaptation](archive/research-2026-q1/research-cl-qlora-minimum-corpus-2026.md)
 - [Multi-repo context isolation: research findings 2026](archive/research-2026-q1/multi-repo-context-isolation-research-2026.md)
 - [Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan](architecture/orchestrator-companion-audit-findings-2026.md)
+- [Plugin System Audit (2026-05-08)](architecture/plugin-system-audit-2026-05-08.md)
 - [Plugin System Redesign (2026)](architecture/plugin-system-redesign-2026.md)
 - [Plugin System Redesign — SP1 Implementation Plan (2026)](architecture/plugin-system-redesign-sp1-plan-2026.md)
 - [Plugin System Redesign — SP2 Implementation Plan (2026)](architecture/plugin-system-redesign-sp2-plan-2026.md)
