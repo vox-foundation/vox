@@ -1,0 +1,53 @@
+//! Bug D repro: emitted component files reference @endpoint fns and `std.*` builtins
+//! as bare identifiers without import statements,
+//! per docs/superpowers/plans/2026-05-08-codegen-ts-bugs-blocking-tracker.md.
+
+const FIXTURE: &str = r#"
+import react.use_state
+
+@endpoint(kind: query)
+fn parse_voice(s: str) -> str {
+    s
+}
+
+@endpoint(kind: mutation)
+fn record_event(name: str, payload: str) -> str {
+    name
+}
+
+component VoicePage() {
+    state transcript_raw: str = ""
+    view: column() {
+        button(on_click={
+            let p = parse_voice(transcript_raw)
+            let _ = record_event("ev", p)
+            let _ms = std.time.now_ms()
+        }) { "go" }
+        text() { transcript_raw }
+    }
+}
+"#;
+
+#[test]
+fn endpoint_calls_emit_imports() {
+    let tokens = vox_compiler::lexer::lex(FIXTURE);
+    let module = vox_compiler::parser::parse(tokens).expect("parse");
+    let _diags = vox_compiler::typeck::typecheck_module(&module, "bug_d_imports");
+    let hir = vox_compiler::hir::lower_module(&module);
+    let out = vox_compiler::codegen_ts::generate(&hir).expect("gen");
+    let voice = out
+        .files
+        .iter()
+        .find(|(n, _)| n.contains("VoicePage"))
+        .map(|(_, b)| b.as_str())
+        .expect("VoicePage emitted");
+    eprintln!("=== VoicePage ===\n{voice}");
+    assert!(
+        voice.contains("parse_voice") && voice.contains("import"),
+        "Bug D: VoicePage references parse_voice but emits no import statement"
+    );
+    assert!(
+        !voice.contains("std.time.now_ms()") || voice.contains("import"),
+        "Bug D: std.time references need either an import or inline replacement"
+    );
+}

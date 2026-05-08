@@ -333,17 +333,100 @@ pub fn emit_hir_expr(expr: &HirExpr, state_names: &HashSet<String>) -> String {
             format!("(({}) => ({}))", param_names.join(", "), b)
         }
         HirExpr::Match(subject, arms, _) => {
+            // ADT-shaped values (Result/Option/user-defined) carry a `_tag` discriminator
+            // (see crates/vox-compiler/src/codegen_ts/adt.rs). Dispatch on `_val._tag` and
+            // bind constructor fields by destructuring; fall back to wildcard / literal /
+            // ident-bind cases for non-ADT subjects.
             let s = emit_hir_expr(subject, state_names);
-            let mut arms_out = Vec::new();
-            for arm in arms {
-                let pat = emit_hir_pattern(&arm.pattern);
-                let body = emit_hir_expr(&arm.body, state_names);
-                arms_out.push(format!("case {pat}: return {body};"));
+            let all_constructor_or_wild = arms.iter().all(|a| {
+                matches!(
+                    &a.pattern,
+                    HirPattern::Constructor(_, _, _) | HirPattern::Wildcard(_)
+                )
+            });
+            if all_constructor_or_wild
+                && arms
+                    .iter()
+                    .any(|a| matches!(&a.pattern, HirPattern::Constructor(_, _, _)))
+            {
+                let mut arms_out = Vec::new();
+                let mut has_default = false;
+                for arm in arms {
+                    let body = emit_hir_expr(&arm.body, state_names);
+                    match &arm.pattern {
+                        HirPattern::Constructor(name, fields, _) => {
+                            // Fields bind by name where the inner pattern is `Ident`; nested
+                            // patterns (rare for Result/Option) fall back to wildcard names.
+                            let binders: Vec<String> = fields
+                                .iter()
+                                .enumerate()
+                                .map(|(i, p)| match p {
+                                    HirPattern::Ident(n, _) => n.clone(),
+                                    HirPattern::Wildcard(_) => format!("_f{i}"),
+                                    _ => format!("_f{i}"),
+                                })
+                                .collect();
+                            // Constructor field order in HIR matches the ADT decl, but ADT codegen
+                            // uses named fields (e.g. `{ _tag: "Ok", value }`). For the built-in
+                            // `Result`/`Option`, the single payload field is conventionally
+                            // accessed positionally — synthesize `_p0/_p1/...` accessors that work
+                            // both for built-ins (positional) and user ADTs (named).
+                            let destructure = if binders.is_empty() {
+                                String::new()
+                            } else {
+                                let parts: Vec<String> = binders
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, b)| format!("const {b} = (_val as any)._p{i} ?? (_val as any).value;"))
+                                    .collect();
+                                parts.join(" ")
+                            };
+                            arms_out.push(format!(
+                                "case \"{name}\": {{ {destructure} return {body}; }}"
+                            ));
+                        }
+                        HirPattern::Wildcard(_) => {
+                            has_default = true;
+                            arms_out.push(format!("default: return {body};"));
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                if !has_default {
+                    arms_out.push("default: return undefined;".to_string());
+                }
+                format!(
+                    "((_val) => {{ switch((_val as any)._tag) {{ {} }} }})({s})",
+                    arms_out.join(" ")
+                )
+            } else {
+                let mut arms_out = Vec::new();
+                for arm in arms {
+                    let body = emit_hir_expr(&arm.body, state_names);
+                    match &arm.pattern {
+                        HirPattern::Literal(_, _) => {
+                            let pat = emit_hir_pattern(&arm.pattern);
+                            arms_out.push(format!("case {pat}: return {body};"));
+                        }
+                        HirPattern::Wildcard(_) => {
+                            arms_out.push(format!("default: return {body};"));
+                        }
+                        HirPattern::Ident(name, _) => {
+                            arms_out.push(format!(
+                                "default: {{ const {name} = _val; return {body}; }}"
+                            ));
+                        }
+                        HirPattern::Tuple(_, _) | HirPattern::Constructor(_, _, _) => {
+                            let pat = emit_hir_pattern(&arm.pattern);
+                            arms_out.push(format!("case {pat}: return {body};"));
+                        }
+                    }
+                }
+                format!(
+                    "((_val) => {{ switch(_val) {{ {} }} }})({s})",
+                    arms_out.join(" ")
+                )
             }
-            format!(
-                "((_val) => {{ switch(_val) {{ {} }} }})({s})",
-                arms_out.join(" ")
-            )
         }
         HirExpr::Try(h) => {
             // No direct equivalent of `?` in TS unless it's a specific pattern, but we'll try to emulate or just emit `await`/direct expression for now since it's just TS generation.
