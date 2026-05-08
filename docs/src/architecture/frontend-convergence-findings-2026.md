@@ -12,6 +12,19 @@ training_rationale: "Canonical convergence reference; defines the SSOT seam and 
 **Audit date:** 2026-05-08
 **Companion to:** [External Frontend Interop Plan (2026)](external-frontend-interop-plan-2026.md), [GUI-Native Roadmap Status (2026)](gui-native-roadmap-status-2026.md)
 
+## Implementation status (2026-05-08)
+
+This findings doc is partially landed:
+
+- **R1 + R2 (dead Path-A surface)** — landed in commit `dd3e0432a`. `Decl::Component`, `ComponentDecl`, `HirFn.is_component`, and the unused emit functions in `codegen_ts/component.rs` are gone. 19 files, −546 lines.
+- **Contract IR module** — landed in commit `1ed467d48`. `crates/vox-compiler/src/contract_ir/` with `ContractIr`, `WireType`, projection rules, 8 unit tests.
+- **Zod emit through Contract IR** — landed in commit `1ed467d48`. `codegen_ts/zod_emit.rs` now reads `ContractIr` instead of HIR directly.
+- **OpenAPI 3.1 emit** — landed in commit `1ed467d48`. `codegen_ts/openapi_emit.rs` with 7 unit tests; `openapi.json` is emitted alongside `schemas.ts` and `vox-client.ts`. Phase 2 of the interop plan unblocked.
+- **R3 (`HirRoute`)** — deferred. Touches the active `codegen_rust::emit::http::emit_main` (live Axum `main.rs` emitter) and an active integration test surface; warrants a focused PR.
+- **R4 (deprecated `@server` / `@query` / `@mutation`)** — deferred; has its own deprecation cycle.
+- **R5 (Express server emit), R6 (legacy `voxdb.rs`)** — deferred. Need consumer audits before deletion.
+- **`vox-react-runtime.ts` / `vox-api.ts` barrels** — deferred. Cosmetic K-reduction with snapshot churn cost; revisit when component snapshots regenerate for VUV-5/6.
+
 ## Premise
 
 Vox emits TypeScript/React/JSX as its frontend output today. The strategic plan in
