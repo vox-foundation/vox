@@ -31,3 +31,11 @@ Automation scripts live under **`scripts/*.vox`** (run with `vox run`).
 ## Repository layout
 
 See plan: append-only **`HealthEventLog`** + derived views; exports under **`contracts/export/`**.
+
+## Releasing
+
+Per-release checklist in [`RELEASE_CHECKLIST.md`](RELEASE_CHECKLIST.md). Detailed gate definitions in [`docs/how-to/release.md`](docs/how-to/release.md). To run the programmatic gates locally:
+
+```bash
+bash apps/vox-mental-tracker/scripts/release_check.sh
+```
