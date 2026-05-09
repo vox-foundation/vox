@@ -104,12 +104,12 @@ CREATE INDEX IF NOT EXISTS idx_task_by_done ON task (done, priority);
             };
             match __vox_run_workflow(&wf_name, &args).await {
                 Ok(()) => {
-                    vox_runtime::builtins::vox_flush_exit_commands();
+                    vox_actor_runtime::builtins::vox_flush_exit_commands();
                     return;
                 }
                 Err(e) => {
                     eprintln!("Workflow execution failed: {}", e);
-                    vox_runtime::builtins::vox_flush_exit_commands();
+                    vox_actor_runtime::builtins::vox_flush_exit_commands();
                     std::process::exit(2);
                 }
             }

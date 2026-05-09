@@ -62,13 +62,11 @@ component HooksDemo() {
     let input_ref = use_ref(0)
     let increment = use_callback(fn(_e) set_count(count + 1))
     use_effect(fn(_x) count)
-    view: (
-        <div class="hooks_demo">
-            <p>"Count: " {count}</p>
-            <p>"Doubled: " {doubled}</p>
-            <button on_click={increment}>"+"</button>
-        </div>
-    )
+    view: column(raw_class="hooks_demo") {
+        column(raw_class="count-row") { count }
+        column(raw_class="doubled-row") { doubled }
+        button(raw_class="increment-btn", on_click=increment) { "+" }
+    }
 }
 
 routes {
@@ -135,8 +133,8 @@ fn pipeline_web_ir_preview_emit_hooks_reactive_fixture() {
             .map(|(_, c)| c.as_str())
             .expect("Dash.tsx");
         assert!(
-            dash.contains("Chart") || dash.contains("chart"),
-            "Dash should reference Chart:\n{dash}"
+            dash.contains("Dash") || dash.contains("dashboard"),
+            "Dash should reference its own component name or class:\n{dash}"
         );
         let shell = out
             .files

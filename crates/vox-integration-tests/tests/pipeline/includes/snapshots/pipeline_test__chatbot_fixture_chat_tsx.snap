@@ -11,27 +11,19 @@ export function Chat(): React.ReactElement {
     const [input, set_input] = useState("");
     const send = ((_e) => (set_messages(messages.append({ role: "user", text: input }))));
   return (
-<div className={"chat_container"}
->
-  <div className={"messages"}
->
-  {messages.map((msg) => (<div className={"message"}
->
-  {(() => {
-    msg.text;
-  })()}
-</div>))}
-</div>
-  <div className={"input_area"}
->
-  <input className={"chat_input"} value={input} onChange={(e) => set_input(e.target.value)} placeholder={"Type a message..."} />
-  <button className={"send_btn"} onClick={() => {
-    send;
-}}
->
-  {"Send"}
-</button>
-</div>
-</div>
+    <div className={["flex", "flex-col", "chat_container"].filter(Boolean).join(" ")}>
+      <div className={["flex", "flex-col", "messages"].filter(Boolean).join(" ")}>
+        {messages.map((msg, _i) => (<div className={["flex", "flex-col", "message"].filter(Boolean).join(" ")}
+    >
+      {msg.text}
+    </div>))}
+      </div>
+      <div className={["flex", "flex-row", "input_area"].filter(Boolean).join(" ")}>
+        <input aria-label={"Chat message"} className={"chat_input"} onChange={(e) => set_input(e.target.value)} placeholder={"Type a message..."} value={input} />
+        <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2", "send_btn"].filter(Boolean).join(" ")} onClick={send}>
+          {"Send"}
+        </button>
+      </div>
+    </div>
   );
 }

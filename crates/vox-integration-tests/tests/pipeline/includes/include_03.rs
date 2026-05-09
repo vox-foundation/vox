@@ -78,33 +78,27 @@ type Todo =
 
 component Dashboard() {
     let (visits, set_visits) = use_state(0)
-    view: (
-        <div class="dashboard">
-            <h1>"Dashboard"</h1>
-            <a href="/todos">"Todos"</a>
-            <a href="/about">"About"</a>
-            <button on_click={fn(_e) set_visits(visits + 1)}>"Track"</button>
-        </div>
-    )
+    view: column(raw_class="dashboard") {
+        column(raw_class="dashboard-title") { "Dashboard" }
+        link(href="/todos") { "Todos" }
+        link(href="/about") { "About" }
+        button(raw_class="track-btn", on_click={fn(_e) set_visits(visits + 1)}) { "Track" }
+    }
 }
 
 component TodoList() {
     let (items, set_items) = use_state([])
     let (draft, set_draft) = use_state("")
-    view: (
-        <div class="todo_list">
-            <input bind={draft} placeholder="New task..." />
-            <button on_click={fn(_e) set_items(items.append({text: draft}))}>"Add"</button>
-        </div>
-    )
+    view: column(raw_class="todo_list") {
+        input(bind=draft, raw_class="draft-input", aria_label="New task")
+        button(raw_class="add-btn", on_click={fn(_e) set_items(items.append({text: draft}))}) { "Add" }
+    }
 }
 
 component About() {
-    view: (
-        <div class="about">
-            <h1>"About"</h1>
-        </div>
-    )
+    view: column(raw_class="about") {
+        column(raw_class="about-title") { "About" }
+    }
 }
 
 routes {
@@ -121,7 +115,7 @@ routes {
     return "created"
 }
 
-@server fn get_stats() to int {
+@endpoint(kind: server) fn get_stats() to int {
     return 42
 }
 "#;
@@ -130,7 +124,7 @@ routes {
 fn pipeline_multi_route_parse() {
     let tokens = lex(MULTI_ROUTE_SRC);
     let module = parse(tokens).expect("multi_route_app should parse");
-    // 1 import + 1 type + 3 components + 1 routes + 2 @endpoint fns + 1 @server fn = 9
+    // 1 import + 1 type + 3 components + 1 routes + 3 @endpoint fns = 9
     assert_eq!(module.declarations.len(), 9);
 }
 

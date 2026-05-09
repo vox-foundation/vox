@@ -31,3 +31,14 @@ export const voxRoutes: VoxRoute[] = [
   component: ChatWidget,
 },
 ]
+
+// Phase C part 2: typed route URL surface.
+// Use `routePath["/users/:id"](userId)` instead of hand-formatting URLs.
+export type KnownRoute =
+  | "/"
+  | "/chat";
+
+export const routePath = {
+  "/": (): string => "/",
+  "/chat": (): string => "/chat",
+} as const;

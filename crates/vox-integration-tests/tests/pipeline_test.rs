@@ -131,13 +131,11 @@ type ChatResult =
 component Chat() {
     let (messages, set_messages) = use_state([{role: "bot", text: ""}])
     let (input, set_input) = use_state("")
-    let send = fn(msg) set_messages(messages.append({role: "user", text: msg}))
-    view: (
-        <div class="chat-container">
-            <h1>"Vox Chatbot"</h1>
-            <button on_click={fn(_e) send(input)}>"Send"</button>
-        </div>
-    )
+    let send = fn(_e) set_messages(messages.append({role: "user", text: input}))
+    view: column(raw_class="chat-container") {
+        column(raw_class="chat-title") { "Vox Chatbot" }
+        button(raw_class="send-btn", on_click=send) { "Send" }
+    }
 }
 
 @endpoint(kind: server) fn claude_send(msg: str) to ChatResult {
