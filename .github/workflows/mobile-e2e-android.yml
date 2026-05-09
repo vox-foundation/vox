@@ -1,5 +1,9 @@
 name: Mobile E2E - Android
 on: [push, pull_request]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   android-e2e:
     runs-on: macos-13

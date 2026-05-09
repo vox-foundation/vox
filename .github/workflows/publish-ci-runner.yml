@@ -23,6 +23,9 @@ concurrency:
   group: publish-ci-runner
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-and-push:
     name: Build and push vox-ci-runner image

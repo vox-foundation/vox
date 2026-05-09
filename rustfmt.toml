@@ -1,0 +1,5 @@
+# Vox workspace rustfmt configuration.
+# Makes implicit defaults explicit so edition bumps don't silently shift
+# behavior.  Only stable, non-reformatting options — changing import grouping
+# or brace style would require a dedicated bulk-reformat commit.
+edition = "2024"

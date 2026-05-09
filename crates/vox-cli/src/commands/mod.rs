@@ -6,6 +6,9 @@
 
 pub mod add;
 
+/// Quality-gate umbrella command (`vox audit`); reads `contracts/ci/check-targets.v1.yaml`.
+pub mod audit;
+
 #[cfg(feature = "dei")]
 pub mod attention;
 /// Identity and master key integration (`vox auth`).

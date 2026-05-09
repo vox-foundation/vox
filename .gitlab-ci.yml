@@ -82,7 +82,7 @@ vox-ci-guards:
     - cargo run -p vox-cli --quiet -- ci build-timings --crates
     - cargo run -p vox-cli --quiet -- ci feature-matrix
     - cargo run -p vox-cli --quiet -- ci no-vox-dei-import
-    - cargo run -p vox-cli --quiet -- ci toestub-scoped --mode legacy
+    - cargo run -p vox-cli --quiet -- ci toestub-scoped --mode enforce-warn
     - cargo run -p vox-cli --quiet -- ci cuda-features
     - cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
     # Arch-check: layer ordering (strict), fan-in, LoC, orphan, docstring.

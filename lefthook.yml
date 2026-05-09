@@ -7,6 +7,13 @@
 pre-commit:
   parallel: false
   commands:
+    # Formatting must pass before any other check so CI never sees a format failure
+    # that slipped through locally.
+    fmt-check:
+      run: cargo fmt --all -- --check
+      glob: "**/*.rs"
+      fail_text: "rustfmt check failed. Run `cargo fmt --all` to fix."
+
     sync-ignore-files:
       run: cargo run -p vox-cli --quiet -- ci sync-ignore-files
       stage_fixed: true
