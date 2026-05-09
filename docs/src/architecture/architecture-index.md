@@ -36,6 +36,8 @@ training_eligible: false
 - [Build-Time Baseline (2026-05-08)](build-time-baseline.md)
 - [Build-Time Log](build-time-log.md)
 - [Comprehensive Vox audit and improvement plan (April 2026, v2)](comprehensive-audit-v2-2026.md)
+- [Crate Org Follow-up — Implementation Plan](2026-05-08-crate-org-followup-plan.md)
+- [Crate Organization Follow-up — SSOT, Naming, and Sprawl](2026-05-08-crate-org-followup-design.md)
 - [Dashboard Migration Research 2026](dashboard-migration-research-2026.md)
 - [Document boundary matrix](planning-meta/11-document-boundary-matrix.md)
 - [Document maintenance protocol](planning-meta/10-document-maintenance-protocol.md)

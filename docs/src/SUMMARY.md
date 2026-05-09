@@ -199,6 +199,8 @@ training_eligible: false
 - [Compiler IR Pipeline](archive/research-2026-q1/compiler-ir-pipeline.md)
 - [Completion policy SSOT (LLM premature-completion)](archive/research-2026-q1/completion-policy-ssot.md)
 - [Comprehensive Vox audit and improvement plan (April 2026, v2)](architecture/comprehensive-audit-v2-2026.md)
+- [Crate Org Follow-up — Implementation Plan](architecture/2026-05-08-crate-org-followup-plan.md)
+- [Crate Organization Follow-up — SSOT, Naming, and Sprawl](architecture/2026-05-08-crate-org-followup-design.md)
 - [Dashboard Migration Research 2026](architecture/dashboard-migration-research-2026.md)
 - [Deployment Compose SSOT](archive/research-2026-q1/deployment-compose-ssot.md)
 - [Doc-to-code acceptance checklist](archive/research-2026-q1/doc-to-code-acceptance-checklist.md)
