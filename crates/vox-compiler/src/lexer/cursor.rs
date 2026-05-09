@@ -8,6 +8,33 @@ pub struct Spanned {
     pub span: std::ops::Range<usize>,
 }
 
+/// Lex source code into a flat vector of spanned tokens, **preserving** comment
+/// tokens so that callers can reconstruct the original byte sequence from the
+/// token spans plus the inter-token gaps (skipped horizontal whitespace).
+///
+/// Unlike [`lex`], this function does **not** strip [`Token::Comment`] entries.
+/// It is intended for source-rewriting tools that must preserve every byte of
+/// the original file (whitespace, comments, newlines).
+///
+/// A final [`Token::Eof`] sentinel is always appended.
+pub fn lex_preserving(source: &str) -> Vec<Spanned> {
+    let mut result: Vec<Spanned> = Token::lexer(source)
+        .spanned()
+        .filter_map(|(result, span)| match result {
+            Ok(token) => Some(Spanned { token, span }),
+            Err(_) => None, // skip unrecognized characters (still preserves via gap-fill)
+        })
+        .collect();
+
+    let eof_pos = source.len();
+    result.push(Spanned {
+        token: Token::Eof,
+        span: eof_pos..eof_pos,
+    });
+
+    result
+}
+
 /// Lex source code into a flat vector of spanned tokens.
 ///
 /// Block structure is delimited by `{` / `}` tokens — **no** synthetic

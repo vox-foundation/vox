@@ -157,16 +157,96 @@ fn walk_for_names(dir: &std::path::Path, out: &mut Vec<PathBuf>) -> std::io::Res
     Ok(())
 }
 
-/// Codemod: rewrite identifier tokens that appear as `from` keys in the registry
-/// to their canonical `to` names. Stub in Task 5; real implementation in Task 6.
+/// Codemod: rewrite identifier tokens that match a registry `from` name to their
+/// canonical `to` names. Operates on lexer tokens, not text patterns, so:
+///
+/// - String literal contents are **never** touched (they are a distinct token kind).
+/// - Substring matches inside unrelated identifiers (e.g. `MyBox`, `Boxes`) are
+///   never rewritten — only exact whole-identifier tokens are matched.
+/// - Comments and whitespace are preserved byte-for-byte (gaps between token
+///   spans are copied verbatim; comments are emitted via [`lex_preserving`]).
+/// - On lex failure the function is not applicable: the logos lexer is infallible
+///   (it skips unknown characters rather than returning an error), so in practice
+///   the source is always tokenised. Any unrecognised bytes are faithfully copied
+///   via the gap-fill logic.
+///
+/// ## Lexer API shape (actual, as of 2026-05)
+///
+/// ```text
+/// vox_compiler::lexer::lex_preserving(source: &str) -> Vec<Spanned>
+/// Spanned { token: Token, span: std::ops::Range<usize> }
+/// Token::Ident(String)      — lowercase identifiers
+/// Token::TypeIdent(String)  — upper-case / type identifiers
+/// ```
+///
+/// Horizontal whitespace is *skipped* by the logos lexer (not emitted as tokens);
+/// the inter-token byte ranges are recovered by copying `source[cursor..span.start]`
+/// before each token. Comments ARE emitted as `Token::Comment` by `lex_preserving`
+/// (unlike the standard `lex()` which strips them).
 ///
 /// Exposed as `pub` for testing from the integration suite.
 pub fn rewrite(
     source: &str,
-    _registry: &vox_compiler::parser::renames::RenameRegistry,
+    registry: &vox_compiler::parser::renames::RenameRegistry,
 ) -> String {
-    // Task 6 implements token-based rewrite. Placeholder: pass-through.
-    source.to_string()
+    use vox_compiler::lexer::lex_preserving;
+    use vox_compiler::lexer::token::Token;
+
+    let tokens = lex_preserving(source);
+
+    let mut out = String::with_capacity(source.len());
+    let mut cursor = 0usize;
+
+    for spanned in &tokens {
+        let span_start = spanned.span.start;
+        let span_end = spanned.span.end;
+
+        // For Eof the span is empty (source.len()..source.len()); no gap or text to emit.
+        // We just flush any tail bytes that weren't covered by a real token.
+        if matches!(spanned.token, Token::Eof) {
+            break;
+        }
+
+        // Copy any bytes between the previous emit point and this token's start.
+        // This recovers horizontal whitespace (skipped by logos) and any unrecognised
+        // bytes (logos emits Err for them; we filtered those out in lex_preserving,
+        // so they land here as part of the inter-token gap).
+        if span_start > cursor {
+            out.push_str(&source[cursor..span_start]);
+        }
+
+        match &spanned.token {
+            Token::Ident(name) | Token::TypeIdent(name) => {
+                if let Some(entry) = registry.resolve(name) {
+                    out.push_str(&entry.to);
+                } else {
+                    out.push_str(&source[span_start..span_end]);
+                }
+            }
+            _ => {
+                out.push_str(&source[span_start..span_end]);
+            }
+        }
+
+        cursor = span_end;
+    }
+
+    // Flush any trailing bytes after the last real token (trailing whitespace,
+    // newlines, unrecognised chars after the last identifier, etc.).
+    if cursor < source.len() {
+        out.push_str(&source[cursor..]);
+    }
+
+    out
+}
+
+/// Thin wrapper over [`rewrite`] for integration tests that live outside this
+/// crate (and therefore outside `#[cfg(test)]`).
+pub fn rewrite_for_test(
+    source: &str,
+    registry: &vox_compiler::parser::renames::RenameRegistry,
+) -> String {
+    rewrite(source, registry)
 }
 
 fn run_web(args: WebMigrateArgs) -> Result<()> {
