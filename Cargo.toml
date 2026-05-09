@@ -125,6 +125,7 @@ vox-reqwest-defaults      = { path = "crates/vox-reqwest-defaults" }
 vox-prereg                = { path = "crates/vox-prereg" }
 vox-research-events       = { path = "crates/vox-research-events" }
 vox-nanopub               = { path = "crates/vox-nanopub" }
+vox-ro-crate              = { path = "crates/vox-ro-crate" }
 vox-claim-extractor       = { path = "crates/vox-claim-extractor" }
 vox-repository            = { path = "crates/vox-repository" }
 vox-actor-runtime               = { path = "crates/vox-actor-runtime" }

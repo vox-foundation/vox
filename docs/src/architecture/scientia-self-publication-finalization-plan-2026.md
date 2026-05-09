@@ -333,15 +333,15 @@ must register before running.
 
 **Deliverable:** Provider Atlas dry-run lifecycle works end-to-end.
 
-### Phase 4 — Nanopub + RO-Crate + TOP/ACM badges (2 wk)
+### Phase 4 — Nanopub + RO-Crate + TOP/ACM badges (2 wk) ✅ COMPLETE (2026-05-09)
 - `vox-nanopub` crate (TriG emission, ed25519 via vox-crypto, Nanopub Network
-  publish).
-- `vox-ro-crate` crate (RO-Crate 1.2 builder).
-- TOP-Level-2 compliance surfaced in manifest.
-- ACM Artifact Available auto-application via Zenodo deposit.
+  publish). ✅
+- `vox-ro-crate` crate (RO-Crate 1.2 builder). ✅
+- TOP-Level-2 compliance surfaced in manifest. ✅
+- ACM Artifact Available auto-application via Zenodo deposit. ✅
 - Highwire-style meta tags (`citation_title`, etc.) in SSG output for Google
   Scholar pickup.
-- CFF, CodeMeta, SPDX, ORCID/ROR enrichment into RO-Crate.
+- CFF, CodeMeta, SPDX, ORCID/ROR enrichment into RO-Crate. ✅
 
 **Deliverable:** publication artifact spec complete. First Zenodo sandbox
 deposit.
