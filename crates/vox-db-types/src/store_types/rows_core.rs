@@ -51,7 +51,7 @@ pub struct MemoryEntry {
     /// Agent that owns this memory.
     pub agent_id: crate::ids::DbAgentId,
     /// Session scope.
-    pub session_id: String,
+    pub session_id: crate::ids::DbSessionId,
     /// Memory type label.
     pub memory_type: String,
     /// Text content.
@@ -85,7 +85,7 @@ pub struct LearnedPatternEntry {
     /// Row id.
     pub id: i64,
     /// User or agent id the pattern belongs to.
-    pub user_id: String,
+    pub user_id: crate::ids::DbUserId,
     /// Pattern classifier.
     pub pattern_type: String,
     /// Category bucket.
@@ -104,7 +104,7 @@ pub struct BehaviorEventEntry {
     /// Row id.
     pub id: i64,
     /// Subject user id.
-    pub user_id: String,
+    pub user_id: crate::ids::DbUserId,
     /// Event type label.
     pub event_type: String,
     /// Free-form context (e.g. command string).
@@ -269,7 +269,7 @@ pub struct SessionTurnEntry {
     /// Row id.
     pub id: i64,
     /// Session id.
-    pub session_id: String,
+    pub session_id: crate::ids::DbSessionId,
     /// Turn payload JSON.
     pub payload_json: String,
     /// Creation timestamp.

@@ -68,11 +68,11 @@ pub struct SkillExecutionRow {
     /// Version string of the skill at execution time.
     pub version: String,
     /// MCP/agent session that triggered the execution, if any.
-    pub session_id: Option<String>,
+    pub session_id: Option<crate::ids::DbSessionId>,
     /// Workflow execution identifier, if any.
     pub workflow_id: Option<String>,
     /// Agent that ran the skill.
-    pub agent_id: Option<String>,
+    pub agent_id: Option<crate::ids::DbAgentId>,
     /// `"ok"` | `"error"` | `"timeout"`.
     pub status: String,
     /// Wall-clock duration in milliseconds.
@@ -122,9 +122,9 @@ pub struct QuestionRow {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct QuestionSessionRow {
     pub id: i64,
-    pub session_id: String,
+    pub session_id: crate::ids::DbSessionId,
     pub repository_id: String,
-    pub task_id: Option<String>,
+    pub task_id: Option<crate::ids::DbTaskId>,
     pub policy_version: String,
     pub started_at_ms: i64,
     pub ended_at_ms: Option<i64>,
@@ -213,7 +213,7 @@ pub struct A2AMessageRow {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AgentEventRow {
     pub id: i64,
-    pub agent_id: String,
+    pub agent_id: crate::ids::DbAgentId,
     pub event_type: String,
     pub payload_json: Option<String>,
     pub cli_version: Option<String>,
@@ -236,7 +236,7 @@ pub struct BenchmarkEventRow {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SessionRow {
     pub id: String,
-    pub agent_id: String,
+    pub agent_id: crate::ids::DbAgentId,
     pub agent_name: Option<String>,
     pub started_at: String,
     pub ended_at: Option<String>,
@@ -249,7 +249,7 @@ pub struct SessionRow {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SessionEventRow {
     pub id: i64,
-    pub session_id: String,
+    pub session_id: crate::ids::DbSessionId,
     pub event_type: String,
     pub payload_json: String,
     pub created_at_ms: i64,
@@ -469,7 +469,7 @@ pub struct WarningRow {
 /// One row from `plan_sessions`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlanSessionRow {
-    pub plan_session_id: String,
+    pub plan_session_id: crate::ids::DbPlanSessionId,
     pub origin_session_id: Option<String>,
     pub goal_text: String,
     pub strategy: String,
@@ -480,7 +480,7 @@ pub struct PlanSessionRow {
 /// One row from `plan_versions`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlanVersionRow {
-    pub plan_session_id: String,
+    pub plan_session_id: crate::ids::DbPlanSessionId,
     pub version: i64,
     pub parent_version: Option<i64>,
     pub trigger_event: Option<String>,
@@ -492,7 +492,7 @@ pub struct PlanVersionRow {
 /// One row from `plan_nodes`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlanNodeRow {
-    pub plan_session_id: String,
+    pub plan_session_id: crate::ids::DbPlanSessionId,
     pub version: i64,
     pub node_id: String,
     pub description: String,
@@ -505,11 +505,11 @@ pub struct PlanNodeRow {
 /// One row from `plan_node_attempts`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PlanNodeAttemptRow {
-    pub plan_session_id: String,
+    pub plan_session_id: crate::ids::DbPlanSessionId,
     pub version: i64,
     pub node_id: String,
     pub attempt_no: i64,
-    pub task_id: Option<String>,
+    pub task_id: Option<crate::ids::DbTaskId>,
     pub outcome: String,
     pub error_text: Option<String>,
     pub latency_ms: Option<i64>,
