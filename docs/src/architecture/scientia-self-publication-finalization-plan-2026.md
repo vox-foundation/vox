@@ -478,6 +478,6 @@ proposing message are answered yes:
 | 0b | [Phase 0b — `vox-research-events` L1 crate](../../superpowers/plans/2026-05-09-scientia-phase-0b-research-events-crate.md) — **Complete** |
 | 0c | (TBD — schema codegen) |
 | 0d | (TBD — DB schema additions) |
-| 0e | (TBD — SecretId additions) |
+| 0e | SecretId: VoxOpenAlexEmail, VoxSemanticScholarApiKey, VoxOsfApiToken, VoxArxivAccessToken, VoxNanopubSigningKeyHex, VoxSwhidApiToken — **Complete** |
 | 0f | (TBD — vox-arch-check rules) |
 | 1–10 | (TBD — phase plans land as predecessor phases complete) |
