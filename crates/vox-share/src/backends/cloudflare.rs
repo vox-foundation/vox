@@ -70,11 +70,10 @@ impl TunnelBackend for CloudflareBackend {
                     line = lines.next_line() => {
                         match line {
                             Ok(Some(l)) => {
-                                if let Some(url) = extract_trycloudflare_url(&l) {
-                                    if let Some(tx) = url_tx.take() {
+                                if let Some(url) = extract_trycloudflare_url(&l)
+                                    && let Some(tx) = url_tx.take() {
                                         let _ = tx.send(url);
                                     }
-                                }
                             }
                             _ => break,
                         }

@@ -2,6 +2,8 @@
 //!
 //! See: docs/src/architecture/plugin-system-redesign-2026.md
 
+#![allow(clippy::result_large_err)]
+
 pub mod discover;
 pub mod errors;
 pub mod host_impl;

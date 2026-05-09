@@ -92,11 +92,10 @@ impl TunnelBackend for LocalhostRunBackend {
                     line = lines.next_line() => {
                         match line {
                             Ok(Some(l)) => {
-                                if let Some(url) = extract_lhr_life_url(&l) {
-                                    if let Some(tx) = url_tx.take() {
+                                if let Some(url) = extract_lhr_life_url(&l)
+                                    && let Some(tx) = url_tx.take() {
                                         let _ = tx.send(url);
                                     }
-                                }
                             }
                             _ => break,
                         }

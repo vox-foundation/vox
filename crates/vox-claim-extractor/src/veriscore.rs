@@ -17,16 +17,9 @@ impl Default for VeriScoreConfig {
     }
 }
 
+#[derive(Default)]
 pub struct VeriScoreGate {
     pub config: VeriScoreConfig,
-}
-
-impl Default for VeriScoreGate {
-    fn default() -> Self {
-        Self {
-            config: VeriScoreConfig::default(),
-        }
-    }
 }
 
 impl VeriScoreGate {

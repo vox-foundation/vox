@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use vox_orchestrator::dei_shim::research::persistence::{slug_from_query, write_research_doc};
 
 #[test]

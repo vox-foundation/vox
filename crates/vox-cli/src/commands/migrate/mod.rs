@@ -158,7 +158,7 @@ fn walk_for_names(dir: &std::path::Path, out: &mut Vec<PathBuf>) -> std::io::Res
                 continue;
             }
             walk_for_names(&path, out)?;
-        } else if path.extension().map_or(false, |e| e == "vox") {
+        } else if path.extension().is_some_and(|e| e == "vox") {
             out.push(path);
         }
     }

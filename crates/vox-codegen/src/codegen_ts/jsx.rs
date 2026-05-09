@@ -726,7 +726,7 @@ fn inject_key_into_jsx(jsx: String, key_attr: &str) -> String {
         let after_lt = &jsx[lt_pos..];
         // Find the end of the opening tag — first '>' or '/' before '>'.
         // We want to insert before the first '>' or '/>' in the opening tag.
-        if let Some(rel_end) = after_lt.find(|c: char| c == '>' || c == '/') {
+        if let Some(rel_end) = after_lt.find(['>', '/']) {
             let insert_at = lt_pos + rel_end;
             return format!("{}{}{}", &jsx[..insert_at], key_attr, &jsx[insert_at..]);
         }

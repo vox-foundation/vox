@@ -33,7 +33,7 @@ impl FileAffinityMap {
     /// Record that an agent successfully worked on a file (dynamic learning).
     pub fn record_experience(&self, agent: AgentId, file: &Path) {
         let mut exp = sync_lock::rw_write(&*self.experience);
-        let agent_exp = exp.entry(agent).or_insert_with(HashMap::new);
+        let agent_exp = exp.entry(agent).or_default();
 
         // Increment for extension
         if let Some(ext) = file.extension().and_then(|e| e.to_str()) {

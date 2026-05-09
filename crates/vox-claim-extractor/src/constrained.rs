@@ -23,10 +23,10 @@ pub fn validate_claim_envelope(claim_json: &Value) -> Result<(), String> {
             return Err(format!("missing required field: {field}"));
         }
     }
-    if let Some(score) = claim_json["verifiability_score"].as_f64() {
-        if !(0.0..=1.0).contains(&score) {
-            return Err("verifiability_score out of range".to_string());
-        }
+    if let Some(score) = claim_json["verifiability_score"].as_f64()
+        && !(0.0..=1.0).contains(&score)
+    {
+        return Err("verifiability_score out of range".to_string());
     }
     Ok(())
 }

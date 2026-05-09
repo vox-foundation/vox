@@ -188,7 +188,6 @@ fn web_ir_validate_duplicate_route_contract_id() {
 /// Nested `routes { }`, loaders, pending, and block-level `not_found` / `error` surface in `routes.manifest.ts`.
 #[test]
 #[ignore]
-#[ignore = "Path B removed"]
 fn codegen_nested_route_manifest_includes_children_loader_pending_and_boundary_exports() {
     let source = r#"
 @query fn load_child() to int { return 1 }
@@ -245,7 +244,6 @@ routes {
 /// `VOX_WEBIR_VALIDATE` gate never appends `routes.manifest.ts`.
 #[test]
 #[ignore]
-#[ignore = "Path B removed"]
 fn emitter_source_orders_validate_gate_before_route_manifest() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/codegen_ts/emitter.rs");
     let src = std::fs::read_to_string(&path).expect("read emitter.rs");
@@ -264,7 +262,6 @@ fn emitter_source_orders_validate_gate_before_route_manifest() {
 /// WS08 / T074–T075: legacy TanStack router + `createServerFn` bundles must never ship from codegen.
 #[test]
 #[ignore]
-#[ignore = "Path B removed"]
 fn codegen_output_never_includes_vox_tanstack_router_or_server_fns() {
     let source = r#"
 component Home() {
@@ -285,7 +282,7 @@ http get "/api/x" to int {
     let names: Vec<&str> = out.files.iter().map(|(n, _)| n.as_str()).collect();
     for forbidden in ["VoxTanStackRouter.tsx", "serverFns.ts"] {
         assert!(
-            !names.iter().any(|n| *n == forbidden),
+            !names.contains(&forbidden),
             "must not emit {forbidden}, files={names:?}"
         );
     }
@@ -580,7 +577,6 @@ component Btn() {
 
 #[test]
 #[ignore]
-#[ignore = "Path B removed"]
 fn web_ir_reactive_component_style_blocks_lower_to_style_nodes() {
     let src = r#"
 component Box() {
@@ -614,7 +610,6 @@ style {
 
 #[test]
 #[ignore]
-#[ignore = "Path B removed"]
 fn web_ir_lowering_summary_counts_http_and_rpc() {
     let src = r#"
 http post "/api/ping" to int { return 1 }
@@ -723,7 +718,6 @@ fn web_ir_validate_optional_and_defaulted_state_allow_missing_initial() {
 /// OP-0274: `routes { ... }` lowers to `RouteNode::RouteTree` and validates clean.
 #[test]
 #[ignore]
-#[ignore = "Path B removed"]
 fn web_ir_routes_block_lowers_to_route_tree_contract() {
     let src = r#"
 import react.use_state
@@ -1344,7 +1338,6 @@ fn syntax_k_output_root() -> PathBuf {
 /// Observe-only syntax-K artifact generation for a representative parity fixture.
 #[test]
 #[ignore]
-#[ignore = "Path B removed"]
 fn syntax_k_artifact_for_parity_chain() {
     let fixture_id = "op_s_parity_chain";
     let module = parse(lex(OP_S_PARITY_CHAIN_FIXTURE)).expect("parse parity chain");
@@ -1679,7 +1672,6 @@ fn web_ir_validate_route_component_exists_is_ok() {
 
 #[test]
 #[ignore]
-#[ignore = "Pre-existing on this branch (verified by stash bisect): broken-link diagnostic only fires for `<a>` patterns the link-extractor recognizes; the constructed link_element here triggers `route.unreachable` first. Out of scope for VUV; needs a separate validate-link-extractor fix"]
 fn web_ir_validate_route_broken_link_is_error() {
     let mut m = WebIrModule::default();
     m.route_nodes
@@ -1878,7 +1870,6 @@ component R() {
 
 #[test]
 #[ignore]
-#[ignore = "VUV-9: post-JSX, raw HTML elements only reach this path via lowercase + named-only-args + no children (e.g. input(attr_type=...)); the pre-VUV semantic of an arbitrary tag with class+children is no longer expressible"]
 fn primitives_unknown_html_tags_pass_through_unchanged() {
     let source = r#"
 component Passthrough() {

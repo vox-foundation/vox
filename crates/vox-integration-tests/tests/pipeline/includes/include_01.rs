@@ -410,11 +410,11 @@ fn golden_web_routing_fullstack_codegen_emits_manifest_and_client() {
     let output = generate(&hir).unwrap();
     let names: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
-        names.iter().any(|n| *n == "routes.manifest.ts"),
+        names.contains(&"routes.manifest.ts"),
         "expected routes.manifest.ts, got {names:?}"
     );
     assert!(
-        names.iter().any(|n| *n == "vox-client.ts"),
+        names.contains(&"vox-client.ts"),
         "expected vox-client.ts for @query, got {names:?}"
     );
     let client = output
@@ -444,11 +444,11 @@ fn golden_blog_fullstack_codegen_emits_manifest_get_and_post() {
     let output = generate(&hir).unwrap();
     let names: Vec<&str> = output.files.iter().map(|(n, _)| n.as_str()).collect();
     assert!(
-        names.iter().any(|n| *n == "routes.manifest.ts"),
+        names.contains(&"routes.manifest.ts"),
         "expected routes.manifest.ts, got {names:?}"
     );
     assert!(
-        names.iter().any(|n| *n == "vox-client.ts"),
+        names.contains(&"vox-client.ts"),
         "expected vox-client.ts, got {names:?}"
     );
     let client = output

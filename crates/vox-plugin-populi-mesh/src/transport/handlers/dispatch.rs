@@ -151,14 +151,13 @@ fn select_best_node<'a>(nodes: &'a [NodeRecord], req: &DispatchRequest) -> Optio
         })
         .filter(|n| {
             // Label matching
-            if let Some(required) = &req.required_labels {
-                if !required.is_empty()
-                    && !required
-                        .iter()
-                        .all(|req_lab| n.capabilities.labels.contains(req_lab))
-                {
-                    return false;
-                }
+            if let Some(required) = &req.required_labels
+                && !required.is_empty()
+                && !required
+                    .iter()
+                    .all(|req_lab| n.capabilities.labels.contains(req_lab))
+            {
+                return false;
             }
             // VRAM matching
             if let Some(min_vram) = req.min_vram_mb {
@@ -326,7 +325,7 @@ pub(crate) async fn execute_on_worker(
     let start_time = std::time::Instant::now();
 
     let output = if req.is_bundle {
-        if bin_path.extension().map_or(false, |ext| ext == "wasm") {
+        if bin_path.extension().is_some_and(|ext| ext == "wasm") {
             std::process::Command::new("vox")
                 .arg("run")
                 .arg("--mode")

@@ -344,12 +344,11 @@ pub fn run_training_loop(
             match config.reward_hook.as_deref() {
                 Some("cargo_build") | Some("cargo_test") => {
                     let mut snippet_opt = pair.response.as_deref();
-                    if snippet_opt.is_none() {
-                        if let Some(turns) = &pair.messages {
-                            if let Some(last) = turns.last() {
-                                snippet_opt = Some(last.content.as_str());
-                            }
-                        }
+                    if snippet_opt.is_none()
+                        && let Some(turns) = &pair.messages
+                        && let Some(last) = turns.last()
+                    {
+                        snippet_opt = Some(last.content.as_str());
                     }
                     if let Some(resp) = snippet_opt {
                         let code =

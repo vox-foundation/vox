@@ -58,7 +58,7 @@ impl ReplyWindowGate {
         } else {
             let secs_remaining = WINDOW_SECS - elapsed;
             // Round up: partial day counts as a full day remaining.
-            let days_remaining = (secs_remaining + SECS_PER_DAY - 1) / SECS_PER_DAY;
+            let days_remaining = secs_remaining.div_ceil(SECS_PER_DAY);
             WindowStatus::Open { days_remaining }
         }
     }

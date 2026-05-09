@@ -37,16 +37,9 @@ impl Default for NoveltyConfig {
 }
 
 /// Scores a `NoveltyEvidenceBundle` and returns a `NoveltyVerdict`.
+#[derive(Default)]
 pub struct AtomicNoveltyScorer {
     pub config: NoveltyConfig,
-}
-
-impl Default for AtomicNoveltyScorer {
-    fn default() -> Self {
-        Self {
-            config: NoveltyConfig::default(),
-        }
-    }
 }
 
 impl AtomicNoveltyScorer {

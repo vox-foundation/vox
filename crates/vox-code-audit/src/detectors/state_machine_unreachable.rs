@@ -99,16 +99,16 @@ impl DetectionRule for StateMachineUnreachableDetector {
             let mut block_end = i;
 
             // Find opening brace
-            for j in i..n.min(i + 3) {
-                if lines[j].contains('{') {
+            for (j, line) in lines.iter().enumerate().take(n.min(i + 3)).skip(i) {
+                if line.contains('{') {
                     block_start = j;
                     break;
                 }
             }
 
             // Track brace depth to find block end
-            for j in block_start..n {
-                for ch in lines[j].chars() {
+            for (j, line) in lines.iter().enumerate().skip(block_start) {
+                for ch in line.chars() {
                     match ch {
                         '{' => depth += 1,
                         '}' => {
@@ -131,30 +131,34 @@ impl DetectionRule for StateMachineUnreachableDetector {
             // States are lines matching `  StateName {` (indented 2+ spaces, identifier, `{`)
             let mut states: Vec<(String, usize)> = Vec::new(); // (name, line_number)
 
-            for j in (block_start + 1)..block_end {
-                let block_line = &lines[j];
-                if let Some(caps) = self.state_decl.captures(block_line) {
-                    if let Some(name_match) = caps.get(1) {
-                        let state_name = name_match.as_str().to_string();
-                        // Skip common keywords that look like state declarations
-                        if !matches!(
-                            state_name.as_str(),
-                            "fn" | "let"
-                                | "if"
-                                | "else"
-                                | "match"
-                                | "for"
-                                | "while"
-                                | "loop"
-                                | "impl"
-                                | "struct"
-                                | "enum"
-                                | "pub"
-                                | "mod"
-                                | "use"
-                        ) {
-                            states.push((state_name, j + 1)); // 1-indexed
-                        }
+            for (j, block_line) in lines
+                .iter()
+                .enumerate()
+                .skip(block_start + 1)
+                .take(block_end.saturating_sub(block_start + 1))
+            {
+                if let Some(caps) = self.state_decl.captures(block_line)
+                    && let Some(name_match) = caps.get(1)
+                {
+                    let state_name = name_match.as_str().to_string();
+                    // Skip common keywords that look like state declarations
+                    if !matches!(
+                        state_name.as_str(),
+                        "fn" | "let"
+                            | "if"
+                            | "else"
+                            | "match"
+                            | "for"
+                            | "while"
+                            | "loop"
+                            | "impl"
+                            | "struct"
+                            | "enum"
+                            | "pub"
+                            | "mod"
+                            | "use"
+                    ) {
+                        states.push((state_name, j + 1)); // 1-indexed
                     }
                 }
             }
@@ -168,8 +172,13 @@ impl DetectionRule for StateMachineUnreachableDetector {
                 let mut state_body_end = state_line_idx;
                 let mut found_open = false;
 
-                for j in state_line_idx..block_end {
-                    for ch in lines[j].chars() {
+                for (j, line) in lines
+                    .iter()
+                    .enumerate()
+                    .skip(state_line_idx)
+                    .take(block_end.saturating_sub(state_line_idx))
+                {
+                    for ch in line.chars() {
                         match ch {
                             '{' => {
                                 state_depth += 1;

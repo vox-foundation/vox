@@ -484,10 +484,10 @@ fn f() to int {
                 dbg!(&cargs[0].value);
                 if let crate::hir::HirExpr::MethodCall(_, method, _, Some(plan), _) =
                     &cargs[0].value
+                    && method == "filter"
+                    && plan.op == crate::hir::HirDbTableOp::FilterRecord
                 {
-                    if method == "filter" && plan.op == crate::hir::HirDbTableOp::FilterRecord {
-                        found = true;
-                    }
+                    found = true;
                 }
             }
         }
@@ -539,7 +539,7 @@ fn f() to Unit {
             if let crate::hir::HirStmt::Expr { expr, .. } = st
                 && let crate::hir::HirExpr::MethodCall(_, _, _, Some(plan), _) = expr
                 && plan.op == crate::hir::HirDbTableOp::FilterRecord
-                && matches!(plan.order_by, Some(ref ob) if ob.0 == "name" && ob.1 == false)
+                && matches!(plan.order_by, Some(ref ob) if ob.0 == "name" && !ob.1)
                 && plan.has_limit
             {
                 found = true;

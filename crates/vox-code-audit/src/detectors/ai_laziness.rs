@@ -223,34 +223,32 @@ impl DetectionRule for AiLazinessDetector {
                 });
             }
 
-            if !test_gated {
-                if let Some(caps) = self.mock_named_fn.regex().captures(line) {
-                    let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-                    findings.push(Finding {
-                        rule_id: "ai-laziness/mock-named-fn".into(),
-                        rule_name: "Mock-named function in non-test code".into(),
-                        severity: Severity::Warning,
-                        file: file.path.clone(),
-                        line: line_num,
-                        column: 0,
-                        message: format!(
-                            "Function name starts with `{}` but the file is not gated as test \
+            if !test_gated && let Some(caps) = self.mock_named_fn.regex().captures(line) {
+                let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                findings.push(Finding {
+                    rule_id: "ai-laziness/mock-named-fn".into(),
+                    rule_name: "Mock-named function in non-test code".into(),
+                    severity: Severity::Warning,
+                    file: file.path.clone(),
+                    line: line_num,
+                    column: 0,
+                    message: format!(
+                        "Function name starts with `{}` but the file is not gated as test \
                                  code — mocks should not ship.",
-                            prefix
-                        ),
-                        suggestion: Some(
-                            "Move the function under `#[cfg(test)]`, rename it to its real \
+                        prefix
+                    ),
+                    suggestion: Some(
+                        "Move the function under `#[cfg(test)]`, rename it to its real \
                                  responsibility, or delete it if unused."
-                                .into(),
-                        ),
-                        diagnostic_id: None,
-                        alternatives: vec![],
-                        rationale: None,
-                        context: file.context_around(line_num, 1),
-                        confidence: Some(FindingConfidence::Medium),
-                        evidence: None,
-                    });
-                }
+                            .into(),
+                    ),
+                    diagnostic_id: None,
+                    alternatives: vec![],
+                    rationale: None,
+                    context: file.context_around(line_num, 1),
+                    confidence: Some(FindingConfidence::Medium),
+                    evidence: None,
+                });
             }
 
             if let Some(caps) = self.custom_type_default_return.regex().captures(line) {

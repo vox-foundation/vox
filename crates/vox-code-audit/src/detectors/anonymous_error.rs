@@ -86,9 +86,7 @@ impl DetectionRule for AnonymousErrorDetector {
                     file: file.path.clone(),
                     line: line_num,
                     column: m.start() + 1,
-                    message: format!(
-                        "Function returns `Result[..., str]` — use a named error type instead of bare `str`."
-                    ),
+                    message: "Function returns `Result[..., str]` — use a named error type instead of bare `str`.".to_string(),
                     suggestion: Some(
                         "Define a named error enum (e.g. `FetchError`) and use `Result[T, FetchError]` \
                         to preserve error context.".to_string(),

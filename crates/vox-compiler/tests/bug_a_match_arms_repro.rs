@@ -32,7 +32,7 @@ fn match_result_arms_emit_tagged_union_dispatch() {
     let _diags = vox_compiler::typeck::typecheck_module(&module, "bug_a_match");
     let hir = vox_compiler::hir::lower_module(&module);
     let out = vox_compiler::codegen_ts::generate(&hir).expect("gen");
-    let body: String = out.files.iter().map(|(_, b)| b.as_str()).collect();
+    let body: String = out.files.values().map(|b| b.as_str()).collect();
     eprintln!("=== files ===");
     for (n, b) in &out.files {
         if b.contains("case _") || n.contains("VoicePage") {

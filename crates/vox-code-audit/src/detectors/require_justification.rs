@@ -50,8 +50,7 @@ impl RequireJustificationDetector {
         // Check next line for a comment
         if let Some(next) = next_line {
             let trimmed = next.trim();
-            if trimmed.starts_with("//") {
-                let comment_text = &trimmed[2..];
+            if let Some(comment_text) = trimmed.strip_prefix("//") {
                 let non_ws_count = comment_text.chars().filter(|c| !c.is_whitespace()).count();
                 if non_ws_count >= 40 {
                     return true;
@@ -132,9 +131,7 @@ impl DetectionRule for RequireJustificationDetector {
                             file: file.path.clone(),
                             line: line_num,
                             column: 0,
-                            message: format!(
-                                "Complex `@require(...)` expression lacks a justification comment (need ≥ 40 chars after `//`)."
-                            ),
+                            message: "Complex `@require(...)` expression lacks a justification comment (need ≥ 40 chars after `//`).".to_string(),
                             suggestion: Some(
                                 "Add `// because: <reason>` comment after the `@require(...)` line explaining why this invariant holds.".into(),
                             ),

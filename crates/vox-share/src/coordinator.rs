@@ -87,37 +87,38 @@ impl ShareSession {
         });
 
         // S6: SSE detection — if Cloudflare and SSE routes found, switch to localhost.run.
-        if matches!(cfg.backend, BackendKind::Cloudflare) && !cfg.allow_buffered_streaming {
-            if crate::sse_detect::has_sse_routes(cfg.upstream_port).await {
-                println!(
-                    "[vox share] App uses streaming (SSE); auto-selected --backend localhost-run for SSE compatibility"
-                );
-                println!(
-                    "[vox share] Use --allow-buffered-streaming to keep Cloudflare (SSE will be buffered)"
-                );
-                let fallback = make_backend(BackendKind::LocalhostRun);
-                fallback.preflight().await?;
-                let tunnel_handle = fallback
-                    .start(actual_proxy_port, cfg.connect_timeout)
-                    .await?;
-                let public_url = cfg.auth_mode.decorate_url(&tunnel_handle.public_url);
-                let duration_done_rx = if let Some(d) = cfg.duration {
-                    let (tx, rx) = tokio::sync::mpsc::channel(1);
-                    tokio::spawn(crate::lifecycle::run_countdown(d, tx));
-                    tokio::spawn(crate::lifecycle::run_countdown_printer(d));
-                    Some(rx)
-                } else {
-                    None
-                };
-                return Ok(ShareSession {
-                    tunnel_handle,
-                    proxy_port: actual_proxy_port,
-                    public_url,
-                    proxy_shutdown: proxy_shutdown_tx,
-                    duration_done_rx,
-                    _app_child: app_child,
-                });
-            }
+        if matches!(cfg.backend, BackendKind::Cloudflare)
+            && !cfg.allow_buffered_streaming
+            && crate::sse_detect::has_sse_routes(cfg.upstream_port).await
+        {
+            println!(
+                "[vox share] App uses streaming (SSE); auto-selected --backend localhost-run for SSE compatibility"
+            );
+            println!(
+                "[vox share] Use --allow-buffered-streaming to keep Cloudflare (SSE will be buffered)"
+            );
+            let fallback = make_backend(BackendKind::LocalhostRun);
+            fallback.preflight().await?;
+            let tunnel_handle = fallback
+                .start(actual_proxy_port, cfg.connect_timeout)
+                .await?;
+            let public_url = cfg.auth_mode.decorate_url(&tunnel_handle.public_url);
+            let duration_done_rx = if let Some(d) = cfg.duration {
+                let (tx, rx) = tokio::sync::mpsc::channel(1);
+                tokio::spawn(crate::lifecycle::run_countdown(d, tx));
+                tokio::spawn(crate::lifecycle::run_countdown_printer(d));
+                Some(rx)
+            } else {
+                None
+            };
+            return Ok(ShareSession {
+                tunnel_handle,
+                proxy_port: actual_proxy_port,
+                public_url,
+                proxy_shutdown: proxy_shutdown_tx,
+                duration_done_rx,
+                _app_child: app_child,
+            });
         }
 
         // Bring up the tunnel backend.

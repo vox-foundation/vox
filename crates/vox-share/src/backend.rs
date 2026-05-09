@@ -6,22 +6,17 @@ use std::str::FromStr;
 use std::time::Duration;
 
 /// Which backend to use for the share session.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum BackendKind {
     /// LAN-only: bind 0.0.0.0; no internet exposure.
     Lan,
     /// Cloudflare Quick Tunnel via `*.trycloudflare.com` (default for `vox share`).
+    #[default]
     Cloudflare,
     /// SSH-based public URL via `*.lhr.life`.
     LocalhostRun,
     /// Tailscale Funnel via `*.ts.net` (requires Tailscale account + funnel enabled).
     Tailscale,
-}
-
-impl Default for BackendKind {
-    fn default() -> Self {
-        Self::Cloudflare
-    }
 }
 
 impl FromStr for BackendKind {

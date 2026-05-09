@@ -12,7 +12,7 @@ use vox_cli::frontend;
 async fn full_stack_minimal_vite_production_build() {
     let vite_smoke_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWebViteSmoke);
     assert_eq!(
-        vite_smoke_resolved.expose().as_deref(),
+        vite_smoke_resolved.expose(),
         Some("1"),
         "set VOX_WEB_VITE_SMOKE=1 to run this test"
     );

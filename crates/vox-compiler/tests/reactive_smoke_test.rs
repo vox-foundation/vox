@@ -680,7 +680,6 @@ fn reactive_smoke_gate_label_smoke_tests_module() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s074_s075_behavior_view_fixture() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -708,7 +707,6 @@ component V() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s078_wrapper_inventory_fixture() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -736,7 +734,6 @@ component Clicky() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s114_behavior_contract_fixture_a() {
     reactive_smoke_assert_derived_harness_in_d_tsx();
 }
@@ -745,7 +742,6 @@ fn reactive_smoke_op_s114_behavior_contract_fixture_a() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s125_fixture_pack_d1() {
     reactive_smoke_op_s074_s075_behavior_view_fixture();
 }
@@ -754,7 +750,6 @@ fn reactive_smoke_op_s125_fixture_pack_d1() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s162_component_adapter_fixture_b() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -778,7 +773,6 @@ raw_css {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s170_hir_wrapper_fixture_b() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -793,7 +787,6 @@ fn reactive_smoke_op_s170_hir_wrapper_fixture_b() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s177_fixture_pack_f1() {
     reactive_smoke_assert_derived_harness_in_d_tsx();
 }
@@ -802,7 +795,6 @@ fn reactive_smoke_op_s177_fixture_pack_f1() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s205_fixture_pack_g1() {
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()
@@ -838,7 +830,6 @@ component Counter(initial: int) {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_op_s218_final_reactive_parity_fixture() {
     assert!(!env!("CARGO_MANIFEST_DIR").is_empty());
 }
@@ -847,7 +838,6 @@ fn reactive_smoke_op_s218_final_reactive_parity_fixture() {
 #[serial_test::serial]
 #[ignore = "VUV-9: parity pin for completed JSX→Web-IR migration epic; assertions reference retired JSX form"]
 #[test]
-#[ignore]
 fn reactive_smoke_legacy_vs_web_ir_view_whitespace_parity() {
     use std::collections::HashSet;
 

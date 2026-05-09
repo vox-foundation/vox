@@ -113,10 +113,10 @@ impl OpLog {
         task_id: u64,
     ) -> (Option<vox_orchestrator_types::SnapshotId>, Option<u64>) {
         for entry in self.entries.iter().rev() {
-            if let OperationKind::TaskSubmit { task_id: id } = entry.kind {
-                if id == task_id {
-                    return (entry.snapshot_before, entry.db_snapshot_before);
-                }
+            if let OperationKind::TaskSubmit { task_id: id } = entry.kind
+                && id == task_id
+            {
+                return (entry.snapshot_before, entry.db_snapshot_before);
             }
         }
         (None, None)

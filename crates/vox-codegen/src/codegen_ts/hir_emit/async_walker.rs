@@ -16,7 +16,7 @@ pub fn stmt_has_async_call(stmt: &HirStmt, async_fn_names: &HashSet<String>) -> 
         HirStmt::Expr { expr, .. } => expr_has_async_call(expr, async_fn_names),
         HirStmt::Return { value, .. } => value
             .as_ref()
-            .map_or(false, |v| expr_has_async_call(v, async_fn_names)),
+            .is_some_and(|v| expr_has_async_call(v, async_fn_names)),
         HirStmt::While {
             condition, body, ..
         } => {
@@ -72,7 +72,7 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
                 || then_stmts
                     .iter()
                     .any(|s| stmt_has_async_call(s, async_fn_names))
-                || else_stmts.as_ref().map_or(false, |stmts| {
+                || else_stmts.as_ref().is_some_and(|stmts| {
                     stmts.iter().any(|s| stmt_has_async_call(s, async_fn_names))
                 })
         }
@@ -82,7 +82,7 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
                 || arms.iter().any(|arm| {
                     arm.guard
                         .as_ref()
-                        .map_or(false, |g| expr_has_async_call(g, async_fn_names))
+                        .is_some_and(|g| expr_has_async_call(g, async_fn_names))
                         || expr_has_async_call(&arm.body, async_fn_names)
                 })
         }

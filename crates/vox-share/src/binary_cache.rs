@@ -98,7 +98,7 @@ pub async fn ensure_cloudflared() -> ShareResult<PathBuf> {
 pub fn cloudflared_cache_dir() -> ShareResult<PathBuf> {
     let base = std::env::var_os("XDG_CACHE_HOME")
         .map(PathBuf::from)
-        .or_else(|| dirs::cache_dir())
+        .or_else(dirs::cache_dir)
         .ok_or_else(|| ShareError::Config("could not determine cache directory".into()))?;
     Ok(base.join("vox").join("cloudflared"))
 }

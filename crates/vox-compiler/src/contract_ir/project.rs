@@ -81,10 +81,11 @@ fn field((name, ty_): &(String, HirType)) -> ContractField {
 /// `Option<T>` lowers to a non-optional `T` flagged as `optional` per
 /// wire-format-v1's "absent key" rule. Returns `(was_option, projected_inner)`.
 fn unwrap_optional(t: &HirType) -> (bool, WireType) {
-    if let HirType::Generic(name, args) = t {
-        if name == "Option" && args.len() == 1 {
-            return (true, ty(&args[0]));
-        }
+    if let HirType::Generic(name, args) = t
+        && name == "Option"
+        && args.len() == 1
+    {
+        return (true, ty(&args[0]));
     }
     (false, ty(t))
 }

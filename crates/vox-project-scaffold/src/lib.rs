@@ -225,8 +225,7 @@ fn call_args_for_params(params: &str) -> String {
     if count == 0 {
         String::new()
     } else {
-        std::iter::repeat("_")
-            .take(count)
+        std::iter::repeat_n("_", count)
             .collect::<Vec<_>>()
             .join(", ")
     }
@@ -257,11 +256,12 @@ pub fn append_fn_stub(
         );
     }
 
-    if let Some(parent) = target.parent() {
-        if !parent.as_os_str().is_empty() && !parent.exists() {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("create parent of {}", target.display()))?;
-        }
+    if let Some(parent) = target.parent()
+        && !parent.as_os_str().is_empty()
+        && !parent.exists()
+    {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("create parent of {}", target.display()))?;
     }
 
     let combined = if existing.is_empty() {

@@ -61,9 +61,9 @@ async fn verify_dispatch_results_persistence_across_restart() {
             .await
             .expect("should retrieve result via wait");
 
-        assert_eq!(response.success, true);
+        assert!(response.success);
         assert_eq!(response.output, "wait result retrieved after restart");
-        assert_eq!(response.is_truncated, false);
+        assert!(!response.is_truncated);
 
         server_task.abort();
     }

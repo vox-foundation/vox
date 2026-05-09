@@ -382,21 +382,24 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         .exec()
         .context("cargo metadata (with deps) failed")?;
 
-    let mut report = Report::default();
     // Layer ordering is strict by default; the others default to warn-only.
     // --warn-only flag downgrades layer ordering to warn too.
-    report.strict_layer = !warn_only_flag;
-    report.strict_fan_in = parse_strictness(layers.guards.fan_in.as_ref(), false);
-    report.strict_loc = parse_strictness(layers.guards.loc_budget.as_ref(), false);
-    report.strict_orphan = parse_strictness(layers.guards.orphan.as_ref(), false);
-    report.strict_docstring = parse_strictness(layers.guards.docstring.as_ref(), false);
-    report.strict_description = parse_strictness(layers.guards.description.as_ref(), false);
-    report.strict_where_things_live =
-        parse_strictness(layers.guards.where_things_live.as_ref(), false);
-    report.strict_staleness = parse_strictness(layers.guards.staleness.as_ref(), false);
-    report.strict_generated_file_drift =
-        parse_strictness(layers.guards.generated_file_drift.as_ref(), false);
-    report.strict_forbidden_deps = parse_strictness(layers.guards.forbidden_deps.as_ref(), false);
+    let mut report = Report {
+        strict_layer: !warn_only_flag,
+        strict_fan_in: parse_strictness(layers.guards.fan_in.as_ref(), false),
+        strict_loc: parse_strictness(layers.guards.loc_budget.as_ref(), false),
+        strict_orphan: parse_strictness(layers.guards.orphan.as_ref(), false),
+        strict_docstring: parse_strictness(layers.guards.docstring.as_ref(), false),
+        strict_description: parse_strictness(layers.guards.description.as_ref(), false),
+        strict_where_things_live: parse_strictness(layers.guards.where_things_live.as_ref(), false),
+        strict_staleness: parse_strictness(layers.guards.staleness.as_ref(), false),
+        strict_generated_file_drift: parse_strictness(
+            layers.guards.generated_file_drift.as_ref(),
+            false,
+        ),
+        strict_forbidden_deps: parse_strictness(layers.guards.forbidden_deps.as_ref(), false),
+        ..Report::default()
+    };
 
     // ── Rule 1: Layer ordering + Rule 2: Fan-in (single pass) ──
     let mut dependent_count: HashMap<String, usize> = HashMap::new();

@@ -399,11 +399,10 @@ fn test_capitalized_call_with_positional_arg_stays_call() {
         value: Expr::Call { callee, .. },
         ..
     } = &func.body[0]
+        && let Expr::Ident { name, .. } = callee.as_ref()
     {
-        if let Expr::Ident { name, .. } = callee.as_ref() {
-            assert_eq!(name, "Some");
-            return;
-        }
+        assert_eq!(name, "Some");
+        return;
     }
     panic!(
         "expected Some(42) to remain Expr::Call, got {:?}",
@@ -792,7 +791,7 @@ fn test_parse_url_decl_optional_arg() {
     let m = parse_str("url Path {\nLogin(?return_to: str)\n}");
     match &m.declarations[0] {
         Decl::Url(u) => {
-            assert_eq!(u.variants[0].args[0].optional, true);
+            assert!(u.variants[0].args[0].optional);
             assert_eq!(u.variants[0].args[0].name, "return_to");
         }
         other => panic!("Expected Decl::Url, got {other:?}"),

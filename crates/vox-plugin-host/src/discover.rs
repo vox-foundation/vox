@@ -4,6 +4,8 @@
 //! For code payloads, the dylib path is recorded but NOT loaded — actual
 //! dlopen happens lazily via Loader::load().
 
+#![allow(clippy::result_large_err)]
+
 use crate::errors::LoadError;
 use crate::registry::{PluginEntry, Registry};
 use crate::telemetry;

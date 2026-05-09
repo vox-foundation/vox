@@ -12,22 +12,20 @@ pub struct NanopubDocument {
 }
 
 pub fn build_nanopub(claim_text: &str, provider_id: &str, published_at: i64) -> NanopubDocument {
-    let prefixes = format!(
-        "@prefix : <https://vox.scientia/np/> .\n\
+    let prefixes = "@prefix : <https://vox.scientia/np/> .\n\
          @prefix np: <http://www.nanopub.org/nschema#> .\n\
          @prefix prov: <http://www.w3.org/ns/prov#> .\n\
          @prefix dc: <http://purl.org/dc/terms/> .\n\
          @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n\
          @prefix scientia: <https://vox.scientia/vocab#> .\n\n"
-    );
+        .to_string();
 
-    let head = format!(
-        ":head {{\n  \
+    let head = ":head {\n  \
            :np np:hasAssertion :assertion ;\n      \
                np:hasProvenance :provenance ;\n      \
                np:hasPublicationInfo :pubinfo .\n\
-         }}\n\n"
-    );
+         }\n\n"
+        .to_string();
 
     let assertion = format!(
         ":assertion {{\n  \

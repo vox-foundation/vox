@@ -51,10 +51,10 @@ fn operation_has_sse(op: &serde_json::Value) -> bool {
         return false;
     };
     for (_status, response) in responses {
-        if let Some(content) = response.get("content").and_then(|c| c.as_object()) {
-            if content.contains_key("text/event-stream") {
-                return true;
-            }
+        if let Some(content) = response.get("content").and_then(|c| c.as_object())
+            && content.contains_key("text/event-stream")
+        {
+            return true;
         }
         // Also check $ref-resolved inline schemas — but for S6 MVP, just check content directly.
     }

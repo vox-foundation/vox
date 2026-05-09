@@ -31,7 +31,7 @@ impl ChronoFilter {
     pub fn filter_hits<'a>(&self, hits: &'a [NormalizedHit]) -> Vec<&'a NormalizedHit> {
         let claim_year = self.claim_year();
         hits.iter()
-            .filter(|h| h.year.map_or(false, |y| y < claim_year))
+            .filter(|h| h.year.is_some_and(|y| y < claim_year))
             .collect()
     }
 }

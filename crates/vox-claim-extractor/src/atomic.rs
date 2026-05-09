@@ -13,16 +13,9 @@ impl Default for AtomicConfig {
     }
 }
 
+#[derive(Default)]
 pub struct AtomicDecomposer {
     pub config: AtomicConfig,
-}
-
-impl Default for AtomicDecomposer {
-    fn default() -> Self {
-        Self {
-            config: AtomicConfig::default(),
-        }
-    }
 }
 
 impl AtomicDecomposer {

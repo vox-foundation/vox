@@ -57,7 +57,7 @@ fn emit(src: &str) -> String {
     let _diags = vox_compiler::typeck::typecheck_module(&module, "handler_test");
     let hir = vox_compiler::hir::lower_module(&module);
     let out = vox_compiler::codegen_ts::generate(&hir).expect("gen");
-    out.files.iter().map(|(_, b)| b.as_str()).collect()
+    out.files.values().map(|b| b.as_str()).collect()
 }
 
 /// §1.A.1 — simple assignment handler must be a callable arrow.

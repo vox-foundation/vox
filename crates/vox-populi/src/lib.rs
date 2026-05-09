@@ -357,6 +357,27 @@ pub mod http_lifecycle;
 #[cfg(feature = "transport")]
 pub mod transport;
 
+/// Returns the current target triple (Wave 4 best-effort).
+pub fn current_target_triple() -> &'static str {
+    // Note: rustc-env is not portable across cross-compilation environments but as a worker
+    // id it's sufficient for self-identification on the host it's running on.
+    #[cfg(all(target_arch = "x86_64", target_os = "windows"))]
+    return "x86_64-pc-windows-msvc";
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    return "x86_64-unknown-linux-gnu";
+    #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
+    return "aarch64-unknown-linux-gnu";
+    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
+    return "aarch64-apple-darwin";
+    #[cfg(not(any(
+        all(target_arch = "x86_64", target_os = "windows"),
+        all(target_arch = "x86_64", target_os = "linux"),
+        all(target_arch = "aarch64", target_os = "linux"),
+        all(target_arch = "aarch64", target_os = "macos")
+    )))]
+    return "unknown-unknown-unknown";
+}
+
 #[cfg(test)]
 mod normalize_http_control_base_tests {
     use super::normalize_http_control_base;
@@ -386,25 +407,4 @@ mod normalize_http_control_base_tests {
             Some("http://127.0.0.1:9847")
         );
     }
-}
-
-/// Returns the current target triple (Wave 4 best-effort).
-pub fn current_target_triple() -> &'static str {
-    // Note: rustc-env is not portable across cross-compilation environments but as a worker
-    // id it's sufficient for self-identification on the host it's running on.
-    #[cfg(all(target_arch = "x86_64", target_os = "windows"))]
-    return "x86_64-pc-windows-msvc";
-    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-    return "x86_64-unknown-linux-gnu";
-    #[cfg(all(target_arch = "aarch64", target_os = "linux"))]
-    return "aarch64-unknown-linux-gnu";
-    #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
-    return "aarch64-apple-darwin";
-    #[cfg(not(any(
-        all(target_arch = "x86_64", target_os = "windows"),
-        all(target_arch = "x86_64", target_os = "linux"),
-        all(target_arch = "aarch64", target_os = "linux"),
-        all(target_arch = "aarch64", target_os = "macos")
-    )))]
-    return "unknown-unknown-unknown";
 }

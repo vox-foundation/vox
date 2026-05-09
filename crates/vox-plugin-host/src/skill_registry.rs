@@ -192,16 +192,16 @@ impl SkillRegistry {
 
         {
             let mut skills = self.skills.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(existing) = skills.get(&id) {
-                if existing.manifest.version == version {
-                    info!(skill = %id, "Skill already installed at same version");
-                    return Ok(InstallResult {
-                        id,
-                        version,
-                        already_installed: true,
-                        hash,
-                    });
-                }
+            if let Some(existing) = skills.get(&id)
+                && existing.manifest.version == version
+            {
+                info!(skill = %id, "Skill already installed at same version");
+                return Ok(InstallResult {
+                    id,
+                    version,
+                    already_installed: true,
+                    hash,
+                });
             }
             info!(skill = %id, version = %version, "Installing skill bundle");
             let mut manifest = bundle.manifest.clone();

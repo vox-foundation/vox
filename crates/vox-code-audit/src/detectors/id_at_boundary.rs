@@ -113,8 +113,7 @@ impl DetectionRule for IdAtBoundaryDetector {
 
             // Check this line and up to 3 following lines for the bare _id: str pattern
             let end = (i + 4).min(n);
-            for j in i..end {
-                let sig_line = &lines[j];
+            for (j, sig_line) in lines.iter().enumerate().skip(i).take(end - i) {
                 if let Some(cap) = self.bare_id_param.captures(sig_line) {
                     let param_name = cap.get(1).map_or("", |m| m.as_str());
                     let m = self.bare_id_param.find(sig_line).unwrap();

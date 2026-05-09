@@ -37,11 +37,7 @@ fn cache() -> &'static Mutex<Option<Session>> {
 }
 
 fn pick_device() -> Result<Device> {
-    if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioCuda)
-        .expose()
-        .as_deref()
-        == Some("1")
-    {
+    if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioCuda).expose() == Some("1") {
         #[cfg(feature = "cuda")]
         {
             return Device::new_cuda(0).map_err(|e| anyhow::anyhow!("CUDA: {e}"));
@@ -408,7 +404,7 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
     }
 
     let language_override = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioLanguage);
-    let (text, _) = transcribe_pcm_internal(&pcm, language_override.expose().as_deref())?;
+    let (text, _) = transcribe_pcm_internal(&pcm, language_override.expose())?;
     Ok(text)
 }
 
@@ -419,7 +415,7 @@ pub fn transcribe_pcm_internal(
 ) -> Result<(String, Vec<crate::backends::asr_backend::TimedSegment>)> {
     let model_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioModel)
         .expose()
-        .unwrap_or_else(|| "openai/whisper-tiny.en")
+        .unwrap_or("openai/whisper-tiny.en")
         .to_string();
     let rev_secret = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioRevision);
     let revision = rev_secret
@@ -480,7 +476,7 @@ pub fn transcribe_pcm_internal(
         let prefix = 30usize.saturating_mul(SAMPLE_RATE);
         &pcm[..pcm.len().min(prefix)]
     } else {
-        &pcm
+        pcm
     };
 
     let lang_mel = audio::pcm_to_mel(&sess.config, lang_pcm_slice, &sess.mel_filters);
@@ -548,15 +544,10 @@ pub fn transcribe_pcm_internal(
         .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(299_792_458);
-    let verbose = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioVerbose)
-        .expose()
-        .as_deref()
-        == Some("1");
+    let verbose =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioVerbose).expose() == Some("1");
 
-    let task = match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioTask)
-        .expose()
-        .as_deref()
-    {
+    let task = match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioTask).expose() {
         Some(v) if v.trim() == "translate" => Some(DecodeTask::Translate),
         Some(v) if v.trim() == "transcribe" || v.trim().is_empty() => Some(DecodeTask::Transcribe),
         None => Some(DecodeTask::Transcribe),

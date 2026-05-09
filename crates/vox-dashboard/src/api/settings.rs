@@ -79,6 +79,12 @@ fn epoch_ms() -> u64 {
         .as_millis() as u64
 }
 
+impl Default for SettingsState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SettingsState {
     pub fn new() -> Self {
         let path = settings_path();

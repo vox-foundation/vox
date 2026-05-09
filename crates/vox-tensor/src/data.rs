@@ -323,10 +323,10 @@ impl Iterator for JsonlDataLoader {
                 Err(_) => continue, // skip malformed lines
             };
             // Rating filter
-            if let Some(r) = pair.rating {
-                if r < self.min_rating {
-                    continue;
-                }
+            if let Some(r) = pair.rating
+                && r < self.min_rating
+            {
+                continue;
             }
             let (input_ids, labels) = if let Some(ref turns) = pair.messages {
                 VoxTokenizer::tokenize_turns_for_training(turns, self.max_len)

@@ -111,13 +111,12 @@ impl DetectionRule for UntestedPubApiDetector {
                         self.has_test = true;
                         return;
                     }
-                    if let syn::Meta::List(list) = &attr.meta {
-                        if list.path.to_token_stream().to_string().replace(' ', "") == "cfg"
-                            && list.tokens.to_token_stream().to_string().contains("test")
-                        {
-                            self.has_test = true;
-                            return;
-                        }
+                    if let syn::Meta::List(list) = &attr.meta
+                        && list.path.to_token_stream().to_string().replace(' ', "") == "cfg"
+                        && list.tokens.to_token_stream().to_string().contains("test")
+                    {
+                        self.has_test = true;
+                        return;
                     }
                 }
                 syn::visit::visit_item_mod(self, node);

@@ -94,7 +94,7 @@ pub fn verify_prereg(prereg: &PreregistrationV1, signature_hex: &str) -> Result<
     }
     let mut pk_arr = [0u8; 32];
     pk_arr.copy_from_slice(&pk_bytes);
-    let vk = verifying_key_from_bytes(&pk_arr).map_err(|e| VerifyError::BadKeyBytes(e))?;
+    let vk = verifying_key_from_bytes(&pk_arr).map_err(VerifyError::BadKeyBytes)?;
 
     // Verify over canonical JSON
     let canonical = canonical_json(prereg);
