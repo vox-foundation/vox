@@ -82,6 +82,8 @@ pub mod circuit_breaker;
 pub mod confidence_fusion;
 /// Three-tier model cascade for autonomous model-routing (D1).
 pub mod tier_cascade;
+/// Four-dimension risk scorer and HITL escalation matrix (D5 + D9).
+pub mod risk_matrix;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Orchestrator configuration load, merge, and validation.
