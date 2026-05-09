@@ -50,6 +50,10 @@ pub enum RegistryError {
     DuplicateFrom(String),
     #[error("alias chain: `from` {0} is also a `to` in another entry")]
     AliasChain(String),
+    #[error("rename `from` is empty")]
+    EmptyFrom,
+    #[error("self-rename: `from` and `to` are both `{0}`")]
+    SelfRename(String),
     #[error("io: {0}")]
     Io(#[from] std::io::Error),
     #[error("parse: {0}")]
@@ -63,6 +67,15 @@ impl RenameRegistry {
             return Err(RegistryError::UnsupportedVersion(file.version));
         }
         let mut by_from: HashMap<String, RenameEntry> = HashMap::new();
+        // Per-entry validation: reject empty `from` and self-renames before further checks.
+        for entry in &file.entries {
+            if entry.from.is_empty() {
+                return Err(RegistryError::EmptyFrom);
+            }
+            if entry.from == entry.to {
+                return Err(RegistryError::SelfRename(entry.from.clone()));
+            }
+        }
         let to_set: std::collections::HashSet<&String> =
             file.entries.iter().map(|e| &e.to).collect();
         for entry in &file.entries {

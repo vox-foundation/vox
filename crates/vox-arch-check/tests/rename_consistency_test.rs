@@ -1,3 +1,10 @@
+// TODO(VUV-10+): currently this rule only enforces consistency for
+// `RenameKind::Primitive`. Decorator and Kwarg consistency rules
+// belong in their respective registries (when those rename kinds
+// are first used by future VUV phases). EnumValue and Type
+// consistency requires reflective access to those name sets which
+// is not yet exposed; add when the first such rename lands.
+
 //! VUV-9 Task 8: every `from` of kind `Primitive` in the rename registry must
 //! NOT be a current canonical primitive name. The registry alone resolves old
 //! names; the parser must not still recognize them.

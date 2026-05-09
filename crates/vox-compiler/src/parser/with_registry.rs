@@ -38,7 +38,7 @@ use crate::parser::renames::{RenameEntry, RenameKind, RenameRegistry};
 #[derive(Debug, Clone)]
 pub struct Warning {
     /// Human-readable message. Format is fixed by VUV-9 Task 4 spec:
-    /// `primitive \`{from}\` was renamed to \`{to}\` in {since}; use the new name (run \`vox migrate\` to update)`
+    /// `primitive \`{from}\` was renamed to \`{to}\` in {since}; use the new name (run \`vox migrate names\` to update)`
     pub message: String,
     /// Source span of the deprecated identifier.
     pub span: Span,
@@ -400,11 +400,11 @@ fn maybe_rewrite_tag_self_closing(
 /// Builds the mandated deprecation warning message.
 ///
 /// Format (spec-locked by VUV-9 Task 4):
-/// `primitive \`{from}\` was renamed to \`{to}\` in {since}; use the new name (run \`vox migrate\` to update)`
+/// `primitive \`{from}\` was renamed to \`{to}\` in {since}; use the new name (run \`vox migrate names\` to update)`
 fn make_warning(entry: &RenameEntry, span: Span, old_name: &str) -> Warning {
     Warning {
         message: format!(
-            "primitive `{}` was renamed to `{}` in {}; use the new name (run `vox migrate` to update)",
+            "primitive `{}` was renamed to `{}` in {}; use the new name (run `vox migrate names` to update)",
             old_name, entry.to, entry.since
         ),
         span,

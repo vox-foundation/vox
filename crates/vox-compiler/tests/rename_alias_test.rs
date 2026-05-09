@@ -85,5 +85,29 @@ fn deprecated_primitive_resolves_with_warning() {
     assert!(msg.contains("Box"), "warning should name old name `Box`, got: {}", msg);
     assert!(msg.contains("panel"), "warning should name new name `panel`, got: {}", msg);
     assert!(msg.contains("0.5.0"), "warning should cite version `0.5.0`, got: {}", msg);
-    assert!(msg.contains("vox migrate"), "warning should suggest running `vox migrate`, got: {}", msg);
+    assert!(msg.contains("vox migrate names"), "warning should suggest running `vox migrate names`, got: {}", msg);
+}
+
+#[test]
+fn registry_rejects_empty_from() {
+    let json = r#"{
+        "version": 1,
+        "entries": [
+          { "from": "", "to": "panel", "kind": "primitive", "since": "0.5.0" }
+        ]
+    }"#;
+    assert!(RenameRegistry::from_str(json).is_err(),
+        "empty `from` must be rejected");
+}
+
+#[test]
+fn registry_rejects_self_rename() {
+    let json = r#"{
+        "version": 1,
+        "entries": [
+          { "from": "Box", "to": "Box", "kind": "primitive", "since": "0.5.0" }
+        ]
+    }"#;
+    assert!(RenameRegistry::from_str(json).is_err(),
+        "self-rename (from == to) must be rejected");
 }

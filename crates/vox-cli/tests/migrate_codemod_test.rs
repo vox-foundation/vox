@@ -271,3 +271,22 @@ fn migrate_names_idempotent_on_canonical_corpus() {
     assert!(output.stdout_contains("0 file"),
         "stdout should announce zero changes: {}", output.stdout);
 }
+
+#[test]
+fn rewrite_skips_non_primitive_kinds() {
+    use vox_compiler::parser::renames::RenameRegistry;
+    // A kwarg rename should NOT rewrite identifier tokens (would over-reach;
+    // kwarg renames need argument-position context).
+    let registry = RenameRegistry::from_str(r#"{
+        "version": 1,
+        "entries": [
+          { "from": "class", "to": "css_class", "kind": "kwarg", "since": "0.5.0" }
+        ]
+    }"#).unwrap();
+
+    let before = "let class = 1; row(class: \"foo\")";
+    let after = vox_cli::commands::migrate::rewrite_for_test(before, &registry);
+
+    assert_eq!(after, before,
+        "kwarg-kind renames must not be rewritten by the token-level codemod");
+}

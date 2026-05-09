@@ -218,7 +218,15 @@ pub fn rewrite(
         match &spanned.token {
             Token::Ident(name) | Token::TypeIdent(name) => {
                 if let Some(entry) = registry.resolve(name) {
-                    out.push_str(&entry.to);
+                    // VUV-9 codemod scope: only primitive renames are token-level safe.
+                    // Kwarg/Decorator/EnumValue/Type renames need AST-aware rewriting
+                    // (kwargs need argument-position context; types need type-position
+                    // context). Future phases lift this restriction.
+                    if matches!(entry.kind, vox_compiler::parser::renames::RenameKind::Primitive) {
+                        out.push_str(&entry.to);
+                    } else {
+                        out.push_str(name);
+                    }
                 } else {
                     out.push_str(&source[span_start..span_end]);
                 }
