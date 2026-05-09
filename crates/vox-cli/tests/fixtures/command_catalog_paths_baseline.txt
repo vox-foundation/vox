@@ -19,6 +19,11 @@ auth/untrust
 auth/whoami
 build
 bundle
+bundle-app
+bundle/apply
+bundle/build
+bundle/list
+bundle/verify
 catalog
 catalog/add
 catalog/focus
@@ -26,6 +31,7 @@ catalog/list
 catalog/remove
 check
 ci
+ci/agentskills-compliance
 ci/artifact-audit
 ci/artifact-prune
 ci/attention-config-parity
@@ -73,6 +79,7 @@ ci/eval-matrix/run
 ci/eval-matrix/verify
 ci/exec-policy-contract
 ci/feature-matrix
+ci/generate-plugin-catalog-docs
 ci/grammar-drift
 ci/grammar-export-check
 ci/grammar-ssot-parity
@@ -97,6 +104,9 @@ ci/openclaw-contract
 ci/operations-sync
 ci/operations-verify
 ci/operator-env-guard
+ci/plugin-abi-parity
+ci/plugin-catalog-parity
+ci/plugin-skill-parity
 ci/pm-provenance
 ci/policy-smoke
 ci/pre-push
@@ -288,6 +298,13 @@ plan/create
 plan/replan
 plan/status
 play
+plugin
+plugin/doctor
+plugin/info
+plugin/install
+plugin/list
+plugin/publish
+plugin/remove
 pm
 pm/cache
 pm/cache/clear
