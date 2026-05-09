@@ -79,7 +79,20 @@
       "Bash(xargs -I{} taskkill //F //PID {})",
       "Bash(grep -E \"^\\(vox-\\(plugin-\\)?\\(container|deploy-codegen|skill-runtime|wasm-host|plugin-runtime|grammar-export|webhook|publication\\)\\)$\")",
       "Bash(grep -E \"^\\(optim|tensor|train\\)\\\\.rs$\")",
-      "Bash(grep -v -E \"api$|catalog$|host$\")"
+      "Bash(grep -v -E \"api$|catalog$|host$\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\agitated-agnesi-d271bb\" -Recurse -Name)",
+      "Bash(find /c/Users/Owner/vox/.claude/worktrees/agitated-agnesi-d271bb/crates/vox-orchestrator* -name \"*.rs\")",
+      "WebFetch(domain:www.panozzaj.com)",
+      "WebFetch(domain:julien.danjou.info)",
+      "WebFetch(domain:www.getmrq.com)",
+      "WebFetch(domain:news.ycombinator.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:forum.cursor.com)",
+      "WebFetch(domain:stackoverflow.blog)",
+      "Bash(jobs)",
+      "Bash(echo \"5. Consecutive slashes: 'a//b' -> ACCEPTED \\(should be rejected\\)\")",
+      "Bash(grep -E \"test.*git_exec|running [0-9]+ test|FAILED|ok$|PASSED\")",
+      "Bash(awk '/fn is_banned_catches_each_prefix/,/^    \\\\}/' crates/vox-orchestrator-mcp/src/git_exec.rs)"
     ]
   }
 }

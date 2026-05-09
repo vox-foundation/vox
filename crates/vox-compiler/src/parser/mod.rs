@@ -42,6 +42,8 @@
 pub mod descent;
 /// Parse errors and recovery hints.
 pub mod error;
+/// Rename registry for Vox public identifiers (VUV-9).
+pub mod renames;
 
 pub use descent::parse;
 pub use descent::parse_script;
