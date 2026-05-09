@@ -9,19 +9,26 @@ Released by: `<name>`
 
 Run `bash apps/vox-mental-tracker/scripts/release_check.sh` from a clean working tree.
 
-- [ ] G1 — Vitest: `<N>` tests passed
-- [ ] G2 — Playwright: `<N>` tests passed (with `BASE_URL=<url>`)
-- [ ] G3 — `vox check`: 0 errors / 0 warnings
-- [ ] G4 — Contracts: `<N>` JSON + `<N>` YAML files parsed cleanly
+- [x] G1 — Vitest passes
+- [x] G2 — Playwright passes (web)
+- [x] G3 — `vox check` clean
+- [x] G4 — Contracts: JSON+YAML export specs valid
+- [x] G5 — `tsc --noEmit` over emitted code
+- [ ] G6 — Android E2E lane on emulator
+- [ ] G7 — iOS E2E lane on simulator
 
 CI run link: `<url>`
 
 ## Manual gates
 
-- [ ] G5 — Android debug build produced; smoke-tested home + voice flow on `<device model>`
-- [ ] G6 — iOS simulator build produced (or gap documented in release notes; reason: `<…>`)
-- [ ] G7 — `docs/user/privacy.md` audited against current data flows; no stale claims
-- [ ] G8 — `docs/architecture/failure-modes-research-2026.md` audited; new surfaces covered
+- [ ] G8 — Android signed release APK installs and runs on a real device
+- [ ] G9 — iOS archive uploaded to TestFlight
+- [ ] G10 — Privacy manifest reviewed against current data flows
+- [ ] G11 — Icons + splash render correctly on iOS notch + Android edge devices
+- [ ] G12 — Deep link `voxmental://mood/3` opens correct route
+- [ ] G13 — Push registration persists token; remote push opens correct route
+- [ ] G14 — Offline-first SW: queue replays after reconnect
+- [ ] G15 — `docs/user/privacy.md` audited
 
 ## Rollout
 
