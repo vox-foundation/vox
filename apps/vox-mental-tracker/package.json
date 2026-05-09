@@ -41,6 +41,7 @@
     "cap:open:ios": "cap open ios",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "e2e:android": "playwright test --project=android"
   }
 }
