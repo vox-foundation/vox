@@ -144,3 +144,130 @@ fn rewrite_returns_input_unchanged_on_lex_failure() {
     );
     let _ = after;
 }
+
+// =====================================================================
+// End-to-end fixture tests: spawn the real `vox` binary, read/write real
+// files in a tempdir, override the rename registry via VOX_RENAMES_PATH.
+// =====================================================================
+
+use std::path::PathBuf;
+
+struct CliOutput {
+    stdout: String,
+    #[allow(dead_code)]
+    stderr: String,
+    status: std::process::ExitStatus,
+}
+
+impl CliOutput {
+    fn stdout_contains(&self, s: &str) -> bool {
+        self.stdout.contains(s)
+    }
+}
+
+fn fixture_root() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("fixtures")
+        .join("migrate")
+}
+
+/// Write a registry with a single Box->panel rename for these tests.
+fn write_test_registry(dir: &std::path::Path) -> PathBuf {
+    let path = dir.join("renames.v1.json");
+    std::fs::write(
+        &path,
+        r#"{
+            "version": 1,
+            "entries": [
+              { "from": "Box", "to": "panel", "kind": "primitive", "since": "0.5.0" }
+            ]
+        }"#,
+    )
+    .unwrap();
+    path
+}
+
+fn run_migrate_names(cwd: &std::path::Path, registry_path: &std::path::Path, args: &[&str]) -> CliOutput {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_vox"));
+    cmd.arg("migrate")
+        .arg("names")
+        .args(args)
+        .env("VOX_RENAMES_PATH", registry_path)
+        .current_dir(cwd);
+    let output = cmd.output().expect("vox binary should be runnable");
+    CliOutput {
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        status: output.status,
+    }
+}
+
+fn copy_fixture_to_tempdir(temp: &std::path::Path) -> PathBuf {
+    let before_src = fixture_root().join("before").join("sample.vox");
+    let dst = temp.join("sample.vox");
+    std::fs::copy(&before_src, &dst).expect("copy fixture into tempdir");
+    dst
+}
+
+#[test]
+fn migrate_names_dry_run_reports_diff_without_writing() {
+    let temp = tempfile::tempdir().unwrap();
+    let registry_dir = tempfile::tempdir().unwrap();
+    let registry = write_test_registry(registry_dir.path());
+
+    let target = copy_fixture_to_tempdir(temp.path());
+    let original_bytes = std::fs::read_to_string(&target).unwrap();
+
+    let output = run_migrate_names(temp.path(), &registry, &["--dry-run", temp.path().to_str().unwrap()]);
+
+    assert!(output.status.success(), "vox migrate names exited non-zero: stderr={}", output.stderr);
+    assert!(output.stdout_contains("would update"),
+        "stdout should announce a dry-run change: {}", output.stdout);
+
+    let after_dry_run = std::fs::read_to_string(&target).unwrap();
+    assert_eq!(after_dry_run, original_bytes,
+        "dry run must not modify the file");
+}
+
+#[test]
+fn migrate_names_writes_canonical_output() {
+    let temp = tempfile::tempdir().unwrap();
+    let registry_dir = tempfile::tempdir().unwrap();
+    let registry = write_test_registry(registry_dir.path());
+
+    let target = copy_fixture_to_tempdir(temp.path());
+    let expected = std::fs::read_to_string(fixture_root().join("after").join("sample.vox")).unwrap();
+
+    let output = run_migrate_names(temp.path(), &registry, &[temp.path().to_str().unwrap()]);
+
+    assert!(output.status.success(), "vox migrate names exited non-zero: stderr={}", output.stderr);
+    assert!(output.stdout_contains("updated"),
+        "stdout should announce a write: {}", output.stdout);
+
+    let after_write = std::fs::read_to_string(&target).unwrap();
+    assert_eq!(after_write, expected,
+        "file content after write must equal the canonical fixture byte-for-byte");
+}
+
+#[test]
+fn migrate_names_idempotent_on_canonical_corpus() {
+    let temp = tempfile::tempdir().unwrap();
+    let registry_dir = tempfile::tempdir().unwrap();
+    let registry = write_test_registry(registry_dir.path());
+
+    // Start with the already-canonical "after" fixture.
+    let after_src = fixture_root().join("after").join("sample.vox");
+    let target = temp.path().join("sample.vox");
+    std::fs::copy(&after_src, &target).unwrap();
+    let before_bytes = std::fs::read_to_string(&target).unwrap();
+
+    let output = run_migrate_names(temp.path(), &registry, &[temp.path().to_str().unwrap()]);
+
+    assert!(output.status.success());
+    let after_bytes = std::fs::read_to_string(&target).unwrap();
+    assert_eq!(after_bytes, before_bytes,
+        "running migrate against an already-canonical corpus must be a no-op");
+    assert!(output.stdout_contains("0 file"),
+        "stdout should announce zero changes: {}", output.stdout);
+}
