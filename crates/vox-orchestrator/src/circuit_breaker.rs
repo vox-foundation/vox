@@ -2,7 +2,9 @@
 //!
 //! Reads thresholds from [`CircuitBreakerConfig`] which mirrors
 //! `contracts/orchestration/circuit-breaker.v1.yaml`.
-//! All checks are pure: no async, no I/O, no allocations on the hot path.
+//! All trip / tier checks are pure: no async, no I/O, no allocations on the hot path.
+//! The `bigram_jaccard` helper is the lone exception — it allocates two small
+//! `HashSet`s per call and is called at most once per loop iteration (see its docs).
 
 use serde::{Deserialize, Serialize};
 
@@ -149,7 +151,9 @@ impl CircuitBreaker {
 }
 
 /// Compute bigram Jaccard similarity between two action sequences.
-/// Used for ngram overlap signal. O(n) time, O(n) space.
+/// Used for the n-gram overlap signal. O(n) time, O(n) space — allocates two small
+/// `HashSet<(&str, &str)>`s per call. Intended to run at most once per loop iteration
+/// where the allocation cost is negligible against the surrounding LLM round-trip.
 #[must_use]
 pub fn bigram_jaccard(a: &[&str], b: &[&str]) -> f64 {
     if a.len() < 2 || b.len() < 2 {
@@ -167,7 +171,9 @@ pub fn bigram_jaccard(a: &[&str], b: &[&str]) -> f64 {
 }
 
 /// Metric payload emitted to `llm_interactions` when the breaker trips.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only: `Deserialize` is incompatible with `&'static str` lifetimes
+/// and isn't needed — these events are written, never read back.
+#[derive(Debug, Clone, Serialize)]
 pub struct TripEvent {
     pub metric_type: &'static str,
     pub trip_reason: String,

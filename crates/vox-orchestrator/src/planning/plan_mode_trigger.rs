@@ -101,7 +101,8 @@ impl PlanModeTrigger {
 }
 
 /// Metric payload emitted when a plan-mode decision is made.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `TripEvent` for rationale on the missing `Deserialize`.
+#[derive(Debug, Clone, Serialize)]
 pub struct PlanModeEvent {
     pub metric_type: &'static str,
     pub decision: String,

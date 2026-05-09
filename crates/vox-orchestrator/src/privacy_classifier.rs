@@ -85,7 +85,8 @@ pub fn route_for_level(router: &PrivacyRouter, level: PrivacyLevel) -> PrivacyRo
 }
 
 /// Metric payload emitted when a privacy route decision is made.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `TripEvent` for rationale on the missing `Deserialize`.
+#[derive(Debug, Clone, Serialize)]
 pub struct PrivacyRouteEvent {
     pub metric_type: &'static str,
     pub privacy_level: String,

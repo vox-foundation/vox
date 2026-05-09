@@ -2,6 +2,7 @@
 # Five-signal circuit breaker thresholds for D6 doom-loop detection.
 # Mirrored by `crates/vox-orchestrator/src/circuit_breaker.rs::CircuitBreakerConfig::default`.
 version: 1
+x-vox-version: 1
 description: "Five-signal circuit breaker for orchestrator doom-loop detection (D6)"
 
 trip_thresholds:

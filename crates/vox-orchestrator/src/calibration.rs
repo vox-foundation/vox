@@ -1,10 +1,12 @@
-//! Calibration loop: Welford drift detection + Thompson-sampling contextual bandit (D10).
+//! Calibration loop: Welford drift detection + greedy Beta-posterior bandit (D10).
 //!
 //! [`CalibrationLoop`] tracks a running mean/variance over latency or quality scores
 //! and alerts when the z-score of a new observation exceeds the drift threshold.
-//! [`ContextualBandit`] uses Thompson sampling over per-model Beta posteriors to select
-//! the best arm for a given context.
-//! All logic is pure: no async, no I/O.
+//! [`ContextualBandit`] picks the arm with the highest expected reward under each
+//! arm's Beta(α, β) posterior — i.e. greedy exploitation. Stochastic Thompson sampling
+//! is intentionally left to the existing `routing::engine` Thompson draw used at
+//! tier-cascade time; this module is pure (no RNG, no I/O) so it stays deterministic
+//! and trivially testable.
 
 use serde::{Deserialize, Serialize};
 
@@ -148,9 +150,10 @@ impl BanditArm {
     }
 }
 
-/// Thompson-sampling contextual bandit over a set of model arms.
-/// Uses greedy selection by expected reward (deterministic; callers supply their own RNG
-/// for stochastic exploration via the routing engine if needed).
+/// Greedy contextual bandit over a set of model arms.
+/// Picks the arm with the highest expected reward under its Beta posterior.
+/// Stochastic exploration is delegated to `routing::engine` (Thompson draws) so this
+/// module stays pure and deterministic — no RNG required, no I/O.
 pub struct ContextualBandit {
     arms: Vec<BanditArm>,
 }
@@ -182,7 +185,8 @@ impl ContextualBandit {
 
 // ── Metric payloads ───────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — `&'static str` is incompatible with `Deserialize` and round-tripping isn't needed.
+#[derive(Debug, Clone, Serialize)]
 pub struct CalibrationRunEvent {
     pub metric_type: &'static str,
     pub z_score: f64,
@@ -201,7 +205,8 @@ impl CalibrationRunEvent {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `CalibrationRunEvent` for rationale.
+#[derive(Debug, Clone, Serialize)]
 pub struct DriftAlertEvent {
     pub metric_type: &'static str,
     pub z_score: f64,
@@ -218,7 +223,8 @@ impl DriftAlertEvent {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `CalibrationRunEvent` for rationale.
+#[derive(Debug, Clone, Serialize)]
 pub struct BanditUpdateEvent {
     pub metric_type: &'static str,
     pub model_id: String,

@@ -697,10 +697,10 @@ Citations are split into three categories: **academic** (peer-reviewed papers an
 [^ai-agent-failure]: MindStudio — *AI Agent Failure Pattern Recognition*. https://www.mindstudio.ai/blog/ai-agent-failure-pattern-recognition
 [^doom-loop-medium]: Medium — *The Agent Loop Problem: When "Smart" Won't Stop*. https://medium.com/@Modexa/the-agent-loop-problem-when-smart-wont-stop-ccbf8489180f
 [^iteration-budget-pressure]: NousResearch hermes-agent issue — *Iteration Budget Pressure*. https://github.com/NousResearch/hermes-agent/issues/414
-[^langchain-max-iters]: inforsome — *Agent stopped due to max iterations*. https://inforsome.com/agent-stopped-max-iterations-fix/
+[^langchain-max-iters]: LangChain GitHub — *Agent stopped due to iteration limit or time limit*. https://github.com/langchain-ai/langchain/discussions/27264
 [^hitl-medium]: Medium — *Human-in-the-Loop AI Agents* (Anna Jey, 2026). https://medium.com/@arvisionlab/human-in-the-loop-ai-agents-how-to-add-approvals-escalation-and-safe-autonomy-in-production-0a21e359781c
 [^hitl-strata]: Strata — *Human-in-the-Loop: A 2026 Guide to AI Oversight*. https://www.strata.io/blog/agentic-identity/practicing-the-human-in-the-loop/
-[^governed-autonomy]: McKinsey — *Trust in the age of agents*. https://www.mckinsey.com/capabilities/risk-and-resilience/our-insights/trust-in-the-age-of-agents
+[^governed-autonomy]: NIST AI Risk Management Framework — *Generative AI Profile (NIST AI 600-1)*. https://www.nist.gov/itl/ai-risk-management-framework
 [^eu-ai-act-hitl]: Knowlee — *Human-in-the-Loop AI Policy Template (2026) + AI Act SLAs*. https://www.knowlee.ai/blog/human-in-the-loop-ai-policy-template
 [^cursor-context]: Morph — *Cursor Context Window (2026)*. https://www.morphllm.com/cursor-context-window
 [^autonomous-context-compression]: LangChain Blog — *Autonomous context compression*. https://blog.langchain.com/autonomous-context-compression/

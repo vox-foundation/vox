@@ -45,7 +45,7 @@ dimensions:
   compliance_exposure:
     description: "0=no regulations, 1=HIPAA/GDPR/EU AI Act high-risk"
   confidence:
-    description: "composite confidence from D3 FusionDecision (0=certain, 1=uncertain)"
+    description: "composite confidence from D3 FusionDecision (1=fully confident, 0=uncertain); the formula multiplies by (1 - confidence) so high confidence reduces risk"
 formula: "irreversibility * blast_radius * compliance_exposure * (1 - confidence)"
 grades:
   low:
@@ -195,8 +195,10 @@ pub struct RiskDimensions {
     pub blast_radius: f64,
     /// 0.0 = no regulation; 1.0 = HIPAA/GDPR/EU AI Act high-risk.
     pub compliance_exposure: f64,
-    /// Composite model confidence (0.0 = fully confident, 1.0 = no confidence).
-    /// Tip: pass `1.0 - fusion_score` where fusion_score is from ConfidenceFuser.
+    /// Composite model confidence (1.0 = fully confident, 0.0 = no confidence).
+    /// Tip: pass `fusion_score` directly from ConfidenceFuser. The implementation
+    /// stores `confidence_deficit = 1.0 - confidence` and adds it to the weighted
+    /// composite, so higher confidence reduces risk.
     pub confidence: f64,
 }
 

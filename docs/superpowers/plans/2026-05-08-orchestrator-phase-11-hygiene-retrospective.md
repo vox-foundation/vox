@@ -504,7 +504,7 @@ Expected: Only auto-generated files changed (SUMMARY.md, architecture-index.md, 
 - [ ] **Step 4.3: Commit regenerated docs**
 
 ```bash
-git add SUMMARY.md docs/src/architecture/architecture-index.md docs/src/feed.xml
+git add docs/src/SUMMARY.md docs/src/architecture/architecture-index.md docs/src/feed.xml
 git commit -m "chore(docs): regenerate SUMMARY.md / architecture-index.md / feed.xml post-P11"
 ```
 
@@ -578,7 +578,7 @@ From research (see `autonomous-orchestration-policy-research-2026.md`):
 
 ## Metrics Emitted
 
-Twelve `metric_type` constants registered in `vox-db::research_metrics_contract`:
+Fourteen `metric_type` constants registered in `vox-db::research_metrics_contract`:
 
 ```
 orch.circuit_breaker.trip

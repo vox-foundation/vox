@@ -104,7 +104,8 @@ impl DispatchRouter {
 }
 
 /// Metric payload emitted when a sub-agent is dispatched.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `TripEvent` for rationale on the missing `Deserialize`.
+#[derive(Debug, Clone, Serialize)]
 pub struct SubAgentDispatchEvent {
     pub metric_type: &'static str,
     pub decision: String,
@@ -126,7 +127,8 @@ impl SubAgentDispatchEvent {
 }
 
 /// Metric payload emitted when chain depth hits the safety limit.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `TripEvent` for rationale on the missing `Deserialize`.
+#[derive(Debug, Clone, Serialize)]
 pub struct ChainDepthAlertEvent {
     pub metric_type: &'static str,
     pub current_depth: u32,

@@ -174,7 +174,8 @@ impl RiskMatrix {
 }
 
 /// Metric payload emitted when a risk score is computed.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `TripEvent` for rationale on the missing `Deserialize`.
+#[derive(Debug, Clone, Serialize)]
 pub struct RiskScoreEvent {
     pub metric_type: &'static str,
     pub score: f64,
@@ -194,7 +195,8 @@ impl RiskScoreEvent {
 }
 
 /// Metric payload emitted when HITL escalation is triggered.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `TripEvent` for rationale on the missing `Deserialize`.
+#[derive(Debug, Clone, Serialize)]
 pub struct HitlInterruptEvent {
     pub metric_type: &'static str,
     pub action: String,

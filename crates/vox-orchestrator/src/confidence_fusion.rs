@@ -157,7 +157,8 @@ impl ConfidenceFuser {
 }
 
 /// Metric payload emitted when a fusion decision is made.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `TripEvent` for rationale on the missing `Deserialize`.
+#[derive(Debug, Clone, Serialize)]
 pub struct FusionEvent {
     pub metric_type: &'static str,
     pub score: f64,

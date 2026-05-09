@@ -92,20 +92,33 @@ impl OrchestratorBudgetGate {
     }
 
     /// Evaluate both token and cost fractions; worst status wins.
+    /// Inputs are clamped to `[0, 1]` and the triggering fraction reported back is the
+    /// clamped value, so a returned `BudgetDecision` is never out-of-range.
+    /// When the resulting status is `Ok`, `triggering_fraction` is reset to `0.0`
+    /// per the field's documented contract.
     #[must_use]
     pub fn evaluate(&self, token_fraction: f64, cost_fraction: f64) -> BudgetDecision {
-        let ts = self.evaluate_fraction(token_fraction);
-        let cs = self.evaluate_fraction(cost_fraction);
-        if ts >= cs {
-            BudgetDecision { status: ts, triggering_fraction: token_fraction }
+        let token = token_fraction.clamp(0.0, 1.0);
+        let cost = cost_fraction.clamp(0.0, 1.0);
+        let ts = self.evaluate_fraction(token);
+        let cs = self.evaluate_fraction(cost);
+        let (status, trigger) = if ts > cs {
+            (ts, token)
+        } else if cs > ts {
+            (cs, cost)
         } else {
-            BudgetDecision { status: cs, triggering_fraction: cost_fraction }
+            (ts, token.max(cost))
+        };
+        BudgetDecision {
+            status,
+            triggering_fraction: if status == BudgetStatus::Ok { 0.0 } else { trigger },
         }
     }
 }
 
 /// Metric payload emitted when budget status changes.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `TripEvent` for rationale on the missing `Deserialize`.
+#[derive(Debug, Clone, Serialize)]
 pub struct BudgetDecisionEvent {
     pub metric_type: &'static str,
     pub status: String,

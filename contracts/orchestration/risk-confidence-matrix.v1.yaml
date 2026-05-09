@@ -2,6 +2,7 @@
 # Four-dimension risk scorer + HITL escalation matrix for D5+D9.
 # Mirrored by `crates/vox-orchestrator/src/risk_matrix.rs::RiskMatrixConfig::default`.
 version: 1
+x-vox-version: 1
 description: "Four-dimension risk scorer and HITL escalation matrix (D5 + D9)"
 
 # Composite score = sum(dim_i * weight_i), clamped to [0, 1].

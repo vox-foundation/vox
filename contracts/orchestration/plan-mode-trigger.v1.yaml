@@ -2,6 +2,7 @@
 # Plan-mode vs ReAct decision thresholds for D2.
 # Mirrored by `crates/vox-orchestrator/src/planning/plan_mode_trigger.rs::PlanModeTriggerConfig::default`.
 version: 1
+x-vox-version: 1
 description: "Plan-mode vs. ReAct mode decision trigger (D2)"
 
 # Any signal at or above its threshold selects PlanAndExecute; otherwise React.

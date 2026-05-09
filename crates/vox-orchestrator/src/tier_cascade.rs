@@ -156,7 +156,8 @@ impl TierCascadeRouter {
 }
 
 /// Metric payload emitted when a tier routing decision is made.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `TripEvent` for rationale on the missing `Deserialize`.
+#[derive(Debug, Clone, Serialize)]
 pub struct TierRouteEvent {
     pub metric_type: &'static str,
     pub tier: String,

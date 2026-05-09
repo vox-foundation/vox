@@ -80,7 +80,8 @@ impl CachePredictor {
 }
 
 /// Metric payload emitted for each cache prediction.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Serialize-only — see `TripEvent` for rationale on the missing `Deserialize`.
+#[derive(Debug, Clone, Serialize)]
 pub struct CacheHitPredictionEvent {
     pub metric_type: &'static str,
     pub prediction: String,

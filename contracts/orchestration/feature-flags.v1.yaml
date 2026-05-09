@@ -3,6 +3,7 @@
 # All default false — safe to ship before wiring.
 # Set to true to activate the corresponding module.
 version: 1
+x-vox-version: 1
 flags:
   vox.orchestrator.circuit_breaker.enabled: false
   vox.orchestrator.socrates_fusion.enabled: false
