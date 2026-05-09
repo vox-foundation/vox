@@ -68,6 +68,7 @@ vox-scaling-policy    = { layer = 1 }
 vox-package-types     = { layer = 1 }                            # pure-types L1 leaf
 vox-plugin-api        = { layer = 1 }                            # type/trait surface only
 vox-plugin-types      = { layer = 1 }                            # pure-types L1 leaf
+vox-research-events    = { layer = 1 }                            # SCIENTIA typed event bus (Phase 0b)
 
 # ── L2 — domain libraries ─────────────────────────────────────────────────────
 vox-config              = { layer = 2 }

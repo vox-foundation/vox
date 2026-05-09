@@ -475,7 +475,7 @@ proposing message are answered yes:
 | Phase | Plan |
 |---|---|
 | 0a | [Phase 0a — Phantom-import resolution](../../superpowers/plans/2026-05-09-scientia-phase-0a-phantom-imports.md) — **Complete** |
-| 0b | (TBD — `vox-research-events` L1 crate) |
+| 0b | [Phase 0b — `vox-research-events` L1 crate](../../superpowers/plans/2026-05-09-scientia-phase-0b-research-events-crate.md) — **Complete** |
 | 0c | (TBD — schema codegen) |
 | 0d | (TBD — DB schema additions) |
 | 0e | (TBD — SecretId additions) |
