@@ -1,6 +1,7 @@
 use axum::{routing::get, Router};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
+use vox_share::auth::AuthMode;
 use vox_share::proxy::ProxyConfig;
 
 #[tokio::test]
@@ -17,6 +18,7 @@ async fn proxy_forwards_get_request_body_unchanged() {
     let cfg = ProxyConfig {
         upstream_addr: SocketAddr::from(([127, 0, 0, 1], upstream_port)),
         bind_addr: SocketAddr::from(([127, 0, 0, 1], 0)),
+        auth_mode: AuthMode::None,
     };
     let proxy_listener = TcpListener::bind(cfg.bind_addr).await.unwrap();
     let proxy_port = proxy_listener.local_addr().unwrap().port();

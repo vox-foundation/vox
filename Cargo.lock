@@ -12165,6 +12165,9 @@ dependencies = [
  "anyhow",
  "async-trait",
  "axum",
+ "base64 0.22.1",
+ "dirs",
+ "form_urlencoded",
  "hex",
  "hyper",
  "hyper-util",
@@ -12172,12 +12175,14 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tower 0.5.3",
  "tower-http",
  "tracing",
+ "which 7.0.3",
 ]
 
 [[package]]
