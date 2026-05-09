@@ -302,10 +302,10 @@ pub enum Cli {
     /// Sign out: clear vault credentials from local keyring and `~/.vox/login.toml`.
     #[command(name = "logout")]
     Logout,
-    /// Share / search packages via local Arca index (`vox share`).
+    /// Share a Vox app via a public URL tunnel (`vox share`).
     Share {
-        #[command(subcommand)]
-        cmd: crate::commands::extras::share_cli::ShareCli,
+        #[command(flatten)]
+        args: crate::commands::share::ShareArgs,
     },
     /// Deprecated: use `vox mens train` instead.
     #[command(hide = true)]

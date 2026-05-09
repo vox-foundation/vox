@@ -121,6 +121,7 @@ vox-reqwest-defaults      = { path = "crates/vox-reqwest-defaults" }
 vox-repository            = { path = "crates/vox-repository" }
 vox-actor-runtime               = { path = "crates/vox-actor-runtime" }
 vox-scaling-policy        = { path = "crates/vox-scaling-policy" }
+vox-share                 = { path = "crates/vox-share" }
 vox-skills                = { path = "crates/vox-skills" }
 vox-ssg                   = { path = "crates/vox-ssg" }
 vox-tensor                = { path = "crates/vox-tensor" }

@@ -10739,6 +10739,7 @@ dependencies = [
  "vox-scaling-policy",
  "vox-search",
  "vox-secrets",
+ "vox-share",
  "vox-skills",
  "vox-ssg",
  "vox-wasm-engine",

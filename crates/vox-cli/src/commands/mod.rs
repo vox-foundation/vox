@@ -108,6 +108,8 @@ pub use extras::ludus;
 pub mod review;
 /// Native execution via local runtime execution (`vox run`).
 pub mod run;
+/// Public-URL tunnel for Vox apps (`vox share`). S1: LAN backend only.
+pub mod share;
 /// Extended runtime subtree (`dev`, `info`, `run` script path, shell) — see submodules.
 pub mod runtime;
 /// Vox Scientia research facade (`vox scientia` → `vox db` research tools).
