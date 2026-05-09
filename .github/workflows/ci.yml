@@ -13,18 +13,55 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Cache warmup: builds vox-cli + warms target/ once so the five parallel
-  # jobs below all restore from a populated cache instead of racing.
+  # Setup: cache warmup + path-filter computation.  Path-filter outputs let
+  # downstream jobs skip Rust-specific steps on docs-only PRs.
+  #
+  # rust_changed = "true"  → any file under crates/** or Cargo.* changed.
+  # docs_changed = "true"  → any file under docs/** or contracts/** changed.
+  #
+  # On push:main both are always treated as "true" so we never skip gates on
+  # the integration branch.  On PRs the filter is computed from the diff.
   setup:
-    name: Cache warmup
+    name: Cache warmup + path filter
     runs-on: [self-hosted, linux, x64]
     timeout-minutes: 20
     outputs:
       cache-key: ${{ steps.k.outputs.key }}
+      rust_changed: ${{ steps.filter.outputs.rust }}
+      docs_changed: ${{ steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
       - id: k
         run: echo "key=${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}" >> "$GITHUB_OUTPUT"
+
+      # Compute path-filters.  On push:main always emit true so we never skip
+      # gates on the integration branch.
+      - id: filter
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "rust=true"  >> "$GITHUB_OUTPUT"
+            echo "docs=true"  >> "$GITHUB_OUTPUT"
+          else
+            # Fetch base ref so the diff is meaningful.
+            git fetch origin "${{ github.base_ref }}" --depth=256 2>/dev/null || true
+            BASE="origin/${{ github.base_ref }}"
+            CHANGED=$(git diff --name-only "${BASE}...HEAD" 2>/dev/null || git diff --name-only HEAD~1...HEAD)
+            if echo "$CHANGED" | grep -qE '^(crates/|Cargo\.(toml|lock)|\.cargo/)'; then
+              echo "rust=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "rust=false" >> "$GITHUB_OUTPUT"
+            fi
+            if echo "$CHANGED" | grep -qE '^(docs/|contracts/|AGENTS\.md|CONTRIBUTING\.md|README\.md)'; then
+              echo "docs=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "docs=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy, llvm-tools-preview
@@ -378,13 +415,21 @@ jobs:
         with:
           tool: cargo-llvm-cov
 
-      - name: Run Tests (llvm-cov + nextest, bounded timeouts)
-        # Includes vox-compiler integration tests such as rust_ecosystem_support_parity.
-        # INSTA_UPDATE=unseen: auto-accept new (not-yet-committed) snapshots without failing.
-        # Changed snapshots still fail.  Committed snap files live in tests/snapshots/.
+      # Conditional coverage: llvm-cov instrumentation adds significant wall-clock
+      # time and is meaningless on docs-only PRs.  Run plain nextest when no Rust
+      # crates changed; full llvm-cov nextest otherwise.
+      # On push:main setup always sets rust_changed=true so coverage always runs.
+      - name: Run Tests — llvm-cov nextest (Rust changed)
+        if: needs.setup.outputs.rust_changed == 'true'
         env:
           INSTA_UPDATE: unseen
         run: cargo llvm-cov nextest --workspace --profile ci
+
+      - name: Run Tests — plain nextest (docs-only change, no coverage overhead)
+        if: needs.setup.outputs.rust_changed != 'true'
+        env:
+          INSTA_UPDATE: unseen
+        run: cargo nextest run --workspace --profile ci
 
       - name: Upload insta snapshots (review and commit after first run)
         if: always()
@@ -403,6 +448,7 @@ jobs:
         run: cargo test --workspace --doc
 
       - name: Line coverage report (summary, LCOV, gates enforce)
+        if: needs.setup.outputs.rust_changed == 'true'
         run: |
           set -euo pipefail
           cargo llvm-cov report --text --summary-only
@@ -411,7 +457,7 @@ jobs:
           cargo run -p vox-cli --quiet -- ci coverage-gates --summary-json target/llvm-cov-summary.json --mode enforce
 
       - name: Upload LLVM coverage artifacts
-        if: success() || failure()
+        if: (success() || failure()) && needs.setup.outputs.rust_changed == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: llvm-cov
