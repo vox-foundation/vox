@@ -6,3 +6,5 @@
 # Add a `crates/<crate>/` line only while migrating that crate off
 # `.connection().query|execute(` until the transitional entry can be removed.
 crates/vox-secrets/
+crates/vox-gamify/
+crates/vox-codegen/src/codegen_rust/

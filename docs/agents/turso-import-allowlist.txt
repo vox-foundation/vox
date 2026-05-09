@@ -11,7 +11,6 @@
 crates/vox-corpus/
 crates/vox-cli/src/commands/db/
 crates/vox-cli/src/commands/review/coderabbit/
-crates/vox-secrets/
 crates/vox-workflow-runtime/tests/
 crates/vox-populi/src/transport/store/
 
