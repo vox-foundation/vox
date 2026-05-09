@@ -2,7 +2,7 @@
 title: "SCIENTIA Self-Publication Finalization Plan (2026)"
 description: "Research-grounded multi-phase plan to finalize Vox SCIENTIA into an autonomous, high-signal self-publication system targeting IMC/MLSys/TMLR via a Living-Review Provider Atlas."
 category: "architecture"
-status: "research"
+status: "approved"
 training_eligible: true
 training_rationale: "Canonical strategic plan for SCIENTIA finalization; load-bearing for all downstream Phase-N implementation plans and ADRs."
 ---

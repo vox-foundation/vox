@@ -32,6 +32,7 @@ const VALID_CATEGORIES: &[&str] = &[
 ];
 
 const VALID_STATUS: &[&str] = &[
+    "approved",
     "current",
     "experimental",
     "legacy",

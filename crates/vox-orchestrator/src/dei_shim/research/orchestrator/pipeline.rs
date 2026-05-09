@@ -18,7 +18,7 @@ use super::super::types::{
     Citation, CompetenceSignal, ResearchHit, ResearchMetadata, ResearchPlan, ResearchQuery,
     ResearchResult, ResearchScope, RetrievalDiagnostics, RoutingTier,
 };
-use super::pipeline_cache::research_cache_short_circuit;
+// PHASE_0a_STUB: re-import in Phase 1 when cache is re-enabled.
 use super::super::verifier::verify_claims_with_config;
 
 /// Run the full research pipeline for `query`. Returns a `ResearchResult` with
