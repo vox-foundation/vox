@@ -50,3 +50,7 @@ file://.*docs/book\.toml
 
 # LangChain discussion deleted/removed upstream; citation remains as a footnote reference
 https://github\.com/langchain-ai/langchain/discussions/27264
+
+# Oracle and Substack block CI bots with 403; links are valid
+https://blogs\.oracle\.com/.*
+.*\.substack\.com/.*
