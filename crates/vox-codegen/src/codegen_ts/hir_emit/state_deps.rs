@@ -377,7 +377,7 @@ fn collect_deps_and_calls(
                 unannotated,
             );
         }
-        HirExpr::Lambda(_, _, body, _) => {
+        HirExpr::Lambda(_, _, body, _, _) => {
             collect_deps_and_calls(
                 body,
                 state_names,

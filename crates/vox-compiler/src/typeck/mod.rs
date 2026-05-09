@@ -13,6 +13,7 @@
 #![allow(clippy::collapsible_if)]
 
 mod ast_decl_lints;
+mod async_handler_lint;
 mod effect_deps_lint;
 mod stale_capture_lint;
 
@@ -63,6 +64,7 @@ pub fn typecheck_hir_module(source: &str, hir: &mut HirModule) -> Vec<Diagnostic
     diags.extend(state_machine_check::check_state_machines(hir, source));
     diags.extend(effect_deps_lint::check_effect_deps(hir, source));
     diags.extend(stale_capture_lint::check_stale_captures(hir, source));
+    diags.extend(async_handler_lint::check_async_handlers(hir, source));
     diags
 }
 

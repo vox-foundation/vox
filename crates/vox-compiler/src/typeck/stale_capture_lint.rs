@@ -115,7 +115,7 @@ fn find_stale_captures_in_expr(
         }
 
         // ── Lambda — flip the flag for the body ──────────────────────────────
-        HirExpr::Lambda(_params, _ret, body, _span) => {
+        HirExpr::Lambda(_params, _ret, body, _cancellable, _span) => {
             find_stale_captures_in_expr(body, states, true, out);
         }
 

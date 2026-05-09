@@ -187,7 +187,7 @@ fn walk_expr(expr: &HirExpr, f: &mut impl FnMut(&HirExpr)) {
             walk_expr(it.as_ref(), f);
             walk_expr(body.as_ref(), f);
         }
-        HirExpr::Lambda(_, _, body, _) => walk_expr(body.as_ref(), f),
+        HirExpr::Lambda(_, _, body, _, _) => walk_expr(body.as_ref(), f),
         HirExpr::Spawn(t, _) => walk_expr(t.as_ref(), f),
         HirExpr::With(b, o, _) => {
             walk_expr(b.as_ref(), f);
@@ -308,7 +308,7 @@ fn walk_expr_mut(expr: &mut HirExpr, f: &mut impl FnMut(&mut HirExpr)) {
             walk_expr_mut(it.as_mut(), f);
             walk_expr_mut(body.as_mut(), f);
         }
-        HirExpr::Lambda(_, _, body, _) => walk_expr_mut(body.as_mut(), f),
+        HirExpr::Lambda(_, _, body, _, _) => walk_expr_mut(body.as_mut(), f),
 
         HirExpr::Spawn(t, _) => walk_expr_mut(t.as_mut(), f),
         HirExpr::With(b, o, _) => {

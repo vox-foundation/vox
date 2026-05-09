@@ -111,7 +111,7 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
             expr_has_async_call(a, async_fn_names) || expr_has_async_call(b, async_fn_names)
         }
         // Lambda: do NOT cross the lambda boundary — it has its own async scope
-        HirExpr::Lambda(_, _, _, _) => false,
+        HirExpr::Lambda(_, _, _, _, _) => false,
         // Leaf nodes: no sub-expressions to walk
         HirExpr::IntLit(..)
         | HirExpr::FloatLit(..)

@@ -167,7 +167,7 @@ pub fn eval_expr(interp: &mut Interpreter, expr: &HirExpr) -> Result<VoxValue, E
                 Ok(VoxValue::Null)
             }
         }
-        HirExpr::Lambda(params, _, body, _) => {
+        HirExpr::Lambda(params, _, body, _, _) => {
             let b = vec![crate::hir::nodes::HirStmt::Expr {
                 expr: *body.clone(),
                 span: crate::ast::span::Span::new(0, 0),

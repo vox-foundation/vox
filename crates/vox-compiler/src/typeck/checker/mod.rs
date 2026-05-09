@@ -35,7 +35,7 @@ pub(crate) fn hir_expr_span(expr: &HirExpr) -> Span {
         | HirExpr::Match(_, _, s)
         | HirExpr::If(_, _, _, s)
         | HirExpr::For(_, _, _, _, _, s)
-        | HirExpr::Lambda(_, _, _, s)
+        | HirExpr::Lambda(_, _, _, _, s)
         | HirExpr::Spawn(_, s)
         | HirExpr::With(_, _, s)
         | HirExpr::Block(_, s)
@@ -508,7 +508,7 @@ impl<'a> Checker<'a> {
                 Self::contains_db_write_or_unsafe_in_expr(iter)
                     || Self::contains_db_write_or_unsafe_in_expr(body)
             }
-            HirExpr::Lambda(_, _, body, _) => Self::contains_db_write_or_unsafe_in_expr(body),
+            HirExpr::Lambda(_, _, body, _, _) => Self::contains_db_write_or_unsafe_in_expr(body),
             HirExpr::Block(body, _) => Self::contains_db_write_or_unsafe_in_stmts(body),
 
             HirExpr::Spawn(e, _) => Self::contains_db_write_or_unsafe_in_expr(e),

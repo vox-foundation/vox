@@ -154,6 +154,8 @@ pub enum Token {
     AtV0,
     #[token("@ai")]
     AtAi,
+    #[token("@cancellable")]
+    AtCancellable,
 
     // ── Symbols ───────────────────────────────────────────────
     #[token("(")]
@@ -396,6 +398,7 @@ impl std::fmt::Display for Token {
             Token::AtDeprecated => write!(f, "@deprecated"),
             Token::AtV0 => write!(f, "@v0"),
             Token::AtAi => write!(f, "@ai"),
+            Token::AtCancellable => write!(f, "@cancellable"),
             Token::LParen => write!(f, "("),
             Token::RParen => write!(f, ")"),
             Token::LBracket => write!(f, "["),

@@ -210,7 +210,7 @@ fn visit_expr(expr: &HirExpr, used: &mut HashSet<String>) {
                 visit_stmt(stmt, used);
             }
         }
-        HirExpr::Lambda(_, _, body, _) => {
+        HirExpr::Lambda(_, _, body, _, _) => {
             visit_expr(body, used);
         }
         HirExpr::Spawn(target, _) | HirExpr::Await(target, _) => {

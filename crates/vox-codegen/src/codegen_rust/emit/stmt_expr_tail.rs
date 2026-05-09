@@ -100,7 +100,7 @@ where
         HirExpr::With(operand, options, _) => {
             super::with_emit::emit_with(emit, operand.as_ref(), options.as_ref())
         }
-        HirExpr::Lambda(params, _ret_ty, body, _) => {
+        HirExpr::Lambda(params, _ret_ty, body, _, _) => {
             let mut s = String::new();
             s.push('|');
             let param_strs: Vec<String> = params.iter().map(|p| p.name.clone()).collect();

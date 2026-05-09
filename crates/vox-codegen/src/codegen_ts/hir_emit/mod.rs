@@ -450,7 +450,7 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             }
             format!("{iter}.map(({name}, {idx}) => ({b}))")
         }
-        HirExpr::Lambda(params, _, body, _) => {
+        HirExpr::Lambda(params, _, body, _, _) => {
             let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
             let lambda_ctx = EmitCtx::new(ctx.state_names); // strip async context — lambda has its own scope
             let b = emit_hir_expr(body, &lambda_ctx);
