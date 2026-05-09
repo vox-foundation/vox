@@ -94,6 +94,36 @@ Paste the failing test as the first content of any implementation request. Benef
 
 When a task cannot be expressed as a failing test (e.g., pure doc updates, config tweaks), state that explicitly rather than skipping the check silently.
 
+## Snapshot discipline
+
+Insta snapshot tests (`.snap` files under `crates/*/src/tests/snapshots/`) are
+part of the test suite. When your change alters compiler output, codegen output,
+or diagnostic formatting, the snapshot changes are part of the same commit as
+the code change — never in a follow-up "fix snapshots" commit.
+
+**Workflow:**
+
+```bash
+# Run the affected tests — they will fail with a snapshot diff
+cargo test -p vox-compiler
+
+# Accept the new snapshots
+cargo insta review      # interactive
+cargo insta accept      # accept all pending (use only if you've reviewed the diff)
+
+# Stage and commit the .snap files alongside your code change
+git add crates/vox-compiler/src/tests/snapshots/
+git commit --amend --no-edit   # or include in the same commit
+```
+
+**Orphan `.snap` files** (snapshots for deleted or renamed tests) must be
+deleted. CI treats orphans as a warning via `cargo insta test --unreferenced=reject`.
+See [contribution-loop.md](contribution-loop.md) for the orphan-check step.
+
+**Never commit a snapshot you haven't read.** Blind `insta accept` on a failing
+test masks real regressions. Review the diff: if the new output is correct,
+accept; if not, fix the code.
+
 ## Corpus quality signal
 
 Your code changes feed the MENS training pipeline. Stub-free, test-covered,
@@ -108,6 +138,7 @@ See [contribution loop](contribution-loop.md) for the full flywheel and the @tes
 - Do **not** delete tests to fix a test failure — fix the code.
 - Do **not** add `#[allow(...)]` or `// toestub-ignore(...)` without a written reason.
 - Do **not** claim task completion adjacent to `todo!()` or empty bodies.
+- Do **not** run `cargo insta accept` without reading the snapshot diff first.
 
 Research: [AI agent panic and shortcut pathology](../archive/research-2026-q1/research-ai-panic-shortcuts-2026.md).
 
