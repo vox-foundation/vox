@@ -56,6 +56,10 @@ pub enum DiscoverySignalFamily {
     ReproducibilityArtifact,
     LinkedCorpus,
     FindingCandidateSignal,
+    /// Provider-level reliability/latency/uptime observations (Mesh §4.1 / Phase 6).
+    ProviderObservation,
+    /// Model capability and benchmark evidence signals (Mesh §4.1 / Phase 6).
+    ModelCapabilityEvidence,
 }
 
 /// A SCIENTIA discovery signal (`discovery-signal.schema.json`).
@@ -84,6 +88,10 @@ pub enum FindingCandidateClass {
     PolicyGovernance,
     TelemetryTrust,
     Other,
+    /// Atlas of model capability evidence across providers (Mesh §4.2 / Phase 6).
+    ModelCapabilityAtlas,
+    /// Atlas of provider reliability data (Mesh §4.2 / Phase 6).
+    ProviderReliabilityAtlas,
 }
 
 /// Confidence scores for a finding candidate. All fields optional in the schema.
