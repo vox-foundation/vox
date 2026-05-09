@@ -54,3 +54,6 @@ https://github\.com/langchain-ai/langchain/discussions/27264
 # Oracle and Substack block CI bots with 403; links are valid
 https://blogs\.oracle\.com/.*
 .*\.substack\.com/.*
+
+# VentureBeat rate-limits CI bots with 429; link is valid
+.*venturebeat\.com/.*
