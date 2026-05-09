@@ -108,6 +108,14 @@ jobs:
       - name: Format Check
         run: cargo fmt --all -- --check
 
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
+      - name: Dependency licenses + advisories (cargo-deny)
+        run: cargo deny check
+
       - name: Codex SSOT documentation guard
         run: cargo run -p vox-cli --quiet -- ci check-codex-ssot
 

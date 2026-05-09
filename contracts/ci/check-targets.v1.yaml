@@ -166,3 +166,60 @@ checks:
       - ci
     rust_only: true
     command: ["cargo", "test", "--doc", "--workspace"]
+
+  - id: deny
+    description: "cargo deny check (license allowlist + security advisories + banned crates)"
+    category: audit
+    blocking: true
+    runs_on:
+      - ci
+    rust_only: true
+    command: ["cargo", "deny", "check"]
+
+  - id: biome-ts-lint
+    description: "biome lint (TypeScript/TSX/JSX across docs-astro, vox-mental-tracker, tools/visualizer)"
+    category: lint
+    blocking: true
+    runs_on:
+      - ci
+    rust_only: false
+    command: ["npx", "@biomejs/biome@1.9.4", "lint", "--reporter=github"]
+
+  - id: sync-ignore-files
+    description: "vox ci sync-ignore-files --verify (generated ignore-file drift check)"
+    category: doc
+    blocking: true
+    runs_on:
+      - pre-commit
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "sync-ignore-files", "--verify"]
+
+  - id: plugin-catalog-docs
+    description: "vox ci generate-plugin-catalog-docs --check (plugin catalog doc drift check)"
+    category: doc
+    blocking: true
+    runs_on:
+      - pre-commit
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "generate-plugin-catalog-docs", "--check"]
+
+  - id: command-sync
+    description: "vox ci command-sync --check (CLI command surface doc drift check)"
+    category: doc
+    blocking: true
+    runs_on:
+      - pre-commit
+      - ci
+    rust_only: false
+    command: ["cargo", "run", "-q", "-p", "vox-cli", "--", "ci", "command-sync", "--check"]
+
+  - id: link-checker
+    description: "lychee (link checker — all docs and markdown files)"
+    category: doc
+    blocking: true
+    runs_on:
+      - ci
+    rust_only: false
+    command: ["lychee", "--no-progress", "docs/**/*.md", "README.md"]
