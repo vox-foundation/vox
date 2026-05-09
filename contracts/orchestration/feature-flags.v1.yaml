@@ -1,0 +1,20 @@
+# contracts/orchestration/feature-flags.v1.yaml
+# Feature flags for orchestrator policy modules (D1–D10).
+# All default false — safe to ship before wiring.
+# Set to true to activate the corresponding module.
+version: 1
+flags:
+  vox.orchestrator.circuit_breaker.enabled: false
+  vox.orchestrator.socrates_fusion.enabled: false
+  vox.orchestrator.tier_cascade.enabled: false
+  vox.orchestrator.plan_mode_trigger.enabled: false
+  vox.orchestrator.risk_matrix_hitl.enabled: false
+  vox.orchestrator.privacy_routing.enabled: false
+  vox.orchestrator.cache_aware_routing.enabled: false
+  vox.orchestrator.compaction_5layer.enabled: false
+  vox.orchestrator.tenant_budget.enabled: false
+  vox.orchestrator.calibration_loop.enabled: false
+  vox.orchestrator.drift_detector.enabled: false
+  vox.orchestrator.contextual_bandit.enabled: false
+  vox.orchestrator.subagent_dispatch.enabled: false
+  vox.orchestrator.chain_length_cap.enabled: false

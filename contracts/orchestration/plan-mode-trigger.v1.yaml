@@ -1,0 +1,5 @@
+# contracts/orchestration/plan-mode-trigger.v1.yaml
+# SCAFFOLD — filled by Phase 5 execution.
+version: 1
+description: "Plan-mode vs. ReAct mode decision trigger (D2)"
+# See docs/superpowers/plans/2026-05-08-orchestrator-phase-5-plan-mode-trigger.md Task 1

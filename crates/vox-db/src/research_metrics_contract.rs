@@ -44,6 +44,38 @@ pub const METRIC_TYPE_MODEL_ROUTE_EVENT: &str = "model_route_event";
 /// Sensitivity: **S1 (OperationalTracing)**. Contains tool names + durations only.
 pub const METRIC_TYPE_AGENT_EXEC_TIME: &str = "agent_exec_time";
 
+// ── Orchestrator policy decision metrics (D1–D10) ────────────────────────────
+// Sensitivity: S1 (OperationalTracing). No user content; routing/policy metadata only.
+
+/// D6: Circuit breaker trip — doom-loop detected.
+pub const METRIC_TYPE_CIRCUIT_BREAKER_TRIP: &str = "orch.circuit_breaker.trip";
+/// D3: Socrates confidence fusion decision.
+pub const METRIC_TYPE_SOCRATES_FUSION: &str = "orch.socrates.fusion";
+/// D1: Model tier routing decision (Economy / Standard / Strong).
+pub const METRIC_TYPE_MODEL_TIER_ROUTE: &str = "orch.routing.tier";
+/// D2: Plan-mode vs. ReAct mode decision.
+pub const METRIC_TYPE_PLAN_MODE_DECISION: &str = "orch.plan.mode_decision";
+/// D9: HITL interrupt — human-in-the-loop escalation triggered.
+pub const METRIC_TYPE_HITL_INTERRUPT: &str = "orch.hitl.interrupt";
+/// D5: Risk matrix score event.
+pub const METRIC_TYPE_RISK_SCORE: &str = "orch.risk.score";
+/// D8: Privacy routing decision.
+pub const METRIC_TYPE_PRIVACY_ROUTE_DECISION: &str = "orch.privacy.route_decision";
+/// D7: Cache hit prediction for provider routing.
+pub const METRIC_TYPE_CACHE_HIT_PREDICTION: &str = "orch.cache.hit_prediction";
+/// D7: Budget gate decision (Proceed / Downgrade / Halt).
+pub const METRIC_TYPE_BUDGET_DECISION: &str = "orch.budget.decision";
+/// D10: Calibration loop run observation.
+pub const METRIC_TYPE_CALIBRATION_RUN: &str = "orch.calibration.run";
+/// D10: Calibration drift alert — predicted vs. observed confidence diverging.
+pub const METRIC_TYPE_DRIFT_ALERT: &str = "orch.calibration.drift_alert";
+/// D10: Contextual bandit arm update.
+pub const METRIC_TYPE_BANDIT_UPDATE: &str = "orch.calibration.bandit_update";
+/// D4: Sub-agent dispatched.
+pub const METRIC_TYPE_SUBAGENT_DISPATCH: &str = "orch.subagent.dispatch";
+/// D4: Sub-agent chain depth exceeded configured cap.
+pub const METRIC_TYPE_CHAIN_DEPTH_ALERT: &str = "orch.subagent.chain_depth_alert";
+
 // ── Session id prefixes (`<prefix><repository_id>`) ─────────────────────────
 
 pub const SESSION_PREFIX_BENCH: &str = "bench:";

@@ -21,6 +21,7 @@ guess. The full crate roster with layer assignments lives in
 | Orchestrator queue / locks / oplog | [`vox-orchestrator-queue`](../../../crates/vox-orchestrator-queue/) |
 | Orchestrator pure-data types | [`vox-orchestrator-types`](../../../crates/vox-orchestrator-types/) |
 | Orchestrator daemon binary | [`vox-orchestrator-d`](../../../crates/vox-orchestrator-d/) |
+| Orchestrator test fixtures and mocks | [`vox-orchestrator-test-helpers`](../../../crates/vox-orchestrator-test-helpers/) — `MockBulletinBoard`, `load_golden_fixture`; test-only |
 | Code-quality / stub detection | [`vox-code-audit`](../../../crates/vox-code-audit/) |
 | Plugin host (loader + registry) | [`vox-plugin-host`](../../../crates/vox-plugin-host/) |
 | Plugin types (manifest + traits) | [`vox-plugin-types`](../../../crates/vox-plugin-types/) |
@@ -59,6 +60,21 @@ guess. The full crate roster with layer assignments lives in
 | Add a DB store operation | `crates/vox-db/src/<concept>.rs` (impl block on `VoxDb`) |
 | Add a pure-data DB type | `crates/vox-db-types/src/` |
 | Add an orchestrator type (Agent/Task/etc.) | `crates/vox-orchestrator-types/src/agent_types/` |
+| Add an orchestrator policy module (D1–D10) | `crates/vox-orchestrator/src/<module>.rs` + register in `lib.rs` + add row to this table |
+| Orchestrator policy façade (all D1–D10) | `crates/vox-orchestrator/src/orchestrator_policy.rs` |
+| Circuit breaker — doom-loop detection (D6) | `crates/vox-orchestrator/src/circuit_breaker.rs` |
+| Confidence fusion — Socrates trigger (D3) | `crates/vox-orchestrator/src/confidence_fusion.rs` |
+| Tier cascade — model routing (D1) | `crates/vox-orchestrator/src/tier_cascade.rs` |
+| Plan-mode trigger — React vs. plan (D2) | `crates/vox-orchestrator/src/planning/plan_mode_trigger.rs` |
+| Risk matrix — HITL escalation (D5+D9) | `crates/vox-orchestrator/src/risk_matrix.rs` |
+| Privacy classifier — sensitivity detection (D8) | `crates/vox-orchestrator/src/privacy_classifier.rs` |
+| Cache predictor — prefix cache routing (D7) | `crates/vox-orchestrator/src/cache_predictor.rs` |
+| Budget gate — token/cost limits (D7) | `crates/vox-orchestrator/src/budget_gate.rs` |
+| Compaction trigger — strategy selection (D7) | `crates/vox-orchestrator/src/compaction_trigger.rs` |
+| Calibration — drift detection + bandit (D10) | `crates/vox-orchestrator/src/calibration.rs` |
+| Sub-agent dispatch — spawn vs. inline (D4) | `crates/vox-orchestrator/src/subagent_dispatch.rs` |
+| Orchestrator policy metric_type constants | `crates/vox-db/src/research_metrics_contract.rs` — `METRIC_TYPE_*` under "D1–D10" comment |
+| Orchestrator feature flags | `contracts/orchestration/feature-flags.v1.yaml` |
 | Add a code-audit detection rule | `crates/vox-code-audit/src/detectors/<rule>.rs` |
 | Add a skill manifest field | `crates/vox-plugin-types/src/skill_manifest.rs` |
 | Add a plugin manifest field | `crates/vox-plugin-types/src/plugin_manifest.rs` |

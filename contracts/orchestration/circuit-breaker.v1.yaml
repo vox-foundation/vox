@@ -1,0 +1,5 @@
+# contracts/orchestration/circuit-breaker.v1.yaml
+# SCAFFOLD — filled by Phase 2 execution.
+version: 1
+description: "Five-signal circuit breaker for orchestrator doom-loop detection (D6)"
+# See docs/superpowers/plans/2026-05-08-orchestrator-phase-2-circuit-breaker.md Task 1

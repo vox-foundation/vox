@@ -1,0 +1,5 @@
+# contracts/orchestration/socrates-fusion.v1.yaml
+# SCAFFOLD — filled by Phase 3 execution.
+version: 1
+description: "Composite confidence fusion for Socrates invocation decision (D3)"
+# See docs/superpowers/plans/2026-05-08-orchestrator-phase-3-confidence-fusion.md Task 1
