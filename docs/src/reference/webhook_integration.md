@@ -15,7 +15,7 @@ The `vox-webhook` crate provides a lightweight HTTP gateway for receiving events
 
 ## Architecture
 
-```
+```text
 External Service → HTTPS POST → vox-webhook server → OrchestratorEvent → Agent
 ```
 
@@ -50,7 +50,7 @@ allowed_channels = ["github", "slack"]
 
 All incoming payloads are verified using HMAC-SHA256:
 
-```
+```text
 X-Hub-Signature-256: sha256=<hex_signature>
 ```
 

@@ -117,7 +117,7 @@ vox doctor
 ```
 
 Example output:
-```
+```text
   ✓  Rust / Cargo              cargo 1.82.0
   ✓  Node.js                   v20.11.0 (>= v18)
   ✓  Git                       git version 2.44.0
