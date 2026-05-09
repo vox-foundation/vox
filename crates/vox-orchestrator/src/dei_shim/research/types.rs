@@ -122,6 +122,7 @@ impl CompetenceSignal {
     ) -> Self {
         Self {
             confidence,
+            // Safe: judge_quality returns 0..=100 i32; lossless to f32.
             quality: quality as f32,
             verified_claim_count: verdicts.len(),
             had_verification,

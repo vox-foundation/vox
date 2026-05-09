@@ -8,7 +8,7 @@
 //! All stubs are marked `// PHASE_0a_STUB` for grep-based discovery.
 
 pub mod claims;
-pub mod config;
+pub(super) mod config;
 pub mod gate;
 pub mod model_select;
 pub mod orchestrator;

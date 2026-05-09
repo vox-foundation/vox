@@ -21,10 +21,22 @@ pub struct VerifierConfig {
     /// NLI model ID used for claim classification.
     /// Defaults to the registry FALLBACK_NLI_MODEL_ID constant; overridden
     /// in `verifier_config_for_research_run` when registry resolves a better model.
+    ///
+    /// **Phase-0a default is empty string.** Phase 1 must set this to a real
+    /// model ID before calling the verifier, or behavior is undefined.
     pub nli_model_id: String,
 }
 
-/// Verdict label per SciFact taxonomy (as used in stages.rs).
+/// Per-claim verification outcome.
+///
+/// **Taxonomy note:** the SCIENTIA plan (§3.2, citing
+/// [SciFact (arXiv 2210.13777)](https://arxiv.org/abs/2210.13777)) specifies
+/// the canonical SciFact labels: `Support`, `Contradict`, `NotEnoughInfo`,
+/// `Abstain`. The variants here (`Supported`, `Contradicted`, `Contested`,
+/// `Unverified`) match the pre-existing consumer at
+/// `dei_shim::research::orchestrator::stages` to keep Phase 0a compile-correct
+/// without rewriting unrelated code. Phase 1's `vox-claim-extractor`
+/// integration is the right point to reconcile to the SciFact taxonomy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Verdict {

@@ -1,7 +1,6 @@
 use std::time::Instant;
 
 use anyhow::Result;
-use serde_json::json;
 use vox_db::Codex;
 
 use super::config::ResearchConfig;
@@ -29,8 +28,8 @@ pub async fn run_research(
     config: &ResearchConfig,
 ) -> Result<ResearchResult> {
     // ── (0) Check Rollout Flags ──────────────────────────────────────────────
-    let mut web_enabled = true;
-    let mut claim_enabled = config.claim_detection_enabled;
+    let web_enabled = true;
+    let claim_enabled = config.claim_detection_enabled;
     // PHASE_0a_STUB: rollout flag queries not yet wired to Codex; always use defaults.
     // Phase 1 re-enables after vox_db gains get_retrieval_config.
     let persist_enabled = true;

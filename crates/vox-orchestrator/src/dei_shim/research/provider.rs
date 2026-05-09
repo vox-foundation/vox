@@ -9,7 +9,7 @@ use super::types::{ResearchHit, ResearchQuery};
 
 /// A crawled page returned by `ProviderRegistry::crawl`.
 #[derive(Debug, Clone)]
-pub struct CrawledPage {
+pub(super) struct CrawledPage {
     pub url: String,
     pub html: String,
     pub http_status: i32,
@@ -17,7 +17,7 @@ pub struct CrawledPage {
 
 /// A single extracted text chunk from a crawled page.
 #[derive(Debug, Clone)]
-pub struct ExtractedChunk {
+pub(super) struct ExtractedChunk {
     pub text: String,
 }
 
@@ -72,7 +72,7 @@ impl ProviderRegistry {
     /// Crawl a list of URLs. Phase 0a — returns empty Vec.
     ///
     /// **PHASE_0a_STUB**
-    pub async fn crawl(&self, _urls: &[String]) -> Vec<CrawledPage> {
+    pub(super) async fn crawl(&self, _urls: &[String]) -> Vec<CrawledPage> {
         // PHASE_0a_STUB: replaced by real crawl in Phase 5.
         Vec::new()
     }
@@ -80,7 +80,7 @@ impl ProviderRegistry {
     /// Extract text chunks from a crawled page. Phase 0a — returns empty Vec.
     ///
     /// **PHASE_0a_STUB**
-    pub async fn extract(
+    pub(super) async fn extract(
         &self,
         _page: &CrawledPage,
         _query: &str,

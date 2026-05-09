@@ -58,6 +58,10 @@ impl ConfidenceSignal {
         } else if self.score >= light {
             RoutingTier::Light
         } else if self.score == 0.0 {
+            // PHASE_0a_STUB: exact-zero check is valid only while score_with_config
+            // produces an integer-derived float (citation_count / 5.0). Phase 2
+            // multi-signal fusion may produce non-zero scores with no retrieval hits;
+            // replace with `input.no_retrieval_hits` passed through the call chain.
             // No evidence at all → cheapest tier (don't burn cycles on deep
             // research with nothing to verify against).
             RoutingTier::Direct

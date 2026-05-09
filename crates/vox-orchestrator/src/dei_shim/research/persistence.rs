@@ -14,7 +14,7 @@ use anyhow::{Context, Result};
 /// - Non-alphanumerics → '-'
 /// - Collapses runs of '-'
 /// - Trims leading/trailing '-'
-/// - Caps at 80 chars
+/// - At most 80 chars after dash-trim
 /// - Empty → "untitled"
 #[must_use]
 pub fn slug_from_query(query: &str) -> String {
