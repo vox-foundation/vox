@@ -53,6 +53,7 @@ debug = 0
 workspace-hack            = { path = "crates/workspace-hack" }
 # Internal crates
 vox-build-meta            = { path = "crates/vox-build-meta" }
+vox-telemetry             = { path = "crates/vox-telemetry" }
 
 vox-capability-registry   = { path = "crates/vox-capability-registry" }
 vox-secrets                = { path = "crates/vox-secrets" }
