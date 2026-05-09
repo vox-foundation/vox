@@ -289,7 +289,7 @@ pub fn run_data_ssot_guards(root: &Path) -> Result<()> {
             .with_context(|| format!("read {}", fallback_taxonomy_doc.display()))?
     };
 
-    let research_contract = root.join("crates/vox-db/src/research_metrics_contract.rs");
+    let research_contract = root.join("crates/vox-telemetry/src/types.rs");
     let rc = read_utf8_path_capped(&research_contract)
         .with_context(|| format!("read {}", research_contract.display()))?;
     let metric_types = metric_type_constants_from_research_contract(&rc);
