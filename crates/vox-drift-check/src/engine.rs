@@ -3,6 +3,7 @@ use anyhow::Result;
 use rayon::prelude::*;
 use walkdir::WalkDir;
 use vox_code_audit::rules::Language;
+use crate::cache::FeatureCache;
 use crate::extractors::{rust::RustExtractor, typescript::TypeScriptExtractor, vox::VoxExtractor};
 use crate::extractor::LanguageExtractor;
 use crate::features::ExtractedFeatures;
@@ -23,6 +24,7 @@ impl DriftEngine {
 
     pub fn extract_workspace(&self) -> Result<WorkspaceFeatures> {
         let paths = self.collect_source_files();
+        let cache = FeatureCache::from_workspace(&self.root);
         let files: Vec<ExtractedFeatures> = paths
             .par_iter()
             .filter_map(|p| {
@@ -34,7 +36,13 @@ impl DriftEngine {
                     Language::Vox => &VoxExtractor,
                     _ => return None,
                 };
-                extractor.extract(p, &content).ok()
+                let hash = FeatureCache::hash_file(&content);
+                if let Some(cached) = cache.load(&hash) {
+                    return Some(cached);
+                }
+                let result = extractor.extract(p, &content).ok()?;
+                cache.store(&hash, &result).ok();
+                Some(result)
             })
             .collect();
 
