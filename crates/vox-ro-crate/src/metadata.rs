@@ -77,41 +77,41 @@ pub fn build_ro_crate_json(metadata: &RoCrateMetadata) -> Value {
 }
 
 /// Format a Unix timestamp as an ISO 8601 date string (YYYY-MM-DD).
-fn format_iso_date(unix_ts: i64) -> String {
-    // Simple implementation: days since epoch
-    let days = unix_ts / 86400;
-    let mut year = 1970i64;
-    let mut remaining_days = days;
+fn format_iso_date(unix_secs: i64) -> String {
+    // Days since Unix epoch
+    let days_since_epoch = unix_secs / 86_400;
+    let mut year = 1970u32;
+    let mut remaining = days_since_epoch as u32;
 
     loop {
         let days_in_year = if is_leap_year(year) { 366 } else { 365 };
-        if remaining_days < days_in_year {
+        if remaining < days_in_year {
             break;
         }
-        remaining_days -= days_in_year;
+        remaining -= days_in_year;
         year += 1;
     }
 
-    let month_days = if is_leap_year(year) {
-        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    } else {
-        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    };
+    let month_days: [u32; 12] = [
+        31,
+        if is_leap_year(year) { 29 } else { 28 },
+        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+    ];
 
-    let mut month = 1usize;
-    for &md in &month_days {
-        if remaining_days < md {
+    let mut month = 1u32;
+    for &days in &month_days {
+        if remaining < days {
             break;
         }
-        remaining_days -= md;
+        remaining -= days;
         month += 1;
     }
-    let day = remaining_days + 1;
 
-    format!("{:04}-{:02}-{:02}", year, month, day)
+    let day = remaining + 1; // 1-based day
+    format!("{year:04}-{month:02}-{day:02}")
 }
 
-fn is_leap_year(year: i64) -> bool {
+fn is_leap_year(year: u32) -> bool {
     (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)
 }
 
@@ -156,5 +156,22 @@ mod tests {
         let graph = json["@graph"].as_array().unwrap();
         let dataset = graph.iter().find(|n| n["@type"] == "Dataset").unwrap();
         assert!(dataset.get("identifier").is_some());
+    }
+
+    #[test]
+    fn iso_date_epoch_zero_is_1970_01_01() {
+        assert_eq!(format_iso_date(0), "1970-01-01");
+    }
+
+    #[test]
+    fn iso_date_one_day_is_1970_01_02() {
+        assert_eq!(format_iso_date(86_400), "1970-01-02");
+    }
+
+    #[test]
+    fn iso_date_known_date_2023_11_15() {
+        // 1700000000 Unix = 2023-11-14 22:13:20 UTC → date = 2023-11-14
+        // 1700006400 Unix = 2023-11-15 00:00:00 UTC → date = 2023-11-15
+        assert_eq!(format_iso_date(1_700_006_400), "2023-11-15");
     }
 }
