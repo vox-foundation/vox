@@ -69,9 +69,16 @@ impl ExtractionPipeline {
 
         // Stage 6: Constrained envelope validation
         let valid_claims: Vec<AtomicClaim> = valid_claims.into_iter()
-            .filter(|c| {
-                let json = serde_json::to_value(c).unwrap_or(serde_json::Value::Null);
-                validate_claim_envelope(&json).is_ok()
+            .filter_map(|c| {
+                match serde_json::to_value(&c) {
+                    Ok(json) => {
+                        if validate_claim_envelope(&json).is_ok() { Some(c) } else { None }
+                    }
+                    Err(e) => {
+                        tracing::warn!(claim_id = c.id, error = %e, "claim serialization failed; dropping");
+                        None
+                    }
+                }
             })
             .collect();
 

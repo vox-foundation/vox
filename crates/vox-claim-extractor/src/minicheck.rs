@@ -1,3 +1,4 @@
+use crate::atomic::fnv1a_hash;
 use crate::types::VerifierOutput;
 use serde::{Deserialize, Serialize};
 
@@ -12,18 +13,14 @@ pub struct MiniCheckVerifier {
     pub abstain_threshold: f64,
 }
 
+// TODO(Phase 5): These structs are used by the Http backend once MiniCheck-FT5 is wired.
 #[allow(dead_code)]
 #[derive(Serialize)]
-struct MiniCheckRequest<'a> {
-    claim: &'a str,
-    context: &'a str,
-}
+struct MiniCheckRequest<'a> { claim: &'a str, context: &'a str }
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
-struct MiniCheckResponse {
-    support_score: f64,
-}
+struct MiniCheckResponse { support_score: f64 }
 
 impl MiniCheckVerifier {
     pub fn mock() -> Self {
@@ -86,13 +83,6 @@ impl MiniCheckVerifier {
             }
         }
     }
-}
-
-fn fnv1a_hash(s: &str) -> u64 {
-    const FNV_OFFSET: u64 = 14695981039346656037;
-    const FNV_PRIME: u64 = 1099511628211;
-    s.bytes()
-        .fold(FNV_OFFSET, |h, b| (h ^ b as u64).wrapping_mul(FNV_PRIME))
 }
 
 #[cfg(test)]
