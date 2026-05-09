@@ -132,7 +132,7 @@ pub(crate) async fn http_openai_compatible_with_headers(
     let provider_reported_cost_usd = u.total_cost.or(u.cost);
     // Collect cache-hit tokens: prefer Anthropic-style `cache_read_input_tokens`, then
     // OpenAI/DeepSeek-style `prompt_tokens_details.cached_tokens`. A value of 0 is treated as None.
-    let cached_input_tokens: Option<u32> =
+    let cache_read_input_tokens: Option<u32> =
         u.cache_read_input_tokens.filter(|&t| t > 0).or_else(|| {
             u.prompt_tokens_details
                 .as_ref()
@@ -146,7 +146,8 @@ pub(crate) async fn http_openai_compatible_with_headers(
         HttpCallMetadata {
             provider_request_id: provider_request_id.or(parsed.id),
             provider_reported_cost_usd,
-            cached_input_tokens,
+            cache_read_input_tokens,
+            cache_creation_input_tokens: None, // OpenAI doesn't report cache creation separately
         },
     ))
 }

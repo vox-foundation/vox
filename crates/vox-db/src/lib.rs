@@ -77,6 +77,7 @@ pub mod connect_policy;
 pub mod legacy;
 /// Ludus / extended `gamify_*` contracts and metrics keys (DDL in baseline `schema/domains`).
 pub mod research_metrics_contract;
+pub mod telemetry_sink;
 pub mod schema;
 /// Idempotent schema extensions (FTS).
 pub mod schema_extensions;

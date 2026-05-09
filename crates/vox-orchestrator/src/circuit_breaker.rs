@@ -183,6 +183,20 @@ pub struct TripEvent {
 
 impl TripEvent {
     pub fn new(reason: TripReason, state: &CircuitBreakerState) -> Self {
+        let trace_ctx = vox_telemetry::current_trace_ctx();
+        vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
+            vox_telemetry::ErrorEvent {
+                subsystem: "orch.circuit_breaker".into(),
+                error_class: reason.to_string(),
+                http_status: None,
+                retry_attempt: state.replan_attempts,
+                retried: false,
+                model: None,
+                provider: None,
+                task_id: trace_ctx.task_id,
+                trace_id: Some(trace_ctx.trace_id.to_string()),
+            }
+        ));
         Self {
             metric_type: vox_db::research_metrics_contract::METRIC_TYPE_CIRCUIT_BREAKER_TRIP,
             trip_reason: reason.to_string(),

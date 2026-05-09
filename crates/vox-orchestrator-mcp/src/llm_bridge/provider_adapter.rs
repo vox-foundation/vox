@@ -17,8 +17,10 @@ pub(crate) struct ProviderInferResult {
     pub completion_tokens: u32,
     pub provider_request_id: Option<String>,
     pub provider_reported_cost_usd: Option<f64>,
-    /// Tokens that were served from the provider's prompt cache for this call, if reported.
-    pub cached_input_tokens: Option<u32>,
+    /// Anthropic-style: tokens served from prompt cache (cheap reads).
+    pub cache_read_input_tokens: Option<u32>,
+    /// Anthropic-style: tokens written to populate the prompt cache (creation premium).
+    pub cache_creation_input_tokens: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -70,7 +72,8 @@ fn adapt_result(
         completion_tokens,
         provider_request_id: meta.provider_request_id,
         provider_reported_cost_usd: meta.provider_reported_cost_usd,
-        cached_input_tokens: meta.cached_input_tokens,
+        cache_read_input_tokens: meta.cache_read_input_tokens,
+        cache_creation_input_tokens: meta.cache_creation_input_tokens,
     }
 }
 
@@ -322,7 +325,8 @@ impl ProviderAdapter for VoxLocalAdapter {
                 completion_tokens: approx_tokens,
                 provider_request_id: None,
                 provider_reported_cost_usd: None,
-                cached_input_tokens: None,
+                cache_read_input_tokens: None,
+                cache_creation_input_tokens: None,
             })
         })
     }

@@ -10593,6 +10593,7 @@ dependencies = [
  "vox-reqwest-defaults",
  "vox-secrets",
  "vox-skills",
+ "vox-telemetry",
  "which 8.0.2",
  "workspace-hack",
  "xxhash-rust",
@@ -10742,6 +10743,7 @@ dependencies = [
  "vox-share",
  "vox-skills",
  "vox-ssg",
+ "vox-telemetry",
  "vox-wasm-engine",
  "vox-workflow-runtime",
  "walkdir",
@@ -10997,6 +10999,7 @@ dependencies = [
  "vox-plugin-types",
  "vox-repository",
  "vox-secrets",
+ "vox-telemetry",
  "vox-test-harness",
  "workspace-hack",
 ]
@@ -11458,6 +11461,7 @@ dependencies = [
  "vox-reqwest-defaults",
  "vox-search",
  "vox-secrets",
+ "vox-telemetry",
  "walkdir",
  "workspace-hack",
  "xxhash-rust",
@@ -11566,6 +11570,7 @@ dependencies = [
  "vox-search",
  "vox-secrets",
  "vox-skills",
+ "vox-telemetry",
  "walkdir",
  "workspace-hack",
  "xxhash-rust",
@@ -12213,6 +12218,20 @@ name = "vox-ssg"
 version = "0.5.0"
 dependencies = [
  "vox-compiler",
+ "workspace-hack",
+]
+
+[[package]]
+name = "vox-telemetry"
+version = "0.5.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "serial_test",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "uuid",
  "workspace-hack",
 ]
 

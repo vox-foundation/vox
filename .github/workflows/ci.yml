@@ -353,9 +353,10 @@ jobs:
         run: cargo check -p vox-orchestrator --no-default-features --features runtime,mcp-native,toestub-gate
 
       - name: Arch-check (layer + fan-in + LoC + orphan + docstring)
+        # Invocation delegated to scripts/arch-check.vox (SSOT).
         # Layer rule strict; the others warn-only by default. Source of truth:
         # docs/src/architecture/layers.toml.
-        run: cargo run -p vox-arch-check --quiet
+        run: cargo run -p vox-cli --quiet -- run scripts/arch-check.vox
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@v2
