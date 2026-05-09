@@ -1,3 +1,11 @@
+---
+title: "Naming & Anti-Entanglement Guards (2026-05-08)"
+description: "Design for LLM-navigation naming conventions and CI drift guards after the 2026-05-08 workspace reorg."
+category: "Architecture SSOTs"
+status: "current"
+training_eligible: false
+---
+
 # Naming & Anti-Entanglement Guards (2026-05-08)
 
 > **Naming note (2026-05-08):** The CI guard binary referenced as `vox-layer-check` in this narration was renamed to `vox-arch-check` later in the same series; references below are historical.
