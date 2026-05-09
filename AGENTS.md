@@ -259,6 +259,34 @@ Agents and contributors must strictly adhere to architectural invariants. Ensure
 
 **Full details:** See [`docs/agents/governance.md`](docs/agents/governance.md) for the complete policy, line limits, and module freeze rules.
 
+## Vox Language Enforcement Rules (LLM Guard)
+
+These rules apply to `.vox` source files and are enforced by `vox stub-check` (static) and the Vox runtime (dynamic). Agents writing Vox code MUST follow them.
+
+**Effect declarations (Phase 5):**
+- Any `pub fn` or `@endpoint fn` that calls `http.*`, `net.*`, `fetch(`, `populi.*`, or `std.http.*` MUST carry `@uses(net)` in the preceding decorator list.
+- A `@pure fn` MUST NOT call `http`, `net`, `fs`, `db`, `random`, `time`, `log`, or any `async/await` — the compiler will reject it.
+- Workflow bodies (`workflow { }`) MUST NOT call non-deterministic builtins: `time.now()`, `random.*()`, `uuid()`, `crypto.random_bytes()`. Use `activity` functions for side-effectful work instead.
+
+**Type boundaries (Phase 3):**
+- ID parameters on `@endpoint`, `@activity`, or actor-message functions MUST use `Id[T]` (e.g., `Id[User]`) rather than bare `str`. Lint: `vox/types/id-required-at-boundary`.
+- Error types on public boundaries MUST be named ADTs — `Result[T, str]` is flagged by `vox/types/anonymous-error-type`.
+
+**Decorator position (Phase 2):**
+- Use `@durable fn`, `@pure fn`, `@scheduled fn` — NOT `durable fn`, `pure fn`, `scheduled fn`. The bare-keyword position is reserved for `actor`, `workflow`, `activity`, `fn`, `type`, `component`, `routes`, `module`, `state_machine`.
+- See the Grammar Unification section above for the full keyword table.
+
+**Auth / access control:**
+- Every `@endpoint fn` MUST carry either `@auth(...)` or `@public`. An endpoint with neither is flagged `vox/auth/endpoint-missing-decorator`.
+
+**State machines:**
+- Every state in a `state_machine { }` block must have at least one `->` outgoing transition, or be marked as a terminal state with a `// terminal` comment. Flagged by `vox/state-machine/unreachable-state`.
+
+**Generated files:**
+- Do NOT manually edit files with a `@generated-hash <hex>` header. Re-run the generator (`xtask gen-builtins` or the appropriate script). Flagged by `vox/codegen/generated-file-drift`.
+
+Full details and per-rule fix patterns: [`docs/src/architecture/vox-language-rules-and-enforcement-plan-2026.md`](docs/src/architecture/vox-language-rules-and-enforcement-plan-2026.md) and the per-phase child plans.
+
 ## Related Operational Surfaces
 
 - CI and runner behavior: [`docs/src/ci/runner-contract.md`](docs/src/ci/runner-contract.md)

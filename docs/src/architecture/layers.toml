@@ -39,6 +39,8 @@ where_things_live = "error"
 # Rule 6: warns when a crate has no commits since the last CHANGELOG.md release date.
 # Silence for individual crates with staleness_exempt = true.
 staleness         = "warn"
+# Rule 9: warns when a @generated-hash header in a file no longer matches content.
+generated_file_drift = "warn"
 
 [crates]
 
