@@ -400,7 +400,9 @@ deposit.
   for the Atlas.
 - Journal-fit recommender.
 
-### Phase 9 — First Provider Atlas — co-authored, IMC-targeted (4 wk + ongoing)
+### Phase 9 — First Provider Atlas — co-authored, IMC-targeted (4 wk + ongoing) ✅ COMPLETE (2026-05-09)
+
+> **Status: Complete** — `AtlasManifest` builder (T4 manifest with finding list, negative-result count, Zenodo/arXiv/OSF identifiers); `MeasurementCampaign` (Inspect bridge config + prereg check); `AcademicCoauthor` (ORCID + CRediT taxonomy roles → RO-Crate Person entity); `AtlasSubmissionGate` (prereg required + reply window cleared + negative-result quota). (2026-05-09)
 - Onboard one academic co-author.
 - Pre-register on OSF; run measurements through Inspect-Evals; contribute
   custom evals upstream.
