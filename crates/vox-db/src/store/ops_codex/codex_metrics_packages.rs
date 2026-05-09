@@ -1,6 +1,6 @@
 use turso::params;
 
-use crate::research_metrics_contract::validate_research_metric_row;
+use vox_telemetry::validate_research_metric_row;
 use crate::store::types::{EndpointReliabilityEntry, PackageSearchResult, StoreError};
 
 impl crate::VoxDb {
@@ -10,7 +10,7 @@ impl crate::VoxDb {
     ///
     /// **Canonical write path** for all Codex `research_metrics` inserts: telemetry modules
     /// (`benchmark_telemetry`, `syntax_k_telemetry`, `socrates_telemetry`, …) should call this (or thin wrappers)
-    /// so [`crate::research_metrics_contract::validate_research_metric_row`] always runs.
+    /// so [`vox_telemetry::validate_research_metric_row`] always runs.
     pub async fn append_research_metric(
         &self,
         session_id: &str,
@@ -18,7 +18,8 @@ impl crate::VoxDb {
         metric_value: Option<f64>,
         metadata_json: Option<&str>,
     ) -> Result<i64, StoreError> {
-        validate_research_metric_row(session_id, metric_type, metadata_json)?;
+        validate_research_metric_row(session_id, metric_type, metadata_json)
+            .map_err(|e| StoreError::Db(e.to_string()))?;
         let session_id = session_id.to_string();
         let metric_type = metric_type.to_string();
         let metadata_json = metadata_json.map(str::to_string);
