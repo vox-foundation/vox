@@ -78,6 +78,8 @@ pub mod catalog_classifier;
 pub mod clarification_db_inbox_poll;
 /// Five-signal circuit breaker for doom-loop detection (D6).
 pub mod circuit_breaker;
+/// Composite confidence fusion for Socrates invocation decision (D3).
+pub mod confidence_fusion;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Orchestrator configuration load, merge, and validation.
