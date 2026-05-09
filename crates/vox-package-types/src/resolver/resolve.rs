@@ -150,48 +150,43 @@ impl Resolver {
             let mut feature_queue = newly_activated.clone();
             while let Some(feat) = feature_queue.pop() {
                 final_new_features.push(feat.clone());
-                if let Some(feature_map) = pkg_features {
-                    if let Some(implied) = feature_map.get(&feat) {
-                        for imp in implied {
-                            let active = active_features.entry(name.clone()).or_default();
-                            if active.insert(imp.clone()) {
-                                feature_queue.push(imp.clone());
-                            }
+                if let Some(implied) = pkg_features.and_then(|m| m.get(&feat)) {
+                    for imp in implied {
+                        let active = active_features.entry(name.clone()).or_default();
+                        if active.insert(imp.clone()) {
+                            feature_queue.push(imp.clone());
                         }
                     }
                 }
             }
 
+            let Some(deps) = self.dep_graph.get(&key) else {
+                continue;
+            };
             if is_new || !final_new_features.is_empty() {
-                if let Some(deps) = self.dep_graph.get(&key) {
-                    for (dep_name, dep_req, optional, dep_feat) in deps {
-                        let mut should_add = !*optional;
-                        if *optional {
-                            let active = active_features.entry(name.clone()).or_default();
-                            if active.contains(dep_name)
-                                || active.contains(&format!("dep:{}", dep_name))
-                            {
-                                should_add = true;
+                for (dep_name, dep_req, optional, dep_feat) in deps {
+                    let mut should_add = !*optional;
+                    if *optional {
+                        let active = active_features.entry(name.clone()).or_default();
+                        if active.contains(dep_name)
+                            || active.contains(&format!("dep:{}", dep_name))
+                        {
+                            should_add = true;
+                        }
+                    }
+
+                    if should_add {
+                        let dep_active = active_features.entry(dep_name.clone()).or_default();
+                        let mut has_new_dep_features = false;
+                        for df in dep_feat {
+                            if !dep_active.contains(df) {
+                                has_new_dep_features = true;
                             }
                         }
+                        let dep_is_new = !resolved.contains_key(dep_name);
 
-                        if should_add {
-                            let dep_active = active_features.entry(dep_name.clone()).or_default();
-                            let mut has_new_dep_features = false;
-                            for df in dep_feat {
-                                if !dep_active.contains(df) {
-                                    has_new_dep_features = true;
-                                }
-                            }
-                            let dep_is_new = !resolved.contains_key(dep_name);
-
-                            if dep_is_new || has_new_dep_features {
-                                queue.push_back((
-                                    dep_name.clone(),
-                                    dep_req.clone(),
-                                    dep_feat.clone(),
-                                ));
-                            }
+                        if dep_is_new || has_new_dep_features {
+                            queue.push_back((dep_name.clone(), dep_req.clone(), dep_feat.clone()));
                         }
                     }
                 }
