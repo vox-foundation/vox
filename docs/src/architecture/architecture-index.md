@@ -101,6 +101,7 @@ training_eligible: false
 ## Status: Research
 
 - [Agent Shell Fluency Eval Design (2026)](agent-shell-fluency-eval-design-2026.md)
+- [Autonomous Orchestration Policy — Decision-Rule Research for Agent-to-Agent Behavior Switching (2026)](autonomous-orchestration-policy-research-2026.md)
 - [Dead Crate Deep Dive (2026-05-08)](dead-crate-deep-dive-2026-05-08.md)
 - [Dead Crate Fate Plan (2026-05-08)](dead-crate-fate-plan-2026-05-08.md)
 - [Frontend Convergence Findings (2026)](frontend-convergence-findings-2026.md)
