@@ -96,6 +96,7 @@ vox-mesh-types.workspace = true
 blake3.workspace = true
 crossbeam-queue = "0.3.12"
 workspace-hack = { workspace = true }
+axum = { workspace = true, features = ["tokio", "http1", "json"] }
 glob.workspace = true
 ignore = "0.4.25"
 rand_distr = "0.4"
@@ -113,6 +114,8 @@ proptest = "1.10.0"
 serial_test = { workspace = true }
 tempfile = { workspace = true }
 vox-actor-runtime = { workspace = true }
+vox-skills = { workspace = true }
+axum = { workspace = true, features = ["tokio", "http1", "json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 jsonschema = { workspace = true, default-features = false }
 tower = { version = "0.5", features = ["util"] }

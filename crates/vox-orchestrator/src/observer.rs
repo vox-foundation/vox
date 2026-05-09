@@ -406,7 +406,7 @@ impl Foo {
         let f = make_rs_file(src);
         let obs = Observer::with_default_policy();
         let report = obs.observe_rust_file("s1", "t1", f.path());
-        assert_eq!(report.task_id, "t1");
+        assert_eq!(report.task_id, "t1".into());
         assert_eq!(report.lsp_error_count, 0);
         assert_eq!(report.recommended_action, ObserverAction::Continue);
     }

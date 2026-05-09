@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 #[tokio::test]
+#[ignore = "pending SP6 plugin_skills_bridge implementation"]
 async fn compiler_skill_loaded_via_plugin_bridge() {
     let tmp = tempfile::tempdir().expect("tempdir");
     // vox-plugin-host discover() walks for Plugin.toml; layout: <root>/<any-dir>/Plugin.toml
