@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sat, 09 May 2026 03:24:46 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 09 May 2026 03:50:07 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -118,6 +118,15 @@
   </item>
 
   <item>
+    <title>Gradio &amp; Streamlit Research (2026): What VUV Should Steal, Adapt, and Reject</title>
+    <link>https://vox-lang.org/architecture/gradio-streamlit-research-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/gradio-streamlit-research-2026.html</guid>
+    <description>Primary-source history and architectural review of Gradio and Streamlit, the two dominant Python web-GUI libraries, framed as design input to Vox&apos;s VUV…</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
     <title>GUI Authoring Syntax (2026): Vox UI as Values (VUV)</title>
     <link>https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/gui-authoring-syntax-2026.html</guid>
@@ -223,16 +232,6 @@
     <description>Where Things Live</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Comprehensive Vox audit and improvement plan (April 2026, v2)</title>
-    <link>https://vox-lang.org/archive/research-2026-q1/comprehensive-audit-findings-2026.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/archive/research-2026-q1/comprehensive-audit-findings-2026.html</guid>
-    <description>Full-spectrum audit + ~90 prioritized improvements. Targets the &apos;premier LLM destination for web app code&apos; thesis.</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>

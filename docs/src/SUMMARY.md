@@ -288,6 +288,7 @@ training_eligible: false
 - [Terminal Exec Policy SSOT (2026)](architecture/terminal-exec-policy-ssot.md)
 - [Trust Reliability Layer (SSOT)](archive/research-2026-q1/trust-reliability-layer.md)
 - [Unified News Syndication Security & Safety](archive/research-2026-q1/news_syndication_security.md)
+- [VUV Naming Policy (2026)](architecture/vuv-naming-policy-2026.md)
 - [Vox Architectural Organization & Governance](archive/research-2026-q1/vox-organization.md)
 - [Vox Configuration Architecture (SSOT)](archive/research-2026-q1/config-ssot.md)
 - [Vox Dashboard — Design Brief for Anthropic Labs Design (2026)](architecture/vox-dashboard-design-brief-2026.md)
