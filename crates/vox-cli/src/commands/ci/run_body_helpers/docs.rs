@@ -508,6 +508,7 @@ pub(crate) fn run_ssot_drift(root: &Path) -> Result<()> {
     super::guards::run_query_all_guard(root, true)?;
     super::guards::run_turso_import_guard(root, true)?;
     crate::commands::ci::policy_allowlist_parity::run(root)?;
+    crate::commands::ci::db_schema_coverage::run(root)?;
     crate::commands::ci::nomenclature_guard::run(root, false)?;
     crate::commands::ci::operations_catalog::verify(root)?;
     command_compliance::run(root)?;

@@ -294,6 +294,9 @@ pub enum CiCmd {
         #[arg(long)]
         all: bool,
     },
+    /// Verify every CREATE TABLE in the workspace is owned by a crate in tiers.a_relational.owners.
+    #[command(name = "db-schema-coverage")]
+    DbSchemaCoverage,
     /// Verify allow_direct_access in data-storage-policy.v1.yaml matches docs/agents/turso-import-allowlist.txt.
     #[command(name = "policy-allowlist-parity")]
     PolicyAllowlistParity,

@@ -253,6 +253,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::SqlSurfaceGuard { all } => run_sql_surface_guard(&root, all),
         CiCmd::QueryAllGuard { all } => run_query_all_guard(&root, all),
         CiCmd::TursoImportGuard { all } => run_turso_import_guard(&root, all),
+        CiCmd::DbSchemaCoverage => super::db_schema_coverage::run(&root),
         CiCmd::PolicyAllowlistParity => super::policy_allowlist_parity::run(&root),
         CiCmd::ClavisContracts => run_clavis_contracts(&root),
         CiCmd::ClavisParity => run_clavis_parity(&root),

@@ -15,6 +15,7 @@ pub mod completion_quality;
 mod contracts_index;
 mod coolify_eval;
 pub mod data_storage_guard;
+mod db_schema_coverage;
 mod dep_sprawl;
 pub mod deploy_status;
 mod determinism_audit;
