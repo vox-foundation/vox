@@ -20,6 +20,16 @@ Welcome. This file is the **short golden path**; deeper policy lives in [AGENTS.
 4. If you touch CLI flags or help text:  
    `cargo run -p vox-cli -- ci command-compliance`
 
+## Pre-commit hooks
+
+Run once after cloning to install generators that auto-maintain `.generated.md` files and ignore-file sync on every commit:
+
+```bash
+vox run scripts/install-hooks.vox
+```
+
+Requires [lefthook](https://github.com/evilmartians/lefthook): `winget install evilmartians.lefthook` (Windows), `brew install lefthook` (macOS), or `cargo install lefthook` (Linux/other). If you skip this step, CI will show advisory warnings when generated files drift.
+
 ## Where things live
 
 | Area | Entry |

@@ -1,0 +1,23 @@
+# Pre-commit hooks — auto-maintain generated files so they never drift to CI.
+# Install once after cloning: vox run scripts/install-hooks.vox
+# Requires lefthook: https://github.com/evilmartians/lefthook
+#
+# stage_fixed: true  →  lefthook re-stages any files the generator rewrites,
+#                        so the developer doesn't need to manually git add them.
+pre-commit:
+  parallel: false
+  commands:
+    sync-ignore-files:
+      run: cargo run -p vox-cli --quiet -- ci sync-ignore-files
+      stage_fixed: true
+      glob: ".voxignore"
+
+    command-sync:
+      run: cargo run -p vox-cli --quiet -- ci command-sync
+      stage_fixed: true
+      glob: "crates/vox-cli/src/commands/**/*.rs"
+
+    plugin-catalog-docs:
+      run: cargo run -p vox-cli --quiet -- ci generate-plugin-catalog-docs
+      stage_fixed: true
+      glob: "crates/vox-plugin-catalog/catalog.toml"
