@@ -36,6 +36,15 @@ fn patch_legacy_hook_fn_keyword(src: &str) -> Option<String> {
 pub enum MigrateCmd {
     /// Scan `.vox` files for React interop migration findings (Path C, retired decorators).
     Web(WebMigrateArgs),
+    /// Rewrite a .vox corpus to canonical names from `contracts/naming/renames.v1.json`.
+    ///
+    /// Walks all `.vox` files under ROOT (default: current directory), rewrites any
+    /// identifier that appears as a `from` key in the rename registry to its canonical
+    /// `to` name, and writes the result back in-place (unless `--dry-run` is given).
+    ///
+    /// The token-based rewrite logic is a pass-through stub in Task 5; Task 6 implements
+    /// the full rewrite.
+    Names(NamesArgs),
 }
 
 #[derive(clap::Args, Debug, Clone)]
@@ -52,6 +61,18 @@ pub struct WebMigrateArgs {
     /// Exit with failure if any migration findings (or parse errors) remain after the run (for CI).
     #[arg(long)]
     pub check: bool,
+}
+
+/// Arguments for `vox migrate names`.
+#[derive(clap::Args, Debug, Clone)]
+pub struct NamesArgs {
+    /// Root directory of .vox sources to rewrite. Defaults to the current working directory.
+    #[arg(default_value = ".")]
+    pub root: PathBuf,
+
+    /// Print what would change without writing files.
+    #[arg(long)]
+    pub dry_run: bool,
 }
 
 #[derive(Serialize)]
@@ -76,7 +97,76 @@ struct WebReport {
 pub fn run(cmd: MigrateCmd) -> Result<()> {
     match cmd {
         MigrateCmd::Web(args) => run_web(args),
+        MigrateCmd::Names(args) => run_names(args),
     }
+}
+
+fn run_names(args: NamesArgs) -> Result<()> {
+    let registry = vox_compiler::parser::renames::RenameRegistry::load_canonical()
+        .map_err(|e| anyhow::anyhow!("loading rename registry: {}", e))?;
+    let files = collect_vox_files(&args.root)?;
+    let mut total = 0usize;
+    for path in &files {
+        let before =
+            std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+        let after = rewrite(&before, &registry);
+        if before != after {
+            total += 1;
+            if !args.dry_run {
+                std::fs::write(path, &after)
+                    .with_context(|| format!("write {}", path.display()))?;
+            }
+            println!(
+                "{}: {}",
+                if args.dry_run { "would update" } else { "updated" },
+                path.display()
+            );
+        }
+    }
+    println!(
+        "{} file(s) {}",
+        total,
+        if args.dry_run { "would be updated" } else { "updated" }
+    );
+    Ok(())
+}
+
+fn collect_vox_files(root: &std::path::Path) -> std::io::Result<Vec<PathBuf>> {
+    let mut out = Vec::new();
+    walk_for_names(root, &mut out)?;
+    Ok(out)
+}
+
+fn walk_for_names(dir: &std::path::Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    if !dir.is_dir() {
+        return Ok(());
+    }
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            let name = path.file_name().unwrap_or_default();
+            if name == "target" || name == "node_modules" || name == ".git" {
+                continue;
+            }
+            walk_for_names(&path, out)?;
+        } else if path.extension().map_or(false, |e| e == "vox") {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
+/// Codemod: rewrite identifier tokens that appear as `from` keys in the registry
+/// to their canonical `to` names. Stub in Task 5; real implementation in Task 6.
+///
+/// Exposed as `pub` for testing from the integration suite.
+pub fn rewrite(
+    source: &str,
+    _registry: &vox_compiler::parser::renames::RenameRegistry,
+) -> String {
+    // Task 6 implements token-based rewrite. Placeholder: pass-through.
+    source.to_string()
 }
 
 fn run_web(args: WebMigrateArgs) -> Result<()> {
