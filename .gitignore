@@ -171,3 +171,4 @@ crates/vox-orchestrator/src/generated/
 **/tsconfig.tsbuildinfo
 crates/vox-dashboard/dist/
 docs/src/SUMMARY.md
+docs/src/feed.xml

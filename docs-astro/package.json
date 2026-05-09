@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@astrojs/check": "^0.9.8",
+    "@astrojs/rss": "^4.0.18",
     "@astrojs/starlight": "^0.38.3",
     "astro": "^6.0.1",
     "gray-matter": "^4.0.3",
