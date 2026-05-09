@@ -2,6 +2,7 @@
 
 use crate::ast::decl::fundecl::StyleBlock;
 use crate::ast::span::Span;
+use crate::hir::nodes::form::HirForm;
 
 use super::expr::HirExpr;
 use super::stmt::HirStmt;
@@ -81,6 +82,10 @@ pub struct HirModule {
     /// context + provider + `use<Name>()` hook in TSX emit.
     #[serde(default)]
     pub reactive_modules: Vec<HirReactiveModule>,
+
+    /// Form declarations lowered from `@form`.
+    #[serde(default)]
+    pub forms: Vec<HirForm>,
 
     /// Declarations not yet represented as typed HIR vectors (unknown / future decl kinds).
     pub legacy_ast_nodes: Vec<crate::ast::decl::Decl>,
