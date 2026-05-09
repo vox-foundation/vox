@@ -102,6 +102,15 @@ pub mod env_secret_shape;
 /// Imports or dependencies referencing banned cryptography crates (aegis, ring, …).
 pub mod crypto_ban;
 
+/// Non-deterministic builtins (`time.now`, `random.*`, `uuid()`, etc.) inside a `workflow` body.
+pub mod workflow_nondeterministic;
+
+/// `pub fn` or `@endpoint fn` calling HTTP/net builtins without `@uses(net)` decorator.
+pub mod effect_net_decl;
+
+/// `@pure fn` that calls an impure builtin (HTTP, I/O, random, log, etc.).
+pub mod pure_fn_impure;
+
 use crate::rules::DetectionRule;
 
 /// Returns all built-in detectors.
@@ -152,12 +161,15 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(anonymous_error::AnonymousErrorDetector::new()),
         Box::new(syntax_version::SyntaxVersionDetector::new()),
         Box::new(training_eligible::TrainingEligibleDetector::new()),
+        Box::new(workflow_nondeterministic::WorkflowNondeterministicDetector::new()),
+        Box::new(effect_net_decl::EffectNetDeclDetector::new()),
+        Box::new(pure_fn_impure::PureFnImpureDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    41
+    44
 }
 
 #[cfg(test)]
