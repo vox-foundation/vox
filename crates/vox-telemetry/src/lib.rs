@@ -77,6 +77,8 @@ pub use types::{
     SESSION_PREFIX_SYNTAXK,
     SESSION_PREFIX_WORKFLOW,
     // event types
+    BuildSummaryEvent,
+    ErrorEvent,
     ModelCallEvent,
     ResearchMetricEvent,
     TaskRootSummaryEvent,

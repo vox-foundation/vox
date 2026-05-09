@@ -225,7 +225,10 @@ pub enum TelemetryEvent {
     ModelCall(ModelCallEvent),
     /// Top-level task completion rollup (Phase C).
     TaskRootSummary(TaskRootSummaryEvent),
-    // Phase D adds: BuildSummary(BuildSummaryEvent), Error(ErrorEvent)
+    /// Build summary mirrored from `vox ci build-timings` (Phase D).
+    BuildSummary(BuildSummaryEvent),
+    /// Subsystem error / retry event (Phase D).
+    Error(ErrorEvent),
 }
 
 /// Payload for a `TelemetryEvent::ResearchMetric`.
@@ -285,6 +288,56 @@ pub struct TaskRootSummaryEvent {
     pub child_call_count: u32,
     pub max_span_depth: u16,
     pub subagent_fanout: u32,
+}
+
+/// Build pipeline summary. Persisted as `research_metrics` row with
+/// `metric_type = METRIC_TYPE_BUILD_SUMMARY_EVENT`.
+///
+/// Emitted after `vox ci build-timings` completes or fails.
+/// Sensitivity: **S0 (OperationalMetrics — no user content)**.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BuildSummaryEvent {
+    /// Identifier for the build run (CI job ID, local session ID, etc.).
+    pub build_id: String,
+    /// "success" | "failure" | "cancelled"
+    pub outcome: String,
+    /// Total wall-clock time of the build in milliseconds.
+    pub wall_time_ms: u64,
+    /// Number of crates compiled.
+    pub crates_compiled: u32,
+    /// Number of compile errors, if any.
+    pub error_count: u32,
+    /// Top-level invocation context: "ci" | "local" | "watch".
+    pub invocation_context: Option<String>,
+}
+
+/// Generic subsystem error / retry event. Persisted as `research_metrics` row with
+/// `metric_type = METRIC_TYPE_ERROR_EVENT`.
+///
+/// Emitted at the call site of notable errors: HTTP failures, 429 rate-limits,
+/// circuit-breaker trips. Carries enough context to filter by subsystem and
+/// error kind without embedding user content.
+/// Sensitivity: **S1 (OperationalTracing)**.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct ErrorEvent {
+    /// Dot-separated subsystem path, e.g. "llm.http", "orch.circuit_breaker".
+    pub subsystem: String,
+    /// Short kebab-case error class, e.g. "rate-limited", "connection-timeout".
+    pub error_class: String,
+    /// HTTP status code, if applicable.
+    pub http_status: Option<u16>,
+    /// Which retry attempt this is (0 = first failure, 1 = after first retry, …).
+    pub retry_attempt: u32,
+    /// Whether the call was ultimately retried after this error.
+    pub retried: bool,
+    /// Optional model identifier if the error occurred during an LLM call.
+    pub model: Option<String>,
+    /// Optional provider identifier.
+    pub provider: Option<String>,
+    /// Optional task id from the ambient TraceContext.
+    pub task_id: Option<u64>,
+    /// Optional trace id from the ambient TraceContext.
+    pub trace_id: Option<String>,
 }
 
 #[cfg(test)]

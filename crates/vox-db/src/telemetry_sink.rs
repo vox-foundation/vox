@@ -1,12 +1,14 @@
 //! [`ResearchMetricsSink`] — writes telemetry events to the `research_metrics` table
 //! via [`crate::VoxDb::append_research_metric`].
 //!
-//! Handles `ResearchMetric` and `ModelCall` variants; unknown variants are ignored.
+//! Handles `ResearchMetric`, `ModelCall`, `TaskRootSummary`, `BuildSummary`, and `Error` variants;
+//! unknown variants are ignored.
 
 use std::sync::Arc;
 
 use vox_telemetry::{
-    ModelCallEvent, ResearchMetricEvent, TaskRootSummaryEvent, TelemetryEvent, TelemetryRecorder,
+    BuildSummaryEvent, ErrorEvent, ModelCallEvent, ResearchMetricEvent, TaskRootSummaryEvent,
+    TelemetryEvent, TelemetryRecorder, METRIC_TYPE_BUILD_SUMMARY_EVENT, METRIC_TYPE_ERROR_EVENT,
     METRIC_TYPE_MODEL_CALL_EVENT, METRIC_TYPE_TASK_ROOT_SUMMARY,
 };
 
@@ -93,6 +95,44 @@ impl TelemetryRecorder for ResearchMetricsSink {
                             ?err,
                             "ResearchMetricsSink: task_root_summary write failed"
                         );
+                    }
+                });
+            }
+            TelemetryEvent::BuildSummary(e) => {
+                let db = Arc::clone(&self.db);
+                let e: BuildSummaryEvent = e.clone();
+                tokio::spawn(async move {
+                    let session_id = format!("build:{}", e.build_id);
+                    let metadata_json = serde_json::to_string(&e).ok();
+                    if let Err(err) = db
+                        .append_research_metric(
+                            &session_id,
+                            METRIC_TYPE_BUILD_SUMMARY_EVENT,
+                            None,
+                            metadata_json.as_deref(),
+                        )
+                        .await
+                    {
+                        tracing::warn!(?err, "ResearchMetricsSink: BuildSummary write failed");
+                    }
+                });
+            }
+            TelemetryEvent::Error(e) => {
+                let db = Arc::clone(&self.db);
+                let e: ErrorEvent = e.clone();
+                tokio::spawn(async move {
+                    let session_id = format!("error:{}", e.subsystem);
+                    let metadata_json = serde_json::to_string(&e).ok();
+                    if let Err(err) = db
+                        .append_research_metric(
+                            &session_id,
+                            METRIC_TYPE_ERROR_EVENT,
+                            None,
+                            metadata_json.as_deref(),
+                        )
+                        .await
+                    {
+                        tracing::warn!(?err, "ResearchMetricsSink: Error write failed");
                     }
                 });
             }
