@@ -37,6 +37,7 @@ quick-xml = { version = "0.31", features = ["serialize"] }
 reqwest = { workspace = true }
 vox-reqwest-defaults = { workspace = true }
 mime_guess = "2.0"
+hex = { workspace = true }
 sha2 = { workspace = true }
 sha3 = { workspace = true }
 regex = { workspace = true }
