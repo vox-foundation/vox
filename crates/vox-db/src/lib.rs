@@ -207,6 +207,9 @@ pub use store::{
     WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
+pub use vox_db_types::{
+    DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId,
+};
 pub use syntax_k_telemetry::SyntaxKEventMeta;
 pub use toestub_store::{
     add_suppression, get_file_cache_blocking, list_suppressions_blocking, load_baseline,

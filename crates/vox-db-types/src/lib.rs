@@ -33,3 +33,7 @@ pub use store_types::*;
 
 /// Alias kept for back-compat (`vox_db::MemoryParams`).
 pub type MemoryParams<'a> = store_types::SaveMemoryParams<'a>;
+
+/// Typed string-ID newtypes for DB row fields (UUIDs, hashes, human-readable IDs).
+pub mod ids;
+pub use ids::{DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId};
