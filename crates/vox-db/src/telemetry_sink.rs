@@ -1,12 +1,14 @@
-//! [`ResearchMetricsSink`] — writes `TelemetryEvent::ResearchMetric` events to the
-//! `research_metrics` table via [`crate::VoxDb::append_research_metric`].
+//! [`ResearchMetricsSink`] — writes telemetry events to the `research_metrics` table
+//! via [`crate::VoxDb::append_research_metric`].
 //!
-//! Other event variants are silently ignored; they are handled by higher-layer sinks
-//! introduced in Phases B–D.
+//! Handles `ResearchMetric` and `ModelCall` variants; unknown variants are ignored.
 
 use std::sync::Arc;
 
-use vox_telemetry::{ResearchMetricEvent, TelemetryEvent, TelemetryRecorder};
+use vox_telemetry::{
+    ModelCallEvent, ResearchMetricEvent, TelemetryEvent, TelemetryRecorder,
+    METRIC_TYPE_MODEL_CALL_EVENT,
+};
 
 /// `TelemetryRecorder` sink backed by a live `VoxDb` connection.
 ///
@@ -25,24 +27,46 @@ impl ResearchMetricsSink {
 
 impl TelemetryRecorder for ResearchMetricsSink {
     fn record(&self, event: &TelemetryEvent) {
-        let TelemetryEvent::ResearchMetric(e) = event else {
-            return;
-        };
-        let db = Arc::clone(&self.db);
-        let e: ResearchMetricEvent = e.clone();
-        tokio::spawn(async move {
-            if let Err(err) = db
-                .append_research_metric(
-                    &e.session_id,
-                    &e.metric_type,
-                    e.metric_value,
-                    e.metadata_json.as_deref(),
-                )
-                .await
-            {
-                tracing::warn!(?err, "ResearchMetricsSink: append_research_metric failed");
+        match event {
+            TelemetryEvent::ResearchMetric(e) => {
+                let db = Arc::clone(&self.db);
+                let e: ResearchMetricEvent = e.clone();
+                tokio::spawn(async move {
+                    if let Err(err) = db
+                        .append_research_metric(
+                            &e.session_id,
+                            &e.metric_type,
+                            e.metric_value,
+                            e.metadata_json.as_deref(),
+                        )
+                        .await
+                    {
+                        tracing::warn!(?err, "ResearchMetricsSink: append_research_metric failed");
+                    }
+                });
             }
-        });
+            TelemetryEvent::ModelCall(e) => {
+                let db = Arc::clone(&self.db);
+                let e: ModelCallEvent = e.clone();
+                tokio::spawn(async move {
+                    let session_id =
+                        format!("model:{}", e.task_id.map(|id| id.to_string()).unwrap_or_default());
+                    let metadata_json = serde_json::to_string(&e).ok();
+                    if let Err(err) = db
+                        .append_research_metric(
+                            &session_id,
+                            METRIC_TYPE_MODEL_CALL_EVENT,
+                            Some(e.cost_usd),
+                            metadata_json.as_deref(),
+                        )
+                        .await
+                    {
+                        tracing::warn!(?err, "ResearchMetricsSink: ModelCall write failed");
+                    }
+                });
+            }
+            _ => {}
+        }
     }
 }
 
