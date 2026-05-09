@@ -442,6 +442,7 @@ pub async fn mcp_infer_tool_completion(
             "inference tuning active"
         );
 
+        let infer_start = std::time::Instant::now();
         let infer_result = infer_via_provider_adapter(
             client,
             &model,
@@ -478,6 +479,28 @@ pub async fn mcp_infer_tool_completion(
                     Some(provider_usd) => (provider_usd, "provider_reported"),
                     None => (estimated_usd, "estimated"),
                 };
+                let infer_latency_ms = infer_start.elapsed().as_millis() as u64;
+
+                vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::ModelCall(
+                    vox_telemetry::ModelCallEvent {
+                        model: model.id.clone(),
+                        provider: format!("{:?}", model.provider_type),
+                        route_profile: None,
+                        prompt_tokens: pt,
+                        completion_tokens: ct,
+                        cache_read_input_tokens,
+                        cache_creation_input_tokens,
+                        latency_ms: infer_latency_ms,
+                        cost_usd: reconciled_usd,
+                        cost_source: cost_source.to_string(),
+                        error_class: None,
+                        retry_attempt: 0,
+                        task_id: None,
+                        parent_task_id: None,
+                        trace_id: None,
+                        caller_agent_id: None,
+                    }
+                ));
 
                 if let Some(cached) = cache_read_input_tokens {
                     tracing::debug!(
