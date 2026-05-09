@@ -320,11 +320,16 @@ jobs:
       - name: Build vox-cli
         run: cargo build -p vox-cli
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: routes.manifest + vox-client legacy-bundle smoke
-        run: cargo test -p vox-compiler --test web_ir_lower_emit codegen_output_never_includes_vox_tanstack_router_or_server_fns -q
+        run: cargo nextest run -p vox-compiler --test web_ir_lower_emit -E 'test(codegen_output_never_includes_vox_tanstack_router_or_server_fns)'
 
       - name: SPA scaffold manifest idempotency
-        run: cargo test -p vox-cli --test scaffold_spa_manifest_idempotent -q
+        run: cargo nextest run -p vox-cli --test scaffold_spa_manifest_idempotent
 
       - name: Eval benchmark matrix contract + vox-cli GPU compile smoke
         run: |
@@ -335,25 +340,25 @@ jobs:
       - name: WebIR structural validate gate (TS codegen path)
         env:
           VOX_WEBIR_VALIDATE: "1"
-        run: cargo test -p vox-compiler --test web_ir_lower_emit
+        run: cargo nextest run -p vox-compiler --test web_ir_lower_emit
 
       - name: Projection parity gate (WebIR + AppContract + RuntimeProjection)
         env:
           VOX_RUNTIME_PROJECTION_INCLUDE_HOST_PROBE: "0"
-        run: cargo test -p vox-compiler --test projection_parity
+        run: cargo nextest run -p vox-compiler --test projection_parity
 
       - name: Golden examples strict-parse gate (A.13 — all examples/*.vox must parse)
         # A.13: VOX_EXAMPLES_STRICT_PARSE=1 must be the default in CI.
         # Uses the vox-compiler test suite which already has a strict-parse integration test.
         env:
           VOX_EXAMPLES_STRICT_PARSE: "1"
-        run: cargo test -p vox-compiler --test golden_examples_strict_parse -- --nocapture 2>&1
+        run: cargo nextest run -p vox-compiler --test golden_examples_strict_parse --no-capture 2>&1
         # Gate enforcement: The build fails if any golden example contains syntax errors or unhandled tokens.
 
       - name: Golden @test function runner (CR-D3 — vox test round-trip)
         # Runs every @test fn in examples/golden/**/*.vox through the eval layer.
         # Validates that the `vox test` command surface works end-to-end on golden examples.
-        run: cargo test -p vox-integration-tests --test golden_vox_test_runner -- --nocapture 2>&1
+        run: cargo nextest run -p vox-integration-tests --test golden_vox_test_runner --no-capture 2>&1
 
       - name: Compiler pipeline benchmarks compile-smoke (CR-E1 gate)
         # Verifies benchmark code compiles cleanly; timing baselines are captured
@@ -395,13 +400,22 @@ jobs:
       - name: Build vox-cli
         run: cargo build -p vox-cli
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: Repository SSOT + MCP smoke
-        run: cargo test -p vox-repository --lib && cargo test -p vox-orchestrator --lib detect_layout_node_workspaces && cargo test -p vox-mcp --lib && cargo check -p vox-git
+        run: |
+          cargo nextest run -p vox-repository --lib
+          cargo nextest run -p vox-orchestrator --lib -E 'test(detect_layout_node_workspaces)'
+          cargo nextest run -p vox-mcp --lib
+          cargo check -p vox-git
 
       - name: Mesh transport + workflow-runtime + CLI feature matrix slice
         run: |
-          cargo test -p vox-populi --features transport
-          cargo test -p vox-workflow-runtime
+          cargo nextest run -p vox-populi --features transport
+          cargo nextest run -p vox-workflow-runtime
           cargo check -p vox-cli --features mesh,workflow-runtime
 
       - name: Orchestrator slim build (news-publish off, no populi-transport → minimal default)
@@ -412,11 +426,6 @@ jobs:
         # Layer rule strict; the others warn-only by default. Source of truth:
         # docs/src/architecture/layers.toml.
         run: cargo run -p vox-cli --quiet -- run scripts/arch-check.vox
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@v2
@@ -450,7 +459,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: vox-db replication feature (compile + embedded sync smoke skips without creds)
-        run: cargo test -p vox-db --features replication sync_embedded_replica_smoke
+        run: cargo nextest run -p vox-db --features replication -E 'test(sync_embedded_replica_smoke)'
 
       - name: Doc tests (not run by nextest)
         run: cargo test --workspace --doc
@@ -605,10 +614,15 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-web-vite-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
       - name: Vite production build (full_stack_minimal)
         env:
           VOX_WEB_VITE_SMOKE: "1"
-        run: cargo test -p vox-integration-tests --test web_vite_smoke_test -- --ignored --nocapture
+        run: cargo nextest run -p vox-integration-tests --test web_vite_smoke_test --run-ignored ignored-only --no-capture
 
   vox-vscode-extension:
     name: VS Code extension (compile + lint)
