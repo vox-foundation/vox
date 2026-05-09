@@ -399,4 +399,24 @@ mod tests {
         let output = Reporter::format(&[], OutputFormat::Terminal, &TaskQueue::empty());
         assert!(output.contains("clean"));
     }
+
+    #[test]
+    fn llm_json_format_has_schema_and_diagnostics() {
+        let findings = sample_findings();
+        let output = Reporter::format(&findings, OutputFormat::LlmJson, &TaskQueue::empty());
+        let v: serde_json::Value = serde_json::from_str(&output).expect("valid JSON");
+        assert_eq!(v["schema"], "vox.lint.llm-report.v1");
+        assert_eq!(v["total"], 2);
+        let diags = v["diagnostics"].as_array().unwrap();
+        assert_eq!(diags.len(), 2);
+        assert!(diags[0]["rule_id"].is_string());
+        assert!(diags[0]["message"].is_string());
+    }
+
+    #[test]
+    fn parse_format_accepts_llm_json_variants() {
+        assert!(matches!(OutputFormat::parse_format("llm-json"), OutputFormat::LlmJson));
+        assert!(matches!(OutputFormat::parse_format("llm_json"), OutputFormat::LlmJson));
+        assert!(matches!(OutputFormat::parse_format("for-llm"), OutputFormat::LlmJson));
+    }
 }
