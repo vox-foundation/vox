@@ -305,6 +305,43 @@ impl VoxDb {
         Ok(self.conn.last_insert_rowid())
     }
 
+    /// Upsert a model profile metric using a running average (Mesh §5.7 / Phase 6).
+    ///
+    /// On first insert, `profile_value` and `sample_count = 1` are stored.
+    /// On subsequent calls, the running mean is updated:
+    ///   `new_mean = (old_mean * n + new_value) / (n + 1)`.
+    pub async fn rollup_model_scoreboard_with_scientia(
+        &self,
+        provider: &str,
+        model_id: &str,
+        profile_key: &str,
+        new_value: f64,
+    ) -> Result<(), StoreError> {
+        let now = now_ms();
+        let p = provider.to_string();
+        let m = model_id.to_string();
+        let k = profile_key.to_string();
+        let breaker = self.breaker.clone();
+        let conn = self.conn.clone();
+        breaker
+            .call(|| async move {
+                conn.execute(
+                    "INSERT INTO scientia_model_profile_learning \
+                     (provider, model_id, profile_key, profile_value, sample_count, window_start_ms, window_end_ms, updated_at_ms) \
+                     VALUES (?1, ?2, ?3, ?4, 1, ?5, ?5, ?5) \
+                     ON CONFLICT(provider, model_id, profile_key) DO UPDATE SET \
+                       profile_value = (profile_value * sample_count + excluded.profile_value) / (sample_count + 1), \
+                       sample_count = sample_count + 1, \
+                       window_end_ms = excluded.window_end_ms, \
+                       updated_at_ms = excluded.updated_at_ms",
+                    params![p.as_str(), m.as_str(), k.as_str(), new_value, now],
+                )
+                .await?;
+                Ok::<(), StoreError>(())
+            })
+            .await
+    }
+
     /// Mark a provider search run as complete.
     pub async fn finish_provider_run(
         &self,

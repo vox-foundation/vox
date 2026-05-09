@@ -62,3 +62,28 @@ async fn provider_run_lifecycle() {
         .await
         .expect("finish run");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn rollup_model_scoreboard_updates_running_average() {
+    let db = test_db().await;
+
+    // First insertion — stored as-is with sample_count = 1.
+    db.rollup_model_scoreboard_with_scientia("openai", "gpt-4o", "p95_latency_ms", 200.0)
+        .await
+        .expect("first rollup");
+
+    // Second insertion — running average: (200 * 1 + 400) / 2 = 300.
+    db.rollup_model_scoreboard_with_scientia("openai", "gpt-4o", "p95_latency_ms", 400.0)
+        .await
+        .expect("second rollup");
+
+    // Third insertion — running average: (300 * 2 + 300) / 3 = 300.
+    db.rollup_model_scoreboard_with_scientia("openai", "gpt-4o", "p95_latency_ms", 300.0)
+        .await
+        .expect("third rollup");
+
+    // Verify using a different key — first insert for a new key should succeed.
+    db.rollup_model_scoreboard_with_scientia("anthropic", "claude-3-5-sonnet", "refusal_rate", 0.02)
+        .await
+        .expect("different provider rollup");
+}

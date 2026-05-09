@@ -357,19 +357,20 @@ deposit.
 
 **Deliverable:** Inspect+SPECTER2-grounded novelty pipeline.
 
-### Phase 6 — Provider observability ledger + Mesh Integration (3 wk)
+### Phase 6 — Provider observability ledger + Mesh Integration (3 wk) ✅ COMPLETE 2026-05-09
 - `DiscoverySignalFamily::ProviderObservation`, `::ModelCapabilityEvidence`
-  (Mesh §4.1).
+  (Mesh §4.1). → `crates/vox-research-events/src/schema_types.rs`
 - `FindingCandidateClass::ModelCapabilityAtlas`,
-  `::ProviderReliabilityAtlas` (Mesh §4.2).
+  `::ProviderReliabilityAtlas` (Mesh §4.2). → `crates/vox-research-events/src/schema_types.rs`
 - `model_profile_learning` populated by `rollup_model_scoreboard_with_scientia`
-  (Mesh §5.7).
-- `ScientiaObservationClassifier` trait.
+  (Mesh §5.7). → `crates/vox-db/src/research_pipeline.rs`
+- `ScientiaObservationClassifier` trait. → `crates/vox-research-events/src/observation.rs`
 - `ScoringWeights` extensions (Mesh §5.4) — **behind feature flag,
-  default OFF**. A/B compare on held-out tasks before flipping.
-- `LearnedProfileRow` + `ModelRegistry::inject_learned_profiles()` (Mesh §5.5).
-- `record_penalty_with_context` (Mesh §5.6).
-- `.vox` automation: `scripts/scientia/{probe-run,profile-rollup,atlas-draft,atlas-publish}.vox`.
+  default OFF**. A/B compare on held-out tasks before flipping. → `ScientiaWeightExtension`
+- `LearnedProfileRow` + `ModelRegistry::inject_learned_profiles()` (Mesh §5.5). → `LearnedProfileRow`
+- `record_penalty_with_context` (Mesh §5.6). → `PenaltyRecord`
+- `.vox` automation: `scripts/scientia/{probe-run,profile-rollup,atlas-draft,atlas-publish}.vox`. ✅
+- `LEGACY_EXPORT_TABLES` updated with all Phase 0d scientia tables.
 
 **Deliverable:** closed loop is real. Worthiness gate prevents self-merge.
 
