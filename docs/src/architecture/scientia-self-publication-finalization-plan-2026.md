@@ -476,7 +476,7 @@ proposing message are answered yes:
 |---|---|
 | 0a | [Phase 0a — Phantom-import resolution](../../superpowers/plans/2026-05-09-scientia-phase-0a-phantom-imports.md) — **Complete** |
 | 0b | [Phase 0b — `vox-research-events` L1 crate](../../superpowers/plans/2026-05-09-scientia-phase-0b-research-events-crate.md) — **Complete** |
-| 0c | (TBD — schema codegen) |
+| 0c | schema_types module in vox-research-events (5 JSON Schema → Rust types) — **Complete** |
 | 0d | (TBD — DB schema additions) |
 | 0e | SecretId: VoxOpenAlexEmail, VoxSemanticScholarApiKey, VoxOsfApiToken, VoxArxivAccessToken, VoxNanopubSigningKeyHex, VoxSwhidApiToken — **Complete** |
 | 0f | 5 SCIENTIA crates registered in layers.toml (Phase 1–5 prep) — **Complete** |
