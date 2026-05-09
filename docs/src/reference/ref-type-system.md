@@ -74,7 +74,7 @@ Used for values that might be missing.
 
 ```vox
 // vox:skip
-fn find_user(id: int) -> Option[User] {
+fn find_user(id: int) to Option[User] {
     return db.User.find(id)
 }
 ```
@@ -84,7 +84,7 @@ Used for operations that can fail.
 
 ```vox
 // vox:skip
-@endpoint(kind: server) fn update_task(id: Id[Task], title: str) -> Result[Unit, str] {
+@endpoint(kind: server) fn update_task(id: Id[Task], title: str) to Result[Unit, str] {
     if title.len() == 0 {
         return Err("Title cannot be empty")
     }
@@ -99,7 +99,7 @@ Similar to Rust, the `?` operator can be used to early-return on `None` or `Err`
 
 ```vox
 // vox:skip
-fn get_user_email(id: int) -> Option[str] {
+fn get_user_email(id: int) to Option[str] {
     let user = find_user(id)? // If None, returns None early
     return Some(user.email)
 }
@@ -142,7 +142,7 @@ A collection of key-value pairs.
 ## 9. Next Steps
 
 - **[Language Guide](./ref-syntax.md)** — General syntax overview.
-- **[Decorator Registry](./ref-decorators.md)** — How types interact with `@table` and `@server`.
+- **[Decorator Registry](./ref-decorators.md)** — How types interact with `@table` and `@endpoint`.
 - **[Functions](./ref-syntax.md)** — Detailed function signature reference.
 
 

@@ -183,7 +183,6 @@ training_eligible: false
 - [ADR 033 — Typed parametric fragment primitive](adr/033-typed-fragment-primitive.md)
 - [ADR-025: Multi-Agent Lock Coherence and Lease Propagation](adr/025-multi-agent-lock-coherence.md)
 - [ADR-026: Third-Party Code Provenance Policy](adr/026-third-party-code-provenance.md)
-- [ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)](adr/027-dual-track-ui-surfaces.md)
 - [ADR-029: Formal Intent and Tool Receipt Auditing](adr/029-formal-intent.md)
 - [AGENTS.md](AGENTS.md)
 - [Additive schema plan: scholarly external jobs and snapshots](archive/research-2026-q1/scholarly-external-schema-plan.md)
@@ -252,6 +251,7 @@ training_eligible: false
 - [Oratio IDE Protocol (SSOT)](archive/research-2026-q1/oratio-ide-protocol-ssot.md)
 - [Orchestrator AgentEventKind → Ludus matrix](archive/research-2026-q1/agent-event-kind-ludus-matrix.md)
 - [Orchestrator multi-agent groundwork (2026)](archive/research-2026-q1/orchestrator-multi-agent-groundwork-2026.md)
+- [Phase Numbering Index](architecture/phase-numbering-index.md)
 - [Plan adequacy — thin plans, external limits, and Vox mitigation](archive/research-2026-q1/plan-adequacy.md)
 - [Planning critique and gap analysis](architecture/planning-meta/04-planning-critique-gap-analysis.md)
 - [Planning meta exception register](architecture/planning-meta/exception-register.md)
@@ -489,6 +489,7 @@ training_eligible: false
 - [Data Storage SSOT (2026)](architecture/data-storage-ssot-2026.md)
 - [External Frontend Interop Plan (2026)](architecture/external-frontend-interop-plan-2026.md)
 - [GUI Authoring Syntax (2026): Vox UI as Values (VUV)](architecture/gui-authoring-syntax-2026.md)
+- [LLM-Misleading-Content Cleanup Plan (2026-05-08)](architecture/2026-05-08-llm-misleading-content-cleanup-plan.md)
 - [MENS Research Track Blueprint 2026](archive/research-2026-q1/mens-research-track-blueprint-2026.md)
 - [Multi-Agent VCS Replication — Architecture Spec (2026-05-03)](architecture/multi-agent-vcs-replication-spec-2026.md)
 - [Multi-Agent VCS Replication — Phase 1 Implementation Plan (2026-05-03)](architecture/multi-agent-vcs-replication-impl-plan-phase1-2026.md)
@@ -519,6 +520,7 @@ training_eligible: false
 
 ## Status: Deprecated
 
+- [ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)](adr/027-dual-track-ui-surfaces.md)
 - [Burn Framework Necessity Audit (2026-05-08)](architecture/burn-necessity-audit-2026-05-08.md)
 - [Crate Classification Audit (2026-05-08)](architecture/crate-classification-2026-05-08.md)
 - [HITL Doubt Flow and Resolution (Redirect)](archive/research-2026-q1/vox-dei-hitl-ssot.md)
@@ -558,8 +560,8 @@ training_eligible: false
 
 ## Status: Current
 
-- [Clavis Break-Glass Runbook](operations/clavis-break-glass-runbook.md)
-- [Clavis Cloudless Ops Runbook](operations/clavis-cloudless-ops-runbook.md)
+- [Secrets Break-Glass Runbook](operations/secrets-break-glass-runbook.md)
+- [Secrets Cloudless Ops Runbook](operations/secrets-cloudless-ops-runbook.md)
 - [VoxDB data cutover and telemetry sidecar runbook](operations/voxdb-cutover-runbook.md)
 
 
@@ -577,7 +579,6 @@ training_eligible: false
 - [ADR 009: Hosted mens / BaaS (future scope)](adr/009-populi-hosted-baas.md)
 - [ADR 010 — TanStack as the Vox web spine](adr/010-tanstack-web-spine.md)
 - [ADR 011: Scientia publication manifest SSOT](adr/011-scientia-publication-ssot.md)
-- [ADR 012 — Internal Web IR strategy for Vox](adr/012-internal-web-ir-strategy.md)
 - [ADR 013 — OpenClaw WS-first native interop](adr/013-openclaw-ws-native-strategy.md)
 - [ADR 014: async-openai selective adoption (spike outcome)](adr/014-async-openai-selective-adoption-spike.md)
 - [ADR 015: Vox Docker/OCI portability SSOT](adr/015-vox-docker-oci-portability-ssot.md)
@@ -603,7 +604,6 @@ training_eligible: false
 - [CLI reference (redirect)](ref-cli.md)
 - [CLI scope policy](archive/research-2026-q1/cli-scope-policy.md)
 - [Changelog](reference/changelog.md)
-- [Clavis SSOT](reference/clavis-ssot.md)
 - [Codex / Arca compatibility boundaries](archive/research-2026-q1/codex-arca-compatibility-boundaries.md)
 - [Codex BaaS scaffolding](archive/research-2026-q1/codex-baas.md)
 - [Codex HTTP API](reference/codex-http-api.md)
@@ -698,6 +698,7 @@ training_eligible: false
 - [SCIENTIA publication worthiness rules](reference/scientia-publication-worthiness-rules.md)
 - [Scientia publication failure playbook](reference/scientia-publication-playbook.md)
 - [Searching the Documentation](reference/ref-search.md)
+- [Secrets SSOT](reference/secrets-ssot.md)
 - [Socrates protocol — single source of truth](reference/socrates-protocol.md)
 - [Speech capture architecture (edge vs backend)](reference/speech-capture-architecture.md)
 - [Speech-to-code pipeline (Oratio → MCP → compiler → MENS)](reference/speech-to-code-pipeline.md)
@@ -751,5 +752,9 @@ training_eligible: false
 ## Status: Legacy
 
 - [MCP tool reference (legacy path)](reference/mcp-tool-reference.md)
+
+## Status: Deprecated
+
+- [ADR 012 — Internal Web IR strategy for Vox](adr/012-internal-web-ir-strategy.md)
 
 

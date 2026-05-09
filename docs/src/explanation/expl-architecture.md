@@ -148,7 +148,7 @@ Emits Rust source using the [`quote!`](https://docs.rs/quote) macro. Each decora
 
 | Vox | Generated Rust |
 |-----|---------------|
-| `@server fn` | Axum handler + route registration |
+| `@endpoint fn` | Axum handler + route registration |
 | `@table type` | Struct + SQLite schema |
 | `@test fn` | `#[test]` function |
 | `@deprecated` | `#[deprecated]` attribute |

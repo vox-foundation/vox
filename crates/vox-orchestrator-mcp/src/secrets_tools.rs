@@ -1,7 +1,7 @@
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
-pub async fn clavis_doctor(_state: &ServerState, args: serde_json::Value) -> String {
+pub async fn secrets_doctor(_state: &ServerState, args: serde_json::Value) -> String {
     let workflow_str = args
         .get("workflow")
         .and_then(|v| v.as_str())
@@ -78,7 +78,7 @@ pub async fn clavis_doctor(_state: &ServerState, args: serde_json::Value) -> Str
     }
 
     let report = serde_json::json!({
-        "schema": "contracts/reports/clavis-doctor.v1.json",
+        "schema": "contracts/reports/secrets-doctor.v1.json",
         "generated_at_ms": std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64,
         "backend_mode": format!("{:?}", vox_secrets::BackendMode::from_env()),
         "vault_diagnostic": vox_secrets::backend::vox_vault::cloudless_vault_env_diagnostic(),

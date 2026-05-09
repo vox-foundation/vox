@@ -146,7 +146,7 @@ Use this lightweight review matrix for high-drift surfaces:
 | --- | --- |
 | authority ownership, stubs, or canonical pathing | [`contracts/documentation/canonical-map.v1.yaml`](../../../contracts/documentation/canonical-map.v1.yaml), `vox ci check-docs-ssot`, and affected alias pages |
 | `crates/vox-cli/src/**` command surface | [`docs/src/reference/cli.md`](../reference/cli.md), command-compliance docs, contributor references that mention the command |
-| secret or env handling | [`AGENTS.md`](../../../AGENTS.md), [Clavis SSOT](../reference/clavis-ssot.md) |
+| secret or env handling | [`AGENTS.md`](../../../AGENTS.md), [Secrets SSOT](../reference/secrets-ssot.md) |
 | agent instruction layering or shell-discipline policy | [`AGENTS.md`](../../../AGENTS.md), [Agent instruction architecture](agent-instruction-architecture.md), and relevant tool-specific overlays such as `GEMINI.md` |
 | doc structure, nav, or new pages | this page, [`docs/src/adr/002-diataxis-doc-architecture.md`](../adr/002-diataxis-doc-architecture.md), [`docs/src/SUMMARY.md`](../SUMMARY.md) |
 | architecture claims | [Doc-to-code acceptance checklist](../archive/research-2026-q1/doc-to-code-acceptance-checklist.md), relevant explanation/reference pages |

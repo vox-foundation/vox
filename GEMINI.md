@@ -26,7 +26,7 @@ This repo has adopted `.vox` files as the **sole glue language**. Antigravity ag
 - **Never** generate a new `.ps1`, `.sh`, or `.py` automation script; point the user to the existing thin launchers if the bootstrap issue arises
 - The two retained launchers (`scripts/windows/vox-dev.ps1`, `scripts/vox-dev.sh`) are exempt — they are thin forwarders only
 
-See: [`AGENTS.md §VoxScript-First Glue Code`](AGENTS.md) and [`docs/src/architecture/vox-as-glue-research-2026.md`](docs/src/architecture/vox-as-glue-research-2026.md)
+See: [`AGENTS.md §VoxScript-First Glue Code`](AGENTS.md) and [`docs/src/archive/research-2026-q1/vox-as-glue-research-2026.md`](docs/src/archive/research-2026-q1/vox-as-glue-research-2026.md) (archived)
 
 ## Shell Environment
 
@@ -44,7 +44,7 @@ See: [`AGENTS.md §VoxScript-First Glue Code`](AGENTS.md) and [`docs/src/archite
 
 Reason: command approval/allowlist matching in current IDE ecosystems is often brittle on compound commands, especially in PowerShell contexts.
 
-Research synthesis (Cursor, Gemini, Codex, PowerShell, bypass classes, future Vox contract): [`docs/src/architecture/terminal-exec-policy-research-findings-2026.md`](docs/src/architecture/terminal-exec-policy-research-findings-2026.md).
+Research synthesis (Cursor, Gemini, Codex, PowerShell, bypass classes, future Vox contract): [`docs/src/archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md`](docs/src/archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md) (archived).
 
 ## Tooling Preferences
 

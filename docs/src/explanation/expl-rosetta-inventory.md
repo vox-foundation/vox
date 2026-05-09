@@ -179,7 +179,7 @@ type MergeOutcome =
     | Applied(primary: int, overflow: int)
     | Rejected(err: MergeError)
 
-fn merge_stacks(kind_a: str, qty_a: int, kind_b: str, qty_b: int, max_stack: int) -> MergeOutcome {
+fn merge_stacks(kind_a: str, qty_a: int, kind_b: str, qty_b: int, max_stack: int) to MergeOutcome {
     if max_stack <= 0 {
         return Rejected(InvalidCap(max_stack))
     }
@@ -201,7 +201,7 @@ Wrong-kind and invalid-capacity errors are not exceptions or integer codes; they
 // vox:skip
 // In Rust this is an `enum`, in C++ `std::variant`, in Python `Union`.
 // Vox enforces exhaustive handling across all variants via `match`.
-fn format_error(err: MergeError) -> str {
+fn format_error(err: MergeError) to str {
     match err {
         WrongKind(l, r) -> "Cannot merge " + l + " with " + r
         InvalidCap(c) -> "Invalid capacity: " + str(c)
@@ -214,7 +214,7 @@ What about missing items? There is no `nullptr`, `null`, or unchecked `None`.
 ```vox
 // vox:skip
 // No null, no None, no nullptr — the missing case is a compile error.
-fn get_stack_safe(id: int) -> Option[InventoryStack] {
+fn get_stack_safe(id: int) to Option[InventoryStack] {
     let stack = db.InventoryStack.get(id)
     match stack {
         Some(s) -> Some(s)
@@ -237,13 +237,13 @@ In Vox, the struct *is* the schema.
     max_stack: int
 }
 
-@query
-fn stack_count(kind: str) -> int {
+@endpoint(kind: query)
+fn stack_count(kind: str) to int {
     return len(db.InventoryStack.filter({ kind: kind }))
 }
 
-@mutation
-fn seed_stack(kind: str, qty: int, max_stack: int) -> Result[str] {
+@endpoint(kind: mutation)
+fn seed_stack(kind: str, qty: int, max_stack: int) to Result[str] {
     if qty < 0 {
         return Error("invalid stack shape")
     }
@@ -309,7 +309,7 @@ In Vox, the compiler parses the function's strict type signature and generates t
 ```vox
 // vox:skip
 @mcp.tool "propose_merge: Propose a stack merge and return primary+overflow"
-fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) -> str {
+fn propose_merge(kind: str, current: int, incoming: int, max_stack: int) to str {
     let total = current + incoming
     if total <= max_stack {
         return kind + ":" + str(total) + "+0"
@@ -349,7 +349,7 @@ Finally, attempting to bulk-import loot requires reading the host file system. I
 // vox:skip
 // Import requires a named platform capability, not just ambient OS access.
 // See docs/src/architecture/capability-grants-ssot.md for the runtime model.
-fn import_loot_csv(import_cap: cap, path: str) -> Result[str] {
+fn import_loot_csv(import_cap: cap, path: str) to Result[str] {
     if !has_capability(import_cap) {
         return Error("missing capability token")
     }
@@ -364,7 +364,7 @@ Finally, some logic is too complex or fuzzy to write by hand. Vox allows you to 
 ```vox
 // vox:skip
 @llm(model = "claude-3-opus")
-fn generate_loot_flavor_text(kind: str, qty: int) -> str
+fn generate_loot_flavor_text(kind: str, qty: int) to str
 
 @test
 fn test_flavor() {
@@ -387,7 +387,7 @@ To ease the transition across language patterns, here is how the core engineerin
 | Concurrency | threads + mutexes | `Arc<Mutex<T>>` | `threading` / `asyncio` | `actor` + `workflow` |
 | Persistence | ORM / raw SQL | Diesel, SQLx | SQLAlchemy / Django ORM | `@table` |
 | Durable execution | manual retry logic | `tokio-retry` + custom | `celery` / `prefect` | `workflow` + `activity` |
-| Secret management | env vars / vaults | `dotenv` / custom | `os.environ` / `boto3` | `Clavis` (SSOT) |
+| Secret management | env vars / vaults | `dotenv` / custom | `os.environ` / `boto3` | `vox-secrets` (SSOT) |
 | AI agent surface | custom HTTP + JSON Schema | custom HTTP + JSON Schema | FastAPI + Pydantic | `@mcp.tool` |
 | Test syntax | `gtest`, `catch2` | `#[test]` | `pytest` | `@test` |
 | Type-checked schema | manual | Serde+derive | Pydantic | compiler-integrated |

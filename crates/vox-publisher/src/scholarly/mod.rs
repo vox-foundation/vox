@@ -160,7 +160,7 @@ async fn submit_for_adapter_normalized(
                     reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
                 });
             }
-            let adapter = zenodo::zenodo_from_clavis()?;
+            let adapter = zenodo::zenodo_from_secrets()?;
             adapter.submit(manifest).await
         }
         vox_config::scholarly::ScholarlyAdapterKind::OpenReview => {
@@ -231,7 +231,7 @@ pub async fn fetch_status_with_configured_adapter(
                     reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
                 });
             }
-            let adapter = zenodo::zenodo_from_clavis()?;
+            let adapter = zenodo::zenodo_from_secrets()?;
             adapter.fetch_status(external_submission_id).await
         }
         vox_config::scholarly::ScholarlyAdapterKind::OpenReview => {
@@ -275,7 +275,7 @@ pub async fn fetch_scholarly_remote_status_for_adapter(
                 reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
             });
         }
-        let z = zenodo::zenodo_from_clavis()?;
+        let z = zenodo::zenodo_from_secrets()?;
         return z.fetch_status(external_submission_id).await;
     }
     if kind.eq_ignore_ascii_case("openreview") {

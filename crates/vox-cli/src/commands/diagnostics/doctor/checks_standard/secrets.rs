@@ -4,19 +4,19 @@ use crate::commands::ci::run_body::run_body_helpers;
 pub async fn run(_auto_heal: bool, checks: &mut Vec<Check>) {
     let cwd = std::env::current_dir().unwrap_or_default();
 
-    // 1. Check Clavis Parity
-    match run_body_helpers::run_clavis_parity(&cwd) {
+    // 1. Check Secrets Parity
+    match run_body_helpers::run_secrets_parity(&cwd) {
         Ok(_) => {
             checks.push(Check::pass(
-                "Clavis Parity",
+                "Secrets Parity",
                 "contract (managed-env-names.v1.json) and docs are in sync with live code"
                     .to_string(),
             ));
         }
         Err(e) => {
             checks.push(Check::fail(
-                "Clavis Parity",
-                format!("{}. Run `vox ci clavis-contracts` or update docs.", e),
+                "Secrets Parity",
+                format!("{}. Run `vox ci secrets-contracts` or update docs.", e),
             ));
         }
     }
@@ -34,7 +34,7 @@ pub async fn run(_auto_heal: bool, checks: &mut Vec<Check>) {
         Err(e) => {
             checks.push(Check::fail(
                 "Secret Env Guard",
-                format!("{}. Migrate to clavis.resolve().", e),
+                format!("{}. Migrate to secrets.resolve().", e),
             ));
         }
     }

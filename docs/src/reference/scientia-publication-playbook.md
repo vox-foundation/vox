@@ -49,7 +49,7 @@ JSON usually includes `worthiness_score` and `floor`. **[news]** / env: `worthin
 
 ## Credentials
 
-Syndication tokens resolve through **Clavis** (`vox_clavis::resolve_secret`) for `VOX_NEWS_*` / `VOX_SOCIAL_*` specs. **Fix:** `vox clavis doctor`, set canonical or alias env vars, or auth JSON per [Clavis SSOT](clavis-ssot.md).
+Syndication tokens resolve through **Secrets** (`vox_secrets::resolve_secret`) for `VOX_NEWS_*` / `VOX_SOCIAL_*` specs. **Fix:** `vox secrets doctor`, set canonical or alias env vars, or auth JSON per [Secrets SSOT](secrets-ssot.md).
 
 ## crates.io channel
 

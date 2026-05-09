@@ -2,11 +2,13 @@
 title: "ADR-027: Dual-Track UI Surfaces (Vox-Native vs React/TanStack Interop)"
 description: "Splits Vox's UI primitives into a Vox-native reactivity track and an explicit React/TanStack interop track, with a sharp boundary so each track stays coherent and the training corpus stays clean."
 category: "architecture"
-status: "current"
+status: "deprecated"
 last_updated: "2026-05-01"
 training_eligible: false
 ---
 # ADR 027: Dual-Track UI Surfaces
+
+> **Superseded 2026-05-03** by [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). The Track B `@island` surface described below is retired. This ADR is retained for historical context only.
 
 **Layering:** Normative machine rules live in **`contracts/frontend/`**; end-to-end interop narrative lives in **[`external-frontend-interop-plan-2026.md`](../architecture/external-frontend-interop-plan-2026.md)**. This ADR is a **decision record** (superseded status below).
 

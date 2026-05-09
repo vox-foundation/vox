@@ -1699,9 +1699,9 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: false
-- id: ci.clavis-parity
-  title: Ci Clavis-parity
-  description: CLI operation `vox ci clavis-parity`
+- id: ci.secrets-parity
+  title: Ci Secrets-parity
+  description: CLI operation `vox ci secrets-parity`
   description_human: null
   product_lane: platform
   intent_tags: []
@@ -1718,7 +1718,7 @@ operations:
   cli:
     path:
     - ci
-    - clavis-parity
+    - secrets-parity
     status: active
     latin_ns: null
     handler_rust: null
@@ -3162,9 +3162,9 @@ operations:
     http_read_role_eligible: false
     tier: core
   cli: null
-- id: clavis
-  title: Clavis
-  description: CLI operation `vox clavis`
+- id: secrets
+  title: Secrets
+  description: CLI operation `vox secrets`
   description_human: null
   product_lane: platform
   intent_tags: []
@@ -3180,17 +3180,17 @@ operations:
   mcp: null
   cli:
     path:
-    - clavis
+    - secrets
     status: active
     latin_ns: ars
-    handler_rust: commands::clavis
+    handler_rust: commands::secrets
     feature_gate: null
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-- id: clavis.backend-status
-  title: Clavis Backend-status
-  description: CLI operation `vox clavis backend-status`
+- id: secrets.backend-status
+  title: Secrets Backend-status
+  description: CLI operation `vox secrets backend-status`
   description_human: null
   product_lane: platform
   intent_tags: []
@@ -3206,7 +3206,7 @@ operations:
   mcp: null
   cli:
     path:
-    - clavis
+    - secrets
     - backend-status
     status: active
     latin_ns: ars
@@ -3215,8 +3215,8 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-- id: clavis.doctor
-  title: Clavis Doctor
+- id: secrets.doctor
+  title: Secrets Doctor
   description: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
   description_human: null
   product_lane: platform
@@ -3231,13 +3231,13 @@ operations:
   canonical_name: null
   latin_aliases: null
   mcp:
-    name: vox_clavis_doctor
+    name: vox_secrets_doctor
     http_read_role_eligible: false
     tier: core
   cli: null
-- id: clavis.get
-  title: Clavis Get
-  description: CLI operation `vox clavis get`
+- id: secrets.get
+  title: Secrets Get
+  description: CLI operation `vox secrets get`
   description_human: null
   product_lane: platform
   intent_tags: []
@@ -3253,7 +3253,7 @@ operations:
   mcp: null
   cli:
     path:
-    - clavis
+    - secrets
     - get
     status: active
     latin_ns: ars
@@ -3262,9 +3262,9 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-- id: clavis.migrate-auth-store
-  title: Clavis Migrate-auth-store
-  description: CLI operation `vox clavis migrate-auth-store`
+- id: secrets.migrate-auth-store
+  title: Secrets Migrate-auth-store
+  description: CLI operation `vox secrets migrate-auth-store`
   description_human: null
   product_lane: platform
   intent_tags: []
@@ -3280,7 +3280,7 @@ operations:
   mcp: null
   cli:
     path:
-    - clavis
+    - secrets
     - migrate-auth-store
     status: active
     latin_ns: ars
@@ -3289,9 +3289,9 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-- id: clavis.set
-  title: Clavis Set
-  description: CLI operation `vox clavis set`
+- id: secrets.set
+  title: Secrets Set
+  description: CLI operation `vox secrets set`
   description_human: null
   product_lane: platform
   intent_tags: []
@@ -3307,7 +3307,7 @@ operations:
   mcp: null
   cli:
     path:
-    - clavis
+    - secrets
     - set
     status: active
     latin_ns: ars
@@ -3316,9 +3316,9 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-- id: clavis.status
-  title: Clavis Status
-  description: CLI operation `vox clavis status`
+- id: secrets.status
+  title: Secrets Status
+  description: CLI operation `vox secrets status`
   description_human: null
   product_lane: platform
   intent_tags: []
@@ -3334,7 +3334,7 @@ operations:
   mcp: null
   cli:
     path:
-    - clavis
+    - secrets
     - status
     status: active
     latin_ns: ars
@@ -3343,9 +3343,9 @@ operations:
     catalog_group: null
     ref_cli_required: true
     reachability_required: null
-- id: clavis.login
-  title: Clavis Login
-  description: CLI operation `vox clavis login`
+- id: secrets.login
+  title: Secrets Login
+  description: CLI operation `vox secrets login`
   description_human: null
   product_lane: platform
   intent_tags: []
@@ -3361,7 +3361,7 @@ operations:
   mcp: null
   cli:
     path:
-    - clavis
+    - secrets
     - login
     status: active
     latin_ns: ars

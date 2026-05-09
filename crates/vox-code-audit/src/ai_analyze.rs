@@ -232,10 +232,10 @@ Do not explain your reasoning. Only output findings or CLEAN."#,
             AiProvider::Ollama { url, .. } => Some(format!("{}/api/generate", url)),
             AiProvider::Gemini { api_key, model } => {
                 let key_owned: String;
-                let clavis_res;
+                let secrets_res;
                 let key = if api_key.is_empty() {
-                    clavis_res = vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey);
-                    clavis_res.expose().unwrap_or_default()
+                    secrets_res = vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey);
+                    secrets_res.expose().unwrap_or_default()
                 } else {
                     key_owned = api_key.clone();
                     &key_owned

@@ -108,7 +108,7 @@ All training pairs follow this JSONL schema (must match across all tools):
 ```vox
 // vox:skip
 // Vox example — tokenized natively using VoxTokenizer
-fn greet(name: str) -> str {
+fn greet(name: str) to str {
     return "Hello, " + name
 }
 ```

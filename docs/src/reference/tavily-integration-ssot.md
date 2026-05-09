@@ -1,12 +1,12 @@
 ---
 title: "Tavily Integration SSOT"
-description: "Complete reference for integrating Tavily AI search API into the Vox RAG pipeline. Covers endpoints, Rust SDK, Clavis secrets, CRAG flow, safety posture, and cost model."
+description: "Complete reference for integrating Tavily AI search API into the Vox RAG pipeline. Covers endpoints, Rust SDK, Secrets management, CRAG flow, safety posture, and cost model."
 category: "reference"
 status: "current"
 last_updated: "2026-04-10"
 see_also:
   - architecture/rag-and-research-architecture-2026.md
-  - clavis-ssot.md
+  - secrets-ssot.md
 
 schema_type: "TechArticle"
 ---
@@ -16,7 +16,7 @@ schema_type: "TechArticle"
 Tavily is the **live web retrieval leg** of the Vox RAG pipeline. It provides real-time, AI-native, LLM-ready search results as a complement to Vox's static local corpora (Memory, KnowledgeGraph, DocumentChunks, etc.).
 
 > [!IMPORTANT]
-> All Tavily secrets MUST be registered through `vox-clavis`. Never read `TAVILY_API_KEY` directly with `std::env::var`.
+> All Tavily secrets MUST be registered through `vox-secrets`. Never read `TAVILY_API_KEY` directly with `std::env::var`.
 
 ---
 
@@ -130,16 +130,16 @@ tavily-search = ["dep:tavily"]
 let key = std::env::var("TAVILY_API_KEY").unwrap();
 
 // Always do this:
-use vox_clavis::{SecretId, resolve_secret};
+use vox_secrets::{SecretId, resolve_secret};
 let key = resolve_secret(SecretId::TavilyApiKey)
     .map_err(|e| format!("tavily_key_missing:{e}"))?;
 ```
 
 ---
 
-## Clavis Secret Lifecycle
+## Secrets Lifecycle
 
-### Required Entries in `crates/vox-clavis/src/lib.rs`
+### Required Entries in `crates/vox-secrets/src/lib.rs`
 
 ```rust
 SecretId::TavilyApiKey => SecretSpec {
@@ -161,8 +161,8 @@ SecretId::TavilyProject => SecretSpec {
 After adding the secret entries:
 1. Run `vox ci secret-env-guard`
 2. Run `vox ci clavis-parity`
-3. Update `vox clavis doctor` profile expectations
-4. Update this doc at `docs/src/reference/clavis-ssot.md`
+3. Update `vox secrets doctor` profile expectations
+4. Update this doc at `docs/src/reference/secrets-ssot.md`
 
 ---
 
@@ -238,7 +238,7 @@ After adding the secret entries:
 ## Integration Test Checklist
 
 Before enabling Tavily in CI:
-- [ ] `vox clavis doctor` reports `TAVILY_API_KEY: resolved`
+- [ ] `vox secrets doctor` reports `TAVILY_API_KEY: resolved`
 - [ ] `vox search "test query" --tavily` returns results from Tavily backend
 - [ ] `SearchExecution::tavily_lines` is non-empty in output
 - [ ] Credit counter increments per call

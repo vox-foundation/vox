@@ -33,7 +33,7 @@ Adopt a WS-first integration strategy with a stable Rust adapter boundary:
 ## Security posture
 
 - Keep TLS verification on by default.
-- Resolve token via Clavis (`VOX_OPENCLAW_TOKEN`) when available.
+- Resolve token via vox-secrets (`VOX_OPENCLAW_TOKEN`) when available.
 - Prefer loopback/tailnet WS URLs (`VOX_OPENCLAW_WS_URL`) for operator sessions.
 - Treat protocol errors as typed failures (`connect`, `transport`, `method`) for deterministic handling.
 

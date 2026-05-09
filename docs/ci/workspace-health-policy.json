@@ -5,7 +5,7 @@
       "limit_direct_deps": 20,
       "allow_ml": false,
       "description": "Primitives, config, and core language logic. Must remain extremely lightweight.",
-      "patterns": ["core", "primitive", "config", "clavis", "bounded-fs"]
+      "patterns": ["core", "primitive", "config", "secrets", "bounded-fs"]
     },
     "runtime": {
       "limit_direct_deps": 40,

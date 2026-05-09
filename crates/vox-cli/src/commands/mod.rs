@@ -20,8 +20,8 @@ pub mod catalog;
 pub mod check;
 /// CI / SSOT guard commands (`vox ci`).
 pub mod ci;
-/// Centralized secret lifecycle commands (`vox clavis`).
-pub mod clavis;
+/// Centralized secret lifecycle commands (`vox secrets`).
+pub mod secrets;
 /// Codex integration logic for `vox db` subcommands.
 pub mod codex;
 /// `vox config` CLI endpoint logic.
@@ -29,7 +29,7 @@ pub mod config;
 /// Training data extraction / mixing pipelines (`vox corpus`).
 /// Codex research ingest / reliability helpers (`vox db` research subcommands).
 mod db_research;
-/// Canonical login for vault / Clavis (`vox login`, `vox auth connect`, `vox clavis login`).
+/// Canonical login for vault / Secrets (`vox login`, `vox auth connect`, `vox secrets login`).
 pub mod login_shared;
 pub mod remove;
 // `db.rs` re-exports this tree; keep a same-file reference for tooling / unwired-module checks.

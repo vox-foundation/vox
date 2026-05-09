@@ -1,14 +1,14 @@
 ---
-title: "Clavis Break-Glass Runbook"
-description: "Emergency access workflow for Clavis Cloudless with JIT controls, immutable audit, and mandatory rotation."
+title: "Secrets Break-Glass Runbook"
+description: "Emergency access workflow for Secrets Cloudless with JIT controls, immutable audit, and mandatory rotation."
 category: "operations"
-last_updated: "2026-04-06"
+last_updated: "2026-05-08"
 training_eligible: true
 
 schema_type: "TechArticle"
 ---
 
-# Clavis Break-Glass Runbook
+# Secrets Break-Glass Runbook
 
 ## Purpose
 

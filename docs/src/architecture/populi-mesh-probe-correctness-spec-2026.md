@@ -107,7 +107,7 @@ pub enum ProbeOutcome {
 
 ### 2.3 Probe ordering and operator override
 
-Default order (unchanged): Clavis-override → DXGI → DRM → Metal → wgpu → NVML → CPU fallback.
+Default order (unchanged): vox-secrets-override → DXGI → DRM → Metal → wgpu → NVML → CPU fallback.
 
 **New:** an operator can set `[mesh.probe.order]` in `Vox.toml` (validated against known probe names). Useful for forcing wgpu when an NVML probe is misreporting. Validation rejects unknown names with an actionable error.
 

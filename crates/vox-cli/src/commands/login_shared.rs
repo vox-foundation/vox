@@ -1,7 +1,7 @@
-//! Canonical `vox login` / `vox auth connect` / `vox clavis login` implementation.
+//! Canonical `vox login` / `vox auth connect` / `vox secrets login` implementation.
 //!
 //! Persists Turso vault credentials to the OS keyring (legacy compat) and writes
-//! `~/.vox/login.toml` for `VOX_ACCOUNT_ID` / `VOX_CLAVIS_BACKEND` so operators can
+//! `~/.vox/login.toml` for `VOX_ACCOUNT_ID` / `VOX_SECRETS_BACKEND` so operators can
 //! `source` or align shell profiles without hard-coding secrets.
 
 use anyhow::{Context, Result};
@@ -12,19 +12,19 @@ use std::path::PathBuf;
 
 const LOGIN_PROFILE_BASENAME: &str = "login.toml";
 
-/// Clap arguments shared by `vox login`, `vox auth login`, `vox auth connect`, and `vox clavis login`.
+/// Clap arguments shared by `vox login`, `vox auth login`, `vox auth connect`, and `vox secrets login`.
 #[derive(Args, Clone, Debug, Default)]
 pub struct LoginArgs {
     /// Remote VoxDB / Turso database URL (overrides prompt).
     #[arg(long, env = "VOX_DB_URL")]
     pub vault_url: Option<String>,
-    /// Turso auth token (overrides prompt; prefer `vox clavis set` for vault-synced secrets).
+    /// Turso auth token (overrides prompt; prefer `vox secrets set` for vault-synced secrets).
     #[arg(long, env = "VOX_DB_TOKEN")]
     pub vault_token: Option<String>,
-    /// Account id for multi-device Clavis vault isolation (`VOX_ACCOUNT_ID`).
+    /// Account id for multi-device Secrets vault isolation (`VOX_ACCOUNT_ID`).
     #[arg(long = "account")]
     pub account_id: Option<String>,
-    /// Clavis backend mode hint, e.g. `vox_cloud` (`VOX_CLAVIS_BACKEND`).
+    /// Secrets backend mode hint, e.g. `vox_cloud` (`VOX_SECRETS_BACKEND`).
     #[arg(long)]
     pub backend: Option<String>,
     /// Replace existing vault URL/token in keyring without prompting.
@@ -63,8 +63,13 @@ impl From<LoginArgs> for LoginOpts {
 struct LoginProfileToml {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     account_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    clavis_backend: Option<String>,
+    /// Secrets backend mode (TOML key kept as `clavis_backend` for backward compat of existing login.toml files).
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        rename = "clavis_backend"
+    )]
+    secrets_backend: Option<String>,
 }
 
 fn login_profile_path() -> PathBuf {
@@ -108,7 +113,7 @@ pub fn login_status_summary() -> String {
         });
     let backend = profile
         .as_ref()
-        .and_then(|p| p.clavis_backend.as_deref())
+        .and_then(|p| p.secrets_backend.as_deref())
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .map(String::from);
@@ -120,7 +125,7 @@ pub fn login_status_summary() -> String {
     };
 
     format!(
-        "login.toml_profile={}; vault_keyring_configured={vault_ok}; account_id={}; clavis_backend={}; vault_handshake={handshake}",
+        "login.toml_profile={}; vault_keyring_configured={vault_ok}; account_id={}; secrets_backend={}; vault_handshake={handshake}",
         login_profile_path().display(),
         acct.as_deref().unwrap_or("(none)"),
         backend.as_deref().unwrap_or("(none)"),
@@ -134,13 +139,13 @@ fn write_login_profile(opts: &LoginOpts) -> Result<()> {
     }
     let profile = LoginProfileToml {
         account_id: opts.account_id.clone(),
-        clavis_backend: opts.backend.clone(),
+        secrets_backend: opts.backend.clone(),
     };
     let body = toml::to_string_pretty(&profile).context("serialize login.toml")?;
     std::fs::write(&path, body).with_context(|| format!("write {}", path.display()))?;
     println!("Wrote {}", path.display());
     println!(
-        "Hint: export VOX_ACCOUNT_ID and VOX_CLAVIS_BACKEND from this file or merge into your shell profile."
+        "Hint: export VOX_ACCOUNT_ID and VOX_SECRETS_BACKEND from this file or merge into your shell profile."
     );
     Ok(())
 }
@@ -148,7 +153,7 @@ fn write_login_profile(opts: &LoginOpts) -> Result<()> {
 /// Vault handshake: ensures local cloudless schema exists when backend is cloud-capable.
 fn validate_vault_handshake() -> Result<()> {
     let _ = vox_secrets::backend::vox_vault::VoxCloudBackend::new()
-        .map_err(|e| anyhow::anyhow!("Clavis vault handshake failed: {e:?}"))?;
+        .map_err(|e| anyhow::anyhow!("Secrets vault handshake failed: {e:?}"))?;
     Ok(())
 }
 
@@ -221,7 +226,7 @@ pub async fn run_login(opts: LoginOpts) -> Result<()> {
         .context("Failed to set turso-token in keyring.")?;
 
     if let Err(e) = validate_vault_handshake() {
-        tracing::warn!(error = %e, "post-login Clavis vault handshake failed (vault may still be usable)");
+        tracing::warn!(error = %e, "post-login Secrets vault handshake failed (vault may still be usable)");
     }
 
     write_login_profile(&opts)?;

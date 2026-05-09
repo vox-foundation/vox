@@ -1,5 +1,7 @@
 # Workspace Reorg — Build-Time + Layered Architecture (2026-05-08)
 
+> **Phase numbering:** This plan uses the **workspace reorg** phase sequence (Phases 0–9). For the other two sequences, see [phase-numbering-index](phase-numbering-index.md).
+
 ## Problem
 
 The workspace has grown to 86+ crates with these structural issues:
@@ -21,7 +23,7 @@ The workspace has grown to 86+ crates with these structural issues:
 | Layer | Purpose | Crates (post-reorg) |
 |---|---|---|
 | **L0 — Pure types** | Data structs only. No tokio, no DB, no logic. | `vox-orchestrator-types`, `vox-db-types`, `vox-protocol`, `vox-mesh-types`, **`vox-plugin-types`** *(new)*, **`vox-skill-types`** *(new)* |
-| **L1 — Primitives & utilities** | OS wrappers, crypto, FS, JSON helpers. | `vox-primitives`, `vox-bounded-fs`, `vox-crypto`, `vox-clavis`, `vox-jsonschema-util`, `vox-checksum-manifest`, `vox-identity` |
+| **L1 — Primitives & utilities** | OS wrappers, crypto, FS, JSON helpers. | `vox-primitives`, `vox-bounded-fs`, `vox-crypto`, `vox-secrets`, `vox-jsonschema-util`, `vox-checksum-manifest`, `vox-identity` |
 | **L2 — Domain libraries** | Pure-data domain logic over L0+L1. | `vox-config`, `vox-pm`, `vox-repository`, `vox-search`, `vox-corpus` |
 | **L3 — Heavy runtimes (split)** | Big monoliths, decomposed along feature boundaries. | `vox-db-core`, `vox-db-stores` *(new — extracted from `vox-db`)*, `vox-orchestrator-queue` *(new)*, `vox-orchestrator-mcp` *(new)*, `vox-orchestrator-runtime` *(new)*, `vox-orchestrator` *(slim coordinator, ~25K LoC)*, `vox-compiler`, `vox-compiler-emit`, `vox-mens`, `vox-publisher` |
 | **L4 — Plugin infrastructure** | Plugins ship as cdylib; loaded at runtime. | `vox-plugin-api` *(slimmed)*, **`vox-plugin-host`** *(no `vox-db` dep — uses `PluginStateBackend` trait)*, plugin crates |

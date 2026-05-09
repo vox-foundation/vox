@@ -16,7 +16,7 @@ Use this checklist before widening **Populi remote execution** beyond **local-fi
 
 - [ ] **Documented scope:** confirm the deployment matches a column in the [work-type placement matrix](../reference/populi-work-type-placement-matrix.md) (local / LAN / overlay).
 - [ ] **No accidental public bind:** Populi listeners and MCP HTTP gateways use **loopback** or **controlled ingress** unless TLS and auth are in place ([deployment compose SSOT](../reference/deployment-compose.md), [MCP HTTP gateway contract](../reference/mcp-http-gateway-contract.md)).
-- [ ] **Secrets:** mesh tokens and JWT secrets live in **Clavis** / secret stores; `vox clavis doctor` passes for required workflows ([Clavis SSOT](../reference/clavis-ssot.md)).
+- [ ] **Secrets:** mesh tokens and JWT secrets live in **Secrets** / secret stores; `vox secrets doctor` passes for required workflows ([Secrets SSOT](../reference/secrets-ssot.md)).
 
 ## Kill switches (validate in staging)
 

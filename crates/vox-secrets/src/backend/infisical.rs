@@ -24,12 +24,12 @@ impl SecretBackend for InfisicalBackend {
         let key = spec.backend_key.unwrap_or(spec.canonical_env);
         let mut cmd = std::process::Command::new("infisical");
         cmd.args(["secrets", "get", key, "--plain", "--silent"]);
-        if let Ok(project_id) = std::env::var("VOX_CLAVIS_INFISICAL_PROJECT_ID")
+        if let Ok(project_id) = std::env::var("VOX_SECRETS_INFISICAL_PROJECT_ID")
             && !project_id.trim().is_empty()
         {
             cmd.args(["--projectId", project_id.trim()]);
         }
-        if let Ok(env_name) = std::env::var("VOX_CLAVIS_INFISICAL_ENV")
+        if let Ok(env_name) = std::env::var("VOX_SECRETS_INFISICAL_ENV")
             && !env_name.trim().is_empty()
         {
             cmd.args(["--env", env_name.trim()]);

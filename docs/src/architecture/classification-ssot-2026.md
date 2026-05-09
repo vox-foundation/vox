@@ -17,8 +17,8 @@ This document serves as the canonical map for the structural classification of V
 | **Core Compiler** | `vox-compiler` | Lexing, parsing, HIR lowering, type checking, and IR emission. (Replaces legacy `vox-lexer`, `vox-parser`, etc.) |
 | **Orchestration** | `vox-orchestrator` | Agent execution loop, multi-agent coordination, DEI engine. |
 | **Capabilities** | `vox-skills` | Isolated agent capabilities (e.g., file system access, network requests). |
-| **Game/Combat** | `vox-gamify` | Dystopia MUD modernization, Monte Carlo simulations. |
-| **Security/Secrets**| `vox-clavis` | Secret management, API key resolution. |
+| **Game/Combat** | `vox-ludus` | Dystopia MUD modernization, Monte Carlo simulations. |
+| **Security/Secrets**| `vox-secrets` | Secret management, API key resolution. |
 | **Cryptography** | `vox-crypto` | Pure-Rust cryptographic operations (AEGIS banned). |
 
 ## Nomenclature Invariants

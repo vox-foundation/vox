@@ -44,7 +44,7 @@ These were resolved in the audit clarifying pass. They are not up for debate in 
 1. **`contracts/` is canonical for wire and DDL shape** — not Rust code. Rust code is generated from contracts. `contracts/db/baseline-version-policy.yaml` already partially encodes this model (it claims to be SSoT for the baseline integer and digest).
 2. **libSQL/Turso stays** as the Tier A engine. No sled/heed/redb/rocksdb.
 3. **VoxScript-first for migration glue** per `AGENTS.md §VoxScript-First Glue Code`. No `.sh`, no `.ps1`, no `.py` helpers.
-4. **Secret plane is `vox-clavis`** per `AGENTS.md §Secret Management (Required, SSOT)`. No direct `env::var("TURSO_*")` outside the Clavis allowlist.
+4. **Secret plane is `vox-secrets`** per `AGENTS.md §Secret Management (Required, SSOT)`. No direct `env::var("TURSO_*")` outside the vox-secrets allowlist.
 5. **Frozen Core crates** (per `crates/_frozen.md`) keep their public surface stable. Tier A DDL changes in frozen crates need governance sign-off.
 6. **Archive Protocol**: `archive/` and `docs/src/archive/` are frozen inputs. Auditors and agents must not regenerate against them.
 
@@ -60,7 +60,7 @@ Canonical persistence for anything that has identity, relations, or constraints.
   - Project-local: `<repo>/.vox_modules/local_store.db` — package manager index, materialized from `vox.lock`. Regenerable; opened today via bare string literal in `crates/vox-cli/src/commands/{update,sync,search,pm_lifecycle}.rs` (F6).
   - Retired: `research-audit-codex.db` (fold into `store.db` with namespaced prefix, M-24); `vox_hardened.db` at repo root (orphan — no crate opens it — delete in M-25).
 - **Schema**: 19 domain fragments (`foundation`, `clavis_cloudless`, `cas_codex`, `conversations`, `agents`, `ci_completion`, `developer_journeys`, `exec_time`, `execution`, `external_review`, `gamification_coordination`, `knowledge`, `mens_intelligence`, `packages`, `publish_cloud`, `scientia`, `toestub_build`, `visus`, `vox_mesh`) under `crates/vox-db/src/schema/domains/`. `BASELINE_VERSION = 59` in `manifest.rs` (bumped from 55 → 58 → 59 in commits `411adcac` and `ff0fdccc` on 2026-04-21; this integer is a moving target — the guard must read the live value, not hard-code it). Contract `contracts/db/baseline-version-policy.yaml` currently pins `repository_baseline_integer: 54` — **live drift**, now 5 versions behind, see F1. The scientia domain gained two telemetry tables on 2026-04-21 (`model_scoreboard`, `model_pricing_catalog`); see §F75.
-- **Access policy**: `turso::Connection` / `libsql::Connection` may be opened only inside `vox-db`, `vox-clavis`, `vox-test-harness`. Everywhere else goes through the `vox-db` facade.
+- **Access policy**: `turso::Connection` / `libsql::Connection` may be opened only inside `vox-db`, `vox-secrets`, `vox-test-harness`. Everywhere else goes through the `vox-db` facade.
 
 ### 4.2 Tier B — Append-only JSONL spools
 
@@ -93,7 +93,7 @@ Anything under `$VOX_CACHE_DIR` is deleteable without data loss. Includes: downl
 
 Three things sit outside the tiers and are tracked separately:
 
-- **Secret plane** (`vox-clavis`, Infisical / Vault / cloudless vault). Not a Vox-owned persistence tier; Clavis mediates access.
+- **Secret plane** (`vox-secrets`, Infisical / Vault / cloudless vault). Not a Vox-owned persistence tier; vox-secrets mediates access.
 - **VCS state** (`.git/`, `.jj/`). Off-limits to every Vox crate. Ignored by the guard.
 - **Vendored patches** (`patches/`). Cargo patch inputs; not Vox data.
 
@@ -131,7 +131,7 @@ This is the most-changed section of this SSOT. Three prior drafts assumed new cr
 
 ### 5.5 Secret plane
 
-No change. `vox-clavis` stays. Every `VOX_DB_URL` / `VOX_DB_TOKEN` resolution flows through `vox_clavis::resolve_secret(...)`. `VOX_DB_URL` and `VOX_DB_TOKEN` are today read inside `crates/vox-db/src/config.rs`, bypassing Clavis; that is F49 and gets fixed in M-20.
+No change. `vox-secrets` stays. Every `VOX_DB_URL` / `VOX_DB_TOKEN` resolution flows through `vox_secrets::resolve_secret(...)`. `VOX_DB_URL` and `VOX_DB_TOKEN` are today read inside `crates/vox-db/src/config.rs`, bypassing vox-secrets; that is F49 and gets fixed in M-20.
 
 ## 6. Canonical schema pipeline
 
@@ -170,7 +170,7 @@ Each finding has an ID, a one-line summary, a file-and-line anchor, and a link t
 - **F7**. `crates/vox-db/src/collection.rs:83` uses string-interpolated SQL (`format!("INSERT INTO {}", ...)`) instead of a bound parameter. Small but real SQLi vector if the caller is wrong. M-27.
 - **F8**. `crates/vox-db/src/codex_legacy.rs:50-51` uses fuzzy `is_legacy_schema_chain` heuristics instead of a committed-to baseline digest. M-28.
 - **F9**. Row-by-row Turso workaround at `crates/vox-db/src/store/ops_retention.rs:101-111` — documented but not isolated. M-29-docs documents module-level; M-21 considers removing once Turso batch support matures.
-- **F10**. `TURSO_*` env vars (`TURSO_URL`, `VOX_TURSO_URL`, `VOX_TURSO_TOKEN`, `TURSO_AUTH_TOKEN`) appear across `vox-clavis/src/backend/vox_vault.rs` and `vox-clavis/src/lib.rs` constants. Redundant with the canonical `VOX_DB_URL` / `VOX_DB_TOKEN`. M-30 (sunset).
+- **F10**. `TURSO_*` env vars (`TURSO_URL`, `VOX_TURSO_URL`, `VOX_TURSO_TOKEN`, `TURSO_AUTH_TOKEN`) appear across `vox-secrets/src/backend/vox_vault.rs` and `vox-secrets/src/lib.rs` constants. Redundant with the canonical `VOX_DB_URL` / `VOX_DB_TOKEN`. M-30 (sunset).
 
 ### B. Contracts — canonical shape
 
@@ -221,7 +221,7 @@ Each finding has an ID, a one-line summary, a file-and-line anchor, and a link t
 - **F46**. `VOX_USER_ID` (read in `crates/vox-config/src/paths.rs:52`) has no documented deterministic default; agent runs produce differing user IDs session-to-session, muddling Tier A rows' `created_by`. M-58.
 - **F47**. No env contract file — `VOX_*` env vars are grepped out of source, not declared. M-13 + M-14.
 - **F48**. No XDG support — `$VOX_DATA_DIR` defaults to `.vox/` under the working dir, not `$XDG_DATA_HOME/vox/`. M-57.
-- **F49**. `VOX_DB_URL` / `VOX_DB_TOKEN` are read directly in `crates/vox-db/src/config.rs`, bypassing `vox-clavis`. AGENTS.md §Secret Management requires Clavis as the sole resolver. M-20 routes through Clavis.
+- **F49**. `VOX_DB_URL` / `VOX_DB_TOKEN` are read directly in `crates/vox-db/src/config.rs`, bypassing `vox-secrets`. AGENTS.md §Secret Management requires vox-secrets as the sole resolver. M-20 routes through vox-secrets.
 
 ### F. Observability
 
@@ -269,7 +269,7 @@ Added after cross-checking the planning docs against the 24-hour commit window `
   - Older JSON schemas use neither (rely on filename + `$id`).
 
   The lint spec's `version-header-parity` rule (§1.3) was written assuming only `x-vox-version: N`; against HEAD it would false-fail on every orchestration file. Action: (a) extend the rule to accept the set `{x-vox-version, schema_version, version}` as synonyms for now, (b) add M-76 to converge on `x-vox-version` via a contract-renaming migration that also retires the duplicate `version: 1` in the policy file.
-- **F77**. `contracts/orchestration/providers.v1.yaml::providers[].secret_id` is a new Clavis-parity surface. Each entry's `secret_id` (e.g., `GeminiApiKey`, `OpenRouterApiKey`, `GroqApiKey`) must correspond to a registered ID in `crates/vox-clavis/src/spec/ids.rs` (see `ff0fdccc` diff: `crates/vox-clavis/src/spec/ids.rs` gained +31 lines and `crates/vox-clavis/src/spec/registry/llm.rs` is a new 165-line module registering these). Today this parity is not CI-checked. Action: M-77 adds a guard sub-check `provider-secret-parity`.
+- **F77**. `contracts/orchestration/providers.v1.yaml::providers[].secret_id` is a new secrets-parity surface. Each entry's `secret_id` (e.g., `GeminiApiKey`, `OpenRouterApiKey`, `GroqApiKey`) must correspond to a registered ID in `crates/vox-secrets/src/spec/ids.rs` (see `ff0fdccc` diff: `crates/vox-secrets/src/spec/ids.rs` gained +31 lines and `crates/vox-secrets/src/spec/registry/llm.rs` is a new 165-line module registering these). Today this parity is not CI-checked. Action: M-77 adds a guard sub-check `provider-secret-parity`.
 - **F78**. **New `model_*` Tier A tables lack a retention-policy entry.** `contracts/db/retention-policy.yaml` does not yet name `model_scoreboard` or `model_pricing_catalog`; without an explicit retention rule these tables grow unboundedly from `llm_interactions` rollups. Action: M-78 adds retention rules and backfills the policy contract; the existing `vox ci data-ssot-guards` path (`run_scientia_consumption_registry_guard` sibling) gets extended to validate every table in a domain fragment has either a retention rule or an explicit `retention: append-only` marker.
 
 ## 8. Migration phases (seven)

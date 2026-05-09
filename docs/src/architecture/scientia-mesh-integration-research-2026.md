@@ -11,7 +11,7 @@ vox_relevance:
   - "vox-orchestrator: ModelRegistry, ScoringWeights, task_routing"
   - "vox-mens / vox-mesh-types: federation, TaskSpec, MeshDirectoryEntry"
   - "vox-db: model_scoreboard, llm_interactions, llm_feedback"
-  - "vox-clavis: provider-secret envelope"
+  - "vox-secrets: provider-secret envelope"
   - "vox-socrates-policy: hallucination / contradiction gate"
 ---
 
@@ -32,7 +32,7 @@ Supersedes nothing. Extends the Scientia candidate taxonomy and defines the feed
 
 ## Executive Summary
 
-Vox-Scientia today is a **deterministic, contract-driven research-publication pipeline**: crawl feeds → deduplicate → score novelty against federated prior art (OpenAlex / Crossref / Semantic Scholar) → evaluate a multi-weight worthiness gate → compile per-channel distribution → post to Twitter/X, Bluesky, Mastodon, Discord, LinkedIn, Reddit, Hacker News, ResearchGate, GitHub, RSS, YouTube, Zenodo, OpenReview, and stage arXiv for operator submission. Secrets are channelled through Clavis. Approvals are digest-bound. The pipeline is unusually disciplined for its category.
+Vox-Scientia today is a **deterministic, contract-driven research-publication pipeline**: crawl feeds → deduplicate → score novelty against federated prior art (OpenAlex / Crossref / Semantic Scholar) → evaluate a multi-weight worthiness gate → compile per-channel distribution → post to Twitter/X, Bluesky, Mastodon, Discord, LinkedIn, Reddit, Hacker News, ResearchGate, GitHub, RSS, YouTube, Zenodo, OpenReview, and stage arXiv for operator submission. Secrets are channelled through vox-secrets. Approvals are digest-bound. The pipeline is unusually disciplined for its category.
 
 Its **fundamental limitation** is that it is a publication pipeline about the *world* and nearly silent about its own *substrate*. Vox runs a mesh (`vox-mens` + `vox-mesh-types`) and an orchestrator (`vox-orchestrator`) that choose among providers, endpoints, and local models every second of every day, and the observations that fall out of those choices — "Gemini 2.0 plans to a depth of three tool calls reliably but hallucinates on four," "this OpenRouter endpoint drifts 300 ms after 23:00 UTC," "Claude 3.5 Haiku's long-context recall on 80k-token Vox source trees holds at 0.86" — never become first-class **discovery signals**, never enter the novelty ledger, never pass through the worthiness gate, and never get published. They also never flow back into the **router scoring function** beyond the existing coarse success-rate / cost / p50-latency rollup.
 
@@ -69,7 +69,7 @@ A concrete, file-referenced map of the current pipeline so the limitations secti
 | Social adapters | `vox-publisher/adapters/` | twitter, bluesky, mastodon, discord, linkedin, reddit, hn, rg, github, rss |
 | Scholarly adapters | `vox-publisher/scholarly/` | zenodo, openreview; `submission/arxiv.rs` = operator handoff |
 | Publish gate | `vox-publisher` | `gate.rs::publish_gate_inputs_for_orchestrator` |
-| Secrets | `vox-clavis` | `resolve_secret(SecretId::*)` — Vault / Infisical / env |
+| Secrets | `vox-secrets` | `resolve_secret(SecretId::*)` — Vault / Infisical / env |
 
 ### 1.2 Novelty is a static heuristic blend
 
@@ -236,7 +236,7 @@ The proposed loop is three edges, not one:
 
 Extend `DiscoverySignalFamily` (`crates/vox-publisher/src/scientia_evidence/signals.rs`) with:
 
-- `ProviderObservation` — an observation about a specific provider / endpoint / model arising from a Vox call (latency, refusal, tool-call malformation, context-truncation behaviour, JSON-mode violation, cost deviation, quota shape). Provenance must include `model_id`, `provider_id`, `endpoint`, `task_category`, `strength_tag`, Vox commit SHA, and the Clavis secret fingerprint (not the secret).
+- `ProviderObservation` — an observation about a specific provider / endpoint / model arising from a Vox call (latency, refusal, tool-call malformation, context-truncation behaviour, JSON-mode violation, cost deviation, quota shape). Provenance must include `model_id`, `provider_id`, `endpoint`, `task_category`, `strength_tag`, Vox commit SHA, and the vox-secrets secret fingerprint (not the secret).
 - `ModelCapabilityEvidence` — a claim about a model's capability at a specific task/strength, supported by evidence rows (benchmark pair id, Socrates run id, telemetry aggregate id). This is the aggregated, de-noised shape, not a raw call.
 
 Both feed `infer_candidate_class` (`scientia_finding_ledger.rs::infer_candidate_class`, currently at line ~154).
@@ -583,7 +583,7 @@ Ordered to deliver signal as early as possible without breaking existing invaria
 **Phase 3 — Loop closure (2–3 weeks).**
 
 - Implement `model_profile_learning` overlay and `inject_learned_profiles()`.
-- Turn on the new `ScoringWeights` fields with conservative defaults (near-zero influence) behind a Clavis-flagged feature key.
+- Turn on the new `ScoringWeights` fields with conservative defaults (near-zero influence) behind a vox-secrets-flagged feature key.
 - A/B compare routing decisions with and without the overlay on a held-out task set.
 
 **Phase 4 — First published atlas (2–4 weeks).**

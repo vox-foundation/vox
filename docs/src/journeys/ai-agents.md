@@ -35,7 +35,7 @@ type SearchResult {
 }
 
 @mcp.tool "Search the knowledge base for documents matching the query"
-fn search_knowledge(query: str, max_results: int) -> SearchResult {
+fn search_knowledge(query: str, max_results: int) to SearchResult {
     let hits = db.vector_search(query, max_results)
     if hits.len() == 0 {
         return NotFound { query: query }
@@ -43,8 +43,8 @@ fn search_knowledge(query: str, max_results: int) -> SearchResult {
     return Found { text: hits[0].text, score: hits[0].score }
 }
 
-@server 
-fn get_answer(user_question: str) -> Result[str] {
+@endpoint(kind: server)
+fn get_answer(user_question: str) to Result[str] {
     let answer = agent.query(user_question, { tools: [search_knowledge] })
     return Ok(answer)
 }

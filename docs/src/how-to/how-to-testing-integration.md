@@ -19,12 +19,12 @@ Any function annotated with `@test` will be executed during a `vox test` invocat
 
 ```vox
 // vox:skip
-fn calculate_total(subtotal: int, tax: int) -> int {
+fn calculate_total(subtotal: int, tax: int) to int {
     return subtotal + tax
 }
 
 @test
-fn test_calculate_total() -> Unit {
+fn test_calculate_total() to Unit {
     let result = calculate_total(100, 10)
     assert(result == 110)
 }
@@ -37,7 +37,7 @@ When testing functions that return `Result[T, E]`, you typically use `match` to 
 ```vox
 // vox:skip
 @test
-fn test_database_insert_validation() -> Unit {
+fn test_database_insert_validation() to Unit {
     let invalid_data = { title: "", owner: "alice" }
     
     // Assuming db.Task.insert has a length requirement on title
@@ -55,7 +55,7 @@ Workflows and Activities evaluate sequentially and synchronously from the tester
 ```vox
 // vox:skip
 @test
-fn test_order_workflow() -> Unit {
+fn test_order_workflow() to Unit {
     // Run the workflow natively
     let result = process_order("alice", 500)
     

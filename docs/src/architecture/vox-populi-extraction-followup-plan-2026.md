@@ -93,7 +93,7 @@ Each unit is independently shippable. Sequence them or parallelize across worktr
 
 **Acceptance:** `vox-populi/src/transport/` deleted. `vox-cli` builds without axum in the dep graph (verify with `cargo tree`). Existing populi integration tests pass via the plugin path.
 
-**Risk:** Heavy. The transport module is tightly coupled to `vox-populi`'s NodeRegistry, store backends (Turso schema), and JWT secret resolution (vox-clavis). Extraction may require the plugin to depend on vox-clavis + vox-db too — that's accepted (the same pattern as mens-candle-cuda's vox-tensor + vox-corpus deps).
+**Risk:** Heavy. The transport module is tightly coupled to `vox-populi`'s NodeRegistry, store backends (Turso schema), and JWT secret resolution (vox-secrets). Extraction may require the plugin to depend on vox-secrets + vox-db too — that's accepted (the same pattern as mens-candle-cuda's vox-tensor + vox-corpus deps).
 
 ### Unit 3: vox-tensor extraction (~3,054 LOC)
 

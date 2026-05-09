@@ -18,7 +18,7 @@ use crate::types::AgentId;
 // Identity
 // ---------------------------------------------------------------------------
 
-// Identifiers moved to `vox-orchestrator-types` in 2026-05-08 reorg Phase 5.
+// Identifiers extracted to `vox-orchestrator-types` (2026-05-08).
 pub use vox_orchestrator_types::{SnapshotId, SnapshotIdGenerator};
 
 // ---------------------------------------------------------------------------

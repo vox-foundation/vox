@@ -543,7 +543,7 @@ impl super::ScholarlyAdapter for ZenodoAdapter {
     }
 }
 
-pub(super) fn zenodo_from_clavis() -> Result<ZenodoAdapter, ScholarlyError> {
+pub(super) fn zenodo_from_secrets() -> Result<ZenodoAdapter, ScholarlyError> {
     if flags::adapter_live_disabled("zenodo") {
         return Err(ScholarlyError::Disabled {
             reason: "VOX_SCHOLARLY_DISABLE_ZENODO is set".into(),
@@ -555,7 +555,7 @@ pub(super) fn zenodo_from_clavis() -> Result<ZenodoAdapter, ScholarlyError> {
         .filter(|s| !s.is_empty());
     let Some(token) = token else {
         return Err(ScholarlyError::Config {
-            message: "missing Zenodo token: set ZENODO_ACCESS_TOKEN (or VOX_ZENODO_ACCESS_TOKEN) per Clavis / `vox clavis doctor`"
+            message: "missing Zenodo token: set ZENODO_ACCESS_TOKEN (or VOX_ZENODO_ACCESS_TOKEN) per secrets / `vox secrets doctor`"
                 .into(),
         });
     };

@@ -49,7 +49,7 @@ The workspace `Vox.toml` at the repo root already uses `[section]` syntax (e.g.,
 1. A new contributor on a fresh box has to read `populi.md` cover-to-cover to know which env vars to set.
 2. Some defaults are unreasonable (no fallback bind address, no quickstart store path).
 3. Precedence between env vars, user config, and any future workspace config is undocumented; conflicts are silent.
-4. There's no `[mesh]` block — every operator setting is either an env var or a hand-edited Clavis secret.
+4. There's no `[mesh]` block — every operator setting is either an env var or a hand-edited vox-secrets secret.
 5. `vox populi serve` failure modes (port in use, missing token) are bare Rust errors, not actionable hints.
 
 ---
@@ -77,7 +77,7 @@ A new `MeshConfig::resolve()` function performs the merge and returns a fully-re
 [mesh]
 enabled = true                        # default false on a fresh checkout
 
-# Identity (defaults: derived from hostname + Ed25519 keypair persisted in vox-clavis)
+# Identity (defaults: derived from hostname + Ed25519 keypair persisted in vox-secrets)
 node_id = "auto"                      # "auto" | explicit string
 scope_id = "auto"                     # "auto" | explicit string
 rank = 0

@@ -69,7 +69,7 @@ Vox portability does **not** guarantee:
 - Per-deploy configuration **must not** be hardcoded into application code.
 - Secrets **must not** be baked into committed images.
 - Deploy configuration **should** use environment-variable conventions documented in [Environment variables (SSOT)](env-vars.md).
-- Secret resolution **must** stay aligned with [Clavis SSOT](clavis-ssot.md).
+- Secret resolution **must** stay aligned with [Secrets SSOT](secrets-ssot.md).
 
 ## Runtime support statement
 
@@ -119,7 +119,7 @@ Use this checklist when defining or validating portability-sensitive lanes:
 - [ ] Multi-arch requirements are stated for the relevant publication lane.
 - [ ] Digest-pinning expectations are stated for reproducibility-sensitive builds.
 - [ ] SBOM/provenance/signing policy is stated for promoted artifacts.
-- [ ] Secret/config behavior cites `env-vars.md` and `clavis-ssot.md`.
+- [ ] Secret/config behavior cites `env-vars.md` and `secrets-ssot.md`.
 - [ ] CLI contract implications are consistent with `contracts/cli/command-registry.yaml`.
 
 ## Related operational references
@@ -127,7 +127,7 @@ Use this checklist when defining or validating portability-sensitive lanes:
 - [Deployment: Docker, Compose, Coolify, CI (SSOT)](deployment-compose.md)
 - [Cross-platform Vox — runbook](../archive/research-2026-q1/vox-cross-platform-runbook.md)
 - [Environment variables (SSOT)](env-vars.md)
-- [Clavis SSOT](clavis-ssot.md)
+- [Secrets SSOT](secrets-ssot.md)
 - [Command compliance](command-compliance.md)
 
 

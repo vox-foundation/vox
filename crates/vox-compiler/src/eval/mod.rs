@@ -67,10 +67,10 @@ impl Interpreter {
             )]),
         );
         scope.set(
-            "clavis".to_string(),
+            "secrets".to_string(),
             VoxValue::Object(vec![(
                 "__namespace__".to_string(),
-                VoxValue::Str("clavis".to_string()),
+                VoxValue::Str("secrets".to_string()),
             )]),
         );
         scope.set(

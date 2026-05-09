@@ -50,7 +50,7 @@ export const MCP_CANONICAL_TOOL_NAMES = [
     "vox_check_mood",
     "vox_check_workspace",
     "vox_claim_file",
-    "vox_clavis_doctor",
+    "vox_secrets_doctor",
     "vox_compaction_status",
     "vox_compiler::ast_inspect",
     "vox_complete_task",

@@ -47,4 +47,4 @@ All 13 core React components from `vox-vscode/webview-ui/src/components/` were p
 
 ## Vox GUI language roadmap
 
-The transition to an Axum-served dashboard lays the foundation for future "Vox GUI language" capabilities. Currently deferred to Phase 9, the future compiler roadmap will expose primitives that allow `.vox` agent code to programmatically define custom dashboard views and forms, which will be rendered dynamically by the React shell over the `/v1/ws` transport.
+The transition to an Axum-served dashboard lays the foundation for future "Vox GUI language" capabilities. Deferred to Phase 9 of the GUI-native roadmap (vox-gui-native-roadmap-2026.md §Phase 9). Until that phase lands, dashboards rely on hand-authored TSX components. Once Phase 9 ships, `.vox` agent code will be able to programmatically define custom dashboard views and forms, rendered dynamically by the React shell over the `/v1/ws` transport.

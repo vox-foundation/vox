@@ -16,7 +16,7 @@ use crate::usage::RemainingBudget;
 use super::bandit::sample_beta_thompson;
 use super::policy::RoutingPolicy;
 
-fn prefer_reasoning_from_clavis() -> bool {
+fn prefer_reasoning_from_secrets() -> bool {
     static CELL: OnceLock<bool> = OnceLock::new();
     *CELL.get_or_init(|| {
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxCapabilityPreferReasoning)
@@ -95,7 +95,7 @@ impl ModelSelectionEngine {
                 preference,
                 availability_hint,
             ) as f64;
-            if prefer_reasoning_from_clavis() && m.capabilities.supports_reasoning {
+            if prefer_reasoning_from_secrets() && m.capabilities.supports_reasoning {
                 base += 0.02;
             }
             let (s, f) = arm_stats.get(&m.id).copied().unwrap_or((0, 0));

@@ -1,5 +1,5 @@
 // vox:caps process
-// Smoke: doctor probe (includes LLM routing check) — run after `vox clavis login` on fresh machines.
+// Smoke: doctor probe (includes LLM routing check) — run after `vox secrets login` on fresh machines.
 import process;
 
 fn main() {

@@ -9,6 +9,8 @@ training_rationale: "Strategic plan; canonical reference for backend-only mode, 
 
 # External Frontend Interop Plan (2026)
 
+> **Phase numbering:** This plan uses the **frontend interop** phase sequence (Phases 1–5). For the other two sequences, see [phase-numbering-index](phase-numbering-index.md).
+
 ## Premise
 
 Historically Vox supported one shape: full-stack co-generation of a Vite/React frontend and an Axum backend from the same `.vox` source, with `@island` as the bridge primitive for sprinkling React into the generated tree. **As of 2026-05-03, `@island` is retired**: the compiler, CLI, templates, contracts, examples, and docs no longer reference it; Vox lowers `component` declarations directly to plain React/TSX that any external frontend imports.
@@ -92,7 +94,7 @@ The two modes share one substrate: the wire-format SSOT, the OpenAPI/JSON Schema
 1. Extend `@endpoint`:
    ```
    @endpoint(method: GET, path: "/users/:id")
-   fn get_user(id: UserId) -> Result[User]
+   fn get_user(id: UserId) to Result[User]
    ```
    Path params extracted by name, type-checked against the function signature at compile time. Query strings remain implicit for trailing scalar params (or explicit via `@query_param`).
 2. New decorators:

@@ -59,7 +59,7 @@ impl GamifyMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum BuildTarget {
-    /// Emit TypeScript/React frontend files **and** Axum Rust backend (existing default).
+    /// Emit TypeScript/React frontend files **and** Axum Rust backend (default mode).
     #[default]
     Fullstack,
     /// Emit only the Axum Rust backend; skip all TypeScript codegen and Vite scaffolding.

@@ -18,8 +18,8 @@ const REM_DB_INTENT: &str =
 const REM_DB_DIGEST_JSON: &str = "If this persists, the generated schema digest may be unusually large — simplify the `.vox` module or file an issue.";
 const REM_MCP_MODEL_LOCK: &str =
     "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
-const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
-const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox secrets doctor` for inference secrets.";
+const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
 
 // ---------------------------------------------------------------------------
 // Shared helper

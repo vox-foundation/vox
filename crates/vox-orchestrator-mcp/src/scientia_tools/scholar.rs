@@ -450,7 +450,7 @@ pub async fn vox_scientia_publication_scholarly_pipeline_run(
         }
         Err(e) => ToolResult::<String>::err_with_remediation(
             e.to_string(),
-            "Verify `VOX_SCHOLARLY_*` flags, adapter credentials (Clavis / env), dual approval, and that the stored digest matches the manifest.",
+            "Verify `VOX_SCHOLARLY_*` flags, adapter credentials (Secrets / env), dual approval, and that the stored digest matches the manifest.",
         )
         .to_json(),
     }

@@ -39,7 +39,7 @@ You can define your deployment environment directly in your `.vox` files using `
 ```
 
 > [!NOTE]
-> The **`npx tsx server.ts`** command is a **legacy / opt-in Node lane**. TypeScript codegen emits **`server.ts`** only when **`VOX_EMIT_EXPRESS_SERVER=1`** is set at build time; the default product path is the **generated Axum** binary plus **`api.ts`** for `@server fn`. See [vox-fullstack-artifacts.md](../reference/vox-fullstack-artifacts.md).
+> The **`npx tsx server.ts`** command is a **legacy / opt-in Node lane**. TypeScript codegen emits **`server.ts`** only when **`VOX_EMIT_EXPRESS_SERVER=1`** is set at build time; the default product path is the **generated Axum** binary plus **`api.ts`** for `@endpoint(kind: server) fn`. See [vox-fullstack-artifacts.md](../reference/vox-fullstack-artifacts.md).
 
 ### Bare Metal (systemd) Provider
 

@@ -2,7 +2,7 @@
 title: "Parser feature matrix"
 description: "Current parser coverage matrix for Vox declarations and expressions."
 category: "reference"
-last_updated: "2026-03-27"
+last_updated: "2026-05-09"
 training_eligible: true
 
 schema_type: "TechArticle"
@@ -18,18 +18,22 @@ schema_type: "TechArticle"
 - `fn`, `pub fn`
 - `type`, `pub type`
 - `import`
-- `@island`
+- `component` (UI component declaration; emits React/TSX)
+- `@endpoint(kind: server|query|mutation)`
 - `@loading`
-- `@island`
 - `@table`, `@index`
 - `@mcp.tool`
 - `@test`
-- `@server`
 - `@v0`
 - `actor`, `workflow`, `activity`
 - HTTP route declarations (`http get/post/put/delete`)
+- `routes { }` (router shim generation)
 - JSX tags and expressions
 - Expression operators including pipeline (`|>`)
+
+## Retired (hard parser error)
+- `@island` — retired 2026-05-03; use `component` instead
+- `@server`, `@query`, `@mutation` — retired; use `@endpoint(kind: server|query|mutation)` instead
 
 ## Explicitly out of parser scope (current)
 - `@page`

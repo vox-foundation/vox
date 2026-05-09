@@ -16,7 +16,7 @@
 - [Standard Library](https://vox-lang.org/reference/ref-stdlib/)
 - [CLI Reference](https://vox-lang.org/reference/cli/)
 - [Environment Variables SSOT](https://vox-lang.org/reference/env-vars/)
-- [Clavis (Secret Management)](https://vox-lang.org/reference/clavis-ssot/)
+- [Secrets (Secret Management)](https://vox-lang.org/reference/secrets-ssot/)
 - [MCP Tool Reference](https://vox-lang.org/reference/mcp-tool-reference/)
 
 ## Architecture Authority

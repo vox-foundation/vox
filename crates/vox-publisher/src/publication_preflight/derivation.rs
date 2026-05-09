@@ -12,7 +12,7 @@ pub(super) fn collect_destination_readiness(
         remediation: if zenodo_tok {
             String::new()
         } else {
-            "Set Zenodo API token (Clavis `VoxZenodoAccessToken` / env alias per doctor)."
+            "Set Zenodo API token (secrets `VoxZenodoAccessToken` / env alias per doctor)."
                 .to_string()
         },
         credential_present: Some(zenodo_tok),
@@ -34,7 +34,7 @@ pub(super) fn collect_destination_readiness(
         remediation: if openreview_ready {
             String::new()
         } else {
-            "Provide OpenReview credentials (access token or email+password via Clavis)."
+            "Provide OpenReview credentials (access token or email+password via secrets)."
                 .to_string()
         },
         credential_present: Some(openreview_ready),
@@ -172,9 +172,9 @@ pub(super) fn collect_manual_required(
                 reason: "Twitter is enabled in syndication but no operator bearer token resolved."
                     .to_string(),
                 severity: PreflightSeverity::Warning,
-                next_action: "Configure the Twitter bearer token / Clavis mapping for this shell."
+                next_action: "Configure the Twitter bearer token / secrets mapping for this shell."
                     .to_string(),
-                command_hint: Some("vox clavis doctor".to_string()),
+                command_hint: Some("vox secrets doctor".to_string()),
             });
         }
         if item.syndication.forge.is_some() && !cred.github {
@@ -182,9 +182,9 @@ pub(super) fn collect_manual_required(
                 code: "credential_github",
                 reason: "GitHub syndication is enabled but no operator token resolved.".to_string(),
                 severity: PreflightSeverity::Warning,
-                next_action: "Configure `VOX_NEWS_GITHUB_TOKEN` / GitHub token via Clavis."
+                next_action: "Configure `VOX_NEWS_GITHUB_TOKEN` / GitHub token via secrets."
                     .to_string(),
-                command_hint: Some("vox clavis doctor".to_string()),
+                command_hint: Some("vox secrets doctor".to_string()),
             });
         }
         if item.syndication.open_collective.is_some() && !cred.open_collective {
@@ -193,9 +193,9 @@ pub(super) fn collect_manual_required(
                 reason: "Open Collective syndication is enabled but no operator token resolved."
                     .to_string(),
                 severity: PreflightSeverity::Warning,
-                next_action: "Configure `VOX_NEWS_OPENCOLLECTIVE_TOKEN` / Clavis mapping."
+                next_action: "Configure `VOX_NEWS_OPENCOLLECTIVE_TOKEN` / secrets mapping."
                     .to_string(),
-                command_hint: Some("vox clavis doctor".to_string()),
+                command_hint: Some("vox secrets doctor".to_string()),
             });
         }
         if item.syndication.reddit.is_some() && !cred.reddit {
@@ -205,8 +205,8 @@ pub(super) fn collect_manual_required(
                     "Reddit syndication is enabled but OAuth client credentials are incomplete."
                         .to_string(),
                 severity: PreflightSeverity::Warning,
-                next_action: "Set `VOX_SOCIAL_REDDIT_*` secrets per Clavis SSOT.".to_string(),
-                command_hint: Some("vox clavis doctor".to_string()),
+                next_action: "Set `VOX_SOCIAL_REDDIT_*` secrets per secrets SSOT.".to_string(),
+                command_hint: Some("vox secrets doctor".to_string()),
             });
         }
         if item.syndication.youtube.is_some() && !cred.youtube {
@@ -216,8 +216,8 @@ pub(super) fn collect_manual_required(
                     "YouTube syndication is enabled but OAuth refresh credentials are incomplete."
                         .to_string(),
                 severity: PreflightSeverity::Warning,
-                next_action: "Set `VOX_SOCIAL_YOUTUBE_*` secrets per Clavis SSOT.".to_string(),
-                command_hint: Some("vox clavis doctor".to_string()),
+                next_action: "Set `VOX_SOCIAL_YOUTUBE_*` secrets per secrets SSOT.".to_string(),
+                command_hint: Some("vox secrets doctor".to_string()),
             });
         }
     }

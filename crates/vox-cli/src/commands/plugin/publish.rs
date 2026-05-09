@@ -67,7 +67,7 @@ pub async fn run(
     gateway: Option<String>,
     api_key_arg: Option<String>,
 ) -> Result<()> {
-    // 1. Resolve API key: flag > clavis OpenClawApiKey > clavis OpenClawToken.
+    // 1. Resolve API key: flag > secrets OpenClawApiKey > secrets OpenClawToken.
     let api_key = if let Some(k) = api_key_arg.and_then(|k| {
         let t = k.trim().to_string();
         if t.is_empty() { None } else { Some(t) }

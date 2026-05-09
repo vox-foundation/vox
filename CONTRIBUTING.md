@@ -27,7 +27,7 @@ Welcome. This file is the **short golden path**; deeper policy lives in [AGENTS.
 | Compiler (lex → HIR) | [`docs/src/explanation/expl-architecture.md`](docs/src/explanation/expl-architecture.md) |
 | CLI | [`docs/src/reference/cli.md`](docs/src/reference/cli.md) |
 | Mens / Populi HTTP | [`docs/src/reference/populi.md`](docs/src/reference/populi.md) |
-| Secrets | [`docs/src/reference/clavis-ssot.md`](docs/src/reference/clavis-ssot.md) |
+| Secrets | [`docs/src/reference/secrets-ssot.md`](docs/src/reference/secrets-ssot.md) |
 
 ## First PR checklist
 

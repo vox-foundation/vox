@@ -11,6 +11,10 @@ archived_date: 2026-04-18
 
 # Vox Web: Minimal React Interop — Implementation Plan
 
+> **⚠ Superseded — archived 2026-05-03.**
+> The current plan for this area is [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).
+> Retained for historical context only. Do not implement against this document.
+
 > **Research foundation:** [`react-interop-research-findings-2026.md`](./react-interop-research-findings-2026.md)  
 > **Supersedes:** [`tanstack-start-codegen-spec.md`](./tanstack-start-codegen-spec.md) (archived, not deleted)  
 > **Backlog (250+ tasks):** [`react-interop-backlog-2026.md`](./react-interop-backlog-2026.md)

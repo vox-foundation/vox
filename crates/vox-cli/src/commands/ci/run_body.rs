@@ -35,14 +35,14 @@ pub(crate) mod run_body_helpers;
 
 use run_body_helpers::{
     MensGateOpts, check_codex_ssot, check_docs_ssot, check_no_vox_dei, check_workflow_scripts,
-    run_build_timings, run_clavis_contracts, run_clavis_cutover_audit, run_clavis_cutover_gates,
-    run_clavis_parity, run_collateral_damage_gate, run_constrained_gen_smoke,
+    run_build_timings, run_collateral_damage_gate, run_constrained_gen_smoke,
     run_corpus_decl_coverage, run_cuda_features, run_cuda_release_build, run_data_ssot_guards,
     run_feature_matrix, run_grammar_drift, run_grammar_export_check, run_grpo_reward_baseline,
     run_k_complexity_budget, run_manifest, run_mens_corpus_health, run_mens_gate,
     run_operator_env_guard, run_query_all_guard, run_repo_guards, run_script_hygiene,
-    run_secret_env_guard, run_sql_surface_guard, run_ssot_audit, run_ssot_drift,
-    run_toestub_scoped, run_toestub_self_apply, run_turso_import_guard,
+    run_secret_env_guard, run_secrets_contracts, run_secrets_cutover_audit,
+    run_secrets_cutover_gates, run_secrets_parity, run_sql_surface_guard, run_ssot_audit,
+    run_ssot_drift, run_toestub_scoped, run_toestub_self_apply, run_turso_import_guard,
 };
 
 use super::retired_symbol_check;
@@ -253,10 +253,10 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::SqlSurfaceGuard { all } => run_sql_surface_guard(&root, all),
         CiCmd::QueryAllGuard { all } => run_query_all_guard(&root, all),
         CiCmd::TursoImportGuard { all } => run_turso_import_guard(&root, all),
-        CiCmd::ClavisContracts => run_clavis_contracts(&root),
-        CiCmd::ClavisParity => run_clavis_parity(&root),
-        CiCmd::ClavisCutoverGates => run_clavis_cutover_gates(&root),
-        CiCmd::ClavisCutoverAudit { all } => run_clavis_cutover_audit(&root, all),
+        CiCmd::SecretsContracts => run_secrets_contracts(&root),
+        CiCmd::SecretsParity => run_secrets_parity(&root),
+        CiCmd::SecretsCutoverGates => run_secrets_cutover_gates(&root),
+        CiCmd::SecretsCutoverAudit { all } => run_secrets_cutover_audit(&root, all),
         CiCmd::CapabilitySync { write } => super::capability_sync::run(&root, write),
         CiCmd::CapabilitySnapshot => super::capability_snapshot::run(&root),
         CiCmd::AttentionConfigParity => super::attention_parity::run(&root),

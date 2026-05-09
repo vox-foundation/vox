@@ -21,8 +21,8 @@ pub mod chat_model_resolve;
 pub mod chat_socrates_meta;
 /// Chat, inline edit, ghost text, planning, and ambient editor decorations.
 pub mod chat_tools;
-/// Clavis credential tools.
-pub mod clavis_tools;
+/// Secrets credential tools.
+pub mod secrets_tools;
 /// Structured .vox diagnostics and repair tools.
 pub mod code_validator;
 /// Codex relational V17/V16 helpers over connected `VoxDb`.

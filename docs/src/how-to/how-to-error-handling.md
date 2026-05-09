@@ -18,7 +18,7 @@ Vox uses the functional `Result[T, E]` type for operations that can fail, rather
 
 ```vox
 // vox:skip
-fn find_user(id: str) -> Result[str] {
+fn find_user(id: str) to Result[str] {
     if id == "" {
         return Error("Invalid ID")
     }
@@ -32,7 +32,7 @@ The `?` operator provides ergonomic error propagation. If an expression evaluate
 
 ```vox
 // vox:skip
-fn process_order(id: str) -> Result[bool] {
+fn process_order(id: str) to Result[bool] {
     let user = find_user(id)?
     // `check_balance` might also return a Result
     // let balance = check_balance(user)?
@@ -60,7 +60,7 @@ You can transform results using functional combinators or explicit pattern match
 
 ```vox
 // vox:skip
-fn get_user_name(id: str) -> Result[str] {
+fn get_user_name(id: str) to Result[str] {
     let user = find_user(id).map_err(|e| "User fetch failed: " + e)?
     return Ok(user.name)
 }

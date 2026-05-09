@@ -11,7 +11,7 @@ vox_relevance:
   - "vox-populi: transport for op-log gossip; new gossip topic"
   - "vox-git: gix bridge unchanged; remains git-interop boundary"
   - "vox-socrates-policy: new arbitration rule for ambiguous semantic merges"
-  - "vox-clavis: signing keys for op-log fragments"
+  - "vox-secrets: signing keys for op-log fragments"
 ---
 
 # Multi-Agent VCS Replication — Architecture Spec (2026-05-03)
@@ -28,7 +28,7 @@ Multiple AI coding agents (Claude Code instances, MENS workers) and humans, on o
 
 - Replacing git interop. External git remotes (GitHub, GitLab) remain reachable via [`vox-git`](../../../crates/vox-git/). Vox is the inner substrate; the git wire protocol is preserved at the repo boundary.
 - Real-time keystroke-level co-editing. We replicate **agent-commit-granularity ops**, not keystrokes. Use Yjs/CRDT editing in the IDE if that's wanted; it's out of scope here.
-- Cross-organization federation. The mesh layer assumes a Populi-trust boundary (Clavis-issued identities, JWE-encrypted envelopes); cross-org sync is a future concern.
+- Cross-organization federation. The mesh layer assumes a Populi-trust boundary (vox-secrets-issued identities, JWE-encrypted envelopes); cross-org sync is a future concern.
 
 ## Decisions baked into this spec
 
@@ -122,7 +122,7 @@ pub struct OpFragment {
     pub agent_id: AgentId,             // who produced this op
     pub convergence_set: ConvergenceSetId,
     pub payload: OpPayload,            // jj-lib operation: snapshot, edit, abandon, ...
-    pub signature: Signature,          // Clavis-issued; binds op_id to agent_id
+    pub signature: Signature,          // vox-secrets-issued; binds op_id to agent_id
     pub produced_at: Timestamp,
 }
 
@@ -160,7 +160,7 @@ A user's default set is `local` (all their agents on their machine). Joining a m
 
 Each peer **streams `OpFragment`s** on its outbound channel as soon as they're produced and signed. Peers receiving fragments:
 
-1. Verify the signature against Clavis-issued agent identities.
+1. Verify the signature against vox-secrets-issued agent identities.
 2. Check causal parents: if any `parent_op_id` is unknown, queue the fragment and request the missing ancestors.
 3. Deduplicate by `op_id`.
 4. Hand to `ConvergenceEngine` for replay + merge classification.
@@ -195,7 +195,7 @@ When two `OpFragment`s touch the same commit or file range, `MergePolicy` return
 1. **Auto-merge** — patches commute (non-overlapping line ranges, distinct symbols, additive changes). Apply both; no human involved. Borrows from Pijul's patch theory: independent patches commute.
 2. **Surface as conflict** — patches overlap and the bytes don't match. Materialize via `jj_backend.rs::ContentMerge::n_way` and route to the existing [`conflict_manager`](../../../crates/vox-orchestrator/src/mcp_tools/vcs_tools/). Conflicts become first-class artifacts, not transient diffs in a working tree.
 3. **Escalate to Socrates arbitration** — patches overlap but are semantically related (e.g., both rename the same symbol). [`vox-socrates-policy`](../../../crates/vox-socrates-policy/) scores each side's hallucination risk + author trust and may auto-pick a winner; otherwise falls through to (2).
-4. **Policy block** — the change violates a project rule (e.g., "agents can't edit `vox-clavis/src/spec.rs` without human review"). Hold the op; surface to a human.
+4. **Policy block** — the change violates a project rule (e.g., "agents can't edit `vox-secrets/src/spec.rs` without human review"). Hold the op; surface to a human.
 
 The classifier is informed by:
 
@@ -247,7 +247,7 @@ The classifier is pure (no I/O), making it cheap to test and audit.
 1. `OpFragmentEnvelope` variant in `a2a/envelope.rs`.
 2. Gossip topic + backfill protocol in `a2a/dispatch/mesh.rs`.
 3. `ConvergenceSetAnnouncement` for set discovery.
-4. Clavis-issued agent identities for op signing (extend [`crates/vox-clavis/`](../../../crates/vox-clavis/)).
+4. Secrets-issued agent identities for op signing (extend [`crates/vox-secrets/`](../../../crates/vox-secrets/)).
 5. Iroh evaluation: build a `Transport` trait so Populi or Iroh can be plugged in. Stay on Populi for v1; recommendation in a follow-up findings doc.
 
 **Success criterion:** Two-user, two-agents-each (4 total) demo: all converge in real time across the mesh; no manual merge for non-overlapping work.
@@ -298,6 +298,6 @@ These are explicit follow-ups. They're not part of this spec because each requir
 - **Research foundation:** [`multi-agent-vcs-replication-research-2026.md`](multi-agent-vcs-replication-research-2026.md).
 - **Mesh:** [`populi-mesh-north-star-2026.md`](populi-mesh-north-star-2026.md), [`populi-mesh-improvement-backlog-2026.md`](populi-mesh-improvement-backlog-2026.md), [`populi-mesh-config-baseline-spec-2026.md`](populi-mesh-config-baseline-spec-2026.md).
 - **Orchestrator context:** [`nextgen-orchestrator-research-2026.md`](nextgen-orchestrator-research-2026.md).
-- **Security / signing:** [`cryptography-ssot-2026.md`](cryptography-ssot-2026.md), `crates/vox-clavis/` for agent identity.
+- **Security / signing:** [`cryptography-ssot-2026.md`](cryptography-ssot-2026.md), `crates/vox-secrets/` for agent identity.
 - **Code surfaces:** [`crates/vox-orchestrator/src/jj_backend.rs`](../../../crates/vox-orchestrator/src/jj_backend.rs), [`crates/vox-orchestrator/src/a2a/`](../../../crates/vox-orchestrator/src/a2a/), [`crates/vox-orchestrator/src/mcp_tools/vcs_tools/`](../../../crates/vox-orchestrator/src/mcp_tools/vcs_tools/), [`crates/vox-git/`](../../../crates/vox-git/), [`crates/vox-socrates-policy/`](../../../crates/vox-socrates-policy/).
 - **Implementation plan:** [`multi-agent-vcs-replication-impl-plan-phase1-2026.md`](multi-agent-vcs-replication-impl-plan-phase1-2026.md) — Phase 1 step-by-step. Phases 2–4 will be drafted as separate plans when each is queued.

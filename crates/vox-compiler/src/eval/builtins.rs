@@ -310,7 +310,7 @@ pub fn call_builtin_method(
 
             if let Some(ns_str) = ns
                 && let Some(c) = caps
-                && (ns_str == "fs" || ns_str == "process" || ns_str == "env" || ns_str == "clavis")
+                && (ns_str == "fs" || ns_str == "process" || ns_str == "env" || ns_str == "secrets")
                 && !(c.contains(ns_str) || (ns_str == "process" && c.contains("subprocess")))
             {
                 println!("Capability denied: script missing capability '{}'", ns_str);
@@ -445,7 +445,7 @@ pub fn call_builtin_method(
                     }
                     _ => None,
                 },
-                Some("clavis") => match method {
+                Some("secrets") => match method {
                     "resolve" => {
                         let name = match args.into_iter().next() {
                             Some(VoxValue::Str(s)) => s,

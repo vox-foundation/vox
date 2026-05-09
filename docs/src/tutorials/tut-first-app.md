@@ -32,7 +32,7 @@ Open `src/main.vox`. We'll start by defining what a "Task" is. Using the `@table
 
 ## 3. Implement Server Logic
 
-Next, we add `@mutation` and `@query` functions to interact with the database.
+Next, we add `@endpoint(kind: mutation)` and `@endpoint(kind: query)` functions to interact with the database.
 
 ```vox
 {{#include ../../../examples/golden/getting_started.vox:logic}}

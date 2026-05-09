@@ -223,7 +223,7 @@ stateDiagram-v2
 
 Mesh/security doc changes must remain **`training_eligible: true`** where appropriate (this page). Before promoting default mesh behaviour:
 
-1. Edit [`docs/src/reference/populi.md`](populi.md) and [`docs/src/reference/clavis-ssot.md`](clavis-ssot.md) first (contract SSOT).
+1. Edit [`docs/src/reference/populi.md`](populi.md) and [`docs/src/reference/secrets-ssot.md`](secrets-ssot.md) first (contract SSOT).
 2. Link new pages from [`SUMMARY.md`](../SUMMARY.md).
 3. Run the Mens corpus pipeline per [How-To: Contribute — Mens training](../how-to/how-to-contribute-mens.md) (extract → validate → pairs → eval).
 4. Record any eval regression in the PR; delay changing defaults until recovery.

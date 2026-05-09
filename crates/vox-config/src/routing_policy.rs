@@ -10,7 +10,7 @@ pub enum AutoModelStrategy {
 impl AutoModelStrategy {
     #[must_use]
     pub fn from_env() -> Self {
-        let raw = crate::clavis::clavis_str(vox_secrets::SecretId::VoxAutoModelStrategy)
+        let raw = crate::secrets::secrets_str(vox_secrets::SecretId::VoxAutoModelStrategy)
             .unwrap_or_else(|| "provider_auto".to_string());
         match raw.trim().to_ascii_lowercase().as_str() {
             "preferred_model" | "preferred" => Self::PreferredModel,
@@ -66,7 +66,7 @@ impl Default for AutoRoutingPriority {
 impl AutoRoutingPriority {
     #[must_use]
     pub fn from_env() -> Self {
-        let Some(raw) = crate::clavis::clavis_str(vox_secrets::SecretId::VoxAutoRoutingPriority)
+        let Some(raw) = crate::secrets::secrets_str(vox_secrets::SecretId::VoxAutoRoutingPriority)
         else {
             return Self::default();
         };
@@ -102,7 +102,7 @@ pub enum GeminiRoutePolicy {
 impl GeminiRoutePolicy {
     #[must_use]
     pub fn from_env() -> Self {
-        let raw = crate::clavis::clavis_str(vox_secrets::SecretId::VoxGeminiRoutePolicy)
+        let raw = crate::secrets::secrets_str(vox_secrets::SecretId::VoxGeminiRoutePolicy)
             .unwrap_or_else(|| "openrouter_first".to_string());
         match raw.trim().to_ascii_lowercase().as_str() {
             "registry_default" | "default" => Self::RegistryDefault,

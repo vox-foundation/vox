@@ -38,10 +38,10 @@ pub enum WorkspaceEntry {
 }
 
 // ---------------------------------------------------------------------------
-// Change tracking (Feature 5)
+// Change tracking
 // ---------------------------------------------------------------------------
 
-// `ChangeId` moved to `vox-orchestrator-types` in 2026-05-08 reorg Phase 5.
+// `ChangeId` extracted to `vox-orchestrator-types` (2026-05-08).
 pub use vox_orchestrator_types::ChangeId;
 
 /// Status of a logical change.
@@ -211,7 +211,7 @@ impl WorkspaceManager {
     }
 
     // -----------------------------------------------------------------------
-    // Change tracking (Feature 5)
+    // Change tracking
     // -----------------------------------------------------------------------
 
     /// Create a new logical change.

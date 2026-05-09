@@ -3,7 +3,7 @@
 use clap::CommandFactory;
 use clap::Parser;
 use vox_cli::commands::ci::CiCmd;
-use vox_cli::commands::clavis::ClavisCmd;
+use vox_cli::commands::secrets::SecretsCmd;
 use vox_cli::{Cli, VoxCliRoot};
 
 #[test]
@@ -29,12 +29,23 @@ fn parse_fabrica_visible_alias_fab() {
 }
 
 #[test]
-fn parse_secrets_alias_routes_to_clavis_doctor() {
+fn parse_secrets_routes_to_secrets_doctor() {
     let r = VoxCliRoot::try_parse_from(["vox", "secrets", "doctor"]).expect("secrets doctor");
     assert!(matches!(
         r.cmd,
-        Cli::Clavis {
-            cmd: ClavisCmd::Status { .. }
+        Cli::Secrets {
+            cmd: SecretsCmd::Status { .. }
+        }
+    ));
+}
+
+#[test]
+fn parse_clavis_alias_routes_to_secrets_doctor() {
+    let r = VoxCliRoot::try_parse_from(["vox", "clavis", "doctor"]).expect("clavis doctor");
+    assert!(matches!(
+        r.cmd,
+        Cli::Secrets {
+            cmd: SecretsCmd::Status { .. }
         }
     ));
 }

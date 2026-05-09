@@ -8,9 +8,9 @@ Before editing data-persistence code, consult [data-storage-ssot-2026.md](mdc:do
 
 ## Non-negotiables
 
-- Do NOT open a `turso::Connection` outside `vox-db`, `vox-clavis`, or `vox-test-harness`.
+- Do NOT open a `turso::Connection` outside `vox-db`, `vox-secrets`, or `vox-test-harness`.
 - Do NOT use `std::fs::write` or `tokio::fs::write` for event/log data. Use `vox-spool` (Tier B) or `vox-checksum-manifest` (Tier C).
-- Do NOT `env::var("TURSO_…")`. Use `vox_clavis::resolve_secret(...)` and the canonical `VOX_DB_URL` / `VOX_DB_TOKEN` vars.
+- Do NOT `env::var("TURSO_…")`. Use `vox_secrets::resolve_secret(...)` and the canonical `VOX_DB_URL` / `VOX_DB_TOKEN` vars.
 - Do NOT hard-code `.vox/` subpaths. Resolve through `vox_config::paths`.
 - Do NOT add `#[derive(Serialize, Deserialize)]` to a struct under any `row/` module; put wire-facing siblings in a `dto/` module.
 - Do NOT introduce a new `VOX_*` env var without updating `contracts/config/env-vars.v1.yaml`.

@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-/// Envelope for synchronizing Clavis secrets across the mesh.
+/// Envelope for synchronizing secrets across the mesh.
 ///
 /// Encapsulates a sealed (encrypted) secret payload along with metadata
 /// required for routing and verification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ClavisSyncEnvelope {
+pub struct SecretsSyncEnvelope {
     /// The canonical secret identifier (e.g. `GEMINI_API_KEY`).
     pub secret_id: String,
     /// The encrypted secret value, sealed with the recipient's public key.

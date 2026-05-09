@@ -10,8 +10,8 @@ description = "Central secret resolution and compatibility adapters for Vox."
 
 [features]
 default = []
-clavis-infisical = []
-clavis-vault = []
+secrets-infisical = []
+secrets-vault = []
 
 [dependencies]
 secrecy = { workspace = true }

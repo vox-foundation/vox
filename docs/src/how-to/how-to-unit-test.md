@@ -19,7 +19,7 @@ Use the `@test` decorator to mark functions as test cases. These functions can b
 ```vox
 // vox:skip
 @test 
-fn test_addition() -> Unit {
+fn test_addition() to Unit {
     assert(1 + 1 == 2)
 }
 ```
@@ -30,12 +30,12 @@ Rather than language-level magic, Vox encourages simple, plain functions for set
 
 ```vox
 // vox:skip
-fn setup_mock_db() -> Database {
+fn setup_mock_db() to Database {
     return spawn MockDatabase()
 }
 
 @test 
-fn test_query() -> Unit {
+fn test_query() to Unit {
     let db = setup_mock_db()
     let result = db.call(query("SELECT 1"))
     assert(result == [1])
@@ -52,7 +52,7 @@ Vox supports property-based testing. The test runner will generate random inputs
 ```vox
 // vox:skip
 @forall
-fn test_addition_commutative(a: int, b: int) -> Unit {
+fn test_addition_commutative(a: int, b: int) to Unit {
     assert(a + b == b + a)
 }
 ```
@@ -64,7 +64,7 @@ For deeper security and stability testing, the `@fuzz` decorator uses the projec
 ```vox
 // vox:skip
 @fuzz
-fn fuzz_parser(input: str) -> Unit {
+fn fuzz_parser(input: str) to Unit {
     let _ = parse_json(input) // Fuzzer tries to crash this
 }
 ```

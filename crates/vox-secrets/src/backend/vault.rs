@@ -20,7 +20,7 @@ impl SecretBackend for VaultBackend {
             ));
         }
         let path =
-            std::env::var("VOX_CLAVIS_VAULT_PATH").unwrap_or_else(|_| "secret/vox".to_string());
+            std::env::var("VOX_SECRETS_VAULT_PATH").unwrap_or_else(|_| "secret/vox".to_string());
         let field = spec.backend_key.unwrap_or(spec.canonical_env);
         let out = std::process::Command::new("vault")
             .args(["kv", "get", &format!("-field={field}"), path.trim()])

@@ -10,7 +10,7 @@ These crates are subject to strict API compatibility, documentation, and testing
 1. `vox-compiler` - The core Lexer, Parser, HIR, and Codegen infrastructure.
 2. `vox-cli` - The primary developer interface and entry point.
 3. `vox-db` - The SQLite/Turso persistence layer and typed client generators.
-4. `vox-clavis` - Secret management, resolution, and external token handling.
+4. `vox-secrets` - Secret management, resolution, and external token handling.
 5. `vox-runtime` - The execution engine for Vox semantics and OOPAV state machines.
 6. `vox-orchestrator` - A2A messaging, agent orchestration, and sub-agent task routing.
 7. `vox-populi` - The mesh control plane and remote inference coordination.

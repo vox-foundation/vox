@@ -18,7 +18,7 @@ fn main() {
         "vox-toestub": 0,
         "vox-checksum-manifest": 0,
         
-        "vox-clavis": 1,
+        "vox-secrets": 1,
         "vox-bounded-fs": 1,
         "vox-crypto": 1,
         "vox-identity": 1,

@@ -57,7 +57,7 @@ dispatch automatically — no rebuild of the core required.
 - **Global (before subcommand):** **`--color auto|always|never`** (see `NO_COLOR`), **`--json`** (sets `VOX_CLI_GLOBAL_JSON` for subcommands that support machine JSON), **`--verbose` / `-v`** (if `RUST_LOG` is unset, tracing uses `debug`), **`--quiet` / `-q`** (`VOX_CLI_QUIET`).
 - **Completions:** **`vox completions bash`** | **`zsh`** | **`fish`** | **`powershell`** | **`elvish`** — print to stdout and install per your shell (e.g. bash: `vox completions bash > /path/to/bash_completion.d/vox`).
 - **Dynamic command catalog:** **`vox commands`** — clap-derived list from the actual compiled binary; add `--recommended` for first-time essentials or `--format json --include-nested` for tooling.
-- **Secrets namespace:** **`vox clavis`** (alias **`vox secrets`**) centralizes token health checks and credential compatibility storage.
+- **Secrets namespace:** **`vox secrets`** (deprecated alias **`vox clavis`**) centralizes token health checks and credential compatibility storage.
 - **Latin aliases (same behavior as flat commands):** **`vox fabrica`** (`fab`) — build/check/test/run/dev/bundle/fmt/script; **`vox diag`** — doctor, architect, stub-check; **`vox ars`** — snippet, share, skill, openclaw, ludus; **`vox recensio`** (`rec`, feature **`coderabbit`**) — same as **`vox review`**.
 
 ### Product lanes
@@ -71,7 +71,7 @@ The command registry also carries a separate **`product_lane`** value used for b
 | `ai` | generation, review, eval, orchestration | `vox mens`, `vox review`, `vox dei`, `vox oratio` |
 | `interop` | approved integration surfaces | `vox openclaw`, `vox skill`, `vox share` |
 | `data` | database and publication workflows | `vox db`, `vox codex`, `vox scientia` |
-| `platform` | packaging, diagnostics, compliance, secrets | `vox pm`, `vox ci`, `vox doctor`, `vox clavis`, `vox telemetry` |
+| `platform` | packaging, diagnostics, compliance, secrets | `vox pm`, `vox ci`, `vox doctor`, `vox secrets`, `vox telemetry` |
 
 ## Visus (`vox visus`)
 
@@ -220,8 +220,8 @@ Repository guards (manifest lockfile, docs/Codex SSOT, `vox-cli` feature matrix,
 | `secret-env-guard [--all]` | Fails if Rust files add direct managed-secret env reads outside allowed modules (default: `git diff` changed files; set **`VOX_SECRET_GUARD_GIT_REF`** to a merge-base range on clean CI checkouts; `--all` scans all crates). |
 | `sql-surface-guard [--all]` | Fails if sources use `connection().query(` / `connection().execute(` outside [`docs/agents/sql-connection-api-allowlist.txt`](../../../docs/agents/sql-connection-api-allowlist.txt) plus built-in `vox-db` / `vox-compiler` prefixes (see [`docs/agents/database-nomenclature.md`](../../../docs/agents/database-nomenclature.md)). |
 | `query-all-guard [--all]` | Fails if sources call the Codex `query_all` facade escape hatch outside [`docs/agents/query-all-allowlist.txt`](../../../docs/agents/query-all-allowlist.txt) plus `crates/vox-db/` (same nomenclature doc). |
-| `turso-import-guard [--all]` | Fails if sources use the Turso crate path prefix outside [`docs/agents/turso-import-allowlist.txt`](../../../docs/agents/turso-import-allowlist.txt) plus built-in `vox-db` / `vox-package` / `vox-compiler` prefixes ([codex-turso-allowlist](../archive/research-2026-q1/codex-turso-allowlist.md)). |
-| `clavis-parity` | Verifies Clavis managed secret names are synchronized with `docs/src/reference/clavis-ssot.md`. |
+| `turso-import-guard [--all]` | Fails if sources use the Turso crate path prefix outside [`docs/agents/turso-import-allowlist.txt`](../../../docs/agents/turso-import-allowlist.txt) plus built-in `vox-db` / `vox-pm` / `vox-compiler` prefixes ([codex-turso-allowlist](../archive/research-2026-q1/codex-turso-allowlist.md)). |
+| `clavis-parity` | Verifies Secrets managed secret names are synchronized with `docs/src/reference/secrets-ssot.md`. |
 | `release-build --target <triple> [--version <tag>] [--out-dir dist] [--package vox\|bootstrap\|both]` | Build and package allowlisted release artifacts (`cargo build --locked --release`): `vox`, `vox-bootstrap`, or both. Unix archives are `.tar.gz`; Windows archives are `.zip`. Writes `checksums.txt` with one line per artifact (`<sha256>` + two spaces + `<basename>`). Contract: [`docs/src/ci/binary-release-contract.md`](../ci/binary-release-contract.md) |
 | `command-compliance` | Validates `contracts/cli/command-registry.yaml` (and schema) against `vox-cli` top-level commands, CLI reference (`docs/src/reference/cli.md` or legacy `ref-cli.md`), reachability SSOT, compilerd/dei RPC names, MCP tool registry, script duals, and **`contracts/operations/completion-policy.v1.yaml`** (JSON Schema) — blocks orphan CLI drift |
 | `completion-audit [--scan-extra <DIR>]…` | Scans **`crates/`** (always) plus optional extra directories under the repo (generated apps, codegen trees). Same detectors; paths must exist and resolve under the repository root. Writes **`contracts/reports/completion-audit.v1.json`**. CI uses **`--features completion-toestub`** to merge TOESTUB `victory-claim` (Tier C). |
@@ -270,18 +270,18 @@ pwsh -File scripts/windows/vox-dev.ps1 review coderabbit semantic-submit --full-
 ```
 
 Equivalent one-liner without the script: `cargo run -p vox-cli --features coderabbit -- review coderabbit semantic-submit --full-repo --execute` (plan-only: omit **`--execute`**).
-### `vox clavis` (alias `vox secrets`)
+### `vox secrets` (deprecated alias `vox clavis`)
 
 Centralized secret diagnostics and compatibility credential storage.
 
 | Subcommand | Role |
 |------------|------|
-| `vox clavis status --workflow chat\|mcp\|publish\|review\|db-remote\|mens-mesh --profile dev\|ci\|mobile\|prod --mode auto\|local\|cloud [--bundle minimal-local-dev\|minimal-cloud-dev\|gpu-cloud\|publish-review]` | Prints active-mode blocking vs optional secret readiness using requirement groups and optional bundle checks (alias: `vox clavis doctor …`). |
-| `vox clavis login [--vault-url URL] [--vault-token TOKEN] [--account ID] [--backend NAME] [--force] [--non-interactive]` | Same as top-level `vox login` (vault URL/token + profile). |
-| `vox clavis set <registry> <token> [--username <name>]` | Stores a registry token in `~/.vox/auth.json` through the Clavis API. |
-| `vox clavis get <registry>` | Reads and prints redacted token status from Clavis resolution sources. |
-| `vox clavis backend-status` | Prints backend mode (`env_only`/`infisical`/`vault`/`auto`) and backend availability diagnostics. |
-| `vox clavis migrate-auth-store` | Migrates plaintext `auth.json` tokens to secure local store and leaves compatibility sentinels in JSON. |
+| `vox secrets status --workflow chat\|mcp\|publish\|review\|db-remote\|mens-mesh --profile dev\|ci\|mobile\|prod --mode auto\|local\|cloud [--bundle minimal-local-dev\|minimal-cloud-dev\|gpu-cloud\|publish-review]` | Prints active-mode blocking vs optional secret readiness using requirement groups and optional bundle checks (alias: `vox secrets doctor …`). |
+| `vox secrets login [--vault-url URL] [--vault-token TOKEN] [--account ID] [--backend NAME] [--force] [--non-interactive]` | Same as top-level `vox login` (vault URL/token + profile). |
+| `vox secrets set <registry> <token> [--username <name>]` | Stores a registry token in `~/.vox/auth.json` through the Secrets API. |
+| `vox secrets get <registry>` | Reads and prints redacted token status from Secrets resolution sources. |
+| `vox secrets backend-status` | Prints backend mode (`env_only`/`infisical`/`vault`/`auto`) and backend availability diagnostics. |
+| `vox secrets migrate-auth-store` | Migrates plaintext `auth.json` tokens to secure local store and leaves compatibility sentinels in JSON. |
 
 ### `vox repo`
 
@@ -302,17 +302,17 @@ Scaffolds **`Vox.toml`**, **`src/main.vox`**, **`.vox_modules/`**, or a **`<name
 
 ### `vox login` (canonical)
 
-Sign in for **VoxDB / Turso** cloud sync: writes URL + token to the OS keyring (`vox-clavis-env` / `turso-url`, `turso-token`) and optional `account_id` + `clavis_backend` to `~/.vox/login.toml`. Same implementation as `vox auth connect`, `vox auth login`, and `vox clavis login`.
+Sign in for **VoxDB / Turso** cloud sync: writes URL + token to the OS keyring (`vox-secrets-env` / `turso-url`, `turso-token`) and optional `account_id` + `secrets_backend` to `~/.vox/login.toml`. Same implementation as `vox auth connect`, `vox auth login`, and `vox secrets login`.
 
 | Invocation | Role |
 |------------|------|
 | `vox login [--vault-url URL] [--vault-token TOKEN] [--account ID] [--backend vox_cloud] [--force] [--non-interactive]` | Prompts or uses flags; `--non-interactive` requires both `--vault-url` and `--vault-token`. |
 | `vox logout` | Clears keyring entries and removes `login.toml`. |
-| `vox clavis login …` | Alias of `vox login` under the Clavis tree. |
+| `vox secrets login …` | Alias of `vox login` under the Secrets tree. |
 | `vox auth connect …` · `vox auth login …` | Same handler as `vox login` (`Connect` exposes `login` as a Clap alias). |
 | `vox auth` | Identity / trust: `vox auth init`, `vox auth unlock`, `vox auth whoami`, `vox auth trust`, `vox auth trust-list`, `vox auth untrust`. |
 
-**Note:** older registry-token flows use `vox clavis set` / `vox clavis get`; vault DB sync uses the commands above.
+**Note:** older registry-token flows use `vox secrets set` / `vox secrets get`; vault DB sync uses the commands above.
 
 ### `vox commands`
 
@@ -791,8 +791,8 @@ This page maps **`vox` subcommands** in [`crates/vox-cli/src/lib.rs`](../../../c
 | `logout` | default | `commands::login_shared::run_logout` |
 | `lsp` | default | `commands::lsp` |
 | `doctor` | default / `codex` | `commands::doctor` or `commands::diagnostics::doctor` |
-| `clavis` | default | `commands::clavis` |
-| `secrets` | default | alias of `clavis` |
+| `secrets` | default | `commands::secrets` |
+| `clavis` | default | deprecated alias of `secrets` |
 | `architect` | `codex` or `stub-check` | `commands::diagnostics::tools::architect` |
 | `snippet` | default | `commands::extras::snippet_cli` |
 | `share` | default | `commands::extras::share_cli` |

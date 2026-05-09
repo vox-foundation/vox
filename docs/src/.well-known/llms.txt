@@ -12,7 +12,7 @@
 - [Language Syntax Reference](https://vox-lang.org/reference/ref-syntax/): Full syntax specification
 - [CLI Reference](https://vox-lang.org/reference/cli/): All vox subcommands
 - [Environment Variables SSOT](https://vox-lang.org/reference/env-vars/): Configuration surface
-- [Clavis (Secret Management)](https://vox-lang.org/reference/clavis-ssot/): API keys and credentials
+- [Secrets (Secret Management)](https://vox-lang.org/reference/secrets-ssot/): API keys and credentials
 
 ## Architecture Authority
 - [Architecture Index](https://vox-lang.org/architecture/architecture-index/): Master architecture map

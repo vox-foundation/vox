@@ -4,7 +4,7 @@
 # Built-in allowlist always includes: `crates/vox-db/`.
 #
 # Add a `crates/<crate>/` or file-prefix line only while migrating that path off `query_all(`.
-crates/vox-clavis/
+crates/vox-secrets/
 crates/vox-corpus/
 crates/vox-cli/src/commands/review/coderabbit/
 crates/vox-mcp/src/dei_tools/

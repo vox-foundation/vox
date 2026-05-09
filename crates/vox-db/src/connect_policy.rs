@@ -10,7 +10,7 @@
 use crate::{DbConfig, StoreError, VoxDb};
 
 /// Product-facing remediation when canonical SQLite/Turso is unavailable.
-pub const REMEDIATION_CANONICAL_DB: &str = "Set VOX_DB_PATH to a writable SQLite file, or VOX_DB_URL + token for Turso. Run `vox clavis doctor` / `vox codex verify` after fixing env. For legacy multi-step schema_version chains, export with `vox codex export-legacy`, init a fresh DB, then `vox codex import-legacy`.";
+pub const REMEDIATION_CANONICAL_DB: &str = "Set VOX_DB_PATH to a writable SQLite file, or VOX_DB_URL + token for Turso. Run `vox secrets doctor` / `vox codex verify` after fixing env. For legacy multi-step schema_version chains, export with `vox codex export-legacy`, init a fresh DB, then `vox codex import-legacy`.";
 
 /// Short label for logs/metrics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

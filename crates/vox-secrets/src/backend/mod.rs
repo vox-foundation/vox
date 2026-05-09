@@ -77,10 +77,10 @@ impl SecretBackend for UnavailableBackend {
     }
 }
 
-#[cfg(feature = "clavis-infisical")]
+#[cfg(feature = "secrets-infisical")]
 pub mod infisical;
 
-#[cfg(feature = "clavis-vault")]
+#[cfg(feature = "secrets-vault")]
 pub mod vault;
 
 pub mod vox_vault;

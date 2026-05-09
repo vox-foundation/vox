@@ -19,13 +19,13 @@ Canonical names and precedence for tooling that spans CLI, MCP, orchestrator, an
 | `VOX_DB_URL` | Remote libSQL / Turso URL (with `VOX_DB_TOKEN`). |
 | `VOX_DB_TOKEN` | Auth token for `VOX_DB_URL`. |
 | `VOX_DB_PATH` | Local database file path (`local` / replication features). |
-| `VOX_CLAVIS_HARD_CUT` | When truthy, disables `VOX_TURSO_*` / `TURSO_*` compatibility alias fallback in DB config resolution. |
-| `VOX_CLAVIS_PROFILE` | Clavis resolution strictness profile: `dev` (default), `ci`, `prod`, or `hard_cut`. Strict profiles reject deprecated aliases and source-policy violations. |
-| `VOX_CLAVIS_BACKEND` | Clavis backend selector: `auto` (default), `env_only`, `infisical`, `vault`, `vox_cloud`. |
-| `VOX_CLAVIS_AUTO_PREFER_VAULT` | When `1`/`true`/`yes`, forces `BackendMode::Auto` to select the `vox_cloud` cloudless vault backend even if explicit vault URLs/commands are absent. |
-| `VOX_CLAVIS_AUTO_VAULT` | Explicit hint to enable the `vox_cloud` vault backend in `Auto` mode; lighter than `PREFER_VAULT` (it just signals presence, doesn't force precedence over explicit backends). |
-| `VOX_CLAVIS_CUTOVER_PHASE` | Cloudless rollout choreography: `shadow` -> `canary` -> `enforce` -> `decommission`. `shadow` allows legacy sources, `canary` blocks legacy sources in strict profiles, `enforce` blocks legacy sources for all profiles, `decommission` also forces `vox_cloud` backend resolution. |
-| `VOX_CLAVIS_MIGRATION_PHASE` | Compatibility alias for `VOX_CLAVIS_CUTOVER_PHASE`; same values and semantics. |
+| `VOX_SECRETS_HARD_CUT` | When truthy, disables `VOX_TURSO_*` / `TURSO_*` compatibility alias fallback in DB config resolution. |
+| `VOX_SECRETS_PROFILE` | Secrets resolution strictness profile: `dev` (default), `ci`, `prod`, or `hard_cut`. Strict profiles reject deprecated aliases and source-policy violations. |
+| `VOX_SECRETS_BACKEND` | Secrets backend selector: `auto` (default), `env_only`, `infisical`, `vault`, `vox_cloud`. |
+| `VOX_SECRETS_AUTO_PREFER_VAULT` | When `1`/`true`/`yes`, forces `BackendMode::Auto` to select the `vox_cloud` cloudless vault backend even if explicit vault URLs/commands are absent. |
+| `VOX_SECRETS_AUTO_VAULT` | Explicit hint to enable the `vox_cloud` vault backend in `Auto` mode; lighter than `PREFER_VAULT` (it just signals presence, doesn't force precedence over explicit backends). |
+| `VOX_SECRETS_CUTOVER_PHASE` | Cloudless rollout choreography: `shadow` -> `canary` -> `enforce` -> `decommission`. `shadow` allows legacy sources, `canary` blocks legacy sources in strict profiles, `enforce` blocks legacy sources for all profiles, `decommission` also forces `vox_cloud` backend resolution. |
+| `VOX_SECRETS_MIGRATION_PHASE` | Compatibility alias for `VOX_SECRETS_CUTOVER_PHASE`; same values and semantics. |
 | `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | > [!WARNING] DEPRECATED<br>**Compatibility** aliases read after canonical `VOX_DB_*` fails in [`DbConfig::resolve_standalone`](../../../crates/vox-db/src/config.rs). In Cloudless hard-cut strict profiles, these aliases are scheduled for rejection by source policy. |
 | `TURSO_URL` / `TURSO_AUTH_TOKEN` | > [!WARNING] DEPRECATED<br>**Legacy** Turso env names; same compatibility tier as `VOX_TURSO_*`. In Cloudless hard-cut strict profiles, these legacy aliases are scheduled for rejection by source policy. |
 | `VOX_EMBEDDING_SEARCH_CANDIDATE_MULT` | Integer ≥ 1: multiplier for brute-force embedding search window (`limit * mult`, capped). See [`capabilities`](../../../crates/vox-db/src/capabilities.rs). |
@@ -38,26 +38,26 @@ Canonical names and precedence for tooling that spans CLI, MCP, orchestrator, an
 
 See [ADR 004: Codex / Arca / Turso](../adr/004-codex-arca-turso-ssot.md).
 
-### Clavis cloudless vault vs Codex (two SQL surfaces)
+### Secrets cloudless vault vs Codex (two SQL surfaces)
 
 | Plane | Purpose | Canonical env |
 |-------|---------|---------------|
 | **Codex** (`vox-db`) | Product relational data: sessions, memory tables, telemetry rows, gamification, etc. | `VOX_DB_URL` + `VOX_DB_TOKEN`, or `VOX_DB_PATH`, plus workspace journey vars above. |
-| **Clavis vault** (`vox-clavis` cloudless backend) | Encrypted secret material at rest in a **separate** SQLite / libSQL database. | See vault vars below. |
+| **Secrets vault** (`vox-secrets` cloudless backend) | Encrypted secret material at rest in a **separate** SQLite / libSQL database. | See vault vars below. |
 
-**Vault URL / file (precedence):** `VOX_CLAVIS_VAULT_PATH` (local path → `file:` URL) → `VOX_CLAVIS_VAULT_URL` → `VOX_CLAVIS_AUTO_VAULT` / `VOX_CLAVIS_AUTO_PREFER_VAULT` → when compat aliases allowed (`VOX_CLAVIS_HARD_CUT` off and cutover phase not `enforce`/`decommission`): `VOX_TURSO_URL` → `TURSO_URL` → default `file:.vox/clavis_vault.db`.
+**Vault URL / file (precedence):** `VOX_SECRETS_VAULT_PATH` (local path → `file:` URL) → `VOX_SECRETS_VAULT_URL` → `VOX_SECRETS_AUTO_VAULT` / `VOX_SECRETS_AUTO_PREFER_VAULT` → when compat aliases allowed (`VOX_SECRETS_HARD_CUT` off and cutover phase not `enforce`/`decommission`): `VOX_TURSO_URL` → `TURSO_URL` → default `file:.vox/secrets_vault.db`.
 
-**Vault remote token (precedence):** `VOX_CLAVIS_VAULT_TOKEN` → compat `VOX_TURSO_TOKEN` → `TURSO_AUTH_TOKEN` (same gating as URL aliases).
+**Vault remote token (precedence):** `VOX_SECRETS_VAULT_TOKEN` → compat `VOX_TURSO_TOKEN` → `TURSO_AUTH_TOKEN` (same gating as URL aliases).
 
 | Variable | Role |
 |----------|------|
-| `VOX_CLAVIS_VAULT_PATH` | Local vault SQLite path; opened as `file:` (preferred for repo-local vaults). |
-| `VOX_CLAVIS_VAULT_URL` | Explicit vault URL (`file:…` or `libsql://…`). |
-| `VOX_CLAVIS_VAULT_TOKEN` | Auth token when `VOX_CLAVIS_VAULT_URL` is remote. |
-| `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | > [!WARNING] DEPRECATED for vault<br>Read only when compat aliases allowed; migrate to `VOX_CLAVIS_VAULT_*`. |
+| `VOX_SECRETS_VAULT_PATH` | Local vault SQLite path; opened as `file:` (preferred for repo-local vaults). |
+| `VOX_SECRETS_VAULT_URL` | Explicit vault URL (`file:…` or `libsql://…`). |
+| `VOX_SECRETS_VAULT_TOKEN` | Auth token when `VOX_SECRETS_VAULT_URL` is remote. |
+| `VOX_TURSO_URL` / `VOX_TURSO_TOKEN` | > [!WARNING] DEPRECATED for vault<br>Read only when compat aliases allowed; migrate to `VOX_SECRETS_VAULT_*`. |
 | `TURSO_URL` / `TURSO_AUTH_TOKEN` | > [!WARNING] DEPRECATED<br>Same compatibility tier as `VOX_TURSO_*` for the vault plane. |
 
-Do not point Codex and the vault at the same file unless you have an explicit ops reason. Codex compatibility shims live in [`DbConfig`](../../../crates/vox-db/src/config.rs); vault resolution lives in [`vox_vault`](../../../crates/vox-clavis/src/backend/vox_vault.rs). Run `vox clavis doctor` to print `cloudless_vault_store` diagnostics (redacted).
+Do not point Codex and the vault at the same file unless you have an explicit ops reason. Codex compatibility shims live in [`DbConfig`](../../../crates/vox-db/src/config.rs); vault resolution lives in [`vox_vault`](../../../crates/vox-secrets/src/backend/vox_vault.rs). Run `vox secrets doctor` to print `cloudless_vault_store` diagnostics (redacted).
 
 ## Ludus (`vox-gamify`, `vox ludus`)
 
@@ -164,17 +164,17 @@ Do not point Codex and the vault at the same file unless you have an explicit op
 | `VOX_ORCHESTRATOR_REPO_SHARD_SPECIALIZATION_WEIGHT` / `VOX_ORCHESTRATOR_REPO_SHARD_VALIDATION_FAILURE_PENALTY` / `VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_PENALTY` / `VOX_ORCHESTRATOR_REPO_REDUCE_CONFLICT_COOLDOWN_MS` | Repo-sharding specialization/penalty weights and conflict-cooldown knobs. |
 | `POPULI_MODEL` | Default **Ollama** model id when routing uses local inference ([`usage`](../../../crates/vox-orchestrator/src/usage.rs), [`spec`](../../../crates/vox-orchestrator/src/models/spec.rs)). |
 | `VOX_ORCHESTRATOR_POPULI_INFERENCE_BASE_URL` | Overrides `Vox.toml` **`[mesh].inference_base_url`** (Schola or Ollama-shaped HTTP base). An empty value clears the TOML entry. Processes that call Ludus still read **`POPULI_URL`**; keep them aligned per [mens serving SSOT](mens-serving-ssot.md). Impl: [`merge_env_overrides`](../../../crates/vox-orchestrator/src/config/impl_env.rs). |
-| `POPULI_API_KEY` | Read via Clavis for authenticated remote mens inference. |
+| `POPULI_API_KEY` | Read via Secrets for authenticated remote mens inference. |
 | `POPULI_TEMPERATURE` / `POPULI_MAX_TOKENS` | Generation configuration overrides for mens inference. |
 | `VOX_ACCOUNT_ID` | Account identifier for orchestrator multi-tenant boundaries. |
-| `VOX_CLAVIS_CLOUDLESS_DB_PATH` | Path to Cloudless DB for Clavis secrets backend. |
+| `VOX_SECRETS_CLOUDLESS_DB_PATH` | Path to Cloudless DB for Secrets backend. |
 | `VOX_ORCHESTRATOR_EXEC_TIME_BUDGET_ENABLED` / `VOX_ORCHESTRATOR_EXEC_TIME_SAFETY_MULTIPLIER` / `VOX_ORCHESTRATOR_EXEC_TIME_TIMEOUT_RATE_ALERT` / `VOX_ORCHESTRATOR_EXEC_TIME_DEFAULT_BUDGET_MS` / `VOX_ORCHESTRATOR_EXEC_TIME_HISTORY_WINDOW_DAYS` | Execution time budgeting controls for autonomous agent tool invocation (Phase 17). |
 | `VOX_ORCHESTRATOR_INTERRUPTION_CAL_A2A_GAIN` | Gain multiplier for A2A interruptions. |
 | `VOX_ORCHESTRATOR_INTERRUPTION_CAL_BACKLOG_PENALTY` | Penalty offset for queue backlog in interruption math. |
 | `VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN` | Gain multiplier for plan-related interruptions. |
 | `VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD` / `VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS` | Calibration vars for dynamic tier gating based on query entropy. |
 | `VOX_ORCHESTRATOR_TLX_FRUSTRATION` / `VOX_ORCHESTRATOR_TLX_MENTAL` / `VOX_ORCHESTRATOR_TLX_TEMPORAL` / `VOX_ORCHESTRATOR_TLX_TRUST_DISCOUNT` | NASA-TLX cognitive load analogues for orchestrator agent scheduling pressure. |
-| `GROQ_API_KEY` / `CEREBRAS_API_KEY` / `MISTRAL_API_KEY` / `DEEPSEEK_API_KEY` / `SAMBANOVA_API_KEY` / `CUSTOM_OPENAI_API_KEY` | Bare provider keys read for optional **key presence** checks in [`usage`](../../../crates/vox-orchestrator/src/usage.rs). Prefer **Clavis** / `VOX_*` secret resolution for real credential storage (see [`AGENTS.md`](../../../AGENTS.md)). |
+| `GROQ_API_KEY` / `CEREBRAS_API_KEY` / `MISTRAL_API_KEY` / `DEEPSEEK_API_KEY` / `SAMBANOVA_API_KEY` / `CUSTOM_OPENAI_API_KEY` | Bare provider keys read for optional **key presence** checks in [`usage`](../../../crates/vox-orchestrator/src/usage.rs). Prefer **Secrets** / `VOX_*` secret resolution for real credential storage (see [`AGENTS.md`](../../../AGENTS.md)). |
 | `VOX_NEWS_PUBLISH_ARMED` | When `1`/`true`, satisfies the **armed** gate for live news/scientia syndication (in addition to two DB approvers). See [news syndication security](../archive/research-2026-q1/news_syndication_security.md). |
 | `VOX_SCHOLARLY_ADAPTER` | Scholarly submit adapter { `local_ledger` (default), `echo_ledger`, `zenodo`, `openreview`, etc. Unknown values error. See [`scholarly::flags`](../../../crates/vox-publisher/src/scholarly/flags.rs). |
 | `VOX_SCHOLARLY_DISABLE` | When truthy (`1`, `true`, `yes`, `y`, `on`), blocks all scholarly submit/status paths. |
@@ -248,7 +248,7 @@ Calibration note: channel gain offsets / backlog penalty / trust-adjustment scal
 | `VOX_SEARCH_QDRANT_URL` | Optional Qdrant HTTP base (e.g. `http://127.0.0.1:6333`) for the `qdrant-vector` backend. |
 | `VOX_SEARCH_QDRANT_COLLECTION` | Qdrant collection name used by [`vox_search::vector_qdrant`](../../../crates/vox-search/src/vector_qdrant.rs) (default `vox_docs`). |
 | `VOX_SEARCH_QDRANT_VECTOR_NAME` | When the collection uses **named** vectors, set the vector config name (request body `{ "name", "vector" }`). |
-| `VOX_SEARCH_QDRANT_API_KEY` | Qdrant `api-key` header for secured / cloud instances. Canonical secret: [`SecretId::VoxSearchQdrantApiKey`](../../../crates/vox-clavis/src/lib.rs) via Clavis ([`clavis-ssot`](./clavis-ssot.md)). |
+| `VOX_SEARCH_QDRANT_API_KEY` | Qdrant `api-key` header for secured / cloud instances. Canonical secret: [`SecretId::VoxSearchQdrantApiKey`](../../../crates/vox-secrets/src/lib.rs) via Secrets ([`secrets-ssot`](./secrets-ssot.md)). |
 | `VOX_SEARCH_TANTIVY_ROOT` | Optional directory root for on-disk Tantivy indices (subpath `docs/` holds the docs mirror index). |
 | `VOX_SEARCH_PREFER_RRF` | When truthy, runs **reciprocal rank fusion** across non-empty corpus hit lists and exposes **`rrf_fused_lines`** / **`rrf_fused_hit_count`** in MCP retrieval ([`SearchPolicy::prefer_rrf_merge`](../../../crates/vox-search/src/policy.rs)). |
 | `VOX_SEARCH_SEARXNG_URL` | Optional SearXNG base URL (Tier 2 web meta-search); when unset, SearXNG is skipped. |
@@ -264,10 +264,10 @@ Calibration note: channel gain offsets / backlog penalty / trust-adjustment scal
 | `VOX_MCP_TEST_INFER_STUB_BODY` / `VOX_MCP_INFER_STUB_ACK` | **Diagnostics only:** when `VOX_MCP_TEST_INFER_STUB_BODY` holds JSON for a plan payload and `VOX_MCP_INFER_STUB_ACK` is `1` or `true`, `vox_plan` skips real LLM HTTP (see [`infer_test_stub`](../../../crates/vox-orchestrator/src/mcp_tools/llm_bridge/infer_test_stub.rs)). Do not enable on production MCP hosts. |
 | `VOX_MCP_HTTP_ENABLED` | When truthy, enables the optional MCP HTTP/WebSocket gateway (`/v1/tools`, `/v1/ws`, `/v1/mobile`) for bounded remote/mobile control of a host machine. |
 | `VOX_MCP_HTTP_HOST` / `VOX_MCP_HTTP_PORT` | Bind address for the optional MCP HTTP gateway (defaults: `127.0.0.1:3921`). |
-| `VOX_MCP_HTTP_BEARER_TOKEN` | Required bearer token for MCP HTTP gateway requests unless explicitly bypassed with `VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED=1`. Cloudless migration target is Clavis-managed resolution with env retained only as compatibility input under non-strict profiles. |
+| `VOX_MCP_HTTP_BEARER_TOKEN` | Required bearer token for MCP HTTP gateway requests unless explicitly bypassed with `VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED=1`. Cloudless migration target is Secrets-managed resolution with env retained only as compatibility input under non-strict profiles. |
 | `VOX_MCP_HTTP_ALLOW_UNAUTHENTICATED` | Explicit insecure override for local-only testing of the MCP HTTP gateway; default is authenticated mode when enabled. |
 | `VOX_MCP_HTTP_ALLOWED_TOOLS` | CSV allowlist for MCP HTTP tool calls. Names are canonicalized through tool aliases. |
-| `VOX_MCP_HTTP_READ_BEARER_TOKEN` | Optional read-only bearer token for MCP HTTP gateway access; grants `Read` role (tool list view and read-scoped calls) while `VOX_MCP_HTTP_BEARER_TOKEN` remains full write access. Cloudless migration target is Clavis-managed resolution with env retained only as compatibility input under non-strict profiles. |
+| `VOX_MCP_HTTP_READ_BEARER_TOKEN` | Optional read-only bearer token for MCP HTTP gateway access; grants `Read` role (tool list view and read-scoped calls) while `VOX_MCP_HTTP_BEARER_TOKEN` remains full write access. Cloudless migration target is Secrets-managed resolution with env retained only as compatibility input under non-strict profiles. |
 | `VOX_MCP_HTTP_READ_ROLE_ALLOWED_TOOLS` | Optional CSV allowlist for read-role tool visibility/invocation. Read-role defaults come from MCP registry metadata (`http_read_role_eligible`) and are always intersected with `VOX_MCP_HTTP_ALLOWED_TOOLS`; this env provides an additional narrowing filter. |
 | `VOX_MCP_HTTP_RATE_LIMIT_PER_MINUTE` | Per-client-IP request budget for the MCP HTTP gateway (default `120`). |
 | `VOX_MCP_HTTP_REQUIRE_FORWARDED_HTTPS` | When truthy, HTTP gateway requests must carry `X-Forwarded-Proto: https` (reverse-proxy hardening). |
@@ -285,7 +285,7 @@ Calibration note: channel gain offsets / backlog penalty / trust-adjustment scal
 |----------|------|
 | `VOX_OPENCLAW_URL` | OpenClaw HTTP gateway base URL for skill import/list and compatibility calls (default in CLI/adapter codepaths is localhost). |
 | `VOX_OPENCLAW_WS_URL` | OpenClaw Gateway WebSocket control-plane URL (WS-first runtime path for subscribe/notify and generic gateway methods). |
-| `VOX_OPENCLAW_TOKEN` | Optional OpenClaw bearer token; resolves via Clavis (`SecretId::OpenClawToken`) where configured. |
+| `VOX_OPENCLAW_TOKEN` | Optional OpenClaw bearer token; resolves via Secrets (`SecretId::OpenClawToken`) where configured. |
 | `VOX_OPENCLAW_WELL_KNOWN_URL` | Optional explicit upstream discovery endpoint (`/.well-known/openclaw.json`) used to resolve canonical HTTP/WS/catalog URLs. |
 | `VOX_OPENCLAW_CATALOG_LIST_URL` | Optional override for the resolved OpenClaw catalog list endpoint. |
 | `VOX_OPENCLAW_CATALOG_SEARCH_URL` | Optional override for the resolved OpenClaw catalog search endpoint. |
@@ -328,8 +328,8 @@ See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-sso
 |----------|------|
 | `VOX_MESH_ENABLED` | Enables mens registry publish and related hooks. |
 | `VOX_MESH_CONTROL_ADDR` | This process’s control plane URL (publish/join target). |
-| `VOX_MESH_TOKEN` / `VOX_MESH_WORKER_TOKEN` / `VOX_MESH_SUBMITTER_TOKEN` / `VOX_MESH_ADMIN_TOKEN` | Populi control-plane bearer roles (Clavis SSOT); legacy single-token mode uses `VOX_MESH_TOKEN` only. See [mens SSOT](populi.md). |
-| `VOX_MESH_JWT_HMAC_SECRET` | Optional HS256 secret so clients can use `Authorization: Bearer <jwt>` with claims `role`, `jti`, `exp` (Clavis SSOT). |
+| `VOX_MESH_TOKEN` / `VOX_MESH_WORKER_TOKEN` / `VOX_MESH_SUBMITTER_TOKEN` / `VOX_MESH_ADMIN_TOKEN` | Populi control-plane bearer roles (Secrets SSOT); legacy single-token mode uses `VOX_MESH_TOKEN` only. See [mens SSOT](populi.md). |
+| `VOX_MESH_JWT_HMAC_SECRET` | Optional HS256 secret so clients can use `Authorization: Bearer <jwt>` with claims `role`, `jti`, `exp` (Secrets SSOT). |
 | `VOX_MESH_WORKER_RESULT_VERIFY_KEY` | Optional Ed25519 public key (hex or Standard base64) -> verify signed `job_result` / `job_fail` deliveries (worker signs raw BLAKE3 digest). |
 | `VOX_MESH_SCOPE_ID` | Tenancy for join/heartbeat when enforced server-side. |
 | `VOX_MESH_A2A_LEASE_MS` | Inbox claim lease duration (default 120s, clamped). |
@@ -372,8 +372,8 @@ See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-sso
 
 | Variable | Role |
 |----------|------|
-| `VOX_TELEMETRY_UPLOAD_URL` | HTTPS ingest URL for **`vox telemetry upload`** (resolved via Clavis; optional until upload is used). See [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [remote sink spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md). |
-| `VOX_TELEMETRY_UPLOAD_TOKEN` | Bearer token for ingest when required (Clavis `SecretId::VoxTelemetryUploadToken`). |
+| `VOX_TELEMETRY_UPLOAD_URL` | HTTPS ingest URL for **`vox telemetry upload`** (resolved via Secrets; optional until upload is used). See [ADR 023](../adr/023-optional-telemetry-remote-upload.md), [remote sink spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md). |
+| `VOX_TELEMETRY_UPLOAD_TOKEN` | Bearer token for ingest when required (Secrets `SecretId::VoxTelemetryUploadToken`). |
 | `VOX_TELEMETRY_SPOOL_DIR` | Override directory for the upload queue (default: `<cwd>/.vox/telemetry-upload-queue`). Non-secret path override. |
 
 ## TOESTUB / scaling-audit (`vox-toestub`, `emit-reports`)
@@ -411,7 +411,7 @@ See also { [`openclaw-discovery-sidecar-ssot.md`](openclaw-discovery-sidecar-sso
 - [Deployment compose SSOT](deployment-compose.md) — Compose profiles and Coolify/GitLab notes.
 - [CI runner contract](../ci/runner-contract.md) — self-hosted labels and CUDA workflow notes.
 - [ADR 005 / Socrates](../adr/) — policy and orchestration gates (index in repo).
-- [Clavis SSOT](clavis-ssot.md) — canonical managed secret env names and secret-resolution precedence.
+- [Secrets SSOT](secrets-ssot.md) — canonical managed secret env names and secret-resolution precedence.
 
 ## Social credentials precedence
 

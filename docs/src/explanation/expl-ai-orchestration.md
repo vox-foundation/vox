@@ -26,7 +26,7 @@ The `@mcp.tool` decorator tells the Vox compiler to expose a function to any con
 ```vox
 // vox:skip
 @mcp.tool "Calculate the shipping cost including surge pricing"
-fn calculate_shipping(weight: float, zip_code: str) -> float {
+fn calculate_shipping(weight: float, zip_code: str) to float {
     // Logic here
 }
 ```
@@ -43,7 +43,7 @@ While tools are functions the LLM can call, resources are data the LLM can read.
 ```vox
 // vox:skip
 @mcp.resource("vox://user/config", "The current user's profile configuration")
-fn get_user_profile() -> str {
+fn get_user_profile() to str {
     return db.query("SELECT context FROM config")
 }
 ```

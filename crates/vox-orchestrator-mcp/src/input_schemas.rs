@@ -102,7 +102,7 @@ pub(super) fn tool_input_schema(name: &str) -> Map<String, Value> {
         | "vox_workspace_modules"
         | "vox_export_grammar_ebnf"
         | "vox_a2a_tasks" => parse_obj(r#"{"type":"object","additionalProperties":false}"#),
-        "vox_clavis_doctor" => parse_obj(
+        "vox_secrets_doctor" => parse_obj(
             r#"{
             "type": "object",
             "properties": {

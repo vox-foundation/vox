@@ -1,4 +1,4 @@
-//! File affinity types extracted in 2026-05-08 reorg Phase 5.
+//! File affinity types extracted to `vox-orchestrator-types` (2026-05-08).
 
 use std::path::PathBuf;
 

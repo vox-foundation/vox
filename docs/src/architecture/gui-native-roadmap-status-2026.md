@@ -125,7 +125,7 @@ Per [`vox-gui-native-roadmap-2026.md`](vox-gui-native-roadmap-2026.md) §Phase 6
 |------|--------|-------|
 | TASK-7.1 — Re-author App.tsx as app.vox | ✅ Done | `app.vox` created with tab switcher. `build.rs` integrates `vox build`. `HirExpr::If` IIFE bug fixed — codegen now emits nested ternaries. Reactive component pipeline restored in emitter. Generated `AppShell.tsx` produces clean `(tab === "speak" ? <SpeakTab /> : ...)` output. |
 | TASK-7.2 — Port 13 tab panels to .vox | ✅ Done | `0951020b`/`f5c25275` | All 4 tabs authored in Vox. `forge.vox`: `PipelineStage`/`PipelineView`/`WorkflowScrubber`/`ForgeTab` + `ScrubberState`/`PipelinePhase` state machines. `speak.vox`: `ChatMessage`/`ComposerPanel`/`SpeakTab` + `ChatSessionState`. `command.vox`: `DiagnosticRow`/`DiagnosticsPanel`/`TaskDispatch`/`CommandTab` + `DiagnosticViewState`. `network.vox`: `NodeBadge`/`MeshLegend`/`NetworkTab` + `MeshViewState`. `state_machine_emit.rs` union-pipe bug fixed. Transport-dependent interactions deferred to `@island` (Phase 2). |
-| TASK-7.3 — Delete Vite/Tailwind parallel setup | 🟡 Partial | `05c1ee60` | Vox-generated components wired into Vite entry (`src/App.tsx` → thin `ErrorBoundary + AppShell` wrapper). Tailwind `content` extended to scan `app/src/generated/`. 5 legacy components deleted (replaced by vox-generated equivalents). Cross-component import codegen gap fixed in `reactive.rs` (+ 3 unit tests). `package.json` + `vite.config.ts` retained: `vox build` produces TSX source not browser bundles — Vite still required for bundling. Full deletion blocked on a vox-integrated bundler. |
+| TASK-7.3 — Delete Vite/Tailwind parallel setup | 🟡 Partial | `05c1ee60` | Vox-generated components wired into Vite entry (`src/App.tsx` → thin `ErrorBoundary + AppShell` wrapper). Tailwind `content` extended to scan `app/src/generated/`. 5 legacy components deleted (replaced by vox-generated equivalents). Cross-component import codegen gap fixed in `reactive.rs` (+ 3 unit tests). `package.json` + `vite.config.ts` retained: `vox build` produces TSX source not browser bundles — Vite is still required for bundling. Full bundler replacement deferred to Phase 9 of vox-gui-native-roadmap-2026.md §Phase 9; blocked until a vox-integrated bundler lands. |
 
 **Phase 7 verdict:** 2 complete, 1 partial (TASK-7.3 component wiring done; full bundler replacement deferred).
 
@@ -134,7 +134,7 @@ Per [`vox-gui-native-roadmap-2026.md`](vox-gui-native-roadmap-2026.md) §Phase 6
 | Task | Status | Commit | Notes |
 |------|--------|--------|-------|
 | TASK-8.1 — Atomic corpus migration PR | ✅ Done | `135b7591` | Golden corpus `.vox` files were already clean. Migrated 9 training-eligible docs + `vox_system_prompt.txt` to fn-based actor/workflow/activity syntax and current component syntax. Created `scripts/migrate-corpus.vox` verification script. All 247 compiler tests pass. |
-| TASK-8.2 — MENS training run on new corpus | 🔲 Not started | — | Requires operator to run `vox populi train --config qlora.toml` and compare eval scores. |
+| TASK-8.2 — MENS training run on new corpus | 🔲 Not started | — | Deferred — awaiting operator MENS training run. Operator must run `vox populi train --config qlora.toml` and compare eval scores before this task can be marked complete. |
 
 **Phase 8 verdict:** 1 complete, 1 pending operator action (compute).
 
@@ -148,14 +148,14 @@ Per [`vox-gui-native-roadmap-2026.md`](vox-gui-native-roadmap-2026.md) §Phase 6
 
 ---
 
-## Token / Clavis Status
+## Token / Secrets Status
 
-`FORGE_TOKEN` is now stored in `~/.vox/auth.json` (local Clavis vault, **not
+`FORGE_TOKEN` is now stored in `~/.vox/auth.json` (local vox-secrets vault, **not
 committed to the repo**). `vox ci watch-run` reads it automatically. No
 more `$env:FORGE_TOKEN=...` prefix required for CI polling.
 
 The `gho_*` token is a GitHub OAuth token scoped to your existing `gh` session.
-It is **safe to store in Clavis** for local use — Clavis writes to
+It is **safe to store in vox-secrets** for local use — vox-secrets writes to
 `~/.vox/auth.json` on your machine, never to the repository. You do NOT need
 to generate a new PAT. The existing OAuth token is sufficient for the
 `workflow` and `repo` scopes needed by `watch-run`.
@@ -164,8 +164,8 @@ to generate a new PAT. The existing OAuth token is sufficient for the
 
 ## Immediate Next Tasks (in order)
 
-1. **TASK-8.2** — MENS training run. Run `vox populi train --config qlora.toml` against the updated corpus; compare eval scores. Requires operator compute action.
-2. **TASK-7.3 (remaining partial)** — Full bundler replacement. Blocked on a vox-integrated bundler; can run in parallel with TASK-8.2.
+1. **TASK-8.2** — MENS training run. Deferred — awaiting operator compute action. Operator must run `vox populi train --config qlora.toml` against the updated corpus and compare eval scores.
+2. **TASK-7.3 (remaining partial)** — Full bundler replacement. Deferred to Phase 9 of vox-gui-native-roadmap-2026.md §Phase 9; blocked on a vox-integrated bundler. Can be worked in parallel with TASK-8.2 once Phase 9 is scoped.
 3. **`test_agent_mcp_roundtrip` pre-existing failure** — `vox_complete_task` called with integer `task_id = 1` but orchestrator uses `"T-0001"` string format. Fix: parse `vox_submit_task` response to extract the real task ID. Tracked as side-task chip.
 4. **`vox-corpus` synthetic_gen flakiness** — Windows temp file contention in parallel workspace mode. Tests pass in isolation (`cargo test -p vox-corpus`). Pre-existing; not introduced in this session. Fix: serialize temp-file access in synthetic_gen tests.
 

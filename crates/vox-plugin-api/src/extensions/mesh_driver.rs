@@ -27,7 +27,7 @@ pub trait MeshDriver: Send + Sync {
     /// List currently-registered nodes as a JSON array.
     fn list_nodes(&self) -> RResult<RString, RBoxError>;
 
-    /// Relay an A2A message to a specific peer node URL. Used by clavis broadcasts
+    /// Relay an A2A message to a specific peer node URL. Used by secrets broadcasts
     /// and orchestrator A2A dispatch. Returns the peer's response JSON.
     fn relay_a2a(
         &self,

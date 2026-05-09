@@ -36,7 +36,7 @@ Point **`eval.vox-lang.org`** to the same edge IP (or CNAME) where Coolify’s T
 
 ## API discovery and provisioning (no SSH)
 
-Secrets resolve through **Clavis** from canonical env vars ([`deploy-contract.md`](../ci/deploy-contract.md)):
+Secrets resolve through **vox-secrets** from canonical env vars ([`deploy-contract.md`](../ci/deploy-contract.md)):
 
 | Purpose | Env vars |
 |--------|-----------|
@@ -73,7 +73,7 @@ Use this **repeat-until-green** procedure when **`curl -fsS https://eval.vox-lan
 
 ### Step 1 — Identity (`COOLIFY_APP_UUID` vs eval app)
 
-**Prerequisites:** **`COOLIFY_BASE_URL`** and a read-capable bearer (**`COOLIFY_READ_TOKEN`** or **`COOLIFY_TOKEN`**) in the environment, or resolve the same values via Clavis locally.
+**Prerequisites:** **`COOLIFY_BASE_URL`** and a read-capable bearer (**`COOLIFY_READ_TOKEN`** or **`COOLIFY_TOKEN`**) in the environment, or resolve the same values via vox-secrets locally.
 
 ```bash
 vox ci coolify-eval discover

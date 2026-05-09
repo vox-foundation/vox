@@ -292,11 +292,11 @@ impl BuiltinTypes {
             },
         );
 
-        // clavis module
+        // secrets module
         env.define(
-            "clavis".into(),
+            "secrets".into(),
             Binding {
-                ty: Ty::Named("ClavisModule".into()),
+                ty: Ty::Named("SecretsModule".into()),
                 mutable: false,
                 kind: BindingKind::Import,
                 is_deprecated: false,
@@ -648,13 +648,13 @@ impl BuiltinTypes {
         );
         methods.insert("EnvModule".into(), env_methods);
 
-        // Clavis module methods
-        let mut clavis_methods = std::collections::HashMap::new();
-        clavis_methods.insert(
+        // Secrets module methods
+        let mut secrets_methods = std::collections::HashMap::new();
+        secrets_methods.insert(
             "resolve".into(),
             Ty::Fn(vec![Ty::Str], Box::new(Ty::Option(Box::new(Ty::Str)))),
         );
-        methods.insert("ClavisModule".into(), clavis_methods);
+        methods.insert("SecretsModule".into(), secrets_methods);
 
         // String methods
         let mut str_methods = std::collections::HashMap::new();

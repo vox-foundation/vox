@@ -499,7 +499,7 @@ fn codegen_use_effect_maps_to_react_hook() {
     insta::assert_snapshot!("use_effect_timer_tsx_emit", component.1);
 }
 
-// --- Phase 5F: Full-stack dashboard integration test ---
+// --- Dashboard full-pipeline integration test ---
 
 #[test]
 fn dashboard_full_pipeline_e2e() {

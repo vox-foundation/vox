@@ -4,7 +4,7 @@
   "suppressions": [
     
       "rule_id_prefix": "arch/god_object",
-      "path_glob": "**/vox-clavis/src/spec.rs",
+      "path_glob": "**/vox-secrets/src/spec.rs",
       "reason": "Legacy payload pending domain split",
       "owner": "robot"
     },

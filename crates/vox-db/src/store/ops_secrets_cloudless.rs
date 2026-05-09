@@ -2,7 +2,7 @@ use crate::{VoxDb, store::StoreError, store::types::*};
 use turso::params;
 
 impl VoxDb {
-    /// Upsert one encrypted account-secret row for Clavis Cloudless persistence.
+    /// Upsert one encrypted account-secret row for Secrets Cloudless persistence.
     pub async fn upsert_account_secret_ciphertext(
         &self,
         p: UpsertAccountSecretCiphertextParams<'_>,

@@ -5,46 +5,8 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sat, 09 May 2026 03:23:03 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 09 May 2026 05:06:12 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
-
-  <item>
-    <title>ADR 004: Codex over Arca over Turso</title>
-    <link>https://vox-lang.org/adr/004-codex-arca-turso-ssot.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/004-codex-arca-turso-ssot.html</guid>
-    <description>Official documentation for ADR 004: Codex over Arca over Turso for the Vox language. Detailed technical reference, architecture guides, a</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>ADR 015: Vox Docker/OCI portability SSOT</title>
-    <link>https://vox-lang.org/adr/015-vox-docker-oci-portability-ssot.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/adr/015-vox-docker-oci-portability-ssot.html</guid>
-    <description>Formalizes Docker/OCI-backed application portability, layered SSOT boundaries, and the rule against a portability god object.</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-    <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Crate Organization Follow-up — SSOT, Naming, and Sprawl</title>
-    <link>https://vox-lang.org/architecture/2026-05-08-crate-org-followup-design.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/2026-05-08-crate-org-followup-design.html</guid>
-    <description>Follow-up to the 2026-05-08 workspace reorg: closes SSOT/discoverability drift, picks up deferred Phase 3/6/7 extractions, and adds enforcement so the gains…</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Crate Org Follow-up — Implementation Plan</title>
-    <link>https://vox-lang.org/architecture/2026-05-08-crate-org-followup-plan.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/2026-05-08-crate-org-followup-plan.html</guid>
-    <description>Step-by-step plan to land the 6 PRs from 2026-05-08-crate-org-followup-design.md.</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
 
   <item>
     <title>Naming &amp; Anti-Entanglement Guards (2026-05-08)</title>
@@ -96,6 +58,15 @@
     <link>https://vox-lang.org/architecture/build-time-log.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/build-time-log.html</guid>
     <description>Build-Time Log</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Crate Classification Audit (2026-05-08)</title>
+    <link>https://vox-lang.org/architecture/crate-classification-2026-05-08.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/crate-classification-2026-05-08.html</guid>
+    <description>Classification of every workspace crate as CORE, PLUGIN, SHARED, DEAD, or MISPLACED. Identifies extraction candidates and deletion candidates.</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
@@ -233,6 +204,34 @@
     <description>Where Things Live</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>TOESTUB contributor guide</title>
+    <link>https://vox-lang.org/contributors/toestub-contributor-guide.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/contributors/toestub-contributor-guide.html</guid>
+    <description>Rule-by-rule troubleshooting for TOESTUB CI failures, with fix patterns, suppression guidance, and false-positive notes.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
+  </item>
+
+  <item>
+    <title>Migrating from Cargo Feature Flags</title>
+    <link>https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</guid>
+    <description>Mapping from `cargo --features` invocations to the runtime plugin system.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
+  </item>
+
+  <item>
+    <title>Picking a Vox bundle</title>
+    <link>https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</guid>
+    <description>Decision guide for choosing the right Vox distribution bundle for your use case.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>How-To</category>
   </item>
 
   <item>

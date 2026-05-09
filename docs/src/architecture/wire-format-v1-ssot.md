@@ -26,8 +26,8 @@ Version: **v1**. The version is embedded in every API base URL (see §2).
 | Concern | Rule |
 |---|---|
 | Base URL | `https://<host>/api/v1/` |
-| Query endpoints (`@query`) | HTTP `GET`; parameters as query string (see §2.1) |
-| Mutation/server endpoints (`@mutation`, `@server`) | HTTP `POST`; JSON body |
+| Query endpoints (`@endpoint(kind: query)`) | HTTP `GET`; parameters as query string (see §2.1) |
+| Mutation/server endpoints (`@endpoint(kind: mutation)`, `@endpoint(kind: server)`) | HTTP `POST`; JSON body |
 | Request `Content-Type` | `application/json` |
 | Response `Content-Type` | `application/json; charset=utf-8` |
 | Character encoding | UTF-8 throughout |
@@ -35,12 +35,12 @@ Version: **v1**. The version is embedded in every API base URL (see §2).
 
 ### 2.1 Query parameter encoding
 
-`@query` endpoint parameters are serialized as a query string with keys in **sorted lexicographic order**. Each value is `encodeURIComponent(JSON.stringify(value))`.
+`@endpoint(kind: query)` endpoint parameters are serialized as a query string with keys in **sorted lexicographic order**. Each value is `encodeURIComponent(JSON.stringify(value))`.
 
 ```vox
 // vox:skip — illustrative endpoint definition
-@query
-fn search_items(filter: ItemFilter, limit: int) -> List<Item>
+@endpoint(kind: query)
+fn search_items(filter: str, limit: int) to str { return "" }
 ```
 
 Wire URL:
@@ -50,12 +50,12 @@ GET /api/v1/search_items?filter=%7B%22category%22%3A%22books%22%7D&limit=20
 
 ### 2.2 Mutation body encoding
 
-`@mutation` and `@server` endpoints receive a JSON object whose keys are the parameter names.
+`@endpoint(kind: mutation)` and `@endpoint(kind: server)` endpoints receive a JSON object whose keys are the parameter names.
 
 ```vox
 // vox:skip — illustrative endpoint definition
-@mutation
-fn create_order(item_id: string, quantity: int) -> Order
+@endpoint(kind: mutation)
+fn create_order(item_id: str, quantity: int) to bool { return true }
 ```
 
 Wire request body:

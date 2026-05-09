@@ -31,7 +31,7 @@ Use the `match` expression to handle ADT variants with full type safety.
 
 ```vox
 // vox:skip
-fn describe_status(status: OrderStatus) -> str {
+fn describe_status(status: OrderStatus) to str {
     return match status {
         Pending         -> "Waiting for staff"
         Processing(id)  -> "Being handled by " + id

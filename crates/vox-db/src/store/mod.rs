@@ -46,7 +46,7 @@ mod ops;
 mod ops_agents;
 pub mod ops_build;
 mod ops_cas;
-mod ops_clavis_cloudless;
+mod ops_secrets_cloudless;
 mod ops_codex;
 mod ops_completion;
 mod ops_developer_journeys;

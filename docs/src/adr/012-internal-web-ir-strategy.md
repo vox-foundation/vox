@@ -2,13 +2,16 @@
 title: "ADR 012 — Internal Web IR strategy for Vox"
 description: "Official documentation for ADR 012 — Internal Web IR strategy for Vox for the Vox language. Detailed technical reference, architecture gu"
 category: "reference"
+status: "deprecated"
 last_updated: "2026-03-26"
-training_eligible: true
+training_eligible: false
 
 schema_type: "TechArticle"
 ---
 
 # ADR 012 — Internal Web IR strategy for Vox
+
+> **Superseded 2026-05-03** by [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). This ADR is retained for historical context only.
 
 **Status**: **Superseded** (2026-05-03) — islands retired; see [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md). Originally Accepted.  
 **Date**: 2026-03-26  
