@@ -5,8 +5,17 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Fri, 08 May 2026 22:59:32 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 09 May 2026 03:24:46 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Codebase Cleanup &amp; Signal Improvement Plan (2026-05-02)</title>
+    <link>https://vox-lang.org/architecture/2026-05-02-codebase-cleanup-and-signal-improvement.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/2026-05-02-codebase-cleanup-and-signal-improvement.html</guid>
+    <description>Six-phase plan to retire stale code, fix broken references, and converge on single sources of truth.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>Naming &amp; Anti-Entanglement Guards (2026-05-08)</title>
@@ -60,6 +69,16 @@
     <description>Build-Time Log</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
+  </item>
+
+  <item>
+    <title>Comprehensive Vox audit and improvement plan (April 2026, v2)</title>
+    <link>https://vox-lang.org/architecture/comprehensive-audit-v2-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/comprehensive-audit-v2-2026.html</guid>
+    <description>Full-spectrum audit + ~90 prioritized improvements. Targets the &apos;premier LLM destination for web app code&apos; thesis.</description>
+    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+    <category domain="https://schema.org">TechArticle</category>
   </item>
 
   <item>
@@ -207,31 +226,13 @@
   </item>
 
   <item>
-    <title>TOESTUB contributor guide</title>
-    <link>https://vox-lang.org/contributors/toestub-contributor-guide.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/contributors/toestub-contributor-guide.html</guid>
-    <description>Rule-by-rule troubleshooting for TOESTUB CI failures, with fix patterns, suppression guidance, and false-positive notes.</description>
+    <title>Comprehensive Vox audit and improvement plan (April 2026, v2)</title>
+    <link>https://vox-lang.org/archive/research-2026-q1/comprehensive-audit-findings-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/archive/research-2026-q1/comprehensive-audit-findings-2026.html</guid>
+    <description>Full-spectrum audit + ~90 prioritized improvements. Targets the &apos;premier LLM destination for web app code&apos; thesis.</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
     <category domain="https://schema.org">TechArticle</category>
-  </item>
-
-  <item>
-    <title>Migrating from Cargo Feature Flags</title>
-    <link>https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-migrate-from-cargo-features.html</guid>
-    <description>Mapping from `cargo --features` invocations to the runtime plugin system.</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>How-To</category>
-  </item>
-
-  <item>
-    <title>Picking a Vox bundle</title>
-    <link>https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/how-to/how-to-pick-a-vox-bundle.html</guid>
-    <description>Decision guide for choosing the right Vox distribution bundle for your use case.</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>How-To</category>
   </item>
 
   <item>

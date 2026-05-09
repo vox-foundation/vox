@@ -103,6 +103,7 @@ training_eligible: false
 - [Dead Crate Deep Dive (2026-05-08)](dead-crate-deep-dive-2026-05-08.md)
 - [Dead Crate Fate Plan (2026-05-08)](dead-crate-fate-plan-2026-05-08.md)
 - [Frontend Convergence Findings (2026)](frontend-convergence-findings-2026.md)
+- [Gradio & Streamlit Research (2026): What VUV Should Steal, Adapt, and Reject](gradio-streamlit-research-2026.md)
 - [Legacy URL Redirects on GitHub Pages](github-pages-redirects.md)
 - [Ludus Identity Federation & GitHub Integration](ludus-identity-github-integration-research-2026.md)
 - [Orchestrator Companion Audit — Non-Routing Surface Critique & Improvement Plan](orchestrator-companion-audit-findings-2026.md)

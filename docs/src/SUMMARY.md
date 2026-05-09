@@ -393,6 +393,7 @@ training_eligible: false
 - [GRPO Reward Shaping for Code LLMs](archive/research-2026-q1/research-grpo-reward-shaping-2026.md)
 - [GRPO and VRAM Efficiency: Architectural Comparisons and Small-Batch Dynamics](archive/research-2026-q1/research-grpo-vram-small-batch-2026.md)
 - [Gap Analysis and Recommended Architectural Adjustments](archive/research-2026-q1/research-grpo-gaps-and-adjustments-2026.md)
+- [Gradio & Streamlit Research (2026): What VUV Should Steal, Adapt, and Reject](architecture/gradio-streamlit-research-2026.md)
 - [GraphRAG Iterative Retrieval Research 2026](archive/research-2026-q1/graphrag-iterative-retrieval-research-2026.md)
 - [Internal Architecture Repository](archive/research-2026-q1/INDEX.md)
 - [K-Complexity and Multi-File LLM Code Generation](archive/research-2026-q1/research-ts-hallucination-k-complexity-2026.md)
