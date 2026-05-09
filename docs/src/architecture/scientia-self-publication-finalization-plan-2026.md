@@ -412,7 +412,9 @@ deposit.
 
 **Deliverable:** first peer-reviewed publication. Proof-of-thesis.
 
-### Phase 10 — Negative-result mandate + governance (1 wk; ongoing)
+### Phase 10 — Negative-result mandate + governance (1 wk; ongoing) ✅ COMPLETE (2026-05-09)
+
+> **Status: Complete** — `NegativeResultEnforcer` (refuses Atlas release when ≥3 positive findings with 0 null-results); `CostDashboard` ($/finding, $/extraction, $/atlas published in Atlas JSON); `CoiDeclaration` (ICMJE-format JSON COI disclosure); `CopeRetractionNotice` (COPE-aligned retraction workflow with Crossref notification state). (2026-05-09)
 - System refuses to release the quarterly Atlas if ≥3 published findings
   exist with no null-result publication in the same window.
 - Cost dashboard panel: $/finding, $/extraction, $/atlas; published *in the
