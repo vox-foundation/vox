@@ -28,7 +28,7 @@ pub mod types;
 
 // ── Public re-exports ─────────────────────────────────────────────────────
 
-pub use config::TelemetryConfig;
+pub use config::{TelemetryConfig, is_master_enabled};
 pub use no_op::NoOpRecorder;
 pub use recorder::{CompositeRecorder, TelemetryRecorder, global_recorder, set_global_recorder};
 pub use span::{TRACE_CTX, TraceContext, current_trace_ctx};

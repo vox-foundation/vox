@@ -56,21 +56,53 @@ impl TelemetryConfig {
         }
     }
 
-    /// Load from legacy per-category env vars. The master `VOX_TELEMETRY` switch and
-    /// file-based config layers are added in Phase D.
-    pub fn from_env_legacy() -> Self {
-        let benchmark_on = env_flag("VOX_BENCHMARK_TELEMETRY");
+    /// Resolve the active config from env vars.
+    ///
+    /// Resolution order (highest wins):
+    ///   1. `VOX_TELEMETRY` master (`off|on|debug`)
+    ///   2. Legacy per-category env vars
+    ///   3. Default: local-on, remote-off, all categories on
+    pub fn from_env() -> Self {
+        let master = std::env::var("VOX_TELEMETRY").ok().map(|v| v.to_ascii_lowercase());
+        match master.as_deref() {
+            Some("off") | Some("0") | Some("false") => return Self::all_off(),
+            _ => {}
+        }
+
+        let benchmark_legacy = env_flag("VOX_BENCHMARK_TELEMETRY");
+        let mcp_cost_legacy = env_flag("VOX_MCP_LLM_COST_EVENTS");
+
         Self {
             enabled: true,
             remote_upload: false,
-            // In Phase A, research_metrics category follows legacy benchmark gate.
-            // Phase D replaces this with the master switch.
-            research_metrics: benchmark_on.unwrap_or(false),
-            model_calls: false,         // activated Phase B
-            agent_orchestration: false, // activated Phase C
-            build: false,               // activated Phase D
-            errors: false,              // activated Phase D
+            research_metrics: benchmark_legacy.unwrap_or(true),
+            model_calls: mcp_cost_legacy.unwrap_or(true),
+            agent_orchestration: true,
+            build: true,
+            errors: true,
         }
+    }
+
+    /// Backward-compatible alias for `from_env`.
+    #[inline]
+    pub fn from_env_legacy() -> Self {
+        Self::from_env()
+    }
+}
+
+/// Returns true if telemetry is allowed at all (master switch is not "off").
+///
+/// This is the single check that legacy gates should consult before doing
+/// their per-category checks. When this returns false, NO telemetry should
+/// be emitted regardless of legacy env vars.
+pub fn is_master_enabled() -> bool {
+    match std::env::var("VOX_TELEMETRY")
+        .ok()
+        .map(|v| v.to_ascii_lowercase())
+        .as_deref()
+    {
+        Some("off") | Some("0") | Some("false") => false,
+        _ => true,
     }
 }
 
@@ -84,6 +116,59 @@ fn env_flag(key: &str) -> Option<bool> {
 
 impl Default for TelemetryConfig {
     fn default() -> Self {
-        Self::from_env_legacy()
+        Self::from_env()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serial_test::serial;
+
+    #[test]
+    #[serial]
+    fn default_is_local_on_remote_off() {
+        unsafe {
+            std::env::remove_var("VOX_TELEMETRY");
+            std::env::remove_var("VOX_BENCHMARK_TELEMETRY");
+            std::env::remove_var("VOX_MCP_LLM_COST_EVENTS");
+        }
+        let cfg = TelemetryConfig::from_env();
+        assert!(cfg.enabled);
+        assert!(!cfg.remote_upload);
+        assert!(cfg.research_metrics);
+        assert!(cfg.model_calls);
+        assert!(cfg.build);
+    }
+
+    #[test]
+    #[serial]
+    fn master_off_disables_everything() {
+        unsafe {
+            std::env::set_var("VOX_TELEMETRY", "off");
+        }
+        let cfg = TelemetryConfig::from_env();
+        assert!(!cfg.enabled);
+        assert!(!cfg.research_metrics);
+        unsafe {
+            std::env::remove_var("VOX_TELEMETRY");
+        }
+    }
+
+    #[test]
+    #[serial]
+    fn is_master_enabled_responds_to_master_off() {
+        unsafe {
+            std::env::set_var("VOX_TELEMETRY", "off");
+        }
+        assert!(!is_master_enabled());
+        unsafe {
+            std::env::set_var("VOX_TELEMETRY", "on");
+        }
+        assert!(is_master_enabled());
+        unsafe {
+            std::env::remove_var("VOX_TELEMETRY");
+        }
+        assert!(is_master_enabled()); // unset = default-on
     }
 }
