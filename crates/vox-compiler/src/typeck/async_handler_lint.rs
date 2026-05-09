@@ -18,8 +18,7 @@ pub fn check_async_handlers(hir: &HirModule, _source: &str) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
 
     // Collect all endpoint function names (these are the "async" calls).
-    let async_fn_names: HashSet<String> =
-        hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
+    let async_fn_names: HashSet<String> = hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
 
     if async_fn_names.is_empty() {
         return diags;
@@ -217,7 +216,9 @@ fn scan_stmt_for_handlers(
         HirStmt::Return { value: Some(e), .. } => scan_expr_for_handlers(e, async_fns, diags),
         HirStmt::Return { value: None, .. } => {}
         HirStmt::Assign { value, .. } => scan_expr_for_handlers(value, async_fns, diags),
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             scan_expr_for_handlers(condition, async_fns, diags);
             for s in body {
                 scan_stmt_for_handlers(s, async_fns, diags);
@@ -257,12 +258,11 @@ fn expr_calls_any_of(expr: &HirExpr, names: &HashSet<String>) -> bool {
                     .map_or(false, |es| es.iter().any(|s| stmt_calls_any_of(s, names)))
         }
         HirExpr::Lambda(_, _, body, _, _) => expr_calls_any_of(body, names),
-        HirExpr::Binary(_, l, r, _) => {
-            expr_calls_any_of(l, names) || expr_calls_any_of(r, names)
-        }
+        HirExpr::Binary(_, l, r, _) => expr_calls_any_of(l, names) || expr_calls_any_of(r, names),
         HirExpr::Unary(_, inner, _) => expr_calls_any_of(inner, names),
         HirExpr::MethodCall(recv, _, args, _, _) => {
-            expr_calls_any_of(recv, names) || args.iter().any(|a| expr_calls_any_of(&a.value, names))
+            expr_calls_any_of(recv, names)
+                || args.iter().any(|a| expr_calls_any_of(&a.value, names))
         }
         HirExpr::FieldAccess(inner, _, _) => expr_calls_any_of(inner, names),
         HirExpr::Index(o, i, _) => expr_calls_any_of(o, names) || expr_calls_any_of(i, names),
@@ -270,8 +270,7 @@ fn expr_calls_any_of(expr: &HirExpr, names: &HashSet<String>) -> bool {
         HirExpr::TupleLit(items, _) => items.iter().any(|i| expr_calls_any_of(i, names)),
         HirExpr::ObjectLit(fields, _) => fields.iter().any(|(_, v)| expr_calls_any_of(v, names)),
         HirExpr::Match(s, arms, _) => {
-            expr_calls_any_of(s, names)
-                || arms.iter().any(|a| expr_calls_any_of(&a.body, names))
+            expr_calls_any_of(s, names) || arms.iter().any(|a| expr_calls_any_of(&a.body, names))
         }
         HirExpr::Try(t) => expr_calls_any_of(&t.target, names),
         HirExpr::Spawn(inner, _) => expr_calls_any_of(inner, names),
@@ -292,7 +291,9 @@ fn stmt_calls_any_of(stmt: &HirStmt, names: &HashSet<String>) -> bool {
         HirStmt::Return { value: Some(e), .. } => expr_calls_any_of(e, names),
         HirStmt::Return { value: None, .. } => false,
         HirStmt::Assign { value, .. } => expr_calls_any_of(value, names),
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             expr_calls_any_of(condition, names) || body.iter().any(|s| stmt_calls_any_of(s, names))
         }
         HirStmt::Loop { body, .. } => body.iter().any(|s| stmt_calls_any_of(s, names)),
@@ -319,18 +320,15 @@ fn expr_has_state_assign(expr: &HirExpr) -> bool {
         HirExpr::Binary(_, l, r, _) => expr_has_state_assign(l) || expr_has_state_assign(r),
         HirExpr::Unary(_, inner, _) => expr_has_state_assign(inner),
         HirExpr::Call(callee, args, _, _) => {
-            expr_has_state_assign(callee)
-                || args.iter().any(|a| expr_has_state_assign(&a.value))
+            expr_has_state_assign(callee) || args.iter().any(|a| expr_has_state_assign(&a.value))
         }
         HirExpr::MethodCall(recv, _, args, _, _) => {
-            expr_has_state_assign(recv)
-                || args.iter().any(|a| expr_has_state_assign(&a.value))
+            expr_has_state_assign(recv) || args.iter().any(|a| expr_has_state_assign(&a.value))
         }
         HirExpr::FieldAccess(inner, _, _) => expr_has_state_assign(inner),
         HirExpr::Index(o, i, _) => expr_has_state_assign(o) || expr_has_state_assign(i),
         HirExpr::Match(s, arms, _) => {
-            expr_has_state_assign(s)
-                || arms.iter().any(|a| expr_has_state_assign(&a.body))
+            expr_has_state_assign(s) || arms.iter().any(|a| expr_has_state_assign(&a.body))
         }
         HirExpr::Try(t) => expr_has_state_assign(&t.target),
         HirExpr::With(a, b, _) => expr_has_state_assign(a) || expr_has_state_assign(b),
@@ -346,9 +344,9 @@ fn stmt_has_state_assign(stmt: &HirStmt) -> bool {
         HirStmt::Let { value, .. } => expr_has_state_assign(value),
         HirStmt::Return { value: Some(e), .. } => expr_has_state_assign(e),
         HirStmt::Return { value: None, .. } => false,
-        HirStmt::While { condition, body, .. } => {
-            expr_has_state_assign(condition) || body.iter().any(stmt_has_state_assign)
-        }
+        HirStmt::While {
+            condition, body, ..
+        } => expr_has_state_assign(condition) || body.iter().any(stmt_has_state_assign),
         HirStmt::Loop { body, .. } => body.iter().any(stmt_has_state_assign),
         HirStmt::Break { .. } | HirStmt::Continue { .. } => false,
     }

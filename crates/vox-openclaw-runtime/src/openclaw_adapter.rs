@@ -4,9 +4,7 @@ use async_trait::async_trait;
 use serde_json::{Value, json};
 use thiserror::Error;
 
-use crate::openclaw::{
-    OpenClawClient, OpenClawError, OpenClawRemoteConfig, OpenClawSkillSpec,
-};
+use crate::openclaw::{OpenClawClient, OpenClawError, OpenClawRemoteConfig, OpenClawSkillSpec};
 use crate::openclaw_discovery::{OpenClawDiscoveryOverrides, resolve_openclaw_endpoints};
 use crate::openclaw_gateway_ws::{
     OpenClawGatewayWsClient, OpenClawGatewayWsConfig, OpenClawGatewayWsError,
@@ -137,10 +135,7 @@ impl From<OpenClawGatewayWsError> for OpenClawAdapterError {
 #[async_trait]
 pub trait OpenClawRuntimeAdapter: Send {
     async fn list_remote_skills(&mut self) -> Result<Vec<OpenClawSkillSpec>, OpenClawAdapterError>;
-    async fn import_skill(
-        &mut self,
-        slug: &str,
-    ) -> Result<crate::ArsSkill, OpenClawAdapterError>;
+    async fn import_skill(&mut self, slug: &str) -> Result<crate::ArsSkill, OpenClawAdapterError>;
     async fn list_subscriptions(&mut self) -> Result<Value, OpenClawAdapterError>;
     async fn subscribe_domain(&mut self, domain: &str) -> Result<Value, OpenClawAdapterError>;
     async fn unsubscribe_domain(&mut self, domain: &str) -> Result<Value, OpenClawAdapterError>;
@@ -205,10 +200,7 @@ impl OpenClawRuntimeAdapter for DefaultOpenClawRuntimeAdapter {
         Ok(self.http.list_skills().await?)
     }
 
-    async fn import_skill(
-        &mut self,
-        slug: &str,
-    ) -> Result<crate::ArsSkill, OpenClawAdapterError> {
+    async fn import_skill(&mut self, slug: &str) -> Result<crate::ArsSkill, OpenClawAdapterError> {
         Ok(self.http.import_skill(slug).await?)
     }
 

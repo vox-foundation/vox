@@ -24,6 +24,7 @@ pub mod scholarly;
 #[cfg(feature = "scholarly-external-jobs")]
 pub use crate::scholarly::external as scholarly_external_jobs;
 pub mod distribution_compile;
+pub mod peer_review_gate;
 #[cfg(feature = "scholarly-external-jobs")]
 pub mod scholarly_remote_status;
 #[cfg(feature = "scholarly-external-jobs")]
@@ -34,7 +35,6 @@ pub mod switching;
 pub mod templates;
 pub mod topic_packs;
 pub mod types;
-pub mod peer_review_gate;
 pub mod venue_catalog;
 pub mod zenodo_api_types;
 pub mod zenodo_metadata;

@@ -29,8 +29,10 @@ fn retrieval_diagnostics_serializes() {
     let json = serde_json::to_value(&d).expect("serializes");
     assert!(json.is_object());
     let weights = &json["fusion_weights"];
-    assert!(weights.is_array() && weights.as_array().unwrap().len() == 3,
-        "fusion_weights must serialize as a 3-element array");
+    assert!(
+        weights.is_array() && weights.as_array().unwrap().len() == 3,
+        "fusion_weights must serialize as a 3-element array"
+    );
 }
 
 #[test]

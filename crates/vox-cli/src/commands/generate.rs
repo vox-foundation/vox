@@ -46,7 +46,9 @@ pub async fn run(
         }
         #[cfg(not(feature = "mcp-server"))]
         {
-            eprintln!("ℹ️  Orchestrator mode requires the mcp-server feature. Falling back to --legacy-direct.");
+            eprintln!(
+                "ℹ️  Orchestrator mode requires the mcp-server feature. Falling back to --legacy-direct."
+            );
             run_legacy_direct(&client, prompt, server_url, validate, retries).await?
         }
     };
@@ -105,18 +107,14 @@ async fn run_via_orchestrator(
     eprintln!("🔮 Generating Vox code via orchestrator...");
     eprintln!("   Prompt: {}", prompt);
 
-    let result = vox_orchestrator_mcp::llm_bridge::vox_local_generate(
-        client,
-        prompt,
-        validate,
-        max_retries,
-    )
-    .await
-    .map_err(|e| {
-        eprintln!("⚠️  VoxLocal inference unavailable: {e}");
-        eprintln!("   Start it with: vox run scripts/vox_inference.vox --serve");
-        anyhow::anyhow!(e)
-    })?;
+    let result =
+        vox_orchestrator_mcp::llm_bridge::vox_local_generate(client, prompt, validate, max_retries)
+            .await
+            .map_err(|e| {
+                eprintln!("⚠️  VoxLocal inference unavailable: {e}");
+                eprintln!("   Start it with: vox run scripts/vox_inference.vox --serve");
+                anyhow::anyhow!(e)
+            })?;
 
     Ok((
         result.code,

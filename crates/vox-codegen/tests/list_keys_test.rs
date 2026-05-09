@@ -1,11 +1,16 @@
 use vox_codegen::codegen_ts::emitter::generate;
-use vox_compiler::{lexer::cursor::lex, parser::parse, hir::lower_module};
+use vox_compiler::{hir::lower_module, lexer::cursor::lex, parser::parse};
 
 fn try_emit(src: &str) -> Result<String, String> {
     let m = parse(lex(src)).map_err(|e| format!("{e:?}"))?;
     let hir = lower_module(&m);
     let out = generate(&hir)?;
-    Ok(out.files.iter().map(|(_, c)| c.clone()).collect::<Vec<_>>().join("\n"))
+    Ok(out
+        .files
+        .iter()
+        .map(|(_, c)| c.clone())
+        .collect::<Vec<_>>()
+        .join("\n"))
 }
 
 #[test]
@@ -20,7 +25,11 @@ component List(items: list[str]) {
 }
 "#;
     let ts = try_emit(src).expect("emit");
-    assert!(ts.contains("key={it}") || ts.contains("key="), "must emit key prop\n---\n{}", ts);
+    assert!(
+        ts.contains("key={it}") || ts.contains("key="),
+        "must emit key prop\n---\n{}",
+        ts
+    );
 }
 
 #[test]
@@ -35,7 +44,10 @@ component List(items: list[str]) {
 }
 "#;
     let err = try_emit(src).expect_err("must fail without key");
-    assert!(err.contains("validate.list_key.required") || err.contains("key"), "expected key error, got: {err}");
+    assert!(
+        err.contains("validate.list_key.required") || err.contains("key"),
+        "expected key error, got: {err}"
+    );
 }
 
 #[test]
@@ -50,5 +62,8 @@ component L(words: list[str]) {
 }
 "#;
     let ts = try_emit(src).expect("emit");
-    assert!(ts.contains("key={w}") || ts.contains("key="), "must emit key: {ts}");
+    assert!(
+        ts.contains("key={w}") || ts.contains("key="),
+        "must emit key: {ts}"
+    );
 }

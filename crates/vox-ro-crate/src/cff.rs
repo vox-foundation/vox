@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub struct CffAuthor {
     pub given_names: String,
@@ -16,16 +16,20 @@ pub struct CffMetadata {
 }
 
 pub fn build_cff_json(cff: &CffMetadata) -> Value {
-    let authors: Vec<Value> = cff.authors.iter().map(|a| {
-        let mut author = json!({
-            "given-names": a.given_names,
-            "family-names": a.family_names,
-        });
-        if let Some(orcid) = &a.orcid {
-            author["orcid"] = json!(orcid);
-        }
-        author
-    }).collect();
+    let authors: Vec<Value> = cff
+        .authors
+        .iter()
+        .map(|a| {
+            let mut author = json!({
+                "given-names": a.given_names,
+                "family-names": a.family_names,
+            });
+            if let Some(orcid) = &a.orcid {
+                author["orcid"] = json!(orcid);
+            }
+            author
+        })
+        .collect();
 
     let mut result = json!({
         "cff-version": "1.2.0",
@@ -77,9 +81,6 @@ mod tests {
         cff.authors[0].orcid = Some("https://orcid.org/0000-0001-2345-6789".to_string());
         let json = build_cff_json(&cff);
         let authors = json["authors"].as_array().unwrap();
-        assert_eq!(
-            authors[0]["orcid"],
-            "https://orcid.org/0000-0001-2345-6789"
-        );
+        assert_eq!(authors[0]["orcid"], "https://orcid.org/0000-0001-2345-6789");
     }
 }

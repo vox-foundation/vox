@@ -28,7 +28,11 @@ mod tests {
     #[test]
     fn embedded_pack_loads() {
         let pack = embedded_pack();
-        assert!(pack.len() >= 4, "expected at least 4 rules, got {}", pack.len());
+        assert!(
+            pack.len() >= 4,
+            "expected at least 4 rules, got {}",
+            pack.len()
+        );
     }
 
     #[test]

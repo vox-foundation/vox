@@ -11,13 +11,8 @@ pub mod builtin_registry;
 pub mod component;
 /// Main HIR → TypeScript emitter ([`generate`]).
 pub mod emitter;
-/// OpenAPI 3.1 specification emit (driven by Contract IR; per Phase 2 of the
-/// external frontend interop plan).
-pub mod openapi_emit;
 /// `@form` declaration → React form components in `forms.tsx` (Task C3).
 pub mod form_emit;
-/// Mobile Capacitor primitive emit (`@back_button`, `@deep_link`, `@push`) → `mobile.ts` (Tasks D2-D4).
-pub mod mobile_emit;
 /// `fragment` declaration → typed React function components in `fragments.tsx`
 /// (Phase F of the Svelte-mineable features plan; per ADR-033).
 pub mod fragment_emit;
@@ -25,6 +20,11 @@ pub mod fragment_emit;
 pub mod hir_emit;
 /// JSX lowering and attribute handling.
 pub mod jsx;
+/// Mobile Capacitor primitive emit (`@back_button`, `@deep_link`, `@push`) → `mobile.ts` (Tasks D2-D4).
+pub mod mobile_emit;
+/// OpenAPI 3.1 specification emit (driven by Contract IR; per Phase 2 of the
+/// external frontend interop plan).
+pub mod openapi_emit;
 /// Reactive components codegen (Path C).
 pub mod reactive;
 /// `.vox.ui` reactive module → React context + provider + hook (Phase D of the

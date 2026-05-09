@@ -134,9 +134,18 @@ impl SettingsState {
         let now_ms = epoch_ms();
         let snapshot = {
             let mut map = self.inner.write().await;
-            map.insert(format!("tokens.{provider}.last4"), Value::String(last4.to_string()));
-            map.insert(format!("tokens.{provider}.added_ms"), Value::Number(now_ms.into()));
-            map.insert(format!("tokens.{provider}.status"), Value::String("ok".to_string()));
+            map.insert(
+                format!("tokens.{provider}.last4"),
+                Value::String(last4.to_string()),
+            );
+            map.insert(
+                format!("tokens.{provider}.added_ms"),
+                Value::Number(now_ms.into()),
+            );
+            map.insert(
+                format!("tokens.{provider}.status"),
+                Value::String("ok".to_string()),
+            );
             map.clone()
         }; // write lock released before async I/O
         self.flush(snapshot).await
@@ -244,7 +253,13 @@ where
     Router::new()
         .route("/api/dashboard/settings", get(get_settings))
         .route("/api/dashboard/settings", put(put_settings))
-        .route("/api/dashboard/settings/tokens/{provider}", put(put_token_route))
-        .route("/api/dashboard/settings/tokens/{provider}", delete(delete_token_route))
+        .route(
+            "/api/dashboard/settings/tokens/{provider}",
+            put(put_token_route),
+        )
+        .route(
+            "/api/dashboard/settings/tokens/{provider}",
+            delete(delete_token_route),
+        )
         .with_state(state)
 }

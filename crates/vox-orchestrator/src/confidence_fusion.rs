@@ -49,7 +49,10 @@ pub struct FusionInputs {
 impl FusionInputs {
     /// Build inputs from a [`SocratesTaskContext`] and an optional completion text entropy.
     #[must_use]
-    pub fn from_task_context(ctx: &SocratesTaskContext, completion_entropy_score: Option<f64>) -> Self {
+    pub fn from_task_context(
+        ctx: &SocratesTaskContext,
+        completion_entropy_score: Option<f64>,
+    ) -> Self {
         let contradiction_ratio = match ctx.contradiction_hints {
             0 => 0.0,
             1 => 0.15,
@@ -125,7 +128,8 @@ impl ConfidenceFuser {
     #[inline]
     pub fn score(&self, inputs: &FusionInputs) -> f64 {
         let w = &self.config.weights;
-        let contradiction_contribution = (1.0 - inputs.contradiction_ratio) * w.contradiction_penalty;
+        let contradiction_contribution =
+            (1.0 - inputs.contradiction_ratio) * w.contradiction_penalty;
         (inputs.evidence_quality * w.evidence_quality
             + inputs.citation_coverage * w.citation_coverage
             + inputs.source_diversity_norm * w.source_diversity

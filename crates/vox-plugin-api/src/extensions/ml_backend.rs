@@ -13,7 +13,7 @@
 //! shows up as a hot-path cost in profiles, switch to a bincode-encoded
 //! `RVec<u8>` in a future trait revision.
 
-use abi_stable::{sabi_trait, std_types::*, StableAbi};
+use abi_stable::{StableAbi, sabi_trait, std_types::*};
 
 pub const ML_BACKEND_REVISION: u32 = 3;
 
@@ -47,18 +47,11 @@ pub trait MlBackend: Send + Sync {
     ) -> RResult<RString, RBoxError>;
 
     /// Run one evaluation step. Same wire format as train_step.
-    fn eval_step(
-        &self,
-        model: &MlModelHandle,
-        batch_json: RStr<'_>,
-    ) -> RResult<RString, RBoxError>;
+    fn eval_step(&self, model: &MlModelHandle, batch_json: RStr<'_>)
+    -> RResult<RString, RBoxError>;
 
     /// Persist a checkpoint of `model` to `dest` (filesystem path).
-    fn save_checkpoint(
-        &self,
-        model: &MlModelHandle,
-        dest: RStr<'_>,
-    ) -> RResult<(), RBoxError>;
+    fn save_checkpoint(&self, model: &MlModelHandle, dest: RStr<'_>) -> RResult<(), RBoxError>;
 
     /// Run a complete training session described by `config_json`. The
     /// plugin owns the entire loop (data loading, epochs, optimizer,
@@ -70,7 +63,11 @@ pub trait MlBackend: Send + Sync {
     fn run_full_training(&self, config_json: RStr<'_>) -> RResult<RString, RBoxError>;
 
     /// Run inference on a loaded model. Returns generated text + metadata as JSON.
-    fn run_inference(&self, model: &MlModelHandle, prompt_json: RStr<'_>) -> RResult<RString, RBoxError>;
+    fn run_inference(
+        &self,
+        model: &MlModelHandle,
+        prompt_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError>;
 
     /// Merge a QLoRA adapter into base weights and write to dest_path.
     /// Used by `vox mens merge-qlora` workflow.

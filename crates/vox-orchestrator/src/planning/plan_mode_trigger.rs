@@ -114,7 +114,11 @@ pub struct PlanModeEvent {
 }
 
 impl PlanModeEvent {
-    pub fn new(decision: PlanModeDecision, signal: &PlanModeSignal, session_id: Option<String>) -> Self {
+    pub fn new(
+        decision: PlanModeDecision,
+        signal: &PlanModeSignal,
+        session_id: Option<String>,
+    ) -> Self {
         Self {
             metric_type: vox_db::research_metrics_contract::METRIC_TYPE_PLAN_MODE_DECISION,
             decision: decision.to_string(),

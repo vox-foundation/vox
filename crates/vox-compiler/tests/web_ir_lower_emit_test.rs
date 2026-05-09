@@ -4,16 +4,8 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use vox_compiler::ast::decl::{Decl, ThemeDecl};
-use vox_compiler::ast::span::Span;
 use vox_codegen::codegen_ts::hir_emit::emit_hir_expr;
 use vox_codegen::codegen_ts::{CodegenOptions, generate_with_options};
-use vox_compiler::hir::{HirModule, HirReactiveMember, lower_module};
-use vox_compiler::lexer::lex;
-use vox_compiler::parser::parse;
-use vox_compiler::runtime_projection::{
-    RUNTIME_PROJECTION_SCHEMA_VERSION, canonical_runtime_projection_bytes, project_runtime_from_hir,
-};
 use vox_codegen::syntax_k::{
     RepresentabilityPayload, SyntaxKInput, canonical_emitted_files_bytes, canonical_web_ir_bytes,
     enrich_syntax_k_support_metrics, measure_syntax_k_event, sha3_hex,
@@ -27,6 +19,14 @@ use vox_codegen::web_ir::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, InteropNode, MutationContract,
     RouteContract, RouteNode, ServerFnContract, StyleDeclarationValue, StyleNode, StyleSelector,
     WebIrModule, WebIrVersion,
+};
+use vox_compiler::ast::decl::{Decl, ThemeDecl};
+use vox_compiler::ast::span::Span;
+use vox_compiler::hir::{HirModule, HirReactiveMember, lower_module};
+use vox_compiler::lexer::lex;
+use vox_compiler::parser::parse;
+use vox_compiler::runtime_projection::{
+    RUNTIME_PROJECTION_SCHEMA_VERSION, canonical_runtime_projection_bytes, project_runtime_from_hir,
 };
 
 #[test]
@@ -331,7 +331,10 @@ component T() {
         _ => panic!("expected state member"),
     };
     let state_names = HashSet::from([state_name]);
-    let direct = emit_hir_expr(view, &vox_codegen::codegen_ts::hir_emit::EmitCtx::new(&state_names));
+    let direct = emit_hir_expr(
+        view,
+        &vox_codegen::codegen_ts::hir_emit::EmitCtx::new(&state_names),
+    );
     let web = lower_hir_to_web_ir(&hir);
     let via = emit_component_view_tsx(&web, "T").expect("emit");
     assert_eq!(
@@ -982,7 +985,10 @@ fn hir_emit_public_exports_include_compat_module() {
         map_jsx_attr_name("on:click"),
         compat::map_jsx_attr_name("on_click")
     );
-    let _ptr: fn(&vox_compiler::hir::HirExpr, &vox_codegen::codegen_ts::hir_emit::EmitCtx<'_>) -> String = emit_hir_expr;
+    let _ptr: fn(
+        &vox_compiler::hir::HirExpr,
+        &vox_codegen::codegen_ts::hir_emit::EmitCtx<'_>,
+    ) -> String = emit_hir_expr;
 }
 
 /// Parity chain fixture (post-@island retirement).
@@ -2011,8 +2017,8 @@ raw_css {
 #[test]
 #[ignore]
 fn surface_known_name_no_error() {
-    use vox_compiler::tokens::TokenRegistry;
     use vox_codegen::web_ir::validate::validate_web_ir_with_registry;
+    use vox_compiler::tokens::TokenRegistry;
 
     let tokens_json = r##"{
         "color": { "background": "#ffffff", "primary": "#3a86ff", "text": { "value": "#1d3557" } },
@@ -2043,8 +2049,8 @@ fn surface_known_name_no_error() {
 #[test]
 #[ignore]
 fn surface_unknown_name_fires_error() {
-    use vox_compiler::tokens::TokenRegistry;
     use vox_codegen::web_ir::validate::validate_web_ir_with_registry;
+    use vox_compiler::tokens::TokenRegistry;
 
     let tokens_json = r##"{
         "surface": {

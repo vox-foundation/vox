@@ -27,11 +27,7 @@ impl VoxPlugin for ScriptExecutionPlugin {
 }
 
 impl ScriptExecutor for ScriptExecutionPlugin {
-    fn execute(
-        &self,
-        _script_path: RStr<'_>,
-        _args_json: RStr<'_>,
-    ) -> RResult<RString, RBoxError> {
+    fn execute(&self, _script_path: RStr<'_>, _args_json: RStr<'_>) -> RResult<RString, RBoxError> {
         RResult::RErr(RBoxError::new(std::io::Error::other(
             "not yet implemented; SP7 scaffold",
         )))
@@ -44,7 +40,9 @@ impl ScriptExecutor for ScriptExecutionPlugin {
     }
 }
 
-pub(crate) fn make_plugin(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError> {
+pub(crate) fn make_plugin(
+    _host: VoxHost_TO<'static, RBox<()>>,
+) -> RResult<VoxPluginRef, RBoxError> {
     let plugin = ScriptExecutionPlugin;
     let to = VoxPlugin_TO::from_value(plugin, TD_Opaque);
     RResult::ROk(to)

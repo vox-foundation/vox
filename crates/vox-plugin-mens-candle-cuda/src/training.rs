@@ -10,10 +10,7 @@ use std::io;
 use crate::model::CandleModel;
 
 /// Run one QLoRA training step (streaming protocol — SP3-D).
-pub fn run_train_step(
-    _model: &mut CandleModel,
-    _batch_json: &str,
-) -> anyhow::Result<String> {
+pub fn run_train_step(_model: &mut CandleModel, _batch_json: &str) -> anyhow::Result<String> {
     anyhow::bail!(
         "vox-plugin-mens-candle-cuda: run_train_step not yet wired (SP3-D). \
          Use run_full_training for a complete session."
@@ -21,10 +18,7 @@ pub fn run_train_step(
 }
 
 /// Run one evaluation step — SP3-D.
-pub fn run_eval_step(
-    _model: &CandleModel,
-    _batch_json: &str,
-) -> anyhow::Result<String> {
+pub fn run_eval_step(_model: &CandleModel, _batch_json: &str) -> anyhow::Result<String> {
     anyhow::bail!(
         "vox-plugin-mens-candle-cuda: run_eval_step not yet wired (SP3-D). \
          Use run_full_training for a complete session."

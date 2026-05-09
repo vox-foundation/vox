@@ -5,11 +5,7 @@
 use crate::config::ChatmlConfig;
 
 #[must_use]
-pub fn chatml_prefix_open_assistant(
-    system: &str,
-    user: &str,
-    cfg: &ChatmlConfig,
-) -> String {
+pub fn chatml_prefix_open_assistant(system: &str, user: &str, cfg: &ChatmlConfig) -> String {
     format!(
         "{start}{sys}\n{system}{end}\n\
          {start}{usr}\n{user}{end}\n\
@@ -23,10 +19,7 @@ pub fn chatml_prefix_open_assistant(
 }
 
 #[must_use]
-pub fn chatml_turns_text(
-    turns: &[vox_tensor::data::ChatmlTurn],
-    cfg: &ChatmlConfig,
-) -> String {
+pub fn chatml_turns_text(turns: &[vox_tensor::data::ChatmlTurn], cfg: &ChatmlConfig) -> String {
     let mut out = String::new();
     for turn in turns {
         out.push_str(&format!(

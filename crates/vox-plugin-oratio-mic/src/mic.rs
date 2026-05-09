@@ -56,7 +56,9 @@ impl AudioCapture for OratioMicPlugin {
     }
 }
 
-pub(crate) fn make_plugin(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError> {
+pub(crate) fn make_plugin(
+    _host: VoxHost_TO<'static, RBox<()>>,
+) -> RResult<VoxPluginRef, RBoxError> {
     let plugin = OratioMicPlugin;
     let to = VoxPlugin_TO::from_value(plugin, TD_Opaque);
     RResult::ROk(to)

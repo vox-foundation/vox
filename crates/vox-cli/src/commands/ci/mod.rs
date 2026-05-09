@@ -1,7 +1,6 @@
 //! `vox ci` — repository guard checks (SSOT, manifests, feature matrix) without shell/Python.
 
 mod agentskills_compliance;
-mod detect_rules_bench;
 mod attention_ledger_parity;
 mod attention_parity;
 pub mod build_timings;
@@ -18,6 +17,7 @@ pub mod data_storage_guard;
 mod db_schema_coverage;
 mod dep_sprawl;
 pub mod deploy_status;
+mod detect_rules_bench;
 mod determinism_audit;
 mod doctest_md;
 mod eval_matrix;
@@ -32,24 +32,24 @@ mod line_endings;
 mod mens_scorecard;
 pub(crate) mod nomenclature_guard;
 mod openclaw_contract;
-mod parse_check;
-mod toestub_budget;
 mod operations_catalog;
+mod parse_check;
 mod plugin_abi_parity;
 mod plugin_catalog_parity;
 mod plugin_skill_parity;
 mod pm_provenance;
 mod policy_allowlist_parity;
-mod row_serde_lint;
 mod pre_push;
 mod release_build;
 pub(crate) mod retired_symbol_check;
+mod row_serde_lint;
 mod scaling_audit;
 mod scientia_heuristics_parity;
 mod scientia_novelty_ledger_contract;
 mod scientia_worthiness_contract;
 pub(crate) mod string_id_lint;
 pub(crate) mod sync_ignore_files;
+mod toestub_budget;
 pub mod watch_run;
 pub mod workspace_artifacts;
 

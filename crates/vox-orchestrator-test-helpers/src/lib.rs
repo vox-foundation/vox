@@ -12,8 +12,14 @@ use std::path::{Path, PathBuf};
 #[derive(Debug)]
 pub enum FixtureError {
     NotFound(PathBuf),
-    Read { path: PathBuf, source: std::io::Error },
-    Parse { path: PathBuf, source: serde_json::Error },
+    Read {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    Parse {
+        path: PathBuf,
+        source: serde_json::Error,
+    },
 }
 
 impl std::fmt::Display for FixtureError {
@@ -48,11 +54,12 @@ pub fn load_golden_fixture<T: DeserializeOwned>(
         return Err(FixtureError::NotFound(path));
     }
 
-    let content = std::fs::read_to_string(&path)
-        .map_err(|e| FixtureError::Read { path: path.clone(), source: e })?;
+    let content = std::fs::read_to_string(&path).map_err(|e| FixtureError::Read {
+        path: path.clone(),
+        source: e,
+    })?;
 
-    serde_json::from_str(&content)
-        .map_err(|e| FixtureError::Parse { path, source: e })
+    serde_json::from_str(&content).map_err(|e| FixtureError::Parse { path, source: e })
 }
 
 // ---------------------------------------------------------------------------

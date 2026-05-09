@@ -37,7 +37,10 @@ fn discover_finds_a_skill_plugin() {
     let registry = discover(tmp.path()).expect("discover should succeed");
     assert!(registry.has("discover-test-skill"));
 
-    let skill = registry.skills.lookup("discover-test-skill").expect("lookup");
+    let skill = registry
+        .skills
+        .lookup("discover-test-skill")
+        .expect("lookup");
     assert_eq!(skill.exposed_tools, vec!["fake_tool".to_string()]);
     assert!(skill.body.contains("Fake content"));
 }

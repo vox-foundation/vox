@@ -67,7 +67,11 @@ impl DetectionRule for QuestionMarkDetector {
         Good:\n  expr?"
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if !matches!(file.language, Language::Vox | Language::Rust) {
             return vec![];
         }
@@ -174,7 +178,10 @@ mod tests {
         let code = "fn foo() -> Result<i32, String> {\n    let x = match get_value() {\n        Ok(v) => v,\n        Err(e) => return Err(e),\n    };\n    Ok(x)\n}";
         let f = source("rs", code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should fire on match-ok-err-return pattern");
+        assert!(
+            !findings.is_empty(),
+            "should fire on match-ok-err-return pattern"
+        );
         assert!(findings[0].message.contains("?"));
     }
 

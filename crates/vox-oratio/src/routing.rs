@@ -240,10 +240,11 @@ fn routing_session_cap_ttl() -> (usize, Duration) {
         .expose()
         .and_then(|s| s.parse().ok())
         .unwrap_or(DEF_CAP);
-    let ttl_secs = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioRoutingSessionTtlSecs)
-        .expose()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(DEF_TTL_SECS);
+    let ttl_secs =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioRoutingSessionTtlSecs)
+            .expose()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(DEF_TTL_SECS);
     (cap.max(64), Duration::from_secs(ttl_secs.max(60)))
 }
 

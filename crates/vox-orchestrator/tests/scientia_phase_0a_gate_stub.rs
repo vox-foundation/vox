@@ -1,6 +1,6 @@
 use vox_orchestrator::dei_shim::research::{
     claims::Claim,
-    gate::{score_with_config, GateConfig, GateInput},
+    gate::{GateConfig, GateInput, score_with_config},
     types::RoutingTier,
 };
 

@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use super::secret_scan::{scan_for_secrets, SecretMatch};
+use super::secret_scan::{SecretMatch, scan_for_secrets};
 use crate::git_exec::{GitExec, GitExecError};
 use vox_orchestrator_types::WorkspaceId;
 
@@ -49,7 +49,10 @@ fn build_commit_message(
 ) -> String {
     let trailers = format!(
         "Co-authored-by: {} <{}>\nVox-Model-Id: {}\nVox-Workspace: {}",
-        author_name, author_email, model_id, WorkspaceId(workspace_id)
+        author_name,
+        author_email,
+        model_id,
+        WorkspaceId(workspace_id)
     );
     format!("{}\n\n{}", message.trim_end(), trailers)
 }
@@ -92,7 +95,8 @@ pub async fn commit_create(
         build_commit_message(message, author_name, author_email, model_id, workspace_id);
 
     // 4. Commit.
-    git.run(&["commit", "--no-verify", "-m", &full_message]).await?;
+    git.run(&["commit", "--no-verify", "-m", &full_message])
+        .await?;
 
     // 5. Retrieve the new SHA.
     let sha_out = git.run(&["rev-parse", "HEAD"]).await?;
@@ -105,7 +109,10 @@ pub async fn commit_create(
         "commit created"
     );
 
-    Ok(CommitOutput { sha, message_used: full_message })
+    Ok(CommitOutput {
+        sha,
+        message_used: full_message,
+    })
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────
@@ -116,8 +123,7 @@ mod tests {
 
     #[test]
     fn commit_message_has_trailers() {
-        let msg =
-            build_commit_message("fix: bug", "Bot", "bot@vox", "claude-opus-4-7", 42);
+        let msg = build_commit_message("fix: bug", "Bot", "bot@vox", "claude-opus-4-7", 42);
         assert!(
             msg.contains("Co-authored-by: Bot <bot@vox>"),
             "missing Co-authored-by trailer: {msg:?}"
@@ -143,8 +149,7 @@ mod tests {
 
     #[test]
     fn commit_message_trims_trailing_whitespace() {
-        let msg =
-            build_commit_message("fix: bug   ", "Bot", "bot@vox", "m", 0);
+        let msg = build_commit_message("fix: bug   ", "Bot", "bot@vox", "m", 0);
         // The body should end with "fix: bug" (no trailing spaces) before the
         // blank line that separates body from trailers.
         assert!(
@@ -155,8 +160,7 @@ mod tests {
 
     #[test]
     fn commit_message_blank_line_separates_body_and_trailers() {
-        let msg =
-            build_commit_message("feat: something", "Bot", "bot@vox", "m", 0);
+        let msg = build_commit_message("feat: something", "Bot", "bot@vox", "m", 0);
         assert!(
             msg.contains("\n\nCo-authored-by:"),
             "expected double-newline before Co-authored-by: {msg:?}"

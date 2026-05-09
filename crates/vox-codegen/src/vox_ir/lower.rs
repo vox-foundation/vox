@@ -1,6 +1,6 @@
 use super::{VoxIrContent, VoxIrMetadata, VoxIrModule};
-use vox_compiler::hir::HirModule;
 use chrono::Utc;
+use vox_compiler::hir::HirModule;
 
 use sha3::{Digest, Sha3_256};
 

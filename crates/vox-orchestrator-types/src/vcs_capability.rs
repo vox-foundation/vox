@@ -61,7 +61,9 @@ impl BranchName {
         Ok(BranchName(s.to_string()))
     }
 
-    pub fn as_str(&self) -> &str { &self.0 }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -95,8 +97,12 @@ impl WorkingTreeWrite {
         Self { workspace, branch }
     }
 
-    pub fn workspace(&self) -> WorkspaceId { self.workspace }
-    pub fn branch(&self) -> &BranchName { &self.branch }
+    pub fn workspace(&self) -> WorkspaceId {
+        self.workspace
+    }
+    pub fn branch(&self) -> &BranchName {
+        &self.branch
+    }
 }
 
 /// Capability: holder may create a new branch in `workspace` rooted at `parent`.
@@ -112,8 +118,12 @@ impl BranchCreate {
         Self { workspace, parent }
     }
 
-    pub fn workspace(&self) -> WorkspaceId { self.workspace }
-    pub fn parent(&self) -> &BranchName { &self.parent }
+    pub fn workspace(&self) -> WorkspaceId {
+        self.workspace
+    }
+    pub fn parent(&self) -> &BranchName {
+        &self.parent
+    }
 }
 
 #[cfg(test)]
@@ -134,16 +144,31 @@ mod tests {
 
     #[test]
     fn branch_name_rejects_empty_or_too_long() {
-        assert_eq!(BranchName::parse("").unwrap_err(), BranchNameError::InvalidLength);
+        assert_eq!(
+            BranchName::parse("").unwrap_err(),
+            BranchNameError::InvalidLength
+        );
         let too_long = "a".repeat(256);
-        assert_eq!(BranchName::parse(&too_long).unwrap_err(), BranchNameError::InvalidLength);
+        assert_eq!(
+            BranchName::parse(&too_long).unwrap_err(),
+            BranchNameError::InvalidLength
+        );
     }
 
     #[test]
     fn branch_name_rejects_illegal_prefix_or_sequence() {
-        assert_eq!(BranchName::parse("/foo").unwrap_err(), BranchNameError::IllegalPrefix);
-        assert_eq!(BranchName::parse("-foo").unwrap_err(), BranchNameError::IllegalPrefix);
-        assert_eq!(BranchName::parse("foo..bar").unwrap_err(), BranchNameError::IllegalSequence);
+        assert_eq!(
+            BranchName::parse("/foo").unwrap_err(),
+            BranchNameError::IllegalPrefix
+        );
+        assert_eq!(
+            BranchName::parse("-foo").unwrap_err(),
+            BranchNameError::IllegalPrefix
+        );
+        assert_eq!(
+            BranchName::parse("foo..bar").unwrap_err(),
+            BranchNameError::IllegalSequence
+        );
     }
 
     #[test]

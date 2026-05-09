@@ -10,6 +10,6 @@ pub mod veriscore;
 
 pub use pipeline::{ExtractionConfig, ExtractionPipeline};
 pub use types::{
-    AtomicClaim, ClaimVerdict, ExtractionResult, SciClaimTuple, SpanBound, VerifierOutput,
-    VerifiabilityClass,
+    AtomicClaim, ClaimVerdict, ExtractionResult, SciClaimTuple, SpanBound, VerifiabilityClass,
+    VerifierOutput,
 };

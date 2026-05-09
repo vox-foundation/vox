@@ -305,8 +305,8 @@ mod tests {
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_nanos())
                 .unwrap_or(0);
-            let tmp =
-                std::env::temp_dir().join(format!("vox-secrets-runtime-strict-lenient-{unique}.db"));
+            let tmp = std::env::temp_dir()
+                .join(format!("vox-secrets-runtime-strict-lenient-{unique}.db"));
             std::env::set_var(
                 "VOX_SECRETS_CLOUDLESS_DB_PATH",
                 tmp.to_string_lossy().to_string(),

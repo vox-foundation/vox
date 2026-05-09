@@ -113,7 +113,10 @@ impl SkillRegistry {
     }
 
     fn get_backend(&self) -> Option<Arc<dyn PluginStateBackend>> {
-        self.backend.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.backend
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     // -----------------------------------------------------------------------
@@ -142,9 +145,9 @@ impl SkillRegistry {
     /// Look up a skill by its plugin id (for the in-memory/discover path).
     pub fn lookup(&self, id: &str) -> Result<LoadedSkill, SkillNotInstalledError> {
         let skills = self.skills.lock().unwrap_or_else(|e| e.into_inner());
-        let entry = skills
-            .get(id)
-            .ok_or_else(|| SkillNotInstalledError { skill_id: id.to_string() })?;
+        let entry = skills.get(id).ok_or_else(|| SkillNotInstalledError {
+            skill_id: id.to_string(),
+        })?;
         // Reconstruct a LoadedSkill on the way out.
         let plugin_id = match &entry.source {
             SkillSource::Plugin { plugin_id } => plugin_id.clone(),
@@ -192,7 +195,12 @@ impl SkillRegistry {
             if let Some(existing) = skills.get(&id) {
                 if existing.manifest.version == version {
                     info!(skill = %id, "Skill already installed at same version");
-                    return Ok(InstallResult { id, version, already_installed: true, hash });
+                    return Ok(InstallResult {
+                        id,
+                        version,
+                        already_installed: true,
+                        hash,
+                    });
                 }
             }
             info!(skill = %id, version = %version, "Installing skill bundle");
@@ -210,17 +218,23 @@ impl SkillRegistry {
 
         // Persist to VoxDB (fire-and-forget, no lock held)
         if let Some(db) = self.get_backend() {
-            let manifest_json =
-                serde_json::to_string(&bundle.manifest).unwrap_or_default();
+            let manifest_json = serde_json::to_string(&bundle.manifest).unwrap_or_default();
             let skill_md = bundle.skill_md.clone();
             let id2 = id.clone();
             let ver2 = version.clone();
             tokio::spawn(async move {
-                let _ = db.publish_skill(&id2, &ver2, &manifest_json, &skill_md).await;
+                let _ = db
+                    .publish_skill(&id2, &ver2, &manifest_json, &skill_md)
+                    .await;
             });
         }
 
-        Ok(InstallResult { id, version, already_installed: false, hash })
+        Ok(InstallResult {
+            id,
+            version,
+            already_installed: false,
+            hash,
+        })
     }
 
     /// Uninstall a skill by ID.
@@ -243,7 +257,10 @@ impl SkillRegistry {
         } else {
             warn!(skill = %id, "Tried to uninstall skill that was not installed");
         }
-        Ok(UninstallResult { id: id.to_string(), was_installed })
+        Ok(UninstallResult {
+            id: id.to_string(),
+            was_installed,
+        })
     }
 
     // -----------------------------------------------------------------------
@@ -364,10 +381,7 @@ pub fn new_registry_arc() -> Arc<SkillRegistry> {
 // ---------------------------------------------------------------------------
 
 /// Promote the slim `vox_plugin_api::skill::SkillManifest` to the rich host-side type.
-fn promote_manifest(
-    api: vox_plugin_api::skill::SkillManifest,
-    plugin_id: &str,
-) -> SkillManifest {
+fn promote_manifest(api: vox_plugin_api::skill::SkillManifest, plugin_id: &str) -> SkillManifest {
     SkillManifest {
         id: api.id,
         name: api.name,

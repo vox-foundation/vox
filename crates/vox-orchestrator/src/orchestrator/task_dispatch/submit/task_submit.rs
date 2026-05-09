@@ -232,7 +232,9 @@ impl Orchestrator {
                     &policy,
                     task.description.as_str(),
                 );
-                if outcome.decision == vox_orchestrator_types::socrates_policy::RiskDecision::Abstain {
+                if outcome.decision
+                    == vox_orchestrator_types::socrates_policy::RiskDecision::Abstain
+                {
                     return Err(OrchestratorError::ScopeDenied(format!(
                         "Socratic Gate blocked execution of task {} due to Abstain risk policy (band: {:?})",
                         task.id, outcome.band
@@ -791,10 +793,12 @@ impl Orchestrator {
                     tracing::warn!("serialize ProcessQueue: {e}");
                     "{}".to_string()
                 });
-            let env = vox_actor_runtime::mailbox::Envelope::Message(vox_actor_runtime::mailbox::Message {
-                from: vox_actor_runtime::Pid::new(),
-                payload: vox_actor_runtime::mailbox::MessagePayload::Json(json),
-            });
+            let env = vox_actor_runtime::mailbox::Envelope::Message(
+                vox_actor_runtime::mailbox::Message {
+                    from: vox_actor_runtime::Pid::new(),
+                    payload: vox_actor_runtime::mailbox::MessagePayload::Json(json),
+                },
+            );
             let handle: &vox_actor_runtime::process::ProcessHandle = &handle;
             match tokio::time::timeout(AGENT_NOTIFY_TIMEOUT, handle.send(env)).await {
                 Ok(send_res) => {

@@ -31,8 +31,16 @@ fn base64url_no_pad(bytes: &[u8]) -> String {
     let mut i = 0;
     while i < bytes.len() {
         let b0 = bytes[i] as usize;
-        let b1 = if i + 1 < bytes.len() { bytes[i + 1] as usize } else { 0 };
-        let b2 = if i + 2 < bytes.len() { bytes[i + 2] as usize } else { 0 };
+        let b1 = if i + 1 < bytes.len() {
+            bytes[i + 1] as usize
+        } else {
+            0
+        };
+        let b2 = if i + 2 < bytes.len() {
+            bytes[i + 2] as usize
+        } else {
+            0
+        };
         let _ = write!(
             out,
             "{}{}",

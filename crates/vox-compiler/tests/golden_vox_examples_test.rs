@@ -4,12 +4,6 @@
 
 use std::path::{Path, PathBuf};
 
-use vox_compiler::hir::lower_module;
-use vox_compiler::lexer::lex;
-use vox_compiler::parser::parse;
-use vox_compiler::runtime_projection::{
-    RUNTIME_PROJECTION_SCHEMA_VERSION, canonical_runtime_projection_bytes, project_runtime_from_hir,
-};
 use vox_codegen::syntax_k::{
     RepresentabilityPayload, SyntaxKInput, canonical_emitted_files_bytes, canonical_web_ir_bytes,
     enrich_syntax_k_support_metrics, measure_syntax_k_event, sha3_hex,
@@ -17,6 +11,12 @@ use vox_codegen::syntax_k::{
 use vox_codegen::web_ir::emit_tsx::emit_component_view_tsx;
 use vox_codegen::web_ir::lower::lower_hir_to_web_ir_with_summary;
 use vox_codegen::web_ir::validate::{is_advisory_diagnostic, validate_web_ir_with_metrics};
+use vox_compiler::hir::lower_module;
+use vox_compiler::lexer::lex;
+use vox_compiler::parser::parse;
+use vox_compiler::runtime_projection::{
+    RUNTIME_PROJECTION_SCHEMA_VERSION, canonical_runtime_projection_bytes, project_runtime_from_hir,
+};
 
 fn syntax_k_output_root() -> PathBuf {
     if let Ok(dir) = std::env::var("CARGO_TARGET_DIR")
@@ -56,7 +56,10 @@ fn assert_golden_file(path: &Path) {
     let fixture_id = fixture_id_from(path);
     let (web_ir, lower_summary) = lower_hir_to_web_ir_with_summary(&hir);
     let (diags, validate_metrics) = validate_web_ir_with_metrics(&web_ir);
-    let blocking_diags: Vec<_> = diags.iter().filter(|d| !is_advisory_diagnostic(d)).collect();
+    let blocking_diags: Vec<_> = diags
+        .iter()
+        .filter(|d| !is_advisory_diagnostic(d))
+        .collect();
     assert!(
         blocking_diags.is_empty(),
         "{fixture_id}: web_ir validate diagnostics: {blocking_diags:?}"

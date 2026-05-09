@@ -108,11 +108,10 @@ impl RulePack {
     }
 
     /// Iterate only the rules that apply to the given language.
-    pub fn rules_for_language(
-        &self,
-        lang: RuleLanguage,
-    ) -> impl Iterator<Item = &CompiledRule> {
-        self.rules.iter().filter(move |r| r.languages.contains(&lang))
+    pub fn rules_for_language(&self, lang: RuleLanguage) -> impl Iterator<Item = &CompiledRule> {
+        self.rules
+            .iter()
+            .filter(move |r| r.languages.contains(&lang))
     }
 }
 

@@ -7,9 +7,9 @@
 //! [`ServerState::record_attention_event`](crate::server_state::ServerState::record_attention_event) and read trust snapshots when
 //! questioning backlog or human-confirmation gates apply. That is **budget-plane telemetry**, not remote product analytics.
 
-use vox_orchestrator::TaskId;
 use crate::params::{PublishMessageParams, ToolResult};
 use crate::server_state::ServerState;
+use vox_orchestrator::TaskId;
 
 pub mod submission;
 pub use submission::*;

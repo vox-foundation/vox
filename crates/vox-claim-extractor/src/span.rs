@@ -48,10 +48,6 @@ mod tests {
     fn span_outside_source_fails() {
         let checker = SpanChecker::default();
         let source = "short text";
-        assert!(!checker.check(
-            "other claim",
-            &SpanBound { start: 0, end: 50 },
-            source
-        ));
+        assert!(!checker.check("other claim", &SpanBound { start: 0, end: 50 }, source));
     }
 }

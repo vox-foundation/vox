@@ -1,7 +1,7 @@
 //! `vox bundle apply <id>` — install every plugin in a bundle.
 
-use anyhow::{Context, Result};
 use crate::commands::plugin::{install, list::installed_version, list::plugins_root};
+use anyhow::{Context, Result};
 
 pub async fn run(id: &str, yes: bool) -> Result<()> {
     let plugins = vox_plugin_catalog::bundle_resolved(id)

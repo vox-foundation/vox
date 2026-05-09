@@ -192,10 +192,12 @@ impl Default for SearchPolicy {
             .expose()
             .and_then(|v| v.parse().ok())
             .unwrap_or(0.15),
-            web_search_max_hops: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchMaxHops)
-                .expose()
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(3),
+            web_search_max_hops: vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxSearchMaxHops,
+            )
+            .expose()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(3),
         }
     }
 }
@@ -223,9 +225,10 @@ impl SearchPolicy {
         {
             p.chunk_vector_fusion_weight = w.clamp(0.0, 1.0);
         }
-        if let Some(v) =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchVerificationQualityThreshold)
-                .expose()
+        if let Some(v) = vox_secrets::resolve_secret(
+            vox_secrets::SecretId::VoxSearchVerificationQualityThreshold,
+        )
+        .expose()
             && let Ok(t) = v.parse::<f64>()
         {
             p.verification_weak_evidence_threshold = t.clamp(0.0, 1.0);
@@ -269,7 +272,8 @@ impl SearchPolicy {
             .expose()
             .is_some()
         {
-            p.tavily_fire_on_empty = parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyOnEmpty);
+            p.tavily_fire_on_empty =
+                parse_truthy_env(vox_secrets::SecretId::VoxSearchTavilyOnEmpty);
         }
         if vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchTavilyOnWeak)
             .expose()
@@ -283,7 +287,8 @@ impl SearchPolicy {
         {
             p.tavily_credit_budget_per_session = n;
         }
-        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchMaxHops).expose()
+        if let Some(v) =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSearchMaxHops).expose()
             && let Ok(n) = v.parse::<u8>()
         {
             p.web_search_max_hops = n;

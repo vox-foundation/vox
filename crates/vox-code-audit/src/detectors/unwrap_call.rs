@@ -14,7 +14,9 @@ pub struct UnwrapCallDetector {
 
 impl UnwrapCallDetector {
     pub fn new() -> Self {
-        Self { rule: pack_rule("rust/unwrap-call") }
+        Self {
+            rule: pack_rule("rust/unwrap-call"),
+        }
     }
 
     fn should_skip_file(path: &std::path::Path) -> bool {

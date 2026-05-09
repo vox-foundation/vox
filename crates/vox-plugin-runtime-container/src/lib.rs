@@ -9,19 +9,17 @@
 //! Registered as a Vox plugin; loaded by the plugin host on demand.
 //! Install with: `vox plugin install runtime-container`
 
-use abi_stable::{
-    export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn, std_types::*,
-};
+use abi_stable::{export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn, std_types::*};
 use std::io::{BufRead as _, BufReader};
 use std::process::{Command, Stdio};
 use std::time::Instant;
-use vox_plugin_api::abi::{
-    VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef,
-};
-use vox_plugin_api::host::VoxHost_TO;
-use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
-use vox_skill_runtime::{BuildOpts as SkillBuildOpts, RunOpts as SkillRunOpts, RunOutcome, SkillRuntime};
 use vox_container::ContainerRuntime;
+use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
+use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
+use vox_plugin_api::host::VoxHost_TO;
+use vox_skill_runtime::{
+    BuildOpts as SkillBuildOpts, RunOpts as SkillRunOpts, RunOutcome, SkillRuntime,
+};
 
 pub mod docker;
 pub mod podman;
@@ -215,4 +213,4 @@ impl VoxPlugin for RuntimeContainerPlugin {
 }
 
 // Re-export detect_runtime and RuntimePreference for consumers of the plugin as an rlib.
-pub use vox_container::{detect_runtime, detect::RuntimePreference};
+pub use vox_container::{detect::RuntimePreference, detect_runtime};

@@ -74,16 +74,10 @@ impl VeriScoreGate {
             "in this work we",
         ];
 
-        let hedge_score: f64 = hedge_phrases
-            .iter()
-            .filter(|p| lower.contains(*p))
-            .count() as f64
-            * 0.25;
-        let future_score: f64 = future_phrases
-            .iter()
-            .filter(|p| lower.contains(*p))
-            .count() as f64
-            * 0.4;
+        let hedge_score: f64 =
+            hedge_phrases.iter().filter(|p| lower.contains(*p)).count() as f64 * 0.25;
+        let future_score: f64 =
+            future_phrases.iter().filter(|p| lower.contains(*p)).count() as f64 * 0.4;
         let motivation_score: f64 = motivation_phrases
             .iter()
             .filter(|p| lower.contains(*p))
@@ -129,10 +123,7 @@ impl VeriScoreGate {
         VeriScoreResult { score, class }
     }
 
-    pub fn filter_sentences<'a>(
-        &self,
-        sentences: &'a [String],
-    ) -> Vec<(&'a str, VeriScoreResult)> {
+    pub fn filter_sentences<'a>(&self, sentences: &'a [String]) -> Vec<(&'a str, VeriScoreResult)> {
         sentences
             .iter()
             .map(|s| (s.as_str(), self.score_sentence(s)))
@@ -158,8 +149,7 @@ mod tests {
     #[test]
     fn future_work_sentence_is_unverifiable() {
         let gate = VeriScoreGate::default();
-        let r =
-            gate.score_sentence("Future work could explore whether this approach generalizes.");
+        let r = gate.score_sentence("Future work could explore whether this approach generalizes.");
         assert!(r.score < 0.5);
     }
 

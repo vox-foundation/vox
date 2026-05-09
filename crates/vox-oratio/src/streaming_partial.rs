@@ -27,7 +27,8 @@ impl StreamingStabilizationConfig {
     pub fn from_env() -> Self {
         let mut c = Self::default();
         if let Some(s) =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioStreamPartialQuietMs).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioStreamPartialQuietMs)
+                .expose()
             && let Ok(v) = s.parse::<u64>()
         {
             c.partial_quiet_ms = v.max(50);

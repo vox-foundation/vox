@@ -34,10 +34,7 @@ fn display_hir_ty(ty: &crate::hir::HirType) -> String {
         HirType::Tuple(ts) => {
             format!(
                 "({})",
-                ts.iter()
-                    .map(display_hir_ty)
-                    .collect::<Vec<_>>()
-                    .join(", ")
+                ts.iter().map(display_hir_ty).collect::<Vec<_>>().join(", ")
             )
         }
     }
@@ -77,7 +74,11 @@ pub fn check_forms(hir: &HirModule, _source: &str) -> Vec<Diagnostic> {
             }
             let ep = endpoint.unwrap();
             // Skip hidden fields that supply their own default — they don't map to endpoint params.
-            for vf in form.fields.iter().filter(|f| !(f.hidden && f.default.is_some())) {
+            for vf in form
+                .fields
+                .iter()
+                .filter(|f| !(f.hidden && f.default.is_some()))
+            {
                 let param = ep.params.iter().find(|p| p.name == vf.name);
                 match param {
                     None => diags.push(Diagnostic {

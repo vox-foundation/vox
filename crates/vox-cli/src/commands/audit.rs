@@ -216,16 +216,13 @@ mod tests {
                 None => {
                     // If we can't find it (e.g. in a detached worktree without the
                     // contracts dir), skip the test rather than fail.
-                    eprintln!(
-                        "skip: contracts/ci/check-targets.v1.yaml not found from {abs:?}"
-                    );
+                    eprintln!("skip: contracts/ci/check-targets.v1.yaml not found from {abs:?}");
                     return;
                 }
             }
         };
 
-        let content =
-            std::fs::read_to_string(&manifest_path).expect("read check-targets.v1.yaml");
+        let content = std::fs::read_to_string(&manifest_path).expect("read check-targets.v1.yaml");
         let manifest: CheckManifest =
             serde_yaml::from_str(&content).expect("parse check-targets.v1.yaml");
         assert_eq!(manifest.schema_version, 1, "schema_version must be 1");

@@ -26,11 +26,7 @@ impl UntestedPubApiDetector {
 
     fn is_binary_path(file: &SourceFile) -> bool {
         let path_str = file.path.to_string_lossy();
-        let file_name = file
-            .path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
+        let file_name = file.path.file_name().and_then(|n| n.to_str()).unwrap_or("");
         file_name == "main.rs"
             || path_str.contains("/bin/")
             || path_str.contains("\\bin\\")
@@ -183,8 +179,7 @@ impl DetectionRule for UntestedPubApiDetector {
             message: format!(
                 "File has {} public fn(s) ({}) but no #[test] blocks — consider writing tests first (TDD)",
                 names.len(),
-                names[..names.len().min(3)].join(", ")
-                    + if names.len() > 3 { ", …" } else { "" }
+                names[..names.len().min(3)].join(", ") + if names.len() > 3 { ", …" } else { "" }
             ),
             suggestion: Some(
                 "Add a #[cfg(test)] mod tests block with at least one #[test] per public fn. \
@@ -235,7 +230,9 @@ mod tests {
         let f = src("src/lib.rs", &code);
         let findings = detect(&f);
         assert!(
-            findings.iter().any(|f| f.rule_id == "skeleton/untested-pub-api"),
+            findings
+                .iter()
+                .any(|f| f.rule_id == "skeleton/untested-pub-api"),
             "should flag lib file with pub fns and no tests"
         );
     }

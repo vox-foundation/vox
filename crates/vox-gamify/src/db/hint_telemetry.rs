@@ -23,7 +23,12 @@ pub async fn log_hint_event(
             conn.execute(
                 "INSERT INTO gamify_hint_telemetry (user_id, kind, action, reason)
                  VALUES (?1, ?2, ?3, ?4)",
-                params![user_id.as_str(), kind.as_str(), action.as_str(), reason.as_str()],
+                params![
+                    user_id.as_str(),
+                    kind.as_str(),
+                    action.as_str(),
+                    reason.as_str()
+                ],
             )
             .await?;
             Ok::<(), vox_db::StoreError>(())

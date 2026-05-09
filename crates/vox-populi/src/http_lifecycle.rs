@@ -55,7 +55,8 @@ pub fn populi_http_control_base_from_env() -> Option<String> {
             return Some(b);
         }
     }
-    if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshControlAddr).expose() {
+    if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshControlAddr).expose()
+    {
         let t = v.trim();
         if !t.is_empty()
             && let Some(b) = crate::normalize_http_control_base(t)

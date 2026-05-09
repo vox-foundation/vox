@@ -151,6 +151,6 @@ where
     S: Clone + Send + Sync + 'static,
 {
     Router::new()
-        .route("/api/v2/runs",      get(list_runs))
+        .route("/api/v2/runs", get(list_runs))
         .route("/api/v2/runs/{id}", get(get_run))
 }

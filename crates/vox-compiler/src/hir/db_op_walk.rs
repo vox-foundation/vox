@@ -77,10 +77,7 @@ fn walk_reactive_member_mut(member: &mut HirReactiveMember, f: &mut impl FnMut(&
     }
 }
 
-pub fn for_each_hir_expr_in_module_mut(
-    module: &mut HirModule,
-    f: &mut impl FnMut(&mut HirExpr),
-) {
+pub fn for_each_hir_expr_in_module_mut(module: &mut HirModule, f: &mut impl FnMut(&mut HirExpr)) {
     for fd in &mut module.functions {
         walk_stmts_mut(&mut fd.body, f);
     }

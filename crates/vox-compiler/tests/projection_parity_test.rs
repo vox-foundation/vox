@@ -1,13 +1,13 @@
 //! Projection parity gate: WebIR + AppContract + RuntimeProjection from one fixture.
 
+use vox_codegen::syntax_k::{canonical_web_ir_bytes, sha3_hex};
+use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
 use vox_compiler::app_contract::{canonical_app_contract_bytes, project_app_contract};
 use vox_compiler::hir::lower_module;
 use vox_compiler::parser::parse;
 use vox_compiler::runtime_projection::{
     canonical_runtime_projection_bytes, project_runtime_from_hir,
 };
-use vox_codegen::syntax_k::{canonical_web_ir_bytes, sha3_hex};
-use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
 
 fn lower_src(src: &str) -> vox_compiler::hir::TypedCoreIR_v2 {
     let tokens = vox_compiler::lexer::lex(src);

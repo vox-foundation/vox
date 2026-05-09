@@ -22,7 +22,8 @@ use vox_compiler::parser::renames::{RenameKind, RenameRegistry};
 fn registry_from_names_are_not_canonical_primitives() {
     let registry = RenameRegistry::load_canonical().expect("load canonical registry");
 
-    let canonical: HashSet<&'static str> = primitive_tags::all_primitives().iter().copied().collect();
+    let canonical: HashSet<&'static str> =
+        primitive_tags::all_primitives().iter().copied().collect();
 
     let mut violations = Vec::new();
     for entry in registry.entries() {
@@ -48,7 +49,9 @@ fn synthetic_violation_would_fail() {
     // Negative test: build a registry that violates the invariant in-memory and
     // confirm the same logic would flag it.
     let canonical: Vec<&'static str> = primitive_tags::all_primitives().to_vec();
-    let pick = canonical.first().expect("at least one canonical primitive must exist");
+    let pick = canonical
+        .first()
+        .expect("at least one canonical primitive must exist");
 
     let bad_json = format!(
         r#"{{
@@ -65,7 +68,9 @@ fn synthetic_violation_would_fail() {
 
     let mut violations = 0;
     for entry in bad_registry.entries() {
-        if matches!(entry.kind, RenameKind::Primitive) && canonical_set.contains(entry.from.as_str()) {
+        if matches!(entry.kind, RenameKind::Primitive)
+            && canonical_set.contains(entry.from.as_str())
+        {
             violations += 1;
         }
     }

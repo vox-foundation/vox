@@ -25,8 +25,11 @@ pub async fn create_collegium(
                 "INSERT INTO gamify_collegium (id, name, description, leader_id, created_at)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
                 params![
-                    id_s.as_str(), name_s.as_str(), description_s.as_deref(),
-                    leader_s.as_str(), now
+                    id_s.as_str(),
+                    name_s.as_str(),
+                    description_s.as_deref(),
+                    leader_s.as_str(),
+                    now
                 ],
             )
             .await?;

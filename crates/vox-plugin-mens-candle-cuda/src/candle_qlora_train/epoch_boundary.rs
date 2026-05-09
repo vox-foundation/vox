@@ -8,11 +8,7 @@ use anyhow::{Context, Result};
 use qlora_rs::training::QLoraTrainer;
 
 use super::TrainingDbEvent;
-use crate::{
-    checkpoint_state::CheckpointState,
-    config::LoraTrainingConfig,
-    telemetry, train_log,
-};
+use crate::{checkpoint_state::CheckpointState, config::LoraTrainingConfig, telemetry, train_log};
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn finish_epoch(

@@ -42,7 +42,9 @@ pub struct CachePredictorConfig {
 
 impl Default for CachePredictorConfig {
     fn default() -> Self {
-        Self { hit_threshold: 0.70 }
+        Self {
+            hit_threshold: 0.70,
+        }
     }
 }
 
@@ -90,7 +92,11 @@ pub struct CacheHitPredictionEvent {
 }
 
 impl CacheHitPredictionEvent {
-    pub fn new(prediction: CachePrediction, overlap_ratio: f64, session_id: Option<String>) -> Self {
+    pub fn new(
+        prediction: CachePrediction,
+        overlap_ratio: f64,
+        session_id: Option<String>,
+    ) -> Self {
         Self {
             metric_type: vox_db::research_metrics_contract::METRIC_TYPE_CACHE_HIT_PREDICTION,
             prediction: prediction.to_string(),
@@ -111,28 +117,40 @@ mod tests {
     #[test]
     fn above_threshold_predicts_hit() {
         let p = predictor();
-        let sig = CacheSignal { prefix_overlap_tokens: 700, total_context_tokens: 1000 };
+        let sig = CacheSignal {
+            prefix_overlap_tokens: 700,
+            total_context_tokens: 1000,
+        };
         assert_eq!(p.predict(&sig), CachePrediction::Hit);
     }
 
     #[test]
     fn at_threshold_predicts_hit() {
         let p = predictor();
-        let sig = CacheSignal { prefix_overlap_tokens: 700, total_context_tokens: 1000 };
+        let sig = CacheSignal {
+            prefix_overlap_tokens: 700,
+            total_context_tokens: 1000,
+        };
         assert_eq!(p.predict(&sig), CachePrediction::Hit);
     }
 
     #[test]
     fn below_threshold_predicts_miss() {
         let p = predictor();
-        let sig = CacheSignal { prefix_overlap_tokens: 500, total_context_tokens: 1000 };
+        let sig = CacheSignal {
+            prefix_overlap_tokens: 500,
+            total_context_tokens: 1000,
+        };
         assert_eq!(p.predict(&sig), CachePrediction::Miss);
     }
 
     #[test]
     fn zero_total_tokens_gives_miss() {
         let p = predictor();
-        let sig = CacheSignal { prefix_overlap_tokens: 100, total_context_tokens: 0 };
+        let sig = CacheSignal {
+            prefix_overlap_tokens: 100,
+            total_context_tokens: 0,
+        };
         assert_eq!(p.predict(&sig), CachePrediction::Miss);
     }
 

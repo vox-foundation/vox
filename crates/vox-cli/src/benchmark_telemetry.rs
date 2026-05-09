@@ -35,7 +35,8 @@ fn syntax_k_telemetry_enabled() -> bool {
 }
 
 fn telemetry_discovery_start() -> std::path::PathBuf {
-    if let Some(p) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot).expose() {
+    if let Some(p) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot).expose()
+    {
         let p = p.trim();
         if !p.is_empty() {
             return std::path::PathBuf::from(p);

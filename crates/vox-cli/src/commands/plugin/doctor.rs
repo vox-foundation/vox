@@ -50,7 +50,10 @@ pub fn run() -> Result<()> {
         if let Some(libs) = check_native_libs_from_toml(&raw) {
             for lib in &libs {
                 // We don't resolve lib paths yet — just report them.
-                println!("  {} requires native lib: {} (presence not verified)", entry.id, lib);
+                println!(
+                    "  {} requires native lib: {} (presence not verified)",
+                    entry.id, lib
+                );
             }
         }
 

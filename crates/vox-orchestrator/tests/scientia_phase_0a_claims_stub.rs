@@ -1,4 +1,4 @@
-use vox_orchestrator::dei_shim::research::claims::{extract_claims_with_model, Claim};
+use vox_orchestrator::dei_shim::research::claims::{Claim, extract_claims_with_model};
 
 #[tokio::test]
 async fn extract_claims_stub_returns_empty() {

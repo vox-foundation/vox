@@ -99,7 +99,11 @@ impl DetectionRule for SecretSpanDetector {
         Redact secrets before logging, or avoid logging them entirely."
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if !matches!(file.language, Language::Rust | Language::TypeScript) {
             return vec![];
         }
@@ -136,14 +140,17 @@ impl DetectionRule for SecretSpanDetector {
                     ),
                     suggestion: Some(
                         "Redact or omit secret-shaped values before logging. \
-                        Use a placeholder like `[REDACTED]` or log only the presence/absence.".into(),
+                        Use a placeholder like `[REDACTED]` or log only the presence/absence."
+                            .into(),
                     ),
                     alternatives: vec![
-                        "Use a `tracing::field::Empty` sentinel to exclude the field from spans.".into(),
+                        "Use a `tracing::field::Empty` sentinel to exclude the field from spans."
+                            .into(),
                     ],
                     rationale: Some(
                         "Logging secret-shaped values can leak credentials into structured logs, \
-                        log aggregators, or distributed traces accessible to operators.".into(),
+                        log aggregators, or distributed traces accessible to operators."
+                            .into(),
                     ),
                     context: file.context_around(line_num, 2),
                     confidence: Some(FindingConfidence::Medium),
@@ -172,12 +179,14 @@ impl DetectionRule for SecretSpanDetector {
                             ),
                             suggestion: Some(
                                 "Omit secret-shaped fields from span records. \
-                                If needed, use a redacted placeholder.".into(),
+                                If needed, use a redacted placeholder."
+                                    .into(),
                             ),
                             alternatives: vec![],
                             rationale: Some(
                                 "Recording secret-shaped values in spans can expose credentials \
-                                to any trace collector or observability backend.".into(),
+                                to any trace collector or observability backend."
+                                    .into(),
                             ),
                             context: file.context_around(line_num, 2),
                             confidence: Some(FindingConfidence::High),
@@ -207,7 +216,10 @@ mod tests {
         let code = r#"tracing::info!(user = %user_id, token = %tok, "request");"#;
         let f = source("rs", code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag token field in tracing::info!");
+        assert!(
+            !findings.is_empty(),
+            "should flag token field in tracing::info!"
+        );
         assert!(findings[0].message.contains("token"));
     }
 
@@ -217,7 +229,10 @@ mod tests {
         let code = r#"span.record("password", &password_value);"#;
         let f = source("rs", code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag span.record with password field");
+        assert!(
+            !findings.is_empty(),
+            "should flag span.record with password field"
+        );
         assert!(findings[0].message.contains("password"));
     }
 
@@ -227,6 +242,9 @@ mod tests {
         let code = r#"tracing::info!(user_id = %id, request_path = %path, "handling request");"#;
         let f = source("rs", code);
         let findings = d.detect(&f, None);
-        assert!(findings.is_empty(), "user_id and request_path should not fire");
+        assert!(
+            findings.is_empty(),
+            "user_id and request_path should not fire"
+        );
     }
 }

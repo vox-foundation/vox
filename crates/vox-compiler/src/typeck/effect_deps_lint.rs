@@ -227,7 +227,9 @@ fn collect_unknown_calls_stmt(stmt: &HirStmt, known: &HashSet<String>, out: &mut
         HirStmt::Return { value: Some(e), .. } => collect_unknown_calls(e, known, out),
         HirStmt::Return { value: None, .. } => {}
         HirStmt::Assign { value, .. } => collect_unknown_calls(value, known, out),
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             collect_unknown_calls(condition, known, out);
             for s in body {
                 collect_unknown_calls_stmt(s, known, out);

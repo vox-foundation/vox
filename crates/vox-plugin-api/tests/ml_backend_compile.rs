@@ -3,7 +3,7 @@
 
 use abi_stable::{erased_types::TD_Opaque, std_types::*};
 use vox_plugin_api::extensions::ml_backend::{
-    MlBackend, MlBackend_TO, MlModelHandle, ML_BACKEND_REVISION,
+    ML_BACKEND_REVISION, MlBackend, MlBackend_TO, MlModelHandle,
 };
 
 #[test]
@@ -17,31 +17,23 @@ impl MlBackend for DummyBackend {
     fn load_model(&self, _path: RStr<'_>) -> RResult<RBox<MlModelHandle>, RBoxError> {
         RResult::ROk(RBox::new(MlModelHandle { opaque: 0 }))
     }
-    fn train_step(
-        &self,
-        _model: &MlModelHandle,
-        _batch: RStr<'_>,
-    ) -> RResult<RString, RBoxError> {
+    fn train_step(&self, _model: &MlModelHandle, _batch: RStr<'_>) -> RResult<RString, RBoxError> {
         RResult::ROk(RString::from("{}"))
     }
-    fn eval_step(
-        &self,
-        _model: &MlModelHandle,
-        _batch: RStr<'_>,
-    ) -> RResult<RString, RBoxError> {
+    fn eval_step(&self, _model: &MlModelHandle, _batch: RStr<'_>) -> RResult<RString, RBoxError> {
         RResult::ROk(RString::from("{}"))
     }
-    fn save_checkpoint(
-        &self,
-        _model: &MlModelHandle,
-        _dest: RStr<'_>,
-    ) -> RResult<(), RBoxError> {
+    fn save_checkpoint(&self, _model: &MlModelHandle, _dest: RStr<'_>) -> RResult<(), RBoxError> {
         RResult::ROk(())
     }
     fn run_full_training(&self, _config_json: RStr<'_>) -> RResult<RString, RBoxError> {
         RResult::ROk(RString::from("{}"))
     }
-    fn run_inference(&self, _model: &MlModelHandle, _prompt_json: RStr<'_>) -> RResult<RString, RBoxError> {
+    fn run_inference(
+        &self,
+        _model: &MlModelHandle,
+        _prompt_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
         RResult::ROk(RString::from("{}"))
     }
     fn merge_adapter(
@@ -56,6 +48,5 @@ impl MlBackend for DummyBackend {
 
 #[test]
 fn dummy_backend_constructs_as_trait_object() {
-    let _: MlBackend_TO<'static, RBox<()>> =
-        MlBackend_TO::from_value(DummyBackend, TD_Opaque);
+    let _: MlBackend_TO<'static, RBox<()>> = MlBackend_TO::from_value(DummyBackend, TD_Opaque);
 }

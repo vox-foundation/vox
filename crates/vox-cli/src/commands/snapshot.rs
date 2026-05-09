@@ -35,7 +35,10 @@ fn run_orphans(root: &Path, clean: bool) -> Result<()> {
     for snap_path in &snaps {
         checked += 1;
         match snap_is_orphan(snap_path)? {
-            OrphanResult::Orphan { source_file, test_name } => {
+            OrphanResult::Orphan {
+                source_file,
+                test_name,
+            } => {
                 orphan_count += 1;
                 if clean {
                     std::fs::remove_file(snap_path)?;
@@ -73,7 +76,10 @@ fn run_orphans(root: &Path, clean: bool) -> Result<()> {
 
 enum OrphanResult {
     Ok,
-    Orphan { source_file: PathBuf, test_name: String },
+    Orphan {
+        source_file: PathBuf,
+        test_name: String,
+    },
     Unresolvable(String),
 }
 
@@ -146,10 +152,7 @@ fn snap_is_orphan(snap_path: &Path) -> Result<OrphanResult> {
 
     // Infer the test name from the snapshot file stem.
     // Insta names snapshots as `<module>__<test_name>` or just `<test_name>`.
-    let stem = snap_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("");
+    let stem = snap_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
     // The function name is the last `__`-separated segment.
     let test_name = stem.rsplit("__").next().unwrap_or(stem).to_string();
 
@@ -157,7 +160,10 @@ fn snap_is_orphan(snap_path: &Path) -> Result<OrphanResult> {
     if source_contains_test(&source_content, &test_name) {
         Ok(OrphanResult::Ok)
     } else {
-        Ok(OrphanResult::Orphan { source_file, test_name })
+        Ok(OrphanResult::Orphan {
+            source_file,
+            test_name,
+        })
     }
 }
 

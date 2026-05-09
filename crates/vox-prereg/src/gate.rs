@@ -49,11 +49,11 @@ impl PreregGate {
 
         let sig = match signature_hex {
             Some(s) => s,
-            None => {
-                return GateResult::Refused {
-                    reason: "no signature provided; the preregistration must be signed with an Ed25519 key".to_string(),
-                }
-            }
+            None => return GateResult::Refused {
+                reason:
+                    "no signature provided; the preregistration must be signed with an Ed25519 key"
+                        .to_string(),
+            },
         };
 
         match verify_prereg(prereg, sig) {
@@ -95,7 +95,11 @@ mod tests {
                 threshold: Some(0.95),
                 alpha: None,
             },
-            stopping_rule: StopRule { max_n: 300, alpha: None, threshold: Some(0.95) },
+            stopping_rule: StopRule {
+                max_n: 300,
+                alpha: None,
+                threshold: Some(0.95),
+            },
             decision_rule: DecisionRule {
                 description: "if posterior P(increase) > 0.95, flag provider".to_string(),
             },
@@ -114,16 +118,26 @@ mod tests {
         let mut prereg = draft_prereg();
         let sig = sign_prereg(&mut prereg, &sk).expect("signing must succeed");
         let result = gate.check_campaign(Some(&prereg), Some(&sig.0));
-        assert_eq!(result, GateResult::Approved, "valid signed prereg must be approved");
+        assert_eq!(
+            result,
+            GateResult::Approved,
+            "valid signed prereg must be approved"
+        );
     }
 
     #[test]
     fn refused_without_prereg() {
         let gate = PreregGate::new();
         let result = gate.check_campaign(None, None);
-        assert!(matches!(result, GateResult::Refused { .. }), "missing prereg must be refused");
+        assert!(
+            matches!(result, GateResult::Refused { .. }),
+            "missing prereg must be refused"
+        );
         if let GateResult::Refused { reason } = result {
-            assert!(reason.contains("preregistration"), "reason must mention preregistration");
+            assert!(
+                reason.contains("preregistration"),
+                "reason must mention preregistration"
+            );
         }
     }
 
@@ -135,9 +149,15 @@ mod tests {
         sign_prereg(&mut prereg, &sk).expect("signing must succeed");
         // Pass prereg but no signature
         let result = gate.check_campaign(Some(&prereg), None);
-        assert!(matches!(result, GateResult::Refused { .. }), "missing signature must be refused");
+        assert!(
+            matches!(result, GateResult::Refused { .. }),
+            "missing signature must be refused"
+        );
         if let GateResult::Refused { reason } = result {
-            assert!(reason.contains("signature"), "reason must mention signature");
+            assert!(
+                reason.contains("signature"),
+                "reason must mention signature"
+            );
         }
     }
 
@@ -149,9 +169,15 @@ mod tests {
         sign_prereg(&mut prereg, &sk).expect("signing must succeed");
         let bad_sig = "00".repeat(64);
         let result = gate.check_campaign(Some(&prereg), Some(&bad_sig));
-        assert!(matches!(result, GateResult::Refused { .. }), "bad signature must be refused");
+        assert!(
+            matches!(result, GateResult::Refused { .. }),
+            "bad signature must be refused"
+        );
         if let GateResult::Refused { reason } = result {
-            assert!(reason.contains("signature"), "reason must mention signature");
+            assert!(
+                reason.contains("signature"),
+                "reason must mention signature"
+            );
         }
     }
 }

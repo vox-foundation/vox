@@ -63,7 +63,9 @@ impl TelemetryConfig {
     ///   2. Legacy per-category env vars
     ///   3. Default: local-on, remote-off, all categories on
     pub fn from_env() -> Self {
-        let master = std::env::var("VOX_TELEMETRY").ok().map(|v| v.to_ascii_lowercase());
+        let master = std::env::var("VOX_TELEMETRY")
+            .ok()
+            .map(|v| v.to_ascii_lowercase());
         match master.as_deref() {
             Some("off") | Some("0") | Some("false") => return Self::all_off(),
             _ => {}

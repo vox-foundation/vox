@@ -676,7 +676,9 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
 #[must_use]
 fn interruption_channel_for_surface(surface: &str) -> vox_orchestrator::InterruptionChannel {
     match surface {
-        "vox_plan" | "vox_replan" | "vox_plan_status" => vox_orchestrator::InterruptionChannel::PlanReview,
+        "vox_plan" | "vox_replan" | "vox_plan_status" => {
+            vox_orchestrator::InterruptionChannel::PlanReview
+        }
         "vox_inline_edit" | "vox_ghost_text" => vox_orchestrator::InterruptionChannel::InlineAssist,
         _ => vox_orchestrator::InterruptionChannel::ChatClarification,
     }

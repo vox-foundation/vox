@@ -60,7 +60,9 @@ fn parse_frontmatter(content: &str) -> Option<&str> {
     let content = content.trim_start_matches('\u{feff}'); // strip BOM
     let rest = content.strip_prefix("---")?;
     // Allow `---` immediately followed by newline or windows `---\r\n`
-    let rest = rest.strip_prefix("\r\n").or_else(|| rest.strip_prefix('\n'))?;
+    let rest = rest
+        .strip_prefix("\r\n")
+        .or_else(|| rest.strip_prefix('\n'))?;
     // Find the closing `---`
     let close = rest.find("\n---")?;
     Some(&rest[..close])
@@ -107,10 +109,7 @@ pub fn run() -> Result<()> {
             }
         };
 
-        let crate_name = crate_dir
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("");
+        let crate_name = crate_dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         // Only enforce for `vox-plugin-*` crates.
         if !crate_name.starts_with("vox-plugin-") {
@@ -118,12 +117,10 @@ pub fn run() -> Result<()> {
         }
 
         // The expected `name` value: strip the `vox-plugin-` prefix.
-        let expected_name = crate_name
-            .strip_prefix("vox-plugin-")
-            .unwrap_or(crate_name);
+        let expected_name = crate_name.strip_prefix("vox-plugin-").unwrap_or(crate_name);
 
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
+        let content =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
 
         // 1. Frontmatter must exist.
         let frontmatter = match parse_frontmatter(&content) {

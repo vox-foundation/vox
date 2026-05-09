@@ -1,6 +1,6 @@
-use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 use crate::features::{ExtractedFeatures, UnitHint};
 use crate::rules::{DriftRule, WorkspaceContext};
+use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 
 pub struct TimeoutLiteralRule;
 
@@ -8,9 +8,15 @@ const COMMON_TIMEOUTS_SECS: &[u64] = &[5, 10, 15, 30, 60, 120, 300, 600, 1800, 3
 const COMMON_TIMEOUTS_MS: &[u64] = &[100, 250, 500, 1000, 5000, 10000, 30000, 60000];
 
 impl DriftRule for TimeoutLiteralRule {
-    fn id(&self) -> &'static str { "drift/timeout-literal" }
-    fn severity(&self) -> Severity { Severity::Warning }
-    fn languages(&self) -> &[Language] { &[Language::Rust] }
+    fn id(&self) -> &'static str {
+        "drift/timeout-literal"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Warning
+    }
+    fn languages(&self) -> &[Language] {
+        &[Language::Rust]
+    }
 
     fn check(&self, features: &ExtractedFeatures, _ctx: &WorkspaceContext) -> Vec<Finding> {
         features.numeric_literals.iter()
@@ -47,9 +53,9 @@ impl DriftRule for TimeoutLiteralRule {
 mod tests {
     use super::*;
     use crate::features::*;
-    use vox_code_audit::rules::Language;
-    use std::path::PathBuf;
     use crate::rules::WorkspaceContext;
+    use std::path::PathBuf;
+    use vox_code_audit::rules::Language;
 
     fn ctx() -> WorkspaceContext {
         WorkspaceContext {

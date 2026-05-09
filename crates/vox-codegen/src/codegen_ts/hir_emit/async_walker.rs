@@ -17,13 +17,13 @@ pub fn stmt_has_async_call(stmt: &HirStmt, async_fn_names: &HashSet<String>) -> 
         HirStmt::Return { value, .. } => value
             .as_ref()
             .map_or(false, |v| expr_has_async_call(v, async_fn_names)),
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             expr_has_async_call(condition, async_fn_names)
                 || body.iter().any(|s| stmt_has_async_call(s, async_fn_names))
         }
-        HirStmt::Loop { body, .. } => {
-            body.iter().any(|s| stmt_has_async_call(s, async_fn_names))
-        }
+        HirStmt::Loop { body, .. } => body.iter().any(|s| stmt_has_async_call(s, async_fn_names)),
         HirStmt::Break { .. } | HirStmt::Continue { .. } => false,
     }
 }
@@ -57,19 +57,15 @@ pub fn expr_has_async_call(expr: &HirExpr, async_fn_names: &HashSet<String>) -> 
         HirExpr::FieldAccess(obj, _, _) => expr_has_async_call(obj, async_fn_names),
         // Index: `arr[i]`
         HirExpr::Index(obj, idx, _) => {
-            expr_has_async_call(obj, async_fn_names)
-                || expr_has_async_call(idx, async_fn_names)
+            expr_has_async_call(obj, async_fn_names) || expr_has_async_call(idx, async_fn_names)
         }
         // Binary/Unary operators
         HirExpr::Binary(_, lhs, rhs, _) => {
-            expr_has_async_call(lhs, async_fn_names)
-                || expr_has_async_call(rhs, async_fn_names)
+            expr_has_async_call(lhs, async_fn_names) || expr_has_async_call(rhs, async_fn_names)
         }
         HirExpr::Unary(_, inner, _) => expr_has_async_call(inner, async_fn_names),
         // Block: walk all stmts
-        HirExpr::Block(stmts, _) => stmts
-            .iter()
-            .any(|s| stmt_has_async_call(s, async_fn_names)),
+        HirExpr::Block(stmts, _) => stmts.iter().any(|s| stmt_has_async_call(s, async_fn_names)),
         // If expression: walk condition + both branches
         HirExpr::If(cond, then_stmts, else_stmts, _) => {
             expr_has_async_call(cond, async_fn_names)

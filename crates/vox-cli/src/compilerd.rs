@@ -7,7 +7,6 @@
 //! Plain `println!` from subcommands may interleave with JSON lines; the CLI client treats
 //! non-JSON lines as human-readable output.
 
-use vox_bounded_fs::read_utf8_path_capped;
 use crate::config;
 use crate::dispatch_protocol::{DispatchPayload, DispatchRequest, DispatchResponse};
 use crate::watcher;
@@ -17,6 +16,7 @@ use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use vox_bounded_fs::read_utf8_path_capped;
 
 #[derive(Debug, Deserialize)]
 struct BuildParams {

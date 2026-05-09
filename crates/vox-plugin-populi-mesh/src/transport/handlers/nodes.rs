@@ -11,7 +11,9 @@ use tracing::{info, warn};
 
 use crate::{NodeRecord, node_maintenance_blocks_new_work, sweep_expired_maintenance_on_nodes};
 
-use super::super::auth::{PopuliAuthContext, auth_allows_worker_plane, populi_control_token_from_env};
+use super::super::auth::{
+    PopuliAuthContext, auth_allows_worker_plane, populi_control_token_from_env,
+};
 
 use super::super::dispatch_results_sweep;
 use super::super::store::scope_ok;
@@ -52,7 +54,6 @@ pub(crate) async fn registry_sweep_maintenance(st: &PopuliTransportState) {
     let now = crate::now_ms();
     let mut inner = st.inner.write().await;
     sweep_expired_maintenance_on_nodes(&mut inner.nodes, now);
-
 
     dispatch_results_sweep(&st.dispatch_results, now);
 }
@@ -376,4 +377,3 @@ pub(crate) async fn require_claimer_node_registered(
     }
     Ok(())
 }
-

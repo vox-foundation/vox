@@ -28,7 +28,10 @@ extension-points = ["MlBackend"]
         PluginPayload::Code(c) => {
             assert_eq!(c.abi_version, 1);
             assert_eq!(c.provides.extension_points, vec!["MlBackend".to_string()]);
-            assert_eq!(c.artifacts.get("linux-x86_64").unwrap(), "libvox_plugin_mens_candle_cuda.so");
+            assert_eq!(
+                c.artifacts.get("linux-x86_64").unwrap(),
+                "libvox_plugin_mens_candle_cuda.so"
+            );
         }
         other => panic!("expected Code variant, got {other:?}"),
     }

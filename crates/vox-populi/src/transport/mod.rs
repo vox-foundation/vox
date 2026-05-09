@@ -22,8 +22,7 @@ pub mod store;
 
 pub use auth::{PopuliAuthContext, PopuliBearerRole, PopuliMeshAuthRuntime};
 pub use router::{
-    PopuliHttpAuth, populi_http_app, populi_http_app_with_auth, router, serve,
-    serve_with_listener,
+    PopuliHttpAuth, populi_http_app, populi_http_app_with_auth, router, serve, serve_with_listener,
 };
 
 use std::path::PathBuf;
@@ -570,11 +569,12 @@ impl PopuliTransportState {
         {
             s.dispatch_results_store_path = dispatch_results_store_path;
         }
-        s.bootstrap_token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshBootstrapToken)
-            .expose()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty())
-            .map(Arc::from);
+        s.bootstrap_token =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshBootstrapToken)
+                .expose()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+                .map(Arc::from);
         s.bootstrap_expires_unix_ms =
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshBootstrapExpiresUnixMs)
                 .expose()

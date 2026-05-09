@@ -15,11 +15,11 @@
 //! emitter falls back to the filename basename it's writing the module under.
 
 use crate::codegen_ts::hir_emit::{EmitCtx, emit_block_stmts, emit_hir_expr};
+use std::collections::HashSet;
 use vox_compiler::hir::{
     HirDerived, HirEffect, HirModule, HirOnCleanup, HirOnMount, HirReactiveMember,
     HirReactiveModule, HirState,
 };
-use std::collections::HashSet;
 
 /// Generated reactive-module file extension. One file per module instance.
 pub const REACTIVE_MODULE_EXT: &str = ".tsx";
@@ -218,7 +218,10 @@ mod tests {
                 id: vox_compiler::hir::DefId(0),
                 name: "count".to_string(),
                 ty: None,
-                init: vox_compiler::hir::HirExpr::IntLit(0, vox_compiler::ast::span::Span::new(0, 0)),
+                init: vox_compiler::hir::HirExpr::IntLit(
+                    0,
+                    vox_compiler::ast::span::Span::new(0, 0),
+                ),
                 span: vox_compiler::ast::span::Span::new(0, 0),
             })],
         );

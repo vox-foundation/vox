@@ -13,7 +13,10 @@ pub enum NoveltyVerdict {
     /// Borderline: similarity above the novel threshold but below the not-novel threshold.
     PossiblyNovel { closest_score: f64 },
     /// Clear prior art found: similarity >= not_novel_threshold.
-    NotNovel { closest_hit_uri: String, similarity: f64 },
+    NotNovel {
+        closest_hit_uri: String,
+        similarity: f64,
+    },
 }
 
 /// Thresholds controlling the novelty classification boundaries.
@@ -26,7 +29,10 @@ pub struct NoveltyConfig {
 
 impl Default for NoveltyConfig {
     fn default() -> Self {
-        Self { novel_threshold: 0.5, not_novel_threshold: 0.8 }
+        Self {
+            novel_threshold: 0.5,
+            not_novel_threshold: 0.8,
+        }
     }
 }
 
@@ -37,7 +43,9 @@ pub struct AtomicNoveltyScorer {
 
 impl Default for AtomicNoveltyScorer {
     fn default() -> Self {
-        Self { config: NoveltyConfig::default() }
+        Self {
+            config: NoveltyConfig::default(),
+        }
     }
 }
 
@@ -83,9 +91,14 @@ impl AtomicNoveltyScorer {
                     })
                     .map(|h| h.work_uri.clone())
                     .unwrap_or_default();
-                NoveltyVerdict::NotNovel { closest_hit_uri: closest_uri, similarity: score }
+                NoveltyVerdict::NotNovel {
+                    closest_hit_uri: closest_uri,
+                    similarity: score,
+                }
             }
-            Some(score) => NoveltyVerdict::PossiblyNovel { closest_score: score },
+            Some(score) => NoveltyVerdict::PossiblyNovel {
+                closest_score: score,
+            },
         }
     }
 }
@@ -144,8 +157,7 @@ mod tests {
 
     #[test]
     fn high_score_is_not_novel() {
-        let bundle =
-            make_bundle(vec![hit("doi:10.x", Some(0.85))], Some(0.85));
+        let bundle = make_bundle(vec![hit("doi:10.x", Some(0.85))], Some(0.85));
         let scorer = AtomicNoveltyScorer::default();
         assert!(matches!(
             scorer.score(&bundle),

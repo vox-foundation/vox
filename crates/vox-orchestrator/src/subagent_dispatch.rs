@@ -121,7 +121,11 @@ pub struct SubAgentDispatchEvent {
 }
 
 impl SubAgentDispatchEvent {
-    pub fn new(decision: DispatchDecision, signal: &DispatchSignal, session_id: Option<String>) -> Self {
+    pub fn new(
+        decision: DispatchDecision,
+        signal: &DispatchSignal,
+        session_id: Option<String>,
+    ) -> Self {
         let trace_ctx = vox_telemetry::current_trace_ctx();
         Self {
             metric_type: vox_db::research_metrics_contract::METRIC_TYPE_SUBAGENT_DISPATCH,
@@ -168,49 +172,74 @@ mod tests {
     #[test]
     fn low_complexity_uses_inline() {
         let r = router();
-        let sig = DispatchSignal { complexity: 3, ..Default::default() };
+        let sig = DispatchSignal {
+            complexity: 3,
+            ..Default::default()
+        };
         assert_eq!(r.route(&sig), DispatchDecision::Inline);
     }
 
     #[test]
     fn high_complexity_spawns() {
         let r = router();
-        let sig = DispatchSignal { complexity: 8, ..Default::default() };
+        let sig = DispatchSignal {
+            complexity: 8,
+            ..Default::default()
+        };
         assert_eq!(r.route(&sig), DispatchDecision::Spawn);
     }
 
     #[test]
     fn at_spawn_complexity_threshold_spawns() {
         let r = router();
-        let sig = DispatchSignal { complexity: 6, ..Default::default() };
+        let sig = DispatchSignal {
+            complexity: 6,
+            ..Default::default()
+        };
         assert_eq!(r.route(&sig), DispatchDecision::Spawn);
     }
 
     #[test]
     fn chain_depth_at_limit_rejects() {
         let r = router();
-        let sig = DispatchSignal { complexity: 8, chain_depth: 5, ..Default::default() };
+        let sig = DispatchSignal {
+            complexity: 8,
+            chain_depth: 5,
+            ..Default::default()
+        };
         assert_eq!(r.route(&sig), DispatchDecision::Reject);
     }
 
     #[test]
     fn chain_depth_above_limit_rejects() {
         let r = router();
-        let sig = DispatchSignal { complexity: 8, chain_depth: 10, ..Default::default() };
+        let sig = DispatchSignal {
+            complexity: 8,
+            chain_depth: 10,
+            ..Default::default()
+        };
         assert_eq!(r.route(&sig), DispatchDecision::Reject);
     }
 
     #[test]
     fn budget_exhausted_forces_inline() {
         let r = router();
-        let sig = DispatchSignal { complexity: 9, budget_exhausted: true, ..Default::default() };
+        let sig = DispatchSignal {
+            complexity: 9,
+            budget_exhausted: true,
+            ..Default::default()
+        };
         assert_eq!(r.route(&sig), DispatchDecision::Inline);
     }
 
     #[test]
     fn parent_lock_forces_inline() {
         let r = router();
-        let sig = DispatchSignal { complexity: 9, parent_lock_held: true, ..Default::default() };
+        let sig = DispatchSignal {
+            complexity: 9,
+            parent_lock_held: true,
+            ..Default::default()
+        };
         assert_eq!(r.route(&sig), DispatchDecision::Inline);
     }
 

@@ -1,14 +1,14 @@
 use sha2::{Digest, Sha256};
 
 pub struct NanopubGraphs {
-    pub assertion_graph: String,   // Turtle triples for the claim
-    pub provenance_graph: String,  // who generated it, when
-    pub pubinfo_graph: String,     // signature embedded here
+    pub assertion_graph: String,  // Turtle triples for the claim
+    pub provenance_graph: String, // who generated it, when
+    pub pubinfo_graph: String,    // signature embedded here
 }
 
 pub struct NanopubDocument {
-    pub trig: String,    // complete TriG serialization
-    pub np_uri: String,  // nanopub URI (e.g. "https://vox.scientia/np/RA<hash>")
+    pub trig: String,   // complete TriG serialization
+    pub np_uri: String, // nanopub URI (e.g. "https://vox.scientia/np/RA<hash>")
 }
 
 pub fn build_nanopub(claim_text: &str, provider_id: &str, published_at: i64) -> NanopubDocument {

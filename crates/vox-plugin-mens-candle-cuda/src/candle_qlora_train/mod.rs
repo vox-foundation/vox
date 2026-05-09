@@ -21,12 +21,12 @@ use rand::SeedableRng;
 use rand::seq::SliceRandom;
 use tokenizers::Tokenizer;
 
+use crate::config::LoraTrainingConfig;
 use crate::device::DeviceKind;
 use crate::hf_layout::HfArchitecture;
 use crate::qlora_preflight::preflight_native_qlora;
 use crate::train_jsonl_preflight::preflight_train_jsonl;
 use crate::train_log;
-use crate::config::LoraTrainingConfig;
 
 /// EMA alpha for ETA calculation.
 pub(super) const QLORA_ETA_EMA_ALPHA: f64 = 0.2;
@@ -294,7 +294,10 @@ pub fn run_candle_qlora_train(
                 if !matches {
                     if let Some(c) = &p.category {
                         let text = c.to_ascii_lowercase();
-                        if cats.iter().any(|cat| text.contains(&cat.to_ascii_lowercase())) {
+                        if cats
+                            .iter()
+                            .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                        {
                             matches = true;
                         }
                     }
@@ -302,7 +305,10 @@ pub fn run_candle_qlora_train(
                 if !matches {
                     if let Some(l) = &p.lane {
                         let text = l.to_ascii_lowercase();
-                        if cats.iter().any(|cat| text.contains(&cat.to_ascii_lowercase())) {
+                        if cats
+                            .iter()
+                            .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                        {
                             matches = true;
                         }
                     }
@@ -310,7 +316,10 @@ pub fn run_candle_qlora_train(
                 if !matches {
                     if let Some(tf) = &p.task_family {
                         let text = tf.to_ascii_lowercase();
-                        if cats.iter().any(|cat| text.contains(&cat.to_ascii_lowercase())) {
+                        if cats
+                            .iter()
+                            .any(|cat| text.contains(&cat.to_ascii_lowercase()))
+                        {
                             matches = true;
                         }
                     }
@@ -465,8 +474,12 @@ pub fn run_candle_qlora_train(
             // ── Layer norms ───────────────────────────────────────────────────
             let ln1_key = format!("{layer_prefix}.input_layernorm.weight");
             let ln2_key = format!("{layer_prefix}.post_attention_layernorm.weight");
-            let w_ln1 = vb_mmap.get(bundle.d_model, &ln1_key)?.to_dtype(DType::F32)?;
-            let w_ln2 = vb_mmap.get(bundle.d_model, &ln2_key)?.to_dtype(DType::F32)?;
+            let w_ln1 = vb_mmap
+                .get(bundle.d_model, &ln1_key)?
+                .to_dtype(DType::F32)?;
+            let w_ln2 = vb_mmap
+                .get(bundle.d_model, &ln2_key)?
+                .to_dtype(DType::F32)?;
             let ln1 = candle_nn::RmsNorm::new(w_ln1, 1e-6);
             let ln2 = candle_nn::RmsNorm::new(w_ln2, 1e-6);
 
@@ -490,19 +503,51 @@ pub fn run_candle_qlora_train(
                 let k_dim = linear_key_heads * linear_key_dim;
                 let v_dim = linear_value_heads * linear_value_dim;
                 let qkv_rows = q_dim + k_dim + v_dim;
-                let w_qkv = vb_mmap.get((qkv_rows, bundle.d_model), &qkv_key)?.to_dtype(DType::F32)?;
-                let w_z = vb_mmap.get((v_dim, bundle.d_model), &z_key)?.to_dtype(DType::F32)?;
-                let w_b = vb_mmap.get((linear_value_heads, bundle.d_model), &b_key)?.to_dtype(DType::F32)?;
-                let w_a = vb_mmap.get((linear_value_heads, bundle.d_model), &a_key)?.to_dtype(DType::F32)?;
-                let w_o = vb_mmap.get((bundle.d_model, v_dim), &o_key)?.to_dtype(DType::F32)?;
-                let w_conv = vb_mmap
-                    .get((qkv_rows, 1, bundle.layout.linear_conv_kernel_dim.unwrap_or(4)), &conv_key)
-                    .or_else(|_| vb_mmap.get((qkv_rows, bundle.layout.linear_conv_kernel_dim.unwrap_or(4)), &conv_key))?
+                let w_qkv = vb_mmap
+                    .get((qkv_rows, bundle.d_model), &qkv_key)?
                     .to_dtype(DType::F32)?;
-                let conv_weight = if w_conv.rank() == 3 { w_conv.squeeze(1)? } else { w_conv };
-                let dt_bias = vb_mmap.get(linear_value_heads, &dt_key)?.to_dtype(DType::F32)?;
-                let a_log = vb_mmap.get(linear_value_heads, &alog_key)?.to_dtype(DType::F32)?;
-                let norm_w = vb_mmap.get(linear_value_dim, &norm_key)?.to_dtype(DType::F32)?;
+                let w_z = vb_mmap
+                    .get((v_dim, bundle.d_model), &z_key)?
+                    .to_dtype(DType::F32)?;
+                let w_b = vb_mmap
+                    .get((linear_value_heads, bundle.d_model), &b_key)?
+                    .to_dtype(DType::F32)?;
+                let w_a = vb_mmap
+                    .get((linear_value_heads, bundle.d_model), &a_key)?
+                    .to_dtype(DType::F32)?;
+                let w_o = vb_mmap
+                    .get((bundle.d_model, v_dim), &o_key)?
+                    .to_dtype(DType::F32)?;
+                let w_conv = vb_mmap
+                    .get(
+                        (
+                            qkv_rows,
+                            1,
+                            bundle.layout.linear_conv_kernel_dim.unwrap_or(4),
+                        ),
+                        &conv_key,
+                    )
+                    .or_else(|_| {
+                        vb_mmap.get(
+                            (qkv_rows, bundle.layout.linear_conv_kernel_dim.unwrap_or(4)),
+                            &conv_key,
+                        )
+                    })?
+                    .to_dtype(DType::F32)?;
+                let conv_weight = if w_conv.rank() == 3 {
+                    w_conv.squeeze(1)?
+                } else {
+                    w_conv
+                };
+                let dt_bias = vb_mmap
+                    .get(linear_value_heads, &dt_key)?
+                    .to_dtype(DType::F32)?;
+                let a_log = vb_mmap
+                    .get(linear_value_heads, &alog_key)?
+                    .to_dtype(DType::F32)?;
+                let norm_w = vb_mmap
+                    .get(linear_value_dim, &norm_key)?
+                    .to_dtype(DType::F32)?;
 
                 let qkv_label = format!("l{i}.lin_qkv");
                 let z_label = format!("l{i}.lin_z");
@@ -510,22 +555,58 @@ pub fn run_candle_qlora_train(
                 let a_label = format!("l{i}.lin_a");
                 let o_label = format!("l{i}.lin_o");
 
-                let qkv_proj = QuantizedLinear::from_weight_with_varbuilder(&w_qkv, None, &qlora_cfg, vb.pp(&qkv_label))?;
-                let z_proj = QuantizedLinear::from_weight_with_varbuilder(&w_z, None, &qlora_cfg, vb.pp(&z_label))?;
-                let b_proj = QuantizedLinear::from_weight_with_varbuilder(&w_b, None, &qlora_cfg, vb.pp(&b_label))?;
-                let a_proj = QuantizedLinear::from_weight_with_varbuilder(&w_a, None, &qlora_cfg, vb.pp(&a_label))?;
-                let out_proj = QuantizedLinear::from_weight_with_varbuilder(&w_o, None, &qlora_cfg, vb.pp(&o_label))?;
+                let qkv_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_qkv,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&qkv_label),
+                )?;
+                let z_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_z,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&z_label),
+                )?;
+                let b_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_b,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&b_label),
+                )?;
+                let a_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_a,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&a_label),
+                )?;
+                let out_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_o,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&o_label),
+                )?;
 
-                adapter_layer_order.push(qkv_label.clone()); base_key_map.insert(qkv_label, qkv_key);
-                adapter_layer_order.push(z_label.clone()); base_key_map.insert(z_label, z_key);
-                adapter_layer_order.push(b_label.clone()); base_key_map.insert(b_label, b_key);
-                adapter_layer_order.push(a_label.clone()); base_key_map.insert(a_label, a_key);
-                adapter_layer_order.push(o_label.clone()); base_key_map.insert(o_label, o_key);
+                adapter_layer_order.push(qkv_label.clone());
+                base_key_map.insert(qkv_label, qkv_key);
+                adapter_layer_order.push(z_label.clone());
+                base_key_map.insert(z_label, z_key);
+                adapter_layer_order.push(b_label.clone());
+                base_key_map.insert(b_label, b_key);
+                adapter_layer_order.push(a_label.clone());
+                base_key_map.insert(a_label, a_key);
+                adapter_layer_order.push(o_label.clone());
+                base_key_map.insert(o_label, o_key);
 
                 Some(crate::model::Qwen35AttentionBlock::Linear(
                     crate::model::Qwen35LinearAttention {
-                        qkv_proj, z_proj, b_proj, a_proj, out_proj,
-                        conv_weight, dt_bias, a_log,
+                        qkv_proj,
+                        z_proj,
+                        b_proj,
+                        a_proj,
+                        out_proj,
+                        conv_weight,
+                        dt_bias,
+                        a_log,
                         norm: candle_nn::RmsNorm::new(norm_w, 1e-6),
                         num_k_heads: linear_key_heads,
                         num_v_heads: linear_value_heads,
@@ -545,50 +626,122 @@ pub fn run_candle_qlora_train(
                     .get((q_rows, bundle.d_model), &q_key)
                     .or_else(|_| vb_mmap.get((q_fallback_rows, bundle.d_model), &q_key))?
                     .to_dtype(DType::F32)?;
-                if w_q.dim(0)? > q_rows { w_q = w_q.narrow(0, 0, q_rows)?; }
-                let w_k = vb_mmap.get((kv_dim, bundle.d_model), &k_key)?.to_dtype(DType::F32)?;
-                let w_v = vb_mmap.get((kv_dim, bundle.d_model), &v_key)?.to_dtype(DType::F32)?;
-                let w_o = vb_mmap.get((bundle.d_model, q_rows), &o_key)?.to_dtype(DType::F32)?;
+                if w_q.dim(0)? > q_rows {
+                    w_q = w_q.narrow(0, 0, q_rows)?;
+                }
+                let w_k = vb_mmap
+                    .get((kv_dim, bundle.d_model), &k_key)?
+                    .to_dtype(DType::F32)?;
+                let w_v = vb_mmap
+                    .get((kv_dim, bundle.d_model), &v_key)?
+                    .to_dtype(DType::F32)?;
+                let w_o = vb_mmap
+                    .get((bundle.d_model, q_rows), &o_key)?
+                    .to_dtype(DType::F32)?;
 
                 let q_label = format!("l{i}.q");
                 let k_label = format!("l{i}.k");
                 let v_label = format!("l{i}.v");
                 let o_label = format!("l{i}.o");
 
-                let q_proj = QuantizedLinear::from_weight_with_varbuilder(&w_q, None, &qlora_cfg, vb.pp(&q_label))?;
-                let k_proj = QuantizedLinear::from_weight_with_varbuilder(&w_k, None, &qlora_cfg, vb.pp(&k_label))?;
-                let v_proj = QuantizedLinear::from_weight_with_varbuilder(&w_v, None, &qlora_cfg, vb.pp(&v_label))?;
-                let o_proj = QuantizedLinear::from_weight_with_varbuilder(&w_o, None, &qlora_cfg, vb.pp(&o_label))?;
+                let q_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_q,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&q_label),
+                )?;
+                let k_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_k,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&k_label),
+                )?;
+                let v_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_v,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&v_label),
+                )?;
+                let o_proj = QuantizedLinear::from_weight_with_varbuilder(
+                    &w_o,
+                    None,
+                    &qlora_cfg,
+                    vb.pp(&o_label),
+                )?;
 
-                for (lbl, bk) in [(&q_label, &q_key), (&k_label, &k_key), (&v_label, &v_key), (&o_label, &o_key)] {
+                for (lbl, bk) in [
+                    (&q_label, &q_key),
+                    (&k_label, &k_key),
+                    (&v_label, &v_key),
+                    (&o_label, &o_key),
+                ] {
                     adapter_layer_order.push(lbl.clone());
                     base_key_map.insert(lbl.clone(), bk.clone());
                 }
-                let attn = crate::model::Qwen2Attention { q_proj, k_proj, v_proj, o_proj, n_heads, n_kv_heads, head_dim };
+                let attn = crate::model::Qwen2Attention {
+                    q_proj,
+                    k_proj,
+                    v_proj,
+                    o_proj,
+                    n_heads,
+                    n_kv_heads,
+                    head_dim,
+                };
                 Some(crate::model::Qwen35AttentionBlock::Full(attn))
             } else {
-                anyhow::bail!("Unsupported architecture for training: {:?}", bundle.layout.architecture);
+                anyhow::bail!(
+                    "Unsupported architecture for training: {:?}",
+                    bundle.layout.architecture
+                );
             };
 
             // ── MLP projections ───────────────────────────────────────────────
-            let inter_sz = bundle.layout.intermediate_size.unwrap_or(bundle.d_model * 4);
+            let inter_sz = bundle
+                .layout
+                .intermediate_size
+                .unwrap_or(bundle.d_model * 4);
             let gate_key = format!("{layer_prefix}.mlp.gate_proj.weight");
             let up_key = format!("{layer_prefix}.mlp.up_proj.weight");
             let down_key = format!("{layer_prefix}.mlp.down_proj.weight");
 
-            let w_gate = vb_mmap.get((inter_sz, bundle.d_model), &gate_key)?.to_dtype(DType::F32)?;
-            let w_up = vb_mmap.get((inter_sz, bundle.d_model), &up_key)?.to_dtype(DType::F32)?;
-            let w_down = vb_mmap.get((bundle.d_model, inter_sz), &down_key)?.to_dtype(DType::F32)?;
+            let w_gate = vb_mmap
+                .get((inter_sz, bundle.d_model), &gate_key)?
+                .to_dtype(DType::F32)?;
+            let w_up = vb_mmap
+                .get((inter_sz, bundle.d_model), &up_key)?
+                .to_dtype(DType::F32)?;
+            let w_down = vb_mmap
+                .get((bundle.d_model, inter_sz), &down_key)?
+                .to_dtype(DType::F32)?;
 
             let gate_label = format!("l{i}.gate");
             let up_label = format!("l{i}.up");
             let down_label = format!("l{i}.down");
 
-            let gate_proj = QuantizedLinear::from_weight_with_varbuilder(&w_gate, None, &qlora_cfg, vb.pp(&gate_label))?;
-            let up_proj = QuantizedLinear::from_weight_with_varbuilder(&w_up, None, &qlora_cfg, vb.pp(&up_label))?;
-            let down_proj = QuantizedLinear::from_weight_with_varbuilder(&w_down, None, &qlora_cfg, vb.pp(&down_label))?;
+            let gate_proj = QuantizedLinear::from_weight_with_varbuilder(
+                &w_gate,
+                None,
+                &qlora_cfg,
+                vb.pp(&gate_label),
+            )?;
+            let up_proj = QuantizedLinear::from_weight_with_varbuilder(
+                &w_up,
+                None,
+                &qlora_cfg,
+                vb.pp(&up_label),
+            )?;
+            let down_proj = QuantizedLinear::from_weight_with_varbuilder(
+                &w_down,
+                None,
+                &qlora_cfg,
+                vb.pp(&down_label),
+            )?;
 
-            for (lbl, bk) in [(&gate_label, &gate_key), (&up_label, &up_key), (&down_label, &down_key)] {
+            for (lbl, bk) in [
+                (&gate_label, &gate_key),
+                (&up_label, &up_key),
+                (&down_label, &down_key),
+            ] {
                 adapter_layer_order.push(lbl.clone());
                 base_key_map.insert(lbl.clone(), bk.clone());
             }
@@ -596,11 +749,15 @@ pub fn run_candle_qlora_train(
             // ── RoPE frequency table ─────────────────────────────────────────
             let rope_dim_base = if is_qwen35 && layer_type == "linear_attention" {
                 bundle.layout.linear_key_head_dim.unwrap_or(head_dim)
-            } else { head_dim };
+            } else {
+                head_dim
+            };
             let rope_dim = if let Some(frac) = bundle.layout.rope_partial_rotary_factor {
                 let d = ((rope_dim_base as f64) * frac).round() as usize;
                 d.max(2).min(rope_dim_base)
-            } else { rope_dim_base };
+            } else {
+                rope_dim_base
+            };
             let rope_half = (rope_dim / 2).max(1);
             let inv_candidates = if is_qwen35 && layer_type == "linear_attention" {
                 vec![format!("{layer_prefix}.linear_attn.rotary_emb.inv_freq")]
@@ -613,13 +770,21 @@ pub fn run_candle_qlora_train(
             let inv_freq = inv_candidates
                 .iter()
                 .find_map(|inv_key| {
-                    vb_mmap.get((rope_half,), inv_key).ok()
+                    vb_mmap
+                        .get((rope_half,), inv_key)
+                        .ok()
                         .and_then(|t| t.to_dtype(DType::F32).ok())
                 })
-                .or_else(|| synthesize_rope_inv_freq(rope_dim, bundle.layout.rope_theta, &device).ok())
+                .or_else(|| {
+                    synthesize_rope_inv_freq(rope_dim, bundle.layout.rope_theta, &device).ok()
+                })
                 .or_else(|| synthesized_rope_inv_freq.clone());
 
-            let mlp = crate::model::Qwen2MLP { gate_proj, up_proj, down_proj };
+            let mlp = crate::model::Qwen2MLP {
+                gate_proj,
+                up_proj,
+                down_proj,
+            };
             if let Some(attn) = qwen35_attn {
                 model_layers_qwen35.push(crate::model::Qwen35Layer {
                     input_layernorm: ln1,
@@ -640,20 +805,29 @@ pub fn run_candle_qlora_train(
                 .or_else(|_| vb_mmap.get(bundle.d_model, "model.norm.weight"))?
                 .to_dtype(DType::F32)?
         } else {
-            vb_mmap.get(bundle.d_model, "model.norm.weight")?.to_dtype(DType::F32)?
+            vb_mmap
+                .get(bundle.d_model, "model.norm.weight")?
+                .to_dtype(DType::F32)?
         };
         let final_norm = candle_nn::RmsNorm::new(fnorm_w, 1e-6);
         let w_lm = wte.to_dtype(DType::F32)?;
         let lm_label = "lm_head".to_string();
         let lm_base = bundle.embed_key.clone();
-        let lm_head = QuantizedLinear::from_weight_with_varbuilder(&w_lm, None, &qlora_cfg, vb.pp(&lm_label))?;
+        let lm_head = QuantizedLinear::from_weight_with_varbuilder(
+            &w_lm,
+            None,
+            &qlora_cfg,
+            vb.pp(&lm_label),
+        )?;
         adapter_layer_order.push(lm_label.clone());
         base_key_map.insert(lm_label, lm_base);
 
         (final_norm, lm_head)
     };
 
-    trainer.init_optimizer(&[]).context("init qlora optimizer")?;
+    trainer
+        .init_optimizer(&[])
+        .context("init qlora optimizer")?;
 
     let model = TrainGraphModel::Qwen35(crate::model::Qwen35Model {
         embed_tokens: wte,

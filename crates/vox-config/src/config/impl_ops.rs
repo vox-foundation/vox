@@ -245,19 +245,22 @@ impl VoxConfig {
         if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpBinary).expose() {
             self.mcp_binary = Some(PathBuf::from(v.to_string()));
         }
-        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGamifyEnabled).expose()
+        if let Some(v) =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGamifyEnabled).expose()
         {
             let low = v.to_lowercase();
             self.gamify_enabled = matches!(low.as_str(), "1" | "true" | "yes");
         }
-        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGamifyMode).expose() {
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGamifyMode).expose()
+        {
             self.gamify_mode = match v.to_lowercase().as_str() {
                 "serious" => GamifyMode::Serious,
                 "learning" => GamifyMode::Learning,
                 _ => GamifyMode::Balanced,
             };
         }
-        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWebRunMode).expose() {
+        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWebRunMode).expose()
+        {
             self.web_run_mode = match v.to_lowercase().as_str() {
                 "app" => WebRunMode::App,
                 "script" => WebRunMode::Script,
@@ -270,7 +273,8 @@ impl VoxConfig {
             let low = v.to_lowercase();
             self.web_tanstack_start = matches!(low.as_str(), "1" | "true" | "yes");
         }
-        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey).expose()
+        if let Some(v) =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::OpenRouterApiKey).expose()
         {
             self.openrouter_key = Some(v.to_string());
         }
@@ -280,7 +284,8 @@ impl VoxConfig {
         if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::GeminiApiKey).expose() {
             self.gemini_key = Some(v.to_string());
         }
-        if let Some(v) = vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicApiKey).expose()
+        if let Some(v) =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::AnthropicApiKey).expose()
         {
             self.anthropic_key = Some(v.to_string());
         }

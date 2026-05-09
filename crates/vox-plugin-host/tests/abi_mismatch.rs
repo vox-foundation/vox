@@ -2,7 +2,7 @@
 //! loader returns AbiMismatch and the plugin_abi field is the bad value.
 
 use std::path::PathBuf;
-use vox_plugin_host::{errors::LoadError, Loader};
+use vox_plugin_host::{Loader, errors::LoadError};
 
 fn workspace_root() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -30,7 +30,9 @@ fn built_dylib(crate_name: &str) -> PathBuf {
             return p;
         }
     }
-    panic!("build {crate_name} first: `cargo build --manifest-path crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi/Cargo.toml`");
+    panic!(
+        "build {crate_name} first: `cargo build --manifest-path crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi/Cargo.toml`"
+    );
 }
 
 #[test]

@@ -1,13 +1,19 @@
-use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 use crate::features::{ExtractedFeatures, LiteralContext};
 use crate::rules::{DriftRule, WorkspaceContext};
+use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 
 pub struct BearerHeaderRule;
 
 impl DriftRule for BearerHeaderRule {
-    fn id(&self) -> &'static str { "drift/bearer-header-inline" }
-    fn severity(&self) -> Severity { Severity::Warning }
-    fn languages(&self) -> &[Language] { &[Language::Rust] }
+    fn id(&self) -> &'static str {
+        "drift/bearer-header-inline"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Warning
+    }
+    fn languages(&self) -> &[Language] {
+        &[Language::Rust]
+    }
 
     fn check(&self, features: &ExtractedFeatures, _ctx: &WorkspaceContext) -> Vec<Finding> {
         features.string_literals.iter()
@@ -41,9 +47,9 @@ impl DriftRule for BearerHeaderRule {
 mod tests {
     use super::*;
     use crate::features::*;
-    use vox_code_audit::rules::Language;
-    use std::path::PathBuf;
     use crate::rules::WorkspaceContext;
+    use std::path::PathBuf;
+    use vox_code_audit::rules::Language;
 
     fn ctx() -> WorkspaceContext {
         WorkspaceContext {

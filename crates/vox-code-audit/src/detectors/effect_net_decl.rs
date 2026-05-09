@@ -74,7 +74,11 @@ impl DetectionRule for EffectNetDeclDetector {
         Good:  @uses(net)\n       pub fn fetch_user(id: UserId) -> User { http.get(\"/users/\" + id) }"
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if file.language != Language::Vox {
             return vec![];
         }
@@ -113,15 +117,13 @@ impl DetectionRule for EffectNetDeclDetector {
 
             // Check the next 50 lines (function body) for net calls
             let body_end = (i + 51).min(n);
-            let has_net_call = lines[(i + 1)..body_end]
-                .iter()
-                .any(|l| {
-                    let t = l.trim();
-                    if t.starts_with("//") || t.starts_with('#') {
-                        return false;
-                    }
-                    self.net_call.is_match(l)
-                });
+            let has_net_call = lines[(i + 1)..body_end].iter().any(|l| {
+                let t = l.trim();
+                if t.starts_with("//") || t.starts_with('#') {
+                    return false;
+                }
+                self.net_call.is_match(l)
+            });
 
             if has_net_call {
                 let fn_text = fn_match.as_str().trim().to_string();
@@ -174,7 +176,10 @@ mod tests {
         let code = "pub fn fetch_user(id: UserId) -> User {\n    http.get(\"/users/\" + id)\n}";
         let f = vox_source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag pub fn calling http.get() without @uses(net)");
+        assert!(
+            !findings.is_empty(),
+            "should flag pub fn calling http.get() without @uses(net)"
+        );
         assert!(findings[0].message.contains("@uses(net)"));
     }
 
@@ -184,10 +189,7 @@ mod tests {
         let code = "@uses(net)\npub fn fetch_user(id: UserId) -> User {\n    http.get(\"/users/\" + id)\n}";
         let f = vox_source(code);
         let findings = d.detect(&f, None);
-        assert!(
-            findings.is_empty(),
-            "fn with @uses(net) should not fire"
-        );
+        assert!(findings.is_empty(), "fn with @uses(net) should not fire");
     }
 
     #[test]
@@ -196,10 +198,7 @@ mod tests {
         let code = "pub fn add(a: Int, b: Int) -> Int {\n    return a + b;\n}";
         let f = vox_source(code);
         let findings = d.detect(&f, None);
-        assert!(
-            findings.is_empty(),
-            "fn with no net calls should not fire"
-        );
+        assert!(findings.is_empty(), "fn with no net calls should not fire");
     }
 
     #[test]
@@ -208,7 +207,10 @@ mod tests {
         let code = "@endpoint fn get_data(req: Request) -> Response {\n    let result = fetch(\"/api/data\");\n    return result;\n}";
         let f = vox_source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag @endpoint fn calling fetch() without @uses(net)");
+        assert!(
+            !findings.is_empty(),
+            "should flag @endpoint fn calling fetch() without @uses(net)"
+        );
     }
 
     #[test]

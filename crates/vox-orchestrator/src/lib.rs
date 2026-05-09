@@ -67,39 +67,29 @@ pub mod attention_tracker;
 pub mod bootstrap;
 /// Token and cost budgets per agent and orchestrator-wide tracking.
 pub mod budget;
+/// Orchestrator-policy token/cost budget gate (D7).
+pub mod budget_gate;
 /// Shared bulletin board for cross-agent notices.
 pub mod bulletin;
+/// Prefix-cache hit predictor (D7).
+pub mod cache_predictor;
+/// Calibration loop: Welford drift detection + Thompson bandit (D10).
+pub mod calibration;
 /// Host capability probing and merge with `OrchestratorConfig::default_agent_capabilities`.
 pub mod capability_probe;
 /// Dynamic model catalogs.
 pub mod catalog;
 pub mod catalog_classifier;
-/// DB-backed clarification inbox drain (Codex `a2a_messages`).
-pub mod clarification_db_inbox_poll;
 /// Five-signal circuit breaker for doom-loop detection (D6).
 pub mod circuit_breaker;
-/// Composite confidence fusion for Socrates invocation decision (D3).
-pub mod confidence_fusion;
-/// Three-tier model cascade for autonomous model-routing (D1).
-pub mod tier_cascade;
-/// Four-dimension risk scorer and HITL escalation matrix (D5 + D9).
-pub mod risk_matrix;
-/// Sensitivity classifier and privacy-level-aware routing (D8).
-pub mod privacy_classifier;
-/// Prefix-cache hit predictor (D7).
-pub mod cache_predictor;
-/// Orchestrator-policy token/cost budget gate (D7).
-pub mod budget_gate;
-/// Compaction strategy selector by context utilization (D7).
-pub mod compaction_trigger;
-/// Calibration loop: Welford drift detection + Thompson bandit (D10).
-pub mod calibration;
-/// Sub-agent dispatch router: spawn vs. inline decision (D4).
-pub mod subagent_dispatch;
-/// Unified orchestrator policy façade composing all D1–D10.
-pub mod orchestrator_policy;
+/// DB-backed clarification inbox drain (Codex `a2a_messages`).
+pub mod clarification_db_inbox_poll;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
+/// Compaction strategy selector by context utilization (D7).
+pub mod compaction_trigger;
+/// Composite confidence fusion for Socrates invocation decision (D3).
+pub mod confidence_fusion;
 /// Orchestrator configuration load, merge, and validation.
 pub mod config;
 /// File conflict detection and resolution hooks.
@@ -128,6 +118,16 @@ pub mod groups;
 /// Structured handoff payloads between agents.
 pub mod handoff;
 pub mod legacy;
+/// Unified orchestrator policy façade composing all D1–D10.
+pub mod orchestrator_policy;
+/// Sensitivity classifier and privacy-level-aware routing (D8).
+pub mod privacy_classifier;
+/// Four-dimension risk scorer and HITL escalation matrix (D5 + D9).
+pub mod risk_matrix;
+/// Sub-agent dispatch router: spawn vs. inline decision (D4).
+pub mod subagent_dispatch;
+/// Three-tier model cascade for autonomous model-routing (D1).
+pub mod tier_cascade;
 
 /// Entropy-based hallucination detection.
 pub mod entropy_scorer;
@@ -139,6 +139,8 @@ pub mod jj_backend;
 pub mod judge_model;
 /// Per-file lock manager for exclusive writer access.
 pub use vox_orchestrator_queue::locks;
+/// MCP tool surface and plugin-skills bridge stubs (implementation pending SP6).
+pub mod mcp_tools;
 /// Long-term and daily agent memory backed by Codex when enabled.
 pub mod memory;
 /// Populi control-plane poll loop shared by MCP and `vox-orchestrator-d`.
@@ -147,8 +149,6 @@ pub mod mesh_federation_poll;
 #[cfg(not(feature = "populi-transport"))]
 #[path = "mesh_federation_poll_noop.rs"]
 pub mod mesh_federation_poll;
-/// MCP tool surface and plugin-skills bridge stubs (implementation pending SP6).
-pub mod mcp_tools;
 /// LLM model registry and provider configuration.
 pub mod models;
 /// Lightweight AI usage / behavior monitor hooks.

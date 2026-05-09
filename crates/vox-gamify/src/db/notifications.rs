@@ -29,8 +29,14 @@ pub async fn insert_notification(
                  (id, user_id, notification_type, title, message, read, created_at, expires_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
-                    id.as_str(), user_id.as_str(), notif_type.as_str(),
-                    title.as_str(), message.as_str(), read_flag, created_at, expires,
+                    id.as_str(),
+                    user_id.as_str(),
+                    notif_type.as_str(),
+                    title.as_str(),
+                    message.as_str(),
+                    read_flag,
+                    created_at,
+                    expires,
                 ],
             )
             .await?;

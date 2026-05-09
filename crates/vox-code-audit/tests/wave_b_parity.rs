@@ -6,8 +6,8 @@
 use std::path::PathBuf;
 use vox_code_audit::detectors::ai_laziness::AiLazinessDetector;
 use vox_code_audit::detectors::deprecated_usage::DeprecatedUsageDetector;
-use vox_code_audit::detectors::stub::StubDetector;
 use vox_code_audit::detectors::stringly_typed_enum::StringlyTypedEnumDetector;
+use vox_code_audit::detectors::stub::StubDetector;
 use vox_code_audit::detectors::unwrap_call::UnwrapCallDetector;
 use vox_code_audit::rules::{DetectionRule, Language, SourceFile};
 
@@ -37,7 +37,8 @@ fn rule_ids(findings: &[vox_code_audit::rules::Finding]) -> Vec<&str> {
 fn ai_laziness_placeholder_return_fires() {
     let d = AiLazinessDetector::new();
     let f = rs(r#"fn x() -> &'static str { return "TODO" }"#);
-    let findings_ = d.detect(&f, None); let ids = rule_ids(&findings_);
+    let findings_ = d.detect(&f, None);
+    let ids = rule_ids(&findings_);
     assert!(ids.contains(&"ai-laziness/placeholder-return"));
 }
 
@@ -45,7 +46,8 @@ fn ai_laziness_placeholder_return_fires() {
 fn ai_laziness_implement_later_fires() {
     let d = AiLazinessDetector::new();
     let f = rs("// implement later\nfn x() {}");
-    let findings_ = d.detect(&f, None); let ids = rule_ids(&findings_);
+    let findings_ = d.detect(&f, None);
+    let ids = rule_ids(&findings_);
     assert!(ids.contains(&"ai-laziness/implement-later-comment"));
 }
 
@@ -53,7 +55,8 @@ fn ai_laziness_implement_later_fires() {
 fn ai_laziness_mock_fn_fires_outside_tests() {
     let d = AiLazinessDetector::new();
     let f = rs("pub fn mock_db() -> u32 { 0 }");
-    let findings_ = d.detect(&f, None); let ids = rule_ids(&findings_);
+    let findings_ = d.detect(&f, None);
+    let ids = rule_ids(&findings_);
     assert!(ids.contains(&"ai-laziness/mock-named-fn"));
 }
 
@@ -71,7 +74,8 @@ fn ai_laziness_mock_fn_silent_in_tests_dir() {
 fn ai_laziness_custom_type_default_fires() {
     let d = AiLazinessDetector::new();
     let f = rs("fn x() -> MyConfig { return MyConfig::default() }");
-    let findings_ = d.detect(&f, None); let ids = rule_ids(&findings_);
+    let findings_ = d.detect(&f, None);
+    let ids = rule_ids(&findings_);
     assert!(ids.contains(&"ai-laziness/custom-type-default-return"));
 }
 
@@ -85,7 +89,9 @@ fn ai_laziness_builtin_default_silent() {
 #[test]
 fn ai_laziness_conditional_stub_fires() {
     let d = AiLazinessDetector::new();
-    let f = rs("fn x(b: bool) -> Result<()> { if b { return Ok(()); } else { do_real_work(); Ok(()) } }");
+    let f = rs(
+        "fn x(b: bool) -> Result<()> { if b { return Ok(()); } else { do_real_work(); Ok(()) } }",
+    );
     assert!(rule_ids(&d.detect(&f, None)).contains(&"ai-laziness/conditional-stub"));
 }
 
@@ -171,7 +177,13 @@ fn jsx_classname_fires_with_vox_suggestion() {
     let findings = d.detect(&f, None);
     assert_eq!(findings.len(), 1);
     assert_eq!(findings[0].rule_id, "raw-jsx-leakage");
-    assert!(findings[0].suggestion.as_deref().unwrap_or("").contains("class="));
+    assert!(
+        findings[0]
+            .suggestion
+            .as_deref()
+            .unwrap_or("")
+            .contains("class=")
+    );
 }
 
 #[test]

@@ -54,7 +54,14 @@ pub async fn run(cmd: NewCmd) -> Result<()> {
             returns,
             stdout,
             force,
-        } => run_fn_scaffold(&name, in_path, params.as_deref(), returns.as_deref(), stdout, force),
+        } => run_fn_scaffold(
+            &name,
+            in_path,
+            params.as_deref(),
+            returns.as_deref(),
+            stdout,
+            force,
+        ),
     }
 }
 

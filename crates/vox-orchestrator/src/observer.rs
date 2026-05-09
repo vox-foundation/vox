@@ -268,8 +268,10 @@ impl Observer {
     /// Produce an `ObservationSummary` for `task_id` over the retained history (Task 64).
     pub fn summarize(&self, task_id: &str) -> ObservationSummary {
         let hist = self.history.lock().expect("observer history lock");
-        let task_reports: Vec<&ObservationReport> =
-            hist.iter().filter(|r| r.task_id.as_str() == task_id).collect();
+        let task_reports: Vec<&ObservationReport> = hist
+            .iter()
+            .filter(|r| r.task_id.as_str() == task_id)
+            .collect();
 
         let observation_count = task_reports.len();
         if observation_count == 0 {

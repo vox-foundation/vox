@@ -17,12 +17,11 @@ use safetensors::Dtype;
 use safetensors::SafeTensors;
 use tokenizers::Tokenizer;
 
-use crate::model::{
-    Qwen2Attention, Qwen2MLP, Qwen35AttentionBlock, Qwen35Layer,
-    Qwen35LinearAttention, Qwen35Model,
-};
-use crate::hf_layout::HfArchitecture;
 use crate::adapter_schema_v3::PopuliAdapterManifestV3;
+use crate::hf_layout::HfArchitecture;
+use crate::model::{
+    Qwen2Attention, Qwen2MLP, Qwen35AttentionBlock, Qwen35Layer, Qwen35LinearAttention, Qwen35Model,
+};
 
 pub struct InferenceEngine {
     pub model: InferenceModel,
@@ -364,8 +363,12 @@ impl InferenceEngine {
             #[serde(default = "default_temperature")]
             temperature: f64,
         }
-        fn default_max_tokens() -> usize { 256 }
-        fn default_temperature() -> f64 { 1.0 }
+        fn default_max_tokens() -> usize {
+            256
+        }
+        fn default_temperature() -> f64 {
+            1.0
+        }
 
         let req: PromptRequest = serde_json::from_str(prompt_json)
             .map_err(|e| anyhow::anyhow!("parse prompt_json: {e}"))?;
@@ -380,12 +383,7 @@ impl InferenceEngine {
         Ok(out.to_string())
     }
 
-    fn generate(
-        &mut self,
-        prompt: &str,
-        max_tokens: usize,
-        _temperature: f64,
-    ) -> Result<String> {
+    fn generate(&mut self, prompt: &str, max_tokens: usize, _temperature: f64) -> Result<String> {
         let mut tokens = self
             .tokenizer
             .encode(prompt, true)

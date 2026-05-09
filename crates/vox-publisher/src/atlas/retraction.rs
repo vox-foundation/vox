@@ -38,16 +38,12 @@ impl CopeRetractionReason {
             Self::AnalysisError => {
                 "The analysis contained errors that materially affect the conclusions."
             }
-            Self::EthicsViolation => {
-                "This work violated ethical standards for research conduct."
-            }
+            Self::EthicsViolation => "This work violated ethical standards for research conduct.",
             Self::Superseded => {
                 "This finding has been superseded by a subsequent publication with better methodology."
             }
             Self::Fabrication => "Data or results in this work were fabricated.",
-            Self::Other => {
-                "This work is retracted for reasons stated in the notice text."
-            }
+            Self::Other => "This work is retracted for reasons stated in the notice text.",
         }
     }
 }

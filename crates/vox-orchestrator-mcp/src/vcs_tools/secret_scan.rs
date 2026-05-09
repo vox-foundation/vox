@@ -50,10 +50,8 @@ fn patterns() -> &'static [Pattern] {
             },
             Pattern {
                 kind: SecretKind::AwsSecretKey,
-                re: Regex::new(
-                    "(?i)aws.{0,20}secret.{0,20}[=:]\\s*[\"']?([A-Za-z0-9/+=]{40})",
-                )
-                .unwrap(),
+                re: Regex::new("(?i)aws.{0,20}secret.{0,20}[=:]\\s*[\"']?([A-Za-z0-9/+=]{40})")
+                    .unwrap(),
                 use_capture: true,
             },
             Pattern {
@@ -189,7 +187,10 @@ mod tests {
             "expected AwsSecretKey match, got: {:?}",
             matches.iter().map(|m| &m.kind).collect::<Vec<_>>()
         );
-        let aws_match = matches.iter().find(|m| m.kind == SecretKind::AwsSecretKey).unwrap();
+        let aws_match = matches
+            .iter()
+            .find(|m| m.kind == SecretKind::AwsSecretKey)
+            .unwrap();
         assert!(
             aws_match.redacted.starts_with("wJalrX"),
             "expected redacted to start with 'wJalrX' (first 6 chars of secret), got: {:?}",
@@ -201,7 +202,11 @@ mod tests {
     fn clean_content_returns_empty() {
         let content = "This file has no secrets, just normal text.\nAnother line here.";
         let matches = scan_for_secrets(content);
-        assert!(matches.is_empty(), "expected no matches, got: {:?}", matches.len());
+        assert!(
+            matches.is_empty(),
+            "expected no matches, got: {:?}",
+            matches.len()
+        );
     }
 
     #[test]
@@ -220,7 +225,12 @@ mod tests {
         let matches = scan_for_secrets(content);
         assert_eq!(matches.len(), 1);
         // 6 chars + "..." = 9 chars total
-        assert_eq!(matches[0].redacted.len(), 9, "redacted: {:?}", matches[0].redacted);
+        assert_eq!(
+            matches[0].redacted.len(),
+            9,
+            "redacted: {:?}",
+            matches[0].redacted
+        );
         assert!(matches[0].redacted.ends_with("..."));
         assert_eq!(&matches[0].redacted[..6], "AKIAIO");
     }

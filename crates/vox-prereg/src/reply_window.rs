@@ -47,7 +47,9 @@ impl ReplyWindowGate {
     /// Deterministic: callers pass the clock value, enabling test control.
     pub fn status(&self, record: &ReplyWindowRecord, now_unix: i64) -> WindowStatus {
         if record.provider_cleared {
-            return WindowStatus::Cleared { has_reply: record.reply_content.is_some() };
+            return WindowStatus::Cleared {
+                has_reply: record.reply_content.is_some(),
+            };
         }
 
         let elapsed = (now_unix - record.window_opened_at).max(0) as u64;
@@ -152,7 +154,10 @@ mod tests {
 
         ingest_reply(&mut record, "We dispute the latency figures in §3.");
 
-        assert!(record.provider_cleared, "ingest_reply must set provider_cleared");
+        assert!(
+            record.provider_cleared,
+            "ingest_reply must set provider_cleared"
+        );
         assert_eq!(
             record.reply_content.as_deref(),
             Some("We dispute the latency figures in §3."),

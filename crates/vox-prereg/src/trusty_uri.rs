@@ -101,7 +101,8 @@ mod tests {
             },
             cost_cap_usd: 50.0,
             signed_at: 1715299200,
-            signing_key: "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899".to_string(),
+            signing_key: "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899"
+                .to_string(),
             supersedes: None,
             analysis_tree_commit: None,
         }
@@ -111,7 +112,10 @@ mod tests {
     fn trusty_uri_starts_with_ra() {
         let prereg = sample_prereg();
         let uri = compute_trusty_uri(&prereg);
-        assert!(uri.starts_with("RA"), "Trusty URI must start with 'RA', got: {uri}");
+        assert!(
+            uri.starts_with("RA"),
+            "Trusty URI must start with 'RA', got: {uri}"
+        );
     }
 
     #[test]

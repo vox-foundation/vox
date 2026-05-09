@@ -79,10 +79,9 @@ pub async fn preference_set(state: &ServerState, params: PreferenceSetParams) ->
                             cfg.attention_budget_ms = v;
                         }
                         let bm = state.orchestrator.budget_manager_handle();
-                        if let Ok(g) = crate::sync_poison::poison_rw_write(
-                            bm.write(),
-                            "budget manager",
-                        ) {
+                        if let Ok(g) =
+                            crate::sync_poison::poison_rw_write(bm.write(), "budget manager")
+                        {
                             g.init_attention(v);
                         }
                     }

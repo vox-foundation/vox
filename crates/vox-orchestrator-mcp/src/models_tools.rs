@@ -1,6 +1,6 @@
-use vox_orchestrator::types::TaskCategory;
 use schemars::JsonSchema;
 use serde::Deserialize;
+use vox_orchestrator::types::TaskCategory;
 
 use crate::llm_bridge::{McpChatModelResolution, resolve_mcp_chat_model_sync};
 use crate::params::ToolResult;
@@ -142,7 +142,8 @@ pub async fn set_model(state: &ServerState, params: SetModelParams) -> String {
         .get(&params.model_id)
         .is_some()
     {
-        vox_orchestrator::sync_lock::rw_write(&*handle).set_override(params.agent_id, params.model_id.clone());
+        vox_orchestrator::sync_lock::rw_write(&*handle)
+            .set_override(params.agent_id, params.model_id.clone());
         ToolResult::ok(format!(
             "Successfully overridden model to {} for agent {}",
             params.model_id, params.agent_id

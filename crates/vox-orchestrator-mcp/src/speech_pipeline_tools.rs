@@ -70,8 +70,11 @@ pub async fn speech_to_code(state: &ServerState, args: Value) -> anyhow::Result<
                 parse_profile(&args),
                 debug_parser,
             );
-            let detail =
-                super::oratio_tools::transcribe_path_via_plugin(&full, &ctx, language_hint.as_deref())?;
+            let detail = super::oratio_tools::transcribe_path_via_plugin(
+                &full,
+                &ctx,
+                language_hint.as_deref(),
+            )?;
             (
                 detail.raw_text,
                 detail.refined_text,

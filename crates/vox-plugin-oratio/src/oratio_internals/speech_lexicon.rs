@@ -80,11 +80,9 @@ impl SpeechLexicon {
         out.truncate(max_phrases.max(1));
         out
     }
-
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
 }

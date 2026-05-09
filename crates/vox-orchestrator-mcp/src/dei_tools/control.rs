@@ -77,10 +77,7 @@ pub async fn budget_status(state: &ServerState) -> String {
 }
 
 /// Cancel a task by numeric id (wrapper around orchestrator APIs).
-pub async fn cancel_task(
-    state: &ServerState,
-    params: crate::params::CancelTaskParams,
-) -> String {
+pub async fn cancel_task(state: &ServerState, params: crate::params::CancelTaskParams) -> String {
     let orch = &state.orchestrator;
 
     if let Err(e) = orch.cancel_task(TaskId(params.task_id)) {
@@ -91,10 +88,7 @@ pub async fn cancel_task(
 }
 
 /// Change the priority of a queued task.
-pub async fn reorder_task(
-    state: &ServerState,
-    params: crate::params::ReorderTaskParams,
-) -> String {
+pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTaskParams) -> String {
     let orch = &state.orchestrator;
 
     let priority = match params.priority.as_str() {
@@ -115,10 +109,7 @@ pub async fn reorder_task(
 }
 
 /// Drop all queued (not running) tasks for an agent.
-pub async fn drain_agent(
-    state: &ServerState,
-    params: crate::params::DrainAgentParams,
-) -> String {
+pub async fn drain_agent(state: &ServerState, params: crate::params::DrainAgentParams) -> String {
     match state
         .orchestrator
         .drain_agent(vox_orchestrator::AgentId(params.agent_id))
@@ -168,7 +159,10 @@ pub async fn map_agent_session(
 ) -> String {
     let orch = &state.orchestrator;
 
-    match orch.map_agent_session(vox_orchestrator::AgentId(params.agent_id), params.session_id.clone()) {
+    match orch.map_agent_session(
+        vox_orchestrator::AgentId(params.agent_id),
+        params.session_id.clone(),
+    ) {
         Ok(_) => ToolResult::ok(format!(
             "Mapped agent session {} to agent {}",
             params.session_id, params.agent_id
@@ -370,7 +364,8 @@ pub async fn orchestrator_start(state: &ServerState) -> String {
 
     let orch = &state.orchestrator;
     let agent_count = orch.agent_ids().len();
-    let registered_worker_processes = vox_orchestrator::sync_lock::rw_read(&*orch.agent_handles).len();
+    let registered_worker_processes =
+        vox_orchestrator::sync_lock::rw_read(&*orch.agent_handles).len();
     let execution_mode = if registered_worker_processes > 0 {
         "workers_attached"
     } else {
@@ -441,10 +436,7 @@ pub async fn orchestrator_start(state: &ServerState) -> String {
 }
 
 /// Spawn a new orchestrator agent (optionally marked dynamic / auto-retire when idle).
-pub async fn spawn_agent(
-    state: &ServerState,
-    params: crate::params::SpawnAgentParams,
-) -> String {
+pub async fn spawn_agent(state: &ServerState, params: crate::params::SpawnAgentParams) -> String {
     let out_name = params.name.clone();
     let out_dynamic = params.dynamic.unwrap_or(false);
     let out_parent = params.parent_agent_id;
@@ -478,10 +470,7 @@ pub async fn spawn_agent(
 }
 
 /// Retire an agent (releases locks/affinity, drains queue metadata).
-pub async fn retire_agent(
-    state: &ServerState,
-    params: crate::params::AgentIdToolParams,
-) -> String {
+pub async fn retire_agent(state: &ServerState, params: crate::params::AgentIdToolParams) -> String {
     match state
         .orchestrator
         .retire_agent(vox_orchestrator::AgentId(params.agent_id))
@@ -501,10 +490,7 @@ pub async fn retire_agent(
 }
 
 /// Pause an agent's task queue.
-pub async fn pause_agent(
-    state: &ServerState,
-    params: crate::params::AgentIdToolParams,
-) -> String {
+pub async fn pause_agent(state: &ServerState, params: crate::params::AgentIdToolParams) -> String {
     match state
         .orchestrator
         .pause_agent(vox_orchestrator::AgentId(params.agent_id))
@@ -516,10 +502,7 @@ pub async fn pause_agent(
 }
 
 /// Resume a paused agent queue.
-pub async fn resume_agent(
-    state: &ServerState,
-    params: crate::params::AgentIdToolParams,
-) -> String {
+pub async fn resume_agent(state: &ServerState, params: crate::params::AgentIdToolParams) -> String {
     match state
         .orchestrator
         .resume_agent(vox_orchestrator::AgentId(params.agent_id))

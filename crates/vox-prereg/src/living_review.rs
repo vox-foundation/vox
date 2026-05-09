@@ -95,9 +95,19 @@ mod tests {
     #[test]
     fn new_manifest_has_no_versions() {
         let manifest = base_manifest();
-        assert_eq!(manifest.version_count(), 0, "new manifest must have 0 versions");
-        assert!(manifest.latest_version().is_none(), "latest_version must be None when empty");
-        assert!(manifest.latest_doi.is_empty(), "latest_doi must be empty string initially");
+        assert_eq!(
+            manifest.version_count(),
+            0,
+            "new manifest must have 0 versions"
+        );
+        assert!(
+            manifest.latest_version().is_none(),
+            "latest_version must be None when empty"
+        );
+        assert!(
+            manifest.latest_doi.is_empty(),
+            "latest_doi must be empty string initially"
+        );
     }
 
     #[test]
@@ -147,7 +157,11 @@ mod tests {
         }
         assert_eq!(manifest.version_count(), 3);
         let versions: Vec<u32> = manifest.version_history.iter().map(|v| v.version).collect();
-        assert_eq!(versions, vec![1, 2, 3], "version_history must be ordered oldest-first (1, 2, 3)");
+        assert_eq!(
+            versions,
+            vec![1, 2, 3],
+            "version_history must be ordered oldest-first (1, 2, 3)"
+        );
         assert_eq!(
             manifest.latest_version().unwrap().doi,
             "10.5281/zenodo.100003"

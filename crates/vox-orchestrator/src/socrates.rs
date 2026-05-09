@@ -1,7 +1,9 @@
 //! Socrates task gate: evidence-weighted confidence against shared [`vox_orchestrator_types::socrates_policy`] thresholds.
 
 use serde::{Deserialize, Serialize};
-use vox_orchestrator_types::socrates_policy::{ConfidencePolicy, RiskBand, RiskDecision, SocratesResearchDecision};
+use vox_orchestrator_types::socrates_policy::{
+    ConfidencePolicy, RiskBand, RiskDecision, SocratesResearchDecision,
+};
 
 /// Context-store key prefix for canonical context envelope JSON persisted per session.
 #[must_use]

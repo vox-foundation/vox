@@ -54,16 +54,21 @@ pub fn run(root: &Path) -> Result<()> {
         )
     })?;
 
-    let mut allowed: BTreeSet<String> =
-        policy.tiers.a_relational.owners.iter().cloned().collect();
-    allowed.extend(policy.tiers.a_relational.temporary_exceptions.iter().cloned());
+    let mut allowed: BTreeSet<String> = policy.tiers.a_relational.owners.iter().cloned().collect();
+    allowed.extend(
+        policy
+            .tiers
+            .a_relational
+            .temporary_exceptions
+            .iter()
+            .cloned(),
+    );
 
     // Match `CREATE TABLE [IF NOT EXISTS] <name>` where <name> is a real
     // identifier (not a `{...}` placeholder).
-    let create_re = Regex::new(
-        r"(?i)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z_][a-zA-Z0-9_]*)",
-    )
-    .expect("create_table regex");
+    let create_re =
+        Regex::new(r"(?i)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-zA-Z_][a-zA-Z0-9_]*)")
+            .expect("create_table regex");
 
     let crates_dir = root.join("crates");
     let mut hits: Vec<Hit> = Vec::new();

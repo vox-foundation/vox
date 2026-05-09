@@ -21,7 +21,9 @@ impl Default for StringlyTypedEnumDetector {
 
 impl StringlyTypedEnumDetector {
     pub fn new() -> Self {
-        Self { rule: pack_rule("stringly-typed-enum") }
+        Self {
+            rule: pack_rule("stringly-typed-enum"),
+        }
     }
 
     /// Byte index of the first `//` line comment **outside** string / raw-string literals.

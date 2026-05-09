@@ -48,7 +48,10 @@ impl BuiltinRegistry {
         );
 
         let mut functions = HashMap::new();
-        functions.insert(("std.time.now_ms", 0), BuiltinLowering::Inline("Date.now()"));
+        functions.insert(
+            ("std.time.now_ms", 0),
+            BuiltinLowering::Inline("Date.now()"),
+        );
         functions.insert(
             ("std.time.iso_now", 0),
             BuiltinLowering::Inline("new Date().toISOString()"),
@@ -67,33 +70,22 @@ impl BuiltinRegistry {
         }
     }
 
-    pub fn lookup_method(
-        &self,
-        ty: &str,
-        method: &str,
-        arity: usize,
-    ) -> Option<BuiltinLowering> {
-        self.methods
-            .get(&(ty, method, arity))
-            .cloned()
-            .or_else(|| {
-                self.methods
-                    .iter()
-                    .find(|((t, m, _), _)| *t == ty && *m == method)
-                    .map(|(_, l)| l.clone())
-            })
+    pub fn lookup_method(&self, ty: &str, method: &str, arity: usize) -> Option<BuiltinLowering> {
+        self.methods.get(&(ty, method, arity)).cloned().or_else(|| {
+            self.methods
+                .iter()
+                .find(|((t, m, _), _)| *t == ty && *m == method)
+                .map(|(_, l)| l.clone())
+        })
     }
 
     pub fn lookup_function(&self, name: &str, arity: usize) -> Option<BuiltinLowering> {
-        self.functions
-            .get(&(name, arity))
-            .cloned()
-            .or_else(|| {
-                self.functions
-                    .iter()
-                    .find(|((n, _), _)| *n == name)
-                    .map(|(_, l)| l.clone())
-            })
+        self.functions.get(&(name, arity)).cloned().or_else(|| {
+            self.functions
+                .iter()
+                .find(|((n, _), _)| *n == name)
+                .map(|(_, l)| l.clone())
+        })
     }
 
     pub fn lookup_namespace(&self, ns: &str) -> Option<&'static str> {

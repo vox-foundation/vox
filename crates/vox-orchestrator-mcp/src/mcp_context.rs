@@ -83,10 +83,7 @@ pub async fn set_context(state: &ServerState, params: SetContextParams) -> Strin
     let ttl = params.ttl_seconds.unwrap_or(0);
     let ctx_handle = orch.context_handle();
     let guard: std::sync::RwLockWriteGuard<vox_orchestrator::context::ContextStore> =
-        match crate::sync_poison::poison_rw_write(
-            ctx_handle.write(),
-            "orchestrator context",
-        ) {
+        match crate::sync_poison::poison_rw_write(ctx_handle.write(), "orchestrator context") {
             Ok(g) => g,
             Err(e) => {
                 return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK)
@@ -102,10 +99,7 @@ pub async fn get_context(state: &ServerState, params: GetContextParams) -> Strin
     let orch = &state.orchestrator;
     let ctx_handle = orch.context_handle();
     let read_guard: std::sync::RwLockReadGuard<vox_orchestrator::context::ContextStore> =
-        match crate::sync_poison::poison_rw_read(
-            ctx_handle.read(),
-            "orchestrator context",
-        ) {
+        match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
             Ok(g) => g,
             Err(e) => {
                 return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK)
@@ -125,10 +119,7 @@ pub async fn list_context(state: &ServerState, params: ListContextParams) -> Str
     let orch = &state.orchestrator;
     let ctx_handle = orch.context_handle();
     let read_guard: std::sync::RwLockReadGuard<vox_orchestrator::context::ContextStore> =
-        match crate::sync_poison::poison_rw_read(
-            ctx_handle.read(),
-            "orchestrator context",
-        ) {
+        match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
             Ok(g) => g,
             Err(e) => {
                 return ToolResult::<Vec<String>>::err_with_remediation(
@@ -187,8 +178,10 @@ pub async fn set_agent_budget(state: &ServerState, params: SetAgentBudgetParams)
     let orch = &state.orchestrator;
     let agent_id = AgentId(params.agent_id);
 
-    let mut alloc =
-        vox_orchestrator::budget::AgentBudgetAllocation::new(params.max_tokens, params.max_cost_usd);
+    let mut alloc = vox_orchestrator::budget::AgentBudgetAllocation::new(
+        params.max_tokens,
+        params.max_cost_usd,
+    );
     if let (Some(token_al), Some(cost_al)) =
         (params.token_alert_threshold, params.cost_alert_threshold)
     {
@@ -223,10 +216,7 @@ pub async fn handoff_context(state: &ServerState, params: HandoffContextParams) 
     let orch = &state.orchestrator;
     let summary_handle = orch.summary_handle();
     let sum_guard: std::sync::RwLockWriteGuard<vox_orchestrator::summary::SummaryManager> =
-        match crate::sync_poison::poison_rw_write(
-            summary_handle.write(),
-            "context summary",
-        ) {
+        match crate::sync_poison::poison_rw_write(summary_handle.write(), "context summary") {
             Ok(g) => g,
             Err(e) => {
                 return ToolResult::<String>::err_with_remediation(e.to_string(), REM_CTX_LOCK)

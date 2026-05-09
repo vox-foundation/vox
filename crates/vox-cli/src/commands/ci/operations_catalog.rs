@@ -7,12 +7,12 @@ use std::path::Path;
 use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 
-use vox_bounded_fs::read_utf8_path_capped;
 use super::command_compliance::registry::{
     MCP_TOOL_REGISTRY_REL, REGISTRY_REL, validate_mcp_tool_registry_against_json_schema,
     validate_registry_against_json_schema,
 };
 use crate::command_registry_model::{RegistryFile, RegistryOperation};
+use vox_bounded_fs::read_utf8_path_capped;
 use vox_capability_registry::{
     CAPABILITY_REGISTRY_REL, CapabilityRegistryDoc, CuratedCapability, Exemptions,
     RuntimeBuiltinMap,

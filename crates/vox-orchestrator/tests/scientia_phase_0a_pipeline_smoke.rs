@@ -2,10 +2,8 @@
 //! full pipeline returns a coherent (empty) ResearchResult when called with
 //! all stubs.
 
-use vox_orchestrator::dei_shim::research::{
-    run_research, ResearchConfig,
-};
 use vox_orchestrator::dei_shim::research::types::{ResearchQuery, ResearchScope};
+use vox_orchestrator::dei_shim::research::{ResearchConfig, run_research};
 
 #[tokio::test]
 async fn run_research_with_stubs_returns_empty_result() {

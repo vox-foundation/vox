@@ -4,7 +4,7 @@
 
 use abi_stable::{erased_types::TD_Opaque, std_types::*};
 use vox_plugin_api::extensions::tensor_backend::{
-    TensorBackend, TensorBackend_TO, TENSOR_BACKEND_REVISION,
+    TENSOR_BACKEND_REVISION, TensorBackend, TensorBackend_TO,
 };
 
 #[test]

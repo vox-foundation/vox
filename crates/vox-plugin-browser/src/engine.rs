@@ -74,9 +74,7 @@ impl BrowserEngine {
             .await
             .map_err(|e| format!("Browser::launch failed: {e}"))?;
 
-        let handler_task = tokio::spawn(async move {
-            while handler.next().await.is_some() {}
-        });
+        let handler_task = tokio::spawn(async move { while handler.next().await.is_some() {} });
 
         *guard = Some(HostInner {
             _handler_task: handler_task,

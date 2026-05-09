@@ -63,7 +63,11 @@ impl SpeechToText for OratioPlugin {
     ///
     /// `config_json` shape: `{"sample_rate": 16000, "language": "en"}` (language optional).
     /// Returns: `{"text": "...", "language": "en", "segments": [...]}`
-    fn transcribe(&self, audio_pcm: RSlice<'_, u8>, config_json: RStr<'_>) -> RResult<RString, RBoxError> {
+    fn transcribe(
+        &self,
+        audio_pcm: RSlice<'_, u8>,
+        config_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
         #[cfg(feature = "stt-candle")]
         {
             use crate::backends::candle_whisper::transcribe_pcm_internal;
@@ -75,25 +79,30 @@ impl SpeechToText for OratioPlugin {
                     "audio_pcm length must be a multiple of 4 (mono f32 little-endian)",
                 )));
             }
-            let pcm: Vec<f32> = raw.chunks_exact(4)
+            let pcm: Vec<f32> = raw
+                .chunks_exact(4)
                 .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
                 .collect();
 
             // Parse language from config.
-            let language: Option<String> = serde_json::from_str::<serde_json::Value>(config_json.as_str())
-                .ok()
-                .and_then(|v| v.get("language")?.as_str().map(|s| s.to_string()));
+            let language: Option<String> =
+                serde_json::from_str::<serde_json::Value>(config_json.as_str())
+                    .ok()
+                    .and_then(|v| v.get("language")?.as_str().map(|s| s.to_string()));
 
             match transcribe_pcm_internal(&pcm, language.as_deref()) {
                 Ok((text, segments)) => {
                     let lang = language.as_deref().unwrap_or("auto");
-                    let seg_json: Vec<serde_json::Value> = segments.iter().map(|s| {
-                        serde_json::json!({
-                            "start_ms": s.start_ms,
-                            "end_ms": s.end_ms,
-                            "text": s.text,
+                    let seg_json: Vec<serde_json::Value> = segments
+                        .iter()
+                        .map(|s| {
+                            serde_json::json!({
+                                "start_ms": s.start_ms,
+                                "end_ms": s.end_ms,
+                                "text": s.text,
+                            })
                         })
-                    }).collect();
+                        .collect();
                     let out = serde_json::json!({
                         "text": text,
                         "language": lang,
@@ -126,9 +135,10 @@ impl SpeechToText for OratioPlugin {
             let file_path = std::path::Path::new(&path_str);
 
             // Extract optional language from config_json.
-            let language_override: Option<String> = serde_json::from_str::<serde_json::Value>(config_json.as_str())
-                .ok()
-                .and_then(|v| v.get("language")?.as_str().map(|s| s.to_string()));
+            let language_override: Option<String> =
+                serde_json::from_str::<serde_json::Value>(config_json.as_str())
+                    .ok()
+                    .and_then(|v| v.get("language")?.as_str().map(|s| s.to_string()));
 
             match transcribe_audio_file_with_language(file_path, language_override.as_deref()) {
                 Ok(text) => {
@@ -160,7 +170,11 @@ impl SpeechToText for OratioPlugin {
         )))
     }
 
-    fn push_audio(&self, _session_id: RStr<'_>, _audio_pcm: RSlice<'_, u8>) -> RResult<RString, RBoxError> {
+    fn push_audio(
+        &self,
+        _session_id: RStr<'_>,
+        _audio_pcm: RSlice<'_, u8>,
+    ) -> RResult<RString, RBoxError> {
         RResult::RErr(RBoxError::new(std::io::Error::other(
             "streaming transcription not yet supported in vox-plugin-oratio; use transcribe() for batch",
         )))
@@ -173,7 +187,9 @@ impl SpeechToText for OratioPlugin {
     }
 }
 
-pub(crate) fn make_plugin(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError> {
+pub(crate) fn make_plugin(
+    _host: VoxHost_TO<'static, RBox<()>>,
+) -> RResult<VoxPluginRef, RBoxError> {
     let plugin = OratioPlugin;
     let to = VoxPlugin_TO::from_value(plugin, TD_Opaque);
     RResult::ROk(to)

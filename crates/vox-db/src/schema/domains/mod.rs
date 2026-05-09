@@ -1,7 +1,6 @@
 pub mod agents;
 pub mod cas_codex;
 pub mod ci_completion;
-pub mod secrets_cloudless;
 pub mod conversations;
 pub mod developer_journeys;
 pub mod exec_time;
@@ -14,6 +13,7 @@ pub mod mens_intelligence;
 pub mod packages;
 pub mod publish_cloud;
 pub mod scientia;
+pub mod secrets_cloudless;
 pub mod toestub_build;
 pub mod visus;
 pub mod vox_mesh;

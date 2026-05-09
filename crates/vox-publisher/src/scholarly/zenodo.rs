@@ -85,7 +85,6 @@ impl ZenodoHttpClient {
         format!("{}/deposit/depositions", self.base.trim_end_matches('/'))
     }
 
-
     fn url_deposition(&self, id: &str) -> String {
         format!(
             "{}/deposit/depositions/{id}",

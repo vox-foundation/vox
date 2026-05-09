@@ -5,6 +5,6 @@
 //! compiling.
 
 pub use vox_plugin_types::plugin_manifest::{
-    CodePayload, CompositePayload, HostRequirement, NativeLib, PayloadProvides,
-    PayloadRequires, PluginHeader, PluginManifest, PluginPayload, SkillPayload, SkillTools,
+    CodePayload, CompositePayload, HostRequirement, NativeLib, PayloadProvides, PayloadRequires,
+    PluginHeader, PluginManifest, PluginPayload, SkillPayload, SkillTools,
 };

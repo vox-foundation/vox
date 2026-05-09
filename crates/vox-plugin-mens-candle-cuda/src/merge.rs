@@ -216,8 +216,8 @@ pub fn merge_qlora_adapter(
     };
     let meta_raw = std::fs::read_to_string(&meta_path)
         .with_context(|| format!("read {}", meta_path.display()))?;
-    let meta: PopuliAdapterManifestV3 = serde_json::from_str(&meta_raw)
-        .with_context(|| "parse adapter manifest JSON")?;
+    let meta: PopuliAdapterManifestV3 =
+        serde_json::from_str(&meta_raw).with_context(|| "parse adapter manifest JSON")?;
 
     // Collect base shards from base_path directory
     let mut base_shards = Vec::new();

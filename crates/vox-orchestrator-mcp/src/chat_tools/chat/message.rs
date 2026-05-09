@@ -16,8 +16,8 @@ use crate::memory::{RetrievalTriggerMode, run_retrieval_bundle};
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use crate::session_identity::normalize_chat_session_id;
-use vox_orchestrator::session_context_envelope_key;
 use vox_actor_runtime::prompt_canonical;
+use vox_orchestrator::session_context_envelope_key;
 
 const REM_CHAT_CANONICAL: &str = "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
 const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
@@ -248,23 +248,21 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
         );
     }
     let ctx_handle = state.orchestrator.context_handle();
-    let session_ts = match crate::sync_poison::poison_rw_read(
-        ctx_handle.read(),
-        "orchestrator context",
-    ) {
-        Ok(guard) => guard
-            .age_secs(&format!("chat_history:{session_id}"))
-            .map(|a: u64| format!(" Session last active: {a}s ago."))
-            .unwrap_or_default(),
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                tool = "vox_chat_message",
-                "context lock poisoned; skipping session age hint"
-            );
-            String::new()
-        }
-    };
+    let session_ts =
+        match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context") {
+            Ok(guard) => guard
+                .age_secs(&format!("chat_history:{session_id}"))
+                .map(|a: u64| format!(" Session last active: {a}s ago."))
+                .unwrap_or_default(),
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    tool = "vox_chat_message",
+                    "context lock poisoned; skipping session age hint"
+                );
+                String::new()
+            }
+        };
     let system_prompt = format!(
         "{}{}\n\n{}",
         build_system_prompt(state, None).await,
@@ -308,9 +306,8 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                             None
                         }
                     };
-                    let max_tokens = crate::llm_bridge::clamp_http_max_output_tokens(
-                        model.max_tokens,
-                    );
+                    let max_tokens =
+                        crate::llm_bridge::clamp_http_max_output_tokens(model.max_tokens);
                     let routing = McpInferRouting {
                         user_prompt: &user_prompt,
                         sticky_model_pref: pref.as_deref(),
@@ -450,10 +447,7 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
     match serde_json::to_string(&history) {
         Ok(history_json) => {
             let ctx_handle = state.orchestrator.context_handle();
-            match crate::sync_poison::poison_rw_write(
-                ctx_handle.write(),
-                "orchestrator context",
-            ) {
+            match crate::sync_poison::poison_rw_write(ctx_handle.write(), "orchestrator context") {
                 Ok(ctx) => {
                     ctx.set(vox_orchestrator::AgentId(0), &history_key, &history_json, 0);
                     if let Some(ev) = &retrieval_evidence {
@@ -462,7 +456,12 @@ pub async fn chat_message(state: &ServerState, params: ChatMessageParams) -> Str
                             Some(session_id.as_str()),
                         );
                         if let Ok(context_json) = serde_json::to_string(&context_envelope) {
-                            ctx.set(vox_orchestrator::AgentId(0), &context_key, &context_json, 3600);
+                            ctx.set(
+                                vox_orchestrator::AgentId(0),
+                                &context_key,
+                                &context_json,
+                                3600,
+                            );
                         }
                     }
                 }

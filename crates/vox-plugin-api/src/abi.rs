@@ -18,12 +18,8 @@ use crate::extensions::speech_to_text::SpeechToText_TO;
 use crate::extensions::tensor_backend::TensorBackend_TO;
 use crate::host::VoxHost_TO;
 use abi_stable::{
-    StableAbi,
-    library::RootModule,
-    package_version_strings,
-    sabi_trait,
-    sabi_types::VersionStrings,
-    std_types::*,
+    StableAbi, library::RootModule, package_version_strings, sabi_trait,
+    sabi_types::VersionStrings, std_types::*,
 };
 
 #[repr(C)]
@@ -34,7 +30,8 @@ pub struct VoxPluginRoot {
     pub abi_version: u32,
     #[sabi(last_prefix_field)]
     pub manifest_json: extern "C" fn() -> RString,
-    pub init: extern "C" fn(host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError>,
+    pub init:
+        extern "C" fn(host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError>,
 }
 
 impl RootModule for VoxPluginRootRef {

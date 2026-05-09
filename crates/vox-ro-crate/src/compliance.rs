@@ -13,7 +13,7 @@ pub struct TopComplianceReport {
     pub data_citation: TopLevel,
     pub data_transparency: TopLevel,
     pub analysis_code_transparency: TopLevel,
-    pub overall_level: TopLevel,  // min of the three
+    pub overall_level: TopLevel, // min of the three
 }
 
 impl TopComplianceReport {
@@ -27,13 +27,21 @@ impl TopComplianceReport {
     /// `overall_level` = min(data_citation, data_transparency, analysis_code_transparency)
     pub fn assess(has_data_doi: bool, has_code_doi: bool, has_preregistration: bool) -> Self {
         let data_citation = if has_data_doi {
-            if has_preregistration { TopLevel::Level3 } else { TopLevel::Level2 }
+            if has_preregistration {
+                TopLevel::Level3
+            } else {
+                TopLevel::Level2
+            }
         } else {
             TopLevel::Level0
         };
 
         let data_transparency = if has_data_doi && has_code_doi {
-            if has_preregistration { TopLevel::Level3 } else { TopLevel::Level2 }
+            if has_preregistration {
+                TopLevel::Level3
+            } else {
+                TopLevel::Level2
+            }
         } else if has_data_doi {
             TopLevel::Level1
         } else {
@@ -41,13 +49,18 @@ impl TopComplianceReport {
         };
 
         let analysis_code_transparency = if has_code_doi {
-            if has_preregistration { TopLevel::Level3 } else { TopLevel::Level2 }
+            if has_preregistration {
+                TopLevel::Level3
+            } else {
+                TopLevel::Level2
+            }
         } else {
             TopLevel::Level0
         };
 
         // overall = min of the three dimensions
-        let overall_level = data_citation.clone()
+        let overall_level = data_citation
+            .clone()
             .min(data_transparency.clone())
             .min(analysis_code_transparency.clone());
 
@@ -66,9 +79,9 @@ impl TopComplianceReport {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AcmBadge {
-    pub name: String,    // e.g. "Artifacts Available"
-    pub url: String,     // e.g. "https://www.acm.org/publications/policies/artifact-review-and-badging-current"
-    pub awarded: bool,   // true if Zenodo deposit exists
+    pub name: String,  // e.g. "Artifacts Available"
+    pub url: String, // e.g. "https://www.acm.org/publications/policies/artifact-review-and-badging-current"
+    pub awarded: bool, // true if Zenodo deposit exists
 }
 
 pub fn acm_artifacts_available_badge(zenodo_doi: Option<&str>) -> AcmBadge {

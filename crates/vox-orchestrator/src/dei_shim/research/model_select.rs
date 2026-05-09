@@ -6,9 +6,9 @@
 //! PHASE_0a_STUB: all picks return config-based fallbacks; no dynamic registry resolution.
 
 // Re-export from the single source of truth in vox-config.
+pub(crate) use vox_config::NLI_FALLBACK as FALLBACK_NLI_MODEL_ID;
 pub(crate) use vox_config::RESEARCH_FLASH_FALLBACK as FALLBACK_RESEARCH_FLASH_MODEL_ID;
 pub(crate) use vox_config::REVIEW_PREMIUM_FALLBACK as FALLBACK_REVIEW_PREMIUM_MODEL_ID;
-pub(crate) use vox_config::NLI_FALLBACK as FALLBACK_NLI_MODEL_ID;
 
 /// Opaque inference config passed to model resolution.
 ///

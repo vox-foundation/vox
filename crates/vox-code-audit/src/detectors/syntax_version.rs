@@ -25,10 +25,8 @@ impl Default for SyntaxVersionDetector {
 impl SyntaxVersionDetector {
     pub fn new() -> Self {
         Self {
-            version_decl: Regex::new(
-                r#"(?://|#)\s*syntax_version\s*=\s*"([^"]*)""#,
-            )
-            .expect("valid regex"),
+            version_decl: Regex::new(r#"(?://|#)\s*syntax_version\s*=\s*"([^"]*)""#)
+                .expect("valid regex"),
             valid_version: Regex::new(r"^\d+\.\d+$").expect("valid regex"),
             supported_langs: vec![Language::Vox],
         }
@@ -65,7 +63,11 @@ impl DetectionRule for SyntaxVersionDetector {
         "Vox source files may declare `// syntax_version = \"X.Y\"` at the top; the version must be in `\\d+\\.\\d+` format and must not conflict if declared more than once."
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if file.language != Language::Vox {
             return vec![];
         }
@@ -175,7 +177,10 @@ mod tests {
         let code = "// syntax_version = \"0.4\"\n// some comment\n// syntax_version = \"0.5\"\nfn foo() {}";
         let f = source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag conflicting version declarations");
+        assert!(
+            !findings.is_empty(),
+            "should flag conflicting version declarations"
+        );
         assert!(findings[0].message.contains("Conflicting"));
     }
 
@@ -185,7 +190,10 @@ mod tests {
         let code = "// syntax_version = \"0.5\"\n// syntax_version = \"0.5\"\nfn foo() {}";
         let f = source(code);
         let findings = d.detect(&f, None);
-        assert!(findings.is_empty(), "identical duplicate declarations should not fire");
+        assert!(
+            findings.is_empty(),
+            "identical duplicate declarations should not fire"
+        );
     }
 
     #[test]

@@ -97,11 +97,10 @@ pub fn run_merge_qlora(
     let result = (|| -> anyhow::Result<()> {
         let plugin = vox_plugin_host::cached_code_plugin("mens-candle-cuda")
             .context("mens-candle-cuda plugin not found — install vox-plugin-mens-candle-cuda")?;
-        let backend = plugin
-            .plugin
-            .as_ml_backend()
-            .into_option()
-            .ok_or_else(|| anyhow::anyhow!("mens-candle-cuda plugin does not provide MlBackend"))?;
+        let backend =
+            plugin.plugin.as_ml_backend().into_option().ok_or_else(|| {
+                anyhow::anyhow!("mens-candle-cuda plugin does not provide MlBackend")
+            })?;
         backend
             .merge_adapter(
                 base_dir.to_string_lossy().as_ref().into(),

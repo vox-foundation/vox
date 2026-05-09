@@ -1,8 +1,8 @@
+use super::SweepRule;
+use crate::features::{ExtractedFeatures, LiteralContext};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use vox_code_audit::rules::{Finding, FindingConfidence, Severity};
-use crate::features::{ExtractedFeatures, LiteralContext};
-use super::SweepRule;
 
 pub struct LiteralDedupRule {
     pub threshold: usize,
@@ -11,22 +11,36 @@ pub struct LiteralDedupRule {
 
 impl Default for LiteralDedupRule {
     fn default() -> Self {
-        Self { threshold: 3, min_length: 8 }
+        Self {
+            threshold: 3,
+            min_length: 8,
+        }
     }
 }
 
 impl SweepRule for LiteralDedupRule {
-    fn id(&self) -> &'static str { "sweep/duplicate-string-literal" }
-    fn severity(&self) -> Severity { Severity::Info }
+    fn id(&self) -> &'static str {
+        "sweep/duplicate-string-literal"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Info
+    }
 
     fn sweep(&self, files: &[ExtractedFeatures]) -> Vec<Finding> {
         let mut index: HashMap<String, Vec<(PathBuf, usize)>> = HashMap::new();
         for f in files {
             for lit in &f.string_literals {
-                if lit.value.len() < self.min_length { continue; }
-                if matches!(lit.ctx, LiteralContext::ConstDecl | LiteralContext::Doc) { continue; }
-                if is_ignored_path(&f.file) { continue; }
-                index.entry(lit.value.clone())
+                if lit.value.len() < self.min_length {
+                    continue;
+                }
+                if matches!(lit.ctx, LiteralContext::ConstDecl | LiteralContext::Doc) {
+                    continue;
+                }
+                if is_ignored_path(&f.file) {
+                    continue;
+                }
+                index
+                    .entry(lit.value.clone())
                     .or_default()
                     .push((f.file.clone(), lit.loc.line));
             }
@@ -66,9 +80,12 @@ impl SweepRule for LiteralDedupRule {
 
 fn is_ignored_path(p: &std::path::Path) -> bool {
     let s = p.to_string_lossy();
-    s.contains("/tests/") || s.contains("\\tests\\")
-        || s.contains("/fixtures/") || s.contains("\\fixtures\\")
-        || s.contains("/golden/") || s.contains("\\golden\\")
+    s.contains("/tests/")
+        || s.contains("\\tests\\")
+        || s.contains("/fixtures/")
+        || s.contains("\\fixtures\\")
+        || s.contains("/golden/")
+        || s.contains("\\golden\\")
         || s.ends_with("_test.rs")
         || s.ends_with(".generated.md")
 }

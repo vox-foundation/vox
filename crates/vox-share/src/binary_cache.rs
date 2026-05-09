@@ -20,11 +20,26 @@ pub fn cloudflared_url_and_checksum() -> Option<(String, &'static str)> {
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
     let (filename, checksum): (&str, &str) = match (os, arch) {
-        ("linux", "x86_64")  => ("cloudflared-linux-amd64",       "4a9e50e6d6d798e90fcd01933151a90bf7edd99a0a55c28ad18f2e16263a5c30"),
-        ("linux", "aarch64") => ("cloudflared-linux-arm64",        "0755ba4cbab59980e6148367fcf53a8f3ec85a97deefd63c2420cf7850769bee"),
-        ("macos", "x86_64")  => ("cloudflared-darwin-amd64.tgz",   "b91dbec79a3e3809d5508b96d8b0bdfbf3ad7d51f858200228fa3e57100580d9"),
-        ("macos", "aarch64") => ("cloudflared-darwin-arm64.tgz",   "633cee0fd41fd2020e17498beecc54811bf4fc99f891c080dc9343eb0f449c60"),
-        ("windows", "x86_64")=> ("cloudflared-windows-amd64.exe",  "59b12880b24af581cf5b1013db601c7d843b9b097e9c78aa5957c7f39f741885"),
+        ("linux", "x86_64") => (
+            "cloudflared-linux-amd64",
+            "4a9e50e6d6d798e90fcd01933151a90bf7edd99a0a55c28ad18f2e16263a5c30",
+        ),
+        ("linux", "aarch64") => (
+            "cloudflared-linux-arm64",
+            "0755ba4cbab59980e6148367fcf53a8f3ec85a97deefd63c2420cf7850769bee",
+        ),
+        ("macos", "x86_64") => (
+            "cloudflared-darwin-amd64.tgz",
+            "b91dbec79a3e3809d5508b96d8b0bdfbf3ad7d51f858200228fa3e57100580d9",
+        ),
+        ("macos", "aarch64") => (
+            "cloudflared-darwin-arm64.tgz",
+            "633cee0fd41fd2020e17498beecc54811bf4fc99f891c080dc9343eb0f449c60",
+        ),
+        ("windows", "x86_64") => (
+            "cloudflared-windows-amd64.exe",
+            "59b12880b24af581cf5b1013db601c7d843b9b097e9c78aa5957c7f39f741885",
+        ),
         _ => return None,
     };
     let url = format!(
@@ -69,7 +84,11 @@ pub async fn ensure_cloudflared() -> ShareResult<PathBuf> {
         return Ok(bin_path);
     }
 
-    tracing::info!("Downloading cloudflared {} from {}", CLOUDFLARED_VERSION, url);
+    tracing::info!(
+        "Downloading cloudflared {} from {}",
+        CLOUDFLARED_VERSION,
+        url
+    );
     download_and_verify(&url, expected_sha, &bin_path).await?;
     make_executable(&bin_path)?;
     Ok(bin_path)
@@ -101,15 +120,19 @@ pub fn verify_sha256(path: &Path, expected: &str) -> ShareResult<bool> {
 }
 
 async fn download_and_verify(url: &str, expected_sha: &str, dest: &Path) -> ShareResult<()> {
-    let resp = reqwest::get(url).await
+    let resp = reqwest::get(url)
+        .await
         .map_err(|e| ShareError::Config(format!("download {}: {}", url, e)))?;
     if !resp.status().is_success() {
         return Err(ShareError::Config(format!(
             "download {}: HTTP {}",
-            url, resp.status()
+            url,
+            resp.status()
         )));
     }
-    let bytes = resp.bytes().await
+    let bytes = resp
+        .bytes()
+        .await
         .map_err(|e| ShareError::Config(format!("read download body: {}", e)))?;
 
     use sha2::{Digest, Sha256};

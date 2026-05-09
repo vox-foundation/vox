@@ -29,10 +29,10 @@ pub mod gateway;
 // `routes` moved to vox-orchestrator-mcp in 2026-05-08 reorg Phase 4.
 // Compatibility stub below keeps old `vox_orchestrator::services::routes` call sites
 // compiling until they are updated to import from vox-orchestrator-mcp.
-pub mod routes;
 #[cfg(feature = "news-publish")]
 pub mod news;
 pub mod policy;
+pub mod routes;
 pub mod routing;
 pub mod scaling;
 

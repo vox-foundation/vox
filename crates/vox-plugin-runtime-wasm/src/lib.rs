@@ -18,14 +18,10 @@
 //!
 //! Install: `vox plugin install runtime-wasm`
 
-use abi_stable::{
-    export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn, std_types::*,
-};
-use vox_plugin_api::abi::{
-    VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef,
-};
-use vox_plugin_api::host::VoxHost_TO;
+use abi_stable::{export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn, std_types::*};
 use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
+use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
+use vox_plugin_api::host::VoxHost_TO;
 
 pub mod runtime;
 

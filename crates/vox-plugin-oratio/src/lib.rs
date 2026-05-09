@@ -9,9 +9,9 @@ mod backends;
 mod oratio_internals;
 
 use abi_stable::{export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn, std_types::*};
+use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
 use vox_plugin_api::host::VoxHost_TO;
-use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 
 #[export_root_module]
 fn root_module() -> VoxPluginRootRef {

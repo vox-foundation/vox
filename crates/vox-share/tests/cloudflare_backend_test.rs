@@ -5,8 +5,8 @@
 //! mock binary path for the test.
 
 use std::time::Duration;
-use vox_share::{BackendKind, TunnelBackend};
 use vox_share::backends::cloudflare::CloudflareBackend;
+use vox_share::{BackendKind, TunnelBackend};
 
 /// Build the mock binary path. We use a shell/batch script as the mock.
 fn mock_cloudflared_path() -> std::path::PathBuf {
@@ -17,7 +17,11 @@ fn mock_cloudflared_path() -> std::path::PathBuf {
     #[cfg(unix)]
     {
         let script = tmp.join("cloudflared");
-        std::fs::write(&script, b"#!/bin/sh\nsleep 0.1\necho 'INF https://test-mock.trycloudflare.com' >&2\nsleep 30\n").unwrap();
+        std::fs::write(
+            &script,
+            b"#!/bin/sh\nsleep 0.1\necho 'INF https://test-mock.trycloudflare.com' >&2\nsleep 30\n",
+        )
+        .unwrap();
         use std::os::unix::fs::PermissionsExt;
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
         script
@@ -35,7 +39,9 @@ async fn cloudflare_backend_parses_url_from_mock() {
     let mock_path = mock_cloudflared_path();
 
     // Point the binary cache at our mock.
-    unsafe { std::env::set_var("VOX_CLOUDFLARED_PATH", mock_path.to_str().unwrap()); }
+    unsafe {
+        std::env::set_var("VOX_CLOUDFLARED_PATH", mock_path.to_str().unwrap());
+    }
 
     let backend = CloudflareBackend::new();
     assert_eq!(backend.kind(), BackendKind::Cloudflare);
@@ -45,7 +51,9 @@ async fn cloudflare_backend_parses_url_from_mock() {
         .await
         .expect("Cloudflare backend should parse URL from mock cloudflared");
 
-    unsafe { std::env::remove_var("VOX_CLOUDFLARED_PATH"); }
+    unsafe {
+        std::env::remove_var("VOX_CLOUDFLARED_PATH");
+    }
 
     assert_eq!(handle.backend, BackendKind::Cloudflare);
     assert!(
@@ -60,9 +68,16 @@ async fn cloudflare_backend_parses_url_from_mock() {
 #[tokio::test]
 async fn cloudflare_backend_preflight_fails_without_binary() {
     // Point at a nonexistent path so preflight fails.
-    unsafe { std::env::set_var("VOX_CLOUDFLARED_PATH", "/nonexistent/cloudflared"); }
+    unsafe {
+        std::env::set_var("VOX_CLOUDFLARED_PATH", "/nonexistent/cloudflared");
+    }
     let backend = CloudflareBackend::new();
     let result = backend.preflight().await;
-    unsafe { std::env::remove_var("VOX_CLOUDFLARED_PATH"); }
-    assert!(result.is_err(), "preflight should fail when binary is missing");
+    unsafe {
+        std::env::remove_var("VOX_CLOUDFLARED_PATH");
+    }
+    assert!(
+        result.is_err(),
+        "preflight should fail when binary is missing"
+    );
 }

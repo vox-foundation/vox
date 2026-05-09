@@ -44,6 +44,5 @@ pub fn models_router<S>() -> Router<S>
 where
     S: Clone + Send + Sync + 'static,
 {
-    Router::new()
-        .route("/api/v2/models/usage_24h", get(get_usage_24h))
+    Router::new().route("/api/v2/models/usage_24h", get(get_usage_24h))
 }

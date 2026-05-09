@@ -1,19 +1,25 @@
+use super::SweepRule;
+use crate::features::{ExtractedFeatures, UnitHint};
 use std::collections::HashMap;
 use vox_code_audit::rules::{Finding, FindingConfidence, Severity};
-use crate::features::{ExtractedFeatures, UnitHint};
-use super::SweepRule;
 
 pub struct NumericDedupRule {
     pub threshold: usize,
 }
 
 impl Default for NumericDedupRule {
-    fn default() -> Self { Self { threshold: 3 } }
+    fn default() -> Self {
+        Self { threshold: 3 }
+    }
 }
 
 impl SweepRule for NumericDedupRule {
-    fn id(&self) -> &'static str { "sweep/duplicate-numeric-literal" }
-    fn severity(&self) -> Severity { Severity::Warning }
+    fn id(&self) -> &'static str {
+        "sweep/duplicate-numeric-literal"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Warning
+    }
 
     fn sweep(&self, files: &[ExtractedFeatures]) -> Vec<Finding> {
         let mut index: HashMap<(u64, u8), Vec<(std::path::PathBuf, usize)>> = HashMap::new();
@@ -26,7 +32,10 @@ impl SweepRule for NumericDedupRule {
                     _ => continue,
                 };
                 let key = (n.value.to_bits(), unit_disc);
-                index.entry(key).or_default().push((f.file.clone(), n.loc.line));
+                index
+                    .entry(key)
+                    .or_default()
+                    .push((f.file.clone(), n.loc.line));
             }
         }
         index.into_iter()

@@ -38,12 +38,30 @@ pub async fn list_companions(db: &Codex, user_id: &str) -> Result<Vec<Companion>
                 .unwrap_or("neutral")
                 .parse::<Mood>()
                 .unwrap_or(Mood::Neutral),
-            health: r[8].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            max_health: r[9].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            energy: r[10].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            max_energy: r[11].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            code_quality: r[12].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(50) as u8,
-            last_active: r[13].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or_default(),
+            health: r[8]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            max_health: r[9]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            energy: r[10]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            max_energy: r[11]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            code_quality: r[12]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(50) as u8,
+            last_active: r[13]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or_default(),
             personality,
         });
     }
@@ -130,12 +148,30 @@ pub async fn get_companion(db: &Codex, id: &str) -> Result<Option<Companion>> {
                 .unwrap_or("neutral")
                 .parse::<Mood>()
                 .unwrap_or(Mood::Neutral),
-            health: r[8].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            max_health: r[9].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            energy: r[10].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            max_energy: r[11].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(100) as i32,
-            code_quality: r[12].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or(50) as u8,
-            last_active: r[13].as_deref().and_then(|s| s.parse::<i64>().ok()).unwrap_or_default(),
+            health: r[8]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            max_health: r[9]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            energy: r[10]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            max_energy: r[11]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(100) as i32,
+            code_quality: r[12]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or(50) as u8,
+            last_active: r[13]
+                .as_deref()
+                .and_then(|s| s.parse::<i64>().ok())
+                .unwrap_or_default(),
             personality,
         }))
     } else {

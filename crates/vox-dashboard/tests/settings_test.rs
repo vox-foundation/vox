@@ -11,14 +11,18 @@ use vox_dashboard::{api::settings::SettingsState, dashboard_router};
 struct EnvGuard(&'static str);
 impl Drop for EnvGuard {
     fn drop(&mut self) {
-        unsafe { env::remove_var(self.0); }
+        unsafe {
+            env::remove_var(self.0);
+        }
     }
 }
 
 fn setup_dummy_assets(dir: &tempfile::TempDir) {
     let index_path = dir.path().join("index.html");
     fs::write(index_path, "<html><head></head><body></body></html>").unwrap();
-    unsafe { env::set_var("VOX_DASHBOARD_ASSET_DIR", dir.path().to_str().unwrap()); }
+    unsafe {
+        env::set_var("VOX_DASHBOARD_ASSET_DIR", dir.path().to_str().unwrap());
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -36,7 +40,10 @@ async fn put_token_stores_only_masked_last4() {
     let snap = state.snapshot().await;
     assert_eq!(snap["tokens.anthropic.last4"], "9f2c");
     assert_eq!(snap["tokens.anthropic.status"], "ok");
-    assert!(snap["tokens.anthropic.added_ms"].is_number(), "added_ms should be a number");
+    assert!(
+        snap["tokens.anthropic.added_ms"].is_number(),
+        "added_ms should be a number"
+    );
 
     // Critical: the full token must NOT appear in the persisted file.
     let json_on_disk = fs::read_to_string(&settings_json).unwrap();
@@ -57,9 +64,18 @@ async fn remove_token_clears_keys() {
 
     state.remove_token("openai").await.unwrap();
     let snap = state.snapshot().await;
-    assert!(snap.get("tokens.openai.last4").is_none(), "last4 should be gone");
-    assert!(snap.get("tokens.openai.added_ms").is_none(), "added_ms should be gone");
-    assert!(snap.get("tokens.openai.status").is_none(), "status should be gone");
+    assert!(
+        snap.get("tokens.openai.last4").is_none(),
+        "last4 should be gone"
+    );
+    assert!(
+        snap.get("tokens.openai.added_ms").is_none(),
+        "added_ms should be gone"
+    );
+    assert!(
+        snap.get("tokens.openai.status").is_none(),
+        "status should be gone"
+    );
 }
 
 #[tokio::test]
@@ -89,7 +105,9 @@ async fn put_token_route_via_http() {
     let tmp = tempfile::tempdir().unwrap();
     setup_dummy_assets(&tmp);
     let dir_str = tmp.path().to_str().unwrap().to_string();
-    unsafe { env::set_var("VOX_CONFIG_DIR", &dir_str); }
+    unsafe {
+        env::set_var("VOX_CONFIG_DIR", &dir_str);
+    }
     let _guard = EnvGuard("VOX_CONFIG_DIR");
 
     let app = dashboard_router::<()>(None);
@@ -104,7 +122,9 @@ async fn put_token_route_via_http() {
     let resp = app.oneshot(req).await.unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
 
-    let bytes = axum::body::to_bytes(resp.into_body(), 1024 * 64).await.unwrap();
+    let bytes = axum::body::to_bytes(resp.into_body(), 1024 * 64)
+        .await
+        .unwrap();
     let val: Value = serde_json::from_slice(&bytes).unwrap();
 
     // Envelope shape
@@ -115,12 +135,17 @@ async fn put_token_route_via_http() {
 
     // The full token must NOT appear in the response body.
     let raw = std::str::from_utf8(&bytes).unwrap();
-    assert!(!raw.contains("sk-test-9f2c"), "full token must not appear in response");
+    assert!(
+        !raw.contains("sk-test-9f2c"),
+        "full token must not appear in response"
+    );
 
     // The persisted file must contain only last4, not the full token.
-    let json_on_disk =
-        fs::read_to_string(tmp.path().join("dashboard-settings.json")).unwrap();
-    assert!(!json_on_disk.contains("sk-test-9f2c"), "full token leaked to disk");
+    let json_on_disk = fs::read_to_string(tmp.path().join("dashboard-settings.json")).unwrap();
+    assert!(
+        !json_on_disk.contains("sk-test-9f2c"),
+        "full token leaked to disk"
+    );
     assert!(json_on_disk.contains("9f2c"), "last4 must be on disk");
 }
 
@@ -130,7 +155,9 @@ async fn put_token_route_returns_400_on_missing_token() {
     let tmp = tempfile::tempdir().unwrap();
     setup_dummy_assets(&tmp);
     let dir_str = tmp.path().to_str().unwrap().to_string();
-    unsafe { env::set_var("VOX_CONFIG_DIR", &dir_str); }
+    unsafe {
+        env::set_var("VOX_CONFIG_DIR", &dir_str);
+    }
     let _guard = EnvGuard("VOX_CONFIG_DIR");
 
     let app = dashboard_router::<()>(None);
@@ -152,7 +179,9 @@ async fn put_token_route_returns_400_on_empty_token() {
     let tmp = tempfile::tempdir().unwrap();
     setup_dummy_assets(&tmp);
     let dir_str = tmp.path().to_str().unwrap().to_string();
-    unsafe { env::set_var("VOX_CONFIG_DIR", &dir_str); }
+    unsafe {
+        env::set_var("VOX_CONFIG_DIR", &dir_str);
+    }
     let _guard = EnvGuard("VOX_CONFIG_DIR");
 
     let app = dashboard_router::<()>(None);
@@ -173,7 +202,9 @@ async fn delete_token_route_removes_keys() {
     let tmp = tempfile::tempdir().unwrap();
     setup_dummy_assets(&tmp);
     let dir_str = tmp.path().to_str().unwrap().to_string();
-    unsafe { env::set_var("VOX_CONFIG_DIR", &dir_str); }
+    unsafe {
+        env::set_var("VOX_CONFIG_DIR", &dir_str);
+    }
     let _guard = EnvGuard("VOX_CONFIG_DIR");
 
     // First PUT a token.
@@ -196,14 +227,18 @@ async fn delete_token_route_removes_keys() {
     let del_resp = app.oneshot(del_req).await.unwrap();
     assert_eq!(del_resp.status(), StatusCode::OK);
 
-    let bytes = axum::body::to_bytes(del_resp.into_body(), 1024 * 64).await.unwrap();
+    let bytes = axum::body::to_bytes(del_resp.into_body(), 1024 * 64)
+        .await
+        .unwrap();
     let val: Value = serde_json::from_slice(&bytes).unwrap();
     assert_eq!(val["v"], 1);
     assert_eq!(val["data"]["provider"], "openai");
     assert_eq!(val["data"]["removed"], true);
 
     // Key must be absent from disk.
-    let json_on_disk =
-        fs::read_to_string(tmp.path().join("dashboard-settings.json")).unwrap();
-    assert!(!json_on_disk.contains("openai"), "token keys should be gone from disk");
+    let json_on_disk = fs::read_to_string(tmp.path().join("dashboard-settings.json")).unwrap();
+    assert!(
+        !json_on_disk.contains("openai"),
+        "token keys should be gone from disk"
+    );
 }

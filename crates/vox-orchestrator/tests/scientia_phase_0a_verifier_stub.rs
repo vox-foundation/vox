@@ -14,5 +14,8 @@ async fn verify_claims_stub_returns_empty() {
     let registry = ProviderRegistry::default();
     let cfg = vox_orchestrator::dei_shim::research::verifier::VerifierConfig::default();
     let verdicts = verify_claims_with_config(&claims, "q", &registry, &cfg, None, None).await;
-    assert!(verdicts.is_empty(), "Phase 0a verifier stub must return Vec::new()");
+    assert!(
+        verdicts.is_empty(),
+        "Phase 0a verifier stub must return Vec::new()"
+    );
 }

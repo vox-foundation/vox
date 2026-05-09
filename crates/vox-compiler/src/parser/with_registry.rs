@@ -22,7 +22,7 @@
 
 use crate::ast::decl::{Decl, Module};
 use crate::ast::decl::{
-    FragmentDecl, ReactiveComponentDecl, ReactiveModuleDecl, ReactiveMemberDecl,
+    FragmentDecl, ReactiveComponentDecl, ReactiveMemberDecl, ReactiveModuleDecl,
 };
 use crate::ast::expr::{Expr, JsxElement, JsxSelfClosingElement, StringPart};
 use crate::ast::span::Span;
@@ -123,7 +123,9 @@ fn walk_decl(
                 walk_stmt(stmt, registry, warnings, primitives_used);
             }
         }
-        Decl::ReactiveComponent(rc) => walk_reactive_component(rc, registry, warnings, primitives_used),
+        Decl::ReactiveComponent(rc) => {
+            walk_reactive_component(rc, registry, warnings, primitives_used)
+        }
         Decl::ReactiveModule(rm) => walk_reactive_module(rm, registry, warnings, primitives_used),
         Decl::Fragment(frag) => walk_fragment(frag, registry, warnings, primitives_used),
         Decl::Const(c) => {
@@ -207,7 +209,9 @@ fn walk_stmt(
         Stmt::Let { value, .. } => walk_expr(value, registry, warnings, primitives_used),
         Stmt::Return { value: Some(v), .. } => walk_expr(v, registry, warnings, primitives_used),
         Stmt::Assign { value, .. } => walk_expr(value, registry, warnings, primitives_used),
-        Stmt::While { condition, body, .. } => {
+        Stmt::While {
+            condition, body, ..
+        } => {
             walk_expr(condition, registry, warnings, primitives_used);
             for s in body {
                 walk_stmt(s, registry, warnings, primitives_used);
@@ -276,9 +280,7 @@ fn walk_expr(
                 }
             }
         }
-        Expr::For {
-            iterable, body, ..
-        } => {
+        Expr::For { iterable, body, .. } => {
             walk_expr(iterable, registry, warnings, primitives_used);
             walk_expr(body, registry, warnings, primitives_used);
         }
@@ -327,7 +329,9 @@ fn walk_expr(
             walk_expr(object, registry, warnings, primitives_used);
             walk_expr(index, registry, warnings, primitives_used);
         }
-        Expr::With { operand, options, .. } => {
+        Expr::With {
+            operand, options, ..
+        } => {
             walk_expr(operand, registry, warnings, primitives_used);
             walk_expr(options, registry, warnings, primitives_used);
         }

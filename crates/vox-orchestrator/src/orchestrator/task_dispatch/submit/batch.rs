@@ -216,10 +216,12 @@ impl Orchestrator {
                         tracing::warn!("serialize ProcessQueue: {e}");
                         "{}".to_string()
                     });
-                let env = vox_actor_runtime::mailbox::Envelope::Message(vox_actor_runtime::mailbox::Message {
-                    from: vox_actor_runtime::Pid::new(),
-                    payload: vox_actor_runtime::mailbox::MessagePayload::Json(json),
-                });
+                let env = vox_actor_runtime::mailbox::Envelope::Message(
+                    vox_actor_runtime::mailbox::Message {
+                        from: vox_actor_runtime::Pid::new(),
+                        payload: vox_actor_runtime::mailbox::MessagePayload::Json(json),
+                    },
+                );
                 let handle: &vox_actor_runtime::process::ProcessHandle = &handle;
                 match tokio::time::timeout(AGENT_NOTIFY_TIMEOUT, handle.send(env)).await {
                     Ok(send_res) => {

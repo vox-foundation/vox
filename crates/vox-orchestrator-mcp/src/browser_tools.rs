@@ -32,7 +32,12 @@ where
     let plugin = vox_plugin_host::cached_code_plugin("browser")
         .map_err(|e| anyhow::anyhow!("browser plugin load: {e}"))?;
     // Verify the accessor is present before handing off.
-    if plugin.plugin.as_browser_automation().into_option().is_none() {
+    if plugin
+        .plugin
+        .as_browser_automation()
+        .into_option()
+        .is_none()
+    {
         return Err(anyhow::anyhow!(
             "browser plugin loaded but BrowserAutomation accessor returned None"
         ));
@@ -82,7 +87,8 @@ pub async fn browser_open(_state: &ServerState, p: BrowserOpenParams) -> String 
 pub async fn browser_close(_state: &ServerState, p: BrowserPageParams) -> String {
     let page_id = p.page_id.clone();
     match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| { let b = backend!(p);
+        with_browser_plugin(|p| {
+            let b = backend!(p);
             b.close(page_id.as_str().into())
                 .into_result()
                 .map_err(|e| anyhow::anyhow!("browser close: {e}"))
@@ -100,7 +106,8 @@ pub async fn browser_goto(_state: &ServerState, p: BrowserGotoParams) -> String 
     let page_id = p.page_id.clone();
     let url = p.url.clone();
     match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| { let b = backend!(p);
+        with_browser_plugin(|p| {
+            let b = backend!(p);
             b.goto(page_id.as_str().into(), url.as_str().into())
                 .into_result()
                 .map_err(|e| anyhow::anyhow!("browser goto: {e}"))
@@ -118,7 +125,8 @@ pub async fn browser_click(_state: &ServerState, p: BrowserTargetParams) -> Stri
     let page_id = p.page_id.clone();
     let target = p.target.clone();
     match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| { let b = backend!(p);
+        with_browser_plugin(|p| {
+            let b = backend!(p);
             b.click(page_id.as_str().into(), target.as_str().into())
                 .into_result()
                 .map_err(|e| anyhow::anyhow!("browser click: {e}"))
@@ -137,7 +145,8 @@ pub async fn browser_fill(_state: &ServerState, p: BrowserFillParams) -> String 
     let target = p.target.clone();
     let value = p.value.clone();
     match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| { let b = backend!(p);
+        with_browser_plugin(|p| {
+            let b = backend!(p);
             b.fill(
                 page_id.as_str().into(),
                 target.as_str().into(),
@@ -160,10 +169,15 @@ pub async fn browser_wait_for(_state: &ServerState, p: BrowserWaitParams) -> Str
     let target = p.target.clone();
     let timeout_secs = p.timeout_secs;
     match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| { let b = backend!(p);
-            b.wait_for(page_id.as_str().into(), target.as_str().into(), timeout_secs)
-                .into_result()
-                .map_err(|e| anyhow::anyhow!("browser wait_for: {e}"))
+        with_browser_plugin(|p| {
+            let b = backend!(p);
+            b.wait_for(
+                page_id.as_str().into(),
+                target.as_str().into(),
+                timeout_secs,
+            )
+            .into_result()
+            .map_err(|e| anyhow::anyhow!("browser wait_for: {e}"))
         })
     })
     .await
@@ -178,7 +192,8 @@ pub async fn browser_text(_state: &ServerState, p: BrowserTargetParams) -> Strin
     let page_id = p.page_id.clone();
     let target = p.target.clone();
     match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| { let b = backend!(p);
+        with_browser_plugin(|p| {
+            let b = backend!(p);
             b.text(page_id.as_str().into(), target.as_str().into())
                 .into_result()
                 .map(|s| s.into_string())
@@ -197,7 +212,8 @@ pub async fn browser_html(_state: &ServerState, p: BrowserHtmlParams) -> String 
     let page_id = p.page_id.clone();
     let target = p.target.clone();
     match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| { let b = backend!(p);
+        with_browser_plugin(|p| {
+            let b = backend!(p);
             b.html(page_id.as_str().into(), target.as_str().into())
                 .into_result()
                 .map(|s| s.into_string())
@@ -216,7 +232,8 @@ pub async fn browser_screenshot(_state: &ServerState, p: BrowserScreenshotParams
     let page_id = p.page_id.clone();
     let path = p.path.clone();
     match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| { let b = backend!(p);
+        with_browser_plugin(|p| {
+            let b = backend!(p);
             b.screenshot(page_id.as_str().into(), path.as_str().into())
                 .into_result()
                 .map(|s| s.into_string())
@@ -235,7 +252,8 @@ pub async fn browser_extract(state: &ServerState, p: BrowserExtractParams) -> St
     let page_id = p.page_id.clone();
     let max_chars = summary_max_chars() as u64;
     let summary = match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| { let b = backend!(p);
+        with_browser_plugin(|p| {
+            let b = backend!(p);
             b.visible_text_summary(page_id.as_str().into(), max_chars)
                 .into_result()
                 .map(|s| s.into_string())
@@ -247,7 +265,7 @@ pub async fn browser_extract(state: &ServerState, p: BrowserExtractParams) -> St
         Ok(Ok(s)) => s,
         Ok(Err(e)) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json()
+            return ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json();
         }
     };
     let sys = "You help automate web pages. Answer ONLY with the extracted content requested — no preamble.";
@@ -274,7 +292,8 @@ pub async fn browser_extract_json(state: &ServerState, p: BrowserExtractJsonPara
     let page_id = p.page_id.clone();
     let max_chars = summary_max_chars() as u64;
     let summary = match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| { let b = backend!(p);
+        with_browser_plugin(|p| {
+            let b = backend!(p);
             b.visible_text_summary(page_id.as_str().into(), max_chars)
                 .into_result()
                 .map(|s| s.into_string())
@@ -286,7 +305,7 @@ pub async fn browser_extract_json(state: &ServerState, p: BrowserExtractJsonPara
         Ok(Ok(s)) => s,
         Ok(Err(e)) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json()
+            return ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json();
         }
     };
     let sys = "Reply with a single JSON object only (no markdown fences). The object MUST validate informally against the schema description given.";
@@ -335,7 +354,8 @@ pub async fn browser_act(state: &ServerState, p: BrowserActParams) -> String {
     let page_id = p.page_id.clone();
     let max_chars = summary_max_chars() as u64;
     let summary = match tokio::task::spawn_blocking(move || {
-        with_browser_plugin(|p| { let b = backend!(p);
+        with_browser_plugin(|p| {
+            let b = backend!(p);
             b.visible_text_summary(page_id.as_str().into(), max_chars)
                 .into_result()
                 .map(|s| s.into_string())
@@ -347,7 +367,7 @@ pub async fn browser_act(state: &ServerState, p: BrowserActParams) -> String {
         Ok(Ok(s)) => s,
         Ok(Err(e)) => return ToolResult::<serde_json::Value>::err(e.to_string()).to_json(),
         Err(e) => {
-            return ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json()
+            return ToolResult::<serde_json::Value>::err(format!("spawn_blocking: {e}")).to_json();
         }
     };
     let sys = r#"Reply with ONE JSON object only, no markdown. Shape:
@@ -389,7 +409,8 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
             let url = url.to_string();
             let page_id = page_id.clone();
             tokio::task::spawn_blocking(move || {
-                with_browser_plugin(|p| { let b = backend!(p);
+                with_browser_plugin(|p| {
+                    let b = backend!(p);
                     b.goto(page_id.as_str().into(), url.as_str().into())
                         .into_result()
                         .map_err(|e| anyhow::anyhow!("{e}"))
@@ -409,7 +430,8 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
             let t = t.to_string();
             let page_id = page_id.clone();
             tokio::task::spawn_blocking(move || {
-                with_browser_plugin(|p| { let b = backend!(p);
+                with_browser_plugin(|p| {
+                    let b = backend!(p);
                     b.wait_for(page_id.as_str().into(), t.as_str().into(), 30)
                         .into_result()
                         .map_err(|e| anyhow::anyhow!("{e}"))
@@ -429,7 +451,8 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
             let t = t.to_string();
             let page_id = page_id.clone();
             tokio::task::spawn_blocking(move || {
-                with_browser_plugin(|p| { let b = backend!(p);
+                with_browser_plugin(|p| {
+                    let b = backend!(p);
                     b.click(page_id.as_str().into(), t.as_str().into())
                         .into_result()
                         .map_err(|e| anyhow::anyhow!("{e}"))
@@ -453,7 +476,8 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
             let v = v.to_string();
             let page_id = page_id.clone();
             tokio::task::spawn_blocking(move || {
-                with_browser_plugin(|p| { let b = backend!(p);
+                with_browser_plugin(|p| {
+                    let b = backend!(p);
                     b.fill(
                         page_id.as_str().into(),
                         t.as_str().into(),

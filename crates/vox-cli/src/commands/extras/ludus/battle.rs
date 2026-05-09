@@ -2,9 +2,9 @@
 
 use anyhow::Result;
 use owo_colors::OwoColorize;
-use vox_gamify::{BattleFinding, run_battle_start, run_battle_submit};
 use vox_code_audit::rules::Severity;
 use vox_code_audit::{ToestubConfig, ToestubEngine};
+use vox_gamify::{BattleFinding, run_battle_start, run_battle_submit};
 
 use vox_bounded_fs::read_utf8_path_capped;
 

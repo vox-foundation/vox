@@ -33,8 +33,8 @@ pub(super) fn parse_conflict_id_value(v: Option<&serde_json::Value>) -> Option<C
 #[cfg(test)]
 mod id_parse_tests {
     use super::{_parse_snapshot_id_value, parse_conflict_id_value, parse_operation_id_value};
-    use vox_orchestrator::{ConflictId, OperationId, SnapshotId};
     use serde_json::json;
+    use vox_orchestrator::{ConflictId, OperationId, SnapshotId};
 
     #[test]
     fn snapshot_id_accepts_numeric_and_s_prefix() {

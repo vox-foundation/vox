@@ -50,10 +50,11 @@ struct OpenReviewConfig {
 fn merge_openreview_config(
     manifest: &PublicationManifest,
 ) -> Result<OpenReviewConfig, ScholarlyError> {
-    let mut invitation = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewInvitation)
-        .expose()
-        .unwrap_or_default()
-        .to_string();
+    let mut invitation =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewInvitation)
+            .expose()
+            .unwrap_or_default()
+            .to_string();
     let mut signature = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOpenReviewSignature)
         .expose()
         .unwrap_or_default()
@@ -433,7 +434,6 @@ impl super::ScholarlyAdapter for OpenReviewAdapter {
 pub(super) async fn openreview_adapter_from_env() -> Result<OpenReviewAdapter, ScholarlyError> {
     OpenReviewAdapter::new_from_env().await
 }
-
 
 #[cfg(test)]
 mod profile_export_tests {

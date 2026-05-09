@@ -1,12 +1,16 @@
 use vox_codegen::codegen_ts::emitter::generate;
-use vox_compiler::{parser::parse, lexer::cursor::lex, hir::lower_module};
+use vox_compiler::{hir::lower_module, lexer::cursor::lex, parser::parse};
 
 fn emit(src: &str) -> String {
     let m = parse(lex(src)).expect("parse");
     let hir = lower_module(&m);
-    generate(&hir).expect("emit").files.iter()
+    generate(&hir)
+        .expect("emit")
+        .files
+        .iter()
         .map(|(_, content)| content.clone())
-        .collect::<Vec<_>>().join("\n")
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 #[test]
@@ -48,5 +52,8 @@ component C() {
 }
 "#;
     let ts = emit(src);
-    assert!(ts.contains("env(safe-area-inset-top)"), "safe-area lost, got:\n{ts}");
+    assert!(
+        ts.contains("env(safe-area-inset-top)"),
+        "safe-area lost, got:\n{ts}"
+    );
 }

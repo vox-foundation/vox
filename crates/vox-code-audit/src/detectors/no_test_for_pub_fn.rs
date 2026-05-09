@@ -31,13 +31,8 @@ impl NoTestForPubFnDetector {
     }
 
     fn is_golden_path(file: &SourceFile) -> bool {
-        file.path
-            .components()
-            .any(|c| c.as_os_str() == "golden")
-            && file
-                .path
-                .components()
-                .any(|c| c.as_os_str() == "examples")
+        file.path.components().any(|c| c.as_os_str() == "golden")
+            && file.path.components().any(|c| c.as_os_str() == "examples")
     }
 }
 
@@ -188,7 +183,9 @@ mod tests {
         let src = golden_source("fn greet(name: str) to str {\n    return \"hello\"\n}\n");
         let findings = d.detect(&src, None);
         assert!(
-            findings.iter().any(|f| f.rule_id == "skeleton/no-test-for-pub-fn"),
+            findings
+                .iter()
+                .any(|f| f.rule_id == "skeleton/no-test-for-pub-fn"),
             "should flag fn with no @test"
         );
     }

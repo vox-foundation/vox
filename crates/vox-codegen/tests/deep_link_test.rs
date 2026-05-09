@@ -25,8 +25,14 @@ fn deep_link_emits_app_url_open_listener() {
     let ts = emit(src);
     assert!(ts.contains("appUrlOpen"), "got:\n{ts}");
     assert!(ts.contains("handle_link("), "got:\n{ts}");
-    assert!(ts.contains("useNavigate"), "must import useNavigate, got:\n{ts}");
-    assert!(ts.contains("useEffect"), "must import useEffect, got:\n{ts}");
+    assert!(
+        ts.contains("useNavigate"),
+        "must import useNavigate, got:\n{ts}"
+    );
+    assert!(
+        ts.contains("useEffect"),
+        "must import useEffect, got:\n{ts}"
+    );
 }
 
 #[test]
@@ -40,5 +46,8 @@ fn back_button_and_deep_link_deduplicates_app_import() {
     let ts = emit(src);
     // App import must appear exactly once.
     let count = ts.matches("from '@capacitor/app'").count();
-    assert_eq!(count, 1, "App import should appear once, got {count} times in:\n{ts}");
+    assert_eq!(
+        count, 1,
+        "App import should appear once, got {count} times in:\n{ts}"
+    );
 }

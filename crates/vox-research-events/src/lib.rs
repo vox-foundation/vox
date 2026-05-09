@@ -17,15 +17,14 @@ pub use observation::{
     ScientiaObservationClassifier, ScientiaWeightExtension,
 };
 pub use preregistration::{
-    DecisionRule, MetricSpec, PreregistrationV1, StatisticalTest, StopRule, SubstrateRef,
-    TestSpec,
+    DecisionRule, MetricSpec, PreregistrationV1, StatisticalTest, StopRule, SubstrateRef, TestSpec,
 };
 pub use publication_format::{
-    adapt_claim_to_platform, validate_short_form,
-    FigurePolicy, PublicationPlatform, ShortFormVariant,
+    FigurePolicy, PublicationPlatform, ShortFormVariant, adapt_claim_to_platform,
+    validate_short_form,
 };
 pub use schema_types::{
-    DiscoverySignal, DiscoverySignalFamily, DiscoverySignalStrength,
-    EvidencePackV1, FindingCandidateClass, FindingCandidateV1,
-    NoveltyEvidenceBundle, SignalProvenance, WorthinessSignalsV2,
+    DiscoverySignal, DiscoverySignalFamily, DiscoverySignalStrength, EvidencePackV1,
+    FindingCandidateClass, FindingCandidateV1, NoveltyEvidenceBundle, SignalProvenance,
+    WorthinessSignalsV2,
 };

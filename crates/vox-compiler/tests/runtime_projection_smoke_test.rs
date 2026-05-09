@@ -1,11 +1,11 @@
 //! Runtime projection + canonical JSON stability (IR unification).
 
+use vox_codegen::syntax_k::{canonical_web_ir_bytes, sha3_hex, sort_json_value_keys};
 use vox_compiler::hir::lower_module;
 use vox_compiler::parser::parse;
 use vox_compiler::runtime_projection::{
     canonical_runtime_projection_bytes, project_runtime_from_core,
 };
-use vox_codegen::syntax_k::{canonical_web_ir_bytes, sha3_hex, sort_json_value_keys};
 
 fn lower_src(src: &str) -> vox_compiler::hir::TypedCoreIR_v2 {
     let tokens = vox_compiler::lexer::lex(src);

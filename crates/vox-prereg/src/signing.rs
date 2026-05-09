@@ -16,7 +16,7 @@
 use crate::trusty_uri::{canonical_json, compute_trusty_uri};
 use thiserror::Error;
 use vox_crypto::facades::{
-    sign, to_verifying_key, verify, verifying_key_from_bytes, verifying_key_to_bytes, SigningKey,
+    SigningKey, sign, to_verifying_key, verify, verifying_key_from_bytes, verifying_key_to_bytes,
 };
 use vox_research_events::preregistration::PreregistrationV1;
 
@@ -75,8 +75,8 @@ pub fn sign_prereg(
 /// Verify that `signature_hex` is a valid Ed25519 signature over the canonical JSON of `prereg`.
 pub fn verify_prereg(prereg: &PreregistrationV1, signature_hex: &str) -> Result<(), VerifyError> {
     // Decode signature
-    let sig_bytes = hex::decode(signature_hex)
-        .map_err(|e| VerifyError::BadSignatureHex(e.to_string()))?;
+    let sig_bytes =
+        hex::decode(signature_hex).map_err(|e| VerifyError::BadSignatureHex(e.to_string()))?;
     if sig_bytes.len() != 64 {
         return Err(VerifyError::BadSignatureLength(sig_bytes.len()));
     }
@@ -84,8 +84,8 @@ pub fn verify_prereg(prereg: &PreregistrationV1, signature_hex: &str) -> Result<
     sig_arr.copy_from_slice(&sig_bytes);
 
     // Decode verifying key from prereg.signing_key
-    let pk_bytes = hex::decode(&prereg.signing_key)
-        .map_err(|e| VerifyError::BadKeyHex(e.to_string()))?;
+    let pk_bytes =
+        hex::decode(&prereg.signing_key).map_err(|e| VerifyError::BadKeyHex(e.to_string()))?;
     if pk_bytes.len() != 32 {
         return Err(VerifyError::BadKeyHex(format!(
             "expected 32 bytes, got {}",
@@ -156,7 +156,10 @@ mod tests {
         let mut prereg = draft_prereg();
         let sig = sign_prereg(&mut prereg, &sk).expect("signing must succeed");
         assert!(!prereg.id.is_empty(), "id must be set after signing");
-        assert!(!prereg.signing_key.is_empty(), "signing_key must be set after signing");
+        assert!(
+            !prereg.signing_key.is_empty(),
+            "signing_key must be set after signing"
+        );
         assert!(prereg.signed_at > 0, "signed_at must be set after signing");
         verify_prereg(&prereg, &sig.0).expect("verification must succeed");
     }
@@ -178,6 +181,9 @@ mod tests {
         sign_prereg(&mut prereg, &sk).expect("signing must succeed");
         let bad_sig = "ff".repeat(64);
         let result = verify_prereg(&prereg, &bad_sig);
-        assert!(result.is_err(), "verification must fail with wrong signature");
+        assert!(
+            result.is_err(),
+            "verification must fail with wrong signature"
+        );
     }
 }

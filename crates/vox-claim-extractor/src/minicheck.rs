@@ -16,11 +16,16 @@ pub struct MiniCheckVerifier {
 // TODO(Phase 5): These structs are used by the Http backend once MiniCheck-FT5 is wired.
 #[allow(dead_code)]
 #[derive(Serialize)]
-struct MiniCheckRequest<'a> { claim: &'a str, context: &'a str }
+struct MiniCheckRequest<'a> {
+    claim: &'a str,
+    context: &'a str,
+}
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
-struct MiniCheckResponse { support_score: f64 }
+struct MiniCheckResponse {
+    support_score: f64,
+}
 
 impl MiniCheckVerifier {
     pub fn mock() -> Self {

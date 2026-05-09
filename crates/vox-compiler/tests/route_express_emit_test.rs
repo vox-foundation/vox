@@ -1,11 +1,11 @@
 //! Express route emission ordering and validation (OP-0166, OP-0170, OP-0171).
 
-use vox_compiler::ast::span::Span;
 use vox_codegen::codegen_ts::routes::{
     ExpressRouteEmitCtx, generate_routes, validate_express_route_emit_input,
 };
-use vox_compiler::hir::{HirHttpMethod, HirModule, HirRoute};
 use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
+use vox_compiler::ast::span::Span;
+use vox_compiler::hir::{HirHttpMethod, HirModule, HirRoute};
 
 #[test]
 #[ignore]

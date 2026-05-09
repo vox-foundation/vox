@@ -61,7 +61,12 @@ impl DeviationDetector {
         }
 
         let is_clean = metric_matches && test_matches;
-        DeviationReport { metric_matches, test_matches, is_clean, deviations }
+        DeviationReport {
+            metric_matches,
+            test_matches,
+            is_clean,
+            deviations,
+        }
     }
 }
 
@@ -102,8 +107,14 @@ mod tests {
                 threshold: None,
                 alpha: Some(0.05),
             },
-            stopping_rule: StopRule { max_n: 100, alpha: Some(0.05), threshold: None },
-            decision_rule: DecisionRule { description: "reject if p < alpha".to_string() },
+            stopping_rule: StopRule {
+                max_n: 100,
+                alpha: Some(0.05),
+                threshold: None,
+            },
+            decision_rule: DecisionRule {
+                description: "reject if p < alpha".to_string(),
+            },
             cost_cap_usd: 10.0,
             signed_at: 1715299200,
             signing_key: "aa".repeat(32),

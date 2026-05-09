@@ -241,8 +241,18 @@ Run all tests in the workspace using `cargo test`.
         assert_eq!(bundle.manifest.category, SkillCategory::Testing);
         assert_eq!(bundle.manifest.tools, vec!["vox_run_tests", "vox_test_all"]);
         assert_eq!(bundle.manifest.tags, vec!["testing", "ci"]);
-        assert!(bundle.manifest.permissions.contains(&SkillPermission::ReadFiles));
-        assert!(bundle.manifest.permissions.contains(&SkillPermission::ShellExec));
+        assert!(
+            bundle
+                .manifest
+                .permissions
+                .contains(&SkillPermission::ReadFiles)
+        );
+        assert!(
+            bundle
+                .manifest
+                .permissions
+                .contains(&SkillPermission::ShellExec)
+        );
     }
 
     #[test]
@@ -256,8 +266,18 @@ Run all tests in the workspace using `cargo test`.
         assert_eq!(bundle.manifest.category, SkillCategory::Testing);
         assert_eq!(bundle.manifest.tools, vec!["vox_run_tests", "vox_test_all"]);
         assert_eq!(bundle.manifest.tags, vec!["testing", "ci"]);
-        assert!(bundle.manifest.permissions.contains(&SkillPermission::ReadFiles));
-        assert!(bundle.manifest.permissions.contains(&SkillPermission::ShellExec));
+        assert!(
+            bundle
+                .manifest
+                .permissions
+                .contains(&SkillPermission::ReadFiles)
+        );
+        assert!(
+            bundle
+                .manifest
+                .permissions
+                .contains(&SkillPermission::ShellExec)
+        );
     }
 
     #[test]

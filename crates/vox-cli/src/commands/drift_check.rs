@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Args;
-use vox_drift_check::{engine::DriftEngine, report, Severity};
+use vox_drift_check::{Severity, engine::DriftEngine, report};
 
 #[derive(Args, Debug)]
 pub struct DriftCheckArgs {

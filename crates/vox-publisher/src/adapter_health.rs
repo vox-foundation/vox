@@ -192,9 +192,11 @@ pub async fn report_health(
     adapters.push(AdapterHealthEntry {
         name: "zenodo",
         feature_enabled: true, // usually enabled if scholarly
-        credentials_present: vox_secrets::resolve_secret(vox_secrets::SecretId::VoxZenodoAccessToken)
-            .expose()
-            .is_some(),
+        credentials_present: vox_secrets::resolve_secret(
+            vox_secrets::SecretId::VoxZenodoAccessToken,
+        )
+        .expose()
+        .is_some(),
         heartbeat_status: if live {
             #[cfg(feature = "live-api-canary")]
             {

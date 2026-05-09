@@ -47,7 +47,5 @@ pub trait PluginStateBackend: Send + Sync {
     async fn unpublish_skill(&self, id: &str) -> Result<(), PluginStateError>;
 
     /// List all stored skill manifests.
-    async fn list_skill_manifests(
-        &self,
-    ) -> Result<Vec<PluginStateSkillEntry>, PluginStateError>;
+    async fn list_skill_manifests(&self) -> Result<Vec<PluginStateSkillEntry>, PluginStateError>;
 }

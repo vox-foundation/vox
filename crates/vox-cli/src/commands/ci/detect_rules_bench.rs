@@ -23,11 +23,7 @@ pub fn run(rules: &PathBuf, fixtures_root: &PathBuf, min_f1: f64, json: bool) ->
         print_table(&report, min_f1);
     }
 
-    let failing: Vec<_> = report
-        .rules
-        .iter()
-        .filter(|r| r.f1 < min_f1)
-        .collect();
+    let failing: Vec<_> = report.rules.iter().filter(|r| r.f1 < min_f1).collect();
 
     if !failing.is_empty() {
         eprintln!();

@@ -46,13 +46,12 @@ impl InspectTaskDescriptor {
     }
 
     /// Append a sample to the task.
-    pub fn add_sample(
-        &mut self,
-        input: String,
-        target: String,
-        metadata: serde_json::Value,
-    ) {
-        self.samples.push(InspectSample { input, target, metadata });
+    pub fn add_sample(&mut self, input: String, target: String, metadata: serde_json::Value) {
+        self.samples.push(InspectSample {
+            input,
+            target,
+            metadata,
+        });
     }
 
     /// Serialise to an Inspect-compatible JSON value.
@@ -108,7 +107,11 @@ mod tests {
     fn to_json_contains_task_id_and_samples() {
         let mut task =
             InspectTaskDescriptor::new("T-003".to_string(), "Novelty probe task".to_string());
-        task.add_sample("probe?".to_string(), "rubric".to_string(), serde_json::json!({}));
+        task.add_sample(
+            "probe?".to_string(),
+            "rubric".to_string(),
+            serde_json::json!({}),
+        );
         let json = task.to_json();
         assert_eq!(json["task_id"], "T-003");
         assert_eq!(json["samples"].as_array().unwrap().len(), 1);

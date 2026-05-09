@@ -24,10 +24,16 @@ pub struct FileAffinity {
 
 impl FileAffinity {
     pub fn read(path: impl Into<PathBuf>) -> Self {
-        Self { path: path.into(), access: AccessKind::Read }
+        Self {
+            path: path.into(),
+            access: AccessKind::Read,
+        }
     }
 
     pub fn write(path: impl Into<PathBuf>) -> Self {
-        Self { path: path.into(), access: AccessKind::Write }
+        Self {
+            path: path.into(),
+            access: AccessKind::Write,
+        }
     }
 }

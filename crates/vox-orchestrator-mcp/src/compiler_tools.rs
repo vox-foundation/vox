@@ -1052,14 +1052,13 @@ pub async fn apply_structured_edit(state: &ServerState, args: serde_json::Value)
             ..Default::default()
         };
 
-        if let Ok((model, free_only)) =
-            crate::chat_model_resolve::resolve_chat_llm_model(
-                state,
-                &feedback,
-                resolution_template.clone(),
-                session_id,
-            )
-            .await
+        if let Ok((model, free_only)) = crate::chat_model_resolve::resolve_chat_llm_model(
+            state,
+            &feedback,
+            resolution_template.clone(),
+            session_id,
+        )
+        .await
         {
             let routing = crate::llm_bridge::McpInferRouting {
                 user_prompt: &feedback,

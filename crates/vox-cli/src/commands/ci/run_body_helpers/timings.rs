@@ -4,8 +4,8 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
-use vox_bounded_fs::read_utf8_path_capped;
 use crate::commands::ci::{cargo_bin, nvcc_available};
+use vox_bounded_fs::read_utf8_path_capped;
 
 #[derive(serde::Serialize)]
 struct TimingRecord {
@@ -38,9 +38,11 @@ fn load_build_timing_budgets(root: &Path) -> Result<std::collections::HashMap<St
 /// Soft budgets from `budgets.json`. `VOX_BUILD_TIMINGS_BUDGET_WARN=1` stderr for missing lane keys
 /// and over-budget lanes. `VOX_BUILD_TIMINGS_BUDGET_FAIL=1` fails if any lane exceeded its cap (warn not required).
 fn apply_build_timing_budgets(records: &[TimingRecord], root: &Path) -> Result<()> {
-    let warn_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBuildTimingsBudgetWarn);
+    let warn_resolved =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBuildTimingsBudgetWarn);
     let warn = warn_resolved.expose().unwrap_or_default() == "1";
-    let fail_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBuildTimingsBudgetFail);
+    let fail_resolved =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBuildTimingsBudgetFail);
     let fail = fail_resolved.expose().unwrap_or_default() == "1";
     if !warn && !fail {
         return Ok(());
@@ -147,7 +149,8 @@ pub(crate) fn run_build_timings(root: &Path, json: bool, crates: bool) -> Result
     }
 
     // Optional CUDA lane (same policy as `cuda-features`).
-    let skip_cuda_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::SkipCudaFeatureCheck);
+    let skip_cuda_resolved =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::SkipCudaFeatureCheck);
     if skip_cuda_resolved.expose().unwrap_or_default() != "1" {
         let nvcc_ok = nvcc_available();
         if nvcc_ok {

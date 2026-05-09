@@ -60,7 +60,11 @@ impl DetectionRule for StateMachineUnreachableDetector {
         transition logic or a mistyped state name."
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if file.language != Language::Vox {
             return vec![];
         }
@@ -135,8 +139,19 @@ impl DetectionRule for StateMachineUnreachableDetector {
                         // Skip common keywords that look like state declarations
                         if !matches!(
                             state_name.as_str(),
-                            "fn" | "let" | "if" | "else" | "match" | "for" | "while" | "loop"
-                                | "impl" | "struct" | "enum" | "pub" | "mod" | "use"
+                            "fn" | "let"
+                                | "if"
+                                | "else"
+                                | "match"
+                                | "for"
+                                | "while"
+                                | "loop"
+                                | "impl"
+                                | "struct"
+                                | "enum"
+                                | "pub"
+                                | "mod"
+                                | "use"
                         ) {
                             states.push((state_name, j + 1)); // 1-indexed
                         }
@@ -236,7 +251,10 @@ mod tests {
         let code = "state_machine TrafficLight {\n  Red {\n    on Enter { light.set_red() }\n  }\n  Green {\n    on Enter { light.set_green() }\n    on Timer -> Red\n  }\n}";
         let f = source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "Red state with no transitions should be flagged");
+        assert!(
+            !findings.is_empty(),
+            "Red state with no transitions should be flagged"
+        );
         assert!(findings.iter().any(|f| f.message.contains("Red")));
     }
 
@@ -246,6 +264,9 @@ mod tests {
         let code = "state_machine Door {\n  Closed {\n    on Open -> Opened\n  }\n  Opened {\n    on Close -> Closed\n  }\n}";
         let f = source(code);
         let findings = d.detect(&f, None);
-        assert!(findings.is_empty(), "states with -> transitions should not fire");
+        assert!(
+            findings.is_empty(),
+            "states with -> transitions should not fire"
+        );
     }
 }

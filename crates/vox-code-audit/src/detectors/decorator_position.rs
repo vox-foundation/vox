@@ -68,7 +68,11 @@ impl DetectionRule for DecoratorPositionDetector {
         Good: actor MyActor { ... }"
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if file.language != Language::Vox {
             return vec![];
         }

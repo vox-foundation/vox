@@ -16,9 +16,9 @@ use abi_stable::library::RootModule;
 use abi_stable::std_types::*;
 use std::path::Path;
 use std::time::Instant;
+use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPluginRef, VoxPluginRootRef};
 use vox_plugin_api::host::VoxHost_TO;
-use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 
 pub struct Loader;
 
@@ -54,12 +54,10 @@ impl Loader {
         let host_to: VoxHost_TO<'static, RBox<()>> =
             VoxHost_TO::from_value(host, abi_stable::erased_types::TD_Opaque);
 
-        let plugin_ref = (root_ref.init())(host_to)
-            .into_result()
-            .map_err(|e| {
-                telemetry::load_failed(plugin_id, version, "init");
-                LoadError::InitFailed(e.to_string())
-            })?;
+        let plugin_ref = (root_ref.init())(host_to).into_result().map_err(|e| {
+            telemetry::load_failed(plugin_id, version, "init");
+            LoadError::InitFailed(e.to_string())
+        })?;
 
         telemetry::loaded(plugin_id, version, "code", started.elapsed().as_millis());
         Ok(LoadedCodePlugin { plugin: plugin_ref })

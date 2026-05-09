@@ -22,7 +22,14 @@ impl Default for EnvSecretShapeDetector {
 impl EnvSecretShapeDetector {
     /// Secret-shaped substrings that indicate a sensitive variable name.
     const SECRET_SUBSTRINGS: &'static [&'static str] = &[
-        "KEY", "SECRET", "TOKEN", "PASSWORD", "CREDENTIAL", "APIKEY", "API_KEY", "PRIVATE",
+        "KEY",
+        "SECRET",
+        "TOKEN",
+        "PASSWORD",
+        "CREDENTIAL",
+        "APIKEY",
+        "API_KEY",
+        "PRIVATE",
         "PASSWD",
     ];
 
@@ -44,8 +51,10 @@ impl EnvSecretShapeDetector {
                 "#,
             )
             .expect("valid env_call regex"),
-            secret_shape: Regex::new(&format!(r"(?i)(?:{secret_alt})")).expect("valid secret_shape regex"),
-            skip_pattern: Regex::new(r"(?i)(EXAMPLE|PLACEHOLDER|DUMMY|FAKE|TEST)").expect("valid skip_pattern regex"),
+            secret_shape: Regex::new(&format!(r"(?i)(?:{secret_alt})"))
+                .expect("valid secret_shape regex"),
+            skip_pattern: Regex::new(r"(?i)(EXAMPLE|PLACEHOLDER|DUMMY|FAKE|TEST)")
+                .expect("valid skip_pattern regex"),
             supported_langs: vec![
                 Language::Vox,
                 Language::Rust,
@@ -134,7 +143,11 @@ impl DetectionRule for EnvSecretShapeDetector {
          GOOD:\n  let token = vox_secrets::resolve_secret(SecretId::OpenAiApiKey)?;"
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
         for (i, line) in file.lines.iter().enumerate() {
@@ -188,7 +201,10 @@ mod tests {
         let findings = d.detect(&f, None);
         assert!(!findings.is_empty(), "should detect API_KEY shaped var");
         assert!(findings[0].message.contains("OPENAI_API_KEY"));
-        assert_eq!(findings[0].diagnostic_id.as_deref(), Some("vox/secret/env-get-shape"));
+        assert_eq!(
+            findings[0].diagnostic_id.as_deref(),
+            Some("vox/secret/env-get-shape")
+        );
     }
 
     #[test]

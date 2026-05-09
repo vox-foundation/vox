@@ -7,10 +7,10 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::time::Duration;
 
-use vox_bounded_fs::read_utf8_path_capped;
 use crate::config;
 use crate::fs_utils;
 use crate::templates;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// Basename of the **pnpm** CLI for this OS (`pnpm.cmd` on Windows, `pnpm` elsewhere).
 #[must_use]

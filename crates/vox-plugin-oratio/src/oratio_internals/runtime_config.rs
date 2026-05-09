@@ -453,7 +453,6 @@ impl OratioRuntimeConfig {
         c.merge_env();
         c
     }
-
 }
 
 fn cached_resolve_config() -> &'static OratioRuntimeConfig {

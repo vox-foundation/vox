@@ -2,7 +2,7 @@
 
 use abi_stable::{erased_types::TD_Opaque, std_types::*};
 use vox_plugin_api::extensions::hardware_probe::{
-    HardwareProbe, HardwareProbe_TO, HARDWARE_PROBE_REVISION,
+    HARDWARE_PROBE_REVISION, HardwareProbe, HardwareProbe_TO,
 };
 
 #[test]

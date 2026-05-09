@@ -7,10 +7,10 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use vox_bounded_fs::read_utf8_path_capped;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::cmd_enums::ToestubCiMode;
 use crate::commands::ci::constants::FEATURE_SETS;
+use vox_bounded_fs::read_utf8_path_capped;
 
 pub(crate) fn visit_rs_files(dir: &Path, f: &mut impl FnMut(&Path) -> Result<()>) -> Result<()> {
     for entry in fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {

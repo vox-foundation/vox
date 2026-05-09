@@ -1,5 +1,5 @@
-use vox_package_types::manifest::{ManifestError, VoxManifest};
 use std::path::{Path, PathBuf};
+use vox_package_types::manifest::{ManifestError, VoxManifest};
 
 /// Represents a Vox workspace containing multiple packages.
 #[derive(Debug)]

@@ -25,7 +25,11 @@ pub enum GitExecError {
     #[error("spawning git failed: {0}")]
     Spawn(#[from] std::io::Error),
     #[error("git exited non-zero ({code}): {stderr}")]
-    NonZero { code: i32, stdout: String, stderr: String },
+    NonZero {
+        code: i32,
+        stdout: String,
+        stderr: String,
+    },
 }
 
 /// Each entry is a contiguous arg-vector window that, if matched **exactly**
@@ -67,7 +71,9 @@ impl GitExec {
         Self { cwd: cwd.into() }
     }
 
-    pub fn cwd(&self) -> &Path { &self.cwd }
+    pub fn cwd(&self) -> &Path {
+        &self.cwd
+    }
 
     pub async fn run(&self, args: &[&str]) -> Result<GitOutput, GitExecError> {
         if let Some(phrase) = is_banned(args) {
@@ -93,9 +99,17 @@ impl GitExec {
             "git exec",
         );
         if code != 0 {
-            return Err(GitExecError::NonZero { code, stdout, stderr });
+            return Err(GitExecError::NonZero {
+                code,
+                stdout,
+                stderr,
+            });
         }
-        Ok(GitOutput { stdout, stderr, exit_code: code })
+        Ok(GitOutput {
+            stdout,
+            stderr,
+            exit_code: code,
+        })
     }
 }
 
@@ -107,11 +121,17 @@ mod tests {
     fn is_banned_catches_each_prefix() {
         assert_eq!(is_banned(&["stash"]).as_deref(), Some("stash"));
         assert_eq!(is_banned(&["stash", "pop"]).as_deref(), Some("stash"));
-        assert_eq!(is_banned(&["reset", "--hard", "HEAD~1"]).as_deref(), Some("reset --hard"));
+        assert_eq!(
+            is_banned(&["reset", "--hard", "HEAD~1"]).as_deref(),
+            Some("reset --hard")
+        );
         assert_eq!(is_banned(&["clean", "-fd"]).as_deref(), Some("clean -fd"));
         assert_eq!(is_banned(&["restore", "."]).as_deref(), Some("restore ."));
         assert_eq!(is_banned(&["checkout", "."]).as_deref(), Some("checkout ."));
-        assert_eq!(is_banned(&["checkout", "--", "."]).as_deref(), Some("checkout -- ."));
+        assert_eq!(
+            is_banned(&["checkout", "--", "."]).as_deref(),
+            Some("checkout -- .")
+        );
     }
 
     #[test]
@@ -126,8 +146,7 @@ mod tests {
     #[test]
     fn is_banned_catches_prefix_after_dash_c() {
         assert_eq!(
-            is_banned(&["-c", "advice.detachedHead=false", "reset", "--hard", "abc"])
-                .as_deref(),
+            is_banned(&["-c", "advice.detachedHead=false", "reset", "--hard", "abc"]).as_deref(),
             Some("reset --hard"),
         );
     }

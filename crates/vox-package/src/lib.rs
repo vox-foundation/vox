@@ -15,10 +15,9 @@ pub mod workspace;
 
 // Re-export all type-only items from the pure-data L1 crate.
 pub use vox_package_types::{
-    deploy_coolify, lockfile, manifest, package_kind, resolver,
     CoolifyDeployConfig, CoolifyEnvReconciliationMode, CoolifyEnvVarDetail, CoolifyEnvVarSpec,
     DependencySpec, DeploySection, DetailedDependency, Lockfile, ManifestError, PackageKind,
-    SemVer, VersionReq, VoxManifest,
+    SemVer, VersionReq, VoxManifest, deploy_coolify, lockfile, manifest, package_kind, resolver,
 };
 
 pub use artifact_cache::{ArtifactCache, CacheLookup, CacheManifest};

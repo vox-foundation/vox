@@ -15,11 +15,11 @@ pub struct AiToolUsage {
 /// Full AI disclosure block for a publication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiDisclosureBlock {
-    pub policy_version: String,   // e.g. "Nature-2025-04"
+    pub policy_version: String, // e.g. "Nature-2025-04"
     pub tools_used: Vec<AiToolUsage>,
-    pub human_author_accountable: bool,  // required true
-    pub no_llm_generated_figures: bool,  // true per Cell/Science 2025
-    pub disclosure_text: String,         // auto-generated summary
+    pub human_author_accountable: bool, // required true
+    pub no_llm_generated_figures: bool, // true per Cell/Science 2025
+    pub disclosure_text: String,        // auto-generated summary
 }
 
 impl AiDisclosureBlock {

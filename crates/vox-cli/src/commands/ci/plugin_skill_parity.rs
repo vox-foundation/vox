@@ -65,8 +65,8 @@ pub fn run() -> Result<()> {
         .filter(|e| e.file_name() == "Plugin.toml")
     {
         let path = entry.path();
-        let raw = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
+        let raw =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         let head: ManifestHead = match toml::from_str(&raw) {
             Ok(v) => v,
             Err(e) => {

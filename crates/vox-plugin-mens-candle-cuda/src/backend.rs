@@ -60,8 +60,7 @@ impl MlBackend for CandleCudaPlugin {
         // SAFETY: opaque was set by load_model from Box<CandleModel> — valid as long as the
         // host passes back a handle that came from this plugin instance's load_model call.
         #[allow(unsafe_code)]
-        let candle_model =
-            unsafe { &mut *(model.opaque as *mut crate::model::CandleModel) };
+        let candle_model = unsafe { &mut *(model.opaque as *mut crate::model::CandleModel) };
         match crate::training::run_train_step(candle_model, batch_json.as_str()) {
             Ok(stats_json) => RResult::ROk(RString::from(stats_json)),
             Err(e) => RResult::RErr(anyhow_to_rbox(e)),
@@ -74,22 +73,16 @@ impl MlBackend for CandleCudaPlugin {
         batch_json: RStr<'_>,
     ) -> RResult<RString, RBoxError> {
         #[allow(unsafe_code)]
-        let candle_model =
-            unsafe { &*(model.opaque as *const crate::model::CandleModel) };
+        let candle_model = unsafe { &*(model.opaque as *const crate::model::CandleModel) };
         match crate::training::run_eval_step(candle_model, batch_json.as_str()) {
             Ok(stats_json) => RResult::ROk(RString::from(stats_json)),
             Err(e) => RResult::RErr(anyhow_to_rbox(e)),
         }
     }
 
-    fn save_checkpoint(
-        &self,
-        model: &MlModelHandle,
-        dest: RStr<'_>,
-    ) -> RResult<(), RBoxError> {
+    fn save_checkpoint(&self, model: &MlModelHandle, dest: RStr<'_>) -> RResult<(), RBoxError> {
         #[allow(unsafe_code)]
-        let candle_model =
-            unsafe { &*(model.opaque as *const crate::model::CandleModel) };
+        let candle_model = unsafe { &*(model.opaque as *const crate::model::CandleModel) };
         match crate::checkpoint::save(candle_model, dest.as_str()) {
             Ok(()) => RResult::ROk(()),
             Err(e) => RResult::RErr(anyhow_to_rbox(e)),
@@ -103,7 +96,11 @@ impl MlBackend for CandleCudaPlugin {
         }
     }
 
-    fn run_inference(&self, model: &MlModelHandle, prompt_json: RStr<'_>) -> RResult<RString, RBoxError> {
+    fn run_inference(
+        &self,
+        model: &MlModelHandle,
+        prompt_json: RStr<'_>,
+    ) -> RResult<RString, RBoxError> {
         // The model handle's opaque pointer is the directory path encoded as a usize pointer
         // to a Box<String> set in load_model. For inference we re-load via the model_path stored
         // in the CandleModel wrapper.
@@ -121,7 +118,11 @@ impl MlBackend for CandleCudaPlugin {
         adapter_path: RStr<'_>,
         dest_path: RStr<'_>,
     ) -> RResult<(), RBoxError> {
-        match crate::merge::merge_qlora_adapter(base_path.as_str(), adapter_path.as_str(), dest_path.as_str()) {
+        match crate::merge::merge_qlora_adapter(
+            base_path.as_str(),
+            adapter_path.as_str(),
+            dest_path.as_str(),
+        ) {
             Ok(()) => RResult::ROk(()),
             Err(e) => RResult::RErr(anyhow_to_rbox(e)),
         }

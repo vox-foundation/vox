@@ -84,11 +84,11 @@ pub async fn run_stdio_server_blocking() -> anyhow::Result<()> {
         .await;
 
     // Optional remote/mobile control plane (HTTP + WebSocket).
-    let _http_gateway =
-        crate::http_gateway::spawn_http_gateway_if_enabled(state.clone())?;
+    let _http_gateway = crate::http_gateway::spawn_http_gateway_if_enabled(state.clone())?;
 
     // Flywheel automation: Monitor diversity and trigger training
-    let flywheel = vox_orchestrator::services::flywheel::FlywheelMonitor::new(state.orchestrator.clone());
+    let flywheel =
+        vox_orchestrator::services::flywheel::FlywheelMonitor::new(state.orchestrator.clone());
     flywheel.spawn().await;
 
     let server = crate::server::VoxMcpServer::new(state);

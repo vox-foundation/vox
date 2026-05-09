@@ -2,7 +2,7 @@
 //!
 //! These functions are the in-process fallback when no durable (Turso/VoxDb) store is attached.
 
-use super::{A2AStoredMessage, DispatchResponse, RemoteExecLeaseRow, PopuliTransportState};
+use super::{A2AStoredMessage, DispatchResponse, PopuliTransportState, RemoteExecLeaseRow};
 use crate::PopuliRegistryError;
 
 use std::path::PathBuf;
@@ -99,8 +99,8 @@ pub fn persist_a2a_store(
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(PopuliRegistryError::Io)?;
     }
-    let payload = serde_json::to_string_pretty(rows)
-        .map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
+    let payload =
+        serde_json::to_string_pretty(rows).map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
     let tmp = path.with_extension("json.tmp");
     std::fs::write(&tmp, payload.as_bytes()).map_err(PopuliRegistryError::Io)?;
     std::fs::rename(&tmp, path).map_err(PopuliRegistryError::Io)?;
@@ -114,8 +114,8 @@ pub fn persist_exec_lease_store(
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(PopuliRegistryError::Io)?;
     }
-    let payload = serde_json::to_string_pretty(rows)
-        .map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
+    let payload =
+        serde_json::to_string_pretty(rows).map_err(|e| PopuliRegistryError::Json(e.to_string()))?;
     let tmp = path.with_extension("json.tmp");
     std::fs::write(&tmp, payload.as_bytes()).map_err(PopuliRegistryError::Io)?;
     std::fs::rename(&tmp, path).map_err(PopuliRegistryError::Io)?;

@@ -13,7 +13,10 @@ fn parses_a_minimal_code_plugin_entry() {
     let entry: PluginCatalogEntry = toml::from_str(toml_src).expect("should parse");
     assert_eq!(entry.id, "mens-candle-cuda");
     assert!(matches!(entry.payload_kind, PayloadKind::Code));
-    assert_eq!(entry.extension_points.as_deref(), Some(&["MlBackend".to_string()][..]));
+    assert_eq!(
+        entry.extension_points.as_deref(),
+        Some(&["MlBackend".to_string()][..])
+    );
 }
 
 #[test]
@@ -28,7 +31,10 @@ fn parses_a_minimal_skill_plugin_entry() {
     "#;
     let entry: PluginCatalogEntry = toml::from_str(toml_src).expect("should parse");
     assert!(matches!(entry.payload_kind, PayloadKind::Skill));
-    assert_eq!(entry.exposes_tools.as_deref(), Some(&["vox_validate_file".to_string()][..]));
+    assert_eq!(
+        entry.exposes_tools.as_deref(),
+        Some(&["vox_validate_file".to_string()][..])
+    );
 }
 
 #[test]

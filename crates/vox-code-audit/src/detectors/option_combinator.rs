@@ -56,7 +56,11 @@ impl DetectionRule for OptionCombinatorDetector {
         written more concisely as combinator chains like `.map(f).unwrap_or(default)`."
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if !matches!(file.language, Language::Vox | Language::Rust) {
             return vec![];
         }
@@ -150,7 +154,10 @@ mod tests {
         let code = "fn foo(opt: Option<i32>) -> i32 {\n    match opt {\n        Some(x) => x * 2,\n        None => 0,\n    }\n}";
         let f = source("rs", code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should fire on match-Some/None pattern");
+        assert!(
+            !findings.is_empty(),
+            "should fire on match-Some/None pattern"
+        );
         assert!(findings[0].message.contains("Option"));
     }
 

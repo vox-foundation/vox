@@ -21,8 +21,6 @@ pub mod chat_model_resolve;
 pub mod chat_socrates_meta;
 /// Chat, inline edit, ghost text, planning, and ambient editor decorations.
 pub mod chat_tools;
-/// Secrets credential tools.
-pub mod secrets_tools;
 /// Structured .vox diagnostics and repair tools.
 pub mod code_validator;
 /// Codex relational V17/V16 helpers over connected `VoxDb`.
@@ -71,6 +69,8 @@ pub mod repo_index;
 #[cfg(feature = "news-publish")]
 pub mod scientia_tools;
 pub mod scope_guard;
+/// Secrets credential tools.
+pub mod secrets_tools;
 pub mod session_identity;
 /// Speech → codegen orchestration (`vox_speech_to_code`).
 #[cfg(feature = "oratio-rerank")]

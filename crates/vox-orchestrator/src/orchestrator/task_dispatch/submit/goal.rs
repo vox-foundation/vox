@@ -233,7 +233,10 @@ impl Orchestrator {
         }
 
         let band =
-            vox_orchestrator_types::socrates_policy::SocratesComplexityJudge::estimate_complexity(description, None);
+            vox_orchestrator_types::socrates_policy::SocratesComplexityJudge::estimate_complexity(
+                description,
+                None,
+            );
         let mut route = crate::retrieval::crag::CragRouter::evaluate_query(description);
         if let vox_orchestrator_types::socrates_policy::ComplexityBand::Moderate
         | vox_orchestrator_types::socrates_policy::ComplexityBand::Complex
@@ -343,9 +346,14 @@ impl Orchestrator {
                         };
                         let cfg = llm_cfg.clone();
                         async move {
-                            let opts = vox_actor_runtime::ActivityOptions::new().with_timeout_secs(10);
-                            match vox_actor_runtime::llm::llm_chat(&opts, vec![sys_msg, user_msg], cfg)
-                                .await
+                            let opts =
+                                vox_actor_runtime::ActivityOptions::new().with_timeout_secs(10);
+                            match vox_actor_runtime::llm::llm_chat(
+                                &opts,
+                                vec![sys_msg, user_msg],
+                                cfg,
+                            )
+                            .await
                             {
                                 vox_actor_runtime::ActivityResult::Ok(Ok(res)) => Ok(res.content),
                                 vox_actor_runtime::ActivityResult::Ok(Err(e)) => Err(e),
@@ -550,7 +558,9 @@ impl Orchestrator {
                                 )
                                 .await
                                 {
-                                    vox_actor_runtime::ActivityResult::Ok(Ok(res)) => Ok(res.content),
+                                    vox_actor_runtime::ActivityResult::Ok(Ok(res)) => {
+                                        Ok(res.content)
+                                    }
                                     vox_actor_runtime::ActivityResult::Ok(Err(e)) => Err(e),
                                     _ => Err("activity_failed".to_string()),
                                 }

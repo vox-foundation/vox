@@ -35,7 +35,11 @@ impl RunningStats {
     #[must_use]
     #[inline]
     pub fn variance(&self) -> f64 {
-        if self.count < 2 { 0.0 } else { self.m2 / (self.count - 1) as f64 }
+        if self.count < 2 {
+            0.0
+        } else {
+            self.m2 / (self.count - 1) as f64
+        }
     }
 
     /// Sample standard deviation. Returns 0.0 when count < 2.
@@ -51,7 +55,11 @@ impl RunningStats {
     #[inline]
     pub fn z_score(&self, x: f64) -> f64 {
         let sd = self.std_dev();
-        if sd < 1e-12 { 0.0 } else { (x - self.mean) / sd }
+        if sd < 1e-12 {
+            0.0
+        } else {
+            (x - self.mean) / sd
+        }
     }
 }
 
@@ -91,7 +99,10 @@ pub struct CalibrationLoop {
 
 impl CalibrationLoop {
     pub fn new(config: CalibrationConfig) -> Self {
-        Self { config, stats: RunningStats::default() }
+        Self {
+            config,
+            stats: RunningStats::default(),
+        }
     }
 
     /// Record a new observation and check for drift.
@@ -129,7 +140,11 @@ pub struct BanditArm {
 
 impl BanditArm {
     pub fn new(model_id: impl Into<String>) -> Self {
-        Self { model_id: model_id.into(), successes: 0, failures: 0 }
+        Self {
+            model_id: model_id.into(),
+            successes: 0,
+            failures: 0,
+        }
     }
 
     /// Expected reward under Beta(α=successes+1, β=failures+1): mean = α/(α+β).
@@ -166,9 +181,11 @@ impl ContextualBandit {
     /// Select the arm with highest expected reward. Returns `None` if no arms.
     #[must_use]
     pub fn select(&self) -> Option<&BanditArm> {
-        self.arms
-            .iter()
-            .max_by(|a, b| a.expected_reward().partial_cmp(&b.expected_reward()).unwrap())
+        self.arms.iter().max_by(|a, b| {
+            a.expected_reward()
+                .partial_cmp(&b.expected_reward())
+                .unwrap()
+        })
     }
 
     /// Record an outcome for the arm identified by `model_id`.
@@ -270,7 +287,10 @@ mod tests {
 
     #[test]
     fn z_score_zero_before_min_observations() {
-        let mut cal = CalibrationLoop::new(CalibrationConfig { min_observations: 5, ..Default::default() });
+        let mut cal = CalibrationLoop::new(CalibrationConfig {
+            min_observations: 5,
+            ..Default::default()
+        });
         for _ in 0..4 {
             let out = cal.observe(1.0);
             assert!(!out.drift_detected);
@@ -318,8 +338,16 @@ mod tests {
     #[test]
     fn bandit_selects_arm_with_highest_reward() {
         let arms = vec![
-            BanditArm { model_id: "weak".into(), successes: 1, failures: 9 },
-            BanditArm { model_id: "strong".into(), successes: 9, failures: 1 },
+            BanditArm {
+                model_id: "weak".into(),
+                successes: 1,
+                failures: 9,
+            },
+            BanditArm {
+                model_id: "strong".into(),
+                successes: 9,
+                failures: 1,
+            },
         ];
         let bandit = ContextualBandit::new(arms);
         assert_eq!(bandit.select().unwrap().model_id, "strong");
@@ -337,7 +365,11 @@ mod tests {
 
     #[test]
     fn calibration_run_event_has_correct_metric_type() {
-        let outcome = CalibrationOutcome { z_score: 0.0, drift_detected: false, observation_count: 1 };
+        let outcome = CalibrationOutcome {
+            z_score: 0.0,
+            drift_detected: false,
+            observation_count: 1,
+        };
         let ev = CalibrationRunEvent::new(&outcome, None);
         assert_eq!(ev.metric_type, "orch.calibration.run");
     }

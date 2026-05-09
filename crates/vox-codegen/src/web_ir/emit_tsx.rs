@@ -122,7 +122,12 @@ fn emit_node(
                 .collect();
             format!("{pad}{{({predicate}) ? (\n{then_s}{pad}) : (\n{else_s}{pad})}}\n")
         }
-        DomNode::Loop { iterator, key, body, .. } => {
+        DomNode::Loop {
+            iterator,
+            key,
+            body,
+            ..
+        } => {
             let body_s: String = body
                 .iter()
                 .map(|c| emit_node(module, *c, indent + 1, stats))

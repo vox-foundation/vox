@@ -21,12 +21,12 @@ use std::process::Command;
 /// Call this once from `build.rs`. Each binary's build script may add its own
 /// `cargo:rerun-if-changed` lines after this call.
 pub fn emit() {
-    let build_number = git_stdout(&["rev-list", "--count", "HEAD"])
-        .unwrap_or_else(|| "dev".to_string());
+    let build_number =
+        git_stdout(&["rev-list", "--count", "HEAD"]).unwrap_or_else(|| "dev".to_string());
     println!("cargo:rustc-env=VOX_BUILD_NUMBER={build_number}");
 
-    let git_hash = git_stdout(&["rev-parse", "--short", "HEAD"])
-        .unwrap_or_else(|| "unknown".to_string());
+    let git_hash =
+        git_stdout(&["rev-parse", "--short", "HEAD"]).unwrap_or_else(|| "unknown".to_string());
     println!("cargo:rustc-env=VOX_GIT_HASH={git_hash}");
 
     // Invalidate when the branch tip changes.

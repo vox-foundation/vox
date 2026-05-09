@@ -44,7 +44,6 @@ pub use embeddings::EmbeddingService;
 // `vox-search` for `EmbeddingService`) do not need to pull in `vox-actor-runtime`
 // just to construct an embedding configuration. Plugin crates must not depend
 // on the core runtime; this re-export is the supported surface.
-pub use vox_actor_runtime::llm::LlmConfig;
 pub use evaluation::{SearchBenchmarkQuery, SearchEvalReport, default_doc_nav_queries};
 pub use execution::{
     LexicalMemoryFallback, SearchExecution, execute_search_plan, repo_path_search,
@@ -52,3 +51,4 @@ pub use execution::{
 pub use ingest::ingest_markdown_tree;
 pub use memory_hybrid::{HybridSearchHit, MemorySearchEngine};
 pub use policy::{SEARCH_POLICY_DEFAULT_VERSION, SearchPolicy};
+pub use vox_actor_runtime::llm::LlmConfig;

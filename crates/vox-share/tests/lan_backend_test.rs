@@ -9,10 +9,15 @@ use vox_share::{BackendKind, TunnelBackend};
 async fn lan_backend_returns_lan_url_pointing_at_local_port() {
     let backend = LanBackend::new();
 
-    backend.preflight().await.expect("LAN preflight should always succeed");
+    backend
+        .preflight()
+        .await
+        .expect("LAN preflight should always succeed");
 
     let port = 7860u16;
-    let handle = backend.start(port, Duration::from_secs(1)).await
+    let handle = backend
+        .start(port, Duration::from_secs(1))
+        .await
         .expect("LAN backend start should succeed unconditionally");
 
     assert_eq!(handle.backend, BackendKind::Lan);

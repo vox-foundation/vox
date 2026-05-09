@@ -25,10 +25,10 @@
 //! route id policy — changing sort keys requires dual updates in `validate_web_ir` route stage.
 
 use crate::codegen_ts::hir_emit::{EmitCtx, emit_hir_expr, emit_hir_pattern};
+use std::collections::HashSet;
 use vox_compiler::hir::{
     HirEndpointFn, HirEndpointKind, HirExpr, HirHttpMethod, HirModule, HirRoute, HirStmt,
 };
-use std::collections::HashSet;
 
 /// Mock `ClaudeActor` embedded in generated `server.ts` when HTTP routes exist (OP-0172 SSOT).
 const EXPRESS_TYPESCRIPT_CLAUDE_ACTOR_CLASS: &str = r#"class ClaudeActor {
@@ -176,7 +176,10 @@ fn emit_hir_route_expr(expr: &HirExpr) -> String {
             }
         }
         HirExpr::Spawn(target, _) => {
-            format!("new {}Actor()", emit_hir_expr(target, &EmitCtx::new(&empty)))
+            format!(
+                "new {}Actor()",
+                emit_hir_expr(target, &EmitCtx::new(&empty))
+            )
         }
         HirExpr::FieldAccess(object, field, _) => {
             let obj = emit_hir_route_expr(object);

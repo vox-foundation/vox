@@ -140,9 +140,7 @@ pub fn detect_runtime(_preference: RuntimePreference) -> Option<Box<dyn SkillRun
     // For the WASM runtime, since wasmtime is an in-process embedding, callers that
     // need a concrete impl should use vox_plugin_runtime_wasm::WasmRuntime::new() directly
     // or load the plugin.
-    tracing::info!(
-        "detect_runtime: probing environment for skill runtimes"
-    );
+    tracing::info!("detect_runtime: probing environment for skill runtimes");
 
     // We log probe results but return None — the plugin host wires the actual impls.
     // See vox-plugin-runtime-wasm and vox-plugin-runtime-container.

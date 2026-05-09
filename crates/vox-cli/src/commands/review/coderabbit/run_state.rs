@@ -4,8 +4,8 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 
-use vox_bounded_fs::read_utf8_path_capped;
 use serde::{Deserialize, Serialize};
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// One semantic chunk execution record.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

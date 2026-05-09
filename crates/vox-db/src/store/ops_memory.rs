@@ -9,10 +9,10 @@
 use turso::params;
 
 use crate::store::types::{EmbeddingEntry, MemoryEntry, SaveMemoryParams, StoreError};
-use vox_db_types::{DbAgentId, DbSessionId};
 use crate::{
     RetrievalEvidenceSource, RetrievalResult, SearchBackend, SearchDiagnostics, fuse_hybrid_results,
 };
+use vox_db_types::{DbAgentId, DbSessionId};
 
 impl crate::VoxDb {
     // ── Memories (memories) ───────────────────────────────────────────────────
@@ -121,9 +121,13 @@ impl crate::VoxDb {
             out.push(MemoryEntry {
                 id: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
                 agent_id: DbAgentId::new(
-                    row.get::<String>(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                    row.get::<String>(1)
+                        .map_err(|e| StoreError::Db(e.to_string()))?,
                 ),
-                session_id: DbSessionId::new(row.get::<String>(2).map_err(|e| StoreError::Db(e.to_string()))?),
+                session_id: DbSessionId::new(
+                    row.get::<String>(2)
+                        .map_err(|e| StoreError::Db(e.to_string()))?,
+                ),
                 memory_type: row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
                 content: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
                 metadata: row.get(5).map_err(|e| StoreError::Db(e.to_string()))?,

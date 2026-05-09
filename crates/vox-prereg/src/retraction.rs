@@ -11,12 +11,22 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// The reason a publication was retracted.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RetractionReason {
-    DataError { description: String },
-    AnalysisError { description: String },
-    EthicsViolation { description: String },
+    DataError {
+        description: String,
+    },
+    AnalysisError {
+        description: String,
+    },
+    EthicsViolation {
+        description: String,
+    },
     /// The DOI is superseded by a corrected version.
-    Superseded { replacement_doi: String },
-    Other { description: String },
+    Superseded {
+        replacement_doi: String,
+    },
+    Other {
+        description: String,
+    },
 }
 
 /// An immutable retraction record (value object).
@@ -48,7 +58,10 @@ pub fn emit_retraction(
         .expect("system clock must be after epoch")
         .as_secs() as i64;
 
-    let replacement_doi = if let RetractionReason::Superseded { ref replacement_doi } = reason {
+    let replacement_doi = if let RetractionReason::Superseded {
+        ref replacement_doi,
+    } = reason
+    {
         Some(replacement_doi.clone())
     } else {
         None
@@ -115,7 +128,10 @@ mod tests {
         assert_eq!(record.retracted_doi, "10.5281/zenodo.12345");
         assert_eq!(record.retracted_by, "https://orcid.org/0000-0009-8765-4321");
         assert!(!record.crossref_propagated, "must start un-propagated");
-        assert!(record.replacement_doi.is_none(), "DataError has no replacement DOI");
+        assert!(
+            record.replacement_doi.is_none(),
+            "DataError has no replacement DOI"
+        );
         assert!(
             record.retracted_at >= before && record.retracted_at <= after,
             "retracted_at must be within the test wall-clock window"
@@ -140,6 +156,9 @@ mod tests {
 
         mark_crossref_propagated(&mut record);
 
-        assert!(record.crossref_propagated, "must be true after mark_crossref_propagated");
+        assert!(
+            record.crossref_propagated,
+            "must be true after mark_crossref_propagated"
+        );
     }
 }

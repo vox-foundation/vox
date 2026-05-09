@@ -1,24 +1,37 @@
-use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 use crate::features::{ExtractedFeatures, LiteralContext};
 use crate::rules::{DriftRule, WorkspaceContext};
+use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 
 pub struct VersionStringRule;
 
 impl DriftRule for VersionStringRule {
-    fn id(&self) -> &'static str { "drift/version-string" }
-    fn severity(&self) -> Severity { Severity::Warning }
-    fn languages(&self) -> &[Language] { &[Language::Rust, Language::Vox] }
+    fn id(&self) -> &'static str {
+        "drift/version-string"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Warning
+    }
+    fn languages(&self) -> &[Language] {
+        &[Language::Rust, Language::Vox]
+    }
 
     fn check(&self, features: &ExtractedFeatures, ctx: &WorkspaceContext) -> Vec<Finding> {
-        if ctx.workspace_version.is_empty() { return vec![]; }
-        if features.file.file_name().map_or(false, |n| n == "Cargo.toml") {
+        if ctx.workspace_version.is_empty() {
+            return vec![];
+        }
+        if features
+            .file
+            .file_name()
+            .map_or(false, |n| n == "Cargo.toml")
+        {
             return vec![];
         }
 
-        features.string_literals.iter()
+        features
+            .string_literals
+            .iter()
             .filter(|lit| {
-                matches!(lit.ctx, LiteralContext::Code)
-                    && lit.value == ctx.workspace_version
+                matches!(lit.ctx, LiteralContext::Code) && lit.value == ctx.workspace_version
             })
             .map(|lit| Finding {
                 rule_id: self.id().to_string(),
@@ -47,9 +60,9 @@ impl DriftRule for VersionStringRule {
 mod tests {
     use super::*;
     use crate::features::*;
-    use vox_code_audit::rules::Language;
-    use std::path::PathBuf;
     use crate::rules::WorkspaceContext;
+    use std::path::PathBuf;
+    use vox_code_audit::rules::Language;
 
     #[test]
     fn flags_hardcoded_version_string() {
@@ -57,10 +70,8 @@ mod tests {
             workspace_version: "0.5.0".into(),
             workspace_root: PathBuf::from("."),
         };
-        let mut f = ExtractedFeatures::new(
-            PathBuf::from("crates/vox-cli/tests/foo.rs"),
-            Language::Rust,
-        );
+        let mut f =
+            ExtractedFeatures::new(PathBuf::from("crates/vox-cli/tests/foo.rs"), Language::Rust);
         f.string_literals.push(LiteralLoc {
             value: "0.5.0".into(),
             loc: Loc { line: 78, col: 0 },

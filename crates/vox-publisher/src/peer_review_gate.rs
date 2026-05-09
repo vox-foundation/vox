@@ -24,10 +24,20 @@ pub struct PeerReview {
 
 #[derive(Debug)]
 pub enum PeerReviewGateError {
-    InvalidSignature { reviewer_key_hex: String },
-    InsufficientApprovals { got: usize, need: usize },
-    DigestMismatch { reviewer_key_hex: String },
-    Rejected { reviewer_key_hex: String, rationale: Option<String> },
+    InvalidSignature {
+        reviewer_key_hex: String,
+    },
+    InsufficientApprovals {
+        got: usize,
+        need: usize,
+    },
+    DigestMismatch {
+        reviewer_key_hex: String,
+    },
+    Rejected {
+        reviewer_key_hex: String,
+        rationale: Option<String>,
+    },
 }
 
 impl std::fmt::Display for PeerReviewGateError {
@@ -42,7 +52,10 @@ impl std::fmt::Display for PeerReviewGateError {
             Self::DigestMismatch { reviewer_key_hex } => {
                 write!(f, "digest mismatch in review from {reviewer_key_hex}")
             }
-            Self::Rejected { reviewer_key_hex, rationale } => {
+            Self::Rejected {
+                reviewer_key_hex,
+                rationale,
+            } => {
                 write!(f, "rejected by {reviewer_key_hex}: {:?}", rationale)
             }
         }
@@ -184,23 +197,20 @@ mod tests {
     #[test]
     fn two_approvals_passes() {
         let gate = PeerReviewGate::default();
-        let reviews = vec![
-            make_review("digest-abc", ReviewDecision::Approve),
-            {
-                let key = "reviewer-key-b".to_string();
-                let decision = ReviewDecision::Approve;
-                let payload = canonical_review_payload(&key, "digest-abc", &decision, 0);
-                let sig = sha3_hex(&payload);
-                PeerReview {
-                    reviewer_key_hex: key,
-                    publication_digest: "digest-abc".to_string(),
-                    decision,
-                    rationale: None,
-                    signed_at: 0,
-                    signature_hex: sig,
-                }
-            },
-        ];
+        let reviews = vec![make_review("digest-abc", ReviewDecision::Approve), {
+            let key = "reviewer-key-b".to_string();
+            let decision = ReviewDecision::Approve;
+            let payload = canonical_review_payload(&key, "digest-abc", &decision, 0);
+            let sig = sha3_hex(&payload);
+            PeerReview {
+                reviewer_key_hex: key,
+                publication_digest: "digest-abc".to_string(),
+                decision,
+                rationale: None,
+                signed_at: 0,
+                signature_hex: sig,
+            }
+        }];
         assert!(gate.check("digest-abc", &reviews).is_ok());
     }
 
@@ -209,7 +219,10 @@ mod tests {
         let gate = PeerReviewGate::default();
         let reviews = vec![make_review("digest-abc", ReviewDecision::Approve)];
         let err = gate.check("digest-abc", &reviews).unwrap_err();
-        assert!(matches!(err, PeerReviewGateError::InsufficientApprovals { .. }));
+        assert!(matches!(
+            err,
+            PeerReviewGateError::InsufficientApprovals { .. }
+        ));
     }
 
     #[test]

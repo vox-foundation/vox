@@ -268,9 +268,14 @@ pub async fn hint_show(context: Option<&str>) -> Result<()> {
         .await;
         vox_gamify::teaching::Hint::deterministic(r).body
     } else {
-        let _ =
-            vox_gamify::db::log_hint_event(db, user_id, &format!("{kind:?}"), "suppressed", context)
-                .await;
+        let _ = vox_gamify::db::log_hint_event(
+            db,
+            user_id,
+            &format!("{kind:?}"),
+            "suppressed",
+            context,
+        )
+        .await;
         match context {
             Some("build") => {
                 "Try using `vox check` before `vox build` to catch errors faster.".to_string()

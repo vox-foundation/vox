@@ -22,13 +22,15 @@
 //! **Notes B/C (OP-S115 / S161 / S193):** classic props interfaces remain the codegen boundary until Path C
 //! view maps fully share [`crate::web_ir::BehaviorNode`] naming.
 
+use crate::codegen_ts::jsx::{
+    emit_expr, emit_jsx_element, emit_jsx_fragment, emit_jsx_self_closing, emit_stmt,
+};
+use std::collections::BTreeSet;
 use vox_compiler::ast::decl::FnDecl;
 use vox_compiler::ast::expr::Expr;
 use vox_compiler::ast::scalar_mapping::VoxScalar;
 use vox_compiler::ast::stmt::Stmt;
-use crate::codegen_ts::jsx::{emit_expr, emit_jsx_element, emit_jsx_fragment, emit_jsx_self_closing, emit_stmt};
 use vox_compiler::react_bridge::{for_each_vox_hook_call_in_stmt, react_hook_export_for_vox_ident};
-use std::collections::BTreeSet;
 
 /// Generate a React component from WebIR when a lowered view root is available.
 #[must_use]

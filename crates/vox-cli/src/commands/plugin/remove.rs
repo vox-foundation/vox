@@ -16,8 +16,7 @@ pub fn run(id: &str) -> Result<()> {
         return Ok(());
     }
 
-    std::fs::remove_dir_all(&id_dir)
-        .with_context(|| format!("removing {}", id_dir.display()))?;
+    std::fs::remove_dir_all(&id_dir).with_context(|| format!("removing {}", id_dir.display()))?;
 
     println!("✓ Removed plugin '{}' ({})", id, id_dir.display());
     Ok(())

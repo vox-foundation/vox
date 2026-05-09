@@ -8,13 +8,13 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vox_actor_runtime::supervisor::spawn_supervised_infallible;
 
-use vox_orchestrator::a2a::{A2ADeliveryPlane, A2AInboxPlane};
 use crate::attention_policy::{
     a2a_escalation_signals, channel_label, decision_label, evaluate_with_state,
     pending_backlog_for_session, trust_for_session,
 };
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
+use vox_orchestrator::a2a::{A2ADeliveryPlane, A2AInboxPlane};
 use vox_orchestrator::types::{A2AMessageType, AgentId};
 
 #[inline]
@@ -323,7 +323,10 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
         let bm = state.orchestrator.budget_manager_handle();
         let snap = vox_orchestrator::sync_lock::rw_read(&*bm).attention_snapshot();
         if let vox_orchestrator::GateResult::AttentionExhausted { message, .. } =
-            vox_orchestrator::BudgetGate::check_attention_snapshot(&snap, &state.orchestrator_config)
+            vox_orchestrator::BudgetGate::check_attention_snapshot(
+                &snap,
+                &state.orchestrator_config,
+            )
         {
             return ToolResult::<String>::err_with_remediation(
                 message,
@@ -342,7 +345,9 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
         );
         let decision = evaluate_with_state(state, &signals, &snap);
         match decision {
-            vox_orchestrator::InterruptionDecision::RequireHumanBeforeContinue { reason, .. } => {
+            vox_orchestrator::InterruptionDecision::RequireHumanBeforeContinue {
+                reason, ..
+            } => {
                 return ToolResult::<String>::err_with_remediation(
                     format!("A2A escalation blocked pending human review: {reason}"),
                     "Reduce blast radius or include explicit human-approved context before resubmitting this escalation.",
@@ -473,10 +478,11 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
                 )
                 .to_json();
             };
-            let repository_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot)
-                .expose()
-                .unwrap_or("default")
-                .to_string();
+            let repository_id =
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRepositoryRoot)
+                    .expose()
+                    .unwrap_or("default")
+                    .to_string();
             match vox_orchestrator::a2a::send_to_db_with_breaker(
                 &db,
                 sender,
@@ -505,7 +511,8 @@ pub async fn a2a_send(state: &ServerState, params: A2ASendParams) -> String {
                     && !base.trim().is_empty()
                 {
                     relay_attempted = true;
-                    let client = vox_populi::http_client::PopuliHttpClient::new(base).with_env_token();
+                    let client =
+                        vox_populi::http_client::PopuliHttpClient::new(base).with_env_token();
                     relay_ok = client
                         .relay_a2a(&vox_populi::transport::A2ADeliverRequest {
                             sender_agent_id: params.sender_id.to_string(),
@@ -772,7 +779,10 @@ pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> S
         let bm = state.orchestrator.budget_manager_handle();
         let snap = vox_orchestrator::sync_lock::rw_read(&*bm).attention_snapshot();
         if let vox_orchestrator::GateResult::AttentionExhausted { message, .. } =
-            vox_orchestrator::BudgetGate::check_attention_snapshot(&snap, &state.orchestrator_config)
+            vox_orchestrator::BudgetGate::check_attention_snapshot(
+                &snap,
+                &state.orchestrator_config,
+            )
         {
             return ToolResult::<String>::err_with_remediation(
                 message,
@@ -794,7 +804,9 @@ pub async fn a2a_broadcast(state: &ServerState, params: A2ABroadcastParams) -> S
         );
         let decision = evaluate_with_state(state, &signals, &snap);
         match decision {
-            vox_orchestrator::InterruptionDecision::RequireHumanBeforeContinue { reason, .. } => {
+            vox_orchestrator::InterruptionDecision::RequireHumanBeforeContinue {
+                reason, ..
+            } => {
                 return ToolResult::<String>::err_with_remediation(
                     format!("A2A broadcast blocked pending human review: {reason}"),
                     "Reduce blast radius or include explicit human-approved context before resubmitting.",

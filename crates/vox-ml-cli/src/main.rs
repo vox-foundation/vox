@@ -41,7 +41,8 @@ async fn main() -> anyhow::Result<()> {
     match root.command {
         #[cfg(any(feature = "mens-base", feature = "gpu"))]
         MensSubcommand::Mens { action } => {
-            vox_ml_cli::commands::mens::run(*action, root.global.json, root.global.verbose > 0).await
+            vox_ml_cli::commands::mens::run(*action, root.global.json, root.global.verbose > 0)
+                .await
         }
         #[cfg(feature = "oratio")]
         MensSubcommand::Oratio { action } => {

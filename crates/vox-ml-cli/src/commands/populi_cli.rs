@@ -787,10 +787,9 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
             let reg = vox_populi::LocalRegistry::new(path.clone());
             let file = reg.load()?;
             let env = vox_populi::populi_env();
-            let self_id = env
-                .node_id
-                .clone()
-                .unwrap_or_else(|| format!("local-{}", vox_actor_runtime::simple_id::simple_hex_id()));
+            let self_id = env.node_id.clone().unwrap_or_else(|| {
+                format!("local-{}", vox_actor_runtime::simple_id::simple_hex_id())
+            });
             let self_record =
                 vox_populi::node_record_for_current_process(self_id, env.control_addr.clone());
             let as_json = json || global_json;
@@ -1003,10 +1002,11 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                     let ok = true;
                     println!("Checking mesh configuration...");
 
-                    let has_token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
-                        .expose()
-                        .is_some()
-                        || cfg.values.contains_key(MESH_TOKEN_KEY);
+                    let has_token =
+                        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
+                            .expose()
+                            .is_some()
+                            || cfg.values.contains_key(MESH_TOKEN_KEY);
                     if !has_token {
                         println!(
                             "  WARN  mesh.token not set — a token will be auto-generated on first serve"

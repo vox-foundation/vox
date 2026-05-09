@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::privacy_router::{PrivacyLevel, PrivacyRoutingDecision, PrivacyRouter};
+use crate::privacy_router::{PrivacyLevel, PrivacyRouter, PrivacyRoutingDecision};
 
 /// Structured detection signals used to classify privacy level.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -186,42 +186,61 @@ mod tests {
     #[test]
     fn no_signals_defaults_to_internal() {
         let c = classifier();
-        assert_eq!(c.classify(&ClassificationSignals::default()), PrivacyLevel::Internal);
+        assert_eq!(
+            c.classify(&ClassificationSignals::default()),
+            PrivacyLevel::Internal
+        );
     }
 
     #[test]
     fn regulated_routes_local_only() {
         let r = router_force_local();
-        assert_eq!(route_for_level(&r, PrivacyLevel::Regulated), PrivacyRoutingDecision::LocalOnly);
+        assert_eq!(
+            route_for_level(&r, PrivacyLevel::Regulated),
+            PrivacyRoutingDecision::LocalOnly
+        );
     }
 
     #[test]
     fn private_with_force_local_routes_local_only() {
         let r = router_force_local();
-        assert_eq!(route_for_level(&r, PrivacyLevel::Private), PrivacyRoutingDecision::LocalOnly);
+        assert_eq!(
+            route_for_level(&r, PrivacyLevel::Private),
+            PrivacyRoutingDecision::LocalOnly
+        );
     }
 
     #[test]
     fn private_without_force_local_routes_redact() {
         let r = router_no_force_local();
-        assert_eq!(route_for_level(&r, PrivacyLevel::Private), PrivacyRoutingDecision::Redact);
+        assert_eq!(
+            route_for_level(&r, PrivacyLevel::Private),
+            PrivacyRoutingDecision::Redact
+        );
     }
 
     #[test]
     fn internal_routes_redact() {
         let r = router_force_local();
-        assert_eq!(route_for_level(&r, PrivacyLevel::Internal), PrivacyRoutingDecision::Redact);
+        assert_eq!(
+            route_for_level(&r, PrivacyLevel::Internal),
+            PrivacyRoutingDecision::Redact
+        );
     }
 
     #[test]
     fn public_routes_allowed() {
         let r = router_force_local();
-        assert_eq!(route_for_level(&r, PrivacyLevel::Public), PrivacyRoutingDecision::Allowed);
+        assert_eq!(
+            route_for_level(&r, PrivacyLevel::Public),
+            PrivacyRoutingDecision::Allowed
+        );
     }
 
     #[test]
     fn privacy_route_event_has_correct_metric_type() {
-        let ev = PrivacyRouteEvent::new(PrivacyLevel::Public, PrivacyRoutingDecision::Allowed, None);
+        let ev =
+            PrivacyRouteEvent::new(PrivacyLevel::Public, PrivacyRoutingDecision::Allowed, None);
         assert_eq!(ev.metric_type, "orch.privacy.route_decision");
     }
 }

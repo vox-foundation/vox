@@ -1,4 +1,4 @@
-use vox_plugin_catalog::{bundle_resolved, ResolveError};
+use vox_plugin_catalog::{ResolveError, bundle_resolved};
 
 #[test]
 fn vox_base_resolves_to_zero_plugins() {
@@ -37,6 +37,12 @@ fn duplicate_plugin_in_chain_is_deduped() {
     // skill-orchestrator is in vox-fullstack AND vox-mesh; vox-dev pulls both.
     // It must appear exactly once in the resolved set.
     let plugins = bundle_resolved("vox-dev").expect("should resolve");
-    let count = plugins.iter().filter(|p| p.id == "skill-orchestrator").count();
-    assert_eq!(count, 1, "skill-orchestrator should be deduped, got {count}");
+    let count = plugins
+        .iter()
+        .filter(|p| p.id == "skill-orchestrator")
+        .count();
+    assert_eq!(
+        count, 1,
+        "skill-orchestrator should be deduped, got {count}"
+    );
 }

@@ -58,7 +58,9 @@ async fn session_wait_exits_on_duration() {
         auth_mode: AuthMode::None,
         allow_buffered_streaming: true,
     };
-    let session = ShareSession::start(cfg).await.expect("session should start");
+    let session = ShareSession::start(cfg)
+        .await
+        .expect("session should start");
     // wait() should return after ~200ms (duration elapsed).
     let result = tokio::time::timeout(Duration::from_secs(5), session.wait()).await;
     assert!(

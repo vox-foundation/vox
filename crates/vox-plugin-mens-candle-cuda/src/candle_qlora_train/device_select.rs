@@ -32,7 +32,9 @@ pub(super) fn select_candle_device(
             }
             #[cfg(not(feature = "cuda"))]
             {
-                anyhow::bail!("Plugin built without the `cuda` feature — recompile with `--features cuda`");
+                anyhow::bail!(
+                    "Plugin built without the `cuda` feature — recompile with `--features cuda`"
+                );
             }
         }
         DeviceKind::Metal => (Device::new_metal(0)?, "metal:0".into()),

@@ -1,6 +1,6 @@
-use std::path::Path;
-use anyhow::Result;
 use crate::features::ExtractedFeatures;
+use anyhow::Result;
+use std::path::Path;
 
 pub trait LanguageExtractor: Send + Sync {
     fn extract(&self, path: &Path, content: &str) -> Result<ExtractedFeatures>;

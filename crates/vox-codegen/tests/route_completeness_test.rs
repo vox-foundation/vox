@@ -5,7 +5,12 @@ fn try_emit(src: &str) -> Result<String, String> {
     let m = parse(lex(src)).map_err(|e| format!("{e:?}"))?;
     let hir = lower_module(&m);
     let out = generate(&hir)?;
-    Ok(out.files.iter().map(|(_, c)| c.clone()).collect::<Vec<_>>().join("\n"))
+    Ok(out
+        .files
+        .iter()
+        .map(|(_, c)| c.clone())
+        .collect::<Vec<_>>()
+        .join("\n"))
 }
 
 #[test]

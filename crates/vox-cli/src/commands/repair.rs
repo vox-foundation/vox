@@ -3,8 +3,8 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::fs;
 use std::process::Command;
-use vox_secrets::{SecretId, resolve_secret};
 use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};
+use vox_secrets::{SecretId, resolve_secret};
 
 #[derive(Debug, Deserialize)]
 struct SpanPayload {

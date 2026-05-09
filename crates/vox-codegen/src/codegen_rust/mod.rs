@@ -22,12 +22,12 @@ pub use pipeline::{ScriptTarget, generate, generate_script, generate_script_with
 #[cfg(test)]
 mod tests {
     use super::*;
+    use emit::{emit_cargo_toml, emit_main, emit_table_struct};
     use vox_compiler::ast::span::Span;
     use vox_compiler::hir::{
         DefId, HirEndpointFn, HirExpr, HirModule, HirRustImport, HirStmt, HirTable, HirTableField,
         HirType,
     };
-    use emit::{emit_cargo_toml, emit_main, emit_table_struct};
 
     fn empty_module() -> HirModule {
         HirModule::default()

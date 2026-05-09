@@ -18,4 +18,4 @@ pub mod pack;
 pub use pack::{CompiledRule, RulePack};
 
 pub mod bench;
-pub use bench::{run_bench, BenchReport, RuleBenchResult};
+pub use bench::{BenchReport, RuleBenchResult, run_bench};

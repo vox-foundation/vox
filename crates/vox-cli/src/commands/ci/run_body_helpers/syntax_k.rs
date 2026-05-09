@@ -3,11 +3,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use vox_codegen::syntax_k::{SyntaxKInput, canonical_web_ir_bytes, measure_syntax_k_event};
+use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::lex;
 use vox_compiler::parser::parse;
-use vox_codegen::syntax_k::{SyntaxKInput, canonical_web_ir_bytes, measure_syntax_k_event};
-use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 struct ComplexityBudget {

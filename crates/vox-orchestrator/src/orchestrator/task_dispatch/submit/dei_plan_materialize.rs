@@ -73,7 +73,8 @@ async fn synthesized_plan_nodes(
                         };
                         let cfg_clone = llm_cfg.clone();
                         async move {
-                            let opts = vox_actor_runtime::ActivityOptions::new().with_timeout_secs(45);
+                            let opts =
+                                vox_actor_runtime::ActivityOptions::new().with_timeout_secs(45);
                             match vox_actor_runtime::llm::llm_chat(
                                 &opts,
                                 vec![sys_msg, user_msg],

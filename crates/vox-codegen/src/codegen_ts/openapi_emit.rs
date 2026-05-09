@@ -16,13 +16,13 @@
 //! Phase 2 — this is the artifact that unlocks `openapi-typescript`,
 //! Orval, RTK Query, Postman, and similar TS consumers.
 
+use serde_json::{Map, Value, json};
+use std::collections::BTreeMap;
 use vox_compiler::contract_ir::{
     ContractEndpoint, ContractIr, ContractType, ContractTypeKind, ContractVariant, HttpMethod,
     WireType,
 };
 use vox_compiler::hir::HirModule;
-use serde_json::{Map, Value, json};
-use std::collections::BTreeMap;
 
 /// Emit an OpenAPI 3.1 specification for a Vox HIR module.
 ///
@@ -73,7 +73,10 @@ fn method_key(m: HttpMethod) -> String {
 fn emit_operation(e: &ContractEndpoint) -> Value {
     let mut op = Map::new();
     op.insert("operationId".into(), json!(e.name));
-    op.insert("summary".into(), json!(format!("{} {}", e.method.as_str(), e.path)));
+    op.insert(
+        "summary".into(),
+        json!(format!("{} {}", e.method.as_str(), e.path)),
+    );
 
     match e.method {
         HttpMethod::Get => {
@@ -273,7 +276,10 @@ mod tests {
         let order = &v["components"]["schemas"]["Order"];
         assert_eq!(order["type"], json!("object"));
         assert_eq!(order["properties"]["total"]["type"], json!("string"));
-        assert_eq!(order["properties"]["total"]["x-vox-encoding"], json!("decimal"));
+        assert_eq!(
+            order["properties"]["total"]["x-vox-encoding"],
+            json!("decimal")
+        );
         assert_eq!(order["required"], json!(["total"]));
     }
 
@@ -294,7 +300,9 @@ mod tests {
         };
         let v = parse(&emit_from_contract(&ir, "demo", "0.1.0"));
         let profile = &v["components"]["schemas"]["Profile"];
-        assert!(profile.get("required").is_none() || profile["required"].as_array().unwrap().is_empty());
+        assert!(
+            profile.get("required").is_none() || profile["required"].as_array().unwrap().is_empty()
+        );
     }
 
     #[test]
@@ -304,7 +312,10 @@ mod tests {
                 name: "Status".into(),
                 kind: ContractTypeKind::Sum {
                     variants: vec![
-                        ContractVariant { tag: "Active".into(), fields: vec![] },
+                        ContractVariant {
+                            tag: "Active".into(),
+                            fields: vec![],
+                        },
                         ContractVariant {
                             tag: "Banned".into(),
                             fields: vec![ContractField {

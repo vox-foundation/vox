@@ -581,7 +581,6 @@ pub enum AgentEventKind {
     // -----------------------------------------------------------------------
     // Dashboard live-data variants (Task 0.6)
     // -----------------------------------------------------------------------
-
     /// A compiler stage transitioned (lex → parse → hir → typecheck → codegen).
     ///
     /// Powers the Forge pipeline view on the dashboard.

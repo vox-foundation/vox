@@ -1,10 +1,10 @@
 pub mod content_blocks;
-/// Plan-mode vs. ReAct mode decision trigger (D2).
-pub mod plan_mode_trigger;
 pub mod executor_bridge;
 pub mod intake_router;
 pub mod orient;
 pub mod plan_adequacy;
+/// Plan-mode vs. ReAct mode decision trigger (D2).
+pub mod plan_mode_trigger;
 pub mod policy;
 pub mod prompts;
 pub mod quality_gate;

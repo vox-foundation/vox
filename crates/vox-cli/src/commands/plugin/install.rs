@@ -39,8 +39,8 @@ fn install_from_path(src_dir: &Path, yes: bool) -> Result<()> {
     // Parse Plugin.toml to discover id + version.
     let raw = std::fs::read_to_string(&plugin_toml_path)
         .with_context(|| format!("reading {}", plugin_toml_path.display()))?;
-    let head: PluginHead = toml::from_str(&raw)
-        .with_context(|| format!("parsing {}", plugin_toml_path.display()))?;
+    let head: PluginHead =
+        toml::from_str(&raw).with_context(|| format!("parsing {}", plugin_toml_path.display()))?;
     let id = &head.plugin.id;
     let version = &head.plugin.version;
 
@@ -74,9 +74,8 @@ fn install_from_path(src_dir: &Path, yes: bool) -> Result<()> {
         let from = entry.path();
         if from.is_file() {
             let to = dest.join(entry.file_name());
-            std::fs::copy(&from, &to).with_context(|| {
-                format!("copying {} -> {}", from.display(), to.display())
-            })?;
+            std::fs::copy(&from, &to)
+                .with_context(|| format!("copying {} -> {}", from.display(), to.display()))?;
             copied += 1;
         }
     }

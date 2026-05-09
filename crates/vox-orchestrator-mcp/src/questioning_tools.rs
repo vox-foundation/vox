@@ -173,7 +173,9 @@ pub async fn questioning_submit_answer(
         .await;
 
     {
-        use vox_orchestrator::{AgentId, ApprovalOutcome, ApprovalTier, AttentionEvent, AttentionEventType};
+        use vox_orchestrator::{
+            AgentId, ApprovalOutcome, ApprovalTier, AttentionEvent, AttentionEventType,
+        };
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as u64)

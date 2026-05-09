@@ -11,11 +11,10 @@ use qlora_rs::training::QLoraTrainer;
 use super::{TrainingDbEvent, TrainingLoopStats};
 use crate::{
     adapter_schema_v3::{AdapterProvenanceFields, PopuliAdapterManifestV3},
-    config::LoraTrainingConfig,
     checkpoint_state::CheckpointState,
+    config::LoraTrainingConfig,
     finetune_contract::{AdapterMethod, BaseQuantMode},
-    manifest,
-    model_card,
+    manifest, model_card,
     qlora_preflight::QloraEmbedBundle,
     telemetry, telemetry_schema, train_log,
     training_summary::TrainingSummary,

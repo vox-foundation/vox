@@ -90,11 +90,15 @@ impl TunnelBackend for CloudflareBackend {
         // Wait for the URL to appear within the timeout.
         let public_url = tokio::time::timeout(connect_timeout, url_rx)
             .await
-            .map_err(|_| ShareError::TunnelCreate(format!(
-                "cloudflared did not produce a URL within {:?}",
-                connect_timeout
-            )))?
-            .map_err(|_| ShareError::TunnelCreate("URL channel closed before URL was received".into()))?;
+            .map_err(|_| {
+                ShareError::TunnelCreate(format!(
+                    "cloudflared did not produce a URL within {:?}",
+                    connect_timeout
+                ))
+            })?
+            .map_err(|_| {
+                ShareError::TunnelCreate("URL channel closed before URL was received".into())
+            })?;
 
         Ok(TunnelHandle::new(
             public_url,
@@ -112,11 +116,14 @@ fn extract_trycloudflare_url(line: &str) -> Option<String> {
     let suffix = ".trycloudflare.com";
     let start = line.find(marker)?;
     let rest = &line[start..];
-    let end = rest.find(|c: char| c.is_whitespace() || c == '|').unwrap_or(rest.len());
+    let end = rest
+        .find(|c: char| c.is_whitespace() || c == '|')
+        .unwrap_or(rest.len());
     let candidate = &rest[..end];
     if candidate.ends_with(suffix) || candidate.contains(suffix) {
         // Trim any trailing non-URL chars
-        let clean = candidate.trim_end_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-');
+        let clean =
+            candidate.trim_end_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '-');
         Some(clean.to_string())
     } else {
         None

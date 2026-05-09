@@ -315,9 +315,8 @@ fn validate_styles_with_registry(
                         });
                     }
 
-                    if !vox_compiler::lowering_shared::css_props::is_allowed_css_property(
-                        &css_prop,
-                    ) {
+                    if !vox_compiler::lowering_shared::css_props::is_allowed_css_property(&css_prop)
+                    {
                         out.push(WebIrDiagnostic {
                             code: "web_ir_validate.style.unknown_property".to_string(),
                             message: format!(

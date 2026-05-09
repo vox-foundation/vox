@@ -12,8 +12,8 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use vox_codegen::codegen_ts::{CodegenOptions, generate_with_options};
 use vox_codegen::codegen_ts::emitter::BuildMode;
+use vox_codegen::codegen_ts::{CodegenOptions, generate_with_options};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;

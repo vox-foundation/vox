@@ -19,15 +19,31 @@ fn catalog_has_all_nine_code_plugins() {
     let plugins = all_plugins();
     let code_ids: Vec<&str> = plugins
         .iter()
-        .filter(|p| matches!(p.payload_kind, vox_plugin_catalog::schema::PayloadKind::Code | vox_plugin_catalog::schema::PayloadKind::Composite))
+        .filter(|p| {
+            matches!(
+                p.payload_kind,
+                vox_plugin_catalog::schema::PayloadKind::Code
+                    | vox_plugin_catalog::schema::PayloadKind::Composite
+            )
+        })
         .map(|p| p.id.as_str())
         .collect();
     let expected = [
-        "tensor-burn-wgpu", "mens-candle-cuda", "oratio", "oratio-mic",
-        "cloud", "populi-mesh", "script-execution", "execution-api", "stub-check",
+        "tensor-burn-wgpu",
+        "mens-candle-cuda",
+        "oratio",
+        "oratio-mic",
+        "cloud",
+        "populi-mesh",
+        "script-execution",
+        "execution-api",
+        "stub-check",
     ];
     for id in expected {
-        assert!(code_ids.contains(&id), "missing code/composite plugin: {id}");
+        assert!(
+            code_ids.contains(&id),
+            "missing code/composite plugin: {id}"
+        );
     }
 }
 
@@ -36,12 +52,23 @@ fn catalog_has_all_skill_plugins() {
     let plugins = all_plugins();
     let skill_ids: Vec<&str> = plugins
         .iter()
-        .filter(|p| matches!(p.payload_kind, vox_plugin_catalog::schema::PayloadKind::Skill))
+        .filter(|p| {
+            matches!(
+                p.payload_kind,
+                vox_plugin_catalog::schema::PayloadKind::Skill
+            )
+        })
         .map(|p| p.id.as_str())
         .collect();
     let expected = [
-        "skill-compiler", "skill-git", "skill-memory", "skill-orchestrator",
-        "skill-rag", "skill-testing", "skill-testing-validate", "skill-v0",
+        "skill-compiler",
+        "skill-git",
+        "skill-memory",
+        "skill-orchestrator",
+        "skill-rag",
+        "skill-testing",
+        "skill-testing-validate",
+        "skill-v0",
     ];
     for id in expected {
         assert!(skill_ids.contains(&id), "missing skill plugin: {id}");
@@ -53,8 +80,14 @@ fn catalog_has_all_eight_bundles() {
     let bundles = all_bundles();
     let ids: Vec<&str> = bundles.iter().map(|b| b.id.as_str()).collect();
     let expected = [
-        "vox-base", "vox-fullstack", "vox-ml", "vox-mesh", "vox-server",
-        "vox-edge", "vox-cloud-only", "vox-dev",
+        "vox-base",
+        "vox-fullstack",
+        "vox-ml",
+        "vox-mesh",
+        "vox-server",
+        "vox-edge",
+        "vox-cloud-only",
+        "vox-dev",
     ];
     for id in expected {
         assert!(ids.contains(&id), "missing bundle: {id}");

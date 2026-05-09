@@ -111,7 +111,11 @@ impl OrchestratorBudgetGate {
         };
         BudgetDecision {
             status,
-            triggering_fraction: if status == BudgetStatus::Ok { 0.0 } else { trigger },
+            triggering_fraction: if status == BudgetStatus::Ok {
+                0.0
+            } else {
+                trigger
+            },
         }
     }
 }
@@ -192,7 +196,10 @@ mod tests {
 
     #[test]
     fn budget_decision_event_has_correct_metric_type() {
-        let d = BudgetDecision { status: BudgetStatus::Ok, triggering_fraction: 0.0 };
+        let d = BudgetDecision {
+            status: BudgetStatus::Ok,
+            triggering_fraction: 0.0,
+        };
         let ev = BudgetDecisionEvent::new(&d, None);
         assert_eq!(ev.metric_type, "orch.budget.decision");
     }

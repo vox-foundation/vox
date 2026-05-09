@@ -1,6 +1,6 @@
 use super::*;
-use crate::hir::{HirType, HirTypeDef, HirVariant};
 use crate::ast::span::Span;
+use crate::hir::{HirType, HirTypeDef, HirVariant};
 
 fn span() -> Span {
     Span { start: 0, end: 0 }
@@ -39,7 +39,10 @@ fn sum(name: &str, variants: Vec<(&str, Vec<(&str, HirType)>)>) -> HirTypeDef {
 fn struct_projection_carries_field_names_and_types() {
     let t = td(
         "User",
-        vec![("id", HirType::Named("int".into())), ("name", HirType::Named("str".into()))],
+        vec![
+            ("id", HirType::Named("int".into())),
+            ("name", HirType::Named("str".into())),
+        ],
     );
     let c = project::type_def(&t);
     assert_eq!(c.name, "User");
@@ -95,7 +98,10 @@ fn option_field_marks_optional_and_unwraps_inner() {
 
 #[test]
 fn decimal_widens_to_string_per_wire_format_v1() {
-    assert!(matches!(project_type(&HirType::Decimal), WireType::DecimalString));
+    assert!(matches!(
+        project_type(&HirType::Decimal),
+        WireType::DecimalString
+    ));
     assert!(matches!(
         project_type(&HirType::Named("Decimal".into())),
         WireType::DecimalString

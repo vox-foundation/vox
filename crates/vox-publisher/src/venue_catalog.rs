@@ -105,7 +105,11 @@ impl<'a> JournalFitRecommender<'a> {
                 }
             })
             .collect();
-        scores.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        scores.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         scores
     }
 

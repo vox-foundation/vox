@@ -180,7 +180,13 @@ pub async fn record_level_up(
             conn.execute(
                 "INSERT INTO gamify_level_history (user_id, level, title, xp_at_level, created_at)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![user_id.as_str(), level as i64, title.as_str(), xp_at_level as i64, now],
+                params![
+                    user_id.as_str(),
+                    level as i64,
+                    title.as_str(),
+                    xp_at_level as i64,
+                    now
+                ],
             )
             .await?;
             Ok::<(), vox_db::StoreError>(())

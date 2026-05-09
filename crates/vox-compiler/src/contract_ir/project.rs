@@ -50,10 +50,7 @@ pub(super) fn endpoint(e: &HirEndpointFn) -> ContractEndpoint {
                 .type_ann
                 .as_ref()
                 .map_or(WireType::Unknown, |t| unwrap_optional(t).1);
-            let optional = p
-                .type_ann
-                .as_ref()
-                .is_some_and(|t| unwrap_optional(t).0);
+            let optional = p.type_ann.as_ref().is_some_and(|t| unwrap_optional(t).0);
             ContractField {
                 name: p.name.clone(),
                 ty: inner_ty,

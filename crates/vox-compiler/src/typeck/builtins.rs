@@ -739,10 +739,7 @@ impl BuiltinTypes {
 
         // Regex / Match (std.regex compile output and find result).
         let mut regex_methods = std::collections::HashMap::new();
-        regex_methods.insert(
-            "matches".into(),
-            Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)),
-        );
+        regex_methods.insert("matches".into(), Ty::Fn(vec![Ty::Str], Box::new(Ty::Bool)));
         regex_methods.insert(
             "find".into(),
             Ty::Fn(

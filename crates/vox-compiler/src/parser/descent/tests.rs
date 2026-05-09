@@ -245,9 +245,17 @@ fn test_parse_else_if_chain() {
         } = &f.body[0]
         {
             // The else branch should be a single `Stmt::Expr` wrapping another `Expr::If`
-            assert_eq!(else_body.len(), 1, "else body should have exactly one statement");
+            assert_eq!(
+                else_body.len(),
+                1,
+                "else body should have exactly one statement"
+            );
             if let Stmt::Expr {
-                expr: Expr::If { else_body: Some(inner_else), .. },
+                expr:
+                    Expr::If {
+                        else_body: Some(inner_else),
+                        ..
+                    },
                 ..
             } = &else_body[0]
             {
@@ -561,17 +569,12 @@ fn test_parse_v0_component_from_image() {
 
 #[test]
 fn test_parse_endpoint_server_fn_brace_shape() {
-    let m = parse_str(
-        "@endpoint(kind: server) fn echo(x: str) to str {\n    return x\n}",
-    );
+    let m = parse_str("@endpoint(kind: server) fn echo(x: str) to str {\n    return x\n}");
     if let Decl::Endpoint(e) = &m.declarations[0] {
         assert_eq!(e.func.name, "echo");
         assert_eq!(e.func.params.len(), 1);
         assert_eq!(e.func.params[0].name, "x");
-        assert!(matches!(
-            e.kind,
-            crate::ast::decl::EndpointKind::Server
-        ));
+        assert!(matches!(e.kind, crate::ast::decl::EndpointKind::Server));
     } else {
         panic!("Expected Decl::Endpoint, got {:?}", m.declarations[0]);
     }

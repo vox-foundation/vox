@@ -310,7 +310,9 @@ fn route_method_from_contract(method: &str) -> &'static str {
     }
 }
 
-fn route_handler_name_from_contract(route: &vox_compiler::app_contract::AppHttpRouteContract) -> String {
+fn route_handler_name_from_contract(
+    route: &vox_compiler::app_contract::AppHttpRouteContract,
+) -> String {
     let method = match route.method.as_str() {
         "GET" => HirHttpMethod::Get,
         "POST" => HirHttpMethod::Post,

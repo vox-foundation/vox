@@ -4,12 +4,12 @@ use crate::cli_args::DeployArgs;
 use crate::commands::pm_lifecycle::lockfile_path;
 use anyhow::{Context, Result};
 use std::path::PathBuf;
+use vox_container::{ContainerRuntime, detect_runtime};
 use vox_deploy_codegen::generate::EnvironmentSpec;
 use vox_deploy_codegen::{
-    BareMetalTarget, ComposeTarget, DeployTarget, KubernetesTarget,
-    build_container_target, generate_systemd_unit, resolve_target_kind,
+    BareMetalTarget, ComposeTarget, DeployTarget, KubernetesTarget, build_container_target,
+    generate_systemd_unit, resolve_target_kind,
 };
-use vox_container::{ContainerRuntime, detect_runtime};
 use vox_package::VoxManifest;
 
 /// `vox deploy` — build/push OCI images, run compose, apply Kubernetes manifests, or bare-metal systemd.
@@ -165,18 +165,20 @@ pub async fn run(args: DeployArgs) -> Result<()> {
                 .as_ref()
                 .context("deploy target is coolify but [deploy.coolify] is missing")?;
 
-            vox_deploy_codegen::DeployTarget::Coolify(vox_deploy_codegen::deploy_target::CoolifyTarget {
-                base_url: cfg.base_url.clone().unwrap_or_default(),
-                token: std::env::var(&cfg.token_env).unwrap_or_else(|_| {
-                    vox_secrets::resolve_secret(vox_secrets::SecretId::CoolifyToken)
-                        .expose()
-                        .unwrap_or_default()
-                        .to_string()
-                }),
-                app_uuid: cfg.app_uuid.clone().unwrap_or_default(),
-                force_rebuild: cfg.force_rebuild,
-                wait_timeout_secs: Some(900),
-            })
+            vox_deploy_codegen::DeployTarget::Coolify(
+                vox_deploy_codegen::deploy_target::CoolifyTarget {
+                    base_url: cfg.base_url.clone().unwrap_or_default(),
+                    token: std::env::var(&cfg.token_env).unwrap_or_else(|_| {
+                        vox_secrets::resolve_secret(vox_secrets::SecretId::CoolifyToken)
+                            .expose()
+                            .unwrap_or_default()
+                            .to_string()
+                    }),
+                    app_uuid: cfg.app_uuid.clone().unwrap_or_default(),
+                    force_rebuild: cfg.force_rebuild,
+                    wait_timeout_secs: Some(900),
+                },
+            )
         }
         _ => anyhow::bail!("unsupported deploy target kind: {target_kind}"),
     };

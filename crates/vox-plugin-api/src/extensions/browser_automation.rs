@@ -26,12 +26,7 @@ pub trait BrowserAutomation: Send + Sync {
     fn click(&self, page_id: RStr<'_>, target: RStr<'_>) -> RResult<(), RBoxError>;
 
     /// Fill a form field identified by `target` with `value`.
-    fn fill(
-        &self,
-        page_id: RStr<'_>,
-        target: RStr<'_>,
-        value: RStr<'_>,
-    ) -> RResult<(), RBoxError>;
+    fn fill(&self, page_id: RStr<'_>, target: RStr<'_>, value: RStr<'_>) -> RResult<(), RBoxError>;
 
     /// Block until `target` appears in the DOM or `timeout_secs` elapses.
     fn wait_for(
@@ -51,11 +46,7 @@ pub trait BrowserAutomation: Send + Sync {
     fn screenshot_bytes(&self, page_id: RStr<'_>) -> RResult<RVec<u8>, RBoxError>;
 
     /// Take a PNG screenshot and save it to `path`. Returns the resolved path.
-    fn screenshot(
-        &self,
-        page_id: RStr<'_>,
-        path: RStr<'_>,
-    ) -> RResult<RString, RBoxError>;
+    fn screenshot(&self, page_id: RStr<'_>, path: RStr<'_>) -> RResult<RString, RBoxError>;
 
     /// Trimmed page text suitable for LLM prompts (HTML tags stripped).
     /// `max_chars` 0 is treated as 256.

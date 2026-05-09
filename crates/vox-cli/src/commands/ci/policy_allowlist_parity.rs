@@ -73,7 +73,14 @@ pub fn run(root: &Path) -> Result<()> {
         .iter()
         .cloned()
         .collect();
-    policy_crates.extend(policy.tiers.a_relational.temporary_exceptions.iter().cloned());
+    policy_crates.extend(
+        policy
+            .tiers
+            .a_relational
+            .temporary_exceptions
+            .iter()
+            .cloned(),
+    );
     policy_crates.extend(policy.tiers.a_relational.owners.iter().cloned());
 
     let crates_dir = root.join("crates");

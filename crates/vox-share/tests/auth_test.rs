@@ -1,8 +1,8 @@
+use axum::{Router, routing::get};
 use std::net::SocketAddr;
-use axum::{routing::get, Router};
 use tokio::net::TcpListener;
 use vox_share::auth::AuthMode;
-use vox_share::proxy::{build_app, ProxyConfig};
+use vox_share::proxy::{ProxyConfig, build_app};
 
 #[test]
 fn auth_mode_token_decorate_url() {
@@ -20,7 +20,10 @@ fn auth_mode_none_decorate_url_unchanged() {
 
 #[test]
 fn auth_mode_basic_decorate_url_unchanged() {
-    let mode = AuthMode::Basic { user: "u".into(), pass: "p".into() };
+    let mode = AuthMode::Basic {
+        user: "u".into(),
+        pass: "p".into(),
+    };
     let url = mode.decorate_url("https://test.trycloudflare.com");
     assert_eq!(url, "https://test.trycloudflare.com");
 }
@@ -29,7 +32,10 @@ fn auth_mode_basic_decorate_url_unchanged() {
 fn auth_mode_token_decorate_url_with_existing_query() {
     let mode = AuthMode::UrlToken("abc123".to_string());
     let url = mode.decorate_url("https://test.trycloudflare.com?foo=bar");
-    assert_eq!(url, "https://test.trycloudflare.com?foo=bar&vox_share_token=abc123");
+    assert_eq!(
+        url,
+        "https://test.trycloudflare.com?foo=bar&vox_share_token=abc123"
+    );
 }
 
 #[test]
@@ -41,7 +47,13 @@ fn auth_mode_parse_none() {
 #[test]
 fn auth_mode_parse_basic() {
     let mode: AuthMode = "basic:alice:secret".parse().unwrap();
-    assert_eq!(mode, AuthMode::Basic { user: "alice".into(), pass: "secret".into() });
+    assert_eq!(
+        mode,
+        AuthMode::Basic {
+            user: "alice".into(),
+            pass: "secret".into()
+        }
+    );
 }
 
 #[test]
@@ -72,7 +84,9 @@ async fn proxy_with_token_rejects_missing_token() {
     let upstream = Router::new().route("/", get(|| async { "secret" }));
     let ul = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let up_port = ul.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(ul, upstream).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(ul, upstream).await.unwrap();
+    });
 
     let token = "deadbeefdeadbeef".to_string();
     let cfg = ProxyConfig {
@@ -82,7 +96,9 @@ async fn proxy_with_token_rejects_missing_token() {
     };
     let pl = TcpListener::bind(cfg.bind_addr).await.unwrap();
     let proxy_port = pl.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(pl, build_app(cfg)).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(pl, build_app(cfg)).await.unwrap();
+    });
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let client = reqwest::Client::new();
@@ -111,7 +127,9 @@ async fn proxy_with_token_accepts_cookie() {
     let upstream = Router::new().route("/", get(|| async { "secret" }));
     let ul = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let up_port = ul.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(ul, upstream).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(ul, upstream).await.unwrap();
+    });
 
     let token = "cafebabecafebabe".to_string();
     let cfg = ProxyConfig {
@@ -121,7 +139,9 @@ async fn proxy_with_token_accepts_cookie() {
     };
     let pl = TcpListener::bind(cfg.bind_addr).await.unwrap();
     let proxy_port = pl.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(pl, build_app(cfg)).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(pl, build_app(cfg)).await.unwrap();
+    });
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let client = reqwest::Client::new();
@@ -140,7 +160,9 @@ async fn proxy_with_none_auth_allows_all() {
     let upstream = Router::new().route("/", get(|| async { "public" }));
     let ul = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let up_port = ul.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(ul, upstream).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(ul, upstream).await.unwrap();
+    });
 
     let cfg = ProxyConfig {
         upstream_addr: SocketAddr::from(([127, 0, 0, 1], up_port)),
@@ -149,7 +171,9 @@ async fn proxy_with_none_auth_allows_all() {
     };
     let pl = TcpListener::bind(cfg.bind_addr).await.unwrap();
     let proxy_port = pl.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(pl, build_app(cfg)).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(pl, build_app(cfg)).await.unwrap();
+    });
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let client = reqwest::Client::new();
@@ -166,7 +190,9 @@ async fn proxy_with_basic_auth_rejects_missing_creds() {
     let upstream = Router::new().route("/", get(|| async { "secret" }));
     let ul = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let up_port = ul.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(ul, upstream).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(ul, upstream).await.unwrap();
+    });
 
     let cfg = ProxyConfig {
         upstream_addr: SocketAddr::from(([127, 0, 0, 1], up_port)),
@@ -178,7 +204,9 @@ async fn proxy_with_basic_auth_rejects_missing_creds() {
     };
     let pl = TcpListener::bind(cfg.bind_addr).await.unwrap();
     let proxy_port = pl.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(pl, build_app(cfg)).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(pl, build_app(cfg)).await.unwrap();
+    });
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     let client = reqwest::Client::new();

@@ -1,5 +1,5 @@
-use vox_share::sse_detect::detect_sse_in_openapi;
 use serde_json::json;
+use vox_share::sse_detect::detect_sse_in_openapi;
 
 #[test]
 fn detects_sse_route_in_spec() {
@@ -62,14 +62,21 @@ async fn has_sse_routes_detects_sse_from_live_server() {
         }
     });
     let spec_str = spec.to_string();
-    let app = axum::Router::new()
-        .route("/openapi.json", axum::routing::get(move || {
-            let s = spec_str.clone();
-            async move { axum::response::Json(serde_json::from_str::<serde_json::Value>(&s).unwrap()) }
-        }));
+    let app =
+        axum::Router::new().route(
+            "/openapi.json",
+            axum::routing::get(move || {
+                let s = spec_str.clone();
+                async move {
+                    axum::response::Json(serde_json::from_str::<serde_json::Value>(&s).unwrap())
+                }
+            }),
+        );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(listener, app).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
     tokio::time::sleep(std::time::Duration::from_millis(30)).await;
 
     assert!(vox_share::sse_detect::has_sse_routes(port).await);

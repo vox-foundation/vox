@@ -11,18 +11,18 @@
 //! reactive view emit ([`crate::codegen_ts::reactive`], OP-S037). Attribute semantics and DOM/event name
 //! mapping stay in [`compat`]; do not fork the matrix into JSX or Web IR without updating all three.
 
-pub mod compat;
 mod async_walker;
+pub mod compat;
 mod state_deps;
 
-use vox_compiler::hir::*;
+use async_walker::stmt_has_async_call;
 use std::collections::HashSet;
 use std::sync::OnceLock;
-use async_walker::stmt_has_async_call;
+use vox_compiler::hir::*;
 
+use crate::codegen_ts::builtin_registry::{BuiltinLowering, BuiltinRegistry};
 pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag, ts_string_literal};
 pub(crate) use state_deps::extract_state_deps_with_diagnostics;
-use crate::codegen_ts::builtin_registry::{BuiltinLowering, BuiltinRegistry};
 
 static EMPTY_ASYNC_FNS: OnceLock<HashSet<String>> = OnceLock::new();
 static BUILTIN_REGISTRY: OnceLock<BuiltinRegistry> = OnceLock::new();
@@ -96,10 +96,7 @@ fn extract_single_jsx_expr(stmts: &[HirStmt], ctx: &EmitCtx<'_>) -> Option<Strin
 /// Expand `bind={…}` into (`value` expr string, `onChange` handler string), aligned with
 /// [`crate::codegen_ts::jsx::expand_bind_attribute`] and [`crate::web_ir::lower::lower_jsx_attr_pair`].
 #[must_use]
-pub(crate) fn expand_bind_hir_attribute(
-    expr: &HirExpr,
-    ctx: &EmitCtx<'_>,
-) -> (String, String) {
+pub(crate) fn expand_bind_hir_attribute(expr: &HirExpr, ctx: &EmitCtx<'_>) -> (String, String) {
     let e = unwrap_inline_hir_block_expr(expr);
     match e {
         HirExpr::Ident(name, _) => {
@@ -170,10 +167,7 @@ fn lower_std_namespace_call(
     if root_name != "std" {
         return None;
     }
-    let args_str: Vec<String> = args
-        .iter()
-        .map(|a| emit_hir_expr(&a.value, ctx))
-        .collect();
+    let args_str: Vec<String> = args.iter().map(|a| emit_hir_expr(&a.value, ctx)).collect();
     match (ns.as_str(), method) {
         ("time", "now_ms") => Some("Date.now()".to_string()),
         ("time", "now_iso") => Some("new Date().toISOString()".to_string()),
@@ -257,8 +251,7 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             }
             for attr in &view.passthrough {
                 if attr.name == "bind" {
-                    let (value_str, onchange_str) =
-                        expand_bind_hir_attribute(&attr.value, ctx);
+                    let (value_str, onchange_str) = expand_bind_hir_attribute(&attr.value, ctx);
                     attrs.push(format!("value={{{value_str}}}"));
                     attrs.push(format!("onChange={{{onchange_str}}}"));
                     continue;
@@ -291,8 +284,7 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             }
             for attr in &view.passthrough {
                 if attr.name == "bind" {
-                    let (value_str, onchange_str) =
-                        expand_bind_hir_attribute(&attr.value, ctx);
+                    let (value_str, onchange_str) = expand_bind_hir_attribute(&attr.value, ctx);
                     attrs.push(format!("value={{{value_str}}}"));
                     attrs.push(format!("onChange={{{onchange_str}}}"));
                     continue;
@@ -319,17 +311,11 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             format!("{{ {} }}", pairs.join(", "))
         }
         HirExpr::ListLit(elems, _) | HirExpr::TupleLit(elems, _) => {
-            let items: Vec<String> = elems
-                .iter()
-                .map(|e| emit_hir_expr(e, ctx))
-                .collect();
+            let items: Vec<String> = elems.iter().map(|e| emit_hir_expr(e, ctx)).collect();
             format!("[{}]", items.join(", "))
         }
         HirExpr::Call(callee, args, _, _) => {
-            let args_str: Vec<String> = args
-                .iter()
-                .map(|a| emit_hir_expr(&a.value, ctx))
-                .collect();
+            let args_str: Vec<String> = args.iter().map(|a| emit_hir_expr(&a.value, ctx)).collect();
             // §1.A.2: if this call is to an @endpoint fn (async), emit `await call(...)`.
             // Also consult the builtin registry so Vox primitives like `str(x)` → `String(x)`.
             if let HirExpr::Ident(name, _) = callee.as_ref() {
@@ -375,11 +361,12 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             // inspecting the emitted string — avoids fragile `starts_with("await ")` heuristic.
             let needs_parens = async_walker::expr_has_async_call(obj, ctx.async_fn_names);
             let raw_obj = emit_hir_expr(obj, ctx);
-            let obj_str = if needs_parens { format!("({raw_obj})") } else { raw_obj };
-            let args_str: Vec<String> = args
-                .iter()
-                .map(|a| emit_hir_expr(&a.value, ctx))
-                .collect();
+            let obj_str = if needs_parens {
+                format!("({raw_obj})")
+            } else {
+                raw_obj
+            };
+            let args_str: Vec<String> = args.iter().map(|a| emit_hir_expr(&a.value, ctx)).collect();
             // Map Vox snake_case Str methods to JS String.prototype names where they differ.
             // char_at/index_of return Optional in Vox; JS returns "" / -1, so we wrap.
             // For other methods, consult the builtin registry (§A3: centralized lowering).
@@ -619,7 +606,9 @@ pub(crate) fn emit_hir_expr_attr_value(
             // §1.A.2: detect if any top-level stmt calls an @endpoint fn; if so, emit
             // `async () => {` and add `await` to those calls via the handler ctx.
             let needs_async = !ctx.async_fn_names.is_empty()
-                && stmts.iter().any(|s| stmt_has_async_call(s, ctx.async_fn_names));
+                && stmts
+                    .iter()
+                    .any(|s| stmt_has_async_call(s, ctx.async_fn_names));
             let handler_ctx = if needs_async {
                 ctx.clone()
             } else {
@@ -638,11 +627,7 @@ pub(crate) fn emit_hir_expr_attr_value(
 
 /// **Phase:** compat-legacy (OP-0138).
 #[must_use]
-pub(crate) fn emit_block_stmts(
-    expr: &HirExpr,
-    ctx: &EmitCtx<'_>,
-    indent: usize,
-) -> String {
+pub(crate) fn emit_block_stmts(expr: &HirExpr, ctx: &EmitCtx<'_>, indent: usize) -> String {
     match expr {
         HirExpr::Block(stmts, _) => stmts
             .iter()
@@ -658,11 +643,7 @@ pub(crate) fn emit_block_stmts(
 
 /// **Phase:** compat-legacy (OP-0138).
 #[must_use]
-pub(crate) fn emit_hir_stmt(
-    stmt: &HirStmt,
-    ctx: &EmitCtx<'_>,
-    indent: usize,
-) -> String {
+pub(crate) fn emit_hir_stmt(stmt: &HirStmt, ctx: &EmitCtx<'_>, indent: usize) -> String {
     let pad = "  ".repeat(indent);
     match stmt {
         HirStmt::Let {
@@ -1121,8 +1102,8 @@ mod hir_emit_if_tests {
 #[cfg(test)]
 mod async_emit_tests {
     use super::*;
-    use vox_compiler::hir::{HirArg, HirExpr, HirStmt, HirPattern};
     use vox_compiler::ast::span::Span;
+    use vox_compiler::hir::{HirArg, HirExpr, HirPattern, HirStmt};
 
     fn span() -> Span {
         Span { start: 0, end: 0 }
@@ -1136,7 +1117,10 @@ mod async_emit_tests {
         HirExpr::Call(
             Box::new(ident(name)),
             args.into_iter()
-                .map(|v| HirArg { name: None, value: v })
+                .map(|v| HirArg {
+                    name: None,
+                    value: v,
+                })
                 .collect(),
             false,
             span(),
@@ -1162,7 +1146,11 @@ mod async_emit_tests {
     }
 
     fn assign_stmt(target: HirExpr, value: HirExpr) -> HirStmt {
-        HirStmt::Assign { target, value, span: span() }
+        HirStmt::Assign {
+            target,
+            value,
+            span: span(),
+        }
     }
 
     fn async_names(names: &[&str]) -> HashSet<String> {
@@ -1395,11 +1383,7 @@ pub(crate) fn transform_hir_view_kwargs(
     }
 }
 
-fn hir_kwarg_to_class_expr(
-    kwarg: &str,
-    expr: &HirExpr,
-    ctx: &EmitCtx<'_>,
-) -> Option<String> {
+fn hir_kwarg_to_class_expr(kwarg: &str, expr: &HirExpr, ctx: &EmitCtx<'_>) -> Option<String> {
     match unwrap_inline_hir_block_expr(expr) {
         HirExpr::StringLit(value, _) => {
             let classes = crate::web_ir::primitives::resolve_universal_kwarg(kwarg, value)?;

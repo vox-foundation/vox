@@ -1,5 +1,5 @@
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use vox_db_types::*;
 
 fn assert_serde<T: Serialize + DeserializeOwned>() {}

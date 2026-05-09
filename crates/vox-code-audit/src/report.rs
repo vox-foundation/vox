@@ -122,8 +122,7 @@ impl Reporter {
                     d["minimal_excerpt"] = json!(f.context);
                 }
                 if let Some(id) = f.diagnostic_id.as_deref() {
-                    d["explain_url"] =
-                        json!(format!("https://vox-lang.org/diag/{}", id));
+                    d["explain_url"] = json!(format!("https://vox-lang.org/diag/{}", id));
                 }
                 d
             })
@@ -415,8 +414,17 @@ mod tests {
 
     #[test]
     fn parse_format_accepts_llm_json_variants() {
-        assert!(matches!(OutputFormat::parse_format("llm-json"), OutputFormat::LlmJson));
-        assert!(matches!(OutputFormat::parse_format("llm_json"), OutputFormat::LlmJson));
-        assert!(matches!(OutputFormat::parse_format("for-llm"), OutputFormat::LlmJson));
+        assert!(matches!(
+            OutputFormat::parse_format("llm-json"),
+            OutputFormat::LlmJson
+        ));
+        assert!(matches!(
+            OutputFormat::parse_format("llm_json"),
+            OutputFormat::LlmJson
+        ));
+        assert!(matches!(
+            OutputFormat::parse_format("for-llm"),
+            OutputFormat::LlmJson
+        ));
     }
 }

@@ -9,7 +9,11 @@ use vox_plugin_catalog::{all_bundles, all_plugins};
 fn every_plugin_id_is_unique() {
     let mut seen = std::collections::HashSet::new();
     for plugin in all_plugins() {
-        assert!(seen.insert(&plugin.id), "duplicate plugin id: {}", plugin.id);
+        assert!(
+            seen.insert(&plugin.id),
+            "duplicate plugin id: {}",
+            plugin.id
+        );
     }
 }
 
@@ -17,7 +21,11 @@ fn every_plugin_id_is_unique() {
 fn every_bundle_id_is_unique() {
     let mut seen = std::collections::HashSet::new();
     for bundle in all_bundles() {
-        assert!(seen.insert(&bundle.id), "duplicate bundle id: {}", bundle.id);
+        assert!(
+            seen.insert(&bundle.id),
+            "duplicate bundle id: {}",
+            bundle.id
+        );
     }
 }
 
@@ -72,7 +80,10 @@ fn every_extends_target_exists() {
 #[test]
 fn code_plugins_declare_extension_points() {
     for plugin in all_plugins() {
-        if matches!(plugin.payload_kind, PayloadKind::Code | PayloadKind::Composite) {
+        if matches!(
+            plugin.payload_kind,
+            PayloadKind::Code | PayloadKind::Composite
+        ) {
             assert!(
                 plugin.extension_points.is_some()
                     && !plugin.extension_points.as_ref().unwrap().is_empty(),
@@ -86,7 +97,10 @@ fn code_plugins_declare_extension_points() {
 #[test]
 fn skill_plugins_declare_exposed_tools() {
     for plugin in all_plugins() {
-        if matches!(plugin.payload_kind, PayloadKind::Skill | PayloadKind::Composite) {
+        if matches!(
+            plugin.payload_kind,
+            PayloadKind::Skill | PayloadKind::Composite
+        ) {
             assert!(
                 plugin.exposes_tools.is_some()
                     && !plugin.exposes_tools.as_ref().unwrap().is_empty(),
@@ -120,7 +134,9 @@ fn every_plugin_bundled_in_claim_is_satisfied_by_the_named_bundle() {
             assert!(
                 resolved_ids.contains(plugin.id.as_str()),
                 "plugin '{}' claims bundled-in='{}', but bundle '{}' does not include it (check plugins[] or extends chain)",
-                plugin.id, bundle_id, bundle_id
+                plugin.id,
+                bundle_id,
+                bundle_id
             );
         }
     }

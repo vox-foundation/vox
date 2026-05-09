@@ -3,7 +3,9 @@
 use vox_db::{DbConfig, VoxDb};
 
 async fn test_db() -> VoxDb {
-    VoxDb::connect(DbConfig::Memory).await.expect("in-memory DB")
+    VoxDb::connect(DbConfig::Memory)
+        .await
+        .expect("in-memory DB")
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -26,9 +28,16 @@ async fn store_claim_and_verdict() {
         .create_research_session("sess-claim-001", "claim test")
         .await
         .unwrap();
-    db.store_claim(sid, 12345678, "latency increased by 10ms", true, false, false)
-        .await
-        .expect("store claim");
+    db.store_claim(
+        sid,
+        12345678,
+        "latency increased by 10ms",
+        true,
+        false,
+        false,
+    )
+    .await
+    .expect("store claim");
     db.store_claim_verdict(12345678, "Supported", 0.87, "minicheck-ft5")
         .await
         .expect("store verdict");
@@ -83,7 +92,12 @@ async fn rollup_model_scoreboard_updates_running_average() {
         .expect("third rollup");
 
     // Verify using a different key — first insert for a new key should succeed.
-    db.rollup_model_scoreboard_with_scientia("anthropic", "claude-3-5-sonnet", "refusal_rate", 0.02)
-        .await
-        .expect("different provider rollup");
+    db.rollup_model_scoreboard_with_scientia(
+        "anthropic",
+        "claude-3-5-sonnet",
+        "refusal_rate",
+        0.02,
+    )
+    .await
+    .expect("different provider rollup");
 }

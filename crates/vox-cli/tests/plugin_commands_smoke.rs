@@ -57,7 +57,13 @@ fn plugin_install_path_and_remove() {
     let noop_skill_path = workspace_root.join("crates").join("vox-plugin-noop-skill");
 
     let status = Command::new(env!("CARGO_BIN_EXE_vox"))
-        .args(["plugin", "install", "--path", &noop_skill_path.to_string_lossy(), "--yes"])
+        .args([
+            "plugin",
+            "install",
+            "--path",
+            &noop_skill_path.to_string_lossy(),
+            "--yes",
+        ])
         .env("VOX_PLUGINS_DIR", &tmp)
         .status()
         .expect("vox should run");

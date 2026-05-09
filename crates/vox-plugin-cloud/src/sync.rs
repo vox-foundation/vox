@@ -31,21 +31,13 @@ impl CloudSync for CloudPlugin {
         RString::from("cloud")
     }
 
-    fn upload(
-        &self,
-        _local_path: RStr<'_>,
-        _remote_uri: RStr<'_>,
-    ) -> RResult<(), RBoxError> {
+    fn upload(&self, _local_path: RStr<'_>, _remote_uri: RStr<'_>) -> RResult<(), RBoxError> {
         RResult::RErr(RBoxError::new(std::io::Error::other(
             "not yet implemented; SP7 scaffold",
         )))
     }
 
-    fn download(
-        &self,
-        _remote_uri: RStr<'_>,
-        _local_path: RStr<'_>,
-    ) -> RResult<(), RBoxError> {
+    fn download(&self, _remote_uri: RStr<'_>, _local_path: RStr<'_>) -> RResult<(), RBoxError> {
         RResult::RErr(RBoxError::new(std::io::Error::other(
             "not yet implemented; SP7 scaffold",
         )))
@@ -56,7 +48,9 @@ impl CloudSync for CloudPlugin {
     }
 }
 
-pub(crate) fn make_plugin(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError> {
+pub(crate) fn make_plugin(
+    _host: VoxHost_TO<'static, RBox<()>>,
+) -> RResult<VoxPluginRef, RBoxError> {
     let plugin = CloudPlugin;
     let to = VoxPlugin_TO::from_value(plugin, TD_Opaque);
     RResult::ROk(to)

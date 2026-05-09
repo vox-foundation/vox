@@ -463,12 +463,7 @@ where
         }
         _ => {}
     }
-    let call = format!(
-        "{}.{}({})",
-        o,
-        method,
-        arg_exprs.join(", ")
-    );
+    let call = format!("{}.{}({})", o, method, arg_exprs.join(", "));
     if method == "send" {
         format!("{}.await", call)
     } else {

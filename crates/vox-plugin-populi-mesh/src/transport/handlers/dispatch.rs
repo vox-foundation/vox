@@ -8,9 +8,7 @@ use base64::Engine as _;
 use crate::{NodeRecord, node_maintenance_blocks_new_work};
 
 use super::super::auth::{PopuliAuthContext, auth_allows_deliver, auth_allows_worker_plane};
-use super::super::{
-    DispatchRequest, DispatchResponse, MeshQueueStats, PopuliTransportState,
-};
+use super::super::{DispatchRequest, DispatchResponse, MeshQueueStats, PopuliTransportState};
 
 use super::super::dispatch_results_sweep;
 use super::nodes::ResponseErr;
@@ -86,7 +84,10 @@ pub(crate) async fn dispatch_script(
                 }
             }
             if let Some(path) = &st_cl.dispatch_results_store_path {
-                let _ = super::super::store::persist_dispatch_results_store(path, &st_cl.dispatch_results);
+                let _ = super::super::store::persist_dispatch_results_store(
+                    path,
+                    &st_cl.dispatch_results,
+                );
             }
         });
 
@@ -126,7 +127,6 @@ pub(crate) async fn dispatch_results_poll(
             "populi: submitter/mesh/admin token required for dispatch polls".into(),
         ));
     }
-
 
     dispatch_results_sweep(&st.dispatch_results, crate::now_ms());
 

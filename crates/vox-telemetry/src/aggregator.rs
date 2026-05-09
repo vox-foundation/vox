@@ -8,10 +8,7 @@
 //! an ambient `task_id` are silently skipped. Memory is bounded by active tasks
 //! only — entries are removed on `take()`.
 
-use std::{
-    collections::HashMap,
-    sync::Mutex,
-};
+use std::{collections::HashMap, sync::Mutex};
 
 use crate::types::{ModelCallEvent, TaskRootSummaryEvent, TelemetryEvent};
 

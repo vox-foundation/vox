@@ -10,11 +10,14 @@
 //! deps (`feed-rs`, `fnv`, platform HTTP clients). Users opt in via:
 //!   `vox plugin install publication`
 
-use abi_stable::{erased_types::TD_Opaque, export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn, std_types::*};
+use abi_stable::{
+    erased_types::TD_Opaque, export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn,
+    std_types::*,
+};
+use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
 use vox_plugin_api::extensions::publication::{Publication, Publication_TO};
 use vox_plugin_api::host::VoxHost_TO;
-use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 
 // Re-export public surface from dependent libraries so hosts can reach them
 // without depending on those crates directly.
@@ -64,11 +67,7 @@ impl VoxPlugin for PublicationPlugin {
 }
 
 impl Publication for PublicationPlugin {
-    fn ingest_tick(
-        &self,
-        feed_id: ROption<RString>,
-        limit: u32,
-    ) -> RResult<(), RBoxError> {
+    fn ingest_tick(&self, feed_id: ROption<RString>, limit: u32) -> RResult<(), RBoxError> {
         // The underlying `ingest::ingest_tick` is async (uses tokio'd DB
         // and HTTP), but `#[sabi_trait]` methods are sync over the FFI
         // boundary. Same pattern as `vox-plugin-populi-mesh`: spin up a
@@ -91,9 +90,9 @@ impl Publication for PublicationPlugin {
         });
         match result {
             Ok(()) => RResult::ROk(()),
-            Err(e) => RResult::RErr(RBoxError::from_box(
-                Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()),
-            )),
+            Err(e) => RResult::RErr(RBoxError::from_box(Box::<
+                dyn std::error::Error + Send + Sync,
+            >::from(e.to_string()))),
         }
     }
 }

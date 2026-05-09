@@ -1,10 +1,10 @@
 //! Default `vox doctor` checks: optional test-health tools, then full toolchain audit.
 
-mod secrets;
 mod gpu_hardware;
 mod llm_routing;
 mod model_catalog;
 mod model_telemetry;
+mod secrets;
 mod tail;
 mod test_health;
 mod toolchain;

@@ -8,11 +8,7 @@ use tokenizers::Tokenizer;
 use vox_tensor::data::TrainingPair;
 
 use super::types::{MaskedCeForward, TryEncodeOutcome};
-use crate::{
-    config::LoraTrainingConfig,
-    qlora_preflight::QloraEmbedBundle,
-    train_log,
-};
+use crate::{config::LoraTrainingConfig, qlora_preflight::QloraEmbedBundle, train_log};
 
 pub fn qlora_forward_logits_smoke(
     model: &crate::candle_qlora_train::TrainGraphModel,

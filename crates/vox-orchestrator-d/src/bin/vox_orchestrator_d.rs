@@ -152,8 +152,7 @@ async fn main() -> anyhow::Result<()> {
         state = state.with_db_initialized(db).await;
     }
 
-    if let Err(e) = vox_orchestrator_mcp::http_gateway::spawn_http_gateway_if_enabled(state)
-    {
+    if let Err(e) = vox_orchestrator_mcp::http_gateway::spawn_http_gateway_if_enabled(state) {
         tracing::error!(error = %e, "Failed to spawn HTTP gateway");
     }
 

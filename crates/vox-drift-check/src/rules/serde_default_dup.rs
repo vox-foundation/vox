@@ -1,6 +1,6 @@
-use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 use crate::features::ExtractedFeatures;
 use crate::rules::{DriftRule, WorkspaceContext};
+use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 
 pub struct SerdeDefaultDupRule;
 
@@ -14,13 +14,21 @@ const COMMON_PREFIXES: &[&str] = &[
 ];
 
 impl DriftRule for SerdeDefaultDupRule {
-    fn id(&self) -> &'static str { "drift/serde-default-dup" }
-    fn severity(&self) -> Severity { Severity::Warning }
-    fn languages(&self) -> &[Language] { &[Language::Rust] }
+    fn id(&self) -> &'static str {
+        "drift/serde-default-dup"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Warning
+    }
+    fn languages(&self) -> &[Language] {
+        &[Language::Rust]
+    }
 
     fn check(&self, features: &ExtractedFeatures, _ctx: &WorkspaceContext) -> Vec<Finding> {
         let crate_name = features.crate_name.as_deref().unwrap_or("");
-        if ALLOWED_CRATES.contains(&crate_name) { return vec![]; }
+        if ALLOWED_CRATES.contains(&crate_name) {
+            return vec![];
+        }
 
         features.fn_definitions.iter()
             .filter(|def| COMMON_PREFIXES.iter().any(|p| def.name.starts_with(p)))
@@ -53,9 +61,9 @@ impl DriftRule for SerdeDefaultDupRule {
 mod tests {
     use super::*;
     use crate::features::*;
-    use vox_code_audit::rules::Language;
-    use std::path::PathBuf;
     use crate::rules::WorkspaceContext;
+    use std::path::PathBuf;
+    use vox_code_audit::rules::Language;
 
     fn ctx() -> WorkspaceContext {
         WorkspaceContext {

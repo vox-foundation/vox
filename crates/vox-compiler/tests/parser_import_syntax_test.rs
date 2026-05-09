@@ -26,29 +26,35 @@ fn slash_separated_import_parses_like_dot() {
     let slash = parse_imports("import lib/chrome/StateChip");
     assert_eq!(dot.len(), 1);
     assert_eq!(slash.len(), 1);
-    assert_eq!(dot[0].module_path, slash[0].module_path,
-        "module_path should be the same regardless of separator");
-    assert_eq!(dot[0].item, slash[0].item,
-        "item should be the same regardless of separator");
+    assert_eq!(
+        dot[0].module_path, slash[0].module_path,
+        "module_path should be the same regardless of separator"
+    );
+    assert_eq!(
+        dot[0].item, slash[0].item,
+        "item should be the same regardless of separator"
+    );
 }
 
 // ── destructured `as { }` ─────────────────────────────────────────────────────
 
 #[test]
 fn destructured_import_expands_to_separate_imports() {
-    let imports = parse_imports(
-        r#"import lib/chrome as { StateChip, TopBar, LeftRail, StatusBar }"#,
-    );
+    let imports =
+        parse_imports(r#"import lib/chrome as { StateChip, TopBar, LeftRail, StatusBar }"#);
     assert_eq!(imports.len(), 4, "four names → four HirImports");
     let items: Vec<&str> = imports.iter().map(|i| i.item.as_str()).collect();
     assert!(items.contains(&"StateChip"), "StateChip must be present");
-    assert!(items.contains(&"TopBar"),    "TopBar must be present");
-    assert!(items.contains(&"LeftRail"),  "LeftRail must be present");
+    assert!(items.contains(&"TopBar"), "TopBar must be present");
+    assert!(items.contains(&"LeftRail"), "LeftRail must be present");
     assert!(items.contains(&"StatusBar"), "StatusBar must be present");
     // All four should share the same module path.
     for imp in &imports {
-        assert_eq!(imp.module_path, &["lib", "chrome"],
-            "all items from the same module path");
+        assert_eq!(
+            imp.module_path,
+            &["lib", "chrome"],
+            "all items from the same module path"
+        );
     }
 }
 
@@ -101,7 +107,10 @@ import surfaces/settings as { SettingsSurface }
     let module = parse(tokens).unwrap_or_else(|e| panic!("app.vox import block must parse: {e:?}"));
     let hir = lower_module(&module);
     // 3 chrome items + 7 surface items = 10 total imports
-    assert_eq!(hir.imports.len(), 10,
+    assert_eq!(
+        hir.imports.len(),
+        10,
         "expected 10 HirImports from the app.vox import block, got {}",
-        hir.imports.len());
+        hir.imports.len()
+    );
 }

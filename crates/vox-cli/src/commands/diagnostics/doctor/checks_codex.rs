@@ -3,8 +3,8 @@
 use anyhow::Result;
 use tokio::process::Command;
 
-use vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_async};
 use std::path::Path;
+use vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_async};
 
 use super::common::Check;
 use super::output;

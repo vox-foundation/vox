@@ -24,18 +24,14 @@ impl PanickingBuiltinDetector {
     pub fn new() -> Self {
         Self {
             // Matches @handler, @activity, or block keywords actor/workflow on a line
-            context_marker: Regex::new(
-                r"^\s*(?:@(?:handler|activity)|(?:actor|workflow)\s+\w+)\b",
-            )
-            .expect("valid regex"),
+            context_marker: Regex::new(r"^\s*(?:@(?:handler|activity)|(?:actor|workflow)\s+\w+)\b")
+                .expect("valid regex"),
             rust_panicking: Regex::new(
                 r"\.unwrap\(\)|\.expect\s*\(|(?:unwrap|unreachable|todo|panic)!",
             )
             .expect("valid regex"),
-            vox_panicking: Regex::new(
-                r"\bstd\.(?:unwrap|expect|panic|unreachable|todo)\s*\(",
-            )
-            .expect("valid regex"),
+            vox_panicking: Regex::new(r"\bstd\.(?:unwrap|expect|panic|unreachable|todo)\s*\(")
+                .expect("valid regex"),
             supported_langs: vec![Language::Vox, Language::Rust],
         }
     }
@@ -74,7 +70,11 @@ impl DetectionRule for PanickingBuiltinDetector {
         Good:               let x = value?;  // or value.map_err(|e| ...)?;"
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if !matches!(file.language, Language::Vox | Language::Rust) {
             return vec![];
         }
@@ -122,7 +122,9 @@ impl DetectionRule for PanickingBuiltinDetector {
                 // Stop looking back if we hit a non-handler top-level declaration at col 0
                 // that definitively closes the previous handler scope.
                 let t = lines[j].trim();
-                let at_col0 = !lines[j].starts_with(' ') && !lines[j].starts_with('\t') && !lines[j].is_empty();
+                let at_col0 = !lines[j].starts_with(' ')
+                    && !lines[j].starts_with('\t')
+                    && !lines[j].is_empty();
                 if at_col0
                     && (t.starts_with("struct ")
                         || t.starts_with("impl ")
@@ -216,7 +218,10 @@ mod tests {
         let code = "actor MyActor {\n    fn handle(msg: Msg) {\n        todo!(\"implement me\");\n    }\n}";
         let f = source("rs", code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should fire on todo! inside actor block");
+        assert!(
+            !findings.is_empty(),
+            "should fire on todo! inside actor block"
+        );
     }
 
     #[test]
@@ -225,13 +230,17 @@ mod tests {
         let code = "@handler\nfn on_event(e) {\n    let x = std.unwrap(compute());\n}";
         let f = source("vox", code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should fire on std.unwrap( in vox @handler");
+        assert!(
+            !findings.is_empty(),
+            "should fire on std.unwrap( in vox @handler"
+        );
     }
 
     #[test]
     fn does_not_fire_on_result_propagation_in_handler() {
         let d = PanickingBuiltinDetector::new();
-        let code = "@handler\nfn on_message(msg: Msg) {\n    let val = get_data()?;\n    Ok(val)\n}";
+        let code =
+            "@handler\nfn on_message(msg: Msg) {\n    let val = get_data()?;\n    Ok(val)\n}";
         let f = source("rs", code);
         let findings = d.detect(&f, None);
         assert!(

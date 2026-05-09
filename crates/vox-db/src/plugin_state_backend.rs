@@ -30,9 +30,7 @@ impl PluginStateBackend for crate::VoxDb {
             .map_err(|e| PluginStateError::new(e.to_string()))
     }
 
-    async fn list_skill_manifests(
-        &self,
-    ) -> Result<Vec<PluginStateSkillEntry>, PluginStateError> {
+    async fn list_skill_manifests(&self) -> Result<Vec<PluginStateSkillEntry>, PluginStateError> {
         let entries = crate::VoxDb::list_skill_manifests(self)
             .await
             .map_err(|e| PluginStateError::new(e.to_string()))?;

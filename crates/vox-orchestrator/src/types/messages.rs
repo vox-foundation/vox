@@ -140,10 +140,7 @@ pub enum AgentMessage {
         chain_depth: u32,
     },
     /// Agent spawn chain depth exceeded the safety limit (D4).
-    ChainDepthAlert {
-        current_depth: u32,
-        max_depth: u32,
-    },
+    ChainDepthAlert { current_depth: u32, max_depth: u32 },
 }
 
 /// Unique identifier for a message.

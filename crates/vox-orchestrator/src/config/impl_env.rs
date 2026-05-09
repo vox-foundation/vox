@@ -82,7 +82,8 @@ impl OrchestratorConfig {
                 self.socrates_reputation_routing,
             );
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorSocratesReputationWeight)
+        if let Some(val) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorSocratesReputationWeight)
         {
             self.socrates_reputation_weight = parse_or_warn(
                 "VOX_ORCHESTRATOR_SOCRATES_REPUTATION_WEIGHT",
@@ -90,7 +91,8 @@ impl OrchestratorConfig {
                 self.socrates_reputation_weight,
             );
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorTrustGateRelaxEnabled) {
+        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorTrustGateRelaxEnabled)
+        {
             self.trust_gate_relax_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_TRUST_GATE_RELAX_ENABLED",
                 &val,
@@ -210,7 +212,8 @@ impl OrchestratorConfig {
                 self.scaling_cooldown_ms,
             );
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorUrgentRebalanceThreshold)
+        if let Some(val) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorUrgentRebalanceThreshold)
         {
             self.urgent_rebalance_threshold = parse_or_warn(
                 "VOX_ORCHESTRATOR_URGENT_REBALANCE_THRESHOLD",
@@ -225,7 +228,8 @@ impl OrchestratorConfig {
                 self.orchestration_migration.orchestration_v2_enabled,
             );
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorMigrationLegacyFallback)
+        if let Some(val) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorMigrationLegacyFallback)
         {
             self.orchestration_migration.legacy_orchestration_fallback = parse_or_warn(
                 "VOX_ORCHESTRATOR_MIGRATION_LEGACY_FALLBACK",
@@ -241,7 +245,8 @@ impl OrchestratorConfig {
                 self.populi_control_url = Some(v.to_string());
             }
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorPopuliInferenceBaseUrl) {
+        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorPopuliInferenceBaseUrl)
+        {
             let v = val.trim();
             if v.is_empty() {
                 self.populi_inference_base_url = None;
@@ -271,7 +276,8 @@ impl OrchestratorConfig {
                 self.populi_http_timeout_ms,
             );
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorMeshRoutingExperimental)
+        if let Some(val) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorMeshRoutingExperimental)
         {
             self.populi_routing_experimental = parse_or_warn(
                 "VOX_ORCHESTRATOR_MESH_ROUTING_EXPERIMENTAL",
@@ -421,14 +427,16 @@ impl OrchestratorConfig {
                 self.planning_enabled,
             );
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorPlanningRouterEnabled) {
+        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorPlanningRouterEnabled)
+        {
             self.planning_router_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_PLANNING_ROUTER_ENABLED",
                 &val,
                 self.planning_router_enabled,
             );
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorPlanningReplanEnabled) {
+        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorPlanningReplanEnabled)
+        {
             self.planning_replan_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_PLANNING_REPLAN_ENABLED",
                 &val,
@@ -458,7 +466,8 @@ impl OrchestratorConfig {
                 self.research_model_enabled,
             );
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorPlanningAutoModeEnabled)
+        if let Some(val) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorPlanningAutoModeEnabled)
         {
             self.planning_auto_mode_enabled = parse_or_warn(
                 "VOX_ORCHESTRATOR_PLANNING_AUTO_MODE_ENABLED",
@@ -466,7 +475,8 @@ impl OrchestratorConfig {
                 self.planning_auto_mode_enabled,
             );
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorPlanningRolloutPercent) {
+        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorPlanningRolloutPercent)
+        {
             self.planning_rollout_percent = parse_or_warn(
                 "VOX_ORCHESTRATOR_PLANNING_ROLLOUT_PERCENT",
                 &val,
@@ -487,14 +497,16 @@ impl OrchestratorConfig {
                 self.plan_adequacy_enforce,
             );
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorContextLifecycleShadow) {
+        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorContextLifecycleShadow)
+        {
             self.context_lifecycle_shadow = parse_or_warn(
                 "VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_SHADOW",
                 &val,
                 self.context_lifecycle_shadow,
             );
         }
-        if let Some(val) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorContextLifecycleEnforce)
+        if let Some(val) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorContextLifecycleEnforce)
         {
             self.context_lifecycle_enforce = parse_or_warn(
                 "VOX_ORCHESTRATOR_CONTEXT_LIFECYCLE_ENFORCE",
@@ -535,14 +547,16 @@ impl OrchestratorConfig {
                 self.attention_budget_ms,
             );
         }
-        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorAttentionAlertThreshold) {
+        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorAttentionAlertThreshold)
+        {
             self.attention_alert_threshold = parse_or_warn(
                 "VOX_ORCHESTRATOR_ATTENTION_ALERT_THRESHOLD",
                 &v,
                 self.attention_alert_threshold,
             );
         }
-        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorAttentionInterruptCostMs) {
+        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorAttentionInterruptCostMs)
+        {
             self.attention_interrupt_cost_ms = parse_or_warn(
                 "VOX_ORCHESTRATOR_ATTENTION_INTERRUPT_COST_MS",
                 &v,
@@ -556,7 +570,8 @@ impl OrchestratorConfig {
                 self.trust_ewma_alpha,
             );
         }
-        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorTrustProvisionalThreshold)
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorTrustProvisionalThreshold)
         {
             self.trust_provisional_threshold = parse_or_warn(
                 "VOX_ORCHESTRATOR_TRUST_PROVISIONAL_THRESHOLD",
@@ -606,21 +621,24 @@ impl OrchestratorConfig {
                 self.attention_tlx_weights.trust_discount,
             );
         }
-        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorTierGateEntropyThreshold) {
+        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorTierGateEntropyThreshold)
+        {
             self.tier_gate.entropy_auto_approve_threshold = parse_or_warn(
                 "VOX_ORCHESTRATOR_TIER_GATE_ENTROPY_THRESHOLD",
                 &v,
                 self.tier_gate.entropy_auto_approve_threshold,
             );
         }
-        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorTierGateMinObservations) {
+        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorTierGateMinObservations)
+        {
             self.tier_gate.auto_approve_min_observations = parse_or_warn(
                 "VOX_ORCHESTRATOR_TIER_GATE_MIN_OBSERVATIONS",
                 &v,
                 self.tier_gate.auto_approve_min_observations,
             );
         }
-        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorInterruptionCalPlanGain) {
+        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorInterruptionCalPlanGain)
+        {
             self.interruption_calibration.plan_review_gain_offset_bits = parse_or_warn(
                 "VOX_ORCHESTRATOR_INTERRUPTION_CAL_PLAN_GAIN",
                 &v,
@@ -824,28 +842,32 @@ impl OrchestratorConfig {
                 self.exec_time_budget_enabled,
             );
         }
-        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorExecTimeSafetyMultiplier) {
+        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorExecTimeSafetyMultiplier)
+        {
             self.exec_time_safety_multiplier = parse_or_warn(
                 "VOX_ORCHESTRATOR_EXEC_TIME_SAFETY_MULTIPLIER",
                 &v,
                 self.exec_time_safety_multiplier,
             );
         }
-        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorExecTimeTimeoutRateAlert) {
+        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorExecTimeTimeoutRateAlert)
+        {
             self.exec_time_timeout_rate_alert = parse_or_warn(
                 "VOX_ORCHESTRATOR_EXEC_TIME_TIMEOUT_RATE_ALERT",
                 &v,
                 self.exec_time_timeout_rate_alert,
             );
         }
-        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorExecTimeDefaultBudgetMs) {
+        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorExecTimeDefaultBudgetMs)
+        {
             self.exec_time_default_budget_ms = parse_or_warn(
                 "VOX_ORCHESTRATOR_EXEC_TIME_DEFAULT_BUDGET_MS",
                 &v,
                 self.exec_time_default_budget_ms,
             );
         }
-        if let Some(v) = secrets_opt(vox_secrets::SecretId::VoxOrchestratorExecTimeHistoryWindowDays)
+        if let Some(v) =
+            secrets_opt(vox_secrets::SecretId::VoxOrchestratorExecTimeHistoryWindowDays)
         {
             self.exec_time_history_window_days = parse_or_warn(
                 "VOX_ORCHESTRATOR_EXEC_TIME_HISTORY_WINDOW_DAYS",

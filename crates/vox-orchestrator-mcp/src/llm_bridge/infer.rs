@@ -6,11 +6,11 @@
 //! [`vox_orchestrator::usage::UsageTracker`] / budget paths). **Unset + no DB** ⇒ **emit** so operators still see cost signals.
 //! Truthy `1`/`true` forces emits even with DB; `0`/`false` disables. Full semantics: `docs/src/reference/env-vars.md`.
 
+use vox_config::inference_profile_allows_local_ollama_http;
 use vox_orchestrator::models::scoring::is_deepseek_off_peak;
 use vox_orchestrator::models::{ModelSpec, ProviderType};
 use vox_orchestrator::usage::UsageTracker;
 use vox_orchestrator::{AgentEventKind, BudgetGate, GateResult};
-use vox_config::inference_profile_allows_local_ollama_http;
 
 use crate::server_state::ServerState;
 
@@ -172,8 +172,10 @@ fn google_direct_fallback_for_gemini(
         .expose()
         .filter(|s| !s.trim().is_empty())?;
     let targets = vox_config::gemini_route_targets_from_env();
-    vox_orchestrator::sync_lock::rw_read::<vox_orchestrator::models::ModelRegistry>(&*state.orchestrator.models_handle())
-        .get(&targets.google_direct_model)
+    vox_orchestrator::sync_lock::rw_read::<vox_orchestrator::models::ModelRegistry>(
+        &*state.orchestrator.models_handle(),
+    )
+    .get(&targets.google_direct_model)
 }
 
 /// Dispatch a chat completion for MCP tools (inline edit, ghost text, etc.).

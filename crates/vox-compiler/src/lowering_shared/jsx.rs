@@ -104,7 +104,7 @@ pub fn map_jsx_attr_name(name: &str) -> &str {
         "stroke_opacity" => "strokeOpacity",
         "fill_opacity" => "fillOpacity",
         "fill_rule" => "fillRule",
-        "clip_path"              => "clipPath", // also valid as a tag — see map_jsx_tag
+        "clip_path" => "clipPath", // also valid as a tag — see map_jsx_tag
         "clip_rule" => "clipRule",
         "gradient_units" => "gradientUnits",
         "gradient_transform" => "gradientTransform",

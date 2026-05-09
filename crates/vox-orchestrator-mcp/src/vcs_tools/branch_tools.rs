@@ -63,7 +63,10 @@ pub async fn branch_create(
         "branch created"
     );
 
-    Ok(WorkingTreeWrite::mint(WorkspaceId(workspace_id), parsed_branch))
+    Ok(WorkingTreeWrite::mint(
+        WorkspaceId(workspace_id),
+        parsed_branch,
+    ))
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────

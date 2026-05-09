@@ -383,7 +383,6 @@ pub struct PopuliTransportState {
     /// Optional Ed25519 verify key from **`VOX_MESH_WORKER_RESULT_VERIFY_KEY`** for signed job results.
     pub(super) worker_result_verify_key: Option<[u8; 32]>,
     /// Wave 5: Async dispatch result storage for detached execution.
-
     pub(crate) dispatch_results: Arc<dashmap::DashMap<String, DispatchResponse>>,
 
     pub(crate) dispatch_results_store_path: Option<PathBuf>,
@@ -436,9 +435,9 @@ impl PopuliTransportState {
             bootstrap_used: Arc::new(AtomicBool::new(false)),
             required_scope,
             worker_result_verify_key: None,
-        
+
             dispatch_results: Arc::new(dashmap::DashMap::new()),
-        
+
             dispatch_results_store_path: None,
             node_trust_verifier: None,
             db: None,
@@ -479,7 +478,6 @@ impl PopuliTransportState {
             s.exec_lease_id_gen = Arc::new(AtomicU64::new(next_lease_id));
         }
 
-    
         if let Some(path) = &dispatch_results_store_path
             && let Ok(existing) = store::load_dispatch_results_store(path)
         {
@@ -488,15 +486,16 @@ impl PopuliTransportState {
 
         s.a2a_store_path = store_path;
         s.exec_lease_store_path = exec_lease_store_path;
-    
+
         {
             s.dispatch_results_store_path = dispatch_results_store_path;
         }
-        s.bootstrap_token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshBootstrapToken)
-            .expose()
-            .map(|v| v.trim().to_string())
-            .filter(|v| !v.is_empty())
-            .map(Arc::from);
+        s.bootstrap_token =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshBootstrapToken)
+                .expose()
+                .map(|v| v.trim().to_string())
+                .filter(|v| !v.is_empty())
+                .map(Arc::from);
         s.bootstrap_expires_unix_ms =
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshBootstrapExpiresUnixMs)
                 .expose()

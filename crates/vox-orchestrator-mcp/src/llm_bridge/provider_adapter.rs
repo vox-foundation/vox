@@ -1,6 +1,6 @@
-use vox_orchestrator::models::{ModelSpec, ProviderType};
 use std::future::Future;
 use std::pin::Pin;
+use vox_orchestrator::models::{ModelSpec, ProviderType};
 
 use super::error::HttpInferError;
 use super::provider_auth::{bearer_for, extra_headers_for};

@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use vox_db::VoxDb;
 use vox_actor_runtime::llm::{LlmConfig, llm_embed};
 use vox_actor_runtime::{ActivityOptions, ActivityResult};
+use vox_db::VoxDb;
 
 /// Generate query vectors and optionally persist rows into `embeddings`.
 pub struct EmbeddingService {

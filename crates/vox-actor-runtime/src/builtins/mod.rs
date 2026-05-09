@@ -861,7 +861,12 @@ where
 {
     let plugin = vox_plugin_host::cached_code_plugin("browser")
         .map_err(|e| format!("browser plugin load: {e}"))?;
-    if plugin.plugin.as_browser_automation().into_option().is_none() {
+    if plugin
+        .plugin
+        .as_browser_automation()
+        .into_option()
+        .is_none()
+    {
         return Err("browser plugin loaded but BrowserAutomation accessor returned None".into());
     }
     f(plugin)
@@ -869,9 +874,7 @@ where
 
 macro_rules! browser_call {
     ($result:expr) => {
-        $result
-            .into_result()
-            .map_err(|e| format!("browser: {e}"))
+        $result.into_result().map_err(|e| format!("browser: {e}"))
     };
 }
 
@@ -953,7 +956,11 @@ pub fn vox_browser_wait_for(page_id: &str, target: &str, timeout_secs: u64) -> R
             .as_browser_automation()
             .into_option()
             .expect("checked above");
-        browser_call!(b.wait_for(page_id.as_str().into(), target.as_str().into(), timeout_secs))
+        browser_call!(b.wait_for(
+            page_id.as_str().into(),
+            target.as_str().into(),
+            timeout_secs
+        ))
     })
 }
 

@@ -1,7 +1,7 @@
-use std::path::PathBuf;
-use anyhow::Result;
-use sha2::{Sha256, Digest};
 use crate::features::ExtractedFeatures;
+use anyhow::Result;
+use sha2::{Digest, Sha256};
+use std::path::PathBuf;
 
 pub struct FeatureCache {
     dir: PathBuf,
@@ -33,17 +33,20 @@ impl FeatureCache {
     pub fn load(&self, key: &str) -> Option<ExtractedFeatures> {
         let path = self.dir.join(format!("{}.bin", &key[..16.min(key.len())]));
         let bytes = std::fs::read(path).ok()?;
-        bincode::serde::decode_from_slice::<ExtractedFeatures, _>(&bytes, bincode::config::standard())
-            .ok()
-            .map(|(f, _)| f)
+        bincode::serde::decode_from_slice::<ExtractedFeatures, _>(
+            &bytes,
+            bincode::config::standard(),
+        )
+        .ok()
+        .map(|(f, _)| f)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::features::{LiteralContext, LiteralLoc, Loc};
     use vox_code_audit::rules::Language;
-    use crate::features::{LiteralLoc, Loc, LiteralContext};
 
     #[test]
     fn cache_round_trips_features() {
@@ -51,7 +54,11 @@ mod tests {
         let cache = FeatureCache::new(dir.path().to_path_buf());
 
         let mut f = ExtractedFeatures::new(std::path::PathBuf::from("test.rs"), Language::Rust);
-        f.string_literals.push(LiteralLoc { value: "hi".into(), loc: Loc::default(), ctx: LiteralContext::Code });
+        f.string_literals.push(LiteralLoc {
+            value: "hi".into(),
+            loc: Loc::default(),
+            ctx: LiteralContext::Code,
+        });
 
         let key = "abc123deadbeef0000000000";
         cache.store(key, &f).unwrap();

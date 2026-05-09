@@ -7,7 +7,7 @@
 //! deps).
 
 use abi_stable::std_types::{ROption, RString};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use vox_db::VoxDb;
 
 /// Run one batch of Scientist RSS/Atom crawling and deduplication tick.
@@ -27,9 +27,9 @@ pub async fn ingest_tick(feed_id: Option<&str>, limit: usize) -> Result<()> {
             .plugin
             .as_publication()
             .into_option()
-            .ok_or_else(|| anyhow!(
-                "publication plugin loaded but does not expose the Publication extension"
-            ))?;
+            .ok_or_else(|| {
+                anyhow!("publication plugin loaded but does not expose the Publication extension")
+            })?;
         let feed_arg = match feed_id_owned {
             Some(s) => ROption::RSome(RString::from(s)),
             None => ROption::RNone,

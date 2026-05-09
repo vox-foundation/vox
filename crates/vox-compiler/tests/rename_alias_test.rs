@@ -7,8 +7,8 @@ use vox_compiler::parser::renames::RenameRegistry;
 
 #[test]
 fn registry_loads_from_canonical_path() {
-    let registry = RenameRegistry::load_canonical()
-        .expect("should load contracts/naming/renames.v1.json");
+    let registry =
+        RenameRegistry::load_canonical().expect("should load contracts/naming/renames.v1.json");
     // Empty registry is valid (VUV-9 ships an empty registry; entries are added in later phases).
     assert_eq!(registry.entries().count(), 0);
 }
@@ -67,25 +67,49 @@ fn deprecated_primitive_resolves_with_warning() {
     let registry = RenameRegistry::from_str(registry_json).unwrap();
 
     let source = "component App() { view: Box() { } }";
-    let result = parser::parse_with_registry(source, &registry)
-        .expect("source should parse");
+    let result = parser::parse_with_registry(source, &registry).expect("source should parse");
 
     // The resolved primitive should be `panel`, not `Box`.
-    assert!(result.uses_primitive("panel"),
+    assert!(
+        result.uses_primitive("panel"),
         "expected `panel` in resolved primitives, got: {:?}",
-        result);
-    assert!(!result.uses_primitive("Box"),
+        result
+    );
+    assert!(
+        !result.uses_primitive("Box"),
         "expected `Box` to have been resolved away, got: {:?}",
-        result);
+        result
+    );
 
     // Exactly one deprecation warning, citing all three pieces.
     let warnings = result.warnings();
-    assert_eq!(warnings.len(), 1, "expected exactly one warning, got {:?}", warnings);
+    assert_eq!(
+        warnings.len(),
+        1,
+        "expected exactly one warning, got {:?}",
+        warnings
+    );
     let msg = &warnings[0].message;
-    assert!(msg.contains("Box"), "warning should name old name `Box`, got: {}", msg);
-    assert!(msg.contains("panel"), "warning should name new name `panel`, got: {}", msg);
-    assert!(msg.contains("0.5.0"), "warning should cite version `0.5.0`, got: {}", msg);
-    assert!(msg.contains("vox migrate names"), "warning should suggest running `vox migrate names`, got: {}", msg);
+    assert!(
+        msg.contains("Box"),
+        "warning should name old name `Box`, got: {}",
+        msg
+    );
+    assert!(
+        msg.contains("panel"),
+        "warning should name new name `panel`, got: {}",
+        msg
+    );
+    assert!(
+        msg.contains("0.5.0"),
+        "warning should cite version `0.5.0`, got: {}",
+        msg
+    );
+    assert!(
+        msg.contains("vox migrate names"),
+        "warning should suggest running `vox migrate names`, got: {}",
+        msg
+    );
 }
 
 #[test]
@@ -96,8 +120,10 @@ fn registry_rejects_empty_from() {
           { "from": "", "to": "panel", "kind": "primitive", "since": "0.5.0" }
         ]
     }"#;
-    assert!(RenameRegistry::from_str(json).is_err(),
-        "empty `from` must be rejected");
+    assert!(
+        RenameRegistry::from_str(json).is_err(),
+        "empty `from` must be rejected"
+    );
 }
 
 #[test]
@@ -108,6 +134,8 @@ fn registry_rejects_self_rename() {
           { "from": "Box", "to": "Box", "kind": "primitive", "since": "0.5.0" }
         ]
     }"#;
-    assert!(RenameRegistry::from_str(json).is_err(),
-        "self-rename (from == to) must be rejected");
+    assert!(
+        RenameRegistry::from_str(json).is_err(),
+        "self-rename (from == to) must be rejected"
+    );
 }

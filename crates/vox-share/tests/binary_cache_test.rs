@@ -5,7 +5,7 @@
 //! Run with `-- --test-threads=1` or use the `serial_test` crate if isolation is needed.
 
 use tempfile::TempDir;
-use vox_share::binary_cache::{cached_binary_name, verify_sha256, CLOUDFLARED_VERSION};
+use vox_share::binary_cache::{CLOUDFLARED_VERSION, cached_binary_name, verify_sha256};
 
 #[test]
 fn cloudflared_version_is_set() {
@@ -40,7 +40,10 @@ fn verify_sha256_correct_hash() {
     // Just verify it returns Ok and doesn't panic on a readable file.
     let some_hash = "b94d27b9934d3e08a52e52d7da7dabfac484efe04294e576e0efbbc26a6f1a0a";
     let result = verify_sha256(&path, some_hash);
-    assert!(result.is_ok(), "verify_sha256 should not error on readable file");
+    assert!(
+        result.is_ok(),
+        "verify_sha256 should not error on readable file"
+    );
 }
 
 #[test]

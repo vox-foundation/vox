@@ -76,7 +76,12 @@ impl TunnelHandle {
         url_stability: UrlStability,
         shutdown: tokio::sync::oneshot::Sender<()>,
     ) -> Self {
-        Self { public_url, backend, url_stability, shutdown }
+        Self {
+            public_url,
+            backend,
+            url_stability,
+            shutdown,
+        }
     }
 
     /// Trigger graceful shutdown. Idempotent.
@@ -96,9 +101,5 @@ pub trait TunnelBackend: Send + Sync {
     /// Start the tunnel. Returns once the public URL is known and routable.
     /// `local_port` is the localhost port the backend should forward.
     /// `connect_timeout` is the max time to wait for the URL to become available.
-    async fn start(
-        &self,
-        local_port: u16,
-        connect_timeout: Duration,
-    ) -> ShareResult<TunnelHandle>;
+    async fn start(&self, local_port: u16, connect_timeout: Duration) -> ShareResult<TunnelHandle>;
 }

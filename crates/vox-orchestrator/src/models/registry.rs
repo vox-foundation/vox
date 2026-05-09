@@ -1002,7 +1002,8 @@ impl ModelRegistry {
                         // route through OpenRouter as an unreachable fallback so the task
                         // doesn't silently drop. MCP path (infer_via_provider_adapter) handles
                         // VoxLocal directly and doesn't go through this registry→LlmConfig path.
-                        let mut cfg = vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
+                        let mut cfg =
+                            vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
                         cfg.telemetry_task_category = Some(task_type.to_string());
                         cfg.telemetry_strength_tag =
                             Some(task_category_strength(task_type).to_string());
@@ -1016,7 +1017,8 @@ impl ModelRegistry {
                     | ProviderType::SambaNova
                     | ProviderType::Groq
                     | ProviderType::Cerebras => {
-                        let mut cfg = vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
+                        let mut cfg =
+                            vox_actor_runtime::llm::LlmConfig::openrouter(spec.id.clone());
                         cfg.telemetry_task_category = Some(task_type.to_string());
                         cfg.telemetry_strength_tag =
                             Some(task_category_strength(task_type).to_string());

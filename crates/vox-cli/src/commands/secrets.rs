@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use clap::{Subcommand, ValueEnum};
 use tracing::{error, info};
 use vox_identity::trust::TrustedNodeRegistry;
-use vox_mesh_types::SecretsSyncEnvelope;
 use vox_mesh_types::A2ADeliverRequest;
+use vox_mesh_types::SecretsSyncEnvelope;
 
 fn redact_value(value: &str) -> String {
     if value.chars().count() > 6 {
@@ -213,7 +213,10 @@ pub async fn run(cmd: SecretsCmd) -> Result<()> {
             println!("secrets backend mode: {mode:?}");
             for spec in vox_secrets::all_specs() {
                 let res = vox_secrets::resolve_secret(spec.id);
-                if matches!(res.status, vox_secrets::ResolutionStatus::BackendUnavailable) {
+                if matches!(
+                    res.status,
+                    vox_secrets::ResolutionStatus::BackendUnavailable
+                ) {
                     println!(
                         "backend status: unavailable ({})",
                         res.detail.unwrap_or_else(|| "no detail".to_string())
@@ -550,7 +553,10 @@ fn emit_doctor_human(
                         if count == 0 {
                             println!("suggested migrations (unmanaged .env keys detected):");
                         }
-                        println!("  - migrate `{}` to vault via `vox secrets import-env`", key);
+                        println!(
+                            "  - migrate `{}` to vault via `vox secrets import-env`",
+                            key
+                        );
                         count += 1;
                     }
                 }
@@ -816,10 +822,7 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
                         anyhow::anyhow!("populi-mesh plugin missing MeshDriver accessor")
                     })?;
                 driver
-                    .relay_a2a(
-                        url_for_task.as_str().into(),
-                        request_json.as_str().into(),
-                    )
+                    .relay_a2a(url_for_task.as_str().into(), request_json.as_str().into())
                     .into_result()
                     .map(|s| s.to_string())
                     .map_err(|e| anyhow::anyhow!("relay_a2a: {e}"))

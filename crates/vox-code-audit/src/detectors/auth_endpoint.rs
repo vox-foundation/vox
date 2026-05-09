@@ -52,7 +52,11 @@ impl DetectionRule for AuthEndpointDetector {
         An endpoint without either decorator defaults to no access control, which is a security risk."
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if file.language != Language::Vox {
             return vec![];
         }
@@ -66,10 +70,7 @@ impl DetectionRule for AuthEndpointDetector {
             let trimmed = line.trim();
 
             // Skip comment lines
-            if trimmed.starts_with("//")
-                || trimmed.starts_with('#')
-                || trimmed.starts_with('*')
-            {
+            if trimmed.starts_with("//") || trimmed.starts_with('#') || trimmed.starts_with('*') {
                 continue;
             }
 
@@ -136,7 +137,10 @@ mod tests {
         let code = "@endpoint\nfn get_users() -> List[User] {\n    db.query_all()\n}";
         let f = source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag @endpoint with no @auth or @public");
+        assert!(
+            !findings.is_empty(),
+            "should flag @endpoint with no @auth or @public"
+        );
         assert!(findings[0].message.contains("@auth"));
     }
 

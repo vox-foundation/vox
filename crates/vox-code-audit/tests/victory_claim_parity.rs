@@ -50,7 +50,11 @@ fn parity_findings_match_baseline() {
         ("victory-claim/premature".to_string(), 1, Severity::Warning),
         ("victory-claim/fixme".to_string(), 7, Severity::Warning),
         ("victory-claim/hack".to_string(), 10, Severity::Info),
-        ("victory-claim/todo-leftover".to_string(), 13, Severity::Warning),
+        (
+            "victory-claim/todo-leftover".to_string(),
+            13,
+            Severity::Warning,
+        ),
         ("victory-claim/premature".to_string(), 16, Severity::Warning),
     ]
     .into_iter()

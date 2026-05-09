@@ -1,6 +1,6 @@
-use vox_bounded_fs::read_utf8_path_capped;
 use anyhow::{Context, Result};
 use std::path::Path;
+use vox_bounded_fs::read_utf8_path_capped;
 pub(super) fn repo_relative_string(repo_root: &Path, path: &Path) -> Result<String> {
     let abs = if path.is_absolute() {
         path.to_path_buf()

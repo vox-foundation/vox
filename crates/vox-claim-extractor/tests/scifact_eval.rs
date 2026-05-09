@@ -121,10 +121,7 @@ async fn scifact_mini_split_f1_above_065() {
     let mut tn = 0usize;
 
     for ex in &examples {
-        let result = pipeline
-            .extract(ex.sentence, &[ex.context])
-            .await
-            .unwrap();
+        let result = pipeline.extract(ex.sentence, &[ex.context]).await.unwrap();
         let predicted_promotable = !result.promotable_claim_ids.is_empty();
         match (predicted_promotable, ex.expected_promotable) {
             (true, true) => tp += 1,

@@ -393,7 +393,9 @@ pub fn transcribe_audio_file(path: &Path) -> Result<String> {
             .and_then(|s: &str| s.parse().ok())
             .unwrap_or(25u64);
     let (pcm, pre_diag) =
-        crate::oratio_internals::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms);
+        crate::oratio_internals::acoustic_preprocess::preprocess_audio_pcm_f32_reported(
+            &pcm, budget_ms,
+        );
     tracing::debug!(
         target: "vox_oratio_whisper",
         path = %path.display(),
@@ -763,4 +765,3 @@ mod chunk_tests {
         }
     }
 }
-

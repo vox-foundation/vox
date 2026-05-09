@@ -27,9 +27,9 @@ use abi_stable::{
 use anyhow::Result;
 use async_trait::async_trait;
 use tracing::{info, warn};
+use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
 use vox_plugin_api::host::VoxHost_TO;
-use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_webhook::{
     WebhookEvent, WebhookEventSink, WebhookHandler,
     router::{WebhookState, serve},
@@ -67,7 +67,9 @@ fn init(_host: VoxHost_TO<'static, RBox<()>>) -> RResult<VoxPluginRef, RBoxError
     if let Some(token) = ingress_token {
         state = state.with_ingress_token(token);
     } else {
-        warn!("vox-plugin-webhook: VOX_WEBHOOK_INGRESS_TOKEN not set — running in degraded (no-auth) mode");
+        warn!(
+            "vox-plugin-webhook: VOX_WEBHOOK_INGRESS_TOKEN not set — running in degraded (no-auth) mode"
+        );
     }
 
     // Spawn the HTTP server. The broadcast channel inside WebhookState will

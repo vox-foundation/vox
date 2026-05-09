@@ -1,8 +1,8 @@
 use vox_db::Codex;
 
-use super::config::ResearchConfig;
 use super::super::provider::ProviderRegistry;
 use super::super::types::{ResearchHit, ResearchPlan, ResearchQuery};
+use super::config::ResearchConfig;
 
 pub(super) async fn gather_web_hits_for_plan(
     _db: Option<&Codex>,
@@ -11,12 +11,7 @@ pub(super) async fn gather_web_hits_for_plan(
     plan: &ResearchPlan,
     registry: &ProviderRegistry,
     _config: &ResearchConfig,
-) -> (
-    Vec<ResearchHit>,
-    usize,
-    usize,
-    usize,
-) {
+) -> (Vec<ResearchHit>, usize, usize, usize) {
     // PHASE_0a_STUB: no real web provider; returns empty results.
     // Phase 5 replaces with real provider search/crawl/extract pipeline.
     // DB writes (create_research_source, ingest_research_document, start_provider_run,

@@ -8,7 +8,7 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::Path;
-use vox_plugin_host::{errors::LoadError, Loader};
+use vox_plugin_host::{Loader, errors::LoadError};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -96,8 +96,8 @@ pub fn run() -> Result<()> {
         .filter(|e| e.file_name() == "Plugin.toml")
     {
         let path = entry.path();
-        let raw = std::fs::read_to_string(path)
-            .with_context(|| format!("reading {}", path.display()))?;
+        let raw =
+            std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         let head: ManifestHead = match toml::from_str(&raw) {
             Ok(v) => v,
             Err(e) => {

@@ -24,8 +24,8 @@ fn compile_component(source: &str, component_name: &str) -> String {
     let module =
         vox_compiler::parser::parse(tokens).unwrap_or_else(|e| panic!("parse failed: {e:?}"));
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_codegen::codegen_ts::generate(&hir)
-        .unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
+    let out =
+        vox_codegen::codegen_ts::generate(&hir).unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
     let filename = format!("{component_name}.tsx");
     out.files
         .into_iter()
@@ -135,7 +135,10 @@ component TopBar(workspace: str, run_status: str, run_label: str) {
     assert!(ts.contains("<button"), "TopBar must emit <button> element");
 
     // StateChip JSX call must be present.
-    assert!(ts.contains("StateChip"), "TopBar must include StateChip component");
+    assert!(
+        ts.contains("StateChip"),
+        "TopBar must include StateChip component"
+    );
 
     // ⌘K hint must appear.
     assert!(ts.contains("⌘K"), "TopBar must include ⌘K shortcut hint");
@@ -194,7 +197,10 @@ component LeftRail(active: str, collapsed: bool) {
     assert!(!ts.contains("panel("), "panel must not emit as JS call");
 
     // NavItem invocations must appear.
-    assert!(ts.contains("NavItem"), "LeftRail must include NavItem component");
+    assert!(
+        ts.contains("NavItem"),
+        "LeftRail must include NavItem component"
+    );
 
     // All 7 English nav labels must be present as prop values.
     assert!(ts.contains("Speak"), "LeftRail must show Speak label");
@@ -206,13 +212,28 @@ component LeftRail(active: str, collapsed: bool) {
     assert!(ts.contains("Settings"), "LeftRail must show Settings label");
 
     // No Latin labels — the principal IA fix this batch ships.
-    assert!(!ts.contains("LOQUELA"), "LeftRail must NOT contain Latin label LOQUELA");
-    assert!(!ts.contains("RETE"), "LeftRail must NOT contain Latin label RETE");
-    assert!(!ts.contains("FABRICA"), "LeftRail must NOT contain Latin label FABRICA");
-    assert!(!ts.contains("IMPERIUM"), "LeftRail must NOT contain Latin label IMPERIUM");
+    assert!(
+        !ts.contains("LOQUELA"),
+        "LeftRail must NOT contain Latin label LOQUELA"
+    );
+    assert!(
+        !ts.contains("RETE"),
+        "LeftRail must NOT contain Latin label RETE"
+    );
+    assert!(
+        !ts.contains("FABRICA"),
+        "LeftRail must NOT contain Latin label FABRICA"
+    );
+    assert!(
+        !ts.contains("IMPERIUM"),
+        "LeftRail must NOT contain Latin label IMPERIUM"
+    );
 
     // Version label present in expanded mode source.
-    assert!(ts.contains("v0.14.2"), "LeftRail must include version label");
+    assert!(
+        ts.contains("v0.14.2"),
+        "LeftRail must include version label"
+    );
 
     insta::assert_snapshot!("left_rail_expanded_tsx_dashboard_chrome", ts);
 }
@@ -266,8 +287,14 @@ component LeftRail(active: str, collapsed: bool) {
     println!("LeftRail collapsed branch.tsx:\n{ts}");
 
     // Both conditional width classes must appear in the emitted TSX.
-    assert!(ts.contains("w-14"), "collapsed LeftRail must have w-14 narrow class");
-    assert!(ts.contains("w-[200px]"), "expanded LeftRail must have w-[200px] class");
+    assert!(
+        ts.contains("w-14"),
+        "collapsed LeftRail must have w-14 narrow class"
+    );
+    assert!(
+        ts.contains("w-[200px]"),
+        "expanded LeftRail must have w-[200px] class"
+    );
 
     // The collapsed layout class for the header row must appear.
     assert!(
@@ -333,15 +360,27 @@ component StatusBar(active: str) {
     assert!(!ts.contains("text("), "text must not emit as JS call");
 
     // StatusSegment component call must appear.
-    assert!(ts.contains("StatusSegment"), "StatusBar must include StatusSegment");
+    assert!(
+        ts.contains("StatusSegment"),
+        "StatusBar must include StatusSegment"
+    );
 
     // Static placeholder values must be present.
-    assert!(ts.contains("sonnet-4.6"), "StatusBar must show default model name");
+    assert!(
+        ts.contains("sonnet-4.6"),
+        "StatusBar must show default model name"
+    );
     assert!(ts.contains("$4.82"), "StatusBar must show cost placeholder");
-    assert!(ts.contains("UTC 14:32"), "StatusBar must show UTC time placeholder");
+    assert!(
+        ts.contains("UTC 14:32"),
+        "StatusBar must show UTC time placeholder"
+    );
 
     // rose.500 dot for errors must appear.
-    assert!(ts.contains("rose"), "StatusBar must have rose color for error segment");
+    assert!(
+        ts.contains("rose"),
+        "StatusBar must have rose color for error segment"
+    );
 
     insta::assert_snapshot!("status_bar_tsx_dashboard_chrome", ts);
 }
@@ -404,8 +443,14 @@ component Shell(active: str, rail_collapsed: bool, workspace: str, run_status: s
 
     // Three chrome component calls must appear as JSX.
     assert!(ts.contains("TopBar"), "Shell must include TopBar component");
-    assert!(ts.contains("LeftRail"), "Shell must include LeftRail component");
-    assert!(ts.contains("StatusBar"), "Shell must include StatusBar component");
+    assert!(
+        ts.contains("LeftRail"),
+        "Shell must include LeftRail component"
+    );
+    assert!(
+        ts.contains("StatusBar"),
+        "Shell must include StatusBar component"
+    );
 
     // Shell is a column layout — min-h-screen must be present.
     assert!(

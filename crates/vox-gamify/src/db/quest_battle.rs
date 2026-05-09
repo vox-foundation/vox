@@ -160,7 +160,11 @@ pub async fn get_quest(db: &Codex, id: &str) -> Result<Option<Quest>> {
             modifier,
             completed,
             status: if status.is_empty() {
-                if completed { "completed".into() } else { "active".into() }
+                if completed {
+                    "completed".into()
+                } else {
+                    "active".into()
+                }
             } else {
                 status
             },
@@ -265,10 +269,22 @@ pub async fn list_battles(db: &Codex, user_id: &str, limit: i64) -> Result<Vec<B
             bug_code: row_cols[4].clone(),
             submitted_code: row_cols[5].clone(),
             success: row_cols[6].as_deref().unwrap_or("0") != "0",
-            crystals_earned: row_cols[7].as_deref().and_then(|s| s.parse().ok()).unwrap_or(0),
-            xp_earned: row_cols[8].as_deref().and_then(|s| s.parse().ok()).unwrap_or(0),
-            duration_secs: row_cols[9].as_deref().and_then(|s| s.parse().ok()).unwrap_or(0),
-            created_at: row_cols[10].as_deref().and_then(|s| s.parse().ok()).unwrap_or(0),
+            crystals_earned: row_cols[7]
+                .as_deref()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0),
+            xp_earned: row_cols[8]
+                .as_deref()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0),
+            duration_secs: row_cols[9]
+                .as_deref()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0),
+            created_at: row_cols[10]
+                .as_deref()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0),
         });
     }
     Ok(battles)
@@ -299,10 +315,18 @@ pub async fn insert_battle(db: &Codex, b: &Battle) -> Result<()> {
                   success, crystals_earned, xp_earned, duration_secs, created_at)
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
                 params![
-                    id.as_str(), user_id.as_str(), companion_id.as_str(),
-                    bug_type.as_str(), bug_description.as_str(),
-                    bug_code.as_deref(), submitted_code.as_deref(),
-                    success_flag, crystals_earned, xp_earned, duration_secs, created_at
+                    id.as_str(),
+                    user_id.as_str(),
+                    companion_id.as_str(),
+                    bug_type.as_str(),
+                    bug_description.as_str(),
+                    bug_code.as_deref(),
+                    submitted_code.as_deref(),
+                    success_flag,
+                    crystals_earned,
+                    xp_earned,
+                    duration_secs,
+                    created_at
                 ],
             )
             .await?;
@@ -383,8 +407,12 @@ pub async fn update_battle(db: &Codex, b: &Battle) -> Result<()> {
                 "UPDATE gamify_battles SET submitted_code=?1, success=?2, crystals_earned=?3,
                  xp_earned=?4, duration_secs=?5 WHERE id=?6",
                 params![
-                    submitted_code.as_deref(), success_flag, crystals_earned,
-                    xp_earned, duration_secs, id.as_str(),
+                    submitted_code.as_deref(),
+                    success_flag,
+                    crystals_earned,
+                    xp_earned,
+                    duration_secs,
+                    id.as_str(),
                 ],
             )
             .await?;

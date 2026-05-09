@@ -1,8 +1,8 @@
 use crate::ast::decl::*;
 use crate::ast::expr;
 use crate::ast::types::TypeExpr;
-use crate::hir::*;
 use crate::hir::nodes::form::{HirFieldConstraint, HirForm, HirFormField};
+use crate::hir::*;
 
 use super::LowerCtx;
 

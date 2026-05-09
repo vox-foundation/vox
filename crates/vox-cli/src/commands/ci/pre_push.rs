@@ -267,7 +267,14 @@ fn step_doc_frontmatter(_root: &Path) -> Result<()> {
 
 fn step_doctest_md(_root: &Path) -> Result<()> {
     cargo_status(&[
-        "run", "-q", "-p", "vox-cli", "--", "ci", "doctest-md", "--strict",
+        "run",
+        "-q",
+        "-p",
+        "vox-cli",
+        "--",
+        "ci",
+        "doctest-md",
+        "--strict",
     ])
 }
 

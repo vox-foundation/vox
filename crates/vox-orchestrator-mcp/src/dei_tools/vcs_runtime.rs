@@ -23,11 +23,13 @@ pub async fn check_file_owner(state: &ServerState, path: &str) -> String {
 pub async fn vcs_status(state: &ServerState) -> String {
     let orch = &state.orchestrator;
 
-    let snapshot_count = vox_orchestrator::sync_lock::rw_read(&*orch.snapshot_store_handle()).count();
+    let snapshot_count =
+        vox_orchestrator::sync_lock::rw_read(&*orch.snapshot_store_handle()).count();
     let oplog_count = vox_orchestrator::sync_lock::rw_read(&*orch.oplog_handle()).count();
     let active_conflicts =
         vox_orchestrator::sync_lock::rw_read(&*orch.conflict_manager_handle()).active_count();
-    let total_conflicts = vox_orchestrator::sync_lock::rw_read(&*orch.conflict_manager_handle()).total_count();
+    let total_conflicts =
+        vox_orchestrator::sync_lock::rw_read(&*orch.conflict_manager_handle()).total_count();
     let active_workspaces = vox_orchestrator::sync_lock::rw_read(&*orch.workspace_manager_handle())
         .list_workspaces()
         .len();
@@ -51,19 +53,20 @@ pub async fn vcs_status(state: &ServerState) -> String {
             .collect();
 
     // Build recent oplog entries (last 10)
-    let recent_ops: Vec<serde_json::Value> = vox_orchestrator::sync_lock::rw_read(&*orch.oplog_handle())
-        .list(None, 10)
-        .iter()
-        .map(|op| {
-            serde_json::json!({
-                "id": op.id.to_string(),
-                "agent_id": op.agent_id.0,
-                "kind": format!("{:?}", op.kind),
-                "description": op.description,
-                "undone": op.undone,
+    let recent_ops: Vec<serde_json::Value> =
+        vox_orchestrator::sync_lock::rw_read(&*orch.oplog_handle())
+            .list(None, 10)
+            .iter()
+            .map(|op| {
+                serde_json::json!({
+                    "id": op.id.to_string(),
+                    "agent_id": op.agent_id.0,
+                    "kind": format!("{:?}", op.kind),
+                    "description": op.description,
+                    "undone": op.undone,
+                })
             })
-        })
-        .collect();
+            .collect();
 
     // Build active conflict details
     let conflict_details: Vec<serde_json::Value> =
@@ -113,7 +116,10 @@ fn agent_id_from_kind_json(v: &serde_json::Value) -> u64 {
     0
 }
 
-fn agent_event_to_record(ev: &vox_orchestrator::AgentEvent, repo_id: &str) -> vox_gamify::db::AgentEventRecord {
+fn agent_event_to_record(
+    ev: &vox_orchestrator::AgentEvent,
+    repo_id: &str,
+) -> vox_gamify::db::AgentEventRecord {
     let mut kind_json = serde_json::to_value(&ev.kind).unwrap_or_default();
     let event_type = kind_json
         .get("type")
@@ -236,7 +242,10 @@ pub async fn heartbeat(state: &ServerState, params: HeartbeatParams) -> String {
 
 /// Persist a cost row (when DB present) and emit `CostIncurred` on the orchestrator bus.
 pub async fn record_cost(state: &ServerState, params: RecordCostParams) -> String {
-    let (target_id, event_bus): (Option<vox_orchestrator::AgentId>, vox_orchestrator::events::EventBus) = {
+    let (target_id, event_bus): (
+        Option<vox_orchestrator::AgentId>,
+        vox_orchestrator::events::EventBus,
+    ) = {
         let orch = &state.orchestrator;
 
         let mut target = None;

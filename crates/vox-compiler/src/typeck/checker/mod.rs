@@ -627,9 +627,9 @@ impl<'a> Checker<'a> {
                 // the declared struct shape and resolve to `Ty::Named(StructName)` rather
                 // than the looser `Ty::Record`, which won't unify with the declared type.
                 let expected_ret = self.env.current_return_type().cloned();
-                let val_ty = value.as_ref().map_or(Ty::Unit, |v| {
-                    self.check_expr(v, expected_ret.as_ref())
-                });
+                let val_ty = value
+                    .as_ref()
+                    .map_or(Ty::Unit, |v| self.check_expr(v, expected_ret.as_ref()));
                 if let Some(expected) = self.env.current_return_type() {
                     if let Err(msg) = self.uf.unify(&val_ty, expected) {
                         self.diags.push(Diagnostic::error(

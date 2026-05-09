@@ -10,7 +10,9 @@ async fn coordinator_starts_lan_session_against_a_dummy_app() {
     let upstream = axum::Router::new().route("/", axum::routing::get(|| async { "ok" }));
     let upstream_listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let upstream_port = upstream_listener.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(upstream_listener, upstream).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(upstream_listener, upstream).await.unwrap();
+    });
 
     let cfg = ShareConfig {
         backend: BackendKind::Lan,
@@ -23,7 +25,8 @@ async fn coordinator_starts_lan_session_against_a_dummy_app() {
         auth_mode: AuthMode::None,
         allow_buffered_streaming: false,
     };
-    let session = vox_share::ShareSession::start(cfg).await
+    let session = vox_share::ShareSession::start(cfg)
+        .await
         .expect("LAN session should start");
 
     assert_eq!(session.tunnel_handle.backend, BackendKind::Lan);
@@ -33,7 +36,8 @@ async fn coordinator_starts_lan_session_against_a_dummy_app() {
     assert!(session.proxy_port > 0);
 
     let resp = reqwest::get(format!("http://127.0.0.1:{}/", session.proxy_port))
-        .await.unwrap();
+        .await
+        .unwrap();
     assert_eq!(resp.status(), 200);
     assert_eq!(resp.text().await.unwrap(), "ok");
 

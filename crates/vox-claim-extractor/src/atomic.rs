@@ -128,9 +128,8 @@ mod tests {
     #[test]
     fn decomposes_simple_increase_claim() {
         let decomposer = AtomicDecomposer::default();
-        let claims = decomposer.decompose(
-            "Provider X p95 latency increased by 12ms and refusal rate rose to 3.2%.",
-        );
+        let claims = decomposer
+            .decompose("Provider X p95 latency increased by 12ms and refusal rate rose to 3.2%.");
         assert!(!claims.is_empty());
         for claim in &claims {
             assert!(!claim.text.is_empty());

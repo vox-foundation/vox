@@ -151,9 +151,10 @@ pub async fn run(cmd: TelemetryCmd) -> Result<()> {
                     .map(str::to_owned)
                     .ok_or_else(|| anyhow!("{}", r.remediation))?
             };
-            let bearer = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTelemetryUploadToken)
-                .expose()
-                .map(str::to_owned);
+            let bearer =
+                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxTelemetryUploadToken)
+                    .expose()
+                    .map(str::to_owned);
             let (ok, fail) =
                 telemetry_spool::upload_pending(&root, url_str.trim(), bearer.as_deref(), dry_run)
                     .await?;

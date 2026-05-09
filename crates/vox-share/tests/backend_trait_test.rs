@@ -5,9 +5,18 @@ use vox_share::{BackendKind, TunnelBackend};
 #[test]
 fn backend_kind_round_trips_via_str() {
     assert_eq!("lan".parse::<BackendKind>().unwrap(), BackendKind::Lan);
-    assert_eq!("cloudflare".parse::<BackendKind>().unwrap(), BackendKind::Cloudflare);
-    assert_eq!("localhost-run".parse::<BackendKind>().unwrap(), BackendKind::LocalhostRun);
-    assert_eq!("tailscale".parse::<BackendKind>().unwrap(), BackendKind::Tailscale);
+    assert_eq!(
+        "cloudflare".parse::<BackendKind>().unwrap(),
+        BackendKind::Cloudflare
+    );
+    assert_eq!(
+        "localhost-run".parse::<BackendKind>().unwrap(),
+        BackendKind::LocalhostRun
+    );
+    assert_eq!(
+        "tailscale".parse::<BackendKind>().unwrap(),
+        BackendKind::Tailscale
+    );
     assert!("frobnicate".parse::<BackendKind>().is_err());
 }
 

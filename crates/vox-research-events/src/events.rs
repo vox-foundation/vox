@@ -194,7 +194,10 @@ mod tests {
         };
         let json = serde_json::to_string(&evt).unwrap();
         let back: ResearchEvent = serde_json::from_str(&json).unwrap();
-        assert!(matches!(back, ResearchEvent::ClaimExtracted { claim_id: 42, .. }));
+        assert!(matches!(
+            back,
+            ResearchEvent::ClaimExtracted { claim_id: 42, .. }
+        ));
     }
 
     #[test]

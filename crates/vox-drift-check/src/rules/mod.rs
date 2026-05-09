@@ -1,6 +1,6 @@
+use crate::features::ExtractedFeatures;
 use std::path::PathBuf;
 use vox_code_audit::rules::{Finding, Language, Severity};
-use crate::features::ExtractedFeatures;
 
 pub mod bearer_header;
 pub mod reqwest_bypass;

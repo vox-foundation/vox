@@ -26,9 +26,5 @@ pub trait Publication: Send + Sync {
     /// even if individual feeds fail to crawl (those failures are reported
     /// inline). It returns `Err` only on a fatal setup problem (DB
     /// connection failure, embedder init failure, etc.).
-    fn ingest_tick(
-        &self,
-        feed_id: ROption<RString>,
-        limit: u32,
-    ) -> RResult<(), RBoxError>;
+    fn ingest_tick(&self, feed_id: ROption<RString>, limit: u32) -> RResult<(), RBoxError>;
 }

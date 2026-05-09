@@ -5,8 +5,8 @@ use std::path::Path;
 
 use anyhow::{Context, Result, anyhow};
 
-use vox_bounded_fs::read_utf8_path_capped;
 use crate::command_registry_model::RegistryFile;
+use vox_bounded_fs::read_utf8_path_capped;
 
 const REGISTRY_REL: &str = "contracts/cli/command-registry.yaml";
 

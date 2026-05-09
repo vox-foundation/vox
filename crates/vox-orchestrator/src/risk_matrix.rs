@@ -255,7 +255,10 @@ mod tests {
             confidence_deficit: 0.0,
         };
         assert_eq!(m.grade(&dims), RiskGrade::Critical);
-        assert_eq!(m.hitl_action(RiskGrade::Critical), HitlAction::BlockAndEscalate);
+        assert_eq!(
+            m.hitl_action(RiskGrade::Critical),
+            HitlAction::BlockAndEscalate
+        );
     }
 
     #[test]

@@ -28,7 +28,10 @@ async fn api_v2_health_returns_envelope() {
 #[ignore = "pending routes migration from vox-orchestrator-mcp (Phase 4 reorg)"]
 fn ok_page_envelope_includes_cursor() {
     use vox_orchestrator::services::routes::ok_page;
-    let resp = ok_page(serde_json::json!([{"id": "a"}, {"id": "b"}]), Some("cur-xyz"));
+    let resp = ok_page(
+        serde_json::json!([{"id": "a"}, {"id": "b"}]),
+        Some("cur-xyz"),
+    );
     let body = resp.0;
     assert_eq!(body["v"], 1);
     assert_eq!(body["data"][0]["id"], "a");
@@ -38,4 +41,3 @@ fn ok_page_envelope_includes_cursor() {
     let body2 = resp2.0;
     assert!(body2["cursor"].is_null());
 }
-

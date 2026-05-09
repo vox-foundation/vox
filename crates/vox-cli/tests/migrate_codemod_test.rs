@@ -45,7 +45,12 @@ fn migrate_names_dry_run_empty_dir() {
     let dir = tempfile::tempdir().expect("tempdir");
 
     let output = Command::new(env!("CARGO_BIN_EXE_vox"))
-        .args(["migrate", "names", "--dry-run", dir.path().to_str().unwrap()])
+        .args([
+            "migrate",
+            "names",
+            "--dry-run",
+            dir.path().to_str().unwrap(),
+        ])
         .output()
         .expect("vox binary should be runnable");
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -113,11 +118,9 @@ fn rewrite_does_not_touch_substring_identifiers() {
 #[test]
 fn rewrite_preserves_whitespace_and_comments() {
     let registry = test_registry();
-    let before =
-        "// before-comment\ncomponent App() {\n    view: Box()  {  // inline\n        text(\"hi\")\n    }\n}\n";
+    let before = "// before-comment\ncomponent App() {\n    view: Box()  {  // inline\n        text(\"hi\")\n    }\n}\n";
     let after = vox_cli::commands::migrate::rewrite_for_test(before, &registry);
-    let expected =
-        "// before-comment\ncomponent App() {\n    view: panel()  {  // inline\n        text(\"hi\")\n    }\n}\n";
+    let expected = "// before-comment\ncomponent App() {\n    view: panel()  {  // inline\n        text(\"hi\")\n    }\n}\n";
     assert_eq!(after, expected);
 }
 
@@ -188,7 +191,11 @@ fn write_test_registry(dir: &std::path::Path) -> PathBuf {
     path
 }
 
-fn run_migrate_names(cwd: &std::path::Path, registry_path: &std::path::Path, args: &[&str]) -> CliOutput {
+fn run_migrate_names(
+    cwd: &std::path::Path,
+    registry_path: &std::path::Path,
+    args: &[&str],
+) -> CliOutput {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_vox"));
     cmd.arg("migrate")
         .arg("names")
@@ -219,15 +226,28 @@ fn migrate_names_dry_run_reports_diff_without_writing() {
     let target = copy_fixture_to_tempdir(temp.path());
     let original_bytes = std::fs::read_to_string(&target).unwrap();
 
-    let output = run_migrate_names(temp.path(), &registry, &["--dry-run", temp.path().to_str().unwrap()]);
+    let output = run_migrate_names(
+        temp.path(),
+        &registry,
+        &["--dry-run", temp.path().to_str().unwrap()],
+    );
 
-    assert!(output.status.success(), "vox migrate names exited non-zero: stderr={}", output.stderr);
-    assert!(output.stdout_contains("would update"),
-        "stdout should announce a dry-run change: {}", output.stdout);
+    assert!(
+        output.status.success(),
+        "vox migrate names exited non-zero: stderr={}",
+        output.stderr
+    );
+    assert!(
+        output.stdout_contains("would update"),
+        "stdout should announce a dry-run change: {}",
+        output.stdout
+    );
 
     let after_dry_run = std::fs::read_to_string(&target).unwrap();
-    assert_eq!(after_dry_run, original_bytes,
-        "dry run must not modify the file");
+    assert_eq!(
+        after_dry_run, original_bytes,
+        "dry run must not modify the file"
+    );
 }
 
 #[test]
@@ -237,17 +257,27 @@ fn migrate_names_writes_canonical_output() {
     let registry = write_test_registry(registry_dir.path());
 
     let target = copy_fixture_to_tempdir(temp.path());
-    let expected = std::fs::read_to_string(fixture_root().join("after").join("sample.vox")).unwrap();
+    let expected =
+        std::fs::read_to_string(fixture_root().join("after").join("sample.vox")).unwrap();
 
     let output = run_migrate_names(temp.path(), &registry, &[temp.path().to_str().unwrap()]);
 
-    assert!(output.status.success(), "vox migrate names exited non-zero: stderr={}", output.stderr);
-    assert!(output.stdout_contains("updated"),
-        "stdout should announce a write: {}", output.stdout);
+    assert!(
+        output.status.success(),
+        "vox migrate names exited non-zero: stderr={}",
+        output.stderr
+    );
+    assert!(
+        output.stdout_contains("updated"),
+        "stdout should announce a write: {}",
+        output.stdout
+    );
 
     let after_write = std::fs::read_to_string(&target).unwrap();
-    assert_eq!(after_write, expected,
-        "file content after write must equal the canonical fixture byte-for-byte");
+    assert_eq!(
+        after_write, expected,
+        "file content after write must equal the canonical fixture byte-for-byte"
+    );
 }
 
 #[test]
@@ -266,10 +296,15 @@ fn migrate_names_idempotent_on_canonical_corpus() {
 
     assert!(output.status.success());
     let after_bytes = std::fs::read_to_string(&target).unwrap();
-    assert_eq!(after_bytes, before_bytes,
-        "running migrate against an already-canonical corpus must be a no-op");
-    assert!(output.stdout_contains("0 file"),
-        "stdout should announce zero changes: {}", output.stdout);
+    assert_eq!(
+        after_bytes, before_bytes,
+        "running migrate against an already-canonical corpus must be a no-op"
+    );
+    assert!(
+        output.stdout_contains("0 file"),
+        "stdout should announce zero changes: {}",
+        output.stdout
+    );
 }
 
 #[test]
@@ -277,16 +312,21 @@ fn rewrite_skips_non_primitive_kinds() {
     use vox_compiler::parser::renames::RenameRegistry;
     // A kwarg rename should NOT rewrite identifier tokens (would over-reach;
     // kwarg renames need argument-position context).
-    let registry = RenameRegistry::from_str(r#"{
+    let registry = RenameRegistry::from_str(
+        r#"{
         "version": 1,
         "entries": [
           { "from": "class", "to": "css_class", "kind": "kwarg", "since": "0.5.0" }
         ]
-    }"#).unwrap();
+    }"#,
+    )
+    .unwrap();
 
     let before = "let class = 1; row(class: \"foo\")";
     let after = vox_cli::commands::migrate::rewrite_for_test(before, &registry);
 
-    assert_eq!(after, before,
-        "kwarg-kind renames must not be rewritten by the token-level codemod");
+    assert_eq!(
+        after, before,
+        "kwarg-kind renames must not be rewritten by the token-level codemod"
+    );
 }

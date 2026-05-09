@@ -290,10 +290,9 @@ impl LowerCtx {
                     .collect(),
                 span: el.span,
             }),
-            Expr::JsxFragment { children, span } => HirExpr::JsxFragment(
-                children.iter().map(|c| self.lower_expr(c)).collect(),
-                *span,
-            ),
+            Expr::JsxFragment { children, span } => {
+                HirExpr::JsxFragment(children.iter().map(|c| self.lower_expr(c)).collect(), *span)
+            }
             Expr::StringInterp { parts, span } => {
                 // Convert string interpolation to template literal-style
                 // For now, represent as a string concat

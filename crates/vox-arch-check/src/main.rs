@@ -169,10 +169,7 @@ impl Report {
             || (self.strict_fan_in && !self.fan_in_warns.is_empty())
             || (self.strict_loc && !self.loc_warns.is_empty())
             || (self.strict_orphan && !self.orphan_warns.is_empty())
-            || self
-                .docstring_warns
-                .iter()
-                .any(|(_, strict)| *strict)
+            || self.docstring_warns.iter().any(|(_, strict)| *strict)
             || (self.strict_description && !self.description_warns.is_empty())
             || (self.strict_where_things_live && !self.where_things_live_warns.is_empty())
             || (self.strict_staleness && !self.staleness_warns.is_empty())
@@ -245,7 +242,11 @@ impl Report {
         }
         if !docstring_warn.is_empty() {
             any = true;
-            let label = if self.strict_docstring { "ERROR" } else { "warn" };
+            let label = if self.strict_docstring {
+                "ERROR"
+            } else {
+                "warn"
+            };
             eprintln!(
                 "[{label}] lib.rs without `//!` opening docstring — L3+ ({}):",
                 docstring_warn.len()
@@ -256,7 +257,11 @@ impl Report {
         }
         if !self.description_warns.is_empty() {
             any = true;
-            let label = if self.strict_description { "ERROR" } else { "warn" };
+            let label = if self.strict_description {
+                "ERROR"
+            } else {
+                "warn"
+            };
             eprintln!(
                 "[{label}] Cargo.toml description missing or too short ({}):",
                 self.description_warns.len()
@@ -282,7 +287,11 @@ impl Report {
         }
         if !self.staleness_warns.is_empty() {
             any = true;
-            let label = if self.strict_staleness { "ERROR" } else { "warn" };
+            let label = if self.strict_staleness {
+                "ERROR"
+            } else {
+                "warn"
+            };
             eprintln!(
                 "[{label}] crates unchanged since {} ({}) — add `staleness_exempt = true` in layers.toml to silence:",
                 self.staleness_since,
@@ -312,7 +321,11 @@ impl Report {
         }
         if !self.forbidden_dep_violations.is_empty() {
             any = true;
-            let label = if self.strict_forbidden_deps { "ERROR" } else { "warn" };
+            let label = if self.strict_forbidden_deps {
+                "ERROR"
+            } else {
+                "warn"
+            };
             eprintln!(
                 "[{label}] forbidden direct dependencies ({}):",
                 self.forbidden_dep_violations.len()
@@ -383,8 +396,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     report.strict_staleness = parse_strictness(layers.guards.staleness.as_ref(), false);
     report.strict_generated_file_drift =
         parse_strictness(layers.guards.generated_file_drift.as_ref(), false);
-    report.strict_forbidden_deps =
-        parse_strictness(layers.guards.forbidden_deps.as_ref(), false);
+    report.strict_forbidden_deps = parse_strictness(layers.guards.forbidden_deps.as_ref(), false);
 
     // ── Rule 1: Layer ordering + Rule 2: Fan-in (single pass) ──
     let mut dependent_count: HashMap<String, usize> = HashMap::new();
@@ -498,10 +510,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             Ok(c) => c,
             Err(_) => continue,
         };
-        let first_nonempty = content
-            .lines()
-            .find(|l| !l.trim().is_empty())
-            .unwrap_or("");
+        let first_nonempty = content.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
         if !first_nonempty.trim_start().starts_with("//!") {
             // L0-L2: strict (always fail); L3+: governed by strict_docstring guard
             let is_strict = layer <= 2;
@@ -511,16 +520,16 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     report.docstring_warns.sort_by(|a, b| a.0.cmp(&b.0));
 
     // ── Rule 6: Description present ──
-    report.description_warns =
-        check_description_present(&metadata_full, &layers);
+    report.description_warns = check_description_present(&metadata_full, &layers);
 
     // ── Rule 7: Where-things-live coverage ──
     report.where_things_live_warns =
-        check_where_things_live_coverage(&metadata_full, &layers, &workspace_root)
-            .unwrap_or_else(|e| {
+        check_where_things_live_coverage(&metadata_full, &layers, &workspace_root).unwrap_or_else(
+            |e| {
                 eprintln!("warn: where-things-live check skipped: {e:#}");
                 Vec::new()
-            });
+            },
+        );
 
     // ── Rule 8: Staleness ──
     // Flags crates with no commits since the last release date in CHANGELOG.md.
@@ -562,7 +571,12 @@ fn run(warn_only_flag: bool) -> Result<Report> {
         let forbidden_set: Vec<(&str, Vec<&str>)> = layers
             .forbidden_deps
             .iter()
-            .map(|r| (r.krate.as_str(), r.forbidden.iter().map(|s| s.as_str()).collect()))
+            .map(|r| {
+                (
+                    r.krate.as_str(),
+                    r.forbidden.iter().map(|s| s.as_str()).collect(),
+                )
+            })
             .collect();
         for pkg in metadata_full.workspace_packages() {
             let krate_name = pkg.name.as_str();
@@ -634,14 +648,15 @@ fn parse_release_date(changelog: &Path) -> Option<(String, String)> {
 /// Warn (or fail) if a workspace member at L1+ has no `description` field
 /// in its Cargo.toml or has one shorter than 40 characters. Binary-only
 /// crates (`kind = "binary"`) and `workspace-hack` are exempt.
-fn check_description_present(
-    meta: &cargo_metadata::Metadata,
-    cfg: &LayersConfig,
-) -> Vec<String> {
+fn check_description_present(meta: &cargo_metadata::Metadata, cfg: &LayersConfig) -> Vec<String> {
     let mut findings = Vec::new();
     let workspace_ids: HashSet<&cargo_metadata::PackageId> =
         meta.workspace_members.iter().collect();
-    for pkg in meta.packages.iter().filter(|p| workspace_ids.contains(&p.id)) {
+    for pkg in meta
+        .packages
+        .iter()
+        .filter(|p| workspace_ids.contains(&p.id))
+    {
         let name = pkg.name.as_str();
         let Some(entry) = cfg.crates.get(name) else {
             continue;
@@ -675,12 +690,16 @@ fn check_where_things_live_coverage(
     repo_root: &std::path::Path,
 ) -> anyhow::Result<Vec<String>> {
     let path = repo_root.join("docs/src/architecture/where-things-live.md");
-    let body = std::fs::read_to_string(&path)
-        .with_context(|| format!("read {}", path.display()))?;
+    let body =
+        std::fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
     let mut findings = Vec::new();
     let workspace_ids: HashSet<&cargo_metadata::PackageId> =
         meta.workspace_members.iter().collect();
-    for pkg in meta.packages.iter().filter(|p| workspace_ids.contains(&p.id)) {
+    for pkg in meta
+        .packages
+        .iter()
+        .filter(|p| workspace_ids.contains(&p.id))
+    {
         let name = pkg.name.as_str();
         if !cfg.crates.contains_key(name) {
             continue;
@@ -733,7 +752,9 @@ fn fnv1a_hex(bytes: &[u8]) -> String {
 /// The header format is flexible: any line containing `@generated-hash ` followed by a
 /// 16-character hex string is treated as the marker, regardless of comment prefix
 /// (`//`, `#`, `<!--`, etc.).
-fn check_generated_file_drift(workspace_root: &Path) -> anyhow::Result<Vec<(PathBuf, String, String)>> {
+fn check_generated_file_drift(
+    workspace_root: &Path,
+) -> anyhow::Result<Vec<(PathBuf, String, String)>> {
     const MARKER: &str = "@generated-hash ";
     const HASH_LEN: usize = 16;
     // Extensions that may carry generated-hash headers.
@@ -749,7 +770,10 @@ fn check_generated_file_drift(workspace_root: &Path) -> anyhow::Result<Vec<(Path
         };
         // Skip target/, .git/, node_modules/
         let rel_str = rel.to_string_lossy();
-        if rel_str.starts_with("target") || rel_str.starts_with(".git") || rel_str.contains("node_modules") {
+        if rel_str.starts_with("target")
+            || rel_str.starts_with(".git")
+            || rel_str.contains("node_modules")
+        {
             continue;
         }
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
@@ -776,7 +800,9 @@ fn check_generated_file_drift(workspace_root: &Path) -> anyhow::Result<Vec<(Path
             }
         }
 
-        let Some(marker_line) = header_line_idx else { continue };
+        let Some(marker_line) = header_line_idx else {
+            continue;
+        };
 
         // Recompute hash over file content with the marker line blanked.
         let body_for_hash: String = content

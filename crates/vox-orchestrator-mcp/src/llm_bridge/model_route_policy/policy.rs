@@ -1,7 +1,7 @@
-use vox_orchestrator::models::{ModelRegistry, ModelSpec, ProviderType};
 use vox_config::{
     GeminiRoutePolicy, gemini_route_targets_from_env, inference_profile_allows_local_ollama_http,
 };
+use vox_orchestrator::models::{ModelRegistry, ModelSpec, ProviderType};
 
 use super::types::McpChatModelResolution;
 

@@ -451,7 +451,9 @@ impl<'a> UsageTracker<'a> {
                 "google" => has_google_key,
                 "openrouter" => has_openrouter_key,
                 "ollama" => has_ollama,
-                "groq" => vox_secrets::resolve_secret(vox_secrets::SecretId::GroqApiKey).is_present(),
+                "groq" => {
+                    vox_secrets::resolve_secret(vox_secrets::SecretId::GroqApiKey).is_present()
+                }
                 "cerebras" => {
                     vox_secrets::resolve_secret(vox_secrets::SecretId::CerebrasApiKey).is_present()
                 }

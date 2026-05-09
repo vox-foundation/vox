@@ -27,9 +27,7 @@ impl std::str::FromStr for RuntimePreference {
             "docker" => Ok(Self::Docker),
             "podman" => Ok(Self::Podman),
             other => {
-                anyhow::bail!(
-                    "Unknown runtime preference: {other:?}. Use auto, docker, or podman."
-                )
+                anyhow::bail!("Unknown runtime preference: {other:?}. Use auto, docker, or podman.")
             }
         }
     }

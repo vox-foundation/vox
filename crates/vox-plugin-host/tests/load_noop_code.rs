@@ -3,7 +3,7 @@
 
 use abi_stable::std_types::*;
 use std::path::PathBuf;
-use vox_plugin_host::{discover, Loader};
+use vox_plugin_host::{Loader, discover};
 
 fn workspace_root() -> PathBuf {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

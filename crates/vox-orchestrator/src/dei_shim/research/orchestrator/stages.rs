@@ -1,8 +1,6 @@
+use super::super::types::{Citation, ResearchHit, SelfVerificationResult};
 use super::config::ANTI_LAZINESS_RIDER;
 use super::helpers::{sanitize_chatml, sanitize_evidence};
-use super::super::types::{
-    Citation, ResearchHit, SelfVerificationResult,
-};
 
 pub(super) struct JudgeParams<'a> {
     pub query: &'a str,
@@ -199,8 +197,12 @@ async fn call_synthesis_llm(params: &SynthesisParams<'_>) -> anyhow::Result<Stri
         String::new()
     };
 
-    let endpoint = params.endpoint.ok_or_else(|| anyhow::anyhow!("no endpoint configured"))?;
-    let api_key = params.api_key.ok_or_else(|| anyhow::anyhow!("no api_key configured"))?;
+    let endpoint = params
+        .endpoint
+        .ok_or_else(|| anyhow::anyhow!("no endpoint configured"))?;
+    let api_key = params
+        .api_key
+        .ok_or_else(|| anyhow::anyhow!("no api_key configured"))?;
 
     let system = format!(
         "You are a precise research synthesizer. Using ONLY the provided evidence \
@@ -341,7 +343,13 @@ pub(super) async fn run_self_verification(
     let context: String = hits
         .iter()
         .take(5)
-        .map(|h| format!("- {} — {}", h.title, h.snippet.chars().take(300).collect::<String>()))
+        .map(|h| {
+            format!(
+                "- {} — {}",
+                h.title,
+                h.snippet.chars().take(300).collect::<String>()
+            )
+        })
         .collect::<Vec<_>>()
         .join("\n");
 
@@ -369,7 +377,9 @@ Answer: {answer}\n\nQuestions:"
 
     let questions: Vec<String> = if let Ok(resp) = question_res
         && let Ok(json) = resp.json::<serde_json::Value>().await
-        && let Some(content) = json.pointer("/choices/0/message/content").and_then(|v| v.as_str())
+        && let Some(content) = json
+            .pointer("/choices/0/message/content")
+            .and_then(|v| v.as_str())
     {
         content
             .lines()
@@ -417,7 +427,9 @@ Sources:\n{context}\n\nQuestion: {q}\n\nAnswer with only 'yes', 'no', or 'unknow
 
         if let Ok(resp) = ans_res
             && let Ok(json) = resp.json::<serde_json::Value>().await
-            && let Some(ans) = json.pointer("/choices/0/message/content").and_then(|v| v.as_str())
+            && let Some(ans) = json
+                .pointer("/choices/0/message/content")
+                .and_then(|v| v.as_str())
         {
             let cleaned = ans.trim().to_lowercase();
             // "unknown" counts as a soft inconsistency (answer claimed something the context can't confirm)

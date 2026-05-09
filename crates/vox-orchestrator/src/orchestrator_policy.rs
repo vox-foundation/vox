@@ -11,16 +11,26 @@ use serde::{Deserialize, Serialize};
 use crate::budget_gate::{BudgetDecision, BudgetGateConfig, OrchestratorBudgetGate};
 use crate::cache_predictor::{CachePrediction, CachePredictor, CachePredictorConfig, CacheSignal};
 use crate::calibration::{CalibrationConfig, CalibrationLoop};
-use crate::circuit_breaker::{AlarmTier, CircuitBreaker, CircuitBreakerConfig, CircuitBreakerState, TripReason};
-use crate::compaction_trigger::{CompactionTrigger, CompactionTriggerConfig};
+use crate::circuit_breaker::{
+    AlarmTier, CircuitBreaker, CircuitBreakerConfig, CircuitBreakerState, TripReason,
+};
 use crate::compaction::CompactionStrategy;
+use crate::compaction_trigger::{CompactionTrigger, CompactionTriggerConfig};
 use crate::confidence_fusion::{ConfidenceFuser, FusionConfig, FusionDecision, FusionInputs};
-use crate::planning::plan_mode_trigger::{PlanModeDecision, PlanModeTrigger, PlanModeTriggerConfig, PlanModeSignal};
-use crate::privacy_classifier::{ClassificationSignals, PrivacyClassifier, PrivacyClassifierConfig, route_for_level};
-use crate::privacy_router::{PrivacyLevel, PrivacyRoutingDecision, PrivacyRouter, PrivacyRoutingPolicy};
+use crate::planning::plan_mode_trigger::{
+    PlanModeDecision, PlanModeSignal, PlanModeTrigger, PlanModeTriggerConfig,
+};
+use crate::privacy_classifier::{
+    ClassificationSignals, PrivacyClassifier, PrivacyClassifierConfig, route_for_level,
+};
+use crate::privacy_router::{
+    PrivacyLevel, PrivacyRouter, PrivacyRoutingDecision, PrivacyRoutingPolicy,
+};
 use crate::risk_matrix::{HitlAction, RiskDimensions, RiskGrade, RiskMatrix, RiskMatrixConfig};
-use crate::subagent_dispatch::{DispatchDecision, DispatchConfig, DispatchRouter, DispatchSignal};
-use crate::tier_cascade::{AlarmLevel, CompositeSignal, RoutingTier, TierCascadeConfig, TierCascadeRouter};
+use crate::subagent_dispatch::{DispatchConfig, DispatchDecision, DispatchRouter, DispatchSignal};
+use crate::tier_cascade::{
+    AlarmLevel, CompositeSignal, RoutingTier, TierCascadeConfig, TierCascadeRouter,
+};
 
 // ── Policy context ────────────────────────────────────────────────────────────
 
@@ -67,7 +77,10 @@ impl Default for PolicyContext {
             plan_mode: PlanModeSignal::default(),
             risk: RiskDimensions::default(),
             privacy: ClassificationSignals::default(),
-            cache: CacheSignal { prefix_overlap_tokens: 700, total_context_tokens: 1000 },
+            cache: CacheSignal {
+                prefix_overlap_tokens: 700,
+                total_context_tokens: 1000,
+            },
             context_utilization: 0.5,
             dispatch: DispatchSignal::default(),
         }
@@ -193,7 +206,9 @@ impl OrchestratorPolicy {
         let (fusion_score, fusion_decision) = self.fuser.evaluate(&ctx.fusion_inputs);
 
         // D1 — tier cascade (needs budget + alarm)
-        let budget_decision = self.budget.evaluate(ctx.budget_token_fraction, ctx.budget_cost_fraction);
+        let budget_decision = self
+            .budget
+            .evaluate(ctx.budget_token_fraction, ctx.budget_cost_fraction);
         let tier_signal = CompositeSignal {
             complexity: ctx.complexity,
             alarm_level: AlarmLevel::from(alarm_tier),
@@ -312,7 +327,10 @@ mod tests {
         let mut p = policy();
         let ctx = PolicyContext {
             complexity: 8,
-            dispatch: DispatchSignal { complexity: 8, ..Default::default() },
+            dispatch: DispatchSignal {
+                complexity: 8,
+                ..Default::default()
+            },
             ..Default::default()
         };
         let d = p.evaluate(&ctx);

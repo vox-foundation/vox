@@ -3,8 +3,8 @@
 
 use std::collections::BTreeSet;
 
-use vox_compiler::hir::HirModule;
 use crate::web_ir::{RouteContract, RouteNode, WebIrModule};
+use vox_compiler::hir::HirModule;
 
 pub const ROUTE_MANIFEST_FILENAME: &str = "routes.manifest.ts";
 

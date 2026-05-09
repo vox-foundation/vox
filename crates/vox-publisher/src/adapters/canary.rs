@@ -42,15 +42,18 @@ pub async fn probe_bluesky(_cfg: &PublisherConfig) -> HeartbeatStatus {
 
 #[cfg(feature = "live-api-canary")]
 pub async fn probe_discord(_cfg: &PublisherConfig) -> HeartbeatStatus {
-    let webhook_url =
-        match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxSocialDiscordWebhook).expose() {
-            Some(s) => s.to_string(),
-            None => {
-                return HeartbeatStatus::AuthFailure {
-                    hint: "Missing Discord Webhook Secret".to_string(),
-                };
-            }
-        };
+    let webhook_url = match vox_secrets::resolve_secret(
+        vox_secrets::SecretId::VoxSocialDiscordWebhook,
+    )
+    .expose()
+    {
+        Some(s) => s.to_string(),
+        None => {
+            return HeartbeatStatus::AuthFailure {
+                hint: "Missing Discord Webhook Secret".to_string(),
+            };
+        }
+    };
 
     let client = Client::new();
     let start = Instant::now();

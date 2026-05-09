@@ -67,7 +67,11 @@ impl DetectionRule for DuplicatePrefixDetector {
         Good: let user_id = ...;"
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
         for (i, line) in file.lines.iter().enumerate() {

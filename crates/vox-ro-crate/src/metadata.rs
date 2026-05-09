@@ -1,13 +1,13 @@
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 pub struct RoCrateMetadata {
     pub name: String,
     pub description: String,
     pub doi: Option<String>,
-    pub author_orcid: Option<String>,    // e.g. "https://orcid.org/0000-0001-2345-6789"
-    pub author_ror: Option<String>,      // e.g. "https://ror.org/03yrm5c26"
-    pub license_spdx: String,            // e.g. "CC-BY-4.0"
-    pub published_at: i64,               // Unix timestamp
+    pub author_orcid: Option<String>, // e.g. "https://orcid.org/0000-0001-2345-6789"
+    pub author_ror: Option<String>,   // e.g. "https://ror.org/03yrm5c26"
+    pub license_spdx: String,         // e.g. "CC-BY-4.0"
+    pub published_at: i64,            // Unix timestamp
     pub keywords: Vec<String>,
 }
 
@@ -17,7 +17,9 @@ pub fn build_ro_crate_json(metadata: &RoCrateMetadata) -> Value {
 
     let license_url = format!("https://spdx.org/licenses/{}", metadata.license_spdx);
 
-    let author_id = metadata.author_orcid.clone()
+    let author_id = metadata
+        .author_orcid
+        .clone()
         .unwrap_or_else(|| "#anonymous-author".to_string());
 
     // Build identifier array (include DOI if present)
@@ -95,7 +97,16 @@ fn format_iso_date(unix_secs: i64) -> String {
     let month_days: [u32; 12] = [
         31,
         if is_leap_year(year) { 29 } else { 28 },
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
     ];
 
     let mut month = 1u32;
@@ -142,9 +153,9 @@ mod tests {
     fn ro_crate_graph_contains_dataset() {
         let json = build_ro_crate_json(&sample_metadata());
         let graph = json["@graph"].as_array().unwrap();
-        let has_dataset = graph.iter().any(|node| {
-            node["@type"].as_str() == Some("Dataset")
-        });
+        let has_dataset = graph
+            .iter()
+            .any(|node| node["@type"].as_str() == Some("Dataset"));
         assert!(has_dataset);
     }
 

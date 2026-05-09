@@ -5,7 +5,7 @@
 //! If this test fails: update CLOUDFLARED_VERSION and the checksums in
 //! binary_cache.rs to match the latest release.
 
-use vox_share::binary_cache::{cloudflared_url_and_checksum, CLOUDFLARED_VERSION};
+use vox_share::binary_cache::{CLOUDFLARED_VERSION, cloudflared_url_and_checksum};
 
 #[test]
 #[ignore = "network test — run with --ignored in CI"]
@@ -32,10 +32,17 @@ fn cloudflared_url_and_checksum_returns_some_for_current_platform() {
     let os = std::env::consts::OS;
     let arch = std::env::consts::ARCH;
     match (os, arch) {
-        ("linux", "x86_64") | ("linux", "aarch64") |
-        ("macos", "x86_64") | ("macos", "aarch64") |
-        ("windows", "x86_64") => {
-            assert!(result.is_some(), "should have a checksum for {}-{}", os, arch);
+        ("linux", "x86_64")
+        | ("linux", "aarch64")
+        | ("macos", "x86_64")
+        | ("macos", "aarch64")
+        | ("windows", "x86_64") => {
+            assert!(
+                result.is_some(),
+                "should have a checksum for {}-{}",
+                os,
+                arch
+            );
             let (url, sha) = result.unwrap();
             assert!(url.contains(CLOUDFLARED_VERSION));
             assert_eq!(sha.len(), 64, "SHA256 should be 64 hex chars");

@@ -16,8 +16,8 @@
 //! `vox-base` (which has no plugins) always succeeds.
 
 use anyhow::{Context, Result};
-use flate2::write::GzEncoder;
 use flate2::Compression;
+use flate2::write::GzEncoder;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
@@ -34,7 +34,10 @@ pub fn run(id: &str, target: Option<&str>, out: Option<&Path>) -> Result<()> {
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| std::path::PathBuf::from(&default_out));
 
-    println!("-> Building bundle '{id}' for target '{triple}' -> {}", out_path.display());
+    println!(
+        "-> Building bundle '{id}' for target '{triple}' -> {}",
+        out_path.display()
+    );
 
     // Resolve plugins root — respects $VOX_PLUGINS_DIR.
     let install_root = crate::commands::plugin::list::plugins_root();
@@ -47,7 +50,11 @@ pub fn run(id: &str, target: Option<&str>, out: Option<&Path>) -> Result<()> {
     let mut tar = tar::Builder::new(gz);
 
     // 1. bin/vox (or bin/vox.exe on Windows)
-    let bin_entry = if cfg!(windows) { "bin/vox.exe" } else { "bin/vox" };
+    let bin_entry = if cfg!(windows) {
+        "bin/vox.exe"
+    } else {
+        "bin/vox"
+    };
     tar.append_path_with_name(&vox_binary, bin_entry)
         .with_context(|| format!("archiving vox binary from {}", vox_binary.display()))?;
 
@@ -59,7 +66,11 @@ pub fn run(id: &str, target: Option<&str>, out: Option<&Path>) -> Result<()> {
         // The install layout is  <root>/<plugin-id>/<version>/...
         let id_dir = install_root.join(&plugin.id);
         if !id_dir.is_dir() {
-            eprintln!("  ! plugin '{}' not installed at {}; skipping", plugin.id, id_dir.display());
+            eprintln!(
+                "  ! plugin '{}' not installed at {}; skipping",
+                plugin.id,
+                id_dir.display()
+            );
             skipped.push(plugin.id.clone());
             continue;
         }
@@ -71,14 +82,21 @@ pub fn run(id: &str, target: Option<&str>, out: Option<&Path>) -> Result<()> {
             .collect();
 
         if entries.is_empty() {
-            eprintln!("  ! plugin '{}' install dir has no version sub-dirs; skipping", plugin.id);
+            eprintln!(
+                "  ! plugin '{}' install dir has no version sub-dirs; skipping",
+                plugin.id
+            );
             skipped.push(plugin.id.clone());
             continue;
         }
 
         for entry in &entries {
             let version_dir = entry.path();
-            let archive_prefix = format!("plugins/{}/{}", plugin.id, entry.file_name().to_string_lossy());
+            let archive_prefix = format!(
+                "plugins/{}/{}",
+                plugin.id,
+                entry.file_name().to_string_lossy()
+            );
             tar.append_dir_all(&archive_prefix, &version_dir)
                 .with_context(|| {
                     format!(
@@ -120,9 +138,17 @@ pub fn run(id: &str, target: Option<&str>, out: Option<&Path>) -> Result<()> {
         .with_context(|| format!("stat {}", out_path.display()))?
         .len();
 
-    println!("✓ wrote {} ({} plugins included", out_path.display(), included_count);
+    println!(
+        "✓ wrote {} ({} plugins included",
+        out_path.display(),
+        included_count
+    );
     if !skipped.is_empty() {
-        println!("  {} plugin(s) skipped (not installed): {}", skipped.len(), skipped.join(", "));
+        println!(
+            "  {} plugin(s) skipped (not installed): {}",
+            skipped.len(),
+            skipped.join(", ")
+        );
     }
     println!("  tarball size: {} bytes", bytes);
 

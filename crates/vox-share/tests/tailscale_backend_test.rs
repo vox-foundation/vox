@@ -18,7 +18,10 @@ async fn tailscale_preflight_fails_gracefully_without_tailscale() {
     }
     let backend = TailscaleBackend::new();
     let result = backend.preflight().await;
-    assert!(result.is_err(), "preflight should fail when tailscale is not installed");
+    assert!(
+        result.is_err(),
+        "preflight should fail when tailscale is not installed"
+    );
     let err_str = result.unwrap_err().to_string();
     assert!(
         err_str.contains("tailscale") || err_str.contains("not found"),
@@ -35,5 +38,8 @@ async fn tailscale_start_rejects_unsupported_port() {
     // If it IS installed, it returns Config error for unsupported port.
     let backend = TailscaleBackend::new();
     let result = backend.start(7860, std::time::Duration::from_secs(1)).await;
-    assert!(result.is_err(), "port 7860 is not supported by Tailscale Funnel");
+    assert!(
+        result.is_err(),
+        "port 7860 is not supported by Tailscale Funnel"
+    );
 }

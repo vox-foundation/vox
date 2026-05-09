@@ -29,9 +29,13 @@ pub(crate) fn bearer_for(model: &ModelSpec) -> Result<String, HttpInferError> {
             required_secret(vox_secrets::SecretId::OpenRouterApiKey, "OpenRouter")
         }
         ProviderType::Groq => required_secret(vox_secrets::SecretId::GroqApiKey, "Groq"),
-        ProviderType::Cerebras => required_secret(vox_secrets::SecretId::CerebrasApiKey, "Cerebras"),
+        ProviderType::Cerebras => {
+            required_secret(vox_secrets::SecretId::CerebrasApiKey, "Cerebras")
+        }
         ProviderType::Mistral => required_secret(vox_secrets::SecretId::MistralApiKey, "Mistral"),
-        ProviderType::DeepSeek => required_secret(vox_secrets::SecretId::DeepSeekApiKey, "DeepSeek"),
+        ProviderType::DeepSeek => {
+            required_secret(vox_secrets::SecretId::DeepSeekApiKey, "DeepSeek")
+        }
         ProviderType::SambaNova => {
             required_secret(vox_secrets::SecretId::SambaNovaApiKey, "SambaNova")
         }

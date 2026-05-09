@@ -181,10 +181,10 @@ where
     S: Clone + Send + Sync + 'static,
 {
     Router::new()
-        .route("/api/v2/mesh/summary",              get(get_summary))
-        .route("/api/v2/mesh/nodes",                get(get_nodes))
-        .route("/api/v2/mesh/edges",                get(get_edges))
-        .route("/api/v2/mesh/nodes/{id}/kill",      post(node_kill))
-        .route("/api/v2/mesh/nodes/{id}/pause",     post(node_pause))
-        .route("/api/v2/mesh/nodes/{id}/replay",    post(node_replay))
+        .route("/api/v2/mesh/summary", get(get_summary))
+        .route("/api/v2/mesh/nodes", get(get_nodes))
+        .route("/api/v2/mesh/edges", get(get_edges))
+        .route("/api/v2/mesh/nodes/{id}/kill", post(node_kill))
+        .route("/api/v2/mesh/nodes/{id}/pause", post(node_pause))
+        .route("/api/v2/mesh/nodes/{id}/replay", post(node_replay))
 }

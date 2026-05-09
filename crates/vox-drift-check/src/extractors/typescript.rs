@@ -1,16 +1,14 @@
-use std::path::Path;
-use anyhow::Result;
-use swc_common::{FileName, SourceMap, sync::Lrc};
-use swc_ecma_ast::{
-    Callee, Expr, Lit, Module, ModuleDecl, ModuleItem,
-};
-use swc_ecma_parser::{lexer::Lexer, Parser, StringInput, Syntax, TsSyntax};
-use swc_ecma_visit::{Visit, VisitWith};
-use vox_code_audit::rules::Language;
 use crate::extractor::LanguageExtractor;
 use crate::features::{
     CallSite, ExtractedFeatures, ImportLoc, LiteralContext, LiteralLoc, Loc, NumericLoc,
 };
+use anyhow::Result;
+use std::path::Path;
+use swc_common::{FileName, SourceMap, sync::Lrc};
+use swc_ecma_ast::{Callee, Expr, Lit, Module, ModuleDecl, ModuleItem};
+use swc_ecma_parser::{Parser, StringInput, Syntax, TsSyntax, lexer::Lexer};
+use swc_ecma_visit::{Visit, VisitWith};
+use vox_code_audit::rules::Language;
 
 pub struct TypeScriptExtractor;
 
@@ -134,7 +132,9 @@ mod tests {
     use super::*;
 
     fn extract(src: &str) -> ExtractedFeatures {
-        TypeScriptExtractor.extract(Path::new("test.ts"), src).unwrap()
+        TypeScriptExtractor
+            .extract(Path::new("test.ts"), src)
+            .unwrap()
     }
 
     #[test]

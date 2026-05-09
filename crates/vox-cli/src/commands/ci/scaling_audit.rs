@@ -8,9 +8,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use vox_bounded_fs::read_utf8_path_capped;
 use super::cargo_bin;
 use super::cmd_enums::ScalingAuditCmd;
+use vox_bounded_fs::read_utf8_path_capped;
 
 pub(super) const POLICY_REL: &str = "contracts/scaling/policy.yaml";
 pub(super) const POLICY_SCHEMA_REL: &str = "contracts/scaling/policy.schema.json";
@@ -322,7 +322,15 @@ fn run_toestub_json_snapshot(repo_root: &Path) -> Result<()> {
     fs::create_dir_all(out_path.parent().unwrap()).ok();
     let output = std::process::Command::new(&cargo)
         .current_dir(repo_root)
-        .args(["run", "-q", "-p", "vox-code-audit", "--bin", "toestub", "--"])
+        .args([
+            "run",
+            "-q",
+            "-p",
+            "vox-code-audit",
+            "--bin",
+            "toestub",
+            "--",
+        ])
         .arg("--mode")
         .arg("audit")
         .arg("--format")

@@ -93,10 +93,7 @@ pub async fn agent_status(state: &ServerState, params: AgentStatusParams) -> Str
     if let Some(queue_arc) = orch.agent_queue(vox_orchestrator::AgentId(params.agent_id)) {
         let hp_bar = companion.render_status_bar(10);
         let (q_len, q_done, q_empty) = {
-            let q = match crate::sync_poison::poison_rw_read(
-                queue_arc.read(),
-                "agent queue",
-            ) {
+            let q = match crate::sync_poison::poison_rw_read(queue_arc.read(), "agent queue") {
                 Ok(g) => g,
                 Err(e) => {
                     tracing::warn!(error = %e, "gamify status: queue poisoned");
@@ -169,10 +166,7 @@ pub async fn agent_assess(state: &ServerState, params: AgentAssessParams) -> Str
 
     if let Some(queue_arc) = orch.agent_queue(vox_orchestrator::AgentId(params.agent_id)) {
         let (active, completed) = {
-            let q = match crate::sync_poison::poison_rw_read(
-                queue_arc.read(),
-                "agent queue",
-            ) {
+            let q = match crate::sync_poison::poison_rw_read(queue_arc.read(), "agent queue") {
                 Ok(g) => g,
                 Err(e) => {
                     tracing::warn!(error = %e, "gamify assess: queue poisoned");
@@ -278,29 +272,34 @@ pub async fn agent_handoff(state: &ServerState, params: AgentHandoffParams) -> S
         .map(str::trim)
         .filter(|s| !s.is_empty())
     {
-        let mut harness = match serde_json::from_str::<vox_orchestrator::AgentHarnessSpec>(harness_json) {
-            Ok(h) => h,
-            Err(err) => {
-                return ToolResult::<String>::err_with_remediation(
-                    format!("invalid harness_spec_json: {err}"),
-                    REM_HANDOFF,
-                )
-                .to_json();
-            }
-        };
+        let mut harness =
+            match serde_json::from_str::<vox_orchestrator::AgentHarnessSpec>(harness_json) {
+                Ok(h) => h,
+                Err(err) => {
+                    return ToolResult::<String>::err_with_remediation(
+                        format!("invalid harness_spec_json: {err}"),
+                        REM_HANDOFF,
+                    )
+                    .to_json();
+                }
+            };
         let expected_session_id = payload
             .metadata
             .iter()
             .rev()
             .find(|(k, _)| k == vox_orchestrator::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY)
-            .and_then(|(_, raw)| serde_json::from_str::<vox_orchestrator::ContextEnvelope>(raw).ok())
+            .and_then(|(_, raw)| {
+                serde_json::from_str::<vox_orchestrator::ContextEnvelope>(raw).ok()
+            })
             .and_then(|env| env.subject.session_id);
         let expected_thread_id = payload
             .metadata
             .iter()
             .rev()
             .find(|(k, _)| k == vox_orchestrator::handoff::CONTEXT_ENVELOPE_JSON_METADATA_KEY)
-            .and_then(|(_, raw)| serde_json::from_str::<vox_orchestrator::ContextEnvelope>(raw).ok())
+            .and_then(|(_, raw)| {
+                serde_json::from_str::<vox_orchestrator::ContextEnvelope>(raw).ok()
+            })
             .and_then(|env| env.subject.thread_id);
         let expectations = vox_orchestrator::HarnessIngestExpectations {
             repository_id: state.repository.repository_id.as_str(),

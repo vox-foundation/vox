@@ -70,7 +70,11 @@ impl DetectionRule for LongRangeCouplingDetector {
         or passing the value as a parameter to reduce the scope."
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if !matches!(file.language, Language::Rust | Language::Vox) {
             return vec![];
         }
@@ -139,11 +143,13 @@ impl DetectionRule for LongRangeCouplingDetector {
                     )),
                     alternatives: vec![
                         "Pass the value as a parameter to reduce its visible scope.".into(),
-                        "Use a block expression `{ let ... }` to limit the binding's lifetime.".into(),
+                        "Use a block expression `{ let ... }` to limit the binding's lifetime."
+                            .into(),
                     ],
                     rationale: Some(
                         "Variables used far from their declaration site create implicit couplings \
-                        that make local reasoning about code correctness harder.".into(),
+                        that make local reasoning about code correctness harder."
+                            .into(),
                     ),
                     context: file.context_around(line_num, 2),
                     confidence: Some(FindingConfidence::Medium),
@@ -204,7 +210,10 @@ mod tests {
 
         let f = source("rs", &code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag config used 100 lines later");
+        assert!(
+            !findings.is_empty(),
+            "should flag config used 100 lines later"
+        );
         assert!(findings[0].message.contains("config"));
     }
 

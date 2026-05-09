@@ -13,4 +13,3 @@ pub fn parse_hotword_csv(raw: &str) -> Vec<String> {
         .map(str::to_string)
         .collect()
 }
-

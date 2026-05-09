@@ -1,7 +1,7 @@
 use crate::trig::NanopubDocument;
-use vox_crypto::facades::{sign, verify};
 pub use vox_crypto::facades::SigningKey;
 pub use vox_crypto::facades::VerifyingKey;
+use vox_crypto::facades::{sign, verify};
 
 pub struct SignedNanopub {
     pub document: NanopubDocument,
@@ -11,7 +11,10 @@ pub struct SignedNanopub {
 pub fn sign_nanopub(doc: NanopubDocument, signing_key: &SigningKey) -> SignedNanopub {
     let sig_bytes: [u8; 64] = sign(signing_key, doc.trig.as_bytes());
     let signature_hex = hex::encode(sig_bytes);
-    SignedNanopub { document: doc, signature_hex }
+    SignedNanopub {
+        document: doc,
+        signature_hex,
+    }
 }
 
 pub fn verify_nanopub(signed: &SignedNanopub, verifying_key: &VerifyingKey) -> bool {

@@ -362,7 +362,10 @@ mod tests {
         let json = serde_json::to_string(&fc).unwrap();
         let back: FindingCandidateV1 = serde_json::from_str(&json).unwrap();
         assert_eq!(back.candidate_id, "FC-2026-001");
-        assert_eq!(back.candidate_class, FindingCandidateClass::AlgorithmicImprovement);
+        assert_eq!(
+            back.candidate_class,
+            FindingCandidateClass::AlgorithmicImprovement
+        );
         assert_eq!(back.schema_version, 1);
         assert_eq!(back.internal_signals.len(), 1);
         assert_eq!(back.internal_signals[0].code, "DS-002");
@@ -398,7 +401,10 @@ mod tests {
         let back: NoveltyEvidenceBundle = serde_json::from_str(&json).unwrap();
         assert_eq!(back.bundle_id, "NEB-001");
         assert_eq!(back.normalized_hits.len(), 1);
-        assert_eq!(back.normalized_hits[0].work_uri, "https://openalex.org/W12345");
+        assert_eq!(
+            back.normalized_hits[0].work_uri,
+            "https://openalex.org/W12345"
+        );
     }
 
     #[test]

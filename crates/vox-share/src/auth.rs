@@ -9,7 +9,7 @@
 
 use axum::body::Body;
 use axum::extract::Request;
-use axum::http::{header, HeaderMap, StatusCode};
+use axum::http::{HeaderMap, StatusCode, header};
 use axum::middleware::Next;
 use axum::response::Response;
 use rand::Rng;
@@ -60,10 +60,7 @@ impl std::str::FromStr for AuthMode {
                         pass: pass.to_string(),
                     })
                 } else {
-                    Err(format!(
-                        "basic auth format: `basic:user:pass`, got `{}`",
-                        s
-                    ))
+                    Err(format!("basic auth format: `basic:user:pass`, got `{}`", s))
                 }
             }
             _ => Err(format!(
@@ -86,7 +83,9 @@ pub async fn auth_middleware(
             if token_present(req.headers(), req.uri().query(), expected) {
                 Ok(next.run(req).await)
             } else {
-                Ok(unauthorized_html("This vox share URL requires a valid token."))
+                Ok(unauthorized_html(
+                    "This vox share URL requires a valid token.",
+                ))
             }
         }
         AuthMode::Basic { user, pass } => {

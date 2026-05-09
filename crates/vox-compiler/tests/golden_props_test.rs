@@ -12,8 +12,8 @@ fn compile_components(src: &str) -> Vec<(String, String)> {
     let module =
         vox_compiler::parser::parse(tokens).unwrap_or_else(|e| panic!("parse failed: {e:?}"));
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_codegen::codegen_ts::generate(&hir)
-        .unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
+    let out =
+        vox_codegen::codegen_ts::generate(&hir).unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
     out.files.into_iter().collect()
 }
 

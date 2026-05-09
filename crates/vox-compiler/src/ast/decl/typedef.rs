@@ -36,4 +36,3 @@ pub struct TypeDefDecl {
     pub is_deprecated: bool,
     pub span: Span,
 }
-

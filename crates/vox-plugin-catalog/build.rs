@@ -63,8 +63,7 @@ fn resolve_bundle<'a>(
 
 fn main() {
     println!("cargo:rerun-if-changed=catalog.toml");
-    let src = std::fs::read_to_string("catalog.toml")
-        .expect("catalog.toml not found");
+    let src = std::fs::read_to_string("catalog.toml").expect("catalog.toml not found");
     let cat: CatalogFile = match toml::from_str(&src) {
         Ok(v) => v,
         Err(e) => {

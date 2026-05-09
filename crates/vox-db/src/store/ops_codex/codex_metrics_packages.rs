@@ -1,7 +1,7 @@
 use turso::params;
 
-use vox_telemetry::validate_research_metric_row;
 use crate::store::types::{EndpointReliabilityEntry, PackageSearchResult, StoreError};
+use vox_telemetry::validate_research_metric_row;
 
 impl crate::VoxDb {
     // ── Research Metrics (research_metrics) ───────────────────────────────────

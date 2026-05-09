@@ -26,7 +26,9 @@ impl std::fmt::Display for AtlasGateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MissingPreregistration => write!(f, "atlas requires a signed preregistration"),
-            Self::ReplyWindowNotCleared => write!(f, "14-day provider right-of-reply window not cleared"),
+            Self::ReplyWindowNotCleared => {
+                write!(f, "14-day provider right-of-reply window not cleared")
+            }
             Self::NegativeResultQuotaNotMet => {
                 write!(f, "atlas must include at least one null-result finding")
             }
@@ -73,10 +75,8 @@ mod tests {
     use crate::atlas::manifest::{AtlasFinding, AtlasManifestBuilder};
 
     fn sample_manifest() -> AtlasManifest {
-        let mut builder = AtlasManifestBuilder::new(
-            "Provider Atlas Q2-2026".into(),
-            "provider-atlas".into(),
-        );
+        let mut builder =
+            AtlasManifestBuilder::new("Provider Atlas Q2-2026".into(), "provider-atlas".into());
         builder.add_finding(AtlasFinding {
             id: "f-001".into(),
             claim_text: "Latency increased.".into(),
@@ -113,7 +113,10 @@ mod tests {
             require_negative_result: false,
         };
         let result = AtlasSubmissionGate::check(&manifest, &config);
-        assert!(matches!(result, Err(AtlasGateError::MissingPreregistration)));
+        assert!(matches!(
+            result,
+            Err(AtlasGateError::MissingPreregistration)
+        ));
     }
 
     #[test]
@@ -144,6 +147,9 @@ mod tests {
             require_negative_result: true,
         };
         let result = AtlasSubmissionGate::check(&manifest, &config);
-        assert!(matches!(result, Err(AtlasGateError::NegativeResultQuotaNotMet)));
+        assert!(matches!(
+            result,
+            Err(AtlasGateError::NegativeResultQuotaNotMet)
+        ));
     }
 }

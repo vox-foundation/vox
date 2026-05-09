@@ -145,7 +145,11 @@ impl DetectionRule for LlmProviderCallDetector {
          GOOD:\n  let resp = populi.complete(model, prompt);"
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         let mut findings = Vec::new();
 
         for (i, line) in file.lines.iter().enumerate() {
@@ -207,8 +211,14 @@ let resp = std.http.post_json("https://api.openai.com/v1/chat/completions", body
         let f = source("vox", code);
         let findings = d.detect(&f, None);
         assert!(!findings.is_empty(), "should detect openai.com direct call");
-        assert!(findings[0].message.contains("api.openai.com") || findings[0].message.contains("openai"));
-        assert_eq!(findings[0].diagnostic_id.as_deref(), Some("vox/llm/direct-provider-call"));
+        assert!(
+            findings[0].message.contains("api.openai.com")
+                || findings[0].message.contains("openai")
+        );
+        assert_eq!(
+            findings[0].diagnostic_id.as_deref(),
+            Some("vox/llm/direct-provider-call")
+        );
     }
 
     #[test]
@@ -221,7 +231,10 @@ let resp = client.post(url).send().await?;
 "#;
         let f = source("rs", code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should detect reqwest call to anthropic");
+        assert!(
+            !findings.is_empty(),
+            "should detect reqwest call to anthropic"
+        );
     }
 
     #[test]
@@ -251,6 +264,9 @@ let x = populi.complete(m, p);
         let code = r#"let docs_url = "https://api.openai.com/docs";"#;
         let f = source("vox", code);
         let findings = d.detect(&f, None);
-        assert!(findings.is_empty(), "hostname without an HTTP call should not fire");
+        assert!(
+            findings.is_empty(),
+            "hostname without an HTTP call should not fire"
+        );
     }
 }

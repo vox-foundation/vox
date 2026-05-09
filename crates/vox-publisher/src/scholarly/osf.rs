@@ -106,9 +106,7 @@ impl ScholarlyAdapter for OsfAdapter {
             external_submission_id: node_id,
             status: "created".to_string(),
             response_fingerprint: Some(manifest.content_sha3_256()),
-            metadata_json: Some(
-                serde_json::json!({ "osf_node_url": osf_node_url }).to_string(),
-            ),
+            metadata_json: Some(serde_json::json!({ "osf_node_url": osf_node_url }).to_string()),
         })
     }
 

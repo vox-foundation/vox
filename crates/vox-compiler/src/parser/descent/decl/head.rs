@@ -20,8 +20,7 @@ impl Parser {
             // `rust:` imports use the full parse_import_path handler.
             // All symbol imports go through parse_symbol_import which also accepts
             // `/` as a path separator and `as { name1, name2 }` destructuring.
-            let first_is_rust =
-                matches!(self.peek(), Token::Ident(n) if n == "rust");
+            let first_is_rust = matches!(self.peek(), Token::Ident(n) if n == "rust");
             if first_is_rust {
                 let path = self.parse_import_path()?;
                 paths.push(path);
@@ -127,13 +126,12 @@ impl Parser {
                         }
                     };
                     // Optional `as item_alias` inside the braces.
-                    let item_alias =
-                        if matches!(self.peek(), Token::Ident(w) if w == "as") {
-                            self.advance();
-                            Some(self.parse_ident_name()?)
-                        } else {
-                            None
-                        };
+                    let item_alias = if matches!(self.peek(), Token::Ident(w) if w == "as") {
+                        self.advance();
+                        Some(self.parse_ident_name()?)
+                    } else {
+                        None
+                    };
                     let mut full = segments.clone();
                     full.push(item.clone());
                     paths.push(ImportPath {
@@ -411,22 +409,22 @@ impl Parser {
                     let eff_start = self.span();
                     self.advance(); // eat `effect`
                     // Optional `depends_on (a, b)` clause.
-                    let explicit_deps =
-                        if matches!(self.peek(), Token::Ident(n) if n == "depends_on") {
-                            self.advance(); // eat `depends_on`
-                            self.expect(&Token::LParen)?;
-                            let mut deps = Vec::new();
-                            while !matches!(self.peek(), Token::RParen | Token::Eof) {
-                                deps.push(self.parse_ident_name()?);
-                                if !self.eat(&Token::Comma) {
-                                    break;
-                                }
+                    let explicit_deps = if matches!(self.peek(), Token::Ident(n) if n == "depends_on")
+                    {
+                        self.advance(); // eat `depends_on`
+                        self.expect(&Token::LParen)?;
+                        let mut deps = Vec::new();
+                        while !matches!(self.peek(), Token::RParen | Token::Eof) {
+                            deps.push(self.parse_ident_name()?);
+                            if !self.eat(&Token::Comma) {
+                                break;
                             }
-                            self.expect(&Token::RParen)?;
-                            Some(deps)
-                        } else {
-                            None
-                        };
+                        }
+                        self.expect(&Token::RParen)?;
+                        Some(deps)
+                    } else {
+                        None
+                    };
                     self.expect(&Token::Colon)?;
                     let body = if matches!(self.peek(), Token::LBrace) {
                         let b_start = self.span();
@@ -557,22 +555,22 @@ impl Parser {
                     let eff_start = self.span();
                     self.advance(); // eat `effect`
                     // Optional `depends_on (a, b)` clause.
-                    let explicit_deps =
-                        if matches!(self.peek(), Token::Ident(n) if n == "depends_on") {
-                            self.advance(); // eat `depends_on`
-                            self.expect(&Token::LParen)?;
-                            let mut deps = Vec::new();
-                            while !matches!(self.peek(), Token::RParen | Token::Eof) {
-                                deps.push(self.parse_ident_name()?);
-                                if !self.eat(&Token::Comma) {
-                                    break;
-                                }
+                    let explicit_deps = if matches!(self.peek(), Token::Ident(n) if n == "depends_on")
+                    {
+                        self.advance(); // eat `depends_on`
+                        self.expect(&Token::LParen)?;
+                        let mut deps = Vec::new();
+                        while !matches!(self.peek(), Token::RParen | Token::Eof) {
+                            deps.push(self.parse_ident_name()?);
+                            if !self.eat(&Token::Comma) {
+                                break;
                             }
-                            self.expect(&Token::RParen)?;
-                            Some(deps)
-                        } else {
-                            None
-                        };
+                        }
+                        self.expect(&Token::RParen)?;
+                        Some(deps)
+                    } else {
+                        None
+                    };
                     self.expect(&Token::Colon)?;
                     let body = if matches!(self.peek(), Token::LBrace) {
                         let b_start = self.span();
@@ -1535,7 +1533,10 @@ impl Parser {
                 break;
             }
             let key = match self.peek().clone() {
-                Token::Ident(k) => { self.advance(); k }
+                Token::Ident(k) => {
+                    self.advance();
+                    k
+                }
                 other => {
                     self.errors.push(ParseError::classified(
                         self.span(),
@@ -1578,7 +1579,10 @@ impl Parser {
                 break;
             }
             let key = match self.peek().clone() {
-                Token::Ident(k) => { self.advance(); k }
+                Token::Ident(k) => {
+                    self.advance();
+                    k
+                }
                 other => {
                     self.errors.push(ParseError::classified(
                         self.span(),
@@ -1593,7 +1597,10 @@ impl Parser {
             self.expect(&Token::Colon)?;
             // Values are either string literals or identifiers.
             let val = match self.peek().clone() {
-                Token::StringLit(s) => { self.advance(); s }
+                Token::StringLit(s) => {
+                    self.advance();
+                    s
+                }
                 Token::Ident(_) | Token::TypeIdent(_) => self.parse_ident_name()?,
                 other => {
                     self.errors.push(ParseError::classified(
@@ -1637,12 +1644,19 @@ impl Parser {
                 break;
             }
             let key = match self.peek().clone() {
-                Token::Ident(k) => { self.advance(); k }
+                Token::Ident(k) => {
+                    self.advance();
+                    k
+                }
                 other => {
                     self.errors.push(ParseError::classified(
                         self.span(),
                         format!("Expected field name inside @push block, got `{other}`"),
-                        vec!["on_register".into(), "on_notification".into(), "on_action".into()],
+                        vec![
+                            "on_register".into(),
+                            "on_notification".into(),
+                            "on_action".into(),
+                        ],
                         Some(other.to_string()),
                         ParseErrorClass::Declaration,
                     ));

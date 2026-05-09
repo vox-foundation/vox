@@ -19,8 +19,10 @@ impl Default for AdrCitationDetector {
 impl AdrCitationDetector {
     pub fn new() -> Self {
         Self {
-            pub_fn_pattern: Regex::new(r"^\s*pub\s+(?:(?:async|unsafe|extern\s+\S+)\s+)?fn\s+(\w+)")
-                .expect("valid regex"),
+            pub_fn_pattern: Regex::new(
+                r"^\s*pub\s+(?:(?:async|unsafe|extern\s+\S+)\s+)?fn\s+(\w+)",
+            )
+            .expect("valid regex"),
             adr_task_pattern: Regex::new(r"ADR-\d+|TASK-\d+\.\d+|Phase\s+\d+")
                 .expect("valid regex"),
             t_number_pattern: Regex::new(r"\bT\d{3,}\b").expect("valid regex"),
@@ -69,7 +71,11 @@ impl DetectionRule for AdrCitationDetector {
         Good: /// ADR-042: Processes a workflow step per the orchestration spec.\n      pub fn process_step(...) {}"
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if file.language != Language::Rust {
             return vec![];
         }
@@ -169,7 +175,10 @@ mod tests {
     }
 
     fn source_normal(code: &str) -> SourceFile {
-        SourceFile::new(PathBuf::from("crates/vox-utils/src/lib.rs"), code.to_string())
+        SourceFile::new(
+            PathBuf::from("crates/vox-utils/src/lib.rs"),
+            code.to_string(),
+        )
     }
 
     #[test]
@@ -198,8 +207,15 @@ mod tests {
         let code = "/// Helper utility.\npub fn helper() {}";
         let f = source_normal(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should fire even in non-critical crates");
-        assert_eq!(findings[0].severity, Severity::Info, "non-critical should be Info");
+        assert!(
+            !findings.is_empty(),
+            "should fire even in non-critical crates"
+        );
+        assert_eq!(
+            findings[0].severity,
+            Severity::Info,
+            "non-critical should be Info"
+        );
     }
 
     #[test]
@@ -219,6 +235,9 @@ mod tests {
         let code = "/// TASK-3.7: Implements the activation protocol.\npub fn activate() {}";
         let f = source_critical(code);
         let findings = d.detect(&f, None);
-        assert!(findings.is_empty(), "TASK-N.M citation should satisfy the rule");
+        assert!(
+            findings.is_empty(),
+            "TASK-N.M citation should satisfy the rule"
+        );
     }
 }

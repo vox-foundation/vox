@@ -1,4 +1,6 @@
-use vox_compiler::{hir::lower::lower_module, lexer::cursor::lex, parser::parse, typeck::typecheck_module};
+use vox_compiler::{
+    hir::lower::lower_module, lexer::cursor::lex, parser::parse, typeck::typecheck_module,
+};
 
 #[test]
 fn form_lowered_with_correct_field_count() {
@@ -28,8 +30,14 @@ fn form_with_field_type_mismatch_errors() {
 "#;
     let m = parse(lex(src)).expect("parse");
     let ds = typecheck_module(&m, src);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("lint.form.field_type_mismatch"));
-    assert!(hit.is_some(), "Expected lint.form.field_type_mismatch, got: {:?}", ds);
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("lint.form.field_type_mismatch"));
+    assert!(
+        hit.is_some(),
+        "Expected lint.form.field_type_mismatch, got: {:?}",
+        ds
+    );
 }
 
 #[test]
@@ -42,6 +50,12 @@ fn form_with_unknown_endpoint_errors() {
 "#;
     let m = parse(lex(src)).expect("parse");
     let ds = typecheck_module(&m, src);
-    let hit = ds.iter().find(|d| d.code.as_deref() == Some("lint.form.unknown_endpoint"));
-    assert!(hit.is_some(), "Expected lint.form.unknown_endpoint, got: {:?}", ds);
+    let hit = ds
+        .iter()
+        .find(|d| d.code.as_deref() == Some("lint.form.unknown_endpoint"));
+    assert!(
+        hit.is_some(),
+        "Expected lint.form.unknown_endpoint, got: {:?}",
+        ds
+    );
 }

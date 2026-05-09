@@ -13,8 +13,7 @@ fn slug_from_query_basic() {
 #[test]
 fn write_research_doc_writes_to_tmpdir() {
     let dir = tempfile::tempdir().expect("tmpdir");
-    write_research_doc(dir.path(), "test-slug", "Q?", "A.", "stub-model")
-        .expect("writes");
+    write_research_doc(dir.path(), "test-slug", "Q?", "A.", "stub-model").expect("writes");
     let p = dir.path().join("docs/src/research/test-slug.md");
     assert!(p.exists(), "expected research doc at {:?}", p);
 }

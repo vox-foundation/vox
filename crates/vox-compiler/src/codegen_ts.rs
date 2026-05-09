@@ -32,7 +32,9 @@ pub mod hir_emit {
     impl<'a> EmitCtx<'a> {
         /// Create stub context.
         pub fn new(state_names: &'a HashSet<String>) -> Self {
-            Self { _state_names: state_names }
+            Self {
+                _state_names: state_names,
+            }
         }
     }
 

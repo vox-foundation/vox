@@ -18,8 +18,8 @@ fn compile_component(source: &str, component_name: &str) -> String {
     let module =
         vox_compiler::parser::parse(tokens).unwrap_or_else(|e| panic!("parse failed: {e:?}"));
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_codegen::codegen_ts::generate(&hir)
-        .unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
+    let out =
+        vox_codegen::codegen_ts::generate(&hir).unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
     let filename = format!("{component_name}.tsx");
     out.files
         .into_iter()
@@ -150,7 +150,10 @@ component NodeBadge(id: str, status: str, role: str = "", dim: bool = false) {
     assert!(!ts.contains("row("), "row must not emit as JS call");
     assert!(!ts.contains("column("), "column must not emit as JS call");
     assert!(!ts.contains("panel("), "panel must not emit as JS call");
-    assert!(ts.contains("mono"), "NodeBadge must include mono font for id");
+    assert!(
+        ts.contains("mono"),
+        "NodeBadge must include mono font for id"
+    );
 
     insta::assert_snapshot!("node_badge_tsx_dashboard_composite", ts);
 }
@@ -236,7 +239,10 @@ component SectionHeading(title: str) {
 
     assert!(!ts.contains("row("), "row must not emit as JS call");
     assert!(!ts.contains("text("), "text must not emit as JS call");
-    assert!(ts.contains("border"), "SectionHeading must have border class");
+    assert!(
+        ts.contains("border"),
+        "SectionHeading must have border class"
+    );
 
     insta::assert_snapshot!("section_heading_tsx_dashboard_composite", ts);
 }
@@ -310,7 +316,10 @@ component Toggle(checked: bool, label: str = "", on_change: fn() = fn() {}) {
 
     assert!(!ts.contains("row("), "row must not emit as JS call");
     assert!(!ts.contains("panel("), "panel must not emit as JS call");
-    assert!(ts.contains("blue") && ts.contains("zinc"), "Toggle must have conditional bg");
+    assert!(
+        ts.contains("blue") && ts.contains("zinc"),
+        "Toggle must have conditional bg"
+    );
     assert!(ts.contains("onClick"), "Toggle must emit onClick");
 
     insta::assert_snapshot!("toggle_tsx_dashboard_composite", ts);
@@ -390,7 +399,10 @@ component StatBox(key: str, value: str, sub: str = "") {
 
     assert!(!ts.contains("column("), "column must not emit as JS call");
     assert!(!ts.contains("text("), "text must not emit as JS call");
-    assert!(ts.contains("2xl"), "StatBox must include 2xl size for value");
+    assert!(
+        ts.contains("2xl"),
+        "StatBox must include 2xl size for value"
+    );
     assert!(
         ts.contains("uppercase") || ts.contains("upper"),
         "StatBox key must be uppercase"

@@ -67,7 +67,11 @@ impl DetectionRule for IdAtBoundaryDetector {
         "ID parameters at API boundaries must use typed wrappers (e.g. `Id[User]`) instead of bare `str` to prevent accidental ID confusion across entity types."
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if file.language != Language::Vox {
             return vec![];
         }
@@ -172,7 +176,10 @@ mod tests {
         let code = "@endpoint\nfn get_user(user_id: str) -> User {}";
         let f = source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag user_id: str under @endpoint");
+        assert!(
+            !findings.is_empty(),
+            "should flag user_id: str under @endpoint"
+        );
         assert!(findings[0].message.contains("user_id"));
     }
 
@@ -200,7 +207,10 @@ mod tests {
         let code = "@activity\nfn process_order(order_id: str) {}";
         let f = source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag order_id: str under @activity");
+        assert!(
+            !findings.is_empty(),
+            "should flag order_id: str under @activity"
+        );
     }
 
     #[test]

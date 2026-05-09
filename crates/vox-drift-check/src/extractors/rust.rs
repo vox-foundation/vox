@@ -1,17 +1,17 @@
-use std::path::Path;
+use crate::extractor::LanguageExtractor;
+use crate::features::{
+    BodySignature, CallSite, ExtractedFeatures, FnDef, ImportLoc, LiteralContext, LiteralLoc, Loc,
+    NumericLoc, UnitHint,
+};
 use anyhow::Result;
+use proc_macro2::LineColumn;
+use quote::quote;
+use std::path::Path;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
 use syn::{Expr, ExprCall, ExprLit, Lit};
-use proc_macro2::LineColumn;
-use quote::quote;
-use xxhash_rust::xxh3::xxh3_64;
 use vox_code_audit::rules::Language;
-use crate::extractor::LanguageExtractor;
-use crate::features::{
-    BodySignature, CallSite, ExtractedFeatures, FnDef, ImportLoc, LiteralContext,
-    LiteralLoc, Loc, NumericLoc, UnitHint,
-};
+use xxhash_rust::xxh3::xxh3_64;
 
 pub struct RustExtractor;
 
@@ -22,7 +22,10 @@ struct RustVisitor {
 impl RustVisitor {
     fn span_to_loc(span: proc_macro2::Span) -> Loc {
         let lc: LineColumn = span.start();
-        Loc { line: lc.line, col: lc.column }
+        Loc {
+            line: lc.line,
+            col: lc.column,
+        }
     }
 }
 
@@ -55,7 +58,10 @@ impl<'ast> Visit<'ast> for RustVisitor {
         syn::visit::visit_expr_call(self, node);
 
         if let Expr::Path(p) = node.func.as_ref() {
-            let segs: Vec<String> = p.path.segments.iter()
+            let segs: Vec<String> = p
+                .path
+                .segments
+                .iter()
                 .map(|s| s.ident.to_string())
                 .collect();
 
@@ -68,7 +74,10 @@ impl<'ast> Visit<'ast> for RustVisitor {
             };
             if let Some(unit) = unit {
                 if let Some(arg) = node.args.first() {
-                    if let Expr::Lit(ExprLit { lit: Lit::Int(i), .. }) = arg {
+                    if let Expr::Lit(ExprLit {
+                        lit: Lit::Int(i), ..
+                    }) = arg
+                    {
                         if let Ok(v) = i.base10_parse::<i64>() {
                             let loc = Self::span_to_loc(i.span());
                             // Remove the untagged entry visit_expr_lit already added
@@ -188,7 +197,10 @@ mod tests {
         let f = extract("fn t() { Duration::from_secs(30); }");
         assert_eq!(f.numeric_literals.len(), 1);
         assert_eq!(f.numeric_literals[0].value, 30.0);
-        assert!(matches!(f.numeric_literals[0].unit, Some(UnitHint::Seconds)));
+        assert!(matches!(
+            f.numeric_literals[0].unit,
+            Some(UnitHint::Seconds)
+        ));
     }
 
     #[test]

@@ -3,7 +3,7 @@
 //! once the actual cloud code-motion completes (SP7 follow-up).
 
 use abi_stable::{erased_types::TD_Opaque, std_types::*};
-use vox_plugin_api::extensions::cloud_sync::{CloudSync, CloudSync_TO, CLOUD_SYNC_REVISION};
+use vox_plugin_api::extensions::cloud_sync::{CLOUD_SYNC_REVISION, CloudSync, CloudSync_TO};
 
 #[test]
 fn revision_constant_is_one() {

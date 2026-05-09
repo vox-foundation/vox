@@ -252,9 +252,15 @@ impl crate::VoxDb {
         };
         Ok(Some(QuestionSessionRow {
             id: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
-            session_id: DbSessionId::new(row.get::<String>(1).map_err(|e| StoreError::Db(e.to_string()))?),
+            session_id: DbSessionId::new(
+                row.get::<String>(1)
+                    .map_err(|e| StoreError::Db(e.to_string()))?,
+            ),
             repository_id: row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
-            task_id: row.get::<Option<String>>(3).map_err(|e| StoreError::Db(e.to_string()))?.map(DbTaskId::new),
+            task_id: row
+                .get::<Option<String>>(3)
+                .map_err(|e| StoreError::Db(e.to_string()))?
+                .map(DbTaskId::new),
             policy_version: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
             started_at_ms: row.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
             ended_at_ms: row.get(6).map_err(|e| StoreError::Db(e.to_string()))?,
@@ -729,9 +735,15 @@ impl crate::VoxDb {
         while let Some(row) = rows.next().await? {
             out.push(QuestionSessionRow {
                 id: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
-                session_id: DbSessionId::new(row.get::<String>(1).map_err(|e| StoreError::Db(e.to_string()))?),
+                session_id: DbSessionId::new(
+                    row.get::<String>(1)
+                        .map_err(|e| StoreError::Db(e.to_string()))?,
+                ),
                 repository_id: row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
-                task_id: row.get::<Option<String>>(3).map_err(|e| StoreError::Db(e.to_string()))?.map(DbTaskId::new),
+                task_id: row
+                    .get::<Option<String>>(3)
+                    .map_err(|e| StoreError::Db(e.to_string()))?
+                    .map(DbTaskId::new),
                 policy_version: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,
                 started_at_ms: row.get(5).map_err(|e| StoreError::Db(e.to_string()))?,
                 ended_at_ms: row.get(6).map_err(|e| StoreError::Db(e.to_string()))?,

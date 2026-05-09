@@ -5,8 +5,8 @@
 use std::sync::{Arc, Mutex};
 
 use vox_telemetry::{
-    ModelCallEvent, TRACE_CTX, TelemetryEvent, TelemetryRecorder, TraceContext,
-    current_trace_ctx, set_global_recorder,
+    ModelCallEvent, TRACE_CTX, TelemetryEvent, TelemetryRecorder, TraceContext, current_trace_ctx,
+    set_global_recorder,
 };
 
 /// Capturing recorder for assertions.

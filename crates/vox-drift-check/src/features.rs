@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use vox_code_audit::rules::Language;
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
@@ -118,7 +118,11 @@ mod tests {
 
     #[test]
     fn numeric_loc_unit_hint_default() {
-        let n = NumericLoc { value: 30.0, unit: None, loc: Loc::default() };
+        let n = NumericLoc {
+            value: 30.0,
+            unit: None,
+            loc: Loc::default(),
+        };
         assert_eq!(n.value, 30.0);
         assert!(n.unit.is_none());
     }

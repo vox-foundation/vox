@@ -165,7 +165,9 @@ impl Parser {
         }
     }
     /// Optional `with loader: name` / `with pending: Name` / `with (loader: a, pending: b, error: E)` on a route line.
-    fn parse_optional_route_with_clause(&mut self) -> Result<(Option<String>, Option<String>, Option<String>), ()> {
+    fn parse_optional_route_with_clause(
+        &mut self,
+    ) -> Result<(Option<String>, Option<String>, Option<String>), ()> {
         if !self.eat(&Token::With) {
             return Ok((None, None, None));
         }
@@ -282,7 +284,8 @@ impl Parser {
         }
         self.advance();
         let component_name = self.parse_ident_name()?;
-        let (loader_name, pending_component_name, error_component_name) = self.parse_optional_route_with_clause()?;
+        let (loader_name, pending_component_name, error_component_name) =
+            self.parse_optional_route_with_clause()?;
         let children = if matches!(self.peek(), Token::LBrace) {
             self.advance();
             self.parse_nested_route_entries()?

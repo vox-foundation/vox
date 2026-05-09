@@ -226,8 +226,14 @@ component MeshNode() {
 
     // stop children with camelCase attr aliases.
     assert!(ts.contains("<stop"), "stop as JSX child; got:\n{ts}");
-    assert!(ts.contains("stopColor"), "stop_color → stopColor; got:\n{ts}");
-    assert!(ts.contains("stopOpacity"), "stop_opacity → stopOpacity; got:\n{ts}");
+    assert!(
+        ts.contains("stopColor"),
+        "stop_color → stopColor; got:\n{ts}"
+    );
+    assert!(
+        ts.contains("stopOpacity"),
+        "stop_opacity → stopOpacity; got:\n{ts}"
+    );
 
     // g container with two circle children.
     assert!(ts.contains("<g"), "<g> group element; got:\n{ts}");

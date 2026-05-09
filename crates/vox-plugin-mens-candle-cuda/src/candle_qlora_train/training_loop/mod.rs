@@ -20,11 +20,8 @@ use super::{
     PAUSE_FLAG, QLORA_ETA_EMA_ALPHA, TrainingDbEvent, TrainingLoopStats, compute_cosine_lr,
 };
 use crate::{
-    config::LoraTrainingConfig,
-    manifest,
-    qlora_preflight::QloraEmbedBundle,
-    telemetry, telemetry_schema, train_log,
-    training_summary::TrainingSummary,
+    config::LoraTrainingConfig, manifest, qlora_preflight::QloraEmbedBundle, telemetry,
+    telemetry_schema, train_log, training_summary::TrainingSummary,
 };
 
 pub mod checkpoint;
@@ -76,22 +73,18 @@ pub fn run_training_loop(
         );
     }
 
-    let proxy_stack_complete =
-        match crate::qlora_weights::tensor_keys_union(&bundle.weight_paths) {
-            Ok(present) => {
-                let cov = crate::qlora_weights::middle_projection_coverage(
-                    &bundle.layout,
-                    &present,
-                );
-                cov.expected == 0 || cov.complete
-            }
-            Err(err) => {
-                train_log::warn(&format!(
-                    "Could not recompute middle projection coverage for manifest: {err}"
-                ));
-                false
-            }
-        };
+    let proxy_stack_complete = match crate::qlora_weights::tensor_keys_union(&bundle.weight_paths) {
+        Ok(present) => {
+            let cov = crate::qlora_weights::middle_projection_coverage(&bundle.layout, &present);
+            cov.expected == 0 || cov.complete
+        }
+        Err(err) => {
+            train_log::warn(&format!(
+                "Could not recompute middle projection coverage for manifest: {err}"
+            ));
+            false
+        }
+    };
 
     let QloraTrainingResume {
         start_epoch,

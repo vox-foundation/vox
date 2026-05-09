@@ -167,8 +167,8 @@ fn warn_on_missing_qwen35_rope_keys(
 fn first_tensor_shape(weight_paths: &[PathBuf], key: &str) -> anyhow::Result<Option<Vec<usize>>> {
     for wp in weight_paths {
         let header = read_safetensors_header(wp)?;
-        let st = SafeTensors::deserialize(&header)
-            .with_context(|| format!("parse {}", wp.display()))?;
+        let st =
+            SafeTensors::deserialize(&header).with_context(|| format!("parse {}", wp.display()))?;
         if let Ok(t) = st.tensor(key) {
             return Ok(Some(t.shape().to_vec()));
         }
@@ -373,8 +373,7 @@ pub fn preflight_native_qlora(config: &LoraTrainingConfig) -> anyhow::Result<Qlo
     let proxy_complete = n_mid == 0 || cov.complete;
 
     if config.qlora_require_full_proxy_stack && n_mid > 0 && !proxy_complete {
-        let missing =
-            crate::hf_keymap::missing_middle_keys_report(&bundle.layout, &present, 32);
+        let missing = crate::hf_keymap::missing_middle_keys_report(&bundle.layout, &present, 32);
         anyhow::bail!(
             "Candle QLoRA strict proxy stack: need all {} per-layer output-projection weights in shards; found {}. \
              Missing (up to 32): {:?}. \

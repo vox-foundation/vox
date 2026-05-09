@@ -35,7 +35,8 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
             "read orchestrator config for vox_orchestrator_status",
         )?;
         let effective = cfg.scaling_threshold as f64 * cfg.scaling_profile.threshold_multiplier();
-        let registered_worker_processes = vox_orchestrator::sync_lock::rw_read(&*orch.agent_handles).len();
+        let registered_worker_processes =
+            vox_orchestrator::sync_lock::rw_read(&*orch.agent_handles).len();
         let worker_runtime_attached = registered_worker_processes > 0;
         let execution_mode = if worker_runtime_attached {
             "workers_attached"
@@ -256,7 +257,8 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
     let attention_budget = if state.orchestrator_config.attention_enabled {
         let bm = state.orchestrator.budget_manager_handle();
         let snap =
-            vox_orchestrator::sync_lock::rw_read::<vox_orchestrator::budget::BudgetManager>(&*bm).attention_snapshot();
+            vox_orchestrator::sync_lock::rw_read::<vox_orchestrator::budget::BudgetManager>(&*bm)
+                .attention_snapshot();
         Some(serde_json::to_value(snap).unwrap_or(serde_json::Value::Null))
     } else {
         None

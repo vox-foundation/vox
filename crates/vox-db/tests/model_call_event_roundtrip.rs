@@ -1,5 +1,5 @@
 use vox_db::{DbConfig, VoxDb};
-use vox_telemetry::{ModelCallEvent, METRIC_TYPE_MODEL_CALL_EVENT};
+use vox_telemetry::{METRIC_TYPE_MODEL_CALL_EVENT, ModelCallEvent};
 
 #[tokio::test(flavor = "multi_thread")]
 async fn model_call_event_serializes_and_persists() {

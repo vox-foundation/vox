@@ -77,12 +77,12 @@ pub mod connect_policy;
 pub mod legacy;
 /// Ludus / extended `gamify_*` contracts and metrics keys (DDL in baseline `schema/domains`).
 pub mod research_metrics_contract;
-pub mod telemetry_sink;
 pub mod schema;
 /// Idempotent schema extensions (FTS).
 pub mod schema_extensions;
 /// Legacy import/export planning and verification for greenfield Codex releases.
 pub mod store;
+pub mod telemetry_sink;
 
 /// Canonical Codex storage policy (`vox.db` vs project store vs training sidecar).
 pub mod canonical_store;
@@ -164,7 +164,6 @@ pub use connect_policy::{
 pub use data_flow::{DataFlowMap, build_data_flow};
 pub use ddl::{SchemaDiff, diff_schemas, table_to_ddl, tables_to_ddl};
 pub use error_enrichment::{EnrichedDbError, enrich_error};
-pub use vox_db_types::EvalRunParams;
 pub use memory::MemoryParams;
 pub use migration::{Migration, builtin_migrations, validate_migrations};
 pub use oratio_eval::{OratioEvalRunRecord, OratioEvalRunStartParams, OratioEvalSampleRecord};
@@ -209,9 +208,6 @@ pub use store::{
     WorkflowExecutionRow,
 };
 pub use sync_invocables::InvocableSyncEngine;
-pub use vox_db_types::{
-    DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId,
-};
 pub use syntax_k_telemetry::SyntaxKEventMeta;
 pub use toestub_store::{
     add_suppression, get_file_cache_blocking, list_suppressions_blocking, load_baseline,
@@ -221,6 +217,10 @@ pub use trust_drift::{TrustObservationDriftReport, TrustObservationWindowStats};
 pub use trust_propagation::{TrustPropagatedScore, propagate_trust_rollups_domain_cliques};
 pub use trust_telemetry::{TrustObservationEntry, TrustObservationInput, TrustRollupGroupSummary};
 pub use types::now_unix_ms;
+pub use vox_db_types::EvalRunParams;
+pub use vox_db_types::{
+    DbAgentId, DbCorrelationId, DbPlanSessionId, DbSessionId, DbTaskId, DbUserId,
+};
 pub use workspace_journey_store::{
     WorkspaceJourneyStoreMode, connect_workspace_journey_optional,
     connect_workspace_journey_optional_at, workspace_journey_diagnostics_json,

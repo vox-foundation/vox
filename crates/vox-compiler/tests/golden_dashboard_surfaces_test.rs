@@ -18,8 +18,8 @@ fn compile_component(source: &str, component_name: &str) -> String {
     let module =
         vox_compiler::parser::parse(tokens).unwrap_or_else(|e| panic!("parse failed: {e:?}"));
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_codegen::codegen_ts::generate(&hir)
-        .unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
+    let out =
+        vox_codegen::codegen_ts::generate(&hir).unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
     let filename = format!("{component_name}.tsx");
     out.files
         .into_iter()
@@ -167,8 +167,14 @@ component SpeakSurface() {
     println!("SpeakSurface.tsx:\n{ts}");
 
     assert!(!ts.contains("column("), "column must not emit as JS call");
-    assert!(ts.contains("Speak"), "SpeakSurface must include 'Speak' title");
-    assert!(ts.contains("StateChip"), "SpeakSurface must include StateChip");
+    assert!(
+        ts.contains("Speak"),
+        "SpeakSurface must include 'Speak' title"
+    );
+    assert!(
+        ts.contains("StateChip"),
+        "SpeakSurface must include StateChip"
+    );
 
     insta::assert_snapshot!("speak_surface_stub_tsx_dashboard_surface", ts);
 }
@@ -211,7 +217,10 @@ component ForgeSurface() {
     assert!(!ts.contains("column("), "column must not emit as JS call");
     assert!(!ts.contains("button("), "button must not emit as JS call");
 
-    assert!(ts.contains("Pipeline"), "ForgeSurface must include Pipeline tab label");
+    assert!(
+        ts.contains("Pipeline"),
+        "ForgeSurface must include Pipeline tab label"
+    );
     assert!(
         ts.contains("Time Travel"),
         "ForgeSurface must include Time Travel tab label"
@@ -222,7 +231,10 @@ component ForgeSurface() {
         "ForgeSurface must include SurfaceStub"
     );
     // onClick wiring from on_click lambdas.
-    assert!(ts.contains("onClick"), "ForgeSurface buttons must emit onClick");
+    assert!(
+        ts.contains("onClick"),
+        "ForgeSurface buttons must emit onClick"
+    );
 
     insta::assert_snapshot!("forge_surface_stub_tsx_dashboard_surface", ts);
 }
@@ -282,7 +294,10 @@ component ModelsSurface() {
 
     let ts = compile_component(&source, "ModelsSurface");
     assert!(!ts.contains("column("), "column must not emit as JS call");
-    assert!(ts.contains("Models"), "ModelsSurface must include 'Models' title");
+    assert!(
+        ts.contains("Models"),
+        "ModelsSurface must include 'Models' title"
+    );
     assert!(
         ts.contains("Auto-route"),
         "ModelsSurface must include auto-route button"
@@ -364,28 +379,34 @@ fn no_latin_labels_in_any_surface_stub() {
 
     let surfaces: &[(&str, &str)] = &[
         (
-            &format!("{}{}{}",
-                STATE_CHIP_SRC, SURFACE_STUB_SRC,
+            &format!(
+                "{}{}{}",
+                STATE_CHIP_SRC,
+                SURFACE_STUB_SRC,
                 r#"component MeshSurface() { view: column(flex=1, bg="zinc.950") { text(size="sm", color="white") { "Mesh" } SurfaceStub(title="Mesh", desc="topology", action="Start") } }"#
             ),
             "MeshSurface",
         ),
         (
-            &format!("{}{}{}",
-                STATE_CHIP_SRC, SURFACE_STUB_SRC,
+            &format!(
+                "{}{}{}",
+                STATE_CHIP_SRC,
+                SURFACE_STUB_SRC,
                 r#"component SpeakSurface() { view: column(flex=1, bg="zinc.950") { text(size="sm", color="white") { "Speak" } SurfaceStub(title="Speak", desc="chat", action="Start") } }"#
             ),
             "SpeakSurface",
         ),
         (
-            &format!("{}{}",
+            &format!(
+                "{}{}",
                 SURFACE_STUB_SRC,
                 r#"component RunsSurface() { view: column(flex=1, bg="zinc.950") { text(size="sm", color="white") { "Runs" } SurfaceStub(title="Runs", desc="logs", action="Start") } }"#
             ),
             "RunsSurface",
         ),
         (
-            &format!("{}{}",
+            &format!(
+                "{}{}",
                 SURFACE_STUB_SRC,
                 r#"component SettingsSurface() { view: column(flex=1, bg="zinc.950") { text(size="sm", color="white") { "Settings" } SurfaceStub(title="Settings", desc="config", action="Configure") } }"#
             ),

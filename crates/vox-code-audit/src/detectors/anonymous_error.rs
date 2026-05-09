@@ -21,10 +21,8 @@ impl Default for AnonymousErrorDetector {
 impl AnonymousErrorDetector {
     pub fn new() -> Self {
         Self {
-            result_str_pattern: Regex::new(
-                r"\bfn\s+\w+[^{]*Result\s*\[[^\]]*,\s*str\s*\]",
-            )
-            .expect("valid regex"),
+            result_str_pattern: Regex::new(r"\bfn\s+\w+[^{]*Result\s*\[[^\]]*,\s*str\s*\]")
+                .expect("valid regex"),
             supported_langs: vec![Language::Vox],
         }
     }
@@ -59,7 +57,11 @@ impl DetectionRule for AnonymousErrorDetector {
         "Functions returning `Result[T, str]` use an anonymous error type; define a named error enum or struct to preserve error context and enable exhaustive handling."
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if file.language != Language::Vox {
             return vec![];
         }
@@ -131,7 +133,10 @@ mod tests {
         let d = AnonymousErrorDetector::new();
         let f = source("fn fetch() -> Result[User, FetchError] {}");
         let findings = d.detect(&f, None);
-        assert!(findings.is_empty(), "Result[User, FetchError] should not fire");
+        assert!(
+            findings.is_empty(),
+            "Result[User, FetchError] should not fire"
+        );
     }
 
     #[test]
@@ -139,7 +144,10 @@ mod tests {
         let d = AnonymousErrorDetector::new();
         let f = source("fn name() -> str {}");
         let findings = d.detect(&f, None);
-        assert!(findings.is_empty(), "fn returning str (not Result) should not fire");
+        assert!(
+            findings.is_empty(),
+            "fn returning str (not Result) should not fire"
+        );
     }
 
     #[test]

@@ -68,18 +68,12 @@ impl BrowserAutomation for BrowserPlugin {
         to_rresult(result)
     }
 
-    fn fill(
-        &self,
-        page_id: RStr<'_>,
-        target: RStr<'_>,
-        value: RStr<'_>,
-    ) -> RResult<(), RBoxError> {
+    fn fill(&self, page_id: RStr<'_>, target: RStr<'_>, value: RStr<'_>) -> RResult<(), RBoxError> {
         let engine = self.engine.clone();
         let page_id = page_id.to_string();
         let target = target.to_string();
         let value = value.to_string();
-        let result =
-            rt().block_on(async move { engine.fill(&page_id, &target, &value).await });
+        let result = rt().block_on(async move { engine.fill(&page_id, &target, &value).await });
         to_rresult(result)
     }
 
@@ -147,9 +141,11 @@ impl BrowserAutomation for BrowserPlugin {
         let engine = self.engine.clone();
         let page_id = page_id.to_string();
         let result = rt().block_on(async move { engine.ax_tree(&page_id).await });
-        to_rresult(result.and_then(|v| {
-            serde_json::to_string(&v).map_err(|e| e.to_string())
-        }).map(RString::from))
+        to_rresult(
+            result
+                .and_then(|v| serde_json::to_string(&v).map_err(|e| e.to_string()))
+                .map(RString::from),
+        )
     }
 
     fn close(&self, page_id: RStr<'_>) -> RResult<(), RBoxError> {

@@ -31,7 +31,12 @@ impl CrossrefDepositAdapter {
             .timeout(Duration::from_secs(60))
             .build()
             .expect("crossref http client");
-        Self { endpoint, login_id, login_passwd, http }
+        Self {
+            endpoint,
+            login_id,
+            login_passwd,
+            http,
+        }
     }
 }
 
@@ -140,21 +145,25 @@ impl ScholarlyAdapter for CrossrefDepositAdapter {
             .as_deref()
             .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
             .and_then(|v| v["doi"].as_str().map(str::to_string))
-            .unwrap_or_else(|| {
-                format!("10.5281/vox-provisional-{}", &manifest.publication_id)
-            });
+            .unwrap_or_else(|| format!("10.5281/vox-provisional-{}", &manifest.publication_id));
         let today = Utc::now().format("%Y-%m-%d").to_string();
-        let xml =
-            build_crossref_deposit_xml(&doi, &manifest.title, &manifest.author, &today);
+        let xml = build_crossref_deposit_xml(&doi, &manifest.title, &manifest.author, &today);
         let part = reqwest::multipart::Part::bytes(xml.into_bytes())
             .file_name("crossref_deposit.xml")
             .mime_str("application/xml")
-            .map_err(|e| ScholarlyError::Config { message: e.to_string() })?;
+            .map_err(|e| ScholarlyError::Config {
+                message: e.to_string(),
+            })?;
         let form = reqwest::multipart::Form::new()
             .text("login_id", self.login_id.clone())
             .text("login_passwd", self.login_passwd.clone())
             .part("fname", part);
-        let resp = self.http.post(&self.endpoint).multipart(form).send().await?;
+        let resp = self
+            .http
+            .post(&self.endpoint)
+            .multipart(form)
+            .send()
+            .await?;
         let status = resp.status().as_u16();
         let text = resp.text().await.unwrap_or_default();
         if !(200..300).contains(&status) {
@@ -196,12 +205,8 @@ mod tests {
 
     #[test]
     fn crossref_xml_contains_doi_and_title() {
-        let xml = build_crossref_deposit_xml(
-            "10.1234/test-doi",
-            "My Title",
-            "Author Name",
-            "2026-05-09",
-        );
+        let xml =
+            build_crossref_deposit_xml("10.1234/test-doi", "My Title", "Author Name", "2026-05-09");
         assert!(xml.contains("10.1234/test-doi"));
         assert!(xml.contains("My Title"));
         assert!(xml.contains("Author Name"));

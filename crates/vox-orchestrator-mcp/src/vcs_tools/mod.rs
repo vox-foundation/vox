@@ -1,12 +1,12 @@
-﻿//! JJ-inspired VCS tool handlers for the Vox MCP server.
+//! JJ-inspired VCS tool handlers for the Vox MCP server.
 //!
 //! Covers: snapshots, operation log (oplog), conflicts, workspaces, change tracking,
 //! and pre-commit secret scanning.
 
-mod change;
-mod conflicts;
 pub mod branch_tools;
+mod change;
 pub mod commit_tools;
+mod conflicts;
 mod oplog;
 mod parse;
 pub mod secret_scan;

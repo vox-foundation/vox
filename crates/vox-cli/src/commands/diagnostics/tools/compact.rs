@@ -1,8 +1,8 @@
 use anyhow::Result;
 
-use vox_bounded_fs::read_utf8_path_capped;
 use owo_colors::OwoColorize;
 use std::path::Path;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// Lex and compact a `.vox` source file, printing statistics to stderr.
 pub fn run(file_path: &Path) -> Result<()> {

@@ -32,7 +32,9 @@ fn description_rule_produces_output_on_clean_workspace() {
     // Confirm the summary line is printed (proves the binary ran to completion).
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(
-        stderr.contains("vox-arch-check: clean") || stderr.contains("[warn]") || stderr.contains("[ERROR]"),
+        stderr.contains("vox-arch-check: clean")
+            || stderr.contains("[warn]")
+            || stderr.contains("[ERROR]"),
         "expected arch-check to print a summary line; got:\n{stderr}",
     );
 }

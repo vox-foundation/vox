@@ -68,7 +68,11 @@ impl DetectionRule for WorkflowNondeterministicDetector {
         Good:               pass `now` as an input parameter, or read from workflow context."
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if file.language != Language::Vox {
             return vec![];
         }
@@ -108,11 +112,10 @@ impl DetectionRule for WorkflowNondeterministicDetector {
                 // Stop if we cross a non-workflow top-level `fn` declaration at column 0
                 // that would close the enclosing scope
                 let t = candidate.trim();
-                let at_col0 = !candidate.starts_with(' ') && !candidate.starts_with('\t') && !candidate.is_empty();
-                if at_col0
-                    && t.starts_with("fn ")
-                    && !t.contains("workflow")
-                {
+                let at_col0 = !candidate.starts_with(' ')
+                    && !candidate.starts_with('\t')
+                    && !candidate.is_empty();
+                if at_col0 && t.starts_with("fn ") && !t.contains("workflow") {
                     break;
                 }
             }
@@ -169,7 +172,10 @@ mod tests {
         let code = "workflow MyFlow {\n    fn run() {\n        let t = time.now();\n    }\n}";
         let f = vox_source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag time.now() inside a workflow block");
+        assert!(
+            !findings.is_empty(),
+            "should flag time.now() inside a workflow block"
+        );
         assert!(findings[0].message.contains("time.now"));
     }
 
@@ -191,7 +197,10 @@ mod tests {
         let code = "workflow OrderFlow {\n    fn start(input: OrderInput) {\n        let id = random.uuid();\n        process(id, input);\n    }\n}";
         let f = vox_source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag random.uuid() inside a workflow");
+        assert!(
+            !findings.is_empty(),
+            "should flag random.uuid() inside a workflow"
+        );
         assert!(findings[0].message.contains("random.uuid"));
     }
 
@@ -207,9 +216,13 @@ mod tests {
     #[test]
     fn flags_date_now_in_workflow_fn() {
         let d = WorkflowNondeterministicDetector::new();
-        let code = "workflow fn process_order(input) {\n    let ts = Date.now();\n    return ts;\n}";
+        let code =
+            "workflow fn process_order(input) {\n    let ts = Date.now();\n    return ts;\n}";
         let f = vox_source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag Date.now() inside a workflow fn");
+        assert!(
+            !findings.is_empty(),
+            "should flag Date.now() inside a workflow fn"
+        );
     }
 }

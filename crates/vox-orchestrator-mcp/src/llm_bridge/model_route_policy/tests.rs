@@ -1,9 +1,9 @@
+use std::sync::Mutex;
 use vox_orchestrator::Orchestrator;
 use vox_orchestrator::config::{CostPreference, OrchestratorConfig};
 use vox_orchestrator::models::{
     ModelRegistry, ModelRouteBackend, ModelSpec, ProviderType, route_backend_for_model,
 };
-use std::sync::Mutex;
 
 use super::{
     McpChatModelResolution, mcp_global_llm_context_fill_ratio, mcp_provider_telemetry_labels,
@@ -68,7 +68,8 @@ fn enforce_free_tier_only_swaps_paid_best_for() {
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
-    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) = tiny_registry_with_free_and_paid();
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        tiny_registry_with_free_and_paid();
 
     let resolved = resolve_mcp_chat_model_sync(
         &orch,
@@ -367,7 +368,8 @@ fn enforce_free_tier_only_fails_when_only_ollama_free_under_cloud_profile() {
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
-    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) = registry_paid_plus_ollama_free();
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_paid_plus_ollama_free();
 
     let err = resolve_mcp_chat_model_sync(
         &orch,
@@ -441,7 +443,8 @@ fn vox_local_preferred_for_codegen_when_desktop_ollama_profile() {
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
-    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) = registry_with_vox_local_and_openrouter();
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_with_vox_local_and_openrouter();
 
     let (model, _is_free) = resolve_mcp_chat_model_sync(
         &orch,
@@ -475,7 +478,8 @@ fn vox_local_not_preferred_for_non_code_tasks() {
     let mut config = OrchestratorConfig::for_testing();
     config.cost_preference = CostPreference::Performance;
     let orch = Orchestrator::new(config);
-    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) = registry_with_vox_local_and_openrouter();
+    *vox_orchestrator::sync_lock::rw_write(&*orch.models_handle()) =
+        registry_with_vox_local_and_openrouter();
 
     let (model, _is_free) = resolve_mcp_chat_model_sync(
         &orch,

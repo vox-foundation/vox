@@ -583,7 +583,9 @@ pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>) {
     let mut sinks: Vec<Arc<dyn TelemetryRecorder>> = Vec::new();
 
     if let Some(db) = db {
-        sinks.push(Arc::new(vox_db::telemetry_sink::ResearchMetricsSink::new(db)));
+        sinks.push(Arc::new(vox_db::telemetry_sink::ResearchMetricsSink::new(
+            db,
+        )));
     }
 
     sinks.push(Arc::new(crate::telemetry_sink::SpoolSink::new(

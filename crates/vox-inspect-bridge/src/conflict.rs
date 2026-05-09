@@ -40,13 +40,17 @@ pub struct EvidenceConflictDetector {
 
 impl Default for EvidenceConflictDetector {
     fn default() -> Self {
-        Self { similarity_threshold: 0.8 }
+        Self {
+            similarity_threshold: 0.8,
+        }
     }
 }
 
 impl EvidenceConflictDetector {
     pub fn new(similarity_threshold: f64) -> Self {
-        Self { similarity_threshold }
+        Self {
+            similarity_threshold,
+        }
     }
 
     /// Examine `hits` for an opposing-polarity conflict.
@@ -54,11 +58,7 @@ impl EvidenceConflictDetector {
     /// Returns `Some(EvidenceConflict)` if and only if the filtered set contains
     /// at least one `Positive` and at least one `Negative` hit.
     /// `Neutral` hits are included in neither bucket.
-    pub fn detect(
-        &self,
-        claim_text: &str,
-        hits: &[PolarizedHit],
-    ) -> Option<EvidenceConflict> {
+    pub fn detect(&self, claim_text: &str, hits: &[PolarizedHit]) -> Option<EvidenceConflict> {
         let high_sim: Vec<&PolarizedHit> = hits
             .iter()
             .filter(|h| h.similarity >= self.similarity_threshold)
@@ -81,8 +81,7 @@ impl EvidenceConflictDetector {
         }
 
         let total = high_sim.len() as f64;
-        let conflict_score =
-            supporting.len().min(contradicting.len()) as f64 / total;
+        let conflict_score = supporting.len().min(contradicting.len()) as f64 / total;
 
         Some(EvidenceConflict {
             claim_text: claim_text.to_string(),

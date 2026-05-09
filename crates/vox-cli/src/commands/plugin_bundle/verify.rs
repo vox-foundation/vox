@@ -17,7 +17,11 @@ use tar::Archive;
 pub fn run(tarball_path: &Path) -> Result<()> {
     let tmp = tempfile::tempdir().context("creating tempdir for bundle extraction")?;
 
-    println!("-> Extracting {} to {}", tarball_path.display(), tmp.path().display());
+    println!(
+        "-> Extracting {} to {}",
+        tarball_path.display(),
+        tmp.path().display()
+    );
 
     let f = File::open(tarball_path)
         .with_context(|| format!("opening tarball {}", tarball_path.display()))?;

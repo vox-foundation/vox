@@ -18,8 +18,8 @@
 //! - Functions without `@reactive` are not descended into; the call site contributes no deps
 //!   from inside the callee. (Conservative under-tracking, opt-in extension.)
 
-use vox_compiler::hir::*;
 use std::collections::{HashMap, HashSet};
+use vox_compiler::hir::*;
 
 /// Backward-compatible entry point: walk `expr` collecting reads of `state_names` without
 /// following any function calls. Retained for callers that don't need the cross-call
@@ -574,9 +574,9 @@ fn collect_deps_and_calls_stmt(
 #[cfg(test)]
 mod tests {
     use super::{extract_state_deps, extract_state_deps_with_callees};
+    use std::collections::{HashMap, HashSet};
     use vox_compiler::ast::span::Span;
     use vox_compiler::hir::{HirArg, HirBinOp, HirExpr, HirStmt};
-    use std::collections::{HashMap, HashSet};
 
     fn sp() -> Span {
         Span::new(0, 0)

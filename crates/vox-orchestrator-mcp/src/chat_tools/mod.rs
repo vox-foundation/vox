@@ -128,10 +128,9 @@ pub(crate) async fn build_system_prompt(state: &ServerState, session_id: Option<
     if let Some(session_id) = session_id {
         let env_key = vox_orchestrator::socrates::session_context_envelope_key(session_id);
         let store = state.orchestrator.context_store();
-        if let Some(env_raw) =
-            crate::sync_poison::poison_rw_read(store.read(), "context_store")
-                .ok()
-                .and_then(|g| g.get(&env_key).clone())
+        if let Some(env_raw) = crate::sync_poison::poison_rw_read(store.read(), "context_store")
+            .ok()
+            .and_then(|g| g.get(&env_key).clone())
         {
             if let Ok(env) = serde_json::from_str::<vox_orchestrator::ContextEnvelope>(&env_raw) {
                 if let Some(mode) = env.operating_mode {

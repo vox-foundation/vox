@@ -7,7 +7,7 @@ use crate::backends::lan::LanBackend;
 use crate::backends::localhost_run::LocalhostRunBackend;
 use crate::backends::tailscale::TailscaleBackend;
 use crate::error::{ShareError, ShareResult};
-use crate::proxy::{build_app as build_proxy_app, ProxyConfig};
+use crate::proxy::{ProxyConfig, build_app as build_proxy_app};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -76,7 +76,9 @@ impl ShareSession {
         let (proxy_shutdown_tx, proxy_shutdown_rx) = tokio::sync::oneshot::channel::<()>();
         tokio::spawn(async move {
             let server = axum::serve(listener, proxy_app);
-            let proxy_shutdown_rx = async move { let _ = proxy_shutdown_rx.await; };
+            let proxy_shutdown_rx = async move {
+                let _ = proxy_shutdown_rx.await;
+            };
             tokio::pin!(proxy_shutdown_rx);
             tokio::select! {
                 res = server => { let _ = res; }
@@ -87,11 +89,17 @@ impl ShareSession {
         // S6: SSE detection — if Cloudflare and SSE routes found, switch to localhost.run.
         if matches!(cfg.backend, BackendKind::Cloudflare) && !cfg.allow_buffered_streaming {
             if crate::sse_detect::has_sse_routes(cfg.upstream_port).await {
-                println!("[vox share] App uses streaming (SSE); auto-selected --backend localhost-run for SSE compatibility");
-                println!("[vox share] Use --allow-buffered-streaming to keep Cloudflare (SSE will be buffered)");
+                println!(
+                    "[vox share] App uses streaming (SSE); auto-selected --backend localhost-run for SSE compatibility"
+                );
+                println!(
+                    "[vox share] Use --allow-buffered-streaming to keep Cloudflare (SSE will be buffered)"
+                );
                 let fallback = make_backend(BackendKind::LocalhostRun);
                 fallback.preflight().await?;
-                let tunnel_handle = fallback.start(actual_proxy_port, cfg.connect_timeout).await?;
+                let tunnel_handle = fallback
+                    .start(actual_proxy_port, cfg.connect_timeout)
+                    .await?;
                 let public_url = cfg.auth_mode.decorate_url(&tunnel_handle.public_url);
                 let duration_done_rx = if let Some(d) = cfg.duration {
                     let (tx, rx) = tokio::sync::mpsc::channel(1);
@@ -117,16 +125,16 @@ impl ShareSession {
         backend.preflight().await?;
         let tunnel_handle = match backend.start(actual_proxy_port, cfg.connect_timeout).await {
             Ok(h) => h,
-            Err(e)
-                if cfg.allow_fallback && matches!(cfg.backend, BackendKind::Cloudflare) =>
-            {
+            Err(e) if cfg.allow_fallback && matches!(cfg.backend, BackendKind::Cloudflare) => {
                 println!(
                     "[vox share] Cloudflare unavailable ({}); falling back to localhost.run",
                     e
                 );
                 let fallback = make_backend(BackendKind::LocalhostRun);
                 fallback.preflight().await?;
-                fallback.start(actual_proxy_port, cfg.connect_timeout).await?
+                fallback
+                    .start(actual_proxy_port, cfg.connect_timeout)
+                    .await?
             }
             Err(e) => return Err(e),
         };

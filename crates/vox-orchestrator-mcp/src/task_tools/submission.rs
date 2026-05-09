@@ -35,7 +35,10 @@ pub fn task_category_from_mcp_str(raw: &str) -> Option<TaskCategory> {
 
 pub fn parse_campaign_from_description(
     description: &str,
-) -> (Option<String>, Option<vox_orchestrator::ReconstructionBenchmarkTier>) {
+) -> (
+    Option<String>,
+    Option<vox_orchestrator::ReconstructionBenchmarkTier>,
+) {
     let mut campaign_id = None;
     let mut tier = None;
     for token in description.split_whitespace() {
@@ -59,7 +62,9 @@ pub fn parse_campaign_from_description(
             }
             tier = match v.trim() {
                 "issue_repair" => Some(vox_orchestrator::ReconstructionBenchmarkTier::IssueRepair),
-                "subsystem_regen" => Some(vox_orchestrator::ReconstructionBenchmarkTier::SubsystemRegen),
+                "subsystem_regen" => {
+                    Some(vox_orchestrator::ReconstructionBenchmarkTier::SubsystemRegen)
+                }
                 "crate_regen" => Some(vox_orchestrator::ReconstructionBenchmarkTier::CrateRegen),
                 "repo_regen" => Some(vox_orchestrator::ReconstructionBenchmarkTier::RepoRegen),
                 other => {
@@ -272,7 +277,9 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                     thread_id: expected_thread_id,
                 };
                 vox_orchestrator::apply_harness_subject_defaults(&mut harness, expectations);
-                if let Err(errs) = vox_orchestrator::validate_agent_harness_ingest(&harness, expectations) {
+                if let Err(errs) =
+                    vox_orchestrator::validate_agent_harness_ingest(&harness, expectations)
+                {
                     return ToolResult::<SubmitTaskResponse>::err_with_remediation(
                         format!("invalid harness_spec_json: {}", errs.join("; ")),
                         REM_HARNESS_SPEC_JSON,
@@ -379,7 +386,10 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             g.attention_snapshot()
         };
         if let vox_orchestrator::GateResult::AttentionExhausted { message, .. } =
-            vox_orchestrator::BudgetGate::check_attention_snapshot(&att_snap, &state.orchestrator_config)
+            vox_orchestrator::BudgetGate::check_attention_snapshot(
+                &att_snap,
+                &state.orchestrator_config,
+            )
         {
             return ToolResult::<SubmitTaskResponse>::err_with_remediation(
                 message,
@@ -402,10 +412,8 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             state,
             normalized_session_id.as_deref(),
         );
-        let trust = crate::attention_policy::trust_for_session(
-            state,
-            normalized_session_id.as_deref(),
-        );
+        let trust =
+            crate::attention_policy::trust_for_session(state, normalized_session_id.as_deref());
         let signals = crate::attention_policy::task_submit_signals(
             &params.description,
             write_file_count,
@@ -414,13 +422,12 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             trust,
             state.orchestrator_config.attention_interrupt_cost_ms,
         );
-        let decision =
-            crate::attention_policy::evaluate_with_state(state, &signals, &att_snap);
+        let decision = crate::attention_policy::evaluate_with_state(state, &signals, &att_snap);
         match decision {
-            vox_orchestrator::InterruptionDecision::RequireHumanBeforeContinue { reason, .. } => {
-                if !crate::attention_policy::has_explicit_human_confirmation(
-                    &params.description,
-                ) {
+            vox_orchestrator::InterruptionDecision::RequireHumanBeforeContinue {
+                reason, ..
+            } => {
+                if !crate::attention_policy::has_explicit_human_confirmation(&params.description) {
                     return ToolResult::<SubmitTaskResponse>::err_with_remediation(
                         format!(
                             "Task submit requires explicit human confirmation: {reason}. Add one of [approval:confirm], [approval:reviewed], [human-approved] to the description once reviewed."
@@ -506,36 +513,37 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
     });
 
     // Prompt canonicalization: normalize and order-invariant pack to reduce order bias
-    let (description, canonical_info) = match vox_actor_runtime::prompt_canonical::canonicalize_prompt(
-        &params.description,
-        true, // order_invariant
-        true, // run_safety_pass: reject injection attempts and surface in Trust & Safety
-    ) {
-        Ok(c) => {
-            tracing::debug!(
-                "prompt_canonical: task description hash {} -> {} conflict warnings",
-                c.original_hash,
-                c.conflict_warnings.len()
-            );
-            let warnings = if c.conflict_warnings.is_empty() {
-                None
-            } else {
-                Some(c.conflict_warnings)
-            };
-            (c.text, Some((true, warnings, Some(c.original_hash))))
-        }
-        Err(e) => {
-            orch.event_bus()
-                .emit(vox_orchestrator::AgentEventKind::InjectionDetected {
-                    detail: e.to_string(),
-                });
-            return ToolResult::<SubmitTaskResponse>::err_with_remediation(
-                format!("Prompt safety: {e}"),
-                REM_PROMPT_SAFETY,
-            )
-            .to_json();
-        }
-    };
+    let (description, canonical_info) =
+        match vox_actor_runtime::prompt_canonical::canonicalize_prompt(
+            &params.description,
+            true, // order_invariant
+            true, // run_safety_pass: reject injection attempts and surface in Trust & Safety
+        ) {
+            Ok(c) => {
+                tracing::debug!(
+                    "prompt_canonical: task description hash {} -> {} conflict warnings",
+                    c.original_hash,
+                    c.conflict_warnings.len()
+                );
+                let warnings = if c.conflict_warnings.is_empty() {
+                    None
+                } else {
+                    Some(c.conflict_warnings)
+                };
+                (c.text, Some((true, warnings, Some(c.original_hash))))
+            }
+            Err(e) => {
+                orch.event_bus()
+                    .emit(vox_orchestrator::AgentEventKind::InjectionDetected {
+                        detail: e.to_string(),
+                    });
+                return ToolResult::<SubmitTaskResponse>::err_with_remediation(
+                    format!("Prompt safety: {e}"),
+                    REM_PROMPT_SAFETY,
+                )
+                .to_json();
+            }
+        };
 
     let repo_id = state.repository.repository_id.as_str();
     let session_context_to_store: Option<vox_orchestrator::ContextEnvelope> = if let Some(sid) =
@@ -558,10 +566,11 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                 params.trace_id.as_deref(),
                 params.correlation_id.as_deref(),
             );
-            let ingest_expectations = vox_orchestrator::context_lifecycle::ContextIngestExpectations {
-                repository_id: repo_id,
-                session_id: Some(sid),
-            };
+            let ingest_expectations =
+                vox_orchestrator::context_lifecycle::ContextIngestExpectations {
+                    repository_id: repo_id,
+                    session_id: Some(sid),
+                };
             if let Err(e) = vox_orchestrator::context_lifecycle::apply_context_lifecycle_policy(
                 &state.orchestrator_config,
                 &base,
@@ -576,19 +585,18 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             }
             let context_key = vox_orchestrator::session_context_envelope_key(sid);
             let ctx_handle = orch.context_handle();
-            let existing_json = match crate::sync_poison::poison_rw_read(
-                ctx_handle.read(),
-                "orchestrator context",
-            ) {
-                Ok(g) => g.get(&context_key),
-                Err(e) => {
-                    tracing::warn!(
-                        error = %e,
-                        "submit_task: could not read context store for merge; treating as empty"
-                    );
-                    None
-                }
-            };
+            let existing_json =
+                match crate::sync_poison::poison_rw_read(ctx_handle.read(), "orchestrator context")
+                {
+                    Ok(g) => g.get(&context_key),
+                    Err(e) => {
+                        tracing::warn!(
+                            error = %e,
+                            "submit_task: could not read context store for merge; treating as empty"
+                        );
+                        None
+                    }
+                };
             let mut merged =
                 match vox_orchestrator::context_lifecycle::merge_context_envelope_for_session_store(
                     existing_json.as_deref(),
@@ -604,7 +612,9 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                         .to_json();
                     }
                 };
-            vox_orchestrator::context_lifecycle::clamp_context_envelope_injection_budget(&mut merged);
+            vox_orchestrator::context_lifecycle::clamp_context_envelope_injection_budget(
+                &mut merged,
+            );
             if let Err(e) = vox_orchestrator::context_lifecycle::apply_context_lifecycle_policy(
                 &state.orchestrator_config,
                 &merged,
@@ -626,7 +636,8 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
     };
 
     let enqueue_hints = enqueue_hints_from_submit_params(&params);
-    let submit_result: Result<vox_orchestrator::TaskId, String> = if params.planning_mode.is_some() {
+    let submit_result: Result<vox_orchestrator::TaskId, String> = if params.planning_mode.is_some()
+    {
         orch.submit_goal(
             description.clone(),
             manifest,
@@ -677,8 +688,9 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
                     );
                 }
             } else if let Some((context_envelope, _)) = &explicit_context_envelope
-                && let Some(env) =
-                    vox_orchestrator::SessionRetrievalEnvelope::from_context_envelope(context_envelope)
+                && let Some(env) = vox_orchestrator::SessionRetrievalEnvelope::from_context_envelope(
+                    context_envelope,
+                )
             {
                 let soc = env.to_task_context();
                 if let Err(e) = orch.attach_socrates_context(task_id, soc) {
@@ -720,11 +732,12 @@ pub async fn submit_task(state: &ServerState, params: SubmitTaskParams) -> Strin
             }
             if let Some((_, Some(ref w), _)) = canonical_info {
                 if !w.is_empty() {
-                    orch.event_bus()
-                        .emit(vox_orchestrator::AgentEventKind::PromptConflictDetected {
+                    orch.event_bus().emit(
+                        vox_orchestrator::AgentEventKind::PromptConflictDetected {
                             task_id,
                             warnings: w.clone(),
-                        });
+                        },
+                    );
                 }
             }
             let shadow_plan_adequacy = if params.planning_mode.is_none()

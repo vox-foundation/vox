@@ -6,7 +6,7 @@
 //! In non-TTY contexts (CI, piped input): requires `--accept-tos` flag or errors.
 
 use crate::error::{ShareError, ShareResult};
-use crate::state::{ShareState, CONSENT_TEXT_VERSION};
+use crate::state::{CONSENT_TEXT_VERSION, ShareState};
 
 const BANNER: &str = r#"
 [vox share] About to create a public URL for your Vox app via Cloudflare Quick Tunnels.

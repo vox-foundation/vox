@@ -94,8 +94,7 @@ pub fn scan_v0_component_names_from_vox_sources(root: &Path) -> Vec<String> {
         if entry.path().extension().and_then(|s| s.to_str()) != Some("vox") {
             continue;
         }
-        let Ok(content) = read_utf8_path_capped(entry.path())
-        else {
+        let Ok(content) = read_utf8_path_capped(entry.path()) else {
             continue;
         };
         for cap in re.captures_iter(&content) {

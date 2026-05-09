@@ -1,10 +1,10 @@
 #![allow(missing_docs)]
 
+use vox_actor_runtime::{ContextBudget, RetrievedChunk, RetryPolicy, apply_context_budget};
 use vox_codegen::codegen_rust::{emit::emit_api_client, generate as generate_rust};
 use vox_compiler::hir::lower_module;
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
-use vox_actor_runtime::{ContextBudget, RetrievedChunk, RetryPolicy, apply_context_budget};
 use vox_workflow_runtime::workflow::plan_workflow_activities;
 
 fn lower(src: &str) -> vox_compiler::hir::HirModule {

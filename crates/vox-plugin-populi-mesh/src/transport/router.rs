@@ -140,7 +140,7 @@ pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAu
                     let sig = req.headers().get("X-Vox-Node-Signature").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
                     let nonce = req.headers().get("X-Vox-Node-Nonce").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
                     let timestamp = req.headers().get("X-Vox-Node-Timestamp").and_then(|h| h.to_str().ok()).map(|s| s.to_string());
-                    
+
                     if let (Some(pk), Some(sg), Some(nc), Some(ts)) = (pubkey, sig, nonce, timestamp) {
                         // Note: To be fully secure, the signature should cover path+body, but for now we verify the nonce+timestamp
                         // Verify timestamp is within 5 minutes
@@ -150,7 +150,7 @@ pub fn populi_http_app_with_auth(state: PopuliTransportState, auth: PopuliHttpAu
                                 let payload = format!("{}.{}.{}", path, ts, nc);
                                 if vox_crypto::facades::verify_signature_hex(&pk, payload.as_bytes(), &sg).unwrap_or(false) {
                                     let node_id = hex::encode(&vox_crypto::secure_hash(&hex::decode(&pk).unwrap_or_default())[0..16]);
-                                    
+
                                     // Optional strict DB trust enforcement
                                     if let Some(verifier) = &trust_verifier {
                                         if !verifier(node_id.clone()).await {

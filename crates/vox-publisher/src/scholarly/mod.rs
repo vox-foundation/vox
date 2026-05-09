@@ -213,7 +213,9 @@ pub async fn submit_with_adapter(
         "echo_ledger" | "echo" => vox_config::scholarly::ScholarlyAdapterKind::EchoLedger,
         "arxiv_assist" | "arxiv" => vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist,
         "osf" => vox_config::scholarly::ScholarlyAdapterKind::Osf,
-        "crossref_deposit" | "crossref" => vox_config::scholarly::ScholarlyAdapterKind::CrossrefDeposit,
+        "crossref_deposit" | "crossref" => {
+            vox_config::scholarly::ScholarlyAdapterKind::CrossrefDeposit
+        }
         _ => vox_config::scholarly::ScholarlyAdapterKind::LocalLedger,
     };
     submit_for_adapter_normalized(manifest, k).await

@@ -7,11 +7,12 @@ use vox_share::{BackendKind, ShareConfig, ShareSession};
 #[tokio::test]
 async fn fallback_config_field_compiles_and_works_with_lan() {
     // Spawn a tiny upstream so the proxy has something to forward to.
-    let upstream = axum::Router::new()
-        .route("/", axum::routing::get(|| async { "ok" }));
+    let upstream = axum::Router::new().route("/", axum::routing::get(|| async { "ok" }));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(listener, upstream).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(listener, upstream).await.unwrap();
+    });
 
     // LAN backend always works — verify ShareConfig.allow_fallback field is accepted.
     let cfg = ShareConfig {
@@ -36,11 +37,12 @@ async fn fallback_config_field_compiles_and_works_with_lan() {
 async fn allow_fallback_true_does_not_affect_non_cloudflare_backends() {
     // LAN backend with allow_fallback=true should still work (fallback only
     // triggers on Cloudflare failure, not on Lan).
-    let upstream = axum::Router::new()
-        .route("/", axum::routing::get(|| async { "ok" }));
+    let upstream = axum::Router::new().route("/", axum::routing::get(|| async { "ok" }));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    tokio::spawn(async move { axum::serve(listener, upstream).await.unwrap(); });
+    tokio::spawn(async move {
+        axum::serve(listener, upstream).await.unwrap();
+    });
 
     let cfg = ShareConfig {
         backend: BackendKind::Lan,

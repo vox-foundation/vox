@@ -4,7 +4,7 @@
 
 use abi_stable::{erased_types::TD_Opaque, std_types::*};
 use vox_plugin_api::extensions::script_executor::{
-    ScriptExecutor, ScriptExecutor_TO, SCRIPT_EXECUTOR_REVISION,
+    SCRIPT_EXECUTOR_REVISION, ScriptExecutor, ScriptExecutor_TO,
 };
 
 #[test]
@@ -15,11 +15,7 @@ fn revision_constant_is_one() {
 struct DummyExecutor;
 
 impl ScriptExecutor for DummyExecutor {
-    fn execute(
-        &self,
-        _script_path: RStr<'_>,
-        _args_json: RStr<'_>,
-    ) -> RResult<RString, RBoxError> {
+    fn execute(&self, _script_path: RStr<'_>, _args_json: RStr<'_>) -> RResult<RString, RBoxError> {
         RResult::RErr(RBoxError::new(std::io::Error::other(
             "not yet implemented; SP7 scaffold",
         )))

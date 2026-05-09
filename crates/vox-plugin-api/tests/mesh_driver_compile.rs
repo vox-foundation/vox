@@ -3,7 +3,7 @@
 //! once the actual mesh code-motion completes.
 
 use abi_stable::{erased_types::TD_Opaque, std_types::*};
-use vox_plugin_api::extensions::mesh_driver::{MeshDriver, MeshDriver_TO, MESH_DRIVER_REVISION};
+use vox_plugin_api::extensions::mesh_driver::{MESH_DRIVER_REVISION, MeshDriver, MeshDriver_TO};
 
 #[test]
 fn revision_constant_is_current() {

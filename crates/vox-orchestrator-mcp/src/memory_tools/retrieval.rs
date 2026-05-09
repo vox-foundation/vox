@@ -233,7 +233,8 @@ struct McpMemoryFallback {
 
 impl LexicalMemoryFallback for McpMemoryFallback {
     fn substring_search_lines(&self, query: &str) -> Result<Vec<String>, String> {
-        let mgr = vox_orchestrator::MemoryManager::new(self.cfg.clone()).map_err(|e| e.to_string())?;
+        let mgr =
+            vox_orchestrator::MemoryManager::new(self.cfg.clone()).map_err(|e| e.to_string())?;
         let hits = mgr.search(query).map_err(|e| e.to_string())?;
         Ok(hits
             .into_iter()

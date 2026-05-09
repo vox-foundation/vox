@@ -154,7 +154,14 @@ pub enum HirExpr {
     If(Box<HirExpr>, Vec<HirStmt>, Option<Vec<HirStmt>>, Span),
     /// `for` loop expression (often JSX). The second field is the optional index variable name.
     /// The fifth field is the optional React key expression (`key=expr`).
-    For(String, Option<String>, Box<HirExpr>, Box<HirExpr>, Option<Box<HirExpr>>, Span),
+    For(
+        String,
+        Option<String>,
+        Box<HirExpr>,
+        Box<HirExpr>,
+        Option<Box<HirExpr>>,
+        Span,
+    ),
     /// Lambda / closure. The `bool` is `true` when annotated `@cancellable fn(…)`.
     Lambda(Vec<HirParam>, Option<HirType>, Box<HirExpr>, bool, Span),
     /// `spawn` actor constructor.

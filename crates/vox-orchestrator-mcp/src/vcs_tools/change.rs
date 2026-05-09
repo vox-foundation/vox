@@ -18,10 +18,8 @@ pub async fn change_create(state: &ServerState, args: serde_json::Value) -> Stri
     let orch = &state.orchestrator;
 
     let mgr_handle = orch.workspace_manager_handle();
-    let mut mgr = match crate::sync_poison::poison_rw_write(
-        mgr_handle.write(),
-        "workspace manager",
-    ) {
+    let mut mgr = match crate::sync_poison::poison_rw_write(mgr_handle.write(), "workspace manager")
+    {
         Ok(g) => g,
         Err(e) => {
             return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -50,10 +48,7 @@ pub async fn change_log(state: &ServerState, args: serde_json::Value) -> String 
 
     if let Some(cid) = change_id {
         let mgr_handle = orch.workspace_manager_handle();
-        let mgr = match crate::sync_poison::poison_rw_read(
-            mgr_handle.read(),
-            "workspace manager",
-        ) {
+        let mgr = match crate::sync_poison::poison_rw_read(mgr_handle.read(), "workspace manager") {
             Ok(g) => g,
             Err(e) => {
                 return ToolResult::<serde_json::Value>::err_with_remediation(
@@ -83,10 +78,7 @@ pub async fn change_log(state: &ServerState, args: serde_json::Value) -> String 
     } else {
         let agent = agent_id.map(AgentId);
         let mgr_handle = orch.workspace_manager_handle();
-        let mgr = match crate::sync_poison::poison_rw_read(
-            mgr_handle.read(),
-            "workspace manager",
-        ) {
+        let mgr = match crate::sync_poison::poison_rw_read(mgr_handle.read(), "workspace manager") {
             Ok(g) => g,
             Err(e) => {
                 return ToolResult::<serde_json::Value>::err_with_remediation(

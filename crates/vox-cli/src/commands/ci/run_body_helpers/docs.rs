@@ -5,7 +5,6 @@ use std::process::{Command, Stdio};
 use std::sync::LazyLock;
 
 use super::guards::run_sql_surface_guard;
-use vox_bounded_fs::read_utf8_path_capped;
 use crate::commands::ci::canonical_docs;
 use crate::commands::ci::cargo_bin;
 use crate::commands::ci::command_compliance;
@@ -17,6 +16,7 @@ use crate::commands::ci::contracts_index;
 use crate::commands::ci::exec_policy_contract;
 use crate::commands::ci::scientia_novelty_ledger_contract;
 use crate::commands::ci::scientia_worthiness_contract;
+use vox_bounded_fs::read_utf8_path_capped;
 
 pub(crate) fn run_manifest(root: &Path) -> Result<()> {
     let status = Command::new(cargo_bin())

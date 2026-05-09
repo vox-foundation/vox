@@ -18,13 +18,15 @@
 //! [`crate::web_ir::WebIrModule::view_roots`] lowering.
 
 use crate::codegen_ts::hir_emit::{
-    emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps_with_diagnostics,
-    map_hir_type_to_ts, EmitCtx,
+    EmitCtx, emit_block_stmts, emit_hir_expr, emit_hir_stmt, extract_state_deps_with_diagnostics,
+    map_hir_type_to_ts,
 };
-use vox_compiler::hir::*;
-use vox_compiler::react_bridge::react_exports::{USE_CALLBACK, USE_EFFECT, USE_MEMO, USE_REF, USE_STATE};
 use crate::web_ir::WebIrModule;
 use std::collections::HashSet;
+use vox_compiler::hir::*;
+use vox_compiler::react_bridge::react_exports::{
+    USE_CALLBACK, USE_EFFECT, USE_MEMO, USE_REF, USE_STATE,
+};
 
 fn web_ir_reactive_views_env_enabled() -> bool {
     crate::web_migration_env::web_ir_emit_reactive_views_enabled()
@@ -759,7 +761,9 @@ fn collect_callee_refs_stmt(stmt: &HirStmt, known: &HashSet<String>, out: &mut H
         | HirStmt::Let { value: expr, .. }
         | HirStmt::Assign { value: expr, .. } => collect_callee_refs(expr, known, out),
         HirStmt::Return { value: Some(v), .. } => collect_callee_refs(v, known, out),
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             collect_callee_refs(condition, known, out);
             for s in body {
                 collect_callee_refs_stmt(s, known, out);
@@ -890,8 +894,7 @@ pub fn generate_reactive_component(
 
     // Bug D: emit import for every @endpoint fn referenced from this component.
     // Endpoint fns are exported from `vox-client.ts` (see [`crate::codegen_ts::vox_client`]).
-    let endpoint_names: HashSet<String> =
-        hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
+    let endpoint_names: HashSet<String> = hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
     let mut endpoint_refs: HashSet<String> = HashSet::new();
     if let Some(view_expr) = &rc.view {
         collect_callee_refs(view_expr, &endpoint_names, &mut endpoint_refs);

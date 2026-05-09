@@ -38,12 +38,19 @@ fn emit_type(t: &ContractType) -> String {
     match &t.kind {
         ContractTypeKind::Struct { fields } if fields.is_empty() => {
             // Distinguish a declared empty struct from a sum type.
-            out.push_str(&format!("export const {}Schema = z.object({{}});\n", t.name));
+            out.push_str(&format!(
+                "export const {}Schema = z.object({{}});\n",
+                t.name
+            ));
         }
         ContractTypeKind::Struct { fields } => {
             out.push_str(&format!("export const {}Schema = z.object({{\n", t.name));
             for f in fields {
-                out.push_str(&format!("  {}: {},\n", f.name, field_zod(&f.ty, f.optional)));
+                out.push_str(&format!(
+                    "  {}: {},\n",
+                    f.name,
+                    field_zod(&f.ty, f.optional)
+                ));
             }
             out.push_str("});\n");
         }
@@ -61,7 +68,11 @@ fn emit_sum(name: &str, variants: &[ContractVariant]) -> String {
         out.push_str(&format!("export const {}Schema = z.object({{\n", name));
         out.push_str(&format!("  _tag: z.literal(\"{}\"),\n", v.tag));
         for f in &v.fields {
-            out.push_str(&format!("  {}: {},\n", f.name, field_zod(&f.ty, f.optional)));
+            out.push_str(&format!(
+                "  {}: {},\n",
+                f.name,
+                field_zod(&f.ty, f.optional)
+            ));
         }
         out.push_str("});\n");
         return out;
@@ -76,7 +87,11 @@ fn emit_sum(name: &str, variants: &[ContractVariant]) -> String {
             v.tag
         ));
         for f in &v.fields {
-            out.push_str(&format!("    {}: {},\n", f.name, field_zod(&f.ty, f.optional)));
+            out.push_str(&format!(
+                "    {}: {},\n",
+                f.name,
+                field_zod(&f.ty, f.optional)
+            ));
         }
         out.push_str("  }),\n");
     }
@@ -86,7 +101,11 @@ fn emit_sum(name: &str, variants: &[ContractVariant]) -> String {
 
 fn field_zod(ty: &WireType, optional: bool) -> String {
     let base = wire_zod(ty);
-    if optional { format!("{}.optional()", base) } else { base }
+    if optional {
+        format!("{}.optional()", base)
+    } else {
+        base
+    }
 }
 
 fn wire_zod(ty: &WireType) -> String {

@@ -98,7 +98,11 @@ fn score_rule(rule: &crate::pack::CompiledRule, fixtures_root: &Path) -> RuleBen
     let fp = neg_match as f64;
     let fn_ = (pos_total.saturating_sub(pos_match)) as f64;
     let precision = if tp + fp == 0.0 { 1.0 } else { tp / (tp + fp) };
-    let recall = if tp + fn_ == 0.0 { 1.0 } else { tp / (tp + fn_) };
+    let recall = if tp + fn_ == 0.0 {
+        1.0
+    } else {
+        tp / (tp + fn_)
+    };
     let f1 = if precision + recall == 0.0 {
         0.0
     } else {

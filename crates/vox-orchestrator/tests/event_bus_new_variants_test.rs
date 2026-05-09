@@ -1,7 +1,5 @@
 use tokio::time::{Duration, timeout};
-use vox_orchestrator::{
-    events::{AgentEventKind, BuildStageKind, EventBus},
-};
+use vox_orchestrator::events::{AgentEventKind, BuildStageKind, EventBus};
 
 #[tokio::test]
 async fn build_stage_event_round_trips_through_bus() {
@@ -47,7 +45,11 @@ async fn throughput_tick_event_round_trips() {
         .expect("recv");
 
     match received.kind {
-        AgentEventKind::ThroughputTick { tokens_per_sec, active_runs, .. } => {
+        AgentEventKind::ThroughputTick {
+            tokens_per_sec,
+            active_runs,
+            ..
+        } => {
             assert!((tokens_per_sec - 42.5).abs() < f32::EPSILON);
             assert_eq!(active_runs, 3);
         }
@@ -73,7 +75,9 @@ async fn cost_tick_event_round_trips() {
         .expect("recv");
 
     match received.kind {
-        AgentEventKind::CostTick { delta_usd, model, .. } => {
+        AgentEventKind::CostTick {
+            delta_usd, model, ..
+        } => {
             assert!((delta_usd - 0.0025).abs() < 1e-10);
             assert_eq!(model, "claude-sonnet-4-6");
         }
@@ -98,7 +102,11 @@ async fn file_diag_changed_event_round_trips() {
         .expect("recv");
 
     match received.kind {
-        AgentEventKind::FileDiagChanged { path, error_count, warn_count } => {
+        AgentEventKind::FileDiagChanged {
+            path,
+            error_count,
+            warn_count,
+        } => {
             assert_eq!(path, "src/main.vox");
             assert_eq!(error_count, 2);
             assert_eq!(warn_count, 5);
@@ -124,7 +132,11 @@ async fn mesh_topology_changed_event_round_trips() {
         .expect("recv");
 
     match received.kind {
-        AgentEventKind::MeshTopologyChanged { added_nodes, removed_nodes, changed_edges } => {
+        AgentEventKind::MeshTopologyChanged {
+            added_nodes,
+            removed_nodes,
+            changed_edges,
+        } => {
             assert_eq!(added_nodes, vec!["agent-7", "agent-8"]);
             assert_eq!(removed_nodes, vec!["agent-3"]);
             assert_eq!(changed_edges, 4);

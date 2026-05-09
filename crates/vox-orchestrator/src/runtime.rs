@@ -249,8 +249,9 @@ impl TaskProcessor for AiTaskProcessor {
                 Vec::new(),
                 task.id.0,
             );
-            let reason_s = reason
-                .to_json_bounded(vox_actor_runtime::routing_telemetry::ROUTING_REASON_JSON_MAX_BYTES);
+            let reason_s = reason.to_json_bounded(
+                vox_actor_runtime::routing_telemetry::ROUTING_REASON_JSON_MAX_BYTES,
+            );
             if let Err(e) = db
                 .record_routing_decision(
                     None::<&str>,

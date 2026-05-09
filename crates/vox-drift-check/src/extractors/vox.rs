@@ -1,10 +1,10 @@
-use std::path::Path;
-use anyhow::Result;
-use vox_compiler::lexer::cursor::lex;
-use vox_compiler::lexer::token::Token;
-use vox_code_audit::rules::Language;
 use crate::extractor::LanguageExtractor;
 use crate::features::{ExtractedFeatures, LiteralContext, LiteralLoc, Loc, NumericLoc};
+use anyhow::Result;
+use std::path::Path;
+use vox_code_audit::rules::Language;
+use vox_compiler::lexer::cursor::lex;
+use vox_compiler::lexer::token::Token;
 
 pub struct VoxExtractor;
 
@@ -43,7 +43,11 @@ impl LanguageExtractor for VoxExtractor {
 }
 
 fn byte_offset_to_line(src: &str, offset: usize) -> usize {
-    src[..offset.min(src.len())].bytes().filter(|&b| b == b'\n').count() + 1
+    src[..offset.min(src.len())]
+        .bytes()
+        .filter(|&b| b == b'\n')
+        .count()
+        + 1
 }
 
 #[cfg(test)]

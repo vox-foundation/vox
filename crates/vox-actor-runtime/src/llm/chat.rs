@@ -3,12 +3,12 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use crate::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL;
-use crate::{ActivityOptions, ActivityResult, execute_activity};
 use super::types::{ChatMessage, LlmConfig, LlmResponse};
 use super::wire::{
     OpenRouterRequest, OpenRouterResponse, chat_requires_nonempty_api_key, resolve_chat_api_key,
 };
+use crate::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL;
+use crate::{ActivityOptions, ActivityResult, execute_activity};
 
 type LlmChatActivityFuture =
     Pin<Box<dyn Future<Output = Result<Result<LlmResponse, String>, String>> + Send>>;

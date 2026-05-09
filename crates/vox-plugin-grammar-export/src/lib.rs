@@ -12,20 +12,16 @@
 //! use vox_plugin_grammar_export::{export, GrammarExportConfig, GrammarFormat};
 //! ```
 
-use abi_stable::{
-    export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn, std_types::*,
-};
-use vox_plugin_api::abi::{
-    VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef,
-};
-use vox_plugin_api::host::VoxHost_TO;
+use abi_stable::{export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn, std_types::*};
 use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
+use vox_plugin_api::abi::{VoxPlugin, VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
+use vox_plugin_api::host::VoxHost_TO;
 
 // Re-export the full public surface of the grammar-export library so that
 // callers loading this plugin can reach it without a separate direct dep.
 pub use vox_grammar_export::{
-    export, grammar_version_matches_compiler, GrammarExportConfig, GrammarExportResult,
-    GrammarFormat,
+    GrammarExportConfig, GrammarExportResult, GrammarFormat, export,
+    grammar_version_matches_compiler,
 };
 
 #[export_root_module]

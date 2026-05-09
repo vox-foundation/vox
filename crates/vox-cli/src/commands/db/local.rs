@@ -1,9 +1,9 @@
 //! Local VoxDB inspection, maintenance, and preferences.
 
-use vox_bounded_fs::read_utf8_path_capped_async;
 use crate::commands::db_retention;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use vox_bounded_fs::read_utf8_path_capped_async;
 
 /// Print current VoxDB schema version and connection path.
 pub async fn status() -> Result<()> {

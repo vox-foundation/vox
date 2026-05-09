@@ -6,9 +6,9 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-use vox_orchestrator::AgentId;
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
+use vox_orchestrator::AgentId;
 
 const REM_AFFINITY_CLAIM: &str = "Release the path, pick another file, or negotiate transfer with the owning agent via affinity tools.";
 const REM_AFFINITY_TRANSFER: &str =

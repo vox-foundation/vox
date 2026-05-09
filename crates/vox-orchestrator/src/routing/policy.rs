@@ -239,7 +239,8 @@ impl RoutingPolicy {
             serde_yaml::from_str(YAML).expect("parse embedded model-routing.v1.yaml");
         let mut exploration = parsed.exploration;
         if let Some(eps) =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingExplorationEpsilon).expose()
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingExplorationEpsilon)
+                .expose()
         {
             if let Ok(v) = eps.parse::<f64>() {
                 if (0.0..=1.0).contains(&v) {
@@ -248,7 +249,8 @@ impl RoutingPolicy {
             }
         }
         let provider_allowlist = parse_csv_lower(
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingProviderAllowlist).expose(),
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingProviderAllowlist)
+                .expose(),
         );
         let provider_denylist = parse_csv_lower(
             vox_secrets::resolve_secret(vox_secrets::SecretId::VoxRoutingProviderDenylist).expose(),

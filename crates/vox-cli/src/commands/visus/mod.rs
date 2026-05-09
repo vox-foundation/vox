@@ -76,15 +76,19 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                 .map_err(|e| miette::miette!("Failed to connect to VoxDb: {}", e))?;
 
             let target_owned = target.clone();
-            let (page_id, ss_bytes, tree_bytes) =
-                tokio::task::spawn_blocking(move || -> anyhow::Result<(String, Vec<u8>, Vec<u8>)> {
+            let (page_id, ss_bytes, tree_bytes) = tokio::task::spawn_blocking(
+                move || -> anyhow::Result<(String, Vec<u8>, Vec<u8>)> {
                     let plugin = vox_plugin_host::cached_code_plugin("browser")
                         .map_err(|e| anyhow::anyhow!("browser plugin: {e}"))?;
                     let backend = plugin
                         .plugin
                         .as_browser_automation()
                         .into_option()
-                        .ok_or_else(|| anyhow::anyhow!("browser plugin loaded but BrowserAutomation accessor returned None"))?;
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "browser plugin loaded but BrowserAutomation accessor returned None"
+                            )
+                        })?;
                     let page_id = backend
                         .open(target_owned.as_str().into(), true)
                         .into_result()
@@ -103,10 +107,11 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                         .into_string();
                     let tree_bytes = tree_str.into_bytes();
                     Ok((page_id, ss_bytes, tree_bytes))
-                })
-                .await
-                .map_err(|e| miette::miette!("spawn_blocking: {e}"))?
-                .map_err(|e| miette::miette!("browser ops: {e}"))?;
+                },
+            )
+            .await
+            .map_err(|e| miette::miette!("spawn_blocking: {e}"))?
+            .map_err(|e| miette::miette!("browser ops: {e}"))?;
 
             // 2. Local Persistence (Optional Files)
             if let Some(path) = screenshot {
@@ -286,15 +291,17 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                     .map_err(|e| miette::miette!("Failed to connect to VoxDb: {}", e))?;
 
                 let target_owned = target.clone();
-                let (page_id, ss_bytes, tree_bytes) =
-                    tokio::task::spawn_blocking(move || -> anyhow::Result<(String, Vec<u8>, Vec<u8>)> {
+                let (page_id, ss_bytes, tree_bytes) = tokio::task::spawn_blocking(
+                    move || -> anyhow::Result<(String, Vec<u8>, Vec<u8>)> {
                         let plugin = vox_plugin_host::cached_code_plugin("browser")
                             .map_err(|e| anyhow::anyhow!("browser plugin: {e}"))?;
                         let backend = plugin
                             .plugin
                             .as_browser_automation()
                             .into_option()
-                            .ok_or_else(|| anyhow::anyhow!("BrowserAutomation accessor returned None"))?;
+                            .ok_or_else(|| {
+                                anyhow::anyhow!("BrowserAutomation accessor returned None")
+                            })?;
                         let page_id = backend
                             .open(target_owned.as_str().into(), true)
                             .into_result()
@@ -313,10 +320,11 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                             .into_string();
                         let tree_bytes = tree_str.into_bytes();
                         Ok((page_id, ss_bytes, tree_bytes))
-                    })
-                    .await
-                    .map_err(|e| miette::miette!("spawn_blocking: {e}"))?
-                    .map_err(|e| miette::miette!("browser ops: {e}"))?;
+                    },
+                )
+                .await
+                .map_err(|e| miette::miette!("spawn_blocking: {e}"))?
+                .map_err(|e| miette::miette!("browser ops: {e}"))?;
 
                 let ss_hash = db
                     .store("visus_screenshot", &ss_bytes)
@@ -350,7 +358,9 @@ pub async fn dispatch(cmd: VisusCmd) -> miette::Result<()> {
                         .plugin
                         .as_browser_automation()
                         .into_option()
-                        .ok_or_else(|| anyhow::anyhow!("BrowserAutomation accessor returned None"))?;
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("BrowserAutomation accessor returned None")
+                        })?;
                     backend
                         .close(page_id_for_close.as_str().into())
                         .into_result()

@@ -82,7 +82,9 @@ pub async fn run(args: ShareArgs) -> Result<()> {
         }
     } else {
         if args.dev {
-            anyhow::bail!("`--dev` requires a FILE argument — pass the .vox file to develop: vox share --dev app.vox");
+            anyhow::bail!(
+                "`--dev` requires a FILE argument — pass the .vox file to develop: vox share --dev app.vox"
+            );
         }
         // No file given: assume the app is already running on --port (pre-S8 behavior).
         // TODO: resolve `target/` paths relative to workspace root, not cwd

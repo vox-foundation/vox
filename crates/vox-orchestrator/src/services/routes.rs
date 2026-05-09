@@ -6,7 +6,7 @@
 
 use axum::Router;
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Build the orchestrator HTTP router.
 ///

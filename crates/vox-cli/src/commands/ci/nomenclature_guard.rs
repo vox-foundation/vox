@@ -37,17 +37,17 @@ const LATIN_STRUCTURAL_DENYLIST: &[(&str, &str)] = &[
 /// These historical crates ARE allowed despite using Latin names (grandfathered).
 /// Do not add new entries here without a policy proposal.
 const HISTORICAL_ALLOWLIST: &[&str] = &[
-    "vox-dei",          // grandfathered; migration complete 2026-05-08
-    "vox-openclaw-runtime",  // grandfathered — ARS runtime extracted from vox-skills::ars_shim; canonical replacement for retired vox-ars
-    "vox-secrets",       // canonical secret manager — name IS its Latin identity (policy exception)
+    "vox-dei",              // grandfathered; migration complete 2026-05-08
+    "vox-openclaw-runtime", // grandfathered — ARS runtime extracted from vox-skills::ars_shim; canonical replacement for retired vox-ars
+    "vox-secrets", // canonical secret manager — name IS its Latin identity (policy exception)
     "vox-orchestrator", // canonical English — permitted
-    "vox-skills",       // canonical English — permitted
-    "vox-gamify",        // grandfathered — being migrated to vox-gamification
-    "vox-oratio",       // grandfathered — being migrated to vox-speech
-    "vox-populi",       // grandfathered — being migrated to vox-ml
-    "vox-schola",       // grandfathered — being migrated to vox-tutorial
-    "vox-codex-api",    // grandfathered — database abstraction layer
-    "vox-ml-cli",         // grandfathered — ML subsystem
+    "vox-skills",  // canonical English — permitted
+    "vox-gamify",  // grandfathered — being migrated to vox-gamification
+    "vox-oratio",  // grandfathered — being migrated to vox-speech
+    "vox-populi",  // grandfathered — being migrated to vox-ml
+    "vox-schola",  // grandfathered — being migrated to vox-tutorial
+    "vox-codex-api", // grandfathered — database abstraction layer
+    "vox-ml-cli",  // grandfathered — ML subsystem
 ];
 
 #[derive(Serialize)]

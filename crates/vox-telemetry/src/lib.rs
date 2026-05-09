@@ -35,24 +35,25 @@ pub use no_op::NoOpRecorder;
 pub use recorder::{CompositeRecorder, TelemetryRecorder, global_recorder, set_global_recorder};
 pub use span::{TRACE_CTX, TraceContext, current_trace_ctx};
 pub use types::{
-    // error
-    TelemetryError,
-    // size limits
-    RESEARCH_METRICS_METADATA_JSON_MAX_BYTES,
-    RESEARCH_METRICS_METRIC_TYPE_MAX_CHARS,
-    RESEARCH_METRICS_SESSION_ID_MAX_CHARS,
+    // event types
+    BuildSummaryEvent,
+    ErrorEvent,
     // existing metric types
     METRIC_TYPE_AGENT_EXEC_TIME,
     METRIC_TYPE_BANDIT_UPDATE,
     METRIC_TYPE_BENCHMARK_EVENT,
     METRIC_TYPE_BUDGET_DECISION,
+    // new metric types (Phase B–D emit sites)
+    METRIC_TYPE_BUILD_SUMMARY_EVENT,
     METRIC_TYPE_CACHE_HIT_PREDICTION,
     METRIC_TYPE_CALIBRATION_RUN,
     METRIC_TYPE_CHAIN_DEPTH_ALERT,
     METRIC_TYPE_CIRCUIT_BREAKER_TRIP,
     METRIC_TYPE_DRIFT_ALERT,
+    METRIC_TYPE_ERROR_EVENT,
     METRIC_TYPE_HITL_INTERRUPT,
     METRIC_TYPE_MEMORY_HYBRID_FUSION,
+    METRIC_TYPE_MODEL_CALL_EVENT,
     METRIC_TYPE_MODEL_ROUTE_EVENT,
     METRIC_TYPE_MODEL_TIER_ROUTE,
     METRIC_TYPE_PLAN_MODE_DECISION,
@@ -64,26 +65,25 @@ pub use types::{
     METRIC_TYPE_SOCRATES_SURFACE,
     METRIC_TYPE_SUBAGENT_DISPATCH,
     METRIC_TYPE_SYNTAX_K_EVENT,
-    METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY,
-    // new metric types (Phase B–D emit sites)
-    METRIC_TYPE_BUILD_SUMMARY_EVENT,
-    METRIC_TYPE_ERROR_EVENT,
-    METRIC_TYPE_MODEL_CALL_EVENT,
     METRIC_TYPE_TASK_ROOT_SUMMARY,
+    METRIC_TYPE_WORKFLOW_JOURNAL_ENTRY,
+    ModelCallEvent,
+    // size limits
+    RESEARCH_METRICS_METADATA_JSON_MAX_BYTES,
+    RESEARCH_METRICS_METRIC_TYPE_MAX_CHARS,
+    RESEARCH_METRICS_SESSION_ID_MAX_CHARS,
+    ResearchMetricEvent,
     // session prefixes
     SESSION_ID_MEMORY_HYBRID_FUSION,
     SESSION_PREFIX_BENCH,
-    SESSION_PREFIX_MENS,
     SESSION_PREFIX_MCP,
+    SESSION_PREFIX_MENS,
     SESSION_PREFIX_ROUTE,
     SESSION_PREFIX_SYNTAXK,
     SESSION_PREFIX_WORKFLOW,
-    // event types
-    BuildSummaryEvent,
-    ErrorEvent,
-    ModelCallEvent,
-    ResearchMetricEvent,
     TaskRootSummaryEvent,
+    // error
+    TelemetryError,
     TelemetryEvent,
     // write helpers
     TelemetryWriteOptions,

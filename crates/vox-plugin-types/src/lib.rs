@@ -12,10 +12,8 @@ pub mod skill_manifest;
 pub mod state_backend;
 
 pub use plugin_manifest::{
-    CodePayload, CompositePayload, HostRequirement, NativeLib, PayloadProvides,
-    PayloadRequires, PluginHeader, PluginManifest, PluginPayload, SkillPayload, SkillTools,
+    CodePayload, CompositePayload, HostRequirement, NativeLib, PayloadProvides, PayloadRequires,
+    PluginHeader, PluginManifest, PluginPayload, SkillPayload, SkillTools,
 };
 pub use skill_manifest::{SkillCategory, SkillManifest, SkillPermission};
-pub use state_backend::{
-    PluginStateBackend, PluginStateError, PluginStateSkillEntry,
-};
+pub use state_backend::{PluginStateBackend, PluginStateError, PluginStateSkillEntry};

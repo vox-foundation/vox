@@ -182,7 +182,10 @@ pub fn render_fn_stub(name: &str, params: Option<&str>, returns: Option<&str>) -
             "'{name}' is not a valid Vox identifier (alphanumeric + underscore, not starting with a digit)"
         );
     }
-    let params_str = params.map(str::trim).filter(|s| !s.is_empty()).unwrap_or("");
+    let params_str = params
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("");
     let returns_str = returns
         .map(str::trim)
         .filter(|s| !s.is_empty())
@@ -242,8 +245,7 @@ pub fn append_fn_stub(
     let stub = render_fn_stub(name, params, returns)?;
 
     let existing = if target.exists() {
-        std::fs::read_to_string(target)
-            .with_context(|| format!("read {}", target.display()))?
+        std::fs::read_to_string(target).with_context(|| format!("read {}", target.display()))?
     } else {
         String::new()
     };
@@ -269,8 +271,7 @@ pub fn append_fn_stub(
     } else {
         format!("{existing}\n{stub}")
     };
-    std::fs::write(target, &combined)
-        .with_context(|| format!("write {}", target.display()))?;
+    std::fs::write(target, &combined).with_context(|| format!("write {}", target.display()))?;
     Ok(stub.len())
 }
 
@@ -454,7 +455,10 @@ mod tests {
     fn fn_stub_with_params_emits_underscore_per_arg() {
         let s = render_fn_stub("add", Some("a: int, b: int"), Some("int")).unwrap();
         assert!(s.contains("let result = add(_, _)"), "two underscores: {s}");
-        assert!(s.contains("fn add(a: int, b: int) to int {"), "param echo: {s}");
+        assert!(
+            s.contains("fn add(a: int, b: int) to int {"),
+            "param echo: {s}"
+        );
     }
 
     #[test]
@@ -470,7 +474,10 @@ mod tests {
     #[test]
     fn fn_stub_test_block_uses_assert_is() {
         let s = render_fn_stub("foo", None, None).unwrap();
-        assert!(s.contains("assert(result is _expected)"), "canonical assert: {s}");
+        assert!(
+            s.contains("assert(result is _expected)"),
+            "canonical assert: {s}"
+        );
     }
 
     #[test]
@@ -511,7 +518,10 @@ mod tests {
         std::fs::write(&p, "fn other() to Unit {}").unwrap();
         append_fn_stub(&p, "added", None, None, false).unwrap();
         let body = std::fs::read_to_string(&p).unwrap();
-        assert!(body.contains("fn other() to Unit {}\n"), "newline inserted: {body:?}");
+        assert!(
+            body.contains("fn other() to Unit {}\n"),
+            "newline inserted: {body:?}"
+        );
     }
 
     #[test]
@@ -519,6 +529,9 @@ mod tests {
         // `fn add` should not match `fn adder`
         assert!(!file_defines_fn("fn adder() to int { return 0 }", "add"));
         assert!(file_defines_fn("fn add() to int { return 0 }", "add"));
-        assert!(file_defines_fn("    fn add(x: int) to int { return x }", "add"));
+        assert!(file_defines_fn(
+            "    fn add(x: int) to int { return x }",
+            "add"
+        ));
     }
 }

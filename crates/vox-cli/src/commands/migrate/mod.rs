@@ -118,7 +118,11 @@ fn run_names(args: NamesArgs) -> Result<()> {
             }
             println!(
                 "{}: {}",
-                if args.dry_run { "would update" } else { "updated" },
+                if args.dry_run {
+                    "would update"
+                } else {
+                    "updated"
+                },
                 path.display()
             );
         }
@@ -126,7 +130,11 @@ fn run_names(args: NamesArgs) -> Result<()> {
     println!(
         "{} file(s) {}",
         total,
-        if args.dry_run { "would be updated" } else { "updated" }
+        if args.dry_run {
+            "would be updated"
+        } else {
+            "updated"
+        }
     );
     Ok(())
 }
@@ -185,10 +193,7 @@ fn walk_for_names(dir: &std::path::Path, out: &mut Vec<PathBuf>) -> std::io::Res
 /// (unlike the standard `lex()` which strips them).
 ///
 /// Exposed as `pub` for testing from the integration suite.
-pub fn rewrite(
-    source: &str,
-    registry: &vox_compiler::parser::renames::RenameRegistry,
-) -> String {
+pub fn rewrite(source: &str, registry: &vox_compiler::parser::renames::RenameRegistry) -> String {
     use vox_compiler::lexer::lex_preserving;
     use vox_compiler::lexer::token::Token;
 
@@ -222,7 +227,10 @@ pub fn rewrite(
                     // Kwarg/Decorator/EnumValue/Type renames need AST-aware rewriting
                     // (kwargs need argument-position context; types need type-position
                     // context). Future phases lift this restriction.
-                    if matches!(entry.kind, vox_compiler::parser::renames::RenameKind::Primitive) {
+                    if matches!(
+                        entry.kind,
+                        vox_compiler::parser::renames::RenameKind::Primitive
+                    ) {
                         out.push_str(&entry.to);
                     } else {
                         out.push_str(name);

@@ -30,15 +30,18 @@ impl RulePackDetector {
         let mut line_rules = Vec::new();
         let mut multiline_rules = Vec::new();
         for id in ids {
-            let rule = pack
-                .rule(id)
-                .unwrap_or_else(|| panic!("RulePackDetector: rule '{id}' not found in embedded pack"));
+            let rule = pack.rule(id).unwrap_or_else(|| {
+                panic!("RulePackDetector: rule '{id}' not found in embedded pack")
+            });
             match rule.kind {
                 MatchKind::MultilineRegex => multiline_rules.push(rule),
                 _ => line_rules.push(rule),
             }
         }
-        Self { line_rules, multiline_rules }
+        Self {
+            line_rules,
+            multiline_rules,
+        }
     }
 
     /// Run all rules against `file`, filtering by language.
@@ -141,7 +144,10 @@ mod tests {
     fn language_filter_skips_wrong_lang() {
         // deprecated-usage only applies to Vox — should not fire on a .rs file.
         let d = RulePackDetector::for_ids(&["deprecated-usage"]);
-        let f = SourceFile::new(PathBuf::from("test.rs"), "@deprecated\nfn old() {}".to_string());
+        let f = SourceFile::new(
+            PathBuf::from("test.rs"),
+            "@deprecated\nfn old() {}".to_string(),
+        );
         assert!(d.detect_file(&f).is_empty());
     }
 }

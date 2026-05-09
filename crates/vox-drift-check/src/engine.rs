@@ -1,12 +1,12 @@
-use std::path::{Path, PathBuf};
+use crate::cache::FeatureCache;
+use crate::extractor::LanguageExtractor;
+use crate::extractors::{rust::RustExtractor, typescript::TypeScriptExtractor, vox::VoxExtractor};
+use crate::features::ExtractedFeatures;
 use anyhow::Result;
 use rayon::prelude::*;
-use walkdir::WalkDir;
+use std::path::{Path, PathBuf};
 use vox_code_audit::rules::Language;
-use crate::cache::FeatureCache;
-use crate::extractors::{rust::RustExtractor, typescript::TypeScriptExtractor, vox::VoxExtractor};
-use crate::extractor::LanguageExtractor;
-use crate::features::ExtractedFeatures;
+use walkdir::WalkDir;
 
 pub struct WorkspaceFeatures {
     pub files: Vec<ExtractedFeatures>,
@@ -19,7 +19,9 @@ pub struct DriftEngine {
 
 impl DriftEngine {
     pub fn new(root: &Path) -> Self {
-        Self { root: root.to_path_buf() }
+        Self {
+            root: root.to_path_buf(),
+        }
     }
 
     pub fn extract_workspace(&self) -> Result<WorkspaceFeatures> {
@@ -47,11 +49,14 @@ impl DriftEngine {
             .collect();
 
         let workspace_version = read_workspace_version(&self.root);
-        Ok(WorkspaceFeatures { files, workspace_version })
+        Ok(WorkspaceFeatures {
+            files,
+            workspace_version,
+        })
     }
 
     pub fn run_all(&self) -> Result<Vec<vox_code_audit::rules::Finding>> {
-        use crate::rules::{all_drift_rules, WorkspaceContext};
+        use crate::rules::{WorkspaceContext, all_drift_rules};
         use crate::sweep::all_sweep_rules;
 
         let ws = self.extract_workspace()?;
@@ -130,21 +135,32 @@ fn read_workspace_version(root: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
     use std::fs;
+    use tempfile::TempDir;
 
     #[test]
     fn engine_finds_rust_files_and_extracts() {
         let dir = TempDir::new().unwrap();
-        fs::write(dir.path().join("foo.rs"), r#"fn foo() { let x = "hello"; }"#).unwrap();
+        fs::write(
+            dir.path().join("foo.rs"),
+            r#"fn foo() { let x = "hello"; }"#,
+        )
+        .unwrap();
         fs::write(dir.path().join("bar.ts"), r#"const x = "world";"#).unwrap();
 
         let eng = DriftEngine::new(dir.path());
         let ws = eng.extract_workspace().unwrap();
-        let rust_files: Vec<_> = ws.files.iter()
+        let rust_files: Vec<_> = ws
+            .files
+            .iter()
             .filter(|f| f.file.extension().map_or(false, |e| e == "rs"))
             .collect();
         assert!(!rust_files.is_empty());
-        assert!(rust_files[0].string_literals.iter().any(|l| l.value == "hello"));
+        assert!(
+            rust_files[0]
+                .string_literals
+                .iter()
+                .any(|l| l.value == "hello")
+        );
     }
 }

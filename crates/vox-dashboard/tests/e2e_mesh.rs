@@ -4,9 +4,9 @@
 //! and asserts the shape / HTTP contract of every route.
 
 use axum::{
+    Router,
     body::Body,
     http::{Request, StatusCode},
-    Router,
 };
 use serde_json::Value;
 use tower::ServiceExt;
@@ -107,10 +107,7 @@ async fn mesh_nodes_each_have_required_fields() {
             node["uptime_ms"].is_number(),
             "uptime_ms must be numeric: {node}"
         );
-        assert!(
-            node["tokens"].is_number(),
-            "tokens must be numeric: {node}"
-        );
+        assert!(node["tokens"].is_number(), "tokens must be numeric: {node}");
     }
 }
 
@@ -118,12 +115,15 @@ async fn mesh_nodes_each_have_required_fields() {
 async fn mesh_nodes_contains_both_orchestrators() {
     let (_, body) = get_json("/api/v2/mesh/nodes").await;
     let nodes = body["data"].as_array().unwrap();
-    let ids: Vec<&str> = nodes
-        .iter()
-        .map(|n| n["id"].as_str().unwrap())
-        .collect();
-    assert!(ids.contains(&"orchestrator-7c2a"), "orchestrator-7c2a must be present");
-    assert!(ids.contains(&"orchestrator-3f1b"), "orchestrator-3f1b must be present");
+    let ids: Vec<&str> = nodes.iter().map(|n| n["id"].as_str().unwrap()).collect();
+    assert!(
+        ids.contains(&"orchestrator-7c2a"),
+        "orchestrator-7c2a must be present"
+    );
+    assert!(
+        ids.contains(&"orchestrator-3f1b"),
+        "orchestrator-3f1b must be present"
+    );
 }
 
 // ── GET /api/v2/mesh/edges ────────────────────────────────────────────────────
@@ -158,10 +158,13 @@ async fn mesh_edges_delegation_edge_present() {
     let (_, body) = get_json("/api/v2/mesh/edges").await;
     let edges = body["data"].as_array().unwrap();
     let delegation = edges.iter().find(|e| e["kind"] == "delegation");
-    assert!(delegation.is_some(), "must have at least one delegation edge");
+    assert!(
+        delegation.is_some(),
+        "must have at least one delegation edge"
+    );
     let d = delegation.unwrap();
     assert_eq!(d["from"], "orchestrator-7c2a");
-    assert_eq!(d["to"],   "orchestrator-3f1b");
+    assert_eq!(d["to"], "orchestrator-3f1b");
 }
 
 // ── POST /api/v2/mesh/nodes/{id}/kill|pause|replay ───────────────────────────
@@ -171,7 +174,7 @@ async fn mesh_node_kill_returns_ack() {
     let (status, body) = post_json("/api/v2/mesh/nodes/lex-2/kill").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["v"], 1);
-    assert_eq!(body["data"]["id"],     "lex-2");
+    assert_eq!(body["data"]["id"], "lex-2");
     assert_eq!(body["data"]["action"], "kill");
 }
 
@@ -179,7 +182,7 @@ async fn mesh_node_kill_returns_ack() {
 async fn mesh_node_pause_returns_ack() {
     let (status, body) = post_json("/api/v2/mesh/nodes/parse-1/pause").await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["data"]["id"],     "parse-1");
+    assert_eq!(body["data"]["id"], "parse-1");
     assert_eq!(body["data"]["action"], "pause");
 }
 
@@ -187,6 +190,6 @@ async fn mesh_node_pause_returns_ack() {
 async fn mesh_node_replay_returns_ack() {
     let (status, body) = post_json("/api/v2/mesh/nodes/hir-3/replay").await;
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["data"]["id"],     "hir-3");
+    assert_eq!(body["data"]["id"], "hir-3");
     assert_eq!(body["data"]["action"], "replay");
 }

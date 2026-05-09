@@ -199,7 +199,9 @@ pub fn call_builtin_method(
                     _ => return Some(VoxValue::Option(None)),
                 };
                 match s.chars().nth(idx) {
-                    Some(c) => Some(VoxValue::Option(Some(Box::new(VoxValue::Str(c.to_string()))))),
+                    Some(c) => Some(VoxValue::Option(Some(Box::new(VoxValue::Str(
+                        c.to_string(),
+                    ))))),
                     None => Some(VoxValue::Option(None)),
                 }
             }

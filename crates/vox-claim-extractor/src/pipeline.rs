@@ -158,10 +158,7 @@ mod tests {
     async fn pipeline_abstains_on_hedge() {
         let pipeline = ExtractionPipeline::new(ExtractionConfig::default());
         let result = pipeline
-            .extract(
-                "Future work may potentially explore improvements.",
-                &[],
-            )
+            .extract("Future work may potentially explore improvements.", &[])
             .await
             .unwrap();
         assert!(result.promotable_claim_ids.is_empty());

@@ -68,7 +68,11 @@ impl DetectionRule for PureFnImpureDetector {
         Good:  @pure fn compute(x: Int) -> Int { x * 2 }"
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if file.language != Language::Vox {
             return vec![];
         }
@@ -113,8 +117,13 @@ impl DetectionRule for PureFnImpureDetector {
                 }
 
                 // Stop if we hit another top-level fn or @pure fn (new scope)
-                let at_col0 = !body_line.starts_with(' ') && !body_line.starts_with('\t') && !body_line.is_empty();
-                if at_col0 && j > 0 && (body_trimmed.starts_with("fn ") || body_trimmed.starts_with("@")) {
+                let at_col0 = !body_line.starts_with(' ')
+                    && !body_line.starts_with('\t')
+                    && !body_line.is_empty();
+                if at_col0
+                    && j > 0
+                    && (body_trimmed.starts_with("fn ") || body_trimmed.starts_with("@"))
+                {
                     break;
                 }
 
@@ -175,7 +184,10 @@ mod tests {
         let code = "@pure fn compute(id: Int) -> Str {\n    http.get(\"/data/\" + id)\n}";
         let f = vox_source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag @pure fn that calls http.get");
+        assert!(
+            !findings.is_empty(),
+            "should flag @pure fn that calls http.get"
+        );
         assert!(findings[0].message.contains("@pure fn"));
     }
 
@@ -197,7 +209,10 @@ mod tests {
         let code = "@pure fn rand_val() -> Int {\n    random.int(0, 10)\n}";
         let f = vox_source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag @pure fn calling random.int");
+        assert!(
+            !findings.is_empty(),
+            "should flag @pure fn calling random.int"
+        );
         assert!(findings[0].message.contains("random"));
     }
 
@@ -207,7 +222,10 @@ mod tests {
         let code = "@pure fn greet(name: Str) -> Str {\n    log.info(\"greeting: \" + name);\n    return \"Hello, \" + name;\n}";
         let f = vox_source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag @pure fn calling log.info");
+        assert!(
+            !findings.is_empty(),
+            "should flag @pure fn calling log.info"
+        );
     }
 
     #[test]

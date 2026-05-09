@@ -68,7 +68,11 @@ impl DetectionRule for TrainingEligibleDetector {
         "A file marked `training_eligible: true` imports from a path that appears to be archived, deprecated, or legacy, which is likely ineligible for corpus inclusion."
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if !matches!(
             file.language,
             Language::Rust | Language::Vox | Language::TypeScript
@@ -168,7 +172,10 @@ mod tests {
         let code = "// training_eligible: true\nuse crate::archive::old_stuff;";
         let f = source_rs(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag archive import in eligible file");
+        assert!(
+            !findings.is_empty(),
+            "should flag archive import in eligible file"
+        );
         assert!(findings[0].message.contains("archive"));
     }
 
@@ -178,7 +185,10 @@ mod tests {
         let code = "use crate::archive::old_stuff;";
         let f = source_rs(code);
         let findings = d.detect(&f, None);
-        assert!(findings.is_empty(), "no training_eligible marker means skip");
+        assert!(
+            findings.is_empty(),
+            "no training_eligible marker means skip"
+        );
     }
 
     #[test]
@@ -187,7 +197,10 @@ mod tests {
         let code = "// training_eligible: false\nuse crate::archive::old_stuff;";
         let f = source_rs(code);
         let findings = d.detect(&f, None);
-        assert!(findings.is_empty(), "training_eligible: false file should be skipped");
+        assert!(
+            findings.is_empty(),
+            "training_eligible: false file should be skipped"
+        );
     }
 
     #[test]
@@ -196,7 +209,10 @@ mod tests {
         let code = "// training_eligible: true\nuse crate::utils::deprecated::helper;";
         let f = source_rs(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag deprecated import in eligible file");
+        assert!(
+            !findings.is_empty(),
+            "should flag deprecated import in eligible file"
+        );
     }
 
     #[test]
@@ -205,7 +221,10 @@ mod tests {
         let code = "# training_eligible: true\nuse core/legacy/old_module";
         let f = source_vox(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should flag legacy import in eligible vox file");
+        assert!(
+            !findings.is_empty(),
+            "should flag legacy import in eligible vox file"
+        );
     }
 
     #[test]

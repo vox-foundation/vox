@@ -3,7 +3,6 @@
 //! Precedence: CLI args > env > config file > defaults.
 
 pub mod bootstrap_inference;
-pub mod secrets;
 pub mod config;
 pub mod env_parse;
 pub mod inference;
@@ -14,13 +13,13 @@ pub mod rollout;
 pub mod routing_migration;
 pub mod routing_policy;
 pub mod scholarly;
+pub mod secrets;
 pub mod toml_config;
 
 pub use bootstrap_inference::{
     NLI_FALLBACK, OPENROUTER_AUTO, OPENROUTER_FREE, RESEARCH_FLASH_FALLBACK,
     REVIEW_PREMIUM_FALLBACK,
 };
-pub use secrets::secrets_str;
 pub use config::{BuildTarget, GamifyMode, VoxConfig, WebRunMode};
 pub use inference::{
     InferenceProfile, LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT, OPENAI_CHAT_COMPLETIONS_URL,
@@ -55,6 +54,7 @@ pub use routing_policy::{
     OpenRouterRouteHint, RouteCostPreference, derive_openrouter_route_hint,
     gemini_route_targets_from_env, resolve_openrouter_model,
 };
+pub use secrets::secrets_str;
 
 /// Minimum Vox MCP server version required for full agent capability.
 pub const VOX_MCP_MIN_VERSION: &str = ">=0.2.0";
@@ -108,6 +108,8 @@ mod tests {
         assert!(!routing_migration::secrets_cutover_blocks_legacy_env_raw(
             "shadow"
         ));
-        assert!(!routing_migration::secrets_cutover_blocks_legacy_env_raw(""));
+        assert!(!routing_migration::secrets_cutover_blocks_legacy_env_raw(
+            ""
+        ));
     }
 }

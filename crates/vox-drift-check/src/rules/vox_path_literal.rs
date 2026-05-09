@@ -1,21 +1,31 @@
-use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 use crate::features::{ExtractedFeatures, LiteralContext};
 use crate::rules::{DriftRule, WorkspaceContext};
+use vox_code_audit::rules::{Finding, FindingConfidence, Language, Severity};
 
 pub struct VoxPathLiteralRule;
 
 const ALLOWED_CRATES: &[&str] = &["vox-config", "vox-db"];
 
 impl DriftRule for VoxPathLiteralRule {
-    fn id(&self) -> &'static str { "drift/vox-path-literal" }
-    fn severity(&self) -> Severity { Severity::Warning }
-    fn languages(&self) -> &[Language] { &[Language::Rust, Language::Vox] }
+    fn id(&self) -> &'static str {
+        "drift/vox-path-literal"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Warning
+    }
+    fn languages(&self) -> &[Language] {
+        &[Language::Rust, Language::Vox]
+    }
 
     fn check(&self, features: &ExtractedFeatures, _ctx: &WorkspaceContext) -> Vec<Finding> {
         let crate_name = features.crate_name.as_deref().unwrap_or("");
-        if ALLOWED_CRATES.contains(&crate_name) { return vec![]; }
+        if ALLOWED_CRATES.contains(&crate_name) {
+            return vec![];
+        }
 
-        features.string_literals.iter()
+        features
+            .string_literals
+            .iter()
             .filter(|lit| {
                 matches!(lit.ctx, LiteralContext::Code)
                     && (lit.value.starts_with(".vox/") || lit.value.starts_with(".vox-cache"))
@@ -49,9 +59,9 @@ impl DriftRule for VoxPathLiteralRule {
 mod tests {
     use super::*;
     use crate::features::*;
-    use vox_code_audit::rules::Language;
-    use std::path::PathBuf;
     use crate::rules::WorkspaceContext;
+    use std::path::PathBuf;
+    use vox_code_audit::rules::Language;
 
     fn ctx() -> WorkspaceContext {
         WorkspaceContext {
@@ -62,10 +72,8 @@ mod tests {
 
     #[test]
     fn flags_raw_vox_path_outside_config() {
-        let mut f = ExtractedFeatures::new(
-            PathBuf::from("crates/vox-cli/src/lib.rs"),
-            Language::Rust,
-        );
+        let mut f =
+            ExtractedFeatures::new(PathBuf::from("crates/vox-cli/src/lib.rs"), Language::Rust);
         f.crate_name = Some("vox-cli".into());
         f.string_literals.push(LiteralLoc {
             value: ".vox/sessions".into(),

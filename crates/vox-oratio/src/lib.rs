@@ -89,7 +89,8 @@ pub use speech_policy::clarification_recommended;
 pub use streaming_partial::{StreamingStabilizationConfig, should_commit_partial};
 pub use tiering::{speech_cache_key, speech_escalation_recommended};
 pub use traits::{
-    TranscribeDetail, Transcript, refine_raw_text, transcribe_path, transcribe_path_detailed, transcript_status,
+    TranscribeDetail, Transcript, refine_raw_text, transcribe_path, transcribe_path_detailed,
+    transcript_status,
 };
 pub use transcript_rerank::{
     pick_best_transcript_index, pick_best_transcript_index_with_raw, rerank_candidates_best_first,

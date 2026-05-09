@@ -83,12 +83,10 @@ fn make_diag(captures: &[String], span: crate::ast::span::Span) -> Diagnostic {
         expected_type: None,
         found_type: None,
         context: None,
-        suggestions: vec![
-            format!(
-                "Add `effect depends_on ({}):` to re-run the effect when state changes.",
-                captures.join(", ")
-            ),
-        ],
+        suggestions: vec![format!(
+            "Add `effect depends_on ({}):` to re-run the effect when state changes.",
+            captures.join(", ")
+        )],
         fixes: vec![],
         line_col: None,
         missing_cases: vec![],
@@ -239,7 +237,9 @@ fn find_stale_captures_in_stmt(
         HirStmt::Assign { value, .. } => {
             find_stale_captures_in_expr(value, states, inside_lambda, out);
         }
-        HirStmt::While { condition, body, .. } => {
+        HirStmt::While {
+            condition, body, ..
+        } => {
             find_stale_captures_in_expr(condition, states, inside_lambda, out);
             for s in body {
                 find_stale_captures_in_stmt(s, states, inside_lambda, out);

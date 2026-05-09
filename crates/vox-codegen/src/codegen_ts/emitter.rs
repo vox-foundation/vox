@@ -11,8 +11,8 @@
 //! TanStack route files are still assembled here alongside [`super::routes`]; migrating printers to consume
 //! only validated [`crate::web_ir::WebIrModule`] slices is tracked in the internal Web IR blueprint.
 
-use vox_compiler::app_contract::project_app_contract;
 use crate::codegen_ts::adt::generate_types;
+use vox_compiler::app_contract::project_app_contract;
 
 use crate::codegen_ts::reactive::generate_reactive_component;
 use crate::codegen_ts::routes::generate_routes;
@@ -94,20 +94,16 @@ fn expr_has_keyless_for(e: &vox_compiler::hir::HirExpr) -> bool {
     use vox_compiler::hir::{HirExpr, HirStmt};
     match e {
         HirExpr::For(_, _, _iter, _body, key, _) => key.is_none(),
-        HirExpr::Jsx(el) => {
-            el.children.iter().any(expr_has_keyless_for)
-        }
+        HirExpr::Jsx(el) => el.children.iter().any(expr_has_keyless_for),
         HirExpr::JsxSelfClosing(_) => false,
         HirExpr::JsxFragment(children, _) => children.iter().any(expr_has_keyless_for),
-        HirExpr::Block(stmts, _) => {
-            stmts.iter().any(|s| {
-                if let HirStmt::Expr { expr, .. } = s {
-                    expr_has_keyless_for(expr)
-                } else {
-                    false
-                }
-            })
-        }
+        HirExpr::Block(stmts, _) => stmts.iter().any(|s| {
+            if let HirStmt::Expr { expr, .. } = s {
+                expr_has_keyless_for(expr)
+            } else {
+                false
+            }
+        }),
         HirExpr::If(_, then_b, else_b, _) => {
             then_b.iter().any(|s| {
                 if let HirStmt::Expr { expr, .. } = s {
@@ -137,7 +133,9 @@ fn check_route_completeness(hir: &HirModule) -> Result<(), String> {
     Ok(())
 }
 
-fn check_route_entries_completeness(entries: &[vox_compiler::ast::decl::RouteEntry]) -> Result<(), String> {
+fn check_route_entries_completeness(
+    entries: &[vox_compiler::ast::decl::RouteEntry],
+) -> Result<(), String> {
     for entry in entries {
         if entry.loader_name.is_some() {
             if entry.pending_component_name.is_none() {
@@ -237,7 +235,8 @@ pub fn generate_with_options(
         };
         // Collect all `on_submit` endpoint references so they can be imported from vox-client.
         // Without this import, tsc reports "Cannot find name 'submit_item'" etc.
-        let mut submit_imports: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        let mut submit_imports: std::collections::BTreeSet<String> =
+            std::collections::BTreeSet::new();
         for form in &hir.forms {
             if let Some(fn_name) = &form.on_submit {
                 // Only import if the name actually refers to a known endpoint function.

@@ -12,4 +12,3 @@ pub struct TimedSegment {
     /// Raw text for this segment.
     pub text: String,
 }
-

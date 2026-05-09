@@ -12,30 +12,30 @@
 //!
 //! See: docs/src/architecture/plugin-system-redesign-2026.md
 
+pub mod adapter_schema_v3;
 mod backend;
-mod checkpoint;
-pub mod inference;
-pub mod merge;
 pub mod candle_qlora_train;
+mod checkpoint;
 pub mod checkpoint_state;
 pub mod config;
 pub mod device;
+pub mod external_serving_handoff;
+pub mod finetune_contract;
 pub mod hf_keymap;
 pub mod hf_layout;
+pub mod inference;
+pub mod manifest;
+pub mod merge;
 mod model;
+pub mod model_card;
 pub mod operator_messages;
 pub mod qlora_preflight;
 pub(crate) mod qlora_weights;
-mod training;
-pub mod adapter_schema_v3;
-pub mod external_serving_handoff;
-pub mod finetune_contract;
-pub mod manifest;
-pub mod model_card;
 pub mod telemetry;
 pub mod telemetry_schema;
 pub mod train_jsonl_preflight;
 pub mod train_log;
+mod training;
 pub mod training_summary;
 pub mod training_text;
 
@@ -43,9 +43,9 @@ use abi_stable::{
     erased_types::TD_Opaque, export_root_module, prefix_type::PrefixTypeTrait, sabi_extern_fn,
     std_types::*,
 };
+use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 use vox_plugin_api::abi::{VoxPlugin_TO, VoxPluginRef, VoxPluginRoot, VoxPluginRootRef};
 use vox_plugin_api::host::VoxHost_TO;
-use vox_plugin_api::VOX_PLUGIN_ABI_VERSION;
 
 #[export_root_module]
 fn root_module() -> VoxPluginRootRef {

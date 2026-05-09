@@ -742,8 +742,7 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
                         user_id: Some(&params.session_id),
                     };
 
-                    let system_prompt =
-                        crate::chat_tools::build_system_prompt(state, None).await;
+                    let system_prompt = crate::chat_tools::build_system_prompt(state, None).await;
                     match mcp_infer_completion(
                         state,
                         model,
@@ -818,9 +817,9 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
 
             if let Some(tasks) = v.get("tasks").and_then(|t| t.as_array()) {
                 for t_val in tasks {
-                    if let Ok(node) =
-                        serde_json::from_value::<vox_orchestrator::planning::PlanNode>(t_val.clone())
-                    {
+                    if let Ok(node) = serde_json::from_value::<vox_orchestrator::planning::PlanNode>(
+                        t_val.clone(),
+                    ) {
                         let _ = db
                             .upsert_plan_node(
                                 &params.session_id,
@@ -832,11 +831,19 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
                                 match node.status {
                                     vox_orchestrator::planning::PlanStatus::Pending => "pending",
                                     vox_orchestrator::planning::PlanStatus::Queued => "queued",
-                                    vox_orchestrator::planning::PlanStatus::InProgress => "in_progress",
-                                    vox_orchestrator::planning::PlanStatus::Completed => "completed",
+                                    vox_orchestrator::planning::PlanStatus::InProgress => {
+                                        "in_progress"
+                                    }
+                                    vox_orchestrator::planning::PlanStatus::Completed => {
+                                        "completed"
+                                    }
                                     vox_orchestrator::planning::PlanStatus::Failed => "failed",
-                                    vox_orchestrator::planning::PlanStatus::Cancelled => "cancelled",
-                                    vox_orchestrator::planning::PlanStatus::Superseded => "superseded",
+                                    vox_orchestrator::planning::PlanStatus::Cancelled => {
+                                        "cancelled"
+                                    }
+                                    vox_orchestrator::planning::PlanStatus::Superseded => {
+                                        "superseded"
+                                    }
                                 },
                                 node.workflow_invocation.as_deref(),
                             )
@@ -1042,8 +1049,8 @@ pub async fn plan_resume(state: &ServerState, params: PlanResumeParams) -> Strin
 mod adequacy_enforce_tests {
     use super::plan_gap;
     use super::plan_result_blocked_by_adequacy_enforce;
-    use vox_orchestrator::OrchestratorConfig;
     use crate::chat_tools::params::{PlanDepth, PlanTask};
+    use vox_orchestrator::OrchestratorConfig;
 
     fn thin_plan_tasks() -> Vec<PlanTask> {
         vec![PlanTask {

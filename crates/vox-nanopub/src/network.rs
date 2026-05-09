@@ -1,7 +1,7 @@
 use crate::signing::SignedNanopub;
 
 pub struct NanopubNetworkConfig {
-    pub endpoint: String,  // e.g., "https://np.knowledgepixels.com/"
+    pub endpoint: String, // e.g., "https://np.knowledgepixels.com/"
 }
 
 pub struct PublishResult {
@@ -23,8 +23,8 @@ pub fn publish_stub(_signed: &SignedNanopub, _config: &NanopubNetworkConfig) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::trig::build_nanopub;
     use crate::signing::sign_nanopub;
+    use crate::trig::build_nanopub;
     use vox_crypto::facades::generate_signing_keypair;
 
     #[test]

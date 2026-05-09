@@ -22,7 +22,10 @@ pub fn run() -> Result<()> {
         } else {
             String::new()
         };
-        println!("{:<25} {:>8}  {}{}", b.id, count, b.description, extends_note);
+        println!(
+            "{:<25} {:>8}  {}{}",
+            b.id, count, b.description, extends_note
+        );
     }
     println!();
     println!("{} bundle(s) defined.", bundles.len());

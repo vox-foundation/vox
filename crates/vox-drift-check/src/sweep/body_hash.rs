@@ -1,7 +1,7 @@
+use super::SweepRule;
+use crate::features::ExtractedFeatures;
 use std::collections::HashMap;
 use vox_code_audit::rules::{Finding, FindingConfidence, Severity};
-use crate::features::ExtractedFeatures;
-use super::SweepRule;
 
 pub struct BodyHashRule {
     pub threshold: usize,
@@ -9,28 +9,44 @@ pub struct BodyHashRule {
 }
 
 impl Default for BodyHashRule {
-    fn default() -> Self { Self { threshold: 2, min_lines: 5 } }
+    fn default() -> Self {
+        Self {
+            threshold: 2,
+            min_lines: 5,
+        }
+    }
 }
 
 impl SweepRule for BodyHashRule {
-    fn id(&self) -> &'static str { "sweep/duplicate-body" }
-    fn severity(&self) -> Severity { Severity::Warning }
+    fn id(&self) -> &'static str {
+        "sweep/duplicate-body"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Warning
+    }
 
     fn sweep(&self, files: &[ExtractedFeatures]) -> Vec<Finding> {
         let mut index: HashMap<u64, Vec<(std::path::PathBuf, String, usize)>> = HashMap::new();
         for f in files {
             for def in &f.fn_definitions {
-                let sig = f.body_signatures.iter()
+                let sig = f
+                    .body_signatures
+                    .iter()
                     .find(|b| b.parent_fn.as_deref() == Some(&def.name));
                 if let Some(sig) = sig {
-                    if sig.line_count < self.min_lines { continue; }
+                    if sig.line_count < self.min_lines {
+                        continue;
+                    }
                 }
-                index.entry(def.body_hash)
-                    .or_default()
-                    .push((f.file.clone(), def.name.clone(), def.loc.line));
+                index.entry(def.body_hash).or_default().push((
+                    f.file.clone(),
+                    def.name.clone(),
+                    def.loc.line,
+                ));
             }
         }
-        index.into_iter()
+        index
+            .into_iter()
             .filter(|(_, locs)| locs.len() >= self.threshold)
             .map(|(_, locs)| {
                 let names: Vec<_> = locs.iter().map(|(_, n, _)| n.as_str()).collect();
@@ -72,10 +88,8 @@ mod tests {
     #[test]
     fn finds_duplicate_fn_bodies() {
         let make = |name: &str, hash: u64| {
-            let mut f = ExtractedFeatures::new(
-                PathBuf::from(format!("{}.rs", name)),
-                Language::Rust,
-            );
+            let mut f =
+                ExtractedFeatures::new(PathBuf::from(format!("{}.rs", name)), Language::Rust);
             f.fn_definitions.push(FnDef {
                 name: name.into(),
                 body_hash: hash,

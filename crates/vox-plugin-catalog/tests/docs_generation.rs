@@ -4,7 +4,11 @@ use vox_plugin_catalog::docs::{render_bundles_md, render_catalog_md};
 fn catalog_md_lists_every_plugin_and_includes_payload_kind() {
     let md = render_catalog_md();
     for plugin in vox_plugin_catalog::all_plugins() {
-        assert!(md.contains(&plugin.id), "catalog md missing plugin: {}", plugin.id);
+        assert!(
+            md.contains(&plugin.id),
+            "catalog md missing plugin: {}",
+            plugin.id
+        );
     }
     assert!(md.contains("payload-kind"));
     assert!(md.contains("default-source"));
@@ -14,9 +18,16 @@ fn catalog_md_lists_every_plugin_and_includes_payload_kind() {
 fn bundles_md_lists_every_bundle_and_resolved_plugin_count() {
     let md = render_bundles_md();
     for bundle in vox_plugin_catalog::all_bundles() {
-        assert!(md.contains(&bundle.id), "bundles md missing bundle: {}", bundle.id);
+        assert!(
+            md.contains(&bundle.id),
+            "bundles md missing bundle: {}",
+            bundle.id
+        );
     }
-    assert!(md.contains("plugins"), "bundles md should mention plugin counts");
+    assert!(
+        md.contains("plugins"),
+        "bundles md should mention plugin counts"
+    );
 }
 
 #[test]

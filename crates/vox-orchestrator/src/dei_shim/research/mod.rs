@@ -18,7 +18,7 @@ pub mod provider;
 pub mod types;
 pub mod verifier;
 
-pub use orchestrator::{run_research, ResearchConfig};
+pub use orchestrator::{ResearchConfig, run_research};
 pub use types::{
     Citation, CompetenceSignal, ResearchHit, ResearchMetadata, ResearchPlan, ResearchQuery,
     ResearchResult, ResearchScope, RetrievalDiagnostics, RoutingTier, SelfVerificationResult,

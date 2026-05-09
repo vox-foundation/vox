@@ -267,7 +267,10 @@ mod tests {
         let code = "[dependencies]\naws-lc-rs = { version = \"1\", features = [] }\n";
         let f = cargo_source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should detect aws-lc-rs in Cargo.toml");
+        assert!(
+            !findings.is_empty(),
+            "should detect aws-lc-rs in Cargo.toml"
+        );
     }
 
     #[test]

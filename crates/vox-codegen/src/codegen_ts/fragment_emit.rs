@@ -31,8 +31,8 @@
 //! ```
 
 use crate::codegen_ts::hir_emit::{EmitCtx, emit_hir_expr, map_hir_type_to_ts};
-use vox_compiler::hir::{HirFragmentDecl, HirModule};
 use std::collections::HashSet;
+use vox_compiler::hir::{HirFragmentDecl, HirModule};
 
 /// Filename for the generated fragment module.
 pub const FRAGMENTS_FILENAME: &str = "fragments.tsx";

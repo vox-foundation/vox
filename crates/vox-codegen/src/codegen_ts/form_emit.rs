@@ -9,8 +9,8 @@
 //! - accessible `<label>` / `<input>` pairs with ARIA error associations
 //! - a banner error `<div>` for server-side failures
 
-use vox_compiler::hir::nodes::form::{HirFieldConstraint, HirForm, HirFormField};
 use vox_compiler::hir::HirType;
+use vox_compiler::hir::nodes::form::{HirFieldConstraint, HirForm, HirFormField};
 
 /// Emit a single `@form` as a React function component string.
 pub fn emit_form(form: &HirForm) -> String {
@@ -72,7 +72,11 @@ pub fn emit_form(form: &HirForm) -> String {
     let submit_fn = form.on_submit.as_deref().unwrap_or("_noSubmit");
     // vox-client mutations accept a single `args` object with named fields matching the endpoint
     // params. Emit `{ field1, field2 }` shorthand so the call matches the generated client signature.
-    let args_obj = visible.iter().map(|f| f.name.as_str()).collect::<Vec<_>>().join(", ");
+    let args_obj = visible
+        .iter()
+        .map(|f| f.name.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
     let submit_call_args = if args_obj.is_empty() {
         "{}".to_string()
     } else {

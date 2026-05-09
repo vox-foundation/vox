@@ -26,8 +26,7 @@ async fn compiler_skill_loaded_via_plugin_bridge() {
         .expect("crates parent")
         .join("vox-plugin-skill-compiler");
     for f in ["Plugin.toml", "compiler.skill.md"] {
-        std::fs::copy(src.join(f), plugin_dir.join(f))
-            .unwrap_or_else(|e| panic!("copy {f}: {e}"));
+        std::fs::copy(src.join(f), plugin_dir.join(f)).unwrap_or_else(|e| panic!("copy {f}: {e}"));
     }
 
     // Build a fresh registry. install_builtins is a no-op and removed.

@@ -1,10 +1,10 @@
+use crate::web_ir::WebIrModule;
+use serde::{Deserialize, Serialize};
 use vox_compiler::hir::HirStateMachineDecl;
 use vox_compiler::hir::{
     HirAgent, HirEndpointFn, HirFn, HirImport, HirMcpResource, HirMcpTool, HirRoute, HirRustImport,
     HirTable, HirTypeDef, HirUrlDecl,
 };
-use crate::web_ir::WebIrModule;
-use serde::{Deserialize, Serialize};
 
 /// The General Vox IR module structure, representing a machine-verifiable
 /// and platform-agnostic view of a Vox program.

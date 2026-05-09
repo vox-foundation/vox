@@ -48,7 +48,12 @@ impl NumericComparatorVerifier {
     ///
     /// Extracts the direction keyword from the claim text, then checks whether
     /// `(measured_value - baseline_value)` has the correct sign.
-    pub fn verify(&self, claim_text: &str, measured_value: f64, baseline_value: f64) -> SymbolicVerdict {
+    pub fn verify(
+        &self,
+        claim_text: &str,
+        measured_value: f64,
+        baseline_value: f64,
+    ) -> SymbolicVerdict {
         let lower = claim_text.to_ascii_lowercase();
 
         let upward_keywords = ["increased", "rose", "risen", "grew", "higher"];
@@ -139,7 +144,11 @@ mod tests {
     use vox_research_events::preregistration::StopRule;
 
     fn stop_rule(threshold: f64) -> StopRule {
-        StopRule { max_n: 1000, alpha: None, threshold: Some(threshold) }
+        StopRule {
+            max_n: 1000,
+            alpha: None,
+            threshold: Some(threshold),
+        }
     }
 
     #[test]
@@ -216,10 +225,20 @@ mod tests {
     #[test]
     fn no_threshold_uses_default_095() {
         let rule = BayesianStoppingRule::new();
-        let no_threshold_rule = StopRule { max_n: 500, alpha: None, threshold: None };
+        let no_threshold_rule = StopRule {
+            max_n: 500,
+            alpha: None,
+            threshold: None,
+        };
         // Default threshold = 0.95; posterior 0.96 should stop-accept
-        assert_eq!(rule.should_stop(0.96, &no_threshold_rule), StopDecision::StopAccept);
+        assert_eq!(
+            rule.should_stop(0.96, &no_threshold_rule),
+            StopDecision::StopAccept
+        );
         // posterior 0.50 should continue
-        assert_eq!(rule.should_stop(0.50, &no_threshold_rule), StopDecision::Continue);
+        assert_eq!(
+            rule.should_stop(0.50, &no_threshold_rule),
+            StopDecision::Continue
+        );
     }
 }

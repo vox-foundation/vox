@@ -71,16 +71,16 @@ pub mod require_justification;
 /// Panicking builtins inside actor handlers or workflow activities.
 pub mod panicking_builtin;
 
+/// `@endpoint` fn without `@auth(...)` or `@public` in Vox files.
+pub mod auth_endpoint;
+/// Variables defined and last-used more than 80 lines apart.
+pub mod long_range_coupling;
 /// Option/Result match patterns that can use combinators (`.map`, `.unwrap_or`, etc.).
 pub mod option_combinator;
 /// `@secret`-tagged field names appearing in tracing span attributes or log calls.
 pub mod secret_span;
-/// `@endpoint` fn without `@auth(...)` or `@public` in Vox files.
-pub mod auth_endpoint;
 /// Declared states in `state_machine` blocks with no outgoing `->` transitions.
 pub mod state_machine_unreachable;
-/// Variables defined and last-used more than 80 lines apart.
-pub mod long_range_coupling;
 
 /// `str`-typed ID parameters at API boundaries (`@endpoint`, `@activity`, actor message handlers).
 pub mod id_at_boundary;
@@ -95,12 +95,12 @@ pub mod syntax_version;
 pub mod training_eligible;
 
 // Phase 2 security detectors (vox/llm/*, vox/secret/*, vox/crypto/*)
-/// Direct HTTP calls to known LLM provider hostnames, bypassing `populi.*`.
-pub mod llm_provider_call;
-/// `env.get(...)` with secret-shaped argument names (KEY, SECRET, TOKEN, …).
-pub mod env_secret_shape;
 /// Imports or dependencies referencing banned cryptography crates (aegis, ring, …).
 pub mod crypto_ban;
+/// `env.get(...)` with secret-shaped argument names (KEY, SECRET, TOKEN, …).
+pub mod env_secret_shape;
+/// Direct HTTP calls to known LLM provider hostnames, bypassing `populi.*`.
+pub mod llm_provider_call;
 
 /// Non-deterministic builtins (`time.now`, `random.*`, `uuid()`, etc.) inside a `workflow` body.
 pub mod workflow_nondeterministic;

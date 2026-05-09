@@ -1,11 +1,14 @@
 use clap::Parser;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use vox_drift_check::{engine::DriftEngine, report};
 use vox_code_audit::rules::Severity;
+use vox_drift_check::{engine::DriftEngine, report};
 
 #[derive(Parser)]
-#[command(name = "vox-drift-check", about = "Workspace-wide drift & repetition linter")]
+#[command(
+    name = "vox-drift-check",
+    about = "Workspace-wide drift & repetition linter"
+)]
 struct Cli {
     /// Workspace root (defaults to current directory)
     #[arg(default_value = ".")]
@@ -47,9 +50,9 @@ fn main() {
     };
 
     if cli.update_baseline {
-        let baseline_path = cli.baseline.unwrap_or_else(|| {
-            cli.root.join(".vox/cache/drift/baseline.json")
-        });
+        let baseline_path = cli
+            .baseline
+            .unwrap_or_else(|| cli.root.join(".vox/cache/drift/baseline.json"));
         if let Some(parent) = baseline_path.parent() {
             std::fs::create_dir_all(parent).ok();
         }
@@ -58,7 +61,11 @@ fn main() {
             eprintln!("Failed to write baseline: {}", e);
             std::process::exit(2);
         });
-        println!("Baseline updated ({} findings) → {}", findings.len(), baseline_path.display());
+        println!(
+            "Baseline updated ({} findings) → {}",
+            findings.len(),
+            baseline_path.display()
+        );
         std::process::exit(0);
     }
 

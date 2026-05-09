@@ -3,12 +3,6 @@ use std::time::Instant;
 use anyhow::Result;
 use vox_db::Codex;
 
-use super::config::ResearchConfig;
-use super::helpers::{fnv1a_hash, verifier_config_for_research_run};
-use super::stages::{
-    judge_quality, run_self_verification, synthesize_answer_with_llm, JudgeParams, SynthesisParams,
-};
-use super::web_gather::gather_web_hits_for_plan;
 use super::super::claims::extract_claims_with_model;
 use super::super::gate::{GateInput, score_with_config};
 use super::super::planner::decompose_query_with_config;
@@ -17,6 +11,12 @@ use super::super::types::{
     Citation, CompetenceSignal, ResearchHit, ResearchMetadata, ResearchPlan, ResearchQuery,
     ResearchResult, ResearchScope, RetrievalDiagnostics, RoutingTier,
 };
+use super::config::ResearchConfig;
+use super::helpers::{fnv1a_hash, verifier_config_for_research_run};
+use super::stages::{
+    JudgeParams, SynthesisParams, judge_quality, run_self_verification, synthesize_answer_with_llm,
+};
+use super::web_gather::gather_web_hits_for_plan;
 // PHASE_0a_STUB: re-import in Phase 1 when cache is re-enabled.
 use super::super::verifier::verify_claims_with_config;
 
@@ -47,10 +47,7 @@ pub async fn run_research(
 
     let registry = ProviderRegistry::from_env_with_config(config.provider.clone());
     let llm_model_registry = crate::models::ModelRegistry::new();
-    let base_inference = config
-        .model_pick_inference
-        .clone()
-        .unwrap_or_default();
+    let base_inference = config.model_pick_inference.clone().unwrap_or_default();
     let resolved_llm =
         super::super::model_select::resolve_research_models(&llm_model_registry, &base_inference);
     let research_verifier_cfg = verifier_config_for_research_run(&config.verifier, &resolved_llm);
@@ -115,15 +112,8 @@ pub async fn run_research(
     let do_web = matches!(query.scope, ResearchScope::Web | ResearchScope::Both);
 
     if do_web {
-        let (h, s, d, t) = gather_web_hits_for_plan(
-            db,
-            session_id,
-            &query,
-            &plan,
-            &registry,
-            config,
-        )
-        .await;
+        let (h, s, d, t) =
+            gather_web_hits_for_plan(db, session_id, &query, &plan, &registry, config).await;
         all_hits = h;
         subqueries_with_hits = s;
         total_dropped_count = d;
@@ -277,7 +267,9 @@ pub async fn run_research(
         && answer.len() >= 200
     {
         use std::path::Path;
-        if let Some(root_str) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWorkspaceRoot).expose() {
+        if let Some(root_str) =
+            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWorkspaceRoot).expose()
+        {
             let root = Path::new(root_str);
             let slug = super::super::persistence::slug_from_query(&query.query);
             let _ = super::super::persistence::write_research_doc(
@@ -298,23 +290,23 @@ pub async fn run_research(
     let duration_ms = start.elapsed().as_millis() as u64;
 
     // ── (l) Optional CoVE-style self-verification ─────────────────────────────
-    let self_verification = if self_verification_enabled && !answer.is_empty() && !all_hits.is_empty()
-    {
-        report_progress("Running self-verification step...".to_string(), Some(0.95));
-        Some(
-            run_self_verification(
-                &query.query,
-                &answer,
-                &all_hits,
-                config.llm_endpoint.as_deref(),
-                config.api_key.as_deref(),
-                resolved_llm.synthesis_model.as_str(),
+    let self_verification =
+        if self_verification_enabled && !answer.is_empty() && !all_hits.is_empty() {
+            report_progress("Running self-verification step...".to_string(), Some(0.95));
+            Some(
+                run_self_verification(
+                    &query.query,
+                    &answer,
+                    &all_hits,
+                    config.llm_endpoint.as_deref(),
+                    config.api_key.as_deref(),
+                    resolved_llm.synthesis_model.as_str(),
+                )
+                .await,
             )
-            .await,
-        )
-    } else {
-        None
-    };
+        } else {
+            None
+        };
 
     // ── (m) Compute CompetenceSignal ──────────────────────────────────────────
     let competence = Some(CompetenceSignal::from_verdicts(

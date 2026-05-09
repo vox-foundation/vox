@@ -8,15 +8,21 @@ use vox_plugin_api::host::{SabiLogLevel, VoxHost, VoxHost_TO};
 
 struct DummyHost;
 impl VoxHost for DummyHost {
-    fn data_dir(&self) -> RString { RString::from("/tmp") }
+    fn data_dir(&self) -> RString {
+        RString::from("/tmp")
+    }
     fn log(&self, _level: SabiLogLevel, _msg: RStr<'_>) {}
     fn telemetry_event(&self, _kind: RStr<'_>, _payload: RStr<'_>) {}
 }
 
 struct DummyPlugin;
 impl VoxPlugin for DummyPlugin {
-    fn id(&self) -> RString { RString::from("dummy") }
-    fn shutdown(&self) -> RResult<(), RBoxError> { RResult::ROk(()) }
+    fn id(&self) -> RString {
+        RString::from("dummy")
+    }
+    fn shutdown(&self) -> RResult<(), RBoxError> {
+        RResult::ROk(())
+    }
 }
 
 #[test]

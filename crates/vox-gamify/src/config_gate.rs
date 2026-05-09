@@ -30,7 +30,8 @@ pub enum LudusChannel {
 
 /// Effective Ludus UX channel (`VOX_LUDUS_CHANNEL` overrides, else derived from mode).
 pub fn ludus_channel() -> LudusChannel {
-    if let Some(raw) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusChannel).expose() {
+    if let Some(raw) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusChannel).expose()
+    {
         match raw.to_lowercase().as_str() {
             "off" => return LudusChannel::Off,
             "serious" => return LudusChannel::Serious,
@@ -105,7 +106,8 @@ pub fn load() -> VoxConfig {
 /// Effective config: disk + session env overrides + emergency kill-switch.
 pub fn load_effective() -> VoxConfig {
     let mut c = VoxConfig::load();
-    let emergency_resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusEmergencyOff);
+    let emergency_resolved =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusEmergencyOff);
     if matches!(
         emergency_resolved
             .expose()
@@ -171,7 +173,8 @@ pub fn reward_multiplier() -> f64 {
 /// Second experiment knob: multiply policy XP/crystals when `VOX_LUDUS_EXPERIMENT_REWARD_MULT` is a finite positive number (default `1.0`).
 #[must_use]
 pub fn experiment_reward_multiplier() -> f64 {
-    match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusExperimentRewardMult).expose() {
+    match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxLudusExperimentRewardMult).expose()
+    {
         Some(s) => {
             let t = s.trim();
             if t.is_empty() {

@@ -4,7 +4,7 @@
 
 use abi_stable::{erased_types::TD_Opaque, std_types::*};
 use vox_plugin_api::extensions::audio_capture::{
-    AudioCapture, AudioCapture_TO, AUDIO_CAPTURE_REVISION,
+    AUDIO_CAPTURE_REVISION, AudioCapture, AudioCapture_TO,
 };
 
 #[test]
@@ -18,7 +18,11 @@ impl AudioCapture for DummyAudio {
     fn list_devices_json(&self) -> RResult<RString, RBoxError> {
         RResult::ROk(RString::from("[]"))
     }
-    fn start_capture(&self, _device_id: RStr<'_>, _config_json: RStr<'_>) -> RResult<(), RBoxError> {
+    fn start_capture(
+        &self,
+        _device_id: RStr<'_>,
+        _config_json: RStr<'_>,
+    ) -> RResult<(), RBoxError> {
         RResult::RErr(RBoxError::new(std::io::Error::other(
             "not yet implemented; SP7 scaffold",
         )))
@@ -37,6 +41,5 @@ impl AudioCapture for DummyAudio {
 
 #[test]
 fn dummy_audio_constructs() {
-    let _: AudioCapture_TO<'static, RBox<()>> =
-        AudioCapture_TO::from_value(DummyAudio, TD_Opaque);
+    let _: AudioCapture_TO<'static, RBox<()>> = AudioCapture_TO::from_value(DummyAudio, TD_Opaque);
 }

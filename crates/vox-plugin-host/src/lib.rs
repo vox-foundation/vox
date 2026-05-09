@@ -82,11 +82,11 @@ pub fn load_code_plugin(
 ) -> Result<LoadedCodePlugin, errors::LoadError> {
     use vox_plugin_api::manifest::PluginPayload;
 
-    let entry = registry
-        .get_full_entry(plugin_id)
-        .ok_or_else(|| errors::LoadError::InitFailed(format!(
+    let entry = registry.get_full_entry(plugin_id).ok_or_else(|| {
+        errors::LoadError::InitFailed(format!(
             "plugin '{plugin_id}' is not installed — run `vox plugin install {plugin_id}`"
-        )))?;
+        ))
+    })?;
 
     let triple = current_target_triple_key();
     let artifacts = match &entry.payload {

@@ -74,7 +74,10 @@ impl SkillRuntime for WasmRuntime {
         // Validate it's a parseable WASM module using a plain engine (no fuel needed for validation).
         let engine = wasmtime::Engine::default();
         let _module = Module::from_file(&engine, &artifact).map_err(|e| {
-            anyhow::anyhow!("WASM artifact {:?} is not a valid WASM module: {e}", artifact)
+            anyhow::anyhow!(
+                "WASM artifact {:?} is not a valid WASM module: {e}",
+                artifact
+            )
         })?;
 
         tracing::info!(

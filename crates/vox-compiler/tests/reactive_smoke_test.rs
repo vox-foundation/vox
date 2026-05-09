@@ -853,10 +853,10 @@ fn reactive_smoke_legacy_vs_web_ir_view_whitespace_parity() {
 
     use vox_codegen::codegen_ts::hir_emit::{EmitCtx, emit_hir_expr};
     use vox_codegen::codegen_ts::reactive::normalize_reactive_view_jsx_ws;
-    use vox_compiler::hir::HirReactiveMember;
     use vox_codegen::web_ir::emit_tsx::emit_component_view_tsx;
     use vox_codegen::web_ir::lower::lower_hir_to_web_ir;
     use vox_codegen::web_ir::validate::validate_web_ir;
+    use vox_compiler::hir::HirReactiveMember;
 
     let _serial = REACTIVE_SMOKE_SERIAL
         .lock()

@@ -23,8 +23,6 @@ pub mod catalog;
 pub mod check;
 /// CI / SSOT guard commands (`vox ci`).
 pub mod ci;
-/// Centralized secret lifecycle commands (`vox secrets`).
-pub mod secrets;
 /// Codex integration logic for `vox db` subcommands.
 pub mod codex;
 /// `vox config` CLI endpoint logic.
@@ -35,6 +33,8 @@ mod db_research;
 /// Canonical login for vault / Secrets (`vox login`, `vox auth connect`, `vox secrets login`).
 pub mod login_shared;
 pub mod remove;
+/// Centralized secret lifecycle commands (`vox secrets`).
+pub mod secrets;
 // `db.rs` re-exports this tree; keep a same-file reference for tooling / unwired-module checks.
 #[allow(unused_imports)]
 use self::db_research as _;
@@ -111,13 +111,13 @@ pub use extras::ludus;
 pub mod review;
 /// Native execution via local runtime execution (`vox run`).
 pub mod run;
-/// Public-URL tunnel for Vox apps (`vox share`). S1: LAN backend only.
-pub mod share;
 /// Extended runtime subtree (`dev`, `info`, `run` script path, shell) — see submodules.
 pub mod runtime;
 /// Vox Scientia research facade (`vox scientia` → `vox db` research tools).
 pub mod scientia;
 pub(crate) mod scientia_ledger_contract;
+/// Public-URL tunnel for Vox apps (`vox share`). S1: LAN backend only.
+pub mod share;
 /// Optional telemetry upload queue (`vox telemetry`).
 pub mod telemetry;
 /// Test suite integration wrapper (`vox test`).

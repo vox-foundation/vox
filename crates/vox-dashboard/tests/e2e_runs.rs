@@ -4,9 +4,9 @@
 //! and asserts the HTTP contract + response shape of every route.
 
 use axum::{
+    Router,
     body::Body,
     http::{Request, StatusCode},
-    Router,
 };
 use serde_json::Value;
 use tower::ServiceExt;
@@ -76,13 +76,13 @@ async fn runs_list_each_run_has_required_fields() {
 async fn runs_list_contains_mixed_statuses() {
     let (_, body) = get_json("/api/v2/runs").await;
     let runs = body["data"].as_array().unwrap();
-    let statuses: Vec<&str> = runs
-        .iter()
-        .map(|r| r["status"].as_str().unwrap())
-        .collect();
+    let statuses: Vec<&str> = runs.iter().map(|r| r["status"].as_str().unwrap()).collect();
 
-    assert!(statuses.contains(&"ok"),    "must have at least one ok run");
-    assert!(statuses.contains(&"error"), "must have at least one error run");
+    assert!(statuses.contains(&"ok"), "must have at least one ok run");
+    assert!(
+        statuses.contains(&"error"),
+        "must have at least one error run"
+    );
 }
 
 #[tokio::test]
@@ -123,7 +123,9 @@ async fn get_run_by_id_includes_events() {
     let (status, body) = get_json("/api/v2/runs/run-a1b2").await;
     assert_eq!(status, StatusCode::OK);
 
-    let events = body["data"]["events"].as_array().expect("events must be array");
+    let events = body["data"]["events"]
+        .as_array()
+        .expect("events must be array");
     assert!(!events.is_empty(), "run-a1b2 must have at least one event");
 
     // First event should be task.started
@@ -139,7 +141,10 @@ async fn get_run_error_run_has_agent_error_event() {
 
     let events = body["data"]["events"].as_array().unwrap();
     let error_event = events.iter().find(|e| e["kind"] == "agent.error");
-    assert!(error_event.is_some(), "error run must contain an agent.error event");
+    assert!(
+        error_event.is_some(),
+        "error run must contain an agent.error event"
+    );
 }
 
 #[tokio::test]
@@ -147,7 +152,10 @@ async fn get_run_unknown_id_returns_404() {
     let (status, body) = get_json("/api/v2/runs/run-doesnotexist").await;
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["v"], 1);
-    assert!(body["error"]["code"].is_string(), "404 must include error.code");
+    assert!(
+        body["error"]["code"].is_string(),
+        "404 must include error.code"
+    );
     assert_eq!(body["error"]["code"], "NOT_FOUND");
 }
 

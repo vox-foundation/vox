@@ -254,7 +254,10 @@ mod conflict_diff_contract_tests {
             cm.write().unwrap().record_conflict(
                 "shared.rs",
                 Some(snap_id),
-                vec![(vox_orchestrator::AgentId(1), snap_id), (vox_orchestrator::AgentId(2), snap_id)],
+                vec![
+                    (vox_orchestrator::AgentId(1), snap_id),
+                    (vox_orchestrator::AgentId(2), snap_id),
+                ],
             )
         };
 

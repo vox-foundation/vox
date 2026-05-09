@@ -1,6 +1,6 @@
 use super::*;
-use vox_orchestrator::TaskId;
 use crate::params::{CompleteTaskParams, DrainAgentParams, FailTaskParams, ToolResult};
+use vox_orchestrator::TaskId;
 
 pub(super) const REM_TASK_ORCH_OP: &str = "Verify task lifecycle state, file locks, and orchestrator health before complete/fail/cancel/reorder/drain.";
 
@@ -127,10 +127,7 @@ pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
 }
 
 /// Cancel a task by ID.
-pub async fn cancel_task(
-    state: &ServerState,
-    params: crate::params::CancelTaskParams,
-) -> String {
+pub async fn cancel_task(state: &ServerState, params: crate::params::CancelTaskParams) -> String {
     match state
         .orchestrator
         .cancel_task(TaskId(params.task_id))
@@ -142,10 +139,7 @@ pub async fn cancel_task(
 }
 
 /// Change the priority of a queued task.
-pub async fn reorder_task(
-    state: &ServerState,
-    params: crate::params::ReorderTaskParams,
-) -> String {
+pub async fn reorder_task(state: &ServerState, params: crate::params::ReorderTaskParams) -> String {
     let priority = match params.priority.as_str() {
         "urgent" => vox_orchestrator::TaskPriority::Urgent,
         "background" => vox_orchestrator::TaskPriority::Background,
@@ -163,10 +157,7 @@ pub async fn reorder_task(
 }
 
 /// Flag a task as suspect by the user, triggering a resolution loop.
-pub async fn doubt_task(
-    state: &ServerState,
-    params: crate::params::DoubtTaskParams,
-) -> String {
+pub async fn doubt_task(state: &ServerState, params: crate::params::DoubtTaskParams) -> String {
     let task_id = TaskId(params.task_id);
     let assigned = state.orchestrator.agent_assigned_to_task(task_id);
     let res = state

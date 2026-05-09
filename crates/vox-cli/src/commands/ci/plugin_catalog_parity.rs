@@ -56,12 +56,18 @@ pub fn run() -> Result<()> {
     }
 
     if errors.is_empty() {
-        println!("✓ plugin catalog parity ok ({} entries in catalog)", catalog_ids.len());
+        println!(
+            "✓ plugin catalog parity ok ({} entries in catalog)",
+            catalog_ids.len()
+        );
         Ok(())
     } else {
         for e in &errors {
             eprintln!("✗ {e}");
         }
-        anyhow::bail!("plugin catalog parity failed with {} error(s)", errors.len())
+        anyhow::bail!(
+            "plugin catalog parity failed with {} error(s)",
+            errors.len()
+        )
     }
 }

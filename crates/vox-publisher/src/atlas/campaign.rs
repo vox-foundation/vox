@@ -48,7 +48,12 @@ mod tests {
         };
         let descriptor = campaign.to_inspect_bridge_config();
         assert_eq!(descriptor["task_id"], "vox-provider-latency-v1");
-        assert!(descriptor["hypothesis"].as_str().unwrap().contains("latency"));
+        assert!(
+            descriptor["hypothesis"]
+                .as_str()
+                .unwrap()
+                .contains("latency")
+        );
     }
 
     #[test]

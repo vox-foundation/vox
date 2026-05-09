@@ -12,30 +12,26 @@ pub async fn evaluate_condition(
     cond: &PeriodicCondition,
 ) -> bool {
     match cond {
-        PeriodicCondition::DailyLogin => {
-            match profile_last_active(db, user_id).await {
-                Ok(Some(last_active)) => {
-                    let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
-                    last_active.starts_with(&today)
-                }
-                _ => false,
+        PeriodicCondition::DailyLogin => match profile_last_active(db, user_id).await {
+            Ok(Some(last_active)) => {
+                let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+                last_active.starts_with(&today)
             }
-        }
-        PeriodicCondition::WeeklyCheckIn => {
-            match profile_last_active(db, user_id).await {
-                Ok(Some(last_active)) => {
-                    let week_num = current_week_number();
-                    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&last_active) {
-                        let ts = dt.timestamp() as u64;
-                        let last_week = (ts + 4 * 86_400) / (7 * 86_400);
-                        last_week == week_num
-                    } else {
-                        !last_active.is_empty()
-                    }
+            _ => false,
+        },
+        PeriodicCondition::WeeklyCheckIn => match profile_last_active(db, user_id).await {
+            Ok(Some(last_active)) => {
+                let week_num = current_week_number();
+                if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(&last_active) {
+                    let ts = dt.timestamp() as u64;
+                    let last_week = (ts + 4 * 86_400) / (7 * 86_400);
+                    last_week == week_num
+                } else {
+                    !last_active.is_empty()
                 }
-                _ => false,
             }
-        }
+            _ => false,
+        },
         PeriodicCondition::DailyQuestComplete => {
             match daily_quests_completed_today_count(db, user_id).await {
                 Ok(count) => count >= 3,
@@ -68,19 +64,14 @@ pub async fn evaluate_condition(
                 .await
                 .unwrap_or_default()
         }
-        PeriodicCondition::PerfectWeek => {
-            match perfect_week_completed_count(db, user_id).await {
-                Ok(count) => count >= 21,
-                _ => false,
-            }
-        }
+        PeriodicCondition::PerfectWeek => match perfect_week_completed_count(db, user_id).await {
+            Ok(count) => count >= 21,
+            _ => false,
+        },
     }
 }
 
-async fn profile_last_active(
-    db: &vox_db::Codex,
-    user_id: &str,
-) -> anyhow::Result<Option<String>> {
+async fn profile_last_active(db: &vox_db::Codex, user_id: &str) -> anyhow::Result<Option<String>> {
     let mut rows = db
         .connection()
         .query(
@@ -132,10 +123,7 @@ async fn has_achievement(
     Ok(rows.next().await?.is_some())
 }
 
-async fn profile_streak_days(
-    db: &vox_db::Codex,
-    user_id: &str,
-) -> anyhow::Result<Option<i64>> {
+async fn profile_streak_days(db: &vox_db::Codex, user_id: &str) -> anyhow::Result<Option<i64>> {
     let mut rows = db
         .connection()
         .query(
@@ -149,10 +137,7 @@ async fn profile_streak_days(
     Ok(Some(row.get::<i64>(0).unwrap_or(0)))
 }
 
-async fn doc_item_count_this_month(
-    db: &vox_db::Codex,
-    user_id: &str,
-) -> anyhow::Result<i64> {
+async fn doc_item_count_this_month(db: &vox_db::Codex, user_id: &str) -> anyhow::Result<i64> {
     let mut rows = db
         .connection()
         .query(
@@ -181,10 +166,7 @@ async fn has_completed_quest(
     Ok(rows.next().await?.is_some())
 }
 
-async fn perfect_week_completed_count(
-    db: &vox_db::Codex,
-    user_id: &str,
-) -> anyhow::Result<i64> {
+async fn perfect_week_completed_count(db: &vox_db::Codex, user_id: &str) -> anyhow::Result<i64> {
     let mut rows = db
         .connection()
         .query(

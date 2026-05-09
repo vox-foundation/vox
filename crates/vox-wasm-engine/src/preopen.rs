@@ -47,8 +47,14 @@ impl Preopen {
     /// Return the `(DirPerms, FilePerms)` pair for this preopen.
     pub(crate) fn wasi_perms(&self) -> (wasmtime_wasi::DirPerms, wasmtime_wasi::FilePerms) {
         match self.mode {
-            PreopenMode::ReadOnly => (wasmtime_wasi::DirPerms::READ, wasmtime_wasi::FilePerms::READ),
-            PreopenMode::ReadWrite => (wasmtime_wasi::DirPerms::all(), wasmtime_wasi::FilePerms::all()),
+            PreopenMode::ReadOnly => (
+                wasmtime_wasi::DirPerms::READ,
+                wasmtime_wasi::FilePerms::READ,
+            ),
+            PreopenMode::ReadWrite => (
+                wasmtime_wasi::DirPerms::all(),
+                wasmtime_wasi::FilePerms::all(),
+            ),
         }
     }
 }

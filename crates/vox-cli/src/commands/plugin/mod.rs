@@ -58,12 +58,9 @@ pub async fn run(cmd: PluginCmd) -> anyhow::Result<()> {
     match cmd {
         PluginCmd::List => list::run(),
         PluginCmd::Info { id } => info::run(&id),
-        PluginCmd::Install {
-            id,
-            path,
-            url,
-            yes,
-        } => install::run(id.as_deref(), path.as_deref(), url.as_deref(), yes).await,
+        PluginCmd::Install { id, path, url, yes } => {
+            install::run(id.as_deref(), path.as_deref(), url.as_deref(), yes).await
+        }
         PluginCmd::Remove { id } => remove::run(&id),
         PluginCmd::Doctor => doctor::run(),
         PluginCmd::Publish {

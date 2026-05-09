@@ -13,8 +13,8 @@ fn compile_component(source: &str, component_name: &str) -> String {
     let module =
         vox_compiler::parser::parse(tokens).unwrap_or_else(|e| panic!("parse failed: {e:?}"));
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_codegen::codegen_ts::generate(&hir)
-        .unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
+    let out =
+        vox_codegen::codegen_ts::generate(&hir).unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
     let filename = format!("{component_name}.tsx");
     out.files
         .into_iter()
@@ -113,7 +113,10 @@ fn agent_node_emits_circle_with_conditional_stroke() {
     println!("AgentNode.tsx:\n{ts}");
 
     // Must emit a <circle> SVG element (passthrough).
-    assert!(ts.contains("<circle"), "AgentNode must emit <circle> SVG element");
+    assert!(
+        ts.contains("<circle"),
+        "AgentNode must emit <circle> SVG element"
+    );
     assert!(!ts.contains("circle("), "circle must not emit as JS call");
 
     // Conditional stroke colors must appear.
@@ -134,11 +137,17 @@ fn orch_node_emits_polygon_with_conditional_stroke() {
     let ts = compile_component(ORCH_NODE_SRC, "OrchNode");
     println!("OrchNode.tsx:\n{ts}");
 
-    assert!(ts.contains("<polygon"), "OrchNode must emit <polygon> SVG element");
+    assert!(
+        ts.contains("<polygon"),
+        "OrchNode must emit <polygon> SVG element"
+    );
     assert!(!ts.contains("polygon("), "polygon must not emit as JS call");
 
     // Conditional stroke: selected (blue) vs default (caller-supplied color).
-    assert!(ts.contains("#60a5fa"), "selected stroke light-blue must appear");
+    assert!(
+        ts.contains("#60a5fa"),
+        "selected stroke light-blue must appear"
+    );
 
     // points prop must be forwarded.
     assert!(ts.contains("points"), "OrchNode must forward points prop");
@@ -206,8 +215,14 @@ component MeshTopology() {
     assert!(ts.contains("viewBox"), "SVG must have viewBox attribute");
 
     // Delegation edge (dashed blue).
-    assert!(ts.contains("#1d4ed8"), "delegation edge must use blue color");
-    assert!(ts.contains("strokeDasharray"), "delegation edge must be dashed");
+    assert!(
+        ts.contains("#1d4ed8"),
+        "delegation edge must use blue color"
+    );
+    assert!(
+        ts.contains("strokeDasharray"),
+        "delegation edge must be dashed"
+    );
 
     // All 5 AgentNode calls must appear (count JSX uses, exclude import line).
     assert_eq!(
@@ -224,11 +239,20 @@ component MeshTopology() {
     );
 
     // State for selection.
-    assert!(ts.contains("selected"), "MeshTopology must manage selected state");
-    assert!(ts.contains("useState"), "MeshTopology must use useState for selection");
+    assert!(
+        ts.contains("selected"),
+        "MeshTopology must manage selected state"
+    );
+    assert!(
+        ts.contains("useState"),
+        "MeshTopology must use useState for selection"
+    );
 
     // Inspector rail (conditional).
-    assert!(ts.contains("StateChip"), "MeshTopology inspector must include StateChip");
+    assert!(
+        ts.contains("StateChip"),
+        "MeshTopology inspector must include StateChip"
+    );
 
     insta::assert_snapshot!("mesh_topology_tsx_mesh_surface", ts);
 }
@@ -261,7 +285,10 @@ component ActivityStrip() {
 
     assert!(!ts.contains("row("), "row must not emit as JS call");
     assert!(ts.contains("<svg"), "ActivityStrip must include SVG canvas");
-    assert!(ts.contains("<rect"), "ActivityStrip must include rect bar elements");
+    assert!(
+        ts.contains("<rect"),
+        "ActivityStrip must include rect bar elements"
+    );
 
     // preserveAspectRatio must be camelCased correctly.
     assert!(

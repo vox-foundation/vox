@@ -15,9 +15,9 @@ use crate::commands::mens::eval_gate;
 use crate::commands::mens::pipeline;
 use crate::commands::mens::status;
 
-use crate::commands::mens::probe;
 #[cfg(feature = "gpu")]
 use crate::commands::mens::eval_local;
+use crate::commands::mens::probe;
 #[cfg(feature = "gpu")]
 use crate::commands::schola::merge_qlora;
 

@@ -31,16 +31,16 @@ use crate::codegen_ts::hir_emit::{
     EmitCtx, emit_hir_expr, emit_hir_expr_attr_value, expand_bind_hir_attribute,
     transform_hir_view_kwargs, unwrap_inline_hir_block_expr,
 };
-use vox_compiler::lowering_shared::jsx::{map_hir_type_to_ts, map_jsx_attr_name};
-use vox_compiler::hir::{
-    HirEndpointFn, HirEndpointKind, HirExpr, HirJsxAttr, HirJsxElement, HirJsxSelfClosing,
-    HirModule, HirParam, HirPattern, HirReactiveMember, HirStmt,
-};
 use crate::web_ir::{
     BehaviorNode, DomNode, DomNodeId, FieldOptionality, MutationContract, RouteContract, RouteNode,
     ScheduledJobSpec, ServerFnContract, StyleDeclarationValue, StyleNode, StyleSelector,
     WebIrDiagnostic, WebIrLowerSummary, WebIrModule, WebIrVersion,
 };
+use vox_compiler::hir::{
+    HirEndpointFn, HirEndpointKind, HirExpr, HirJsxAttr, HirJsxElement, HirJsxSelfClosing,
+    HirModule, HirParam, HirPattern, HirReactiveMember, HirStmt,
+};
+use vox_compiler::lowering_shared::jsx::{map_hir_type_to_ts, map_jsx_attr_name};
 
 fn hir_pattern_binding_names(pat: &HirPattern, out: &mut HashSet<String>) {
     match pat {
@@ -163,7 +163,8 @@ impl DomArena {
         async_fn_names: &HashSet<String>,
     ) -> DomNodeId {
         // TASK-6.1: resolve primitive tags → canonical HTML tag + Tailwind class list (parity with hir_emit).
-        let (tag, attrs) = fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names);
+        let (tag, attrs) =
+            fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names);
         let child_ids: Vec<DomNodeId> = el
             .children
             .iter()
@@ -184,7 +185,8 @@ impl DomArena {
         state_names: &HashSet<String>,
         async_fn_names: &HashSet<String>,
     ) -> DomNodeId {
-        let (tag, attrs) = fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names);
+        let (tag, attrs) =
+            fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names);
         self.push(DomNode::Element {
             id: DomNodeId(0),
             tag,
@@ -254,10 +256,7 @@ fn inject_primitive_dom_markers(
     }
 
     if let Some(surface) = &emission.surface_ref {
-        attrs.push((
-            "data-vox-surface".to_string(),
-            format!("\"{}\"", surface),
-        ));
+        attrs.push(("data-vox-surface".to_string(), format!("\"{}\"", surface)));
         // React `style` accepts a CSSProperties object. Emit the CSS-var pair as an
         // object literal expression, not a CSS string (which would fail at runtime).
         let style_obj = format!(
@@ -304,10 +303,7 @@ fn inject_primitive_dom_markers(
                 .find(|(k, _)| k == "position")
                 .map(|(_, v)| v.clone())
             {
-                attrs.push((
-                    "data-vox-pos".to_string(),
-                    format!("\"{}\"", pos_val),
-                ));
+                attrs.push(("data-vox-pos".to_string(), format!("\"{}\"", pos_val)));
             }
         }
         _ => {}

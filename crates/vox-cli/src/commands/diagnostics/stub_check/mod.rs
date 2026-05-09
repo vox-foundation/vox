@@ -5,12 +5,12 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 
-use vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_async};
 use owo_colors::OwoColorize;
-use vox_code_audit::rules::{Language, Severity};
+use vox_bounded_fs::{read_utf8_path_capped, read_utf8_path_capped_async};
 use vox_code_audit::detectors::all_rules;
 use vox_code_audit::diagnostics::catalog::{ALL_KNOWN_IDS, explain_url, is_known_id};
 use vox_code_audit::rules::DetectionRule;
+use vox_code_audit::rules::{Language, Severity};
 use vox_code_audit::{Finding, OutputFormat, ToestubConfig, ToestubEngine};
 
 use vox_db::{
@@ -565,7 +565,10 @@ pub fn explain_diagnostic(id: &str) -> anyhow::Result<()> {
 /// List all known stable diagnostic IDs.
 pub fn list_diagnostics() {
     println!("{}", "─".repeat(70));
-    println!("  All known Vox diagnostic IDs ({} total)", ALL_KNOWN_IDS.len());
+    println!(
+        "  All known Vox diagnostic IDs ({} total)",
+        ALL_KNOWN_IDS.len()
+    );
     println!("{}", "─".repeat(70));
     for id in ALL_KNOWN_IDS {
         println!("  {}", id.bright_cyan());

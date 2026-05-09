@@ -2,16 +2,16 @@
 //!
 //! Pass-through only in S1 (no auth). S5 adds auth middleware.
 
-use crate::auth::{auth_middleware, AuthMode};
+use crate::auth::{AuthMode, auth_middleware};
+use axum::Router;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{StatusCode, Uri};
 use axum::middleware;
 use axum::response::Response;
 use axum::routing::any;
-use axum::Router;
-use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
+use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::TokioExecutor;
 use std::net::SocketAddr;
 
@@ -46,7 +46,10 @@ pub fn build_app(cfg: ProxyConfig) -> Router {
     Router::new()
         .fallback(any(forward))
         .with_state(state)
-        .layer(middleware::from_fn_with_state(cfg.auth_mode, auth_middleware))
+        .layer(middleware::from_fn_with_state(
+            cfg.auth_mode,
+            auth_middleware,
+        ))
 }
 
 async fn forward(

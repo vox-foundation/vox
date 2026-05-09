@@ -119,11 +119,21 @@ pub struct TrainingManifest {
     pub contamination_score: Option<f32>,
 }
 
-fn default_manifest_schema_v1() -> u32 { 1 }
-fn default_candle_qlora_ce_last_k() -> usize { 64 }
-fn default_trajectory_tool_trace_boost() -> f32 { 1.1 }
-fn default_trajectory_failure_category_boost() -> f32 { 1.15 }
-fn default_trajectory_quality_boost() -> f32 { 1.05 }
+fn default_manifest_schema_v1() -> u32 {
+    1
+}
+fn default_candle_qlora_ce_last_k() -> usize {
+    64
+}
+fn default_trajectory_tool_trace_boost() -> f32 {
+    1.1
+}
+fn default_trajectory_failure_category_boost() -> f32 {
+    1.15
+}
+fn default_trajectory_quality_boost() -> f32 {
+    1.05
+}
 
 /// Snapshot of run settings for [`initial_training_manifest`].
 #[derive(Debug, Clone)]
@@ -182,7 +192,8 @@ impl InitialManifestRun {
                 .map(|cf| serde_json::to_string(cf).unwrap_or_default()),
             max_vram_fraction: c.max_vram_fraction,
             finetune_contract_digest: c.finetune_contract_digest.clone(),
-            training_deployment_target: (c.deployment_target == TrainingDeploymentTarget::MobileEdge)
+            training_deployment_target: (c.deployment_target
+                == TrainingDeploymentTarget::MobileEdge)
                 .then(|| c.deployment_target.as_str().to_string()),
             training_deployment_note: (c.deployment_target == TrainingDeploymentTarget::MobileEdge)
                 .then(|| crate::operator_messages::MOBILE_EDGE_TRAINING_MANIFEST_NOTE.to_string()),

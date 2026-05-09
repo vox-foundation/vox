@@ -258,7 +258,9 @@ impl LogitProcessor for TokenTrieConstraintProcessor {
     }
 }
 
-fn try_load_lexicon_path(path: &Path) -> Option<crate::oratio_internals::speech_lexicon::SpeechLexicon> {
+fn try_load_lexicon_path(
+    path: &Path,
+) -> Option<crate::oratio_internals::speech_lexicon::SpeechLexicon> {
     let bytes = std::fs::read(path).ok()?;
     crate::oratio_internals::speech_lexicon::SpeechLexicon::from_json_slice(&bytes).ok()
 }
@@ -299,7 +301,9 @@ fn phrase_list_for_bias() -> Vec<String> {
     if let Some(hot) =
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioSessionHotwords).expose()
     {
-        out.extend(crate::oratio_internals::contextual_bias::parse_hotword_csv(&hot));
+        out.extend(crate::oratio_internals::contextual_bias::parse_hotword_csv(
+            &hot,
+        ));
     }
     let mut seen = HashSet::new();
     out.retain(|s| seen.insert(s.to_ascii_lowercase()));

@@ -30,9 +30,7 @@ pub async fn install_discovered_skills(
         let bundle = match vox_plugin_host::skill_parser::parse_skill_md(&loaded.body) {
             Ok(b) => b,
             Err(e) => {
-                tracing::warn!(
-                    "plugin-host skill '{skill_id}': failed to parse SKILL.md: {e}"
-                );
+                tracing::warn!("plugin-host skill '{skill_id}': failed to parse SKILL.md: {e}");
                 continue;
             }
         };

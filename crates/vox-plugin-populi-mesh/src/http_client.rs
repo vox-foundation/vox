@@ -197,6 +197,4 @@ impl PopuliHttpClient {
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
         Ok(v)
     }
-
 }
-

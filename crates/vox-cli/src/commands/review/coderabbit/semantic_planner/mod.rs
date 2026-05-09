@@ -131,7 +131,10 @@ mod tests {
             g("crates/vox-primitives/src/lib.rs"),
             "crate_vox_primitives"
         );
-        assert_eq!(g("crates/vox-actor-runtime/src/lib.rs"), "crate_vox_runtime");
+        assert_eq!(
+            g("crates/vox-actor-runtime/src/lib.rs"),
+            "crate_vox_runtime"
+        );
         assert_eq!(g("crates/vox-lsp/src/lib.rs"), "crate_vox_lsp");
         assert_eq!(g("crates/vox-mcp/src/lib.rs"), "crate_vox_mcp");
         assert_eq!(g("crates/vox-cli/src/main.rs"), "crate_vox_cli");

@@ -265,11 +265,12 @@ pub fn spawn_http_gateway_if_enabled(
         .and_then(|s| s.parse::<u16>().ok())
         .unwrap_or(DEFAULT_BIND_PORT);
     #[allow(unused_mut)]
-    let mut bearer_token = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpBearerToken)
-        .expose()
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .map(str::to_string);
+    let mut bearer_token =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpBearerToken)
+            .expose()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_string);
     let read_bearer_token =
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpReadBearerToken)
             .expose()
@@ -444,10 +445,11 @@ pub(super) fn parse_allowed_tools() -> Result<HashSet<String>> {
 }
 
 pub(super) fn parse_read_role_allowed_tools_override() -> Result<Option<HashSet<String>>> {
-    let explicit = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpReadRoleAllowedTools)
-        .expose()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
+    let explicit =
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpHttpReadRoleAllowedTools)
+            .expose()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
     if let Some(csv) = explicit {
         parse_allowed_tools_from_value(Some(csv.as_str())).map(Some)
     } else {

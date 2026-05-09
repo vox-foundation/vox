@@ -5,10 +5,7 @@
 //! keep compiling without any changes.
 
 pub use vox_plugin_host::skill_registry::{
-    BundleInstallError as InstallError,
-    InstallResult,
-    SkillRegistry,
-    UninstallResult,
+    BundleInstallError as InstallError, InstallResult, SkillRegistry, UninstallResult,
     new_registry_arc,
 };
 

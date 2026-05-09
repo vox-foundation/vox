@@ -6,5 +6,8 @@ fn parity_passes_when_no_plugin_tomls_exist() {
         .args(["ci", "plugin-catalog-parity"])
         .status()
         .expect("vox should run");
-    assert!(status.success(), "parity should pass with empty plugin tree");
+    assert!(
+        status.success(),
+        "parity should pass with empty plugin tree"
+    );
 }

@@ -54,7 +54,11 @@ pub async fn load_kpi_summary(db: &Codex, user_id: &str) -> Result<LudusKpiSumma
             params![user_id],
         )
         .await?;
-    let hint_n = hints.next().await?.map(|r| r.get::<i64>(0).unwrap_or(0)).unwrap_or(0);
+    let hint_n = hints
+        .next()
+        .await?
+        .map(|r| r.get::<i64>(0).unwrap_or(0))
+        .unwrap_or(0);
 
     let mut quests_c = db
         .connection()
@@ -63,7 +67,11 @@ pub async fn load_kpi_summary(db: &Codex, user_id: &str) -> Result<LudusKpiSumma
             params![user_id],
         )
         .await?;
-    let quests_completed_total = quests_c.next().await?.map(|r| r.get::<i64>(0).unwrap_or(0)).unwrap_or(0);
+    let quests_completed_total = quests_c
+        .next()
+        .await?
+        .map(|r| r.get::<i64>(0).unwrap_or(0))
+        .unwrap_or(0);
 
     let mut unread_n = db
         .connection()
@@ -72,7 +80,11 @@ pub async fn load_kpi_summary(db: &Codex, user_id: &str) -> Result<LudusKpiSumma
             params![user_id],
         )
         .await?;
-    let notifications_unread = unread_n.next().await?.map(|r| r.get::<i64>(0).unwrap_or(0)).unwrap_or(0);
+    let notifications_unread = unread_n
+        .next()
+        .await?
+        .map(|r| r.get::<i64>(0).unwrap_or(0))
+        .unwrap_or(0);
 
     let mut hs = db
         .connection()
@@ -81,7 +93,11 @@ pub async fn load_kpi_summary(db: &Codex, user_id: &str) -> Result<LudusKpiSumma
             params![user_id],
         )
         .await?;
-    let hints_shown = hs.next().await?.map(|r| r.get::<i64>(0).unwrap_or(0)).unwrap_or(0);
+    let hints_shown = hs
+        .next()
+        .await?
+        .map(|r| r.get::<i64>(0).unwrap_or(0))
+        .unwrap_or(0);
 
     let mut hd = db
         .connection()
@@ -90,7 +106,11 @@ pub async fn load_kpi_summary(db: &Codex, user_id: &str) -> Result<LudusKpiSumma
             params![user_id],
         )
         .await?;
-    let hints_dismissed = hd.next().await?.map(|r| r.get::<i64>(0).unwrap_or(0)).unwrap_or(0);
+    let hints_dismissed = hd
+        .next()
+        .await?
+        .map(|r| r.get::<i64>(0).unwrap_or(0))
+        .unwrap_or(0);
 
     Ok(LudusKpiSummary {
         events_recorded: ev,

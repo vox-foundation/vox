@@ -215,7 +215,11 @@ pub fn transcribe_path_detailed(
                         match crate::subtitle::ffmpeg_extract::extract_audio_ffmpeg(path) {
                             Ok(res) => (res, 16_000),
                             Err(e2) => {
-                                anyhow::bail!("audio extraction failed: {} (ffmpeg failed: {})", e, e2)
+                                anyhow::bail!(
+                                    "audio extraction failed: {} (ffmpeg failed: {})",
+                                    e,
+                                    e2
+                                )
                             }
                         }
                     } else {
@@ -225,11 +229,12 @@ pub fn transcribe_path_detailed(
             };
 
             // Allow acoustic preprocess via AsrBackend path
-            let budget_ms =
-                vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioAcousticPreprocessBudgetMs)
-                    .expose()
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(25u64);
+            let budget_ms = vox_secrets::resolve_secret(
+                vox_secrets::SecretId::VoxOratioAcousticPreprocessBudgetMs,
+            )
+            .expose()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(25u64);
             let (pcm, _diag) =
                 crate::acoustic_preprocess::preprocess_audio_pcm_f32_reported(&pcm, budget_ms);
 

@@ -1,5 +1,5 @@
-use vox_code_audit::rules::{Finding, Severity};
 use crate::features::ExtractedFeatures;
+use vox_code_audit::rules::{Finding, Severity};
 
 pub mod body_hash;
 pub mod call_shape;

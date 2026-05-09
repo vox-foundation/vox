@@ -38,7 +38,10 @@ fn parse_campaign_from_description_extracts_campaign_and_tier_tokens() {
     let (cid, tier) =
         submission::parse_campaign_from_description("do work [campaign:alpha1] [tier:crate_regen]");
     assert_eq!(cid.as_deref(), Some("alpha1"));
-    assert_eq!(tier, Some(vox_orchestrator::ReconstructionBenchmarkTier::CrateRegen));
+    assert_eq!(
+        tier,
+        Some(vox_orchestrator::ReconstructionBenchmarkTier::CrateRegen)
+    );
 }
 
 #[test]
@@ -46,7 +49,10 @@ fn parse_campaign_from_description_is_case_insensitive_for_prefixes() {
     let (cid, tier) =
         submission::parse_campaign_from_description("do work [Campaign:Alpha] [TIER:repo_regen]");
     assert_eq!(cid.as_deref(), Some("Alpha"));
-    assert_eq!(tier, Some(vox_orchestrator::ReconstructionBenchmarkTier::RepoRegen));
+    assert_eq!(
+        tier,
+        Some(vox_orchestrator::ReconstructionBenchmarkTier::RepoRegen)
+    );
 }
 
 #[test]

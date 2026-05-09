@@ -48,10 +48,7 @@ impl TunnelBackend for TailscaleBackend {
             .output()
             .await
             .map_err(|e| {
-                ShareError::BackendUnavailable(
-                    "tailscale",
-                    format!("run tailscale status: {}", e),
-                )
+                ShareError::BackendUnavailable("tailscale", format!("run tailscale status: {}", e))
             })?;
 
         if !status.status.success() {
@@ -63,10 +60,7 @@ impl TunnelBackend for TailscaleBackend {
 
         // Parse the status JSON to check BackendState.
         let json: serde_json::Value = serde_json::from_slice(&status.stdout).map_err(|e| {
-            ShareError::BackendUnavailable(
-                "tailscale",
-                format!("parse status JSON: {}", e),
-            )
+            ShareError::BackendUnavailable("tailscale", format!("parse status JSON: {}", e))
         })?;
 
         let backend_state = json
@@ -167,10 +161,7 @@ fn parse_funnel_url(stdout: &[u8], port: u16) -> Option<String> {
 
     // Try to extract from common JSON shapes.
     // Pattern 1: { "SelfNode": { "DNSName": "machine.tailnet.ts.net." } }
-    if let Some(dns) = json
-        .pointer("/SelfNode/DNSName")
-        .and_then(|v| v.as_str())
-    {
+    if let Some(dns) = json.pointer("/SelfNode/DNSName").and_then(|v| v.as_str()) {
         let host = dns.trim_end_matches('.');
         if host.ends_with(".ts.net") {
             return Some(format!("https://{}:{}", host, port));

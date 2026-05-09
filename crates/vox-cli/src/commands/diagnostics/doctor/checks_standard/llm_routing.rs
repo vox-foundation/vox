@@ -1,9 +1,9 @@
 //! Secrets-first LLM routing readiness (model prefs + at least one provider key).
 
 use super::super::common::{Check, redact_key};
-use vox_secrets::SecretId;
-use vox_config::secrets_str;
 use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};
+use vox_config::secrets_str;
+use vox_secrets::SecretId;
 
 pub fn run(checks: &mut Vec<Check>) {
     let model = openrouter_chat_model_preference();

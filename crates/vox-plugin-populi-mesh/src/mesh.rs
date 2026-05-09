@@ -76,27 +76,28 @@ impl MeshDriver for PopuliMeshPlugin {
     /// Accepts JSON: `{"addr":"<host:port>"}` (optional; defaults to `127.0.0.1:9847`).
     /// Idempotent — if transport is already running, returns `ROk` immediately.
     fn start_transport(&self, config_json: RStr<'_>) -> RResult<(), RBoxError> {
-        let cfg: MeshStartConfig = if config_json.as_str().trim().is_empty()
-            || config_json.as_str().trim() == "{}"
-        {
-            MeshStartConfig {
-                addr: default_addr(),
-            }
-        } else {
-            match serde_json::from_str(config_json.as_str()) {
-                Ok(c) => c,
-                Err(e) => {
-                    return RResult::RErr(RBoxError::new(std::io::Error::other(format!(
-                        "invalid MeshStartConfig JSON: {e}"
-                    ))))
+        let cfg: MeshStartConfig =
+            if config_json.as_str().trim().is_empty() || config_json.as_str().trim() == "{}" {
+                MeshStartConfig {
+                    addr: default_addr(),
                 }
-            }
-        };
+            } else {
+                match serde_json::from_str(config_json.as_str()) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        return RResult::RErr(RBoxError::new(std::io::Error::other(format!(
+                            "invalid MeshStartConfig JSON: {e}"
+                        ))));
+                    }
+                }
+            };
 
         let mut guard = match self.state.lock() {
             Ok(g) => g,
             Err(_) => {
-                return RResult::RErr(RBoxError::new(std::io::Error::other("state mutex poisoned")))
+                return RResult::RErr(RBoxError::new(std::io::Error::other(
+                    "state mutex poisoned",
+                )));
             }
         };
 
@@ -111,7 +112,7 @@ impl MeshDriver for PopuliMeshPlugin {
                 return RResult::RErr(RBoxError::new(std::io::Error::other(format!(
                     "invalid addr `{}`: {e}",
                     cfg.addr
-                ))))
+                ))));
             }
         };
 
@@ -125,7 +126,7 @@ impl MeshDriver for PopuliMeshPlugin {
             Err(e) => {
                 return RResult::RErr(RBoxError::new(std::io::Error::other(format!(
                     "failed to create tokio runtime: {e}"
-                ))))
+                ))));
             }
         };
 
@@ -189,7 +190,9 @@ impl MeshDriver for PopuliMeshPlugin {
         let mut guard = match self.state.lock() {
             Ok(g) => g,
             Err(_) => {
-                return RResult::RErr(RBoxError::new(std::io::Error::other("state mutex poisoned")))
+                return RResult::RErr(RBoxError::new(std::io::Error::other(
+                    "state mutex poisoned",
+                )));
             }
         };
         if let Some(ps) = guard.take() {
@@ -198,7 +201,8 @@ impl MeshDriver for PopuliMeshPlugin {
                 let _ = tx.send(());
             }
             // Shut down the runtime (waits for tasks to complete or forcibly stops them).
-            ps.runtime.shutdown_timeout(std::time::Duration::from_secs(5));
+            ps.runtime
+                .shutdown_timeout(std::time::Duration::from_secs(5));
         }
         RResult::ROk(())
     }
@@ -214,7 +218,7 @@ impl MeshDriver for PopuliMeshPlugin {
                 Err(e) => {
                     return RResult::RErr(RBoxError::new(std::io::Error::other(format!(
                         "invalid DispatchRequest JSON: {e}"
-                    ))))
+                    ))));
                 }
             };
 
@@ -223,7 +227,7 @@ impl MeshDriver for PopuliMeshPlugin {
             None => {
                 return RResult::RErr(RBoxError::new(std::io::Error::other(
                     "transport not started; call start_transport first",
-                )))
+                )));
             }
         };
 
@@ -252,7 +256,7 @@ impl MeshDriver for PopuliMeshPlugin {
             Err(e) => {
                 return RResult::RErr(RBoxError::new(std::io::Error::other(format!(
                     "invalid NodeRecord JSON: {e}"
-                ))))
+                ))));
             }
         };
 
@@ -261,7 +265,7 @@ impl MeshDriver for PopuliMeshPlugin {
             None => {
                 return RResult::RErr(RBoxError::new(std::io::Error::other(
                     "transport not started; call start_transport first",
-                )))
+                )));
             }
         };
 
@@ -291,13 +295,10 @@ impl MeshDriver for PopuliMeshPlugin {
         let payload = request_json.to_string();
 
         let result: Result<String, String> = (|| {
-            let request: vox_mesh_types::A2ADeliverRequest =
-                serde_json::from_str(&payload).map_err(|e| {
-                    format!("invalid A2ADeliverRequest JSON: {e}")
-                })?;
+            let request: vox_mesh_types::A2ADeliverRequest = serde_json::from_str(&payload)
+                .map_err(|e| format!("invalid A2ADeliverRequest JSON: {e}"))?;
             let response = self.block_on(async move {
-                let client =
-                    crate::http_client::PopuliHttpClient::new(&url).with_env_token();
+                let client = crate::http_client::PopuliHttpClient::new(&url).with_env_token();
                 client.relay_a2a(&request).await
             });
             response

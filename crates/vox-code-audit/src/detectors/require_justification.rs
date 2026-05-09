@@ -96,7 +96,11 @@ impl DetectionRule for RequireJustificationDetector {
         Good: @require(x > 0 && y < 100 && z != null)\n      // because: x must be positive for the logarithm, y bounded by protocol limit, z required by schema\n      fn process(x, y, z) {}"
     }
 
-    fn detect(&self, file: &SourceFile, _rust_ctx: Option<&crate::analysis::RustFileContext>) -> Vec<Finding> {
+    fn detect(
+        &self,
+        file: &SourceFile,
+        _rust_ctx: Option<&crate::analysis::RustFileContext>,
+    ) -> Vec<Finding> {
         if file.language != Language::Vox {
             return vec![];
         }
@@ -167,7 +171,10 @@ mod tests {
         let code = "@require(x > 0 && y < 100 && z != null)\nfn process(x, y, z) {}";
         let f = source(code);
         let findings = d.detect(&f, None);
-        assert!(!findings.is_empty(), "should fire on complex @require without comment");
+        assert!(
+            !findings.is_empty(),
+            "should fire on complex @require without comment"
+        );
         assert!(findings[0].message.contains("@require"));
     }
 
@@ -221,6 +228,9 @@ mod tests {
         let code = "@require(x > 0)\nfn check(x) {}";
         let f = source(code);
         let findings = d.detect(&f, None);
-        assert!(findings.is_empty(), "single operator should not trigger rule");
+        assert!(
+            findings.is_empty(),
+            "single operator should not trigger rule"
+        );
     }
 }

@@ -23,7 +23,7 @@ pub struct ShortFormVariant {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PublicationPlatform {
-    Bluesky,    // 300 char limit
+    Bluesky, // 300 char limit
     ArxivAbstract,
     ZenodoDescription,
     AtlasEntry,
@@ -83,7 +83,7 @@ pub fn adapt_claim_to_platform(
 /// Figure policy per Cell/Science 2025: no LLM-generated primary research figures.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FigurePolicy {
-    pub llm_generation_disabled: bool,   // always true per 2025 policy
+    pub llm_generation_disabled: bool, // always true per 2025 policy
     pub schematic_only: bool,
     pub mandatory_legend_disclosure: bool,
 }

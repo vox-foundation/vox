@@ -17,8 +17,8 @@ fn compile_component(source: &str, component_name: &str) -> String {
     let module =
         vox_compiler::parser::parse(tokens).unwrap_or_else(|e| panic!("parse failed: {e:?}"));
     let hir = vox_compiler::hir::lower_module(&module);
-    let out = vox_codegen::codegen_ts::generate(&hir)
-        .unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
+    let out =
+        vox_codegen::codegen_ts::generate(&hir).unwrap_or_else(|e| panic!("codegen failed: {e:?}"));
     let filename = format!("{component_name}.tsx");
     out.files
         .into_iter()
@@ -156,9 +156,18 @@ fn runs_toolbar_emits_search_box_and_filter_chips() {
     );
 
     // Status filter chips
-    assert!(ts.contains("\"all\"") || ts.contains("'all'"), "must have 'all' chip");
-    assert!(ts.contains("\"ok\"")  || ts.contains("'ok'"),  "must have 'ok' chip");
-    assert!(ts.contains("\"error\"") || ts.contains("'error'"), "must have 'error' chip");
+    assert!(
+        ts.contains("\"all\"") || ts.contains("'all'"),
+        "must have 'all' chip"
+    );
+    assert!(
+        ts.contains("\"ok\"") || ts.contains("'ok'"),
+        "must have 'ok' chip"
+    );
+    assert!(
+        ts.contains("\"error\"") || ts.contains("'error'"),
+        "must have 'error' chip"
+    );
 }
 
 #[test]
@@ -224,7 +233,9 @@ fn runs_table_header_emits_seven_column_labels() {
 
     insta::assert_snapshot!("runs_table_header_tsx_runs_surface", ts);
 
-    for label in &["ID", "STARTED", "DURATION", "MODEL", "STATUS", "COST", "TOKENS"] {
+    for label in &[
+        "ID", "STARTED", "DURATION", "MODEL", "STATUS", "COST", "TOKENS",
+    ] {
         assert!(
             ts.contains(label),
             "RunsTableHeader must include column label '{label}'"

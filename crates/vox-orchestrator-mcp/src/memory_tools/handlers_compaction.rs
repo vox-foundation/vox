@@ -11,14 +11,13 @@ pub async fn compaction_status(
     let orch = &state.orchestrator;
     let id = vox_orchestrator::AgentId(params.agent_id);
     let handle = orch.budget_handle();
-    let budget_lock =
-        match crate::sync_poison::poison_rw_read(handle.read(), "agent budget") {
-            Ok(g) => g,
-            Err(e) => {
-                return ToolResult::<String>::err_with_remediation(e.to_string(), REM_BUDGET_LOCK)
-                    .to_json();
-            }
-        };
+    let budget_lock = match crate::sync_poison::poison_rw_read(handle.read(), "agent budget") {
+        Ok(g) => g,
+        Err(e) => {
+            return ToolResult::<String>::err_with_remediation(e.to_string(), REM_BUDGET_LOCK)
+                .to_json();
+        }
+    };
     if let Some(budget) = budget_lock.check_budget(id) {
         let engine = vox_orchestrator::CompactionEngine::default();
         let should = engine.should_compact(budget.tokens_used);

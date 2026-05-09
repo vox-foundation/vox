@@ -13,13 +13,13 @@ use crate::{
 use super::super::auth::{
     PopuliAuthContext, auth_allows_admin_route, auth_allows_deliver, auth_allows_worker_plane,
 };
+use super::super::result_attestation;
 use super::super::store::persist_a2a_store;
 use super::super::{
     A2AAckRequest, A2ADeliverRequest, A2ADeliverResponse, A2AInboxRequest, A2AInboxResponse,
     A2ALeaseRenewRequest, A2AStoredMessage, AdminMaintenanceRequest, AdminQuarantineRequest,
     PopuliTransportState, a2a_in_memory_cap, a2a_lease_duration_ms, a2a_sweep_expired_leases,
 };
-use super::super::result_attestation;
 use super::nodes::{
     ResponseErr, a2a_inbox_limit, parse_a2a_mesh_agent_id, registry_sweep_maintenance,
     store_ack_a2a, store_put_a2a,
@@ -202,7 +202,9 @@ pub(crate) async fn deliver_a2a(
                 message_id: existing,
             }));
         }
-        let id = st.a2a_id_gen.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let id = st
+            .a2a_id_gen
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         maps.idempotency.insert(dedupe.clone(), id);
         drop(maps);
         st.mesh_replay.persist_if_configured().await;
@@ -247,7 +249,9 @@ pub(crate) async fn deliver_a2a(
         }));
     }
 
-    let id = st.a2a_id_gen.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let id = st
+        .a2a_id_gen
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let msg = A2AStoredMessage {
         id,
         sender_agent_id,

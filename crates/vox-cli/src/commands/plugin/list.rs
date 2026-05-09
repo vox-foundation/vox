@@ -49,10 +49,7 @@ pub fn run() -> Result<()> {
                 "available".to_string()
             }
         };
-        println!(
-            "{:<30} {:<11} {:<12} {}",
-            p.id, kind, status, p.description
-        );
+        println!("{:<30} {:<11} {:<12} {}", p.id, kind, status, p.description);
     }
     println!();
     println!("Install root: {}", root.display());
