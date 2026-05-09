@@ -7,6 +7,7 @@
 use std::time::Duration;
 
 use async_trait::async_trait;
+use chrono::Utc;
 
 use super::error::classify_scholarly_http;
 use super::flags;
@@ -142,8 +143,9 @@ impl ScholarlyAdapter for CrossrefDepositAdapter {
             .unwrap_or_else(|| {
                 format!("10.5281/vox-provisional-{}", &manifest.publication_id)
             });
+        let today = Utc::now().format("%Y-%m-%d").to_string();
         let xml =
-            build_crossref_deposit_xml(&doi, &manifest.title, &manifest.author, "2026-05-09");
+            build_crossref_deposit_xml(&doi, &manifest.title, &manifest.author, &today);
         let part = reqwest::multipart::Part::bytes(xml.into_bytes())
             .file_name("crossref_deposit.xml")
             .mime_str("application/xml")

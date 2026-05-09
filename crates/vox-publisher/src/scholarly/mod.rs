@@ -221,7 +221,7 @@ pub async fn submit_with_adapter(
 
 /// Resolve [`VOX_SCHOLARLY_ADAPTER`] (default `local_ledger`) and submit.
 ///
-/// Supported: `local_ledger`, `echo_ledger`, `zenodo`, `openreview`.  
+/// Supported: `local_ledger`, `echo_ledger`, `zenodo`, `openreview`, `arxiv_assist`, `osf`, `crossref_deposit`.
 /// Live adapters honor `VOX_SCHOLARLY_DISABLE`, `VOX_SCHOLARLY_DISABLE_LIVE`, and per-adapter `VOX_SCHOLARLY_DISABLE_*`.
 pub async fn submit_with_configured_adapter(
     manifest: &PublicationManifest,
@@ -331,9 +331,22 @@ pub async fn fetch_scholarly_remote_status_for_adapter(
             .fetch_status(external_submission_id)
             .await;
     }
+    if kind.eq_ignore_ascii_case("osf") {
+        if flags::scholarly_live_globally_disabled() {
+            return Err(ScholarlyError::Disabled {
+                reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+            });
+        }
+        let o = osf::osf_from_secrets()?;
+        return o.fetch_status(external_submission_id).await;
+    }
+    if kind.eq_ignore_ascii_case("crossref_deposit") || kind.eq_ignore_ascii_case("crossref") {
+        let c = crossref_deposit::crossref_from_secrets()?;
+        return c.fetch_status(external_submission_id).await;
+    }
     Err(ScholarlyError::Config {
         message: format!(
-            "unsupported scholarly adapter for remote status: {kind:?} (supported: local_ledger, echo_ledger, zenodo, openreview, arxiv_assist)"
+            "unsupported scholarly adapter for remote status: {kind:?} (supported: local_ledger, echo_ledger, zenodo, openreview, arxiv_assist, osf, crossref_deposit)"
         ),
     })
 }

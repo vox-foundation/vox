@@ -100,12 +100,7 @@ impl ScholarlyAdapter for OsfAdapter {
             .and_then(|v| v.as_str())
             .unwrap_or("unknown")
             .to_string();
-        let osf_node_url = format!(
-            "https://osf.io/{}",
-            json.pointer("/data/id")
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-        );
+        let osf_node_url = format!("https://osf.io/{}", node_id);
         Ok(ScholarlySubmissionReceipt {
             adapter: self.adapter_name().to_string(),
             external_submission_id: node_id,
