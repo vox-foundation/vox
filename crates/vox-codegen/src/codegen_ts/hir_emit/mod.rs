@@ -12,11 +12,13 @@
 //! mapping stay in [`compat`]; do not fork the matrix into JSX or Web IR without updating all three.
 
 pub mod compat;
+mod async_walker;
 mod state_deps;
 
 use vox_compiler::hir::*;
 use std::collections::HashSet;
 use std::sync::OnceLock;
+use async_walker::stmt_has_async_call;
 
 pub use compat::{map_hir_type_to_ts, map_jsx_attr_name, map_jsx_tag, ts_string_literal};
 pub(crate) use state_deps::extract_state_deps_with_diagnostics;
@@ -335,7 +337,15 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             if let Some(replacement) = lower_std_namespace_call(obj, method, args, ctx) {
                 return replacement;
             }
-            let obj_str = emit_hir_expr(obj, ctx);
+            // §1.A.4: if the direct receiver is an async call (`fetch_user().trim()`),
+            // `emit_hir_expr` will have already emitted `await fetch_user()`.  Wrap it in
+            // parens so the chain resolves the settled value: `(await fetch_user()).trim()`.
+            let raw_obj_str = emit_hir_expr(obj, ctx);
+            let obj_str = if raw_obj_str.starts_with("await ") {
+                format!("({raw_obj_str})")
+            } else {
+                raw_obj_str
+            };
             let args_str: Vec<String> = args
                 .iter()
                 .map(|a| emit_hir_expr(&a.value, ctx))
@@ -574,20 +584,10 @@ pub(crate) fn emit_hir_expr_attr_value(
     emit_hir_expr(expr, ctx)
 }
 
-/// Returns true if `stmt` is a direct call to one of the named async fns (at the top level only).
+/// Returns true if `stmt` (or any expression recursively nested within it, excluding lambdas)
+/// contains a call to one of the named async fns.
 fn stmt_calls_async_fn(stmt: &HirStmt, async_fn_names: &HashSet<String>) -> bool {
-    let call_expr = match stmt {
-        HirStmt::Let { value, .. } => value,
-        HirStmt::Expr { expr, .. } => expr,
-        HirStmt::Assign { value, .. } => value,
-        _ => return false,
-    };
-    if let HirExpr::Call(callee, _, _, _) = call_expr {
-        if let HirExpr::Ident(name, _) = callee.as_ref() {
-            return async_fn_names.contains(name.as_str());
-        }
-    }
-    false
+    stmt_has_async_call(stmt, async_fn_names)
 }
 
 /// **Phase:** compat-legacy (OP-0138).
@@ -1010,7 +1010,6 @@ export const mobile = {
 #[cfg(test)]
 mod hir_emit_if_tests {
     use super::*;
-    use vox_compiler::hir::*;
 
     fn span() -> vox_compiler::ast::span::Span {
         vox_compiler::ast::span::Span { start: 0, end: 0 }
@@ -1069,6 +1068,166 @@ mod hir_emit_if_tests {
         assert!(
             !out.contains("(() => {"),
             "no void IIFEs in nested ternary: {out}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod async_emit_tests {
+    use super::*;
+    use vox_compiler::hir::{HirArg, HirExpr, HirStmt, HirPattern};
+    use vox_compiler::ast::span::Span;
+
+    fn span() -> Span {
+        Span { start: 0, end: 0 }
+    }
+
+    fn ident(name: &str) -> HirExpr {
+        HirExpr::Ident(name.to_string(), span())
+    }
+
+    fn call(name: &str, args: Vec<HirExpr>) -> HirExpr {
+        HirExpr::Call(
+            Box::new(ident(name)),
+            args.into_iter()
+                .map(|v| HirArg { name: None, value: v })
+                .collect(),
+            false,
+            span(),
+        )
+    }
+
+    fn string_lit(s: &str) -> HirExpr {
+        HirExpr::StringLit(s.to_string(), span())
+    }
+
+    fn let_stmt(var: &str, value: HirExpr) -> HirStmt {
+        HirStmt::Let {
+            pattern: HirPattern::Ident(var.to_string(), span()),
+            type_ann: None,
+            value,
+            mutable: false,
+            span: span(),
+        }
+    }
+
+    fn expr_stmt(expr: HirExpr) -> HirStmt {
+        HirStmt::Expr { expr, span: span() }
+    }
+
+    fn assign_stmt(target: HirExpr, value: HirExpr) -> HirStmt {
+        HirStmt::Assign { target, value, span: span() }
+    }
+
+    fn async_names(names: &[&str]) -> HashSet<String> {
+        names.iter().map(|s| s.to_string()).collect()
+    }
+
+    fn handler_block(stmts: Vec<HirStmt>) -> HirExpr {
+        HirExpr::Block(stmts, span())
+    }
+
+    // Test 1: endpoint called in a let binding inside a handler gets `await`
+    #[test]
+    fn endpoint_called_in_let_binding_inside_handler_gets_await() {
+        let state_names: HashSet<String> = HashSet::new();
+        let async_fns = async_names(&["parse_voice"]);
+        let ctx = EmitCtx::with_async(&state_names, &async_fns);
+
+        // `let p = parse_voice("hi")`
+        let stmt = let_stmt("p", call("parse_voice", vec![string_lit("hi")]));
+        let block = handler_block(vec![stmt]);
+
+        let out = emit_hir_expr_attr_value(&block, &ctx, "onClick");
+        assert!(
+            out.contains("await parse_voice"),
+            "expected `await parse_voice` in let binding, got: {out}"
+        );
+        assert!(
+            out.starts_with("async "),
+            "handler should be async, got: {out}"
+        );
+    }
+
+    // Test 2: endpoint called as method chain receiver gets `(await …)`
+    #[test]
+    fn endpoint_called_as_method_chain_gets_await() {
+        let state_names: HashSet<String> = HashSet::new();
+        let async_fns = async_names(&["fetch_user"]);
+        let ctx = EmitCtx::with_async(&state_names, &async_fns);
+
+        // `fetch_user().trim()` as expression stmt
+        let method_call = HirExpr::MethodCall(
+            Box::new(call("fetch_user", vec![])),
+            "trim".to_string(),
+            vec![],
+            None,
+            span(),
+        );
+        let stmt = expr_stmt(method_call);
+        let block = handler_block(vec![stmt]);
+
+        let out = emit_hir_expr_attr_value(&block, &ctx, "onClick");
+        assert!(
+            out.contains("(await fetch_user())"),
+            "expected `(await fetch_user()).trim()`, got: {out}"
+        );
+        assert!(
+            out.starts_with("async "),
+            "handler should be async, got: {out}"
+        );
+    }
+
+    // Test 3: endpoint nested in assignment gets `await`
+    #[test]
+    fn nested_endpoint_in_assignment_gets_await() {
+        let state_names: HashSet<String> = HashSet::new();
+        let async_fns = async_names(&["save"]);
+        let ctx = EmitCtx::with_async(&state_names, &async_fns);
+
+        // `result = save("data")`
+        let stmt = assign_stmt(ident("result"), call("save", vec![string_lit("data")]));
+        let block = handler_block(vec![stmt]);
+
+        let out = emit_hir_expr_attr_value(&block, &ctx, "onClick");
+        assert!(
+            out.contains("await save("),
+            "expected `await save(` in assignment, got: {out}"
+        );
+        assert!(
+            out.starts_with("async "),
+            "handler should be async, got: {out}"
+        );
+    }
+
+    // Test 4: pure sync handler must NOT get `async`
+    #[test]
+    fn handler_with_no_async_call_is_not_async() {
+        let state_names: HashSet<String> = HashSet::new();
+        let async_fns = async_names(&["fetch_user", "save"]);
+        let ctx = EmitCtx::with_async(&state_names, &async_fns);
+
+        // `console.log("clicked")` — no async calls
+        let stmt = expr_stmt(HirExpr::MethodCall(
+            Box::new(ident("console")),
+            "log".to_string(),
+            vec![HirArg {
+                name: None,
+                value: string_lit("clicked"),
+            }],
+            None,
+            span(),
+        ));
+        let block = handler_block(vec![stmt]);
+
+        let out = emit_hir_expr_attr_value(&block, &ctx, "onClick");
+        assert!(
+            !out.starts_with("async "),
+            "pure sync handler must not be async, got: {out}"
+        );
+        assert!(
+            !out.contains("await "),
+            "no await in sync handler, got: {out}"
         );
     }
 }
