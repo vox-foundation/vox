@@ -79,7 +79,25 @@
       "Bash(xargs -I{} taskkill //F //PID {})",
       "Bash(grep -E \"^\\(vox-\\(plugin-\\)?\\(container|deploy-codegen|skill-runtime|wasm-host|plugin-runtime|grammar-export|webhook|publication\\)\\)$\")",
       "Bash(grep -E \"^\\(optim|tensor|train\\)\\\\.rs$\")",
-      "Bash(grep -v -E \"api$|catalog$|host$\")"
+      "Bash(grep -v -E \"api$|catalog$|host$\")",
+      "Bash(rg \"vox-ludus.*vox-gamify|Use \\\\`vox-ludus\\\\`\" -n .cursor .github AGENTS.md contracts/proximity)",
+      "Bash(rg \"vox-gamify.*vox-ludus|Use \\\\`vox-ludus\\\\`\" -n .cursor .github AGENTS.md contracts/proximity)",
+      "Bash(python -c \"import json; data=open\\('contracts/proximity/retired-surfaces.v1.json'\\).read\\(\\); print\\(data\\)\")",
+      "Bash(node -e \"try { JSON.parse\\(require\\('fs'\\).readFileSync\\('contracts/proximity/retired-surfaces.v1.json','utf8'\\)\\); console.log\\('valid'\\); } catch\\(e\\) { console.log\\('INVALID:', e.message\\); }\")",
+      "Bash(node -e \"const fs=require\\('fs'\\); const d=fs.readFileSync\\('/dev/stdin','utf8'\\); try { JSON.parse\\(d\\); console.log\\('valid'\\); } catch\\(e\\){ console.log\\('INVALID:',e.message\\); }\")",
+      "Bash(git show *)",
+      "Bash(node -e \"try { JSON.parse\\(require\\('fs'\\).readFileSync\\('/tmp/retired-base.json','utf8'\\)\\); console.log\\('valid'\\); } catch\\(e\\) { console.log\\('INVALID:', e.message\\); }\")",
+      "Bash(git restore *)",
+      "Bash(python -m json.tool \"C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\inspiring-brahmagupta-116d1b\\\\contracts\\\\proximity\\\\retired-surfaces.v1.json\")",
+      "Bash(cd /mnt/c/Users/Owner/vox/.claude/worktrees/inspiring-brahmagupta-116d1b && wc -l docs/src/adr/004-codex-arca-turso-ssot.md docs/src/adr/015-vox-docker-oci-portability-ssot.md)",
+      "Bash(cd /mnt/c/Users/Owner/vox/.claude/worktrees/inspiring-brahmagupta-116d1b && rg \"corpus\" crates/vox-cli/src/commands/ --type rust -l 2>/dev/null | head -5 && echo \"---\" && rg \"no-vox-dei-import|no_vox_dei_import\" crates/vox-cli/src/commands/ci/ --type rust 2>/dev/null | head -10)",
+      "Bash(echo \"exit: $?\")",
+      "PowerShell($wt = \"C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\inspiring-brahmagupta-116d1b\"; \\(Get-Content \"$wt\\\\docs\\\\src\\\\adr\\\\004-codex-arca-turso-ssot.md\" | Measure-Object -Line\\).Lines; \\(Get-Content \"$wt\\\\docs\\\\src\\\\adr\\\\015-vox-docker-oci-portability-ssot.md\" | Measure-Object -Line\\).Lines)",
+      "Bash(Get-ChildItem \"C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\inspiring-brahmagupta-116d1b\\\\crates\\\\vox-cli\\\\src\\\\commands\\\\\" -ErrorAction SilentlyContinue | Select-Object Name)",
+      "Bash(python -c \"import json,sys; pkgs=[p for p in json.load\\(sys.stdin\\)['packages'] if p['description'] is None and any\\(p['name'].startswith\\(x\\) for x in ['vox-orchestrator-types','vox-package','vox-actor-runtime','vox-cli-core','vox-crypto','vox-db','vox-db-types','vox-doc-pipeline','vox-eval','vox-grammar-export','vox-identity','vox-integration-tests','vox-lsp','vox-protocol','vox-scientia-ingest','vox-ssg','vox-tensor','vox-test-harness','vox-orchestrator']\\)]; print\\([p['name'] for p in pkgs]\\)\")",
+      "Bash(grep -v '^vox-$')",
+      "Bash(grep -vE '^vox-plugin-$|^vox-[a-z]*-$')",
+      "Bash(rm -rf \"C:/Users/Owner/vox/.claire\" 2>&1 || true)"
     ]
   }
 }
