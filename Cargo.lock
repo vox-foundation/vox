@@ -12080,6 +12080,7 @@ dependencies = [
  "bsky-sdk",
  "chrono",
  "flate2",
+ "hex",
  "jsonschema",
  "mime_guess",
  "pulldown-cmark",
