@@ -2,6 +2,7 @@
 
 use vox_compiler::lexer::cursor::lex;
 use vox_compiler::parser::parse;
+use vox_compiler::pipeline::run_frontend_str;
 use vox_compiler::typeck::diagnostics::TypeckSeverity;
 use vox_compiler::typeck::typecheck_module;
 
@@ -26,8 +27,10 @@ fn warnings(src: &str) -> Vec<vox_compiler::typeck::Diagnostic> {
 }
 
 // ── Tombstone tests (TASK-2.6) ────────────────────────────────────────────────
-// `activity` and `workflow` keywords are tombstoned. Parsing source that
-// contains them must produce a parse error.
+// `activity` and `workflow` keywords are reserved (ADR-028). The pipeline
+// rejects them with E028 diagnostics. Tests use `run_frontend_str` to go
+// through the full pipeline rather than the bare parser, which accepts the
+// tokens so it can produce a more helpful diagnostic.
 
 #[test]
 fn tombstoned_activity_keyword_produces_parse_error() {
@@ -36,9 +39,10 @@ activity send_email(recipient: str, subject: str) to Result[str] {
     Ok("ok")
 }
 "#;
+    let result = run_frontend_str(src, "test.vox").expect("pipeline should not hard-fail");
     assert!(
-        parse(lex(src)).is_err(),
-        "tombstoned `activity` keyword should produce a parse error"
+        result.has_errors(),
+        "tombstoned `activity` keyword should produce a pipeline error diagnostic"
     );
 }
 
@@ -49,9 +53,10 @@ workflow main_flow() to Result[str] {
     Ok("done")
 }
 "#;
+    let result = run_frontend_str(src, "test.vox").expect("pipeline should not hard-fail");
     assert!(
-        parse(lex(src)).is_err(),
-        "tombstoned `workflow` keyword should produce a parse error"
+        result.has_errors(),
+        "tombstoned `workflow` keyword should produce a pipeline error diagnostic"
     );
 }
 
@@ -67,9 +72,10 @@ workflow pipeline() to Result[str] {
     result
 }
 "#;
+    let result = run_frontend_str(src, "test.vox").expect("pipeline should not hard-fail");
     assert!(
-        parse(lex(src)).is_err(),
-        "tombstoned `activity` + `workflow` should produce a parse error"
+        result.has_errors(),
+        "tombstoned `activity` + `workflow` should produce pipeline error diagnostics"
     );
 }
 

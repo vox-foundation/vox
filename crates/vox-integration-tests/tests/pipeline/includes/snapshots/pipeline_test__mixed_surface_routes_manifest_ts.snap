@@ -26,3 +26,12 @@ export const voxRoutes: VoxRoute[] = [
   index: true,
 },
 ]
+
+// Phase C part 2: typed route URL surface.
+// Use `routePath["/users/:id"](userId)` instead of hand-formatting URLs.
+export type KnownRoute =
+  | "/";
+
+export const routePath = {
+  "/": (): string => "/",
+} as const;

@@ -7,6 +7,6 @@ import React, { useState } from "react";
 export function LoginForm(): React.ReactElement {
     const [email, set_email] = useState("");
   return (
-<input value={email} onChange={(e) => set_email(e.target.value)} />
+<input className={"email-field"} value={email} onChange={(e) => set_email(e.target.value)} />
   );
 }

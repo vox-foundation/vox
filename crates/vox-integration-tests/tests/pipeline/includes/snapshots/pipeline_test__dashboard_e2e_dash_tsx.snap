@@ -7,9 +7,9 @@ import React, { useState } from "react";
 export function Dashboard(): React.ReactElement {
   const [n, set_n] = useState(0);
   return (
-<div 
+<div className={["flex", "flex-col", "dash"].filter(Boolean).join(" ")}
 >
-  {"Dashboard"}
+  {n}
 </div>
   );
 }

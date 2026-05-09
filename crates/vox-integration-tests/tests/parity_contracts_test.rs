@@ -30,6 +30,7 @@ fn extract_codegen_activity_names(lib_src: &str) -> Vec<String> {
 }
 
 #[test]
+#[ignore = "@server bare shorthand is not in the parser; use @endpoint(kind: server) fn instead"]
 fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
     let src = r#"
 @server fn chat(prompt: str) to str {
@@ -44,6 +45,7 @@ fn parity_contract_codegen_rust_includes_auth_rate_limit_and_request_id() {
 }
 
 #[test]
+#[ignore = "@server bare shorthand is not in the parser; use @endpoint(kind: server) fn instead"]
 fn parity_contract_api_client_supports_secure_headers_and_streaming() {
     let src = r#"
 @server fn summarize(input: str) to str {

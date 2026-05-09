@@ -341,7 +341,7 @@ fn codegen_routes_produces_route_manifest_ts() {
 
 #[test]
 fn codegen_routes_with_loading_emits_pending_component() {
-    let src = r#"@loading fn Spinner() to Element { return <div>"wait"</div> }
+    let src = r#"@loading fn Spinner() to Element { return column(raw_class="spinner") { "wait" } }
 
 routes {
     "/" to home
@@ -466,12 +466,12 @@ fn golden_blog_fullstack_codegen_emits_manifest_get_and_post() {
 fn codegen_bind_expands_to_value_onchange() {
     let src = r#"component LoginForm() {
     let (email, set_email) = use_state("")
-    view: <input bind={email} />
+    view: input(bind=email, raw_class="email-field")
 }"#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
     let hir = vox_compiler::hir::lower_module(&module);
-    let output = generate(&hir).unwrap();
+    let output = with_web_ir_validate_cleared(|| generate(&hir).unwrap());
 
     let component = output
         .files
@@ -488,7 +488,7 @@ fn codegen_use_effect_maps_to_react_hook() {
     let src = r#"component Timer() {
     let (count, set_count) = use_state(0)
     use_effect(fn(_x) count)
-    view: <div>{count}</div>
+    view: column(raw_class="timer") { count }
 }"#;
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
@@ -503,7 +503,7 @@ fn codegen_use_effect_maps_to_react_hook() {
 
 #[test]
 fn dashboard_full_pipeline_e2e() {
-    let src = "type Message = | User(text: str) | Bot(text: str)\n\ncomponent Dashboard() {\n    state n: int = 0\n    view: <div>\"Dashboard\"</div>\n}\n\ncomponent ChatWidget() {\n    let (messages, set_messages) = use_state([])\n    let (input, set_input) = use_state(\"\")\n    view: (\n        <div class=\"chat\">\n            <input bind={input} />\n            <button on_click={fn(e) set_input(\"\")} >\"Send\"</button>\n        </div>\n    )\n}\n\n@endpoint(kind: query) fn api_stats() to str {\n    return \"[]\"\n}\n\nroutes {\n    \"/\" to Dashboard\n    \"/chat\" to ChatWidget\n}";
+    let src = "type Message = | User(text: str) | Bot(text: str)\n\ncomponent Dashboard() {\n    state n: int = 0\n    view: column(raw_class=\"dash\") { n }\n}\n\ncomponent ChatWidget() {\n    let (messages, set_messages) = use_state([])\n    let (input, set_input) = use_state(\"\")\n    view: column(raw_class=\"chat\") {\n        input(bind=input, raw_class=\"chat-input\", aria_label=\"Chat message\")\n        button(raw_class=\"send-btn\", on_click={fn(e) set_input(\"\")}) { \"Send\" }\n    }\n}\n\n@endpoint(kind: query) fn api_stats() to str {\n    return \"[]\"\n}\n\nroutes {\n    \"/\" to Dashboard\n    \"/chat\" to ChatWidget\n}";
 
     let tokens = lex(src);
     let module = parse(tokens).unwrap();
@@ -618,16 +618,14 @@ import react.use_state
 
 component Dash() {
     state n: int = 0
-    view: (
-        <div class="dashboard">
-            {n}
-        </div>
-    )
+    view: column(raw_class="dashboard") {
+        n
+    }
 }
 
 component Shell() {
     let (x, _set_x) = use_state(0)
-    view: <span>{x}</span>
+    view: column(raw_class="shell") { x }
 }
 
 routes {

@@ -122,9 +122,9 @@ type Color =
 
 fn describe(c: Color) to str {
     match c {
-        Red -> "red"
-        Green -> "green"
-        Blue -> "blue"
+        Red => "red"
+        Green => "green"
+        Blue => "blue"
     }
 }
 "#,
@@ -147,8 +147,8 @@ type Color =
 
 fn describe(c: Color) to str {
     match c {
-        Red -> "red"
-        Green -> "green"
+        Red => "red"
+        Green => "green"
     }
 }
 "#,
@@ -172,8 +172,8 @@ type Color =
 
 fn describe(c: Color) to str {
     match c {
-        Red -> "red"
-        _ -> "other"
+        Red => "red"
+        _ => "other"
     }
 }
 "#,
@@ -210,7 +210,7 @@ fn component_with_element_return_no_warning() {
     let warns = warnings(
         r#"
 component Button() {
-    view: <button>"Click"</button>
+    view: button(raw_class="btn") { "Click" }
 }
 "#,
     );
