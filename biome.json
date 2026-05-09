@@ -8,7 +8,7 @@
   "files": {
     "include": [
       "docs-astro/src/**/*.{ts,tsx,js,jsx,astro}",
-      "vox-vscode/src/**/*.{ts,tsx}",
+      "apps/vox-mental-tracker/src/**/*.{ts,tsx}",
       "tools/visualizer/src/**/*.{ts,tsx}",
       "crates/vox-codegen/codegen_ts/tests/**/*.ts"
     ],

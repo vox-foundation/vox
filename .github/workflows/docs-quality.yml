@@ -64,10 +64,9 @@ jobs:
         working-directory: docs-astro
         run: pnpm build
 
-      # Bootstrap period: continue-on-error until baseline passes, then graduate
-      # to a hard gate (same pattern as markdownlint above).
+      # Hard gate: graduated from continue-on-error after baseline stabilised.
+      # Covers docs-astro, apps/vox-mental-tracker, tools/visualizer, vox-codegen TS tests.
       - name: TypeScript lint (biome)
-        continue-on-error: true
         run: npx @biomejs/biome@1.9.4 lint --reporter=github
 
       # Hard gate: was continue-on-error.  Markdownlint rules are explicitly
