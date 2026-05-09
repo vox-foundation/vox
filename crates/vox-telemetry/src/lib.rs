@@ -20,6 +20,7 @@
 //!
 //! If no recorder is registered, `record_event!` is a no-op.
 
+pub mod aggregator;
 pub mod config;
 pub mod no_op;
 pub mod recorder;
@@ -28,6 +29,7 @@ pub mod types;
 
 // ── Public re-exports ─────────────────────────────────────────────────────
 
+pub use aggregator::fill_task_root_summary;
 pub use config::{TelemetryConfig, is_master_enabled};
 pub use no_op::NoOpRecorder;
 pub use recorder::{CompositeRecorder, TelemetryRecorder, global_recorder, set_global_recorder};

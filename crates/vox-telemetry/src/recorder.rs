@@ -38,6 +38,9 @@ impl CompositeRecorder {
 
 impl TelemetryRecorder for CompositeRecorder {
     fn record(&self, event: &TelemetryEvent) {
+        // Accumulate model-call statistics into the per-task aggregator so that
+        // TaskRootSummary events can be enriched with real totals.
+        crate::aggregator::observe(event);
         for r in &self.inner {
             r.record(event);
         }
