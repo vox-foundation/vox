@@ -85,6 +85,9 @@ vox-ci-guards:
     - cargo run -p vox-cli --quiet -- ci toestub-scoped --mode legacy
     - cargo run -p vox-cli --quiet -- ci cuda-features
     - cargo run -p vox-cli --quiet -- ci mens-gate --profile ci_full
+    # Arch-check: layer ordering (strict), fan-in, LoC, orphan, docstring.
+    # Invocation via scripts/arch-check.vox (SSOT shared with .github/workflows/ci.yml).
+    - cargo run -p vox-cli --quiet -- run scripts/arch-check.vox
 
 # ── build ─────────────────────────────────────────────────────────────────
 build:
