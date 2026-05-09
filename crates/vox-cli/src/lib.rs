@@ -48,6 +48,7 @@ pub mod pipeline;
 mod process_supervision;
 /// Terminal Markdown renderer + human-in-the-loop prompt helpers (CLI SSOT).
 pub(crate) mod render;
+pub mod telemetry_sink;
 pub mod telemetry_spool;
 pub mod templates;
 /// WASI preopen mode for `script-execution` / `execution-api` runners.
@@ -552,6 +553,27 @@ pub enum Cli {
     },
 }
 
+/// Register the process-wide telemetry sinks.
+///
+/// In Phase A `db` is always `None` — the ResearchMetricsSink is not wired yet.
+/// Phase B passes `Some(db)` after the workspace DB is opened.
+pub fn init_telemetry_sinks(db: Option<vox_db::VoxDb>) {
+    use std::sync::Arc;
+    use vox_telemetry::{CompositeRecorder, TelemetryRecorder};
+
+    let mut sinks: Vec<Arc<dyn TelemetryRecorder>> = Vec::new();
+
+    if let Some(db) = db {
+        sinks.push(Arc::new(vox_db::telemetry_sink::ResearchMetricsSink::new(db)));
+    }
+
+    sinks.push(Arc::new(crate::telemetry_sink::SpoolSink::new(
+        crate::telemetry_spool::spool_root(),
+    )));
+
+    vox_telemetry::set_global_recorder(Arc::new(CompositeRecorder::new(sinks)));
+}
+
 /// Run the `vox` CLI (parsed from `std::env::args`).
 pub async fn run_vox_cli() -> anyhow::Result<()> {
     let root = VoxCliRoot::parse();
@@ -568,6 +590,7 @@ pub async fn run_vox_cli_from_parsed(root: VoxCliRoot) -> anyhow::Result<()> {
         }
     }
     init_tracing_for_cli();
+    init_telemetry_sinks(None); // Phase B: pass Some(workspace_db) here
     apply_global_opts(&root.global);
     cli_dispatch::dispatch_cli(root.cmd, &root.global).await
 }
