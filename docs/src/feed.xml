@@ -5,8 +5,17 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sat, 09 May 2026 04:34:46 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 09 May 2026 04:44:52 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
+
+  <item>
+    <title>Architecture Index</title>
+    <link>https://vox-lang.org/architecture/architecture-index.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
+    <description>Auto-generated architecture index.</description>
+    <pubDate>Sat, 09 May 2026 00:00:00 GMT</pubDate>
+    <category>Documentation</category>
+  </item>
 
   <item>
     <title>Codebase Cleanup &amp; Signal Improvement Plan (2026-05-02)</title>
@@ -58,15 +67,6 @@
     <link>https://vox-lang.org/architecture/agentic-version-control-automation-research-2026.html</link>
     <guid isPermaLink="true">https://vox-lang.org/architecture/agentic-version-control-automation-research-2026.html</guid>
     <description>Research on how LLM agents fail at version control, where Jujutsu helps and where it bites for parallel-agent execution, and a proposal for capability-typed…</description>
-    <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
-    <category>Documentation</category>
-  </item>
-
-  <item>
-    <title>Architecture Index</title>
-    <link>https://vox-lang.org/architecture/architecture-index.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/architecture-index.html</guid>
-    <description>Auto-generated architecture index.</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>

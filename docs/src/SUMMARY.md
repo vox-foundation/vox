@@ -219,6 +219,7 @@ training_eligible: false
 - [Feature growth boundaries](archive/research-2026-q1/feature-growth-boundaries.md)
 - [GPU Discovery & C++ Retirement Strategy (2026)](archive/research-2026-q1/gpu-discovery-ssot-findings-2026.md)
 - [GUI-Native Language Roadmap — Execution Status](architecture/gui-native-roadmap-status-2026.md)
+- [Git Concurrency Policy](architecture/git-concurrency-policy.md)
 - [God object defactor checklist (v3)](archive/research-2026-q1/god-object-defactor-checklist.md)
 - [HITL Doubt Loop (SSOT)](archive/research-2026-q1/hitl-doubt-loop-ssot.md)
 - [Hybrid adapter cookbook (SPA + SSR)](archive/research-2026-q1/react-interop-hybrid-adapter-cookbook.md)

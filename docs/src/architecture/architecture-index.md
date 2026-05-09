@@ -51,6 +51,7 @@ training_eligible: false
 - [Fast LLM instruction plan](planning-meta/02-fast-llm-instruction-plan.md)
 - [Feature growth and boundaries SSOT (2026)](feature-growth-boundaries.md)
 - [GUI-Native Language Roadmap — Execution Status](gui-native-roadmap-status-2026.md)
+- [Git Concurrency Policy](git-concurrency-policy.md)
 - [Inference Tuning Resolution Research 2026](inference-tuning-resolution-research-2026.md)
 - [Internal Web IR Implementation Blueprint](internal-web-ir-implementation-blueprint.md)
 - [MENS Training — Architecture Pointer](mens-training-ssot.md)
