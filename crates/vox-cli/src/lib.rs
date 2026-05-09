@@ -498,6 +498,13 @@ pub enum Cli {
         cmd: commands::model::ModelCmd,
     },
 
+    /// Workspace drift and pattern-repetition linter.
+    #[command(name = "drift-check")]
+    DriftCheck {
+        #[command(flatten)]
+        args: commands::drift_check::DriftCheckArgs,
+    },
+
     /// Unified research operations: infrastructure (up/down/status) and eval.
     Research {
         /// Subcommand.

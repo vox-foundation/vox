@@ -21,3 +21,10 @@ pre-commit:
       run: cargo run -p vox-cli --quiet -- ci generate-plugin-catalog-docs
       stage_fixed: true
       glob: "crates/vox-plugin-catalog/catalog.toml"
+
+pre-push:
+  parallel: false
+  commands:
+    drift-check:
+      run: cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning
+      glob: "crates/**/*.rs"

@@ -10978,6 +10978,7 @@ dependencies = [
  "vox-deploy-codegen",
  "vox-doc-inventory",
  "vox-doc-pipeline",
+ "vox-drift-check",
  "vox-eval",
  "vox-exec-grammar",
  "vox-forge",

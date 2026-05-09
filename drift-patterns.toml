@@ -1,0 +1,34 @@
+[meta]
+version = 1
+
+# Reqwest client construction must go through vox-reqwest-defaults
+[[forbidden_call]]
+id = "drift/reqwest-bypass"
+match = ["reqwest::Client::new", "reqwest::Client::builder"]
+allow_in_crate = ["vox-reqwest-defaults"]
+allow_in_test = true
+severity = "warning"
+suggestion = "Use vox_reqwest_defaults::client_builder()"
+
+# Raw .vox/ paths must use vox-config::paths constants
+[[forbidden_literal]]
+id = "drift/vox-path-literal"
+pattern = '^\.(vox|vox-cache)[/\\]'
+allow_in_crate = ["vox-config", "vox-db"]
+severity = "warning"
+suggestion = "Use vox_config::paths::* constants"
+
+[duplicated_literal]
+threshold = 3
+min_length = 8
+ignore_in_paths = ["**/tests/**", "**/fixtures/**", "**/golden/**"]
+severity = "info"
+
+[duplicated_numeric]
+threshold = 3
+severity = "warning"
+
+[duplicated_body]
+threshold = 2
+min_lines = 5
+severity = "warning"

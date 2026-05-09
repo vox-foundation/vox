@@ -7,3 +7,5 @@ pub mod features;
 pub mod report;
 pub mod rules;
 pub mod sweep;
+
+pub use vox_code_audit::rules::Severity;

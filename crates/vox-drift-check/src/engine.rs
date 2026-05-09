@@ -1,1 +1,142 @@
-// placeholder — implemented in Task 6
+use std::path::{Path, PathBuf};
+use anyhow::Result;
+use rayon::prelude::*;
+use walkdir::WalkDir;
+use vox_code_audit::rules::Language;
+use crate::extractors::{rust::RustExtractor, typescript::TypeScriptExtractor, vox::VoxExtractor};
+use crate::extractor::LanguageExtractor;
+use crate::features::ExtractedFeatures;
+
+pub struct WorkspaceFeatures {
+    pub files: Vec<ExtractedFeatures>,
+    pub workspace_version: String,
+}
+
+pub struct DriftEngine {
+    root: PathBuf,
+}
+
+impl DriftEngine {
+    pub fn new(root: &Path) -> Self {
+        Self { root: root.to_path_buf() }
+    }
+
+    pub fn extract_workspace(&self) -> Result<WorkspaceFeatures> {
+        let paths = self.collect_source_files();
+        let files: Vec<ExtractedFeatures> = paths
+            .par_iter()
+            .filter_map(|p| {
+                let content = std::fs::read_to_string(p).ok()?;
+                let lang = detect_language(p);
+                let extractor: &dyn LanguageExtractor = match lang {
+                    Language::Rust => &RustExtractor,
+                    Language::TypeScript => &TypeScriptExtractor,
+                    Language::Vox => &VoxExtractor,
+                    _ => return None,
+                };
+                extractor.extract(p, &content).ok()
+            })
+            .collect();
+
+        let workspace_version = read_workspace_version(&self.root);
+        Ok(WorkspaceFeatures { files, workspace_version })
+    }
+
+    pub fn run_all(&self) -> Result<Vec<vox_code_audit::rules::Finding>> {
+        use crate::rules::{all_drift_rules, WorkspaceContext};
+        use crate::sweep::all_sweep_rules;
+
+        let ws = self.extract_workspace()?;
+        let ctx = WorkspaceContext {
+            workspace_version: ws.workspace_version.clone(),
+            workspace_root: self.root.clone(),
+        };
+
+        let mut findings = Vec::new();
+
+        // Sweep rules (cross-file)
+        for rule in all_sweep_rules() {
+            findings.extend(rule.sweep(&ws.files));
+        }
+
+        // Targeted drift rules (per-file with workspace ctx)
+        let drift_rules = all_drift_rules();
+        for file_features in &ws.files {
+            for rule in &drift_rules {
+                if rule.languages().contains(&file_features.language) {
+                    findings.extend(rule.check(file_features, &ctx));
+                }
+            }
+        }
+
+        Ok(findings)
+    }
+
+    fn collect_source_files(&self) -> Vec<PathBuf> {
+        WalkDir::new(&self.root)
+            .into_iter()
+            .filter_entry(|e| {
+                let name = e.file_name().to_string_lossy();
+                !matches!(
+                    name.as_ref(),
+                    "target" | "node_modules" | ".git" | "archive"
+                ) && name != ".vox-cache"
+            })
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_type().is_file())
+            .map(|e| e.into_path())
+            .filter(|p| {
+                matches!(
+                    detect_language(p),
+                    Language::Rust | Language::TypeScript | Language::Vox
+                )
+            })
+            .collect()
+    }
+}
+
+pub fn detect_language(path: &Path) -> Language {
+    match path.extension().and_then(|e| e.to_str()) {
+        Some("rs") => Language::Rust,
+        Some("ts") | Some("tsx") | Some("js") | Some("jsx") => Language::TypeScript,
+        Some("vox") => Language::Vox,
+        _ => Language::Unknown,
+    }
+}
+
+fn read_workspace_version(root: &Path) -> String {
+    let cargo = root.join("Cargo.toml");
+    std::fs::read_to_string(cargo)
+        .ok()
+        .and_then(|s| {
+            let t: toml::Value = toml::from_str(&s).ok()?;
+            t.get("workspace")?
+                .get("package")?
+                .get("version")?
+                .as_str()
+                .map(String::from)
+        })
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+    use std::fs;
+
+    #[test]
+    fn engine_finds_rust_files_and_extracts() {
+        let dir = TempDir::new().unwrap();
+        fs::write(dir.path().join("foo.rs"), r#"fn foo() { let x = "hello"; }"#).unwrap();
+        fs::write(dir.path().join("bar.ts"), r#"const x = "world";"#).unwrap();
+
+        let eng = DriftEngine::new(dir.path());
+        let ws = eng.extract_workspace().unwrap();
+        let rust_files: Vec<_> = ws.files.iter()
+            .filter(|f| f.file.extension().map_or(false, |e| e == "rs"))
+            .collect();
+        assert!(!rust_files.is_empty());
+        assert!(rust_files[0].string_literals.iter().any(|l| l.value == "hello"));
+    }
+}

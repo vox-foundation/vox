@@ -141,6 +141,10 @@ vox-search = { workspace = true }
 vox-publisher = { workspace = true, default-features = false, features = ["scholarly-external-jobs"] }
 vox-doc-inventory = { workspace = true }
 vox-code-audit = { workspace = true, optional = true }
+vox-drift-check = { workspace = true }
+# vox-drift-check uses vox-code-audit types; make it available for drift_check.rs
+# (also already pulled in by optional features above; this avoids feature-gate conditional)
+
 toml = { workspace = true }
 vox-doc-pipeline = { path = "../vox-doc-pipeline" }
 vox-orchestrator = { workspace = true }
