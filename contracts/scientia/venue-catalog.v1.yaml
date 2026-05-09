@@ -1,0 +1,86 @@
+schema_version: 1
+venues:
+  - id: imc
+    name: "Internet Measurement Conference"
+    shortname: "IMC"
+    type: conference
+    primary: true
+    focus: ["measurement", "networking", "systems", "provider-behavior"]
+    review_model: double-blind
+    typical_deadline: "June"
+    min_pages: 12
+    max_pages: 14
+    target_atlas: provider-atlas
+
+  - id: mlsys
+    name: "Machine Learning and Systems"
+    shortname: "MLSys"
+    type: conference
+    primary: true
+    focus: ["ml-systems", "inference", "training", "provider-behavior"]
+    review_model: double-blind
+    typical_deadline: "November"
+    min_pages: 10
+    max_pages: 12
+    target_atlas: provider-atlas
+
+  - id: tmlr
+    name: "Transactions on Machine Learning Research"
+    shortname: "TMLR"
+    type: journal
+    primary: true
+    focus: ["machine-learning", "systems", "empirical", "measurement"]
+    review_model: open
+    typical_deadline: "rolling"
+    min_pages: ~
+    max_pages: ~
+    target_atlas: provider-atlas
+
+  - id: jmlr
+    name: "Journal of Machine Learning Research"
+    shortname: "JMLR"
+    type: journal
+    primary: true
+    focus: ["machine-learning", "theory", "empirical"]
+    review_model: open
+    typical_deadline: "rolling"
+    min_pages: ~
+    max_pages: ~
+    target_atlas: ~
+
+  - id: jair
+    name: "Journal of Artificial Intelligence Research"
+    shortname: "JAIR"
+    type: journal
+    primary: true
+    focus: ["artificial-intelligence", "empirical", "survey"]
+    review_model: open
+    typical_deadline: "rolling"
+    min_pages: ~
+    max_pages: ~
+    target_atlas: ~
+
+  - id: distill
+    name: "Distill"
+    shortname: "Distill"
+    type: web-native
+    primary: false
+    focus: ["explanation", "visualization", "machine-learning"]
+    review_model: editorial
+    typical_deadline: ~
+    min_pages: ~
+    max_pages: ~
+    target_atlas: ~
+
+  - id: living-reviews
+    name: "Living Reviews in AI (Vox Internal)"
+    shortname: "LivingReviews"
+    type: living-review
+    primary: false
+    focus: ["survey", "atlas", "longitudinal", "provider-behavior"]
+    review_model: internal
+    typical_deadline: "quarterly"
+    min_pages: ~
+    max_pages: ~
+    target_atlas: provider-atlas
+    living_review: true

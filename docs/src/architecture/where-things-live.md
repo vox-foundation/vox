@@ -140,6 +140,7 @@ guess. The full crate roster with layer assignments lives in
 | Add a pure-data DB type | `crates/vox-db-types/src/` |
 | Add an orchestrator type (Agent/Task/etc.) | `crates/vox-orchestrator-types/src/agent_types/` |
 | Add an orchestrator policy module (D1–D10) | `crates/vox-orchestrator/src/<module>.rs` + register in `lib.rs` + add row to this table |
+| Add a research-pipeline stage (claims/gate/planner/provider/types/verifier) | `crates/vox-orchestrator/src/dei_shim/research/<module>.rs`. Phase 0a stubs; Phase 1 replaces claim/verifier with `vox-claim-extractor` calls. |
 | Orchestrator policy façade (all D1–D10) | `crates/vox-orchestrator/src/orchestrator_policy.rs` |
 | Circuit breaker — doom-loop detection (D6) | `crates/vox-orchestrator/src/circuit_breaker.rs` |
 | Confidence fusion — Socrates trigger (D3) | `crates/vox-orchestrator/src/confidence_fusion.rs` |

@@ -147,6 +147,8 @@ pub mod mesh_federation_poll;
 #[cfg(not(feature = "populi-transport"))]
 #[path = "mesh_federation_poll_noop.rs"]
 pub mod mesh_federation_poll;
+/// MCP tool surface and plugin-skills bridge stubs (implementation pending SP6).
+pub mod mcp_tools;
 /// LLM model registry and provider configuration.
 pub mod models;
 /// Lightweight AI usage / behavior monitor hooks.

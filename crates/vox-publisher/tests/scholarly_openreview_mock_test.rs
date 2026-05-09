@@ -102,7 +102,7 @@ async fn openreview_adapter_submit_and_status_use_api_base_override() {
 
     let mut env = EnvRestore::new();
     env.set("VOX_OPENREVIEW_API_BASE", &base);
-    env.set("OPENREVIEW_ACCESS_TOKEN", "mock-bearer");
+    env.set("VOX_OPENREVIEW_ACCESS_TOKEN", "mock-bearer");
     for key in [
         "VOX_SCHOLARLY_DISABLE",
         "VOX_SCHOLARLY_DISABLE_LIVE",

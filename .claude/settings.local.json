@@ -117,7 +117,16 @@
       "Bash(git restore *)",
       "Bash(for crate in vox-webhook vox-skills vox-corpus vox-orchestrator-queue vox-package vox-plugin-publication vox-plugin-populi-mesh vox-plugin-mens-candle-cuda; do *)",
       "Bash(for crate in vox-webhook vox-skills vox-corpus vox-orchestrator-queue vox-package vox-plugin-publication; do *)",
-      "Bash(awk -F: '$2>0 {sum+=$2; count++} END {print \"Total Rust tests:\", sum, \"in\", count, \"files\"}')"
+      "Bash(cargo clippy *)",
+      "Bash(cat)",
+      "Bash(bash /tmp/check_atlas.sh)",
+      "Bash(sed -n '36,38p' crates/vox-publisher/src/atlas/manifest.rs)",
+      "Bash(sed -n '102,104p' crates/vox-publisher/src/atlas/manifest.rs)",
+      "Bash(sed -n '50,52p' crates/vox-publisher/src/atlas/campaign.rs)",
+      "Bash(sed -n '63,66p' crates/vox-publisher/src/atlas/coauthor.rs)",
+      "Bash(sed -n '86,88p' crates/vox-publisher/src/atlas/coauthor.rs)",
+      "Bash(python3 -c \"import json; json.load\\(open\\(r'C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\frosty-banach-b7304e\\\\contracts\\\\scientia\\\\canonical-publication-metadata.v1.schema.json'\\)\\)\")",
+      "Bash(UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli --test command_catalog_paths_baseline)"
     ]
   }
 }

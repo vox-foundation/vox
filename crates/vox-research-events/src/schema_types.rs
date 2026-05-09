@@ -1,0 +1,469 @@
+//! Rust types generated from `contracts/scientia/*.schema.json` (SCIENTIA Phase 0c).
+//!
+//! These types are hand-transcribed from the JSON Schema files; keep them in sync
+//! when schema files change (see the comment in `vox-doc-pipeline/src/pipeline/lint.rs`
+//! for the canonical list of source files).
+//!
+//! All required JSON fields map to non-`Option` Rust fields.
+//! All optional JSON fields map to `Option<T>` Rust fields.
+
+use serde::{Deserialize, Serialize};
+
+// ---------------------------------------------------------------------------
+// discovery-signal.schema.json
+// ---------------------------------------------------------------------------
+
+/// Provenance record for a discovery signal.
+/// All fields are optional in the schema.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SignalProvenance {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repo_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metric_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub run_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recorded_at_ms: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub digest: Option<String>,
+}
+
+/// Signal strength level.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscoverySignalStrength {
+    Supporting,
+    Strong,
+    Informational,
+}
+
+/// Signal family classification.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DiscoverySignalFamily {
+    Unspecified,
+    EvalGate,
+    BenchmarkPair,
+    Documentation,
+    TelemetryAggregate,
+    OperatorAttestation,
+    MensScorecard,
+    TrustRollup,
+    ReproducibilityArtifact,
+    LinkedCorpus,
+    FindingCandidateSignal,
+    /// Provider-level reliability/latency/uptime observations (Mesh §4.1 / Phase 6).
+    ProviderObservation,
+    /// Model capability and benchmark evidence signals (Mesh §4.1 / Phase 6).
+    ModelCapabilityEvidence,
+}
+
+/// A SCIENTIA discovery signal (`discovery-signal.schema.json`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiscoverySignal {
+    pub code: String,
+    pub summary: String,
+    pub strength: DiscoverySignalStrength,
+    pub family: DiscoverySignalFamily,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_ref: Option<String>,
+    pub provenance: SignalProvenance,
+}
+
+// ---------------------------------------------------------------------------
+// finding-candidate.v1.schema.json
+// ---------------------------------------------------------------------------
+
+/// Class of a finding candidate.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FindingCandidateClass {
+    AlgorithmicImprovement,
+    ReproducibilityInfra,
+    PolicyGovernance,
+    TelemetryTrust,
+    Other,
+    /// Atlas of model capability evidence across providers (Mesh §4.2 / Phase 6).
+    ModelCapabilityAtlas,
+    /// Atlas of provider reliability data (Mesh §4.2 / Phase 6).
+    ProviderReliabilityAtlas,
+}
+
+/// Confidence scores for a finding candidate. All fields optional in the schema.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FindingCandidateConfidence {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub signal_strength: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub contradiction_risk: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reproducibility_support: Option<f64>,
+}
+
+/// A SCIENTIA finding candidate ledger record v1 (`finding-candidate.v1.schema.json`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FindingCandidateV1 {
+    pub schema_version: u32,
+    pub candidate_id: String,
+    pub candidate_class: FindingCandidateClass,
+    pub internal_signals: Vec<DiscoverySignal>,
+    pub created_at_ms: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publication_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title_hint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub novelty_evidence_bundle_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub worthiness_decision_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub confidence: Option<FindingCandidateConfidence>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated_at_ms: Option<i64>,
+}
+
+// ---------------------------------------------------------------------------
+// novelty-evidence-bundle.v1.schema.json
+// ---------------------------------------------------------------------------
+
+/// Source system for novelty hits.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NoveltySource {
+    Openalex,
+    Crossref,
+    SemanticScholar,
+    Manual,
+    Other,
+}
+
+/// A single normalized prior-art hit.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NormalizedHit {
+    pub source: NoveltySource,
+    pub work_uri: String,
+    pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub year: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lexical_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub semantic_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overlap_note: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cited_by_count: Option<u64>,
+}
+
+/// Recency bucket for overlap summary.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecencyBucket {
+    Unknown,
+    Stale,
+    Recent,
+    VeryRecent,
+}
+
+/// Summary of overlap across all normalized hits.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OverlapSummary {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_lexical_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_semantic_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recency_bucket: Option<RecencyBucket>,
+}
+
+/// A single query trace for audit.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct QueryTrace {
+    pub source: String,
+    pub request_fingerprint_sha256: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_status: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cached: Option<bool>,
+}
+
+/// A SCIENTIA novelty evidence bundle v1 (`novelty-evidence-bundle.v1.schema.json`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct NoveltyEvidenceBundle {
+    pub schema_version: u32,
+    pub bundle_id: String,
+    pub candidate_id: String,
+    pub computed_at_ms: i64,
+    pub query_digest_sha256: String,
+    pub sources: Vec<NoveltySource>,
+    pub normalized_hits: Vec<NormalizedHit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub overlap_summary: Option<OverlapSummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub query_traces: Option<Vec<QueryTrace>>,
+}
+
+// ---------------------------------------------------------------------------
+// evidence-pack.v1.schema.json
+// ---------------------------------------------------------------------------
+
+/// Reference to a single benchmark run.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RunRef {
+    pub run_id: String,
+    pub config_digest: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub telemetry_digest: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eval_digest: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gate_digest: Option<String>,
+}
+
+/// A SCIENTIA EvidencePack v1 (`evidence-pack.v1.schema.json`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EvidencePackV1 {
+    pub version: String,
+    pub publication_id: String,
+    pub manifest_digest: String,
+    pub baseline: RunRef,
+    pub candidate: RunRef,
+    pub replay_instructions: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pair_integrity_passed: Option<bool>,
+}
+
+// ---------------------------------------------------------------------------
+// worthiness-signals.v2.schema.json
+// ---------------------------------------------------------------------------
+
+/// Publication profile / target venue.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorthinessProfile {
+    Journal,
+    Preprint,
+    Repository,
+    Social,
+}
+
+/// A single worthiness signal (gate or diagnostic item).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorthinessSignalItem {
+    pub id: String,
+    pub passed: bool,
+    pub score: f64,
+    pub reason_code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
+}
+
+/// A prioritised next-action recommendation.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorthinessActionItem {
+    pub id: String,
+    pub priority: u32,
+    pub action: String,
+}
+
+/// A SCIENTIA worthiness signals v2 (`worthiness-signals.v2.schema.json`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorthinessSignalsV2 {
+    pub version: String,
+    pub profile: WorthinessProfile,
+    pub hard_gate: Vec<WorthinessSignalItem>,
+    pub soft_gate: Vec<WorthinessSignalItem>,
+    pub diagnostic: Vec<WorthinessSignalItem>,
+    pub next_actions: Vec<WorthinessActionItem>,
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn discovery_signal_round_trips() {
+        let s = DiscoverySignal {
+            code: "DS-001".to_string(),
+            summary: "p95 latency increased by 12ms".to_string(),
+            strength: DiscoverySignalStrength::Strong,
+            family: DiscoverySignalFamily::TelemetryAggregate,
+            source_ref: None,
+            provenance: SignalProvenance {
+                origin: Some("calibration.rs".to_string()),
+                repo_path: None,
+                metric_type: Some("p95_latency_ms".to_string()),
+                run_id: None,
+                recorded_at_ms: Some(1_700_000_000_000),
+                digest: None,
+            },
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        let back: DiscoverySignal = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.code, "DS-001");
+        assert_eq!(back.strength, DiscoverySignalStrength::Strong);
+        assert_eq!(back.family, DiscoverySignalFamily::TelemetryAggregate);
+        assert_eq!(back.provenance.origin.as_deref(), Some("calibration.rs"));
+    }
+
+    #[test]
+    fn finding_candidate_v1_round_trips() {
+        let fc = FindingCandidateV1 {
+            schema_version: 1,
+            candidate_id: "FC-2026-001".to_string(),
+            candidate_class: FindingCandidateClass::AlgorithmicImprovement,
+            internal_signals: vec![DiscoverySignal {
+                code: "DS-002".to_string(),
+                summary: "Gate passed on eval suite B".to_string(),
+                strength: DiscoverySignalStrength::Supporting,
+                family: DiscoverySignalFamily::EvalGate,
+                source_ref: None,
+                provenance: SignalProvenance {
+                    origin: None,
+                    repo_path: None,
+                    metric_type: None,
+                    run_id: Some("run-abc".to_string()),
+                    recorded_at_ms: None,
+                    digest: None,
+                },
+            }],
+            created_at_ms: 1_700_000_001_000,
+            publication_id: None,
+            title_hint: Some("Faster inference via batch fusion".to_string()),
+            novelty_evidence_bundle_id: Some("NEB-001".to_string()),
+            worthiness_decision_ref: None,
+            confidence: Some(FindingCandidateConfidence {
+                signal_strength: Some(0.85),
+                contradiction_risk: Some(0.1),
+                reproducibility_support: Some(0.9),
+            }),
+            updated_at_ms: None,
+        };
+        let json = serde_json::to_string(&fc).unwrap();
+        let back: FindingCandidateV1 = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.candidate_id, "FC-2026-001");
+        assert_eq!(back.candidate_class, FindingCandidateClass::AlgorithmicImprovement);
+        assert_eq!(back.schema_version, 1);
+        assert_eq!(back.internal_signals.len(), 1);
+        assert_eq!(back.internal_signals[0].code, "DS-002");
+    }
+
+    #[test]
+    fn novelty_evidence_bundle_round_trips() {
+        let neb = NoveltyEvidenceBundle {
+            schema_version: 1,
+            bundle_id: "NEB-001".to_string(),
+            candidate_id: "FC-2026-001".to_string(),
+            computed_at_ms: 1_700_000_002_000,
+            query_digest_sha256: "a".repeat(64),
+            sources: vec![NoveltySource::Openalex, NoveltySource::Crossref],
+            normalized_hits: vec![NormalizedHit {
+                source: NoveltySource::Openalex,
+                work_uri: "https://openalex.org/W12345".to_string(),
+                title: "Efficient batch inference".to_string(),
+                year: Some(2023),
+                lexical_score: Some(0.42),
+                semantic_score: Some(0.67),
+                overlap_note: None,
+                cited_by_count: Some(14),
+            }],
+            overlap_summary: Some(OverlapSummary {
+                max_lexical_score: Some(0.42),
+                max_semantic_score: Some(0.67),
+                recency_bucket: Some(RecencyBucket::Recent),
+            }),
+            query_traces: None,
+        };
+        let json = serde_json::to_string(&neb).unwrap();
+        let back: NoveltyEvidenceBundle = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.bundle_id, "NEB-001");
+        assert_eq!(back.normalized_hits.len(), 1);
+        assert_eq!(back.normalized_hits[0].work_uri, "https://openalex.org/W12345");
+    }
+
+    #[test]
+    fn evidence_pack_v1_round_trips() {
+        let ep = EvidencePackV1 {
+            version: "v1".to_string(),
+            publication_id: "PUB-001".to_string(),
+            manifest_digest: "abcdef1234567890".to_string(),
+            baseline: RunRef {
+                run_id: "run-base".to_string(),
+                config_digest: "cfgdigest0000000".to_string(),
+                telemetry_digest: Some("teldigest000".to_string()),
+                eval_digest: None,
+                gate_digest: None,
+            },
+            candidate: RunRef {
+                run_id: "run-cand".to_string(),
+                config_digest: "cfgdigest1111111".to_string(),
+                telemetry_digest: None,
+                eval_digest: Some("evaldigest0000".to_string()),
+                gate_digest: None,
+            },
+            replay_instructions: "cargo run -p vox-bench -- replay".to_string(),
+            pair_integrity_passed: Some(true),
+        };
+        let json = serde_json::to_string(&ep).unwrap();
+        let back: EvidencePackV1 = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.version, "v1");
+        assert_eq!(back.publication_id, "PUB-001");
+        assert_eq!(back.baseline.run_id, "run-base");
+        assert_eq!(back.pair_integrity_passed, Some(true));
+    }
+
+    #[test]
+    fn worthiness_signals_v2_round_trips() {
+        let ws = WorthinessSignalsV2 {
+            version: "v2".to_string(),
+            profile: WorthinessProfile::Preprint,
+            hard_gate: vec![WorthinessSignalItem {
+                id: "hg-repro".to_string(),
+                passed: true,
+                score: 0.95,
+                reason_code: "all_repro_checks_pass".to_string(),
+                details: None,
+            }],
+            soft_gate: vec![WorthinessSignalItem {
+                id: "sg-novelty".to_string(),
+                passed: true,
+                score: 0.80,
+                reason_code: "novelty_score_above_threshold".to_string(),
+                details: Some("max_semantic_score=0.67".to_string()),
+            }],
+            diagnostic: vec![],
+            next_actions: vec![WorthinessActionItem {
+                id: "na-submit".to_string(),
+                priority: 1,
+                action: "Submit to arXiv".to_string(),
+            }],
+        };
+        let json = serde_json::to_string(&ws).unwrap();
+        let back: WorthinessSignalsV2 = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.version, "v2");
+        assert_eq!(back.profile, WorthinessProfile::Preprint);
+        assert_eq!(back.hard_gate.len(), 1);
+        assert_eq!(back.hard_gate[0].id, "hg-repro");
+        assert_eq!(back.next_actions[0].priority, 1);
+    }
+}

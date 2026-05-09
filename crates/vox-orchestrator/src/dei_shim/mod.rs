@@ -1,3 +1,4 @@
+pub mod research;
 pub mod route_telemetry;
 
 pub mod research_policy {

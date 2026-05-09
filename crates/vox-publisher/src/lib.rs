@@ -1,5 +1,6 @@
 //! Syndication / scientia publishing surfaces (Reddit, YouTube, scholarly external jobs).
 
+pub mod atlas;
 pub mod publisher;
 pub use publisher::*;
 
@@ -33,6 +34,8 @@ pub mod switching;
 pub mod templates;
 pub mod topic_packs;
 pub mod types;
+pub mod peer_review_gate;
+pub mod venue_catalog;
 pub mod zenodo_api_types;
 pub mod zenodo_metadata;
 

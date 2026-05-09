@@ -1,9 +1,13 @@
 //! Scholarly repository adapters (Zenodo, OpenReview, local/echo ledger).
 
+mod arxiv_api;
+mod crossref_deposit;
 mod error;
 mod flags;
 mod idempotency;
 mod openreview;
+pub mod orcid_oauth;
+mod osf;
 mod zenodo;
 
 #[cfg(feature = "scholarly-external-jobs")]
@@ -172,9 +176,27 @@ async fn submit_for_adapter_normalized(
             let adapter = openreview::openreview_adapter_from_env().await?;
             adapter.submit(manifest).await
         }
-        vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => Err(ScholarlyError::Config {
-            message: "arxiv_assist adapter implementation pending in Wave 12".to_string(),
-        }),
+        vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => {
+            arxiv_api::ArxivAssistAdapter.submit(manifest).await
+        }
+        vox_config::scholarly::ScholarlyAdapterKind::Osf => {
+            if flags::scholarly_live_globally_disabled() {
+                return Err(ScholarlyError::Disabled {
+                    reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+                });
+            }
+            let adapter = osf::osf_from_secrets()?;
+            adapter.submit(manifest).await
+        }
+        vox_config::scholarly::ScholarlyAdapterKind::CrossrefDeposit => {
+            if flags::scholarly_live_globally_disabled() {
+                return Err(ScholarlyError::Disabled {
+                    reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+                });
+            }
+            let adapter = crossref_deposit::crossref_from_secrets()?;
+            adapter.submit(manifest).await
+        }
     }
 }
 
@@ -190,6 +212,8 @@ pub async fn submit_with_adapter(
         "openreview" => vox_config::scholarly::ScholarlyAdapterKind::OpenReview,
         "echo_ledger" | "echo" => vox_config::scholarly::ScholarlyAdapterKind::EchoLedger,
         "arxiv_assist" | "arxiv" => vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist,
+        "osf" => vox_config::scholarly::ScholarlyAdapterKind::Osf,
+        "crossref_deposit" | "crossref" => vox_config::scholarly::ScholarlyAdapterKind::CrossrefDeposit,
         _ => vox_config::scholarly::ScholarlyAdapterKind::LocalLedger,
     };
     submit_for_adapter_normalized(manifest, k).await
@@ -197,7 +221,7 @@ pub async fn submit_with_adapter(
 
 /// Resolve [`VOX_SCHOLARLY_ADAPTER`] (default `local_ledger`) and submit.
 ///
-/// Supported: `local_ledger`, `echo_ledger`, `zenodo`, `openreview`.  
+/// Supported: `local_ledger`, `echo_ledger`, `zenodo`, `openreview`, `arxiv_assist`, `osf`, `crossref_deposit`.
 /// Live adapters honor `VOX_SCHOLARLY_DISABLE`, `VOX_SCHOLARLY_DISABLE_LIVE`, and per-adapter `VOX_SCHOLARLY_DISABLE_*`.
 pub async fn submit_with_configured_adapter(
     manifest: &PublicationManifest,
@@ -243,9 +267,24 @@ pub async fn fetch_status_with_configured_adapter(
             let adapter = openreview::openreview_adapter_from_env().await?;
             adapter.fetch_status(external_submission_id).await
         }
-        vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => Err(ScholarlyError::Config {
-            message: "arxiv_assist status polling pending".to_string(),
-        }),
+        vox_config::scholarly::ScholarlyAdapterKind::ArxivAssist => {
+            arxiv_api::ArxivAssistAdapter
+                .fetch_status(external_submission_id)
+                .await
+        }
+        vox_config::scholarly::ScholarlyAdapterKind::Osf => {
+            if flags::scholarly_live_globally_disabled() {
+                return Err(ScholarlyError::Disabled {
+                    reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+                });
+            }
+            let adapter = osf::osf_from_secrets()?;
+            adapter.fetch_status(external_submission_id).await
+        }
+        vox_config::scholarly::ScholarlyAdapterKind::CrossrefDeposit => {
+            let adapter = crossref_deposit::crossref_from_secrets()?;
+            adapter.fetch_status(external_submission_id).await
+        }
     }
 }
 
@@ -287,9 +326,27 @@ pub async fn fetch_scholarly_remote_status_for_adapter(
         let o = openreview::openreview_adapter_from_env().await?;
         return o.fetch_status(external_submission_id).await;
     }
+    if kind.eq_ignore_ascii_case("arxiv_assist") || kind.eq_ignore_ascii_case("arxiv") {
+        return arxiv_api::ArxivAssistAdapter
+            .fetch_status(external_submission_id)
+            .await;
+    }
+    if kind.eq_ignore_ascii_case("osf") {
+        if flags::scholarly_live_globally_disabled() {
+            return Err(ScholarlyError::Disabled {
+                reason: "VOX_SCHOLARLY_DISABLE_LIVE is set".into(),
+            });
+        }
+        let o = osf::osf_from_secrets()?;
+        return o.fetch_status(external_submission_id).await;
+    }
+    if kind.eq_ignore_ascii_case("crossref_deposit") || kind.eq_ignore_ascii_case("crossref") {
+        let c = crossref_deposit::crossref_from_secrets()?;
+        return c.fetch_status(external_submission_id).await;
+    }
     Err(ScholarlyError::Config {
         message: format!(
-            "unsupported scholarly adapter for remote status: {kind:?} (supported: local_ledger, echo_ledger, zenodo, openreview)"
+            "unsupported scholarly adapter for remote status: {kind:?} (supported: local_ledger, echo_ledger, zenodo, openreview, arxiv_assist, osf, crossref_deposit)"
         ),
     })
 }

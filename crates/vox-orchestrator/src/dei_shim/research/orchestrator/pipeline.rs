@@ -1,7 +1,6 @@
 use std::time::Instant;
 
 use anyhow::Result;
-use serde_json::json;
 use vox_db::Codex;
 
 use super::config::ResearchConfig;
@@ -18,7 +17,7 @@ use super::super::types::{
     Citation, CompetenceSignal, ResearchHit, ResearchMetadata, ResearchPlan, ResearchQuery,
     ResearchResult, ResearchScope, RetrievalDiagnostics, RoutingTier,
 };
-use super::pipeline_cache::research_cache_short_circuit;
+// PHASE_0a_STUB: re-import in Phase 1 when cache is re-enabled.
 use super::super::verifier::verify_claims_with_config;
 
 /// Run the full research pipeline for `query`. Returns a `ResearchResult` with
@@ -29,40 +28,29 @@ pub async fn run_research(
     config: &ResearchConfig,
 ) -> Result<ResearchResult> {
     // ── (0) Check Rollout Flags ──────────────────────────────────────────────
-    let mut web_enabled = true;
-    let mut claim_enabled = config.claim_detection_enabled;
-    let mut persist_enabled = true;
-    let mut self_verification_enabled = false;
+    let web_enabled = true;
+    let claim_enabled = config.claim_detection_enabled;
+    // PHASE_0a_STUB: rollout flag queries not yet wired to Codex; always use defaults.
+    // Phase 1 re-enables after vox_db gains get_retrieval_config.
+    let persist_enabled = true;
+    let self_verification_enabled = false;
 
-    if let Some(db) = db {
-        if let Ok(Some(val)) = db.get_retrieval_config("rollout.web_provider") {
-            web_enabled = val["enabled"].as_bool().unwrap_or(true);
-        }
-        if let Ok(Some(val)) = db.get_retrieval_config("rollout.claim_detection") {
-            claim_enabled = val["enabled"].as_bool().unwrap_or(true);
-        }
-        if let Ok(Some(val)) = db.get_retrieval_config("rollout.persist_to_docs") {
-            persist_enabled = val["enabled"].as_bool().unwrap_or(true);
-        }
-        if let Ok(Some(val)) = db.get_retrieval_config("rollout.self_verification") {
-            self_verification_enabled = val["enabled"].as_bool().unwrap_or(false);
-        }
-    }
+    let _ = db; // suppress unused warning during phase 0a stub period
 
     if !web_enabled && query.scope == ResearchScope::Web {
-        query.scope = ResearchScope::Both; // fallback to both, or could fail?
+        query.scope = ResearchScope::Both;
     }
     if !claim_enabled {
         query.verify_claims = false;
     }
-    // Note: persist_enabled is checked during persistence step at the end.
+    let _ = web_enabled; // used above
 
     let registry = ProviderRegistry::from_env_with_config(config.provider.clone());
     let llm_model_registry = crate::models::ModelRegistry::new();
     let base_inference = config
         .model_pick_inference
         .clone()
-        .unwrap_or_else(|| crate::config::OrchestratorConfig::default().effective_inference_config());
+        .unwrap_or_default();
     let resolved_llm =
         super::super::model_select::resolve_research_models(&llm_model_registry, &base_inference);
     let research_verifier_cfg = verifier_config_for_research_run(&config.verifier, &resolved_llm);
@@ -77,41 +65,22 @@ pub async fn run_research(
     );
     let start = Instant::now();
 
-    // ── (0b) Research cache check (Codex `list_memories_by_type`, no raw SQL) ──
-    if let Some(db) = db {
-        if let Some(cached) = research_cache_short_circuit(&query, db).await {
-            return Ok(cached);
-        }
-    }
+    // ── (0b) Research cache check ────────────────────────────────────────────
+    // PHASE_0a_STUB: cache short-circuit disabled (list_memories_by_type not yet in vox_db).
+    // Phase 1 re-enables after vox_db gains list_memories_by_type.
+    let _ = &query; // keep query alive through cache bypass
+    // (no cache check in Phase 0a)
 
-    // ── (a) Create session ────────────────────────────────────────────────────
-    let session_id = if let Some(db) = db {
-        let sid = db
-            .create_research_session(
-                &uuid::Uuid::new_v4().to_string(),
-                &json!({ "query": query.query, "scope": format!("{:?}", query.scope) }),
-            )
-            .unwrap_or(0);
-        let _ = db.update_research_session_status(sid, "in_progress");
-        sid
-    } else {
-        0
-    };
+    // ── (a) Session tracking ─────────────────────────────────────────────────
+    // PHASE_0a_STUB: research session DB writes not yet wired.
+    // Phase 1 re-enables after vox_db gains create_research_session.
+    let session_id: i64 = 0;
 
     let report_progress = |msg: String, pct: Option<f32>| {
         if let Some(ref cb) = config.progress_callback {
-            cb(msg.clone(), pct);
-        }
-        if let Some(db) = db {
-            let _ = db.record_research_metric(
-                session_id,
-                "progress",
-                None,
-                &serde_json::json!({ "msg": msg, "pct": pct }),
-            );
+            cb(msg, pct);
         }
     };
-    let _registry_ref = &registry;
     report_progress(
         "Decomposing query into subqueries...".to_string(),
         Some(0.05),
@@ -133,18 +102,6 @@ pub async fn run_research(
         scope: query.scope.clone(),
         max_sources_per_subquery: query.max_sources,
     });
-
-    if let Some(db) = db {
-        // Persist plan for resume capability.
-        let plan_json = super::super::planner::plan_to_json(&plan);
-        let _ = db.update_research_session_status(session_id, "planning");
-        let _ = db.record_research_metric(
-            session_id,
-            "plan_created",
-            Some(registry.primary_name()),
-            &plan_json,
-        );
-    }
 
     report_progress(
         format!("Running {} subqueries...", plan.subqueries.len()),
@@ -213,15 +170,6 @@ pub async fn run_research(
         },
     };
 
-    if let Some(db) = db {
-        let _ = db.record_research_metric(
-            session_id,
-            "retrieval_diagnostics",
-            Some(registry.primary_name()),
-            &serde_json::to_value(&diagnostics).unwrap_or_default(),
-        );
-    }
-
     // ── (e) Confidence gate → routing decision ────────────────────────────────
     let draft_claims = {
         let mut claims = extract_claims_with_model(
@@ -258,7 +206,7 @@ pub async fn run_research(
         && matches!(routing_tier, RoutingTier::DeepResearch)
         && !draft_claims.is_empty()
     {
-        let verdicts = verify_claims_with_config(
+        verify_claims_with_config(
             &draft_claims,
             &query.query,
             &registry,
@@ -266,37 +214,9 @@ pub async fn run_research(
             config.llm_endpoint.as_deref(),
             config.api_key.as_deref(),
         )
-        .await;
-        // Persist verdicts.
-        if let Some(db) = db {
-            for verdict in &verdicts {
-                let claim_id = db
-                    .store_claim(
-                        session_id,
-                        &verdict.claim.text,
-                        verdict.claim.is_numeric,
-                        verdict.claim.is_recent,
-                        verdict.claim.is_named_event,
-                    )
-                    .unwrap_or(0);
-                let _ = db.store_claim_verdict(
-                    claim_id,
-                    &verdict.verdict.to_string(),
-                    verdict.confidence,
-                    verdict.supporting_count as i64,
-                    verdict.contradicting_count as i64,
-                );
-                for span in &verdict.evidence_spans {
-                    let _ = db.store_evidence_span(
-                        claim_id,
-                        span.source_id,
-                        &span.text,
-                        &span.span_type.to_string(),
-                    );
-                }
-            }
-        }
-        verdicts
+        .await
+        // PHASE_0a_STUB: claim/verdict persistence not yet wired to vox_db.
+        // Phase 1 re-enables after vox_db gains store_claim / store_claim_verdict / store_evidence_span.
     } else {
         vec![]
     };
@@ -347,21 +267,8 @@ pub async fn run_research(
     })
     .await;
 
-    // ── (i) Store training pair when quality is high ──────────────────────────
-    if let Some(db) = db {
-        let overall_confidence = confidence_signal.score as f64;
-        if overall_confidence >= config.training_pair_min_confidence
-            && citations.len() >= config.training_pair_min_citations
-        {
-            let _ = db.store_training_pair(
-                &query.query,
-                &answer,
-                &answer,
-                Some(overall_confidence),
-                &format!("research_session_{}", session_id),
-            );
-        }
-    }
+    // PHASE_0a_STUB: training pair persistence not yet wired to vox_db.
+    // Phase 1 re-enables after vox_db gains store_training_pair.
 
     // ── (j) Persistence ──────────────────────────────────────────────────────
     if persist_enabled
@@ -370,8 +277,8 @@ pub async fn run_research(
         && answer.len() >= 200
     {
         use std::path::Path;
-        if let Ok(root_str) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWorkspaceRoot) {
-            let root = Path::new(&root_str);
+        if let Some(root_str) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxWorkspaceRoot).expose() {
+            let root = Path::new(root_str);
             let slug = super::super::persistence::slug_from_query(&query.query);
             let _ = super::super::persistence::write_research_doc(
                 root,
@@ -383,58 +290,12 @@ pub async fn run_research(
         }
     }
 
-    // ── (k2) Write research summary to agent memory ─────────────────────────
-    // This bridges the research subsystem and the memory subsystem so that
-    // `vox_memory_search` and `vox_memory_recall_db` can surface past research.
-    if let Some(db) = db {
-        if answer.len() >= 100 {
-            let summary = format!(
-                "Research: {} | Confidence: {:.2} | Quality: {} | Sources: {} | Answer: {}",
-                &query.query,
-                confidence_signal.score,
-                quality_score,
-                all_hits.len(),
-                &answer.chars().take(500).collect::<String>()
-            );
-            let _ = db
-                .save_memory(vox_db::MemoryParams {
-                    agent_id: "research_pipeline",
-                    session_id: &format!("research_{}", session_id),
-                    memory_type: "research_result",
-                    content: &summary,
-                    metadata: Some(&serde_json::json!({
-                        "session_id": session_id,
-                        "query": &query.query,
-                        "confidence": confidence_signal.score,
-                        "quality_score": quality_score,
-                        "source_count": all_hits.len(),
-                        "routing_tier": format!("{:?}", routing_tier),
-                    }).to_string()),
-                    importance: (confidence_signal.score as f64 * quality_score as f64 / 100.0)
-                        .clamp(0.1, 1.0),
-                    vcs_snapshot_id: None,
-                })
-                .await;
-        }
-    }
+    // PHASE_0a_STUB: memory write not yet wired (save_memory API shape confirmed but
+    // session management methods missing from vox_db).
+    // Phase 1 re-enables after vox_db gains create_research_session etc.
 
     // ── (k) Finalize session ──────────────────────────────────────────────────
     let duration_ms = start.elapsed().as_millis() as u64;
-    if let Some(db) = db {
-        let _ = db.record_research_metric(
-            session_id,
-            "end_to_end_latency_ms",
-            Some(registry.primary_name()),
-            &json!({ "ms": duration_ms, "source_count": all_hits.len() }),
-        );
-        let _ = db.record_research_metric(
-            session_id,
-            "quality_score",
-            None,
-            &json!({ "score": quality_score }),
-        );
-        let _ = db.update_research_session_status(session_id, "completed");
-    }
 
     // ── (l) Optional CoVE-style self-verification ─────────────────────────────
     let self_verification = if self_verification_enabled && !answer.is_empty() && !all_hits.is_empty()

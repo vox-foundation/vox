@@ -1,4 +1,12 @@
 //! Markdown lint passes for docs under `docs/src/`.
+//!
+// SCIENTIA Phase 0c — contracts/scientia/ schema sources for vox-research-events::schema_types
+// These JSON schemas generate Rust types; if schemas change, update schema_types.rs to match:
+//   contracts/scientia/discovery-signal.schema.json → DiscoverySignal
+//   contracts/scientia/finding-candidate.v1.schema.json → FindingCandidateV1
+//   contracts/scientia/novelty-evidence-bundle.v1.schema.json → NoveltyEvidenceBundle
+//   contracts/scientia/evidence-pack.v1.schema.json → EvidencePackV1
+//   contracts/scientia/worthiness-signals.v2.schema.json → WorthinessSignalsV2
 
 use std::fs;
 use std::path::Path;
@@ -32,6 +40,7 @@ const VALID_CATEGORIES: &[&str] = &[
 ];
 
 const VALID_STATUS: &[&str] = &[
+    "approved",
     "current",
     "experimental",
     "legacy",
