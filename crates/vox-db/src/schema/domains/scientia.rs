@@ -171,4 +171,108 @@ CREATE TABLE IF NOT EXISTS model_pricing_catalog (
 
 CREATE INDEX IF NOT EXISTS idx_model_pricing_catalog_model
     ON model_pricing_catalog(model_id, confidence);
+
+-- Research session tracking for the SCIENTIA pipeline (Phase 0d).
+CREATE TABLE IF NOT EXISTS scientia_research_sessions (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_key       TEXT    NOT NULL UNIQUE,
+    status            TEXT    NOT NULL DEFAULT 'active',  -- active|completed|failed
+    started_at_ms     INTEGER NOT NULL,
+    finished_at_ms    INTEGER,
+    query_text        TEXT,
+    hit_count         INTEGER NOT NULL DEFAULT 0,
+    claim_count       INTEGER NOT NULL DEFAULT 0,
+    quality_score     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_scientia_sessions_status ON scientia_research_sessions(status, started_at_ms);
+
+-- Atomic claims extracted from T1 aggregates (Phase 0d).
+CREATE TABLE IF NOT EXISTS scientia_claims (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    claim_id          INTEGER NOT NULL UNIQUE,  -- FNV-1a hash of claim text
+    session_id        INTEGER NOT NULL DEFAULT 0,
+    text              TEXT    NOT NULL,
+    is_numeric        INTEGER NOT NULL DEFAULT 0,
+    is_recent         INTEGER NOT NULL DEFAULT 0,
+    is_named_event    INTEGER NOT NULL DEFAULT 0,
+    verifiability_score REAL,
+    created_at_ms     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scientia_claims_session ON scientia_claims(session_id, created_at_ms);
+
+-- Verification verdicts per claim (Phase 0d).
+CREATE TABLE IF NOT EXISTS scientia_claim_verdicts (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    claim_id          INTEGER NOT NULL,
+    verdict           TEXT    NOT NULL,  -- Supported|Contradicted|Contested|Unverified
+    confidence        REAL    NOT NULL DEFAULT 0.0,
+    verifier_model    TEXT,
+    span_start        INTEGER,
+    span_end          INTEGER,
+    span_text         TEXT,
+    created_at_ms     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scientia_verdicts_claim ON scientia_claim_verdicts(claim_id);
+
+-- Pre-registration records (Phase 0d).
+CREATE TABLE IF NOT EXISTS scientia_prereg (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    prereg_id         TEXT    NOT NULL UNIQUE,  -- Nanopub Trusty URI
+    hypothesis        TEXT    NOT NULL,
+    signed_at_ms      INTEGER NOT NULL,
+    signing_key       TEXT    NOT NULL,
+    payload_json      TEXT    NOT NULL,  -- full PreregistrationV1 JSON
+    supersedes_id     TEXT,
+    created_at_ms     INTEGER NOT NULL
+);
+
+-- T4 publication attempt log (Phase 0d).
+CREATE TABLE IF NOT EXISTS scientia_publication_attempts (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    manifest_id       TEXT    NOT NULL,
+    venue             TEXT    NOT NULL,
+    attempt_number    INTEGER NOT NULL DEFAULT 1,
+    status            TEXT    NOT NULL DEFAULT 'pending',  -- pending|submitted|accepted|rejected|failed
+    doi               TEXT,
+    error             TEXT,
+    attempted_at_ms   INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scientia_pub_attempts ON scientia_publication_attempts(manifest_id, attempted_at_ms);
+
+-- Learned model behavior profiles for the Provider Atlas (Phase 0d).
+CREATE TABLE IF NOT EXISTS scientia_model_profile_learning (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider          TEXT    NOT NULL,
+    model_id          TEXT    NOT NULL,
+    profile_key       TEXT    NOT NULL,  -- e.g. p95_latency_ms, refusal_rate, malformation_rate
+    profile_value     REAL    NOT NULL,
+    sample_count      INTEGER NOT NULL DEFAULT 0,
+    window_start_ms   INTEGER NOT NULL,
+    window_end_ms     INTEGER NOT NULL,
+    updated_at_ms     INTEGER NOT NULL,
+    UNIQUE(provider, model_id, profile_key)
+);
+
+-- Provider search runs within a research session (Phase 0d).
+CREATE TABLE IF NOT EXISTS scientia_provider_runs (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id        INTEGER NOT NULL,
+    provider_name     TEXT    NOT NULL,
+    hit_count         INTEGER NOT NULL DEFAULT 0,
+    elapsed_ms        INTEGER NOT NULL DEFAULT 0,
+    started_at_ms     INTEGER NOT NULL,
+    finished_at_ms    INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_scientia_provider_runs_session ON scientia_provider_runs(session_id);
+
+-- Training pairs for model learning (quality-scored query/answer pairs) (Phase 0d).
+CREATE TABLE IF NOT EXISTS scientia_training_pairs (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id        INTEGER NOT NULL,
+    query_text        TEXT    NOT NULL,
+    answer_text       TEXT    NOT NULL,
+    quality_score     INTEGER NOT NULL DEFAULT 0,
+    created_at_ms     INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scientia_training_pairs_session ON scientia_training_pairs(session_id);
 "#;
