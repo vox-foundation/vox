@@ -1013,6 +1013,7 @@ pub(crate) fn check_latin_alias_parity_with_catalog(repo_root: &Path, lib_rs: &s
         "fab",
         "oc",
         "rec",
+        "bapp", // hidden shorthand for bundle-app, not a Latin name
         "watch",
         "merge-adapter",
         "local-status",
