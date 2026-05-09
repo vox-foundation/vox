@@ -32,7 +32,7 @@ pub async fn get_events(
     for row in rows {
         events.push(AgentEventRecord {
             id: row.id,
-            agent_id: row.agent_id,
+            agent_id: row.agent_id.into_string(),
             event_type: row.event_type,
             payload: row.payload_json,
             cli_version: row.cli_version,

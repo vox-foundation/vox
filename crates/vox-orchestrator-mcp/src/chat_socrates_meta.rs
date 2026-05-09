@@ -363,7 +363,7 @@ pub(crate) fn spawn_questioning_trace_from_socrates(
                 .agent_for_session_id(&session_key)
                 .or_else(|| {
                     open.as_ref()
-                        .and_then(|row| row.task_id.as_deref())
+                        .and_then(|row| row.task_id.as_ref().map(|t| t.as_str()))
                         .and_then(|tid| tid.parse::<u64>().ok())
                         .and_then(|tid| {
                             spend_state

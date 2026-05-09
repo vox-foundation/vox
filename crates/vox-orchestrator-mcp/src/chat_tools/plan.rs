@@ -703,7 +703,7 @@ pub async fn plan_replan(state: &ServerState, params: PlanReplanParams) -> Strin
             if let Ok(sessions) = db.list_plan_sessions(50, None).await {
                 if let Some(sess) = sessions
                     .into_iter()
-                    .find(|s| s.plan_session_id == params.session_id)
+                    .find(|s| s.plan_session_id.as_str() == params.session_id)
                 {
                     let goal = sess.goal_text;
                     let prompt = format!(
