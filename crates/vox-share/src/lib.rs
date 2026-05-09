@@ -13,6 +13,7 @@ pub mod binary_cache;
 pub mod consent;
 pub mod coordinator;
 pub mod error;
+pub mod lifecycle;
 pub mod proxy;
 pub mod sse_detect;
 pub mod state;

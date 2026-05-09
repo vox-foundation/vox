@@ -96,23 +96,13 @@ pub async fn run(args: ShareArgs) -> Result<()> {
         session.proxy_port
     );
     println!("[vox share] Press Ctrl+C to stop.");
-
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            println!("[vox share] Shutting down.");
-        }
-        _ = async {
-            if let Some(d) = duration {
-                tokio::time::sleep(d).await;
-            } else {
-                std::future::pending::<()>().await;
-            }
-        } => {
-            println!("[vox share] Duration elapsed.");
-        }
+    if let Some(d) = duration {
+        println!(
+            "[vox share] Auto-shutdown in {}",
+            vox_share::lifecycle::format_duration(d)
+        );
     }
-
-    session.shutdown().await;
+    session.wait().await;
     println!("[vox share] Done.");
     Ok(())
 }

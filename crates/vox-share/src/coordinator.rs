@@ -42,7 +42,8 @@ pub struct ShareSession {
     /// The public URL to share with users — may include auth token decoration.
     pub public_url: String,
     proxy_shutdown: tokio::sync::oneshot::Sender<()>,
-    duration_timer: Option<tokio::task::JoinHandle<()>>,
+    /// Receives a signal when the duration elapses (None if duration is unbounded).
+    duration_done_rx: Option<tokio::sync::mpsc::Receiver<()>>,
     _app_child: Option<tokio::process::Child>,
 }
 
@@ -92,17 +93,20 @@ impl ShareSession {
                 fallback.preflight().await?;
                 let tunnel_handle = fallback.start(actual_proxy_port, cfg.connect_timeout).await?;
                 let public_url = cfg.auth_mode.decorate_url(&tunnel_handle.public_url);
-                let duration_timer = cfg.duration.map(|d| {
-                    tokio::spawn(async move {
-                        tokio::time::sleep(d).await;
-                    })
-                });
+                let duration_done_rx = if let Some(d) = cfg.duration {
+                    let (tx, rx) = tokio::sync::mpsc::channel(1);
+                    tokio::spawn(crate::lifecycle::run_countdown(d, tx));
+                    tokio::spawn(crate::lifecycle::run_countdown_printer(d));
+                    Some(rx)
+                } else {
+                    None
+                };
                 return Ok(ShareSession {
                     tunnel_handle,
                     proxy_port: actual_proxy_port,
                     public_url,
                     proxy_shutdown: proxy_shutdown_tx,
-                    duration_timer,
+                    duration_done_rx,
                     _app_child: app_child,
                 });
             }
@@ -128,11 +132,13 @@ impl ShareSession {
         };
 
         // Optional auto-shutdown timer.
-        let duration_timer = cfg.duration.map(|d| {
-            tokio::spawn(async move {
-                tokio::time::sleep(d).await;
-            })
-        });
+        let duration_done_rx = if let Some(d) = cfg.duration {
+            let (tx, rx) = tokio::sync::mpsc::channel(1);
+            tokio::spawn(crate::lifecycle::run_countdown(d, tx));
+            Some(rx)
+        } else {
+            None
+        };
 
         let public_url = cfg.auth_mode.decorate_url(&tunnel_handle.public_url);
         Ok(ShareSession {
@@ -140,18 +146,61 @@ impl ShareSession {
             proxy_port: actual_proxy_port,
             public_url,
             proxy_shutdown: proxy_shutdown_tx,
-            duration_timer,
+            duration_done_rx,
             _app_child: app_child,
         })
     }
 
     pub async fn shutdown(self) {
         self.tunnel_handle.shutdown();
-        if let Some(t) = self.duration_timer {
-            t.abort();
-        }
+        // Drop duration_done_rx — this will close the channel and the countdown task will
+        // exit on the next send attempt (already completed or about to be dropped).
+        drop(self.duration_done_rx);
         let _ = self.proxy_shutdown.send(());
         tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+
+    /// Wait for the session to end: either Ctrl+C or duration elapsed.
+    /// Handles shutdown cleanup automatically.
+    pub async fn wait(self) {
+        // Extract the receiver so we can move it into the select without
+        // holding a borrow on `self`.
+        let ShareSession {
+            tunnel_handle,
+            proxy_port,
+            public_url,
+            proxy_shutdown,
+            mut duration_done_rx,
+            _app_child,
+        } = self;
+
+        let done = async {
+            if let Some(ref mut rx) = duration_done_rx {
+                rx.recv().await;
+            } else {
+                std::future::pending::<()>().await;
+            }
+        };
+
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {
+                println!("[vox share] Ctrl+C received; shutting down.");
+            }
+            _ = done => {
+                println!("[vox share] Duration elapsed; shutting down.");
+            }
+        }
+
+        // Reassemble and shut down.
+        let session = ShareSession {
+            tunnel_handle,
+            proxy_port,
+            public_url,
+            proxy_shutdown,
+            duration_done_rx,
+            _app_child,
+        };
+        session.shutdown().await;
     }
 }
 
