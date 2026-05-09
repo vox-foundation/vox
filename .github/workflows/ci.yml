@@ -436,6 +436,13 @@ jobs:
           cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-audit
           cargo run -p vox-cli --features completion-toestub --quiet -- ci completion-gates --mode enforce
 
+      - name: Detector rule SSOT — F1 score gate (contracts/code-audit/rules.v1.yaml)
+        run: |
+          cargo run -p vox-cli --quiet -- ci detect-rules-bench \
+            --rules contracts/code-audit/rules.v1.yaml \
+            --fixtures-root contracts/code-audit/fixtures \
+            --min-f1 0.70
+
       - name: TOESTUB full crates/ — syn parse failure budget (JSON envelope)
         env:
           VOX_TOESTUB_MAX_RUST_PARSE_FAILURES: 3
