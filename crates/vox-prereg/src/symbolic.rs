@@ -54,15 +54,22 @@ impl NumericComparatorVerifier {
         let upward_keywords = ["increased", "rose", "risen", "grew", "higher"];
         let downward_keywords = ["decreased", "fell", "fallen", "dropped", "lower", "reduced"];
 
-        // Use word-boundary matching: keyword must be surrounded by non-alphabetic chars or
-        // at start/end of string to avoid substring collisions (e.g. "up" in "update").
+        // Use word-boundary matching: keyword must be surrounded by non-alphanumeric chars
+        // and non-underscore, or at start/end of string to avoid substring collisions
+        // (e.g. "up" in "update", "fell" in "value_fell_2").
         let word_match = |text: &str, kw: &str| -> bool {
             let mut start = 0;
             while let Some(pos) = text[start..].find(kw) {
                 let abs_pos = start + pos;
-                let before_ok = abs_pos == 0 || !text.as_bytes()[abs_pos - 1].is_ascii_alphabetic();
+                let before_ok = abs_pos == 0 || {
+                    let b = text.as_bytes()[abs_pos - 1];
+                    !b.is_ascii_alphanumeric() && b != b'_'
+                };
                 let after_pos = abs_pos + kw.len();
-                let after_ok = after_pos >= text.len() || !text.as_bytes()[after_pos].is_ascii_alphabetic();
+                let after_ok = after_pos >= text.len() || {
+                    let b = text.as_bytes()[after_pos];
+                    !b.is_ascii_alphanumeric() && b != b'_'
+                };
                 if before_ok && after_ok {
                     return true;
                 }

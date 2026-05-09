@@ -13,7 +13,7 @@ workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
-hex = "0.4.3"
+hex = { workspace = true }
 thiserror = { workspace = true }
 vox-research-events = { workspace = true }
 vox-crypto = { workspace = true }
