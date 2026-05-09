@@ -1,3 +1,11 @@
+---
+title: "Workspace Reorg — Build-Time + Layered Architecture (2026-05-08)"
+description: "Design document for the 2026-05-08 workspace reorg: build-time wins, layered architecture, and phase plan."
+category: "architecture"
+status: "current"
+training_eligible: false
+---
+
 # Workspace Reorg — Build-Time + Layered Architecture (2026-05-08)
 
 > **Phase numbering:** This plan uses the **workspace reorg** phase sequence (Phases 0–9). For the other two sequences, see [phase-numbering-index](phase-numbering-index.md).

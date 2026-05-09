@@ -1,0 +1,22 @@
+// Install lefthook pre-commit hooks for this repo.
+// Run once after cloning: vox run scripts/install-hooks.vox
+//
+// Lefthook reads lefthook.yml at the repo root and installs a git pre-commit
+// hook that auto-regenerates .generated.md files and ignore-file sync on commit.
+
+fn main() {
+  let result = exec("lefthook", ["install"]);
+  if result.exit_code != 0 {
+    println("lefthook not found. Install it first:");
+    println("  Windows:  winget install evilmartians.lefthook");
+    println("  macOS:    brew install lefthook");
+    println("  Linux:    cargo install lefthook");
+    println("  All:      https://github.com/evilmartians/lefthook#installation");
+    exit(1);
+  }
+  println("Pre-commit hooks installed.");
+  println("Generators will run automatically on commit:");
+  println("  - vox ci sync-ignore-files   (when .voxignore changes)");
+  println("  - vox ci command-sync        (when CLI commands change)");
+  println("  - vox ci generate-plugin-catalog-docs  (when catalog.toml changes)");
+}

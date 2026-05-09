@@ -66,7 +66,7 @@ Tavily is the **live web retrieval leg** of the Vox RAG pipeline. It provides re
 | `extract_depth` | `"basic"│"advanced"` | Advanced handles JavaScript-rendered pages |
 
 **Typical use:**
-```
+```text
 Tavily /search → ranked URLs → Tavily /extract → clean markdown → embed → vector store
 ```
 

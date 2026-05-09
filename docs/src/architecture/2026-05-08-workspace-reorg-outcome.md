@@ -1,3 +1,11 @@
+---
+title: "Workspace Reorg Outcome (2026-05-08)"
+description: "Outcome report for the 2026-05-08 workspace reorg: phases completed, build-time gains, and naming history."
+category: "architecture"
+status: "current"
+training_eligible: false
+---
+
 # Workspace Reorg Outcome (2026-05-08)
 
 > **Naming note (2026-05-08):** The CI guard binary referenced as `vox-layer-check` in this narration was renamed to `vox-arch-check` later in the same series; references below are historical.

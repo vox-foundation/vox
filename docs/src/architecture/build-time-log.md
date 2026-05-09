@@ -1,3 +1,11 @@
+---
+title: "Build-Time Log"
+description: "Per-phase build-time measurements for the 2026-05-08 workspace reorg."
+category: "architecture"
+status: "current"
+training_eligible: false
+---
+
 # Build-Time Log
 
 Per-phase measurements for the workspace reorg. See [build-time-baseline.md](./build-time-baseline.md).
