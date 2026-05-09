@@ -42,10 +42,15 @@
 pub mod descent;
 /// Parse errors and recovery hints.
 pub mod error;
+/// Rename registry for Vox public identifiers (VUV-9).
+pub mod renames;
+/// Registry-aware parse wrapper: rewrites deprecated primitives and emits warnings (VUV-9 Task 4).
+pub mod with_registry;
 
 pub use descent::parse;
 pub use descent::parse_script;
 pub use error::{ParseError, ParseErrorClass};
+pub use with_registry::{ParseResult, Warning, parse_with_registry};
 
 /// Brace-first web declaration forms the descent parser accepts (doc extraction / inventory; OP-0015).
 pub const WEB_SURFACE_SYNTAX_INVENTORY: &[&str] = &[

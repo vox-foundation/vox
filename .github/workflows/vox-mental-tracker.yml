@@ -18,7 +18,7 @@ jobs:
   vox-check:
     runs-on: [self-hosted, linux, x64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - name: Cargo smoke (parent workspace)
         run: cargo run -q -p vox-cli -- check apps/vox-mental-tracker/src/main.vox
@@ -27,13 +27,13 @@ jobs:
   vitest:
     runs-on: [self-hosted, linux, x64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
           cache-dependency-path: apps/vox-mental-tracker/pnpm-lock.yaml
       - name: Install JS deps
@@ -49,13 +49,13 @@ jobs:
   playwright:
     runs-on: [self-hosted, linux, x64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "pnpm"
           cache-dependency-path: apps/vox-mental-tracker/pnpm-lock.yaml
       - name: Install JS deps
@@ -70,7 +70,7 @@ jobs:
         working-directory: "."
       - name: Cache Playwright browsers
         id: pw_cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: ms-playwright-${{ runner.os }}-${{ steps.pw_version.outputs.ver }}-chromium
@@ -88,23 +88,14 @@ jobs:
   contracts:
     runs-on: [self-hosted, linux, x64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build vox-cli
+        run: cargo build -p vox-cli
       - name: JSON parse check on event-payload contracts
-        run: |
-          for f in apps/vox-mental-tracker/contracts/event-payloads/*.json; do
-            python3 -c "import json,sys; json.load(open(sys.argv[1])); print('OK', sys.argv[1])" "$f"
-          done
-        working-directory: "."
+        run: cargo run -p vox-cli --quiet -- ci json-parse-check 'apps/vox-mental-tracker/contracts/event-payloads/*.json'
       - name: YAML parse check on export contracts
-        run: |
-          python3 - <<'PY'
-          import sys, yaml, glob
-          for path in sorted(glob.glob('apps/vox-mental-tracker/contracts/export/*.yaml')):
-              with open(path) as f:
-                  yaml.safe_load(f)
-              print('OK', path)
-          PY
-        working-directory: "."
+        run: cargo run -p vox-cli --quiet -- ci yaml-parse-check 'apps/vox-mental-tracker/contracts/export/*.yaml'
 
   app-summary:
     needs: [vox-check, vitest, playwright, contracts]

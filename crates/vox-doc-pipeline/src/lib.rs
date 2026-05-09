@@ -1,3 +1,3 @@
-//! Documentation pipeline: scans `docs/src/`, generates SUMMARY.md, indices, RSS feeds.
+//! Documentation linter: scans `docs/src/` for frontmatter, code fence, and doctest issues.
 
 pub mod pipeline;

@@ -46,20 +46,11 @@ jobs:
       - name: Build docs tooling
         run: cargo build -p vox-cli -p vox-doc-pipeline
 
-      - name: Doc pipeline strict check (lint + SUMMARY)
-        run: cargo run -p vox-doc-pipeline -- --check
+      - name: Doc lint (frontmatter, code fences, training rationale)
+        run: cargo run -p vox-doc-pipeline -- --lint-only
 
       - name: Doctest extraction and check (SSG-agnostic)
         run: cargo run -p vox-cli -- ci doctest-md --strict
-
-      - name: Run docs pipeline
-        id: docs_pipeline
-        continue-on-error: true
-        run: cargo run -p vox-doc-pipeline
-
-      - name: Warn if docs pipeline failed
-        if: steps.docs_pipeline.outcome == 'failure'
-        run: echo "::warning title=Docs pipeline failed::cargo run -p vox-doc-pipeline failed; this workflow is advisory and will not block."
 
       - name: Check internal docs links
         id: internal_links
@@ -82,8 +73,46 @@ jobs:
       - name: Markdown lint
         id: markdown_lint
         continue-on-error: true
-        run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md" "docs/src/architecture/architecture-index.md" "docs/src/architecture/research-index.md"
+        run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md" "docs/src/architecture/research-index.md"
 
       - name: Warn if markdown lint failed
         if: steps.markdown_lint.outcome == 'failure'
         run: echo "::warning title=Markdown lint::Markdown lint reported issues; this workflow is advisory and will not block."
+
+  generator-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build CLI
+        run: cargo build -p vox-cli
+
+      - name: Check ignore-file sync
+        id: sync_ignore
+        continue-on-error: true
+        run: cargo run -p vox-cli --quiet -- ci sync-ignore-files --verify
+
+      - name: Warn ignore drift
+        if: steps.sync_ignore.outcome == 'failure'
+        run: echo "::warning title=Ignore-file drift::.cursorignore/.aiignore/.aiexclude are out of sync with .voxignore. Run 'vox ci sync-ignore-files' locally or install hooks via 'vox run scripts/install-hooks.vox'."
+
+      - name: Check plugin catalog docs
+        id: plugin_catalog
+        continue-on-error: true
+        run: cargo run -p vox-cli --quiet -- ci generate-plugin-catalog-docs --check
+
+      - name: Warn plugin catalog drift
+        if: steps.plugin_catalog.outcome == 'failure'
+        run: echo "::warning title=Plugin catalog drift::plugin-catalog.generated.md is out of sync. Run 'vox ci generate-plugin-catalog-docs' locally or install hooks."
+
+      - name: Check CLI command surface
+        id: command_sync
+        continue-on-error: true
+        run: cargo run -p vox-cli --quiet -- ci command-sync --check
+
+      - name: Warn command surface drift
+        if: steps.command_sync.outcome == 'failure'
+        run: echo "::warning title=Command surface drift::cli-command-surface.generated.md is out of sync. Run 'vox ci command-sync' locally or install hooks."

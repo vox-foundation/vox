@@ -10608,6 +10608,7 @@ dependencies = [
  "serde",
  "toml 0.8.23",
  "vox-build-meta",
+ "vox-compiler",
 ]
 
 [[package]]
@@ -10739,6 +10740,7 @@ dependencies = [
  "vox-scaling-policy",
  "vox-search",
  "vox-secrets",
+ "vox-share",
  "vox-skills",
  "vox-ssg",
  "vox-telemetry",
@@ -12154,6 +12156,28 @@ dependencies = [
  "vox-bounded-fs",
  "vox-crypto",
  "workspace-hack",
+]
+
+[[package]]
+name = "vox-share"
+version = "0.5.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "hex",
+ "hyper",
+ "hyper-util",
+ "rand 0.8.5",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower 0.5.3",
+ "tower-http",
+ "tracing",
 ]
 
 [[package]]

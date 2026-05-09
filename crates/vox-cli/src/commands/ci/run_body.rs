@@ -77,12 +77,14 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             quick,
             full,
             dry_run,
+            act,
         } => super::pre_push::run(
             &root,
             super::pre_push::PrePushOpts {
                 quick,
                 full,
                 dry_run,
+                act,
             },
         ),
         CiCmd::SsotAudit => run_ssot_audit(&root).await,
@@ -205,6 +207,9 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             },
         ),
         CiCmd::CudaReleaseBuild { log_dir } => run_cuda_release_build(&root, log_dir),
+        CiCmd::ToestubBudget => super::toestub_budget::run(),
+        CiCmd::JsonParseCheck { globs } => super::parse_check::run_json(&globs),
+        CiCmd::YamlParseCheck { globs } => super::parse_check::run_yaml(&globs),
         CiCmd::ToestubSelfApply => run_toestub_self_apply(&root),
         CiCmd::ToestubScoped {
             root: scan_root,

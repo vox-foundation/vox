@@ -39,6 +39,9 @@ bundle_*.txt
 .claire/
 .clone/
 
+# act (nektos/act) secrets file — never commit; used by `vox ci pre-push --act`
+.secrets
+
 # Editor / IDE artifacts (keep shared `settings.json` for terminal PATH / CUDA)
 .vscode/*
 !.vscode/settings.json
@@ -170,3 +173,6 @@ crates/vox-orchestrator/src/generated/
 
 **/tsconfig.tsbuildinfo
 crates/vox-dashboard/dist/
+docs/src/SUMMARY.md
+docs/src/feed.xml
+docs/src/architecture/architecture-index.md

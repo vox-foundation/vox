@@ -97,6 +97,11 @@ pub enum CiCmd {
         /// Print commands without executing.
         #[arg(long)]
         dry_run: bool,
+        /// After Rust checks, also run the GitHub-hosted exception workflows through
+        /// `act` (nektos/act must be on PATH; Docker daemon must be running).
+        /// Catches failures in docs-quality, link_checker, and ts-emit-noemit before push.
+        #[arg(long)]
+        act: bool,
     },
     /// VoxDB connect policy doc, telemetry JSONL parsing, and `research_metrics` NULL-vs-zero invariants.
     #[command(name = "data-ssot-guards")]
@@ -178,6 +183,27 @@ pub enum CiCmd {
         #[arg(long)]
         gate_log_file: Option<PathBuf>,
     },
+    /// Verify every file matched by the given glob(s) is valid JSON. Exits non-zero on any failure.
+    /// Replaces the `python3 -c "import json …"` steps in CI workflows.
+    #[command(name = "json-parse-check")]
+    JsonParseCheck {
+        /// One or more glob patterns (e.g. `apps/foo/contracts/**/*.json`).
+        #[arg(required = true)]
+        globs: Vec<String>,
+    },
+    /// Verify every file matched by the given glob(s) is valid YAML. Exits non-zero on any failure.
+    /// Replaces the `python3 - <<'PY' import yaml …` heredoc steps in CI workflows.
+    #[command(name = "yaml-parse-check")]
+    YamlParseCheck {
+        /// One or more glob patterns (e.g. `apps/foo/contracts/export/*.yaml`).
+        #[arg(required = true)]
+        globs: Vec<String>,
+    },
+    /// Read toestub JSON from stdin and enforce the `rust_parse_failures` budget.
+    /// Cap is `VOX_TOESTUB_MAX_RUST_PARSE_FAILURES` (default 3). Replaces the
+    /// `python3 -c "…"` pipeline step in ci.yml.
+    #[command(name = "toestub-budget")]
+    ToestubBudget,
     /// Full-repo TOESTUB: `cargo build -p vox-code-audit --release` then `cargo run -p vox-code-audit --bin toestub` (replaces `scripts/toestub_self_apply.*`).
     #[command(name = "toestub-self-apply")]
     ToestubSelfApply,

@@ -170,8 +170,8 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Logout => {
             crate::commands::login_shared::run_logout().await?;
         }
-        Cli::Share { cmd } => {
-            crate::commands::extras::share_cli::run(cmd).await?;
+        Cli::Share { args } => {
+            crate::commands::share::run(args).await?;
         }
         Cli::Train { .. } => {
             eprintln!("vox train is deprecated. Use `vox mens train` instead.");

@@ -45,3 +45,13 @@ pub const PRIMITIVE_TAGS: &[&str] = &[
 pub fn is_primitive(tag: &str) -> bool {
     PRIMITIVE_TAGS.contains(&tag)
 }
+
+/// All canonical primitive tag names recognized by the parser.
+///
+/// Source of truth for arch-check rules verifying rename-registry consistency
+/// (VUV-9 Task 8). When a primitive is deprecated and added to the rename
+/// registry, it MUST be removed from this list in the same commit.
+#[must_use]
+pub fn all_primitives() -> &'static [&'static str] {
+    PRIMITIVE_TAGS
+}

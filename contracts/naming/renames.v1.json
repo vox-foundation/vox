@@ -1,0 +1,6 @@
+{
+  "$schema": "./renames.v1.schema.json",
+  "version": 1,
+  "comment": "Rename registry for Vox public identifiers. See docs/src/architecture/vuv-naming-policy-2026.md.",
+  "entries": []
+}

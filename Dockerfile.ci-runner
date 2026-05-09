@@ -1,0 +1,63 @@
+# CI runner image — self-hosted basic Linux profile
+#
+# Published to GHCR via .github/workflows/publish-ci-runner.yml.
+# Matches the [self-hosted, linux, x64] runner capability profile described in
+# docs/src/ci/runner-contract.md.
+#
+# Contributors can pull this image to reproduce self-hosted lanes locally:
+#   docker pull ghcr.io/<org>/vox-ci-runner:latest
+#
+# For `act` local runs, the catthehacker ubuntu image is used instead
+# (see .actrc); this image is for the real fleet and full local repro.
+#
+# Version SSOTs (keep aligned with the rest of the repo):
+#   - Rust 1.92.0          → root Dockerfile (`rust:1.92.0-slim-bookworm`)
+#   - Node 24              → docs-quality.yml / docs-deploy.yml `node-version: 24`
+#   - pnpm 9               → ci.yml / docs-quality.yml `pnpm/action-setup@v6` `version: 9`
+#   - Ubuntu 24.04         → matches `ubuntu-latest` on GitHub-hosted (2026-Q2)
+
+ARG RUST_VERSION=1.92.0
+
+FROM ubuntu:24.04
+
+ARG RUST_VERSION
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    CARGO_TERM_COLOR=always \
+    RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+
+# System packages matching the self-hosted fleet baseline
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    libsqlite3-dev \
+    curl \
+    git \
+    ca-certificates \
+    jq \
+    ripgrep \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
+
+# Rust toolchain (pinned to RUST_VERSION arg; defaults to 1.92.0 — matches root Dockerfile)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
+    sh -s -- -y --default-toolchain "$RUST_VERSION" \
+    --component rustfmt,clippy,llvm-tools-preview \
+    && rustup show
+
+# Node 24 + pnpm 9 (matches ci.yml / docs-quality.yml SSOT)
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g pnpm@9 \
+    && rm -rf /var/lib/apt/lists/*
+
+# cargo-nextest + cargo-llvm-cov + cargo-hakari (pinned tools used in ci.yml)
+RUN cargo install cargo-nextest cargo-llvm-cov cargo-hakari --locked
+
+WORKDIR /workspace
+
+# Default: verify toolchain is usable
+CMD ["bash", "-c", "cargo --version && rustc --version && node --version && pnpm --version"]

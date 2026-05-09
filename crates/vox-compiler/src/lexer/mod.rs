@@ -17,5 +17,8 @@ pub mod token;
 pub use compact::compact;
 /// Lex a source string into a vector of spanned tokens (newlines preserved for indentation).
 pub use cursor::lex;
+/// Like [`lex`] but keeps comment tokens — for source-rewriting tools that must
+/// preserve every byte of the original file (comments, whitespace gaps, newlines).
+pub use cursor::lex_preserving;
 /// The Vox token enum.
 pub use token::Token;

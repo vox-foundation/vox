@@ -1,88 +1,110 @@
-//! `vox share` — share artifacts (workflows, skills, code) via the Vox marketplace.
+//! `vox share` — public-URL tunnel for Vox apps.
+//!
+//! S1: LAN backend only. S2 adds Cloudflare default. S3 adds localhost.run fallback.
 
-use anyhow::{Context, Result};
-use vox_package::{ArtifactEntry, VoxDb};
+use anyhow::Result;
+use clap::Args;
+use std::time::Duration;
+use vox_share::{BackendKind, ShareConfig, ShareSession};
 
-async fn connect() -> Result<VoxDb> {
-    vox_db::open_project_db()
-        .await
-        .context("Failed to open Arca VoxDb (see VOX_DB_URL/VOX_DB_TOKEN, VOX_DB_PATH, or project store)")
+#[derive(Args, Debug)]
+#[command(about = "Share a Vox app via a public URL tunnel")]
+pub struct ShareArgs {
+    /// Tunnel backend (lan, cloudflare, localhost-run, tailscale). Default: lan (S1).
+    #[arg(long, default_value = "lan")]
+    pub backend: String,
+
+    /// Port the bundled app listens on.
+    #[arg(long, default_value = "7860")]
+    pub port: u16,
+
+    /// Auto-shutdown duration (e.g. 8h, 30m, 5s, none). Default: 8h.
+    #[arg(long, default_value = "8h")]
+    pub duration: String,
+
+    /// Use dev server pipeline instead of vox bundle (faster iteration).
+    #[arg(long)]
+    pub dev: bool,
 }
 
-fn print_artifact(a: &ArtifactEntry) {
+pub async fn run(args: ShareArgs) -> Result<()> {
+    let backend: BackendKind = args
+        .backend
+        .parse()
+        .map_err(|e| anyhow::anyhow!("invalid --backend `{}`: {}", args.backend, e))?;
+
+    let duration = parse_duration(&args.duration)?;
+
+    println!("[vox share] Backend: {}", backend);
+
+    if !matches!(backend, BackendKind::Lan) {
+        anyhow::bail!(
+            "backend `{}` ships in a later phase. Use `--backend lan` for now.",
+            backend
+        );
+    }
+
+    println!("[vox share] (S1) LAN backend. Proxy port is OS-assigned.");
     println!(
-        "  {} ({}) v{} by {} — ⬇{} ★{:.1} [{}]",
-        a.name, a.artifact_type, a.version, a.author_id, a.downloads, a.avg_rating, a.status
+        "[vox share] Note: bundle integration ships in S8. Run your app on port {} separately.",
+        args.port
     );
-    if let Some(ref desc) = a.description {
-        println!("    {}", desc);
-    }
-}
 
-/// Run the `vox share publish` subcommand.
-pub async fn publish(
-    artifact_type: &str,
-    name: &str,
-    hash: &str,
-    version: &str,
-    description: Option<&str>,
-    tags: Option<&str>,
-) -> Result<()> {
-    let store: VoxDb = connect().await?;
-    let id = format!("{name}-{version}");
-    store
-        .publish_artifact(
-            &id,
-            artifact_type,
-            name,
-            description,
-            "local-user",
-            hash,
-            version,
-            tags,
-            "public",
-        )
-        .await?;
-    println!("✓ Published {name} v{version} as {artifact_type}");
-    Ok(())
-}
+    let cfg = ShareConfig {
+        backend,
+        upstream_port: args.port,
+        proxy_port: 0,
+        duration,
+        app_binary: None,
+        connect_timeout: Duration::from_secs(10),
+    };
 
-/// Run the `vox share search` subcommand.
-pub async fn search(query: &str) -> Result<()> {
-    let store: VoxDb = connect().await?;
-    let results = store.search_artifacts(query).await?;
-    if results.is_empty() {
-        println!("No artifacts found for '{query}'");
-    } else {
-        println!("Found {} artifacts:", results.len());
-        for a in &results {
-            print_artifact(a);
+    let session = ShareSession::start(cfg)
+        .await
+        .map_err(|e| anyhow::anyhow!("share session: {}", e))?;
+
+    println!("[vox share] Public URL: {}", session.tunnel_handle.public_url);
+    println!(
+        "[vox share] Local proxy: http://127.0.0.1:{}",
+        session.proxy_port
+    );
+    println!("[vox share] Press Ctrl+C to stop.");
+
+    tokio::select! {
+        _ = tokio::signal::ctrl_c() => {
+            println!("[vox share] Shutting down.");
+        }
+        _ = async {
+            if let Some(d) = duration {
+                tokio::time::sleep(d).await;
+            } else {
+                std::future::pending::<()>().await;
+            }
+        } => {
+            println!("[vox share] Duration elapsed.");
         }
     }
+
+    session.shutdown().await;
+    println!("[vox share] Done.");
     Ok(())
 }
 
-/// Run the `vox share list` subcommand.
-pub async fn list(artifact_type: &str) -> Result<()> {
-    let store: VoxDb = connect().await?;
-    let results = store.list_artifacts(artifact_type).await?;
-    if results.is_empty() {
-        println!("No {artifact_type} artifacts found.");
-    } else {
-        println!("{} {} artifacts:", results.len(), artifact_type);
-        for a in &results {
-            print_artifact(a);
-        }
+fn parse_duration(s: &str) -> Result<Option<Duration>> {
+    if s == "none" {
+        return Ok(None);
     }
-    Ok(())
-}
-
-/// Run the `vox share review` subcommand.
-pub async fn review(artifact_id: &str, rating: i64, comment: Option<&str>) -> Result<()> {
-    let store: VoxDb = connect().await?;
-    store
-        .submit_review(artifact_id, "local-user", "approved", comment, Some(rating))
-        .await?;
-    println!("✓ Reviewed {artifact_id} with rating {rating}/5");
-    Ok(())
+    if s.len() < 2 {
+        anyhow::bail!("bad duration `{}` — use e.g. 8h, 30m, 5s, or none", s);
+    }
+    let (num, unit) = s.split_at(s.len() - 1);
+    let n: u64 = num
+        .parse()
+        .map_err(|_| anyhow::anyhow!("bad duration `{}` — use e.g. 8h, 30m, 5s", s))?;
+    Ok(Some(match unit {
+        "s" => Duration::from_secs(n),
+        "m" => Duration::from_secs(n * 60),
+        "h" => Duration::from_secs(n * 3600),
+        _ => anyhow::bail!("duration unit must be s/m/h or `none`, got `{}`", unit),
+    }))
 }

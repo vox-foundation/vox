@@ -31,6 +31,8 @@ mod line_endings;
 mod mens_scorecard;
 pub(crate) mod nomenclature_guard;
 mod openclaw_contract;
+mod parse_check;
+mod toestub_budget;
 mod operations_catalog;
 mod plugin_abi_parity;
 mod plugin_catalog_parity;

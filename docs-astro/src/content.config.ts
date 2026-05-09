@@ -5,7 +5,10 @@ import { z } from 'astro:content';
 
 export const collections = {
 	docs: defineCollection({
-		loader: docsLoader(),
+		loader: docsLoader({
+			// Exclude the tombstoned archive (LLM guard) and generated artifacts
+			exclude: ['archive/**', 'SUMMARY.md'],
+		}),
 		schema: docsSchema({
 			extend: z.object({
 				category: z.string().optional(),

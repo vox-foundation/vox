@@ -3,6 +3,8 @@
 //! Runs in order: fmt --check, line-endings, ssot-drift, doc-inventory verify,
 //! clippy (workspace, all-targets, -D warnings), scoped TOESTUB (changed paths).
 //! `--quick` skips clippy + TOESTUB; `--full` also runs nextest on changed crates.
+//! `--act` additionally runs the GitHub-hosted exception workflows through `act`
+//! (nektos/act must be on PATH; Docker daemon must be running).
 
 use anyhow::{Context, Result, anyhow, bail};
 use std::path::{Path, PathBuf};
@@ -14,13 +16,27 @@ pub struct PrePushOpts {
     pub quick: bool,
     pub full: bool,
     pub dry_run: bool,
+    /// Run the GH-hosted exception workflows through `act` after the Rust checks.
+    pub act: bool,
 }
+
+/// Workflows that run on `ubuntu-latest` (GH-hosted exceptions).  These are
+/// the only workflows that `act` meaningfully reproduces locally — self-hosted
+/// lanes require the real fleet.
+const ACT_WORKFLOWS: &[&str] = &[
+    ".github/workflows/docs-quality.yml",
+    ".github/workflows/link_checker.yml",
+    ".github/workflows/ts-emit-noemit.yml",
+];
 
 pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
     let steps = build_steps(opts);
     if opts.dry_run {
         for s in &steps {
             println!("DRY-RUN: {}", s.label);
+        }
+        if opts.act {
+            run_act(root, true)?;
         }
         return Ok(());
     }
@@ -30,6 +46,9 @@ pub fn run(root: &Path, opts: PrePushOpts) -> Result<()> {
         println!("==> {}", s.label);
         (s.run)(root).with_context(|| format!("step `{}`", s.label))?;
         println!("    OK ({:.1?})", started.elapsed());
+    }
+    if opts.act {
+        run_act(root, false)?;
     }
     println!("pre-push: all checks passed in {:.1?}", total.elapsed());
     Ok(())
@@ -76,6 +95,64 @@ fn build_steps(opts: PrePushOpts) -> Vec<Step> {
         });
     }
     v
+}
+
+/// Run the GH-hosted exception workflows through `act`.
+///
+/// Each workflow is run independently so a failure in one does not suppress
+/// output from the others.  All failures are collected and reported together.
+pub fn run_act(root: &Path, dry_run: bool) -> Result<()> {
+    let act_bin = which_act().context(
+        "`act` not found on PATH — install nektos/act (https://nektosact.com) to use --act",
+    )?;
+
+    let mut failures: Vec<&str> = Vec::new();
+    for &workflow in ACT_WORKFLOWS {
+        println!("==> act: {workflow}");
+        if dry_run {
+            println!("    DRY-RUN: {act_bin} --workflows {workflow} push");
+            continue;
+        }
+        let status = Command::new(&act_bin)
+            .args(["push", "--workflows", workflow])
+            .current_dir(root)
+            .status()
+            .with_context(|| format!("spawn act for {workflow}"))?;
+        if status.success() {
+            println!("    OK");
+        } else {
+            eprintln!("    FAILED ({workflow}): exit {:?}", status.code());
+            failures.push(workflow);
+        }
+    }
+    if !failures.is_empty() {
+        bail!(
+            "act: {} workflow(s) failed: {}",
+            failures.len(),
+            failures.join(", ")
+        );
+    }
+    Ok(())
+}
+
+/// Locate the `act` binary; returns its path or an error.
+fn which_act() -> Result<String> {
+    // `act` may be installed as a GitHub CLI extension (`gh act`) or standalone.
+    // Prefer the standalone binary; fall back to `gh act`.
+    let candidates = ["act", "gh act"];
+    for candidate in candidates {
+        let parts: Vec<&str> = candidate.split_whitespace().collect();
+        if let Ok(out) = Command::new(parts[0])
+            .args(&parts[1..])
+            .arg("--version")
+            .output()
+        {
+            if out.status.success() {
+                return Ok(candidate.to_string());
+            }
+        }
+    }
+    Err(anyhow!("act binary not found"))
 }
 
 fn cargo() -> Command {

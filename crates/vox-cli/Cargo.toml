@@ -216,6 +216,7 @@ workspace-hack = { workspace = true }
 vox-telemetry = { workspace = true }
 vox-identity.workspace = true
 vox-crypto.workspace = true
+vox-share = { workspace = true }
 hex = "0.4.3"
 nucleo = { workspace = true, optional = true }
 tempfile = { workspace = true }

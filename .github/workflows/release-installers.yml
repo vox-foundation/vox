@@ -13,7 +13,9 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install cargo-wix
-        run: cargo install cargo-wix
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-wix
       - name: Build MSI
         run: cargo wix --no-build --package vox-cli
         # Note: In a real pipeline, `cargo build --release --locked -p vox-cli` 
@@ -26,7 +28,9 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Install cargo-deb
-        run: cargo install cargo-deb
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deb
       - name: Build DEB
         run: cargo deb -p vox-cli
 
