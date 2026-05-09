@@ -130,6 +130,7 @@ vox-skills                = { path = "crates/vox-skills" }
 vox-ssg                   = { path = "crates/vox-ssg" }
 vox-tensor                = { path = "crates/vox-tensor" }
 vox-code-audit               = { path = "crates/vox-code-audit" }
+vox-drift-check              = { path = "crates/vox-drift-check" }
 vox-workflow-runtime      = { path = "crates/vox-workflow-runtime" }
 vox-search                = { path = "crates/vox-search" }
 vox-dashboard             = { path = "crates/vox-dashboard" }
@@ -254,6 +255,10 @@ futures-core       = "0.3"
 quote              = "1"
 similar            = "2"
 globset            = "0.4"
+swc_ecma_parser    = "39"
+swc_ecma_ast       = "23"
+swc_ecma_visit     = "23"
+swc_common         = "21"
 which              = "7"
 ctrlc              = "3.4"
 

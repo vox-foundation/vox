@@ -75,6 +75,7 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-cli-ci`](../../../crates/vox-cli-ci/) | vox CLI 'ci' subcommand dispatcher (sync-ignore-files, secret-env-guard, etc.). Extracted from vox-cli to isolate CI-only edits. Implementation files remain in vox-cli/src/commands/ci/ pending bounded_read refactor; this crate is the workspace boundary marker. |
 | [`vox-cli-core`](../../../crates/vox-cli-core/) | Shared internals for the vox CLI binary (argv parsing helpers, exit-code policy). |
 | [`vox-code-audit`](../../../crates/vox-code-audit/) | AI code quality stub detector — finds stubs, magic values, empty bodies, missing references, and DRY violations. |
+| [`vox-drift-check`](../../../crates/vox-drift-check/) | Workspace drift and pattern-repetition linter (multi-language: Rust, TypeScript, Vox). |
 | [`vox-codegen`](../../../crates/vox-codegen/) | Codegen + WebIR + vox_ir extracted from vox-compiler. Consumes analysis types from vox-compiler. |
 | [`vox-compiler`](../../../crates/vox-compiler/) | Unified Vox compiler: lexer, parser, AST, HIR, typechecker, and codegen. |
 | [`vox-container`](../../../crates/vox-container/) | OCI container runtime abstraction — supports Docker and Podman. |
