@@ -18,6 +18,12 @@
 #
 # Within-layer deps are allowed. Lower→higher is an inversion (failure unless
 # explicitly listed under [[known_inversions]]).
+#
+# Binary-tool exception: a `kind = "binary"` crate at any layer is a *tool*
+# (e.g., vox-arch-check, vox-ml-cli, vox-orchestrator-d) consumed via
+# `cargo run -p <name>` rather than as a library dep. Such crates are exempt
+# from the orphan rule and from the convention that workspace surfaces sit at L5.
+# Only product-shipped binaries (the user-visible CLI surface) live at L5.
 
 [guards]
 # Strictness per rule. Layer ordering is implicitly strict (override with
@@ -58,7 +64,6 @@ vox-plugin-types      = { layer = 1 }                            # pure-types L1
 vox-config              = { layer = 2 }
 vox-repository          = { layer = 2 }
 vox-mcp-registry        = { layer = 2 }
-vox-mcp-meta            = { layer = 2 }
 vox-capability-registry = { layer = 2 }
 vox-install-policy      = { layer = 2 }
 vox-project-scaffold    = { layer = 2 }

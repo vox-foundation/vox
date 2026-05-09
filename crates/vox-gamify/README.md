@@ -1,4 +1,4 @@
-# vox-ludus
+# vox-gamify
 
 Gamification layer for the Vox programming language. Code companions, daily quests, bug battles, and ASCII sprites — all working fully offline.
 

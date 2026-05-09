@@ -84,7 +84,7 @@ Used for operations that can fail.
 
 ```vox
 // vox:skip
-@server fn update_task(id: Id[Task], title: str) -> Result[Unit, str] {
+@endpoint(kind: server) fn update_task(id: Id[Task], title: str) -> Result[Unit, str] {
     if title.len() == 0 {
         return Err("Title cannot be empty")
     }

@@ -14,20 +14,22 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 
 ## Backend & Logic
 
-### `@server`
-- **Goal**: Creates a backend API endpoint.
-- **Effect**: Generates a Rust Axum handler and a TypeScript client.
-- **Usage**: `@server fn my_fn(args: ...)`
+### `@endpoint(kind: server|query|mutation)`
+Unified decorator replacing the retired `@server`, `@query`, and `@mutation` forms.
 
-### `@query`
-- **Goal**: Read-only database operation.
-- **Effect**: Optimized for concurrent reads; cannot perform mutations.
-- **Usage**: `@query fn get_data() -> List[Item] { ... }`
+| `kind` | Goal | Effect | HTTP route |
+|--------|------|--------|------------|
+| `server` | General RPC endpoint. | Generates a Rust Axum handler and a TypeScript client. | `POST /api/<name>` |
+| `query` | Read-only database operation. | Optimized for concurrent reads; compiler rejects mutations inside. | `GET /api/query/<name>` |
+| `mutation` | Write database operation. | Wraps execution in a database transaction. | `POST /api/mutation/<name>` |
 
-### `@mutation`
-- **Goal**: Write database operation.
-- **Effect**: Wraps execution in a database transaction.
-- **Usage**: `@mutation fn save_data() -> bool { ... }`
+**Usage**:
+```vox
+// vox:skip
+@endpoint(kind: server) fn my_fn(args: ...) to ReturnType { ... }
+@endpoint(kind: query) fn get_data() to List[Item] { ... }
+@endpoint(kind: mutation) fn save_data() to bool { ... }
+```
 
 ### `@scheduled`
 > [!NOTE]

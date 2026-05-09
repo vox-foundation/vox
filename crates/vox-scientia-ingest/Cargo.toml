@@ -1,5 +1,6 @@
 [package]
 name = "vox-scientia-ingest"
+description = "Scientia corpus ingestion."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

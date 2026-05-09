@@ -37,7 +37,7 @@ If `vox` is explicitly omitted from terminal `$PATH`, use the dev scripts:
 |---|---|
 | `vox-dei` (orchestrating logic) | `vox-orchestrator` |
 | `vox-ars` | `vox-ars-runtime` |
-| `vox-gamify` | `vox-ludus` |
+| `vox-ludus` | `vox-gamify` |
 | `vox-lexer`, `vox-parser`, `vox-hir` | `vox-compiler` |
 | `@component fn Name()` | `component Name() {}` |
 | `TURSO_URL`, `VOX_TURSO_TOKEN` | `VOX_DB_URL` / `VOX_DB_TOKEN` |

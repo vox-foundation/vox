@@ -22,7 +22,7 @@ Repo-backed **`vox-mcp`** and **`vox-orchestrator-d`** open the primary [`VoxDb`
 
 **Canonical MENS dev journey (Codex):** Tables `developer_journey_definitions` / `developer_journey_steps` (baseline fragment `developer_journeys`) seed `canonical_journey.v1.greenfield_vox_mens_devloop`. MCP **`vox_journey_canonical_steps`** returns ordered `step_json` rows when `VoxDb` is attached. Human-readable limitation ids for journey maturity live in [`contracts/journeys/limitations.v1.yaml`](../../../contracts/journeys/limitations.v1.yaml).
 
-**DeI planning on the daemon:** JSON-line DeI methods `ai.plan.new`, `ai.plan.replan`, `ai.plan.status`, and `ai.plan.execute` are handled on the **`vox-orchestrator-d`** stdio surface (`orch_daemon::dei_dispatch`); docs may still say `vox-dei-d` as the logical stdio peer. Persistent plan rows require the same Codex `VoxDb` handle the orchestrator was built with.
+**DeI planning on the daemon:** JSON-line DeI methods `ai.plan.new`, `ai.plan.replan`, `ai.plan.status`, and `ai.plan.execute` are handled on the **`vox-orchestrator-d`** stdio surface (`orch_daemon::dei_dispatch`). Persistent plan rows require the same Codex `VoxDb` handle the orchestrator was built with.
 
 ## Ownership: who writes what
 

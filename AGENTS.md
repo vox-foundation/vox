@@ -192,7 +192,7 @@ Do **NOT** use the following retired symbols, crates, or env vars. Using them wi
 |---|---|
 | `vox-dei` (old large orchestrator crate) | `vox-orchestrator` |
 | `vox-ars` (crate) | `vox-ars-runtime` |
-| `vox-gamify` | `vox-ludus` |
+| `vox-ludus` | `vox-gamify` |
 | `vox-lexer`, `vox-parser`, `vox-hir`, `vox-typeck` | `vox-compiler` (monolith) |
 | `@component fn Name()` | `component Name() {}` |
 | `@server fn`, `@query fn`, `@mutation fn` | `@endpoint(kind: server\|query\|mutation) fn` |

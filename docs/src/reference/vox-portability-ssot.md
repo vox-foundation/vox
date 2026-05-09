@@ -37,7 +37,7 @@ Vox portability does **not** guarantee:
 | --- | --- |
 | Project desired state | `Vox.toml` |
 | Project resolved state | `vox.lock` |
-| Dependency resolution / fetch / cache / materialization | `vox-pm` |
+| Dependency resolution / fetch / cache / materialization | `vox-package` |
 | Runtime-specific packaging and deployment | `vox-container` |
 | User-visible CLI contract | `contracts/cli/command-registry.yaml` |
 | Operator/runtime reference policy | `docs/src/reference/` |
@@ -112,7 +112,7 @@ Use this checklist when defining or validating portability-sensitive lanes:
 
 - [ ] `Vox.toml` is the deploy-intent entrypoint; no parallel undeclared deploy schema is introduced.
 - [ ] `vox.lock` role in deploy packaging is explicit.
-- [ ] `vox-pm` vs `vox-container` ownership is clear and not duplicated.
+- [ ] `vox-package` vs `vox-container` ownership is clear and not duplicated.
 - [ ] Operator docs distinguish app portability from toolchain portability.
 - [ ] Docker/OCI is the primary deploy portability boundary in docs and code comments.
 - [ ] Podman compatibility claims are explicit and scoped.

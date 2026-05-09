@@ -1,5 +1,6 @@
 [package]
 name = "vox-doc-pipeline"
+description = "Doc generator: regenerates SUMMARY.md, architecture-index.md, feed.xml from frontmatter."
 version.workspace = true
 edition.workspace = true
 license.workspace = true

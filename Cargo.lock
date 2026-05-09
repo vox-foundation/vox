@@ -10911,7 +10911,6 @@ dependencies = [
  "vox-bounded-fs",
  "vox-compiler",
  "vox-db",
- "vox-mcp-meta",
  "vox-mcp-registry",
  "vox-repository",
  "xxhash-rust",
@@ -11223,15 +11222,6 @@ dependencies = [
  "vox-db",
  "vox-gamify",
  "vox-secrets",
- "workspace-hack",
-]
-
-[[package]]
-name = "vox-mcp-meta"
-version = "0.5.0"
-dependencies = [
- "strum",
- "vox-mcp-registry",
  "workspace-hack",
 ]
 

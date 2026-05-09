@@ -48,7 +48,7 @@ Priority set from the master plan (error handling / async / tracing / process):
 cargo check --workspace
 cargo clippy --workspace -- -W clippy::all
 cargo doc --workspace --no-deps
-cargo test -p vox-toestub
+cargo test -p vox-code-audit
 ```
 
 Use [crate hardening matrix](crate-hardening-matrix.md) for per-crate feature flags.

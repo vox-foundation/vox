@@ -1,6 +1,6 @@
 //! MCP project metadata: resource and tool descriptions.
 //!
-//! Ported from `vox-mcp-meta` for SSOT in `vox-corpus`.
+//! Local MCP metadata types for `vox-corpus` corpus generation.
 
 use serde::{Deserialize, Serialize};
 
