@@ -1,5 +1,6 @@
 ---
 source: crates/vox-codegen/tests/golden_ts_test.rs
+assertion_line: 28
 expression: combined
 ---
 === ItemList.tsx ===
@@ -12,7 +13,7 @@ export interface ItemListProps {
 export function ItemList({ items }: ItemListProps): React.ReactElement {
   return (
     <div className={["flex", "flex-col"].filter(Boolean).join(" ")}>
-      {items.map((item, i) => (<div className={["bg-background", "rounded-lg", "border", "border-border", "p-4"].filter(Boolean).join(" ")}
+      {items.map((item: any, i: number) => (<div className={["bg-background", "rounded-lg", "border", "border-border", "p-4"].filter(Boolean).join(" ")}
      key={item.id}>
       <p className={"text-base"}
     >

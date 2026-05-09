@@ -118,7 +118,10 @@ pub fn emit_route_manifest_from_web_ir(web: &WebIrModule, _hir: &HirModule) -> O
     s.push_str("import type { ComponentType } from \"react\"\n");
 
     for name in import_names.iter() {
-        s.push_str(&format!("import {{ {name} }} from \"./{name}.tsx\"\n"));
+        // Omit the `.tsx` extension: TypeScript's `moduleResolution: bundler` and
+        // `moduleResolution: node` both resolve `.tsx` without an explicit extension,
+        // and tsc TS5097 rejects the extension unless `allowImportingTsExtensions` is set.
+        s.push_str(&format!("import {{ {name} }} from \"./{name}\"\n"));
     }
     if !loaders.is_empty() {
         let joined = loaders.iter().cloned().collect::<Vec<_>>().join(", ");

@@ -4,15 +4,13 @@
 //! Import paths updated: `super::hf_keymap::*` → `crate::hf_keymap::*`,
 //! `super::hf_load::*` → `crate::hf_layout::*`.
 
-pub use crate::hf_keymap::{
-    missing_middle_keys_report, ordered_full_block_weight_keys_strict_preflight,
-    ordered_middle_projection_keys, sample_present_keys_sorted_from_present,
-};
+pub use crate::hf_keymap::ordered_middle_projection_keys;
 
 use crate::hf_layout::HfTransformerLayout;
 use anyhow::Context;
 use safetensors::SafeTensors;
 use std::collections::HashSet;
+use std::io::Read;
 
 /// Counts for Candle QLoRA middle (`o_proj` / `c_proj`) projection keys vs safetensors union.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -87,15 +85,27 @@ pub fn middle_projection_coverage(
     }
 }
 
+/// Read only the SafeTensors header bytes (8-byte length + JSON) without loading weight data.
+fn read_safetensors_header(path: &std::path::Path) -> anyhow::Result<Vec<u8>> {
+    let mut file = std::fs::File::open(path)
+        .with_context(|| format!("open output shard {}", path.display()))?;
+    let mut len_buf = [0u8; 8];
+    file.read_exact(&mut len_buf)
+        .with_context(|| format!("read header length from {}", path.display()))?;
+    let header_len = u64::from_le_bytes(len_buf) as usize;
+    let mut buf = vec![0u8; 8 + header_len];
+    buf[..8].copy_from_slice(&len_buf);
+    file.read_exact(&mut buf[8..])
+        .with_context(|| format!("read header from {}", path.display()))?;
+    Ok(buf)
+}
+
 /// Collect all tensor names across weight shards (union).
 pub fn tensor_keys_union(weight_paths: &[std::path::PathBuf]) -> anyhow::Result<HashSet<String>> {
     let mut keys = HashSet::new();
     for wp in weight_paths {
-        let file = std::fs::File::open(wp)
-            .with_context(|| format!("open output shard {}", wp.display()))?;
-        let mmap =
-            unsafe { memmap2::Mmap::map(&file).with_context(|| format!("mmap {}", wp.display()))? };
-        let st = SafeTensors::deserialize(&mmap)
+        let header = read_safetensors_header(wp)?;
+        let st = SafeTensors::deserialize(&header)
             .with_context(|| format!("parse handle {}", wp.display()))?;
         for (k, _) in st.tensors() {
             keys.insert(k.clone());

@@ -1,4 +1,3 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::Router;
@@ -10,7 +9,7 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use tower_http::request_id::{MakeRequestUuid, PropagateRequestIdLayer, SetRequestIdLayer};
 use tower_http::trace::TraceLayer;
-use tracing::{info, warn};
+use tracing::warn;
 
 use super::PopuliTransportState;
 use super::auth::{PopuliAuthContext, PopuliMeshAuthRuntime};
@@ -38,22 +37,18 @@ fn populi_max_body_limit_bytes() -> usize {
 /// Bearer authentication mode for [`populi_http_app_with_auth`].
 #[derive(Clone, Debug)]
 pub enum PopuliHttpAuth {
-    /// Read mesh / role tokens once when building the router via Clavis (used by [`populi_http_app`] / [`serve`]).
+    /// Read mesh / role tokens once when building the router via Clavis (used by [`populi_http_app`]).
     FromEnv,
     /// No bearer check (e.g. integration tests; explicit open control plane).
+    #[cfg(test)]
     Open,
-    /// Require this bearer value; **ignores** the environment (tests or embedded callers).
-    Bearer(String),
-    /// Caller-built [`PopuliMeshAuthRuntime`] (tests and custom embedders).
-    Custom(PopuliMeshAuthRuntime),
 }
 
 fn mesh_auth_runtime_for(auth: &PopuliHttpAuth) -> PopuliMeshAuthRuntime {
     match auth {
         PopuliHttpAuth::FromEnv => PopuliMeshAuthRuntime::from_env(),
+        #[cfg(test)]
         PopuliHttpAuth::Open => PopuliMeshAuthRuntime::default(),
-        PopuliHttpAuth::Bearer(t) => PopuliMeshAuthRuntime::legacy_mesh_token_only(t),
-        PopuliHttpAuth::Custom(rt) => rt.clone(),
     }
 }
 
@@ -223,22 +218,10 @@ pub fn populi_http_app(state: PopuliTransportState) -> Router {
     populi_http_app_with_auth(state, PopuliHttpAuth::FromEnv)
 }
 
-/// Bind and serve until error (Ctrl+C stops the process).
-pub async fn serve(addr: SocketAddr, state: PopuliTransportState) -> Result<(), std::io::Error> {
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    let bound = listener.local_addr()?;
-    info!(%bound, "vox-populi HTTP control plane listening");
-    println!("vox populi: listening on http://{bound}");
-
-    // Start federation gossip if any bootstrap peers are configured
-    state.start_federation_gossip();
-
-    let app = populi_http_app(state);
-    axum::serve(listener, app).await
-}
-
 #[cfg(test)]
 mod tests {
+    use std::net::SocketAddr;
+
     use super::*;
 
     #[tokio::test]

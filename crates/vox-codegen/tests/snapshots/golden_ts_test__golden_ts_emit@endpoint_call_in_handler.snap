@@ -1,5 +1,6 @@
 ---
 source: crates/vox-codegen/tests/golden_ts_test.rs
+assertion_line: 28
 expression: combined
 ---
 === Counter.tsx ===
@@ -12,10 +13,10 @@ export function Counter(): React.ReactElement {
   return (
     <div className={["flex", "flex-col"].filter(Boolean).join(" ")}>
       <p className={"text-base"}>
-        {"Value: " + str(count)}
+        {"Value: " + String(count)}
       </p>
-      <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2"].filter(Boolean).join(" ")} onClick={() => {
-        set_count(get_count());
+      <button className={["inline-flex", "items-center", "justify-center", "rounded-md", "text-sm", "font-medium", "ring-offset-background", "transition-colors", "focus-visible:outline-none", "focus-visible:ring-2", "focus-visible:ring-ring", "focus-visible:ring-offset-2", "disabled:pointer-events-none", "disabled:opacity-50", "bg-primary", "text-primary-foreground", "hover:bg-primary/90", "h-10", "px-4", "py-2"].filter(Boolean).join(" ")} onClick={async () => {
+        set_count(await get_count());
     }}>
         {"Fetch"}
       </button>

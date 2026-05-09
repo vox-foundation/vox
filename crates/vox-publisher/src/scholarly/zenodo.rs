@@ -85,62 +85,6 @@ impl ZenodoHttpClient {
         format!("{}/deposit/depositions", self.base.trim_end_matches('/'))
     }
 
-    pub(super) fn url_new_version(&self, deposition_id: &str) -> String {
-        format!(
-            "{}/deposit/depositions/{}/actions/newversion",
-            self.base.trim_end_matches('/'),
-            deposition_id
-        )
-    }
-
-    /// Create a new draft version of an existing published deposition.
-    ///
-    /// Returns the new draft deposition. The caller should update metadata and files
-    /// before publishing. Used by living-review quarterly version bumps.
-    pub(super) async fn create_new_version(
-        &self,
-        deposition_id: &str,
-    ) -> Result<ZenodoDeposition, ScholarlyError> {
-        let max = zenodo_http_max_attempts();
-        let mut attempt: u32 = 0;
-        loop {
-            attempt += 1;
-            let url = self.url_new_version(deposition_id);
-            let resp = self
-                .http
-                .post(&url)
-                .header("Content-Length", "0")
-                .bearer_auth(&self.token)
-                .send()
-                .await;
-            match resp {
-                Ok(r) => {
-                    let status = r.status().as_u16();
-                    let text = r.text().await.unwrap_or_default();
-                    if (200..300).contains(&status) {
-                        return serde_json::from_str(&text).map_err(|e| ScholarlyError::Fatal {
-                            code: "zenodo_json_parse".into(),
-                            message: format!("new_version response: {e}; body={text}"),
-                        });
-                    }
-                    let err = super::error::classify_scholarly_http(status, &text);
-                    if err.retryable() && attempt < max {
-                        sleep_before_zenodo_retry(&err, attempt.saturating_sub(1)).await;
-                    } else {
-                        return Err(err);
-                    }
-                }
-                Err(e) => {
-                    let err = ScholarlyError::from(e);
-                    if err.retryable() && attempt < max {
-                        sleep_before_zenodo_retry(&err, attempt.saturating_sub(1)).await;
-                    } else {
-                        return Err(err);
-                    }
-                }
-            }
-        }
-    }
 
     fn url_deposition(&self, id: &str) -> String {
         format!(

@@ -2,17 +2,6 @@
 
 use std::path::PathBuf;
 
-#[derive(Debug, Default, Clone)]
-pub(crate) struct Page {
-    pub title: String,
-    pub path: String,
-    pub sort_order: i32,
-    pub description: Option<String>,
-    pub last_updated: Option<String>,
-    pub status: Option<String>,
-    pub schema_type: Option<String>,
-}
-
 #[derive(Debug)]
 pub struct LintError {
     pub file: PathBuf,

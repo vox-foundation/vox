@@ -5,7 +5,6 @@
 //! that appeared in vox-mental-tracker.yml.
 
 use anyhow::{Result, anyhow};
-use std::path::Path;
 
 pub fn run_json(globs: &[String]) -> Result<()> {
     let paths = expand_globs(globs)?;
@@ -68,8 +67,4 @@ fn expand_globs(patterns: &[String]) -> Result<Vec<std::path::PathBuf>> {
     }
     paths.sort();
     Ok(paths)
-}
-
-pub fn glob_for_path(dir: &Path, extension: &str) -> String {
-    format!("{}/**/*.{}", dir.display(), extension)
 }

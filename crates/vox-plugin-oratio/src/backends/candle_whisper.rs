@@ -16,14 +16,8 @@ use super::candle_engine::{DecodeTask, Decoder, StreamEvent, WhisperModel, token
 use super::logit_processors;
 use super::multilingual;
 
-use super::asr_backend::{AsrBackend, AsrOutput};
-
 use crate::oratio_internals::runtime_config::resolved_runtime_config;
 
-/// Environment variable: Hugging Face model id (default `openai/whisper-tiny.en`).
-pub const ENV_MODEL: &str = "VOX_ORATIO_MODEL";
-/// Environment variable: HF revision (see `default_revision_for_model` in this module).
-pub const ENV_REVISION: &str = "VOX_ORATIO_REVISION";
 /// Set to `1` to use CUDA device 0 (requires `vox-oratio` `cuda` feature).
 pub const ENV_CUDA: &str = "VOX_ORATIO_CUDA";
 
@@ -207,42 +201,6 @@ fn ensure_session(model_id: &str, revision: &str) -> Result<()> {
     Ok(())
 }
 
-/// JSON-friendly status for CLI / tools (weights path is HF cache, not printed).
-pub fn candle_backend_status_json() -> serde_json::Value {
-    let model = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioModel)
-        .expose()
-        .unwrap_or_else(|| "openai/whisper-tiny.en")
-        .to_string();
-    let rev_secret = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioRevision);
-    let rev = rev_secret
-        .expose()
-        .unwrap_or_else(|| default_revision_for_model(&model));
-    let cuda_requested = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioCuda)
-        .expose()
-        .as_deref()
-        == Some("1");
-    let cuda_feature = cfg!(feature = "cuda");
-    let inference_note = if cuda_feature && !cuda_requested {
-        Some(format!(
-            "Default inference device is CPU; set {ENV_CUDA}=1 to use CUDA device 0 when available."
-        ))
-    } else {
-        None
-    };
-    serde_json::json!({
-        "backend": "candle-whisper",
-        "model_env": ENV_MODEL,
-        "revision_env": ENV_REVISION,
-        "default_model": model,
-        "default_revision": rev,
-        "multilingual": model_is_multilingual(&model),
-        "cuda_env": ENV_CUDA,
-        "cuda_feature_enabled": cuda_feature,
-        "cuda_requested_via_env": cuda_requested,
-        "inference_note": inference_note,
-    })
-}
-
 /// Temporarily overrides `VOX_ORATIO_LANGUAGE` for one inference call and restores the prior env.
 pub struct LanguageEnvOverride {
     previous: Option<String>,
@@ -293,12 +251,6 @@ impl Drop for LanguageEnvOverride {
 /// Env: seconds per STT window for long audio (`20`–`28` typical (`5`–`28` accepted)). `0` or unset =
 /// single encoder pass (very long audio may be truncated; see Whisper `max_source_positions`).
 pub const ENV_CHUNK_SEC: &str = "VOX_ORATIO_CHUNK_SEC";
-/// Env: overlap in seconds between adjacent windows when [`ENV_CHUNK_SEC`] is set (default `0.5`).
-pub const ENV_CHUNK_OVERLAP_SEC: &str = "VOX_ORATIO_CHUNK_OVERLAP_SEC";
-/// Env: append one JSON object per chunk (batch “streaming” UX) — path to a JSONL file.
-pub const ENV_EMIT_PARTIAL_PATH: &str = "VOX_ORATIO_EMIT_PARTIAL_PATH";
-/// Env: `1` to emit per-token events from decoder loop (high volume).
-pub const ENV_STREAM_TOKENS: &str = "VOX_ORATIO_STREAM_TOKENS";
 
 fn chunk_window_ranges(
     len: usize,
@@ -622,7 +574,7 @@ pub fn transcribe_pcm_internal(
     let frame_to_ms = |frames: usize| -> u64 { (frames * 10 * 160) as u64 / 16 };
 
     if windows.len() == 1 {
-        let mut decoder = match build_decoder(
+        let decoder = match build_decoder(
             whisper,
             tokenizer_clone,
             seed,
@@ -648,24 +600,6 @@ pub fn transcribe_pcm_internal(
         let text = match text_res {
             Ok(t) => t,
             Err(e) => {
-                #[cfg(feature = "cloud")]
-                {
-                    if e.to_string().to_lowercase().contains("out of memory") {
-                        tracing::warn!(target: "vox_oratio_whisper", "CUDA OOM detected during single-window inference, falling back to cloud");
-                        let cloud = CloudOffloadBackend::new();
-                        // Note: pcm and language_override need to be available in this scope.
-                        // pcm is passed to transcribe_pcm_internal.
-                        // language_override is also passed to transcribe_pcm_internal.
-                        match cloud.transcribe_pcm(pcm, 16000, language_override) {
-                            Ok(out) => return Ok((out.raw_text, out.segments)),
-                            Err(cloud_err) => {
-                                return Err(
-                                    cloud_err.context("Cloud fallback also failed after CUDA OOM")
-                                );
-                            }
-                        }
-                    }
-                }
                 sess.whisper = Some(decoder.into_whisper_model());
                 return Err(e.context("Whisper inference"));
             }
@@ -738,20 +672,6 @@ pub fn transcribe_pcm_internal(
         }) {
             Ok(t) => t,
             Err(e) => {
-                #[cfg(feature = "cloud")]
-                {
-                    if e.to_string().to_lowercase().contains("out of memory") {
-                        tracing::warn!(target: "vox_oratio_whisper", chunk = i + 1, "CUDA OOM detected during chunked inference, falling back to cloud");
-                        let cloud = CloudOffloadBackend::new();
-                        match cloud.transcribe_pcm(pcm, 16000, language_override) {
-                            Ok(out) => return Ok((out.raw_text, out.segments)),
-                            Err(cloud_err) => {
-                                return Err(cloud_err
-                                    .context("Cloud fallback also failed after chunked CUDA OOM"));
-                            }
-                        }
-                    }
-                }
                 sess.whisper = Some(decoder.into_whisper_model());
                 return Err(e.context("Whisper inference"));
             }
@@ -844,44 +764,3 @@ mod chunk_tests {
     }
 }
 
-// ─── AsrBackend impl ──────────────────────────────────────────────────────
-
-#[cfg(feature = "cloud")]
-use super::cloud_offload::CloudOffloadBackend;
-
-/// Zero-allocation wrapper so `candle_whisper` participates in the backend dispatch table.
-pub struct CandleWhisperBackend;
-
-impl AsrBackend for CandleWhisperBackend {
-    fn name(&self) -> &'static str {
-        "candle-whisper"
-    }
-
-    fn transcribe_pcm(
-        &self,
-        pcm: &[f32],
-        sample_rate: u32,
-        language_override: Option<&str>,
-    ) -> anyhow::Result<AsrOutput> {
-        if sample_rate != 16_000 {
-            anyhow::bail!(
-                "CandleWhisperBackend requires 16000Hz PCM input, got {}",
-                sample_rate
-            );
-        }
-        let budget_ms =
-            vox_secrets::resolve_secret(vox_secrets::SecretId::VoxOratioAcousticPreprocessBudgetMs)
-                .expose()
-                .and_then(|s| s.parse().ok())
-                .unwrap_or(25u64);
-        let pcm = crate::oratio_internals::acoustic_preprocess::preprocess_audio_pcm_f32_reported(pcm, budget_ms).0;
-
-        let (raw_text, segments) = transcribe_pcm_internal(&pcm, language_override)?;
-        Ok(AsrOutput {
-            n_best: Vec::new(),
-            confidence: 0.85,
-            raw_text,
-            segments,
-        })
-    }
-}

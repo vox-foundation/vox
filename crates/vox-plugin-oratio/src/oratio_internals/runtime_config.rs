@@ -454,16 +454,6 @@ impl OratioRuntimeConfig {
         c
     }
 
-    /// Effective inference deadline (`inference_deadline_ms` or `max_duration_ms` when zero).
-    #[must_use]
-    pub fn effective_inference_deadline_ms(&self) -> u64 {
-        let d = self.session_timing.inference_deadline_ms;
-        if d == 0 {
-            self.session_timing.max_duration_ms
-        } else {
-            d
-        }
-    }
 }
 
 fn cached_resolve_config() -> &'static OratioRuntimeConfig {
@@ -475,30 +465,6 @@ fn cached_resolve_config() -> &'static OratioRuntimeConfig {
 #[must_use]
 pub fn resolved_runtime_config() -> &'static OratioRuntimeConfig {
     cached_resolve_config()
-}
-
-/// Minimum deterministic confidence before `RouteMode::Tool` may execute (uses cached [`resolved_runtime_config`]).
-#[must_use]
-pub fn tool_route_min_confidence() -> f32 {
-    let v = resolved_runtime_config().routing.tool_route_min_confidence;
-    if (0.0..=1.0).contains(&v) {
-        v
-    } else {
-        RoutingTunables::default().tool_route_min_confidence
-    }
-}
-
-/// Build a JSON [`serde_json::Value`] describing resolved config for diagnostics (no secrets).
-#[must_use]
-pub fn runtime_config_diagnostic_json(cfg: &OratioRuntimeConfig) -> serde_json::Value {
-    serde_json::json!({
-        "session_timing": cfg.session_timing,
-        "refine": cfg.refine,
-        "routing": cfg.routing,
-        "hf": cfg.hf,
-        "llm": cfg.llm,
-        "logit": cfg.logit,
-    })
 }
 
 #[cfg(test)]

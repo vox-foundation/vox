@@ -18,6 +18,7 @@ toestub-gate = ["vox-orchestrator/toestub-gate"]
 json-schema = ["vox-orchestrator/json-schema"]
 populi-transport = ["vox-orchestrator/populi-transport"]
 oratio-rerank = ["dep:vox-oratio"]
+dashboard = ["dep:vox-dashboard"]
 
 [dependencies]
 vox-orchestrator = { path = "../vox-orchestrator", default-features = false, features = ["runtime"] }
@@ -63,6 +64,7 @@ tower-lsp-server = "0.23"
 vox-reqwest-defaults.workspace = true
 vox-publisher = { workspace = true, optional = true, default-features = false }
 vox-oratio = { workspace = true, optional = true, features = ["compiler-rerank"] }
+vox-dashboard = { workspace = true, optional = true }
 
 # Standard deps
 tokio = { workspace = true }

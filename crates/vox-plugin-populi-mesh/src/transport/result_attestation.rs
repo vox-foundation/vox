@@ -3,34 +3,6 @@
 use base64::Engine as _;
 use ed25519_dalek::{Signature, VerifyingKey};
 
-/// Parse a 32-byte Ed25519 verifying key from **64-char hex** (case-insensitive) or Standard **base64**.
-pub(super) fn parse_ed25519_public_key_bytes(raw: &str) -> Result<[u8; 32], String> {
-    let t = raw.trim();
-    if t.is_empty() {
-        return Err("empty verify key material".into());
-    }
-    if t.len() == 64 && t.chars().all(|c| c.is_ascii_hexdigit()) {
-        let bytes = data_encoding::HEXLOWER_PERMISSIVE
-            .decode(t.as_bytes())
-            .map_err(|_| "invalid hex Ed25519 public key".to_string())?;
-        if bytes.len() != 32 {
-            return Err("hex Ed25519 public key must decode to 32 bytes".into());
-        }
-        let mut out = [0u8; 32];
-        out.copy_from_slice(&bytes);
-        return Ok(out);
-    }
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(t.as_bytes())
-        .map_err(|_| "invalid base64 Ed25519 public key".to_string())?;
-    if bytes.len() != 32 {
-        return Err("base64 Ed25519 public key must decode to 32 bytes".into());
-    }
-    let mut out = [0u8; 32];
-    out.copy_from_slice(&bytes);
-    Ok(out)
-}
-
 fn parse_blake3_hex(h: &str) -> Result<[u8; 32], String> {
     let bytes = data_encoding::HEXLOWER_PERMISSIVE
         .decode(h.as_bytes())

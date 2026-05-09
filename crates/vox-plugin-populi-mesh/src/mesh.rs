@@ -11,7 +11,7 @@ use abi_stable::{erased_types::TD_Opaque, std_types::*};
 use vox_plugin_api::abi::VoxPlugin;
 use vox_plugin_api::extensions::mesh_driver::{MeshDriver, MeshDriver_TO};
 
-use crate::transport::{PopuliTransportState, serve};
+use crate::transport::PopuliTransportState;
 
 /// Configuration JSON for `start_transport`.
 ///
@@ -33,8 +33,6 @@ struct PluginState {
     runtime: tokio::runtime::Runtime,
     /// Shutdown sender — drop or send to initiate graceful stop.
     shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
-    /// Bound address (populated after `start_transport`).
-    bound_addr: Option<SocketAddr>,
     /// Client base URL for dispatch / join / list operations.
     client_base: Option<String>,
 }
@@ -180,7 +178,6 @@ impl MeshDriver for PopuliMeshPlugin {
         *guard = Some(PluginState {
             runtime: rt,
             shutdown_tx: Some(shutdown_tx),
-            bound_addr: Some(bound),
             client_base: Some(client_base),
         });
 

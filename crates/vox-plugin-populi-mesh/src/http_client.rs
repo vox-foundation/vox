@@ -6,59 +6,8 @@
 
 use std::time::Duration;
 
-use crate::transport::{
-    A2AAckRequest, A2ADeliverRequest, A2AInboxRequest, A2AInboxResponse, A2ALeaseRenewRequest,
-    A2AStoredMessage, AdminExecLeaseRevokeRequest, AdminMaintenanceRequest, AdminQuarantineRequest,
-    DispatchRequest, DispatchResponse, LeaveRequest, MeshQueueStats, RemoteExecLeaseGrantRequest,
-    RemoteExecLeaseGrantResponse, RemoteExecLeaseListResponse, RemoteExecLeaseReleaseRequest,
-    RemoteExecLeaseRenewRequest,
-};
+use crate::transport::{A2ADeliverRequest, DispatchRequest, DispatchResponse};
 use crate::{NodeRecord, PopuliRegistryError, PopuliRegistryFile};
-
-/// Iterator-style paging cursor for non-claimer A2A inbox reads.
-#[derive(Debug, Clone)]
-pub struct A2AInboxPager {
-    receiver_agent_id: String,
-    page_size: usize,
-    before_message_id: Option<u64>,
-    finished: bool,
-}
-
-impl A2AInboxPager {
-    /// Create a pager for a receiver id with a bounded page size.
-    #[must_use]
-    pub fn new(receiver_agent_id: impl Into<String>, page_size: usize) -> Self {
-        Self {
-            receiver_agent_id: receiver_agent_id.into(),
-            page_size: page_size.clamp(1, 256),
-            before_message_id: None,
-            finished: false,
-        }
-    }
-
-    /// Fetch the next page (newest-first). Empty page means completion.
-    pub async fn next_page(
-        &mut self,
-        client: &PopuliHttpClient,
-    ) -> Result<Vec<A2AStoredMessage>, PopuliRegistryError> {
-        if self.finished {
-            return Ok(Vec::new());
-        }
-        let page = client
-            .relay_a2a_inbox_limited(
-                &self.receiver_agent_id,
-                Some(self.page_size),
-                self.before_message_id,
-            )
-            .await?;
-        if page.messages.is_empty() {
-            self.finished = true;
-            return Ok(Vec::new());
-        }
-        self.before_message_id = page.messages.last().map(|m| m.id);
-        Ok(page.messages)
-    }
-}
 
 /// Call the populi HTTP API (join / list / heartbeat / leave).
 #[derive(Debug, Clone)]
@@ -69,38 +18,6 @@ pub struct PopuliHttpClient {
 }
 
 impl PopuliHttpClient {
-    /// Hosted / BaaS control plane entrypoint: same as [`Self::new`], but documents org-scoped HTTPS
-    /// bases (see `docs/src/adr/009-populi-hosted-baas.md`). **Never** embed secrets in the URL.
-    #[must_use]
-    pub fn for_hosted_control_plane(base: impl Into<String>) -> Self {
-        Self::new(base)
-    }
-
-    /// Get mesh queue stats.
-    pub async fn queue_stats(&self) -> Result<MeshQueueStats, PopuliRegistryError> {
-        let mut req = self
-            .client
-            .get(format!("{}/v1/populi/queue/stats", self.base));
-        if let Some(ref token) = self.bearer {
-            req = req.bearer_auth(token);
-        }
-        let resp = req
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Io(std::io::Error::other(e.to_string())))?;
-
-        if !resp.status().is_success() {
-            return Err(PopuliRegistryError::Io(std::io::Error::other(format!(
-                "HTTP {}",
-                resp.status()
-            ))));
-        }
-
-        resp.json()
-            .await
-            .map_err(|e| PopuliRegistryError::Json(e.to_string()))
-    }
-
     /// New client; `base` is normalized (trailing `/` stripped). No `Authorization` header.
     #[must_use]
     pub fn new(base: impl Into<String>) -> Self {
@@ -145,36 +62,6 @@ impl PopuliHttpClient {
         } else {
             self
         }
-    }
-
-    /// Bearer for **`POST /v1/populi/a2a/deliver`**: first non-empty among mesh, submitter, then admin tokens.
-    #[must_use]
-    pub fn with_env_deliver_token(self) -> Self {
-        let mesh = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshToken)
-            .expose()
-            .map(str::trim)
-            .filter(|t| !t.is_empty())
-            .map(ToString::to_string);
-        if let Some(t) = mesh {
-            return self.with_bearer(t);
-        }
-        let sub = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshSubmitterToken)
-            .expose()
-            .map(str::trim)
-            .filter(|t| !t.is_empty())
-            .map(ToString::to_string);
-        if let Some(t) = sub {
-            return self.with_bearer(t);
-        }
-        let adm = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshAdminToken)
-            .expose()
-            .map(str::trim)
-            .filter(|t| !t.is_empty())
-            .map(ToString::to_string);
-        if let Some(t) = adm {
-            return self.with_bearer(t);
-        }
-        self
     }
 
     fn auth(&self, rb: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
@@ -226,24 +113,6 @@ impl PopuliHttpClient {
         Ok(v)
     }
 
-    /// `GET /v1/populi/federation/directory`
-    pub async fn federation_directory(
-        &self,
-    ) -> Result<crate::transport::FederationDirectoryResponse, PopuliRegistryError> {
-        let url = format!("{}/v1/populi/federation/directory", self.base);
-        let resp = self
-            .auth(self.client.get(url))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        let v = Self::ensure_success_with_context(resp, "federation_directory")
-            .await?
-            .json()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Ok(v)
-    }
-
     /// `POST /v1/populi/federation/announce`
     pub async fn federation_announce(
         &self,
@@ -279,70 +148,6 @@ impl PopuliHttpClient {
         Ok(v)
     }
 
-    /// `POST /v1/populi/heartbeat`
-    pub async fn heartbeat(&self, node: &NodeRecord) -> Result<NodeRecord, PopuliRegistryError> {
-        let url = format!("{}/v1/populi/heartbeat", self.base);
-        let resp = self
-            .auth(self.client.post(url).json(node))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        let v = Self::ensure_success_with_context(resp, "heartbeat")
-            .await?
-            .json()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Ok(v)
-    }
-
-    /// `POST /v1/populi/bootstrap/exchange` — exchange a one-time bootstrap token for the mesh bearer token.
-    ///
-    /// The endpoint is unauthenticated (no `Authorization` header); the bootstrap token itself is the credential.
-    /// Returns the long-lived mesh bearer token and optional scope id.
-    pub async fn bootstrap_exchange(
-        &self,
-        bootstrap_token: &str,
-    ) -> Result<crate::transport::BootstrapExchangeResponse, PopuliRegistryError> {
-        let url = format!("{}/v1/populi/bootstrap/exchange", self.base);
-        let req = crate::transport::BootstrapExchangeRequest {
-            bootstrap_token: bootstrap_token.to_string(),
-        };
-        let resp = self
-            .client
-            .post(url)
-            .json(&req)
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        let v = Self::ensure_success_with_context(resp, "bootstrap_exchange")
-            .await?
-            .json()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Ok(v)
-    }
-
-    /// `POST /v1/populi/leave` — returns `true` if the node was present and removed.
-    pub async fn leave(&self, node_id: &str) -> Result<bool, PopuliRegistryError> {
-        let url = format!("{}/v1/populi/leave", self.base);
-        let resp = self
-            .auth(self.client.post(url).json(&LeaveRequest {
-                id: node_id.to_string(),
-            }))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        match resp.status() {
-            reqwest::StatusCode::NO_CONTENT => Ok(true),
-            reqwest::StatusCode::NOT_FOUND => Ok(false),
-            _ => Err(PopuliRegistryError::HttpStatus {
-                status: resp.status().as_u16(),
-                context: "leave".to_string(),
-                body_suffix: String::new(),
-            }),
-        }
-    }
-
     /// `POST /v1/populi/a2a/deliver` — forward an A2A message to a remote node.
     pub async fn relay_a2a(&self, req: &A2ADeliverRequest) -> Result<(), PopuliRegistryError> {
         let url = format!("{}/v1/populi/a2a/deliver", self.base);
@@ -352,210 +157,6 @@ impl PopuliHttpClient {
             .await
             .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
         Self::ensure_success_with_context(resp, "a2a_deliver").await?;
-        Ok(())
-    }
-
-    /// `POST /v1/populi/a2a/inbox` — fetch undelivered messages for a receiver id.
-    pub async fn relay_a2a_inbox(
-        &self,
-        receiver_agent_id: &str,
-    ) -> Result<A2AInboxResponse, PopuliRegistryError> {
-        self.relay_a2a_inbox_limited(receiver_agent_id, None, None)
-            .await
-    }
-
-    /// `POST /v1/populi/a2a/inbox` with optional server-side max row cap.
-    pub async fn relay_a2a_inbox_limited(
-        &self,
-        receiver_agent_id: &str,
-        max_messages: Option<usize>,
-        before_message_id: Option<u64>,
-    ) -> Result<A2AInboxResponse, PopuliRegistryError> {
-        let url = format!("{}/v1/populi/a2a/inbox", self.base);
-        let req = A2AInboxRequest {
-            receiver_agent_id: receiver_agent_id.to_string(),
-            claimer_node_id: None,
-            max_messages,
-            before_message_id,
-        };
-        let resp = self
-            .auth(self.client.post(url).json(&req))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Self::ensure_success_with_context(resp, "a2a_inbox")
-            .await?
-            .json()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))
-    }
-
-    /// Page through non-claimer inbox rows until empty (newest-to-oldest by `id`).
-    pub async fn relay_a2a_inbox_all_paged(
-        &self,
-        receiver_agent_id: &str,
-        page_size: usize,
-    ) -> Result<Vec<A2AStoredMessage>, PopuliRegistryError> {
-        let mut out = Vec::new();
-        let mut pager = A2AInboxPager::new(receiver_agent_id, page_size);
-        loop {
-            let page = pager.next_page(self).await?;
-            if page.is_empty() {
-                break;
-            }
-            out.extend(page);
-        }
-        Ok(out)
-    }
-
-    /// `POST /v1/populi/a2a/ack` — acknowledge one delivered message.
-    pub async fn relay_a2a_ack(
-        &self,
-        receiver_agent_id: &str,
-        message_id: u64,
-    ) -> Result<bool, PopuliRegistryError> {
-        let url = format!("{}/v1/populi/a2a/ack", self.base);
-        let resp = self
-            .auth(self.client.post(url).json(&A2AAckRequest {
-                receiver_agent_id: receiver_agent_id.to_string(),
-                message_id,
-            }))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        match resp.status() {
-            reqwest::StatusCode::NO_CONTENT => Ok(true),
-            reqwest::StatusCode::NOT_FOUND => Ok(false),
-            _ => Err(PopuliRegistryError::HttpStatus {
-                status: resp.status().as_u16(),
-                context: "a2a_ack".to_string(),
-                body_suffix: String::new(),
-            }),
-        }
-    }
-
-    /// `POST /v1/populi/exec/lease/grant` — acquire or refresh a remote execution lease for `scope_key`.
-    pub async fn exec_lease_grant(
-        &self,
-        req: &RemoteExecLeaseGrantRequest,
-    ) -> Result<RemoteExecLeaseGrantResponse, PopuliRegistryError> {
-        let url = format!("{}/v1/populi/exec/lease/grant", self.base);
-        let resp = self
-            .auth(self.client.post(url).json(req))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Self::ensure_success_with_context(resp, "exec_lease_grant")
-            .await?
-            .json()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))
-    }
-
-    /// `GET /v1/populi/exec/leases` — mesh/admin bearer; non-expired rows after server sweep.
-    pub async fn list_exec_leases(
-        &self,
-    ) -> Result<RemoteExecLeaseListResponse, PopuliRegistryError> {
-        let url = format!("{}/v1/populi/exec/leases", self.base);
-        let resp = self
-            .auth(self.client.get(url))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Self::ensure_success_with_context(resp, "exec_lease_list")
-            .await?
-            .json()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))
-    }
-
-    /// `POST /v1/populi/exec/lease/renew`.
-    pub async fn exec_lease_renew(
-        &self,
-        req: &RemoteExecLeaseRenewRequest,
-    ) -> Result<(), PopuliRegistryError> {
-        let url = format!("{}/v1/populi/exec/lease/renew", self.base);
-        let resp = self
-            .auth(self.client.post(url).json(req))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Self::ensure_success_with_context(resp, "exec_lease_renew").await?;
-        Ok(())
-    }
-
-    /// `POST /v1/populi/exec/lease/release`.
-    pub async fn exec_lease_release(
-        &self,
-        req: &RemoteExecLeaseReleaseRequest,
-    ) -> Result<(), PopuliRegistryError> {
-        let url = format!("{}/v1/populi/exec/lease/release", self.base);
-        let resp = self
-            .auth(self.client.post(url).json(req))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Self::ensure_success_with_context(resp, "exec_lease_release").await?;
-        Ok(())
-    }
-
-    /// `POST /v1/populi/a2a/lease-renew`.
-    pub async fn relay_a2a_lease_renew(
-        &self,
-        req: &A2ALeaseRenewRequest,
-    ) -> Result<(), PopuliRegistryError> {
-        let url = format!("{}/v1/populi/a2a/lease-renew", self.base);
-        let resp = self
-            .auth(self.client.post(url).json(req))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Self::ensure_success_with_context(resp, "a2a_lease_renew").await?;
-        Ok(())
-    }
-
-    /// `POST /v1/populi/admin/quarantine` — requires mesh/admin bearer.
-    pub async fn admin_quarantine(
-        &self,
-        req: &AdminQuarantineRequest,
-    ) -> Result<(), PopuliRegistryError> {
-        let url = format!("{}/v1/populi/admin/quarantine", self.base);
-        let resp = self
-            .auth(self.client.post(url).json(req))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Self::ensure_success_with_context(resp, "admin_quarantine").await?;
-        Ok(())
-    }
-
-    /// `POST /v1/populi/admin/maintenance` — requires mesh/admin bearer.
-    pub async fn admin_maintenance(
-        &self,
-        req: &AdminMaintenanceRequest,
-    ) -> Result<(), PopuliRegistryError> {
-        let url = format!("{}/v1/populi/admin/maintenance", self.base);
-        let resp = self
-            .auth(self.client.post(url).json(req))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Self::ensure_success_with_context(resp, "admin_maintenance").await?;
-        Ok(())
-    }
-
-    /// `POST /v1/populi/admin/exec-lease/revoke` — drop a lease row by id (mesh/admin bearer; no holder check).
-    pub async fn admin_exec_lease_revoke(
-        &self,
-        req: &AdminExecLeaseRevokeRequest,
-    ) -> Result<(), PopuliRegistryError> {
-        let url = format!("{}/v1/populi/admin/exec-lease/revoke", self.base);
-        let resp = self
-            .auth(self.client.post(url).json(req))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Self::ensure_success_with_context(resp, "admin_exec_lease_revoke").await?;
         Ok(())
     }
 
@@ -597,22 +198,5 @@ impl PopuliHttpClient {
         Ok(v)
     }
 
-    /// `GET /v1/populi/dispatch/result/{id}` — poll for results of a detached execution (Wave 5).
-    pub async fn dispatch_result_poll(
-        &self,
-        id: &str,
-    ) -> Result<DispatchResponse, PopuliRegistryError> {
-        let url = format!("{}/v1/populi/dispatch/result/{}", self.base, id);
-        let resp = self
-            .auth(self.client.get(url))
-            .send()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        let v = Self::ensure_success_with_context(resp, "dispatch_result_poll")
-            .await?
-            .json()
-            .await
-            .map_err(|e| PopuliRegistryError::Http(e.to_string()))?;
-        Ok(v)
-    }
 }
+

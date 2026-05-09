@@ -10,17 +10,14 @@
 mod mesh;
 pub(crate) mod transport;
 pub(crate) mod http_client;
-pub(crate) mod http_lifecycle;
-pub(crate) mod node_registry;
 
 // Re-export vox_populi root items that the ported transport code references
 // via `crate::`. This lets the copied files compile unchanged (they use
 // `crate::NodeRecord`, `crate::now_ms()`, etc.).
 pub(crate) use vox_populi::{
-    LocalRegistry, MAX_MAINTENANCE_FOR_MS, NodeRecord, PopuliRegistryError, PopuliRegistryFile,
-    filter_registry_by_max_stale_ms, node_maintenance_blocks_new_work,
-    normalize_http_control_base, populi_env, populi_scope_id_from_env,
-    sweep_expired_maintenance_on_nodes,
+    MAX_MAINTENANCE_FOR_MS, NodeRecord, PopuliRegistryError, PopuliRegistryFile,
+    node_maintenance_blocks_new_work, populi_env,
+    populi_scope_id_from_env, sweep_expired_maintenance_on_nodes,
 };
 // node_record_for_current_process and local_registry_path are used by transport code
 pub(crate) use vox_populi::{local_registry_path, node_record_for_current_process};

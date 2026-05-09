@@ -22,8 +22,8 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
         vcs_active_conflicts,
         vcs_active_workspaces,
         vcs_active_changes,
-        populi_control_url,
-        populi_http_timeout_ms,
+        _populi_control_url,
+        _populi_http_timeout_ms,
         registered_worker_processes,
         execution_mode,
         worker_runtime_attached,
@@ -105,23 +105,23 @@ pub async fn orchestrator_status(state: &ServerState) -> anyhow::Result<String> 
     )
     .ok();
 
-    let max_stale_ms: Option<u64> =
+    let _max_stale_ms: Option<u64> =
         vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshMaxStaleMs)
             .expose()
             .and_then(|s| s.trim().parse().ok())
             .filter(|n| *n > 0);
 
     #[cfg(feature = "populi-transport")]
-    let mesh_snapshot = if let Some(url) = populi_control_url
+    let mesh_snapshot = if let Some(url) = _populi_control_url
         .as_ref()
         .filter(|s: &&String| !s.trim().is_empty())
     {
-        let timeout = std::time::Duration::from_millis(populi_http_timeout_ms.max(500_u64));
+        let timeout = std::time::Duration::from_millis(_populi_http_timeout_ms.max(500_u64));
         let client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(url, timeout)
             .with_env_token();
         match client.list_nodes().await {
             Ok(f) => {
-                let f = vox_populi::filter_registry_by_max_stale_ms(f, max_stale_ms);
+                let f = vox_populi::filter_registry_by_max_stale_ms(f, _max_stale_ms);
                 Some(serde_json::json!({
                     "ok": true,
                     "schema_version": f.schema_version,

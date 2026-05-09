@@ -160,9 +160,9 @@ impl Orchestrator {
     ) -> Result<(), OrchestratorError> {
         let task_id = task.id;
         let session_id = task.session_id.clone();
-        let capability_requirements = task.capability_requirements.clone();
-        let relay_thread_id_seed = task.thread_id.clone();
-        let relay_harness_spec_json_seed = task.harness_spec_json.clone();
+        let _capability_requirements = task.capability_requirements.clone();
+        let _relay_thread_id_seed = task.thread_id.clone();
+        let _relay_harness_spec_json_seed = task.harness_spec_json.clone();
 
         let (policy_trust, scope_enforcement) = {
             let cfg = crate::sync_lock::rw_read(&*self.config);
@@ -462,7 +462,7 @@ impl Orchestrator {
                 )
                 .with_env_deliver_token();
                 let now = crate::types::now_unix_ms();
-                let cap_json = capability_requirements
+                let cap_json = _capability_requirements
                     .as_ref()
                     .and_then(|c| serde_json::to_string(c).ok())
                     .unwrap_or_else(|| "{}".to_string());
@@ -479,7 +479,7 @@ impl Orchestrator {
                 // verify at least one healthy registered node can satisfy it before
                 // granting a lease. Fall back to local queue rather than dispatch a job
                 // the mesh cannot run.
-                let vram_admission_ok = if let Some(required_vram) = capability_requirements
+                let vram_admission_ok = if let Some(required_vram) = _capability_requirements
                     .as_ref()
                     .and_then(|c| c.min_vram_mb)
                     .filter(|&v| v > 0)
@@ -862,11 +862,11 @@ impl Orchestrator {
             let task_id_u = task_id.0;
             let agent_u = agent_id.0;
             let desc = remote_relay_desc;
-            let caps = capability_requirements.clone();
+            let caps = _capability_requirements.clone();
             let relay_campaign_id = lineage_campaign_id.clone();
             let relay_session_id = session_id.clone();
-            let relay_thread_id = relay_thread_id_seed.clone();
-            let relay_harness_spec_json = relay_harness_spec_json_seed.clone();
+            let relay_thread_id = _relay_thread_id_seed.clone();
+            let relay_harness_spec_json = _relay_harness_spec_json_seed.clone();
             let relay_context_envelope_json = relay_session_id.as_ref().and_then(|sid| {
                 let key = crate::socrates::session_context_envelope_key(sid);
                 crate::sync_lock::rw_read(&*self.context_store).get(&key)

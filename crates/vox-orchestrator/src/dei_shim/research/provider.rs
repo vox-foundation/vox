@@ -7,20 +7,6 @@ use serde::{Deserialize, Serialize};
 
 use super::types::{ResearchHit, ResearchQuery};
 
-/// A crawled page returned by `ProviderRegistry::crawl`.
-#[derive(Debug, Clone)]
-pub(super) struct CrawledPage {
-    pub url: String,
-    pub html: String,
-    pub http_status: i32,
-}
-
-/// A single extracted text chunk from a crawled page.
-#[derive(Debug, Clone)]
-pub(super) struct ExtractedChunk {
-    pub text: String,
-}
-
 /// Configuration for the provider registry. Phase 0a — fields are placeholders.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProviderConfig {
@@ -67,27 +53,6 @@ impl ProviderRegistry {
     pub async fn search(&self, _query: &ResearchQuery) -> (Vec<ResearchHit>, String) {
         // PHASE_0a_STUB: replaced by real provider search in Phase 5.
         (Vec::new(), self.primary.clone())
-    }
-
-    /// Crawl a list of URLs. Phase 0a — returns empty Vec.
-    ///
-    /// **PHASE_0a_STUB**
-    pub(super) async fn crawl(&self, _urls: &[String]) -> Vec<CrawledPage> {
-        // PHASE_0a_STUB: replaced by real crawl in Phase 5.
-        Vec::new()
-    }
-
-    /// Extract text chunks from a crawled page. Phase 0a — returns empty Vec.
-    ///
-    /// **PHASE_0a_STUB**
-    pub(super) async fn extract(
-        &self,
-        _page: &CrawledPage,
-        _query: &str,
-        _max_chars: usize,
-    ) -> Vec<ExtractedChunk> {
-        // PHASE_0a_STUB: replaced by real extractor in Phase 5.
-        Vec::new()
     }
 
     /// Discover child pages for a site root URL. Phase 0a — returns None.

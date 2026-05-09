@@ -125,14 +125,19 @@ impl DomArena {
         id
     }
 
-    fn lower_expr(&mut self, expr: &HirExpr, state_names: &HashSet<String>) -> DomNodeId {
+    fn lower_expr(
+        &mut self,
+        expr: &HirExpr,
+        state_names: &HashSet<String>,
+        async_fn_names: &HashSet<String>,
+    ) -> DomNodeId {
         match expr {
-            HirExpr::Jsx(el) => self.lower_jsx_el(el, state_names),
-            HirExpr::JsxSelfClosing(el) => self.lower_jsx_self(el, state_names),
+            HirExpr::Jsx(el) => self.lower_jsx_el(el, state_names, async_fn_names),
+            HirExpr::JsxSelfClosing(el) => self.lower_jsx_self(el, state_names, async_fn_names),
             HirExpr::JsxFragment(children, _) => {
                 let child_ids: Vec<DomNodeId> = children
                     .iter()
-                    .map(|c| self.lower_expr(c, state_names))
+                    .map(|c| self.lower_expr(c, state_names, async_fn_names))
                     .collect();
                 self.push(DomNode::Fragment {
                     children: child_ids,
@@ -151,13 +156,18 @@ impl DomArena {
         }
     }
 
-    fn lower_jsx_el(&mut self, el: &HirJsxElement, state_names: &HashSet<String>) -> DomNodeId {
+    fn lower_jsx_el(
+        &mut self,
+        el: &HirJsxElement,
+        state_names: &HashSet<String>,
+        async_fn_names: &HashSet<String>,
+    ) -> DomNodeId {
         // TASK-6.1: resolve primitive tags → canonical HTML tag + Tailwind class list (parity with hir_emit).
-        let (tag, attrs) = fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names);
+        let (tag, attrs) = fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names);
         let child_ids: Vec<DomNodeId> = el
             .children
             .iter()
-            .map(|c| self.lower_expr(c, state_names))
+            .map(|c| self.lower_expr(c, state_names, async_fn_names))
             .collect();
         self.push(DomNode::Element {
             id: DomNodeId(0),
@@ -172,8 +182,9 @@ impl DomArena {
         &mut self,
         el: &HirJsxSelfClosing,
         state_names: &HashSet<String>,
+        async_fn_names: &HashSet<String>,
     ) -> DomNodeId {
-        let (tag, attrs) = fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names);
+        let (tag, attrs) = fold_primitive_web_ir_element(&el.tag, &el.attributes, state_names, async_fn_names);
         self.push(DomNode::Element {
             id: DomNodeId(0),
             tag,
@@ -190,6 +201,7 @@ fn fold_primitive_web_ir_element(
     tag: &str,
     hir_attrs: &[HirJsxAttr],
     state_names: &HashSet<String>,
+    async_fn_names: &HashSet<String>,
 ) -> (String, Vec<(String, String)>) {
     let view = transform_hir_view_kwargs(tag, hir_attrs, &EmitCtx::new(state_names));
     let mut attrs: Vec<(String, String)> = Vec::new();
@@ -201,7 +213,7 @@ fn fold_primitive_web_ir_element(
         attrs.push(("style".to_string(), format!("{{ {style_props} }}")));
     }
     for attr in &view.passthrough {
-        attrs.extend(lower_jsx_attr_pair(attr, state_names));
+        attrs.extend(lower_jsx_attr_pair(attr, state_names, async_fn_names));
     }
     let attrs = inject_primitive_dom_markers(tag, hir_attrs, attrs);
     (view.html_tag, attrs)
@@ -311,16 +323,24 @@ fn inject_primitive_dom_markers(
 /// reserved for future binding tables — Phase 1 keeps behavior on the DOM edge for parity with `hir_emit`.
 ///
 /// `bind={…}` expands to `value` + `onChange` like [`crate::codegen_ts::jsx::expand_bind_attribute`].
-fn lower_jsx_attr_pair(attr: &HirJsxAttr, state_names: &HashSet<String>) -> Vec<(String, String)> {
+fn lower_jsx_attr_pair(
+    attr: &HirJsxAttr,
+    state_names: &HashSet<String>,
+    async_fn_names: &HashSet<String>,
+) -> Vec<(String, String)> {
     if attr.name == "bind" {
-        let (value_str, onchange_str) = expand_bind_hir_attribute(&attr.value, &EmitCtx::new(state_names));
+        let ctx = EmitCtx::with_async(state_names, async_fn_names);
+        let (value_str, onchange_str) = expand_bind_hir_attribute(&attr.value, &ctx);
         return vec![
             ("value".to_string(), value_str),
             ("onChange".to_string(), onchange_str),
         ];
     }
     let name = map_jsx_attr_name(&attr.name).to_string();
-    let val = emit_hir_expr_attr_value(&attr.value, &EmitCtx::new(state_names), &name);
+    // Thread async_fn_names so event-handler attributes (onClick, onChange, …) correctly
+    // emit `await` for calls to @endpoint functions, preventing TS2345 (Promise<T> vs T).
+    let ctx = EmitCtx::with_async(state_names, async_fn_names);
+    let val = emit_hir_expr_attr_value(&attr.value, &ctx, &name);
     vec![(name, val)]
 }
 
@@ -719,7 +739,11 @@ pub fn lower_hir_to_web_ir_with_summary(hir: &HirModule) -> (WebIrModule, WebIrL
         }
 
         if let Some(view) = &rc.view {
-            let root = arena.lower_expr(view, &state_names);
+            // Build the set of async endpoint fn names so event-handler attributes
+            // (onClick, onChange, …) emit `await` for @endpoint calls (TS2345 fix).
+            let endpoint_names: HashSet<String> =
+                hir.endpoint_fns.iter().map(|e| e.name.clone()).collect();
+            let root = arena.lower_expr(view, &state_names, &endpoint_names);
             m.view_roots.push((rc.name.clone(), root));
         }
     }
@@ -770,6 +794,7 @@ pub fn lower_hir_view_expr(
     state_names: &HashSet<String>,
 ) -> (Vec<DomNode>, DomNodeId) {
     let mut arena = DomArena::new();
-    let root = arena.lower_expr(expr, state_names);
+    let empty_async_fns = HashSet::new();
+    let root = arena.lower_expr(expr, state_names, &empty_async_fns);
     (arena.nodes, root)
 }

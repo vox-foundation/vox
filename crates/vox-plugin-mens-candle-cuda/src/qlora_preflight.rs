@@ -17,6 +17,7 @@
 //! **Weights:** requires HF `config.json` plus safetensors shards listing a supported **embedding**
 //! matrix (`wte.weight` or `model.embed_tokens.weight`) for vocab / `d_model` discovery.
 
+use std::io::Read;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -53,6 +54,22 @@ const EMBED_KEYS: &[&str] = &[
     "model.language_model.embed_tokens.weight",
 ];
 
+/// Read only the SafeTensors header (8-byte length prefix + JSON) from a file.
+/// This avoids loading multi-GB weight data for metadata-only operations.
+fn read_safetensors_header(path: &std::path::Path) -> anyhow::Result<Vec<u8>> {
+    let mut file = std::fs::File::open(path)
+        .with_context(|| format!("open weight shard {}", path.display()))?;
+    let mut len_buf = [0u8; 8];
+    file.read_exact(&mut len_buf)
+        .with_context(|| format!("read header length from {}", path.display()))?;
+    let header_len = u64::from_le_bytes(len_buf) as usize;
+    let mut buf = vec![0u8; 8 + header_len];
+    buf[..8].copy_from_slice(&len_buf);
+    file.read_exact(&mut buf[8..])
+        .with_context(|| format!("read header from {}", path.display()))?;
+    Ok(buf)
+}
+
 /// Scan all shards: first **valid** rank-2 table in key order (`wte` then `embed_tokens`).
 /// If a preferred key exists but is not rank-2, fail (do not fall back silently).
 fn resolve_embedding_table(
@@ -61,12 +78,8 @@ fn resolve_embedding_table(
     for &key in EMBED_KEYS {
         let mut bad_for_key: Vec<String> = Vec::new();
         for wp in weight_paths {
-            let file = std::fs::File::open(wp)
-                .with_context(|| format!("open weight shard {}", wp.display()))?;
-            let mmap = unsafe {
-                memmap2::Mmap::map(&file).with_context(|| format!("mmap {}", wp.display()))?
-            };
-            let st = SafeTensors::deserialize(&mmap)
+            let header = read_safetensors_header(wp)?;
+            let st = SafeTensors::deserialize(&header)
                 .with_context(|| format!("parse handle {}", wp.display()))?;
             let Ok(t) = st.tensor(key) else {
                 continue;
@@ -153,12 +166,9 @@ fn warn_on_missing_qwen35_rope_keys(
 
 fn first_tensor_shape(weight_paths: &[PathBuf], key: &str) -> anyhow::Result<Option<Vec<usize>>> {
     for wp in weight_paths {
-        let file = std::fs::File::open(wp)
-            .with_context(|| format!("open weight shard {}", wp.display()))?;
-        let mmap =
-            unsafe { memmap2::Mmap::map(&file).with_context(|| format!("mmap {}", wp.display()))? };
-        let st =
-            SafeTensors::deserialize(&mmap).with_context(|| format!("parse {}", wp.display()))?;
+        let header = read_safetensors_header(wp)?;
+        let st = SafeTensors::deserialize(&header)
+            .with_context(|| format!("parse {}", wp.display()))?;
         if let Ok(t) = st.tensor(key) {
             return Ok(Some(t.shape().to_vec()));
         }

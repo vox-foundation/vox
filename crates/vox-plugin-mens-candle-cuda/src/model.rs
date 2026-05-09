@@ -507,18 +507,6 @@ pub enum Qwen35LayerCache {
     Linear(Tensor),
 }
 
-pub struct Qwen35ForwardCache {
-    pub layers: Vec<Option<Qwen35LayerCache>>,
-}
-
-impl Qwen35ForwardCache {
-    pub fn new(n_layers: usize) -> Self {
-        let mut layers = Vec::with_capacity(n_layers);
-        layers.resize_with(n_layers, || None);
-        Self { layers }
-    }
-}
-
 // ── CandleModel: the opaque handle stored across plugin calls ─────────────────
 
 /// Opaque model handle stored by the plugin. In the current SP3 stub, `load_from_path`
@@ -526,7 +514,7 @@ impl Qwen35ForwardCache {
 /// vox-populi's preflight logic. Batch 3 wires vox-populi to construct the model and
 /// pass it to the plugin via an alternative init path.
 pub struct CandleModel {
-    pub inner: Qwen35Model,
+    pub _inner: Qwen35Model,
     /// Path to the model directory, stored so `run_inference` can reload the engine.
     pub model_path: String,
 }

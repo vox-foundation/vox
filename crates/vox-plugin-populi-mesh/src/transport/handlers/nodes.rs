@@ -32,47 +32,20 @@ pub(crate) async fn health() -> impl IntoResponse {
 // Each spawns a best-effort durable write; failures are logged but never returned
 // to callers (matching the existing JSON persist semantics).
 
-pub(super) fn store_put_a2a(st: &PopuliTransportState, msg: A2AStoredMessage) {
-    if let Some(ms) = st.mesh_store.clone() {
-        tokio::spawn(async move {
-            if let Err(e) = ms.put_a2a(&msg).await {
-                tracing::warn!(error = %e, msg_id = msg.id, "mesh_store put_a2a failed");
-            }
-        });
-    }
+pub(super) fn store_put_a2a(_st: &PopuliTransportState, _msg: A2AStoredMessage) {
+    // No durable mesh store attached; data lives in the in-memory cache only.
 }
 
-pub(super) fn store_ack_a2a(st: &PopuliTransportState, message_id: u64, acked_unix_ms: u64) {
-    if let Some(ms) = st.mesh_store.clone() {
-        tokio::spawn(async move {
-            if let Err(e) = ms
-                .ack_a2a(message_id, super::super::store::A2AAck { acknowledged: true, acked_unix_ms })
-                .await
-            {
-                tracing::warn!(error = %e, message_id, "mesh_store ack_a2a failed");
-            }
-        });
-    }
+pub(super) fn store_ack_a2a(_st: &PopuliTransportState, _message_id: u64, _acked_unix_ms: u64) {
+    // No durable mesh store attached.
 }
 
-pub(super) fn store_put_exec_lease(st: &PopuliTransportState, row: RemoteExecLeaseRow) {
-    if let Some(ms) = st.mesh_store.clone() {
-        tokio::spawn(async move {
-            if let Err(e) = ms.put_exec_lease(&row).await {
-                tracing::warn!(error = %e, lease_id = %row.lease_id, "mesh_store put_exec_lease failed");
-            }
-        });
-    }
+pub(super) fn store_put_exec_lease(_st: &PopuliTransportState, _row: RemoteExecLeaseRow) {
+    // No durable mesh store attached.
 }
 
-pub(super) fn store_revoke_exec_lease(st: &PopuliTransportState, lease_id: String) {
-    if let Some(ms) = st.mesh_store.clone() {
-        tokio::spawn(async move {
-            if let Err(e) = ms.revoke_exec_lease(&lease_id).await {
-                tracing::warn!(error = %e, lease_id, "mesh_store revoke_exec_lease failed");
-            }
-        });
-    }
+pub(super) fn store_revoke_exec_lease(_st: &PopuliTransportState, _lease_id: String) {
+    // No durable mesh store attached.
 }
 
 pub(crate) async fn registry_sweep_maintenance(st: &PopuliTransportState) {

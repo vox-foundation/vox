@@ -7,19 +7,6 @@ use anyhow::Result;
 use candle_core::Tensor;
 use tokenizers::Tokenizer;
 
-/// Env: additive score applied to bias tokens (default `0.8`).
-pub const ENV_LOGIT_BIAS_STRENGTH: &str = "VOX_ORATIO_LOGIT_BIAS_STRENGTH";
-/// Env: cap total biased token ids per decode (default `256`).
-pub const ENV_LOGIT_BIAS_MAX_TOKENS: &str = "VOX_ORATIO_LOGIT_BIAS_MAX_TOKENS";
-/// Env: comma-separated token ids to hard-mask with `-inf`.
-pub const ENV_LOGIT_FORBID_TOKENS: &str = "VOX_ORATIO_LOGIT_FORBID_TOKENS";
-/// Env: `1`/`true` to enable constrained token-trie filtering.
-pub const ENV_CONSTRAINED_TRIE: &str = "VOX_ORATIO_CONSTRAINED_TRIE";
-/// Env: semicolon/comma/newline separated phrases to seed trie constraints.
-pub const ENV_CONSTRAINED_PHRASES: &str = "VOX_ORATIO_CONSTRAINED_PHRASES";
-/// Env: reset trie if no legal next token appears for N steps (default `2`).
-pub const ENV_TRIE_STUCK_STEPS: &str = "VOX_ORATIO_TRIE_STUCK_STEPS";
-
 /// Read-only decode step metadata available to logit processors.
 #[derive(Debug, Clone)]
 #[allow(dead_code)]

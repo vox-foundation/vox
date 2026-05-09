@@ -20,8 +20,7 @@ mod result_attestation;
 mod router;
 pub mod store;
 
-pub use auth::{PopuliAuthContext, PopuliBearerRole, PopuliMeshAuthRuntime};
-pub use router::{PopuliHttpAuth, populi_http_app, populi_http_app_with_auth, router, serve};
+pub(crate) use router::populi_http_app;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -30,13 +29,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use crate::{PopuliRegistryError, PopuliRegistryFile};
+use crate::PopuliRegistryFile;
 
-/// Well-known A2A [`A2ADeliverRequest::message_type`] tokens for mesh job flows (Horde-style hooks).
-/// Submit work to a receiver inbox (payload carries job definition).
-pub const A2A_MESSAGE_JOB_SUBMIT: &str = "job_submit";
-/// Worker-side claim notification (optional; inbox claim uses `claimer_node_id`).
-pub const A2A_MESSAGE_JOB_CLAIM: &str = "job_claim";
 /// Result payload from worker to submitter (convention; payload is JSON contract-defined).
 pub const A2A_MESSAGE_JOB_RESULT: &str = "job_result";
 /// Terminal failure from worker (convention).
@@ -378,9 +372,6 @@ pub struct PopuliTransportState {
     exec_lease_id_gen: Arc<AtomicU64>,
     /// JWT `jti` replay + A2A idempotency keys; optionally persisted (`mesh-replay-state.json`).
     pub(crate) mesh_replay: Arc<mesh_replay::MeshReplayState>,
-    /// Durable mesh store (Turso via VoxDb). When `Some`, all A2A / lease / dispatch mutations
-    /// are written through here in addition to the in-memory cache.
-    pub(crate) mesh_store: Option<Arc<dyn store::MeshStore>>,
     a2a_store_path: Option<PathBuf>,
     exec_lease_store_path: Option<PathBuf>,
     pub(crate) federated_meshes: Arc<RwLock<Vec<vox_mesh_types::federation::MeshDirectoryEntry>>>,
@@ -413,62 +404,10 @@ pub struct PopuliTransportState {
 
 impl PopuliTransportState {
     /// New empty in-memory registry; does **not** read `VOX_MESH_SCOPE_ID` (for tests).
+    #[cfg(test)]
     #[must_use]
     pub fn new() -> Self {
         Self::with_required_scope(None)
-    }
-
-    /// Override worker result attestation key (primarily tests; [`Self::new_for_serve`] reads Clavis otherwise).
-    #[must_use]
-    pub fn with_worker_result_verify_key(mut self, key: Option<[u8; 32]>) -> Self {
-        self.worker_result_verify_key = key;
-        self
-    }
-
-    /// Set the database handle for kudos and reputation.
-    #[must_use]
-    pub fn with_db(mut self, db: Option<vox_db::VoxDb>) -> Self {
-        self.db = db;
-        self
-    }
-
-    /// Attach a durable [`store::MeshStore`] for write-through persistence.
-    #[must_use]
-    pub fn with_mesh_store(mut self, store: Arc<dyn store::MeshStore>) -> Self {
-        self.mesh_store = Some(store);
-        self
-    }
-
-    /// Warm in-memory caches from the durable store (called once at serve startup).
-    ///
-    /// No-op when `mesh_store` is `None`.
-    pub async fn init_from_mesh_store(&mut self) -> Result<(), store::MeshStoreError> {
-        use std::sync::atomic::Ordering;
-        let Some(ms) = self.mesh_store.clone() else { return Ok(()); };
-
-        let a2a = ms.load_all_a2a().await?;
-        let next_id = a2a.iter().map(|m| m.id).max().unwrap_or(0).saturating_add(1);
-        *self.a2a_messages.write().await = a2a;
-        self.a2a_id_gen.store(next_id, Ordering::SeqCst);
-
-        let leases = ms.list_exec_leases().await?;
-        let next_lease_id = leases
-            .iter()
-            .filter_map(|r| r.lease_id.parse::<u64>().ok())
-            .max()
-            .unwrap_or(0)
-            .saturating_add(1);
-        *self.exec_leases.write().await = leases;
-        self.exec_lease_id_gen.store(next_lease_id, Ordering::SeqCst);
-
-    
-        {
-            let dispatch = ms.load_all_dispatch_results().await?;
-            self.dispatch_results =
-                Arc::new(dashmap::DashMap::from_iter(dispatch.into_iter()));
-        }
-
-        Ok(())
     }
 
     /// New empty registry and optional required scope (trimmed; empty string becomes `None`).
@@ -489,7 +428,6 @@ impl PopuliTransportState {
             exec_leases: Arc::new(RwLock::new(Vec::new())),
             exec_lease_id_gen: Arc::new(AtomicU64::new(1)),
             mesh_replay: mesh_replay::MeshReplayState::in_memory(),
-            mesh_store: None,
             a2a_store_path: None,
             exec_lease_store_path: None,
             federated_meshes: Arc::new(RwLock::new(Vec::new())),
@@ -572,84 +510,11 @@ impl PopuliTransportState {
     /// When set, `POST /v1/populi/bootstrap/exchange` accepts this token exactly once and
     /// returns the long-lived mesh bearer token to the caller.  The token is consumed on
     /// first use; subsequent calls receive 410 Gone.
+    #[cfg(test)]
     pub fn with_bootstrap_token(mut self, token: impl Into<Arc<str>>) -> Self {
         self.bootstrap_token = Some(token.into());
         self.bootstrap_used = Arc::new(std::sync::atomic::AtomicBool::new(false));
         self
-    }
-
-    /// Load initial snapshot from disk (best-effort) and apply scope from **`VOX_MESH_SCOPE_ID`**.
-    pub async fn load_from_path(path: &std::path::Path) -> Result<Self, PopuliRegistryError> {
-        let reg = if path.is_file() {
-            let raw = vox_bounded_fs::read_utf8_path_capped(path)
-                .map_err(|e| PopuliRegistryError::Io(std::io::Error::other(e.to_string())))?;
-            serde_json::from_str(&raw).map_err(|e| PopuliRegistryError::Json(e.to_string()))?
-        } else {
-            PopuliRegistryFile {
-                schema_version: 1,
-                nodes: Vec::new(),
-                queue_depth: None,
-            }
-        };
-        let store_path = store::a2a_store_path_from_env();
-        let exec_lease_store_path = store::exec_lease_store_path_from_env(store_path.as_ref());
-        let dispatch_results_store_path =
-            store::dispatch_results_store_path_from_env(store_path.as_ref());
-        let rows = if let Some(sp) = &store_path {
-            store::load_a2a_store(sp).unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-        let exec_lease_rows = if let Some(sp) = &exec_lease_store_path {
-            store::load_exec_lease_store(sp).unwrap_or_default()
-        } else {
-            Vec::new()
-        };
-        let next_id = rows
-            .iter()
-            .map(|m| m.id)
-            .max()
-            .unwrap_or(0)
-            .saturating_add(1);
-        let replay_path = mesh_replay::mesh_replay_persist_path(store_path.as_ref());
-        Ok(Self {
-            inner: Arc::new(RwLock::new(reg)),
-            a2a_messages: Arc::new(RwLock::new(rows)),
-            a2a_id_gen: Arc::new(AtomicU64::new(next_id)),
-            exec_leases: Arc::new(RwLock::new(exec_lease_rows.clone())),
-            exec_lease_id_gen: Arc::new(AtomicU64::new(
-                exec_lease_rows
-                    .iter()
-                    .filter_map(|r| r.lease_id.parse::<u64>().ok())
-                    .max()
-                    .unwrap_or(0)
-                    .saturating_add(1),
-            )),
-            mesh_replay: mesh_replay::MeshReplayState::load(replay_path),
-            a2a_store_path: store_path,
-            exec_lease_store_path,
-            federated_meshes: Arc::new(RwLock::new(Vec::new())),
-            bootstrap_token: None,
-            bootstrap_expires_unix_ms: None,
-            bootstrap_used: Arc::new(AtomicBool::new(false)),
-            required_scope: crate::populi_scope_id_from_env()
-                .map(|s| Arc::from(s.into_boxed_str())),
-            worker_result_verify_key: worker_result_verify_key_resolved(),
-        
-            dispatch_results: if let Some(path) = &dispatch_results_store_path
-                && let Ok(existing) = store::load_dispatch_results_store(path)
-            {
-                Arc::new(dashmap::DashMap::from_iter(existing.into_iter()))
-            } else {
-                Arc::new(dashmap::DashMap::new())
-            },
-        
-            dispatch_results_store_path,
-            node_trust_verifier: None,
-            db: None,
-            bootstrap_peers: Vec::new(),
-            mesh_store: None,
-        })
     }
 
     /// Spawns a background task that periodically announces this mesh to federated peers.
@@ -783,25 +648,6 @@ impl PopuliTransportState {
                 }
             }
         });
-    }
-}
-
-fn worker_result_verify_key_resolved() -> Option<[u8; 32]> {
-    let resolved = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshWorkerResultVerifyKey);
-    let raw = resolved.expose()?;
-    let t = raw.trim();
-    if t.is_empty() {
-        return None;
-    }
-    match result_attestation::parse_ed25519_public_key_bytes(t) {
-        Ok(k) => Some(k),
-        Err(e) => {
-            tracing::warn!(
-                error = %e,
-                "VOX_MESH_WORKER_RESULT_VERIFY_KEY is invalid; job_result attestation disabled"
-            );
-            None
-        }
     }
 }
 

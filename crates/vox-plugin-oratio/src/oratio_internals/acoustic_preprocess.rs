@@ -145,14 +145,6 @@ fn elapsed_ms(start: &Instant) -> f64 {
     start.elapsed().as_secs_f64() * 1000.0
 }
 
-/// When local denoise is unavailable or mode is `none`, returns `samples` unchanged (or scaled for peak mode).
-///
-/// `max_extra_ms` caps wall time: if exceeded, returns the **original** buffer.
-#[must_use]
-pub fn preprocess_audio_pcm_f32(samples: &[f32], max_extra_ms: u64) -> Vec<f32> {
-    preprocess_audio_pcm_f32_reported(samples, max_extra_ms).0
-}
-
 #[cfg(test)]
 #[allow(unsafe_code)]
 mod tests {

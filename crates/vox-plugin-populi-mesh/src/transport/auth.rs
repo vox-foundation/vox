@@ -107,35 +107,6 @@ fn mesh_jwt_role_from_claim(s: &str) -> Option<PopuliBearerRole> {
 }
 
 impl PopuliMeshAuthRuntime {
-    /// Test / single-token mode: only [`PopuliBearerRole::Mesh`] matches `token`.
-    #[must_use]
-    pub fn legacy_mesh_token_only(token: impl AsRef<str>) -> Self {
-        let t = token.as_ref().trim();
-        Self {
-            mesh: if t.is_empty() {
-                None
-            } else {
-                Some(Arc::from(t.to_string().into_boxed_str()))
-            },
-            ..Default::default()
-        }
-    }
-
-    /// JWT-only (or combined) auth for tests / embedding when secrets are not read from Clavis.
-    #[must_use]
-    pub fn with_jwt_hmac_only(secret: impl Into<String>) -> Self {
-        let s = secret.into();
-        let t = s.trim().to_string();
-        Self {
-            jwt_hmac: if t.is_empty() {
-                None
-            } else {
-                Some(Arc::from(t.into_boxed_str()))
-            },
-            ..Default::default()
-        }
-    }
-
     /// Read tokens via [`vox_secrets::resolve_secret`] (same precedence as other mesh callers).
     #[must_use]
     pub fn from_env() -> Self {
@@ -171,15 +142,6 @@ impl PopuliMeshAuthRuntime {
             admin,
             jwt_hmac,
         }
-    }
-
-    /// Single-token legacy deployments: only `VOX_MESH_TOKEN` is configured.
-    #[must_use]
-    pub fn legacy_shared_mesh_only(&self) -> bool {
-        self.mesh.is_some()
-            && self.worker.is_none()
-            && self.submitter.is_none()
-            && self.admin.is_none()
     }
 
     /// Any bearer requirement is active.

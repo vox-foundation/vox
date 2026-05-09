@@ -434,41 +434,6 @@ pub(super) async fn openreview_adapter_from_env() -> Result<OpenReviewAdapter, S
     OpenReviewAdapter::new_from_env().await
 }
 
-/// Build the JSON body for submitting a note revision to OpenReview.
-pub(crate) fn build_revision_note_content(
-    signature: &str,
-    invitation: &str,
-    revision_id: &str,
-    abstract_text: &str,
-) -> String {
-    serde_json::json!({
-        "invitation": invitation,
-        "signatures": [signature],
-        "content": {
-            "revision_id": revision_id,
-            "abstract": abstract_text,
-        }
-    })
-    .to_string()
-}
-
-#[cfg(test)]
-mod revision_tests {
-    use super::*;
-
-    #[test]
-    fn openreview_revision_note_content_includes_revision_id() {
-        let content = build_revision_note_content(
-            "~Reviewer1",
-            "ICLR.cc/2027/Workshop/-/Paper99",
-            "rev-abc",
-            "Updated abstract.",
-        );
-        let v: serde_json::Value = serde_json::from_str(&content).expect("json");
-        assert_eq!(v["content"]["revision_id"], "rev-abc");
-        assert_eq!(v["invitation"], "ICLR.cc/2027/Workshop/-/Paper99");
-    }
-}
 
 #[cfg(test)]
 mod profile_export_tests {

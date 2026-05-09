@@ -5,7 +5,6 @@
 //! without stepping on each other.  Changes are merged back atomically.
 
 use std::collections::HashMap;
-use std::fmt;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 

@@ -57,7 +57,6 @@ pub(crate) async fn dispatch_script(
         let dispatch_id = simple_hex_id();
         let st_cl = st.clone();
         let dispatch_id_cl = dispatch_id.clone();
-        let dispatch_id_for_store = dispatch_id.clone();
         let target_node_id = target.id.clone();
 
         tokio::spawn(async move {
@@ -88,17 +87,6 @@ pub(crate) async fn dispatch_script(
             }
             if let Some(path) = &st_cl.dispatch_results_store_path {
                 let _ = super::super::store::persist_dispatch_results_store(path, &st_cl.dispatch_results);
-            }
-            if let Some(ms) = st_cl.mesh_store.clone() {
-                if let Some(val) = st_cl.dispatch_results.get(&dispatch_id_for_store) {
-                    let key = dispatch_id_for_store.clone();
-                    let result = val.clone();
-                    tokio::spawn(async move {
-                        if let Err(e) = ms.put_dispatch_result(&key, &result).await {
-                            tracing::warn!(error = %e, key, "mesh_store put_dispatch_result failed");
-                        }
-                    });
-                }
             }
         });
 

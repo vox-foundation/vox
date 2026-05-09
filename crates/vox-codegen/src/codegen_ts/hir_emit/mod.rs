@@ -326,22 +326,41 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
             format!("[{}]", items.join(", "))
         }
         HirExpr::Call(callee, args, _, _) => {
-            let callee_str = match callee.as_ref() {
-                HirExpr::Ident(name, _) => map_vox_react_hook_callee(name).to_string(),
-                _ => emit_hir_expr(callee, ctx),
-            };
             let args_str: Vec<String> = args
                 .iter()
                 .map(|a| emit_hir_expr(&a.value, ctx))
                 .collect();
             // §1.A.2: if this call is to an @endpoint fn (async), emit `await call(...)`.
-            let call_expr = format!("{callee_str}({})", args_str.join(", "));
+            // Also consult the builtin registry so Vox primitives like `str(x)` → `String(x)`.
             if let HirExpr::Ident(name, _) = callee.as_ref() {
+                // Check builtin registry first (e.g. `str` → `String`, `len` → `__vox_len`).
+                if let Some(lowering) = registry().lookup_function(name, args_str.len()) {
+                    let call_expr = match lowering {
+                        BuiltinLowering::FunctionRename(ts_name) => {
+                            format!("{ts_name}({})", args_str.join(", "))
+                        }
+                        BuiltinLowering::Inline(s) => s.to_string(),
+                        _ => {
+                            let callee_str = map_vox_react_hook_callee(name).to_string();
+                            format!("{callee_str}({})", args_str.join(", "))
+                        }
+                    };
+                    // Even a builtin might be async (unlikely, but respect the context).
+                    if ctx.async_fn_names.contains(name.as_str()) {
+                        return format!("await {call_expr}");
+                    }
+                    return call_expr;
+                }
+                let callee_str = map_vox_react_hook_callee(name).to_string();
+                let call_expr = format!("{callee_str}({})", args_str.join(", "));
                 if ctx.async_fn_names.contains(name.as_str()) {
                     return format!("await {call_expr}");
                 }
+                call_expr
+            } else {
+                let callee_str = emit_hir_expr(callee, ctx);
+                format!("{callee_str}({})", args_str.join(", "))
             }
-            call_expr
         }
         HirExpr::MethodCall(obj, method, args, plan, _) => {
             // Bug D: inline-replace `std.<ns>.<method>(...)` calls with their JS equivalents
@@ -454,7 +473,10 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                 let key_attr = format!(" key={{{key_str}}}");
                 b = inject_key_into_jsx(b, &key_attr);
             }
-            format!("{iter}.map(({name}, {idx}) => ({b}))")
+            // Add explicit type annotations on the callback params so tsc `strict` mode
+            // does not raise "Parameter implicitly has an 'any' type" when the iterable is
+            // typed `any` (e.g. a component prop with no further narrowing).
+            format!("{iter}.map(({name}: any, {idx}: number) => ({b}))")
         }
         HirExpr::Lambda(params, _, body, _, _) => {
             let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();

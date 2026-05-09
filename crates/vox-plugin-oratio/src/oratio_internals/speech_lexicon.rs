@@ -81,61 +81,10 @@ impl SpeechLexicon {
         out
     }
 
-    /// Replace whole-word aliases in `text` (case-insensitive keywords).
-    ///
-    /// This is a deterministic, conservative pass: only boundaries at whitespace/punctuation
-    /// are considered word boundaries for replacement.
-    #[must_use]
-    pub fn apply(&self, text: &str) -> String {
-        if self.map.is_empty() || text.is_empty() {
-            return text.to_string();
-        }
-        let mut out = String::with_capacity(text.len());
-        let chars: Vec<char> = text.chars().collect();
-        let mut i = 0usize;
-        while i < chars.len() {
-            if !chars[i].is_alphanumeric() && chars[i] != '_' {
-                out.push(chars[i]);
-                i += 1;
-                continue;
-            }
-            let start = i;
-            while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_') {
-                i += 1;
-            }
-            let word: String = chars[start..i].iter().collect();
-            let lower = word.to_ascii_lowercase();
-            if let Some(rep) = self.map.get(&lower) {
-                out.push_str(rep);
-            } else {
-                out.push_str(&word);
-            }
-        }
-        out
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn applies_alias() {
-        let raw =
-            br#"{"schema_version":"1","entries":[{"canonical":"getUser","aliases":["getter"]}]}"#;
-        let lex = SpeechLexicon::from_json_slice(raw).unwrap();
-        assert_eq!(lex.apply("call getter now"), "call getUser now");
-    }
-
-    #[test]
-    fn merge_prefers_first_on_conflict() {
-        let mut a =
-            SpeechLexicon::from_json_slice(br#"{"entries":[{"canonical":"AAA","aliases":["x"]}]}"#)
-                .unwrap();
-        let b =
-            SpeechLexicon::from_json_slice(br#"{"entries":[{"canonical":"BBB","aliases":["x"]}]}"#)
-                .unwrap();
-        a.merge_from(b);
-        assert_eq!(a.apply("x"), "AAA");
-    }
 }

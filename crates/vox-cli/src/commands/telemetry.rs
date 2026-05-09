@@ -8,8 +8,6 @@ use anyhow::{Context, Result, anyhow};
 use clap::Subcommand;
 
 use crate::telemetry_spool;
-use vox_telemetry::global_recorder;
-
 fn resolve_spool(spool: Option<PathBuf>) -> PathBuf {
     spool.unwrap_or_else(telemetry_spool::spool_root)
 }

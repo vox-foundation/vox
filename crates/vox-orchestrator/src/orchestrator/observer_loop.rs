@@ -15,10 +15,10 @@ pub async fn run_observer_loop(orch: Arc<Orchestrator>) {
     let mut ticker = tokio::time::interval(Duration::from_millis(interval));
     let mut hardware_ticker = tokio::time::interval(Duration::from_secs(60));
     let mut scoreboard_ticker = tokio::time::interval(Duration::from_secs(300)); // Refresh every 5 minutes
-    let repository_id =
+    let _repository_id =
         vox_repository::discover_repository_or_fallback(std::path::Path::new(".")).repository_id;
 
-    let node_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshNodeId)
+    let _node_id = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshNodeId)
         .expose()
         .map(|s| s.trim().to_string());
 
@@ -94,8 +94,8 @@ pub async fn run_observer_loop(orch: Arc<Orchestrator>) {
                 if let Some(telemetry) = vox_populi::mens::hardware::HardwareRegistry::monitor() {
                     let tel_json = serde_json::to_value(telemetry).unwrap();
                     vox_db::populi_registry_telemetry::record_hardware_telemetry_opt(
-                        &repository_id,
-                        node_id.as_deref(),
+                        &_repository_id,
+                        _node_id.as_deref(),
                         &tel_json,
                     ).await;
                 }

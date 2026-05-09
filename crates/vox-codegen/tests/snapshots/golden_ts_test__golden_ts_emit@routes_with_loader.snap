@@ -1,5 +1,6 @@
 ---
 source: crates/vox-codegen/tests/golden_ts_test.rs
+assertion_line: 28
 expression: combined
 ---
 === Home.tsx ===
@@ -186,8 +187,8 @@ export async function load_home(init?: RequestInit): Promise<number> {
 // Adapter: import { voxRoutes } from "./routes.manifest" in your App.tsx.
 
 import type { ComponentType } from "react"
-import { About } from "./About.tsx"
-import { Home } from "./Home.tsx"
+import { About } from "./About"
+import { Home } from "./Home"
 
 export type VoxRoute = {
   path: string

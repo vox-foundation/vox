@@ -6,7 +6,6 @@ use anyhow::Context as _;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 
-#[cfg(feature = "runtime")]
 use vox_orchestrator::runtime;
 use vox_orchestrator::{
     OrchestratorConfig, RemotePopuliSnapshot, a2a, build_repo_scoped_orchestrator,
@@ -81,7 +80,6 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    #[cfg(feature = "runtime")]
     runtime::spawn_agent_fleet_if_enabled(orch.clone());
 
     // MCP parity: mesh federation snapshot, remote task pollers, event log, clarification inbox.

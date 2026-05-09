@@ -3,7 +3,7 @@
 //! This module is a placeholder for TypeScript codegen functionality.
 //! Tests referencing this module are marked as ignored pending implementation.
 
-use crate::hir::{HirModule, HirExpr};
+use crate::hir::HirModule;
 use std::collections::BTreeMap;
 
 /// Output of TypeScript code generation.
