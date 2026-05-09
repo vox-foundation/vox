@@ -81,6 +81,10 @@ vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
 vox-eval                = { layer = 2 }
+vox-claim-extractor     = { layer = 2, max_loc = 20_000 }               # SCIENTIA Phase 1: VeriScore + atomic + MiniCheck extraction
+vox-nanopub             = { layer = 2, max_loc = 10_000 }               # SCIENTIA Phase 4: TriG emit + ed25519 sign + Nanopub Network
+vox-prereg              = { layer = 2, max_loc = 8_000 }                # SCIENTIA Phase 2: PreregistrationV1 signing + deviation detection
+vox-ro-crate            = { layer = 2, max_loc = 12_000 }               # SCIENTIA Phase 4: RO-Crate 1.2 builder
 
 # ── L3 — heavy runtimes ───────────────────────────────────────────────────────
 vox-db                  = { layer = 3, max_dependents = 25, max_loc = 40_000 }
@@ -121,6 +125,7 @@ vox-package             = { layer = 3 }
 vox-tensor              = { layer = 3 }
 vox-plugin-host         = { layer = 3 }
 vox-plugin-catalog      = { layer = 3 }
+vox-inspect-bridge      = { layer = 3, max_loc = 15_000 }               # SCIENTIA Phase 5: UK AISI Inspect adapter
 
 # ── L4 — concrete plugins (cdylib only — never compile-time deps for L0..L3) ──
 vox-plugin-browser           = { layer = 4, kind = "plugin" }
