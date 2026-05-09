@@ -139,7 +139,9 @@ async fn build_or_reuse_bundle(file: &std::path::Path) -> anyhow::Result<std::pa
     let binary_path = bundle_dir.join(format!("{}{}", app_name, ext));
     let hash_path = bundle_dir.join(".last-hash");
 
-    // Hash the source file
+    // Cache key: SHA-256 of the entry-point file contents. This correctly invalidates the
+    // cache for single-file apps. Multi-file projects (with relative imports or companion
+    // assets) will need a directory-walk approach — extend here when needed.
     let source = tokio::fs::read(file)
         .await
         .with_context(|| format!("read source file {}", file.display()))?;
