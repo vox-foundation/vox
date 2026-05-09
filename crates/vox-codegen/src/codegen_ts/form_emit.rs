@@ -122,10 +122,16 @@ pub fn emit_form(form: &HirForm) -> String {
             })
             .unwrap_or_default();
 
+        let bind_attr = if input_type == "checkbox" {
+            format!("checked={{{fname}}}", fname = f.name)
+        } else {
+            format!("value={{{fname} ?? \"\"}}", fname = f.name)
+        };
+
         out.push_str(&format!(
             "      <label className=\"vox-form-field\">\n\
              \x20       <span>{label}{req_marker}</span>\n\
-             \x20       <input type=\"{input_type}\" value={{{fname} ?? \"\"}} onChange={{e => set_{fname}(e.target.{value_prop})}}{max_len_attr} aria-invalid={{!!errors.{fname}}} aria-describedby=\"{fname}-error\" />\n\
+             \x20       <input type=\"{input_type}\" {bind_attr} onChange={{e => set_{fname}(e.target.{value_prop})}}{max_len_attr} aria-invalid={{!!errors.{fname}}} aria-describedby=\"{fname}-error\" />\n\
              \x20       {{errors.{fname} && <span id=\"{fname}-error\" role=\"alert\" className=\"vox-form-error\">{{errors.{fname}}}</span>}}\n\
              \x20     </label>\n",
             fname = f.name
@@ -147,7 +153,7 @@ fn hir_type_to_input_type(ty: &HirType) -> &'static str {
 
 fn field_initial_value(f: &HirFormField) -> &'static str {
     match &f.ty {
-        HirType::Named(t) if t == "int" || t == "float" => "0",
+        HirType::Named(t) if t == "int" || t == "float" || t == "decimal" => "0",
         HirType::Named(t) if t == "bool" => "false",
         _ => "\"\"",
     }
