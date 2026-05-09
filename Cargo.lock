@@ -10607,6 +10607,7 @@ dependencies = [
  "serde",
  "toml 0.8.23",
  "vox-build-meta",
+ "vox-compiler",
 ]
 
 [[package]]
