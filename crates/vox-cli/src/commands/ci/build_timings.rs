@@ -377,6 +377,25 @@ pub async fn bench_build_run(
         }
     }
 
+    // ── Emit build summary telemetry ─────────────────────────────────────────
+    {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let build_id = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_millis().to_string())
+            .unwrap_or_else(|_| "0".into());
+        vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::BuildSummary(
+            vox_telemetry::BuildSummaryEvent {
+                build_id,
+                outcome: "success".into(),
+                wall_time_ms: total_ms as u64,
+                crates_compiled: (crate_count - fresh_count).max(0) as u32,
+                error_count: 0,
+                invocation_context: Some("local".into()),
+            }
+        ));
+    }
+
     // ── Persist ─────────────────────────────────────────────────────────────
     if persist {
         // Fix 4: Resolve real repository_id instead of hardcoded "local"
