@@ -256,7 +256,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::DbSchemaCoverage => super::db_schema_coverage::run(&root),
         CiCmd::PolicyAllowlistParity => super::policy_allowlist_parity::run(&root),
         CiCmd::RowSerdeLint => super::row_serde_lint::run(&root),
-        CiCmd::StringIdLint => super::string_id_lint::run(&root, true),
+        CiCmd::StringIdLint => super::string_id_lint::run(&root, false),
         CiCmd::ClavisContracts => run_clavis_contracts(&root),
         CiCmd::ClavisParity => run_clavis_parity(&root),
         CiCmd::ClavisCutoverGates => run_clavis_cutover_gates(&root),
