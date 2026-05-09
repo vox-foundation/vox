@@ -199,6 +199,7 @@ impl LowerCtx {
                 }),
                 ReactiveMemberDecl::Effect(e) => HirReactiveMember::Effect(HirEffect {
                     body: self.lower_expr(&e.body),
+                    explicit_deps: e.explicit_deps.clone(),
                     span: e.span,
                 }),
                 ReactiveMemberDecl::OnMount(m) => HirReactiveMember::OnMount(HirOnMount {

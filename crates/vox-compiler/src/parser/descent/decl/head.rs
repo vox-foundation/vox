@@ -409,9 +409,39 @@ impl Parser {
                 }
                 Token::Effect => {
                     let eff_start = self.span();
-                    let body = self.parse_reactive_block()?;
+                    self.advance(); // eat `effect`
+                    // Optional `depends_on (a, b)` clause.
+                    let explicit_deps =
+                        if matches!(self.peek(), Token::Ident(n) if n == "depends_on") {
+                            self.advance(); // eat `depends_on`
+                            self.expect(&Token::LParen)?;
+                            let mut deps = Vec::new();
+                            while !matches!(self.peek(), Token::RParen | Token::Eof) {
+                                deps.push(self.parse_ident_name()?);
+                                if !self.eat(&Token::Comma) {
+                                    break;
+                                }
+                            }
+                            self.expect(&Token::RParen)?;
+                            Some(deps)
+                        } else {
+                            None
+                        };
+                    self.expect(&Token::Colon)?;
+                    let body = if matches!(self.peek(), Token::LBrace) {
+                        let b_start = self.span();
+                        self.advance(); // eat `{`
+                        let stmts = self.parse_block()?;
+                        crate::ast::expr::Expr::Block {
+                            stmts,
+                            span: b_start.merge(self.span()),
+                        }
+                    } else {
+                        self.parse_expr()?
+                    };
                     members.push(ReactiveMemberDecl::Effect(EffectDecl {
                         body,
+                        explicit_deps,
                         span: eff_start.merge(self.span()),
                     }));
                 }
@@ -525,9 +555,39 @@ impl Parser {
                 }
                 Token::Effect => {
                     let eff_start = self.span();
-                    let body = self.parse_reactive_block()?;
+                    self.advance(); // eat `effect`
+                    // Optional `depends_on (a, b)` clause.
+                    let explicit_deps =
+                        if matches!(self.peek(), Token::Ident(n) if n == "depends_on") {
+                            self.advance(); // eat `depends_on`
+                            self.expect(&Token::LParen)?;
+                            let mut deps = Vec::new();
+                            while !matches!(self.peek(), Token::RParen | Token::Eof) {
+                                deps.push(self.parse_ident_name()?);
+                                if !self.eat(&Token::Comma) {
+                                    break;
+                                }
+                            }
+                            self.expect(&Token::RParen)?;
+                            Some(deps)
+                        } else {
+                            None
+                        };
+                    self.expect(&Token::Colon)?;
+                    let body = if matches!(self.peek(), Token::LBrace) {
+                        let b_start = self.span();
+                        self.advance(); // eat `{`
+                        let stmts = self.parse_block()?;
+                        crate::ast::expr::Expr::Block {
+                            stmts,
+                            span: b_start.merge(self.span()),
+                        }
+                    } else {
+                        self.parse_expr()?
+                    };
                     members.push(ReactiveMemberDecl::Effect(EffectDecl {
                         body,
+                        explicit_deps,
                         span: eff_start.merge(self.span()),
                     }));
                 }
