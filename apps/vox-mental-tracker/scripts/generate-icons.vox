@@ -1,0 +1,23 @@
+fn main() to int {
+    let master = "public/icons/master.png"
+    let android_sizes = [48, 72, 96, 144, 192, 512]
+    let ios_sizes = [20, 29, 40, 58, 60, 76, 80, 87, 120, 152, 167, 180, 1024]
+    for size in android_sizes {
+        shell_exec("magick " + master + " -resize " + str(size) + "x" + str(size)
+            + " android/app/src/main/res/mipmap-" + density_for(size) + "/ic_launcher.png")
+    }
+    for size in ios_sizes {
+        shell_exec("magick " + master + " -resize " + str(size) + "x" + str(size)
+            + " ios/App/App/Assets.xcassets/AppIcon.appiconset/icon-" + str(size) + ".png")
+    }
+    return 0
+}
+
+fn density_for(size: int) to str {
+    if size <= 48 { return "mdpi" }
+    if size <= 72 { return "hdpi" }
+    if size <= 96 { return "xhdpi" }
+    if size <= 144 { return "xxhdpi" }
+    if size <= 192 { return "xxxhdpi" }
+    return "anydpi"
+}
