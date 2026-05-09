@@ -34,6 +34,9 @@ pub struct SecretMatch {
 struct Pattern {
     kind: SecretKind,
     re: Regex,
+    /// If true, use `captures_iter` and extract group 1 as the secret value.
+    /// If false, use `find_iter` and treat the full match as the secret value.
+    use_capture: bool,
 }
 
 fn patterns() -> &'static [Pattern] {
@@ -43,6 +46,7 @@ fn patterns() -> &'static [Pattern] {
             Pattern {
                 kind: SecretKind::AwsAccessKey,
                 re: Regex::new(r"AKIA[0-9A-Z]{16}").unwrap(),
+                use_capture: false,
             },
             Pattern {
                 kind: SecretKind::AwsSecretKey,
@@ -50,30 +54,37 @@ fn patterns() -> &'static [Pattern] {
                     "(?i)aws.{0,20}secret.{0,20}[=:]\\s*[\"']?([A-Za-z0-9/+=]{40})",
                 )
                 .unwrap(),
+                use_capture: true,
             },
             Pattern {
                 kind: SecretKind::GitHubToken,
                 re: Regex::new(r"gh[pousr]_[A-Za-z0-9_]{36,}").unwrap(),
+                use_capture: false,
             },
             Pattern {
                 kind: SecretKind::OpenAiKey,
                 re: Regex::new(r"sk-[A-Za-z0-9]{20,}T3BlbkFJ[A-Za-z0-9]{20,}").unwrap(),
+                use_capture: false,
             },
             Pattern {
                 kind: SecretKind::AnthropicKey,
                 re: Regex::new(r"sk-ant-[A-Za-z0-9\-_]{90,}").unwrap(),
+                use_capture: false,
             },
             Pattern {
                 kind: SecretKind::SlackToken,
                 re: Regex::new(r"xox[baprs]-[A-Za-z0-9\-]{10,}").unwrap(),
+                use_capture: false,
             },
             Pattern {
                 kind: SecretKind::GoogleApiKey,
                 re: Regex::new(r"AIza[0-9A-Za-z\-_]{35}").unwrap(),
+                use_capture: false,
             },
             Pattern {
                 kind: SecretKind::PemPrivateKey,
                 re: Regex::new(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----").unwrap(),
+                use_capture: false,
             },
         ]
     })
@@ -92,15 +103,30 @@ pub fn scan_for_secrets(content: &str) -> Vec<SecretMatch> {
     for (line_idx, line) in content.lines().enumerate() {
         let line_number = line_idx + 1;
         for pattern in patterns {
-            for mat in pattern.re.find_iter(line) {
-                let matched = mat.as_str();
-                let prefix: String = matched.chars().take(6).collect();
-                let redacted = format!("{}...", prefix);
-                matches.push(SecretMatch {
-                    kind: pattern.kind.clone(),
-                    line: line_number,
-                    redacted,
-                });
+            if pattern.use_capture {
+                for cap in pattern.re.captures_iter(line) {
+                    if let Some(m) = cap.get(1) {
+                        let matched = m.as_str();
+                        let prefix: String = matched.chars().take(6).collect();
+                        let redacted = format!("{}...", prefix);
+                        matches.push(SecretMatch {
+                            kind: pattern.kind.clone(),
+                            line: line_number,
+                            redacted,
+                        });
+                    }
+                }
+            } else {
+                for mat in pattern.re.find_iter(line) {
+                    let matched = mat.as_str();
+                    let prefix: String = matched.chars().take(6).collect();
+                    let redacted = format!("{}...", prefix);
+                    matches.push(SecretMatch {
+                        kind: pattern.kind.clone(),
+                        line: line_number,
+                        redacted,
+                    });
+                }
             }
         }
     }
@@ -151,6 +177,23 @@ mod tests {
             matches.iter().any(|m| m.kind == SecretKind::AnthropicKey),
             "expected AnthropicKey match, got: {:?}",
             matches.iter().map(|m| &m.kind).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn detects_aws_secret_key() {
+        let content = "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+        let matches = scan_for_secrets(content);
+        assert!(
+            matches.iter().any(|m| m.kind == SecretKind::AwsSecretKey),
+            "expected AwsSecretKey match, got: {:?}",
+            matches.iter().map(|m| &m.kind).collect::<Vec<_>>()
+        );
+        let aws_match = matches.iter().find(|m| m.kind == SecretKind::AwsSecretKey).unwrap();
+        assert!(
+            aws_match.redacted.starts_with("wJalrX"),
+            "expected redacted to start with 'wJalrX' (first 6 chars of secret), got: {:?}",
+            aws_match.redacted
         );
     }
 
