@@ -374,16 +374,19 @@ deposit.
 
 **Deliverable:** closed loop is real. Worthiness gate prevents self-merge.
 
-### Phase 7 — Format adaptation (constrained-grammar all the way) (2 wk)
+### Phase 7 — Format adaptation (constrained-grammar all the way) (2 wk) ✅ COMPLETE (2026-05-09)
+
+> **Status: Complete** — `ShortFormVariant`, `PublicationPlatform`, `FigurePolicy`, `validate_short_form`, `adapt_claim_to_platform` landed in `crates/vox-research-events/src/publication_format.rs`; `AiDisclosureBlock` + `AiToolUsage` landed in `crates/vox-ro-crate/src/ai_disclosure.rs`. All 8 new tests pass.
+
 - Every short-form adaptation goes through XGrammar/vox-constrained-gen
-  emitter producing JSON, then a templating layer renders.
+  emitter producing JSON, then a templating layer renders. ✅
 - No free-form LLM text in publication path. Every short-form variant lifts
-  from atomic claims with nanopub URIs.
+  from atomic claims with nanopub URIs. ✅
 - Disable LLM-figure generation in primary research figures (Cell/Science
-  2025 policy). Schematic only, with mandatory legend disclosure.
+  2025 policy). Schematic only, with mandatory legend disclosure. ✅ (`FigurePolicy::default()`)
 - AI-disclosure block auto-filled per Nature/Science/Cell 2025 norms
-  ([Nature AI policy](https://www.nature.com/nature-portfolio/editorial-policies/ai)).
-- Bluesky prioritized over X per [academic-Twitter migration data (arXiv 2505.24801)](https://arxiv.org/html/2505.24801v1).
+  ([Nature AI policy](https://www.nature.com/nature-portfolio/editorial-policies/ai)). ✅ (`AiDisclosureBlock::build`)
+- Bluesky prioritized over X per [academic-Twitter migration data (arXiv 2505.24801)](https://arxiv.org/html/2505.24801v1). ✅ (X/Twitter absent from `PublicationPlatform`)
 
 ### Phase 8 — Scholarly automation + venue strategy (3 wk)
 - arXiv API write adapter; OSF write adapter; Crossref deposit adapter; ORCID
