@@ -1,0 +1,35 @@
+// scripts/arch-check.vox
+//
+// Single source of truth for the architecture check CI step.
+//
+// Invokes `cargo run -p vox-arch-check --quiet` and forwards the exit code.
+// Both .github/workflows/ci.yml and .gitlab-ci.yml call this script so the
+// invocation flags live in one place.
+//
+// Usage: vox run scripts/arch-check.vox
+// Source of truth: docs/src/architecture/layers.toml
+
+fn main() {
+    println("Running vox-arch-check (layer + fan-in + LoC + orphan + docstring)...");
+
+    let result = std::process::Command::new("cargo")
+        .args(["run", "-p", "vox-arch-check", "--quiet"])
+        .status();
+
+    match result {
+        Ok(status) => {
+            if status.success() {
+                println("vox-arch-check: clean ✓");
+                std::process::exit(0);
+            } else {
+                let code = status.code().unwrap_or(1);
+                eprintln("vox-arch-check: FAILED (exit {})", code);
+                std::process::exit(code);
+            }
+        }
+        Err(e) => {
+            eprintln("vox-arch-check: could not spawn cargo: {}", e);
+            std::process::exit(1);
+        }
+    }
+}

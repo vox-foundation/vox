@@ -8,6 +8,7 @@ use anyhow::{Context, Result, anyhow};
 use clap::Subcommand;
 
 use crate::telemetry_spool;
+use vox_telemetry::global_recorder;
 
 fn resolve_spool(spool: Option<PathBuf>) -> PathBuf {
     spool.unwrap_or_else(telemetry_spool::spool_root)
@@ -16,6 +17,11 @@ fn resolve_spool(spool: Option<PathBuf>) -> PathBuf {
 /// Subcommands for `vox telemetry`.
 #[derive(Subcommand)]
 pub enum TelemetryCmd {
+    /// Print the effective telemetry configuration and recorder health.
+    ///
+    /// Shows: master switch state, per-category flags, recorder registration,
+    /// and spool path. Exit 0 if telemetry is active; exit 1 if master switch is off.
+    Doctor,
     /// Show spool path, pending count, and whether upload URL/token resolve (redacted).
     Status {
         /// Override spool root (default: cwd `.vox/telemetry-upload-queue` or `VOX_TELEMETRY_SPOOL_DIR`).
@@ -53,6 +59,39 @@ pub enum TelemetryCmd {
 
 pub async fn run(cmd: TelemetryCmd) -> Result<()> {
     match cmd {
+        TelemetryCmd::Doctor => {
+            let cfg = vox_telemetry::TelemetryConfig::from_env();
+            let recorder_active = vox_telemetry::global_recorder().is_some();
+            let master = vox_telemetry::is_master_enabled();
+
+            println!("vox telemetry doctor");
+            println!("─────────────────────────────────────");
+            println!("master_enabled:        {}", master);
+            println!("enabled:               {}", cfg.enabled);
+            println!("remote_upload:         {}", cfg.remote_upload);
+            println!("─────────────────────────────────────");
+            println!("categories:");
+            println!("  research_metrics:    {}", cfg.research_metrics);
+            println!("  model_calls:         {}", cfg.model_calls);
+            println!("  agent_orchestration: {}", cfg.agent_orchestration);
+            println!("  build:               {}", cfg.build);
+            println!("  errors:              {}", cfg.errors);
+            println!("─────────────────────────────────────");
+            println!("recorder_registered:   {}", recorder_active);
+
+            let spool_root = telemetry_spool::spool_root();
+            println!("spool_root:            {}", spool_root.display());
+
+            println!("─────────────────────────────────────");
+            if !master {
+                println!("STATUS: DISABLED  (VOX_TELEMETRY=off or equivalent)");
+                std::process::exit(1);
+            } else if !recorder_active {
+                println!("STATUS: WARNING   (no recorder registered — events are no-ops)");
+            } else {
+                println!("STATUS: OK");
+            }
+        }
         TelemetryCmd::Status { spool } => {
             let root = resolve_spool(spool);
             let pending_n = telemetry_spool::pending_count(&root);

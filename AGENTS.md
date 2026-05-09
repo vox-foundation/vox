@@ -179,6 +179,28 @@ For Cursor-specific rules see [`.cursor/rules/`](.cursor/rules/) — four `.mdc`
 
 Live SSOT (scoped claim + evidence): [`docs/src/architecture/terminal-exec-policy-ssot.md`](docs/src/architecture/terminal-exec-policy-ssot.md). Optional A/B eval design (not run, not required): [`docs/src/architecture/agent-shell-fluency-eval-design-2026.md`](docs/src/architecture/agent-shell-fluency-eval-design-2026.md). Archived 2026-Q1 background research is under `docs/src/archive/research-2026-q1/` — do not ingest autonomously per §Archival Protocol.
 
+## Test-First Policy (Required, Cross-Tool)
+
+**Binding for all coding agents (Claude, Cursor, Codex, Copilot, human contributors):**
+
+When adding a new `pub fn` in Rust or a new `fn` in `examples/golden/` Vox files, the **failing test comes first**. The implementation comes after — written until the test passes.
+
+- **Rust:** every new `pub fn` in `crates/*/src/**` (excluding `main.rs`, `bin/`, `tests/`, and files under 30 non-blank lines) requires at least one `#[test]`, `#[tokio::test]`, or `#[cfg(test)] mod tests` block in the same file before the commit lands. Detector: `skeleton/untested-pub-api`.
+- **Vox golden examples:** every new `fn` in `examples/golden/**/*.vox` must be exercised by an `@test` block in the same file. Detector: `skeleton/no-test-for-pub-fn`.
+- **Task briefs to AI agents:** start with the failing test, not the desired implementation. The test fixes inputs, outputs, and edge cases unambiguously and lets the agent verify its own work. See [`docs/src/contributors/coding-agents.md` §Task brief format](docs/src/contributors/coding-agents.md).
+
+**Why this is a normative cross-tool rule, not just a contributor guide:**
+
+In Vox, tests are not just regression catchers — they are training data for the MENS model. `r_test` (test pass rate) is 30 % of the planned GRPO reward. Test-covered code becomes a positive corpus example; uncovered or stubbed code becomes a negative example. Skipping the test step doesn't just risk a regression, it weakens the model's prior.
+
+**Enforcement:**
+
+- **Pre-commit hook** (`lefthook` `tdd-guard`): blocks commits that introduce `pub fn` / `fn` without an adjacent test. Install via `vox run scripts/install-hooks.vox`.
+- **CI:** `vox-code-audit` reports `skeleton/untested-pub-api` (Warning) and `skeleton/no-test-for-pub-fn` (Warning). Default CI mode is `legacy` (Errors block, Warnings surface). PRs touching `crates/vox-compiler/**` or `crates/vox-codegen/**` additionally trigger `cargo mutants` to verify tests *catch* mutations, not just exist.
+- **Override:** `// toestub-ignore(skeleton/untested-pub-api) — <reason>` on the line above the `pub fn`, or a structured entry in `contracts/toestub/suppressions.v1.json` with `owner` and `reason`. Suppress only when refactoring is impractical, not to avoid the work.
+
+**Fix companion:** [`docs/src/contributors/toestub-contributor-guide.md`](docs/src/contributors/toestub-contributor-guide.md) has rule-by-rule fix patterns.
+
 ## Markdown Hygiene and Code Snippets (Doctest Policy)
 
 - All ````vox``` blocks in documentation must compile cleanly via `vox-doc-pipeline`'s dynamic doctest runner.

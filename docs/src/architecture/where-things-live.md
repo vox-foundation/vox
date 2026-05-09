@@ -48,6 +48,7 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-package-types`](../../../crates/vox-package-types/) | Pure-data L1 leaf for vox-package: manifest, lockfile, package_kind, resolver types. |
 | [`vox-plugin-api`](../../../crates/vox-plugin-api/) | Shared API surface for Vox plugins: ABI version, traits, manifest types, error types. |
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
+| [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro. Zero domain dependencies. |
 | [`vox-reqwest-defaults`](../../../crates/vox-reqwest-defaults/) | Shared reqwest ClientBuilder presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
 | [`vox-scaling-policy`](../../../crates/vox-scaling-policy/) | Compile-time and runtime accessors for scaling SSOT (contracts/scaling/policy.yaml). |
 | [`vox-secrets`](../../../crates/vox-secrets/) | Central secret resolution and compatibility adapters for Vox. |
@@ -65,6 +66,7 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool name/description registry from contracts YAML (SSOT). |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
+| [`vox-share`](../../../crates/vox-share/) | Public-URL tunneling for Vox apps: Cloudflare Quick Tunnels (default), localhost.run (fallback), Tailscale Funnel (explicit). |
 | [`vox-skill-runtime`](../../../crates/vox-skill-runtime/) | Abstract sandbox runtime trait for skill execution. Implementations ship as plugins (wasm, container). |
 
 ### L3 — heavy runtimes
@@ -149,7 +151,7 @@ guess. The full crate roster with layer assignments lives in
 | Compaction trigger — strategy selection (D7) | `crates/vox-orchestrator/src/compaction_trigger.rs` |
 | Calibration — drift detection + bandit (D10) | `crates/vox-orchestrator/src/calibration.rs` |
 | Sub-agent dispatch — spawn vs. inline (D4) | `crates/vox-orchestrator/src/subagent_dispatch.rs` |
-| Orchestrator policy metric_type constants | `crates/vox-db/src/research_metrics_contract.rs` — `METRIC_TYPE_*` under "D1–D10" comment |
+| Orchestrator policy metric_type constants | `crates/vox-telemetry/src/types.rs` — `METRIC_TYPE_*` constants |
 | Orchestrator feature flags | `contracts/orchestration/feature-flags.v1.yaml` |
 | Add a code-audit detection rule | `crates/vox-code-audit/src/detectors/<rule>.rs` |
 | Add a skill manifest field | `crates/vox-plugin-types/src/skill_manifest.rs` |

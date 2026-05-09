@@ -3,7 +3,7 @@ title: "TOESTUB contributor guide"
 description: "Rule-by-rule troubleshooting for TOESTUB CI failures, with fix patterns, suppression guidance, and false-positive notes."
 category: "contributor"
 status: "current"
-last_updated: "2026-04-17"
+last_updated: "2026-05-09"
 training_eligible: true
 training_rationale: "Practical fix patterns for every TOESTUB rule ID — high utility for human and AI contributors."
 
@@ -74,6 +74,40 @@ related files into it. Example: 22 files in `src/commands/` → split into
 
 **Fix for forbidden names:** Rename to something domain-specific.
 `utils.rs` → `retry_policy.rs`, `schema_helpers.rs`, etc.
+
+---
+
+### `skeleton/no-test-for-pub-fn` — Warning
+**Triggers:** A `fn` in an `examples/golden/` Vox file is not called from any
+`@test` block in the same file. Scoped to golden examples only — scripts and
+non-golden `.vox` files are not checked.
+
+**Fix:** Add an `@test` block that calls the function *before* implementing it
+(the @test-first gate from [contribution-loop.md](contribution-loop.md#test-first-for-golden-examples)):
+
+```vox
+// vox:skip
+@test
+fn test_my_fn() {
+    let result = my_fn("input")
+    assert(result is "expected")
+}
+
+fn my_fn(x: str) to str {
+    // implement until the @test above passes
+}
+```
+
+**Suppression (rare):** If a function is intentionally a private helper used
+only by other helpers (not directly tested), suppress on that line:
+
+```vox
+// vox:skip
+fn _internal_helper() { ... } // toestub-ignore(skeleton/no-test-for-pub-fn)
+```
+
+**False positive:** Helper functions that are called by other tested functions
+will not trigger this rule — only completely uncovered functions fire.
 
 ---
 

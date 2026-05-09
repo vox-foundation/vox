@@ -20,10 +20,15 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 rand = { workspace = true }
 hex = "0.4.3"
+base64 = { workspace = true }
+form_urlencoded = "1"
+sha2 = { workspace = true }
+reqwest = { workspace = true }
+dirs = { workspace = true }
+which = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
-reqwest = { workspace = true }
 
 [lints]
 workspace = true

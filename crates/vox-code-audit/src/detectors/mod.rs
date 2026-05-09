@@ -47,6 +47,12 @@ pub mod victory_claim;
 /// Enforces Cargo.toml workspace dependencies inheritance and detects orphan crates
 pub mod workspace_drift;
 
+/// Exported `fn` in `examples/golden/` Vox files must be called from an `@test` block.
+pub mod no_test_for_pub_fn;
+
+/// Rust library files with `pub fn` declarations but no `#[test]` blocks (advisory Info).
+pub mod untested_pub_api;
+
 use crate::rules::DetectionRule;
 
 /// Returns all built-in detectors.
@@ -75,12 +81,14 @@ pub fn all_rules(schema_path: Option<std::path::PathBuf>) -> Vec<Box<dyn Detecti
         Box::new(reachability::ReachabilityDetector::new()),
         Box::new(workspace_drift::WorkspaceDriftDetector::new()),
         Box::new(ai_laziness::AiLazinessDetector::new()),
+        Box::new(no_test_for_pub_fn::NoTestForPubFnDetector::new()),
+        Box::new(untested_pub_api::UntestedPubApiDetector::new()),
     ]
 }
 
 /// Returns the number of built-in rules.
 pub fn rule_count() -> usize {
-    21
+    23
 }
 
 #[cfg(test)]

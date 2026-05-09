@@ -40,6 +40,9 @@ pub struct McpInferRouting<'a> {
 
 /// Whether to emit [`vox_orchestrator::AgentEventKind::CostIncurred`] after LLM success (see module docs for `VOX_MCP_LLM_COST_EVENTS` precedence).
 fn should_emit_llm_cost_events(state: &ServerState) -> bool {
+    if !vox_telemetry::is_master_enabled() {
+        return false;
+    }
     match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpLlmCostEvents).expose() {
         Some(v) => {
             let v = v.trim();
@@ -442,6 +445,7 @@ pub async fn mcp_infer_tool_completion(
             "inference tuning active"
         );
 
+        let infer_start = std::time::Instant::now();
         let infer_result = infer_via_provider_adapter(
             client,
             &model,
@@ -463,16 +467,45 @@ pub async fn mcp_infer_tool_completion(
                 completion_tokens: ct,
                 provider_request_id,
                 provider_reported_cost_usd,
-                cached_input_tokens,
+                cache_read_input_tokens,
+                cache_creation_input_tokens,
             }) => {
                 let total_tok = (pt + ct) as u64;
-                let estimated_usd = estimated_cost_usd(&model, pt, ct, cached_input_tokens);
+                // For cost estimation, combine cache-read and cache-creation tokens since
+                // estimated_cost_usd applies cache_read_cost_per_1k to the combined cached count.
+                let cached_for_cost = match (cache_read_input_tokens, cache_creation_input_tokens) {
+                    (None, None) => None,
+                    (r, c) => Some(r.unwrap_or(0) + c.unwrap_or(0)),
+                };
+                let estimated_usd = estimated_cost_usd(&model, pt, ct, cached_for_cost);
                 let (reconciled_usd, cost_source) = match provider_reported_cost_usd {
                     Some(provider_usd) => (provider_usd, "provider_reported"),
                     None => (estimated_usd, "estimated"),
                 };
+                let infer_latency_ms = infer_start.elapsed().as_millis() as u64;
 
-                if let Some(cached) = cached_input_tokens {
+                vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::ModelCall(
+                    vox_telemetry::ModelCallEvent {
+                        model: model.id.clone(),
+                        provider: format!("{:?}", model.provider_type),
+                        route_profile: None,
+                        prompt_tokens: pt,
+                        completion_tokens: ct,
+                        cache_read_input_tokens,
+                        cache_creation_input_tokens,
+                        latency_ms: infer_latency_ms,
+                        cost_usd: reconciled_usd,
+                        cost_source: cost_source.to_string(),
+                        error_class: None,
+                        retry_attempt: 0,
+                        task_id: None,
+                        parent_task_id: None,
+                        trace_id: None,
+                        caller_agent_id: None,
+                    }
+                ));
+
+                if let Some(cached) = cache_read_input_tokens {
                     tracing::debug!(
                         target: "vox.mcp.llm.cache",
                         model_id = %model.id,
@@ -525,7 +558,8 @@ pub async fn mcp_infer_tool_completion(
                             "provider_request_id": provider_request_id,
                             "user_id": routing.user_id,
                             "cost_source": cost_source,
-                            "cached_input_tokens": cached_input_tokens,
+                            "cache_read_input_tokens": cache_read_input_tokens,
+                            "cache_creation_input_tokens": cache_creation_input_tokens,
                         })),
                     });
                 }
@@ -572,6 +606,20 @@ pub async fn mcp_infer_tool_completion(
                             .mark_rate_limited(&usage.provider, &usage.model)
                             .await;
                     }
+                    let trace_ctx = vox_telemetry::current_trace_ctx();
+                    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
+                        vox_telemetry::ErrorEvent {
+                            subsystem: "llm.http".into(),
+                            error_class: "rate-limited".into(),
+                            http_status: Some(429),
+                            retry_attempt: 0,
+                            retried: true,
+                            model: Some(model.id.clone()),
+                            provider: Some(format!("{:?}", model.provider_type)),
+                            task_id: trace_ctx.task_id,
+                            trace_id: Some(trace_ctx.trace_id.to_string()),
+                        }
+                    ));
                 }
                 if !tried_google_direct_fallback {
                     if let Some(fb) = google_direct_fallback_for_gemini(state, &model) {

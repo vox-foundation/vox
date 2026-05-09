@@ -5,8 +5,6 @@ use std::pin::Pin;
 
 use crate::inference_env::HF_ROUTER_CHAT_COMPLETIONS_URL;
 use crate::{ActivityOptions, ActivityResult, execute_activity};
-use uuid::Uuid;
-
 use super::types::{ChatMessage, LlmConfig, LlmResponse};
 use super::wire::{
     OpenRouterRequest, OpenRouterResponse, chat_requires_nonempty_api_key, resolve_chat_api_key,
@@ -83,6 +81,29 @@ pub async fn llm_chat(
                 let latency = start.elapsed().as_millis() as i64;
 
                 let _ = record_telemetry_attempt(&config, "error", latency, Some(&status.to_string())).await;
+                {
+                    let trace_ctx = vox_telemetry::current_trace_ctx();
+                    let error_class = if status.as_u16() == 429 {
+                        "rate-limited"
+                    } else if status.as_u16() >= 500 {
+                        "server-error"
+                    } else {
+                        "client-error"
+                    };
+                    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
+                        vox_telemetry::ErrorEvent {
+                            subsystem: "llm.http".into(),
+                            error_class: error_class.into(),
+                            http_status: Some(status.as_u16()),
+                            retry_attempt: 0,
+                            retried: false,
+                            model: Some(config.model.clone()),
+                            provider: None,
+                            task_id: trace_ctx.task_id,
+                            trace_id: Some(trace_ctx.trace_id.to_string()),
+                        }
+                    ));
+                }
 
                 if !config.telemetry_skip_interaction {
                     let _ = record_telemetry_outcome(
@@ -275,7 +296,9 @@ pub async fn infer_with_retry(
     candidates: Vec<LlmConfig>,
 ) -> ActivityResult<Result<(LlmResponse, LlmConfig), String>> {
     let mut last_error = "No LLM candidates provided".to_string();
-    let trace_id = Uuid::new_v4().to_string();
+    // Inherit trace_id from the ambient TRACE_CTX if one is active (set by dispatch scope);
+    // otherwise mint a fresh UUID so orphan calls outside any task still have a trace_id.
+    let trace_id = vox_telemetry::current_trace_ctx().trace_id.to_string();
     let mut attempt_number = 0;
 
     let terminal_fallback = candidates.first().cloned();

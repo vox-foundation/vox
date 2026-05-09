@@ -116,7 +116,8 @@
       "Bash([ -d \"crates/$c\" ])",
       "Bash(git restore *)",
       "Bash(for crate in vox-webhook vox-skills vox-corpus vox-orchestrator-queue vox-package vox-plugin-publication vox-plugin-populi-mesh vox-plugin-mens-candle-cuda; do *)",
-      "Bash(for crate in vox-webhook vox-skills vox-corpus vox-orchestrator-queue vox-package vox-plugin-publication; do *)"
+      "Bash(for crate in vox-webhook vox-skills vox-corpus vox-orchestrator-queue vox-package vox-plugin-publication; do *)",
+      "Bash(awk -F: '$2>0 {sum+=$2; count++} END {print \"Total Rust tests:\", sum, \"in\", count, \"files\"}')"
     ]
   }
 }
