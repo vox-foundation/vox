@@ -356,6 +356,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         Cli::Dashboard { args } => {
             crate::commands::dashboard::run(args).await?;
         }
+        Cli::DriftCheck { args } => {
+            crate::commands::drift_check::run(args).await?;
+        }
         Cli::Research { cmd } => crate::commands::research::run(cmd).await?,
         #[cfg(feature = "coderabbit")]
         Cli::Review { cmd } => {
@@ -369,6 +372,9 @@ pub(crate) async fn dispatch_cli(cli: Cli, global: &GlobalOpts) -> anyhow::Resul
         }
         Cli::Telemetry { cmd } => {
             crate::commands::telemetry::run(cmd).await?;
+        }
+        Cli::Snapshot { cmd } => {
+            crate::commands::snapshot::run(&cmd)?;
         }
         Cli::Grammar { args } => {
             crate::commands::grammar::handle(args);

@@ -6,5 +6,10 @@
 # Add a `crates/<crate>/` line only while migrating that crate off
 # `.connection().query|execute(` until the transitional entry can be removed.
 crates/vox-secrets/
+# vox-gamify uses db.connection() directly because the Rust orphan rule prevents
+# adding impl VoxDb methods for gamification types in vox-db (types defined in vox-gamify).
+# See commit 64299ea: consolidate ops_ludus SQL into vox-gamify.
 crates/vox-gamify/
-crates/vox-codegen/src/codegen_rust/
+# vox-codegen emits .connection().query/execute strings as code-generation output,
+# not as live SQL calls. The guard regex false-positives on these string literals.
+crates/vox-codegen/src/codegen_rust/emit/tables/

@@ -18,6 +18,9 @@ use std::sync::OnceLock;
 use vox_db::{DbConfig, VoxDb};
 
 fn telemetry_enabled() -> bool {
+    if !vox_telemetry::is_master_enabled() {
+        return false;
+    }
     vox_secrets::resolve_secret(vox_secrets::SecretId::VoxBenchmarkTelemetry)
         .expose()
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))

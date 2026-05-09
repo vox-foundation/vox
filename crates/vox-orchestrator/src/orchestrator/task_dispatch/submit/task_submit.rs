@@ -683,6 +683,10 @@ impl Orchestrator {
                         thread_id: held_thread_id,
                         context_envelope_json: context_envelope_json.clone(),
                         harness_spec_json: held_harness_spec_json,
+                        parent_task_id: None,
+                        caller_agent_id: None,
+                        trace_id: None,
+                        span_depth: None,
                     };
                     let relay_client = vox_populi::http_client::PopuliHttpClient::new_with_timeout(
                         &base,
@@ -918,6 +922,10 @@ impl Orchestrator {
                     thread_id: relay_thread_id.clone(),
                     context_envelope_json: relay_context_envelope_json.clone(),
                     harness_spec_json: relay_harness_spec_json.clone(),
+                    parent_task_id: None,
+                    caller_agent_id: None,
+                    trace_id: None,
+                    span_depth: None,
                 };
                 if let Err(err) = crate::a2a::relay_remote_task_envelope(
                     &client,

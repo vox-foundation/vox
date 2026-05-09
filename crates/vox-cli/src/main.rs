@@ -15,7 +15,8 @@
 //! |-----|-------------|
 //! | `vox build <file> [-o DIR]` | `commands::build` |
 //! | `vox check <file>` | `commands::check` |
-//! | `vox test <file>` | `commands::test` |
+//! | `vox test <file> [--watch]` | `commands::test` |
+//! | `vox snapshot orphans [--clean]` | `commands::snapshot` |
 //! | `vox run <file> [--port N] [--mode auto\|app\|script] [-- …]` | `commands::run` |
 //! | `vox script <file> …` | `commands::runtime::run::script` (needs `script-execution`) |
 //! | `vox ci …` | `commands::ci` |

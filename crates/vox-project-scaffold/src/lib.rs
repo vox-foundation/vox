@@ -166,6 +166,126 @@ routes {
 }
 "#;
 
+/// Render a Red-then-Green Vox fn stub paired with an `@test` block.
+///
+/// The output is intentionally non-runnable: the test references undefined
+/// placeholders (`_expected`, `_` per param) so the user is *forced* to fill
+/// in the expected behavior before the function compiles. This is the
+/// friction reducer for AGENTS.md §Test-First Policy.
+///
+/// `name`: validated Vox identifier (alphanumeric + underscore, not starting with a digit).
+/// `params`: optional, e.g. `"a: int, b: int"`. Empty means no parameters.
+/// `returns`: optional return type, e.g. `"int"`. None means `Unit`.
+pub fn render_fn_stub(name: &str, params: Option<&str>, returns: Option<&str>) -> Result<String> {
+    if !is_valid_vox_identifier(name) {
+        anyhow::bail!(
+            "'{name}' is not a valid Vox identifier (alphanumeric + underscore, not starting with a digit)"
+        );
+    }
+    let params_str = params.map(str::trim).filter(|s| !s.is_empty()).unwrap_or("");
+    let returns_str = returns
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Unit");
+    let example_args = call_args_for_params(params_str);
+
+    Ok(format!(
+        "\n@test\nfn test_{name}() to Unit {{\n    \
+         // RED step: replace `_` and `_expected` with concrete values\n    \
+         //            that capture the intended behavior of `{name}`.\n    \
+         let result = {name}({example_args})\n    \
+         assert(result is _expected)\n\
+         }}\n\n\
+         fn {name}({params_str}) to {returns_str} {{\n    \
+         // GREEN step: implement until the @test above passes.\n\
+         }}\n"
+    ))
+}
+
+fn is_valid_vox_identifier(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => false,
+        Some(c) if !(c.is_ascii_alphabetic() || c == '_') => false,
+        _ => chars.all(|c| c.is_ascii_alphanumeric() || c == '_'),
+    }
+}
+
+/// Convert a param list like `"a: int, b: str"` into a comma-separated `_, _`
+/// for the test call site. Each placeholder triggers a compile-error nudge.
+fn call_args_for_params(params: &str) -> String {
+    let count = params
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .count();
+    if count == 0 {
+        String::new()
+    } else {
+        std::iter::repeat("_")
+            .take(count)
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
+/// Append a rendered fn-stub to a target file (creating it if missing).
+/// Returns the bytes written. Refuses to clobber a fn of the same name unless
+/// `force` is true.
+pub fn append_fn_stub(
+    target: &Path,
+    name: &str,
+    params: Option<&str>,
+    returns: Option<&str>,
+    force: bool,
+) -> Result<usize> {
+    let stub = render_fn_stub(name, params, returns)?;
+
+    let existing = if target.exists() {
+        std::fs::read_to_string(target)
+            .with_context(|| format!("read {}", target.display()))?
+    } else {
+        String::new()
+    };
+
+    if !force && file_defines_fn(&existing, name) {
+        anyhow::bail!(
+            "fn `{name}` already defined in {}; pass --force to replace (not yet supported) or pick another name",
+            target.display()
+        );
+    }
+
+    if let Some(parent) = target.parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("create parent of {}", target.display()))?;
+        }
+    }
+
+    let combined = if existing.is_empty() {
+        stub.clone()
+    } else if existing.ends_with('\n') {
+        format!("{existing}{stub}")
+    } else {
+        format!("{existing}\n{stub}")
+    };
+    std::fs::write(target, &combined)
+        .with_context(|| format!("write {}", target.display()))?;
+    Ok(stub.len())
+}
+
+fn file_defines_fn(content: &str, name: &str) -> bool {
+    let needle = format!("fn {name}");
+    content.lines().any(|line| {
+        let trimmed = line.trim_start();
+        if !trimmed.starts_with(&needle) {
+            return false;
+        }
+        let after = &trimmed[needle.len()..];
+        matches!(after.chars().next(), Some('(') | Some(' ') | Some('\t'))
+    })
+}
+
 /// Summary of files and directories created under the scaffold root.
 #[derive(Debug, Clone, Serialize)]
 pub struct ScaffoldSummary {
@@ -318,5 +438,87 @@ mod tests {
         assert!(d.path().join("Vox.toml").is_file());
         assert!(d.path().join("src/main.vox").is_file());
         assert!(s.created_relative_paths.contains(&"Vox.toml".to_string()));
+    }
+
+    // --- render_fn_stub / append_fn_stub coverage ---
+
+    #[test]
+    fn fn_stub_no_params_no_returns_emits_unit_and_empty_call() {
+        let s = render_fn_stub("greet", None, None).unwrap();
+        assert!(s.contains("fn test_greet() to Unit {"), "test sig: {s}");
+        assert!(s.contains("let result = greet()"), "empty-arg call: {s}");
+        assert!(s.contains("fn greet() to Unit {"), "fn sig: {s}");
+    }
+
+    #[test]
+    fn fn_stub_with_params_emits_underscore_per_arg() {
+        let s = render_fn_stub("add", Some("a: int, b: int"), Some("int")).unwrap();
+        assert!(s.contains("let result = add(_, _)"), "two underscores: {s}");
+        assert!(s.contains("fn add(a: int, b: int) to int {"), "param echo: {s}");
+    }
+
+    #[test]
+    fn fn_stub_rejects_invalid_identifier() {
+        assert!(render_fn_stub("123abc", None, None).is_err());
+        assert!(render_fn_stub("", None, None).is_err());
+        assert!(render_fn_stub("has space", None, None).is_err());
+        assert!(render_fn_stub("kebab-case", None, None).is_err());
+        assert!(render_fn_stub("_underscore_ok", None, None).is_ok());
+        assert!(render_fn_stub("snake_case_ok", None, None).is_ok());
+    }
+
+    #[test]
+    fn fn_stub_test_block_uses_assert_is() {
+        let s = render_fn_stub("foo", None, None).unwrap();
+        assert!(s.contains("assert(result is _expected)"), "canonical assert: {s}");
+    }
+
+    #[test]
+    fn append_fn_stub_creates_file_when_missing() {
+        let d = TempDir::new().unwrap();
+        let p = d.path().join("subdir/new.vox");
+        let n = append_fn_stub(&p, "first", None, None, false).unwrap();
+        assert!(p.is_file());
+        assert!(n > 0);
+        let body = std::fs::read_to_string(&p).unwrap();
+        assert!(body.contains("fn first()"), "stub written: {body}");
+    }
+
+    #[test]
+    fn append_fn_stub_appends_without_clobbering_existing_content() {
+        let d = TempDir::new().unwrap();
+        let p = d.path().join("existing.vox");
+        std::fs::write(&p, "fn other() to Unit {\n    // pre-existing\n}\n").unwrap();
+        append_fn_stub(&p, "added", None, None, false).unwrap();
+        let body = std::fs::read_to_string(&p).unwrap();
+        assert!(body.contains("fn other()"), "preserved original: {body}");
+        assert!(body.contains("fn added()"), "appended new: {body}");
+    }
+
+    #[test]
+    fn append_fn_stub_refuses_to_clobber_same_name() {
+        let d = TempDir::new().unwrap();
+        let p = d.path().join("dup.vox");
+        std::fs::write(&p, "fn dup() to int {\n    return 1\n}\n").unwrap();
+        let err = append_fn_stub(&p, "dup", None, None, false).unwrap_err();
+        assert!(err.to_string().contains("already defined"), "got: {err}");
+    }
+
+    #[test]
+    fn append_fn_stub_inserts_blank_line_before_when_file_lacks_trailing_newline() {
+        let d = TempDir::new().unwrap();
+        let p = d.path().join("noeol.vox");
+        std::fs::write(&p, "fn other() to Unit {}").unwrap();
+        append_fn_stub(&p, "added", None, None, false).unwrap();
+        let body = std::fs::read_to_string(&p).unwrap();
+        assert!(body.contains("fn other() to Unit {}\n"), "newline inserted: {body:?}");
+    }
+
+    #[test]
+    fn file_defines_fn_does_not_match_substring() {
+        // `fn add` should not match `fn adder`
+        assert!(!file_defines_fn("fn adder() to int { return 0 }", "add"));
+        assert!(file_defines_fn("fn add() to int { return 0 }", "add"));
+        assert!(file_defines_fn("    fn add(x: int) to int { return x }", "add"));
     }
 }

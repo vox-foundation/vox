@@ -148,3 +148,9 @@ pub mod visus;
 /// Local orchestration dashboard (`vox dashboard`).
 #[cfg(feature = "dashboard")]
 pub mod dashboard;
+
+/// Workspace drift and pattern-repetition linter (`vox drift-check`).
+pub mod drift_check;
+
+/// Insta snapshot helpers: orphan detection and cleanup (`vox snapshot`).
+pub mod snapshot;

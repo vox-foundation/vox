@@ -105,6 +105,9 @@ pub struct TestArgs {
     /// Update snapshot golden files
     #[arg(long)]
     pub update_snapshots: bool,
+    /// Re-run tests on every `.vox` file change (Ctrl-C to stop)
+    #[arg(long)]
+    pub watch: bool,
 }
 
 /// `vox run` / `vox fabrica run`

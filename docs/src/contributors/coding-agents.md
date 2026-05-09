@@ -32,6 +32,7 @@ Quick-reference for AI agents operating on the Vox codebase. Deep rationale live
 | No hollow functions | No trivially-default returns | `skeleton/hollow-fn` |
 | No hardcoded secrets | Use vox-secrets | `security/hardcoded-secret` |
 | No CRLF line endings | LF only | `cross-platform/crlf` |
+| `pub fn` in golden `.vox` must have a test | `@test` block referencing the fn | `skeleton/no-test-for-pub-fn` |
 
 Full fix guide: [TOESTUB contributor guide](toestub-contributor-guide.md).
 Policy SSOT: [Architectural governance](../../agents/governance.md).
@@ -56,9 +57,77 @@ cargo run -p vox-cli -- corpus eval --mode ast examples/golden/
 # Tier 7 — CI guards
 cargo run -p vox-cli -- ci ssot-drift
 cargo run -p vox-cli -- ci line-endings
+
+# Tier 7b — orphan snapshot cleanup (if .snap files changed)
+cargo run -p vox-cli -- snapshot orphans
 ```
 
 Full 9-tier model: [`vox_agentic_loop_and_mens_plan.md`](../archive/research-2026-q1/vox_agentic_loop_and_mens_plan.md) §9-Tier Victory Conditions.
+
+## Task brief format: failing test first
+
+When assigning a task to an AI agent — or starting a task yourself — express the requirement as a **failing test before any implementation brief**. This is the most unambiguous spec format available:
+
+**For Rust changes:**
+```rust
+#[test]
+fn share_tunnel_url_includes_port() {
+    let url = TunnelUrl::new("localhost", 7700);
+    assert_eq!(url.to_string(), "vox://localhost:7700");
+}
+// impl TunnelUrl does NOT exist yet — the test is the spec
+```
+
+**For Vox golden examples:**
+```vox
+// vox:skip
+@test
+fn greet_returns_full_name() {
+    let result = greet("Ada", "Lovelace");
+    assert result == "Hello, Ada Lovelace";
+}
+// fn greet does NOT exist yet — write it until this passes
+```
+
+Paste the failing test as the first content of any implementation request. Benefits:
+- Eliminates ambiguity about inputs, outputs, and edge cases.
+- Acts as an automated linter on AI-generated output — code that doesn't pass the test is wrong, regardless of how plausible it looks.
+- Keeps the agent in a verifiable loop: write → run → diagnose → fix.
+- Test-covered implementation enters the MENS corpus as a higher-quality positive example.
+
+When a task cannot be expressed as a failing test (e.g., pure doc updates, config tweaks), state that explicitly rather than skipping the check silently.
+
+**Scaffold shortcut (Vox):** `vox new fn <name> [--params "x: int"] [--returns int] [--in path/to/file.vox]` writes a paired `fn` + `@test` block in one keystroke. The emitted test references undefined placeholders (`_`, `_expected`) so the function won't compile until you fill in the expected behavior — the friction reducer for [AGENTS.md §Test-First Policy](../../../AGENTS.md). Pass `--stdout` to pipe the stub into your editor instead of writing to disk.
+
+## Snapshot discipline
+
+Insta snapshot tests (`.snap` files under `crates/*/src/tests/snapshots/`) are
+part of the test suite. When your change alters compiler output, codegen output,
+or diagnostic formatting, the snapshot changes are part of the same commit as
+the code change — never in a follow-up "fix snapshots" commit.
+
+**Workflow:**
+
+```bash
+# Run the affected tests — they will fail with a snapshot diff
+cargo test -p vox-compiler
+
+# Accept the new snapshots
+cargo insta review      # interactive
+cargo insta accept      # accept all pending (use only if you've reviewed the diff)
+
+# Stage and commit the .snap files alongside your code change
+git add crates/vox-compiler/src/tests/snapshots/
+git commit --amend --no-edit   # or include in the same commit
+```
+
+**Orphan `.snap` files** (snapshots for deleted or renamed tests) must be
+deleted. CI treats orphans as a warning via `cargo insta test --unreferenced=reject`.
+See [contribution-loop.md](contribution-loop.md) for the orphan-check step.
+
+**Never commit a snapshot you haven't read.** Blind `insta accept` on a failing
+test masks real regressions. Review the diff: if the new output is correct,
+accept; if not, fix the code.
 
 ## Corpus quality signal
 
@@ -66,7 +135,7 @@ Your code changes feed the MENS training pipeline. Stub-free, test-covered,
 parse-passing contributions become positive training examples. Stubs and parse
 failures become negative examples — the model learns to avoid those patterns.
 
-See [contribution loop](contribution-loop.md) for the full flywheel.
+See [contribution loop](contribution-loop.md) for the full flywheel and the @test-first gate.
 
 ## Panic prevention (do not shortcut)
 
@@ -74,6 +143,7 @@ See [contribution loop](contribution-loop.md) for the full flywheel.
 - Do **not** delete tests to fix a test failure — fix the code.
 - Do **not** add `#[allow(...)]` or `// toestub-ignore(...)` without a written reason.
 - Do **not** claim task completion adjacent to `todo!()` or empty bodies.
+- Do **not** run `cargo insta accept` without reading the snapshot diff first.
 
 Research: [AI agent panic and shortcut pathology](../archive/research-2026-q1/research-ai-panic-shortcuts-2026.md).
 

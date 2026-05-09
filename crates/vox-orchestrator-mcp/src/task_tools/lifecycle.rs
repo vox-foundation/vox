@@ -47,6 +47,22 @@ pub async fn complete_task(state: &ServerState, params: CompleteTaskParams) -> S
                 companion.interact(vox_gamify::companion::Interaction::TaskCompleted);
                 let _ = vox_gamify::db::upsert_companion(db, &companion).await;
             }
+            let trace_ctx = vox_telemetry::current_trace_ctx();
+            let mut summary = vox_telemetry::TaskRootSummaryEvent {
+                task_id: params.task_id,
+                trace_id: trace_ctx.trace_id.to_string(),
+                repository_id: None,
+                outcome: "completed".into(),
+                wall_time_ms: 0,
+                total_input_tokens: 0,
+                total_output_tokens: 0,
+                total_cost_usd: 0.0,
+                child_call_count: 0,
+                max_span_depth: trace_ctx.span_depth,
+                subagent_fanout: 0,
+            };
+            vox_telemetry::fill_task_root_summary(&mut summary);
+            vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::TaskRootSummary(summary));
             ToolResult::ok("task completed".to_string()).to_json()
         }
         Err(e) => {
@@ -88,6 +104,22 @@ pub async fn fail_task(state: &ServerState, params: FailTaskParams) -> String {
                 companion.interact(vox_gamify::companion::Interaction::TaskFailed);
                 let _ = vox_gamify::db::upsert_companion(db, &companion).await;
             }
+            let trace_ctx = vox_telemetry::current_trace_ctx();
+            let mut summary = vox_telemetry::TaskRootSummaryEvent {
+                task_id: params.task_id,
+                trace_id: trace_ctx.trace_id.to_string(),
+                repository_id: None,
+                outcome: "failed".into(),
+                wall_time_ms: 0,
+                total_input_tokens: 0,
+                total_output_tokens: 0,
+                total_cost_usd: 0.0,
+                child_call_count: 0,
+                max_span_depth: trace_ctx.span_depth,
+                subagent_fanout: 0,
+            };
+            vox_telemetry::fill_task_root_summary(&mut summary);
+            vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::TaskRootSummary(summary));
             ToolResult::ok("task marked as failed".to_string()).to_json()
         }
         Err(e) => ToolResult::<String>::err_with_remediation(e, REM_TASK_ORCH_OP).to_json(),
@@ -166,6 +198,22 @@ pub async fn doubt_task(
                 companion.interact(vox_gamify::companion::Interaction::TaskDoubted);
                 let _ = vox_gamify::db::upsert_companion(db, &companion).await;
             }
+            let trace_ctx = vox_telemetry::current_trace_ctx();
+            let mut summary = vox_telemetry::TaskRootSummaryEvent {
+                task_id: params.task_id,
+                trace_id: trace_ctx.trace_id.to_string(),
+                repository_id: None,
+                outcome: "doubted".into(),
+                wall_time_ms: 0,
+                total_input_tokens: 0,
+                total_output_tokens: 0,
+                total_cost_usd: 0.0,
+                child_call_count: 0,
+                max_span_depth: trace_ctx.span_depth,
+                subagent_fanout: 0,
+            };
+            vox_telemetry::fill_task_root_summary(&mut summary);
+            vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::TaskRootSummary(summary));
             ToolResult::ok("task flagged as suspect; resolution agent escalated".to_string())
                 .to_json()
         }

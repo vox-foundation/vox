@@ -112,16 +112,26 @@ pub struct SubAgentDispatchEvent {
     pub complexity: u8,
     pub chain_depth: u32,
     pub session_id: Option<String>,
+    /// Phase C: parent task id from the ambient TraceContext.
+    pub parent_task_id: Option<u64>,
+    /// Phase C: span depth from the ambient TraceContext.
+    pub span_depth: u16,
+    /// Phase C: wall time from dispatch start to decision emit (ms).
+    pub dispatch_latency_ms: Option<u64>,
 }
 
 impl SubAgentDispatchEvent {
     pub fn new(decision: DispatchDecision, signal: &DispatchSignal, session_id: Option<String>) -> Self {
+        let trace_ctx = vox_telemetry::current_trace_ctx();
         Self {
             metric_type: vox_db::research_metrics_contract::METRIC_TYPE_SUBAGENT_DISPATCH,
             decision: decision.to_string(),
             complexity: signal.complexity,
             chain_depth: signal.chain_depth,
             session_id,
+            parent_task_id: trace_ctx.parent_task_id,
+            span_depth: trace_ctx.span_depth,
+            dispatch_latency_ms: None, // populated by callers that measure dispatch latency
         }
     }
 }

@@ -488,6 +488,10 @@ async fn remote_worker_tick_once_seeds_context_and_attaches_socrates_when_task_a
         thread_id: None,
         context_envelope_json: Some(serde_json::to_string(&context).expect("serialize context")),
         harness_spec_json: None,
+        parent_task_id: None,
+        caller_agent_id: None,
+        trace_id: None,
+        span_depth: None,
     };
     http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
         sender_agent_id: "1".into(),
@@ -610,6 +614,10 @@ async fn remote_worker_tick_once_accepts_object_context_envelope_payload() {
         thread_id: None,
         context_envelope_json: Some(serde_json::to_string(&context).expect("serialize context")),
         harness_spec_json: None,
+        parent_task_id: None,
+        caller_agent_id: None,
+        trace_id: None,
+        span_depth: None,
     };
     http.relay_a2a(&vox_populi::transport::A2ADeliverRequest {
         sender_agent_id: "1".into(),

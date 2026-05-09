@@ -396,6 +396,7 @@ snippet/search
 stop
 sync
 telemetry
+telemetry/doctor
 telemetry/enqueue
 telemetry/export
 telemetry/status
