@@ -229,6 +229,9 @@ impl LowerCtx {
                 Decl::Routes(r) => {
                     hir.client_routes.push(r.clone());
                 }
+                Decl::Form(f) => {
+                    hir.forms.push(self.lower_form(f));
+                }
                 Decl::V0Component(_) | Decl::Page(_) | Decl::Loading(_) => {
                     // Retired/legacy UI declarations: silently dropped from HIR.
                 }

@@ -2,6 +2,7 @@ use crate::ast::decl::*;
 use crate::ast::expr;
 use crate::ast::types::TypeExpr;
 use crate::hir::*;
+use crate::hir::nodes::form::{HirFieldConstraint, HirForm, HirFormField};
 
 use super::LowerCtx;
 
@@ -493,6 +494,49 @@ impl LowerCtx {
                 }
             })
             .collect()
+    }
+
+    pub(crate) fn lower_form(&mut self, f: &FormDecl) -> HirForm {
+        HirForm {
+            name: f.name.clone(),
+            fields: f
+                .fields
+                .iter()
+                .map(|fd| HirFormField {
+                    name: fd.name.clone(),
+                    ty: self.lower_type(&fd.ty),
+                    label: fd.label.clone(),
+                    required: fd.required,
+                    hidden: fd.hidden,
+                    default: fd.default.as_ref().map(|d| self.lower_expr(d)),
+                    constraints: fd
+                        .constraints
+                        .iter()
+                        .map(|c| self.lower_field_constraint(c))
+                        .collect(),
+                    span: fd.span,
+                })
+                .collect(),
+            on_submit: f.on_submit.clone(),
+            success_redirect: f.success_redirect.clone(),
+            error_message: f.error_message.clone(),
+            span: f.span,
+        }
+    }
+
+    fn lower_field_constraint(&mut self, c: &FieldConstraint) -> HirFieldConstraint {
+        match c {
+            FieldConstraint::Range(lo, hi) => {
+                HirFieldConstraint::Range(self.lower_expr(lo), self.lower_expr(hi))
+            }
+            FieldConstraint::MaxLen(n) => HirFieldConstraint::MaxLen(*n),
+            FieldConstraint::MinLen(n) => HirFieldConstraint::MinLen(*n),
+            FieldConstraint::Pattern(p) => HirFieldConstraint::Pattern(p.clone()),
+            FieldConstraint::Enum(exprs) => {
+                HirFieldConstraint::Enum(exprs.iter().map(|e| self.lower_expr(e)).collect())
+            }
+            FieldConstraint::Custom(s) => HirFieldConstraint::Custom(s.clone()),
+        }
     }
 
     pub(crate) fn lower_state_machine(&mut self, s: &StateMachineDecl) -> HirStateMachineDecl {
