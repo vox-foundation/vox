@@ -11004,6 +11004,7 @@ dependencies = [
  "vox-publisher",
  "vox-repository",
  "vox-reqwest-defaults",
+ "vox-rule-pack",
  "vox-scaling-policy",
  "vox-search",
  "vox-secrets",

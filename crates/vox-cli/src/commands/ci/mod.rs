@@ -1,6 +1,7 @@
 //! `vox ci` — repository guard checks (SSOT, manifests, feature matrix) without shell/Python.
 
 mod agentskills_compliance;
+mod detect_rules_bench;
 mod attention_ledger_parity;
 mod attention_parity;
 pub mod build_timings;
