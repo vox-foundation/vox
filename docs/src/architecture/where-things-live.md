@@ -66,6 +66,7 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-mcp-registry`](../../../crates/vox-mcp-registry/) | Compile-time MCP tool name/description registry from contracts YAML (SSOT). |
 | [`vox-project-scaffold`](../../../crates/vox-project-scaffold/) | Shared Vox.toml + src/main.vox + skill scaffolding for vox init and MCP. |
 | [`vox-repository`](../../../crates/vox-repository/) | Repository discovery, stable identity, layout probes, and agent scope helpers for external and internal Vox workspaces. |
+| [`vox-share`](../../../crates/vox-share/) | Public-URL tunneling for Vox apps: Cloudflare Quick Tunnels (default), localhost.run (fallback), Tailscale Funnel (explicit). |
 | [`vox-skill-runtime`](../../../crates/vox-skill-runtime/) | Abstract sandbox runtime trait for skill execution. Implementations ship as plugins (wasm, container). |
 
 ### L3 — heavy runtimes

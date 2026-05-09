@@ -81,6 +81,7 @@ vox-skill-runtime       = { layer = 2 }
 vox-constrained-gen     = { layer = 2 }
 vox-doc-inventory       = { layer = 2 }
 vox-eval                = { layer = 2 }
+vox-share               = { layer = 2 }
 
 # ── L3 — heavy runtimes ───────────────────────────────────────────────────────
 vox-db                  = { layer = 3, max_dependents = 25, max_loc = 40_000 }
@@ -151,4 +152,9 @@ vox-orchestrator-d    = { layer = 5, kind = "binary" }
 from   = "vox-cli"
 to     = "vox-orchestrator"
 reason = "CLI ↔ orchestrator coupling is load-bearing for runtime/observability surfaces (vox status, vox attention, vox model *, vox dei, vox live). See build-time-log.md Phase 7 audit."
+
+[[known_inversions]]
+from   = "vox-arch-check"
+to     = "vox-compiler"
+reason = "dev-dependency only (rename-registry integration test added in feat(arch-check) VUV-9 task 8). The tool binary does not ship vox-compiler at runtime; remove once the test can be refactored to not need the full compiler crate."
 
