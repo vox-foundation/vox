@@ -129,15 +129,16 @@ pub(crate) async fn http_anthropic_direct(
 
     let input_tokens = parsed.usage.input_tokens;
     let output_tokens = parsed.usage.output_tokens;
-    let cached_input_tokens = parsed.usage.cache_read_input_tokens.filter(|&t| t > 0);
+    let cache_read_input_tokens = parsed.usage.cache_read_input_tokens.filter(|&t| t > 0);
+    let cache_creation_input_tokens = parsed.usage.cache_creation_input_tokens.filter(|&t| t > 0);
 
     // Anthropic bills cache reads at cache_read_cost_per_1k and newly-created cache entries at
     // cache_creation_cost_per_1k. Account for these in the estimated cost when reported.
-    let non_cached = input_tokens - cached_input_tokens.unwrap_or(0).min(input_tokens);
+    let non_cached = input_tokens - cache_read_input_tokens.unwrap_or(0).min(input_tokens);
     let cache_read_cost =
-        cached_input_tokens.unwrap_or(0) as f64 / 1000.0 * spec.cache_read_cost_per_1k;
-    let cache_create_cost = parsed.usage.cache_creation_input_tokens.unwrap_or(0) as f64 / 1000.0
-        * spec.cache_creation_cost_per_1k;
+        cache_read_input_tokens.unwrap_or(0) as f64 / 1000.0 * spec.cache_read_cost_per_1k;
+    let cache_create_cost =
+        cache_creation_input_tokens.unwrap_or(0) as f64 / 1000.0 * spec.cache_creation_cost_per_1k;
     let estimated_usd = (non_cached as f64 / 1000.0) * spec.cost_per_1k_input
         + (output_tokens as f64 / 1000.0) * spec.cost_per_1k_output
         + cache_read_cost
@@ -150,7 +151,8 @@ pub(crate) async fn http_anthropic_direct(
         HttpCallMetadata {
             provider_request_id: provider_request_id.or(Some(parsed.id)),
             provider_reported_cost_usd: Some(estimated_usd),
-            cached_input_tokens,
+            cache_read_input_tokens,
+            cache_creation_input_tokens,
         },
     ))
 }

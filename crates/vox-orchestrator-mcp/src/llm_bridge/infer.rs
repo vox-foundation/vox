@@ -463,16 +463,23 @@ pub async fn mcp_infer_tool_completion(
                 completion_tokens: ct,
                 provider_request_id,
                 provider_reported_cost_usd,
-                cached_input_tokens,
+                cache_read_input_tokens,
+                cache_creation_input_tokens,
             }) => {
                 let total_tok = (pt + ct) as u64;
-                let estimated_usd = estimated_cost_usd(&model, pt, ct, cached_input_tokens);
+                // For cost estimation, combine cache-read and cache-creation tokens since
+                // estimated_cost_usd applies cache_read_cost_per_1k to the combined cached count.
+                let cached_for_cost = match (cache_read_input_tokens, cache_creation_input_tokens) {
+                    (None, None) => None,
+                    (r, c) => Some(r.unwrap_or(0) + c.unwrap_or(0)),
+                };
+                let estimated_usd = estimated_cost_usd(&model, pt, ct, cached_for_cost);
                 let (reconciled_usd, cost_source) = match provider_reported_cost_usd {
                     Some(provider_usd) => (provider_usd, "provider_reported"),
                     None => (estimated_usd, "estimated"),
                 };
 
-                if let Some(cached) = cached_input_tokens {
+                if let Some(cached) = cache_read_input_tokens {
                     tracing::debug!(
                         target: "vox.mcp.llm.cache",
                         model_id = %model.id,
@@ -525,7 +532,8 @@ pub async fn mcp_infer_tool_completion(
                             "provider_request_id": provider_request_id,
                             "user_id": routing.user_id,
                             "cost_source": cost_source,
-                            "cached_input_tokens": cached_input_tokens,
+                            "cache_read_input_tokens": cache_read_input_tokens,
+                            "cache_creation_input_tokens": cache_creation_input_tokens,
                         })),
                     });
                 }

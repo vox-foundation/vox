@@ -161,7 +161,8 @@ pub(crate) async fn http_gemini_with_metadata(
         HttpCallMetadata {
             provider_request_id,
             provider_reported_cost_usd: Some(estimated_usd),
-            cached_input_tokens: None,
+            cache_read_input_tokens: None,
+            cache_creation_input_tokens: None,
         },
     ))
 }
