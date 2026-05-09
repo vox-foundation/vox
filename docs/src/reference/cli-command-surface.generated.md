@@ -21,13 +21,14 @@ category: "reference"
 
 Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/cli/command-registry.yaml) (itself projected from [`contracts/operations/catalog.v1.yaml`](../../../contracts/operations/catalog.v1.yaml)).
 
-**schema_version:** `1` · **vox-cli operations:** 263
+**schema_version:** `1` · **vox-cli operations:** 262
 
 | Path | Status | Feature gate | Latin ns | Product lane | Catalog group |
 |------|--------|--------------|----------|--------------|----------------|
 | `vox add` | active | — | pm | platform | — |
 | `vox architect` | active | codex|stub-check | diag | platform | — |
 | `vox ars` | active | — | ars | interop | — |
+| `vox audit` | active | — | — | platform | — |
 | `vox auth` | active | — | ars | platform | — |
 | `vox auth connect` | active | — | ars | platform | — |
 | `vox auth init` | active | — | ars | platform | — |
@@ -92,7 +93,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci query-all-guard` | active | — | — | platform | — |
 | `vox ci release-build` | active | — | — | platform | — |
 | `vox ci repo-guards` | active | — | — | platform | — |
-| `vox ci row-serde-lint` | active | — | — | platform | — |
 | `vox ci rust-ecosystem-policy` | active | — | — | platform | — |
 | `vox ci scaling-audit` | active | — | — | platform | — |
 | `vox ci scaling-audit emit-reports` | active | — | — | platform | — |
@@ -103,7 +103,6 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci secrets-parity` | active | — | — | platform | — |
 | `vox ci sql-surface-guard` | active | — | — | platform | — |
 | `vox ci ssot-drift` | active | — | — | platform | — |
-| `vox ci string-id-lint` | active | — | — | platform | — |
 | `vox ci toestub-scoped` | active | — | — | platform | — |
 | `vox ci toestub-self-apply` | active | — | — | platform | — |
 | `vox ci turso-import-guard` | active | — | — | platform | — |

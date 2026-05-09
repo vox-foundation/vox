@@ -39,6 +39,17 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
+  - audit
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: false
+  reachability_required: null
+  handler_rust: commands::audit
+- surface: vox-cli
+  path:
   - auth
   status: active
   latin_ns: ars
