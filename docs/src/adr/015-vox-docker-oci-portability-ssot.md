@@ -95,4 +95,5 @@ Adopt a **Docker/OCI-backed portability model** as the primary deployment portab
 - `crates/vox-container/src/deploy_target.rs`
 - `crates/vox-install-policy/src/lib.rs`
 
+> **Nomenclature note (2026-05-08):** `vox-pm` was renamed to `vox-package`; references in this ADR are historical.
 

@@ -49,4 +49,5 @@ Vox persisted data through `vox-db` (`VoxDb` / **Codex**), with related crates (
 - [Orphan surface inventory](../archive/research-2026-q1/orphan-surface-inventory.md)
 - Crate: `crates/vox-db`, `crates/vox-pm`
 
+> **Nomenclature note (2026-05-08):** `vox-pm` was renamed to `vox-package`; references in this ADR are historical.
 

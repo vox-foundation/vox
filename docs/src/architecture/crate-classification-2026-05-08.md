@@ -2,12 +2,17 @@
 title: "Crate Classification Audit (2026-05-08)"
 description: "Classification of every workspace crate as CORE, PLUGIN, SHARED, DEAD, or MISPLACED. Identifies extraction candidates and deletion candidates."
 category: "architecture"
-status: "research"
+status: "deprecated"
+superseded_by:
+  - "2026-05-08-workspace-reorg-outcome.md"
+  - "2026-05-08-crate-org-followup-design.md"
 training_eligible: true
 training_rationale: "Snapshot of workspace health used to guide plugin-first conversion and crate hygiene work."
 ---
 
 # Crate Classification Audit (2026-05-08)
+
+> **Snapshot note:** This is a point-in-time audit snapshot from 2026-05-08, used to inform the workspace reorg + crate-org-followup work. Crate classifications below reflect the *pre-fix* state — see `2026-05-08-workspace-reorg-outcome.md` and `2026-05-08-crate-org-followup-design.md` for what actually shipped.
 
 This audit classifies every crate in `crates/` against five labels:
 
