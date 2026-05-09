@@ -9,6 +9,7 @@
 use turso::params;
 
 use crate::store::types::{EmbeddingEntry, MemoryEntry, SaveMemoryParams, StoreError};
+use vox_db_types::DbAgentId;
 use crate::{
     RetrievalEvidenceSource, RetrievalResult, SearchBackend, SearchDiagnostics, fuse_hybrid_results,
 };
@@ -119,7 +120,9 @@ impl crate::VoxDb {
         while let Some(row) = rows.next().await? {
             out.push(MemoryEntry {
                 id: row.get(0).map_err(|e| StoreError::Db(e.to_string()))?,
-                agent_id: row.get(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                agent_id: DbAgentId::new(
+                    row.get::<String>(1).map_err(|e| StoreError::Db(e.to_string()))?,
+                ),
                 session_id: row.get(2).map_err(|e| StoreError::Db(e.to_string()))?,
                 memory_type: row.get(3).map_err(|e| StoreError::Db(e.to_string()))?,
                 content: row.get(4).map_err(|e| StoreError::Db(e.to_string()))?,

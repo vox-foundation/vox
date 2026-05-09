@@ -12144,7 +12144,6 @@ dependencies = [
  "tracing",
  "uuid",
  "vox-container",
- "vox-db",
  "vox-openclaw-runtime",
  "vox-package",
  "vox-plugin-host",
@@ -12216,7 +12215,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "vox-db",
  "vox-reqwest-defaults",
  "workspace-hack",
 ]

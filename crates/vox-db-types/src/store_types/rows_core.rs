@@ -49,7 +49,7 @@ pub struct MemoryEntry {
     /// Row id.
     pub id: i64,
     /// Agent that owns this memory.
-    pub agent_id: String,
+    pub agent_id: crate::ids::DbAgentId,
     /// Session scope.
     pub session_id: String,
     /// Memory type label.
