@@ -606,6 +606,20 @@ pub async fn mcp_infer_tool_completion(
                             .mark_rate_limited(&usage.provider, &usage.model)
                             .await;
                     }
+                    let trace_ctx = vox_telemetry::current_trace_ctx();
+                    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
+                        vox_telemetry::ErrorEvent {
+                            subsystem: "llm.http".into(),
+                            error_class: "rate-limited".into(),
+                            http_status: Some(429),
+                            retry_attempt: 0,
+                            retried: true,
+                            model: Some(model.id.clone()),
+                            provider: Some(format!("{:?}", model.provider_type)),
+                            task_id: trace_ctx.task_id,
+                            trace_id: Some(trace_ctx.trace_id.to_string()),
+                        }
+                    ));
                 }
                 if !tried_google_direct_fallback {
                     if let Some(fb) = google_direct_fallback_for_gemini(state, &model) {

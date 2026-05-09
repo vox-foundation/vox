@@ -81,6 +81,29 @@ pub async fn llm_chat(
                 let latency = start.elapsed().as_millis() as i64;
 
                 let _ = record_telemetry_attempt(&config, "error", latency, Some(&status.to_string())).await;
+                {
+                    let trace_ctx = vox_telemetry::current_trace_ctx();
+                    let error_class = if status.as_u16() == 429 {
+                        "rate-limited"
+                    } else if status.as_u16() >= 500 {
+                        "server-error"
+                    } else {
+                        "client-error"
+                    };
+                    vox_telemetry::record_event!(&vox_telemetry::TelemetryEvent::Error(
+                        vox_telemetry::ErrorEvent {
+                            subsystem: "llm.http".into(),
+                            error_class: error_class.into(),
+                            http_status: Some(status.as_u16()),
+                            retry_attempt: 0,
+                            retried: false,
+                            model: Some(config.model.clone()),
+                            provider: None,
+                            task_id: trace_ctx.task_id,
+                            trace_id: Some(trace_ctx.trace_id.to_string()),
+                        }
+                    ));
+                }
 
                 if !config.telemetry_skip_interaction {
                     let _ = record_telemetry_outcome(
