@@ -338,14 +338,13 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
                 return replacement;
             }
             // §1.A.4: if the direct receiver is an async call (`fetch_user().trim()`),
-            // `emit_hir_expr` will have already emitted `await fetch_user()`.  Wrap it in
-            // parens so the chain resolves the settled value: `(await fetch_user()).trim()`.
-            let raw_obj_str = emit_hir_expr(obj, ctx);
-            let obj_str = if raw_obj_str.starts_with("await ") {
-                format!("({raw_obj_str})")
-            } else {
-                raw_obj_str
-            };
+            // emit_hir_expr will produce `await fetch_user()`. Wrap in parens so the chain
+            // resolves the settled value: `(await fetch_user()).trim()`.
+            // Use HIR-level structural analysis (same logic as handler detection) rather than
+            // inspecting the emitted string — avoids fragile `starts_with("await ")` heuristic.
+            let needs_parens = async_walker::expr_has_async_call(obj, ctx.async_fn_names);
+            let raw_obj = emit_hir_expr(obj, ctx);
+            let obj_str = if needs_parens { format!("({raw_obj})") } else { raw_obj };
             let args_str: Vec<String> = args
                 .iter()
                 .map(|a| emit_hir_expr(&a.value, ctx))
@@ -429,7 +428,8 @@ pub fn emit_hir_expr(expr: &HirExpr, ctx: &EmitCtx<'_>) -> String {
         }
         HirExpr::Lambda(params, _, body, _) => {
             let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-            let b = emit_hir_expr(body, ctx);
+            let lambda_ctx = EmitCtx::new(ctx.state_names); // strip async context — lambda has its own scope
+            let b = emit_hir_expr(body, &lambda_ctx);
             format!("(({}) => ({}))", param_names.join(", "), b)
         }
         HirExpr::Match(subject, arms, _) => {
@@ -567,7 +567,7 @@ pub(crate) fn emit_hir_expr_attr_value(
             // §1.A.2: detect if any top-level stmt calls an @endpoint fn; if so, emit
             // `async () => {` and add `await` to those calls via the handler ctx.
             let needs_async = !ctx.async_fn_names.is_empty()
-                && stmts.iter().any(|s| stmt_calls_async_fn(s, ctx.async_fn_names));
+                && stmts.iter().any(|s| stmt_has_async_call(s, ctx.async_fn_names));
             let handler_ctx = if needs_async {
                 ctx.clone()
             } else {
@@ -582,12 +582,6 @@ pub(crate) fn emit_hir_expr_attr_value(
         }
     }
     emit_hir_expr(expr, ctx)
-}
-
-/// Returns true if `stmt` (or any expression recursively nested within it, excluding lambdas)
-/// contains a call to one of the named async fns.
-fn stmt_calls_async_fn(stmt: &HirStmt, async_fn_names: &HashSet<String>) -> bool {
-    stmt_has_async_call(stmt, async_fn_names)
 }
 
 /// **Phase:** compat-legacy (OP-0138).
