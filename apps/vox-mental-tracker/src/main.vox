@@ -321,6 +321,21 @@ fn test_csv_quote_inner_quotes() to Unit {
     return Ok("ok")
 }
 
+@endpoint(kind: mutation) fn save_mood(score: int, note: str) to Result[str] {
+    let payload = "{\"mood_score\":" + str(score) + ",\"note\":\"" + note.replace("\"", "'") + "\"}"
+    return record_health_event(
+        "mood_recorded", payload, str(std.time.now_ms()), "form", "", "", "UTC", 0
+    )
+}
+
+@form Mood {
+    field score: int range(1..10) required label("How are you feeling? (1–10)")
+    field note: str max_len(280) optional label("Anything to share?")
+    on_submit: save_mood
+    success_redirect: "/timeline"
+    error_message: "Couldn't save mood. Try again."
+}
+
 component NavBar() {
     view: row(raw_class="mh-nav") {
         link(href="/") { "Home" }
@@ -517,6 +532,7 @@ component VoicePage() {
 
 routes {
     "/" to Home
+    "/mood" to Mood
     "/timeline" to TimelinePage
     "/weekly" to WeeklyPage
     "/export" to ExportPage
