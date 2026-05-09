@@ -5,11 +5,16 @@
 
 pub mod emitter;
 pub mod events;
+pub mod observation;
 pub mod preregistration;
 pub mod schema_types;
 
 pub use emitter::{NoopEmitter, ResearchEventEmitter};
 pub use events::{ResearchEvent, ResearchEventKind};
+pub use observation::{
+    KeywordObservationClassifier, LearnedProfileRow, ObservationClass, PenaltyRecord,
+    ScientiaObservationClassifier, ScientiaWeightExtension,
+};
 pub use preregistration::{
     DecisionRule, MetricSpec, PreregistrationV1, StatisticalTest, StopRule, SubstrateRef,
     TestSpec,
