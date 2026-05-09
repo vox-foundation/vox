@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vox.dev/contracts/code-audit/rules.v1.schema.json",
+  "title": "Code-audit rule pack v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "rules"],
+  "properties": {
+    "version": { "type": "integer", "const": 1 },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/rule" }
+    }
+  },
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "description", "severity", "languages", "match", "message"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*(/[a-z0-9-]+)*$" },
+        "parent_id": { "type": "string" },
+        "name": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["info", "warning", "error", "critical"] },
+        "confidence": { "enum": ["high", "medium", "low"] },
+        "languages": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "enum": ["rust", "typescript", "python", "vox", "gdscript"] }
+        },
+        "match": { "$ref": "#/$defs/match" },
+        "message": { "type": "string", "minLength": 1 },
+        "suggestion": { "type": "string" },
+        "fixtures": { "$ref": "#/$defs/fixtures" }
+      }
+    },
+    "match": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "pattern"],
+      "properties": {
+        "kind": { "enum": ["line-regex", "multiline-regex", "substring"] },
+        "pattern": { "type": "string", "minLength": 1 },
+        "skip_in": {
+          "type": "array",
+          "items": { "enum": ["rust-doc-comment", "rust-non-code", "rust-comment"] }
+        }
+      }
+    },
+    "fixtures": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "positive": { "type": "array", "items": { "type": "string" } },
+        "negative": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

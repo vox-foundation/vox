@@ -28,6 +28,7 @@ vox-config = { workspace = true }
 vox-bounded-fs = { workspace = true }
 vox-orchestrator-types = { workspace = true }
 vox-jsonschema-util = { workspace = true }
+vox-rule-pack = { workspace = true }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]

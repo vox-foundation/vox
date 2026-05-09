@@ -1,15 +1,12 @@
+use crate::embedded_rules::embedded_pack;
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
-use regex::Regex;
+use vox_rule_pack::CompiledRule;
 
 /// Detects suspicious "victory claim" comments near incomplete or provisional code.
 ///
-/// AI agents love to say "Done!", "Complete!", "All set!" in comments right next
-/// to code that is clearly not finished. This detector finds those patterns.
+/// Patterns are loaded from `contracts/code-audit/rules.v1.yaml` at startup.
 pub struct VictoryClaimDetector {
-    victory_re: Regex,
-    todo_comment_re: Regex,
-    fixme_re: Regex,
-    hack_re: Regex,
+    rules: Vec<&'static CompiledRule>,
 }
 
 impl Default for VictoryClaimDetector {
@@ -19,35 +16,21 @@ impl Default for VictoryClaimDetector {
 }
 
 impl VictoryClaimDetector {
-    /// “Done/complete” comment patterns plus TODO/FIXME/HACK proximity heuristics.
     pub fn new() -> Self {
-        Self {
-            // Match past-tense completion claims in comments or macro literals.
-            victory_re: Regex::new(concat!(
-                r"(?i)(?://|#|/\*|",
-                "todo!",
-                r"|panic!|unimplemented!).*?(?:\bdone\b|all\s*set|fully\s*implemented|implementation\s+\bcomplete\b)",
-            ))
-            .expect("valid regex"),
-            // Match work-queue markers (see `todo_comment_re` tests) in comments or macro literals.
-            todo_comment_re: Regex::new(concat!(
-                r"(?i)(?://|#|",
-                "todo!",
-                r").*?(?:",
-                "TO",
-                "DO",
-                r"(?:\(ai\))?)\s*:?\s*(?:implement|add|finish|complete|wire|fix|later)",
-            ))
-            .expect("valid regex"),
-            fixme_re: Regex::new(concat!(
-                r"(?i)(?://|#).*?",
-                "FIX",
-                "ME",
-                r"(?:\(ai\))?\b"
-            ))
-            .expect("valid regex"),
-            hack_re: Regex::new(r"(?i)(?://|#).*?HACK\b").expect("valid regex"),
+        let pack = embedded_pack();
+        let mut rules = Vec::with_capacity(4);
+        for id in [
+            "victory-claim/premature",
+            "victory-claim/todo-leftover",
+            "victory-claim/fixme",
+            "victory-claim/hack",
+        ] {
+            rules.push(
+                pack.rule(id)
+                    .unwrap_or_else(|| panic!("vox-rule-pack: required rule missing: {id}")),
+            );
         }
+        Self { rules }
     }
 }
 
@@ -88,92 +71,30 @@ impl DetectionRule for VictoryClaimDetector {
                 continue;
             }
 
-            // Detect premature completion-style claims in line comments.
-            if self.victory_re.is_match(line) {
-                findings.push(Finding {
-                    rule_id: "victory-claim/premature".to_string(),
-                    diagnostic_id: None,
-                    rule_name: self.name().to_string(),
-                    severity: Severity::Warning,
-                    file: file.path.clone(),
-                    line: line_num,
-                    column: 0,
-                    message: "Premature victory claim — verify the implementation is truly complete"
-                        .to_string(),
-                    suggestion: Some(
-                        "Remove the comment if the implementation is complete, or replace with a descriptive comment.".to_string(),
-                    ),
-                    alternatives: vec![],
-                    rationale: None,
-                    context: file.context_around(line_num, 2),
-                    confidence: None,
-                    evidence: None,
-                });
-            }
-
-            // Detect TODO comments with action verbs
-            if self.todo_comment_re.is_match(line) {
-                findings.push(Finding {
-                    rule_id: "victory-claim/todo-leftover".to_string(),
-                    diagnostic_id: None,
-                    rule_name: self.name().to_string(),
-                    severity: Severity::Warning,
-                    file: file.path.clone(),
-                    line: line_num,
-                    column: 0,
-                    message: "TODO marker left behind — work is not finished".to_string(),
-                    suggestion: Some(
-                        "Complete the TODO or create a tracked task for it.".to_string(),
-                    ),
-                    alternatives: vec![],
-                    rationale: None,
-                    context: file.context_around(line_num, 1),
-                    confidence: None,
-                    evidence: None,
-                });
-            }
-
-            // Detect fix-me-shaped line comments
-            if self.fixme_re.is_match(line) {
-                findings.push(Finding {
-                    rule_id: "victory-claim/fixme".to_string(),
-                    diagnostic_id: None,
-                    rule_name: self.name().to_string(),
-                    severity: Severity::Warning,
-                    file: file.path.clone(),
-                    line: line_num,
-                    column: 0,
-                    message: "FIXME marker — known issue left unresolved".to_string(),
-                    suggestion: Some("Fix the issue or track it as a task.".to_string()),
-                    alternatives: vec![],
-                    rationale: None,
-                    context: file.context_around(line_num, 1),
-                    confidence: None,
-                    evidence: None,
-                });
-            }
-
-            // Detect HACK
-            if self.hack_re.is_match(line) {
-                findings.push(Finding {
-                    rule_id: "victory-claim/hack".to_string(),
-                    diagnostic_id: None,
-                    rule_name: self.name().to_string(),
-                    severity: Severity::Info,
-                    file: file.path.clone(),
-                    line: line_num,
-                    column: 0,
-                    message: "HACK marker — temporary workaround left in code".to_string(),
-                    suggestion: Some(
-                        "Replace with a proper solution or document why the hack is necessary."
-                            .to_string(),
-                    ),
-                    alternatives: vec![],
-                    rationale: None,
-                    context: file.context_around(line_num, 1),
-                    confidence: None,
-                    evidence: None,
-                });
+            for rule in &self.rules {
+                if rule.matches_line(line) {
+                    let context_radius = if rule.id == "victory-claim/premature" {
+                        2
+                    } else {
+                        1
+                    };
+                    findings.push(Finding {
+                        rule_id: rule.id.clone(),
+                        rule_name: self.name().to_string(),
+                        severity: rule.severity.into(),
+                        file: file.path.clone(),
+                        line: line_num,
+                        column: 0,
+                        message: rule.message.clone(),
+                        suggestion: rule.suggestion.clone(),
+                        diagnostic_id: None,
+                        alternatives: vec![],
+                        rationale: None,
+                        context: file.context_around(line_num, context_radius),
+                        confidence: None,
+                        evidence: None,
+                    });
+                }
             }
         }
 

@@ -207,6 +207,12 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
             },
         ),
         CiCmd::CudaReleaseBuild { log_dir } => run_cuda_release_build(&root, log_dir),
+        CiCmd::DetectRulesBench {
+            rules,
+            fixtures_root,
+            min_f1,
+            json,
+        } => super::detect_rules_bench::run(&rules, &fixtures_root, min_f1, json),
         CiCmd::ToestubBudget => super::toestub_budget::run(),
         CiCmd::JsonParseCheck { globs } => super::parse_check::run_json(&globs),
         CiCmd::YamlParseCheck { globs } => super::parse_check::run_yaml(&globs),

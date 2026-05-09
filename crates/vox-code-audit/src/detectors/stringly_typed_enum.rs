@@ -1,18 +1,16 @@
+use crate::rule_pack_detector::pack_rule;
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
-use regex::Regex;
+use vox_rule_pack::CompiledRule;
 
-/// Detects stringly-typed enum patterns in Vox files where a proper ADT should be used.
+/// Detects stringly-typed enum patterns where a proper ADT should be used.
 ///
 /// Catches patterns like:
 ///   `frame: String  // "gain" | "loss"`
 ///   `role: String # "user" | "assistant"`
 ///
-/// These are a code smell: the comment describes an exhaustive set of values,
-/// which means the field should use a Vox ADT (`type Frame = | Gain | Loss`)
-/// instead of a bare `String` with a comment as the only type safety.
+/// Pattern is sourced from the embedded rule pack (`stringly-typed-enum`).
 pub struct StringlyTypedEnumDetector {
-    /// Matches `: String` (or `: str`) followed by a comment listing `"a" | "b"` alternatives.
-    pattern: Regex,
+    rule: &'static CompiledRule,
 }
 
 impl Default for StringlyTypedEnumDetector {
@@ -22,14 +20,8 @@ impl Default for StringlyTypedEnumDetector {
 }
 
 impl StringlyTypedEnumDetector {
-    /// Compiles the `String`/`str` + comment-with-`|` pattern used for Vox-focused detection.
     pub fn new() -> Self {
-        Self {
-            // Vox/Rust field lines: String or str, then a line comment (or #) listing quoted options
-            // separated by ASCII vertical bar (U+007C).
-            pattern: Regex::new(r#":\s*(?:String|str)\s*,?\s*(?://|#)\s*"[^"]+"\s*\|"#)
-                .expect("valid stringly-typed enum regex"),
-        }
+        Self { rule: pack_rule("stringly-typed-enum") }
     }
 
     /// Byte index of the first `//` line comment **outside** string / raw-string literals.
@@ -194,6 +186,7 @@ impl DetectionRule for StringlyTypedEnumDetector {
         file: &SourceFile,
         _rust: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
+        let re = self.rule.regex();
         let mut findings = Vec::new();
 
         for (i, line) in file.lines.iter().enumerate() {
@@ -212,8 +205,7 @@ impl DetectionRule for StringlyTypedEnumDetector {
                 line.to_string()
             };
 
-            if self.pattern.is_match(&scan_line) {
-                // Extract the field name for a better message
+            if re.is_match(&scan_line) {
                 let field_name = line.trim().split(':').next().unwrap_or("field").trim();
 
                 findings.push(Finding {

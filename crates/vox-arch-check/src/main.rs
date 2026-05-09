@@ -50,6 +50,8 @@ struct LayersConfig {
     #[serde(default)]
     known_inversions: Vec<KnownInversion>,
     #[serde(default)]
+    forbidden_deps: Vec<ForbiddenDepRule>,
+    #[serde(default)]
     guards: GuardsConfig,
 }
 
@@ -79,6 +81,15 @@ struct KnownInversion {
     reason: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct ForbiddenDepRule {
+    #[serde(rename = "crate")]
+    krate: String,
+    forbidden: Vec<String>,
+    #[allow(dead_code)]
+    reason: String,
+}
+
 #[derive(Debug, Default, Deserialize)]
 struct GuardsConfig {
     /// "error" or "warn"; defaults to "warn" for all but layer ordering.
@@ -98,6 +109,8 @@ struct GuardsConfig {
     staleness: Option<String>,
     #[serde(default)]
     generated_file_drift: Option<String>,
+    #[serde(default)]
+    forbidden_deps: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -135,6 +148,8 @@ struct Report {
     staleness_since: String,
     /// Rule 9: (file_path_relative, expected_hash, actual_hash).
     generated_file_drift_warns: Vec<(PathBuf, String, String)>,
+    /// Rule 10: (crate, forbidden_dep) pairs for direct forbidden-dep violations.
+    forbidden_dep_violations: Vec<(String, String)>,
     /// Whether each rule's failure should be treated as strict (vs. warn-only).
     strict_layer: bool,
     strict_fan_in: bool,
@@ -145,6 +160,7 @@ struct Report {
     strict_where_things_live: bool,
     strict_staleness: bool,
     strict_generated_file_drift: bool,
+    strict_forbidden_deps: bool,
 }
 
 impl Report {
@@ -161,6 +177,7 @@ impl Report {
             || (self.strict_where_things_live && !self.where_things_live_warns.is_empty())
             || (self.strict_staleness && !self.staleness_warns.is_empty())
             || (self.strict_generated_file_drift && !self.generated_file_drift_warns.is_empty())
+            || (self.strict_forbidden_deps && !self.forbidden_dep_violations.is_empty())
     }
 
     fn print_summary(&self) {
@@ -293,6 +310,17 @@ impl Report {
                 );
             }
         }
+        if !self.forbidden_dep_violations.is_empty() {
+            any = true;
+            let label = if self.strict_forbidden_deps { "ERROR" } else { "warn" };
+            eprintln!(
+                "[{label}] forbidden direct dependencies ({}):",
+                self.forbidden_dep_violations.len()
+            );
+            for (krate, forbidden) in &self.forbidden_dep_violations {
+                eprintln!("  {krate} → {forbidden}  (see [[forbidden_deps]] in layers.toml)");
+            }
+        }
         if !any {
             println!(
                 "vox-arch-check {}: clean ✓",
@@ -355,6 +383,8 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     report.strict_staleness = parse_strictness(layers.guards.staleness.as_ref(), false);
     report.strict_generated_file_drift =
         parse_strictness(layers.guards.generated_file_drift.as_ref(), false);
+    report.strict_forbidden_deps =
+        parse_strictness(layers.guards.forbidden_deps.as_ref(), false);
 
     // ── Rule 1: Layer ordering + Rule 2: Fan-in (single pass) ──
     let mut dependent_count: HashMap<String, usize> = HashMap::new();
@@ -526,6 +556,38 @@ fn run(warn_only_flag: bool) -> Result<Report> {
             eprintln!("warn: generated-file-drift check skipped: {e:#}");
             Vec::new()
         });
+
+    // ── Rule 10: Forbidden direct dependencies ──
+    if !layers.forbidden_deps.is_empty() {
+        let forbidden_set: Vec<(&str, Vec<&str>)> = layers
+            .forbidden_deps
+            .iter()
+            .map(|r| (r.krate.as_str(), r.forbidden.iter().map(|s| s.as_str()).collect()))
+            .collect();
+        for pkg in metadata_full.workspace_packages() {
+            let krate_name = pkg.name.as_str();
+            let rules_for_crate: Vec<&Vec<&str>> = forbidden_set
+                .iter()
+                .filter(|(k, _)| *k == krate_name)
+                .map(|(_, f)| f)
+                .collect();
+            if rules_for_crate.is_empty() {
+                continue;
+            }
+            for dep in &pkg.dependencies {
+                let dep_name = dep.name.as_str();
+                for forbidden_list in &rules_for_crate {
+                    if forbidden_list.contains(&dep_name) {
+                        report
+                            .forbidden_dep_violations
+                            .push((krate_name.to_string(), dep_name.to_string()));
+                    }
+                }
+            }
+        }
+        report.forbidden_dep_violations.sort();
+        report.forbidden_dep_violations.dedup();
+    }
 
     Ok(report)
 }

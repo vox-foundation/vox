@@ -11,6 +11,9 @@
 
 /// Stable diagnostic ID catalog (`vox/<category>/<name>` scheme) and explain infrastructure.
 pub mod diagnostics;
+pub(crate) mod embedded_rules;
+pub(crate) mod rule_pack_bridge;
+pub(crate) mod rule_pack_detector;
 
 /// Optional LLM-backed triage: wraps provider-specific clients behind a small `AiAnalyzer` API.
 pub mod ai_analyze;

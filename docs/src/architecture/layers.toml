@@ -29,18 +29,33 @@
 
 [guards]
 # Strictness per rule. Layer ordering is implicitly strict (override with
-# the --warn-only CLI flag). The other six default to warn.
+# the --warn-only CLI flag). The other seven default to warn.
 fan_in            = "warn"
 loc_budget        = "warn"
 orphan            = "warn"
 docstring         = "warn"
 description       = "error"
 where_things_live = "error"
-# Rule 6: warns when a crate has no commits since the last CHANGELOG.md release date.
+# Rule 8: warns when a crate has no commits since the last CHANGELOG.md release date.
 # Silence for individual crates with staleness_exempt = true.
 staleness         = "warn"
 # Rule 9: warns when a @generated-hash header in a file no longer matches content.
 generated_file_drift = "warn"
+# Rule 10: strict — crates must not directly depend on any of their listed forbidden deps.
+forbidden_deps    = "error"
+
+# ── Rule 10: Forbidden direct dependencies ────────────────────────────────────
+# vox-rule-pack and vox-code-audit must never directly depend on heavy search/
+# vector crates. This keeps compile times neutral and the rule-pack zero-dep.
+[[forbidden_deps]]
+crate    = "vox-rule-pack"
+forbidden = ["vox-search", "tantivy", "qdrant"]
+reason   = "vox-rule-pack must remain zero heavy-dep; patterns live in YAML not embeddings"
+
+[[forbidden_deps]]
+crate    = "vox-code-audit"
+forbidden = ["vox-search", "tantivy", "qdrant"]
+reason   = "vox-code-audit detectors must not pull search/vector deps (build-time neutrality)"
 
 [crates]
 
@@ -62,6 +77,7 @@ vox-jsonschema-util   = { layer = 1 }
 vox-checksum-manifest = { layer = 1 }
 vox-identity          = { layer = 1 }
 vox-reqwest-defaults  = { layer = 1 }
+vox-rule-pack         = { layer = 1 }                            # SSOT loader for detector patterns; zero heavy deps
 vox-openai-wire       = { layer = 1 }
 vox-openai-sse        = { layer = 1 }
 vox-exec-grammar      = { layer = 1 }

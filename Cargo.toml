@@ -124,6 +124,7 @@ vox-primitives            = { path = "crates/vox-primitives" }
 vox-protocol              = { path = "crates/vox-protocol" }
 vox-reqwest-defaults      = { path = "crates/vox-reqwest-defaults" }
 vox-repository            = { path = "crates/vox-repository" }
+vox-rule-pack             = { path = "crates/vox-rule-pack" }
 vox-actor-runtime               = { path = "crates/vox-actor-runtime" }
 vox-scaling-policy        = { path = "crates/vox-scaling-policy" }
 vox-share                 = { path = "crates/vox-share" }

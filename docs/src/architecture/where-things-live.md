@@ -50,6 +50,7 @@ guess. The full crate roster with layer assignments lives in
 | [`vox-plugin-types`](../../../crates/vox-plugin-types/) | Pure-types surface for the vox plugin system: manifests, skill types, state-backend trait. |
 | [`vox-telemetry`](../../../crates/vox-telemetry/) | L1 telemetry facade: `METRIC_TYPE_*` constants, `TelemetryRecorder` trait, `record_event!` macro. Zero domain dependencies. |
 | [`vox-reqwest-defaults`](../../../crates/vox-reqwest-defaults/) | Shared reqwest ClientBuilder presets (user-agent, timeouts) for CLI, runtime, and AI transports. |
+| [`vox-rule-pack`](../../../crates/vox-rule-pack/) | Declarative YAML rule-pack loader for code-audit detector patterns and Scientia heuristics. Zero heavy deps. |
 | [`vox-scaling-policy`](../../../crates/vox-scaling-policy/) | Compile-time and runtime accessors for scaling SSOT (contracts/scaling/policy.yaml). |
 | [`vox-secrets`](../../../crates/vox-secrets/) | Central secret resolution and compatibility adapters for Vox. |
 

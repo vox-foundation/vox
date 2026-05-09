@@ -1,11 +1,14 @@
+use crate::rule_pack_detector::{RulePackDetector, make_finding, pack_rule};
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
-use regex::Regex;
+use vox_rule_pack::CompiledRule;
 
-/// Detects the presence of `@deprecated` annotations in Vox files,
-/// and warns against raw JSX leakage (e.g., `className=`, `onClick=`) per Item 16.
+/// Detects `@deprecated` annotations in Vox files and raw JSX leakage (e.g. `className=`).
+///
+/// Patterns are sourced from the embedded rule pack (`deprecated-usage`, `raw-jsx-leakage`).
+/// The JSX rule iterates all matches per line and provides dynamic per-attribute suggestions.
 pub struct DeprecatedUsageDetector {
-    deprecated_re: Regex,
-    jsx_leak_re: Regex,
+    deprecated_detector: RulePackDetector,
+    jsx_rule: &'static CompiledRule,
 }
 
 impl Default for DeprecatedUsageDetector {
@@ -15,11 +18,10 @@ impl Default for DeprecatedUsageDetector {
 }
 
 impl DeprecatedUsageDetector {
-    /// Builds a detector with a precompiled `@deprecated` line regex (see [`Default`] for the same).
     pub fn new() -> Self {
         Self {
-            deprecated_re: Regex::new(r"^\s*@deprecated").expect("valid"),
-            jsx_leak_re: Regex::new(r"(className=|onClick=|onChange=|onSubmit=)").expect("valid"),
+            deprecated_detector: RulePackDetector::for_ids(&["deprecated-usage"]),
+            jsx_rule: pack_rule("raw-jsx-leakage"),
         }
     }
 }
@@ -34,7 +36,7 @@ impl DetectionRule for DeprecatedUsageDetector {
     }
 
     fn description(&self) -> &'static str {
-        "Flags the presence of @deprecated annotations to encourage removing obsolete code"
+        "Flags @deprecated annotations and raw JSX attribute leakage in Vox source"
     }
 
     fn severity(&self) -> Severity {
@@ -50,32 +52,13 @@ impl DetectionRule for DeprecatedUsageDetector {
         file: &SourceFile,
         _rust: Option<&crate::analysis::RustFileContext>,
     ) -> Vec<Finding> {
-        let mut findings = Vec::new();
+        let mut findings = self.deprecated_detector.detect_file(file);
 
+        // JSX: find every occurrence per line (a line may have several JSX attributes).
+        let re = self.jsx_rule.regex();
         for (i, line) in file.lines.iter().enumerate() {
-            if self.deprecated_re.is_match(line) {
-                findings.push(Finding {
-                    rule_id: self.id().to_string(),
-                    diagnostic_id: None,
-                    rule_name: self.name().to_string(),
-                    severity: self.severity(),
-                    file: file.path.clone(),
-                    line: i + 1,
-                    column: 0,
-                    message: "Found @deprecated annotation. Consider removing this obsolete code."
-                        .to_string(),
-                    suggestion: Some(
-                        "Refactor dependents and remove this deprecated item.".to_string(),
-                    ),
-                    alternatives: vec![],
-                    rationale: None,
-                    context: file.context_around(i + 1, 1),
-                    confidence: None,
-                    evidence: None,
-                });
-            }
-
-            if let Some(mat) = self.jsx_leak_re.find(line) {
+            let line_num = i + 1;
+            for mat in re.find_iter(line) {
                 let attr = mat.as_str().trim_end_matches('=');
                 let mut vox_attr = attr.to_lowercase();
                 if vox_attr.starts_with("on") {
@@ -84,26 +67,13 @@ impl DetectionRule for DeprecatedUsageDetector {
                 if vox_attr == "classname" {
                     vox_attr = "class".to_string();
                 }
-
-                findings.push(Finding {
-                    rule_id: "raw-jsx-leakage".to_string(),
-                    diagnostic_id: None,
-                    rule_name: "Raw JSX Leakage Detector".to_string(),
-                    severity: Severity::Warning,
-                    file: file.path.clone(),
-                    line: i + 1,
-                    column: 0,
-                    message: format!("Raw JSX '{}' leaks into Vox source (Item 16).", attr),
-                    suggestion: Some(format!(
-                        "Use Vox-native syntax: '{}=' instead of '{}='.",
-                        vox_attr, attr
-                    )),
-                    alternatives: vec![],
-                    rationale: None,
-                    context: file.context_around(i + 1, 1),
-                    confidence: None,
-                    evidence: None,
-                });
+                let mut f = make_finding(self.jsx_rule, file, line_num);
+                f.message = format!("Raw JSX '{}' leaks into Vox source (Item 16).", attr);
+                f.suggestion = Some(format!(
+                    "Use Vox-native syntax: '{}=' instead of '{}='.",
+                    vox_attr, attr
+                ));
+                findings.push(f);
             }
         }
 
@@ -138,7 +108,7 @@ mod tests {
         assert_eq!(findings[0].rule_id, "raw-jsx-leakage");
         assert_eq!(
             findings[0].suggestion.as_deref(),
-            Some("Use Vox-native syntax: 'class=' instead of 'className='.".into())
+            Some("Use Vox-native syntax: 'class=' instead of 'className='.")
         );
     }
 

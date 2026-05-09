@@ -199,6 +199,25 @@ pub enum CiCmd {
         #[arg(required = true)]
         globs: Vec<String>,
     },
+    /// Score rule-pack precision/recall/F1 against labeled fixture files.
+    /// Authoring-time only: reads `contracts/code-audit/rules.v1.yaml` and
+    /// the fixture corpus, emits a table (or JSON), exits non-zero if any rule
+    /// falls below `--min-f1`.
+    #[command(name = "detect-rules-bench")]
+    DetectRulesBench {
+        /// Path to the rules YAML to score.
+        #[arg(long, default_value = "contracts/code-audit/rules.v1.yaml")]
+        rules: PathBuf,
+        /// Root directory of fixture files (`<root>/<parent-id>/<sub>_pos_*.txt`).
+        #[arg(long, default_value = "contracts/code-audit/fixtures")]
+        fixtures_root: PathBuf,
+        /// Minimum acceptable F1 score per rule (0.0 = reporting only).
+        #[arg(long, default_value_t = 0.0)]
+        min_f1: f64,
+        /// Emit machine-readable JSON instead of the human table.
+        #[arg(long)]
+        json: bool,
+    },
     /// Read toestub JSON from stdin and enforce the `rust_parse_failures` budget.
     /// Cap is `VOX_TOESTUB_MAX_RUST_PARSE_FAILURES` (default 3). Replaces the
     /// `python3 -c "…"` pipeline step in ci.yml.
