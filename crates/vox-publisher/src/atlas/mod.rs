@@ -2,5 +2,7 @@
 
 pub mod campaign;
 pub mod coauthor;
+pub mod governance;
 pub mod manifest;
+pub mod retraction;
 pub mod submission;
