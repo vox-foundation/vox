@@ -53,3 +53,37 @@ fn registry_rejects_unsupported_version() {
     let result = RenameRegistry::from_str(json);
     assert!(result.is_err(), "version != 1 must be rejected");
 }
+
+use vox_compiler::parser;
+
+#[test]
+fn deprecated_primitive_resolves_with_warning() {
+    let registry_json = r#"{
+        "version": 1,
+        "entries": [
+          { "from": "Box", "to": "panel", "kind": "primitive", "since": "0.5.0" }
+        ]
+    }"#;
+    let registry = RenameRegistry::from_str(registry_json).unwrap();
+
+    let source = "component App() { view: Box() { } }";
+    let result = parser::parse_with_registry(source, &registry)
+        .expect("source should parse");
+
+    // The resolved primitive should be `panel`, not `Box`.
+    assert!(result.uses_primitive("panel"),
+        "expected `panel` in resolved primitives, got: {:?}",
+        result);
+    assert!(!result.uses_primitive("Box"),
+        "expected `Box` to have been resolved away, got: {:?}",
+        result);
+
+    // Exactly one deprecation warning, citing all three pieces.
+    let warnings = result.warnings();
+    assert_eq!(warnings.len(), 1, "expected exactly one warning, got {:?}", warnings);
+    let msg = &warnings[0].message;
+    assert!(msg.contains("Box"), "warning should name old name `Box`, got: {}", msg);
+    assert!(msg.contains("panel"), "warning should name new name `panel`, got: {}", msg);
+    assert!(msg.contains("0.5.0"), "warning should cite version `0.5.0`, got: {}", msg);
+    assert!(msg.contains("vox migrate"), "warning should suggest running `vox migrate`, got: {}", msg);
+}
