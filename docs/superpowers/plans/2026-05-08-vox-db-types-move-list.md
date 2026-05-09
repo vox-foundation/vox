@@ -138,3 +138,50 @@ into `vox-db-types`. Reasons given so a future audit can re-check.
   from the retrieval and trust batches, which need to move as units.
   Phase 4.2-4.3 may split this into two follow-up PRs (Phase 4.2 = small
   independent types; Phase 4.3 = the retrieval + trust batches).
+
+## Row↔Domain bridges (Phase 6) — deferred
+
+Investigated 2026-05-09. No domain types found that map 1:1 to row types
+without inventing new types. Bridges deferred to a follow-up PR when
+domain types are established.
+
+**Top row types by cross-crate reference count** (all tied at 4–6 files):
+`MemoryEntry` (6), `AgentDefEntry` (5), `SkillExecutionRow` (5),
+`PlanSessionRow` (5), `A2AMessageRow` (5), `SkillExecutionRow` (5).
+
+**Domain types found:**
+- `Session` — `crates/vox-orchestrator/src/session/state.rs` (L3)
+- `A2AMessage` — `crates/vox-orchestrator/src/types/messages.rs` (L3)
+
+**Why bridges were not implemented:**
+
+1. **Layer constraint:** `vox-db-types` is L0; the only crates with
+   matching domain types (`vox-orchestrator`) are L3. Adding a dep
+   `vox-db-types → vox-orchestrator` would be a prohibited upward
+   inversion. The reverse (putting bridges in `vox-orchestrator`) is
+   layer-legal (L3 can depend on L0) but `vox-orchestrator` does not
+   currently depend on `vox-db-types` — adding that dep purely for
+   cosmetic bridges is not justified yet.
+
+2. **Structural mismatch:** `Session` (in-memory) carries `turns:
+   Vec<SessionTurn>`, `plugin_state`, `total_tokens`, and `turn_count`
+   that have no column in `SessionRow`. Likewise `A2AMessage` uses
+   strongly-typed `AgentId`/`MessageId` newtypes and `A2AMessageType`
+   enum, while `A2AMessageRow` stores raw strings plus delivery-tracking
+   columns (`claim_owner`, `delivery_attempts`, `last_claim_error`) that
+   do not exist on the domain type. A lossless `From` conversion is not
+   possible without inventing new types or losing data.
+
+3. **No matching domain types for the other top rows:** `MemoryEntry`,
+   `AgentDefEntry`, `SkillExecutionRow`, `PlanSessionRow` have no
+   corresponding application-layer struct in any crate. The only
+   consumers that reference them are: `vox-db` (constructing the rows),
+   `vox-cli` (displaying `AgentDefEntry`), and `vox-orchestrator` (one
+   call-site reading `MemoryEntry` for retrieval scoring). None of these
+   destructure the row and reconstruct a domain object — they use the row
+   directly.
+
+**Recommended follow-up:** When a domain `AgentDefinition` or
+`MemoryRecord` struct is introduced (e.g. in a future `vox-agent-types`
+L0 crate), revisit this phase. At that point a bridge in the new L0
+crate (depending on `vox-db-types`) would be clean and layer-compliant.
