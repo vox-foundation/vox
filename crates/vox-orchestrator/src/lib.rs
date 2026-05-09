@@ -92,6 +92,8 @@ pub mod cache_predictor;
 pub mod budget_gate;
 /// Compaction strategy selector by context utilization (D7).
 pub mod compaction_trigger;
+/// Calibration loop: Welford drift detection + Thompson bandit (D10).
+pub mod calibration;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Orchestrator configuration load, merge, and validation.
