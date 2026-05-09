@@ -1463,93 +1463,134 @@ If no .vox precedent exists for tool calls and the bridge is not obvious from th
 - [ ] **Step 2: scripts/vcs/wip.vox**
 
 ```vox
-// vox:skip — example for a future phase; current grammar may drift
 // scripts/vcs/wip.vox
-// Commit the currently staged changes under the `wip:` summary prefix.
-// Mirrors the `wip:` discipline mandated by the git-concurrency-policy
-// for in-progress agent work.
+// Commit staged changes under the `wip:` prefix so the orchestrator can
+// locate and squash them later. In Phase 4 workspace_id becomes a
+// WorkingTreeWrite capability token gated by @vcs.requires; the call
+// signature stays the same.
 
-@vcs.requires(WorkingTreeWrite)
-fn wip(cap: WorkingTreeWrite, summary: Str) -> CommitId {
-    // The orchestrator's vox_commit_create takes summary + body separately.
-    // For a wip commit, the body is empty.
-    vox_commit_create(cap, "wip: " + summary, "")
+fn vox_commit_create(workspace_id: str, summary: str, body: str) to Result[str] {
+    return Ok(workspace_id)
+}
+
+fn wip(workspace_id: str, summary: str) to Result[str] {
+    return vox_commit_create(workspace_id, "wip: " + summary, "")
 }
 ```
 
 - [ ] **Step 3: scripts/vcs/sync.vox**
 
 ```vox
-// vox:skip — example for a future phase; current grammar may drift
 // scripts/vcs/sync.vox
-// Fetch + rebase against `main`. If a conflict is encountered, abort the
-// rebase and surface the conflict — never auto-resolve (failure-mode B
-// from the research doc says auto-resolution is where work gets lost).
+// Fetch origin and rebase against main. Aborts on conflict and surfaces
+// the error rather than auto-resolving — per failure-mode B from the
+// research doc (auto-resolution is where work gets lost).
 
-@vcs.requires(WorkingTreeWrite)
-fn sync(cap: WorkingTreeWrite) -> SyncResult {
-    let fetch_out = vox_git_fetch(cap.workspace(), "origin")
-    if fetch_out.is_err() {
-        return SyncResult::FetchFailed(fetch_out.err())
-    }
-    let rebase_out = vox_git_rebase(cap, "origin/main")
-    match rebase_out {
-        Ok(_) => SyncResult::Ok,
-        Err(ConflictError) => {
-            vox_git_rebase_abort(cap)
-            SyncResult::ConflictAborted
+fn vox_git_fetch(workspace_id: str, remote: str) to Result[str] {
+    return Ok("")
+}
+
+fn vox_git_rebase(workspace_id: str, target: str) to Result[str] {
+    return Ok("")
+}
+
+fn vox_git_rebase_abort(workspace_id: str) to Result[str] {
+    return Ok("")
+}
+
+fn sync(workspace_id: str) to Result[str] {
+    let fetch = vox_git_fetch(workspace_id, "origin")
+    match fetch {
+        Error(e) => Error("fetch failed: " + e)
+        Ok(_) => {
+            let rebase = vox_git_rebase(workspace_id, "origin/main")
+            match rebase {
+                Ok(sha) => Ok(sha)
+                Error(e) => {
+                    let _ = vox_git_rebase_abort(workspace_id)
+                    Error("conflict aborted: " + e)
+                }
+            }
         }
-        Err(e) => SyncResult::Failed(e),
     }
 }
 ```
 
-(`vox_git_fetch`, `vox_git_rebase`, `vox_git_rebase_abort` are not part of Phase 2; they are MCP tools to add in Phase 2.5 if this script lands. If they do not exist, leave the script body as `todo!()` and add a TODO comment referencing the missing tool. Phase 2 still ships the file scaffold so Phase 2.5 has a target.)
+(`vox_git_fetch`, `vox_git_rebase`, `vox_git_rebase_abort` are not part of Phase 2; they are MCP tools to add in Phase 2.5 if this script lands. The stub bodies above are placeholders — Phase 2 ships the file scaffold so Phase 2.5 has a concrete target to fill in.)
 
 - [ ] **Step 4: scripts/vcs/finish.vox**
 
 ```vox
-// vox:skip — example for a future phase; current grammar may drift
 // scripts/vcs/finish.vox
-// Final step of an agent task: squash WIP commits, run CI proof, open PR.
+// Final step of an agent task: squash WIP commits, run CI, push, open PR.
+// Each fallible step short-circuits on Error. In Phase 4, workspace_id
+// and the push step gain typed capability tokens from @vcs.requires.
 
-@vcs.requires(WorkingTreeWrite)
-@vcs.requires(PushAllowed)
-fn finish(
-    wt: WorkingTreeWrite,
-    push: PushAllowed,
-    final_summary: Str,
-    final_body: Str,
-    title: Str,
-) -> PrUrl {
-    // Squash all commits authored by this workspace down to a single one
-    // with the final summary + body.
-    vox_commit_squash(wt, final_summary, final_body)
+fn vox_commit_squash(workspace_id: str, summary: str, body: str) to Result[str] {
+    return Ok(workspace_id)
+}
 
-    // Run CI; the result becomes the workspace's CiProof.
-    let proof = vox_ci_run(wt.workspace())
+fn vox_ci_run(workspace_id: str) to Result[str] {
+    return Ok("ci-pass")
+}
 
-    // Push and open PR.
-    vox_push(push)
-    vox_pr_open(push, title)
+fn vox_push(workspace_id: str) to Result[str] {
+    return Ok("")
+}
+
+fn vox_pr_open(workspace_id: str, title: str) to Result[str] {
+    return Ok("https://github.com/example/example/pull/1")
+}
+
+fn finish_after_squash(workspace_id: str, title: str) to Result[str] {
+    let ci = vox_ci_run(workspace_id)
+    match ci {
+        Error(e) => Error("CI failed: " + e)
+        Ok(_) => finish_after_ci(workspace_id, title)
+    }
+}
+
+fn finish_after_ci(workspace_id: str, title: str) to Result[str] {
+    let push = vox_push(workspace_id)
+    match push {
+        Error(e) => Error("push failed: " + e)
+        Ok(_) => vox_pr_open(workspace_id, title)
+    }
+}
+
+fn finish(workspace_id: str, final_summary: str, final_body: str, title: str) to Result[str] {
+    let squash = vox_commit_squash(workspace_id, final_summary, final_body)
+    match squash {
+        Error(e) => Error("squash failed: " + e)
+        Ok(_) => finish_after_squash(workspace_id, title)
+    }
 }
 ```
 
 - [ ] **Step 5: scripts/vcs/recover.vox**
 
 ```vox
-// vox:skip — example for a future phase; current grammar may drift
 // scripts/vcs/recover.vox
-// Read-only inspector. Produces a recovery plan (list of oplog ops to
-// undo) but does NOT execute it. The agent surfaces the plan to the
-// orchestrator, which renders it for human approval before any
-// destructive op runs.
+// Read-only inspector. Produces a recovery plan (text description of
+// oplog ops to undo) but does NOT execute it. The orchestrator surfaces
+// the plan for human approval before any destructive op runs.
 
-@vcs.read_only
-fn recover_plan(workspace: WorkspaceId) -> RecoveryPlan {
-    let oplog = vox_oplog(workspace)
-    let reflog = vox_git_reflog(workspace)
-    plan_from_logs(oplog, reflog)
+fn vox_oplog(workspace_id: str) to str {
+    return ""
+}
+
+fn vox_git_reflog(workspace_id: str) to str {
+    return ""
+}
+
+fn plan_from_logs(oplog: str, reflog: str) to str {
+    return "ops: " + oplog + "\nrefs: " + reflog
+}
+
+fn recover_plan(workspace_id: str) to str {
+    let oplog = vox_oplog(workspace_id)
+    let reflog = vox_git_reflog(workspace_id)
+    return plan_from_logs(oplog, reflog)
 }
 ```
 
@@ -1557,7 +1598,7 @@ fn recover_plan(workspace: WorkspaceId) -> RecoveryPlan {
 
 Run: `vox check scripts/vcs/wip.vox`
 Repeat for the other three.
-Expected: PASS for all four. If `vox check` errors on `@vcs.*` decorators (because Phase 4 hasn't shipped them yet), the scripts may need `// vox:skip` annotations. **This is acceptable** — the files are written for Phase 4 to pick up; Phase 2 lands the scaffolding.
+Expected: PASS for all four. The scripts use stub implementations for the runtime MCP tool calls (e.g. `vox_commit_create`); Phase 4 will wire these to real capability-token-gated Rust implementations without changing the call signatures.
 
 - [ ] **Step 7: Commit**
 
