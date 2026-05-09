@@ -1,10 +1,17 @@
-//! `vox ci policy-allowlist-parity` — verifies that every crate in the
-//! `tiers.a_relational.allow_direct_access` (and `temporary_exceptions`) list
-//! of `contracts/db/data-storage-policy.v1.yaml` is reachable from
-//! `docs/agents/turso-import-allowlist.txt` (plus the built-in guard prefixes).
+//! `vox ci policy-allowlist-parity` — verifies invariants between
+//! `contracts/db/data-storage-policy.v1.yaml` (the SSOT) and the transitional
+//! `docs/agents/turso-import-allowlist.txt`.
 //!
-//! This is the mechanical drift-detector for the policy-guard split: when a
-//! crate is added to the policy, the guard must be updated in the same PR.
+//! Since Phase 3 of the data-storage audit (2026-05), the YAML is the single
+//! source of truth: `load_turso_import_allowlist` auto-derives crates from
+//! `tiers.a_relational.{owners, allow_direct_access, temporary_exceptions}`,
+//! so the txt no longer needs to mirror them. This check therefore enforces:
+//!   1. The policy YAML is parseable.
+//!   2. Every txt entry points at an existing crate directory.
+//!   3. The txt does not redundantly list crates that are already policy
+//!      entries (the YAML wins; a redundant txt entry is dead config).
+//!   4. Policy crates that don't exist on disk are warned (not failed) so the
+//!      policy can list aspirational/scheduled-for-removal crates.
 
 use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
@@ -26,6 +33,8 @@ struct Tiers {
 
 #[derive(Debug, Deserialize)]
 struct TierA {
+    #[serde(default)]
+    owners: Vec<String>,
     #[serde(default)]
     allow_direct_access: Vec<String>,
     #[serde(default)]
@@ -65,9 +74,29 @@ pub fn run(root: &Path) -> Result<()> {
         .cloned()
         .collect();
     policy_crates.extend(policy.tiers.a_relational.temporary_exceptions.iter().cloned());
+    policy_crates.extend(policy.tiers.a_relational.owners.iter().cloned());
 
     let crates_dir = root.join("crates");
-    let mut missing: Vec<String> = Vec::new();
+
+    // New invariant: the txt allowlist must not duplicate policy owners (the
+    // merged guard list already covers them via the policy YAML). Also, every
+    // txt entry must point at an existing crate directory.
+    for c in &allowlist_crates {
+        if !crates_dir.join(c).is_dir() {
+            return Err(anyhow!(
+                "policy-allowlist-parity: docs/agents/turso-import-allowlist.txt lists \
+                 `crates/{c}/` but that directory does not exist."
+            ));
+        }
+        if policy_crates.contains(c) {
+            return Err(anyhow!(
+                "policy-allowlist-parity: docs/agents/turso-import-allowlist.txt lists \
+                 `crates/{c}/` redundantly — `{c}` is already a policy owner. \
+                 Remove the txt entry; the YAML is the source of truth."
+            ));
+        }
+    }
+
     let mut warnings: Vec<String> = Vec::new();
     for c in &policy_crates {
         if TURSO_BUILTIN_CRATES.contains(&c.as_str()) {
@@ -77,26 +106,11 @@ pub fn run(root: &Path) -> Result<()> {
             warnings.push(format!(
                 "  policy lists `{c}` but `crates/{c}/` does not exist"
             ));
-            continue;
-        }
-        if !allowlist_crates.contains(c) {
-            missing.push(c.clone());
         }
     }
 
     for w in &warnings {
         eprintln!("WARN: policy-allowlist-parity:\n{w}");
-    }
-
-    if !missing.is_empty() {
-        return Err(anyhow!(
-            "policy-allowlist-parity: crates listed in data-storage-policy.v1.yaml \
-             tiers.a_relational.allow_direct_access (or temporary_exceptions) but missing \
-             from docs/agents/turso-import-allowlist.txt: {}. Add a `crates/<name>/` line \
-             with a justification comment, OR remove from the policy if the crate no longer \
-             needs direct turso access.",
-            missing.join(", ")
-        ));
     }
 
     let policy_count = policy_crates.len();
@@ -126,22 +140,56 @@ mod tests {
     }
 
     #[test]
-    fn fails_when_policy_lists_existing_crate_not_in_allowlist() {
+    fn passes_when_policy_lists_crate_not_in_txt() {
+        // Under the SSOT model, policy crates auto-populate the guard via
+        // load_turso_import_allowlist; the txt no longer needs to mirror them.
         let td = tempdir().unwrap();
         let root = td.path();
         write(
             &root.join("contracts/db/data-storage-policy.v1.yaml"),
             "tiers:\n  a_relational:\n    allow_direct_access: [vox-db, vox-mystery]\n",
         );
+        write(&root.join("docs/agents/turso-import-allowlist.txt"), "");
+        fs::create_dir_all(root.join("crates/vox-mystery/src")).unwrap();
+        run(root).expect("policy crate not in txt should be fine — YAML is SSOT");
+    }
+
+    #[test]
+    fn fails_when_txt_redundantly_lists_policy_crate() {
+        let td = tempdir().unwrap();
+        let root = td.path();
+        write(
+            &root.join("contracts/db/data-storage-policy.v1.yaml"),
+            "tiers:\n  a_relational:\n    owners: [vox-db, vox-secrets]\n    allow_direct_access: [vox-db, vox-secrets]\n",
+        );
         write(
             &root.join("docs/agents/turso-import-allowlist.txt"),
             "crates/vox-secrets/\n",
         );
-        fs::create_dir_all(root.join("crates/vox-mystery/src")).unwrap();
+        fs::create_dir_all(root.join("crates/vox-secrets/src")).unwrap();
         let err = run(root).unwrap_err().to_string();
         assert!(
-            err.contains("vox-mystery"),
-            "error must name the missing crate; got: {err}"
+            err.contains("vox-secrets") && err.contains("redundantly"),
+            "error must flag redundant txt entry; got: {err}"
+        );
+    }
+
+    #[test]
+    fn fails_when_txt_lists_nonexistent_crate() {
+        let td = tempdir().unwrap();
+        let root = td.path();
+        write(
+            &root.join("contracts/db/data-storage-policy.v1.yaml"),
+            "tiers:\n  a_relational:\n    allow_direct_access: [vox-db]\n",
+        );
+        write(
+            &root.join("docs/agents/turso-import-allowlist.txt"),
+            "crates/vox-imaginary/\n",
+        );
+        let err = run(root).unwrap_err().to_string();
+        assert!(
+            err.contains("vox-imaginary") && err.contains("does not exist"),
+            "error must flag nonexistent txt entry; got: {err}"
         );
     }
 

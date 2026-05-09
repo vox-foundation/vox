@@ -145,10 +145,47 @@ pub(crate) fn source_contains_turso_path_prefix(text: &str) -> bool {
 }
 
 fn load_turso_import_allowlist(root: &Path) -> Result<Vec<String>> {
+    // Built-in baseline: crates whose entire tree is implicitly allowlisted
+    // because they're THE database layer.
     let mut out: Vec<String> = TURSO_BUILTIN_CRATES
         .iter()
         .map(|name| format!("crates/{name}/"))
         .collect();
+
+    // Merge sanctioned owners/exceptions from the data-storage policy YAML.
+    // The policy YAML is the authoritative list; this guard auto-derives from it
+    // so a future PR adding a new owner does not need to touch this file.
+    let policy_path = root.join("contracts/db/data-storage-policy.v1.yaml");
+    if policy_path.is_file() {
+        if let Ok(yaml) = std::fs::read_to_string(&policy_path) {
+            if let Ok(val) = serde_yaml::from_str::<serde_yaml::Value>(&yaml) {
+                let lists = [
+                    val.get("tiers")
+                        .and_then(|t| t.get("a_relational"))
+                        .and_then(|t| t.get("owners")),
+                    val.get("tiers")
+                        .and_then(|t| t.get("a_relational"))
+                        .and_then(|t| t.get("allow_direct_access")),
+                    val.get("tiers")
+                        .and_then(|t| t.get("a_relational"))
+                        .and_then(|t| t.get("temporary_exceptions")),
+                ];
+                for list in lists.into_iter().flatten() {
+                    if let Some(seq) = list.as_sequence() {
+                        for item in seq {
+                            if let Some(name) = item.as_str() {
+                                out.push(format!("crates/{name}/"));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Transitional allowlist file: paths that don't appear in the policy YAML
+    // because they are not yet sanctioned satellites — to be folded away or
+    // promoted to policy entries over time.
     let p = root.join("docs/agents/turso-import-allowlist.txt");
     if p.is_file() {
         let text = read_utf8_path_capped(&p).with_context(|| format!("read {}", p.display()))?;
@@ -992,6 +1029,29 @@ mod sql_surface_tests {
     fn turso_import_detects_path_prefix() {
         let s = concat!("db", ".conn", "ect(); tur", "so::", "params![]");
         assert!(super::source_contains_turso_path_prefix(s));
+    }
+
+    #[test]
+    fn allowlist_includes_policy_owners_without_txt_entry() {
+        // tiers.a_relational.owners includes vox-db, vox-secrets per
+        // contracts/db/data-storage-policy.v1.yaml. load_turso_import_allowlist
+        // must include both even if the txt file does not list them.
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap();
+        let allow = super::load_turso_import_allowlist(root).unwrap();
+        assert!(
+            allow.iter().any(|p| p == "crates/vox-db/"),
+            "expected crates/vox-db/ in allowlist; got {:?}",
+            allow
+        );
+        assert!(
+            allow.iter().any(|p| p == "crates/vox-secrets/"),
+            "expected crates/vox-secrets/ in allowlist; got {:?}",
+            allow
+        );
     }
 
     #[test]
