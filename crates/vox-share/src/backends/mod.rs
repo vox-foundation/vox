@@ -1,1 +1,3 @@
-//! Stub. LAN backend in Task 3; Cloudflare in S2; localhost.run in S3; Tailscale in S4.
+//! Backends: LAN (S1), Cloudflare (S2), localhost.run (S3), Tailscale (S4).
+
+pub mod lan;
