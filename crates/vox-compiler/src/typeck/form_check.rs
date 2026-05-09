@@ -3,6 +3,46 @@
 use crate::hir::HirModule;
 use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity};
 
+/// Render a [`HirType`] as a human-readable string for diagnostic messages.
+fn display_hir_ty(ty: &crate::hir::HirType) -> String {
+    use crate::hir::HirType;
+    match ty {
+        HirType::Named(n) => n.clone(),
+        HirType::Generic(name, args) => {
+            format!(
+                "{}[{}]",
+                name,
+                args.iter()
+                    .map(display_hir_ty)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        }
+        HirType::Unit => "Unit".into(),
+        HirType::Decimal => "decimal".into(),
+        HirType::Function(params, ret) => {
+            format!(
+                "fn({}) -> {}",
+                params
+                    .iter()
+                    .map(display_hir_ty)
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                display_hir_ty(ret)
+            )
+        }
+        HirType::Tuple(ts) => {
+            format!(
+                "({})",
+                ts.iter()
+                    .map(display_hir_ty)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        }
+    }
+}
+
 /// Check all `@form` declarations in the HIR module.
 ///
 /// Emits diagnostics for:
@@ -10,10 +50,6 @@ use crate::typeck::diagnostics::{Diagnostic, DiagnosticCategory, TypeckSeverity}
 /// - `lint.form.field_unmatched` — a form field has no matching parameter in the endpoint.
 /// - `lint.form.field_type_mismatch` — a form field's type differs from the endpoint parameter type.
 pub fn check_forms(hir: &HirModule, _source: &str) -> Vec<Diagnostic> {
-    use crate::ast::span::Span;
-
-    let dummy_span = Span::new(0, 0);
-
     let mut diags = vec![];
     for form in &hir.forms {
         if let Some(submit) = &form.on_submit {
@@ -40,7 +76,8 @@ pub fn check_forms(hir: &HirModule, _source: &str) -> Vec<Diagnostic> {
                 continue;
             }
             let ep = endpoint.unwrap();
-            for vf in form.fields.iter().filter(|f| !f.hidden || f.default.is_none()) {
+            // Skip hidden fields that supply their own default — they don't map to endpoint params.
+            for vf in form.fields.iter().filter(|f| !(f.hidden && f.default.is_some())) {
                 let param = ep.params.iter().find(|p| p.name == vf.name);
                 match param {
                     None => diags.push(Diagnostic {
@@ -53,8 +90,10 @@ pub fn check_forms(hir: &HirModule, _source: &str) -> Vec<Diagnostic> {
                         code: Some("lint.form.field_unmatched".into()),
                         category: DiagnosticCategory::Lint,
                         suggestions: vec![format!(
-                            "Add `{}: {:?}` to @endpoint `{}` or remove the field.",
-                            vf.name, vf.ty, submit
+                            "Add `{}: {}` to @endpoint `{}` or remove the field.",
+                            vf.name,
+                            display_hir_ty(&vf.ty),
+                            submit
                         )],
                         fixes: vec![],
                         line_col: None,
@@ -72,8 +111,12 @@ pub fn check_forms(hir: &HirModule, _source: &str) -> Vec<Diagnostic> {
                                 diags.push(Diagnostic {
                                     severity: TypeckSeverity::Error,
                                     message: format!(
-                                        "@form `{}` field `{}` has type `{:?}` but @endpoint `{}` expects `{:?}`.",
-                                        form.name, vf.name, vf.ty, submit, param_ty
+                                        "@form `{}` field `{}` has type `{}` but @endpoint `{}` expects `{}`.",
+                                        form.name,
+                                        vf.name,
+                                        display_hir_ty(&vf.ty),
+                                        submit,
+                                        display_hir_ty(param_ty)
                                     ),
                                     span: vf.span,
                                     code: Some("lint.form.field_type_mismatch".into()),
@@ -82,8 +125,8 @@ pub fn check_forms(hir: &HirModule, _source: &str) -> Vec<Diagnostic> {
                                     fixes: vec![],
                                     line_col: None,
                                     missing_cases: vec![],
-                                    expected_type: Some(format!("{:?}", param_ty)),
-                                    found_type: Some(format!("{:?}", vf.ty)),
+                                    expected_type: Some(display_hir_ty(param_ty)),
+                                    found_type: Some(display_hir_ty(&vf.ty)),
                                     context: None,
                                     ast_node_kind: None,
                                 });
@@ -94,6 +137,5 @@ pub fn check_forms(hir: &HirModule, _source: &str) -> Vec<Diagnostic> {
             }
         }
     }
-    let _ = dummy_span; // suppress unused warning
     diags
 }
