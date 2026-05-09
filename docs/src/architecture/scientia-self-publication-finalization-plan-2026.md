@@ -318,6 +318,9 @@ deposited as RO-Crate to a private Zenodo sandbox.
 must register before running.
 
 ### Phase 3 — Reputational firewall (1.5 wk)
+
+> **Status: Complete** — `reply_window.rs`, `retraction.rs`, `living_review.rs` landed in `vox-prereg`; Provider Atlas dry-run lifecycle works end-to-end. (2026-05-09)
+
 - 14-day right-of-reply window enforced on the manifest (refuse to publish
   `provider_atlas` topic-pack until window cleared with notification + reply
   ingest).
