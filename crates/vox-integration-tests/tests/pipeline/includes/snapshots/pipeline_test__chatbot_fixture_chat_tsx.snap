@@ -14,7 +14,7 @@ export function Chat(): React.ReactElement {
   return (
     <div className={["flex", "flex-col", "chat_container"].filter(Boolean).join(" ")}>
       <div className={["flex", "flex-col", "messages"].filter(Boolean).join(" ")}>
-        {messages.map((msg, _i) => (<div className={["flex", "flex-col", "message"].filter(Boolean).join(" ")}
+        {messages.map((msg: any, _i: number) => (<div className={["flex", "flex-col", "message"].filter(Boolean).join(" ")}
      key={msg.text}>
       {msg.text}
     </div>))}

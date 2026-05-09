@@ -26,7 +26,7 @@ export function Item() {
     setSubmitting(true);
     setBannerError(null);
     try {
-      await submit_item(name);
+      await submit_item({ name });
     } catch (err) {
       setBannerError(String(err));
     } finally {

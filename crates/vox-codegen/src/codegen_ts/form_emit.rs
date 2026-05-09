@@ -70,7 +70,14 @@ pub fn emit_form(form: &HirForm) -> String {
 
     // Submit handler
     let submit_fn = form.on_submit.as_deref().unwrap_or("_noSubmit");
-    let args = visible.iter().map(|f| f.name.as_str()).collect::<Vec<_>>().join(", ");
+    // vox-client mutations accept a single `args` object with named fields matching the endpoint
+    // params. Emit `{ field1, field2 }` shorthand so the call matches the generated client signature.
+    let args_obj = visible.iter().map(|f| f.name.as_str()).collect::<Vec<_>>().join(", ");
+    let submit_call_args = if args_obj.is_empty() {
+        "{}".to_string()
+    } else {
+        format!("{{ {args_obj} }}")
+    };
     let err_msg = form
         .error_message
         .as_ref()
@@ -86,7 +93,7 @@ pub fn emit_form(form: &HirForm) -> String {
          \x20   setSubmitting(true);\n\
          \x20   setBannerError(null);\n\
          \x20   try {{\n\
-         \x20     await {submit_fn}({args});\n"
+         \x20     await {submit_fn}({submit_call_args});\n"
     ));
     if let Some(r) = &form.success_redirect {
         out.push_str(&format!("      navigate({{ to: \"{r}\" }});\n"));
