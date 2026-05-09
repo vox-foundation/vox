@@ -40,6 +40,9 @@ pub struct McpInferRouting<'a> {
 
 /// Whether to emit [`vox_orchestrator::AgentEventKind::CostIncurred`] after LLM success (see module docs for `VOX_MCP_LLM_COST_EVENTS` precedence).
 fn should_emit_llm_cost_events(state: &ServerState) -> bool {
+    if !vox_telemetry::is_master_enabled() {
+        return false;
+    }
     match vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMcpLlmCostEvents).expose() {
         Some(v) => {
             let v = v.trim();
