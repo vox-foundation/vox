@@ -169,6 +169,7 @@ This is the phasing the codebase change must follow. Each phase is independently
 | **VUV-6** Dashboard cutover | ✅ Done | Angle-bracket JSX parser entry retired (parser/descent/expr/mod.rs comment: "pratt_jsx retired"). Dashboard `.vox` files (`app.vox`, all 4 tabs) authored on the view-call form (TASK-7.1/7.2). `Expr::Jsx` AST node retained as internal sugar from view-calls — no longer parsed from `<>`. |
 | **VUV-7** Golden corpus + MENS | 🟡 Partial | Corpus already migrated (TASK-8.1, commit `135b7591`). MENS retraining run pending operator action (TASK-8.2). |
 | **VUV-8** Docs sweep | ✅ Done | This block. |
+| **VUV-9** Naming policy + codemod | ✅ Done | Policy at [vuv-naming-policy-2026.md](vuv-naming-policy-2026.md); registry at `contracts/naming/renames.v1.json` (empty until first rename); `vox migrate names` codemod (token-based; preserves whitespace/comments/string-literal contents); `vox-arch-check` enforces that registry `from` entries are not still canonical primitives. |
 
 **Companion cleanup (commit on the same branch):** removed 11 dead `Decl` variants (`Context`, `Hook`, `Provider`, `Layout`, `ErrorBoundary`, `NotFound`, `Trait`, `Impl`, `Mock`, `Fixture`, `Keyframes`) that the parser never produced. The retired-React-shapes group (`Context`/`Hook`/`Provider`/`Layout`/`ErrorBoundary`/`NotFound`) was the React-context surface VUV-6 supersedes. The non-UI group (`Trait`/`Impl`/`Mock`/`Fixture`/`Keyframes`) was vestigial AST sprawl from earlier prototypes; their structs and ~50 match arms across the workspace are gone.
 

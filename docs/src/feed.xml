@@ -5,7 +5,7 @@
   <link>https://vox-lang.org/</link>
   <description>Changelog, release notes, and documentation updates for the Vox AI-native programming language, maintained by the Vox Foundation.</description>
   <language>en-us</language>
-  <lastBuildDate>Sat, 09 May 2026 03:50:07 GMT</lastBuildDate>
+  <lastBuildDate>Sat, 09 May 2026 04:50:23 GMT</lastBuildDate>
   <atom:link href="https://vox-lang.org/feed.xml" rel="self" type="application/rss+xml" />
 
   <item>
@@ -226,10 +226,10 @@
   </item>
 
   <item>
-    <title>Where Things Live</title>
-    <link>https://vox-lang.org/architecture/where-things-live.html</link>
-    <guid isPermaLink="true">https://vox-lang.org/architecture/where-things-live.html</guid>
-    <description>Where Things Live</description>
+    <title>VUV Naming Policy (2026)</title>
+    <link>https://vox-lang.org/architecture/vuv-naming-policy-2026.html</link>
+    <guid isPermaLink="true">https://vox-lang.org/architecture/vuv-naming-policy-2026.html</guid>
+    <description>Deprecation cycle for primitive names, kwarg names, and decorator names. Every rename is announced, aliased for one major version, then removed. A rename…</description>
     <pubDate>Fri, 08 May 2026 00:00:00 GMT</pubDate>
     <category>Documentation</category>
   </item>
