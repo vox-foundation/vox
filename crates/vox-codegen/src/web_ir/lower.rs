@@ -252,9 +252,23 @@ fn inject_primitive_dom_markers(
             "{{ \"--fg\": \"var(--vox-surface-{surface}-fg)\", \"--bg\": \"var(--vox-surface-{surface}-bg)\" }}",
         );
         if let Some(pos) = attrs.iter().position(|(k, _)| k == "style") {
-            // Author-provided `style` is preserved; surface vars take precedence.
-            let _existing = attrs[pos].1.clone();
-            attrs[pos].1 = style_obj;
+            // Merge with existing style (e.g. safe_area env() vars already written).
+            let existing = attrs[pos].1.clone();
+            let existing_inner = existing
+                .trim_start_matches('{')
+                .trim_end_matches('}')
+                .trim();
+            let new_inner = style_obj
+                .trim_start_matches('{')
+                .trim_end_matches('}')
+                .trim();
+            attrs[pos].1 = if existing_inner.is_empty() {
+                style_obj
+            } else if new_inner.is_empty() {
+                existing
+            } else {
+                format!("{{ {existing_inner}, {new_inner} }}")
+            };
         } else {
             attrs.push(("style".to_string(), style_obj));
         }

@@ -764,6 +764,9 @@ pub fn resolve_universal_kwarg(kwarg: &str, value: &str) -> Option<Vec<String>> 
             .split_whitespace()
             .map(std::string::ToString::to_string)
             .collect(),
+        // Note: `safe_area` is listed in UNIVERSAL_STYLE_KWARGS (so it's consumed and
+        // doesn't leak as a raw HTML attr) but is NOT handled here — it emits inline
+        // CSS env() via `safe_area_to_style_props()` in the hir_emit path instead.
         _ => return None,
     };
     Some(out)
