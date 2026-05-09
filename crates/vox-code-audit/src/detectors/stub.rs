@@ -1,17 +1,19 @@
+use crate::rule_pack_detector::pack_rule;
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile, rust_byte_is_non_code};
-use regex::Regex;
+use vox_rule_pack::CompiledRule;
 
 /// Detects `todo!()`, `unimplemented!()`, `panic!("not implemented")`,
 /// Python `pass` / `raise NotImplementedError`, GDScript `pass`.
+///
+/// Patterns are sourced from the embedded rule pack (`stub/*`).
 pub struct StubDetector {
-    rust_todo: Regex,
-    rust_unimplemented: Regex,
-    rust_panic_not_impl: Regex,
-    py_raise_not_impl: Regex,
-    py_pass_stub: Regex,
-    ts_throw_not_impl: Regex,
-    generic_placeholder: Regex,
-    stub_comment: Regex,
+    rust_todo: &'static CompiledRule,
+    rust_unimplemented: &'static CompiledRule,
+    rust_panic_not_impl: &'static CompiledRule,
+    py_raise_not_impl: &'static CompiledRule,
+    ts_throw_not_impl: &'static CompiledRule,
+    generic_placeholder: &'static CompiledRule,
+    stub_comment: &'static CompiledRule,
 }
 
 impl Default for StubDetector {
@@ -25,35 +27,37 @@ fn stub_regex_match_in_code(
     file: &SourceFile,
     line_num: usize,
     line: &str,
-    re: &Regex,
+    rule: &CompiledRule,
     rust_ctx: Option<&crate::analysis::RustFileContext>,
 ) -> bool {
-    re.find_iter(line)
+    rule.regex()
+        .find_iter(line)
         .any(|m| !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx))
 }
 
-/// Line-comment scan for work markers: keep ordinary `//` / `#` lines; rustdoc defers to code spans
-/// so inline `` code `` samples in `///` docs do not false-positive.
+/// Line-comment scan for work markers: keep ordinary `//` / `#` lines; rustdoc defers to code spans.
 fn stub_todo_comment_line_matches(
     file: &SourceFile,
     line_num: usize,
     line: &str,
-    re: &Regex,
+    rule: &CompiledRule,
     rust_ctx: Option<&crate::analysis::RustFileContext>,
 ) -> bool {
-    if !re.is_match(line) {
+    if !rule.regex().is_match(line) {
         return false;
     }
     let t = line.trim_start();
     if t.starts_with("///") || t.starts_with("//!") {
-        return re
+        return rule
+            .regex()
             .find_iter(line)
             .any(|m| !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx));
     }
     if t.starts_with("//") || (t.starts_with('#') && !t.starts_with("#[")) {
         return true;
     }
-    re.find_iter(line)
+    rule.regex()
+        .find_iter(line)
         .any(|m| !rust_byte_is_non_code(file, line_num, m.start(), rust_ctx))
 }
 
@@ -61,20 +65,18 @@ fn placeholder_matches_line(
     file: &SourceFile,
     line_num: usize,
     line: &str,
-    re: &Regex,
+    rule: &CompiledRule,
     rust_ctx: Option<&crate::analysis::RustFileContext>,
 ) -> bool {
-    if !re.is_match(line) {
+    if !rule.regex().is_match(line) {
         return false;
     }
     let t = line.trim_start();
-    // Ordinary `//` / block-comment lines (shouty fix-me / all-caps place-holder markers).
-    // Rustdoc (`///`, `//!`) may echo those words in prose — defer to code-span check only.
     if (t.starts_with("//") && !t.starts_with("///") && !t.starts_with("//!")) || t.starts_with('*')
     {
         return true;
     }
-    stub_regex_match_in_code(file, line_num, line, re, rust_ctx)
+    stub_regex_match_in_code(file, line_num, line, rule, rust_ctx)
 }
 
 /// True when `stub` appears as its own word but not as the `stub-check` feature name.
@@ -129,21 +131,15 @@ fn bare_stub_word_not_stub_check(
 }
 
 impl StubDetector {
-    /// Initializes Rust/Python/TS regexes for `todo!`, `NotImplementedError`, TODO comments, etc.
     pub fn new() -> Self {
         Self {
-            rust_todo: Regex::new(r"\btodo!\s*\(").expect("valid regex"),
-            rust_unimplemented: Regex::new(r"\bunimplemented!\s*\(").expect("valid regex"),
-            rust_panic_not_impl: Regex::new(r#"\bpanic!\s*\(\s*"not\s+implemented"#)
-                .expect("valid regex"),
-            py_raise_not_impl: Regex::new(r"\braise\s+NotImplementedError\b").expect("valid regex"),
-            py_pass_stub: Regex::new(r"^\s*pass\s*$").expect("valid regex"),
-            ts_throw_not_impl: Regex::new(r#"throw\s+new\s+Error\s*\(\s*["']not\s+implemented"#)
-                .expect("valid regex"),
-            // Avoid matching the common noun "place-holder"; require shouty all-caps marker token only.
-            generic_placeholder: Regex::new(r"(?i:\bFIXME\b)|\bPLACEHOLDER\b")
-                .expect("valid regex"),
-            stub_comment: Regex::new(r"(?i)//\s*TODO\b|#\s*TODO\b").expect("valid regex"),
+            rust_todo: pack_rule("stub/todo"),
+            rust_unimplemented: pack_rule("stub/unimplemented"),
+            rust_panic_not_impl: pack_rule("stub/panic-not-impl"),
+            py_raise_not_impl: pack_rule("stub/not-implemented-error"),
+            ts_throw_not_impl: pack_rule("stub/throw-not-implemented"),
+            generic_placeholder: pack_rule("stub/placeholder"),
+            stub_comment: pack_rule("stub/todo-comment"),
         }
     }
 
@@ -156,12 +152,10 @@ impl StubDetector {
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
 
-            // Same-line suppressions (see also `scaling` detector pattern).
             if line.contains("toestub-ignore(all)") || line.contains("toestub-ignore(stub)") {
                 continue;
             }
 
-            // Skip known false positive strings in our own prompts and tests
             if line.contains("DEAD-CODE:")
                 || line.contains("DEAD PATTERNS:")
                 || line.contains("todo!()/unimplemented!()")
@@ -170,7 +164,7 @@ impl StubDetector {
                 continue;
             }
 
-            if stub_regex_match_in_code(file, line_num, line, &self.rust_todo, rust_ctx) {
+            if stub_regex_match_in_code(file, line_num, line, self.rust_todo, rust_ctx) {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -179,7 +173,7 @@ impl StubDetector {
                     Some("Replace `todo!()` with the actual implementation.".into()),
                 ));
             }
-            if stub_regex_match_in_code(file, line_num, line, &self.rust_unimplemented, rust_ctx) {
+            if stub_regex_match_in_code(file, line_num, line, self.rust_unimplemented, rust_ctx) {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -188,7 +182,7 @@ impl StubDetector {
                     Some("Implement the function body or remove the stub.".into()),
                 ));
             }
-            if stub_regex_match_in_code(file, line_num, line, &self.rust_panic_not_impl, rust_ctx) {
+            if stub_regex_match_in_code(file, line_num, line, self.rust_panic_not_impl, rust_ctx) {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -200,7 +194,7 @@ impl StubDetector {
                     ),
                 ));
             }
-            if placeholder_matches_line(file, line_num, line, &self.generic_placeholder, rust_ctx)
+            if placeholder_matches_line(file, line_num, line, self.generic_placeholder, rust_ctx)
                 || bare_stub_word_not_stub_check(file, line_num, line, rust_ctx)
             {
                 findings.push(self.make_finding(
@@ -211,7 +205,7 @@ impl StubDetector {
                     Some("Replace placeholders with actual implementation or high-quality documentation.".into()),
                 ));
             }
-            if stub_todo_comment_line_matches(file, line_num, line, &self.stub_comment, rust_ctx) {
+            if stub_todo_comment_line_matches(file, line_num, line, self.stub_comment, rust_ctx) {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -229,7 +223,7 @@ impl StubDetector {
         for (i, line) in file.lines.iter().enumerate() {
             let line_num = i + 1;
 
-            if self.py_raise_not_impl.is_match(line) {
+            if self.py_raise_not_impl.regex().is_match(line) {
                 findings.push(self.make_finding(
                     file,
                     line_num,
@@ -240,18 +234,20 @@ impl StubDetector {
             }
         }
 
-        // Detect `pass` as a stub only when it's the sole statement in a function body
         self.detect_python_pass_stubs(file, &mut findings);
         findings
     }
 
     fn detect_python_pass_stubs(&self, file: &SourceFile, findings: &mut Vec<Finding>) {
         // Simple heuristic: look for `def ...:\n    pass`
+        let pass_re = {
+            // py_pass_sub was repurposed to stub/placeholder; use a local pattern for `pass`
+            regex::Regex::new(r"^\s*pass\s*$").expect("pass regex")
+        };
         for i in 0..file.lines.len().saturating_sub(1) {
             let line = &file.lines[i];
             let next_line = &file.lines[i + 1];
-            if line.trim_start().starts_with("def ") && self.py_pass_stub.is_match(next_line) {
-                // Check if `pass` is the only thing in the body (next non-empty line after `pass`)
+            if line.trim_start().starts_with("def ") && pass_re.is_match(next_line) {
                 let has_more_body = file
                     .lines
                     .get(i + 2)
@@ -269,7 +265,7 @@ impl StubDetector {
                 if !has_more_body {
                     findings.push(self.make_finding(
                         file,
-                        i + 2, // the `pass` line
+                        i + 2,
                         "stub/pass",
                         "`pass` stub — empty function body",
                         Some("Implement the function body or add a docstring explaining why it's empty.".into()),
@@ -280,11 +276,12 @@ impl StubDetector {
     }
 
     fn detect_gdscript(&self, file: &SourceFile) -> Vec<Finding> {
+        let pass_re = regex::Regex::new(r"^\s*pass\s*$").expect("pass regex");
         let mut findings = Vec::new();
         for i in 0..file.lines.len().saturating_sub(1) {
             let line = &file.lines[i];
             let next_line = &file.lines[i + 1];
-            if line.trim_start().starts_with("func ") && self.py_pass_stub.is_match(next_line) {
+            if line.trim_start().starts_with("func ") && pass_re.is_match(next_line) {
                 findings.push(self.make_finding(
                     file,
                     i + 2,
@@ -300,7 +297,7 @@ impl StubDetector {
     fn detect_typescript(&self, file: &SourceFile) -> Vec<Finding> {
         let mut findings = Vec::new();
         for (i, line) in file.lines.iter().enumerate() {
-            if self.ts_throw_not_impl.is_match(&line.to_lowercase()) {
+            if self.ts_throw_not_impl.regex().is_match(line) {
                 findings.push(self.make_finding(
                     file,
                     i + 1,
@@ -467,7 +464,7 @@ mod tests {
         let findings = d.detect(&f, None);
         assert!(
             !findings.iter().any(|x| x.rule_id == "stub/placeholder"),
-            "doc comments are non-code spans; narrative 'stub' should not fire placeholder"
+            "doc comments are non-code spans; narrative 'stub' should not fire placeholder rule"
         );
     }
 

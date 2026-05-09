@@ -290,7 +290,7 @@ rules:
     languages: [typescript]
     match:
       kind: line-regex
-      pattern: "throw\\s+new\\s+Error\\s*\\(\\s*[\"']not\\s+implemented"
+      pattern: "(?i)throw\\s+new\\s+Error\\s*\\(\\s*[\"']not\\s+implemented"
     message: "`throw new Error('not implemented')` — stub placeholder"
     suggestion: "Implement the function body."
     fixtures:

@@ -1,23 +1,20 @@
 //! Heuristic detection of `.unwrap()` in Rust sources (informational).
 //!
 //! Skips integration test trees, `tests.rs` files, `#[cfg(test)] mod tests { ... }` bodies, and
-//! `#[cfg(test)]` / `#[test]` lines. Intended to nudge toward `?`, `expect(\"…\")`, or explicit
-//! error handling — not a substitute for Clippy in CI.
+//! `#[cfg(test)]` / `#[test]` lines. Pattern is sourced from the embedded rule pack (`rust/unwrap-call`).
 
+use crate::rule_pack_detector::pack_rule;
 use crate::rules::{DetectionRule, Finding, Language, Severity, SourceFile};
-use regex::Regex;
+use vox_rule_pack::CompiledRule;
 
 /// Flags `.unwrap()` calls outside obvious test contexts (informational).
 pub struct UnwrapCallDetector {
-    re: Regex,
+    rule: &'static CompiledRule,
 }
 
 impl UnwrapCallDetector {
-    /// Builds the detector with a compiled pattern for `.unwrap()`.
     pub fn new() -> Self {
-        Self {
-            re: Regex::new(r"\.unwrap\s*\(\s*\)").expect("unwrap detector regex"),
-        }
+        Self { rule: pack_rule("rust/unwrap-call") }
     }
 
     fn should_skip_file(path: &std::path::Path) -> bool {
@@ -34,21 +31,18 @@ impl UnwrapCallDetector {
             .is_some_and(|n| n.ends_with("_tests_body.rs"))
     }
 
-    fn make_finding(file: &SourceFile, line: usize, message: &str) -> Finding {
+    fn make_finding(rule: &'static CompiledRule, file: &SourceFile, line: usize) -> Finding {
         Finding {
-            rule_id: "rust/unwrap-call".to_string(),
-            rule_name: "Unwrap call (heuristic)".to_string(),
-            severity: Severity::Info,
+            rule_id: rule.id.clone(),
+            rule_name: rule.name.clone(),
+            severity: rule.severity.into(),
             file: file.path.clone(),
             line,
             column: 0,
-            message: message.to_string(),
-            suggestion: Some(
-                "Prefer `?`, `context`, or `expect(\"static reason\")` over `.unwrap()` in production paths."
-                    .into(),
-            ),
+            message: rule.message.clone(),
+            suggestion: rule.suggestion.clone(),
             context: file.context_around(line, 2),
-            confidence: None,
+            confidence: rule.confidence.map(Into::into),
             evidence: None,
         }
     }
@@ -113,6 +107,7 @@ impl DetectionRule for UnwrapCallDetector {
         if Self::should_skip_file(&file.path) {
             return Vec::new();
         }
+        let re = self.rule.regex();
         let mut out = Vec::new();
         let mut skip_test_mod_depth = 0i32;
         let mut expect_mod_tests_after_cfg_test = false;
@@ -161,12 +156,8 @@ impl DetectionRule for UnwrapCallDetector {
             {
                 continue;
             }
-            if self.re.is_match(line) {
-                out.push(Self::make_finding(
-                    file,
-                    line_no,
-                    "`.unwrap()` — consider explicit error handling",
-                ));
+            if re.is_match(line) {
+                out.push(Self::make_finding(self.rule, file, line_no));
             }
         }
         out
