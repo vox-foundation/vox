@@ -479,5 +479,5 @@ proposing message are answered yes:
 | 0c | (TBD — schema codegen) |
 | 0d | (TBD — DB schema additions) |
 | 0e | SecretId: VoxOpenAlexEmail, VoxSemanticScholarApiKey, VoxOsfApiToken, VoxArxivAccessToken, VoxNanopubSigningKeyHex, VoxSwhidApiToken — **Complete** |
-| 0f | (TBD — vox-arch-check rules) |
+| 0f | 5 SCIENTIA crates registered in layers.toml (Phase 1–5 prep) — **Complete** |
 | 1–10 | (TBD — phase plans land as predecessor phases complete) |
