@@ -31,6 +31,8 @@ pub struct ShareConfig {
     pub allow_fallback: bool,
     /// Authentication mode for the share session.
     pub auth_mode: AuthMode,
+    /// If true, don't auto-switch away from Cloudflare even if SSE routes detected.
+    pub allow_buffered_streaming: bool,
 }
 
 /// An active share session. Drop or call `shutdown` to clean up.
@@ -80,6 +82,31 @@ impl ShareSession {
                 _ = &mut proxy_shutdown_rx => {}
             }
         });
+
+        // S6: SSE detection — if Cloudflare and SSE routes found, switch to localhost.run.
+        if matches!(cfg.backend, BackendKind::Cloudflare) && !cfg.allow_buffered_streaming {
+            if crate::sse_detect::has_sse_routes(cfg.upstream_port).await {
+                println!("[vox share] App uses streaming (SSE); auto-selected --backend localhost-run for SSE compatibility");
+                println!("[vox share] Use --allow-buffered-streaming to keep Cloudflare (SSE will be buffered)");
+                let fallback = make_backend(BackendKind::LocalhostRun);
+                fallback.preflight().await?;
+                let tunnel_handle = fallback.start(actual_proxy_port, cfg.connect_timeout).await?;
+                let public_url = cfg.auth_mode.decorate_url(&tunnel_handle.public_url);
+                let duration_timer = cfg.duration.map(|d| {
+                    tokio::spawn(async move {
+                        tokio::time::sleep(d).await;
+                    })
+                });
+                return Ok(ShareSession {
+                    tunnel_handle,
+                    proxy_port: actual_proxy_port,
+                    public_url,
+                    proxy_shutdown: proxy_shutdown_tx,
+                    duration_timer,
+                    _app_child: app_child,
+                });
+            }
+        }
 
         // Bring up the tunnel backend.
         let backend: Box<dyn TunnelBackend> = make_backend(cfg.backend);

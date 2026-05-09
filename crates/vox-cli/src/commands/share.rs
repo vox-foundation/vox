@@ -34,6 +34,10 @@ pub struct ShareArgs {
     /// Authentication mode: none, basic:user:pass. Default: url-token (auto-generated).
     #[arg(long, default_value = "token")]
     pub auth: String,
+
+    /// Keep Cloudflare backend even if SSE routes detected (SSE will be buffered/broken).
+    #[arg(long)]
+    pub allow_buffered_streaming: bool,
 }
 
 pub async fn run(args: ShareArgs) -> Result<()> {
@@ -79,6 +83,7 @@ pub async fn run(args: ShareArgs) -> Result<()> {
         connect_timeout: Duration::from_secs(10),
         allow_fallback,
         auth_mode,
+        allow_buffered_streaming: args.allow_buffered_streaming,
     };
 
     let session = ShareSession::start(cfg)

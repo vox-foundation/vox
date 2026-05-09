@@ -14,6 +14,7 @@ pub mod consent;
 pub mod coordinator;
 pub mod error;
 pub mod proxy;
+pub mod sse_detect;
 pub mod state;
 
 pub use backend::{BackendKind, TunnelBackend, TunnelHandle};

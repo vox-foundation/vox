@@ -23,6 +23,7 @@ async fn fallback_config_field_compiles_and_works_with_lan() {
         connect_timeout: Duration::from_secs(1),
         allow_fallback: false,
         auth_mode: AuthMode::None,
+        allow_buffered_streaming: false,
     };
     let session = ShareSession::start(cfg)
         .await
@@ -50,6 +51,7 @@ async fn allow_fallback_true_does_not_affect_non_cloudflare_backends() {
         connect_timeout: Duration::from_secs(1),
         allow_fallback: true, // should be ignored for non-Cloudflare backend
         auth_mode: AuthMode::None,
+        allow_buffered_streaming: false,
     };
     let session = ShareSession::start(cfg)
         .await
