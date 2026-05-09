@@ -18,6 +18,7 @@ async fn coordinator_starts_lan_session_against_a_dummy_app() {
         duration: Some(Duration::from_secs(2)),
         app_binary: None, // already running externally
         connect_timeout: Duration::from_secs(2),
+        allow_fallback: false,
     };
     let session = vox_share::ShareSession::start(cfg).await
         .expect("LAN session should start");

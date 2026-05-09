@@ -3,6 +3,7 @@
 use crate::backend::{BackendKind, TunnelBackend, TunnelHandle};
 use crate::backends::cloudflare::CloudflareBackend;
 use crate::backends::lan::LanBackend;
+use crate::backends::localhost_run::LocalhostRunBackend;
 use crate::error::{ShareError, ShareResult};
 use crate::proxy::{build_app as build_proxy_app, ProxyConfig};
 use std::net::SocketAddr;
@@ -24,6 +25,8 @@ pub struct ShareConfig {
     pub app_binary: Option<PathBuf>,
     /// Time to wait for the tunnel to come up.
     pub connect_timeout: Duration,
+    /// When true and backend is Cloudflare, fall back to localhost.run on failure.
+    pub allow_fallback: bool,
 }
 
 /// An active share session. Drop or call `shutdown` to clean up.
@@ -74,7 +77,21 @@ impl ShareSession {
         // Bring up the tunnel backend.
         let backend: Box<dyn TunnelBackend> = make_backend(cfg.backend);
         backend.preflight().await?;
-        let tunnel_handle = backend.start(actual_proxy_port, cfg.connect_timeout).await?;
+        let tunnel_handle = match backend.start(actual_proxy_port, cfg.connect_timeout).await {
+            Ok(h) => h,
+            Err(e)
+                if cfg.allow_fallback && matches!(cfg.backend, BackendKind::Cloudflare) =>
+            {
+                println!(
+                    "[vox share] Cloudflare unavailable ({}); falling back to localhost.run",
+                    e
+                );
+                let fallback = make_backend(BackendKind::LocalhostRun);
+                fallback.preflight().await?;
+                fallback.start(actual_proxy_port, cfg.connect_timeout).await?
+            }
+            Err(e) => return Err(e),
+        };
 
         // Optional auto-shutdown timer.
         let duration_timer = cfg.duration.map(|d| {
@@ -106,8 +123,9 @@ fn make_backend(kind: BackendKind) -> Box<dyn TunnelBackend> {
     match kind {
         BackendKind::Lan => Box::new(LanBackend::new()),
         BackendKind::Cloudflare => Box::new(CloudflareBackend::new()),
-        // S3 adds LocalhostRun; S4 adds Tailscale.
-        BackendKind::LocalhostRun | BackendKind::Tailscale => {
+        BackendKind::LocalhostRun => Box::new(LocalhostRunBackend::new()),
+        // S4 adds Tailscale.
+        BackendKind::Tailscale => {
             unimplemented!("backend {:?} ships in a later phase", kind)
         }
     }

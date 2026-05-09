@@ -52,6 +52,11 @@ pub async fn run(args: ShareArgs) -> Result<()> {
         args.port
     );
 
+    // Allow fallback to localhost.run when using Cloudflare (the default).
+    // If the user explicitly passed --backend cloudflare or any other backend,
+    // we still allow fallback only for Cloudflare (it's the fallback-eligible backend).
+    let allow_fallback = matches!(backend, BackendKind::Cloudflare);
+
     let cfg = ShareConfig {
         backend,
         upstream_port: args.port,
@@ -59,6 +64,7 @@ pub async fn run(args: ShareArgs) -> Result<()> {
         duration,
         app_binary: None,
         connect_timeout: Duration::from_secs(10),
+        allow_fallback,
     };
 
     let session = ShareSession::start(cfg)
