@@ -97,6 +97,7 @@ vox-lsp                 = { layer = 3 }
 vox-gamify              = { layer = 3, max_loc = 20_000 }
 vox-skills              = { layer = 3 }
 vox-cli-core            = { layer = 3 }
+vox-cli-ci              = { layer = 3 }                          # C3: ci/ extraction boundary marker (full move pending bounded_read refactor)
 vox-orchestrator-mcp    = { layer = 3, max_loc = 40_000 }        # Phase 4 extraction
 vox-orchestrator-queue  = { layer = 3 }                          # Phase 5 extraction
 vox-search              = { layer = 3 }
