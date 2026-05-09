@@ -311,18 +311,6 @@ operations:
 - surface: vox-cli
   path:
   - ci
-  - secrets-parity
-  status: active
-  latin_ns: null
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: false
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
   - command-compliance
   status: active
   latin_ns: null
@@ -456,30 +444,6 @@ operations:
   path:
   - ci
   - db-schema-coverage
-  status: active
-  latin_ns: null
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: false
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
-  - row-serde-lint
-  status: active
-  latin_ns: null
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: false
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - ci
-  - string-id-lint
   status: active
   latin_ns: null
   product_lane: platform
@@ -932,6 +896,18 @@ operations:
 - surface: vox-cli
   path:
   - ci
+  - secrets-parity
+  status: active
+  latin_ns: null
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: false
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - ci
   - sql-surface-guard
   status: active
   latin_ns: null
@@ -1000,89 +976,6 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: false
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - secrets
-  status: active
-  latin_ns: ars
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: commands::secrets
-- surface: vox-cli
-  path:
-  - secrets
-  - backend-status
-  status: active
-  latin_ns: ars
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - secrets
-  - get
-  status: active
-  latin_ns: ars
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - secrets
-  - login
-  status: active
-  latin_ns: ars
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: commands::login_shared::run_login
-- surface: vox-cli
-  path:
-  - secrets
-  - migrate-auth-store
-  status: active
-  latin_ns: ars
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - secrets
-  - set
-  status: active
-  latin_ns: ars
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
-  handler_rust: null
-- surface: vox-cli
-  path:
-  - secrets
-  - status
-  status: active
-  latin_ns: ars
-  product_lane: platform
-  feature_gate: null
-  catalog_group: null
-  ref_cli_required: true
-  reachability_required: null
   handler_rust: null
 - surface: vox-cli
   path:
@@ -2941,6 +2834,89 @@ operations:
   ref_cli_required: true
   reachability_required: null
   handler_rust: commands::runtime::run::script
+- surface: vox-cli
+  path:
+  - secrets
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::secrets
+- surface: vox-cli
+  path:
+  - secrets
+  - backend-status
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - secrets
+  - get
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - secrets
+  - login
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: commands::login_shared::run_login
+- surface: vox-cli
+  path:
+  - secrets
+  - migrate-auth-store
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - secrets
+  - set
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
+- surface: vox-cli
+  path:
+  - secrets
+  - status
+  status: active
+  latin_ns: ars
+  product_lane: platform
+  feature_gate: null
+  catalog_group: null
+  ref_cli_required: true
+  reachability_required: null
+  handler_rust: null
 - surface: vox-cli
   path:
   - share

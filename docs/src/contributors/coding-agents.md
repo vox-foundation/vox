@@ -57,6 +57,9 @@ cargo run -p vox-cli -- corpus eval --mode ast examples/golden/
 # Tier 7 — CI guards
 cargo run -p vox-cli -- ci ssot-drift
 cargo run -p vox-cli -- ci line-endings
+
+# Tier 7b — orphan snapshot cleanup (if .snap files changed)
+cargo run -p vox-cli -- snapshot orphans
 ```
 
 Full 9-tier model: [`vox_agentic_loop_and_mens_plan.md`](../archive/research-2026-q1/vox_agentic_loop_and_mens_plan.md) §9-Tier Victory Conditions.
@@ -93,6 +96,8 @@ Paste the failing test as the first content of any implementation request. Benef
 - Test-covered implementation enters the MENS corpus as a higher-quality positive example.
 
 When a task cannot be expressed as a failing test (e.g., pure doc updates, config tweaks), state that explicitly rather than skipping the check silently.
+
+**Scaffold shortcut (Vox):** `vox new fn <name> [--params "x: int"] [--returns int] [--in path/to/file.vox]` writes a paired `fn` + `@test` block in one keystroke. The emitted test references undefined placeholders (`_`, `_expected`) so the function won't compile until you fill in the expected behavior — the friction reducer for [AGENTS.md §Test-First Policy](../../../AGENTS.md). Pass `--stdout` to pipe the stub into your editor instead of writing to disk.
 
 ## Snapshot discipline
 

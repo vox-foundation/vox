@@ -298,6 +298,7 @@ async fn handle_test(req: &DispatchRequest) -> anyhow::Result<()> {
         forall_iterations: p.forall_iterations,
         coverage: p.coverage,
         update_snapshots: p.update_snapshots,
+        watch: false,
     })
     .await
     .context("test failed")?;

@@ -72,6 +72,12 @@
         }
       }
     ],
+    "snippets": [
+      {
+        "language": "vox",
+        "path": "./snippets/tdd.json"
+      }
+    ],
     "configuration": {
       "title": "Vox AI settings",
       "properties": {
