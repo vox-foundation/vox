@@ -5,8 +5,6 @@
 //! - [`backends::cloudflare`] — Cloudflare Quick Tunnel via `*.trycloudflare.com` (default for `vox share`; added in S2)
 //! - [`backends::localhost_run`] — SSH-based public URL via `*.lhr.life` (fallback; added in S3)
 //! - [`backends::tailscale`] — Tailscale Funnel via `*.ts.net` (explicit; added in S4)
-//!
-//! See `RESEARCH.md` in this crate for primary-source notes on each provider's limits and ToS.
 
 pub mod backend;
 pub mod backends;

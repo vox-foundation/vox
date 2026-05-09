@@ -7,11 +7,11 @@ description = "vox share — public-URL tunneling for Vox apps. Cloudflare Quick
 
 [dependencies]
 anyhow = { workspace = true }
-axum = { workspace = true }
-hyper = "1"
-hyper-util = { version = "0.1", features = ["client", "client-legacy"] }
+axum = { workspace = true, features = ["http1", "tokio", "json"] }
+hyper = { workspace = true }
+hyper-util = { workspace = true }
 tokio = { workspace = true }
-tower = "0.5"
+tower = { version = "0.5", features = ["util"] }
 tower-http = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }
@@ -19,7 +19,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 rand = { workspace = true }
-hex = "0.4"
+hex = "0.4.3"
 
 [dev-dependencies]
 tempfile = { workspace = true }

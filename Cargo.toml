@@ -214,6 +214,8 @@ argon2             = "0.5"
 # [VOX AUDIT 2026-04-13] Centralized sprawling versions found in sub-crates
 axum               = { version = "0.8", default-features = false }
 axum-extra         = "0.12.5"
+hyper              = { version = "1", features = ["full"] }
+hyper-util         = { version = "0.1", features = ["client", "client-legacy", "tokio"] }
 tower-http         = "0.6.2"
 subtle             = "2.6"
 futures            = "0.3"
