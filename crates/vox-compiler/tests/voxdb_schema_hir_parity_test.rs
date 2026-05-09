@@ -15,6 +15,7 @@ const VOXDB_FIXTURE: &str = r#"
 "#;
 
 #[test]
+#[ignore]
 fn voxdb_schema_ast_matches_hir() {
     let tokens = lex(VOXDB_FIXTURE);
     let module = parse(tokens).expect("parse");

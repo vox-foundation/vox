@@ -33,5 +33,4 @@ skills-registry = []
 workspace = true
 
 [dev-dependencies]
-# dev dependencies
-
+vox-db = { workspace = true }

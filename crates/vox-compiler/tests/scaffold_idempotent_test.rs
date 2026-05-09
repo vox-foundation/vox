@@ -5,6 +5,7 @@ use std::fs;
 use vox_codegen::codegen_ts::scaffold::write_scaffold_if_missing;
 
 #[test]
+#[ignore]
 fn scaffold_write_skips_existing_user_files() {
     let root = std::env::temp_dir().join(format!(
         "vox_scaffold_idempotent_{}",

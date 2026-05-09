@@ -9,6 +9,7 @@ ars/snippet
 ars/snippet/export
 ars/snippet/save
 ars/snippet/search
+audit
 auth
 auth/connect
 auth/init
@@ -66,6 +67,7 @@ ci/data-storage-guard
 ci/db-schema-coverage
 ci/dep-sprawl
 ci/deploy-status
+ci/detect-rules-bench
 ci/determinism-audit
 ci/doc-inventory
 ci/doc-inventory/generate
@@ -233,6 +235,7 @@ dev
 diag
 diag/doctor
 doctor
+drift-check
 ext
 ext/ars
 ext/ars/share
@@ -289,6 +292,7 @@ model/rollup
 model/scoreboard
 model/show
 new
+new/fn
 new/skill
 new/web
 oratio
@@ -389,6 +393,8 @@ share
 shell
 shell/check
 shell/repl
+snapshot
+snapshot/orphans
 snippet
 snippet/export
 snippet/save

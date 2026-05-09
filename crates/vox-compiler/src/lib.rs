@@ -12,6 +12,7 @@ pub mod ast;
 pub mod ast_eval;
 pub mod builtin_registry;
 pub mod canonical_json;
+pub mod codegen_ts;
 pub mod contract_ir;
 pub mod lowering_shared;
 pub mod eval;

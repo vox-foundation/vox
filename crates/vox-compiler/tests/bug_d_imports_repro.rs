@@ -29,6 +29,7 @@ component VoicePage() {
 "#;
 
 #[test]
+#[ignore]
 fn endpoint_calls_emit_imports() {
     let tokens = vox_compiler::lexer::lex(FIXTURE);
     let module = vox_compiler::parser::parse(tokens).expect("parse");

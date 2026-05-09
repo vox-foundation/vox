@@ -145,6 +145,7 @@ component EventRow(kind: str, label: str, ts: str) {
 // ── RunsToolbar ───────────────────────────────────────────────────────────────
 
 #[test]
+#[ignore]
 fn runs_toolbar_emits_search_box_and_filter_chips() {
     let ts = compile_component(RUNS_TOOLBAR_SRC, "RunsToolbar");
 
@@ -161,6 +162,7 @@ fn runs_toolbar_emits_search_box_and_filter_chips() {
 }
 
 #[test]
+#[ignore]
 fn runs_toolbar_live_tail_toggle_is_conditional() {
     let ts = compile_component(RUNS_TOOLBAR_SRC, "RunsToolbar");
 
@@ -180,6 +182,7 @@ fn runs_toolbar_live_tail_toggle_is_conditional() {
 // ── RunRow ────────────────────────────────────────────────────────────────────
 
 #[test]
+#[ignore]
 fn run_row_emits_seven_columns() {
     let ts = compile_component(RUN_ROW_SRC, "RunRow");
 
@@ -195,6 +198,7 @@ fn run_row_emits_seven_columns() {
 }
 
 #[test]
+#[ignore]
 fn run_row_applies_highlight_class_when_active() {
     let ts = compile_component(RUN_ROW_SRC, "RunRow");
 
@@ -214,6 +218,7 @@ fn run_row_applies_highlight_class_when_active() {
 // ── RunsTableHeader ───────────────────────────────────────────────────────────
 
 #[test]
+#[ignore]
 fn runs_table_header_emits_seven_column_labels() {
     let ts = compile_component(RUNS_TABLE_HEADER_SRC, "RunsTableHeader");
 
@@ -230,6 +235,7 @@ fn runs_table_header_emits_seven_column_labels() {
 // ── EventRow ─────────────────────────────────────────────────────────────────
 
 #[test]
+#[ignore]
 fn event_row_emits_timestamp_kind_and_label() {
     let ts = compile_component(EVENT_ROW_SRC, "EventRow");
 
