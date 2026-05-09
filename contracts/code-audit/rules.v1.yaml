@@ -1,0 +1,83 @@
+# yaml-language-server: $schema=./rules.v1.schema.json
+# SSOT for code-audit detector rules. Loaded by vox-rule-pack at startup.
+# See docs/src/architecture/2026-05-09-detector-rule-ssot-design.md.
+#
+# IMPORTANT: patterns below are byte-for-byte translations of the regex literals
+# that previously lived inline in crates/vox-code-audit/src/detectors/.
+# Do not "improve" a pattern without updating the parity test fixture set.
+
+version: 1
+rules:
+
+  # ── victory-claim family ──────────────────────────────────────────────────────
+
+  - id: victory-claim/premature
+    parent_id: victory-claim
+    name: "Victory Claim / Leftover Marker Detector"
+    description: "Detects past-tense completion claims in comment lines or panic-class macro literals."
+    severity: warning
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "(?i)(?://|#|/\\*|todo!|panic!|unimplemented!).*?(?:\\bdone\\b|all\\s*set|fully\\s*implemented|implementation\\s+\\bcomplete\\b)"
+      skip_in: [rust-doc-comment]
+    message: "Premature victory claim — verify the implementation is truly complete"
+    suggestion: "Remove the comment if the implementation is complete, or replace with a descriptive comment."
+    fixtures:
+      positive:
+        - "fixtures/victory-claim/premature_pos_done.txt"
+        - "fixtures/victory-claim/premature_pos_all_set.txt"
+      negative:
+        - "fixtures/victory-claim/premature_neg_doc_comment.txt"
+
+  - id: victory-claim/todo-leftover
+    parent_id: victory-claim
+    name: "Victory Claim / Leftover Marker Detector"
+    description: "Detects TODO comment markers paired with action verbs."
+    severity: warning
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "(?i)(?://|#|todo!).*?(?:TODO(?:\\(ai\\))?)\\s*:?\\s*(?:implement|add|finish|complete|wire|fix|later)"
+      skip_in: [rust-doc-comment]
+    message: "TODO marker left behind — work is not finished"
+    suggestion: "Complete the TODO or create a tracked task for it."
+    fixtures:
+      positive:
+        - "fixtures/victory-claim/todo_pos_python.txt"
+      negative:
+        - "fixtures/victory-claim/todo_neg_unrelated.txt"
+
+  - id: victory-claim/fixme
+    parent_id: victory-claim
+    name: "Victory Claim / Leftover Marker Detector"
+    description: "Detects FIXME comment markers."
+    severity: warning
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "(?i)(?://|#).*?FIXME(?:\\(ai\\))?\\b"
+      skip_in: [rust-doc-comment]
+    message: "FIXME marker — known issue left unresolved"
+    suggestion: "Fix the issue or track it as a task."
+    fixtures:
+      positive:
+        - "fixtures/victory-claim/fixme_pos.txt"
+      negative: []
+
+  - id: victory-claim/hack
+    parent_id: victory-claim
+    name: "Victory Claim / Leftover Marker Detector"
+    description: "Detects HACK comment markers (informational)."
+    severity: info
+    languages: [rust, typescript, python, gdscript, vox]
+    match:
+      kind: line-regex
+      pattern: "(?i)(?://|#).*?HACK\\b"
+      skip_in: [rust-doc-comment]
+    message: "HACK marker — temporary workaround left in code"
+    suggestion: "Replace with a proper solution or document why the hack is necessary."
+    fixtures:
+      positive:
+        - "fixtures/victory-claim/hack_pos.txt"
+      negative: []
