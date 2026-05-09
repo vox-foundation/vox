@@ -7,6 +7,7 @@ pub mod emitter;
 pub mod events;
 pub mod observation;
 pub mod preregistration;
+pub mod publication_format;
 pub mod schema_types;
 
 pub use emitter::{NoopEmitter, ResearchEventEmitter};
@@ -18,6 +19,10 @@ pub use observation::{
 pub use preregistration::{
     DecisionRule, MetricSpec, PreregistrationV1, StatisticalTest, StopRule, SubstrateRef,
     TestSpec,
+};
+pub use publication_format::{
+    adapt_claim_to_platform, validate_short_form,
+    FigurePolicy, PublicationPlatform, ShortFormVariant,
 };
 pub use schema_types::{
     DiscoverySignal, DiscoverySignalFamily, DiscoverySignalStrength,
