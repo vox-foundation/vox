@@ -1,5 +1,6 @@
 //! Syndication / scientia publishing surfaces (Reddit, YouTube, scholarly external jobs).
 
+pub mod atlas;
 pub mod publisher;
 pub use publisher::*;
 
