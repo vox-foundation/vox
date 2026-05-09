@@ -10606,6 +10606,7 @@ dependencies = [
  "cargo_metadata",
  "serde",
  "toml 0.8.23",
+ "vox-build-meta",
 ]
 
 [[package]]
@@ -10618,6 +10619,10 @@ dependencies = [
  "vox-scaling-policy",
  "workspace-hack",
 ]
+
+[[package]]
+name = "vox-build-meta"
+version = "0.5.0"
 
 [[package]]
 name = "vox-capability-registry"
@@ -10689,6 +10694,7 @@ dependencies = [
  "uuid",
  "vox-actor-runtime",
  "vox-bounded-fs",
+ "vox-build-meta",
  "vox-capability-registry",
  "vox-checksum-manifest",
  "vox-cli-core",

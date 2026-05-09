@@ -1,7 +1,7 @@
 // ---
 // title: "HTTP handler Result / Error mapping"
 // description: "Minimal golden: HTTP GET returning Result[str] with Ok and Error paths."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [http, Result, Error, Ok]

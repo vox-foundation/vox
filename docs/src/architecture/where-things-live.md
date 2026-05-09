@@ -46,6 +46,7 @@ guess. The full crate roster with layer assignments lives in
 | Dashboard server | [`vox-dashboard`](../../../crates/vox-dashboard/) |
 | Static site generator | [`vox-ssg`](../../../crates/vox-ssg/) |
 | Documentation pipeline | [`vox-doc-pipeline`](../../../crates/vox-doc-pipeline/) |
+| Build-time version metadata injection | [`vox-build-meta`](../../../crates/vox-build-meta/) — use as `[build-dependencies]` only |
 
 ## Common tasks → exact path
 

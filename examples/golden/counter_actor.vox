@@ -1,7 +1,7 @@
 // ---
 // title: "Counter Actor Example"
 // description: "Concurrent actor with mailbox. Handler increments a passed-in counter step (persistent `state` inside actor blocks is not parsed yet)."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [fn, return]

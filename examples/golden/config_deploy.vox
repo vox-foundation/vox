@@ -1,7 +1,7 @@
 // ---
 // title: "Config Deploy Example"
 // description: "Deployment-oriented config as ADT plus plain functions (config/environment blocks are not core-parser forms)."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [type, fn]

@@ -14,5 +14,8 @@ anyhow.workspace = true
 name = "vox-arch-check"
 path = "src/main.rs"
 
+[build-dependencies]
+vox-build-meta = { workspace = true }
+
 [lints]
 workspace = true

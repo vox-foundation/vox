@@ -1,6 +1,6 @@
 //! Architecture check: enforces workspace-wide structural rules.
 //!
-//! Reads `docs/src/architecture/layers.toml` and runs five rules over the
+//! Reads `docs/src/architecture/layers.toml` and runs six rules over the
 //! current `cargo metadata` snapshot:
 //!
 //!   1. **Layer ordering** (strict by default) — a crate at layer N may depend
@@ -13,13 +13,16 @@
 //!      AND `kind != "plugin" | "binary" | "test-only"`.
 //!   5. **Docstring lint** (warn) — flags `lib.rs` files that don't open
 //!      with `//!`.
+//!   6. **Staleness** (warn) — flags crates with no commits since the last
+//!      release date in `CHANGELOG.md`. Mark stable utility crates with
+//!      `staleness_exempt = true` in `layers.toml` to silence the warning.
 //!
 //! Layer ordering is the only rule that fails the build by default; the other
-//! four are warn-only. Per-rule strictness can be set via `[guards]` in
+//! five are warn-only. Per-rule strictness can be set via `[guards]` in
 //! `layers.toml`.
 //!
 //! Modes:
-//!   default        — strict layer-ordering; warn-only on the other four
+//!   default        — strict layer-ordering; warn-only on the other five
 //!   --warn-only    — warn on layer-ordering too (used during transition phases)
 //!
 //! Exit codes:
@@ -28,7 +31,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
+use std::process::{Command, ExitCode};
 
 use anyhow::{Context, Result, anyhow};
 use cargo_metadata::MetadataCommand;
@@ -52,6 +55,9 @@ struct CrateEntry {
     max_dependents: Option<usize>,
     #[serde(default)]
     max_loc: Option<usize>,
+    /// Opt out of Rule 6 staleness check for intentionally stable crates.
+    #[serde(default)]
+    staleness_exempt: bool,
 }
 
 fn default_kind() -> String {
@@ -77,6 +83,8 @@ struct GuardsConfig {
     orphan: Option<String>,
     #[serde(default)]
     docstring: Option<String>,
+    #[serde(default)]
+    staleness: Option<String>,
 }
 
 fn main() -> ExitCode {
@@ -105,12 +113,17 @@ struct Report {
     loc_warns: Vec<(String, usize, usize)>,
     orphan_warns: Vec<String>,
     docstring_warns: Vec<String>,
+    /// Rule 6: (crate_name, last_commit_date YYYY-MM-DD).
+    staleness_warns: Vec<(String, String)>,
+    /// "vX.Y.Z (YYYY-MM-DD)" used in the staleness summary line.
+    staleness_since: String,
     /// Whether each rule's failure should be treated as strict (vs. warn-only).
     strict_layer: bool,
     strict_fan_in: bool,
     strict_loc: bool,
     strict_orphan: bool,
     strict_docstring: bool,
+    strict_staleness: bool,
 }
 
 impl Report {
@@ -120,6 +133,7 @@ impl Report {
             || (self.strict_loc && !self.loc_warns.is_empty())
             || (self.strict_orphan && !self.orphan_warns.is_empty())
             || (self.strict_docstring && !self.docstring_warns.is_empty())
+            || (self.strict_staleness && !self.staleness_warns.is_empty())
     }
 
     fn print_summary(&self) {
@@ -177,8 +191,30 @@ impl Report {
                 eprintln!("  {name}");
             }
         }
+        if !self.staleness_warns.is_empty() {
+            any = true;
+            let label = if self.strict_staleness { "ERROR" } else { "warn" };
+            eprintln!(
+                "[{label}] crates unchanged since {} ({}) — add `staleness_exempt = true` in layers.toml to silence:",
+                self.staleness_since,
+                self.staleness_warns.len()
+            );
+            for (name, date) in &self.staleness_warns {
+                eprintln!("  {name}: last changed {date}");
+            }
+        }
         if !any {
-            println!("vox-arch-check: clean ✓");
+            println!(
+                "vox-arch-check {}: clean ✓",
+                concat!(
+                    env!("CARGO_PKG_VERSION"),
+                    "+build.",
+                    env!("VOX_BUILD_NUMBER"),
+                    " (",
+                    env!("VOX_GIT_HASH"),
+                    ")"
+                )
+            );
         }
     }
 }
@@ -223,6 +259,7 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     report.strict_loc = parse_strictness(layers.guards.loc_budget.as_ref(), false);
     report.strict_orphan = parse_strictness(layers.guards.orphan.as_ref(), false);
     report.strict_docstring = parse_strictness(layers.guards.docstring.as_ref(), false);
+    report.strict_staleness = parse_strictness(layers.guards.staleness.as_ref(), false);
 
     // ── Rule 1: Layer ordering + Rule 2: Fan-in (single pass) ──
     let mut dependent_count: HashMap<String, usize> = HashMap::new();
@@ -342,7 +379,74 @@ fn run(warn_only_flag: bool) -> Result<Report> {
     }
     report.docstring_warns.sort();
 
+    // ── Rule 6: Staleness ──
+    // Flags crates with no commits since the last release date in CHANGELOG.md.
+    // Plugins (independent versioning) and staleness_exempt crates are skipped.
+    let changelog_path = workspace_root.join("CHANGELOG.md");
+    if let Some((release_version, release_date)) = parse_release_date(&changelog_path) {
+        report.staleness_since = format!("v{release_version} ({release_date})");
+        for pkg in metadata_full.workspace_packages() {
+            let name = pkg.name.as_str();
+            let entry = match layers.crates.get(name) {
+                Some(e) => e,
+                None => continue,
+            };
+            if entry.staleness_exempt || entry.kind == "plugin" {
+                continue;
+            }
+            let manifest_dir = Path::new(pkg.manifest_path.as_str())
+                .parent()
+                .unwrap_or(Path::new("."));
+            if let Some(last_commit) = git_last_commit_date(manifest_dir) {
+                // ISO date strings compare lexicographically: "2026-03-01" < "2026-04-18"
+                if last_commit < release_date {
+                    report.staleness_warns.push((name.to_string(), last_commit));
+                }
+            }
+        }
+        report.staleness_warns.sort();
+    }
+
     Ok(report)
+}
+
+/// Return the YYYY-MM-DD date of the last commit touching `dir`, or `None` if git is unavailable.
+fn git_last_commit_date(dir: &Path) -> Option<String> {
+    let out = Command::new("git")
+        .args(["log", "-n", "1", "--format=%cd", "--date=short"])
+        .arg("--")
+        .arg(dir)
+        .output()
+        .ok()?;
+    let s = String::from_utf8(out.stdout).ok()?;
+    let date = s.trim().to_string();
+    // Expect exactly "YYYY-MM-DD" (10 chars); ignore empty output (no commits touching dir).
+    if date.len() == 10 { Some(date) } else { None }
+}
+
+/// Parse the most recent released version and its date from `CHANGELOG.md`.
+///
+/// Looks for lines matching `## [X.Y.Z] - YYYY-MM-DD`, skipping `[Unreleased]`.
+/// Returns `(version, date)` of the first match, or `None` if the file is absent
+/// or has no released entries yet.
+fn parse_release_date(changelog: &Path) -> Option<(String, String)> {
+    let content = std::fs::read_to_string(changelog).ok()?;
+    for line in content.lines() {
+        let t = line.trim();
+        if !t.starts_with("## [") || t.contains("Unreleased") {
+            continue;
+        }
+        // "## [0.5.0] - 2026-04-18"
+        let inner = t.strip_prefix("## [")?;
+        let ver_end = inner.find(']')?;
+        let version = inner[..ver_end].to_string();
+        let rest = inner[ver_end..].strip_prefix("] - ")?;
+        let date = rest.trim();
+        if date.len() == 10 && date.as_bytes()[4] == b'-' {
+            return Some((version, date.to_string()));
+        }
+    }
+    None
 }
 
 /// Count non-blank, non-comment-only lines under `dir/**/*.rs` (best-effort).

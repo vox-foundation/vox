@@ -1,7 +1,7 @@
 // ---
 // title: "IoT Device Telemetry Event Sourcing"
 // description: "Actor-based IoT device tracking, bulk telemetry insertion, and analytical queries."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [fn, @table, @endpoint(kind: query), db, Result, Error, Ok, if, return]

@@ -1,7 +1,7 @@
 // ---
 // title: "Crud Api Example"
 // description: "Data layer: @table, @endpoint(kind: query), @endpoint(kind: mutation), db.* (canonical surface)."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [@table, @endpoint(kind: query), @endpoint(kind: mutation), db, fn]

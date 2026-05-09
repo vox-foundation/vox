@@ -62,7 +62,7 @@ This is a *coherent* posture. The plan collapses significantly.
 
 ### Items promoted (now P0 or P1 regardless of original tag)
 
-- **1, 2, 3, 4** — parser statement-position regression, `vox-doc-pipeline` stale artifact, examples v0.8 migration, golden corpus. Still first. Nothing matters without a parser.
+- **1, 2, 3, 4** — parser statement-position regression, `vox-doc-pipeline` stale artifact, examples v0.5.0 migration, golden corpus. Still first. Nothing matters without a parser.
 - **28** — `vox new web` scaffold → `vox deploy` → public URL in one command. **Now the single most important feature in the repo.** Promote from P0 to "this is the product."
 - **33** — TanStack Start integration hardening. Promoted to P0.
 - **16** — reduce raw JSX leakage from `.vox` source into compiler-owned surface. Promoted to P1 (was P2). Even though we're React-embedded forever, LLM-authoring suffers when components are 50% JSX strings.

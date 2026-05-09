@@ -1,7 +1,7 @@
 // ---
 // title: "Match-arm statement bodies"
 // description: "Match arms accept return/break and brace blocks alongside bare expressions (added 2026-05)."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [match, return, block]

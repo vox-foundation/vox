@@ -12,7 +12,7 @@ Every `.vox` file **must** begin with a structured comment-frontmatter block. Th
 // ---
 // title: "Descriptive Example Title"
 // description: "120-158 character description of what this example demonstrates."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden | deprecated | archived | experimental
 // category: example
 // constructs: [actor, workflow, server, table, fn, test]
@@ -31,7 +31,7 @@ Every `.vox` file **must** begin with a structured comment-frontmatter block. Th
 |-------|----------|-------------|
 | `title` | Yes | Human-readable title with keywords. |
 | `description` | Yes | 120-158 chars describing what is demonstrated. |
-| `syntax_version` | Yes | The Vox version this file targets (e.g., `"0.8"`). |
+| `syntax_version` | Yes | The Vox version this file targets (e.g., `"0.5.0"`). |
 | `status` | Yes | See lifecycle table below. |
 | `category` | Yes | Always `example` for `.vox` files. |
 | `constructs` | Yes | Vox constructs demonstrated. Used for training and search. |

@@ -1,7 +1,7 @@
 // ---
 // title: "Mcp Tools Example"
 // description: "@mcp.tool and @mcp.resource declarations for agent discovery."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [@mcp.tool, @mcp.resource, fn]

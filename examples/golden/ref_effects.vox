@@ -1,7 +1,7 @@
 // ---
 // title: "Reference: @pure, @deprecated, @require"
 // description: "Minimal golden for effect decorators on functions (docs + lexer/parser SSOT)."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [fn, @pure, @require, @deprecated]

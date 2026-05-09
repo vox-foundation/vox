@@ -1,7 +1,7 @@
 // ---
 // title: "Option Type Patterns"
 // description: "Option[T] type: Some/None variants, unwrap-or, chained option handling."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [type, Option, match, fn, let]

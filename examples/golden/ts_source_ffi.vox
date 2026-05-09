@@ -1,7 +1,7 @@
 // ---
 // title: "TS-source FFI extern fn"
 // description: "extern fn name(args) to T = \"./module\" — declare a function implemented in a sibling .ts file (added 2026-05). Tests against the local zod-backed helper so the golden survives any single app's lifecycle."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [extern, fn, ffi]

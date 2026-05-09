@@ -1,7 +1,7 @@
 // ---
 // title: "Agent Pipeline Example"
 // description: "Structured task data as ADT plus actor message handler (core-parser form; actor block state is not in grammar yet)."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [type, fn, str, return]

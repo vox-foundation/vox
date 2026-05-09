@@ -1,7 +1,7 @@
 // ---
 // title: "Authentication and Authorization flows"
 // description: "Auth tokens, permission checks, route guards, and error responses."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [fn, @endpoint, Result, match, if, else, @table, db]

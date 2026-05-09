@@ -1,7 +1,7 @@
 // ---
 // title: "Checkout Workflow Example"
 // description: "Durable checkout workflow with idempotent charge_card activity and Result match."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [fn, Result, match]

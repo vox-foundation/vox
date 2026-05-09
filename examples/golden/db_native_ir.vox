@@ -1,7 +1,7 @@
 // ---
 // title: "DB Native IR Example"
 // description: "Predicate-object where(), plan capabilities (sync/using/live/scope), and projection chaining."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [@table, @endpoint(kind: query), db, where, select, order_by, limit]

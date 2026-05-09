@@ -1,7 +1,7 @@
 // ---
 // title: "Error Propagation Patterns"
 // description: "Result chaining, early return on Error, composing fallible operations."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [Result, Error, Ok, match, fn]

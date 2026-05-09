@@ -1,7 +1,7 @@
 // ---
 // title: "JSON parse + access (std.json)"
 // description: "Parse a JSON string and walk the resulting opaque Json value with typed accessors (added 2026-05)."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [std.json, json, get_str, get_int]

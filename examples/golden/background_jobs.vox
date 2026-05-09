@@ -1,7 +1,7 @@
 // ---
 // title: "Background Jobs and Webhooks"
 // description: "Long-running async workflows triggered by incoming webhooks."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [fn, @endpoint, Result, Ok, Error, match, return]

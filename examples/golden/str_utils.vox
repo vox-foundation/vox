@@ -1,7 +1,7 @@
 // ---
 // title: "String utility methods"
 // description: "Demonstrates slice, char_at, and index_of on str (added 2026-05)."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [fn, str, slice, char_at, index_of]

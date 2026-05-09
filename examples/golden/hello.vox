@@ -1,7 +1,7 @@
 // ---
 // title: "Hello Example"
 // description: "Minimal Vox function: typed parameter, string return, and the return keyword."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [fn, return, str]

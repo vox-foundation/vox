@@ -1,7 +1,7 @@
 // ---
 // title: "Struct types (records)"
 // description: "type Foo { ... } declares a product type. Construct via record literal at expected position; access fields with dot notation."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [type, struct, fn, record, field_access]

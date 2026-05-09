@@ -1,7 +1,7 @@
 // ---
 // title: "Control Flow: If/Else Expressions"
 // description: "if/else as expressions, nested conditionals, guard clauses in functions."
-// syntax_version: "0.8"
+// syntax_version: "0.5.0"
 // status: golden
 // category: example
 // constructs: [fn, if, else, let, match]

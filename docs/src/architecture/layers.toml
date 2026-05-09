@@ -11,21 +11,26 @@
 #   5 — Surfaces (binaries, integration)
 #
 # Per-crate fields:
-#   layer           — required; integer 0..=5
-#   kind            — "library" | "plugin" | "binary" | "test-only"; default "library"
-#   max_dependents  — optional; warn if more in-tree consumers than this
-#   max_loc         — optional; warn if src/**/*.rs total exceeds this
+#   layer             — required; integer 0..=5
+#   kind              — "library" | "plugin" | "binary" | "test-only"; default "library"
+#   max_dependents    — optional; warn if more in-tree consumers than this
+#   max_loc           — optional; warn if src/**/*.rs total exceeds this
+#   staleness_exempt  — optional bool; set true for intentionally stable crates that
+#                       should not be flagged by Rule 6 even when unchanged across releases
 #
 # Within-layer deps are allowed. Lower→higher is an inversion (failure unless
 # explicitly listed under [[known_inversions]]).
 
 [guards]
 # Strictness per rule. Layer ordering is implicitly strict (override with
-# the --warn-only CLI flag). The other four default to warn.
+# the --warn-only CLI flag). The other five default to warn.
 fan_in     = "warn"
 loc_budget = "warn"
 orphan     = "warn"
 docstring  = "warn"
+# Rule 6: warns when a crate has no commits since the last CHANGELOG.md release date.
+# Silence for individual crates with staleness_exempt = true.
+staleness  = "warn"
 
 [crates]
 
@@ -35,8 +40,9 @@ vox-db-types           = { layer = 0 }
 vox-protocol           = { layer = 0 }
 vox-mesh-types         = { layer = 0 }
 vox-primitives         = { layer = 0 }
-workspace-hack         = { layer = 0, max_dependents = 80 }
+workspace-hack         = { layer = 0, max_dependents = 80, staleness_exempt = true }
 vox-arch-check         = { layer = 0, kind = "binary" }
+vox-build-meta         = { layer = 0, staleness_exempt = true }   # build-only helper; intentionally stable
 
 # ── L1 — primitives & utilities ───────────────────────────────────────────────
 vox-bounded-fs        = { layer = 1, max_dependents = 25 }

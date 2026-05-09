@@ -79,7 +79,7 @@ git commit -m "docs(agents): repair archived-doc back-references"
 - [ ] **Step 1:** `grep -n "terminal-exec-policy-research-findings-2026" CHANGELOG.md`
 - [ ] **Step 2:** Replace with `docs/src/archive/research-2026-q1/terminal-exec-policy-research-findings-2026.md` (or with `docs/src/architecture/terminal-exec-policy-ssot.md` if pointing at the active SSOT is preferred for a release-notes context — confirm with maintainer).
 - [ ] **Step 3:** Verify path resolves.
-- [ ] **Step 4: Commit.** `git commit -m "docs(changelog): repair archived-doc reference in v0.8.0 notes"`
+- [ ] **Step 4: Commit.** `git commit -m "docs(changelog): repair archived-doc reference in v0.5.0 notes"`
 
 ### Task 1.3: Update PR template reference
 

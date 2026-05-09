@@ -231,6 +231,9 @@ libc = "0.2"
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_System_Threading"] }
 
+[build-dependencies]
+vox-build-meta = { workspace = true }
+
 [dev-dependencies]
 safetensors = { workspace = true }
 serial_test = { workspace = true }
