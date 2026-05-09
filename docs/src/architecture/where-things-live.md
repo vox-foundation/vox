@@ -56,6 +56,8 @@ guess. The full crate roster with layer assignments lives in
 | Add an HTTP route (orchestrator) | `crates/vox-orchestrator-mcp/src/services/routes/` |
 | Add a CLI subcommand | `crates/vox-cli/src/commands/<group>.rs` + register in [`commands/mod.rs`](../../../crates/vox-cli/src/commands/mod.rs) |
 | Add a CI subcommand under `vox ci` | `crates/vox-cli/src/commands/ci/` |
+| Add a new CI/db guard | `crates/vox-cli/src/commands/ci/<name>.rs` + register in `cmd_enums.rs` and `run_body.rs`. Mirror `db_schema_coverage.rs`. |
+| Add a `Db<Entity>Id` newtype | `crates/vox-db-types/src/ids.rs` (use the `string_id!` macro). |
 | Add a DB store operation | `crates/vox-db/src/<concept>.rs` (impl block on `VoxDb`) |
 | Add a pure-data DB row type | `crates/vox-db-types/src/store_types/` (NOT `vox-db`) |
 | Add a pure-data DB type | `crates/vox-db-types/src/` |
