@@ -145,6 +145,7 @@ impl HirModule {
             ("url_decls", HirFieldOwnership::SemanticCore),
             ("fragments", HirFieldOwnership::SemanticCore),
             ("reactive_modules", HirFieldOwnership::SemanticCore),
+            ("forms", HirFieldOwnership::AppContract),
         ]
     }
 
