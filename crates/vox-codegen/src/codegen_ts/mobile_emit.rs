@@ -58,8 +58,9 @@ export function installBackButtonHandler() {{
         let reg_call = if on_reg.is_empty() {
             String::new()
         } else {
+            // Listen for the `registration` event to capture the device push token.
             format!(
-                "    const token = await PushNotifications.getDeliveredNotifications();\n    await endpoints.{on_reg}(token.notifications[0]?.id ?? '');\n"
+                "  PushNotifications.addListener('registration', async (token) => {{ await endpoints.{on_reg}(token.value); }});\n"
             )
         };
         let notif_listener = if on_notif.is_empty() {
@@ -79,11 +80,11 @@ export function installBackButtonHandler() {{
         parts.push(format!(
             "import {{ PushNotifications }} from '@capacitor/push-notifications';
 export async function installPushNotifications() {{
-  const result = await PushNotifications.requestPermissions();
+{reg_call}{notif_listener}{action_listener}  const result = await PushNotifications.requestPermissions();
   if (result.receive === 'granted') {{
     await PushNotifications.register();
   }}
-{reg_call}{notif_listener}{action_listener}}}"
+}}"
         ));
     }
 
