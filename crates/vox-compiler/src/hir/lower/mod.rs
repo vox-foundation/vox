@@ -347,6 +347,29 @@ impl LowerCtx {
                     lowered.schedule_interval = Some(s.interval.clone());
                     hir.functions.push(lowered);
                 }
+                Decl::BackButton(b) => {
+                    hir.back_button = Some(crate::hir::nodes::HirBackButton {
+                        on_press: b.on_press.clone(),
+                        fallback: b.fallback.clone(),
+                        span: b.span,
+                    });
+                }
+                Decl::DeepLink(d) => {
+                    hir.deep_link = Some(crate::hir::nodes::HirDeepLink {
+                        scheme: d.scheme.clone(),
+                        universal_link: d.universal_link.clone(),
+                        on_link: d.on_link.clone(),
+                        span: d.span,
+                    });
+                }
+                Decl::Push(p) => {
+                    hir.push = Some(crate::hir::nodes::HirPush {
+                        on_register: p.on_register.clone(),
+                        on_notification: p.on_notification.clone(),
+                        on_action: p.on_action.clone(),
+                        span: p.span,
+                    });
+                }
                 _ => {
                     hir.legacy_ast_nodes.push(decl.clone());
                 }

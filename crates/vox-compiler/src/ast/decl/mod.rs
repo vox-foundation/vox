@@ -25,6 +25,8 @@ pub mod ui;
 pub mod url;
 /// `@form` declaration — generates a React form component with validation.
 pub mod form;
+/// Mobile Capacitor primitive declarations (`@back_button`, `@deep_link`, `@push`).
+pub mod mobile;
 
 pub use config::*;
 pub use db::*;
@@ -36,6 +38,7 @@ pub use typedef::*;
 pub use ui::*;
 pub use url::*;
 pub use form::{FieldConstraint, FormDecl, FormField};
+pub use mobile::{BackButtonDecl, DeepLinkDecl, PushDecl};
 
 mod callable;
 mod reactive;
