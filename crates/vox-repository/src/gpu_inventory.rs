@@ -25,7 +25,6 @@ pub struct GpuInventorySnapshot {
 /// `VoxPlugin::as_hardware_probe()` to get live GPU inventory.
 #[must_use]
 pub fn probe_nvidia_gpu_inventory_best_effort() -> Option<GpuInventorySnapshot> {
-    let _ = std::hint::black_box(());
     None
 }
 

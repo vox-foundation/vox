@@ -98,14 +98,13 @@ impl TelemetryConfig {
 /// their per-category checks. When this returns false, NO telemetry should
 /// be emitted regardless of legacy env vars.
 pub fn is_master_enabled() -> bool {
-    match std::env::var("VOX_TELEMETRY")
-        .ok()
-        .map(|v| v.to_ascii_lowercase())
-        .as_deref()
-    {
-        Some("off") | Some("0") | Some("false") => false,
-        _ => true,
-    }
+    !matches!(
+        std::env::var("VOX_TELEMETRY")
+            .ok()
+            .map(|v| v.to_ascii_lowercase())
+            .as_deref(),
+        Some("off") | Some("0") | Some("false")
+    )
 }
 
 fn env_flag(key: &str) -> Option<bool> {
