@@ -82,7 +82,10 @@ pub struct WebhookOrchestratorBridge {
 
 impl WebhookOrchestratorBridge {
     /// Create a bridge that subscribes to `event_source` and dispatches to `sink`.
-    pub fn new(event_source: &broadcast::Sender<WebhookEvent>, sink: Arc<dyn WebhookEventSink>) -> Self {
+    pub fn new(
+        event_source: &broadcast::Sender<WebhookEvent>,
+        sink: Arc<dyn WebhookEventSink>,
+    ) -> Self {
         Self {
             rx: event_source.subscribe(),
             sink,

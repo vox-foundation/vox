@@ -8,8 +8,6 @@
 
 /// Bridge: routes broadcast webhook events into a WebhookEventSink.
 pub mod bridge;
-/// Abstract event sink trait — decouples the library from any concrete consumer.
-pub mod sink;
 /// Channel adapters (Discord, Slack, …).
 pub mod channel;
 /// Outbound webhook delivery and retries.
@@ -20,6 +18,8 @@ pub mod handler;
 pub mod router;
 /// HMAC / digest signing helpers.
 pub mod signing;
+/// Abstract event sink trait — decouples the library from any concrete consumer.
+pub mod sink;
 
 pub use bridge::{InboxItemKind, OrchestratorInboxItem, WebhookOrchestratorBridge};
 pub use sink::WebhookEventSink;
