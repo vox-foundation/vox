@@ -34,9 +34,9 @@ already in this list; no `turso::*`, no `tokio::*`, no `Arc<...>`, no
 `Deserialize`) and need only `serde` + maybe `chrono`/`thiserror` —
 which `vox-db-types` already has.
 
-- [ ] `ExecOutcome` — `crates/vox-db/src/exec_time_telemetry.rs:23` — copy enum (`Success`/`Timeout`/`Error`); only an `as_str` method. No deps.
-- [ ] `ExecTimeRecord<'a>` — `crates/vox-db/src/exec_time_telemetry.rs:8` — borrowed-string struct; primitive + `Option` fields + `ExecOutcome`. No turso refs.
-- [ ] `ToolLatencyProfile` — `crates/vox-db/src/exec_time_telemetry.rs:41` — `String` + `f64`/`i64` fields; pure summary record.
+- [x] `ExecOutcome` — `crates/vox-db/src/exec_time_telemetry.rs:23` — copy enum (`Success`/`Timeout`/`Error`); only an `as_str` method. No deps.
+- [x] `ExecTimeRecord<'a>` — `crates/vox-db/src/exec_time_telemetry.rs:8` — borrowed-string struct; primitive + `Option` fields + `ExecOutcome`. No turso refs.
+- [x] `ToolLatencyProfile` — `crates/vox-db/src/exec_time_telemetry.rs:41` — `String` + `f64`/`i64` fields; pure summary record.
 - [ ] `CircuitState` — `crates/vox-db/src/circuit_breaker.rs:41` — copy enum; pure marker. (`DbCircuitBreaker` itself stays.)
 - [ ] `CircuitBreakerError` — `crates/vox-db/src/circuit_breaker.rs:52` — `thiserror` enum, single variant. `vox-db-types` already depends on `thiserror`.
 - [ ] `WorkspaceTranscriptTurnRow` — `crates/vox-db/src/codex_chat.rs:16` — `String`/`Option<String>`/`u64` fields only. Sister of the `*Row` types already in `vox-db-types`.

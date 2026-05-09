@@ -10,6 +10,10 @@
 #![allow(clippy::collapsible_if)]
 #![allow(missing_docs)] // many types here have crate-level docs in vox-db
 
+/// Execution time telemetry types (`ExecOutcome`, `ExecTimeRecord`, `ToolLatencyProfile`).
+pub mod exec_time;
+pub use exec_time::{ExecOutcome, ExecTimeRecord, ToolLatencyProfile};
+
 /// Parameters for [`crate::EvalRunParams`] (RLHF / dogfood eval-run recording).
 pub mod eval_params;
 pub use eval_params::EvalRunParams;
