@@ -302,7 +302,10 @@ end-to-end with stub claim extractor.
 report on the extractor's evaluation, written using its own pipeline,
 deposited as RO-Crate to a private Zenodo sandbox.
 
-### Phase 2 — Pre-registration + symbolic verifiers (2 wk)
+### Phase 2 — Pre-registration + symbolic verifiers (2 wk) — **Complete**
+
+> Status: **Complete** 2026-05-09. `vox-prereg` shipped; Trusty URI signing, deviation detector, symbolic verifiers, Bayesian stopping rule, and campaign gate all implemented and tested.
+
 - `vox-prereg` crate. Signed `PreregistrationV1`. Orchestrator refuses
   campaigns without signed prereg.
 - Bayesian sequential testing default.

@@ -122,6 +122,7 @@ vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
 vox-primitives            = { path = "crates/vox-primitives" }
 vox-protocol              = { path = "crates/vox-protocol" }
 vox-reqwest-defaults      = { path = "crates/vox-reqwest-defaults" }
+vox-prereg                = { path = "crates/vox-prereg" }
 vox-research-events       = { path = "crates/vox-research-events" }
 vox-claim-extractor       = { path = "crates/vox-claim-extractor" }
 vox-repository            = { path = "crates/vox-repository" }
