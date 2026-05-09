@@ -291,7 +291,7 @@ fn scan_hir_expr_for_react_imports(
                 );
             }
         }
-        HirExpr::Lambda(_, _, body, _) => {
+        HirExpr::Lambda(_, _, body, _, _) => {
             scan_hir_expr_for_react_imports(
                 body,
                 need_state,
@@ -725,7 +725,7 @@ fn collect_callee_refs(expr: &HirExpr, known: &HashSet<String>, out: &mut HashSe
                 collect_callee_refs(&arm.body, known, out);
             }
         }
-        HirExpr::Lambda(_, _, body, _) => collect_callee_refs(body, known, out),
+        HirExpr::Lambda(_, _, body, _, _) => collect_callee_refs(body, known, out),
         HirExpr::Index(o, i, _) => {
             collect_callee_refs(o, known, out);
             collect_callee_refs(i, known, out);

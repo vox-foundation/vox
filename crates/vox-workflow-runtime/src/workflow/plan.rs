@@ -459,7 +459,7 @@ fn collect_from_expr(
             out,
             branch_counter,
         )?,
-        HirExpr::Lambda(_, _, body, _) => collect_from_expr(
+        HirExpr::Lambda(_, _, body, _, _) => collect_from_expr(
             workflow_name,
             body,
             ctx,

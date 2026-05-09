@@ -180,7 +180,7 @@ fn collect_unknown_calls(expr: &HirExpr, known: &HashSet<String>, out: &mut Vec<
                 collect_unknown_calls(val, known, out);
             }
         }
-        HirExpr::Lambda(_params, _ret, body, _span) => {
+        HirExpr::Lambda(_params, _ret, body, _cancellable, _span) => {
             collect_unknown_calls(body, known, out);
         }
         HirExpr::Match(scrutinee, arms, _span) => {

@@ -155,6 +155,7 @@ impl Parser {
                         params,
                         return_type: None,
                         body: Box::new(body),
+                        cancellable: false,
                         span: start.merge(self.span()),
                     }
                 } else {
@@ -187,6 +188,10 @@ impl Parser {
             Token::If => self.parse_if()?,
             Token::For => self.parse_for()?,
             Token::Fn => self.parse_lambda()?,
+            Token::AtCancellable => {
+                self.advance(); // eat '@cancellable'
+                self.parse_lambda_with_cancellable(true)?
+            }
             Token::Spawn => {
                 self.advance();
                 self.expect(&Token::LParen)?;
@@ -214,6 +219,7 @@ impl Parser {
                         }],
                         return_type: None,
                         body: Box::new(body),
+                        cancellable: false,
                         span: start.merge(self.span()),
                     }
                 } else {
@@ -615,6 +621,10 @@ impl Parser {
     }
 
     pub(crate) fn parse_lambda(&mut self) -> Result<Expr, ()> {
+        self.parse_lambda_with_cancellable(false)
+    }
+
+    pub(crate) fn parse_lambda_with_cancellable(&mut self, cancellable: bool) -> Result<Expr, ()> {
         let start = self.span();
         self.advance(); // eat 'fn'
         self.expect(&Token::LParen)?;
@@ -630,6 +640,7 @@ impl Parser {
             params,
             return_type,
             body: Box::new(body),
+            cancellable,
             span: start.merge(self.span()),
         })
     }

@@ -511,7 +511,7 @@ impl<'a> Checker<'a> {
                 Ty::Unit
             }
 
-            HirExpr::Lambda(params, ret_ann, body, _span) => {
+            HirExpr::Lambda(params, ret_ann, body, _cancellable, _span) => {
                 self.env.push_scope();
 
                 // If expected is a specific function type, distribute param types to arguments.

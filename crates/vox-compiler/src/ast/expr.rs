@@ -288,7 +288,7 @@ pub enum Expr {
         /// Span covering `for` … body.
         span: Span,
     },
-    /// Lambda: `fn(params) to body`
+    /// Lambda: `fn(params) to body` or `@cancellable fn(params) to body`
     Lambda {
         /// Parameter list.
         params: Vec<Param>,
@@ -296,6 +296,8 @@ pub enum Expr {
         return_type: Option<TypeExpr>,
         /// Lambda body expression.
         body: Box<Expr>,
+        /// True when the lambda was annotated `@cancellable fn(…)`.
+        cancellable: bool,
         /// Span covering `fn` … body.
         span: Span,
     },

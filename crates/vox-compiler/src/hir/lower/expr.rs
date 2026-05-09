@@ -232,6 +232,7 @@ impl LowerCtx {
                 params,
                 return_type,
                 body,
+                cancellable,
                 span,
             } => {
                 self.def_map.push_scope();
@@ -242,6 +243,7 @@ impl LowerCtx {
                     hir_params,
                     return_type.as_ref().map(|t| self.lower_type(t)),
                     Box::new(hir_body),
+                    *cancellable,
                     *span,
                 )
             }
