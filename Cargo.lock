@@ -10803,6 +10803,7 @@ dependencies = [
  "bzip2 0.6.1",
  "chrono",
  "flate2",
+ "insta",
  "miette",
  "serde",
  "serde_json",
