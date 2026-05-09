@@ -9,10 +9,10 @@ use crate::llm_bridge::{McpChatModelResolution, McpInferRouting, mcp_infer_compl
 use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
-const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
+const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox secrets doctor` for inference secrets.";
 const REM_MCP_MODEL_LOCK: &str =
     "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
-const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
 
 pub(crate) fn ghost_grounding_score(params: &GhostTextParams) -> f64 {
     let mut n = 0u32;

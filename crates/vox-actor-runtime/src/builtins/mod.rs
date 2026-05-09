@@ -73,7 +73,8 @@ pub fn vox_flush_exit_commands() {
     execute_exit_commands();
 }
 
-/// Fast, non-cryptographic hash using XXH3-128 (128-bit output).
+/// Fast non-cryptographic hash (XXH3-128, 128-bit output) for object identity,
+/// dedup keys, and ephemeral cache keying.
 ///
 /// Use for: HashMap keys, cache keys, dedup within a process, activity IDs
 /// in hot workflow paths where you control the input (no adversarial keys).
@@ -82,7 +83,8 @@ pub fn vox_flush_exit_commands() {
 /// Deterministic for the same input within a process; also cross-machine
 /// deterministic (XXH3-128 is unkeyed / uses a fixed internal secret).
 ///
-/// ⚠ NOT cryptographic — do not use for stored provenance hashes.
+/// For provenance, signatures, or any security-sensitive hashing, use
+/// `vox_hash_secure` (BLAKE3-based) instead.
 pub fn vox_hash_fast(input: &str) -> String {
     use xxhash_rust::xxh3::xxh3_128;
     let h = xxh3_128(input.as_bytes());
@@ -603,10 +605,10 @@ pub fn vox_openclaw_notify(domain: &str, message: &str) -> Result<String, String
 }
 
 async fn connect_openclaw_adapter() -> Result<DefaultOpenClawRuntimeAdapter, String> {
-    let clavis_token = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
+    let secrets_token = vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
         .expose()
         .map(std::string::ToString::to_string);
-    connect_default_runtime_adapter(clavis_token)
+    connect_default_runtime_adapter(secrets_token)
         .await
         .map_err(|e| format!("openclaw adapter connect failed: {e}"))
 }

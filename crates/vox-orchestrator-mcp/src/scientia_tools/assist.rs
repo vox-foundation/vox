@@ -15,8 +15,8 @@ use super::common::{
 };
 
 const REM_MCP_MODEL_LOCK: &str = "Retry after releasing the MCP chat model override lock.";
-const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
-const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox secrets doctor` for inference secrets.";
+const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct VoxScientiaAssistSuggestionsParams {

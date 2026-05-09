@@ -306,18 +306,18 @@ pub enum CiCmd {
     /// Report (never fail) stringly-typed *_id fields in vox-db-types rows that have a Db<Entity>Id newtype.
     #[command(name = "string-id-lint")]
     StringIdLint,
-    /// Verify Clavis SSOT parity between managed secret spec and docs/guards.
-    #[command(name = "clavis-parity")]
-    ClavisParity,
-    /// Generate Clavis SSOT manifest.
-    #[command(name = "clavis-contracts")]
-    ClavisContracts,
-    /// Machine-checkable Clavis cutover promotion/rollback gates for shadow/canary/enforce/decommission.
-    #[command(name = "clavis-cutover-gates")]
-    ClavisCutoverGates,
-    /// Emit post-cutover policy-violation audit report for Clavis migration.
-    #[command(name = "clavis-cutover-audit")]
-    ClavisCutoverAudit {
+    /// Verify Secrets SSOT parity between managed secret spec and docs/guards.
+    #[command(name = "secrets-parity", visible_alias = "clavis-parity")]
+    SecretsParity,
+    /// Generate Secrets SSOT manifest.
+    #[command(name = "secrets-contracts", visible_alias = "clavis-contracts")]
+    SecretsContracts,
+    /// Machine-checkable Secrets cutover promotion/rollback gates for shadow/canary/enforce/decommission.
+    #[command(name = "secrets-cutover-gates", visible_alias = "clavis-cutover-gates")]
+    SecretsCutoverGates,
+    /// Emit post-cutover policy-violation audit report for Secrets migration.
+    #[command(name = "secrets-cutover-audit", visible_alias = "clavis-cutover-audit")]
+    SecretsCutoverAudit {
         /// Scan all crate Rust files instead of only changed files.
         #[arg(long)]
         all: bool,

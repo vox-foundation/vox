@@ -1,13 +1,13 @@
-//! Cloudless Clavis vault (encrypted secret rows in SQLite / libSQL).
+//! Cloudless secrets vault (encrypted secret rows in SQLite / libSQL).
 //!
 //! **Connection env (precedence):**
-//! 1. `VOX_CLAVIS_VAULT_PATH` — local store path; opened as a `file:` URL.
-//! 2. `VOX_CLAVIS_VAULT_URL` — explicit URL (`file:…` or `libsql://…`).
-//! 3. When compatibility aliases are allowed (not `VOX_CLAVIS_HARD_CUT` and not cutover
+//! 1. `VOX_SECRETS_VAULT_PATH` — local store path; opened as a `file:` URL.
+//! 2. `VOX_SECRETS_VAULT_URL` — explicit URL (`file:…` or `libsql://…`).
+//! 3. When compatibility aliases are allowed (not `VOX_SECRETS_HARD_CUT` and not cutover
 //!    `enforce` / `decommission`): `VOX_TURSO_URL` then `TURSO_URL`.
 //! 4. Default: `file:.vox/clavis_vault.db`.
 //!
-//! **Remote token:** `VOX_CLAVIS_VAULT_TOKEN`, then compat `VOX_TURSO_TOKEN` / `TURSO_AUTH_TOKEN`
+//! **Remote token:** `VOX_SECRETS_VAULT_TOKEN`, then compat `VOX_TURSO_TOKEN` / `TURSO_AUTH_TOKEN`
 //! when allowed. Codex uses `VOX_DB_URL` / `VOX_DB_TOKEN`; do not conflate with this vault plane.
 
 use std::sync::Mutex;
@@ -80,17 +80,17 @@ pub struct VoxCloudBackend {
 impl VoxCloudBackend {
     #[allow(clippy::new_ret_no_self)]
     pub fn new() -> Result<Self, SecretError> {
-        let conn = run_clavis_future(open_cloudless_connection())?;
-        run_clavis_future(ensure_schema(&conn))?;
+        let conn = run_secrets_future(open_cloudless_connection())?;
+        run_secrets_future(ensure_schema(&conn))?;
         let account_id = std::env::var(crate::OPERATOR_ACCOUNT_ID)
             .ok()
             .filter(|v| !v.trim().is_empty())
             .unwrap_or_else(|| "default-account".to_string());
-        let kek_ref = std::env::var(crate::OPERATOR_CLAVIS_KEK_REF)
+        let kek_ref = std::env::var(crate::OPERATOR_SECRETS_KEK_REF)
             .ok()
             .filter(|v| !v.trim().is_empty())
             .unwrap_or_else(|| "local-master".to_string());
-        let kek_version = std::env::var("VOX_CLAVIS_KEK_VERSION")
+        let kek_version = std::env::var("VOX_SECRETS_KEK_VERSION")
             .ok()
             .and_then(|v| v.parse::<i64>().ok())
             .filter(|v| *v > 0)
@@ -153,7 +153,7 @@ impl VoxCloudBackend {
         let hint_str = source_hint.map(|s| s.to_string());
 
         let conn = self.conn.lock().expect("vox vault mutex");
-        run_clavis_future(async {
+        run_secrets_future(async {
             let tx = conn
                 .unchecked_transaction()
                 .await
@@ -294,7 +294,7 @@ impl VoxCloudBackend {
             existing.consistency_version,
         );
         let conn = self.conn.lock().expect("vox vault mutex");
-        run_clavis_future(async {
+        run_secrets_future(async {
             conn.execute(
                 "UPDATE clavis_account_secrets
                  SET dek_wrapped = ?1,
@@ -327,7 +327,7 @@ impl VoxCloudBackend {
         account_id: &str,
     ) -> Result<Vec<CloudlessSecretRecord>, SecretError> {
         let conn = self.conn.lock().expect("vox vault mutex");
-        run_clavis_future(async {
+        run_secrets_future(async {
             let mut rows = conn
                 .query(
                     "SELECT account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped,
@@ -365,7 +365,7 @@ impl VoxCloudBackend {
                 )));
             }
             let conn = self.conn.lock().expect("vox vault mutex");
-            run_clavis_future(async {
+            run_secrets_future(async {
                 conn.execute(
                     "INSERT INTO clavis_account_secrets (
                         account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped, dek_wrap_alg,
@@ -418,7 +418,7 @@ impl VoxCloudBackend {
         secret_id: &str,
     ) -> Result<Option<CloudlessSecretRecord>, SecretError> {
         let conn = self.conn.lock().expect("vox vault mutex");
-        run_clavis_future(async {
+        run_secrets_future(async {
             let mut stmt = conn
                 .prepare(
                     "SELECT account_id, secret_id, ciphertext, nonce, cipher_version, dek_wrapped,
@@ -489,7 +489,7 @@ impl VoxCloudBackend {
         profile: &str,
     ) -> Result<Option<ProfileSecretRecord>, SecretError> {
         let conn = self.conn.lock().expect("vox vault mutex");
-        run_clavis_future(async {
+        run_secrets_future(async {
             let mut stmt = conn
                 .prepare(
                     "SELECT account_id, secret_id, profile, ciphertext, nonce, dek_wrapped,
@@ -553,7 +553,7 @@ impl VoxCloudBackend {
     ) -> Result<Option<AgentDelegationRecord>, SecretError> {
         let conn = self.conn.lock().expect("vox vault mutex");
         let now = now_ms();
-        run_clavis_future(async {
+        run_secrets_future(async {
             let mut stmt = conn
                 .prepare(
                     "SELECT delegation_id, account_id, secret_id, scope_bits, parent_context,
@@ -693,7 +693,7 @@ impl SecretBackend for VoxCloudBackend {
         let now = now_ms();
 
         let conn = self.conn.lock().expect("vox vault mutex");
-        run_clavis_future(async {
+        run_secrets_future(async {
             conn.execute(
                 "INSERT INTO clavis_audit_log (
                     account_id, secret_id, resolved_at_ms, resolution_status,
@@ -708,16 +708,16 @@ impl SecretBackend for VoxCloudBackend {
     }
 }
 
-fn clavis_vault_compat_aliases_allowed() -> bool {
-    let hard_cut_strict = std::env::var("VOX_CLAVIS_HARD_CUT")
+fn secrets_vault_compat_aliases_allowed() -> bool {
+    let hard_cut_strict = std::env::var("VOX_SECRETS_HARD_CUT")
         .ok()
         .map(|v| {
             let t = v.trim().to_ascii_lowercase();
             matches!(t.as_str(), "1" | "true" | "yes" | "on")
         })
         .unwrap_or(false);
-    let cutover_phase_blocks_compat = std::env::var("VOX_CLAVIS_CUTOVER_PHASE")
-        .or_else(|_| std::env::var("VOX_CLAVIS_MIGRATION_PHASE"))
+    let cutover_phase_blocks_compat = std::env::var("VOX_SECRETS_CUTOVER_PHASE")
+        .or_else(|_| std::env::var("VOX_SECRETS_MIGRATION_PHASE"))
         .ok()
         .map(|v| v.trim().to_ascii_lowercase())
         .is_some_and(|phase| matches!(phase.as_str(), "enforce" | "decommission"));
@@ -734,19 +734,19 @@ fn path_to_vault_file_url(path: &str) -> String {
 }
 
 fn resolve_cloudless_db_url() -> String {
-    if let Ok(p) = std::env::var("VOX_CLAVIS_VAULT_PATH") {
+    if let Ok(p) = std::env::var("VOX_SECRETS_VAULT_PATH") {
         let t = p.trim();
         if !t.is_empty() {
             return path_to_vault_file_url(t);
         }
     }
-    if let Ok(u) = std::env::var("VOX_CLAVIS_VAULT_URL") {
+    if let Ok(u) = std::env::var("VOX_SECRETS_VAULT_URL") {
         let t = u.trim();
         if !t.is_empty() {
             return t.to_string();
         }
     }
-    if clavis_vault_compat_aliases_allowed() {
+    if secrets_vault_compat_aliases_allowed() {
         if let Ok(u) = std::env::var(concat!("VOX_", "TURSO", "_URL")) {
             let t = u.trim();
             if !t.is_empty() {
@@ -764,12 +764,12 @@ fn resolve_cloudless_db_url() -> String {
 }
 
 fn resolve_cloudless_auth_token() -> String {
-    if let Ok(t) = std::env::var("VOX_CLAVIS_VAULT_TOKEN")
+    if let Ok(t) = std::env::var("VOX_SECRETS_VAULT_TOKEN")
         && !t.trim().is_empty()
     {
         return t;
     }
-    if clavis_vault_compat_aliases_allowed() {
+    if secrets_vault_compat_aliases_allowed() {
         if let Ok(t) = std::env::var(concat!("VOX_", "TURSO", "_TOKEN"))
             && !t.trim().is_empty()
         {
@@ -784,7 +784,7 @@ fn resolve_cloudless_auth_token() -> String {
     String::new()
 }
 
-/// One-line summary for `vox clavis doctor` (no secret material).
+/// One-line summary for `vox secrets doctor` (no secret material).
 #[must_use]
 pub fn cloudless_vault_env_diagnostic() -> String {
     let url = resolve_cloudless_db_url();
@@ -794,23 +794,23 @@ pub fn cloudless_vault_env_diagnostic() -> String {
     } else {
         "remote"
     };
-    let url_source = if std::env::var("VOX_CLAVIS_VAULT_PATH")
+    let url_source = if std::env::var("VOX_SECRETS_VAULT_PATH")
         .ok()
         .is_some_and(|v| !v.trim().is_empty())
     {
-        "VOX_CLAVIS_VAULT_PATH"
-    } else if std::env::var("VOX_CLAVIS_VAULT_URL")
+        "VOX_SECRETS_VAULT_PATH"
+    } else if std::env::var("VOX_SECRETS_VAULT_URL")
         .ok()
         .is_some_and(|v| !v.trim().is_empty())
     {
-        "VOX_CLAVIS_VAULT_URL"
-    } else if clavis_vault_compat_aliases_allowed()
+        "VOX_SECRETS_VAULT_URL"
+    } else if secrets_vault_compat_aliases_allowed()
         && std::env::var(concat!("VOX_", "TURSO", "_URL"))
             .ok()
             .is_some_and(|v| !v.trim().is_empty())
     {
         "VOX_TURSO_URL"
-    } else if clavis_vault_compat_aliases_allowed()
+    } else if secrets_vault_compat_aliases_allowed()
         && std::env::var(concat!("TURSO", "_URL"))
             .ok()
             .is_some_and(|v| !v.trim().is_empty())
@@ -819,18 +819,18 @@ pub fn cloudless_vault_env_diagnostic() -> String {
     } else {
         "default_file"
     };
-    let token_src = if std::env::var("VOX_CLAVIS_VAULT_TOKEN")
+    let token_src = if std::env::var("VOX_SECRETS_VAULT_TOKEN")
         .ok()
         .is_some_and(|v| !v.trim().is_empty())
     {
-        "VOX_CLAVIS_VAULT_TOKEN"
-    } else if clavis_vault_compat_aliases_allowed()
+        "VOX_SECRETS_VAULT_TOKEN"
+    } else if secrets_vault_compat_aliases_allowed()
         && std::env::var(concat!("VOX_", "TURSO", "_TOKEN"))
             .ok()
             .is_some_and(|v| !v.trim().is_empty())
     {
         "VOX_TURSO_TOKEN"
-    } else if clavis_vault_compat_aliases_allowed()
+    } else if secrets_vault_compat_aliases_allowed()
         && std::env::var(concat!("TURSO", "_AUTH_TOKEN"))
             .ok()
             .is_some_and(|v| !v.trim().is_empty())
@@ -849,7 +849,7 @@ pub fn cloudless_vault_env_diagnostic() -> String {
     };
     format!(
         "mode={mode}; url_source={url_source}; url_host_hint={host_hint}; token_source={token_src}; token_present={token_present}; compat_aliases_allowed={}",
-        clavis_vault_compat_aliases_allowed()
+        secrets_vault_compat_aliases_allowed()
     )
 }
 
@@ -1153,7 +1153,7 @@ fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
-fn run_clavis_future<F, T>(future: F) -> Result<T, SecretError>
+fn run_secrets_future<F, T>(future: F) -> Result<T, SecretError>
 where
     F: Future<Output = Result<T, SecretError>>,
 {
@@ -1163,12 +1163,12 @@ where
         }));
         return result.map_err(|_| {
             SecretError::BackendMisconfigured(
-                "failed to execute clavis async operation from active runtime".to_string(),
+                "failed to execute secrets async operation from active runtime".to_string(),
             )
         })?;
     }
 
     Err(SecretError::BackendMisconfigured(
-        "run_clavis_future requires an active Tokio runtime".to_string(),
+        "run_secrets_future requires an active Tokio runtime".to_string(),
     ))
 }

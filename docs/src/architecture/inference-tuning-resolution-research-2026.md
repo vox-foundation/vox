@@ -21,7 +21,7 @@ We have adopted a strict 3-tier resolution model for all inference calls:
 | Priority | Source | Description |
 | --- | --- | --- |
 | **1 (Highest)** | **Request Override** | Parameters passed directly in the MCP tool call (e.g., `temperature` field in `ChatMessageParams`). |
-| **2** | **Registry Secret** | Provider-specific environment variables resolved via `vox-clavis` (e.g., `GEMINI_TUNING_TEMPERATURE`). |
+| **2** | **Registry Secret** | Provider-specific environment variables resolved via `vox-secrets` (e.g., `GEMINI_TUNING_TEMPERATURE`). |
 | **3 (Baseline)** | **Tool Default** | The "safe" baseline defined by the tool author (e.g., `0.1` for `inline_edit`). |
 
 ## Implementation Strategy

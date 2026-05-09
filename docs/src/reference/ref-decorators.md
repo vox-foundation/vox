@@ -14,22 +14,42 @@ Vox uses decorators to provide metadata to the compiler and runtime. This regist
 
 ## Backend & Logic
 
-### `@endpoint(kind: server|query|mutation)`
-Unified decorator replacing the retired `@server`, `@query`, and `@mutation` forms.
-
-| `kind` | Goal | Effect | HTTP route |
-|--------|------|--------|------------|
-| `server` | General RPC endpoint. | Generates a Rust Axum handler and a TypeScript client. | `POST /api/<name>` |
-| `query` | Read-only database operation. | Optimized for concurrent reads; compiler rejects mutations inside. | `GET /api/query/<name>` |
-| `mutation` | Write database operation. | Wraps execution in a database transaction. | `POST /api/mutation/<name>` |
-
-**Usage**:
+### `@endpoint(kind: ...)`
+- **Goal**: Declares a backend API endpoint with explicit semantics.
+- **Effect**: Generates a Rust Axum handler and a TypeScript client. The `kind` parameter controls execution semantics.
+- **Kinds**:
+  - `kind: server` — general-purpose server function. Generates an Axum handler and a typed TS client.
+  - `kind: query` — read-only operation. Optimized for concurrent reads; cannot perform mutations.
+  - `kind: mutation` — write operation. Wraps execution in a database transaction.
+- **Usage**:
 ```vox
-// vox:skip
-@endpoint(kind: server) fn my_fn(args: ...) to ReturnType { ... }
-@endpoint(kind: query) fn get_data() to List[Item] { ... }
-@endpoint(kind: mutation) fn save_data() to bool { ... }
+@endpoint(kind: server)
+fn greet(name: str) to str {
+    return name
+}
+
+@endpoint(kind: query)
+fn ping() to str {
+    return "ok"
+}
+
+@endpoint(kind: mutation)
+fn reset() to bool {
+    return true
+}
 ```
+
+#### Replaced: `@server` (retired)
+
+`@server` is no longer recognized by the compiler. Use `@endpoint(kind: server)` instead.
+
+#### Replaced: `@query` (retired)
+
+`@query` is no longer recognized by the compiler. Use `@endpoint(kind: query)` instead.
+
+#### Replaced: `@mutation` (retired)
+
+`@mutation` is no longer recognized by the compiler. Use `@endpoint(kind: mutation)` instead.
 
 ### `@scheduled`
 > [!NOTE]
@@ -50,7 +70,7 @@ fn hourly_task() {
 > Planned — not yet parseable.
 - **Goal**: Designates a function as side-effect free.
 - **Effect**: Allows the compiler to aggressively optimize and caching the output.
-- **Usage**: `@pure fn compute_hash(data: str) -> str { ... }`
+- **Usage**: `@pure fn compute_hash(data: str) to str { return data }`
 
 ### `@deprecated`
 > [!NOTE]
@@ -91,33 +111,32 @@ type User {
 
 ## UI & Frontend
 
-> **Note (2026-05-03):** `@island` was retired. Use `component` for UI; the compiler
-> emits plain React/TSX for external React apps to import. See
-> [architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).
+#### Replaced: `@island` (retired)
+
+`@island` is no longer recognized by the compiler. Use `component` for UI; the compiler emits plain React/TSX for external React apps to import. See [architecture/external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).
 
 ### `@loading`
 - **Goal**: Suspense / transition UI for TanStack Router while a lazy route or data boundary resolves.
 - **Effect**: Emits `{Name}.tsx`. When `routes { }` produces the router shim, this becomes the `pendingComponent`.
 - **Usage**:
 ```vox
-// vox:skip
 @loading
-fn Spinner() -> Element { 
-    <div class="spinner">"…"</div>
+fn Spinner() to Element {
+    return text() { "loading" }
 }
 ```
 
 ### `@v0`
 - **Goal**: Retrieve an AI-generated React component natively via Vercel's unofficial CLI.
 - **Effect**: Downloads `.tsx` implementation and emits it as a React component.
-- **Usage**: `@v0 "chat-id" fn Dashboard() -> Element { }`
+- **Usage**: `@v0 "chat-id" fn Dashboard() to Element { return text() { "loading" } }`
 
 ## Testing & Tooling
 
 ### `@test`
 - **Goal**: Marks a function as a test case for `vox test`.
 - **Effect**: Included in the project test suite.
-- **Usage**: `@test fn check_auth() { ... }`
+- **Usage**: `@test fn check_auth() { assert(true) }`
 
 ### `@mock`
 > [!NOTE] 

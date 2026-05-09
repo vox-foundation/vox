@@ -24,7 +24,7 @@ Vox uses `AGENTS.md` in the repository root as its single source of truth for cr
 
 2. **Secret Management:**
    - NEVER read secrets from environment variables directly (e.g., `std::env::var`).
-   - ALWAYS use `vox_clavis::resolve_secret(...)`.
+   - ALWAYS use `vox_secrets::resolve_secret(...)`.
 
 3. **TOESTUB & Governance:**
    - Skeleton code (`stub/todo`, `unimplemented!()`, empty bodies) is blocked by CI.

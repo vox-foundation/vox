@@ -101,11 +101,11 @@ jobs:
       - name: Telemetry-Driven Architectural Audit
         run: ./scripts/windows/vox-dev.ps1 run --interp scripts/quality/audit-telemetry.vox
 
-      - name: Clavis SSOT parity + secret direct-read guard
+      - name: Secrets SSOT parity + secret direct-read guard
         shell: bash
         run: |
           set -euo pipefail
-          cargo run -p vox-cli --quiet -- ci clavis-parity
+          cargo run -p vox-cli --quiet -- ci secrets-parity
           # Meaningful diff scope on clean checkouts (default `git diff HEAD` scans nothing in CI).
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             git fetch origin "${{ github.base_ref }}" --depth=256
@@ -119,9 +119,9 @@ jobs:
             fi
           fi
           cargo run -p vox-cli --quiet -- ci secret-env-guard
-          export VOX_CLAVIS_REQUIRE_COMPAT_SUNSET=1
-          export VOX_CLAVIS_CUTOVER_PHASE=enforce
-          cargo run -p vox-cli --quiet -- ci clavis-cutover-gates
+          export VOX_SECRETS_REQUIRE_COMPAT_SUNSET=1
+          export VOX_SECRETS_CUTOVER_PHASE=enforce
+          cargo run -p vox-cli --quiet -- ci secrets-cutover-gates
 
       - name: Contracts index + scaling policy SSOT
         run: |

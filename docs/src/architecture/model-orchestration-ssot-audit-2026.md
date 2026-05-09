@@ -9,7 +9,7 @@ training_rationale: "Core orchestration architecture reference; names all files 
 
 # Model Orchestration SSOT — Audit & Convergence Plan
 
-**Scope.** MENS (local), Populi (GPU mesh), OpenRouter, direct-provider cloud backends (Anthropic, Google, Groq, DeepSeek, Cerebras, Mistral, SambaNova, HuggingFace), plus the Clavis secret plane that feeds all of them. This document lists what exists today, where it drifts, and exactly what to change, file-by-file.
+**Scope.** MENS (local), Populi (GPU mesh), OpenRouter, direct-provider cloud backends (Anthropic, Google, Groq, DeepSeek, Cerebras, Mistral, SambaNova, HuggingFace), plus the vox-secrets secret plane that feeds all of them. This document lists what exists today, where it drifts, and exactly what to change, file-by-file.
 
 **How to read this.** Every "FIX" item below is a mechanical operation keyed to a file path (and line numbers where stable). Each item can be handed to an agent with no further context.
 
@@ -20,7 +20,7 @@ training_rationale: "Core orchestration architecture reference; names all files 
 **What is good today.**
 
 - `vox-orchestrator::models::ModelRegistry` is the one selector used across the workspace (`crates/vox-orchestrator/src/models/registry.rs:14`). All task-to-model decisions flow through `best_for()` / `best_for_task()`.
-- `vox-clavis` is a credible secret plane with a documented resolver chain, `doctor`, `parity`, and `secret-env-guard` (`crates/vox-clavis/src/resolver.rs:1`, `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/clavis.rs`).
+- `vox-secrets` is a credible secret plane with a documented resolver chain, `doctor`, `parity`, and `secret-env-guard` (`crates/vox-secrets/src/resolver.rs:1`, `crates/vox-cli/src/commands/diagnostics/doctor/checks_standard/secrets.rs`).
 - A live catalog refresh against `https://openrouter.ai/api/v1/models` already exists with a min-interval and jitter guard (`crates/vox-orchestrator/src/catalog.rs:200`; `crates/vox-orchestrator/src/models/registry.rs:49`).
 - Telemetry lands in a typed `llm_interactions` table (v59) with a validation contract including `context_utilization_pct` and `cache_read_tokens`.
 - Observed pricing is stabilized in `model_pricing_catalog` (v59), enabling empirical cost overrides for routing decisions.
@@ -35,7 +35,7 @@ training_rationale: "Core orchestration architecture reference; names all files 
 4. **No model scoreboard.** `eval_runs` and `llm_feedback` exist but are never aggregated per `(model_id, task_category)` and never fed back to `best_for()`.
 5. **No distributed trace ID.** `journey_id`, `session_id`, `run_id` are local to each subsystem; there is no OpenTelemetry-style GenAI span with `gen_ai.request.model`, `gen_ai.usage.input_tokens`, etc.
 6. **Automatic model discovery is one shot per process start.** No scheduled nightly refresh; no Populi mesh catalog aggregation; no HF Hub auto-registration into the routing registry.
-7. **Direct env reads for secret-ish values leak outside Clavis.** Confirmed violation in `crates/vox-schola/src/curator.rs` (`OPENAI_API_KEY`) and suspected drift for `TOGETHER_FINETUNE_MODEL` (`crates/vox-cli/src/commands/ai/train.rs`), `GEMINI_DIRECT_MODEL`/`OPENROUTER_GEMINI_MODEL` (`crates/vox-config/src/routing_policy.rs`).
+7. **Direct env reads for secret-ish values leak outside vox-secrets.** Confirmed violation in `crates/vox-schola/src/curator.rs` (`OPENAI_API_KEY`) and suspected drift for `TOGETHER_FINETUNE_MODEL` (`crates/vox-cli/src/commands/ai/train.rs`), `GEMINI_DIRECT_MODEL`/`OPENROUTER_GEMINI_MODEL` (`crates/vox-config/src/routing_policy.rs`).
 8. **No cross-node secret sync.** `A2ADeliverRequest.jwe_payload` is plumbed but never populated (`crates/vox-populi/src/transport/mod.rs:76`). `vox-crypto` has ChaCha20-Poly1305 and Ed25519 but **no X25519 KEM** for wrapping secrets to another node.
 9. **No device-pairing flow.** A user with 3 mesh nodes must install `OPENROUTER_API_KEY` three times by hand.
 10. **Retired-surface drift.** `vox_dei::model_route` is still used as the `tracing` target in `crates/vox-runtime/src/model_resolution.rs:183-246` (harmless in theory, but violates the retired-symbol policy in `AGENTS.md:140`).
@@ -46,7 +46,7 @@ training_rationale: "Core orchestration architecture reference; names all files 
 - Declare **`contracts/orchestration/model-routing.v1.yaml`** as the machine-readable SSOT for task-→-strength mapping, tier definitions, scoring weights, and fallback chains. Generate Rust enums from it.
 - Declare **`contracts/orchestration/model-telemetry.v1.yaml`** aligned with OpenTelemetry GenAI semconv v1.37 (`gen_ai.*`). Every LLM call on every provider emits a span with the same attribute names.
 - Build a **`ModelScoreboard`** table keyed by `(model_id, task_category, strength_tag)` populated from `eval_runs` + `llm_feedback`. Make `best_for()` read it.
-- Add **`vox-clavis sync`** with X25519-sealed-box pairing so secrets installed on one mesh node propagate to a user's other nodes without re-entry.
+- Add **`vox secrets sync`** with X25519-sealed-box pairing so secrets installed on one mesh node propagate to a user's other nodes without re-entry.
 - Add **`vox mens models discover`** and **`vox populi models inventory`** scheduled jobs so MENS checkpoints and mesh-node capabilities register into the routing catalog automatically.
 
 ---
@@ -64,8 +64,8 @@ This is what "converged" looks like. Every bullet below is also a "FIX" in Part 
 | Scoring weights (efficiency/precision/latency/availability/balance/mobile) | `contracts/orchestration/model-routing.v1.yaml` `[scoring]` | `crates/vox-orchestrator/src/models/scoring.rs` |
 | Provider enum, secret-id mapping | `contracts/orchestration/providers.v1.yaml` | codegen → `crates/vox-orchestrator/src/models/spec.rs::ProviderType`, `crates/vox-orchestrator/src/models/key_guard.rs` |
 | Telemetry event attributes (GenAI) | `contracts/orchestration/model-telemetry.v1.yaml` (mirrors OTel GenAI semconv v1.37) | `crates/vox-runtime/src/routing_telemetry.rs`, `crates/vox-db/src/research_metrics_contract.rs` |
-| Secrets & env var names | `crates/vox-clavis/src/spec/**` (unchanged authority) | `vox_clavis::resolve_secret(...)` |
-| Env-variable allowlist (non-secret tuning) | `crates/vox-clavis/src/lib.rs::OPERATOR_TUNING_ENVS` (extend) | `secret-env-guard` |
+| Secrets & env var names | `crates/vox-secrets/src/spec/**` (unchanged authority) | `vox_secrets::resolve_secret(...)` |
+| Env-variable allowlist (non-secret tuning) | `crates/vox-secrets/src/lib.rs::OPERATOR_TUNING_ENVS` (extend) | `secret-env-guard` |
 | `.voxignore` derived ignore files | `.voxignore` (unchanged) | `vox ci sync-ignore-files` |
 
 ### 2.2 The single `ModelCatalogEntry` schema (proposal)
@@ -110,7 +110,7 @@ The **only** hand-maintained file after convergence is `contracts/orchestration/
 
 ```
 ┌──────────────┐      ┌─────────────────────┐       ┌──────────────┐
-│ Node A (desk)│      │ ClavisSync gossip   │       │ Node B (laptop)
+│ Node A (desk)│      │ SecretsSync gossip  │       │ Node B (laptop)
 │ identity (Ed │─────>│   over mesh         │<──────│ identity (Ed)│
 │ 25519 pair)  │      │ - pairing → trust  │       │              │
 └──────┬───────┘      │ - X25519 KEM wrap  │       └──────┬───────┘
@@ -120,13 +120,13 @@ The **only** hand-maintained file after convergence is `contracts/orchestration/
        │              └─────────────────────┘              │
        │                                                   │
        v                                                   v
-  Clavis local vault (ChaCha20-Poly1305 KDF from        Clavis local vault
+  vox-secrets local vault (ChaCha20-Poly1305 KDF from   vox-secrets local vault
   user-pairing passphrase or OS keyring)                (same)
 ```
 
-- `vox clavis pair` on Node A prints a one-time QR / 5-word pairing code.
-- `vox clavis pair --accept <code>` on Node B performs X25519 ECDH, attests via Ed25519, enrolls into `TrustedNodeRegistry` (`crates/vox-identity/src/storage.rs`).
-- `vox clavis sync` pushes every `shareable=true` secret (in `SecretSpec`) to every trusted peer, wrapped with the peer's X25519 public key, signed with the sender's Ed25519 private key, delivered over Populi's A2A channel.
+- `vox secrets pair` on Node A prints a one-time QR / 5-word pairing code.
+- `vox secrets pair --accept <code>` on Node B performs X25519 ECDH, attests via Ed25519, enrolls into `TrustedNodeRegistry` (`crates/vox-identity/src/storage.rs`).
+- `vox secrets sync` pushes every `shareable=true` secret (in `SecretSpec`) to every trusted peer, wrapped with the peer's X25519 public key, signed with the sender's Ed25519 private key, delivered over Populi's A2A channel.
 - No secret value ever leaves the user's mesh.
 - Operators opt a secret *out* by setting `shareable: false` in the spec (applies by default to registry/local-only things like `VOX_IDENTITY_KEY_PATH`).
 
@@ -355,7 +355,7 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 
 **FIX-38. Emit telemetry via OTel OTLP when `VoxTelemetryUploadUrl` is set.**
 - *Problem.* Telemetry sinks only to local `research_metrics`; remote upload exists (`docs/src/adr/023-optional-telemetry-remote-upload.md`) but isn't OTel-shaped.
-- *Operation.* Add `vox-runtime/src/telemetry/otlp.rs` exporter that mirrors each `gen_ai.*` span to OTLP HTTP when the upload URL is configured. Respect `VoxTelemetryUploadToken` (Clavis).
+- *Operation.* Add `vox-runtime/src/telemetry/otlp.rs` exporter that mirrors each `gen_ai.*` span to OTLP HTTP when the upload URL is configured. Respect `VoxTelemetryUploadToken` (vox-secrets).
 - *Success.* `vox telemetry test` delivers a span to a local Jaeger/OTel-collector.
 
 **FIX-39. Document and enforce the `trace_id` contract.**
@@ -368,16 +368,16 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Every attempt fires `vox.model.attempt` with `gen_ai.request.model`, `attempt_number`, `outcome`, `error_class`.
 - *Success.* Dashboards can compute per-provider failure rates without joining SQL.
 
-### E. Clavis & decentralized secret distribution
+### E. Secrets & decentralized secret distribution
 
 **FIX-41. Fix `OPENAI_API_KEY` violation in `vox-schola`.**
 - *Problem.* `crates/vox-schola/src/curator.rs` reads `OPENAI_API_KEY` directly via `std::env::var`. Violates `AGENTS.md:58`.
-- *Operation.* Replace with `vox_clavis::resolve_secret(SecretId::OpenaiApiKey)?`. Delete the `env::var` line. Add a unit test verifying the call fails open in `Profile::Dev` when the secret is missing.
+- *Operation.* Replace with `vox_secrets::resolve_secret(SecretId::OpenaiApiKey)?`. Delete the `env::var` line. Add a unit test verifying the call fails open in `Profile::Dev` when the secret is missing.
 - *Success.* `vox ci secret-env-guard` passes.
 
-**FIX-42. [DONE] Migrate `TOGETHER_FINETUNE_MODEL` to Clavis or config.**
+**FIX-42. [DONE] Migrate `TOGETHER_FINETUNE_MODEL` to vox-secrets or config.**
 - *Problem.* `crates/vox-cli/src/commands/ai/train.rs` reads directly.
-- *Operation.* Decide: if secret, add `SecretId::TogetherFinetuneModel` to `crates/vox-clavis/src/spec/registry/llm.rs` and migrate. If it is non-secret model name, add to `OPERATOR_TUNING_ENVS` in `crates/vox-clavis/src/lib.rs` (line ~59).
+- *Operation.* Decide: if secret, add `SecretId::TogetherFinetuneModel` to `crates/vox-secrets/src/spec/registry/llm.rs` and migrate. If it is non-secret model name, add to `OPERATOR_TUNING_ENVS` in `crates/vox-secrets/src/lib.rs` (line ~59).
 - *Success.* `secret-env-guard` passes.
 
 **FIX-43. [DONE] Migrate `GEMINI_DIRECT_MODEL` and `OPENROUTER_GEMINI_MODEL` to the config domain.**
@@ -385,15 +385,15 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Add both to `OPERATOR_TUNING_ENVS` (they are *routing preference*, not secrets). Documented in new `docs/src/reference/routing-env.md`.
 - *Success.* `secret-env-guard` passes; routing table generator reads the names from one place.
 
-**FIX-44. [DONE] Add `POPULI_URL` to Clavis spec (as non-secret config) or rename.**
-- *Problem.* `crates/vox-config/src/inference.rs:68-72` reads `POPULI_URL` → falls back to `OLLAMA_URL`. Neither is in Clavis. Confusing name: this is the local Ollama base URL used by Populi, not an auth key.
+**FIX-44. [DONE] Add `POPULI_URL` to vox-secrets spec (as non-secret config) or rename.**
+- *Problem.* `crates/vox-config/src/inference.rs:68-72` reads `POPULI_URL` → falls back to `OLLAMA_URL`. Neither is in vox-secrets. Confusing name: this is the local Ollama base URL used by Populi, not an auth key.
 - *Operation.* Add to `OPERATOR_TUNING_ENVS`. Add deprecation alias: prefer `VOX_POPULI_LOCAL_OLLAMA_URL` going forward; keep `POPULI_URL` and `OLLAMA_URL` as deprecated aliases with a doctor warning.
 - *Success.* Doctor prints the canonical name; older names still work.
 
 **FIX-45. [DONE] Add `shareable: bool` to `SecretSpec` and default per-secret.**
 - *Problem.* Foundation for FIX-46–FIX-50. Today the spec has no "share across my own mesh" flag.
-- *Operation.* Extend `crates/vox-clavis/src/spec/mod.rs::SecretSpec` with `shareable: bool` and `sensitivity: Sensitivity { UserMeshOnly, UserMeshAndExternalVault }`. Default true for LLM API keys (`OpenRouterApiKey`, etc.), default false for `VoxIdentityKeyPath`, `VoxMeshJwtHmacSecret`, `VoxIdentityMasterPwd`.
-- *Success.* `cargo test -p vox-clavis shareable_defaults` green.
+- *Operation.* Extend `crates/vox-secrets/src/spec/mod.rs::SecretSpec` with `shareable: bool` and `sensitivity: Sensitivity { UserMeshOnly, UserMeshAndExternalVault }`. Default true for LLM API keys (`OpenRouterApiKey`, etc.), default false for `VoxIdentityKeyPath`, `VoxMeshJwtHmacSecret`, `VoxIdentityMasterPwd`.
+- *Success.* `cargo test -p vox-secrets shareable_defaults` green.
 
 **FIX-46. [DONE] Implement X25519 sealed-box in `vox-crypto`.**
 - *Problem.* We have ChaCha20-Poly1305 (symmetric) and Ed25519 (signing) but no X25519 KEM (asymmetric encryption). Required for wrapping a secret for a specific peer without a pre-shared key.
@@ -405,36 +405,36 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 - *Operation.* Add `x25519_signing_key` and `x25519_public_key`; store alongside the Ed25519 keypair. Derive deterministically from the same seed via HKDF-BLAKE3(ed25519_seed, "vox-x25519-v1").
 - *Success.* Node advertises `x25519_pub` in its capability record; `vox populi nodes` shows it.
 
-**FIX-48. Implement `vox clavis pair` device-pairing flow.**
+**FIX-48. Implement `vox secrets pair` device-pairing flow.**
 - *Problem.* No user journey for "install my key once, use on any node."
-- *Operation.* On Node A: `vox clavis pair` generates a 128-bit nonce, prints a 5-word mnemonic and a QR encoding `{node_a_x25519_pub, nonce, expires_unix_ms}`. On Node B: `vox clavis pair --accept <mnemonic|QR>` performs X25519 ECDH with A's public key, constructs `PairingRequest { node_b_x25519_pub, signed=Ed25519(nonce) }`, sends to A via the Populi control plane (FIX-49). A verifies Ed25519, prompts the user to approve `"pair with <nickname> (x25519_pub fingerprint)"`, writes both peers into each side's `TrustedNodeRegistry` (`crates/vox-identity/src/storage.rs`).
+- *Operation.* On Node A: `vox secrets pair` generates a 128-bit nonce, prints a 5-word mnemonic and a QR encoding `{node_a_x25519_pub, nonce, expires_unix_ms}`. On Node B: `vox secrets pair --accept <mnemonic|QR>` performs X25519 ECDH with A's public key, constructs `PairingRequest { node_b_x25519_pub, signed=Ed25519(nonce) }`, sends to A via the Populi control plane (FIX-49). A verifies Ed25519, prompts the user to approve `"pair with <nickname> (x25519_pub fingerprint)"`, writes both peers into each side's `TrustedNodeRegistry` (`crates/vox-identity/src/storage.rs`).
 - *Success.* End-to-end test: two in-process mesh nodes complete pairing in <2s; replay of the same mnemonic fails.
 
-**FIX-49. Implement `ClavisSync` gossip.**
+**FIX-49. Implement `SecretsSync` gossip.**
 - *Problem.* Secrets are per-node today.
-- *Operation.* New crate `crates/vox-clavis-sync/` (or submodule of `vox-clavis`):
-  1. On a local Clavis write (`set`, `import-env`), iterate `TrustedNodeRegistry`. For each peer:
+- *Operation.* New crate `crates/vox-secrets-sync/` (or submodule of `vox-secrets`):
+  1. On a local secrets write (`set`, `import-env`), iterate `TrustedNodeRegistry`. For each peer:
      - Read current value for each `SecretSpec { shareable: true }`.
      - Seal via `vox_crypto::seal(peer.x25519_pub, value)` (FIX-46).
-     - Wrap in envelope `ClavisSyncEnvelope { sender_node_id, secret_id, sealed_ciphertext, version_counter, signed_at, signature: Ed25519 }`.
+     - Wrap in envelope `SecretsSyncEnvelope { sender_node_id, secret_id, sealed_ciphertext, version_counter, signed_at, signature: Ed25519 }`.
      - Deliver over `A2ADeliverRequest.jwe_payload` (`crates/vox-populi/src/transport/mod.rs:76`).
-  2. On receive: verify signature, verify peer is trusted, unseal, write to local Clavis with source = `SyncedFrom(peer_node_id)`, bump local version counter.
+  2. On receive: verify signature, verify peer is trusted, unseal, write to local vox-secrets with source = `SyncedFrom(peer_node_id)`, bump local version counter.
   3. Last-writer-wins on conflicts, tagged by `signed_at`.
-- *Success.* Setting `OPENROUTER_API_KEY` on Node A via `vox clavis set` causes Node B to have it within ~500ms; `vox clavis status` on B shows source `SyncedFrom(A)`.
+- *Success.* Setting `OPENROUTER_API_KEY` on Node A via `vox secrets set` causes Node B to have it within ~500ms; `vox secrets status` on B shows source `SyncedFrom(A)`.
 
-**FIX-50. Add `vox clavis sync --now` and `--dry-run`.**
+**FIX-50. Add `vox secrets sync --now` and `--dry-run`.**
 - *Problem.* Need manual control for initial bootstrap and audit.
-- *Operation.* `vox clavis sync --now` pushes current local state to all trusted peers. `--dry-run` lists what would be pushed without sending.
+- *Operation.* `vox secrets sync --now` pushes current local state to all trusted peers. `--dry-run` lists what would be pushed without sending.
 - *Success.* Users can force sync after connectivity drops.
 
-**FIX-51. Add `vox clavis rotate <secret>` (per-peer re-encryption).**
+**FIX-51. Add `vox secrets rotate <secret>` (per-peer re-encryption).**
 - *Problem.* Key rotation today means editing on every node.
-- *Operation.* Rotation bumps the local version, triggers a `ClavisSync` push with the new value; peers replace on receipt. Old value archived locally for 24h for rollback.
-- *Success.* Rotation audit trail in `clavis_audit_log`.
+- *Operation.* Rotation bumps the local version, triggers a `SecretsSync` push with the new value; peers replace on receipt. Old value archived locally for 24h for rollback.
+- *Success.* Rotation audit trail in `secrets_audit_log`.
 
 **FIX-52. Populate `A2ADeliverRequest.jwe_payload` end-to-end.**
 - *Problem.* Field exists but is always empty (`crates/vox-populi/src/transport/mod.rs:76`).
-- *Operation.* `ClavisSync` is the first consumer. Document that the field is free-form encrypted bytes; it is agnostic to the cipher — Clavis uses `seal()` output, other callers may use OpenPGP or JWE. Gate in handler to reject oversized payloads (> 64 KiB).
+- *Operation.* `SecretsSync` is the first consumer. Document that the field is free-form encrypted bytes; it is agnostic to the cipher — vox-secrets uses `seal()` output, other callers may use OpenPGP or JWE. Gate in handler to reject oversized payloads (> 64 KiB).
 - *Success.* Integration test: `jwe_payload` non-empty on a sync delivery; handler unseals successfully.
 
 **FIX-53. Add structured log redaction middleware.**
@@ -445,14 +445,14 @@ Every item starts with **FIX-NN**. When executing, treat title, problem, operati
 **FIX-54. Format-string leak audit.**
 - *Problem.* `crates/vox-container/src/docker.rs` and `.../podman.rs` use `format!("{key}={val}")` for `--build-arg`; values could contain secrets (identified as moderate-risk).
 - *Operation.* Rewrite the flag construction to use `--build-arg <key>` with the value placed via a tempfile (or `--secret`). Prohibit passing any `SecretSpec`-managed value as a build arg; reject in the container builder with a clear error.
-- *Success.* Attempting to pass a Clavis secret as a docker build arg fails fast with remediation.
+- *Success.* Attempting to pass a vox-secrets secret as a docker build arg fails fast with remediation.
 
-**FIX-55. `vox clavis import-env` UX pass.**
+**FIX-55. `vox secrets import-env` UX pass.**
 - *Problem.* Import is fire-and-forget; users don't know what happened.
-- *Operation.* Add summary table: `(secret_id, source_env_name, action: imported|skipped|exists)`. `--interactive` prompts before each. After successful import, offer `vox clavis sync --now`.
+- *Operation.* Add summary table: `(secret_id, source_env_name, action: imported|skipped|exists)`. `--interactive` prompts before each. After successful import, offer `vox secrets sync --now`.
 - *Success.* First-time-user journey ends in a working multi-node setup in <2 minutes.
 
-**FIX-56. Break-glass: `vox clavis unpair <node_id>`.**
+**FIX-56. Break-glass: `vox secrets unpair <node_id>`.**
 - *Problem.* No revocation path.
 - *Operation.* Removes peer from `TrustedNodeRegistry`, bumps a revocation counter, broadcasts `UNPAIR` signed message so other peers also drop. Future sync deliveries from the removed peer are rejected.
 - *Success.* A revoked node stops receiving sync updates within one round trip.
@@ -565,7 +565,7 @@ RouteLLM (LMSYS) is open source routing logic that pairs a classifier with a two
 
 **Stage 4 — Scoreboard + self-tuning (FIX-09..12, FIX-18..20).** Write the scoreboard table, roll up, feed into `best_for()`, expose `vox model explain` / `vox model scoreboard show`. This is where "the code learns which models to use."
 
-**Stage 5 — Clavis v2 (FIX-41..56).** Secret-env-guard fixes, X25519 primitives, device pairing, `ClavisSync` gossip. This is where the single-login-across-mesh user journey completes.
+**Stage 5 — Secrets v2 (FIX-41..56).** Secret-env-guard fixes, X25519 primitives, device pairing, `SecretsSync` gossip. This is where the single-login-across-mesh user journey completes.
 
 **Stage 6 — Cleanup & docs (FIX-57..69).** Bootstrap-model rename, operator-knob documentation, dead-code removal, doctor polish.
 
@@ -577,7 +577,7 @@ RouteLLM (LMSYS) is open source routing logic that pairs a classifier with a two
 - **`rg 'enum (ModelTier|ProviderType|StrengthTag|ChatRouteBackend)'` returns one match each.**
 - **Every LLM call emits `gen_ai.request.model` and `trace_id`.**
 - **`model_scoreboard` has ≥1 row per `(model_id, task_category)` pair seen in the last 30 days.**
-- **A user installs `OPENROUTER_API_KEY` once, `vox clavis pair`s a second node, and that node completes `vox chat` without re-entering the key.**
+- **A user installs `OPENROUTER_API_KEY` once, `vox secrets pair`s a second node, and that node completes `vox chat` without re-entering the key.**
 - **`vox ci secret-env-guard` returns zero violations.**
 - **`vox model discover --all --force` succeeds** and writes a cache with ≥5 sources.
 - **`vox ci ssot-audit` passes**, confirming parity between scoreboard telemetry and routing decisions.
@@ -600,4 +600,4 @@ RouteLLM (LMSYS) is open source routing logic that pairs a classifier with a two
 - [LiteLLM alternatives 2026](https://toolsinfo.com/c/litellm-alternatives/guide)
 - [age/rage encryption — X25519 recipients](https://docs.rs/age/latest/age/)
 - [Vox `AGENTS.md` (this repo)](../../../AGENTS.md)
-- [Vox Clavis SSOT (this repo)](../reference/clavis-ssot.md)
+- [Vox Secrets SSOT (this repo)](../reference/secrets-ssot.md)

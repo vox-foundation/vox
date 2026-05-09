@@ -36,6 +36,7 @@ reference/ref-type-system.html
 reference/ref-stdlib.html
 reference/env-vars.html
 reference/clavis-ssot.html
+reference/secrets-ssot.html
 architecture/architecture-index.html
 architecture/research-index.html
 contributors/contributor-hub.html

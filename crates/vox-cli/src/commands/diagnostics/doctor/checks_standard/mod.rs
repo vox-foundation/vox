@@ -1,6 +1,6 @@
 //! Default `vox doctor` checks: optional test-health tools, then full toolchain audit.
 
-mod clavis;
+mod secrets;
 mod gpu_hardware;
 mod llm_routing;
 mod model_catalog;
@@ -18,7 +18,7 @@ pub async fn run_checks(auto_heal: bool, test_health: bool, checks: &mut Vec<Che
         return;
     }
     toolchain::run(auto_heal, checks).await;
-    clavis::run(auto_heal, checks).await;
+    secrets::run(auto_heal, checks).await;
     llm_routing::run(checks);
     gpu_hardware::run(checks).await;
     vox_ignore::run(auto_heal, checks).await;

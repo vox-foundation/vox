@@ -18,33 +18,33 @@ fn provider_allowed_by_route_policy(model: &ModelSpec) -> bool {
 }
 
 #[inline]
-fn clavis_truthy(id: vox_secrets::SecretId) -> bool {
+fn secrets_truthy(id: vox_secrets::SecretId) -> bool {
     vox_secrets::resolve_secret(id)
         .expose()
         .map(|s| s.trim().eq_ignore_ascii_case("true"))
         .unwrap_or(false)
 }
 
-fn clavis_required_capabilities() -> Vec<vox_orchestrator::models::Capability> {
+fn secrets_required_capabilities() -> Vec<vox_orchestrator::models::Capability> {
     use vox_orchestrator::models::Capability;
     use vox_secrets::SecretId;
     let mut v = Vec::new();
-    if clavis_truthy(SecretId::VoxCapabilityRequireToolUse) {
+    if secrets_truthy(SecretId::VoxCapabilityRequireToolUse) {
         v.push(Capability::SupportsToolUse);
     }
-    if clavis_truthy(SecretId::VoxCapabilityRequireReasoning) {
+    if secrets_truthy(SecretId::VoxCapabilityRequireReasoning) {
         v.push(Capability::SupportsReasoning);
     }
-    if clavis_truthy(SecretId::VoxCapabilityRequireWebSearch) {
+    if secrets_truthy(SecretId::VoxCapabilityRequireWebSearch) {
         v.push(Capability::SupportsWebSearch);
     }
-    if clavis_truthy(SecretId::VoxCapabilityRequireImageGeneration) {
+    if secrets_truthy(SecretId::VoxCapabilityRequireImageGeneration) {
         v.push(Capability::SupportsImageGeneration);
     }
     v
 }
 
-fn clavis_capability_pin_model_id(
+fn secrets_capability_pin_model_id(
     required: &[vox_orchestrator::models::Capability],
     task: TaskCategory,
     prompt: &str,
@@ -154,7 +154,7 @@ pub fn resolve_mcp_chat_model_sync(
         }
         caps
     };
-    for c in clavis_required_capabilities() {
+    for c in secrets_required_capabilities() {
         if !required_capabilities.contains(&c) {
             required_capabilities.push(c);
         }
@@ -179,7 +179,7 @@ pub fn resolve_mcp_chat_model_sync(
             }
         }
     }
-    if let Some(pin) = clavis_capability_pin_model_id(&required_capabilities, task, user_prompt) {
+    if let Some(pin) = secrets_capability_pin_model_id(&required_capabilities, task, user_prompt) {
         if let Some(m) = registry.get(&pin) {
             if mcp_local_model_allowed(&m) && routing_allows(&m) && caps_ok(&m) {
                 let m = enforce_free_tier_if_needed(&registry, &res, m.clone())?;

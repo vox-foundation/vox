@@ -326,7 +326,7 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
   1. Compute current baseline digest: `cargo run -p vox-db --example print_baseline_digest` — or, if no such example exists, write one at `crates/vox-db/examples/print_baseline_digest.rs` that prints `vox_db::schema::schema_baseline_digest_hex()`.
   2. In `contracts/db/baseline-version-policy.yaml`, update `repository_baseline_integer` to match `crates/vox-db::schema::manifest::BASELINE_VERSION` (59 at HEAD 2026-04-21; read the value at PR-land time, do not hard-code in this ticket).
   3. Update `repository_baseline_digest_hex` to match `vox_db::schema::schema_baseline_digest_hex()`.
-  4. Route `VOX_DB_URL` / `VOX_DB_TOKEN` reads through `vox_clavis::resolve_secret(...)`: modify `crates/vox-db/src/config.rs` to call Clavis first, fall back to `env::var` only during tests.
+  4. Route `VOX_DB_URL` / `VOX_DB_TOKEN` reads through `vox_secrets::resolve_secret(...)`: modify `crates/vox-db/src/config.rs` to call vox-secrets first, fall back to `env::var` only during tests.
   5. Run existing `vox ci check-codex-ssot` — should now pass.
   6. Add auto-update logic inside the guard: when `schema_baseline_digest_hex()` changes, a follow-up PR is suggested (or auto-drafted via a CI bot) rather than a hard failure that blocks all PRs.
   7. Add a pre-landing check to the PR template: if `crates/vox-db/src/schema/manifest.rs` was touched in the PR, the PR body must include a line `BASELINE_VERSION: <new>` matching the Rust constant; used to auto-update the contract via a post-merge workflow.
@@ -486,10 +486,10 @@ Every ticket ends by pointing at the guard sub-check or grep rule that prevents 
 - **SSOT findings**: F10.
 - **Sub-steps**:
   1. Inventory: `rg 'TURSO_URL|VOX_TURSO_URL|VOX_TURSO_TOKEN|TURSO_AUTH_TOKEN' crates/`.
-  2. In `crates/vox-clavis/src/backend/vox_vault.rs` and `lib.rs`, add a deprecation warning branch that logs once when a `TURSO_*` var is used and routes it into the canonical `VOX_DB_URL` / `VOX_DB_TOKEN`.
+  2. In `crates/vox-secrets/src/backend/vox_vault.rs` and `lib.rs`, add a deprecation warning branch that logs once when a `TURSO_*` var is used and routes it into the canonical `VOX_DB_URL` / `VOX_DB_TOKEN`.
   3. Add the deprecation list to `contracts/config/env-vars.v1.yaml` (requires M-13).
   4. Plan sunset for release 0.6 (6 months).
-  5. Add guard sub-check `retired-env-var` that warns in `vox-clavis` (sunset window), fails elsewhere.
+  5. Add guard sub-check `retired-env-var` that warns in `vox-secrets` (sunset window), fails elsewhere.
 - **Verification**: guard green; CI passes; a test with `TURSO_URL=…` produces the deprecation warning.
 
 ## Phase 3 — Tier B / C rollout
@@ -965,20 +965,20 @@ These four tickets close the findings added in SSOT §I (F75–F78) after reconc
   - `rg -n '^(version|schema_version):' contracts/ --type yaml` returns zero post-script.
   - `vox ci data-storage-guard --check version-header-parity --json` returns `"status": "pass"` with no warnings.
 
-### M-77 · Provider-secret parity (`providers.v1.yaml` ↔ Clavis)
+### M-77 · Provider-secret parity (`providers.v1.yaml` ↔ vox-secrets)
 
-- **Owner**: Clavis.
+- **Owner**: vox-secrets.
 - **Blast radius**: S.
 - **Blockers**: M-75.
 - **SSOT findings**: F77.
 - **Sub-steps**:
   1. Read every `providers[].secret_id` from `contracts/orchestration/providers.v1.yaml`.
-  2. Assert each is registered in `crates/vox-clavis/src/spec/ids.rs` (the enum that `ff0fdccc` extended by 31 lines) and handled by `crates/vox-clavis/src/spec/registry/llm.rs` (new in `ff0fdccc`, 165 lines).
+  2. Assert each is registered in `crates/vox-secrets/src/spec/ids.rs` (the enum that `ff0fdccc` extended by 31 lines) and handled by `crates/vox-secrets/src/spec/registry/llm.rs` (new in `ff0fdccc`, 165 lines).
   3. Add guard sub-check `provider-secret-parity` in `data_storage_guard/checks/provider_secret.rs`. Implementation follows the same YAML-read + source-grep pattern as `data-ssot-guards::run_scientia_consumption_registry_guard`.
-  4. Extend existing `vox ci clavis-parity` to cross-check in the reverse direction: every `SecretId` that carries the `llm` tag has exactly one referencing entry in `providers.v1.yaml`.
+  4. Extend existing `vox ci secrets-parity` to cross-check in the reverse direction: every `SecretId` that carries the `llm` tag has exactly one referencing entry in `providers.v1.yaml`.
 - **Verification**:
   - Adding a dummy `- name: FakeProvider, secret_id: "DoesNotExist"` to `providers.v1.yaml` makes `vox ci data-storage-guard --check provider-secret-parity` fail.
-  - Removing a real `secret_id` makes `vox ci clavis-parity` fail.
+  - Removing a real `secret_id` makes `vox ci secrets-parity` fail.
 
 ### M-78 · Retention policy for `model_scoreboard` / `model_pricing_catalog`
 

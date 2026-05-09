@@ -223,10 +223,10 @@ fn latin_english_alias_declared_in_lib() {
         lib_rs.contains("visible_alias = \"orchestrator\""),
         "T075: `vox dei` must declare `visible_alias = \"orchestrator\"` in lib.rs"
     );
-    // T077: vox clavis → secrets alias
+    // T077: vox secrets → clavis alias (deprecated backward-compat alias)
     assert!(
-        lib_rs.contains("visible_alias = \"secrets\""),
-        "T077: `vox clavis` must declare `visible_alias = \"secrets\"` in lib.rs"
+        lib_rs.contains("visible_alias = \"clavis\""),
+        "T077: `vox secrets` must declare `visible_alias = \"clavis\"` in lib.rs"
     );
     // T078: vox oratio → speech alias
     assert!(
@@ -250,12 +250,12 @@ fn latin_aliases_appear_in_help_text() {
         "T084: `fabrica` or its alias should appear in vox --help"
     );
     assert!(
-        help.contains("clavis"),
-        "T084: `clavis` should appear in vox --help"
-    );
-    // `secrets` is a visible_alias so it appears alongside clavis
-    assert!(
         help.contains("secrets"),
-        "T084: `secrets` (alias of clavis) should appear in vox --help"
+        "T084: `secrets` should appear in vox --help"
+    );
+    // `clavis` is a visible_alias so it appears alongside secrets
+    assert!(
+        help.contains("clavis"),
+        "T084: `clavis` (alias of secrets) should appear in vox --help"
     );
 }

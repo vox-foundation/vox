@@ -24,6 +24,7 @@ Primary navigation:
 - Contributor entry point: [`docs/src/contributors/contributor-hub.md`](docs/src/contributors/contributor-hub.md)
 - Documentation authority map: [`docs/src/contributors/documentation-governance.md`](docs/src/contributors/documentation-governance.md)
 - Architecture map: [`docs/src/architecture/architecture-index.md`](docs/src/architecture/architecture-index.md)
+- See [phase-numbering-index](docs/src/architecture/phase-numbering-index.md) for disambiguation of the three independent phase sequences used in plans (frontend interop, GUI-native language, workspace reorg).
 - Classification SSOT: [`docs/src/architecture/classification-ssot-2026.md`](docs/src/architecture/classification-ssot-2026.md)
 - Agent discovery index: [`docs/src/.well-known/llms.txt`](docs/src/.well-known/llms.txt)
 
@@ -72,10 +73,10 @@ Manually-maintained adjacent files that **are** safe to edit:
 
 Use Clavis for API keys, tokens, and credentials. Do not introduce new direct secret reads from environment variables in consumers.
 
-- Define and maintain secret metadata in `crates/vox-clavis/src/spec.rs`.
-- Resolve secrets with `vox_clavis::resolve_secret(...)`.
-- Keep resolver/source behavior in `crates/vox-clavis/src/resolver.rs` and `crates/vox-clavis/src/sources/*`.
-- After secret-surface changes, run `vox ci secret-env-guard` and `vox ci clavis-parity`.
+- Define and maintain secret metadata in `crates/vox-secrets/src/spec.rs`.
+- Resolve secrets with `vox_secrets::resolve_secret(...)`.
+- Keep resolver/source behavior in `crates/vox-secrets/src/resolver.rs` and `crates/vox-secrets/src/sources/*`.
+- After secret-surface changes, run `vox ci secret-env-guard` and `vox ci secrets-parity`.
 
 Naming policy:
 
@@ -85,10 +86,10 @@ Naming policy:
 
 API key lifecycle checklist:
 
-1. Add `SecretId` and `SecretSpec` entries in `crates/vox-clavis/src/spec.rs`.
-2. Migrate callsites to `vox_clavis::resolve_secret(...)`.
-3. Update `vox clavis doctor` workflow/profile expectations when requirements change.
-4. Keep docs in sync at `docs/src/reference/clavis-ssot.md`.
+1. Add `SecretId` and `SecretSpec` entries in `crates/vox-secrets/src/spec.rs`.
+2. Migrate callsites to `vox_secrets::resolve_secret(...)`.
+3. Update `vox secrets doctor` workflow/profile expectations when requirements change.
+4. Keep docs in sync at `docs/src/reference/secrets-ssot.md`.
 
 ## Cryptography Policy (SSOT)
 
@@ -120,7 +121,7 @@ All project automation — CI prep, corpus transforms, training pipelines, insta
 - Scripts that modify the Vox repository MUST be committed to VCS before an agent executes them
 - No `.vox` script may use `shell_exec` to bypass the compiler sandbox
 - Subprocess calls go through `vox-runtime` process primitives (telemetry-observable)
-- Use Clavis (`clavis.resolve(...)`) for secrets — never `env.get("MY_KEY")` for sensitive values
+- Use the secrets crate (`vox_secrets::resolve_secret(...)`) for secrets — never `env.get("MY_KEY")` for sensitive values
 
 **Do NOT use Python or shell for glue.** Vox is the glue language. Python and shell are retired glue surfaces in this repository.
 

@@ -13,7 +13,7 @@
 //! Historical crates already established in the workspace are explicitly permitted.
 //! New additions must go through the policy proposal template.
 //!
-//! See: `docs/src/architecture/english_core_migration_ledger.md` (Phase 5)
+//! See: `docs/src/architecture/english_core_migration_ledger.md`
 
 use anyhow::{Result, anyhow};
 use serde::Serialize;
@@ -37,7 +37,7 @@ const LATIN_STRUCTURAL_DENYLIST: &[(&str, &str)] = &[
 /// These historical crates ARE allowed despite using Latin names (grandfathered).
 /// Do not add new entries here without a policy proposal.
 const HISTORICAL_ALLOWLIST: &[&str] = &[
-    "vox-dei",          // grandfathered — being migrated to vox-orchestrator (Phase 3)
+    "vox-dei",          // grandfathered; migration complete 2026-05-08
     "vox-openclaw-runtime",  // grandfathered — ARS runtime extracted from vox-skills::ars_shim; canonical replacement for retired vox-ars
     "vox-secrets",       // canonical secret manager — name IS its Latin identity (policy exception)
     "vox-orchestrator", // canonical English — permitted
@@ -46,8 +46,8 @@ const HISTORICAL_ALLOWLIST: &[&str] = &[
     "vox-oratio",       // grandfathered — being migrated to vox-speech
     "vox-populi",       // grandfathered — being migrated to vox-ml
     "vox-schola",       // grandfathered — being migrated to vox-tutorial
-    "vox-codex-api",    // grandfathered — database abstraction layer (Phase 2)
-    "vox-ml-cli",         // grandfathered — ML subsystem (Phase 2)
+    "vox-codex-api",    // grandfathered — database abstraction layer
+    "vox-ml-cli",         // grandfathered — ML subsystem
 ];
 
 #[derive(Serialize)]

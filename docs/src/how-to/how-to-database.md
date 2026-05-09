@@ -104,20 +104,20 @@ let feed = db.Task
             .all()
 ```
 
-## Guarding Reads/Writes with `@query` and `@mutation`
+## Guarding Reads/Writes with `@endpoint(kind: query)` and `@endpoint(kind: mutation)`
 
-For security, you should rarely expose `db.*` calls directly to UI islands or agents. Instead, wrap your database interactions in `@query` (read-only) and `@mutation` (write-enabled) functions. 
+For security, you should rarely expose `db.*` calls directly to UI islands or agents. Instead, wrap your database interactions in `@endpoint(kind: query)` (read-only) and `@endpoint(kind: mutation)` (write-enabled) functions.
 
-The compiler verifies that a `@query` function does not contain `.insert`, `.update`, or `.delete` operations.
+The compiler verifies that an `@endpoint(kind: query)` function does not contain `.insert`, `.update`, or `.delete` operations.
 
-### Transactional Integrity with `@mutation`
+### Transactional Integrity with `@endpoint(kind: mutation)`
 
-Every function marked with `@mutation` is automatically wrapped in a database transaction. If the function returns an `Error` or panics, the transaction is rolled back.
+Every function marked with `@endpoint(kind: mutation)` is automatically wrapped in a database transaction. If the function returns an `Error` or panics, the transaction is rolled back.
 
 ```vox
 // vox:skip
-@mutation
-fn transfer_funds(from: Id[Account], to: Id[Account], amount: int) -> Result[Unit] {
+@endpoint(kind: mutation)
+fn transfer_funds(from: Id[Account], to: Id[Account], amount: int) to Result[Unit] {
     let mut sender = db.Account.find(from)?
     let mut receiver = db.Account.find(to)?
     

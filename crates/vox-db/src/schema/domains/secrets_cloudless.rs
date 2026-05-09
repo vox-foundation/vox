@@ -1,5 +1,5 @@
-//! Arca SQL: Clavis Cloudless encrypted account-secret records.
-pub const SCHEMA_CLAVIS_CLOUDLESS: &str = r#"
+//! Arca SQL: Secrets Cloudless encrypted account-secret records.
+pub const SCHEMA_SECRETS_CLOUDLESS: &str = r#"
 CREATE TABLE IF NOT EXISTS clavis_account_secrets (
     account_id TEXT NOT NULL,
     secret_id TEXT NOT NULL,

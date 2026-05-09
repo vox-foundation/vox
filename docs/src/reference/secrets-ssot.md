@@ -1,19 +1,19 @@
 ---
-title: "Clavis SSOT"
-description: "Canonical secret-management source of truth for Vox Clavis"
+title: "Secrets SSOT"
+description: "Canonical secret-management source of truth for Vox Secrets"
 category: "reference"
-last_updated: "2026-04-11"
+last_updated: "2026-05-08"
 training_eligible: true
 
 schema_type: "TechArticle"
 ---
 
-## Clavis SSOT
+## Secrets SSOT
 
-`vox-clavis` is the canonical source of truth for managed secret metadata and resolution precedence.
+`vox-secrets` is the canonical source of truth for managed secret metadata and resolution precedence.
 
-Research and forward-looking analysis live in [Clavis secrets, env vars, and API key strategy research 2026](../archive/research-2026-q1/clavis-secrets-env-research-2026.md).
-Threat and policy controls are documented in [Clavis Cloudless Threat Model V1](../archive/research-2026-q1/clavis-cloudless-threat-model-v1.md), with execution steps in [Clavis Cloudless Implementation Catalog](../archive/research-2026-q1/clavis-cloudless-implementation-catalog.md).
+Research and forward-looking analysis live in [Secrets env vars, and API key strategy research 2026](../archive/research-2026-q1/clavis-secrets-env-research-2026.md).
+Threat and policy controls are documented in [Secrets Cloudless Threat Model V1](../archive/research-2026-q1/clavis-cloudless-threat-model-v1.md), with execution steps in [Secrets Cloudless Implementation Catalog](../archive/research-2026-q1/clavis-cloudless-implementation-catalog.md).
 
 ## Naming Convention
 
@@ -21,9 +21,9 @@ Threat and policy controls are documented in [Clavis Cloudless Threat Model V1](
 
 ## Non-secret environment parsing
 
-Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. HTTP retry caps, timeouts expressed as plain integers). Do **not** route API keys or other credentials through those helpers — use **`vox_clavis::resolve_secret`** (and the `SecretId` inventory below) so precedence and aliases stay consistent.
+Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. HTTP retry caps, timeouts expressed as plain integers). Do **not** route API keys or other credentials through those helpers — use **`vox_secrets::resolve_secret`** (and the `SecretId` inventory below) so precedence and aliases stay consistent.
 
-**`vox-gamify` free-tier AI:** when `FreeAiProvider::{Gemini,OpenRouter}` carries an empty `api_key`, resolution goes through Clavis (`GeminiApiKey`, `OpenRouterApiKey`) — same canonical + compat env names as the rest of the repo; do not read `GEMINI_API_KEY` / `OPENROUTER_API_KEY` directly in new Ludus codepaths.
+**`vox-ludus` free-tier AI:** when `FreeAiProvider::{Gemini,OpenRouter}` carries an empty `api_key`, resolution goes through Secrets (`GeminiApiKey`, `OpenRouterApiKey`) — same canonical + compat env names as the rest of the repo; do not read `GEMINI_API_KEY` / `OPENROUTER_API_KEY` directly in new Ludus codepaths.
 
 - Provider-native names (for example `OPENROUTER_API_KEY`, `OPENAI_API_KEY`): upstream ecosystem names kept for compatibility.
 - Optional `VOX_*` provider aliases are accepted as migration aids; canonical names remain stable.
@@ -38,8 +38,8 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 | `VOX_RUNPOD_API_KEY`, `VOX_VAST_API_KEY` | Cloud GPU infra | Optional cloud GPU | `vox-populi` cloud providers |
 | `TOGETHER_API_KEY` | Remote fine-tune API | Optional cloud training | `vox-cli train --provider together` |
 | `GITHUB_TOKEN` | Publishing/review automation | Workflow-specific required | `vox-cli review/publish` |
-| `VOX_NEWS_TWITTER_TOKEN`, `VOX_NEWS_OPENCOLLECTIVE_TOKEN`, `VOX_SOCIAL_REDDIT_*`, `VOX_SOCIAL_YOUTUBE_*` | Scientia/news syndication | Optional (per channel) | `vox-publisher` resolves via Clavis `SecretId` specs; GitHub syndication also accepts `VOX_NEWS_GITHUB_TOKEN` as an alias of `GITHUB_TOKEN` |
-| `ZENODO_ACCESS_TOKEN`, `OPENREVIEW_EMAIL`, `OPENREVIEW_ACCESS_TOKEN`, `OPENREVIEW_PASSWORD`, `CROSSREF_PLUS_API_KEY`, `DATACITE_REPOSITORY`, `DATACITE_PASSWORD`, `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET`, `TAVILY_API_KEY`, `TAVILY_PROJECT`, `X_TAVILY_API_KEY`, `VOX_ARXIV_ASSIST_HANDOFF_SECRET` (plus `VOX_*` aliases for DataCite, ORCID, Tavily where listed below) | Scholarly repository adapters | Optional (`Workflow::Publish` / `publish_review` bundle) | Zenodo / OpenReview / Crossref / DataCite / ORCID / Tavily clients resolve via Clavis; VOX-prefixed aliases accepted where listed |
+| `VOX_NEWS_TWITTER_TOKEN`, `VOX_NEWS_OPENCOLLECTIVE_TOKEN`, `VOX_SOCIAL_REDDIT_*`, `VOX_SOCIAL_YOUTUBE_*` | Scientia/news syndication | Optional (per channel) | `vox-publisher` resolves via Secrets `SecretId` specs; GitHub syndication also accepts `VOX_NEWS_GITHUB_TOKEN` as an alias of `GITHUB_TOKEN` |
+| `ZENODO_ACCESS_TOKEN`, `OPENREVIEW_EMAIL`, `OPENREVIEW_ACCESS_TOKEN`, `OPENREVIEW_PASSWORD`, `CROSSREF_PLUS_API_KEY`, `DATACITE_REPOSITORY`, `DATACITE_PASSWORD`, `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET`, `TAVILY_API_KEY`, `TAVILY_PROJECT`, `X_TAVILY_API_KEY`, `VOX_ARXIV_ASSIST_HANDOFF_SECRET` (plus `VOX_*` aliases for DataCite, ORCID, Tavily where listed below) | Scholarly repository adapters | Optional (`Workflow::Publish` / `publish_review` bundle) | Zenodo / OpenReview / Crossref / DataCite / ORCID / Tavily clients resolve via Secrets; VOX-prefixed aliases accepted where listed |
 | `VOX_DB_URL`, `VOX_DB_TOKEN` | Remote DB | Workflow-specific required | DB remote flows |
 | `VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN` | Optional telemetry ingest (explicit `vox telemetry upload`) | Optional | `vox-cli` resolves via `SecretId::VoxTelemetryUploadUrl` / `VoxTelemetryUploadToken`; see [ADR 023](../adr/023-optional-telemetry-remote-upload.md) |
 | `VOX_SEARCH_QDRANT_API_KEY` | Qdrant HTTP `api-key` (optional RAG sidecar) | Optional | [`vox_search::vector_qdrant`](../../../crates/vox-search/src/vector_qdrant.rs) via `SecretId::VoxSearchQdrantApiKey` |
@@ -56,7 +56,7 @@ Use **`vox_config::env_parse`** for numeric defaults and operator tuning (e.g. H
 
 ## Managed Secret Env Names
 
-{{#include ../../../contracts/clavis/managed-env-names.md}}
+{{#include ../../../contracts/secrets/managed-env-names.md}}
 
 ## Resolution Precedence
 
@@ -71,7 +71,7 @@ For each managed secret ID:
 
 ## Required vs Optional Model
 
-- `vox clavis doctor` evaluates **blocking requirement groups** (`AnyOf`/`AllOf`) per workflow/profile.
+- `vox secrets doctor` evaluates **blocking requirement groups** (`AnyOf`/`AllOf`) per workflow/profile.
 - `Chat`/`Mcp` blocking model in cloud mode is **OpenRouter-first** (`OPENROUTER_API_KEY` / `VOX_OPENROUTER_API_KEY`); alternate providers are optional capability keys.
 - `local` mode requires no cloud key; `auto` resolves from `VOX_INFERENCE_PROFILE`.
 - Optional keys are reported separately as capability unlocks (not startup blockers).
@@ -94,11 +94,11 @@ For each managed secret ID:
 
 ## Command Surfaces
 
-- `vox clavis doctor --workflow <...> --profile <dev|ci|mobile|prod> --mode <auto|local|cloud> [--bundle <minimal-local-dev|minimal-cloud-dev|gpu-cloud|publish-review>]`
-- `vox clavis set <registry> <token> [--username <name>]`
-- `vox clavis get <registry>`
-- `vox clavis backend-status`
-- `vox clavis migrate-auth-store`
+- `vox secrets doctor --workflow <...> --profile <dev|ci|mobile|prod> --mode <auto|local|cloud> [--bundle <minimal-local-dev|minimal-cloud-dev|gpu-cloud|publish-review>]`
+- `vox secrets set <registry> <token> [--username <name>]`
+- `vox secrets get <registry>`
+- `vox secrets backend-status`
+- `vox secrets migrate-auth-store`
 - FORGE_TOKEN
 - GH_TOKEN
 - GITLAB_TOKEN

@@ -141,7 +141,7 @@ When working specifically on the Vox codebase, append this tightly scoped block.
 - COMPLETION POLICY: Review `contracts/operations/completion-policy.v1.yaml` (Tier A, B, and C skeleton detectors).
 </anti_skeleton>
 <architecture_invariants>
-- SECRETS: Use `vox_clavis::resolve_secret(...)`. NEVER read raw `std::env::var`.
+- SECRETS: Use `vox_secrets::resolve_secret(...)`. NEVER read raw `std::env::var`.
 - BOUNDARIES: No new `.py` files in `scripts/`. No new `pub` items in FROZEN modules.
 - LIMITS: God object = max 500 lines / 12 methods. Sprawl = max 20 files/dir. Refactor immediately if breached.
 </architecture_invariants>

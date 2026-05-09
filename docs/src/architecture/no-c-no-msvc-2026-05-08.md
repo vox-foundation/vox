@@ -81,7 +81,7 @@ These remain and cannot be eliminated without upstream changes:
   GPU/inference path. Only affects search index compression.
 
 ### `clang-sys` + `libgit2-sys` + `simsimd` (via turso_core)
-- **Path**: `vox-clavis` → `turso` → `turso_core`
+- **Path**: `vox-secrets` → `turso` → `turso_core`
 - **Why residual**: `turso_core` uses `bindgen` (needs clang-sys) and `built`
   with `git2` feature (needs libgit2-sys). `simsimd` is turso's SIMD-accelerated
   vector distance library. These are internal turso build-time deps we cannot

@@ -6,7 +6,8 @@ use std::path::PathBuf;
 
 /// Build target for `vox build` / `vox dev`. See `vox_config::BuildTarget` for semantics.
 ///
-/// `fullstack` is the default — existing projects are unaffected.
+/// `fullstack` is the default build mode. Use `--target=server` to emit Axum + api.ts only,
+/// or `--target=client` for the client SDK shape.
 #[derive(Clone, Copy, Debug, ValueEnum, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub enum BuildTargetArg {
     /// Emit TypeScript/React frontend **and** Axum Rust backend (default).

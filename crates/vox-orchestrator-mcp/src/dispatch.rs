@@ -9,7 +9,7 @@ use crate::params::ToolResult;
 use crate::server_state::ServerState;
 
 use crate::{
-    benchmark_tools, browser_tools, chat_tools, clavis_tools, code_validator, codex_tools,
+    benchmark_tools, browser_tools, chat_tools, secrets_tools, code_validator, codex_tools,
     compiler_tools, db_tools, exec_time_tools, git_tools, grammar_tools, introspection_tools,
     openclaw_tools, persistence_tools, populi_tools, project_init_tools,
     questioning_tools, rag_tools, repo_catalog_tools, repo_index, task_tools,
@@ -393,7 +393,7 @@ async fn handle_tool_call_inner(
         }
         "vox_db_explain_query" => Ok(db_tools::vox_db_explain_query(state, args).await),
         "vox_db_suggest_query" => Ok(db_tools::vox_db_suggest_query(state, args).await),
-        "vox_clavis_doctor" => Ok(clavis_tools::clavis_doctor(state, args).await),
+        "vox_secrets_doctor" => Ok(secrets_tools::secrets_doctor(state, args).await),
 
         "vox_db_research_session_upsert" => {
             Ok(codex_tools::codex_research_session_upsert(state, args).await)

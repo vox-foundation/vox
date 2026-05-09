@@ -47,7 +47,7 @@ fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
-pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
+pub(crate) fn run_secrets_contracts(root: &Path) -> Result<()> {
     let mut ms: std::collections::BTreeMap<vox_secrets::SecretId, Vec<&'static str>> =
         std::collections::BTreeMap::new();
     for spec in vox_secrets::all_specs() {
@@ -128,26 +128,26 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
     );
 
     let manifest = EnvNamesManifest {
-        schema: "contracts/clavis/managed-env-names.v1.json",
+        schema: "contracts/secrets/managed-env-names.v1.json",
         generated_at_ms: now_ms(),
-        generator: "vox ci clavis-contracts",
+        generator: "vox ci secrets-contracts",
         secrets: specs,
         operator_tuning_envs: all_operator_envs.into_iter().collect(),
     };
 
     let cap_manifest = CapabilitiesManifest {
-        schema: "contracts/clavis/secret-capabilities.v1.json",
+        schema: "contracts/secrets/secret-capabilities.v1.json",
         generated_at_ms: now_ms(),
         secrets: cap_rows,
     };
 
-    let out = root.join("contracts/clavis/managed-env-names.v1.json");
+    let out = root.join("contracts/secrets/managed-env-names.v1.json");
     if let Some(p) = out.parent() {
         fs::create_dir_all(p)?;
     }
     fs::write(&out, serde_json::to_string_pretty(&manifest)?)?;
 
-    let cap_out = root.join("contracts/clavis/secret-capabilities.v1.json");
+    let cap_out = root.join("contracts/secrets/secret-capabilities.v1.json");
     fs::write(&cap_out, serde_json::to_string_pretty(&cap_manifest)?)?;
 
     let mut md_lines = Vec::new();
@@ -177,9 +177,9 @@ pub(crate) fn run_clavis_contracts(root: &Path) -> Result<()> {
     for name in manifest.operator_tuning_envs {
         md_lines.push(format!("- `{name}`"));
     }
-    let md_out = root.join("contracts/clavis/managed-env-names.md");
+    let md_out = root.join("contracts/secrets/managed-env-names.md");
     fs::write(&md_out, md_lines.join("\n") + "\n")?;
 
-    println!("clavis-contracts OK: {} secrets", manifest.secrets.len());
+    println!("secrets-contracts OK: {} secrets", manifest.secrets.len());
     Ok(())
 }

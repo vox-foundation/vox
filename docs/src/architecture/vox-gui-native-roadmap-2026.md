@@ -9,6 +9,8 @@ training_eligible: false
 
 # Vox GUI-Native Language Roadmap (April 2026)
 
+> **Phase numbering:** This plan uses the **GUI-native language** phase sequence (Phases 0–8). For the other two sequences, see [phase-numbering-index](phase-numbering-index.md).
+
 > **Document purpose.** This is an executable roadmap for turning Vox from a
 > "Rust/React-emitting toolchain with a VS Code extension" into a GUI-native
 > language whose compiler catches correctness invariants that React +
@@ -84,7 +86,7 @@ applies repo-wide:
      `docs/src/architecture/`, never to IDE-private knowledge bases.
    - §AI Context Exclusion: `.voxignore` is the SSOT; other ignore files are
      derived via `vox ci sync-ignore-files`.
-   - §Secret Management: use Clavis (`vox_clavis::resolve_secret`). Do not
+   - §Secret Management: use vox-secrets (`vox_secrets::resolve_secret`). Do not
      introduce direct `std::env::var` reads for secrets.
    - §Cryptography Policy: use `vox-crypto`. Banned: AEGIS, `ring`, any
      wrapper dragging `cmake` or `nasm`.
@@ -106,7 +108,7 @@ applies repo-wide:
 | # | Rule | Consequence if broken |
 |---|------|----------------------|
 | P1 | No new `.ps1` / `.sh` / `.py` glue scripts. Automation is `.vox` via `vox run`. | CI gate failure + rejection. |
-| P2 | Use `vox_clavis::resolve_secret(...)` for secrets. No raw `env::var` for sensitive values. | `vox ci secret-env-guard` fails. |
+| P2 | Use `vox_secrets::resolve_secret(...)` for secrets. No raw `env::var` for sensitive values. | `vox ci secret-env-guard` fails. |
 | P3 | Use `vox-crypto` for cryptography. No direct `ring`, AEGIS, cmake/nasm. | CI crypto-policy gate fails. |
 | P4 | Edit `.voxignore` only; derived ignore files are regenerated via `vox ci sync-ignore-files`. | `vox ci sync-ignore-files` fails. |
 | P5 | Do not use retired symbols (see `AGENTS.md §Retired Surfaces`). | Automatic PR rejection. |
@@ -143,7 +145,7 @@ C:\Users\Owner\vox\                        — repo root
 │   │   ├── package.json                   — Vite 6 + React 19 + Tailwind 3
 │   │   └── vite.config.ts
 │   ├── vox-lsp/                           — tower-lsp server (editor-agnostic)
-│   ├── vox-clavis/                        — secret resolution SSOT
+│   ├── vox-secrets/                       — secret resolution SSOT
 │   ├── vox-crypto/                        — cryptography SSOT
 │   ├── vox-skills/                        — skill + MCP tool registry
 │   ├── vox-gamify/                        — gamification (formerly vox-ludus)
@@ -186,7 +188,7 @@ cargo test --workspace --all-features
 # Repository-wide policy gates
 vox ci toestub-scoped --report
 vox ci secret-env-guard
-vox ci clavis-parity
+vox ci secrets-parity
 vox ci sync-ignore-files
 
 # Lint + format
@@ -230,7 +232,7 @@ Escalation format: see Appendix C.
 | **Web IR** | Second-stage IR specific to UI emission. Path: `crates/vox-compiler/src/web_ir/`. Lowers to TSX via `codegen_ts`. |
 | **Path B** | Legacy UI model: `@component fn Name()`. Retired per AGENTS.md but HIR fields still exist. Phase 2 removes them. |
 | **Path C** | Current UI model: `component Name() { state; view }`. Replaces Path B. |
-| **Clavis** | Secret resolution crate. Path: `crates/vox-clavis/`. Call site: `vox_clavis::resolve_secret(SecretId::...)`. |
+| **Secrets** | Secret resolution crate. Path: `crates/vox-secrets/`. Call site: `vox_secrets::resolve_secret(SecretId::...)`. |
 | **MENS** | Model training pipeline. Native Rust (Burn + Candle). Trains on `.vox` corpus + golden set. |
 | **Populi** | Hardware-aware node mesh. Routes training/inference to capable nodes. |
 | **Ludus** | Gamification system. Formerly `vox-ludus` (renamed). Path: `crates/vox-gamify/`. |
@@ -359,7 +361,7 @@ token generated at startup and required on every request.
   check).
 - `crates/vox-orchestrator/src/mcp_tools/http_gateway/status.rs` — to
   understand how `auth_required` is surfaced.
-- `crates/vox-clavis/src/spec.rs` — secret spec shape.
+- `crates/vox-secrets/src/spec.rs` — secret spec shape.
 - `crates/vox-dashboard/src/assets.rs` — current asset handler (no token
   injection).
 - `crates/vox-dashboard/src/transport.ts` — current fetch / WS code.
@@ -2373,7 +2375,7 @@ invisible to the downstream model.
    against the repo on 2026-04-23. If a path is missing when you execute,
    STOP and escalate.
 2. **Do not invent API signatures.** If a task references
-   `vox_clavis::resolve_secret`, find the signature in the source before
+   `vox_secrets::resolve_secret`, find the signature in the source before
    calling it. Do not guess.
 3. **Do not silently skip verification commands.** If `cargo test` fails,
    the task is not done.
@@ -2419,9 +2421,9 @@ cargo fmt --all -- --check
 # 5. TOESTUB gates
 vox ci toestub-scoped --report
 
-# 6. Secret/clavis gates
+# 6. Secret gates
 vox ci secret-env-guard
-vox ci clavis-parity
+vox ci secrets-parity
 
 # 7. Ignore file sync
 vox ci sync-ignore-files

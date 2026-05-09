@@ -37,15 +37,15 @@ use vox_secrets::SecretId;
 static LEGACY_TURSO_ENV_WARN: std::sync::Once = std::sync::Once::new();
 
 fn try_remote_from_compat_env() -> Option<DbConfig> {
-    let hard_cut_strict = std::env::var("VOX_CLAVIS_HARD_CUT")
+    let hard_cut_strict = std::env::var("VOX_SECRETS_HARD_CUT")
         .ok()
         .map(|v| {
             let t = v.trim().to_ascii_lowercase();
             matches!(t.as_str(), "1" | "true" | "yes" | "on")
         })
         .unwrap_or(false);
-    let cutover_phase_blocks_compat = std::env::var("VOX_CLAVIS_CUTOVER_PHASE")
-        .or_else(|_| std::env::var("VOX_CLAVIS_MIGRATION_PHASE"))
+    let cutover_phase_blocks_compat = std::env::var("VOX_SECRETS_CUTOVER_PHASE")
+        .or_else(|_| std::env::var("VOX_SECRETS_MIGRATION_PHASE"))
         .ok()
         .map(|v| v.trim().to_ascii_lowercase())
         .is_some_and(|phase| matches!(phase.as_str(), "enforce" | "decommission"));
@@ -284,11 +284,11 @@ mod tests {
     #[allow(unsafe_code)]
     fn hard_cut_disables_compat_remote_aliases() {
         let _guard = ENV_LOCK.lock().expect("env lock");
-        let prev_hard_cut = std::env::var("VOX_CLAVIS_HARD_CUT").ok();
+        let prev_hard_cut = std::env::var("VOX_SECRETS_HARD_CUT").ok();
         let prev_url = std::env::var(SecretId::VoxDbUrl.spec().canonical_env).ok();
         let prev_token = std::env::var(SecretId::VoxDbToken.spec().canonical_env).ok();
         unsafe {
-            std::env::set_var("VOX_CLAVIS_HARD_CUT", "1");
+            std::env::set_var("VOX_SECRETS_HARD_CUT", "1");
             std::env::set_var(
                 SecretId::VoxDbUrl.spec().canonical_env,
                 "libsql://example.turso.io",
@@ -298,8 +298,8 @@ mod tests {
         assert!(try_remote_from_compat_env().is_none());
         unsafe {
             match prev_hard_cut {
-                Some(v) => std::env::set_var("VOX_CLAVIS_HARD_CUT", v),
-                None => std::env::remove_var("VOX_CLAVIS_HARD_CUT"),
+                Some(v) => std::env::set_var("VOX_SECRETS_HARD_CUT", v),
+                None => std::env::remove_var("VOX_SECRETS_HARD_CUT"),
             }
             match prev_url {
                 Some(v) => std::env::set_var(SecretId::VoxDbUrl.spec().canonical_env, v),
@@ -316,11 +316,11 @@ mod tests {
     #[allow(unsafe_code)]
     fn lenient_mode_allows_compat_remote_aliases() {
         let _guard = ENV_LOCK.lock().expect("env lock");
-        let prev_hard_cut = std::env::var("VOX_CLAVIS_HARD_CUT").ok();
+        let prev_hard_cut = std::env::var("VOX_SECRETS_HARD_CUT").ok();
         let prev_url = std::env::var(SecretId::VoxDbUrl.spec().canonical_env).ok();
         let prev_token = std::env::var(SecretId::VoxDbToken.spec().canonical_env).ok();
         unsafe {
-            std::env::set_var("VOX_CLAVIS_HARD_CUT", "0");
+            std::env::set_var("VOX_SECRETS_HARD_CUT", "0");
             std::env::set_var(
                 SecretId::VoxDbUrl.spec().canonical_env,
                 "libsql://example.turso.io",
@@ -331,8 +331,8 @@ mod tests {
         assert!(matches!(cfg, DbConfig::Remote { .. }));
         unsafe {
             match prev_hard_cut {
-                Some(v) => std::env::set_var("VOX_CLAVIS_HARD_CUT", v),
-                None => std::env::remove_var("VOX_CLAVIS_HARD_CUT"),
+                Some(v) => std::env::set_var("VOX_SECRETS_HARD_CUT", v),
+                None => std::env::remove_var("VOX_SECRETS_HARD_CUT"),
             }
             match prev_url {
                 Some(v) => std::env::set_var(SecretId::VoxDbUrl.spec().canonical_env, v),
@@ -349,15 +349,15 @@ mod tests {
     #[allow(unsafe_code)]
     fn enforce_cutover_phase_disables_compat_remote_aliases() {
         let _guard = ENV_LOCK.lock().expect("env lock");
-        let prev_cutover = std::env::var("VOX_CLAVIS_CUTOVER_PHASE").ok();
-        let prev_migration = std::env::var("VOX_CLAVIS_MIGRATION_PHASE").ok();
-        let prev_hard_cut = std::env::var("VOX_CLAVIS_HARD_CUT").ok();
+        let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
+        let prev_migration = std::env::var("VOX_SECRETS_MIGRATION_PHASE").ok();
+        let prev_hard_cut = std::env::var("VOX_SECRETS_HARD_CUT").ok();
         let prev_url = std::env::var(SecretId::VoxDbUrl.spec().canonical_env).ok();
         let prev_token = std::env::var(SecretId::VoxDbToken.spec().canonical_env).ok();
         unsafe {
-            std::env::set_var("VOX_CLAVIS_HARD_CUT", "0");
-            std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", "enforce");
-            std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE");
+            std::env::set_var("VOX_SECRETS_HARD_CUT", "0");
+            std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", "enforce");
+            std::env::remove_var("VOX_SECRETS_MIGRATION_PHASE");
             std::env::set_var(
                 SecretId::VoxDbUrl.spec().canonical_env,
                 "libsql://example.turso.io",
@@ -367,16 +367,16 @@ mod tests {
         assert!(try_remote_from_compat_env().is_none());
         unsafe {
             match prev_cutover {
-                Some(v) => std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", v),
-                None => std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE"),
+                Some(v) => std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", v),
+                None => std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE"),
             }
             match prev_migration {
-                Some(v) => std::env::set_var("VOX_CLAVIS_MIGRATION_PHASE", v),
-                None => std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE"),
+                Some(v) => std::env::set_var("VOX_SECRETS_MIGRATION_PHASE", v),
+                None => std::env::remove_var("VOX_SECRETS_MIGRATION_PHASE"),
             }
             match prev_hard_cut {
-                Some(v) => std::env::set_var("VOX_CLAVIS_HARD_CUT", v),
-                None => std::env::remove_var("VOX_CLAVIS_HARD_CUT"),
+                Some(v) => std::env::set_var("VOX_SECRETS_HARD_CUT", v),
+                None => std::env::remove_var("VOX_SECRETS_HARD_CUT"),
             }
             match prev_url {
                 Some(v) => std::env::set_var(SecretId::VoxDbUrl.spec().canonical_env, v),

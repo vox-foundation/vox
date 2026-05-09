@@ -465,10 +465,10 @@ curated:
   - ci
   - check-summary-drift
   parameters: null
-- id: cli.ci.clavis-parity
-  title: Ci Clavis-parity
+- id: cli.ci.secrets-parity
+  title: Ci Secrets-parity
   description_human: null
-  description_model: CLI operation `vox ci clavis-parity`
+  description_model: CLI operation `vox ci secrets-parity`
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -481,7 +481,7 @@ curated:
   mcp_tool: null
   cli_path:
   - ci
-  - clavis-parity
+  - secrets-parity
   parameters: null
 - id: cli.ci.command-compliance
   title: Ci Command-compliance
@@ -1431,10 +1431,10 @@ curated:
   - ci
   - workflow-scripts
   parameters: null
-- id: cli.clavis
-  title: Clavis
+- id: cli.secrets
+  title: Secrets
   description_human: null
-  description_model: CLI operation `vox clavis`
+  description_model: CLI operation `vox secrets`
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -1446,12 +1446,12 @@ curated:
   mens_planner_visible: null
   mcp_tool: null
   cli_path:
-  - clavis
+  - secrets
   parameters: null
-- id: cli.clavis.backend-status
-  title: Clavis Backend-status
+- id: cli.secrets.backend-status
+  title: Secrets Backend-status
   description_human: null
-  description_model: CLI operation `vox clavis backend-status`
+  description_model: CLI operation `vox secrets backend-status`
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -1463,13 +1463,13 @@ curated:
   mens_planner_visible: null
   mcp_tool: null
   cli_path:
-  - clavis
+  - secrets
   - backend-status
   parameters: null
-- id: cli.clavis.get
-  title: Clavis Get
+- id: cli.secrets.get
+  title: Secrets Get
   description_human: null
-  description_model: CLI operation `vox clavis get`
+  description_model: CLI operation `vox secrets get`
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -1481,13 +1481,13 @@ curated:
   mens_planner_visible: null
   mcp_tool: null
   cli_path:
-  - clavis
+  - secrets
   - get
   parameters: null
-- id: cli.clavis.login
-  title: Clavis Login
+- id: cli.secrets.login
+  title: Secrets Login
   description_human: null
-  description_model: CLI operation `vox clavis login`
+  description_model: CLI operation `vox secrets login`
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -1499,13 +1499,13 @@ curated:
   mens_planner_visible: null
   mcp_tool: null
   cli_path:
-  - clavis
+  - secrets
   - login
   parameters: null
-- id: cli.clavis.migrate-auth-store
-  title: Clavis Migrate-auth-store
+- id: cli.secrets.migrate-auth-store
+  title: Secrets Migrate-auth-store
   description_human: null
-  description_model: CLI operation `vox clavis migrate-auth-store`
+  description_model: CLI operation `vox secrets migrate-auth-store`
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -1517,13 +1517,13 @@ curated:
   mens_planner_visible: null
   mcp_tool: null
   cli_path:
-  - clavis
+  - secrets
   - migrate-auth-store
   parameters: null
-- id: cli.clavis.set
-  title: Clavis Set
+- id: cli.secrets.set
+  title: Secrets Set
   description_human: null
-  description_model: CLI operation `vox clavis set`
+  description_model: CLI operation `vox secrets set`
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -1535,13 +1535,13 @@ curated:
   mens_planner_visible: null
   mcp_tool: null
   cli_path:
-  - clavis
+  - secrets
   - set
   parameters: null
-- id: cli.clavis.status
-  title: Clavis Status
+- id: cli.secrets.status
+  title: Secrets Status
   description_human: null
-  description_model: CLI operation `vox clavis status`
+  description_model: CLI operation `vox secrets status`
   intent_tags: []
   side_effect_class: null
   scope_kind: null
@@ -1553,7 +1553,7 @@ curated:
   mens_planner_visible: null
   mcp_tool: null
   cli_path:
-  - clavis
+  - secrets
   - status
   parameters: null
 - id: cli.codex
@@ -5407,8 +5407,8 @@ curated:
   mcp_tool: vox_claim_file
   cli_path: null
   parameters: null
-- id: mcp.vox_clavis_doctor
-  title: Clavis Doctor
+- id: mcp.vox_secrets_doctor
+  title: Secrets Doctor
   description_human: null
   description_model: Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.
   intent_tags: []
@@ -5420,7 +5420,7 @@ curated:
   preferred_for_models: null
   human_takeover_friendly: null
   mens_planner_visible: null
-  mcp_tool: vox_clavis_doctor
+  mcp_tool: vox_secrets_doctor
   cli_path: null
   parameters: null
 - id: mcp.vox_compaction_status

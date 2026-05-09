@@ -21,10 +21,10 @@ use crate::params::ToolResult;
 use crate::server_state::ServerState;
 use vox_orchestrator::planning::{ContentBlock, markdown_to_content_blocks};
 
-const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
+const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox secrets doctor` for inference secrets.";
 const REM_MCP_MODEL_LOCK: &str =
     "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
-const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
 const REM_PLAN_JSON: &str = "Retry planning with a simpler goal or lower `max_tasks`; ensure the model returns valid JSON in a ```json block.";
 const REM_PLAN_ADEQUACY_ENFORCE: &str = "Widen scope with concrete steps, paths, and verification; increase `plan_depth`; enable refinement (`loop_mode`) or raise caps; or set `VOX_ORCHESTRATOR_PLAN_ADEQUACY_ENFORCE=false` on the MCP host.";
 const REM_DEI_DAEMON: &str =

@@ -230,7 +230,7 @@ Three tiers, each with a bounded analysis budget:
 | 2 | Reads inside `HirExpr::Lambda` bodies whose closure escapes to an effect/derived | O(nodes × lambda depth) | already implemented at [state_deps.rs:95](../../../crates/vox-compiler/src/codegen_ts/hir_emit/state_deps.rs:95); extend to track closure-captured reactive bindings |
 | 3 | Reads through `HirExpr::Call` to a free function declared in the same module | O(callees × analysis budget) | gate on `@reactive`-annotated callees only; otherwise emit `dep_inference.over_track` info diagnostic and add the conservative "everything in scope" dep set |
 
-Whole-program / cross-crate / dynamic-dispatch analysis: explicitly **not** implemented. Authors get a clean opt-in (`@reactive fn compute(x: int) -> int { … }`) for free functions that should participate in dep tracking; without the annotation, the call site over-tracks (correct but pessimistic).
+Whole-program / cross-crate / dynamic-dispatch analysis: explicitly **not** implemented. Authors get a clean opt-in (`@reactive fn compute(x: int) to int { … }`) for free functions that should participate in dep tracking; without the annotation, the call site over-tracks (correct but pessimistic).
 
 ### Concrete changes
 
@@ -250,7 +250,7 @@ Whole-program / cross-crate / dynamic-dispatch analysis: explicitly **not** impl
 ### Verification
 
 - Unit tests for each tier in `state_deps.rs#tests`.
-- Snapshot test: a `derived label = format(count)` where `format` is `@reactive fn format(c: int) -> str { "v=" + str(c) }` produces deps `[count]`.
+- Snapshot test: a `derived label = format(count)` where `format` is `@reactive fn format(c: int) to str { "v=" + str(c) }` produces deps `[count]`.
 - Snapshot test: same code with no `@reactive` annotation produces `DepSet::Conservative` and the info diagnostic.
 
 ### Out of scope (the "may-being" the user asked us to be conservative on)

@@ -40,9 +40,9 @@ vox-config::paths::local_user_id()
 
 All gamification state (profile, quests, companions, battles, policy snapshots, etc.) lives in a **local SQLite file** at `<AppData>/vox/vox.db`. The schema is versioned V5–V18. There is no sync, no remote write path, and no multi-device awareness today.
 
-`vox-clavis` (`spec/ids.rs`) has `VoxDbUrl` and `VoxDbToken` secrets — these suggest Turso/libsql remote sync capability exists in `vox-db`, but it is **not plumbed into the gamification write paths yet**.
+`vox-secrets` (`spec/ids.rs`) has `VoxDbUrl` and `VoxDbToken` secrets — these suggest Turso/libsql remote sync capability exists in `vox-db`, but it is **not plumbed into the gamification write paths yet**.
 
-### Clavis has no GitHub secret today
+### vox-secrets has no GitHub secret today
 
 A search of `spec/ids.rs` (553 lines) reveals no `GithubToken`, `GithubOauthClientId`, or equivalent. The codebase has `VoxGithubSha` (a build-time variable, not an OAuth credential). **GitHub OAuth is a greenfield addition.**
 
@@ -67,7 +67,7 @@ GitHub's **OAuth Device Authorization Grant (RFC 8628)** is the canonical headle
 5. CLI polls `POST https://github.com/login/oauth/access_token` with the `device_code`.
 6. User authenticates in browser → polling succeeds → CLI receives `access_token`.
 7. CLI calls `GET https://api.github.com/user` → gets `{ "id": 12345678, "login": "octocat" }`.
-8. CLI stores: `github_numeric_id = 12345678`, `github_login = "octocat"`, `access_token` (via Clavis).
+8. CLI stores: `github_numeric_id = 12345678`, `github_login = "octocat"`, `access_token` (via vox-secrets).
 9. Writes link row: `(vox_user_id="Owner", github_id=12345678)` to VoxDB.
 
 **Key security property:** Use the **stable numeric `id`** field, never the mutable `login` string, for all database foreign keys. GitHub usernames can be changed; numeric IDs cannot.
@@ -85,15 +85,15 @@ This is appropriate for a web dashboard but is unnecessarily complex for a CLI-f
 
 ### Option C: Manual Token Entry (Escape Hatch)
 
-Allow `vox ludus auth github --token ghp_xxx` for power users, CI, or headless environments. Store the token via Clavis; resolve the numeric ID immediately by calling the `/user` API.
+Allow `vox ludus auth github --token ghp_xxx` for power users, CI, or headless environments. Store the token via vox-secrets; resolve the numeric ID immediately by calling the `/user` API.
 
 ---
 
 ## 3. Proposed Identity Schema Extension
 
-### New Clavis Secrets Required
+### New Secrets Required
 
-Add to `crates/vox-clavis/src/spec/ids.rs`:
+Add to `crates/vox-secrets/src/spec/ids.rs`:
 ```rust
 VoxGithubClientId,          // GitHub App / OAuth App client_id (non-secret, stored in code)
 VoxGithubOauthToken,        // Per-user GitHub access token (device flow result)
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS vox_identities (
     provider      TEXT NOT NULL,           -- 'github', 'google', 'discord', etc.
     provider_id   TEXT NOT NULL,           -- stable numeric ID from provider (e.g. GitHub user.id)
     provider_login TEXT,                   -- mutable display name (e.g. "octocat") — for display only
-    access_token_ref TEXT,                 -- Clavis key reference (not the token itself)
+    access_token_ref TEXT,                 -- vox-secrets key reference (not the token itself)
     linked_at     INTEGER NOT NULL,
     PRIMARY KEY (vox_user_id, provider)
 );
@@ -122,7 +122,7 @@ This is a **schema V19** migration in `crates/vox-ludus/src/schema.rs`.
 ### Decentralized Profile Sync
 
 For cross-device profile carry-over, the cleanest path in the existing architecture:
-- `VoxDbUrl` and `VoxDbToken` in Clavis already support **Turso/libsql embedded replicas** (local reads, remote writes).
+- `VoxDbUrl` and `VoxDbToken` in vox-secrets already support **Turso/libsql embedded replicas** (local reads, remote writes).
 - The `gamify_profiles` table (and all linked gamification tables) can be synced to a remote Turso database scoped to the user's GitHub numeric ID as the `user_id`.
 - This is **additive** — local-only mode continues to work when `VoxDbUrl` is absent.
 
@@ -177,7 +177,7 @@ Anti-grind protection applies automatically via the existing `PolicyEngine` — 
 ### Wave 1 — Identity Foundation (Prerequisite)
 - [ ] Add `VoxGithubClientId` and `VoxGithubOauthToken` to `spec/ids.rs`
 - [ ] Register a GitHub OAuth App (or GitHub App) for Vox
-- [ ] Implement `vox ludus auth github` using device flow (`reqwest` calls, Clavis storage)
+- [ ] Implement `vox ludus auth github` using device flow (`reqwest` calls, vox-secrets storage)
 - [ ] Add `vox_identities` table (schema V19) to `crates/vox-ludus/src/schema.rs`
 - [ ] Resolve and store numeric GitHub user ID on successful auth
 
@@ -209,7 +209,7 @@ Anti-grind protection applies automatically via the existing `PolicyEngine` — 
 | Auth flow | GitHub Device Flow (RFC 8628) | CLI-native, no client secret, no redirect server |
 | Identity key | GitHub numeric `id` | Immutable; survives username changes |
 | Social login | Deferred (device flow sufficient) | Avoids web server dependency for V1 |
-| Remote sync | Turso/libsql (`VoxDbUrl`) | Already in Clavis spec; additive to local-only mode |
+| Remote sync | Turso/libsql (`VoxDbUrl`) | Already in vox-secrets spec; additive to local-only mode |
 | Contribution scoring | Map to existing policy events | Reuses anti-grind, multipliers, quest engine |
 | Webhook server | Deferred to Wave 4 | GitHub Actions + polling sufficient for V1-V3 |
 
@@ -221,5 +221,5 @@ Anti-grind protection applies automatically via the existing `PolicyEngine` — 
 - GitHub stable user IDs: `GET /user` → `id` field (integer, never changes)
 - Existing reward policy: `crates/vox-ludus/src/reward_policy.rs`
 - Identity schema location: `crates/vox-ludus/src/schema.rs` (add as V19)
-- Clavis spec: `crates/vox-clavis/src/spec/ids.rs`
-- VoxDB remote: `VOX_DB_URL` / `VOX_DB_TOKEN` (Clavis `VoxDbUrl` / `VoxDbToken`)
+- Secrets spec: `crates/vox-secrets/src/spec/ids.rs`
+- VoxDB remote: `VOX_DB_URL` / `VOX_DB_TOKEN` (vox-secrets `VoxDbUrl` / `VoxDbToken`)

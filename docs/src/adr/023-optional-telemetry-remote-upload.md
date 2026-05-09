@@ -22,15 +22,15 @@ Vox records many **operator-controlled** diagnostics and research metrics locall
 
 1. **No default remote upload.** The product does not phone home. Transmission requires an explicit CLI invocation (`vox telemetry upload`) and configured ingest URL.
 2. **Local spool first.** Pending payloads live as one JSON file per event under a configurable directory (default under the current working tree’s `.vox/telemetry-upload-queue/pending/`, overridable via `VOX_TELEMETRY_SPOOL_DIR`). Operators enqueue with **`vox telemetry enqueue`** or out-of-band file drops consistent with the spool layout.
-3. **Secrets via Clavis only.** Ingest URL and bearer token are [`SecretId::VoxTelemetryUploadUrl`](../../../crates/vox-clavis/src/lib.rs) and [`SecretId::VoxTelemetryUploadToken`](../../../crates/vox-clavis/src/lib.rs) (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). CLI code uses `vox_clavis::resolve_secret`; do not add parallel `std::env::var` reads for those values.
+3. **Secrets via vox-secrets only.** Ingest URL and bearer token are [`SecretId::VoxTelemetryUploadUrl`](../../../crates/vox-secrets/src/lib.rs) and [`SecretId::VoxTelemetryUploadToken`](../../../crates/vox-secrets/src/lib.rs) (`VOX_TELEMETRY_UPLOAD_URL`, `VOX_TELEMETRY_UPLOAD_TOKEN`). CLI code uses `vox_secrets::resolve_secret`; do not add parallel `std::env::var` reads for those values.
 4. **Normative wire behavior** (rate limits, signing roadmap, headers) lives in [telemetry-remote-sink-spec](../archive/research-2026-q1/telemetry-remote-sink-spec.md), not in this ADR.
-5. **Legal / security sign-off** for any *organization-wide* or *end-user* upload policy is recorded in that organization’s process; this ADR defines the **technical** guardrails (opt-in, explicit command, Clavis, delete-after-ack on success).
+5. **Legal / security sign-off** for any *organization-wide* or *end-user* upload policy is recorded in that organization’s process; this ADR defines the **technical** guardrails (opt-in, explicit command, vox-secrets, delete-after-ack on success).
 
 ## Consequences
 
 - New CLI surface: `vox telemetry status|export|enqueue|upload` (catalog + command-registry generated from `contracts/operations/catalog.v1.yaml`).
 - New documentation: remote sink spec + env-var rows in [env-vars](../reference/env-vars.md).
-- Future HMAC or mTLS layers extend the sink spec and Clavis `SecretId` list without changing the “explicit upload” invariant.
+- Future HMAC or mTLS layers extend the sink spec and vox-secrets `SecretId` list without changing the “explicit upload” invariant.
 
 ## See also
 

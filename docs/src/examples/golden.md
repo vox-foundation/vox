@@ -26,7 +26,7 @@ The smallest valid Vox program: a typed function that returns a string. Demonstr
 
 ## CRUD API — Table, Query, Mutation, and Endpoint
 
-A complete data layer in one file. `@table` generates the database schema, `@query` wires a read-only resolver, `@mutation` wires a write operation, and `@get` exposes an HTTP handler — all with the Rust Axum backend generated automatically.
+A complete data layer in one file. `@table` generates the database schema, `@endpoint(kind: query)` wires a read-only resolver, `@endpoint(kind: mutation)` wires a write operation, and `@get` exposes an HTTP handler — all with the Rust Axum backend generated automatically.
 
 ```vox
 {{#include ../../../examples/golden/crud_api.vox:display}}

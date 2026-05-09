@@ -230,7 +230,7 @@ impl AgentQueue {
         serde_json::to_string_pretty(&self.tasks).unwrap_or_else(|_| "[]".to_string())
     }
 
-    // ── Phase 5.1 additions ──────────────────────────────────────────────
+    // ── Deduplication queue enhancements (enqueue_dedup) ────────────────
 
     /// Attempt to enqueue, deduplicating by description.
     /// Returns `true` if inserted, `false` if a task with the same description

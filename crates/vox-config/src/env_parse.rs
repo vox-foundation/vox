@@ -1,7 +1,10 @@
 //! Typed environment readers with defaults.
 //!
-//! **Secrets:** do not use this for API keys — resolve via `vox_secrets::resolve_secret` at the callsite.
-//! This module is for numeric/timeouts and other non-secret operator tuning.
+//! For non-secret configuration: timeouts, operator flags, feature gates, routing preferences,
+//! and other numeric or boolean tuning knobs. Values are resolved from environment variables,
+//! `~/.vox/config.toml`, and compiled-in defaults (in that order).
+//! For API keys and other sensitive values, use `vox_secrets::resolve_secret(...)` — this
+//! module deliberately does not handle secrets.
 
 use std::time::Duration;
 
@@ -17,7 +20,8 @@ pub fn parse_u64_opt(raw: Option<&str>, default: u64) -> u64 {
 /// 2. `~/.vox/config.toml`
 /// 3. compiled default
 ///
-/// Do NOT use this for secrets — use `vox_secrets::resolve_secret`.
+/// Suitable for operator-tuning strings (base URLs, log levels, feature flags).
+/// For secrets such as API keys or tokens, use `vox_secrets::resolve_secret` instead.
 #[must_use]
 pub fn resolve_config_str(name: &str, default: &str) -> String {
     if let Ok(v) = std::env::var(name)

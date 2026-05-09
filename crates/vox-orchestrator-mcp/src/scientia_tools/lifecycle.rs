@@ -433,7 +433,7 @@ pub async fn vox_scientia_publication_submit_local(
         Ok(receipt) => ToolResult::ok(receipt).to_json(),
         Err(e) => ToolResult::<String>::err_with_remediation(
             e.to_string(),
-            "Verify `VOX_SCHOLARLY_*` flags, adapter credentials (Clavis / env), and that live adapters are not disabled.",
+            "Verify `VOX_SCHOLARLY_*` flags, adapter credentials (Secrets / env), and that live adapters are not disabled.",
         )
         .to_json(),
     }

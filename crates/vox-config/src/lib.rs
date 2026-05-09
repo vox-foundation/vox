@@ -3,7 +3,7 @@
 //! Precedence: CLI args > env > config file > defaults.
 
 pub mod bootstrap_inference;
-pub mod clavis;
+pub mod secrets;
 pub mod config;
 pub mod env_parse;
 pub mod inference;
@@ -20,7 +20,7 @@ pub use bootstrap_inference::{
     NLI_FALLBACK, OPENROUTER_AUTO, OPENROUTER_FREE, RESEARCH_FLASH_FALLBACK,
     REVIEW_PREMIUM_FALLBACK,
 };
-pub use clavis::clavis_str;
+pub use secrets::secrets_str;
 pub use config::{BuildTarget, GamifyMode, VoxConfig, WebRunMode};
 pub use inference::{
     InferenceProfile, LOCAL_OLLAMA_POPULI_BASE_URL_DEFAULT, OPENAI_CHAT_COMPLETIONS_URL,
@@ -47,7 +47,7 @@ pub use rollout::{
     workflow_journal_codex_persist_enabled,
 };
 pub use routing_migration::{
-    clavis_cutover_blocks_legacy_env, clavis_cutover_blocks_legacy_env_raw,
+    secrets_cutover_blocks_legacy_env, secrets_cutover_blocks_legacy_env_raw,
     trace_openrouter_chat_env_migration_once,
 };
 pub use routing_policy::{
@@ -99,15 +99,15 @@ mod tests {
 
     #[test]
     fn routing_migration_cutover_raw_parses_phases() {
-        assert!(routing_migration::clavis_cutover_blocks_legacy_env_raw(
+        assert!(routing_migration::secrets_cutover_blocks_legacy_env_raw(
             "enforce"
         ));
-        assert!(routing_migration::clavis_cutover_blocks_legacy_env_raw(
+        assert!(routing_migration::secrets_cutover_blocks_legacy_env_raw(
             "  Decommission \n"
         ));
-        assert!(!routing_migration::clavis_cutover_blocks_legacy_env_raw(
+        assert!(!routing_migration::secrets_cutover_blocks_legacy_env_raw(
             "shadow"
         ));
-        assert!(!routing_migration::clavis_cutover_blocks_legacy_env_raw(""));
+        assert!(!routing_migration::secrets_cutover_blocks_legacy_env_raw(""));
     }
 }

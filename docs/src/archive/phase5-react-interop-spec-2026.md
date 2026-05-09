@@ -8,9 +8,11 @@ training_eligible: false
 training_rationale: "Historical implementation spec for two-way Vox↔React component interop; archived 2026-05-03 after island removal."
 ---
 
-**ARCHIVED & SUPERSEDED (2026-05-03):** Islands have been retired. See [`docs/src/architecture/external-frontend-interop-plan-2026.md`](../architecture/external-frontend-interop-plan-2026.md) for the current React interop story. This document is preserved for historical context.
-
 # Phase 5: Bidirectional Vox↔React Interop Spec (2026)
+
+> **⚠ Superseded — archived 2026-05-03.**
+> The current plan for this area is [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).
+> Retained for historical context only. Do not implement against this document.
 
 Parent plan: [External Frontend Interop Plan (2026)](external-frontend-interop-plan-2026.md)
 

@@ -30,7 +30,7 @@ Quick-reference for AI agents operating on the Vox codebase. Deep rationale live
 | Max files per directory | 20 | `arch/sprawl` |
 | No `todo!()` / `unimplemented!()` | Zero in production | `stub/todo` |
 | No hollow functions | No trivially-default returns | `skeleton/hollow-fn` |
-| No hardcoded secrets | Use Clavis | `security/hardcoded-secret` |
+| No hardcoded secrets | Use vox-secrets | `security/hardcoded-secret` |
 | No CRLF line endings | LF only | `cross-platform/crlf` |
 
 Full fix guide: [TOESTUB contributor guide](toestub-contributor-guide.md).
@@ -81,7 +81,7 @@ Research: [AI agent panic and shortcut pathology](../archive/research-2026-q1/re
 
 | Need | SSOT |
 |---|---|
-| Secrets / credentials | [Clavis SSOT](../reference/clavis-ssot.md) |
+| Secrets / credentials | [Secrets SSOT](../reference/secrets-ssot.md) |
 | CLI command additions | [CLI design rules SSOT](../archive/research-2026-q1/cli-design-rules-ssot.md) |
 | Retired symbols / crates | [AGENTS.md §Retired Surfaces](../../../AGENTS.md) |
 | God-object refactor protocol | [God object defactor checklist](../archive/research-2026-q1/god-object-defactor-checklist.md) |

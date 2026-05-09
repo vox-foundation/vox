@@ -264,7 +264,7 @@ pub async fn browser_extract(state: &ServerState, p: BrowserExtractParams) -> St
         .to_json(),
         Err(e) => ToolResult::<serde_json::Value>::err_with_remediation(
             e,
-            "Configure MCP chat model (`vox_list_models` / `vox_set_active_model`) or provider API keys via Clavis.",
+            "Configure MCP chat model (`vox_list_models` / `vox_set_active_model`) or provider API keys via Secrets.",
         )
         .to_json(),
     }
@@ -360,7 +360,7 @@ Use xpath: prefix in target for XPath. Choose the best next step for the instruc
     let Ok((text, model, _)) = call_llm(state, sys, &user, None, None, None, None).await else {
         return ToolResult::<serde_json::Value>::err_with_remediation(
             "LLM call failed (check model / keys)",
-            "Configure MCP chat model (`vox_set_active_model`) and Clavis secrets.",
+            "Configure MCP chat model (`vox_set_active_model`) and Secrets.",
         )
         .to_json();
     };

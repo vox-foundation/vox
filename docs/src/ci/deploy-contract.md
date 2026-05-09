@@ -44,7 +44,7 @@ Manual **`workflow_dispatch`** may set **`skip_public_health_probe: true`** only
 
 Live probes should use **`curl`** with default verification (not **`curl -k`**) before declaring production healthy.
 
-**Provisioning:** From a checkout with Coolify credentials in the environment (or resolved via Clavis locally), **`vox ci coolify-eval sync-compose`** pushes the composed YAML from **`vox-eval.compose.yml`** to **`PATCH /api/v1/applications/{uuid}`** and can trigger deploy. Optional workflow: **[`.github/workflows/coolify-eval-sync.yml`](../../../.github/workflows/coolify-eval-sync.yml)** (`workflow_dispatch`: discover-only vs sync).
+**Provisioning:** From a checkout with Coolify credentials in the environment (or resolved via vox-secrets locally), **`vox ci coolify-eval sync-compose`** pushes the composed YAML from **`vox-eval.compose.yml`** to **`PATCH /api/v1/applications/{uuid}`** and can trigger deploy. Optional workflow: **[`.github/workflows/coolify-eval-sync.yml`](../../../.github/workflows/coolify-eval-sync.yml)** (`workflow_dispatch`: discover-only vs sync).
 
 ## Deploy trigger (Coolify API)
 
@@ -57,11 +57,11 @@ Gate 2 triggers deploy in this order (**`COOLIFY_TOKEN`** Bearer for triggers; *
 
 Webhook and login HTML responses are ignored for JSON parsing so the job can still reach the deployments list fallback.
 
-## Secrets (Clavis Managed)
+## Secrets (vox-secrets Managed)
 
-The `vox-foundation/vox` repository requires the following GitHub Secrets, which are also securely mapped into the `vox-clavis` registry for local CLI operations (`vox deploy --target coolify`).
+The `vox-foundation/vox` repository requires the following GitHub Secrets, which are also securely mapped into the `vox-secrets` registry for local CLI operations (`vox deploy --target coolify`).
 
-| Clavis Secret ID | GHA Secret Name | Description |
+| Secret ID | GHA Secret Name | Description |
 |---|---|---|
 | `CoolifyWebhookUrl` | `COOLIFY_WEBHOOK_URL` | Optional fallback if **`/api/v1/deploy`** and **`/start`** do not return a UUID (manual-style URL may work without Bearer). |
 | `CoolifyBaseUrl` | `COOLIFY_BASE_URL` | Origin of the Coolify instance **without** a trailing slash (e.g. `http://...:8000`). Requests use `…/api/v1/…`. |
@@ -70,7 +70,7 @@ The `vox-foundation/vox` repository requires the following GitHub Secrets, which
 | `CoolifyAppUuid` | `COOLIFY_APP_UUID` | Target application UUID to poll and pull logs from. For Gate 3 this must be the **eval** compose app that terminates **`eval.vox-lang.org`** (verify with **`vox ci coolify-eval discover`** if unsure). |
 | _(optional)_ | `COOLIFY_PUBLIC_EVAL_HEALTH_URL` | Overrides **`https://eval.vox-lang.org/health`** for Gate 3 public HTTPS + TLS verification. |
 
-*Note: Accessing these secrets via raw `std::env::var` in Rust source code is prohibited. Use `vox_clavis::resolve_secret(SecretId::CoolifyToken)` and, when splitting read vs deploy credentials, `SecretId::CoolifyReadToken`.*
+*Note: Accessing these secrets via raw `std::env::var` in Rust source code is prohibited. Use `vox_secrets::resolve_secret(SecretId::CoolifyToken)` and, when splitting read vs deploy credentials, `SecretId::CoolifyReadToken`.*
 
 ### Operator checklist (GitHub Secrets + Coolify UI)
 

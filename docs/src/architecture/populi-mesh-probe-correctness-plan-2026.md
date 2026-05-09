@@ -916,10 +916,10 @@ Replace the existing `async fn probe_internal()` body (lines 47-107) with:
 
 ```rust
 async fn probe_internal() -> HardwareSummary {
-    // 1. Check for overrides in vox-clavis (preserved from previous behavior).
+    // 1. Check for overrides in vox-secrets (preserved from previous behavior).
     if let (Some(model), Some(vram_s)) = (
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGpuModel).expose(),
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxGpuVramMb).expose(),
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGpuModel).expose(),
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxGpuVramMb).expose(),
     ) {
         if let Ok(vram_mb) = vram_s.parse::<u64>() {
             return HardwareSummary {
@@ -943,12 +943,12 @@ async fn probe_internal() -> HardwareSummary {
 }
 ```
 
-The Clavis-override path stays in `probe_internal()` rather than becoming a probe because it preempts probing entirely; making it a probe would still need this short-circuit anyway.
+The vox-secrets-override path stays in `probe_internal()` rather than becoming a probe because it preempts probing entirely; making it a probe would still need this short-circuit anyway.
 
 - [ ] **Step 3: Run, verify build and existing tests pass**
 
 Run: `cargo test -p vox-populi 2>&1 | tail -20`
-Expected: all tests pass (this is a refactor; behavior should be unchanged for the non-Clavis-override path).
+Expected: all tests pass (this is a refactor; behavior should be unchanged for the non-vox-secrets-override path).
 
 - [ ] **Step 4: Commit**
 
@@ -1332,7 +1332,7 @@ use once_cell::sync::Lazy;
 
 static REGISTRY: Lazy<registry::HardwareRegistryV2> = Lazy::new(|| {
     let ttl = std::time::Duration::from_secs(
-        vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshProbeCacheTtlSecs)
+        vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshProbeCacheTtlSecs)
             .expose()
             .and_then(|s| s.trim().parse::<u64>().ok())
             .unwrap_or(300),
@@ -1341,7 +1341,7 @@ static REGISTRY: Lazy<registry::HardwareRegistryV2> = Lazy::new(|| {
         Box::pin(async {
             let pipeline = pipeline::ProbePipeline::default_for_platform();
             // Apply operator override if present.
-            if let Some(order) = vox_clavis::resolve_secret(vox_clavis::SecretId::VoxMeshProbeOrder)
+            if let Some(order) = vox_secrets::resolve_secret(vox_secrets::SecretId::VoxMeshProbeOrder)
                 .expose()
             {
                 let names: Vec<String> = order
@@ -1386,9 +1386,9 @@ impl HardwareRegistry {
 }
 ```
 
-- [ ] **Step 2: Add the two new Clavis SecretIds**
+- [ ] **Step 2: Add the two new vox-secrets SecretIds**
 
-In `crates/vox-clavis/src/spec.rs` (location confirmed via grep — find an existing `SecretId::VoxMeshA2aStorePath` declaration and add nearby), add two new variants matching the existing pattern:
+In `crates/vox-secrets/src/spec.rs` (location confirmed via grep — find an existing `SecretId::VoxMeshA2aStorePath` declaration and add nearby), add two new variants matching the existing pattern:
 
 ```rust
 VoxMeshProbeCacheTtlSecs,
@@ -1430,7 +1430,7 @@ Expected: all tests pass.
 ```bash
 git add crates/vox-populi/src/mens/hardware/mod.rs \
         crates/vox-populi/Cargo.toml \
-        crates/vox-clavis/src/spec.rs
+        crates/vox-secrets/src/spec.rs
 git commit -m "feat(populi): wire HardwareRegistryV2 into public probe path with operator override"
 ```
 

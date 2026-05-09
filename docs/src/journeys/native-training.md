@@ -40,7 +40,7 @@ import vox.mens.qlora
 }
 
 @action
-fn finetune_from_telemetry() -> Result[str] {
+fn finetune_from_telemetry() to Result[str] {
     // 1. Fetch training subset directly from your database
     let records = db.query(AgentTelemetry).take(5000);
     

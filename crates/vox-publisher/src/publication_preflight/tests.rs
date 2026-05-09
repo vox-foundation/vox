@@ -248,24 +248,24 @@ mod tests {
 
     #[test]
     #[allow(unsafe_code)]
-    fn openreview_readiness_respects_clavis_strict_mode() {
+    fn openreview_readiness_respects_secrets_strict_mode() {
         let _guard = ENV_LOCK.lock().expect("env lock");
         let openreview_token_key = "VOX_OPENREVIEW_ACCESS_TOKEN";
         let prev_token = std::env::var(openreview_token_key).ok();
-        let prev_backend = std::env::var("VOX_CLAVIS_BACKEND").ok();
-        let prev_profile = std::env::var("VOX_CLAVIS_PROFILE").ok();
+        let prev_backend = std::env::var("VOX_SECRETS_BACKEND").ok();
+        let prev_profile = std::env::var("VOX_SECRETS_PROFILE").ok();
         const DB_REMOTE_ALIAS_URL_ENV: &str = concat!("VOX_", "TURSO", "_URL");
         let prev_url = std::env::var(DB_REMOTE_ALIAS_URL_ENV).ok();
-        let prev_cloudless_path = std::env::var("VOX_CLAVIS_CLOUDLESS_DB_PATH").ok();
+        let prev_cloudless_path = std::env::var("VOX_SECRETS_CLOUDLESS_DB_PATH").ok();
         let prev_account_id = std::env::var("VOX_ACCOUNT_ID").ok();
         unsafe {
             std::env::set_var("VOX_OPENREVIEW_ACCESS_TOKEN", "publisher-env-token");
-            std::env::set_var("VOX_CLAVIS_BACKEND", "vox_cloud");
-            std::env::set_var("VOX_CLAVIS_PROFILE", "dev");
+            std::env::set_var("VOX_SECRETS_BACKEND", "vox_cloud");
+            std::env::set_var("VOX_SECRETS_PROFILE", "dev");
             std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
             let tmp = std::env::temp_dir().join("vox-secrets-publisher-strict-lenient.db");
             std::env::set_var(
-                "VOX_CLAVIS_CLOUDLESS_DB_PATH",
+                "VOX_SECRETS_CLOUDLESS_DB_PATH",
                 tmp.to_string_lossy().to_string(),
             );
             std::env::set_var("VOX_ACCOUNT_ID", "publisher-strict-lenient-test");
@@ -279,7 +279,7 @@ mod tests {
         assert!(openreview_lenient.ready);
 
         unsafe {
-            std::env::set_var("VOX_CLAVIS_PROFILE", "hard_cut");
+            std::env::set_var("VOX_SECRETS_PROFILE", "hard_cut");
             std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV);
         }
         let strict = run_preflight(&sample_manifest(|_| {}), PreflightProfile::Default);
@@ -296,20 +296,20 @@ mod tests {
                 None => std::env::remove_var("VOX_OPENREVIEW_ACCESS_TOKEN"),
             }
             match prev_backend {
-                Some(v) => std::env::set_var("VOX_CLAVIS_BACKEND", v),
-                None => std::env::remove_var("VOX_CLAVIS_BACKEND"),
+                Some(v) => std::env::set_var("VOX_SECRETS_BACKEND", v),
+                None => std::env::remove_var("VOX_SECRETS_BACKEND"),
             }
             match prev_profile {
-                Some(v) => std::env::set_var("VOX_CLAVIS_PROFILE", v),
-                None => std::env::remove_var("VOX_CLAVIS_PROFILE"),
+                Some(v) => std::env::set_var("VOX_SECRETS_PROFILE", v),
+                None => std::env::remove_var("VOX_SECRETS_PROFILE"),
             }
             match prev_url {
                 Some(v) => std::env::set_var(DB_REMOTE_ALIAS_URL_ENV, v),
                 None => std::env::remove_var(DB_REMOTE_ALIAS_URL_ENV),
             }
             match prev_cloudless_path {
-                Some(v) => std::env::set_var("VOX_CLAVIS_CLOUDLESS_DB_PATH", v),
-                None => std::env::remove_var("VOX_CLAVIS_CLOUDLESS_DB_PATH"),
+                Some(v) => std::env::set_var("VOX_SECRETS_CLOUDLESS_DB_PATH", v),
+                None => std::env::remove_var("VOX_SECRETS_CLOUDLESS_DB_PATH"),
             }
             match prev_account_id {
                 Some(v) => std::env::set_var("VOX_ACCOUNT_ID", v),
@@ -326,8 +326,8 @@ mod tests {
         let prev_token = std::env::var(openreview_token_key).ok();
         unsafe {
             std::env::set_var("VOX_OPENREVIEW_ACCESS_TOKEN", "do-not-leak-me");
-            std::env::set_var("VOX_CLAVIS_BACKEND", "env_only");
-            std::env::remove_var("VOX_CLAVIS_PROFILE");
+            std::env::set_var("VOX_SECRETS_BACKEND", "env_only");
+            std::env::remove_var("VOX_SECRETS_PROFILE");
         }
         let manifest = sample_manifest(|_| {});
         let report = run_preflight(&manifest, PreflightProfile::Default);
@@ -344,8 +344,8 @@ mod tests {
                 Some(v) => std::env::set_var("VOX_OPENREVIEW_ACCESS_TOKEN", v),
                 None => std::env::remove_var("VOX_OPENREVIEW_ACCESS_TOKEN"),
             }
-            std::env::remove_var("VOX_CLAVIS_BACKEND");
-            std::env::remove_var("VOX_CLAVIS_PROFILE");
+            std::env::remove_var("VOX_SECRETS_BACKEND");
+            std::env::remove_var("VOX_SECRETS_PROFILE");
         }
     }
 }

@@ -156,12 +156,12 @@ pub enum Cli {
         #[command(subcommand)]
         cmd: latin_cmd::ArsCmd,
     },
-    /// Central secret lifecycle and diagnostics (`clavis`; alias: `secrets`).
-    #[command(name = "clavis", visible_alias = "secrets")]
-    Clavis {
+    /// Central secret lifecycle and diagnostics (`secrets`; alias: `clavis`).
+    #[command(name = "secrets", visible_alias = "clavis")]
+    Secrets {
         /// Subcommand.
         #[command(subcommand)]
-        cmd: commands::clavis::ClavisCmd,
+        cmd: commands::secrets::SecretsCmd,
     },
     /// Review lane — CodeRabbit flows (`recensio`; alias of `review` when built with `coderabbit`).
     #[cfg(feature = "coderabbit")]

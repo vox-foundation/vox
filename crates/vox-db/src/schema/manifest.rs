@@ -47,8 +47,8 @@ pub const SCHEMA_FRAGMENTS: &[SchemaFragment] = &[
         sql: domains::foundation::SCHEMA_FOUNDATION,
     },
     SchemaFragment {
-        name: "clavis_cloudless",
-        sql: domains::clavis_cloudless::SCHEMA_CLAVIS_CLOUDLESS,
+        name: "secrets_cloudless",
+        sql: domains::secrets_cloudless::SCHEMA_SECRETS_CLOUDLESS,
     },
     SchemaFragment {
         name: "cas_codex",

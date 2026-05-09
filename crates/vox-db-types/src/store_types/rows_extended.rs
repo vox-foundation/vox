@@ -568,7 +568,7 @@ pub struct GamifyLudusKpiRollup {
     pub hints_dismissed: i64,
 }
 
-/// One row from `clavis_account_secrets` for Cloudless encrypted secret material.
+/// One row from `clavis_account_secrets` for Secrets Cloudless encrypted secret material.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct AccountSecretCiphertextRow {
     pub account_id: String,

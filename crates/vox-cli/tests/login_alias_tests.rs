@@ -1,8 +1,8 @@
-//! Parse coverage for unified login entrypoints (`vox login`, `vox clavis login`, `vox auth login`).
+//! Parse coverage for unified login entrypoints (`vox login`, `vox secrets login`, `vox auth login`).
 
 use clap::Parser;
 use vox_cli::commands::auth::AuthCmd;
-use vox_cli::commands::clavis::ClavisCmd;
+use vox_cli::commands::secrets::SecretsCmd;
 use vox_cli::{Cli, VoxCliRoot};
 
 #[test]
@@ -34,7 +34,30 @@ fn cli_parses_top_level_login_with_flags() {
 }
 
 #[test]
-fn cli_parses_clavis_login() {
+fn cli_parses_secrets_login() {
+    let r = VoxCliRoot::try_parse_from([
+        "vox",
+        "secrets",
+        "login",
+        "--force",
+        "--vault-url",
+        "https://db.example",
+    ])
+    .expect("secrets login");
+    match r.cmd {
+        Cli::Secrets { cmd } => match cmd {
+            SecretsCmd::Login { args } => {
+                assert!(args.force);
+                assert_eq!(args.vault_url.as_deref(), Some("https://db.example"));
+            }
+            _other => panic!("expected SecretsCmd::Login, got other subcommand"),
+        },
+        _other => panic!("expected Cli::Secrets, got non-Secrets variant"),
+    }
+}
+
+#[test]
+fn cli_parses_clavis_login_alias() {
     let r = VoxCliRoot::try_parse_from([
         "vox",
         "clavis",
@@ -43,16 +66,16 @@ fn cli_parses_clavis_login() {
         "--vault-url",
         "https://db.example",
     ])
-    .expect("clavis login");
+    .expect("clavis login alias");
     match r.cmd {
-        Cli::Clavis { cmd } => match cmd {
-            ClavisCmd::Login { args } => {
+        Cli::Secrets { cmd } => match cmd {
+            SecretsCmd::Login { args } => {
                 assert!(args.force);
                 assert_eq!(args.vault_url.as_deref(), Some("https://db.example"));
             }
-            _other => panic!("expected ClavisCmd::Login, got other subcommand"),
+            _other => panic!("expected SecretsCmd::Login, got other subcommand"),
         },
-        _other => panic!("expected Cli::Clavis, got non-Clavis variant"),
+        _other => panic!("expected Cli::Secrets via clavis alias, got non-Secrets variant"),
     }
 }
 

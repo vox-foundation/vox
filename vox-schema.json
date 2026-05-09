@@ -47,9 +47,9 @@
       "role": "SHA-256 release asset verification against checksums.txt manifests",
       "path_pattern": "crates/vox-checksum-manifest/**/*.rs"
     },
-    "vox-clavis": {
+    "vox-secrets": {
       "role": "Central secret resolution and compatibility adapters for Vox",
-      "path_pattern": "crates/vox-clavis/**/*.rs"
+      "path_pattern": "crates/vox-secrets/**/*.rs"
     },
     "vox-cli": {
       "role": "Primary `vox` CLI, CI guards, and workspace tooling",

@@ -74,7 +74,7 @@ impl<B: SecretBackend> SecretResolver<B> {
         let profile = opts.profile;
         let audit_enabled = match profile {
             ResolveProfile::ProdStrict | ResolveProfile::HardCutStrict => true,
-            _ => std::env::var("VOX_CLAVIS_AUDIT_LOG")
+            _ => std::env::var("VOX_SECRETS_AUDIT_LOG")
                 .ok()
                 .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
                 .unwrap_or(false),

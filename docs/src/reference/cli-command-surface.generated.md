@@ -42,7 +42,7 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci check-docs-ssot` | active | — | — | platform | — |
 | `vox ci check-links` | active | — | — | platform | — |
 | `vox ci check-summary-drift` | active | — | — | platform | — |
-| `vox ci clavis-parity` | active | — | — | platform | — |
+| `vox ci clavis-parity` | active | — | — | platform | — | _(checks secrets-ssot.md)_ |
 | `vox ci command-compliance` | active | — | — | platform | — |
 | `vox ci command-sync` | active | — | — | platform | — |
 | `vox ci completion-audit` | active | — | — | platform | — |
@@ -95,12 +95,13 @@ Machine-derived from [`contracts/cli/command-registry.yaml`](../../../contracts/
 | `vox ci toestub-self-apply` | active | — | — | platform | — |
 | `vox ci turso-import-guard` | active | — | — | platform | — |
 | `vox ci workflow-scripts` | active | — | — | platform | — |
-| `vox clavis` | active | — | ars | platform | — |
-| `vox clavis backend-status` | active | — | ars | platform | — |
-| `vox clavis get` | active | — | ars | platform | — |
-| `vox clavis migrate-auth-store` | active | — | ars | platform | — |
-| `vox clavis set` | active | — | ars | platform | — |
-| `vox clavis status` | active | — | ars | platform | — |
+| `vox secrets` | active | — | ars | platform | — |
+| `vox secrets backend-status` | active | — | ars | platform | — |
+| `vox secrets get` | active | — | ars | platform | — |
+| `vox secrets migrate-auth-store` | active | — | ars | platform | — |
+| `vox secrets set` | active | — | ars | platform | — |
+| `vox secrets status` | active | — | ars | platform | — |
+| `vox clavis` | active | — | ars | platform | _(deprecated alias of `vox secrets`)_ |
 | `vox codex` | active | — | codex | data | — |
 | `vox codex cutover` | active | — | codex | data | — |
 | `vox codex export-legacy` | active | — | codex | data | — |

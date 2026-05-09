@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use clap::{Subcommand, ValueEnum};
 use tracing::{error, info};
 use vox_identity::trust::TrustedNodeRegistry;
-use vox_mesh_types::ClavisSyncEnvelope;
+use vox_mesh_types::SecretsSyncEnvelope;
 use vox_mesh_types::A2ADeliverRequest;
 
 fn redact_value(value: &str) -> String {
@@ -124,8 +124,8 @@ pub enum OutputFormat {
 }
 
 #[derive(Subcommand, Debug)]
-pub enum ClavisCmd {
-    /// Sign in: configure vault URL/token and optional Clavis account/backend.
+pub enum SecretsCmd {
+    /// Sign in: configure vault URL/token and optional Secrets account/backend.
     #[command(name = "login")]
     Login {
         #[command(flatten)]
@@ -179,17 +179,17 @@ pub enum ClavisCmd {
     },
 }
 
-pub async fn run(cmd: ClavisCmd) -> Result<()> {
+pub async fn run(cmd: SecretsCmd) -> Result<()> {
     match cmd {
-        ClavisCmd::Login { args } => crate::commands::login_shared::run_login(args.into()).await,
-        ClavisCmd::Status {
+        SecretsCmd::Login { args } => crate::commands::login_shared::run_login(args.into()).await,
+        SecretsCmd::Status {
             workflow,
             profile,
             mode,
             bundle,
             format,
         } => run_doctor(workflow, profile, mode, bundle, format).await,
-        ClavisCmd::Set {
+        SecretsCmd::Set {
             registry,
             token,
             username,
@@ -199,7 +199,7 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
             println!("Stored token for `{registry}` in {}", path.display());
             Ok(())
         }
-        ClavisCmd::Get { registry } => {
+        SecretsCmd::Get { registry } => {
             match vox_secrets::get_registry_token(&registry) {
                 Some(token) => {
                     println!("{registry}: {}", redact_value(&token));
@@ -208,9 +208,9 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
             }
             Ok(())
         }
-        ClavisCmd::BackendStatus => {
+        SecretsCmd::BackendStatus => {
             let mode = vox_secrets::BackendMode::from_env();
-            println!("clavis backend mode: {mode:?}");
+            println!("secrets backend mode: {mode:?}");
             for spec in vox_secrets::all_specs() {
                 let res = vox_secrets::resolve_secret(spec.id);
                 if matches!(res.status, vox_secrets::ResolutionStatus::BackendUnavailable) {
@@ -224,13 +224,13 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
             println!("backend status: available or env-only fallback");
             Ok(())
         }
-        ClavisCmd::MigrateAuthStore => {
+        SecretsCmd::MigrateAuthStore => {
             let moved = vox_secrets::migrate_auth_store_to_secure_store()
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             println!("migrated {moved} auth entries to secure store");
             Ok(())
         }
-        ClavisCmd::ImportEnv { file, dry_run } => {
+        SecretsCmd::ImportEnv { file, dry_run } => {
             let path = file.unwrap_or_else(|| std::path::PathBuf::from(".env"));
             if !path.exists() {
                 return Err(anyhow::anyhow!("File not found: {}", path.display()));
@@ -298,7 +298,7 @@ pub async fn run(cmd: ClavisCmd) -> Result<()> {
             }
             Ok(())
         }
-        ClavisCmd::Sync { mesh, dry_run } => run_sync(mesh, dry_run).await,
+        SecretsCmd::Sync { mesh, dry_run } => run_sync(mesh, dry_run).await,
     }
 }
 
@@ -479,7 +479,7 @@ fn emit_doctor_json_v1(
                     let res = vox_secrets::resolve_secret(spec.id);
                     if !matches!(res.source, Some(vox_secrets::SecretSource::SecureStore)) {
                         suggested_migrations.push(format!(
-                            "migrate `{}` from .env to secure vault via `vox clavis import-env`",
+                            "migrate `{}` from .env to secure vault via `vox secrets import-env`",
                             key
                         ));
                     }
@@ -489,7 +489,7 @@ fn emit_doctor_json_v1(
     }
 
     let report = DoctorJsonV1 {
-        schema: "contracts/reports/clavis-doctor.v1.json",
+        schema: "contracts/reports/secrets-doctor.v1.json",
         generated_at_ms: std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -517,7 +517,7 @@ fn emit_doctor_human(
     bundle: Option<BundleArg>,
     requirements: vox_secrets::WorkflowRequirements,
 ) -> Result<()> {
-    println!("clavis doctor ({workflow:?}, {profile:?})");
+    println!("secrets doctor ({workflow:?}, {profile:?})");
     println!(
         "cloudless_vault_store: {}",
         vox_secrets::backend::vox_vault::cloudless_vault_env_diagnostic()
@@ -550,7 +550,7 @@ fn emit_doctor_human(
                         if count == 0 {
                             println!("suggested migrations (unmanaged .env keys detected):");
                         }
-                        println!("  - migrate `{}` to vault via `vox clavis import-env`", key);
+                        println!("  - migrate `{}` to vault via `vox secrets import-env`", key);
                         count += 1;
                     }
                 }
@@ -679,11 +679,11 @@ fn emit_doctor_human(
 
 async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
     if !mesh {
-        println!("clavis sync: no targets specified (use --mesh)");
+        println!("secrets sync: no targets specified (use --mesh)");
         return Ok(());
     }
 
-    println!("clavis sync: identifying shareable secrets...");
+    println!("secrets sync: identifying shareable secrets...");
     let mut shareable_secrets = Vec::new();
     for spec in vox_secrets::all_specs() {
         if spec.id.metadata().shareable {
@@ -771,7 +771,7 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
             let sealed = vox_crypto::facades::seal(&pk, secret_val.as_bytes())
                 .map_err(|e| anyhow::anyhow!("Encryption failed: {}", e))?;
 
-            let envelope = ClavisSyncEnvelope {
+            let envelope = SecretsSyncEnvelope {
                 secret_id: spec.id.to_string(),
                 sealed_payload: sealed,
                 sender_node_id: sender_node_id.clone(),
@@ -784,10 +784,10 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
             let deliver_req = A2ADeliverRequest {
                 sender_agent_id: "0".to_string(),
                 receiver_agent_id: "0".to_string(),
-                message_type: "clavis_sync".to_string(),
+                message_type: "secrets_sync".to_string(),
                 payload,
                 idempotency_key: Some(format!(
-                    "clavis_sync:{}:{}:{}",
+                    "secrets_sync:{}:{}:{}",
                     node.node_id, spec.canonical_env, now_ms
                 )),
                 privacy_class: Some("trusted".to_string()),
@@ -795,7 +795,7 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
                 worker_ed25519_sig_b64: None,
                 jwe_payload: None,
                 priority: 255,
-                task_kind: Some("clavis_sync".to_string()),
+                task_kind: Some("secrets_sync".to_string()),
                 model_id: None,
                 traceparent: None,
             };
@@ -833,7 +833,7 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
                     info!(
                         target_node = %node.node_id,
                         secret = %spec_env,
-                        "Clavis secret sync successful"
+                        "Secrets secret sync successful"
                     );
                 }
                 Err(e) => {
@@ -841,7 +841,7 @@ async fn run_sync(mesh: bool, dry_run: bool) -> Result<()> {
                         target_node = %node.node_id,
                         secret = %spec_env,
                         error = %e,
-                        "Clavis secret sync failed"
+                        "Secrets secret sync failed"
                     );
                     println!(
                         "    error: failed to deliver {} to {}: {}",

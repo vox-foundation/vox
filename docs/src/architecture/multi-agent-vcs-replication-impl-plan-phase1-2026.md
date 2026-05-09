@@ -327,7 +327,7 @@ pub struct OpFragment {
     pub agent_id: String,
     pub convergence_set: String,
     pub payload: OpPayload,
-    /// Clavis-issued signature; empty in Phase 1 (added in Phase 4).
+    /// vox-secrets-issued signature; empty in Phase 1 (added in Phase 4).
     #[serde(default)]
     pub signature: Vec<u8>,
     pub produced_at_unix_ms: u64,
@@ -1748,7 +1748,7 @@ All Phase 1 spec deliverables map to at least one task. **Replay** (turning a re
 These are scoped in the spec but not detailed here. Each will get its own plan when queued:
 
 - **Phase 2 — Conflict UX (~3–4 weeks):** `vox vcs conflicts` CLI, MCP `conflicts_describe`, dashboard view.
-- **Phase 3 — Mesh gossip (~4–6 weeks):** `OpFragmentEnvelope` over Populi A2A, gossip topic, backfill, Clavis-issued agent identities, Iroh transport evaluation.
+- **Phase 3 — Mesh gossip (~4–6 weeks):** `OpFragmentEnvelope` over Populi A2A, gossip topic, backfill, vox-secrets-issued agent identities, Iroh transport evaluation.
 - **Phase 4 — Policy / safety (~3–4 weeks):** Socrates arbitration rule, `Vox.toml [convergence.policy]`, `vox vcs audit`, `vox vcs op undo`.
 
 Drafting these now would speculate about decisions that depend on Phase 1 outcomes. Defer.

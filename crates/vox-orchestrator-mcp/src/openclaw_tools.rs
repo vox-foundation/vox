@@ -25,9 +25,9 @@ async fn connect_adapter_uncached() -> Result<BoxedOpenClawAdapter, String> {
         return result;
     }
 
-    let clavis_token = resolve_clavis_token();
+    let secrets_token = resolve_secrets_token();
     connect_runtime_adapter_with_overrides(OpenClawConnectionOverrides {
-        explicit_token: clavis_token,
+        explicit_token: secrets_token,
         ..OpenClawConnectionOverrides::default()
     })
     .await
@@ -35,7 +35,7 @@ async fn connect_adapter_uncached() -> Result<BoxedOpenClawAdapter, String> {
     .map_err(|e| format!("openclaw adapter connect failed: {e}"))
 }
 
-fn resolve_clavis_token() -> Option<String> {
+fn resolve_secrets_token() -> Option<String> {
     vox_secrets::resolve_secret(vox_secrets::SecretId::OpenClawToken)
         .expose()
         .map(std::string::ToString::to_string)
@@ -45,7 +45,7 @@ async fn connect_client() -> Result<OpenClawClient, String> {
     let resolved = resolve_openclaw_endpoints(OpenClawDiscoveryOverrides::default()).await;
     OpenClawClient::new(OpenClawRemoteConfig {
         gateway_url: resolved.http_gateway_url,
-        auth_token: resolve_clavis_token(),
+        auth_token: resolve_secrets_token(),
         verify_tls: true,
     })
     .map_err(|e| format!("openclaw client connect failed: {e}"))

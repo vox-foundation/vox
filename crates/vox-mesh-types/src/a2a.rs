@@ -25,7 +25,7 @@ pub struct A2ADeliverRequest {
     /// Ed25519 signature (Standard base64, 64 bytes) over raw 32-byte BLAKE3 digest.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worker_ed25519_sig_b64: Option<String>,
-    /// JWE (JSON Web Encryption) block containing forwarded Clavis secrets.
+    /// JWE (JSON Web Encryption) block containing forwarded secrets.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub jwe_payload: Option<String>,
     /// Task priority (0=lowest, 255=highest).

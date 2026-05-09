@@ -137,12 +137,12 @@ Vox now treats OpenClaw interoperability as a WS-first runtime contract, not onl
 - **Secondary fallback:** OpenClaw HTTP compatibility surfaces where needed (`/v1/chat/completions`, `/v1/responses`) and existing skills endpoints.
 - **Internal boundary:** `OpenClawRuntimeAdapter` in Rust (`vox-skills`) isolates wire protocol details from CLI/runtime consumers.
 - **Script surface:** `.vox` gets a low-complexity builtin module (`OpenClaw.*`) that lowers into runtime helper calls and still passes normal parse/type/HIR gates.
-- **Endpoint SSOT:** adapter resolution prefers explicit overrides, then env/Clavis, then upstream discovery (`/.well-known/openclaw.json`) with cached last-known-good fallback, then deterministic local defaults.
+- **Endpoint SSOT:** adapter resolution prefers explicit overrides, then env/vox-secrets, then upstream discovery (`/.well-known/openclaw.json`) with cached last-known-good fallback, then deterministic local defaults.
 - **Packaging posture:** Vox bootstrap/upgrade can install a managed `openclaw-gateway` sidecar from release assets when present in `checksums.txt`, avoiding hardcoded URL catalogs.
 
 ### Security and policy posture
 
-- Resolve auth through Clavis (`VOX_OPENCLAW_TOKEN`) where available.
+- Resolve auth through vox-secrets (`VOX_OPENCLAW_TOKEN`) where available.
 - Keep TLS verification enabled by default.
 - Prefer loopback/tailnet WS URLs in dev (`VOX_OPENCLAW_WS_URL`), with explicit token/pass-through for remote.
 - Treat adapter errors as typed contract failures (transport/protocol/method) for deterministic script/CLI handling.

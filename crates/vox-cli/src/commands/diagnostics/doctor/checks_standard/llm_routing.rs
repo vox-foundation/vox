@@ -1,14 +1,14 @@
-//! Clavis-first LLM routing readiness (model prefs + at least one provider key).
+//! Secrets-first LLM routing readiness (model prefs + at least one provider key).
 
 use super::super::common::{Check, redact_key};
 use vox_secrets::SecretId;
-use vox_config::clavis_str;
+use vox_config::secrets_str;
 use vox_config::inference::{OPENROUTER_CHAT_COMPLETIONS_URL, openrouter_chat_model_preference};
 
 pub fn run(checks: &mut Vec<Check>) {
     let model = openrouter_chat_model_preference();
-    let routing_profile = clavis_str(SecretId::VoxRoutingProfile).unwrap_or_else(|| {
-        // Default from routing contract / Clavis spec — not a hard error when unset.
+    let routing_profile = secrets_str(SecretId::VoxRoutingProfile).unwrap_or_else(|| {
+        // Default from routing contract / secrets spec — not a hard error when unset.
         "quality_first".to_string()
     });
 
@@ -55,13 +55,13 @@ pub fn run(checks: &mut Vec<Check>) {
 
     if keys.is_empty() {
         checks.push(Check::fail(
-            "LLM routing (Clavis)",
+            "LLM routing (Secrets)",
             format!(
-                "{detail} — no LLM API key resolved via Clavis; set e.g. OpenRouter via `vox clavis doctor` / login."
+                "{detail} — no LLM API key resolved via Secrets; set e.g. OpenRouter via `vox secrets doctor` / login."
             ),
         ));
     } else {
-        checks.push(Check::pass("LLM routing (Clavis)", detail));
+        checks.push(Check::pass("LLM routing (Secrets)", detail));
     }
 
     // Informational: confirm account id for vault sync (optional).
@@ -70,7 +70,7 @@ pub fn run(checks: &mut Vec<Check>) {
         checks.push(Check::new(
             "LLM routing — VOX_ACCOUNT_ID",
             true,
-            "not set (optional for local keys only); use `vox clavis login` for cross-machine sync"
+            "not set (optional for local keys only); use `vox secrets login` for cross-machine sync"
                 .to_string(),
         ));
     } else {

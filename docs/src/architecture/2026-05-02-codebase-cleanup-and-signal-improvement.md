@@ -3,12 +3,14 @@ title: "Codebase Cleanup & Signal Improvement Plan (2026-05-02)"
 description: "Six-phase plan to retire stale code, fix broken references, and converge on single sources of truth."
 category: "architecture"
 status: roadmap
-last_updated: "2026-05-02"
+last_updated: "2026-05-08"
 training_eligible: false
 audience: contributors
 ---
 
 # Codebase Cleanup & Signal Improvement Plan
+
+> **Partially superseded 2026-05-08.** Phase 5 (`@island` cleanup) is now consolidated under [2026-05-08-llm-misleading-content-cleanup-plan](2026-05-08-llm-misleading-content-cleanup-plan.md). Phases 1–4 and 6 remain independently actionable as written.
 
 > **For agentic workers:** Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -30,7 +32,7 @@ This plan was synthesized from a five-agent codebase audit on 2026-05-02. Each f
 - `infra/containers/entrypoints/vox-entrypoint.sh` and `populi-entrypoint.sh` are dead — `.vox` equivalents exist and are wired into the Dockerfiles.
 - 4 golden examples still contain `routes { ... }` blocks (`blog_fullstack.vox`, `dashboard_ui.vox`, `v0_shadcn_island.vox`, `web_routing_fullstack.vox`).
 - `crates/vox-compiler/src/typeck/mod.rs:22` has an orphan one-line tombstone comment.
-- `@island` infrastructure (CLI commands, `island_emit.rs`, `templates/islands.rs`, golden file, how-to doc) is *active code on a known decommission timeline* — Phase 5 of `external-frontend-interop-plan-2026.md`. Do not delete in this plan; track for Phase 5.
+- As of 2026-05-03, `@island` was retired. The infrastructure cleanup is tracked in [2026-05-08-llm-misleading-content-cleanup-plan](2026-05-08-llm-misleading-content-cleanup-plan.md).
 
 **Findings explicitly excluded from this plan:**
 - The four overlapping orchestrator architecture docs — verified to have intentional non-overlapping scopes with cross-references. Not duplication.

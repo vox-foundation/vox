@@ -24,19 +24,19 @@ pub use spec::{
 };
 pub use types::{ResolutionStatus, ResolvedSecret, SecretSource};
 
-pub const OPERATOR_CLAVIS_CUTOVER_PHASE: &str = "VOX_CLAVIS_CUTOVER_PHASE";
-pub const OPERATOR_CLAVIS_MIGRATION_PHASE: &str = "VOX_CLAVIS_MIGRATION_PHASE";
-pub const OPERATOR_CLAVIS_HARD_CUT: &str = "VOX_CLAVIS_HARD_CUT";
-pub const OPERATOR_CLAVIS_AUTO_PREFER_VAULT: &str = "VOX_CLAVIS_AUTO_PREFER_VAULT";
-pub const OPERATOR_CLAVIS_KEK_REF: &str = "VOX_CLAVIS_KEK_REF";
-pub const OPERATOR_CLAVIS_KEK_VERSION: &str = "VOX_CLAVIS_KEK_VERSION";
-pub const OPERATOR_CLAVIS_AUTO_VAULT: &str = "VOX_CLAVIS_AUTO_VAULT";
-pub const OPERATOR_CLAVIS_VAULT_URL: &str = "VOX_CLAVIS_VAULT_URL";
-pub const OPERATOR_CLAVIS_VAULT_PATH: &str = "VOX_CLAVIS_VAULT_PATH";
-pub const OPERATOR_CLAVIS_VAULT_TOKEN: &str = "VOX_CLAVIS_VAULT_TOKEN";
+pub const OPERATOR_SECRETS_CUTOVER_PHASE: &str = "VOX_SECRETS_CUTOVER_PHASE";
+pub const OPERATOR_SECRETS_MIGRATION_PHASE: &str = "VOX_SECRETS_MIGRATION_PHASE";
+pub const OPERATOR_SECRETS_HARD_CUT: &str = "VOX_SECRETS_HARD_CUT";
+pub const OPERATOR_SECRETS_AUTO_PREFER_VAULT: &str = "VOX_SECRETS_AUTO_PREFER_VAULT";
+pub const OPERATOR_SECRETS_KEK_REF: &str = "VOX_SECRETS_KEK_REF";
+pub const OPERATOR_SECRETS_KEK_VERSION: &str = "VOX_SECRETS_KEK_VERSION";
+pub const OPERATOR_SECRETS_AUTO_VAULT: &str = "VOX_SECRETS_AUTO_VAULT";
+pub const OPERATOR_SECRETS_VAULT_URL: &str = "VOX_SECRETS_VAULT_URL";
+pub const OPERATOR_SECRETS_VAULT_PATH: &str = "VOX_SECRETS_VAULT_PATH";
+pub const OPERATOR_SECRETS_VAULT_TOKEN: &str = "VOX_SECRETS_VAULT_TOKEN";
 pub const OPERATOR_ACCOUNT_ID: &str = "VOX_ACCOUNT_ID";
-pub const OPERATOR_CLAVIS_PROFILE: &str = "VOX_CLAVIS_PROFILE";
-pub const OPERATOR_CLAVIS_BACKEND: &str = "VOX_CLAVIS_BACKEND";
+pub const OPERATOR_SECRETS_PROFILE: &str = "VOX_SECRETS_PROFILE";
+pub const OPERATOR_SECRETS_BACKEND: &str = "VOX_SECRETS_BACKEND";
 pub const OPERATOR_INFISICAL_TOKEN: &str = "INFISICAL_TOKEN";
 pub const OPERATOR_INFISICAL_SERVICE_TOKEN: &str = "INFISICAL_SERVICE_TOKEN";
 pub const OPERATOR_VAULT_ADDR: &str = "VAULT_ADDR";
@@ -59,19 +59,19 @@ pub const OPERATOR_NEWS_RSS_FEED_PATH: &str = "VOX_NEWS_RSS_FEED_PATH";
 
 /// Array of system operator tuning environment variables.
 pub const OPERATOR_TUNING_ENVS: &[&str] = &[
-    OPERATOR_CLAVIS_CUTOVER_PHASE,
-    OPERATOR_CLAVIS_MIGRATION_PHASE,
-    OPERATOR_CLAVIS_HARD_CUT,
-    OPERATOR_CLAVIS_AUTO_PREFER_VAULT,
-    OPERATOR_CLAVIS_KEK_REF,
-    OPERATOR_CLAVIS_KEK_VERSION,
-    OPERATOR_CLAVIS_AUTO_VAULT,
-    OPERATOR_CLAVIS_VAULT_URL,
-    OPERATOR_CLAVIS_VAULT_PATH,
-    OPERATOR_CLAVIS_VAULT_TOKEN,
+    OPERATOR_SECRETS_CUTOVER_PHASE,
+    OPERATOR_SECRETS_MIGRATION_PHASE,
+    OPERATOR_SECRETS_HARD_CUT,
+    OPERATOR_SECRETS_AUTO_PREFER_VAULT,
+    OPERATOR_SECRETS_KEK_REF,
+    OPERATOR_SECRETS_KEK_VERSION,
+    OPERATOR_SECRETS_AUTO_VAULT,
+    OPERATOR_SECRETS_VAULT_URL,
+    OPERATOR_SECRETS_VAULT_PATH,
+    OPERATOR_SECRETS_VAULT_TOKEN,
     OPERATOR_ACCOUNT_ID,
-    OPERATOR_CLAVIS_PROFILE,
-    OPERATOR_CLAVIS_BACKEND,
+    OPERATOR_SECRETS_PROFILE,
+    OPERATOR_SECRETS_BACKEND,
     OPERATOR_INFISICAL_TOKEN,
     OPERATOR_INFISICAL_SERVICE_TOKEN,
     OPERATOR_VAULT_ADDR,
@@ -152,8 +152,8 @@ enum CutoverPhase {
 impl CutoverPhase {
     #[must_use]
     fn from_env() -> Self {
-        match std::env::var(crate::OPERATOR_CLAVIS_CUTOVER_PHASE)
-            .or_else(|_| std::env::var(crate::OPERATOR_CLAVIS_MIGRATION_PHASE))
+        match std::env::var(crate::OPERATOR_SECRETS_CUTOVER_PHASE)
+            .or_else(|_| std::env::var(crate::OPERATOR_SECRETS_MIGRATION_PHASE))
             .ok()
             .map(|s| s.trim().to_ascii_lowercase())
             .as_deref()
@@ -184,7 +184,7 @@ impl CutoverPhase {
 impl BackendMode {
     #[must_use]
     pub fn from_env() -> Self {
-        match std::env::var(crate::OPERATOR_CLAVIS_BACKEND)
+        match std::env::var(crate::OPERATOR_SECRETS_BACKEND)
             .ok()
             .map(|s| s.trim().to_ascii_lowercase())
             .as_deref()
@@ -250,14 +250,14 @@ fn resolve_secret_internal(id: SecretId, options: ResolveOptions) -> ResolvedSec
         BackendMode::Vault => resolve_vault(id, options.profile, &options.caller_context),
         BackendMode::VoxCloud => resolve_vox_cloud(id, options),
         BackendMode::Auto => {
-            let prefer_vault = std::env::var(crate::OPERATOR_CLAVIS_AUTO_PREFER_VAULT)
+            let prefer_vault = std::env::var(crate::OPERATOR_SECRETS_AUTO_PREFER_VAULT)
                 .map(|v| matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
                 .unwrap_or(false);
 
             if prefer_vault
-                || std::env::var(crate::OPERATOR_CLAVIS_AUTO_VAULT).is_ok()
-                || std::env::var(crate::OPERATOR_CLAVIS_VAULT_URL).is_ok()
-                || std::env::var(crate::OPERATOR_CLAVIS_VAULT_PATH).is_ok()
+                || std::env::var(crate::OPERATOR_SECRETS_AUTO_VAULT).is_ok()
+                || std::env::var(crate::OPERATOR_SECRETS_VAULT_URL).is_ok()
+                || std::env::var(crate::OPERATOR_SECRETS_VAULT_PATH).is_ok()
             {
                 return resolve_vox_cloud(id, options);
             }
@@ -311,7 +311,7 @@ pub fn resolve_env_only(id: SecretId) -> ResolvedSecret {
 }
 
 fn resolve_infisical(id: SecretId, profile: ResolveProfile, context: &str) -> ResolvedSecret {
-    #[cfg(feature = "clavis-infisical")]
+    #[cfg(feature = "secrets-infisical")]
     {
         return resolve_with_backend(
             backend::infisical::InfisicalBackend,
@@ -325,11 +325,11 @@ fn resolve_infisical(id: SecretId, profile: ResolveProfile, context: &str) -> Re
             },
         );
     }
-    #[cfg(not(feature = "clavis-infisical"))]
+    #[cfg(not(feature = "secrets-infisical"))]
     {
         resolve_with_backend(
             backend::UnavailableBackend {
-                reason: "clavis-infisical feature is not enabled".to_string(),
+                reason: "secrets-infisical feature is not enabled".to_string(),
             },
             id,
             ResolveOptions {
@@ -344,7 +344,7 @@ fn resolve_infisical(id: SecretId, profile: ResolveProfile, context: &str) -> Re
 }
 
 fn resolve_vault(id: SecretId, profile: ResolveProfile, context: &str) -> ResolvedSecret {
-    #[cfg(feature = "clavis-vault")]
+    #[cfg(feature = "secrets-vault")]
     {
         return resolve_with_backend(
             backend::vault::VaultBackend,
@@ -358,11 +358,11 @@ fn resolve_vault(id: SecretId, profile: ResolveProfile, context: &str) -> Resolv
             },
         );
     }
-    #[cfg(not(feature = "clavis-vault"))]
+    #[cfg(not(feature = "secrets-vault"))]
     {
         resolve_with_backend(
             backend::UnavailableBackend {
-                reason: "clavis-vault feature is not enabled".to_string(),
+                reason: "secrets-vault feature is not enabled".to_string(),
             },
             id,
             ResolveOptions {
@@ -377,7 +377,7 @@ fn resolve_vault(id: SecretId, profile: ResolveProfile, context: &str) -> Resolv
 }
 
 fn resolve_profile_from_env() -> ResolveProfile {
-    match std::env::var("VOX_CLAVIS_PROFILE")
+    match std::env::var("VOX_SECRETS_PROFILE")
         .ok()
         .map(|s| s.trim().to_ascii_lowercase())
         .as_deref()

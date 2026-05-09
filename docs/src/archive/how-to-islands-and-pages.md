@@ -9,15 +9,13 @@ training_eligible: false
 schema_type: "HowTo"
 ---
 
-> **Superseded** — islands retired 2026-05-03. The current React-interop story is in
-> [`docs/src/architecture/external-frontend-interop-plan-2026.md`](../architecture/external-frontend-interop-plan-2026.md).
-> Vox now compiles `component` declarations to plain React/TSX components and
-> `@endpoint` declarations to a generated `vox-client.ts`; an external React app
-> imports them or calls the endpoints over RPC. There is no island-mount harness.
-
 # How-To: Build UI with Islands and Pages
 
-> **`@island` is scheduled for retirement in Phase 5 of the frontend interop plan.** It is currently supported but will be replaced by `import react` (bidirectional Vox↔React interop). Migration path: `vox migrate drop-island`. See [`phase5-react-interop-spec-2026.md`](../architecture/phase5-react-interop-spec-2026.md) §4 for the full retirement timeline and checklist.
+> **⚠ Archived 2026-05-03.**
+> The `@island` decorator was retired 2026-05-03. For current UI composition patterns, see [external-frontend-interop-plan-2026](../architecture/external-frontend-interop-plan-2026.md).
+> The contents below describe a retired pattern kept for migration reference.
+
+> **`@island` was retired in Phase 5 of the frontend interop plan (2026-05-03).** It has been replaced by `import react` (bidirectional Vox↔React interop). Migration path: `vox migrate drop-island`. See [`phase5-react-interop-spec-2026.md`](../archive/phase5-react-interop-spec-2026.md) §4 for the full retirement timeline and checklist.
 
 Vox relies on a server-first web architecture. Rather than building massive client-side bundles, Vox generates raw HTML routes and uses targeted interactive "islands" for dynamic functionality.
 

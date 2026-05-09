@@ -311,7 +311,7 @@ operations:
 - surface: vox-cli
   path:
   - ci
-  - clavis-parity
+  - secrets-parity
   status: active
   latin_ns: null
   product_lane: platform
@@ -1003,7 +1003,7 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
-  - clavis
+  - secrets
   status: active
   latin_ns: ars
   product_lane: platform
@@ -1011,10 +1011,10 @@ operations:
   catalog_group: null
   ref_cli_required: true
   reachability_required: null
-  handler_rust: commands::clavis
+  handler_rust: commands::secrets
 - surface: vox-cli
   path:
-  - clavis
+  - secrets
   - backend-status
   status: active
   latin_ns: ars
@@ -1026,7 +1026,7 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
-  - clavis
+  - secrets
   - get
   status: active
   latin_ns: ars
@@ -1038,7 +1038,7 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
-  - clavis
+  - secrets
   - login
   status: active
   latin_ns: ars
@@ -1050,7 +1050,7 @@ operations:
   handler_rust: commands::login_shared::run_login
 - surface: vox-cli
   path:
-  - clavis
+  - secrets
   - migrate-auth-store
   status: active
   latin_ns: ars
@@ -1062,7 +1062,7 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
-  - clavis
+  - secrets
   - set
   status: active
   latin_ns: ars
@@ -1074,7 +1074,7 @@ operations:
   handler_rust: null
 - surface: vox-cli
   path:
-  - clavis
+  - secrets
   - status
   status: active
   latin_ns: ars

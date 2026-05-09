@@ -13,7 +13,7 @@ authored: "2026-05-01"
 
 ## Part 1 — Scope & Boundaries
 
-**What this document covers.** Everything in the `vox-orchestrator` system *except* model selection, model catalog, and Clavis secret distribution — those are covered by [`model-orchestration-ssot-audit-2026.md`](model-orchestration-ssot-audit-2026.md) (FIX-01..75) and [`nextgen-orchestrator-research-2026.md`](nextgen-orchestrator-research-2026.md) (P0–P3 gaps). Items here that *touch* routing are labelled `Prior audit ref: FIX-NN` and are net-new extensions, not duplicates.
+**What this document covers.** Everything in the `vox-orchestrator` system *except* model selection, model catalog, and vox-secrets secret distribution — those are covered by [`model-orchestration-ssot-audit-2026.md`](model-orchestration-ssot-audit-2026.md) (FIX-01..75) and [`nextgen-orchestrator-research-2026.md`](nextgen-orchestrator-research-2026.md) (P0–P3 gaps). Items here that *touch* routing are labelled `Prior audit ref: FIX-NN` and are net-new extensions, not duplicates.
 
 **In scope:**
 - `crates/vox-orchestrator/src/` — all modules except `models/` and `catalog.rs`
@@ -24,7 +24,7 @@ authored: "2026-05-01"
 - `crates/vox-integration-tests/tests/orchestrator_*.rs`
 - `docs/src/adr/022-orchestrator-bootstrap-and-daemon-boundaries.md`
 
-**Out of scope for this document:** `crates/vox-orchestrator/src/models/`, `catalog.rs`, `scoring.rs`, `key_guard.rs`, `crates/vox-clavis/`, Populi mesh transport (covered separately by `vox-populi` architecture docs).
+**Out of scope for this document:** `crates/vox-orchestrator/src/models/`, `catalog.rs`, `scoring.rs`, `key_guard.rs`, `crates/vox-secrets/`, Populi mesh transport (covered separately by `vox-populi` architecture docs).
 
 ---
 
@@ -950,7 +950,7 @@ Each cluster has a Design Note (architectural context) followed by its FIX items
 
 ---
 
-### Cluster AA — Security (Beyond Clavis/Gateway)
+### Cluster AA — Security (Beyond vox-secrets/Gateway)
 
 **Design Note.** The gateway audit (Cluster K) covers the HTTP surface. Three additional security concerns span the broader system: (1) no tracing redaction middleware — a developer can `debug!("{:?}", secret)` and leak credentials to log aggregators; (2) no replay-attack protection on A2A delivery — a duplicate `jwe_payload` delivery is currently accepted; (3) the eval endpoint can initiate outbound network connections from the subprocess (SSRF risk).
 
@@ -1001,7 +1001,7 @@ The following are grep-able or test-verifiable done-conditions for the audit as 
 
 ## Part 7 — Sources & Related Work
 
-- [model-orchestration-ssot-audit-2026.md](model-orchestration-ssot-audit-2026.md) — FIX-01..75 covering model routing, catalog, Clavis secret distribution, and telemetry alignment.
+- [model-orchestration-ssot-audit-2026.md](model-orchestration-ssot-audit-2026.md) — FIX-01..75 covering model routing, catalog, vox-secrets secret distribution, and telemetry alignment.
 - [nextgen-orchestrator-research-2026.md](nextgen-orchestrator-research-2026.md) — Research synthesis with P0–P3 capability gaps that motivated FIX-B-11 (doom-loop), FIX-D-08 (lock propagation), FIX-E-06 (entropy scoring), FIX-F-05 (fleet throttle), FIX-J-07 (schema-aware translation), FIX-J-10 (PII routing).
 - [docs/src/adr/022-orchestrator-bootstrap-and-daemon-boundaries.md](../adr/022-orchestrator-bootstrap-and-daemon-boundaries.md) — ADR governing daemon/MCP boundary and Phase B RPC flag matrix.
 - [docs/agents/orchestrator.md](../../agents/orchestrator.md) — Contributor-facing SSOT for orchestrator boundaries and Socrates policy.

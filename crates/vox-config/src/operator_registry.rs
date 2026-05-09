@@ -105,43 +105,43 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
         config_class: ConfigClass::UserPreference,
     },
     OperatorEnvSpec {
-        name: "VOX_CLAVIS_PROFILE",
-        description: "Clavis resolution profile (ci, prod, hardcut, dev).",
+        name: "VOX_SECRETS_PROFILE",
+        description: "Secrets resolution profile (ci, prod, hardcut, dev).",
         defaults: "dev",
 
         config_class: ConfigClass::Bootstrap,
     },
     OperatorEnvSpec {
-        name: "VOX_CLAVIS_AUTO_PREFER_VAULT",
+        name: "VOX_SECRETS_AUTO_PREFER_VAULT",
         description: "Prefer vault over Infisical/env in Auto mode.",
         defaults: "false",
 
         config_class: ConfigClass::Bootstrap,
     },
     OperatorEnvSpec {
-        name: "VOX_CLAVIS_AUTO_VAULT",
-        description: "Mirror signal for clavis vault presence.",
+        name: "VOX_SECRETS_AUTO_VAULT",
+        description: "Mirror signal for secrets vault presence.",
         defaults: "",
 
         config_class: ConfigClass::Bootstrap,
     },
     OperatorEnvSpec {
-        name: "VOX_CLAVIS_VAULT_URL",
+        name: "VOX_SECRETS_VAULT_URL",
         description: "Cloudless vault URL.",
         defaults: "",
 
         config_class: ConfigClass::Bootstrap,
     },
     OperatorEnvSpec {
-        name: "VOX_CLAVIS_VAULT_PATH",
+        name: "VOX_SECRETS_VAULT_PATH",
         description: "Cloudless vault file path.",
         defaults: ".vox/clavis_vault.db",
 
         config_class: ConfigClass::Bootstrap,
     },
     OperatorEnvSpec {
-        name: "VOX_CLAVIS_BACKEND",
-        description: "Explicit Clavis backend (env_only, infisical, vault, vox_cloud, auto).",
+        name: "VOX_SECRETS_BACKEND",
+        description: "Explicit secrets backend (env_only, infisical, vault, vox_cloud, auto).",
         defaults: "auto",
 
         config_class: ConfigClass::Bootstrap,
@@ -630,7 +630,7 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
         config_class: ConfigClass::NodeLocal,
     },
     OperatorEnvSpec {
-        name: "VOX_CLAVIS_CLOUDLESS_DB_PATH",
+        name: "VOX_SECRETS_CLOUDLESS_DB_PATH",
         description: "Mirror signal for vault path.",
         defaults: "",
 
@@ -847,15 +847,15 @@ pub const OPERATOR_TUNING_ENVS: &[OperatorEnvSpec] = &[
         config_class: ConfigClass::NodeLocal,
     },
     OperatorEnvSpec {
-        name: "VOX_CLAVIS_CUTOVER_PHASE",
-        description: "Clavis cutover phase controls (shadow, enforce, decommission).",
+        name: "VOX_SECRETS_CUTOVER_PHASE",
+        description: "Secrets cutover phase controls (shadow, enforce, decommission).",
         defaults: "shadow",
 
         config_class: ConfigClass::Bootstrap,
     },
     OperatorEnvSpec {
-        name: "VOX_CLAVIS_MIGRATION_PHASE",
-        description: "Clavis migration phase controls (legacy_pre, shadow, dual).",
+        name: "VOX_SECRETS_MIGRATION_PHASE",
+        description: "Secrets migration phase controls (legacy_pre, shadow, dual).",
         defaults: "legacy_pre",
 
         config_class: ConfigClass::Bootstrap,

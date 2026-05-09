@@ -9,7 +9,7 @@ training_rationale: "Architectural plan-of-record for Populi mesh evolution; nam
 
 # Populi Mesh North-Star
 
-**Scope.** The Populi mesh subsystem: `vox-populi` (registry, HTTP control plane, A2A inbox, mens training stack, hardware probes, cloud providers), `vox-mesh-types` (shared records), and the orchestrator paths that drive it (`vox-orchestrator::a2a::dispatch::mesh`, `vox-orchestrator::a2a::remote_worker`, `vox-orchestrator::a2a::jwe`). Out of scope: agent surface (`vox-skills`), pricing (`vox-orchestrator::models`), Clavis resolver internals.
+**Scope.** The Populi mesh subsystem: `vox-populi` (registry, HTTP control plane, A2A inbox, mens training stack, hardware probes, cloud providers), `vox-mesh-types` (shared records), and the orchestrator paths that drive it (`vox-orchestrator::a2a::dispatch::mesh`, `vox-orchestrator::a2a::remote_worker`, `vox-orchestrator::a2a::jwe`). Out of scope: agent surface (`vox-skills`), pricing (`vox-orchestrator::models`), vox-secrets resolver internals.
 
 **How to read this.** This is a north-star, not an implementation plan. It declares the seven workstreams the mesh needs to converge on, organizes them into three capability slices that ship usable mesh at increasing scale, and points to the child specs each slice decomposes into. Companion document: [`populi-mesh-improvement-backlog-2026.md`](populi-mesh-improvement-backlog-2026.md) — the flat tagged list of everything not load-bearing enough to deserve its own spec.
 
@@ -22,7 +22,7 @@ training_rationale: "Architectural plan-of-record for Populi mesh evolution; nam
 ### What ships and works
 
 - **Single-node** mesh: `vox populi serve`, registry, bearer-auth HTTP control plane, A2A inbox with idempotency and lease semantics, mens training in-process. ADR-008 is fully implemented.
-- **Crypto primitives** are present: Ed25519 identity ([`vox-identity/src/identity.rs`](../../../crates/vox-identity/src/identity.rs)), X25519 sealed-box ([`vox-crypto/src/facades.rs:189`](../../../crates/vox-crypto/src/facades.rs)), JWE compact encrypt/decrypt ([`vox-orchestrator/src/a2a/jwe.rs:29`](../../../crates/vox-orchestrator/src/a2a/jwe.rs)), Clavis resolver chain.
+- **Crypto primitives** are present: Ed25519 identity ([`vox-identity/src/identity.rs`](../../../crates/vox-identity/src/identity.rs)), X25519 sealed-box ([`vox-crypto/src/facades.rs:189`](../../../crates/vox-crypto/src/facades.rs)), JWE compact encrypt/decrypt ([`vox-orchestrator/src/a2a/jwe.rs:29`](../../../crates/vox-orchestrator/src/a2a/jwe.rs)), vox-secrets resolver chain.
 - **Type backbone** (`vox-mesh-types`) is stable: NodeRecord, A2ADeliverRequest, ExecLeaseGrant, WorkerDonationPolicy, TaskCapabilityHints. All field changes have been additive.
 
 ### What is broken or pretending
@@ -71,7 +71,7 @@ These are the themes; each is a charter, not a plan. Each gets its own child spe
 
 **Charter.** Two boxes can complete a one-time pairing handshake that establishes mutual X25519 trust. After pairing, secrets named in a task's `capability_requirements` are wrapped to the receiving node's pubkey at dispatch and unwrapped on receipt. Rotation is supported (re-pair clears the old key). Done means: `OPENROUTER_API_KEY` installed only on box A is consumable by a task that runs on box B, with no operator action between dispatch and consumption.
 
-**Cost driver.** New pairing storage (peer pubkey table per node), wiring decryption into the worker hot path, and key-rotation semantics. Adjacent to but not replacing the Clavis resolver chain.
+**Cost driver.** New pairing storage (peer pubkey table per node), wiring decryption into the worker hot path, and key-rotation semantics. Adjacent to but not replacing the vox-secrets resolver chain.
 
 ### W4 — Mesh model discovery
 
@@ -119,7 +119,7 @@ Three slices. Each ships an end-to-end usable mesh at a higher capability ceilin
 
 **Definition of done.**
 - `cargo test -p vox-populi` exercises every hardware probe via mock and every A2A storage backend.
-- A failing probe surfaces a structured error with a `clavis doctor`–style remediation hint.
+- A failing probe surfaces a structured error with a `secrets doctor`–style remediation hint.
 - A local task carries an OTel trace_id from submit to completion.
 - `vox populi serve` runs without setting any `VOX_MESH_*` env var.
 - Quickstart how-to in `docs/src/how-to/populi-quickstart.md` walks a contributor from clone to serve.

@@ -76,7 +76,7 @@ By default, an `@mcp.tool` has the same permissions as your compiled Vox binary.
 // vox:skip
 @mcp.tool "Delete user data"
 @require(auth.is_admin(caller))
-@mutation fn delete_data(id: int) -> Result[Unit] {
+@endpoint(kind: mutation) fn delete_data(id: int) to Result[Unit] {
     db.delete(id)
     return Ok(())
 }
@@ -87,7 +87,7 @@ If the precondition fails, the MCP tool returns a "Tool execution failed" error 
 ---
 
 **Related Reference**:
-- [MCP Protocol SSOT](../reference/clavis-ssot.md)
+- [MCP Protocol SSOT](../reference/secrets-ssot.md)
 - [Agentic Loop Blueprint](../explanation/why-vox-for-ai.md)
 - [CLI Reference: vox mcp](../reference/cli.md)
 

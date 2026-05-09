@@ -357,24 +357,33 @@ fn path_is_allowed_for_secret_guard(rel_norm: &str, hard_cut_strict: bool) -> bo
 }
 
 fn secret_guard_hard_cut_enabled() -> bool {
-    if std::env::var("VOX_CLAVIS_HARD_CUT").ok().is_some_and(|v| {
-        matches!(
-            v.trim().to_ascii_lowercase().as_str(),
-            "1" | "true" | "yes" | "on"
-        )
-    }) {
+    if std::env::var("VOX_SECRETS_HARD_CUT")
+        .or_else(|_| std::env::var("VOX_CLAVIS_HARD_CUT"))
+        .ok()
+        .is_some_and(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes" | "on"
+            )
+        })
+    {
         return true;
     }
-    let profile_strict = std::env::var("VOX_CLAVIS_PROFILE").ok().is_some_and(|v| {
-        matches!(
-            v.trim().to_ascii_lowercase().as_str(),
-            "ci" | "ci_strict" | "prod" | "prod_strict" | "hard_cut" | "hard_cut_strict"
-        )
-    });
+    let profile_strict = std::env::var("VOX_SECRETS_PROFILE")
+        .or_else(|_| std::env::var("VOX_CLAVIS_PROFILE"))
+        .ok()
+        .is_some_and(|v| {
+            matches!(
+                v.trim().to_ascii_lowercase().as_str(),
+                "ci" | "ci_strict" | "prod" | "prod_strict" | "hard_cut" | "hard_cut_strict"
+            )
+        });
     if profile_strict {
         return true;
     }
-    std::env::var("VOX_CLAVIS_CUTOVER_PHASE")
+    std::env::var("VOX_SECRETS_CUTOVER_PHASE")
+        .or_else(|_| std::env::var("VOX_CLAVIS_CUTOVER_PHASE"))
+        .or_else(|_| std::env::var("VOX_SECRETS_MIGRATION_PHASE"))
         .or_else(|_| std::env::var("VOX_CLAVIS_MIGRATION_PHASE"))
         .ok()
         .is_some_and(|v| {
@@ -387,16 +396,18 @@ fn secret_guard_hard_cut_enabled() -> bool {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "snake_case")]
-enum ClavisCutoverPhase {
+enum SecretsCutoverPhase {
     Shadow,
     Canary,
     Enforce,
     Decommission,
 }
 
-impl ClavisCutoverPhase {
+impl SecretsCutoverPhase {
     fn from_env() -> Self {
-        match std::env::var("VOX_CLAVIS_CUTOVER_PHASE")
+        match std::env::var("VOX_SECRETS_CUTOVER_PHASE")
+            .or_else(|_| std::env::var("VOX_CLAVIS_CUTOVER_PHASE"))
+            .or_else(|_| std::env::var("VOX_SECRETS_MIGRATION_PHASE"))
             .or_else(|_| std::env::var("VOX_CLAVIS_MIGRATION_PHASE"))
             .ok()
             .map(|v| v.trim().to_ascii_lowercase())
@@ -492,9 +503,9 @@ pub(crate) fn run_operator_env_guard(root: &Path, all: bool) -> Result<()> {
 }
 
 #[derive(Debug, serde::Serialize)]
-struct ClavisCutoverAuditReport {
+struct SecretsCutoverAuditReport {
     schema: &'static str,
-    phase: ClavisCutoverPhase,
+    phase: SecretsCutoverPhase,
     scanned_files: usize,
     generated_at_ms: i64,
     direct_secret_env_reads: Vec<String>,
@@ -529,12 +540,12 @@ fn legacy_turso_compat_env_marker_regex() -> Result<regex::Regex> {
     regex::Regex::new(&p).map_err(Into::into)
 }
 
-fn collect_clavis_cutover_audit(
+fn collect_secrets_cutover_audit(
     root: &Path,
     all: bool,
     hard_cut_strict: bool,
     include_allowlisted: bool,
-) -> Result<ClavisCutoverAuditReport> {
+) -> Result<SecretsCutoverAuditReport> {
     let disallowed = managed_secret_env_regex()?;
     let compat_marker = legacy_turso_compat_env_marker_regex()?;
     let mut direct_secret_env_reads = Vec::new();
@@ -573,9 +584,9 @@ fn collect_clavis_cutover_audit(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
-    Ok(ClavisCutoverAuditReport {
-        schema: "contracts/reports/clavis-cutover-audit.v1.json",
-        phase: ClavisCutoverPhase::from_env(),
+    Ok(SecretsCutoverAuditReport {
+        schema: "contracts/reports/secrets-cutover-audit.v1.json",
+        phase: SecretsCutoverPhase::from_env(),
         scanned_files,
         generated_at_ms,
         direct_secret_env_reads,
@@ -717,14 +728,14 @@ pub(crate) fn run_secret_env_guard(root: &Path, all: bool) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
-    let contract_path = root.join("contracts/clavis/managed-env-names.v1.json");
+pub(crate) fn run_secrets_parity(root: &Path) -> Result<()> {
+    let contract_path = root.join("contracts/secrets/managed-env-names.v1.json");
     if contract_path.exists() {
         use std::collections::BTreeSet;
         let json: serde_json::Value = serde_json::from_str(&fs::read_to_string(&contract_path)?)?;
         let contract_names: BTreeSet<String> = json["secrets"]
             .as_array()
-            .ok_or_else(|| anyhow!("clavis-parity: malformed contract JSON"))?
+            .ok_or_else(|| anyhow!("secrets-parity: malformed contract JSON"))?
             .iter()
             .flat_map(|s| {
                 let mut names = vec![s["canonical_env"].as_str().unwrap_or("").to_string()];
@@ -756,7 +767,7 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
         let extra_in_contract: Vec<_> = contract_names.difference(&live_names).collect();
         if !missing_in_contract.is_empty() || !extra_in_contract.is_empty() {
             return Err(anyhow!(
-                "clavis-parity: contract drift (secrets) — missing={:?} extra={:?} (re-run `vox ci clavis-contracts`)",
+                "secrets-parity: contract drift (secrets) — missing={:?} extra={:?} (re-run `vox ci secrets-contracts`)",
                 missing_in_contract,
                 extra_in_contract
             ));
@@ -786,14 +797,14 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
             .collect();
         if !missing_tuning_in_contract.is_empty() || !extra_tuning_in_contract.is_empty() {
             return Err(anyhow!(
-                "clavis-parity: contract drift (operator tuning) — missing={:?} extra={:?} (re-run `vox ci clavis-contracts`)",
+                "secrets-parity: contract drift (operator tuning) — missing={:?} extra={:?} (re-run `vox ci secrets-contracts`)",
                 missing_tuning_in_contract,
                 extra_tuning_in_contract
             ));
         }
     } else {
         return Err(anyhow!(
-            "clavis-parity: missing contracts/clavis/managed-env-names.v1.json. Run `vox ci clavis-contracts`"
+            "secrets-parity: missing contracts/secrets/managed-env-names.v1.json. Run `vox ci secrets-contracts`"
         ));
     }
 
@@ -801,10 +812,10 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
         .join("docs")
         .join("src")
         .join("reference")
-        .join("clavis-ssot.md");
+        .join("secrets-ssot.md");
     if !docs.exists() {
         return Err(anyhow!(
-            "clavis-parity: missing docs/src/reference/clavis-ssot.md"
+            "secrets-parity: missing docs/src/reference/secrets-ssot.md"
         ));
     }
     let content = read_utf8_path_capped(&docs)?;
@@ -816,34 +827,34 @@ pub(crate) fn run_clavis_parity(root: &Path) -> Result<()> {
         .collect();
     if !missing_bundles.is_empty() {
         return Err(anyhow!(
-            "clavis-parity: docs/src/reference/clavis-ssot.md missing bundle names: {}",
+            "secrets-parity: docs/src/reference/secrets-ssot.md missing bundle names: {}",
             missing_bundles.join(", ")
         ));
     }
     if !content.contains("DeprecatedAliasUsed") {
         return Err(anyhow!(
-            "clavis-parity: docs/src/reference/clavis-ssot.md must document DeprecatedAliasUsed lifecycle"
+            "secrets-parity: docs/src/reference/secrets-ssot.md must document DeprecatedAliasUsed lifecycle"
         ));
     }
 
-    println!("clavis-parity OK");
+    println!("secrets-parity OK");
     Ok(())
 }
 
-pub(crate) fn run_clavis_cutover_audit(root: &Path, all: bool) -> Result<()> {
+pub(crate) fn run_secrets_cutover_audit(root: &Path, all: bool) -> Result<()> {
     let hard_cut_strict = secret_guard_hard_cut_enabled();
-    let report = collect_clavis_cutover_audit(root, all, hard_cut_strict, true)?;
+    let report = collect_secrets_cutover_audit(root, all, hard_cut_strict, true)?;
     let out = root
         .join("contracts")
         .join("reports")
-        .join("clavis-cutover-audit.v1.json");
+        .join("secrets-cutover-audit.v1.json");
     if let Some(parent) = out.parent() {
         fs::create_dir_all(parent)?;
     }
     let json = serde_json::to_string_pretty(&report)?;
     fs::write(&out, json)?;
     println!(
-        "clavis-cutover-audit OK: {} (files={}, env={}, dataflow={}, compat={})",
+        "secrets-cutover-audit OK: {} (files={}, env={}, dataflow={}, compat={})",
         out.display(),
         report.scanned_files,
         report.direct_secret_env_reads.len(),
@@ -853,17 +864,18 @@ pub(crate) fn run_clavis_cutover_audit(root: &Path, all: bool) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn run_clavis_cutover_gates(root: &Path) -> Result<()> {
-    let phase = ClavisCutoverPhase::from_env();
-    run_clavis_parity(root)?;
-    let report = collect_clavis_cutover_audit(root, phase.scan_all(), true, false)?;
+pub(crate) fn run_secrets_cutover_gates(root: &Path) -> Result<()> {
+    let phase = SecretsCutoverPhase::from_env();
+    run_secrets_parity(root)?;
+    let report = collect_secrets_cutover_audit(root, phase.scan_all(), true, false)?;
     if !report.direct_secret_env_reads.is_empty() {
         return Err(anyhow!(
-            "clavis-cutover-gates ({phase:?}): direct secret env reads remain: {}",
+            "secrets-cutover-gates ({phase:?}): direct secret env reads remain: {}",
             report.direct_secret_env_reads.join(", ")
         ));
     }
-    let require_sunset = std::env::var("VOX_CLAVIS_REQUIRE_COMPAT_SUNSET")
+    let require_sunset = std::env::var("VOX_SECRETS_REQUIRE_COMPAT_SUNSET")
+        .or_else(|_| std::env::var("VOX_CLAVIS_REQUIRE_COMPAT_SUNSET"))
         .ok()
         .is_some_and(|v| {
             matches!(
@@ -873,12 +885,12 @@ pub(crate) fn run_clavis_cutover_gates(root: &Path) -> Result<()> {
         });
     if require_sunset && !report.compatibility_surface_markers.is_empty() {
         return Err(anyhow!(
-            "clavis-cutover-gates ({phase:?}): compatibility markers must be removed before decommission: {}",
+            "secrets-cutover-gates ({phase:?}): compatibility markers must be removed before decommission: {}",
             report.compatibility_surface_markers.join(", ")
         ));
     }
     println!(
-        "clavis-cutover-gates OK ({phase:?}) scanned={} dataflow_findings={} require_sunset={}",
+        "secrets-cutover-gates OK ({phase:?}) scanned={} dataflow_findings={} require_sunset={}",
         report.scanned_files,
         report.secret_dataflow_violations.len(),
         require_sunset
@@ -1096,33 +1108,33 @@ mod sql_surface_tests {
     #[test]
     #[allow(unsafe_code)]
     fn secret_guard_hard_cut_enabled_by_cutover_phase() {
-        let prev_hard_cut = std::env::var("VOX_CLAVIS_HARD_CUT").ok();
-        let prev_profile = std::env::var("VOX_CLAVIS_PROFILE").ok();
-        let prev_phase = std::env::var("VOX_CLAVIS_CUTOVER_PHASE").ok();
-        let prev_migration = std::env::var("VOX_CLAVIS_MIGRATION_PHASE").ok();
+        let prev_hard_cut = std::env::var("VOX_SECRETS_HARD_CUT").ok();
+        let prev_profile = std::env::var("VOX_SECRETS_PROFILE").ok();
+        let prev_phase = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
+        let prev_migration = std::env::var("VOX_SECRETS_MIGRATION_PHASE").ok();
         unsafe {
-            std::env::set_var("VOX_CLAVIS_HARD_CUT", "0");
-            std::env::remove_var("VOX_CLAVIS_PROFILE");
-            std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", "enforce");
-            std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE");
+            std::env::set_var("VOX_SECRETS_HARD_CUT", "0");
+            std::env::remove_var("VOX_SECRETS_PROFILE");
+            std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", "enforce");
+            std::env::remove_var("VOX_SECRETS_MIGRATION_PHASE");
         }
         assert!(super::secret_guard_hard_cut_enabled());
         unsafe {
             match prev_hard_cut {
-                Some(v) => std::env::set_var("VOX_CLAVIS_HARD_CUT", v),
-                None => std::env::remove_var("VOX_CLAVIS_HARD_CUT"),
+                Some(v) => std::env::set_var("VOX_SECRETS_HARD_CUT", v),
+                None => std::env::remove_var("VOX_SECRETS_HARD_CUT"),
             }
             match prev_profile {
-                Some(v) => std::env::set_var("VOX_CLAVIS_PROFILE", v),
-                None => std::env::remove_var("VOX_CLAVIS_PROFILE"),
+                Some(v) => std::env::set_var("VOX_SECRETS_PROFILE", v),
+                None => std::env::remove_var("VOX_SECRETS_PROFILE"),
             }
             match prev_phase {
-                Some(v) => std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", v),
-                None => std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE"),
+                Some(v) => std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", v),
+                None => std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE"),
             }
             match prev_migration {
-                Some(v) => std::env::set_var("VOX_CLAVIS_MIGRATION_PHASE", v),
-                None => std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE"),
+                Some(v) => std::env::set_var("VOX_SECRETS_MIGRATION_PHASE", v),
+                None => std::env::remove_var("VOX_SECRETS_MIGRATION_PHASE"),
             }
         }
     }
@@ -1163,39 +1175,39 @@ mod sql_surface_tests {
 
     #[test]
     #[allow(unsafe_code)]
-    fn clavis_cutover_phase_parses_env_values() {
-        let prev_cutover = std::env::var("VOX_CLAVIS_CUTOVER_PHASE").ok();
-        let prev_migration = std::env::var("VOX_CLAVIS_MIGRATION_PHASE").ok();
+    fn secrets_cutover_phase_parses_env_values() {
+        let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
+        let prev_migration = std::env::var("VOX_SECRETS_MIGRATION_PHASE").ok();
         unsafe {
-            std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", "canary");
-            std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE");
+            std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", "canary");
+            std::env::remove_var("VOX_SECRETS_MIGRATION_PHASE");
         }
         assert!(matches!(
-            super::ClavisCutoverPhase::from_env(),
-            super::ClavisCutoverPhase::Canary
+            super::SecretsCutoverPhase::from_env(),
+            super::SecretsCutoverPhase::Canary
         ));
         unsafe {
-            std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE");
-            std::env::set_var("VOX_CLAVIS_MIGRATION_PHASE", "decommission");
+            std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE");
+            std::env::set_var("VOX_SECRETS_MIGRATION_PHASE", "decommission");
         }
         assert!(matches!(
-            super::ClavisCutoverPhase::from_env(),
-            super::ClavisCutoverPhase::Decommission
+            super::SecretsCutoverPhase::from_env(),
+            super::SecretsCutoverPhase::Decommission
         ));
         unsafe {
             match prev_cutover {
-                Some(v) => std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", v),
-                None => std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE"),
+                Some(v) => std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", v),
+                None => std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE"),
             }
             match prev_migration {
-                Some(v) => std::env::set_var("VOX_CLAVIS_MIGRATION_PHASE", v),
-                None => std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE"),
+                Some(v) => std::env::set_var("VOX_SECRETS_MIGRATION_PHASE", v),
+                None => std::env::remove_var("VOX_SECRETS_MIGRATION_PHASE"),
             }
         }
     }
 
     #[test]
-    fn clavis_cutover_audit_collects_env_and_compat_markers() {
+    fn secrets_cutover_audit_collects_env_and_compat_markers() {
         let tmp = tempfile::tempdir().expect("tempdir");
         let crates_dir = tmp.path().join("crates").join("vox-test").join("src");
         std::fs::create_dir_all(&crates_dir).expect("mkdir");
@@ -1213,11 +1225,11 @@ mod sql_surface_tests {
             ),
         )
         .expect("write fixture");
-        let report = super::collect_clavis_cutover_audit(tmp.path(), true, true, true)
+        let report = super::collect_secrets_cutover_audit(tmp.path(), true, true, true)
             .expect("collect audit");
         assert_eq!(
             report.schema,
-            "contracts/reports/clavis-cutover-audit.v1.json"
+            "contracts/reports/secrets-cutover-audit.v1.json"
         );
         assert!(
             !report.direct_secret_env_reads.is_empty(),

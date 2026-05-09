@@ -340,23 +340,23 @@ fn cutover_phase_choreography_transitions_as_expected() {
 #[allow(unsafe_code)]
 fn decommission_phase_disables_env_only_fallback_and_forces_vox_cloud() {
     let _g = ENV_LOCK.lock().expect("env lock");
-    let prev_cutover = std::env::var("VOX_CLAVIS_CUTOVER_PHASE").ok();
-    let prev_backend = std::env::var("VOX_CLAVIS_BACKEND").ok();
+    let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
+    let prev_backend = std::env::var("VOX_SECRETS_BACKEND").ok();
     unsafe {
-        std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", "decommission");
-        std::env::set_var("VOX_CLAVIS_BACKEND", "env_only");
+        std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", "decommission");
+        std::env::set_var("VOX_SECRETS_BACKEND", "env_only");
         std::env::set_var("OPENROUTER_API_KEY", "would-be-legacy-fallback");
     }
     let resolved = crate::resolve_secret(SecretId::OpenRouterApiKey);
     assert!(!matches!(resolved.status, ResolutionStatus::Present));
     unsafe {
         match prev_cutover {
-            Some(v) => std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", v),
-            None => std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE"),
+            Some(v) => std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", v),
+            None => std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE"),
         }
         match prev_backend {
-            Some(v) => std::env::set_var("VOX_CLAVIS_BACKEND", v),
-            None => std::env::remove_var("VOX_CLAVIS_BACKEND"),
+            Some(v) => std::env::set_var("VOX_SECRETS_BACKEND", v),
+            None => std::env::remove_var("VOX_SECRETS_BACKEND"),
         }
         std::env::remove_var("OPENROUTER_API_KEY");
     }
@@ -366,11 +366,11 @@ fn decommission_phase_disables_env_only_fallback_and_forces_vox_cloud() {
 #[allow(unsafe_code)]
 fn cutover_phase_compat_alias_is_honored() {
     let _g = ENV_LOCK.lock().expect("env lock");
-    let prev_cutover = std::env::var("VOX_CLAVIS_CUTOVER_PHASE").ok();
-    let prev_migration = std::env::var("VOX_CLAVIS_MIGRATION_PHASE").ok();
+    let prev_cutover = std::env::var("VOX_SECRETS_CUTOVER_PHASE").ok();
+    let prev_migration = std::env::var("VOX_SECRETS_MIGRATION_PHASE").ok();
     unsafe {
-        std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE");
-        std::env::set_var("VOX_CLAVIS_MIGRATION_PHASE", "enforce");
+        std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE");
+        std::env::set_var("VOX_SECRETS_MIGRATION_PHASE", "enforce");
     }
     assert_eq!(
         crate::CutoverPhase::from_env(),
@@ -378,12 +378,12 @@ fn cutover_phase_compat_alias_is_honored() {
     );
     unsafe {
         match prev_cutover {
-            Some(v) => std::env::set_var("VOX_CLAVIS_CUTOVER_PHASE", v),
-            None => std::env::remove_var("VOX_CLAVIS_CUTOVER_PHASE"),
+            Some(v) => std::env::set_var("VOX_SECRETS_CUTOVER_PHASE", v),
+            None => std::env::remove_var("VOX_SECRETS_CUTOVER_PHASE"),
         }
         match prev_migration {
-            Some(v) => std::env::set_var("VOX_CLAVIS_MIGRATION_PHASE", v),
-            None => std::env::remove_var("VOX_CLAVIS_MIGRATION_PHASE"),
+            Some(v) => std::env::set_var("VOX_SECRETS_MIGRATION_PHASE", v),
+            None => std::env::remove_var("VOX_SECRETS_MIGRATION_PHASE"),
         }
     }
 }

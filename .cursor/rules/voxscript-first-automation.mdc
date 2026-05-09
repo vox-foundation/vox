@@ -39,7 +39,7 @@ vox run --interp scripts/compute-config.vox
 
 - Scripts modifying the repo MUST be committed to VCS before agent execution
 - Subprocess calls use `vox-runtime` process primitives (telemetry-observable)
-- Secrets via Clavis only (`clavis.resolve(...)`)
+- Secrets via vox-secrets only (`vox_secrets::resolve_secret(...)`)
 
 ## References
 

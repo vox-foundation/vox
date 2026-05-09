@@ -119,7 +119,7 @@ Each archetype lists:
 - **A5-05 No usage metering primitive** — cannot structurally declare "this endpoint consumes 1 unit of plan X." Slot: `@meter(plan_unit: ...)` decorator; couples to billing.
 - **A5-06 No team-invite flow primitive** — invite tokens, email delivery, role assignment are all per-app. Slot: stdlib `std.team.invite_flow(...)`; couples to CC-03 (email).
 - **A5-07 No audit-log primitive** — every SaaS reimplements "who changed what when." Slot: CC-09 (audit log).
-- **A5-08 No row-level encryption decorator** — sensitive PII columns (SSN, address) have no `@encrypted` declaration. Slot: decorator on `@table` field; integrates with `vox-crypto` and Clavis-resolved keys.
+- **A5-08 No row-level encryption decorator** — sensitive PII columns (SSN, address) have no `@encrypted` declaration. Slot: decorator on `@table` field; integrates with `vox-crypto` and vox-secrets-resolved keys.
 - **A5-09 No data-residency primitive** — SaaS sold to EU/US customers needs per-tenant region pinning; not expressible. Slot: `@region(allowed: [eu, us])` table-level decorator. Long-tail.
 - **A5-10 No impersonation / "view as user" primitive** — support staff debugging require it; reimplemented every time. Slot: `@impersonable` decorator gating session swap; logs to CC-09.
 
@@ -442,7 +442,7 @@ The 21 archetypes above bottleneck on a small set of shared primitives. Building
 ### CC-05. OAuth / OIDC primitives
 
 **Unblocks:** A5, A6, A14, A17 partial, A19, A20.
-- **CC-05-D Design** — `@auth(provider: oauth(client_id, scopes), redirect: ...)` decorator on a route. Provider catalogue: Google / GitHub / Microsoft / generic OIDC. Token storage via Clavis. Per-tenant configuration via CC-07.
+- **CC-05-D Design** — `@auth(provider: oauth(client_id, scopes), redirect: ...)` decorator on a route. Provider catalogue: Google / GitHub / Microsoft / generic OIDC. Token storage via vox-secrets. Per-tenant configuration via CC-07.
 - **CC-05-R Runtime** — full Authorization Code + PKCE flow; token refresh; userinfo fetch. Session minting integrates with CC-06.
 - **CC-05-C Codegen** — TS client gets a `signIn(provider)` helper; redirect URLs emit into the routes manifest.
 - **CC-05-E Eval** — golden state-token validation; CSRF rejection; replay rejection; provider-error surfacing.

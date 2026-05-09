@@ -44,7 +44,7 @@ pub async fn run(args: WatchRunArgs) -> Result<()> {
     if token.is_empty() {
         eprintln!(
             "⚠️  vox ci watch-run: VOX_GITHUB_TOKEN / GITHUB_TOKEN not set — \
-            cannot poll CI. Set it via `vox clavis` or export the env var.\n\
+            cannot poll CI. Set it via `vox secrets` or export the env var.\n\
             Skipping post-push CI check."
         );
         // Advisory: don't block the push if the token is missing.

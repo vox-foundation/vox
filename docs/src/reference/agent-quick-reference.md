@@ -16,7 +16,7 @@ schema_type: "TechArticle"
 2. `vox ci command-compliance`: Check CLI compliance updates.
 3. `vox stub-check` (`TOESTUB`): Prevent submitting `todo!()`, `unimplemented!()`, `empty-bodies`, or any stubs.
 4. `vox ci sync-ignore-files`: Ensures `AGENTS.md` rules and `.voxignore` exclusions correctly sync to `.cursorignore` and `.aiignore`.
-5. `vox ci clavis-parity`: Requires secret references securely bind to `resolve_secret(...)`. No static env variables allowed!
+5. `vox ci clavis-parity`: Requires secret references securely bind to `resolve_secret(...)`. No static env variables allowed! (CI command name retained for backward compat; checks against `secrets-ssot.md`.)
 
 ## Documentation Rules Fast Track
 - Do NOT read or modify files within `docs/src/archive/` or `archive/` for current work streams.
@@ -24,7 +24,7 @@ schema_type: "TechArticle"
 - Inline code blocks across `.md` files should be explicitly imported using `{{#include}}` pointing to `examples/golden/` files, OR manually prepended with `// vox:skip`.
 
 ## Secret Management One-Liner
-Never read `std::env::var("SECRET")`; exclusively employ `vox_clavis::resolve_secret(...)` and declare it in `crates/vox-clavis/src/spec.rs`.
+Never read `std::env::var("SECRET")`; exclusively employ `vox_secrets::resolve_secret(...)` and declare it in `crates/vox-secrets/src/spec.rs`.
 
 ## Running Dev Environment
 If `vox` is explicitly omitted from terminal `$PATH`, use the dev scripts:

@@ -13,15 +13,15 @@ schema_type: "TechArticle"
 
 Vox brings security out of middleware and directly into the language syntax. By enforcing permissions at compile-time and strictly managing secrets from the environment, the language reduces the attack surface for both human-written and AI-authored code.
 
-## 1. Clavis for Secret Management
+## 1. vox-secrets for Secret Management
 
 Vox completely rejects decentralized environment variable reading throughout the codebase. You cannot use `std.env.get("STRIPE_KEY")` deep inside business logic.
 
-Instead, all secrets must be declared and managed through **Clavis**, Vox's centralized secret manager.
+Instead, all secrets must be declared and managed through **vox-secrets**, Vox's centralized secret manager.
 
 To verify a project's secret posture, you run:
 ```bash
-vox clavis doctor
+vox secrets doctor
 ```
 This utility checks the system environment against the `SecretSpec` definition to ensure every required API key, database token, and provider credential is comprehensively mapped and secure, guaranteeing no missing configurations at deploy time.
 
@@ -33,7 +33,7 @@ Input validation is not an afterthought; it is a structural precondition. The `@
 // vox:skip
 @mcp.tool "Delete user data"
 @require(auth.is_admin(caller))
-@mutation fn delete_data(id: Id[User]) -> Result[Unit] {
+@endpoint(kind: mutation) fn delete_data(id: Id[User]) to Result[Unit] {
     db.User.delete(id)
     return Ok(())
 }

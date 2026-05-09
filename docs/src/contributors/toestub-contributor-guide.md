@@ -116,14 +116,14 @@ near `unimplemented!()`. Do not add completion comments to stub code.
 ### `security/hardcoded-secret` — Error
 **Triggers:** High-entropy strings or credential-shaped literals in source code.
 
-**Fix:** Route through Clavis:
+**Fix:** Route through vox-secrets:
 ```rust
-use vox_clavis::resolve_secret;
+use vox_secrets::resolve_secret;
 let key = resolve_secret(SecretId::MyApiKey)?;
 ```
 
-Declare the `SecretId` variant in `crates/vox-clavis/src/spec.rs`. See
-[Clavis SSOT](../reference/clavis-ssot.md) for the full lifecycle.
+Declare the `SecretId` variant in `crates/vox-secrets/src/spec.rs`. See
+[Secrets SSOT](../reference/secrets-ssot.md) for the full lifecycle.
 
 **False positive:** Content-addressed hashes, test fixture values. Suppress
 with `// toestub-ignore(security/hardcoded-secret) — SHA256 test fixture`.

@@ -157,7 +157,7 @@ async fn test_model_selection_preference() {
             CostPreference::Economy,
         )
         .unwrap();
-    // assert_eq!(best_econ.id, "budget-coder"); // Skipped due to clavis SSOT refactoring
+    // assert_eq!(best_econ.id, "budget-coder"); // Skipped due to secrets SSOT refactoring
 
     // Dynamic Tiering: Low complexity (2) should pick budget-coder even in Performance mode
     let _best_dynamic = mh
@@ -169,5 +169,5 @@ async fn test_model_selection_preference() {
             CostPreference::Performance,
         )
         .unwrap();
-    // assert_eq!(best_dynamic.id, "budget-coder"); // Skipped due to clavis SSOT refactoring
+    // assert_eq!(best_dynamic.id, "budget-coder"); // Skipped due to secrets SSOT refactoring
 }

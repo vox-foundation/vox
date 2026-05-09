@@ -32,7 +32,7 @@ This audit classifies every crate in `crates/` against five labels:
 |---|---|---|---|
 | workspace-hack | SHARED | all | cargo-hakari generated; keep |
 | vox-bounded-fs | CORE | 18 | async FS jailing used widely |
-| vox-clavis | CORE | 21 | auth/keys, used in CLI, orchestrator, populi |
+| vox-secrets | CORE | 21 | auth/keys, used in CLI, orchestrator, populi |
 | vox-cli | CORE | 0 (it IS the binary) | default binary |
 | vox-cli-core | CORE | 1 (vox-cli) | CLI utilities |
 | vox-compiler | CORE | 7 | Vox language compiler |

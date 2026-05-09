@@ -19,7 +19,7 @@ pub struct RegistryAuth {
 }
 
 const SECURE_SERVICE: &str = "vox-secrets";
-const SECURE_SENTINEL: &str = "__clavis_keyring__";
+const SECURE_SENTINEL: &str = "__secrets_keyring__";
 
 #[must_use]
 pub fn vox_dir() -> PathBuf {
@@ -30,7 +30,7 @@ pub fn vox_dir() -> PathBuf {
 }
 
 fn auth_path() -> PathBuf {
-    if let Ok(override_path) = std::env::var("VOX_CLAVIS_AUTH_PATH")
+    if let Ok(override_path) = std::env::var("VOX_SECRETS_AUTH_PATH")
         && !override_path.trim().is_empty()
     {
         return PathBuf::from(override_path.trim());
@@ -193,12 +193,12 @@ mod tests {
     fn auth_path_uses_override() {
         let _g = ENV_LOCK.lock().expect("env lock");
         unsafe {
-            std::env::set_var("VOX_CLAVIS_AUTH_PATH", "/tmp/vox-secrets-auth.json");
+            std::env::set_var("VOX_SECRETS_AUTH_PATH", "/tmp/vox-secrets-auth.json");
         }
         let got = auth_path();
         assert!(got.to_string_lossy().contains("vox-secrets-auth.json"));
         unsafe {
-            std::env::remove_var("VOX_CLAVIS_AUTH_PATH");
+            std::env::remove_var("VOX_SECRETS_AUTH_PATH");
         }
     }
 }

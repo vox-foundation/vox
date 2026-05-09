@@ -7,7 +7,7 @@ fn check_drift() -> Result<(), String> {
     println("Checking codebase for split-brain naming drift (Symbol Proximity)...");
     
     // In a real execution, this would invoke the proximity scanner and load the JSON snapshot.
-    // let snapshot = clavis.load_json("contracts/proximity/snapshot.v1.json");
+    // let snapshot = secrets.load_json("contracts/proximity/snapshot.v1.json");
     // let current = run_scanner();
     
     let simulated_new_pairs = 0;

@@ -56,7 +56,7 @@ docs/src/archive/
 **/*.p12
 **/.env
 **/.env.*
-crates/vox-clavis/fixtures/
+crates/vox-secrets/fixtures/
 
 # === LARGE GENERATED DOCS ===
 # Avoid double-indexing rendered output; source markdown is already indexed.

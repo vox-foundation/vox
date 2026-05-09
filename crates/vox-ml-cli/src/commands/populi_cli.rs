@@ -17,7 +17,7 @@ pub enum PopuliAdminSwitch {
     Off,
 }
 
-/// Operator HTTP actions (`POST /v1/populi/admin/*`; mesh or admin bearer via Clavis env).
+/// Operator HTTP actions (`POST /v1/populi/admin/*`; mesh or admin bearer via secrets env).
 #[derive(Subcommand)]
 pub enum PopuliAdminCmd {
     /// Cooperative drain (blocks new exec lease grant/renew and A2A claims for this node id).
@@ -55,7 +55,7 @@ pub enum PopuliAdminCmd {
 pub enum PopuliCli {
     /// Initialize a new mesh environment (generate scope ID and mesh tokens).
     Init {
-        /// Force overwrite existing env vars in .env or clavis.
+        /// Force overwrite existing env vars in .env or secrets.
         #[arg(long, default_value_t = false)]
         force: bool,
     },
@@ -543,14 +543,14 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 }
                 let auth_path = vox_secrets::set_registry_token("mesh_visibility", &mode, None)?;
                 println!("Updated mesh visibility to '{}'", mode);
-                println!("Wrote to Clavis auth store at: {}", auth_path.display());
+                println!("Wrote to secrets auth store at: {}", auth_path.display());
                 Ok(())
             }
             PopuliIdentityCmd::PreferMesh { enabled } => {
                 let val = if enabled { "true" } else { "false" };
                 let auth_path = vox_secrets::set_registry_token("routing_prefer_mesh", val, None)?;
                 println!("Updated mesh routing preference to '{}'", val);
-                println!("Wrote to Clavis auth store at: {}", auth_path.display());
+                println!("Wrote to secrets auth store at: {}", auth_path.display());
                 Ok(())
             }
             PopuliIdentityCmd::SetPolicy { json_payload } => {
@@ -562,7 +562,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 let auth_path =
                     vox_secrets::set_registry_token("mesh_donation_policy", &json_payload, None)?;
                 println!("Updated mesh donation policy (valid JSON).");
-                println!("Wrote to Clavis auth store at: {}", auth_path.display());
+                println!("Wrote to secrets auth store at: {}", auth_path.display());
                 Ok(())
             }
             PopuliIdentityCmd::Reputation => {
@@ -624,7 +624,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 println!("Rotated Mesh Federation Identity.");
                 println!("New Public Key:");
                 println!("  {}", hex::encode(new_vk_bytes));
-                println!("Wrote to Clavis auth store at: {}", auth_path.display());
+                println!("Wrote to secrets auth store at: {}", auth_path.display());
                 Ok(())
             }
         },
@@ -850,7 +850,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                 );
             }
 
-            // Token resolution: Clavis → config (`mesh.token`) → auto-generate (then inject env).
+            // Token resolution: secrets → config (`mesh.token`) → auto-generate (then inject env).
             const MESH_TOKEN_KEY: &str = "mesh.token";
             let cfg_mesh = vox_config::toml_config::load_user_config();
             let saved_mesh = cfg_mesh
@@ -974,7 +974,7 @@ pub async fn run(cmd: PopuliCli, global_json: bool) -> anyhow::Result<()> {
                             .expose()
                             .is_some()
                         {
-                            "Clavis-resolved mesh token (env / vault)"
+                            "secrets-resolved mesh token (env / vault)"
                         } else if cfg.values.contains_key(MESH_TOKEN_KEY) {
                             "file: ~/.vox/config.toml (mesh.token)"
                         } else {

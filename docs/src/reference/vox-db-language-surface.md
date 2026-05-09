@@ -1,6 +1,6 @@
 ---
 title: "Vox database language surface (canonical)"
-description: "Canonical @table, @query, @mutation, and db.* operations for Turso/Codex — low-K syntax for LLM-authored code."
+description: "Canonical @table, @endpoint(kind: query), @endpoint(kind: mutation), and db.* operations for Turso/Codex — low-K syntax for LLM-authored code."
 category: "reference"
 last_updated: "2026-03-25"
 training_eligible: true
@@ -16,9 +16,9 @@ This page is the **single** SSOT for how persistence appears in `.vox` source. O
 
 - **`@table type Name { field: Type ... }`** — Turso table + generated Rust row type. A surrogate **`_id`** column (integer primary key) is always added; do **not** add a separate column named `id` (the compiler warns; use another name for application ids).
 - **`@index Table.idx on (col1, col2)`** — B-tree index DDL.
-- **`@endpoint(kind: query) fn name(...) -> T { ... }`** — Read-oriented function; HTTP route **`GET /api/query/<name>`** with JSON-encoded query parameters (sorted keys). Compiler rejects `insert`/`delete`/raw `.query(...)` inside a `query` endpoint.
-- **`@endpoint(kind: mutation) fn name(...) -> T { ... }`** — Write-oriented function; **`POST /api/mutation/<name>`**.
-- **`@endpoint(kind: server) fn name(...) -> T { ... }`** — General RPC; **`POST /api/<name>`**.
+- **`@endpoint(kind: query) fn name(...) to T { ... }`** — Read-oriented function; HTTP route **`GET /api/query/<name>`** with JSON-encoded query parameters (sorted keys). Compiler rejects `insert`/`delete`/raw `.query(...)` inside `@endpoint(kind: query)`.
+- **`@endpoint(kind: mutation) fn name(...) to T { ... }`** — Write-oriented function; **`POST /api/mutation/<name>`**.
+- **`@endpoint(kind: server) fn name(...) to T { ... }`** — General RPC; **`POST /api/<name>`**.
 - **HTTP routes** — Use `http get|post|put|delete "/path" to T { ... }` (optional named handler forms are not in the canonical grammar; see parser tests).
 
 ## `db` operations (HIR: `DbTableOp` + `FilterRecord` / `Count`)

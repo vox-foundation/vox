@@ -262,7 +262,7 @@ pub fn generate_with_options(
         ));
     }
 
-    // Generate Express server only when explicitly requested (Axum + api.ts is canonical).
+    // Legacy Express server emission (deprecated; Axum + api.ts is canonical). Gated on `VOX_EMIT_EXPRESS_SERVER=1`.
     if options.mode != BuildMode::Library {
         let routes_content = generate_routes(hir);
         let emit_express_resolved =

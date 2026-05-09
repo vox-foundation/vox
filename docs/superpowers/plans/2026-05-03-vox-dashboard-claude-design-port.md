@@ -1,12 +1,14 @@
 # Vox Dashboard — Claude Design Port (Implementation Plan)
 
+> **Phase 5 dependency.** Sections describing React-component capitalized imports (e.g. `CodeEditor(path=active_path)` calling into a React-authored TSX file) depend on Phase 5 of [external-frontend-interop-plan-2026](../../src/architecture/external-frontend-interop-plan-2026.md), which is in-plan as of 2026-05-08. Until Phase 5 lands, those surfaces require a hand-authored compat layer (TBD).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the existing 4-tab Latin-named Vox dashboard with the 7-surface design spec in [`docs/src/architecture/vox-dashboard-design-brief-2026.md`](../../src/architecture/vox-dashboard-design-brief-2026.md), implemented entirely in Vox VUV source, fully wired to the orchestrator over the existing HTTP/WebSocket gateway.
 
 **Architecture:** Vox source files in `crates/vox-dashboard/app/src/` compile to TSX via `vox build`. TSX is bundled by Vite, served as static assets baked into the orchestrator binary, mounted at `/dashboard/`. Each surface fetches initial state via REST (`/api/v2/...`) and subscribes to live updates via WebSocket (`/v1/ws`). Settings persist via `SettingsState` (file-based flat JSON — see Section 11 of the brief for the namespace conventions). VoxDB is used by the orchestrator for run history and build timelines; settings are deliberately kept out of VoxDB.
 
-**Tech Stack:** Vox + VUV view-call syntax · Rust orchestrator (Axum) · React 19 + Vite (bundler only — Vox source is the authoring surface, no hand-written `.tsx` for surfaces) · file-based `SettingsState` · WebSocket `/v1/ws` for live data · SQLite via VoxDB for orchestrator-owned data (run history, build timelines, cmdk recents — NOT dashboard settings).
+**Tech Stack:** Vox + VUV view-call syntax · Rust orchestrator (Axum) · React 19 + Vite (bundler only — Vox source is the authoring surface, no hand-written `.tsx` for surfaces except `CodeEditor.tsx` in Phase 5.3, which is a Phase 5 dependency) · file-based `SettingsState` · WebSocket `/v1/ws` for live data · SQLite via VoxDB for orchestrator-owned data (run history, build timelines, cmdk recents — NOT dashboard settings).
 
 ---
 
@@ -655,6 +657,8 @@ component MeshScreen() {
 
 - **5.3 Editor integration.** The editor surface uses Monaco (already a dependency if the TSX bundle includes it) or CodeMirror. This is authored as a React island — the only surface that requires one — because a full code editor is not representable as VUV primitives. File: `crates/vox-dashboard/src/components/CodeEditor.tsx`. The VUV surface file imports it via the capitalized component call pattern (`CodeEditor(path=active_path)`).
 
+  <!-- Phase 5 dependency: requires the React-component import bridge. Until external-frontend-interop-plan-2026 §Phase 5 lands, mount manually via hand-authored TSX. -->
+
 - **5.4 Vox — `ContextStrip`.** Right rail: recent agents that touched this file (from `mesh.topology_changed` events filtered by path), current file diagnostics as `Codeframe` rows, "Open in Forge" jump button.
 
 - **5.5 Vox — `CodeScreen`.** File tree (240px) + tabbed editor (center) + `ContextStrip` (right). Tabs persist open files in URL query params. Ctrl/⌘+S calls `files.write`, shows a 1.2s toast.
@@ -782,7 +786,7 @@ component MeshScreen() {
 | Requirement | Covered by |
 |---|---|
 | 7 surfaces, English labels | Phase 1.9 replaces `app.vox`; Phase 10.2 deletes legacy Latin tabs |
-| All code in VUV | JSX syntax never appears in any task; all surface code uses view-call form |
+| All code in VUV | JSX syntax never appears in any task; all surface code uses view-call form. Exception: `CodeEditor.tsx` in Phase 5.3 is a hand-authored TSX React island (Phase 5 dependency — VUV cannot yet import it natively until external-frontend-interop-plan-2026 §Phase 5 lands). |
 | SVG in VUV | Phase 1.2 (icons), 2.3 (topology), 4.3 (cost horizon), 6.5 (timeline) — all via passthrough |
 | SettingsState (not VoxDB) | Phase 8 wires to existing `SettingsState` API from `7923d2154` |
 | Live data wiring | Phase 1.7 (StatusBar WS); per-surface WS subscriptions in Phases 2–7 |

@@ -373,7 +373,7 @@ mod tests {
 
     #[test]
     #[allow(unsafe_code)]
-    fn clavis_profile_lenient_vs_strict_for_gateway_token() {
+    fn secrets_profile_lenient_vs_strict_for_gateway_token() {
         let _guard = ENV_LOCK.lock().expect("env lock");
         let token_key = "VOX_MCP_HTTP_BEARER_TOKEN";
         let prev_token = std::env::var(token_key).ok();

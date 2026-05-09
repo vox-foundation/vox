@@ -26,8 +26,8 @@ const REM_GEN_PROMPT: &str = "Provide a non-empty `prompt` describing the `.vox`
 const REM_GEN_OUTPUT_PATH: &str = "Use a workspace-relative path without `..`; bind MCP to the repository root; parent directories are created automatically.";
 const REM_MCP_MODEL_LOCK: &str =
     "Retry; restart the MCP server if `mcp_chat_model_override` stays poisoned.";
-const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox clavis doctor` for inference secrets.";
-const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_MCP_MODEL_RESOLVE: &str = "Run `list_models`, ensure Ollama/API routes work, and check `vox secrets doctor` for inference secrets.";
+const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
 const REM_CODEGEN_REPAIR: &str = "Simplify the ask, paste compiler errors explicitly, lower constraints, or set `validate:false` for a raw draft.";
 const REM_CODEGEN_STALL: &str = "Diagnostics did not change across retries — rephrase the prompt or disable validation temporarily.";
 const RUNTIME_GENERATION_KPI_SCHEMA: &str = "vox_runtime_generation_kpi_v1";

@@ -30,7 +30,7 @@ It does **not** replace app-author documentation for generated Convex-style sche
 |-------|-----------------|----------------|
 | Contracts & fusion | `vox-db` (`retrieval.rs`, `store/ops_memory.rs`) | `SearchPlan`, `RetrievalResult`, `fuse_hybrid_results`, heuristic planner `heuristic_search_plan`, FTS / embeddings SQL |
 | Execution | `vox-search` | `execute_search_plan`, `run_search_with_verification`, corpora routing, optional Tantivy / Qdrant / web |
-| Policy | `vox-search` (`policy.rs`) | `SearchPolicy`: fusion weights, budgets, backend toggles — resolved via **Clavis** (`resolve_secret`), not raw `std::env::var` in consumers |
+| Policy | `vox-search` (`policy.rs`) | `SearchPolicy`: fusion weights, budgets, backend toggles — resolved via **vox-secrets** (`resolve_secret`), not raw `std::env::var` in consumers |
 | Entry points | `vox-cli`, `vox-orchestrator` | CLI research paths; MCP tools `vox_memory_search`, `vox_knowledge_query`; chat preamble uses the same retrieval bundle as `vox_memory_search` |
 
 **Rule:** CLI, orchestrator, MCP, and chat preamble must **not** fork retrieval logic; they call into `vox-search` with a `SearchRuntimeContext` and `SearchPolicy`.
@@ -69,7 +69,7 @@ The compiler emits **`defineSchema` / `searchIndex(...)`** from `@search_index` 
 | Sidecar ANN (optional) | Qdrant (`qdrant-vector` feature) | Parallel to DB chunk search |
 | Web | SearXNG / DDG / optional Tavily | Policy-gated |
 
-## 5. Policy knobs (Clavis / env)
+## 5. Policy knobs (vox-secrets / env)
 
 - **Memory hybrid:** `VOX_SEARCH_MEMORY_VECTOR_WEIGHT` → `SearchPolicy.memory_vector_fusion_weight` (default `0.55`).
 - **Chunk hybrid:** `VOX_SEARCH_CHUNK_VECTOR_WEIGHT` → `SearchPolicy.chunk_vector_fusion_weight` (default `0.60`), threaded into `VoxDb::query_search_document_chunks_hybrid` as a scalar so `vox-db` stays free of `SearchPolicy`.
@@ -98,5 +98,5 @@ Orchestrator wraps retrieval in **`RetrievalEvidenceEnvelope`** (`crates/vox-orc
 ## 10. Change checklist
 
 - After retrieval / persistence changes: `cargo test -p vox-db`, `cargo test -p vox-search`, and **`vox ci data-storage-guard`** when contracts shift.
-- After new Clavis-backed env: `SecretId` + `SecretSpec`, bump [`contracts/config/env-vars.v1.yaml`](../../../contracts/config/env-vars.v1.yaml), run **`vox ci clavis-contracts`**.
+- After new Secrets-backed env: `SecretId` + `SecretSpec`, bump [`contracts/config/env-vars.v1.yaml`](../../../contracts/config/env-vars.v1.yaml), run **`vox ci secrets-contracts`**.
 - After new architecture pages: link from [`research-index.md`](research-index.md) and root [`AGENTS.md`](../../../AGENTS.md).

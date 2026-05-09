@@ -121,7 +121,7 @@ impl ReviewProvider {
 pub fn auto_discover_providers() -> Vec<ReviewProvider> {
     let mut providers = Vec::new();
 
-    fn clavis_opt(id: SecretId) -> Option<String> {
+    fn secrets_opt(id: SecretId) -> Option<String> {
         resolve_secret(id)
             .expose()
             .map(|s| s.trim().to_string())
@@ -129,8 +129,8 @@ pub fn auto_discover_providers() -> Vec<ReviewProvider> {
     }
 
     // 1. OpenRouter (supports Claude, free models, etc.)
-    if let Some(or_key) = clavis_opt(SecretId::OpenRouterApiKey) {
-        let model = clavis_opt(SecretId::OpenRouterModel).unwrap_or_else(default_openrouter_model);
+    if let Some(or_key) = secrets_opt(SecretId::OpenRouterApiKey) {
+        let model = secrets_opt(SecretId::OpenRouterModel).unwrap_or_else(default_openrouter_model);
         providers.push(ReviewProvider::OpenRouter {
             api_key: or_key,
             model,
@@ -139,9 +139,9 @@ pub fn auto_discover_providers() -> Vec<ReviewProvider> {
     }
 
     // 2. OpenAI-compatible
-    if let Some(oai_key) = clavis_opt(SecretId::OpenaiApiKey) {
-        let model = clavis_opt(SecretId::OpenaiModel).unwrap_or_else(default_openai_model);
-        let base_url = clavis_opt(SecretId::OpenaiBaseUrl).unwrap_or_else(default_openai_base_url);
+    if let Some(oai_key) = secrets_opt(SecretId::OpenaiApiKey) {
+        let model = secrets_opt(SecretId::OpenaiModel).unwrap_or_else(default_openai_model);
+        let base_url = secrets_opt(SecretId::OpenaiBaseUrl).unwrap_or_else(default_openai_base_url);
         providers.push(ReviewProvider::OpenAi {
             api_key: oai_key,
             model,
@@ -150,8 +150,8 @@ pub fn auto_discover_providers() -> Vec<ReviewProvider> {
     }
 
     // 3. Gemini
-    if let Some(gem_key) = clavis_opt(SecretId::GeminiApiKey) {
-        let model = clavis_opt(SecretId::GeminiModel).unwrap_or_else(default_gemini_model);
+    if let Some(gem_key) = secrets_opt(SecretId::GeminiApiKey) {
+        let model = secrets_opt(SecretId::GeminiModel).unwrap_or_else(default_gemini_model);
         providers.push(ReviewProvider::Gemini {
             api_key: gem_key,
             model,
@@ -159,9 +159,9 @@ pub fn auto_discover_providers() -> Vec<ReviewProvider> {
     }
 
     // 4. Ollama (probe with a short timeout)
-    let ollama_url = clavis_opt(SecretId::OllamaUrl).unwrap_or_else(default_ollama_url);
+    let ollama_url = secrets_opt(SecretId::OllamaUrl).unwrap_or_else(default_ollama_url);
     if probe_ollama(&ollama_url) {
-        let model = clavis_opt(SecretId::OllamaModel).unwrap_or_else(default_ollama_model);
+        let model = secrets_opt(SecretId::OllamaModel).unwrap_or_else(default_ollama_model);
         providers.push(ReviewProvider::Ollama {
             url: ollama_url,
             model,

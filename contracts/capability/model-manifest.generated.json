@@ -182,15 +182,15 @@
       "title": "Ci Check-summary-drift"
     },
     {
-      "capability_id": "cli.ci.clavis-parity",
+      "capability_id": "cli.ci.secrets-parity",
       "cli_path": [
         "ci",
-        "clavis-parity"
+        "secrets-parity"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox ci clavis-parity`",
+      "description_model": "CLI operation `vox ci secrets-parity`",
       "implicit": false,
-      "title": "Ci Clavis-parity"
+      "title": "Ci Secrets-parity"
     },
     {
       "capability_id": "cli.ci.command-compliance",
@@ -769,69 +769,69 @@
       "title": "Ci Workflow-scripts"
     },
     {
-      "capability_id": "cli.clavis",
+      "capability_id": "cli.secrets",
       "cli_path": [
-        "clavis"
+        "secrets"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox clavis`",
+      "description_model": "CLI operation `vox secrets`",
       "implicit": false,
-      "title": "Clavis"
+      "title": "Secrets"
     },
     {
-      "capability_id": "cli.clavis.backend-status",
+      "capability_id": "cli.secrets.backend-status",
       "cli_path": [
-        "clavis",
+        "secrets",
         "backend-status"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox clavis backend-status`",
+      "description_model": "CLI operation `vox secrets backend-status`",
       "implicit": false,
-      "title": "Clavis Backend-status"
+      "title": "Secrets Backend-status"
     },
     {
-      "capability_id": "cli.clavis.get",
+      "capability_id": "cli.secrets.get",
       "cli_path": [
-        "clavis",
+        "secrets",
         "get"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox clavis get`",
+      "description_model": "CLI operation `vox secrets get`",
       "implicit": false,
-      "title": "Clavis Get"
+      "title": "Secrets Get"
     },
     {
-      "capability_id": "cli.clavis.migrate-auth-store",
+      "capability_id": "cli.secrets.migrate-auth-store",
       "cli_path": [
-        "clavis",
+        "secrets",
         "migrate-auth-store"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox clavis migrate-auth-store`",
+      "description_model": "CLI operation `vox secrets migrate-auth-store`",
       "implicit": false,
-      "title": "Clavis Migrate-auth-store"
+      "title": "Secrets Migrate-auth-store"
     },
     {
-      "capability_id": "cli.clavis.set",
+      "capability_id": "cli.secrets.set",
       "cli_path": [
-        "clavis",
+        "secrets",
         "set"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox clavis set`",
+      "description_model": "CLI operation `vox secrets set`",
       "implicit": false,
-      "title": "Clavis Set"
+      "title": "Secrets Set"
     },
     {
-      "capability_id": "cli.clavis.status",
+      "capability_id": "cli.secrets.status",
       "cli_path": [
-        "clavis",
+        "secrets",
         "status"
       ],
       "curated": true,
-      "description_model": "CLI operation `vox clavis status`",
+      "description_model": "CLI operation `vox secrets status`",
       "implicit": false,
-      "title": "Clavis Status"
+      "title": "Secrets Status"
     },
     {
       "capability_id": "cli.codex",
@@ -3025,12 +3025,12 @@
       "title": "Claim File"
     },
     {
-      "capability_id": "mcp.vox_clavis_doctor",
+      "capability_id": "mcp.vox_secrets_doctor",
       "curated": true,
       "description_model": "Returns a JSON snapshot of all managed secret resolution statuses. Agents should use this instead of probing environment variables directly.",
       "implicit": false,
-      "mcp_tool": "vox_clavis_doctor",
-      "title": "Clavis Doctor"
+      "mcp_tool": "vox_secrets_doctor",
+      "title": "Secrets Doctor"
     },
     {
       "capability_id": "mcp.vox_compaction_status",

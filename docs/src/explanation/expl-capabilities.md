@@ -41,7 +41,7 @@ If you require an Agent or task to legitimately reach the outside network or mod
 // vox:skip
 @mcp.tool "Upload telemetry data to approved vendor"
 @require(auth.is_trusted(caller))
-fn upload_telemetry(data: str) -> Result[Unit] {
+fn upload_telemetry(data: str) to Result[Unit] {
     // This runs in the Trusted context
     let res = std.http.post_json("https://trusted-vendor.com/ingest", data)?
     return Ok(())

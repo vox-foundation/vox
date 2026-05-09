@@ -18,7 +18,7 @@ If you are evaluating Vox as a language or product, start with the [project READ
 
 ## Start here
 
-- [AGENTS.md](../../../AGENTS.md) - required contributor and agent policy entry point, with Clavis as the secret-management SSOT.
+- [AGENTS.md](../../../AGENTS.md) - required contributor and agent policy entry point, with vox-secrets as the secret-management SSOT.
 - [Agent instruction architecture](agent-instruction-architecture.md) - instruction layering model (`AGENTS.md`, tool overlays, continuation prompts, CI gates).
 - [Coding Agent Instructions](coding-agents.md) - heuristics and rules for agents, including god object constraints and stale docs guidelines.
 - [Documentation governance](documentation-governance.md) - where docs live, which surface owns what, status vocabulary, and review cadence.
@@ -41,7 +41,7 @@ Quick routing by goal. All links resolve from this directory.
 | Contribute to the compiler / parser | [How-To: parser and HIR](../how-to/how-to-contribute-parser-hir.md) |
 | Contribute to MENS training pipeline | [How-To: Mens native training](../how-to/how-to-contribute-mens.md) |
 | Add a CLI command | [CLI reference](../reference/cli.md) + [Command compliance](../reference/command-compliance.md) |
-| Work with secrets or credentials | [Clavis SSOT](../reference/clavis-ssot.md) |
+| Work with secrets or credentials | [Secrets SSOT](../reference/secrets-ssot.md) |
 | Understand the agentic quality model | [Coding agent instructions](coding-agents.md) + [Governance (TOESTUB)](../../agents/governance.md) |
 | Read architecture or research context | [Architecture index](../architecture/architecture-index.md) → contributor-relevant section |
 
@@ -52,7 +52,7 @@ Use these surfaces intentionally:
 | Need | Start with |
 | --- | --- |
 | Cursor IDE rules and per-glob patterns | [`.cursor/rules/`](../../../.cursor/rules/) |
-| Secrets, credentials, env parity | [AGENTS.md](../../../AGENTS.md), [Clavis SSOT](../reference/clavis-ssot.md) |
+| Secrets, credentials, env parity | [AGENTS.md](../../../AGENTS.md), [Secrets SSOT](../reference/secrets-ssot.md) |
 | Agent behavior consistency across long sessions and IDEs | [Agent instruction architecture](agent-instruction-architecture.md), [Continuation prompt engineering](continuation-prompt-engineering.md) |
 | Antigravity-specific overrides | [GEMINI.md](../../../GEMINI.md), [Agent instruction architecture](agent-instruction-architecture.md) |
 | Terminal shell discipline, exec-policy, `vox shell check` | [AGENTS.md](../../../AGENTS.md), [CLI reference](../reference/cli.md) (`vox shell`), [`contracts/terminal/exec-policy.v1.yaml`](../../../contracts/terminal/exec-policy.v1.yaml) |

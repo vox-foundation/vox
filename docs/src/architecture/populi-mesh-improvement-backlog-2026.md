@@ -106,7 +106,7 @@ Each item is keyed `MESH-NNN`. Stable; references can be made from PRs and other
 - `MESH-059` `[test]` `mens/cloud/local_provider.rs` has zero tests despite being the default.
 - `MESH-060` `[test]` `mens/cloud/part_jobs.rs` has zero tests.
 - `MESH-061` `[health]` `mens/cloud/mod.rs` (448 LOC) is a kitchen-sink module; split orchestration vs. provider-trait.
-- `MESH-062` `[sec]` Provider API keys: confirm none are read directly from env outside Clavis (cross-reference [`model-orchestration-ssot-audit-2026.md`](model-orchestration-ssot-audit-2026.md)).
+- `MESH-062` `[sec]` Provider API keys: confirm none are read directly from env outside vox-secrets (cross-reference [`model-orchestration-ssot-audit-2026.md`](model-orchestration-ssot-audit-2026.md)).
 - `MESH-063` `[ux]` Cost estimator should print the assumptions used (region, tier) so users can sanity-check.
 - `MESH-064` `[resil]` Provider-side rate-limit responses (429) handling: backoff with jitter, surface to caller.
 - `MESH-065` `[obs]` Spend tracking: emit a span on every provider call with `vox.cloud.provider`, `vox.cloud.cost_usd_estimated`.
@@ -156,7 +156,7 @@ Each item is keyed `MESH-NNN`. Stable; references can be made from PRs and other
 - `MESH-100` `[docs]` `how-to/populi-quickstart.md` does not exist; create as part of S1.
 - `MESH-101` `[docs]` `operations/populi-disaster-recovery.md` does not exist; create when durable backend lands.
 - `MESH-102` `[docs]` Mens training docs reference defunct or renamed feature flags; audit and update.
-- `MESH-103` `[docs]` Add an architecture diagram (mermaid is fine) showing crate boundaries: vox-mesh-types, vox-populi, vox-orchestrator, vox-clavis, vox-crypto.
+- `MESH-103` `[docs]` Add an architecture diagram (mermaid is fine) showing crate boundaries: vox-mesh-types, vox-populi, vox-orchestrator, vox-secrets, vox-crypto.
 - `MESH-104` `[docs]` Document the actual default mesh ports (today's defaults vs operator overrides).
 
 ## Part H — Operator UX

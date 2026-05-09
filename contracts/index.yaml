@@ -331,7 +331,7 @@ contracts:
     description: Canonical provider registry (secret_id mapping, route kinds, lifecycle metadata).
     enforced_by:
       - vox ci data-ssot-guards
-      - vox ci clavis-contracts
+      - vox ci secrets-contracts
       - vox ci contracts-index
 
   - id: orchestration-context-work-item-schema

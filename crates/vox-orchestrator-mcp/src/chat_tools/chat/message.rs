@@ -20,7 +20,7 @@ use vox_orchestrator::session_context_envelope_key;
 use vox_actor_runtime::prompt_canonical;
 
 const REM_CHAT_CANONICAL: &str = "Rewrite the prompt to remove disallowed content / injection patterns; simplify objectives and retry.";
-const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox clavis doctor`.";
+const REM_LLM_COMPLETION: &str = "Check inference logs, rate limits, and backend health; verify API keys via `vox secrets doctor`.";
 
 /// Handle a user chat message. Resolves @mentions, injects context from the editor,
 /// calls the best available LLM, persists to session history, and returns the updated history.
