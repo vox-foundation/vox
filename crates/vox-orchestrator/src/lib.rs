@@ -94,6 +94,8 @@ pub mod budget_gate;
 pub mod compaction_trigger;
 /// Calibration loop: Welford drift detection + Thompson bandit (D10).
 pub mod calibration;
+/// Sub-agent dispatch router: spawn vs. inline decision (D4).
+pub mod subagent_dispatch;
 /// Context window compaction for long-running agent sessions.
 pub mod compaction;
 /// Orchestrator configuration load, merge, and validation.
