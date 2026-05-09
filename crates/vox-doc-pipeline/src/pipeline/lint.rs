@@ -123,30 +123,26 @@ pub(crate) fn lint_file(path: &Path, content: &str, errors: &mut Vec<LintError>)
         let trimmed = line.trim_start();
         let backtick_count = trimmed.chars().take_while(|&c| c == '`').count();
 
-        if backtick_count >= 1
-            && trimmed
+        // A code fence marker is N backticks followed by an optional language tag (no spaces).
+        // Inline code like `identifier` or `identifier` is prose text is NOT a fence.
+        let after_backticks = &trimmed[backtick_count..];
+        let rest_is_fence_like = after_backticks.trim().is_empty()
+            || after_backticks
+                .trim()
                 .chars()
-                .all(|c| c == '`' || c.is_alphanumeric() || c == '-' || c == '_' || c == ' ')
-            && (trimmed == "`".repeat(backtick_count)
-                || trimmed.starts_with(&"`".repeat(backtick_count)))
-        {
+                .all(|c| c.is_alphanumeric() || c == '-' || c == '_');
+
+        if backtick_count >= 1 && rest_is_fence_like {
             if (1..3).contains(&backtick_count) {
                 if !fence_open {
-                    // Full-line inline code like `` `cargo …` `` is not a fence; mdBook fences use ≥3 backticks.
-                    let total_bt = trimmed.matches('`').count();
-                    let inline_wrapped = trimmed.ends_with('`')
-                        && total_bt >= 2
-                        && trimmed.len() > backtick_count + 1;
-                    if !inline_wrapped {
-                        errors.push(LintError {
-                            file: path.to_owned(),
-                            line: line_no,
-                            kind: LintKind::ShortCodeFence {
-                                backticks: backtick_count,
-                                at_line: line_no,
-                            },
-                        });
-                    }
+                    errors.push(LintError {
+                        file: path.to_owned(),
+                        line: line_no,
+                        kind: LintKind::ShortCodeFence {
+                            backticks: backtick_count,
+                            at_line: line_no,
+                        },
+                    });
                 }
             } else if backtick_count >= 3 {
                 if fence_open {

@@ -375,8 +375,8 @@ audited.
 
 SOLUTION:  
 In the appropriate `.vox` schema file, add:
-`ox
-`ox
+```vox
+// vox:skip — SQL-like schema syntax not valid as standalone Vox top-level
 table scientia_feed_sources {
   id            TEXT        PRIMARY KEY,  // uuid4
   feed_type     TEXT        NOT NULL,     // 'rss_atom' | 'twitter_user' | 'reddit_sub' | 'arxiv_query' | 'manual'
@@ -436,8 +436,8 @@ The Socrates triage and the worthiness scorer cannot distinguish them.
 
 SOLUTION:  
 Add a dedicated staging table for inbound candidates, separate from `knowledge_nodes`:
-`ox
-`ox
+```vox
+// vox:skip — SQL-like schema syntax not valid as standalone Vox top-level
 table scientia_inbound_signals {
   id                TEXT PRIMARY KEY,        // uuid4
   feed_source_id    TEXT,                    // FK → scientia_feed_sources.id (nullable for manual)

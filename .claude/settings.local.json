@@ -126,7 +126,14 @@
       "Bash(sed -n '63,66p' crates/vox-publisher/src/atlas/coauthor.rs)",
       "Bash(sed -n '86,88p' crates/vox-publisher/src/atlas/coauthor.rs)",
       "Bash(python3 -c \"import json; json.load\\(open\\(r'C:\\\\Users\\\\Owner\\\\vox\\\\.claude\\\\worktrees\\\\frosty-banach-b7304e\\\\contracts\\\\scientia\\\\canonical-publication-metadata.v1.schema.json'\\)\\)\")",
-      "Bash(UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli --test command_catalog_paths_baseline)"
+      "Bash(UPDATE_CLI_CATALOG_BASELINE=1 cargo test -p vox-cli --test command_catalog_paths_baseline)",
+      "Bash(awk -F: '$2>0 {sum+=$2; count++} END {print \"Total Rust tests:\", sum, \"in\", count, \"files\"}')",
+      "Bash(cd /mnt/c/Users/Owner/vox && find crates -type f -name \"*.rs\" -path \"*/src/*\" | head -30)",
+      "Bash(xargs -I {} sh -c 'echo \"=== {} ===\" && head -1 {}')",
+      "Bash(find crates/vox-cli*/src -name \"*.rs\")",
+      "Bash(cat > *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Owner\\\\vox\" -Recurse -Name \"rules.rs\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 5)"
     ]
   }
 }

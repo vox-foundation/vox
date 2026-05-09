@@ -409,6 +409,7 @@ Suppress (audit-required)
 **Shape:**
 
 ```vox
+// vox:skip — @example decorator and named-arg syntax are planned features
 @example("Resolve a secret and use it in an API call")
 fn use_openai_key() -> Result[str, NetError] {
     let key = vox_secrets.resolve(SecretId::OpenAI)?;
