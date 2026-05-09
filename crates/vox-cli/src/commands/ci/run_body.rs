@@ -255,6 +255,7 @@ pub async fn run(cmd: CiCmd) -> Result<()> {
         CiCmd::TursoImportGuard { all } => run_turso_import_guard(&root, all),
         CiCmd::DbSchemaCoverage => super::db_schema_coverage::run(&root),
         CiCmd::PolicyAllowlistParity => super::policy_allowlist_parity::run(&root),
+        CiCmd::RowSerdeLint => super::row_serde_lint::run(&root),
         CiCmd::ClavisContracts => run_clavis_contracts(&root),
         CiCmd::ClavisParity => run_clavis_parity(&root),
         CiCmd::ClavisCutoverGates => run_clavis_cutover_gates(&root),

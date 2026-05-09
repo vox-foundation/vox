@@ -300,6 +300,9 @@ pub enum CiCmd {
     /// Verify allow_direct_access in data-storage-policy.v1.yaml matches docs/agents/turso-import-allowlist.txt.
     #[command(name = "policy-allowlist-parity")]
     PolicyAllowlistParity,
+    /// Verify all public Row/Entry/Result/Summary/Pair/Report/Rollup/Snapshot/Profile/Job structs derive Serialize+Deserialize.
+    #[command(name = "row-serde-lint")]
+    RowSerdeLint,
     /// Verify Clavis SSOT parity between managed secret spec and docs/guards.
     #[command(name = "clavis-parity")]
     ClavisParity,
