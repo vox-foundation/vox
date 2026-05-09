@@ -1,4 +1,5 @@
 use crate::atomic::{AtomicConfig, AtomicDecomposer};
+use crate::constrained::validate_claim_envelope;
 use crate::minicheck::MiniCheckVerifier;
 use crate::span::SpanChecker;
 use crate::types::{AtomicClaim, ClaimVerdict, ExtractionResult};
@@ -64,6 +65,14 @@ impl ExtractionPipeline {
         let valid_claims: Vec<AtomicClaim> = all_claims
             .into_iter()
             .filter(|c| self.span_checker.check(&c.text, &c.span, source_text))
+            .collect();
+
+        // Stage 6: Constrained envelope validation
+        let valid_claims: Vec<AtomicClaim> = valid_claims.into_iter()
+            .filter(|c| {
+                let json = serde_json::to_value(c).unwrap_or(serde_json::Value::Null);
+                validate_claim_envelope(&json).is_ok()
+            })
             .collect();
 
         let context = context_passages.join(" ");

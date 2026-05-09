@@ -17,6 +17,7 @@ tracing = { workspace = true }
 thiserror = { workspace = true }
 vox-research-events = { workspace = true }
 vox-constrained-gen = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
 workspace-hack = { workspace = true }
 
 [dev-dependencies]
