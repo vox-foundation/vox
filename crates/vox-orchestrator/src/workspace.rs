@@ -91,12 +91,27 @@ pub struct AgentWorkspace {
     pub created_ms: u64,
     /// Active change being tracked in this workspace.
     pub active_change: Option<ChangeId>,
+    /// The git branch this workspace is bound to. `None` until the orchestrator
+    /// resolves the workspace to a branch (typically on first write op).
+    pub bound_branch: Option<vox_orchestrator_types::BranchName>,
 }
 
 impl AgentWorkspace {
     /// Number of files modified in the overlay.
     pub fn modified_count(&self) -> usize {
         self.overlay.len()
+    }
+
+    pub fn bound_branch(&self) -> Option<&vox_orchestrator_types::BranchName> {
+        self.bound_branch.as_ref()
+    }
+
+    /// Set the bound branch and return the previous value, if any.
+    pub fn set_bound_branch(
+        &mut self,
+        branch: vox_orchestrator_types::BranchName,
+    ) -> Option<vox_orchestrator_types::BranchName> {
+        self.bound_branch.replace(branch)
     }
 
     /// Check if a file has been modified in this workspace.
@@ -167,6 +182,7 @@ impl WorkspaceManager {
                 .unwrap_or_default()
                 .as_millis() as u64,
             active_change: None,
+            bound_branch: None,
         };
         self.workspaces.insert(agent_id, ws);
         self.workspaces.get(&agent_id).expect("just inserted")
@@ -389,5 +405,41 @@ mod tests {
         assert_eq!(mgr.list_changes(Some(AgentId(1)), 10).len(), 2);
         assert_eq!(mgr.list_changes(Some(AgentId(2)), 10).len(), 1);
         assert_eq!(mgr.list_changes(None, 10).len(), 3);
+    }
+
+    #[test]
+    fn agent_workspace_records_bound_branch() {
+        use vox_orchestrator_types::BranchName;
+
+        let mut ws = AgentWorkspace {
+            agent_id: AgentId(1),
+            base_snapshot: SnapshotId(0),
+            overlay: Default::default(),
+            created_ms: 0,
+            active_change: None,
+            bound_branch: None,
+        };
+        assert_eq!(ws.bound_branch(), None);
+
+        let b = BranchName::parse("agent/test-binding").unwrap();
+        ws.set_bound_branch(b.clone());
+        assert_eq!(ws.bound_branch(), Some(&b));
+    }
+
+    #[test]
+    fn agent_workspace_rebinding_branch_is_explicit() {
+        use vox_orchestrator_types::BranchName;
+        let mut ws = AgentWorkspace {
+            agent_id: AgentId(2),
+            base_snapshot: SnapshotId(0),
+            overlay: Default::default(),
+            created_ms: 0,
+            active_change: None,
+            bound_branch: Some(BranchName::parse("agent/old").unwrap()),
+        };
+        let new_b = BranchName::parse("agent/new").unwrap();
+        let prev = ws.set_bound_branch(new_b.clone());
+        assert_eq!(prev.unwrap().as_str(), "agent/old");
+        assert_eq!(ws.bound_branch(), Some(&new_b));
     }
 }
