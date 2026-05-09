@@ -106,6 +106,28 @@ pub async fn handle_tool_call(
         }
     }
 
+    // Build a TraceContext from the incoming call metadata so all async code reachable
+    // from this tool dispatch (LLM calls, sub-dispatches) can read it via current_trace_ctx().
+    let trace_ctx = {
+        use vox_telemetry::TraceContext;
+        use uuid::Uuid;
+        let mut ctx = TraceContext::default();
+        if let Some(tid_str) = trace_for_telemetry.as_deref() {
+            if let Ok(parsed) = Uuid::parse_str(tid_str) {
+                ctx.trace_id = parsed;
+            }
+        }
+        ctx.task_id = args.get("task_id").and_then(|v| v.as_u64());
+        ctx.parent_task_id = args.get("parent_task_id").and_then(|v| v.as_u64());
+        ctx.caller_agent_id = agent_id.map(ToString::to_string);
+        ctx.span_depth = args
+            .get("span_depth")
+            .and_then(|v| v.as_u64())
+            .map(|d| d.min(u16::MAX as u64) as u16)
+            .unwrap_or(0);
+        ctx
+    };
+
     let db_opt = state.db.as_ref().map(|db| (**db).clone());
     let te = vox_db::TimedExecution::new(
         format!("mcp:{}", name_canonical),
@@ -116,7 +138,11 @@ pub async fn handle_tool_call(
     .with_costs(None, None, None);
 
     let result = te
-        .run(|| async { handle_tool_call_inner(state, name_canonical, args.clone()).await })
+        .run(|| {
+            let args = args.clone();
+            vox_telemetry::TRACE_CTX
+                .scope(trace_ctx, async move { handle_tool_call_inner(state, name_canonical, args).await })
+        })
         .await;
 
     let duration_ms = start_time.elapsed().as_millis() as i64;
