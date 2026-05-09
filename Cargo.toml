@@ -262,6 +262,7 @@ swc_ecma_visit     = "23"
 swc_common         = "21"
 which              = "7"
 ctrlc              = "3.4"
+proptest           = { version = "1", default-features = false, features = ["std"] }
 
 
 [patch.crates-io]

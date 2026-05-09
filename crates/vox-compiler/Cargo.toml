@@ -42,6 +42,7 @@ vox-jsonschema-util = { path = "../vox-jsonschema-util" }
 vox-test-harness = { path = "../vox-test-harness" }
 insta = { workspace = true }
 criterion = { workspace = true }
+proptest = { workspace = true }
 
 [[bench]]
 name = "compiler_pipeline"
