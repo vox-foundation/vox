@@ -84,7 +84,7 @@ fn build_steps(opts: PrePushOpts) -> Vec<Step> {
             run: step_clippy,
         });
         v.push(Step {
-            label: "vox ci toestub-scoped (changed paths)",
+            label: "vox ci toestub-scoped --mode enforce-warn (changed paths)",
             run: step_toestub_changed,
         });
     }
@@ -227,7 +227,7 @@ fn step_toestub_changed(root: &Path) -> Result<()> {
         "ci",
         "toestub-scoped",
         "--mode",
-        "legacy",
+        "enforce-warn",
     ]);
     for d in &dirs {
         cmd.arg(d);

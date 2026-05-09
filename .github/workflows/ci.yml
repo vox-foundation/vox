@@ -216,9 +216,12 @@ jobs:
       - name: Lint Check (Clippy)
         run: cargo clippy --workspace --all-targets -- -D warnings
 
-      # Scoped TOESTUB: legacy mode (Error/Critical blocking) for cross-CI consistency.
+      # Scoped TOESTUB: enforce-warn mode — all 23 detectors, Warnings+ block.
+      # This aligns with the pre-commit tdd-guard (enforce-strict on skeleton
+      # rules) and pre-push toestub-scoped, giving one coherent severity model:
+      # every detector runs at its authored severity; callers choose min-severity.
       - name: TOESTUB (scoped)
-        run: cargo run -p vox-cli --quiet -- ci toestub-scoped --mode legacy
+        run: cargo run -p vox-cli --quiet -- ci toestub-scoped --mode enforce-warn
 
       - name: Architecture / Code Drift Guard (TOESTUB)
         if: github.event_name == 'pull_request'
@@ -227,10 +230,17 @@ jobs:
           git fetch origin ${{ github.base_ref }} --depth=1 || true
           if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -q "^docs/src/architecture/"; then
             echo "Architecture docs changed. Running full crates TOESTUB..."
-            cargo run -p vox-cli --quiet -- ci toestub-scoped crates --mode legacy
+            cargo run -p vox-cli --quiet -- ci toestub-scoped crates --mode enforce-warn
           else
             echo "No architecture docs changed. Skipping full strict TOESTUB."
           fi
+
+      # Workspace-wide pattern drift check (6 rules: reqwest_bypass, vox_path_literal,
+      # timeout_literal, serde_default_dup, version_string, bearer_header).
+      # Previously pre-push only; now also in CI so pushes without lefthook installed
+      # don't bypass it.
+      - name: Workspace drift check (vox-drift-check)
+        run: cargo run -p vox-drift-check --quiet -- . --severity warning --fail-on warning
 
       - name: Install cargo-hakari
         uses: taiki-e/install-action@v2

@@ -46,20 +46,14 @@ jobs:
       - name: Build docs tooling
         run: cargo build -p vox-cli -p vox-doc-pipeline
 
+      # Hard gate: invalid frontmatter (bad category/status/missing training_eligible)
+      # blocks the PR.  Previously only in CI; now also in pre-push (see pre_push.rs).
       - name: Doc lint (frontmatter, code fences, training rationale)
         run: cargo run -p vox-doc-pipeline -- --lint-only
 
+      # Hard gate: ```vox blocks in docs must compile via vox-compiler.
       - name: Doctest extraction and check (SSG-agnostic)
         run: cargo run -p vox-cli -- ci doctest-md --strict
-
-      - name: Check internal docs links
-        id: internal_links
-        continue-on-error: true
-        run: cargo run -p vox-cli --quiet -- ci check-links
-
-      - name: Warn if internal link check failed
-        if: steps.internal_links.outcome == 'failure'
-        run: echo "::warning title=Internal docs links::Broken internal documentation links were detected; this workflow is advisory and will not block."
 
       - name: Install docs-astro deps
         working-directory: docs-astro
@@ -70,14 +64,10 @@ jobs:
         working-directory: docs-astro
         run: pnpm build
 
+      # Hard gate: was continue-on-error.  Markdownlint rules are explicitly
+      # configured in .markdownlint.jsonc; no surprise failures from rule changes.
       - name: Markdown lint
-        id: markdown_lint
-        continue-on-error: true
         run: pnpm dlx markdownlint-cli2 "docs/src/contributors/**/*.md" "docs/src/architecture/research-index.md"
-
-      - name: Warn if markdown lint failed
-        if: steps.markdown_lint.outcome == 'failure'
-        run: echo "::warning title=Markdown lint::Markdown lint reported issues; this workflow is advisory and will not block."
 
   generator-drift:
     runs-on: ubuntu-latest
@@ -90,29 +80,15 @@ jobs:
       - name: Build CLI
         run: cargo build -p vox-cli
 
+      # Hard gate: was continue-on-error.  Pre-commit hook regenerates + stages
+      # these; CI verifies the result.  Silent drift is worse than a failed PR.
       - name: Check ignore-file sync
-        id: sync_ignore
-        continue-on-error: true
         run: cargo run -p vox-cli --quiet -- ci sync-ignore-files --verify
 
-      - name: Warn ignore drift
-        if: steps.sync_ignore.outcome == 'failure'
-        run: echo "::warning title=Ignore-file drift::.cursorignore/.aiignore/.aiexclude are out of sync with .voxignore. Run 'vox ci sync-ignore-files' locally or install hooks via 'vox run scripts/install-hooks.vox'."
-
+      # Hard gate: was continue-on-error.
       - name: Check plugin catalog docs
-        id: plugin_catalog
-        continue-on-error: true
         run: cargo run -p vox-cli --quiet -- ci generate-plugin-catalog-docs --check
 
-      - name: Warn plugin catalog drift
-        if: steps.plugin_catalog.outcome == 'failure'
-        run: echo "::warning title=Plugin catalog drift::plugin-catalog.generated.md is out of sync. Run 'vox ci generate-plugin-catalog-docs' locally or install hooks."
-
+      # Hard gate: was continue-on-error.
       - name: Check CLI command surface
-        id: command_sync
-        continue-on-error: true
         run: cargo run -p vox-cli --quiet -- ci command-sync --check
-
-      - name: Warn command surface drift
-        if: steps.command_sync.outcome == 'failure'
-        run: echo "::warning title=Command surface drift::cli-command-surface.generated.md is out of sync. Run 'vox ci command-sync' locally or install hooks."
