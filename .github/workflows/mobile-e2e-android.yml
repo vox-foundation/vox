@@ -1,0 +1,31 @@
+name: Mobile E2E - Android
+on: [push, pull_request]
+jobs:
+  android-e2e:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Install dependencies
+        run: cd apps/vox-mental-tracker && pnpm install --frozen-lockfile
+      - name: Build web + sync Android
+        run: cd apps/vox-mental-tracker && pnpm build && npx cap sync android
+      - name: Run E2E on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          script: |
+            cd apps/vox-mental-tracker
+            ./android/gradlew -p android assembleDebug
+            adb install android/app/build/outputs/apk/debug/app-debug.apk
+            pnpm e2e:android
