@@ -40,6 +40,7 @@ guess. The full crate roster with layer assignments lives in
 | Identity (signing, trust ledger) | [`vox-identity`](../../../crates/vox-identity/) |
 | Configuration | [`vox-config`](../../../crates/vox-config/) |
 | Daemon wire protocol types | [`vox-protocol`](../../../crates/vox-protocol/) |
+| VCS capability tokens (WorkingTreeWrite, BranchCreate, BranchName) | [`vox-orchestrator-types`](../../../crates/vox-orchestrator-types/) |
 | Bounded filesystem | [`vox-bounded-fs`](../../../crates/vox-bounded-fs/) |
 | Crypto primitives | [`vox-crypto`](../../../crates/vox-crypto/) |
 | LSP server | [`vox-lsp`](../../../crates/vox-lsp/) |
@@ -66,6 +67,8 @@ guess. The full crate roster with layer assignments lives in
 | Add an LLM provider adapter | `crates/vox-orchestrator-mcp/src/llm_bridge/providers/<name>.rs` |
 | Add a code generator (Rust target) | `crates/vox-codegen/src/codegen_rust/` |
 | Add a code generator (TypeScript target) | `crates/vox-codegen/src/codegen_ts/` |
+| Add a VCS tool (commit, branch, secret scan) | `crates/vox-orchestrator-mcp/src/vcs_tools/<name>_tools.rs` |
+| Add a git operation via the safe wrapper | `crates/vox-orchestrator-mcp/src/git_exec.rs` — add to `BANNED_PREFIXES` if needed |
 | Add a layer rule / arch-check rule | `crates/vox-arch-check/src/main.rs` + extend `layers.toml` schema |
 | Add an architectural exception (allowed inversion) | Append `[[known_inversions]]` block in [`layers.toml`](./layers.toml) with a `reason` |
 | Add a new workspace crate | Update [`Cargo.toml`](../../../Cargo.toml) `[workspace.dependencies]` AND add a row to [`layers.toml`](./layers.toml) — `vox-arch-check` will fail otherwise |
