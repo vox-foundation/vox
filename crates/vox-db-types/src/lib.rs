@@ -10,6 +10,10 @@
 #![allow(clippy::collapsible_if)]
 #![allow(missing_docs)] // many types here have crate-level docs in vox-db
 
+/// Circuit-breaker state enum (`CircuitState`) for `vox_db::circuit_breaker`.
+pub mod circuit;
+pub use circuit::CircuitState;
+
 /// Execution time telemetry types (`ExecOutcome`, `ExecTimeRecord`, `ToolLatencyProfile`).
 pub mod exec_time;
 pub use exec_time::{ExecOutcome, ExecTimeRecord, ToolLatencyProfile};

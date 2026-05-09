@@ -37,8 +37,8 @@ which `vox-db-types` already has.
 - [x] `ExecOutcome` — `crates/vox-db/src/exec_time_telemetry.rs:23` — copy enum (`Success`/`Timeout`/`Error`); only an `as_str` method. No deps.
 - [x] `ExecTimeRecord<'a>` — `crates/vox-db/src/exec_time_telemetry.rs:8` — borrowed-string struct; primitive + `Option` fields + `ExecOutcome`. No turso refs.
 - [x] `ToolLatencyProfile` — `crates/vox-db/src/exec_time_telemetry.rs:41` — `String` + `f64`/`i64` fields; pure summary record.
-- [ ] `CircuitState` — `crates/vox-db/src/circuit_breaker.rs:41` — copy enum; pure marker. (`DbCircuitBreaker` itself stays.)
-- [ ] `CircuitBreakerError` — `crates/vox-db/src/circuit_breaker.rs:52` — `thiserror` enum, single variant. `vox-db-types` already depends on `thiserror`.
+- [x] `CircuitState` — `crates/vox-db/src/circuit_breaker.rs:41` — copy enum; pure marker. (`DbCircuitBreaker` itself stays.)
+- [ ] `CircuitBreakerError` — `crates/vox-db/src/circuit_breaker.rs:52` — `thiserror` enum, single variant. **DEFERRED**: audit was wrong — `vox-db-types` does NOT depend on `thiserror`. Adding `thiserror` to vox-db-types is a sensitive new dep; deferred to a follow-up that plans the dep change explicitly.
 - [ ] `WorkspaceTranscriptTurnRow` — `crates/vox-db/src/codex_chat.rs:16` — `String`/`Option<String>`/`u64` fields only. Sister of the `*Row` types already in `vox-db-types`.
 - [ ] `CodexApiReadiness` — `crates/vox-db/src/codex_schema.rs:15` — `i64` + `String` + `Vec<String>` + `bool`. The two free functions (`evaluate_codex_api_readiness`, `missing_codex_reactivity_tables`) stay in vox-db; only the struct moves.
 - [ ] `DbConfig` — `crates/vox-db/src/config.rs:3` — variants are pure `String`/`PathBuf`-shaped data. Some variants are feature-gated (`local`, `replication`); preserve those `cfg`s on the move. Heavy users: every `VoxDb::connect` caller; this is the highest-leverage move on the list.
