@@ -1,6 +1,17 @@
-# Pilot: mutation testing for workspace packages (workflow uses `-p vox-compiler`).
+# cargo-mutants config for vox-compiler / vox-codegen (mutation-pr.yml).
 # See https://mutants.rs/config-file.html
+#
+# PRs to these crates now fail if mutations survive — use this file to add
+# targeted exclusions rather than reverting the workflow to continue-on-error.
 
 test_tool = "nextest"
 cap_lints = true
 minimum_test_timeout = 120.0
+
+# Trivial Display / Debug impls exist for diagnostics output, not correctness
+# gates.  Every character-swap mutation of them would trivially survive because
+# no test asserts exact debug strings.  Exclude to reduce noise.
+exclude_re = [
+    "impl.*fmt::Display.*for",
+    "impl.*fmt::Debug.*for",
+]

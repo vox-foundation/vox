@@ -16,7 +16,12 @@ jobs:
   cargo-mutants:
     name: cargo-mutants (${{ matrix.crate }})
     runs-on: [self-hosted, linux, x64]
-    continue-on-error: true
+    # Hard gate: mutation survivors on vox-compiler or vox-codegen mean tests
+    # exist but don't catch the mutations — the test suite is decorative, not
+    # protective.  AGENTS.md §Test-First Policy notes that r_test (test pass
+    # rate) is 30% of the GRPO reward; untested mutations weaken the model.
+    # If a mutation is known-irrelevant, add it to .cargo/mutants.toml rather
+    # than reverting to continue-on-error.
     strategy:
       fail-fast: false
       matrix:
