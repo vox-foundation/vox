@@ -43,3 +43,17 @@ fn form_validates_required_field_before_submit() {
         "must check required field, got:\n{ts}"
     );
 }
+
+#[test]
+fn form_error_message_appears_in_emitted_banner() {
+    let src = r#"
+@endpoint(kind: mutation) fn save(s: int) to int { return 1 }
+@form F {
+    field s: int required
+    on_submit: save
+    error_message: "Could not save."
+}
+"#;
+    let ts = emit(src);
+    assert!(ts.contains("Could not save."), "declared error_message must appear in emitted component, got:\n{ts}");
+}
