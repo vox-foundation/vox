@@ -23,6 +23,8 @@ pub mod typedef;
 pub mod ui;
 /// Typed URL path declarations (`url Name { … }`).
 pub mod url;
+/// `@form` declaration — generates a React form component with validation.
+pub mod form;
 
 pub use config::*;
 pub use db::*;
@@ -33,6 +35,7 @@ pub use state_machine::*;
 pub use typedef::*;
 pub use ui::*;
 pub use url::*;
+pub use form::{FieldConstraint, FormDecl, FormField};
 
 mod callable;
 mod reactive;

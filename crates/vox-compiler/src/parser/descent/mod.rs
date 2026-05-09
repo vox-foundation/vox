@@ -507,6 +507,7 @@ impl Parser {
                 }
             }
             Token::AtIndex => self.parse_index(),
+            Token::AtForm => self.parse_form_decl(),
             Token::Workflow => self.parse_workflow_decl(),
             Token::Activity => self.parse_activity_decl(),
             Token::Actor => self.parse_actor_decl(),
