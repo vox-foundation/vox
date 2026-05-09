@@ -9,6 +9,7 @@
 pub mod backend;
 pub mod backends;
 pub mod binary_cache;
+pub mod consent;
 pub mod coordinator;
 pub mod error;
 pub mod proxy;
