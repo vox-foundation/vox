@@ -8,30 +8,23 @@
 
 /// Content-addressed artifact cache (`.vox-cache`).
 pub mod artifact_cache;
-/// `[deploy.coolify]` manifest shapes (serde-only).
-pub mod deploy_coolify;
-/// `vox.lock` lockfile format.
-pub mod lockfile;
-/// `Vox.toml` manifest parsing and serialization.
-pub mod manifest;
 /// HTTP client for the package registry API.
 pub mod registry;
-/// Semantic versions and dependency resolution helpers.
-pub mod resolver;
 /// Multi-package workspace discovery from `Vox.toml` / members.
 pub mod workspace;
 
-pub use artifact_cache::{ArtifactCache, CacheLookup, CacheManifest};
-pub use deploy_coolify::{
+// Re-export all type-only items from the pure-data L1 crate.
+pub use vox_package_types::{
+    deploy_coolify, lockfile, manifest, package_kind, resolver,
     CoolifyDeployConfig, CoolifyEnvReconciliationMode, CoolifyEnvVarDetail, CoolifyEnvVarSpec,
+    DependencySpec, DeploySection, DetailedDependency, Lockfile, ManifestError, PackageKind,
+    SemVer, VersionReq, VoxManifest,
 };
 
-pub use lockfile::Lockfile;
-pub use manifest::{DependencySpec, DeploySection, DetailedDependency, ManifestError, VoxManifest};
+pub use artifact_cache::{ArtifactCache, CacheLookup, CacheManifest};
 pub use registry::{
     DownloadResponse, PublishDependency, PublishRequest, RegistryClient, RegistryPackageInfo,
     SearchResult,
 };
-pub use resolver::{SemVer, VersionReq};
 pub use vox_db::hash::content_hash;
 pub use workspace::VoxWorkspace;

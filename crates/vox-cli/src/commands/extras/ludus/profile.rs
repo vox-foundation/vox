@@ -5,7 +5,7 @@ use owo_colors::OwoColorize;
 use vox_config::GamifyMode;
 use vox_gamify::{db, profile::LudusProfile};
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 use super::db_util;
 

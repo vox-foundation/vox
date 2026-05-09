@@ -6,7 +6,7 @@ use serde_json::Value as JsonValue;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 use super::{
     FINDINGS_ARRAY_SCHEMA_REL, FINDINGS_LATEST_REL, GOLD_DATASET_REL, GOLD_SCHEMA_REL, POLICY_REL,

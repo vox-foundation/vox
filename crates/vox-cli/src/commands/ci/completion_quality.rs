@@ -12,7 +12,7 @@ use anyhow::{Context, Result, anyhow};
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
-use super::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 pub const COMPLETION_POLICY_REL: &str = "contracts/operations/completion-policy.v1.yaml";
 pub const COMPLETION_POLICY_SCHEMA_REL: &str =

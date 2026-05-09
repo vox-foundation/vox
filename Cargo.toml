@@ -2,6 +2,7 @@
 resolver = "2"
 members = ["crates/*","crates/workspace-hack"]
 exclude = [
+    "crates/vox-arch-check/tests/fixtures/missing-desc",
     "crates/vox-plugin-host/tests/fixtures/noop-code",
     "crates/vox-plugin-host/tests/fixtures/noop-code-bad-abi",
     "crates/vox-plugin-noop-skill",
@@ -79,7 +80,6 @@ vox-openclaw-runtime           = { path = "crates/vox-openclaw-runtime" }
 vox-doc-inventory         = { path = "crates/vox-doc-inventory" }
 vox-doc-pipeline          = { path = "crates/vox-doc-pipeline" }
 vox-integration-tests     = { path = "crates/vox-integration-tests" }
-vox-mcp-meta              = { path = "crates/vox-mcp-meta" }
 vox-mcp-registry          = { path = "crates/vox-mcp-registry" }
 vox-scientia-ingest       = { path = "crates/vox-scientia-ingest" }
 vox-test-harness          = { path = "crates/vox-test-harness" }
@@ -95,6 +95,7 @@ vox-mesh-types            = { path = "crates/vox-mesh-types" }
 
 vox-oratio                = { path = "crates/vox-oratio" }
 vox-orchestrator          = { path = "crates/vox-orchestrator" }
+vox-orchestrator-core     = { path = "crates/vox-orchestrator-core" }
 vox-orchestrator-mcp      = { path = "crates/vox-orchestrator-mcp" }
 vox-orchestrator-queue    = { path = "crates/vox-orchestrator-queue" }
 vox-orchestrator-d        = { path = "crates/vox-orchestrator-d" }
@@ -111,8 +112,10 @@ vox-plugin-runtime-wasm   = { path = "crates/vox-plugin-runtime-wasm" }
 vox-plugin-publication    = { path = "crates/vox-plugin-publication" }
 vox-wasm-engine           = { path = "crates/vox-wasm-engine" }
 vox-package                    = { path = "crates/vox-package" }
+vox-package-types              = { path = "crates/vox-package-types" }
 vox-publisher             = { path = "crates/vox-publisher", default-features = false }
 vox-cli-core              = { path = "crates/vox-cli-core" }
+vox-cli-ci                = { path = "crates/vox-cli-ci" }
 
 vox-project-scaffold      = { path = "crates/vox-project-scaffold" }
 vox-primitives            = { path = "crates/vox-primitives" }

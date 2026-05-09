@@ -1,6 +1,7 @@
 //! Arena (community events) persistence.
 
 use anyhow::Result;
+use turso::params;
 use vox_db::Codex;
 
 /// A community event in the Arena.
@@ -29,41 +30,45 @@ pub struct ArenaEvent {
 /// Get the currently active arena event.
 pub async fn get_active_arena_event(db: &Codex) -> Result<Option<ArenaEvent>> {
     let now = crate::util::now_unix();
-    let row = db
-        .get_active_gamify_arena_event(now)
-        .await
-        .map_err(|e| anyhow::anyhow!("{}", e))?;
-    Ok(row.map(
-        |(
-            id,
-            name,
-            description,
-            start_ts,
-            end_ts,
-            target_xp,
-            current_xp,
-            target_lumens,
-            current_lumens,
-        )| {
-            ArenaEvent {
-                id,
-                name,
-                description,
-                start_ts,
-                end_ts,
-                target_xp,
-                current_xp,
-                target_lumens,
-                current_lumens,
-            }
-        },
-    ))
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT id, name, description, start_ts, end_ts, target_xp, current_xp, target_lumens, current_lumens
+             FROM gamify_arena_events
+             WHERE status = 'active' AND start_ts <= ?1 AND end_ts >= ?1",
+            params![now],
+        )
+        .await?;
+    Ok(rows.next().await?.map(|row| ArenaEvent {
+        id: row.get(0).unwrap_or_default(),
+        name: row.get(1).unwrap_or_default(),
+        description: row.get(2).unwrap_or_default(),
+        start_ts: row.get::<i64>(3).unwrap_or(0),
+        end_ts: row.get::<i64>(4).unwrap_or(0),
+        target_xp: row.get::<i64>(5).unwrap_or(0),
+        current_xp: row.get::<i64>(6).unwrap_or(0),
+        target_lumens: row.get::<i64>(7).unwrap_or(0),
+        current_lumens: row.get::<i64>(8).unwrap_or(0),
+    }))
 }
 
 /// Join an arena event.
 pub async fn join_arena_event(db: &Codex, event_id: &str, user_id: &str) -> Result<()> {
     let now = crate::util::now_unix();
-    db.insert_gamify_arena_participant_or_ignore(event_id, user_id, now)
+    let event_id = event_id.to_string();
+    let user_id = user_id.to_string();
+    let breaker = db.breaker().clone();
+    let conn = db.connection().clone();
+    breaker
+        .call(|| async move {
+            conn.execute(
+                "INSERT OR IGNORE INTO gamify_arena_participants (event_id, user_id, joined_at)
+                 VALUES (?1, ?2, ?3)",
+                params![event_id.as_str(), user_id.as_str(), now],
+            )
+            .await?;
+            Ok::<(), vox_db::StoreError>(())
+        })
         .await
         .map_err(|e| anyhow::anyhow!("{}", e))?;
     Ok(())
@@ -75,9 +80,21 @@ pub async fn get_arena_contribution(
     event_id: &str,
     user_id: &str,
 ) -> Result<(i64, i64)> {
-    db.get_gamify_arena_contribution(event_id, user_id)
-        .await
-        .map_err(|e| anyhow::anyhow!("{}", e))
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT xp_contributed, lumens_contributed FROM gamify_arena_participants WHERE event_id = ?1 AND user_id = ?2",
+            params![event_id, user_id],
+        )
+        .await?;
+    Ok(if let Some(row) = rows.next().await? {
+        (
+            row.get::<i64>(0).unwrap_or(0),
+            row.get::<i64>(1).unwrap_or(0),
+        )
+    } else {
+        (0, 0)
+    })
 }
 
 /// Get arena event leaderboard.
@@ -86,7 +103,24 @@ pub async fn arena_event_leaderboard(
     event_id: &str,
     limit: i64,
 ) -> Result<Vec<(String, i64, i64)>> {
-    db.list_gamify_arena_leaderboard(event_id, limit)
-        .await
-        .map_err(|e| anyhow::anyhow!("{}", e))
+    let mut rows = db
+        .connection()
+        .query(
+            "SELECT user_id, xp_contributed, lumens_contributed
+             FROM gamify_arena_participants
+             WHERE event_id = ?1
+             ORDER BY (xp_contributed + lumens_contributed * 10) DESC
+             LIMIT ?2",
+            params![event_id, limit],
+        )
+        .await?;
+    let mut out = Vec::new();
+    while let Some(row) = rows.next().await? {
+        out.push((
+            row.get(0)?,
+            row.get::<i64>(1).unwrap_or(0),
+            row.get::<i64>(2).unwrap_or(0),
+        ));
+    }
+    Ok(out)
 }

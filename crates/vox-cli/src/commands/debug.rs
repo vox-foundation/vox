@@ -15,7 +15,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 /// Entry point for `vox debug`.
 pub async fn run(

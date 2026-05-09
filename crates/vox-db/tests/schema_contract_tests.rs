@@ -87,14 +87,23 @@ async fn agent_session_events_table_exists() {
 }
 
 #[tokio::test]
-async fn record_agent_event_round_trip_matches_list_gamify_events() {
+async fn record_agent_event_round_trip_matches_agent_events_table() {
     let db = VoxDb::connect(DbConfig::Memory).await.expect("db");
     db.record_agent_event("agent-a", "test_evt", r#"{"k":1}"#, "9.9.9")
         .await
         .expect("insert");
-    let rows = db.list_gamify_events("agent-a", 10).await.expect("list");
+    let rows = db
+        .query_all(
+            "SELECT event_type, payload_json, cli_version FROM agent_events WHERE agent_id = 'agent-a' ORDER BY timestamp DESC LIMIT 10",
+            (),
+        )
+        .await
+        .expect("list");
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].event_type, "test_evt");
-    assert_eq!(rows[0].payload_json.as_deref(), Some(r#"{"k":1}"#));
-    assert_eq!(rows[0].cli_version.as_deref(), Some("9.9.9"));
+    let event_type: String = rows[0].get(0).expect("event_type");
+    let payload_json: Option<String> = rows[0].get(1).unwrap_or(None);
+    let cli_version: Option<String> = rows[0].get(2).unwrap_or(None);
+    assert_eq!(event_type, "test_evt");
+    assert_eq!(payload_json.as_deref(), Some(r#"{"k":1}"#));
+    assert_eq!(cli_version.as_deref(), Some("9.9.9"));
 }

@@ -200,7 +200,7 @@ fn main() {
         "../vox-compiler/src/ast/decl/mod.rs",
         "../vox-cli/src/lib.rs",
         "../vox-orchestrator/src/types.rs",
-        "../vox-mcp-meta/src/lib.rs",
+        "../vox-mcp-registry/src/lib.rs",
         "../vox-mcp/src/tools/",
     ] {
         println!("cargo:rerun-if-changed={rel}");
@@ -269,7 +269,7 @@ fn main() {
     let mcp_tools = {
         let mut tools = vec![];
         for path in &[
-            manifest_dir.join("../vox-mcp-meta/src/lib.rs"),
+            manifest_dir.join("../vox-mcp-registry/src/lib.rs"),
             manifest_dir.join("../vox-mcp/src/tools/input_schemas.rs"),
         ] {
             if path.exists() {
@@ -347,7 +347,7 @@ fn main() {
         &mut out,
         "TOOL_REGISTRY_SLIM",
         &mcp_tools,
-        "Auto-derived from `vox-mcp-meta` tool registry.",
+        "Auto-derived from `vox-mcp-registry` tool registry.",
     );
 
     // CLI commands: (name, description) tuples

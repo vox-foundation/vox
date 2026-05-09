@@ -7,7 +7,7 @@
 use anyhow::{Context, Result, anyhow};
 use std::path::Path;
 
-use crate::commands::ci::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 mod capability_registry;
 mod docs_sync;

@@ -146,7 +146,7 @@ C:\Users\Owner\vox\                        — repo root
 │   ├── vox-clavis/                        — secret resolution SSOT
 │   ├── vox-crypto/                        — cryptography SSOT
 │   ├── vox-skills/                        — skill + MCP tool registry
-│   ├── vox-ludus/                         — gamification (formerly vox-gamify)
+│   ├── vox-gamify/                        — gamification (formerly vox-ludus)
 │   ├── vox-scientia/                      — RAG / knowledge curation
 │   ├── vox-db/                            — Codex / Arca Vault / Turso bindings
 │   └── vox-runtime/                       — process primitives, telemetry
@@ -233,7 +233,7 @@ Escalation format: see Appendix C.
 | **Clavis** | Secret resolution crate. Path: `crates/vox-clavis/`. Call site: `vox_clavis::resolve_secret(SecretId::...)`. |
 | **MENS** | Model training pipeline. Native Rust (Burn + Candle). Trains on `.vox` corpus + golden set. |
 | **Populi** | Hardware-aware node mesh. Routes training/inference to capable nodes. |
-| **Ludus** | Gamification system. Formerly `vox-gamify` (retired). Path: `crates/vox-ludus/`. |
+| **Ludus** | Gamification system. Formerly `vox-ludus` (renamed). Path: `crates/vox-gamify/`. |
 | **Orchestrator** | Agent dispatcher. MCP control surface. Path: `crates/vox-orchestrator/`. |
 | **Scientia** | RAG + knowledge curation. Path: `crates/vox-scientia/`. |
 | **Socrates** | Anti-hallucination guards. Exposed via chat-meta. |

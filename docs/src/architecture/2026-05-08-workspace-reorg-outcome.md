@@ -1,5 +1,7 @@
 # Workspace Reorg Outcome (2026-05-08)
 
+> **Naming note (2026-05-08):** The CI guard binary referenced as `vox-layer-check` in this narration was renamed to `vox-arch-check` later in the same series; references below are historical.
+
 Companion to [2026-05-08-workspace-reorg-design.md](./2026-05-08-workspace-reorg-design.md).
 Records what was delivered across the 10 phases.
 

@@ -5,7 +5,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use serde_json::Value as JsonValue;
 
-use super::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 
 const SCHEMA_REL: &str = "contracts/scientia/publication-worthiness.schema.json";
 const DATA_REL: &str = "contracts/scientia/publication-worthiness.default.yaml";

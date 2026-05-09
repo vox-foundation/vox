@@ -7,7 +7,7 @@ use anyhow::{Context, Result, anyhow};
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::bounded_read::read_utf8_path_capped;
+use vox_bounded_fs::read_utf8_path_capped;
 use super::cmd_enums::CoverageGateMode;
 use super::repo_root;
 

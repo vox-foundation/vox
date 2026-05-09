@@ -1,4 +1,4 @@
-use crate::manifest::{ManifestError, VoxManifest};
+use vox_package_types::manifest::{ManifestError, VoxManifest};
 use std::path::{Path, PathBuf};
 
 /// Represents a Vox workspace containing multiple packages.
