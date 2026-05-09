@@ -1,10 +1,16 @@
 //! `vox ci pre-push` — local aggregate that mirrors the merge-blocking CI subset.
 //!
-//! Runs in order: fmt --check, line-endings, ssot-drift, doc-inventory verify,
+//! Runs in order: fmt --check, line-endings, ssot-drift, doc frontmatter lint,
+//! doctest-md extraction, doc-inventory verify, workspace drift check,
 //! clippy (workspace, all-targets, -D warnings), scoped TOESTUB (changed paths).
 //! `--quick` skips clippy + TOESTUB; `--full` also runs nextest on changed crates.
 //! `--act` additionally runs the GitHub-hosted exception workflows through `act`
 //! (nektos/act must be on PATH; Docker daemon must be running).
+//!
+//! Previously the pre-push did not run doc frontmatter lint, doctest extraction,
+//! or the workspace drift check — those only ran in CI.  The gap meant a green
+//! pre-push could still produce a red docs-quality job.  All three are now always
+//! included (they're fast; drift-check may take a few seconds on large trees).
 
 use anyhow::{Context, Result, anyhow, bail};
 use std::path::{Path, PathBuf};
@@ -72,6 +78,22 @@ fn build_steps(opts: PrePushOpts) -> Vec<Step> {
         Step {
             label: "vox ci ssot-drift",
             run: step_ssot_drift,
+        },
+        // Doc checks: match the docs-quality CI job so a green pre-push
+        // implies a green docs-quality workflow.  Both are fast (<10 s total).
+        Step {
+            label: "vox-doc-pipeline --lint-only (frontmatter + code fences)",
+            run: step_doc_frontmatter,
+        },
+        Step {
+            label: "vox ci doctest-md --strict",
+            run: step_doctest_md,
+        },
+        // Workspace drift check: was pre-push only via lefthook; now also
+        // mirrored here so `vox ci pre-push` covers it even without lefthook.
+        Step {
+            label: "vox-drift-check workspace",
+            run: step_drift_check,
         },
     ];
     if !opts.quick {
@@ -235,6 +257,40 @@ fn step_toestub_changed(root: &Path) -> Result<()> {
     let status = cmd.status().context("spawn vox ci toestub-scoped")?;
     if !status.success() {
         bail!("toestub-scoped exited with {:?}", status.code());
+    }
+    Ok(())
+}
+
+fn step_doc_frontmatter(_root: &Path) -> Result<()> {
+    cargo_status(&["run", "-q", "-p", "vox-doc-pipeline", "--", "--lint-only"])
+}
+
+fn step_doctest_md(_root: &Path) -> Result<()> {
+    cargo_status(&[
+        "run", "-q", "-p", "vox-cli", "--", "ci", "doctest-md", "--strict",
+    ])
+}
+
+fn step_drift_check(_root: &Path) -> Result<()> {
+    // Mirror the lefthook pre-push drift-check and the CI lints job step so
+    // `vox ci pre-push` is the authoritative local gate.
+    let status = std::process::Command::new(super::cargo_bin())
+        .args([
+            "run",
+            "-q",
+            "-p",
+            "vox-drift-check",
+            "--",
+            ".",
+            "--severity",
+            "warning",
+            "--fail-on",
+            "warning",
+        ])
+        .status()
+        .context("spawn vox-drift-check")?;
+    if !status.success() {
+        bail!("vox-drift-check exited with {:?}", status.code());
     }
     Ok(())
 }
