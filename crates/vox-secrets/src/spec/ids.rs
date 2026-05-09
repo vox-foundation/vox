@@ -82,6 +82,12 @@ pub enum SecretId {
     VoxOrcidClientSecret,
     VoxDataCiteRepository,
     VoxDataCitePassword,
+    VoxOpenAlexEmail,
+    VoxSemanticScholarApiKey,
+    VoxOsfApiToken,
+    VoxArxivAccessToken,
+    VoxNanopubSigningKeyHex,
+    VoxSwhidApiToken,
     TavilyApiKey,
     VoxScholarlyAdapter,
     VoxScholarlyDisable,
@@ -568,6 +574,12 @@ impl SecretId {
             | SecretId::TavilyApiKey
             | SecretId::TavilyProject
             | SecretId::VoxDataCitePassword
+            | SecretId::VoxOpenAlexEmail
+            | SecretId::VoxSemanticScholarApiKey
+            | SecretId::VoxOsfApiToken
+            | SecretId::VoxArxivAccessToken
+            | SecretId::VoxNanopubSigningKeyHex
+            | SecretId::VoxSwhidApiToken
             | SecretId::VoxIdentityKeyPath
             | SecretId::VoxGithubClientId
             | SecretId::VoxGithubOauthToken
