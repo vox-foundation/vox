@@ -1,4 +1,5 @@
 use turso::params;
+use vox_db_types::DbAgentId;
 
 use crate::store::types::{AgentEventRow, StoreError};
 
@@ -41,7 +42,7 @@ impl crate::VoxDb {
         while let Some(row) = rows.next().await? {
             out.push(AgentEventRow {
                 id: row.get(0)?,
-                agent_id: row.get(1)?,
+                agent_id: DbAgentId::new(row.get::<String>(1)?),
                 event_type: row.get(2)?,
                 payload_json: row.get(3)?,
                 cli_version: row.get(4)?,

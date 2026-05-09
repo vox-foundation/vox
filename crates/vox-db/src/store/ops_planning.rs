@@ -1,4 +1,5 @@
 use turso::params;
+use vox_db_types::{DbPlanSessionId, DbTaskId};
 
 use crate::store::types::{PlanNodeAttemptRow, PlanNodeRow, PlanSessionRow, StoreError};
 
@@ -302,7 +303,7 @@ impl crate::VoxDb {
         let mut out = Vec::new();
         while let Some(r) = rows.next().await? {
             out.push(PlanNodeRow {
-                plan_session_id: plan_session_id.to_string(),
+                plan_session_id: DbPlanSessionId::new(plan_session_id),
                 version,
                 node_id: r.get::<String>(0)?,
                 description: r.get::<String>(1)?,
@@ -472,7 +473,7 @@ impl crate::VoxDb {
             .await?;
         if let Some(r) = rows.next().await? {
             return Ok(Some(PlanSessionRow {
-                plan_session_id: r.get::<String>(0)?,
+                plan_session_id: DbPlanSessionId::new(r.get::<String>(0)?),
                 origin_session_id: r.get::<Option<String>>(1)?,
                 goal_text: r.get::<String>(2)?,
                 strategy: r.get::<String>(3)?,
@@ -510,7 +511,7 @@ impl crate::VoxDb {
         let mut out = Vec::new();
         while let Some(r) = rows.next().await? {
             out.push(PlanSessionRow {
-                plan_session_id: r.get::<String>(0)?,
+                plan_session_id: DbPlanSessionId::new(r.get::<String>(0)?),
                 origin_session_id: r.get::<Option<String>>(1)?,
                 goal_text: r.get::<String>(2)?,
                 strategy: r.get::<String>(3)?,
@@ -538,11 +539,11 @@ impl crate::VoxDb {
         let mut out = Vec::new();
         while let Some(r) = rows.next().await? {
             out.push(PlanNodeAttemptRow {
-                plan_session_id: r.get::<String>(0)?,
+                plan_session_id: DbPlanSessionId::new(r.get::<String>(0)?),
                 version: r.get::<i64>(1)?,
                 node_id: r.get::<String>(2)?,
                 attempt_no: r.get::<i64>(3)?,
-                task_id: r.get::<Option<String>>(4)?,
+                task_id: r.get::<Option<String>>(4)?.map(DbTaskId::new),
                 outcome: r.get::<String>(5)?,
                 error_text: r.get::<Option<String>>(6)?,
                 latency_ms: r.get::<Option<i64>>(7)?,
