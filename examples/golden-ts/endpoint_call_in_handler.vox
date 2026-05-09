@@ -1,9 +1,9 @@
 @endpoint(kind: query) fn get_count() to int { return 42 }
 
-component C() {
-    state label: str = "ready"
+component Counter() {
+    state count: int = 0
     view: column() {
-        heading(level=1) { label }
-        button(on_click={label = "clicked"}) { "Fetch" }
+        text() { "Value: " + str(count) }
+        button(on_click={count = get_count()}) { "Fetch" }
     }
 }
